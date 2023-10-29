@@ -270,7 +270,7 @@ class GSgnnData():
 
         Parameters
         ----------
-        node_feats : dict of list
+        node_feats : dict of str or dict of list.
             The node feature names of each node type.
         """
         assert not isinstance(self.node_feat_field, str)
@@ -281,7 +281,7 @@ class GSgnnData():
             # as well.
             if self.node_feat_field is not None and ntype in self.node_feat_field:
                 _node_feats[ntype].extend(self.node_feat_field[ntype])
-            for field in feat_field:
+            for field in _node_feats[ntype]:
                 assert field in self.g.nodes[ntype].data, \
                         f"The node data {field} doesn't exist in node {ntype}."
         if self.node_feat_field is None:
@@ -296,16 +296,16 @@ class GSgnnData():
 
         Parameters
         ----------
-        node_feats : dict of list
+        node_feats : dict of str or dict of list.
             The node features to be removed.
         """
         assert self.node_feat_field is not None, "There doesn't exist node features."
         for ntype, feat_field in node_feats.items():
             assert ntype in self.node_feat_field, f"The node type {ntype} doesn't exist."
-            assert isinstance(feat_field, list), \
-                    f"The node features of {ntype} that are to be removed are not in a list."
+            if not isinstance(feat_field, list):
+                feat_field = [feat_field]
             for field in feat_field:
-                assert field not in self.node_feat_field[ntype], \
+                assert field in self.node_feat_field[ntype], \
                         f"The node feature {field} on node {ntype} doesn't exist."
                 self.node_feat_field[ntype].remove(field)
                 # We should remove the node data from the graph as well.

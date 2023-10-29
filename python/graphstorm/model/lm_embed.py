@@ -482,12 +482,12 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         data.add_node_feats(self.lm_emb_cache.embed_ndata_name)
         self.use_cache = True
 
-    def unfreeze(self, train_data):
+    def unfreeze(self, data):
         """ Disable Bert caching
         """
         if self.num_train != 0:
             self.use_cache = False
-        train_data.remove_node_feats(self.lm_emb_cache.embed_ndata_name)
+        data.remove_node_feats(self.lm_emb_cache.embed_ndata_name)
         self.lm_emb_cache.clear_cache()
 
     def require_cache_embed(self):
@@ -697,12 +697,12 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         data.add_node_feats(self.lm_emb_cache.embed_ndata_name)
         self.use_cache = True
 
-    def unfreeze(self, train_data):
+    def unfreeze(self, data):
         """ Disable Bert caching
         """
         if self.num_train != 0:
             self.use_cache = False
-        train_data.remove_node_feats(self.lm_emb_cache.embed_ndata_name)
+        data.remove_node_feats(self.lm_emb_cache.embed_ndata_name)
         self.lm_emb_cache.clear_cache()
 
     def require_cache_embed(self):

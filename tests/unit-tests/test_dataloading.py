@@ -317,6 +317,18 @@ def test_GSgnnNodeData():
         no_label = True
     assert no_label
 
+    g = tr_data.g
+    node_feats = {ntype: 'emb' for ntype in dist_graph.ntypes}
+    for ntype in g.ntypes:
+        g.nodes[ntype].data[node_feats[ntype]] = th.zeros(g.number_of_nodes(ntype), 1)
+    tr_data.add_node_feats(node_feats)
+    for ntype in g.ntypes:
+        assert tr_data.has_node_feats(ntype)
+    # TODO get_node_feats
+    tr_data.remove_node_feats(node_feats)
+    for ntype in g.ntypes:
+        assert node_feats[ntype] not in tr_data.node_feat_field[ntype]
+
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
@@ -1307,6 +1319,8 @@ def test_lp_dataloader_len(batch_size):
     assert len(dataloader) == len(list(dataloader))
 
 if __name__ == '__main__':
+    test_GSgnnEdgeData()
+    test_GSgnnNodeData()
     test_np_dataloader_len(11)
     test_ep_dataloader_len(11)
     test_lp_dataloader_len(11)
@@ -1316,8 +1330,6 @@ if __name__ == '__main__':
     test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
     test_GSgnnEdgeData_wo_test_mask()
     test_GSgnnNodeData_wo_test_mask()
-    test_GSgnnEdgeData()
-    test_GSgnnNodeData()
     test_lp_dataloader()
     test_edge_dataloader()
     test_node_dataloader()
