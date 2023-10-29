@@ -280,7 +280,7 @@ class GSgnnData():
             # If the node type originally has node features, we should add them to the list
             # as well.
             if self.node_feat_field is not None and ntype in self.node_feat_field:
-                _node_feats[ntype].extend(self.node_feat_field[ntype])
+                _node_feats[ntype] = list(set(_node_feats[ntype] + self.node_feat_field[ntype]))
             for field in _node_feats[ntype]:
                 assert field in self.g.nodes[ntype].data, \
                         f"The node data {field} doesn't exist in node {ntype}."
@@ -310,6 +310,8 @@ class GSgnnData():
                 self.node_feat_field[ntype].remove(field)
                 # We should remove the node data from the graph as well.
                 del self.g.nodes[ntype].data[field]
+                if len(self.node_feat_field[ntype]) == 0:
+                    del self.node_feat_field[ntype]
 
     def get_node_feats(self, input_nodes, device='cpu'):
         """ Get the node features

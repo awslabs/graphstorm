@@ -322,10 +322,16 @@ def test_GSgnnNodeData():
 
     # Test add node features.
     for ntype in g.ntypes:
-        g.nodes[ntype].data[node_feats[ntype]] = th.zeros(g.number_of_nodes(ntype), 1)
+        g.nodes[ntype].data[node_feats[ntype]] \
+                = th.arange(g.number_of_nodes(ntype)).view(g.number_of_nodes(ntype), 1)
     tr_data.add_node_feats(node_feats)
     for ntype in g.ntypes:
         assert tr_data.has_node_feats(ntype)
+
+    # Add another node features.
+    ntype0 = g.ntypes[0]
+    g.nodes[ntype0].data['emb1'] = th.zeros(g.number_of_nodes(ntype0), 1)
+    tr_data.add_node_feats({ntype0: 'emb1'})
 
     # Test get node features.
     input_nodes = {ntype: np.arange(10) for ntype in g.ntypes}
@@ -342,7 +348,10 @@ def test_GSgnnNodeData():
     # Test removing node features
     tr_data.remove_node_feats(node_feats)
     for ntype in g.ntypes:
-        assert node_feats[ntype] not in tr_data.node_feat_field[ntype]
+        if ntype == ntype0:
+            assert tr_data.has_node_feats(ntype)
+        else:
+            assert not tr_data.has_node_feats(ntype)
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
