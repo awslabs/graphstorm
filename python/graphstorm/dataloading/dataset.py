@@ -264,16 +264,52 @@ class GSgnnData():
     def add_node_feats(self, node_feats):
         """ Add new node features.
 
+        The node feature tensors must have been stored as node data on the graph.
+
         This can happen when we compute BERT embeddings before training starts.
+
+        Parameters
+        ----------
+        node_feats : dict of list
+            The node feature names of each node type.
         """
         assert not isinstance(self.node_feat_field, str)
         _node_feats = {}
         for ntype, feat_field in node_feats.items():
             _node_feats[ntype] = feat_field if isinstance(feat_field, list) else [feat_field]
+            # If the node type originally has node features, we should add them to the list
+            # as well.
+            if self.node_feat_field is not None and ntype in self.node_feat_field:
+                _node_feats[ntype].extend(self.node_feat_field[ntype])
+            for field in feat_field:
+                assert field in self.g.nodes[ntype].data, \
+                        f"The node data {field} doesn't exist in node {ntype}."
         if self.node_feat_field is None:
             self._node_feat_field = _node_feats
         else:
             self._node_feat_field.update(_node_feats)
+
+    def remove_node_feats(self, node_feats):
+        """ Remove node features.
+
+        The node feature tensors are removed from the graph as well.
+
+        Parameters
+        ----------
+        node_feats : dict of list
+            The node features to be removed.
+        """
+        assert self.node_feat_field is not None, "There doesn't exist node features."
+        for ntype, feat_field in node_feats.items():
+            assert ntype in self.node_feat_field, f"The node type {ntype} doesn't exist."
+            assert isinstance(feat_field, list), \
+                    f"The node features of {ntype} that are to be removed are not in a list."
+            for field in feat_field:
+                assert field not in self.node_feat_field[ntype], \
+                        f"The node feature {field} on node {ntype} doesn't exist."
+                self.node_feat_field[ntype].remove(field)
+                # We should remove the node data from the graph as well.
+                del self.g.nodes[ntype].data[field]
 
     def get_node_feats(self, input_nodes, device='cpu'):
         """ Get the node features

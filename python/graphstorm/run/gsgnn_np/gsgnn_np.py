@@ -96,6 +96,8 @@ def main(config_args):
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
     # For example pre-compute all BERT embeddings
+    # TODO(zhengda) this has to be called after the model is moved to GPU
+    # but before the data loader is created.
     model.prepare_input_encoder(train_data)
 
     if config.use_pseudolabel:

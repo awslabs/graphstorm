@@ -255,6 +255,7 @@ class LMCache:
     def _load_embeddings(self):
         """ Load LM embeddings from files.
         """
+        embed_ndata_names = self.embed_ndata_name
         for ntype in self._lm_models.ntypes:
             embed_path = os.path.join(os.path.join(self._embed_path, ntype),
                     self._get_model_name(ntype))
@@ -262,9 +263,10 @@ class LMCache:
                 if get_rank() == 0:
                     logging.info("load LM embedding from %s for node type %s",
                             embed_path, ntype)
+                embed_name = embed_ndata_names[ntype]
                 self._lm_emb_cache[ntype] = load_pytorch_embedding(embed_path,
-                        self._g.get_node_partition_policy(ntype), "bert_emb")
-                self._g.nodes[ntype].data["bert_emb"] = self._lm_emb_cache[ntype]
+                        self._g.get_node_partition_policy(ntype), embed_name)
+                self._g.nodes[ntype].data[embed_name] = self._lm_emb_cache[ntype]
 
     def _save_embeddings(self):
         """ Save LM embeddings.
@@ -281,6 +283,11 @@ class LMCache:
         """ Get the cached embedding of a node type.
         """
         return self._lm_emb_cache[ntype]
+
+    def clear_cache(self):
+        """ Clear up the cached embeddings.
+        """
+        self._lm_emb_cache = {}
 
     @property
     def ntypes(self):
@@ -311,6 +318,7 @@ class LMCache:
         if np.all([ntype in self._lm_emb_cache for ntype in self._lm_models.ntypes]):
             return
 
+        embed_ndata_names = self.embed_ndata_name
         for ntype in self._lm_models.ntypes:
             if get_rank() == 0:
                 logging.debug("compute embedding for node type %s", ntype)
@@ -320,13 +328,14 @@ class LMCache:
             lm_model.eval()
             hidden_size = lm_model.feat_size
             if ntype not in self._lm_emb_cache:
+                embed_name = embed_ndata_names[ntype]
                 self._lm_emb_cache[ntype] = create_dist_tensor(
                         (self._g.number_of_nodes(ntype), hidden_size),
-                        name="bert_emb",
+                        name=embed_name,
                         dtype=th.float16 if use_fp16 else th.float32,
                         part_policy=self._g.get_node_partition_policy(ntype),
                         persistent=True)
-                self._g.nodes[ntype].data["bert_emb"] = self._lm_emb_cache[ntype]
+                self._g.nodes[ntype].data[embed_name] = self._lm_emb_cache[ntype]
             emb = self._lm_emb_cache[ntype]
             infer_nodes = dgl.distributed.node_split(
                     th.ones((self._g.number_of_nodes(ntype),), dtype=th.bool),
@@ -473,6 +482,14 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         data.add_node_feats(self.lm_emb_cache.embed_ndata_name)
         self.use_cache = True
 
+    def unfreeze(self, train_data):
+        """ Disable Bert caching
+        """
+        if self.num_train != 0:
+            self.use_cache = False
+        train_data.remove_node_feats(self.lm_emb_cache.embed_ndata_name)
+        self.lm_emb_cache.clear_cache()
+
     def require_cache_embed(self):
         """ Whether to cache the embeddings for inference.
 
@@ -500,8 +517,16 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         """
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
 
-        cache = self.lm_emb_cache if len(self.lm_emb_cache) > 0 and self.use_cache else None
-        embs = self._lm_models(input_nodes, lm_emb_cache=cache)
+        # If caching is not enabled, we need to compute the BERT embeddings
+        # on the fly.
+        if not self.use_cache:
+            assert len(input_feats) == 0, "There should be no additional node features."
+            embs = self._lm_models(input_nodes)
+        else:
+            # If caching is enabled, the BERT embeddings are passed in as
+            # normal node features.
+            embs = input_feats
+
         # This module is only used for computing the BERT embeddings on the node types
         # with text features. If it is asked to compute embeddings for some nodes without
         # text features, it should report an error.
@@ -672,11 +697,13 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         data.add_node_feats(self.lm_emb_cache.embed_ndata_name)
         self.use_cache = True
 
-    def unfreeze(self):
+    def unfreeze(self, train_data):
         """ Disable Bert caching
         """
         if self.num_train != 0:
             self.use_cache = False
+        train_data.remove_node_feats(self.lm_emb_cache.embed_ndata_name)
+        self.lm_emb_cache.clear_cache()
 
     def require_cache_embed(self):
         """ Whether to cache the embeddings for inference.
@@ -705,11 +732,13 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         assert isinstance(input_feats, dict), 'The input features should be in a dict.'
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
 
-        # Compute language model features first
-        #cache = self.lm_emb_cache if len(self.lm_emb_cache) > 0 and self.use_cache else None
+        # If caching is not enabled, we need to compute the BERT embeddings
+        # on the fly.
         if not self.use_cache:
             lm_feats = self._lm_models(input_nodes)
         else:
+            # If caching is enabled, the BERT embeddings are passed in as
+            # normal node features. We don't need to do anything here.
             lm_feats = {}
 
         for ntype, lm_feat in lm_feats.items():
