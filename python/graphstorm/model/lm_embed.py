@@ -513,6 +513,13 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
     def forward(self, input_feats, input_nodes):
         """Forward computation
 
+        If the module is the caching mode, the BERT embeddings are computed
+        and are read as normal node features by the trainer. Only the BERT embeddings
+        are read. The forward function of this module doesn't need to do anything.
+
+        If the module is not in the caching mode, it computes the BERT embeddings
+        on the fly and ignore any input node features.
+
         Parameters
         ----------
         input_feats: dict
@@ -529,11 +536,15 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         # If caching is not enabled, we need to compute the BERT embeddings
         # on the fly.
         if not self.use_cache:
-            assert len(input_feats) == 0, "There should be no additional node features."
             embs = self._lm_models(input_nodes)
         else:
             # If caching is enabled, the BERT embeddings are passed in as
             # normal node features.
+            for ntype, feat in input_feats.items():
+                assert feat.shape[1] == self._lm_models.get_feat_size(ntype), \
+                        f"Node {ntype} has incorrect LM embedding size ({feat.shape[1]})."
+                # The BERT embeddings are saved as float16.
+                input_feats[ntype] = feat.float()
             embs = input_feats
 
         # This module is only used for computing the BERT embeddings on the node types
@@ -726,6 +737,13 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
     #pylint: disable=keyword-arg-before-vararg
     def forward(self, input_feats, input_nodes):
         """Forward computation
+
+        If the module is the caching mode, the BERT embeddings are computed
+        and are read with other normal node features by the trainer. The forward function
+        of this module just needs to project them to the expected hidden dimensions.
+
+        If the module is not in the caching mode, it computes the BERT embeddings
+        on the fly and combine it with other input node features.
 
         Parameters
         ----------

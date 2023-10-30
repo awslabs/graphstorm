@@ -373,17 +373,20 @@ def test_lm_embed(num_train):
                                       rank=0,
                                       world_size=1)
     with tempfile.TemporaryDirectory() as tmpdirname:
-        lm_config, feat_size, input_ids, attention_mask, g, _ = \
+        lm_config, feat_size, input_ids, attention_mask, g, part_config = \
             create_lm_graph(tmpdirname)
+        data = gs.dataloading.dataset.GSgnnData('dummy', part_config, {}, {})
+        data._g = g
     layer = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 128, num_train=num_train)
-    layer.prepare(g)
+    layer.prepare(data)
     if num_train == 0:
         assert len(layer.lm_emb_cache) > 0
+        node_feat = {'n0' : ['bert_emb', 'feat']}
     else:
         assert len(layer.lm_emb_cache) == 0
+        node_feat = {'n0' : ['feat']}
 
-    embeds_with_lm = compute_node_input_embeddings(g, 10, layer,
-                                                   feat_field={'n0' : ['feat']})
+    embeds_with_lm = compute_node_input_embeddings(g, 10, layer, feat_field=node_feat)
 
     ntype = layer._lm_models.ntypes[0]
     lm_model = layer._lm_models.get_lm_model(ntype).lm_model
@@ -408,17 +411,20 @@ def test_pure_lm_embed(num_train):
                                       world_size=1)
     with tempfile.TemporaryDirectory() as tmpdirname:
         lm_config, feat_size, input_ids0, attention_mask0, \
-            input_ids1, attention_mask1, g, _ = create_lm_graph2(tmpdirname)
+            input_ids1, attention_mask1, g, part_config = create_lm_graph2(tmpdirname)
+        data = gs.dataloading.dataset.GSgnnData('dummy', part_config, {}, {})
+        data._g = g
     layer = GSPureLMNodeInputLayer(g, lm_config, num_train=num_train)
-    layer.prepare(g)
+    layer.prepare(data)
     if num_train == 0:
         assert len(layer.lm_emb_cache) > 0
+        node_feat = {'n0' : ['bert_emb'], 'n1': ['bert_emb']}
     else:
         assert len(layer.lm_emb_cache) == 0
+        node_feat = {'n0' : ['feat']}
 
     # GSPureLMNodeInputLayer will ignore input feat
-    embeds_with_lm = compute_node_input_embeddings(g, 10, layer,
-                                                   feat_field={'n0' : ['feat']})
+    embeds_with_lm = compute_node_input_embeddings(g, 10, layer, feat_field=node_feat)
 
     ntype = layer._lm_models.ntypes[0]
     lm_model = layer._lm_models.get_lm_model(ntype).lm_model.eval()
@@ -456,7 +462,9 @@ def test_lm_embed_warmup(dev):
                   "node_types": ["n0"]}]
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
-        g, _ = generate_dummy_dist_graph(tmpdirname)
+        g, part_config = generate_dummy_dist_graph(tmpdirname)
+        data = gs.dataloading.dataset.GSgnnData('dummy', part_config, {}, {})
+        data._g = g
 
     feat_size = get_feat_size(g, {'n0' : ['feat']})
     input_text = ["Hello world!"]
@@ -473,9 +481,9 @@ def test_lm_embed_warmup(dev):
     layer = GSLMNodeEncoderInputLayer(g, lm_config, feat_size,
                                       2, num_train=num_train)
     layer = layer.to(dev)
-    layer.freeze(g)
+    layer.freeze(data)
     assert len(layer.lm_emb_cache) > 0
-    feat_field={'n0' : ['feat']}
+    feat_field={'n0' : ['feat', 'bert_emb']}
     input_nodes = {"n0": th.arange(0, 10, dtype=th.int64)}
     layer.eval()
     feat = prepare_batch_input(g, input_nodes, dev=dev, feat_field=feat_field)
@@ -494,8 +502,10 @@ def test_lm_embed_warmup(dev):
     assert_almost_equal(emb_0['n0'].detach().cpu().numpy(), emb_1['n0'].detach().cpu().numpy(), decimal=6)
 
     # unfreeze the model, compute bert again
+    feat_field={'n0' : ['feat']}
+    input_nodes = {"n0": th.arange(0, 10, dtype=th.int64)}
     feat = prepare_batch_input(g, input_nodes, dev=dev, feat_field=feat_field)
-    layer.unfreeze()
+    layer.unfreeze(data)
     emb_2 = layer(feat, input_nodes)
     with assert_raises(AssertionError):
          assert_almost_equal(emb_0['n0'].detach().cpu().numpy(), emb_2['n0'].detach().cpu().numpy(), decimal=1)

@@ -489,7 +489,7 @@ def create_lm_graph2(tmpdirname):
                   "node_types": ["n0", "n1"]}]
 
     # get the test dummy distributed graph
-    g, create_lm_graph = generate_dummy_dist_graph(tmpdirname)
+    g, part_config = generate_dummy_dist_graph(tmpdirname)
 
     feat_size = get_feat_size(g, {'n0' : ['feat']})
     input_text = ["Hello world!"]
@@ -513,7 +513,7 @@ def create_lm_graph2(tmpdirname):
     g.nodes['n1'].data[VALID_LEN] = valid_len1
 
     return lm_config, feat_size, input_ids0, attention_mask0, \
-        input_ids1, attention_mask1, g, create_lm_graph
+        input_ids1, attention_mask1, g, part_config
 
 def create_distill_data(tmpdirname, num_files):
     """ Create a dataset for distillation.
