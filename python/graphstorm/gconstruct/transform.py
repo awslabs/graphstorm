@@ -1135,6 +1135,8 @@ def process_features(data, ops, ext_mem=None):
                     hash_object = hashlib.sha256(str(random_uuid).encode())
                     hash_hex = hash_object.hexdigest()
 
+                    if isinstance(val, ExtMemArrayWrapper):
+                        val = val.to_numpy()
                     val.tofile(feature_path + '/{}_{}.npy'.format(col, hash_hex))
                 else:
                     val = np.column_stack((new_data[key], val)) \
