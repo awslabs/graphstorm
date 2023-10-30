@@ -710,7 +710,7 @@ def main(args, gs_config_args):
                     f"{os.path.join(node_emb_dir, 'emb_info.json')}"
 
                 emb_lens = info["num_embs"]
-                emb_lens = {ntype: emb_len for ntype, emb_len in zip (ntypes, emb_lens)}\
+                emb_lens = dict(zip(ntypes, emb_lens)) \
                     if isinstance(emb_lens, list) else {ntypes: emb_lens}
         else: # There is no shared file system
             emb_names = os.listdir(node_emb_dir)
