@@ -84,7 +84,7 @@ def worker_remap_node_emb(emb_file_path, nid_path, nid_range_info, ntype,
         output_fname_prefix: str
             Output file name prefix.
         chunk_size: int
-            Max number of raws per output file.
+            Max number of rows per output file.
         preserve_input: bool
             Whether the input data should be removed.
     """
@@ -261,7 +261,7 @@ def remap_node_emb(emb_ntypes, emb_lens, node_emb_dir,
 
         The function wil iterate all the node types that
         have embeddings and spin num_proc workers
-        to do the rampping jos.
+        to do the remapping jos.
 
         The directory storing node embeddings looks like:
 
@@ -327,7 +327,7 @@ def remap_node_emb(emb_ntypes, emb_lens, node_emb_dir,
         output_dir: str
             The directory storing the remapped node embeddings.
         out_chunk_size: int
-            Max number of raws per output file.
+            Max number of rows per output file.
         num_proc: int
             Number of workers used in processing.
         rank: int
@@ -375,7 +375,7 @@ def remap_node_emb(emb_ntypes, emb_lens, node_emb_dir,
                 assert emb_lens is not None, \
                     "The length of each node embedding should be provided through " \
                     "either emb_info.json when shared filesystem is avaliable " \
-                    "or --node-emb-length"
+                    "or --node-emb-length when sahred filesystem is not avaliable."
                 nid_file = None
                 if with_shared_fs:
                     total_num_files = num_parts
@@ -689,7 +689,7 @@ def main(args, gs_config_args):
         f"Expecting {world_size} workers but the worker ID is {rank}."
     out_chunk_size = args.output_chunk_size
     assert out_chunk_size > 0, \
-        f"Output chunk size should larger than 0 but get {out_chunk_size}."
+        f"Output chunk size should be larger than 0 but get {out_chunk_size}."
 
     ################## remap embeddings #############
     emb_ntypes = []
@@ -720,7 +720,7 @@ def main(args, gs_config_args):
             if args.node_emb_length is not None:
                 emb_lens = args.node_emb_length
                 assert len(emb_lens) == len(emb_ntypes), \
-                    "Need embeddiing length for each node embedding," \
+                    "Need embeding length for each node embedding," \
                     f"expecting {emb_ntypes} but get {emb_lens}"
                 emb_lens = {emb_len.split(":")[0]: emb_len.split(":")[1] for emb_len in emb_lens}
 
@@ -865,7 +865,7 @@ def add_distributed_remap_args(parser):
                        help="Totoal number of workers in the cluster.")
     group.add_argument("--node-emb-length", type=str, nargs="+", default=None,
                        help="Give the number of embeddings of each node embedding."
-                            "For example --node_emb_length user:100 movie 1000")
+                            "For example --node_emb_length user:100 movie:1000")
     return parser
 
 def generate_parser():
