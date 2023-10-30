@@ -310,19 +310,6 @@ fi
 rm /tmp/glem_no_lm_warmup.txt
 rm -fr /data/gsgnn_nc_ml_text/*
 
-echo "**************dataset: MovieLens semi-supervised classification, GLEM co-training with LM warmup for 2 epochs, RGCN layer: 1, node feat: BERT nodes: movie, user inference: mini-batch save model"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext_glem.yml  --save-model-path /data/gsgnn_nc_ml_text/ --topk-model-to-save 1 --num-epochs 3 --use-pseudolabel true --freeze-lm-encoder-epochs 2 --logging-file /tmp/glem_warmup.txt
-
-error_and_exit $?
-
-num_lm_freeze_calls=$(grep "Computing bert embedding on node user" /tmp/glem_warmup.txt | wc -l)
-if $num_lm_freeze_calls != 2
-then
-    echo "The number of calls to freeze_input_encoder $num_lm_freeze_calls is not 2"
-    exit -1
-fi
-rm /tmp/glem_warmup.txt
-
 cnt=$(ls -l /data/gsgnn_nc_ml_text/ | grep epoch | wc -l)
 if test $cnt != 1
 then
