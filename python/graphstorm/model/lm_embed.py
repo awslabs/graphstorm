@@ -681,7 +681,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         if self.num_train == 0:
             self.freeze(g)
 
-    def freeze(self, g):
+    def freeze(self, _):
         """ Generate Bert caching if needed
         """
         # The lm_emb_cache is used in following cases:
@@ -697,7 +697,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         self.lm_emb_cache.update_cache(self.lm_infer_batch_size, use_fp16=self.use_fp16)
         self.use_cache = True
 
-    def unfreeze(self, g):
+    def unfreeze(self):
         """ Disable Bert caching
         """
         if self.num_train != 0:
