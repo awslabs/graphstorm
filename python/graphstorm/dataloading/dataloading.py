@@ -64,7 +64,8 @@ class _ReconstructedNeighborSampler():
         target_ntypes = set()
         for dst_ntype in constructed_embed_ntypes:
             for etype in etypes:
-                if etype[2] == dst_ntype and dataset.has_node_feats(etype[0]):
+                if etype[2] == dst_ntype and (dataset.has_node_feats(etype[0]) \
+                        or dataset.has_node_lm_feats(etype[0])):
                     self._subg_etypes.append(etype)
                     target_ntypes.add(dst_ntype)
         remain_ntypes = set(constructed_embed_ntypes) - target_ntypes

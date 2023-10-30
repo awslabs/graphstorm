@@ -78,7 +78,7 @@ class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
         Default action: Do nothing
         """
 
-    def unfreeze(self, _):
+    def unfreeze(self):
         """ Unfreeze the models in input layer during model training
 
         Default action: Do nothing

@@ -437,7 +437,7 @@ class GSgnnModelBase(nn.Module):
         """
 
     #pylint: disable=unused-argument
-    def unfreeze_input_encoder(self, train_data):
+    def unfreeze_input_encoder(self):
         """ Unfreeze input layer for model training
 
             Default: do nothing
@@ -649,29 +649,29 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """ Preparing input layer for training or inference.
         """
         if self._node_input_encoder is not None:
-            self._node_input_encoder.prepare(train_data)
+            self._node_input_encoder.prepare(train_data.g)
 
         if self._edge_input_encoder is not None:
-            self._edge_input_encoder.prepare(train_data)
+            self._edge_input_encoder.prepare(train_data.g)
 
     def freeze_input_encoder(self, train_data):
         """ Freeze input layer for model training.
         """
         if self._node_input_encoder is not None:
-            self._node_input_encoder.freeze(train_data)
+            self._node_input_encoder.freeze(train_data.g)
 
         if self._edge_input_encoder is not None:
-            self._edge_input_encoder.freeze(train_data)
+            self._edge_input_encoder.freeze(train_data.g)
 
-    def unfreeze_input_encoder(self, train_data):
+    def unfreeze_input_encoder(self):
         """ Unfreeze input layer for model training
         """
         # TODO(zhengda) we need to remove the computed BERT embeddings as node features.
         if self._node_input_encoder is not None:
-            self._node_input_encoder.unfreeze(train_data)
+            self._node_input_encoder.unfreeze()
 
         if self._edge_input_encoder is not None:
-            self._edge_input_encoder.unfreeze(train_data)
+            self._edge_input_encoder.unfreeze()
 
     #pylint: disable=signature-differs
     def restore_dense_model(self, restore_model_path,

@@ -159,7 +159,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             model.train()
             epoch_start = time.time()
             if freeze_input_layer_epochs <= epoch:
-                self._model.unfreeze_input_encoder(data)
+                self._model.unfreeze_input_encoder()
             # TODO(xiangsx) Support unfreezing gnn encoder and decoder
             rt_profiler.start_record()
             batch_tic = time.time()

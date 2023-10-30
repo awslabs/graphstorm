@@ -159,7 +159,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             rt_profiler.start_record()
 
             if freeze_input_layer_epochs <= epoch:
-                self._model.lm.unfreeze_input_encoder(data)
+                self._model.lm.unfreeze_input_encoder()
                 no_pl = False
 
             use_gnn = self._model.em_order_gnn_first

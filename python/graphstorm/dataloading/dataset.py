@@ -132,10 +132,13 @@ class GSgnnData():
         different feature names.
     """
 
-    def __init__(self, graph_name, part_config, node_feat_field, edge_feat_field):
+    def __init__(self, graph_name, part_config, node_feat_field, edge_feat_field,
+            lm_feat_ntypes=None, lm_feat_etypes=None):
         self._g = dgl.distributed.DistGraph(graph_name, part_config=part_config)
         self._node_feat_field = node_feat_field
         self._edge_feat_field = edge_feat_field
+        self._lm_feat_ntypes = lm_feat_ntypes if lm_feat_ntypes is not None else []
+        self._lm_feat_etypes = lm_feat_etypes if lm_feat_etypes is not None else []
 
         self._train_idxs = {}
         self._val_idxs = {}
@@ -261,57 +264,52 @@ class GSgnnData():
         else:
             return ntype in self.node_feat_field
 
-    def add_node_feats(self, node_feats):
-        """ Add new node features.
-
-        The node feature tensors must have been stored as node data on the graph.
-
-        This can happen when we compute BERT embeddings before training starts.
+    def has_edge_feats(self, etype):
+        """ Test if the specified edge type has features.
 
         Parameters
         ----------
-        node_feats : dict of str or dict of list.
-            The node feature names of each node type.
+        etype : (str, str, str)
+            The canonical edge type
+
+        Returns
+        -------
+        bool : whether the edge type has features
         """
-        assert not isinstance(self.node_feat_field, str)
-        _node_feats = {}
-        for ntype, feat_field in node_feats.items():
-            _node_feats[ntype] = feat_field if isinstance(feat_field, list) else [feat_field]
-            # If the node type originally has node features, we should add them to the list
-            # as well.
-            if self.node_feat_field is not None and ntype in self.node_feat_field:
-                _node_feats[ntype] = list(set(_node_feats[ntype] + self.node_feat_field[ntype]))
-            for field in _node_feats[ntype]:
-                assert field in self.g.nodes[ntype].data, \
-                        f"The node data {field} doesn't exist in node {ntype}."
-        if self.node_feat_field is None:
-            self._node_feat_field = _node_feats
+        if isinstance(self.edge_feat_field, str):
+            return True
+        elif self.edge_feat_field is None:
+            return False
         else:
-            self._node_feat_field.update(_node_feats)
+            return etype in self.edge_feat_field
 
-    def remove_node_feats(self, node_feats):
-        """ Remove node features.
-
-        The node feature tensors are removed from the graph as well.
+    def has_node_lm_feats(self, ntype):
+        """ Test if the specified node type has text features.
 
         Parameters
         ----------
-        node_feats : dict of str or dict of list.
-            The node features to be removed.
+        ntype : str
+            The node type
+
+        Returns
+        -------
+        bool : whether the node type has features.
         """
-        assert self.node_feat_field is not None, "There doesn't exist node features."
-        for ntype, feat_field in node_feats.items():
-            assert ntype in self.node_feat_field, f"The node type {ntype} doesn't exist."
-            if not isinstance(feat_field, list):
-                feat_field = [feat_field]
-            for field in feat_field:
-                assert field in self.node_feat_field[ntype], \
-                        f"The node feature {field} on node {ntype} doesn't exist."
-                self.node_feat_field[ntype].remove(field)
-                # We should remove the node data from the graph as well.
-                del self.g.nodes[ntype].data[field]
-                if len(self.node_feat_field[ntype]) == 0:
-                    del self.node_feat_field[ntype]
+        return ntype in self._lm_feat_ntypes
+
+    def has_edge_lm_feats(self, etype):
+        """ Test if the specified edge type has text features.
+
+        Parameters
+        ----------
+        etype : (str, str, str)
+            The edge type
+
+        Returns
+        -------
+        bool : whether the node type has features.
+        """
+        return etype in self._lm_feat_etypes
 
     def get_node_feats(self, input_nodes, device='cpu'):
         """ Get the node features
@@ -381,9 +379,11 @@ class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
     """
     def __init__(self, graph_name, part_config, label_field=None,
                  node_feat_field=None, edge_feat_field=None,
-                 decoder_edge_feat=None):
+                 decoder_edge_feat=None, lm_feat_ntypes=None, lm_feat_etypes=None):
         super(GSgnnEdgeData, self).__init__(graph_name, part_config,
-                                            node_feat_field, edge_feat_field)
+                                            node_feat_field, edge_feat_field,
+                                            lm_feat_ntypes=lm_feat_ntypes,
+                                            lm_feat_etypes=lm_feat_etypes)
 
         self._label_field = label_field
         self._decoder_edge_feat = decoder_edge_feat
@@ -483,7 +483,7 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
     """
     def __init__(self, graph_name, part_config, train_etypes, eval_etypes=None,
                  label_field=None, node_feat_field=None, edge_feat_field=None,
-                 decoder_edge_feat=None):
+                 decoder_edge_feat=None, lm_feat_ntypes=None, lm_feat_etypes=None):
         if train_etypes is not None:
             assert isinstance(train_etypes, (tuple, list)), \
                     "The prediction etypes for training has to be a tuple or a list of tuples."
@@ -504,7 +504,9 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
 
         super(GSgnnEdgeTrainData, self).__init__(graph_name, part_config, label_field,
                                                  node_feat_field, edge_feat_field,
-                                                 decoder_edge_feat)
+                                                 decoder_edge_feat,
+                                                 lm_feat_ntypes=lm_feat_ntypes,
+                                                 lm_feat_etypes=lm_feat_etypes)
 
     def prepare_data(self, g):
         """
@@ -606,10 +608,13 @@ class GSgnnLPTrainData(GSgnnEdgeTrainData):
     """
     def __init__(self, graph_name, part_config, train_etypes, eval_etypes=None,
                  label_field=None, node_feat_field=None,
-                 edge_feat_field=None, pos_graph_feat_field=None):
+                 edge_feat_field=None, pos_graph_feat_field=None,
+                 lm_feat_ntypes=None, lm_feat_etypes=None):
         super(GSgnnLPTrainData, self).__init__(graph_name, part_config,
                                                train_etypes, eval_etypes, label_field,
-                                               node_feat_field, edge_feat_field)
+                                               node_feat_field, edge_feat_field,
+                                               lm_feat_ntypes=lm_feat_ntypes,
+                                               lm_feat_etypes=lm_feat_etypes)
         self._pos_graph_feat_field = pos_graph_feat_field
 
     @property
@@ -657,7 +662,7 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
     """
     def __init__(self, graph_name, part_config, eval_etypes,
                  label_field=None, node_feat_field=None, edge_feat_field=None,
-                 decoder_edge_feat=None):
+                 decoder_edge_feat=None, lm_feat_ntypes=None, lm_feat_etypes=None):
         if eval_etypes is not None:
             assert isinstance(eval_etypes, (tuple, list)), \
                     "The prediction etypes for evaluation has to be a tuple or a list of tuples."
@@ -669,7 +674,9 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
 
         super(GSgnnEdgeInferData, self).__init__(graph_name, part_config, label_field,
                                                  node_feat_field, edge_feat_field,
-                                                 decoder_edge_feat)
+                                                 decoder_edge_feat,
+                                                 lm_feat_ntypes=lm_feat_ntypes,
+                                                 lm_feat_etypes=lm_feat_etypes)
 
     def prepare_data(self, g):
         """ Prepare the testing edge set if any
@@ -744,9 +751,12 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
         different feature names.
     """
     def __init__(self, graph_name, part_config, label_field=None,
-                 node_feat_field=None, edge_feat_field=None):
+                 node_feat_field=None, edge_feat_field=None,
+                 lm_feat_ntypes=None, lm_feat_etypes=None):
         super(GSgnnNodeData, self).__init__(graph_name, part_config,
-                                            node_feat_field, edge_feat_field)
+                                            node_feat_field, edge_feat_field,
+                                            lm_feat_ntypes=lm_feat_ntypes,
+                                            lm_feat_etypes=lm_feat_etypes)
         self._label_field = label_field
         if label_field is not None:
             self._labels = {}
@@ -837,7 +847,8 @@ class GSgnnNodeTrainData(GSgnnNodeData):
                                             fanout=[15, 10], batch_size=128)
     """
     def __init__(self, graph_name, part_config, train_ntypes, eval_ntypes=None,
-                 label_field=None, node_feat_field=None, edge_feat_field=None):
+                 label_field=None, node_feat_field=None, edge_feat_field=None,
+                 lm_feat_ntypes=None, lm_feat_etypes=None):
         if isinstance(train_ntypes, str):
             train_ntypes = [train_ntypes]
         assert isinstance(train_ntypes, list), \
@@ -856,7 +867,9 @@ class GSgnnNodeTrainData(GSgnnNodeData):
         super(GSgnnNodeTrainData, self).__init__(graph_name, part_config,
                                                  label_field=label_field,
                                                  node_feat_field=node_feat_field,
-                                                 edge_feat_field=edge_feat_field)
+                                                 edge_feat_field=edge_feat_field,
+                                                 lm_feat_ntypes=lm_feat_ntypes,
+                                                 lm_feat_etypes=lm_feat_etypes)
 
     def prepare_data(self, g):
         pb = g.get_partition_book()
@@ -978,7 +991,8 @@ class GSgnnNodeInferData(GSgnnNodeData):
                                             fanout=[15, 10], batch_size=128)
     """
     def __init__(self, graph_name, part_config, eval_ntypes,
-                 label_field=None, node_feat_field=None, edge_feat_field=None):
+                 label_field=None, node_feat_field=None, edge_feat_field=None,
+                 lm_feat_ntypes=None, lm_feat_etypes=None):
         if isinstance(eval_ntypes, str):
             eval_ntypes = [eval_ntypes]
         assert isinstance(eval_ntypes, list), \
@@ -988,7 +1002,9 @@ class GSgnnNodeInferData(GSgnnNodeData):
         super(GSgnnNodeInferData, self).__init__(graph_name, part_config,
                                                  label_field=label_field,
                                                  node_feat_field=node_feat_field,
-                                                 edge_feat_field=edge_feat_field)
+                                                 edge_feat_field=edge_feat_field,
+                                                 lm_feat_ntypes=lm_feat_ntypes,
+                                                 lm_feat_etypes=lm_feat_etypes)
 
     def prepare_data(self, g):
         """

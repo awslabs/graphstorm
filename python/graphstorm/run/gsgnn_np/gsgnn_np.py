@@ -54,6 +54,12 @@ def get_evaluator(config):
     else:
         raise ValueError("Unknown task type")
 
+def get_lm_ntypes(lm_configs):
+    ntypes = []
+    for config in lm_configs:
+        ntypes.extend(config['node_types'])
+    return ntypes
+
 def main(config_args):
     """ main function
     """
@@ -70,7 +76,8 @@ def main(config_args):
                                     train_ntypes=config.target_ntype,
                                     eval_ntypes=config.eval_target_ntype,
                                     node_feat_field=config.node_feat_name,
-                                    label_field=config.label_field)
+                                    label_field=config.label_field,
+                                    lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
 
     if config.training_method["name"] == "glem":
@@ -92,13 +99,6 @@ def main(config_args):
     if gs.get_rank() == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
-
-    # Preparing input layer for training or inference.
-    # The input layer can pre-compute node features in the preparing step if needed.
-    # For example pre-compute all BERT embeddings
-    # TODO(zhengda) this has to be called after the model is moved to GPU
-    # but before the data loader is created.
-    model.prepare_input_encoder(train_data)
 
     if config.use_pseudolabel:
         # Use nodes not in train_idxs as unlabeled node sets
@@ -130,6 +130,10 @@ def main(config_args):
                                               construct_feat_ntype=config.construct_feat_ntype,
                                               construct_feat_fanout=config.construct_feat_fanout)
 
+    # Preparing input layer for training or inference.
+    # The input layer can pre-compute node features in the preparing step if needed.
+    # For example pre-compute all BERT embeddings
+    model.prepare_input_encoder(train_data)
     if config.save_model_path is not None:
         save_model_path = config.save_model_path
     elif config.save_embed_path is not None:
