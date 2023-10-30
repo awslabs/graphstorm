@@ -257,16 +257,20 @@ class GLEM(GSgnnNodeModelBase):
             param.requires_grad = not freeze
 
     def toggle(self, part='lm', data=None):
-        """The method toggles training between lm and gnn."""
+        """The method toggles training between lm and gnn. It uses `toggle_params` to 
+        freeze/unfreeze model parameters and `(un)freeze_input_encoder` to control the
+        caching of LM embeddings"""
         if part == 'lm':
             self.training_lm = True
             self.toggle_params('gnn', True)
             self.toggle_params('lm', False)
+            # when training lm, do not use the cached LM
+            self.lm.unfreeze_input_encoder()
         elif part == 'gnn':
             self.training_lm = False
             self.toggle_params('lm', True)
             self.toggle_params('gnn', False)
-            # when training gnn, always freeze LM
+            # when training gnn, always cache LM embeddings
             self.lm.freeze_input_encoder(data)
         else:
             raise ValueError(f"Unknown model part: {part}")

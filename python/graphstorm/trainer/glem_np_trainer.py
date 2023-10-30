@@ -143,11 +143,6 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
         device = model.device
         data = train_loader.data
 
-        # turn off pl loss in the epochs during the LM warmup epochs
-        no_pl = freeze_input_layer_epochs > 0
-        if freeze_input_layer_epochs > 0:
-            self._model.lm.freeze_input_encoder(data)
-
         # training loop
         dur = []
         total_steps = 0
@@ -165,17 +160,11 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                 stage_start_time = time.time()
                 part_to_train = 'gnn' if use_gnn else 'lm'
                 self._model.toggle(part_to_train, data)
-                if part_to_train == 'lm':
-                    # when training lm, unfreeze LM if past warmup epochs
-                    # otherwise, only train the LM decoder
-                    if freeze_input_layer_epochs <= epoch:
-                        no_pl = False
-                        self._model.lm.unfreeze_input_encoder()
 
                 self._fit_one_epoch(use_gnn, model, g, data, train_loader, val_loader, test_loader,
                                     device, rt_profiler,
                                     epoch, total_steps, use_mini_batch_infer,
-                                    save_model_path, save_model_frequency, no_pl, max_grad_norm,
+                                    save_model_path, save_model_frequency, max_grad_norm,
                                     grad_norm_type)
                 stage_finish_time = time.time()
                 if get_rank() == 0:
@@ -207,7 +196,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                        epoch, total_steps,
                        use_mini_batch_infer=True,
                        save_model_path=None,
-                       save_model_frequency=-1, no_pl=False,
+                       save_model_frequency=-1,
                        max_grad_norm=None, grad_norm_type=2.0):
         """Fit model for one epoch
         """
@@ -244,7 +233,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             batch_tic = time.time()
             # Run forward function to compute loss:
             loss = model(blocks, input_feats, None, lbl, input_nodes, use_gnn=use_gnn,
-                         no_pl=no_pl or (epoch < self.num_pretrain_epochs),
+                         no_pl=epoch < self.num_pretrain_epochs,
                          blocks_u=blocks_u, node_feats_u=input_feats_u, edge_feats_u=None,
                          input_nodes_u=input_nodes_u)
             profiler.record('train_forward')
