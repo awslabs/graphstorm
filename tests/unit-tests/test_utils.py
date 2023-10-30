@@ -613,13 +613,23 @@ def test_prepare_for_wholegraph():
         g, _ = generate_dummy_dist_graph(tmpdirname)
         input_nodes = {"n0": th.ones((g.num_nodes(),), dtype=g.idtype)}
         prepare_for_wholegraph(g, input_nodes)
-
         assert list(input_nodes.keys()) == g.ntypes
 
         input_nodes2 = {}
         prepare_for_wholegraph(g, input_nodes2)
         assert list(input_nodes2.keys()) == g.ntypes
 
+        input_edges = {}
+        input_nodes = {}
+        prepare_for_wholegraph(g, input_nodes, input_edges)
+        assert list(input_nodes.keys()) == g.ntypes
+        assert list(input_edges.keys()) == g.canonical_etypes
+
+        input_nodes = {"n0": th.ones((g.num_nodes(),), dtype=g.idtype)}
+        input_edges = {("n0", "r0", "n1"): th.ones((g.num_nodes(),), dtype=g.idtype)}
+        prepare_for_wholegraph(g, input_nodes, input_edges)
+        assert list(input_nodes.keys()) == g.ntypes
+        assert list(input_edges.keys()) == g.canonical_etypes
 
 if __name__ == '__main__':
     test_distribute_nid_map(backend='gloo')

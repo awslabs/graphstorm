@@ -198,41 +198,37 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
         # TODO (IN): Fix dataloader to have the same number of minibatches
         for iter_l in range(max_num_batch):
             iter_start = time.time()
-            tmp_keys = []
-            blocks = None
+            tmp_node_keys = tmp_edge_keys = []
+            blocks = target_edge_graph = None
             input_nodes = {}
-            input_edges = {}
+            input_edges = {} if data.decoder_edge_feat is not None else None
             if iter_l < len_dataloader:
                 input_nodes, target_edge_graph, blocks = next(dataloader_iter)
                 if not isinstance(input_nodes, dict):
                     assert len(g.ntypes) == 1
-                    input_nodes = {g.ntypes[0]: input_nodes
+                    input_nodes = {g.ntypes[0]: input_nodes}
+                if data.decoder_edge_feat is not None:
+                    input_edges = {etype: target_edge_graph.edges[etype].data[dgl.EID] \
+                        for etype in target_edge_graph.canonical_etypes}
             if is_wholegraph():
-                tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
-                prepare_for_wholegraph(g, input_nodes)      
-
-#                 if data.decoder_edge_feat is not None:
-#                     input_edges = {etype: target_edge_graph.edges[etype].data[dgl.EID] \
-#                         for etype in target_edge_graph.canonical_etypes}
-#                     input_edges.update({etype: th.empty((0,), dtype=g.idtype) \
-#                         for etype in g.canonical_etypes \
-#                             if etype not in target_edge_graph.canonical_etypes})
-
-#                 if data.decoder_edge_feat is not None:
-#                     input_edges = {etype: th.empty((0,), dtype=g.idtype) \
-#                         for etype in g.canonical_etypes}
-#                 blocks = None
+                tmp_node_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
+                tmp_edge_keys = [etype for etype in g.canonical_etypes \
+                    if etype not in input_edges]
+                prepare_for_wholegraph(g, input_nodes, input_edges)
                                                              
             input_feats = data.get_node_feats(input_nodes, device)
             if blocks is None:
                 continue
             # Remove additional keys (ntypes) added for WholeGraph compatibility
-            for ntype in tmp_keys:
+            for ntype in tmp_node_keys:
                 del input_nodes[ntype]
             if data.decoder_edge_feat is not None:
                 edge_decoder_feats = data.get_edge_feats(input_edges,
                                                          data.decoder_edge_feat,
                                                          device)
+                # Remove additional keys (etypes) added for WholeGraph compatibility
+                for etype in tmp_edge_keys:
+                    del input_edges[etype]
                 edge_decoder_feats = {etype: feat.to(th.float32) \
                     for etype, feat in edge_decoder_feats.items()}
             else:
