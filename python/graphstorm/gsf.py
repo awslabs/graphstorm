@@ -596,7 +596,7 @@ def set_encoder(model, g, config, train_task):
                                   num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn,
                                   norm=config.gnn_norm)
     elif model_encoder_type == "gat":
-        gnn_encoder = GATEncoder(in_dim=config.hidden_size,
+        gnn_encoder = GATEncoder(h_dim=config.hidden_size,
                                  out_dim=config.hidden_size,
                                  num_heads=config.num_heads,
                                  num_hidden_layers=config.num_layers -1,
