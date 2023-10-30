@@ -109,7 +109,7 @@ def prepare_for_wholegraph(g, input_nodes):
     ----------
     g : DistGraph
         Input graph
-    input_nodes : Tensor
+    input_nodes : dict of Tensor
         Input nodes retrieved from the dataloder
     """
     if input_nodes:
@@ -213,6 +213,7 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
             h = get_input_embeds(input_nodes)
             if blocks is None:
                 continue
+            # Remove additional keys (ntypes) added for WholeGraph compatibility
             for ntype in tmp_keys:
                 del input_nodes[ntype]
             blocks = [block.to(device) for block in blocks]
@@ -299,6 +300,7 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
         h = get_input_embeds(input_nodes)
         if blocks is None:
             continue
+        # Remove additional keys (ntypes) added for WholeGraph compatibility
         for ntype in tmp_keys:
             del input_nodes[ntype]
         block = blocks[0].to(device)

@@ -236,6 +236,7 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
             input_feats = data.get_node_feats(input_nodes, device)
             if blocks is None:
                 continue
+            # Remove additional keys (ntypes) added for WholeGraph compatibility
             for ntype in tmp_keys:
                 del input_nodes[ntype]
             blocks = [block.to(device) for block in blocks]
