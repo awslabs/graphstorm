@@ -670,8 +670,7 @@ def process_graph(args):
     node_id_map, node_data, node_label_stats = \
         process_node_data(process_confs['nodes'], convert2ext_mem,
                           args.remap_node_id, ext_mem_workspace,
-                          num_processes=num_processes_for_nodes
-                          )
+                          num_processes=num_processes_for_nodes)
     sys_tracker.check('Process the node data')
     edges, edge_data, edge_label_stats = \
         process_edge_data(process_confs['edges'], node_id_map,
