@@ -612,7 +612,7 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
         emb_lens = len(embeddings)
         if nid_mapping is None:
-            start, end = get_data_range(rank, world_size, emb_len)
+            start, end = get_data_range(rank, world_size, emb_lens)
             embeddings = embeddings[start:end]
         else:
             embeddings = embeddings[nid_mapping]
