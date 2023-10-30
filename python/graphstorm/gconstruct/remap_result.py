@@ -98,7 +98,7 @@ def worker_remap_node_emb(emb_file_path, nid_path, nid_range_info, ntype,
             output_fname = f"{output_fname_prefix}_{pad_file_index(i)}.parquet"
 
             start = i * chunk_size
-            end = (i + 1) * chunk_size if i + 1 < chunk_size else len(embs)
+            end = (i + 1) * chunk_size if i + 1 < num_chunks else len(embs)
             emb = embs[start:end]
             nid = nid_map.map_id(nids[start:end])
             data = {"emb": emb,
@@ -117,7 +117,7 @@ def worker_remap_node_emb(emb_file_path, nid_path, nid_range_info, ntype,
             output_fname = f"{output_fname_prefix}_{pad_file_index(i)}.parquet"
 
             start = i * chunk_size
-            end = (i + 1) * chunk_size if i + 1 < chunk_size else len(embs)
+            end = (i + 1) * chunk_size if i + 1 < num_chunks else len(embs)
             emb = embs[start:end]
             nid = nids[start:end]
             data = {"emb": emb,
@@ -158,7 +158,7 @@ def worker_remap_node_pred(pred_file_path, nid_path, ntype,
         output_fname = f"{output_fname_prefix}_{pad_file_index(i)}.parquet"
 
         start = i * chunk_size
-        end = (i + 1) * chunk_size if i + 1 < chunk_size else len(pred_result)
+        end = (i + 1) * chunk_size if i + 1 < num_chunks else len(pred_result)
         pred = pred_result[start:end]
         nid = nid_map.map_id(nids[start:end])
         data = {"pred": pred,
@@ -204,7 +204,7 @@ def worker_remap_edge_pred(pred_file_path, src_nid_path,
         output_fname = f"{output_fname_prefix}_{pad_file_index(i)}.parquet"
 
         start = i * chunk_size
-        end = (i + 1) * chunk_size if i + 1 < chunk_size else len(pred_result)
+        end = (i + 1) * chunk_size if i + 1 < num_chunks else len(pred_result)
         pred = pred_result[start:end]
         src_nid = src_id_map.map_id(src_nids[start:end])
         dst_nid = dst_id_map.map_id(dst_nids[start:end])

@@ -630,7 +630,7 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
                     emb_len = len(emb)
                     emb = emb[nid_mapping[name]]
                 embeddings[name] = emb
-                emb_lens[name] = emb_lens
+                emb_lens[name] = emb_len
 
 
     emb_info = {
@@ -659,7 +659,7 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
 
     if rank == 0:
         with open(os.path.join(emb_path, "emb_info.json"), 'w', encoding='utf-8') as f:
-            f.write(json.dumps(emb_info))
+            json.dump(emb_info, f, indent=4)
 
 def save_hdf5_embeddings(emb_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None):
@@ -691,9 +691,7 @@ def save_hdf5_embeddings(emb_path, embeddings, rank, world_size,
             "world_size":0
         }
         with open(os.path.join(emb_path, "emb_info.json"), 'w', encoding='utf-8') as f:
-            f.write(json.dumps(emb_info))
-
-
+            json.dump(emb_info, f, indent=4)
 
 def save_shuffled_node_embeddings(shuffled_embs, save_embed_path, save_embed_format="pytorch"):
     """ Save node embeddings that have already been shuffled.
@@ -747,7 +745,7 @@ def save_shuffled_node_embeddings(shuffled_embs, save_embed_path, save_embed_for
 
     if rank == 0:
         with open(os.path.join(save_embed_path, "emb_info.json"), 'w', encoding='utf-8') as f:
-            f.write(json.dumps(emb_info))
+            json.dump(emb_info, f, indent=4)
 
 def save_embeddings(emb_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None,
