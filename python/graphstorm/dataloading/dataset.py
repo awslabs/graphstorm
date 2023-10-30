@@ -26,7 +26,7 @@ from torch.utils.data import Dataset
 import pandas as pd
 
 from ..utils import get_rank, get_world_size, is_distributed
-from ..utils import sys_tracker, use_wholegraph
+from ..utils import sys_tracker, is_wholegraph
 from .utils import dist_sum, flip_node_mask, is_wholegraph_embedding
 
 def split_full_edge_list(g, etype, rank):
@@ -149,7 +149,7 @@ class GSgnnData():
                 logging.debug("%s has %d edges.", str(etype), g.number_of_edges(etype))
 
         # Use wholegraph for feature transfer
-        if is_distributed() and use_wholegraph(part_config):
+        if is_distributed() and is_wholegraph():
             logging.info("Allocate features with Wholegraph")
             num_parts = self._g.get_partition_book().num_partitions()
 
