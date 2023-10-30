@@ -22,9 +22,10 @@ import torch as th
 import dgl
 
 from .gnn import GSgnnModel, GSgnnModelBase
+from .gnn_encoder_base import prepare_for_wholegraph
 from .utils import append_to_dict
 
-from ..utils import barrier, is_distributed, get_rank
+from ..utils import barrier, is_distributed, get_rank, is_wholegraph
 
 class GSgnnEdgeModelInterface:
     """ The interface for GraphStorm edge prediction model.
@@ -197,34 +198,36 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
         # TODO (IN): Fix dataloader to have the same number of minibatches
         for iter_l in range(max_num_batch):
             iter_start = time.time()
-            tmp_node_keys = []
+            tmp_keys = []
+            blocks = None
+            input_nodes = {}
             input_edges = {}
             if iter_l < len_dataloader:
                 input_nodes, target_edge_graph, blocks = next(dataloader_iter)
                 if not isinstance(input_nodes, dict):
                     assert len(g.ntypes) == 1
-                    input_nodes = {g.ntypes[0]: input_nodes}
-                # All samples should contain all the ntypes for wholegraph compatibility
-                tmp_node_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
-                input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
-                    for ntype in tmp_node_keys})
-                if data.decoder_edge_feat is not None:
-                    input_edges = {etype: target_edge_graph.edges[etype].data[dgl.EID] \
-                        for etype in target_edge_graph.canonical_etypes}
-                    input_edges.update({etype: th.empty((0,), dtype=g.idtype) \
-                        for etype in g.canonical_etypes \
-                            if etype not in target_edge_graph.canonical_etypes})
-            else:
-                input_nodes = {ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes}
-                if data.decoder_edge_feat is not None:
-                    input_edges = {etype: th.empty((0,), dtype=g.idtype) \
-                        for etype in g.canonical_etypes}
-                blocks = None
+                    input_nodes = {g.ntypes[0]: input_nodes
+            if is_wholegraph():
+                tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
+                prepare_for_wholegraph(g, input_nodes)      
 
+#                 if data.decoder_edge_feat is not None:
+#                     input_edges = {etype: target_edge_graph.edges[etype].data[dgl.EID] \
+#                         for etype in target_edge_graph.canonical_etypes}
+#                     input_edges.update({etype: th.empty((0,), dtype=g.idtype) \
+#                         for etype in g.canonical_etypes \
+#                             if etype not in target_edge_graph.canonical_etypes})
+
+#                 if data.decoder_edge_feat is not None:
+#                     input_edges = {etype: th.empty((0,), dtype=g.idtype) \
+#                         for etype in g.canonical_etypes}
+#                 blocks = None
+                                                             
             input_feats = data.get_node_feats(input_nodes, device)
             if blocks is None:
                 continue
-            for ntype in tmp_node_keys:
+            # Remove additional keys (ntypes) added for WholeGraph compatibility
+            for ntype in tmp_keys:
                 del input_nodes[ntype]
             if data.decoder_edge_feat is not None:
                 edge_decoder_feats = data.get_edge_feats(input_edges,
