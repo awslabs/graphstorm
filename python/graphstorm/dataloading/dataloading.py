@@ -31,6 +31,7 @@ from .sampler import (LocalUniform,
                       JointUniform,
                       GlobalUniform,
                       JointLocalUniform,
+                      InbatchJointUniform,
                       FastMultiLayerNeighborSampler,
                       DistributedFileSampler)
 from .utils import trim_data, modify_fanout_for_target_etype
@@ -357,6 +358,7 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
 
 BUILTIN_LP_UNIFORM_NEG_SAMPLER = 'uniform'
 BUILTIN_LP_JOINT_NEG_SAMPLER = 'joint'
+BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER = 'inbatch_joint'
 BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER = 'localuniform'
 BUILTIN_LP_LOCALJOINT_NEG_SAMPLER = 'localjoint'
 BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER = 'all_etype_uniform'
@@ -593,8 +595,18 @@ class GSgnnLPJointNegDataLoader(GSgnnLinkPredictionDataLoader):
     """
 
     def _prepare_negative_sampler(self, num_negative_edges):
-        # the default negative sampler is uniform sampler
+        # The negative sampler is the joint uniform negative sampler.
         negative_sampler = JointUniform(num_negative_edges)
+        return negative_sampler
+
+class GSgnnLPInBatchJointNegDataLoader(GSgnnLinkPredictionDataLoader):
+    """ Link prediction dataloader with in-batch and joint negative sampler
+
+    """
+
+    def _prepare_negative_sampler(self, num_negative_edges):
+        # The negative sampler is the in-batch joint uniform negative sampler.
+        negative_sampler = InbatchJointUniform(num_negative_edges)
         return negative_sampler
 
 class GSgnnLPLocalUniformNegDataLoader(GSgnnLinkPredictionDataLoader):
