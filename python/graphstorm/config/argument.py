@@ -804,6 +804,9 @@ class GSConfig:
         """ Fixed number of test data used in evaluation
 
             This is useful for reducing the overhead of doing link prediction evaluation.
+
+            TODO: support fixed_test_size in
+            node prediction and edge prediction tasks.
         """
         # pylint: disable=no-member
         if hasattr(self, "_fixed_test_size"):

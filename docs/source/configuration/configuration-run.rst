@@ -287,6 +287,11 @@ GraphStorm provides a set of parameters to control model evaluation.
     - Yaml: ``no_validation: true``
     - Argument: ``--no-validation true``
     - Default value: ``false``
+- **fixed_test_size**: Set the number of validation and test data used during link prediction training evaluaiotn. This is useful for reducing the overhead of doing link prediction evaluation when the graph size is large.
+
+    - Yaml: ``fixed_test_size: 100000``
+    - Argument: ``--fixed-test-size 100000``
+    - Default value: None, Use the full validation and test set.
 
 Language Model Specific Configurations
 ---------------------------------------------------
