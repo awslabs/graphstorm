@@ -36,9 +36,6 @@ def main():
     if args.inference:
         cmd = "gsgnn_lp/lp_infer_lm.py" if args.lm_encoder_only \
             else "gsgnn_lp/lp_infer_gnn.py"
-        # The default value of do_nid_remap is None.
-        # In inference, the default behavior is do remapping
-        args.do_nid_remap = True if args.do_nid_remap is None else args.do_nid_remap
     else:
         cmd = "gsgnn_lp/gsgnn_lm_lp.py" if args.lm_encoder_only \
             else "gsgnn_lp/gsgnn_lp.py"

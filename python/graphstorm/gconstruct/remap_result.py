@@ -54,14 +54,14 @@ def worker_remap_node_emb(emb_file_path, nid_path, nid_range_info, ntype,
     """ Do one node prediction remapping task
 
         GraphStorm has two ways to store node embeddings:
-        1. Store the entire node embeddings of nodes of ntype T.
+        1. Store the entire node embeddings of nodes of ntype(s).
            In this case, node embeddings has already been shuffled
            into the order before doing graph partition.
-           The order is aligned with the order in the
-           original-to-graphstorm ID mapping.
+           The order of nodes is aligned with the order in the
+           original ID to graphstorm ID mapping.
            Link prediction inference, edge prediction inference and
            embedding inference usually generate node embeddings in this way.
-        2. Store the node embeddings of a subset of nodes of ntype T.
+        2. Store the node embeddings of a subset of nodes of ntype(s).
             In this case, node embeddings are stored along with an
             nids.xxx.bin file.
             The nid file stores the before-graph-partition node ids of
@@ -108,7 +108,8 @@ def worker_remap_node_emb(emb_file_path, nid_path, nid_range_info, ntype,
     else:
         total_num_files, emb_len = nid_range_info
         # Get index of emb file
-        local_rank = int(emb_file_path[emb_file_path.rindex(".part")+5:])
+        # emb fils is in format of emb.part00001.bin
+        local_rank = int(emb_file_path[emb_file_path.rindex(".part")+5:-4])
         nid_start, nid_end = \
                     get_data_range(local_rank, total_num_files, emb_len)
         nids = nid_map.map_range(nid_start, nid_end)
@@ -388,11 +389,12 @@ def remap_node_emb(emb_ntypes, emb_lens, node_emb_dir,
 
             task_list.append({
                 "emb_file_path": os.path.join(input_emb_dir, emb_file),
-                "nid_path": nid_file,
+                "nid_path": os.path.join(input_emb_dir, nid_file) \
+                    if nid_file is not None else None,
                 "nid_range_info": nid_range_info,
                 "ntype": ntype,
                 "output_fname_prefix": os.path.join(out_embdir, \
-                    f"emb.{emb_file[:emb_file.rindex('.')]}"),
+                    f"{emb_file[:emb_file.rindex('.')]}"),
                 "chunk_size": out_chunk_size,
                 "preserve_input": preserve_input
             })
@@ -672,13 +674,6 @@ def main(args, gs_config_args):
         else:
             pred_ntypes = []
 
-    if predict_dir is None:
-        logging.info("Prediction dir is not provided. Skip remapping.")
-        return
-
-    assert os.path.exists(predict_dir), \
-        f"Prediction dir {predict_dir} does not exist."
-
     rank = args.rank
     world_size = args.world_size
     with_shared_fs = args.with_shared_fs
@@ -693,7 +688,6 @@ def main(args, gs_config_args):
 
     ################## remap embeddings #############
     emb_ntypes = []
-    emb_lens = None
     if node_emb_dir is not None:
         # If node embedding exists, we are going to remap all the embeddings.
         if with_shared_fs:
@@ -704,14 +698,15 @@ def main(args, gs_config_args):
                 info = json.load(f)
                 ntypes = info["emb_name"]
                 emb_ntypes = ntypes if isinstance(ntypes, list) else [ntypes]
-                assert "num_embs" in info, \
-                    "num_embs is required to collect the global length " \
-                    "of each node embedding. Please check your "\
-                    f"{os.path.join(node_emb_dir, 'emb_info.json')}"
 
-                emb_lens = info["num_embs"]
-                emb_lens = dict(zip(ntypes, emb_lens)) \
-                    if isinstance(emb_lens, list) else {ntypes: emb_lens}
+                if "num_embs" in info:
+                    emb_lens = info["num_embs"]
+                    emb_lens = dict(zip(ntypes, emb_lens)) \
+                        if isinstance(emb_lens, list) else {ntypes: emb_lens}
+                else:
+                    # emb nid files must exist in this case.
+                    emb_lens = None
+
         else: # There is no shared file system
             emb_names = os.listdir(node_emb_dir)
             emb_names = [e_name for e_name in emb_names if e_name != "emb_info.json"]
@@ -723,54 +718,72 @@ def main(args, gs_config_args):
                     "Need embeding length for each node embedding," \
                     f"expecting {emb_ntypes} but get {emb_lens}"
                 emb_lens = {emb_len.split(":")[0]: emb_len.split(":")[1] for emb_len in emb_lens}
+            else:
+                # emb nid files must exist in this case.
+                emb_lens = None
 
     ################## remap prediction #############
-    # if pred_etypes (edges with prediction results)
-    # is not empty, we need to remap edge prediction results.
-    # Note: For distributed SageMaker runs, pred_etypes must be
-    # provided if edge prediction result remap is required,
-    # as result_info.json is only saved by rank0 and
-    # there is no shared file system.
-    if len(pred_etypes) > 0:
-        for pred_etype in pred_etypes:
-            assert os.path.exists(os.path.join(predict_dir, "_".join(pred_etype))), \
-                f"prediction results of {pred_etype} do not exists."
+    if predict_dir is not None:
+        assert os.path.exists(predict_dir), \
+            f"Prediction dir {predict_dir} does not exist."
+        # if pred_etypes (edges with prediction results)
+        # is not empty, we need to remap edge prediction results.
+        # Note: For distributed SageMaker runs, pred_etypes must be
+        # provided if edge prediction result remap is required,
+        # as result_info.json is only saved by rank0 and
+        # there is no shared file system.
+        if len(pred_etypes) > 0:
+            exist_pred_etypes = []
+            for pred_etype in pred_etypes:
+                if os.path.exists(os.path.join(predict_dir, "_".join(pred_etype))):
+                    exist_pred_etypes.append(pred_etype)
+                else:
+                    logging.warning("prediction results of %s "
+                                    "do not exists. Skip doing remapping for it",
+                                    pred_etype)
+            pred_etypes = exist_pred_etypes
 
-    # If pred_ntypes (nodes with prediction results)
-    # is not empty, we need to remap edge prediction results
-    # Note: For distributed SageMaker runs, pred_ntypes must be
-    # provided if node prediction result remap is required,
-    # as result_info.json is only saved by rank0 and
-    # there is no shared file system.
-    if len(pred_ntypes) > 0:
-        for pred_ntype in pred_ntypes:
-            assert os.path.exists(os.path.join(predict_dir, pred_ntype)), \
-                f"prediction results of {pred_ntype} do not exists."
+        # If pred_ntypes (nodes with prediction results)
+        # is not empty, we need to remap edge prediction results
+        # Note: For distributed SageMaker runs, pred_ntypes must be
+        # provided if node prediction result remap is required,
+        # as result_info.json is only saved by rank0 and
+        # there is no shared file system.
+        if len(pred_ntypes) > 0:
+            exist_pred_ntypes = []
+            for pred_ntype in pred_ntypes:
+                if os.path.exists(os.path.join(predict_dir, pred_ntype)):
+                    exist_pred_ntypes.append(pred_ntype)
+                else:
+                    logging.warning("prediction results of %s"
+                                    "do not exists. Skip doing remapping for it",
+                                    pred_ntype)
+            pred_ntype = exist_pred_ntypes
 
-    if with_shared_fs:
-        # Only when shared file system is avaliable,
-        # we will check result_info.json for
-        # pred_etypes and pred_ntypes.
-        # If shared file system is not avaliable
-        # result_info.json is not guaranteed to exist
-        # on each instances. So users must use
-        # --pred-ntypes or --pred-etypes instead.
-        #
-        # In case when both --pred-ntypes or --pred-etypes
-        # are provided while result_info.json is also avaliable,
-        # GraphStorm remaping will follow --pred-ntypes or --pred-etypes
-        # and ignore the result_info.json.
-        if os.path.exists(os.path.join(predict_dir, "result_info.json")):
-            # User does not provide pred_etypes.
-            # Try to get it from saved prediction config.
-            with open(os.path.join(predict_dir, "result_info.json"),
-                        "r",  encoding='utf-8') as f:
-                info = json.load(f)
-                if len(pred_etypes) == 0:
-                    pred_etypes = [list(etype) for etype in info["etypes"]] \
-                        if "etypes" in info else []
-                if len(pred_ntypes) == 0:
-                    pred_ntypes = info["ntypes"] if "ntypes" in info else []
+        if with_shared_fs:
+            # Only when shared file system is avaliable,
+            # we will check result_info.json for
+            # pred_etypes and pred_ntypes.
+            # If shared file system is not avaliable
+            # result_info.json is not guaranteed to exist
+            # on each instances. So users must use
+            # --pred-ntypes or --pred-etypes instead.
+            #
+            # In case when both --pred-ntypes or --pred-etypes
+            # are provided while result_info.json is also avaliable,
+            # GraphStorm remaping will follow --pred-ntypes or --pred-etypes
+            # and ignore the result_info.json.
+            if os.path.exists(os.path.join(predict_dir, "result_info.json")):
+                # User does not provide pred_etypes.
+                # Try to get it from saved prediction config.
+                with open(os.path.join(predict_dir, "result_info.json"),
+                            "r",  encoding='utf-8') as f:
+                    info = json.load(f)
+                    if len(pred_etypes) == 0:
+                        pred_etypes = [list(etype) for etype in info["etypes"]] \
+                            if "etypes" in info else []
+                    if len(pred_ntypes) == 0:
+                        pred_ntypes = info["ntypes"] if "ntypes" in info else []
 
     ntypes = []
     ntypes += emb_ntypes
@@ -865,7 +878,7 @@ def add_distributed_remap_args(parser):
                        help="Totoal number of workers in the cluster.")
     group.add_argument("--node-emb-length", type=str, nargs="+", default=None,
                        help="Give the number of embeddings of each node embedding."
-                            "For example --node_emb_length user:100 movie:1000")
+                            "For example --node-emb-length user:100 movie:1000")
     return parser
 
 def generate_parser():

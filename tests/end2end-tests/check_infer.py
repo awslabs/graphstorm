@@ -20,6 +20,9 @@ import json
 
 from numpy.testing import assert_almost_equal
 import torch as th
+import numpy as np
+
+from graphstorm.gconstruct.file_io import read_data_parquet
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("check_infer")
@@ -53,24 +56,52 @@ if __name__ == '__main__':
     for ntype in info_emb_info["emb_name"]:
         train_emb = []
         ntype_emb_path = os.path.join(args.train_embout, ntype)
-        ntype_emb_files = os.listdir(ntype_emb_path)
+        emb_files = os.listdir(ntype_emb_path)
+        ntype_emb_files = [file for file in emb_files if file.endswith(".bin")]
         ntype_emb_files = sorted(ntype_emb_files)
         for f in ntype_emb_files:
             # Only work with torch 1.13+
             train_emb.append(th.load(os.path.join(ntype_emb_path, f),weights_only=True))
         train_emb = th.cat(train_emb, dim=0)
 
+        ntype_remaped_emb_files = [file for file in emb_files if file.endswith(".parquet")]
+        ntype_remaped_emb_files = sorted(ntype_remaped_emb_files)
+        train_remaped_emb = []
+        train_nids = []
+        for f in ntype_remaped_emb_files:
+            data = read_data_parquet(os.path.join(ntype_emb_path, f),
+                                     data_fields=["emb", "nid"])
+            train_remaped_emb.append(data["emb"])
+            train_nids.append(data["nid"])
+        train_remaped_emb = np.concatenate(train_remaped_emb)
+        train_nids = np.concatenate(train_nids)
+
         infer_emb = []
         ntype_emb_path = os.path.join(args.infer_embout, ntype)
-        ntype_emb_files = os.listdir(ntype_emb_path)
+        emb_files = os.listdir(ntype_emb_path)
+        ntype_emb_files = [file for file in emb_files if file.endswith(".bin")]
         ntype_emb_files = sorted(ntype_emb_files)
         for f in ntype_emb_files:
             # Only work with torch 1.13+
             infer_emb.append(th.load(os.path.join(ntype_emb_path, f), weights_only=True))
         infer_emb = th.cat(infer_emb, dim=0)
 
+        ntype_remaped_emb_files = [file for file in emb_files if file.endswith(".parquet")]
+        ntype_remaped_emb_files = sorted(ntype_remaped_emb_files)
+        infer_remaped_emb = []
+        infer_nids = []
+        for f in ntype_remaped_emb_files:
+            data = read_data_parquet(os.path.join(ntype_emb_path, f),
+                                     data_fields=["emb", "nid"])
+            infer_remaped_emb.append(data["emb"])
+            infer_nids.append(data["nid"])
+        infer_remaped_emb = np.concatenate(infer_remaped_emb)
+        infer_nids = np.concatenate(infer_nids)
+
         assert train_emb.shape[0] == infer_emb.shape[0]
         assert train_emb.shape[1] == infer_emb.shape[1]
+        assert train_remaped_emb.shape[0] == infer_remaped_emb.shape[0]
+        assert train_remaped_emb.shape[1] == infer_remaped_emb.shape[1]
 
         if args.mini_batch_infer:
             # When inference is done with minibatch inference, only node
@@ -81,3 +112,5 @@ if __name__ == '__main__':
                 assert_almost_equal(train_emb[i].numpy(), infer_emb[i].numpy(), decimal=4)
         else:
             assert_almost_equal(train_emb.numpy(), infer_emb.numpy(), decimal=2)
+            assert_almost_equal(train_remaped_emb, infer_remaped_emb, decimal=2)
+            assert_almost_equal(train_nids, infer_nids)

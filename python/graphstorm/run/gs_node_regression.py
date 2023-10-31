@@ -35,9 +35,6 @@ def main():
     lib_dir = os.path.abspath(os.path.dirname(__file__))
     if args.inference:
         cmd_path = os.path.join(lib_dir, "gsgnn_np/np_infer_gnn.py")
-        # The default value of do_nid_remap is None.
-        # In inference, the default behavior is do remapping
-        args.do_nid_remap = True if args.do_nid_remap is None else args.do_nid_remap
     else:
         cmd_path = os.path.join(lib_dir, "gsgnn_np/gsgnn_np.py")
     exec_script_args = [cmd_path] + exec_script_args

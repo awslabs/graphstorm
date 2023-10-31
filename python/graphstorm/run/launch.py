@@ -1016,7 +1016,7 @@ def get_argument_parser():
     parser.add_argument(
         "--do-nid-remap",
         type=lambda x: (str(x).lower() in ['true', '1']),
-        default=None,
+        default=True,
         help="Do GraphStorm node ID to Raw input node ID remapping in inference."
         "If not set, the default behavior of inference is do remap "
         "and the default behavior of training is not do remap."
