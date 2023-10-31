@@ -98,7 +98,7 @@ class GConstructConfigConverter(ConfigConverter):
                 if gconstruct_transform_dict["name"] == "max_min_norm":
                     gsp_transformation_dict["name"] = "numerical"
                     gsp_transformation_dict["kwargs"] = {"normalizer": "min-max", "imputer": "mean"}
-                elif gconstruct_transform_dict["name"] == "bucket-numerical":
+                elif gconstruct_transform_dict["name"] == "bucket_numerical":
                     gsp_transformation_dict["name"] = "numerical"
                     assert "bucket_cnt" in gconstruct_transform_dict, \
                         "bucket_cnt should be in the gconstruct bucket feature transform field"

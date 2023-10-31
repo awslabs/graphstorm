@@ -86,8 +86,8 @@ def test_bucket_numerical_second_example(spark: SparkSession):
         assert_array_equal(row["age"], expected_vals[i, :], err_msg=f"Row {i} is not equal")
 
 def test_bucket_numerical_third_example(spark: SparkSession):
-    data = [("john",21.,None),("tim",31.,10000),
-            ("maggie",55.,20000)]
+    data = [("john", 21., None), ("tim", 31., 10000),
+            ("maggie", 55., 20000)]
 
     columns = ["name","age", "salary"]
     input_df = spark.createDataFrame(data, schema=columns)
