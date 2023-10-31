@@ -413,11 +413,11 @@ arguments.
       - ``range`` (List[int], required), The range only defines the start and end point with ``[a, b]``. It should be
         a list of two integers. For example, the ``[10, 30]`` should define the start point of 10 and end point
         with 30
-      - ``bucket_cnt`` (int, required), The count of bucket lists used in the bucket feature transform. GSProcessing
+      - ``bucket_cnt`` (Integer, required), The count of bucket lists used in the bucket feature transform. GSProcessing
         calculates the size of each bucket as  ``( b - a ) / c`` , and encodes each numeric value as the number
         of whatever bucket it falls into. Any value less than a is considered to belong in the first bucket,
         and any value greater than b is considered to belong in the last bucket.
-      - ``slide_window_size``(int, optional), slide_window_size is to make numeric values fall into more than one bucket,
+      - ``slide_window_size``(Integer, optional), slide_window_size is to make numeric values fall into more than one bucket,
         by specifying a slide-window size ``s``, where s can an integer or float, GSProcessing then transforms each
         numeric value ``v`` of the property into a range from ``v - s/2`` through ``v + s/2`` , and assigns the value v
         to every bucket that the range covers.
