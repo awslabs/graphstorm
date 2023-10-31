@@ -22,7 +22,7 @@ from graphstorm.config import  (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_EDGE_REGRESSION,
                                 BUILTIN_TASK_LINK_PREDICTION)
 from .graphstorm_infer import GSInferrer
-from ..model.utils import save_embeddings as save_gsgnn_embeddings
+from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
 from ..model.gnn import do_full_graph_inference, do_mini_batch_inference
 from ..utils import sys_tracker, get_rank, get_world_size, barrier
 
@@ -102,10 +102,11 @@ class GSgnnEmbGenInferer(GSInferrer):
         if get_rank() == 0:
             logging.info("save embeddings to %s", save_embed_path)
 
-        save_gsgnn_embeddings(save_embed_path, embs, get_rank(),
-            get_world_size(),
-            device=device,
-            node_id_mapping_file=node_id_mapping_file,
-            save_embed_format=save_embed_format)
+        g = data.g
+        save_gsgnn_embeddings(g,
+                              save_embed_path,
+                              embs,
+                              node_id_mapping_file=node_id_mapping_file,
+                              save_embed_format=save_embed_format)
         barrier()
         sys_tracker.check('save embeddings')

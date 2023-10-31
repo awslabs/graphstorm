@@ -32,7 +32,8 @@ from graphstorm.model.utils import shuffle_predict, NodeIDShuffler
 from graphstorm.model.utils import pad_file_index
 from graphstorm.model.utils import (save_node_prediction_results,
                                     save_edge_prediction_results,
-                                    save_shuffled_node_embeddings)
+                                    save_shuffled_node_embeddings,
+                                    save_full_node_embeddings)
 from graphstorm.gconstruct.utils import save_maps
 from graphstorm import get_feat_size
 
@@ -961,7 +962,58 @@ def test_save_edge_prediction_results():
         assert_almost_equal(th.cat([e1_dst0, e1_dst1]).numpy(),
                             th.cat([predictions0[etype1][2], predictions1[etype1][2]]).numpy())
 
+def run_distributed_full_node_embedding_save(part_config, emb_path, embeddings, node_id_mapping_file,
+                                 worker_rank, world_size):
+    dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
+        master_ip='127.0.0.1', master_port='12345')
+    th.distributed.init_process_group(backend="gloo",
+                                      init_method=dist_init_method,
+                                      world_size=world_size,
+                                      rank=worker_rank)
+    dgl.distributed.initialize('')
+    g = dgl.distributed.DistGraph(graph_name='dummy', part_config=part_config)
+    save_full_node_embeddings(g, emb_path, embeddings, node_id_mapping_file)
+
+
+
+def test_full_node_embeddings():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        g, part_config = generate_dummy_dist_graph(tmpdirname, size="tiny")
+        nid_map_dict_path = os.path.join(tmpdirname, "nid_map_dict.pt")
+
+        target_ntype0 = g.ntypes[0]
+        target_ntype1 = g.ntypes[1]
+        ori_nid_maps = {target_ntype0: th.randperm(g.number_of_nodes(target_ntype0)),
+                        target_ntype1: th.randperm(g.number_of_nodes(target_ntype1))}
+        th.save(ori_nid_maps, nid_map_dict_path)
+
+        embeddings = {target_ntype0: th.arange(g.number_of_nodes(target_ntype0)),
+                        target_ntype1: th.arange(g.number_of_nodes(target_ntype1))}
+        emb_path = os.path.join(tmpdirname, "emb")
+        os.mkdir(emb_path)
+
+        ctx = mp.get_context('spawn')
+        p0 = ctx.Process(target=run_distributed_full_node_embedding_save,
+                        args=(part_config, emb_path, embeddings, nid_map_dict_path, 0, 1))
+        p0.start()
+        p0.join()
+        assert p0.exitcode == 0
+
+        ntype0_emb_path = os.path.join(emb_path, target_ntype0)
+        ntype0_emb = th.load(os.path.join(ntype0_emb_path, "emb.part00000.bin"))
+        ntype0_nid = th.load(os.path.join(ntype0_emb_path, "nids.part00000.bin"))
+        assert_equal(embeddings[target_ntype0].numpy(), ntype0_emb.numpy())
+        assert_equal(ori_nid_maps[target_ntype0].numpy(), ntype0_nid.numpy())
+
+        ntype1_emb_path = os.path.join(emb_path, target_ntype1)
+        ntype1_emb = th.load(os.path.join(ntype1_emb_path, "emb.part00000.bin"))
+        ntype1_nid = th.load(os.path.join(ntype1_emb_path, "nids.part00000.bin"))
+        assert_equal(embeddings[target_ntype1].numpy(), ntype1_emb.numpy())
+        assert_equal(ori_nid_maps[target_ntype1].numpy(), ntype1_nid.numpy())
+
 if __name__ == '__main__':
+    test_full_node_embeddings()
+
     test_shuffle_nids()
     test_save_node_prediction_results()
     test_save_edge_prediction_results()
