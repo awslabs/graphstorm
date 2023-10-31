@@ -349,6 +349,15 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         """
         return self.embed_size
 
+def _gen_emb(g, feat_field, embed_layer, ntype):
+    """ Test if the embed layer can generate embeddings on the node type.
+    """
+    input_nodes = th.tensor([0])
+    dev = embed_layer.device
+    feat = prepare_batch_input(g, {ntype: input_nodes}, dev=dev, feat_field=feat_field)
+    emb = embed_layer(feat, {ntype: input_nodes})
+    return ntype in emb
+
 def compute_node_input_embeddings(g, batch_size, embed_layer,
                                   task_tracker=None, feat_field='feat',
                                   target_ntypes=None):
@@ -386,6 +395,10 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
     start = time.time()
     with th.no_grad():
         for ntype in target_ntypes:
+            # If we cannot generate embeddings on the node type, let's skip the node type.
+            if not _gen_emb(g, feat_field, embed_layer, ntype):
+                continue
+
             embed_size = embed_layer.out_dims
             # TODO(zhengda) we need to be careful about this. Here it creates a persistent
             # distributed tensor to store the node embeddings. This can potentially consume
@@ -412,11 +425,10 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
 
                 feat = prepare_batch_input(g, {ntype: input_nodes}, dev=dev, feat_field=feat_field)
                 emb = embed_layer(feat, {ntype: input_nodes})
-                if ntype in emb:
-                    input_emb[input_nodes] = emb[ntype].to('cpu')
-                    if iter_l % 200 == 0 and g.rank() == 0:
-                        logging.debug("compute input embeddings on %s: %d of %d, takes %.3f s",
-                                      ntype, iter_l, len(node_list), time.time() - iter_start)
+                input_emb[input_nodes] = emb[ntype].to('cpu')
+                if iter_l % 200 == 0 and g.rank() == 0:
+                    logging.debug("compute input embeddings on %s: %d of %d, takes %.3f s",
+                                  ntype, iter_l, len(node_list), time.time() - iter_start)
             n_embs[ntype] = input_emb
     if embed_layer is not None:
         embed_layer.train()
