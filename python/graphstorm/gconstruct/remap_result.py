@@ -27,7 +27,7 @@ import sys
 import math
 
 import torch as th
-from ..model.utils import pad_file_index, get_data_range
+from ..model.utils import pad_file_index
 from .file_io import write_data_parquet
 from .id_map import IdReverseMap
 from ..utils import get_log_level

@@ -126,7 +126,6 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
 
             # The order of the ntypes must be sorted
             embs = {ntype: embs[ntype] for ntype in sorted(target_ntypes)}
-
             save_gsgnn_embeddings(g,
                                   save_embed_path,
                                   embs,

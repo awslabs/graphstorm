@@ -610,33 +610,26 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
         nid_mapping = None
 
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
-        emb_lens = len(embeddings)
         if nid_mapping is None:
-            start, end = get_data_range(rank, world_size, emb_lens)
+            start, end = get_data_range(rank, world_size, len(embeddings))
             embeddings = embeddings[start:end]
         else:
             embeddings = embeddings[nid_mapping]
     elif isinstance(embeddings, dict):
         # We need to duplicate the dict so that the input argument is not changed.
         embeddings = dict(embeddings.items())
-        emb_lens = {}
         for name, emb in embeddings.items():
             if isinstance(emb, (dgl.distributed.DistTensor, LazyDistTensor)):
                 if nid_mapping is None:
-                    emb_len = len(emb)
-                    start, end = get_data_range(rank, world_size, emb_len)
+                    start, end = get_data_range(rank, world_size, len(emb))
                     emb = emb[start:end]
                 else:
-                    emb_len = len(emb)
                     emb = emb[nid_mapping[name]]
                 embeddings[name] = emb
-                emb_lens[name] = emb_len
-
 
     emb_info = {
         "format": "pytorch",
         "emb_name":[], # This is telling how many node types have node embeddings
-        "num_embs": [], # This is telling the size of each node embedding.
         "world_size": world_size
     }
 
@@ -647,7 +640,6 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
             th.save(emb, os.path.join(os.path.join(emb_path, name),
                                       f'emb.part{pad_file_index(rank)}.bin'))
             emb_info["emb_name"].append(name)
-            emb_info["num_embs"].append(emb_lens[name])
     else:
         os.makedirs(os.path.join(emb_path, NTYPE), exist_ok=True)
         # There is no ntype for the embedding
@@ -655,7 +647,6 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
         th.save(embeddings, os.path.join(os.path.join(emb_path, NTYPE),
                                          f'emb.part{pad_file_index(rank)}.bin'))
         emb_info["emb_name"] = NTYPE
-        emb_info["num_embs"] = emb_lens
 
     if rank == 0:
         with open(os.path.join(emb_path, "emb_info.json"), 'w', encoding='utf-8') as f:
