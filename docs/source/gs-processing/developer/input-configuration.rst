@@ -410,7 +410,7 @@ arguments.
          Valid values are:
          ``none`` (Default), ``mean``, ``median``, and ``most_frequent``. Missing values will be replaced
          with the respective value computed from the data.
-      - ``range`` (List[int], required), The range only defines the start and end point with ``[a, b]``. It should be
+      - ``range`` (List[float], required), The range only defines the start and end point with ``[a, b]``. It should be
         a list of two integers. For example, the ``[10, 30]`` should define the start point of 10 and end point
         with 30
       - ``bucket_cnt`` (Integer, required), The count of bucket lists used in the bucket feature transform. GSProcessing
@@ -421,12 +421,6 @@ arguments.
         by specifying a slide-window size ``s``, where s can an integer or float, GSProcessing then transforms each
         numeric value ``v`` of the property into a range from ``v - s/2`` through ``v + s/2`` , and assigns the value v
         to every bucket that the range covers.
-      - ``normalizer`` (String, optional): Applies a normalization to the data, after
-         imputation. Can take the following values:
-         - ``none``: (Default) Don't normalize the numerical values during encoding.
-         - ``min-max``: Normalize each value by subtracting the minimum value from it,
-        and then dividing it by the difference between the maximum value and the minimum.
-        - ``standard``: Normalize each value by dividing it by the sum of all the values.
 --------------
 
 Examples

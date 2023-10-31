@@ -119,7 +119,7 @@ class BucketFeatureConfig(FeatureConfig):
         The count of bucket lists used in the bucket feature transform. Each bucket will
         have same length.
 
-    range: List[int]
+    range: List[float]
         The range of bucket lists only defining the start and end point. The range and
         bucket_cnt will define the buckets together. For example, range = [10, 30] and
         bucket_cnt = 2, will have two buckets: [10, 20] and [20, 30]
@@ -132,7 +132,6 @@ class BucketFeatureConfig(FeatureConfig):
     def __init__(self, config: Mapping):
         super().__init__(config)
         self.imputer = self._transformation_kwargs.get("imputer", "none")
-        self.norm = self._transformation_kwargs.get("normalizer", "none")
         self.bucket_cnt = self._transformation_kwargs.get("bucket_cnt", "none")
         self.range = self._transformation_kwargs.get("range", "none")
         self.slide_window_size = self._transformation_kwargs.get("slide_window_size", "none")
@@ -143,17 +142,14 @@ class BucketFeatureConfig(FeatureConfig):
         assert (
             self.imputer in VALID_IMPUTERS
         ), f"Unknown imputer requested, expected one of {VALID_IMPUTERS}, got {self.imputer}"
-        assert (
-            self.norm in VALID_NORMALIZERS
-        ), f"Unknown normalizer requested, expected one of {VALID_NORMALIZERS}, got {self.norm}"
         assert isinstance(
             self.bucket_cnt, int
         ), f"Expect bucket_cnt {self.bucket_cnt} be an integer"
         assert (
             isinstance(self.range, list)
-            and all(isinstance(x, int) for x in self.range)
+            and all(isinstance(x, (int, float)) for x in self.range)
             and len(self.range) == 2
-        ), f"Expect range {self.range} be a list of two integers"
+        ), f"Expect range {self.range} be a list of two integers or two floats"
         assert (
             isinstance(self.slide_window_size, (int, float)) or self.slide_window_size == "none"
         ), f"Expect no slide window size or expect {self.slide_window_size} is a number"

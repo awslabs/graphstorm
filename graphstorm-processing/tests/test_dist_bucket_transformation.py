@@ -23,9 +23,7 @@ from graphstorm_processing.data_transformations.dist_transformations import (
 
 
 def test_bucket_numerical_without_missing(user_df: DataFrame):
-    bucket_transformation = DistBucketNumericalTransformation(
-        ["age"], [22, 33], 3, 0, "none", "none"
-    )
+    bucket_transformation = DistBucketNumericalTransformation(["age"], [22, 33], 3, 0, "none")
 
     output_df = bucket_transformation.apply(user_df)
 
@@ -44,7 +42,7 @@ def test_bucket_numerical_example(spark: SparkSession, check_df_schema):
     window_size = 10.0  # range is 10 ~ 15; 15 ~ 20; 20 ~ 25; 25 ~ 30
 
     bucket_transformation = DistBucketNumericalTransformation(
-        ["age"], [low, high], bucket_cnt, window_size, "none", "none"
+        ["age"], [low, high], bucket_cnt, window_size, "none"
     )
 
     output_df = bucket_transformation.apply(input_df)
@@ -73,7 +71,7 @@ def test_bucket_numerical_second_example(spark: SparkSession):
     window_size = 5.0
 
     bucket_transformation = DistBucketNumericalTransformation(
-        ["age"], [low, high], bucket_cnt, window_size, "none", "none"
+        ["age"], [low, high], bucket_cnt, window_size, "none"
     )
 
     output_df = bucket_transformation.apply(input_df)

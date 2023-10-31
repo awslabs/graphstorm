@@ -99,7 +99,7 @@ class GConstructConfigConverter(ConfigConverter):
                     gsp_transformation_dict["name"] = "numerical"
                     gsp_transformation_dict["kwargs"] = {"normalizer": "none", "imputer": "none"}
                 elif gconstruct_transform_dict["name"] == "bucket_numerical":
-                    gsp_transformation_dict["name"] = "bucket_numerical"
+                    gsp_transformation_dict["name"] = "bucket-numerical"
                     assert (
                         "bucket_cnt" in gconstruct_transform_dict
                     ), "bucket_cnt should be in the gconstruct bucket feature transform field"
@@ -107,7 +107,6 @@ class GConstructConfigConverter(ConfigConverter):
                         "range" in gconstruct_transform_dict
                     ), "range should be in the gconstruct bucket feature transform field"
                     gsp_transformation_dict["kwargs"] = {
-                        "normalizer": "none",
                         "bucket_cnt": gconstruct_transform_dict["bucket_cnt"],
                         "range": gconstruct_transform_dict["range"],
                         "slide_window_size": gconstruct_transform_dict["slide_window_size"],

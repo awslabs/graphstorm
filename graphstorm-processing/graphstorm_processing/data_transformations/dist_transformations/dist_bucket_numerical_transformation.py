@@ -32,15 +32,12 @@ class DistBucketNumericalTransformation(DistributedTransformation):
     ----------
     cols : Sequence[str]
         The list of columns to apply the transformations on.
-    range: List[int]
+    range: List[float]
         The range of bucket lists only defining the start and end point.
     bucket_cnt: int
         The count of bucket lists used in the bucket feature transform.
     slide_window_size: float or none
         Interval or range within which numeric values are grouped into buckets.
-    normalizer : str
-        The normalization to apply to the columns.
-        Valid values are "none", "min-max", and "standard".
     imputer : str
         The type of missing value imputation to apply to the column.
         Valid values are "mean", "median" and "most_frequent".
@@ -53,7 +50,6 @@ class DistBucketNumericalTransformation(DistributedTransformation):
         range: List[float],
         bucket_cnt: int,
         slide_window_size: float = 0.0,
-        normalizer: str = "none",
         imputer: str = "none",
     ) -> None:
         super().__init__(cols)
@@ -62,7 +58,6 @@ class DistBucketNumericalTransformation(DistributedTransformation):
         self.range = range
         self.bucket_count = bucket_cnt
         self.slide_window_size = slide_window_size
-        self.shared_norm = normalizer
         # Spark uses 'mode' for the most frequent element
         self.shared_imputation = "mode" if imputer == "most_frequent" else imputer
 
@@ -72,7 +67,6 @@ class DistBucketNumericalTransformation(DistributedTransformation):
 
     def apply(self, input_df: DataFrame) -> DataFrame:
         imputed_df = apply_imputation(self.cols, self.shared_imputation, input_df)
-        scaled_df = apply_norm(self.cols, self.shared_norm, imputed_df)
         min_val, max_val = self.range
 
         bucket_size = (max_val - min_val) / self.bucket_count
@@ -118,6 +112,6 @@ class DistBucketNumericalTransformation(DistributedTransformation):
 
         bucket_udf = F.udf(determine_bucket_membership, ArrayType(FloatType()))
 
-        bucketized_df = scaled_df.select(bucket_udf(F.col(self.cols[0])).alias(self.cols[0]))
+        bucketized_df = imputed_df.select(bucket_udf(F.col(self.cols[0])).alias(self.cols[0]))
 
         return bucketized_df

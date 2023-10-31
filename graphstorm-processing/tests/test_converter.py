@@ -266,7 +266,6 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "transformation": {
                 "name": "bucket-numerical",
                 "kwargs": {
-                    "normalizer": "none",
                     "bucket_cnt": 9,
                     "range": [10, 100],
                     "slide_window_size": 5,
