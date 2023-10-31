@@ -691,21 +691,20 @@ def main(args, gs_config_args):
     if node_emb_dir is not None:
         # If node embedding exists, we are going to remap all the embeddings.
         if with_shared_fs:
-            assert os.path.exists(os.path.join(node_emb_dir, "emb_info.json")), \
-                f"emb_info.json must exist under {node_emb_dir}"
-            with open(os.path.join(node_emb_dir, "emb_info.json"),
-                    "r",  encoding='utf-8') as f:
-                info = json.load(f)
-                ntypes = info["emb_name"]
-                emb_ntypes = ntypes if isinstance(ntypes, list) else [ntypes]
+            if os.path.exists(os.path.join(node_emb_dir, "emb_info.json")):
+                with open(os.path.join(node_emb_dir, "emb_info.json"),
+                        "r",  encoding='utf-8') as f:
+                    info = json.load(f)
+                    ntypes = info["emb_name"]
+                    emb_ntypes = ntypes if isinstance(ntypes, list) else [ntypes]
 
-                if "num_embs" in info:
-                    emb_lens = info["num_embs"]
-                    emb_lens = dict(zip(ntypes, emb_lens)) \
-                        if isinstance(emb_lens, list) else {ntypes: emb_lens}
-                else:
-                    # emb nid files must exist in this case.
-                    emb_lens = None
+                    if "num_embs" in info:
+                        emb_lens = info["num_embs"]
+                        emb_lens = dict(zip(ntypes, emb_lens)) \
+                            if isinstance(emb_lens, list) else {ntypes: emb_lens}
+                    else:
+                        # emb nid files must exist in this case.
+                        emb_lens = None
 
         else: # There is no shared file system
             emb_names = os.listdir(node_emb_dir)
@@ -758,7 +757,7 @@ def main(args, gs_config_args):
                     logging.warning("prediction results of %s"
                                     "do not exists. Skip doing remapping for it",
                                     pred_ntype)
-            pred_ntype = exist_pred_ntypes
+            pred_ntypes = exist_pred_ntypes
 
         if with_shared_fs:
             # Only when shared file system is avaliable,
@@ -784,6 +783,7 @@ def main(args, gs_config_args):
                             if "etypes" in info else []
                     if len(pred_ntypes) == 0:
                         pred_ntypes = info["ntypes"] if "ntypes" in info else []
+
 
     ntypes = []
     ntypes += emb_ntypes
