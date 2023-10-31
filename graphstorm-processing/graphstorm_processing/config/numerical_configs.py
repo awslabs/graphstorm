@@ -104,17 +104,6 @@ class BucketFeatureConfig(FeatureConfig):
         "none" (Default), "mean", "median", and "most_frequent". Missing values will be replaced
         with the respective value computed from the data.
 
-    normalizer: str
-        A normalization to apply to each column. Valid values are
-        "none", "min-max", and "standard".
-
-        The transformation applied will be:
-
-        * "none": (Default) Don't normalize the numerical values during encoding.
-        * "min-max": Normalize each value by subtracting the minimum value from it,
-        and then dividing it by the difference between the maximum value and the minimum.
-        * "standard": Normalize each value by dividing it by the sum of all the values.
-
     bucket_cnt: int
         The count of bucket lists used in the bucket feature transform. Each bucket will
         have same length.

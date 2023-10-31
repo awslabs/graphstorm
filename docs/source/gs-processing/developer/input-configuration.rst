@@ -406,10 +406,10 @@ arguments.
       and an optional normalizer.
    -  ``kwargs``:
 
-      -  ``imputer`` (String, optional): A method to fill in missing values in the data.
-         Valid values are:
-         ``none`` (Default), ``mean``, ``median``, and ``most_frequent``. Missing values will be replaced
-         with the respective value computed from the data.
+      - ``imputer`` (String, optional): A method to fill in missing values in the data.
+        Valid values are:
+        ``none`` (Default), ``mean``, ``median``, and ``most_frequent``. Missing values will be replaced
+        with the respective value computed from the data.
       - ``range`` (List[float], required), The range only defines the start and end point with ``[a, b]``. It should be
         a list of two integers. For example, the ``[10, 30]`` should define the start point of 10 and end point
         with 30
