@@ -402,8 +402,8 @@ arguments.
         column is assumed to be an array of floats.
 -  ``bucket-numerical``
 
-   -  Transforms a numerical column with bucket normalization using a missing data imputer
-      and an optional normalizer.
+   -  Transforms a numerical column to a one-hot or multi-hot bucket representation, using bucketization.
+       Also supports optional missing value imputation through the `imputer` kwarg.```
    -  ``kwargs``:
 
       - ``imputer`` (String, optional): A method to fill in missing values in the data.
