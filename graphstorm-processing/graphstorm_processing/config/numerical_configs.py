@@ -146,11 +146,12 @@ class BucketFeatureConfig(FeatureConfig):
         assert (
             self.norm in VALID_NORMALIZERS
         ), f"Unknown normalizer requested, expected one of {VALID_NORMALIZERS}, got {self.norm}"
-        assert (
-            isinstance(self.bucket_cnt, int)
+        assert isinstance(
+            self.bucket_cnt, int
         ), f"Expect bucket_cnt {self.bucket_cnt} be an integer"
         assert (
-            isinstance(self.range, list) and all(isinstance(x, int) for x in self.range)
+            isinstance(self.range, list)
+            and all(isinstance(x, int) for x in self.range)
             and len(self.range) == 2
         ), f"Expect range {self.range} be a list of two integers"
         assert (

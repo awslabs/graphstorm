@@ -45,10 +45,17 @@ class DistBucketNumericalTransformation(DistributedTransformation):
         The type of missing value imputation to apply to the column.
         Valid values are "mean", "median" and "most_frequent".
     """
+
     # pylint: disable=redefined-builtin
-    def __init__(self, cols: List[str], range: List[float],
-            bucket_cnt: int, slide_window_size: float = 0.0, normalizer: str = 'none',
-            imputer: str = 'none') -> None:
+    def __init__(
+        self,
+        cols: List[str],
+        range: List[float],
+        bucket_cnt: int,
+        slide_window_size: float = 0.0,
+        normalizer: str = "none",
+        imputer: str = "none",
+    ) -> None:
         super().__init__(cols)
         self.cols = cols
         assert len(self.cols) == 1, "Bucket numerical transformation only supports single column"
@@ -75,8 +82,8 @@ class DistBucketNumericalTransformation(DistributedTransformation):
         # TODO: Test if pyspark.ml.feature.Bucketizer covers our requirements and is faster
         def determine_bucket_membership(value: float) -> List[int]:
             # Create value range, value -> [value - slide/2, value + slide/2]
-            high_val = value + self.slide_window_size/2
-            low_val = value - self.slide_window_size/2
+            high_val = value + self.slide_window_size / 2
+            low_val = value - self.slide_window_size / 2
 
             # Early exits to avoid numpy calls
             membership_list = [0.0] * self.bucket_count
