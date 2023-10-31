@@ -412,10 +412,11 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
 
                 feat = prepare_batch_input(g, {ntype: input_nodes}, dev=dev, feat_field=feat_field)
                 emb = embed_layer(feat, {ntype: input_nodes})
-                input_emb[input_nodes] = emb[ntype].to('cpu')
-                if iter_l % 200 == 0 and g.rank() == 0:
-                    logging.debug("compute input embeddings on %s: %d of %d, takes %.3f seconds",
-                                  ntype, iter_l, len(node_list), time.time() - iter_start)
+                if ntype in emb:
+                    input_emb[input_nodes] = emb[ntype].to('cpu')
+                    if iter_l % 200 == 0 and g.rank() == 0:
+                        logging.debug("compute input embeddings on %s: %d of %d, takes %.3f s",
+                                      ntype, iter_l, len(node_list), time.time() - iter_start)
             n_embs[ntype] = input_emb
     if embed_layer is not None:
         embed_layer.train()
