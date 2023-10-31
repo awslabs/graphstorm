@@ -22,9 +22,9 @@ from graphstorm_processing.constants import SUPPORTED_FILE_TYPES
 from .label_config_base import LabelConfig, EdgeLabelConfig, NodeLabelConfig
 from .feature_config_base import FeatureConfig, NoopFeatureConfig
 from .numerical_configs import (
+    BucketFeatureConfig,
     MultiNumericalFeatureConfig,
     NumericalFeatureConfig,
-    BucketFeatureConfig,
 )
 from .data_config_base import DataStorageConfig
 

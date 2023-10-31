@@ -95,7 +95,7 @@ class MultiNumericalFeatureConfig(NumericalFeatureConfig):
 
 
 class BucketFeatureConfig(FeatureConfig):
-    """Feature configuration for bucket normalization features.
+    """Feature configuration for bucket-numerical transformation.
 
     Supported kwargs
     ----------------

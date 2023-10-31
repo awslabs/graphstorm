@@ -21,7 +21,7 @@ from pyspark.sql.types import ArrayType, FloatType
 import numpy as np
 
 from .base_dist_transformation import DistributedTransformation
-from .dist_numerical_transformation import apply_imputation, apply_norm
+from .dist_numerical_transformation import apply_imputation
 
 
 class DistBucketNumericalTransformation(DistributedTransformation):
@@ -67,6 +67,7 @@ class DistBucketNumericalTransformation(DistributedTransformation):
 
     def apply(self, input_df: DataFrame) -> DataFrame:
         imputed_df = apply_imputation(self.cols, self.shared_imputation, input_df)
+        # TODO: Make range optional by getting min/max from data.
         min_val, max_val = self.range
 
         bucket_size = (max_val - min_val) / self.bucket_count
@@ -110,6 +111,7 @@ class DistBucketNumericalTransformation(DistributedTransformation):
 
             return membership_array.tolist()
 
+        # TODO: Try using a Pandas/Arrow UDF here and compare performance.
         bucket_udf = F.udf(determine_bucket_membership, ArrayType(FloatType()))
 
         bucketized_df = imputed_df.select(bucket_udf(F.col(self.cols[0])).alias(self.cols[0]))

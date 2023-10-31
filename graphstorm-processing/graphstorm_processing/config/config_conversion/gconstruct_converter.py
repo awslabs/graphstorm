@@ -97,7 +97,7 @@ class GConstructConfigConverter(ConfigConverter):
 
                 if gconstruct_transform_dict["name"] == "max_min_norm":
                     gsp_transformation_dict["name"] = "numerical"
-                    gsp_transformation_dict["kwargs"] = {"normalizer": "none", "imputer": "none"}
+                    gsp_transformation_dict["kwargs"] = {"normalizer": "min-max", "imputer": "none"}
                 elif gconstruct_transform_dict["name"] == "bucket_numerical":
                     gsp_transformation_dict["name"] = "bucket-numerical"
                     assert (
