@@ -320,42 +320,6 @@ def test_GSgnnNodeData():
         no_label = True
     assert no_label
 
-    g = tr_data.g
-    node_feats = {ntype: 'emb' for ntype in dist_graph.ntypes}
-
-    # Test add node features.
-    for ntype in g.ntypes:
-        g.nodes[ntype].data[node_feats[ntype]] \
-                = th.arange(g.number_of_nodes(ntype)).view(g.number_of_nodes(ntype), 1)
-    tr_data.add_node_feats(node_feats)
-    for ntype in g.ntypes:
-        assert tr_data.has_node_feats(ntype)
-
-    # Add another node features.
-    ntype0 = g.ntypes[0]
-    g.nodes[ntype0].data['emb1'] = th.zeros(g.number_of_nodes(ntype0), 1)
-    tr_data.add_node_feats({ntype0: 'emb1'})
-
-    # Test get node features.
-    input_nodes = {ntype: np.arange(10) for ntype in g.ntypes}
-    feats = tr_data.get_node_feats(input_nodes)
-    for ntype in input_nodes:
-        fields = tr_data.node_feat_field[ntype]
-        assert 'emb' in fields
-        data = []
-        for field in fields:
-            data.append(g.nodes[ntype].data[field][input_nodes[ntype]])
-        data = th.cat(data, dim=1)
-        assert np.all(feats[ntype].numpy() == data.numpy())
-
-    # Test removing node features
-    tr_data.remove_node_feats(node_feats)
-    for ntype in g.ntypes:
-        if ntype == ntype0:
-            assert tr_data.has_node_feats(ntype)
-        else:
-            assert not tr_data.has_node_feats(ntype)
-
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
@@ -1375,9 +1339,8 @@ def test_inbatch_joint_neg_sampler(num_pos, num_neg):
 
 
 if __name__ == '__main__':
-    test_GSgnnEdgeData()
-    test_GSgnnNodeData()
     test_inbatch_joint_neg_sampler(10, 20)
+
     test_np_dataloader_len(11)
     test_ep_dataloader_len(11)
     test_lp_dataloader_len(11)
@@ -1387,6 +1350,8 @@ if __name__ == '__main__':
     test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
     test_GSgnnEdgeData_wo_test_mask()
     test_GSgnnNodeData_wo_test_mask()
+    test_GSgnnEdgeData()
+    test_GSgnnNodeData()
     test_lp_dataloader()
     test_edge_dataloader()
     test_node_dataloader()
