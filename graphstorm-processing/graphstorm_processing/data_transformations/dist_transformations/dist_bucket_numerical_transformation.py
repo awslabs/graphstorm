@@ -27,7 +27,8 @@ from .dist_numerical_transformation import apply_imputation, apply_norm
 
 class DistBucketNumericalTransformation(DistributedTransformation):
     def __init__(self, cols: List[str], range: List[float],
-            bucket_cnt: int, slide_window_size: float, normalizer: List[str] = ['none'], imputer: List[str] = ['none']) -> None:
+            bucket_cnt: int, slide_window_size: float = 0.0, normalizer: List[str] = ['none'],
+            imputer: List[str] = ['none']) -> None:
         super().__init__(cols)
         self.cols = cols
         assert len(self.cols) == 1, "Bucket numerical transformation only supports single column"

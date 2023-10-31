@@ -148,5 +148,5 @@ class BucketFeatureConfig(FeatureConfig):
             and len(self.range) == 2
         ), f"Expect range {self.range} be a list of two integers"
         assert (
-            isinstance(self.slide_window_size, float) or self.slide_window_size == "none"
+            isinstance(self.slide_window_size, (int, float)) or self.slide_window_size == "none"
         ), f"Expect no slide window size or it is a number"
