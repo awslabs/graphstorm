@@ -92,7 +92,7 @@ def create_rgcn_node_model(g, norm=None):
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
     return model
 
-def create_rgcn_node_model_with_reconstruct(g):
+def create_rgcn_node_model_with_reconstruct(g, cache_embed):
     model = GSgnnNodeModel(alpha_l2norm=0)
 
     feat_size = get_feat_size(g, {'n0': 'feat', 'n4': 'feat'})
@@ -100,7 +100,8 @@ def create_rgcn_node_model_with_reconstruct(g):
     encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                       dropout=0,
                                       use_node_embeddings=False,
-                                      force_no_embeddings=reconstructed_embed_ntype)
+                                      force_no_embeddings=reconstructed_embed_ntype,
+                                      cache_embed=cache_embed)
     model.set_node_input_encoder(encoder)
 
     gnn_encoder = RelationalGCNEncoder(g, 4, 4,
@@ -443,7 +444,8 @@ def test_rgcn_node_prediction_multi_target_ntypes():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
-def test_rgcn_node_prediction_with_reconstruct():
+@pytest.mark.parametrize("cache_embed", [True, False])
+def test_rgcn_node_prediction_with_reconstruct(cache_embed):
     """ Test node prediction logic correctness with a node prediction model
         composed of InputLayerEncoder + RGCNLayerWithReconstruct + Decoder
 
@@ -462,8 +464,9 @@ def test_rgcn_node_prediction_with_reconstruct():
         np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
                                      train_ntypes=['n0'], label_field='label',
                                      node_feat_field={'n0': ['feat'], 'n4': ['feat']})
-    model = create_rgcn_node_model_with_reconstruct(np_data.g)
+    model = create_rgcn_node_model_with_reconstruct(np_data.g, cache_embed=cache_embed)
     check_node_prediction_with_reconstruct(model, np_data)
+
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -1527,13 +1530,14 @@ def test_node_mini_batch_gnn_predict():
     th.distributed.destroy_process_group()
 
 if __name__ == '__main__':
+    test_rgcn_node_prediction_with_reconstruct(True)
+    test_rgcn_node_prediction_with_reconstruct(False)
     test_mini_batch_full_graph_inference(0)
 
     test_gnn_model_load_save()
     test_lm_model_load_save()
     test_node_mini_batch_gnn_predict()
     test_edge_mini_batch_gnn_predict()
-    test_rgcn_node_prediction_with_reconstruct()
     test_hgt_edge_prediction()
     test_hgt_node_prediction()
     test_rgcn_edge_prediction(2)

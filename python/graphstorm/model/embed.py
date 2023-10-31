@@ -169,6 +169,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         Number of layers of feedforward neural network for each node type in the input layers
     ffn_activation : callable
         The activation function for the feedforward neural networks.
+    cache_embed : bool
+        Whether or not to cache the embeddings.
 
     Examples:
     ----------
@@ -198,7 +200,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  force_no_embeddings=None,
                  num_ffn_layers_in_input=0,
                  ffn_activation=F.relu,
-                 ):
+                 cache_embed=False):
         super(GSNodeEncoderInputLayer, self).__init__(g)
         self.embed_size = embed_size
         self.dropout = nn.Dropout(dropout)
@@ -208,6 +210,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
             force_no_embeddings = []
 
         self.activation = activation
+        self.cache_embed = cache_embed
 
         # NCCL backend is not supported for utilizing learnable embeddings on nodes. It has a
         # dependency on distDGL (PR https://github.com/dmlc/dgl/pull/5929).
@@ -324,6 +327,19 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
 
         embs = {ntype: _apply(ntype, h) for ntype, h in embs.items()}
         return embs
+
+    def require_cache_embed(self):
+        """ Whether to cache the embeddings for inference.
+
+        If the input encoder has heavy computations, such as BERT computations,
+        it should return True and the inference engine will cache the embeddings
+        from the input encoder.
+
+        Returns
+        -------
+        Bool : True if we need to cache the embeddings for inference.
+        """
+        return self.cache_embed
 
     def get_sparse_params(self):
         """ get the sparse parameters.
