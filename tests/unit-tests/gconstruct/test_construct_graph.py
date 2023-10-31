@@ -1481,7 +1481,7 @@ def test_multicolumn(ext_mem):
     assert res[0].col_name == feat_op5[0]["feature_col"]
     assert res[0].feat_name == feat_op5[0]["feature_name"]
     assert isinstance(res[0], NumericalMinMaxTransform)
-    maxmin_feats = process_features(data, res)
+    maxmin_feats = process_features(data, res, ext_mem=ext_mem)
     assert "test3" in proc_res
     assert proc_res["test3"].dtype == np.float32
 
@@ -1498,7 +1498,7 @@ def test_multicolumn(ext_mem):
         }
     }]
     (res, _, _) = parse_feat_ops(feat_maxmin_single1)
-    maxmin_feat_single1 = process_features(data_maxmin1, res, ext_mem=ext_mem)
+    maxmin_feat_single1 = process_features(data_maxmin1, res)
 
     data_maxmin2 = {
         "test2": data["test2"]
