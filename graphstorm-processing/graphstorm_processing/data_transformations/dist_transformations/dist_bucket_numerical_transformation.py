@@ -73,7 +73,6 @@ class DistBucketNumericalTransformation(DistributedTransformation):
         bucket_size = (max_val - min_val) / self.bucket_count
         epsilon = bucket_size / 10
 
-        # Implementation based on graphloader.utils.parse_numerical_multihot_feat
         # TODO: Test if pyspark.ml.feature.Bucketizer covers our requirements and is faster
         def determine_bucket_membership(value: float) -> List[int]:
             # Create value range, value -> [value - slide/2, value + slide/2]

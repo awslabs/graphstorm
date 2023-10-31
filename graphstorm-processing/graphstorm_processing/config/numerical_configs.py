@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 from typing import Mapping
+import numbers
 
 from graphstorm_processing.constants import VALID_IMPUTERS, VALID_NORMALIZERS
 from .feature_config_base import FeatureConfig
@@ -94,7 +95,7 @@ class MultiNumericalFeatureConfig(NumericalFeatureConfig):
         self._sanity_check()
 
 
-class BucketFeatureConfig(FeatureConfig):
+class BucketNumericalFeatureConfig(FeatureConfig):
     """Feature configuration for bucket-numerical transformation.
 
     Supported kwargs
@@ -136,9 +137,9 @@ class BucketFeatureConfig(FeatureConfig):
         ), f"Expect bucket_cnt {self.bucket_cnt} be an integer"
         assert (
             isinstance(self.range, list)
-            and all(isinstance(x, (int, float)) for x in self.range)
+            and all(isinstance(x, numbers.Number) for x in self.range)
             and len(self.range) == 2
         ), f"Expect range {self.range} be a list of two integers or two floats"
         assert (
-            isinstance(self.slide_window_size, (int, float)) or self.slide_window_size == "none"
+            isinstance(self.slide_window_size, numbers.Number) or self.slide_window_size == "none"
         ), f"Expect no slide window size or expect {self.slide_window_size} is a number"
