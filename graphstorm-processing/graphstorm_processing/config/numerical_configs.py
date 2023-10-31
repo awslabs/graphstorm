@@ -119,7 +119,7 @@ class BucketFeatureConfig(FeatureConfig):
         The count of bucket lists used in the bucket feature transform. Each bucket will
         have same length.
 
-    range: List[float]
+    range: List[int]
         The range of bucket lists only defining the start and end point. The range and
         bucket_cnt will define the buckets together. For example, range = [10, 30] and
         bucket_cnt = 2, will have two buckets: [10, 20] and [20, 30]
