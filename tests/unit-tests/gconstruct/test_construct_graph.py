@@ -1276,7 +1276,8 @@ def test_parse_edge_data():
         assert "val_mask" in feat_data
         assert "test_mask" in feat_data
 
-def test_multicolumn():
+@pytest.mark.parametrize("ext_mem", [None, "/"])
+def test_multicolumn(ext_mem):
     # Just get the features without transformation.
     feat_op1 = [{
         "feature_col": ["test1", "test2"],
@@ -1293,9 +1294,11 @@ def test_multicolumn():
         "test2": np.random.rand(4, 2)
     }
     data["test3"] = np.column_stack((data['test1'], data['test2']))
-    proc_res = process_features(data, res)
+    proc_res = process_features(data, res, ext_mem=ext_mem)
     assert "test3" in proc_res
     assert proc_res["test3"].dtype == np.float32
+    if isinstance(proc_res, ExtMemArrayWrapper):
+        proc_res = proc_res.to_numpy()
     np.testing.assert_allclose(proc_res["test3"], data["test3"])
 
     feat_op2 = [{
@@ -1316,7 +1319,7 @@ def test_multicolumn():
     assert res[0].col_name == feat_op2[0]["feature_col"]
     assert res[0].feat_name == feat_op2[0]["feature_name"]
     assert isinstance(res[0], BucketTransform)
-    bucket_feats = process_features(data, res)
+    bucket_feats = process_features(data, res, ext_mem=ext_mem)
     assert "test3" in proc_res
     assert proc_res["test3"].dtype == np.float32
 
@@ -1351,6 +1354,8 @@ def test_multicolumn():
     bucket_feat_single2 = process_features(data_bucket2, res)
     bucket_expec = np.column_stack((bucket_feat_single1["test3"],
                                     bucket_feat_single2["test3"]))
+    if isinstance(proc_res, ExtMemArrayWrapper):
+        bucket_feats = bucket_feats.to_numpy()
     assert_equal(bucket_feats["test3"], bucket_expec)
 
     feat_op3 = [{
@@ -1369,7 +1374,7 @@ def test_multicolumn():
     assert res[0].col_name == feat_op3[0]["feature_col"]
     assert res[0].feat_name == feat_op3[0]["feature_name"]
     assert isinstance(res[0], RankGaussTransform)
-    rg_feats = process_features(data, res)
+    rg_feats = process_features(data, res, ext_mem=ext_mem)
     assert "test3" in proc_res
     assert proc_res["test3"].dtype == np.float32
 
@@ -1400,6 +1405,8 @@ def test_multicolumn():
     rg_feat_single2 = process_features(data_rg2, res)
     rg_expec = np.column_stack((rg_feat_single1["test3"],
                                 rg_feat_single2["test3"]))
+    if isinstance(rg_feats, ExtMemArrayWrapper):
+        rg_feats = rg_feats.to_numpy()
     assert_equal(rg_feats["test3"], rg_expec)
 
     feat_op4 = [{
@@ -1420,7 +1427,7 @@ def test_multicolumn():
     assert res[0].col_name == feat_op4[0]["feature_col"]
     assert res[0].feat_name == feat_op4[0]["feature_name"]
     assert isinstance(res[0], Text2BERT)
-    bert_feats = process_features(data, res)
+    bert_feats = process_features(data, res, ext_mem=ext_mem)
     assert "test3" in proc_res
 
     data_bert1 = {
@@ -1452,6 +1459,8 @@ def test_multicolumn():
     bert_feat_single2 = process_features(data_bert2, res)
     bert_expec = np.column_stack((bert_feat_single1["test3"],
                                 bert_feat_single2["test3"]))
+    if isinstance(bert_feats, ExtMemArrayWrapper):
+        bert_feats = bert_feats.to_numpy()
     assert_equal(bert_feats["test3"], bert_expec)
 
     feat_op5 = [{
@@ -1489,7 +1498,7 @@ def test_multicolumn():
         }
     }]
     (res, _, _) = parse_feat_ops(feat_maxmin_single1)
-    maxmin_feat_single1 = process_features(data_maxmin1, res)
+    maxmin_feat_single1 = process_features(data_maxmin1, res, ext_mem=ext_mem)
 
     data_maxmin2 = {
         "test2": data["test2"]
@@ -1507,6 +1516,8 @@ def test_multicolumn():
     maxmin_feat_single2 = process_features(data_maxmin2, res)
     maxmin_expec = np.column_stack((maxmin_feat_single1["test3"],
                                 maxmin_feat_single2["test3"]))
+    if isinstance(maxmin_feats, ExtMemArrayWrapper):
+        maxmin_feats = maxmin_feats.to_numpy()
     assert_equal(maxmin_feats["test3"], maxmin_expec)
 
 if __name__ == '__main__':
@@ -1524,4 +1535,5 @@ if __name__ == '__main__':
     test_process_features()
     test_process_features_fp16()
     test_label()
-    test_multicolumn()
+    test_multicolumn(None)
+    test_multicolumn("/")

@@ -630,6 +630,7 @@ class ExtFeatureWrapper(ExtMemArrayWrapper):
     def merge(self):
         """ Return feature col-wised.
         """
+        self._shape = (self._shape[0], 0)
         for wrap in self.wrapper:
             self._shape = (wrap.shape[0], self._shape[1] + wrap.shape[1])
 
