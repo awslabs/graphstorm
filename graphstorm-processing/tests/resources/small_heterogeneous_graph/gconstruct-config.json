@@ -41,7 +41,7 @@
         "files":        ["nodes/user.csv"],
         "features": [
             {
-                "feature_col": ["age"],
+                "feature_col": ["age", "salary"],
                 "feature_name": "feat_multi"
             }
         ]

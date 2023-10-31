@@ -22,8 +22,6 @@ import os
 import sys
 import abc
 import json
-import uuid
-import hashlib
 import warnings
 
 import numpy as np
@@ -34,7 +32,8 @@ from transformers import AutoTokenizer
 from transformers import AutoModel, AutoConfig
 
 from .file_io import read_index_json
-from .utils import ExtMemArrayWrapper, ExtFeatureWrapper
+from .utils import (ExtMemArrayWrapper, ExtFeatureWrapper,
+                    generate_hash, ExtNumpyWrapper)
 
 LABEL_STATS_FIELD = "training_label_stats"
 LABEL_STATS_FREQUENCY_COUNT = "frequency_cnt"
@@ -1103,7 +1102,8 @@ def process_features(data, ops, ext_mem=None):
     """
     new_data = {}
     for op in ops:
-        feature_path = 'feature_{}'.format(op.feat_name)
+        hash_hex_feature_path = generate_hash()
+        feature_path = 'feature_{}_{}'.format(op.feat_name, hash_hex_feature_path)
         feature_path = ext_mem + feature_path if ext_mem is not None \
             else feature_path
         if isinstance(op.col_name, str):
@@ -1130,14 +1130,10 @@ def process_features(data, ops, ext_mem=None):
                     if not os.path.exists(feature_path):
                         os.makedirs(feature_path)
                         wrapper = ExtFeatureWrapper(feature_path, val.shape, val.dtype)
-                    # Generate a hashcode
-                    random_uuid = uuid.uuid4()
-                    hash_object = hashlib.sha256(str(random_uuid).encode())
-                    hash_hex = hash_object.hexdigest()
 
-                    if isinstance(val, ExtMemArrayWrapper):
-                        val = val.to_numpy()
-                    val.tofile(feature_path + '/{}_{}.npy'.format(col, hash_hex))
+                    hash_hex = generate_hash()
+                    val_path = feature_path + '/{}_{}.npy'.format(col, hash_hex)
+                    wrapper.append(val, val_path)
                 else:
                     val = np.column_stack((new_data[key], val)) \
                         if key in new_data else val

@@ -23,6 +23,8 @@ import logging
 import copy
 import traceback
 import shutil
+import uuid
+import hashlib
 
 import numpy as np
 import dgl
@@ -141,6 +143,13 @@ def _estimate_sizeof(data):
         data_size = 0
 
     return data_size
+
+def generate_hash():
+    # Generate a hashcode
+    random_uuid = uuid.uuid4()
+    hash_object = hashlib.sha256(str(random_uuid).encode())
+    hash_hex_object = hash_object.hexdigest()
+    return hash_hex_object
 
 def worker_fn(worker_id, task_queue, res_queue, user_parser):
     """ The worker function in the worker pool
@@ -550,6 +559,7 @@ class ExtFeatureWrapper(ExtMemArrayWrapper):
         self._orig_dtype = self._dtype = dtype
         self._arr = None
         self.merged_file = merged_file
+        self.wrapper = []
 
     @property
     def dtype(self):
@@ -607,24 +617,30 @@ class ExtFeatureWrapper(ExtMemArrayWrapper):
         """
         return th.tensor(self.to_numpy())
 
+    def append(self, wrap, path=None):
+        """Add external memory wrapper to the wrapper
+        """
+        if isinstance(wrap, np.ndarray):
+            ext_val = np.memmap(path, wrap.dtype, mode="w+", shape=wrap.shape)
+            ext_val[:] = wrap[:]
+            ext_val.flush()
+            wrap = ExtNumpyWrapper(path, wrap.shape, wrap.dtype)
+        self.wrapper.append(wrap)
+
     def merge(self):
         """ Return feature col-wised.
         """
-        entries = os.listdir(self._arr_path)
+        for wrap in self.wrapper:
+            self._shape = (wrap.shape[0], self._shape[1] + wrap.shape[1])
 
         out_arr = np.memmap(os.path.join(self._arr_path, self.merged_file), self._orig_dtype,
-                            mode="w+", shape=(self._shape[0], len(entries) * self._shape[1]))
+                            mode="w+", shape=self._shape)
         col_start = 0
-        for entry in entries:
-            if entry == self.merged_file:
-                continue
-            arr = np.memmap(os.path.join(self._arr_path, entry), self._orig_dtype,
-                            mode="r", shape=self._shape)
-            col_end = col_start + self._shape[1]
-            out_arr[:, col_start:col_end] = arr
+        for wrap in self.wrapper:
+            col_end = col_start + wrap.shape[1]
+            out_arr[:, col_start:col_end] = wrap.to_numpy()
             col_start = col_end
 
-        self._shape = out_arr.shape
         out_arr.flush()
 
 def _merge_arrs(arrs, tensor_path):
