@@ -36,7 +36,7 @@ class DistBucketNumericalTransformation(DistributedTransformation):
         The range of bucket lists only defining the start and end point.
     bucket_cnt: int
         The count of bucket lists used in the bucket feature transform.
-    slide_window_size: float or none
+    slide_window_size: float
         Interval or range within which numeric values are grouped into buckets.
     imputer : str
         The type of missing value imputation to apply to the column.
