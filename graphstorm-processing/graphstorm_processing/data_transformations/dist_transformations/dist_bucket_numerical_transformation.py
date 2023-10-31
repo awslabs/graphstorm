@@ -33,7 +33,7 @@ class DistBucketNumericalTransformation(DistributedTransformation):
     ----------
     cols : Sequence[str]
         The list of columns to apply the transformations on.
-    range: List[float]
+    range: List[int]
         The range of bucket lists only defining the start and end point.
     bucket_cnt: int
         The count of bucket lists used in the bucket feature transform.
