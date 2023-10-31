@@ -24,7 +24,7 @@ from graphstorm.config import  (BUILTIN_TASK_NODE_CLASSIFICATION,
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
 from ..model.gnn import do_full_graph_inference, do_mini_batch_inference
-from ..utils import sys_tracker, get_rank, get_world_size, barrier
+from ..utils import sys_tracker, get_rank, barrier
 
 
 class GSgnnEmbGenInferer(GSInferrer):
