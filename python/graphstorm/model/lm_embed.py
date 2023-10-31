@@ -491,8 +491,9 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
     def unfreeze(self):
         """ Disable Bert caching
         """
-        if self.num_train != 0:
-            self.use_cache = False
+        self.use_cache = False
+        # We should clear up the LM cache here. When someone calls unfreeze,
+        # we expect that the LM model will be fine-tuned.
         self.lm_emb_cache.clear_cache()
 
     def require_cache_embed(self):
@@ -700,16 +701,10 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
     def unfreeze(self):
         """ Disable Bert caching
         """
-        if self.num_train != 0:
-            self.use_cache = False
-            assert len(self.lm_emb_cache) == 0, \
-                    "When we need to train LM models, we should have no LM cache."
-        else:
-            # We should clear up the LM cache here if we don't train the LM model.
-            # This is necessary in the case of GLEM, in which we iteratively train
-            # LM and GNN modules. After we fine-tune the LM model, we need to clear
-            # up the LM cache.
-            self.lm_emb_cache.clear_cache()
+        self.use_cache = False
+        # We should clear up the LM cache here. When someone calls unfreeze,
+        # we expect that the LM model will be fine-tuned.
+        self.lm_emb_cache.clear_cache()
 
     def require_cache_embed(self):
         """ Whether to cache the embeddings for inference.
