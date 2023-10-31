@@ -974,8 +974,13 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
             if not isinstance(input_nodes, dict):
                 assert len(data.g.ntypes) == 1
                 input_nodes = {data.g.ntypes[0]: input_nodes}
-            return {ntype: input_embeds[ntype][ids].to(device) \
-                    for ntype, ids in input_nodes.items()}
+            res = {}
+            # If the input node layer doesn't generate embeddings for a node type,
+            # we ignore it. This behavior is the same as reading node features below.
+            for ntype, ids in input_nodes.items():
+                if ntype in input_embeds:
+                    res[ntype] = input_embeds[ntype][ids].to(device)
+            return res
         embeddings = model.gnn_encoder.dist_inference(data.g, get_input_embeds,
                                                     batch_size, fanout, edge_mask=edge_mask,
                                                     task_tracker=task_tracker)
