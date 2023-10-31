@@ -258,19 +258,19 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "column": "num_citations",
             "transformation": {
                 "name": "numerical",
-                "kwargs": {"normalizer": "min-max", "imputer": "mean"},
+                "kwargs": {"normalizer": "none", "imputer": "none"},
             },
         },
         {
             "column": "num_citations",
             "transformation": {
-                "name": "numerical",
+                "name": "bucket-numerical",
                 "kwargs": {
-                    "normalizer": "bucket-numerical",
+                    "normalizer": "none",
                     "bucket_cnt": 9,
                     "range": [10, 100],
                     "slide_window_size": 5,
-                    "imputer": "mean",
+                    "imputer": "none",
                 },
             },
         },
