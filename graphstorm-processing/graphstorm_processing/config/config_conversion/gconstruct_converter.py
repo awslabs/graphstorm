@@ -105,10 +105,10 @@ class GConstructConfigConverter(ConfigConverter):
                     assert "range" in gconstruct_transform_dict, \
                         "range should be in the gconstruct bucket feature transform field"
                     gsp_transformation_dict["kwargs"] = {"normalizer": "bucket-numerical",
-                                                     "bucket_cnt": gconstruct_transform_dict['bucket_cnt'],
-                                                     "range": gconstruct_transform_dict['range'],
-                                                     "slide_window_size": gconstruct_transform_dict['slide_window_size'],
-                                                     "imputer": "mean"}
+                                "bucket_cnt": gconstruct_transform_dict['bucket_cnt'],
+                                "range": gconstruct_transform_dict['range'],
+                                "slide_window_size": gconstruct_transform_dict['slide_window_size'],
+                                "imputer": "mean"}
                 # TODO: Add support for other common transformations here
                 else:
                     raise ValueError(

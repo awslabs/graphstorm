@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-from typing import Mapping, List
+from typing import Mapping
 
 from graphstorm_processing.constants import VALID_IMPUTERS, VALID_NORMALIZERS
 from .feature_config_base import FeatureConfig
@@ -155,4 +155,4 @@ class BucketFeatureConfig(FeatureConfig):
         ), f"Expect range {self.range} be a list of two integers"
         assert (
             isinstance(self.slide_window_size, (int, float)) or self.slide_window_size == "none"
-        ), f"Expect no slide window size or it is a number"
+        ), f"Expect no slide window size or expect {self.slide_window_size} is a number"

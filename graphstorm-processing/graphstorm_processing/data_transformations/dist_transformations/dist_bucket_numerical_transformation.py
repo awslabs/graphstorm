@@ -14,11 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 from typing import List
-import math
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
-from pyspark.sql.types import ArrayType, IntegerType, FloatType
+from pyspark.sql.types import ArrayType, FloatType
 import numpy as np
 
 from .base_dist_transformation import DistributedTransformation
@@ -46,6 +45,7 @@ class DistBucketNumericalTransformation(DistributedTransformation):
         The type of missing value imputation to apply to the column.
         Valid values are "mean", "median" and "most_frequent".
     """
+    # pylint: disable=redefined-builtin
     def __init__(self, cols: List[str], range: List[float],
             bucket_cnt: int, slide_window_size: float = 0.0, normalizer: str = 'none',
             imputer: str = 'none') -> None:
