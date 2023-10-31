@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-from typing import Mapping
+from typing import Mapping, List
 
 from graphstorm_processing.constants import VALID_IMPUTERS, VALID_NORMALIZERS
 from .feature_config_base import FeatureConfig
@@ -92,3 +92,61 @@ class MultiNumericalFeatureConfig(NumericalFeatureConfig):
         self.separator = self._transformation_kwargs.get("separator", None)
 
         self._sanity_check()
+
+
+class BucketFeatureConfig(FeatureConfig):
+    """Feature configuration for bucket normalization features.
+
+    Supported kwargs
+    ----------------
+    imputer: str
+        A method to fill in missing values in the data. Valid values are:
+        "none" (Default), "mean", "median", and "most_frequent". Missing values will be replaced
+        with the respective value computed from the data.
+
+    normalizer: str
+        A normalization to apply to each column. Valid values are
+        "none", "min-max", and "standard".
+
+        The transformation applied will be:
+
+        * "none": (Default) Don't normalize the numerical values during encoding.
+        * "min-max": Normalize each value by subtracting the minimum value from it,
+        and then dividing it by the difference between the maximum value and the minimum.
+        * "standard": Normalize each value by dividing it by the sum of all the values.
+
+    bucket_cnt: int
+        The count of bucket lists used in the bucket feature transform
+    range: List[float]
+        The range of bucket lists only defining the start and end point
+    slide_window_size: float
+        Interval or range within which numeric values are grouped into buckets
+    """
+
+    def __init__(self, config: Mapping):
+        super().__init__(config)
+        self.imputer = self._transformation_kwargs.get("imputer", "none")
+        self.norm = self._transformation_kwargs.get("normalizer", "none")
+        self.bucket_cnt = self._transformation_kwargs.get("bucket_cnt", "none")
+        self.range = self._transformation_kwargs.get("range", "none")
+        self.slide_window_size = self._transformation_kwargs.get("slide_window_size", "none")
+        self._sanity_check()
+
+    def _sanity_check(self) -> None:
+        super()._sanity_check()
+        assert (
+            self.imputer in VALID_IMPUTERS
+        ), f"Unknown imputer requested, expected one of {VALID_IMPUTERS}, got {self.imputer}"
+        assert (
+            self.norm in VALID_NORMALIZERS
+        ), f"Unknown normalizer requested, expected one of {VALID_NORMALIZERS}, got {self.norm}"
+        assert (
+            isinstance(self.bucket_cnt, int)
+        ), f"Expect bucket_cnt {self.bucket_cnt} be an integer"
+        assert (
+            isinstance(self.range, list) and all(isinstance(x, int) for x in self.range)
+            and len(self.range) == 2
+        ), f"Expect range {self.range} be a list of two integers"
+        assert (
+            isinstance(self.slide_window_size, float) or self.slide_window_size == "none"
+        ), f"Expect no slide window size or it is a number"

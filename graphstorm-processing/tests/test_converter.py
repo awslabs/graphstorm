@@ -208,7 +208,7 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "features": [
                 {"feature_col": ["citation_time"], "feature_name": "feat"},
                 {"feature_col": ["num_citations"], "transform": {"name": "max_min_norm"}},
-                {"feature_col": ["num_citations"], "transform": {"name": "bucket_numerical",
+                {"feature_col": ["num_citations"], "transform": {"name": "bucket-numerical",
                                                                  "bucket_cnt": 9,
                                                                  "range": [10, 100],
                                                                  "slide_window_size": 5}},
@@ -260,7 +260,7 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "column": "num_citations",
             "transformation": {
                 "name": "numerical",
-                "kwargs": {"normalizer": "bucket_numerical",
+                "kwargs": {"normalizer": "bucket-numerical",
                            "bucket_cnt": 9,
                            "range": [10, 100],
                            "slide_window_size": 5,

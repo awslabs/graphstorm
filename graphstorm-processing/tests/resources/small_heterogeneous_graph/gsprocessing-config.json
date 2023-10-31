@@ -37,10 +37,14 @@
                 "features": [
                     {
                         "column": "age",
+                        "name": "age_bucket",
                         "transformation": {
-                            "name": "numerical",
+                            "name": "bucket-numerical",
                             "kwargs": {
                                 "normalizer": "none",
+                                "bucket_cnt": 3,
+                                "range": [10, 20],
+                                "slide_window_size": 0.0,
                                 "imputer": "mean"
                             }
                         }
