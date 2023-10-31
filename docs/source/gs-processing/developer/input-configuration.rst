@@ -400,7 +400,33 @@ arguments.
       - ``separator`` (String, optional): Same as for ``no-op`` transformation, used to separate numerical
         values in CSV input. If the input data are in Parquet format, each value in the
         column is assumed to be an array of floats.
+-  ``bucket-numerical``
 
+   -  Transforms a numerical column with bucket normalization using a missing data imputer
+      and an optional normalizer.
+   -  ``kwargs``:
+
+      -  ``imputer`` (String, optional): A method to fill in missing values in the data.
+         Valid values are:
+         ``none`` (Default), ``mean``, ``median``, and ``most_frequent``. Missing values will be replaced
+         with the respective value computed from the data.
+      - ``range`` (List[int], required), The range only defines the start and end point with ``[a, b]``. It should be
+        a list of two integers. For example, the ``[10, 30]`` should define the start point of 10 and end point
+        with 30
+      - ``bucket_cnt`` (int, required), The count of bucket lists used in the bucket feature transform. GSProcessing
+        calculates the size of each bucket as  ``( b - a ) / c`` , and encodes each numeric value as the number
+        of whatever bucket it falls into. Any value less than a is considered to belong in the first bucket,
+        and any value greater than b is considered to belong in the last bucket.
+      - ``slide_window_size``(int, optional), slide_window_size is to make numeric values fall into more than one bucket,
+        by specifying a slide-window size ``s``, where s can an integer or float, GSProcessing then transforms each
+        numeric value ``v`` of the property into a range from ``v - s/2`` through ``v + s/2`` , and assigns the value v
+        to every bucket that the range covers.
+      - ``normalizer`` (String, optional): Applies a normalization to the data, after
+         imputation. Can take the following values:
+         - ``none``: (Default) Don't normalize the numerical values during encoding.
+         - ``min-max``: Normalize each value by subtracting the minimum value from it,
+        and then dividing it by the difference between the maximum value and the minimum.
+        - ``standard``: Normalize each value by dividing it by the sum of all the values.
 --------------
 
 Examples
