@@ -258,7 +258,7 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "column": "num_citations",
             "transformation": {
                 "name": "numerical",
-                "kwargs": {"normalizer": "none", "imputer": "none"},
+                "kwargs": {"normalizer": "min-max", "imputer": "none"},
             },
         },
         {
