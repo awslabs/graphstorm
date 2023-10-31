@@ -64,9 +64,6 @@ class GSgnnEmbGenInferer(GSInferrer):
         save_embed_format : str
             Specify the format of saved embeddings.
         """
-
-        device = self.device
-
         assert save_embed_path is not None, \
             "It requires save embed path for gs_gen_node_embedding"
 

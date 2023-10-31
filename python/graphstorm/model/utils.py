@@ -797,9 +797,10 @@ def save_full_node_embeddings(g, save_embed_path,
         emb_nids = \
             dgl.distributed.node_split(th.full((g.num_nodes(ntype),), True, dtype=th.bool),
                                        pb, ntype=ntype, force_even=True)
+        emb = embeddings[ntype][emb_nids]
         if nid_shuffler is not None:
             emb_nids = nid_shuffler.shuffle_nids(ntype, emb_nids)
-        shuffled_embs[ntype] = (embeddings[ntype], emb_nids)
+        shuffled_embs[ntype] = (emb, emb_nids)
 
     save_shuffled_node_embeddings(shuffled_embs, save_embed_path, save_embed_format)
 

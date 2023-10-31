@@ -20,7 +20,6 @@ import time
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_relation_embeddings
-from ..model.utils import NodeIDShuffler
 from ..model.edge_decoder import LinkPredictDistMultDecoder
 from ..model.gnn import do_full_graph_inference, do_mini_batch_inference
 from ..model.lp_gnn import lp_mini_batch_predict
@@ -84,7 +83,7 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
                                            task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
         device = self.device
-        g = loader.data.g
+        g = data.g
         if save_embed_path is not None:
             save_gsgnn_embeddings(g,
                                   save_embed_path,
