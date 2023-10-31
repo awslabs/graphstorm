@@ -26,9 +26,29 @@ from .dist_numerical_transformation import apply_imputation, apply_norm
 
 
 class DistBucketNumericalTransformation(DistributedTransformation):
+    """Transformation to apply missing value imputation and bucket normalization
+     to a numerical input.
+
+    Parameters
+    ----------
+    cols : Sequence[str]
+        The list of columns to apply the transformations on.
+    range: List[float]
+        The range of bucket lists only defining the start and end point.
+    bucket_cnt: int
+        The count of bucket lists used in the bucket feature transform.
+    slide_window_size: float or none
+        Interval or range within which numeric values are grouped into buckets.
+    normalizer : str
+        The normalization to apply to the columns.
+        Valid values are "none", "min-max", and "standard".
+    imputer : str
+        The type of missing value imputation to apply to the column.
+        Valid values are "mean", "median" and "most_frequent".
+    """
     def __init__(self, cols: List[str], range: List[float],
-            bucket_cnt: int, slide_window_size: float = 0.0, normalizer: List[str] = ['none'],
-            imputer: List[str] = ['none']) -> None:
+            bucket_cnt: int, slide_window_size: float = 0.0, normalizer: str = 'none',
+            imputer: str = 'none') -> None:
         super().__init__(cols)
         self.cols = cols
         assert len(self.cols) == 1, "Bucket numerical transformation only supports single column"
