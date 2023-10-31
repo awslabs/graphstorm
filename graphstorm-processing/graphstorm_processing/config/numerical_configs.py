@@ -116,11 +116,17 @@ class BucketFeatureConfig(FeatureConfig):
         * "standard": Normalize each value by dividing it by the sum of all the values.
 
     bucket_cnt: int
-        The count of bucket lists used in the bucket feature transform
+        The count of bucket lists used in the bucket feature transform. Each bucket will
+        have same length.
+
     range: List[float]
-        The range of bucket lists only defining the start and end point
-    slide_window_size: float
-        Interval or range within which numeric values are grouped into buckets
+        The range of bucket lists only defining the start and end point. The range and
+        bucket_cnt will define the buckets together. For example, range = [10, 30] and
+        bucket_cnt = 2, will have two buckets: [10, 20] and [20, 30]
+
+    slide_window_size: float or none
+        Interval or range within which numeric values are grouped into buckets. Slide window
+        size will let one value possibly fall into multiple buckets.
     """
 
     def __init__(self, config: Mapping):
