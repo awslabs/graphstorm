@@ -44,7 +44,7 @@ class DistBucketNumericalTransformation(DistributedTransformation):
         return "DistBucketNumericalTransformation"
 
     def apply(self, input_df: DataFrame) -> DataFrame:
-        imputed_df = apply_imputation(self.cols,self.shared_imputation, input_df)
+        imputed_df = apply_imputation(self.cols, self.shared_imputation, input_df)
         scaled_df = apply_norm(self.cols, self.shared_norm, imputed_df)
         min_val, max_val = self.range
 
