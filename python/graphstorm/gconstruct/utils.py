@@ -145,7 +145,8 @@ def _estimate_sizeof(data):
     return data_size
 
 def generate_hash():
-    # Generate a hashcode
+    """ Generate unique hashcode
+    """
     random_uuid = uuid.uuid4()
     hash_object = hashlib.sha256(str(random_uuid).encode())
     hash_hex_object = hash_object.hexdigest()

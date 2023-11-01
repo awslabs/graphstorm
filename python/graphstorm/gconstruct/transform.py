@@ -32,8 +32,7 @@ from transformers import AutoTokenizer
 from transformers import AutoModel, AutoConfig
 
 from .file_io import read_index_json
-from .utils import (ExtMemArrayWrapper, ExtFeatureWrapper,
-                    generate_hash, ExtNumpyWrapper)
+from .utils import ExtMemArrayWrapper, ExtFeatureWrapper, generate_hash
 
 LABEL_STATS_FIELD = "training_label_stats"
 LABEL_STATS_FREQUENCY_COUNT = "frequency_cnt"
