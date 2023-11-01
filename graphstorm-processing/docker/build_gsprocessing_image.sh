@@ -104,10 +104,10 @@ else
     die "--target parameter needs to be one of 'prod' or 'test', got ${TARGET}"
 fi
 
-if [[ ${EXEC_ENV} == "emr" || ${EXEC_ENV} == "sagemaker" || ${EXEC_ENV} == "emr-serverless" ]]; then
+if [[ ${EXEC_ENV} == "sagemaker" || ${EXEC_ENV} == "emr-serverless" ]]; then
     :  # Do nothing
 else
-    die "--environment parameter needs to be one of 'emr', 'emr-serverless' or 'sagemaker', got ${EXEC_ENV}"
+    die "--environment parameter needs to be one of 'emr-serverless' or 'sagemaker', got ${EXEC_ENV}"
 fi
 
 # script logic here

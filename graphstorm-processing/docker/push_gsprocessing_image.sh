@@ -15,7 +15,7 @@ Available options:
 
 -h, --help          Print this help and exit
 -x, --verbose       Print script debug info
--e, --environment   Image execution environment. Must be one of 'emr' or 'sagemaker'. Required.
+-e, --environment   Image execution environment. Must be one of 'emr-serverless' or 'sagemaker'. Required.
 -i, --image         Docker image name, default is 'graphstorm-processing'.
 -v, --version       Docker version tag, default is the library's current version (`poetry version --short`)
 -r, --region        AWS Region to which we'll push the image. By default will get from aws-cli configuration.
@@ -88,7 +88,7 @@ cleanup() {
 
 parse_params "$@"
 
-if [[ ${EXEC_ENV} == "emr" || ${EXEC_ENV} == "sagemaker" || ${EXEC_ENV} == "emr-serverless" ]]; then
+if [[ ${EXEC_ENV} == "sagemaker" || ${EXEC_ENV} == "emr-serverless" ]]; then
     :  # Do nothing
 else
     die "--environment parameter needs to be one of 'emr', 'emr-serverless' or 'sagemaker', got ${EXEC_ENV}"
@@ -97,6 +97,7 @@ fi
 
 # script logic here
 msg "Execution parameters: "
+msg "- ENVIRONMENT: ${EXEC_ENV}"
 msg "- IMAGE: ${IMAGE}"
 msg "- VERSION: ${VERSION}"
 msg "- REGION: ${REGION}"
@@ -113,7 +114,7 @@ LATEST_TAG="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE_WITH_ENV}:${LATES
 # If the repository doesn't exist in ECR, create it.
 echo "Getting or creating container repository: ${IMAGE_WITH_ENV}"
 if ! $(aws ecr describe-repositories --repository-names "${IMAGE_WITH_ENV}" --region ${REGION} > /dev/null 2>&1); then
-    echo "Container repository ${IMAGE_WITH_ENV} does not exist. Creating"
+    echo >&2 "WARNING: ECR repository ${IMAGE_WITH_ENV} does not exist in region ${REGION}. Creating..."
     aws ecr create-repository --repository-name "${IMAGE_WITH_ENV}" --region ${REGION} > /dev/null
 fi
 
