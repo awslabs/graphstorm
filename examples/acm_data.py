@@ -30,9 +30,30 @@ import pandas as pd
 import numpy as np
 import torch as th
 import torch.nn as nn
-from dgl.data.utils import save_graphs
 
-from utils import convert_tensor_to_list_arrays
+
+def convert_tensor_to_list_arrays(tensor):
+    """ Convert Pytorch Tensor to a list of arrays
+    
+    Since a pandas DataFrame cannot save a 2D numpy array in parquet format, it is necessary to
+    convert the tensor (1D or 2D) into a list of lists or a list of array. This converted tensor
+    can then be used to build a pandas DataFrame, which can be saved in parquet format. However,
+    tensor with a dimension greater than or equal to 3D cannot be processed or saved into parquet
+    files.
+
+    Parameters:
+    tensor: Pytorch Tensor
+        The input Pytorch tensor (1D or 2D) to be converted
+    
+    Returns:
+    list_array: list of numpy arrays
+        A list of numpy arrays
+    """
+    
+    np_array = tensor.numpy()
+    list_array = [np_array[i] for i in range(len(np_array))]
+
+    return list_array
 
 
 def create_acm_raw_data(graph,
@@ -336,7 +357,7 @@ def create_acm_dgl_graph(dowload_path='/tmp/ACM.mat',
         # Save DGL graph
         output_graph_file_path = os.path.join(output_path, dataset_name + '.dgl')
         print(f'Saving ACM data to {output_graph_file_path} ......')
-        save_graphs(output_graph_file_path, [graph_acm], None)
+        dgl.save_graphs(output_graph_file_path, [graph_acm], None)
         print(f'{output_graph_file_path} saved.')
         # Save raw node text
         output_text_file_path = os.path.join(output_path, dataset_name + '_text.pkl')

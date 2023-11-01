@@ -15,14 +15,24 @@
 """
 import os
 import tempfile
+import json
 
 import numpy as np
 import torch as th
+import pandas as pd
+import pyarrow.parquet as pq
+import pyarrow as pa
 
 from graphstorm.gconstruct.utils import _estimate_sizeof, _to_numpy_array, _to_shared_memory
 from graphstorm.gconstruct.utils import HDF5Array, ExtNumpyWrapper
 from graphstorm.gconstruct.utils import multiprocessing_data_read
-from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5
+from graphstorm.gconstruct.file_io import (write_data_hdf5,
+                                           read_data_hdf5,
+                                           get_in_files,
+                                           write_data_parquet)
+from graphstorm.gconstruct.file_io import (read_data_csv,
+                                           read_data_json,
+                                           read_data_parquet)
 
 def gen_data():
     data_th = th.zeros((1024, 16), dtype=th.float32)
@@ -185,7 +195,92 @@ def test_multiprocessing_read():
         return
     assert False
 
+def test_read_empty_parquet():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        data_file = os.path.join(tmpdirname, "test.parquet")
+        fields = ["a", "b"]
+        empty_df = pd.DataFrame(columns=fields)
+        empty_table = pa.Table.from_pandas(empty_df)
+        pq.write_table(empty_table, data_file)
+
+        pass_test = False
+        try:
+            read_data_parquet(data_file, fields)
+        except:
+            pass_test = True
+        assert pass_test
+
+def test_read_empty_csv():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        data_file = os.path.join(tmpdirname, "test.parquet")
+        fields = ["a", "b"]
+        empty_df = pd.DataFrame(columns=fields)
+        empty_df.to_csv(data_file, index=True, sep=",")
+
+        pass_test = False
+        try:
+            read_data_csv(data_file, fields, ",")
+        except:
+            pass_test = True
+        assert pass_test
+
+def test_read_empty_json():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        data_file = os.path.join(tmpdirname, "test.json")
+        data = {}
+        with open(data_file, 'w', encoding="utf8") as json_file:
+            json.dump(data, json_file)
+
+        pass_test = False
+        try:
+            read_data_json(data_file)
+        except:
+            pass_test = True
+        assert pass_test
+
+def test_read_empty_parquet():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        data_file = os.path.join(tmpdirname, "test.parquet")
+        fields = ["a", "b"]
+        empty_df = pd.DataFrame(columns=fields)
+        empty_table = pa.Table.from_pandas(empty_df)
+        pq.write_table(empty_table, data_file)
+
+        pass_test = False
+        try:
+            read_data_parquet(data_file, fields)
+        except:
+            pass_test = True
+        assert pass_test
+
+def test_get_in_files():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        files = [os.path.join(tmpdirname, f"test{i}.parquet") for i in range(10)]
+        for i in range(10):
+            data = {"test": np.random.rand(10)}
+            write_data_parquet(data, files[i])
+
+        in_files = get_in_files(os.path.join(tmpdirname,"*.parquet"))
+        assert len(in_files) == 10
+        files.sort()
+        assert files == in_files
+
+        in_files = get_in_files(os.path.join(tmpdirname,"test9.parquet"))
+        assert len(in_files) == 1
+        assert os.path.join(tmpdirname,"test9.parquet") == in_files[0]
+
+        pass_test = False
+        try:
+            in_files = get_in_files(os.path.join(tmpdirname,"test10.parquet"))
+        except:
+            pass_test = True
+        assert pass_test
+
 if __name__ == '__main__':
+    test_get_in_files()
+    test_read_empty_parquet()
+    test_read_empty_json()
+    test_read_empty_csv()
     test_multiprocessing_read()
     test_estimate_sizeof()
     test_object_conversion()
