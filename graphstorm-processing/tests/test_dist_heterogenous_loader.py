@@ -58,12 +58,13 @@ def tempdir_fixture():
 
 @pytest.fixture(scope="function", name="data_configs_with_label")
 def data_configs_with_label_fixture():
-    """Create data configuration object that contain labels"""
-    config_path = os.path.join(_ROOT, "resources/small_heterogeneous_graph/gconstruct-config.json")
+    """Create data configuration object that contain features and labels"""
+    config_path = os.path.join(
+        _ROOT, "resources/small_heterogeneous_graph/gsprocessing-config.json"
+    )
 
     with open(config_path, "r", encoding="utf-8") as conf_file:
-        gconstruct_config = json.load(conf_file)
-        gsprocessing_config = GConstructConfigConverter().convert_to_gsprocessing(gconstruct_config)
+        gsprocessing_config = json.load(conf_file)
 
     data_configs_dict = create_config_objects(gsprocessing_config["graph"])
 
@@ -230,7 +231,7 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
         metadata = json.load(mfile)
 
     graphinfo_updates = {
-        "nfeat_size": {"user": {"age": 1}},
+        "nfeat_size": {"user": {"age": 1, "multi": 2}},
         "etype_label": [],
         "etype_label_property": [],
         "ntype_label": ["user"],
@@ -245,7 +246,7 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
     verify_integ_test_output(metadata, dghl_loader, graphinfo_updates)
 
     expected_node_data = {
-        "user": {"gender", "train_mask", "val_mask", "test_mask", "age"},
+        "user": {"gender", "train_mask", "val_mask", "test_mask", "age", "multi"},
     }
 
     for node_type in metadata["node_data"]:
