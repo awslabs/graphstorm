@@ -12,7 +12,6 @@ on:
       - '.github/workflow_scripts/gsprocessing_lint.sh'
       - 'graphstorm-processing/**'
       - '.github/workflows/gsprocessing-workflow.yml'
-      - 'docs/**'
   pull_request_target:
     types: [ labeled, opened, reopened, synchronize, ready_for_review ]
     paths:
@@ -20,7 +19,6 @@ on:
       - '.github/workflow_scripts/gsprocessing_lint.sh'
       - 'graphstorm-processing/**'
       - '.github/workflows/gsprocessing-workflow.yml'
-      - 'docs/**'
 
 permissions:
   id-token: write
