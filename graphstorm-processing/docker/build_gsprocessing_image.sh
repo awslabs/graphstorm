@@ -16,7 +16,7 @@ Available options:
 -h, --help          Print this help and exit
 -x, --verbose       Print script debug info (set -x)
 -e, --environment   Image execution environment. Must be one of 'emr' or 'sagemaker'. Required.
--t, --target        Docker image target, must be one of 'prod' or 'test'. Required.
+-t, --target        Docker image target, must be one of 'prod' or 'test'. Default is 'test'.
 -p, --path          Path to graphstorm-processing directory, default is the current directory.
 -i, --image         Docker image name, default is 'graphstorm-processing'.
 -v, --version       Docker version tag, default is the library's current version (`poetry version --short`)
@@ -82,7 +82,6 @@ parse_params() {
   args=("$@")
 
   # check required params and arguments
-  [[ -z "${TARGET-}" ]] && die "Missing required parameter: -t/--target [prod|test]"
   [[ -z "${EXEC_ENV-}" ]] && die "Missing required parameter: -e/--environment [emr-serverless|sagemaker]"
 
   return 0
@@ -91,9 +90,9 @@ parse_params() {
 cleanup() {
   trap - SIGINT SIGTERM ERR EXIT
   # script cleanup here
-#   if [[ $BUILD_DIR ]]; then
-#     rm -rf "${BUILD_DIR}/docker/code"
-#   fi
+  if [[ $BUILD_DIR ]]; then
+    rm -rf "${BUILD_DIR}/docker/code"
+  fi
 }
 
 parse_params "$@"

@@ -381,12 +381,13 @@ arguments.
          Valid values are:
          ``none`` (Default), ``mean``, ``median``, and ``most_frequent``. Missing values will be replaced
          with the respective value computed from the data.
-      - ``normalizer`` (String, optional): Applies a normalization to the data, after
-         imputation. Can take the following values:
+      - ``normalizer`` (String, optional): Applies a normalization to the data, after imputation.
+        Can take the following values:
+
          - ``none``: (Default) Don't normalize the numerical values during encoding.
          - ``min-max``: Normalize each value by subtracting the minimum value from it,
-        and then dividing it by the difference between the maximum value and the minimum.
-        - ``standard``: Normalize each value by dividing it by the sum of all the values.
+           and then dividing it by the difference between the maximum value and the minimum.
+         - ``standard``: Normalize each value by dividing it by the sum of all the values.
 -  ``multi-numerical``
 
    -  Column-wise transformation for vector-like numerical data using a missing data imputer and an
@@ -394,7 +395,7 @@ arguments.
    -  ``kwargs``:
 
       - ``imputer`` (String, optional): Same as for ``numerical`` transformation, will
-        apply the ``mean`` transformation by default.
+        apply no imputation by default.
       - ``normalizer`` (String, optional): Same as for ``numerical`` transformation, no
         normalization is applied by default.
       - ``separator`` (String, optional): Same as for ``no-op`` transformation, used to separate numerical
