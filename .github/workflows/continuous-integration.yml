@@ -12,7 +12,7 @@ on:
       - '.github/workflow_scripts/gsprocessing_lint.sh'
       - 'graphstorm-processing/**'
       - '.github/workflows/gsprocessing-workflow.yml'
-      - 'docs/'
+      - 'docs/**'
   pull_request_target:
     types: [ labeled, opened, reopened, synchronize, ready_for_review ]
     paths-ignore:
@@ -20,7 +20,7 @@ on:
       - '.github/workflow_scripts/gsprocessing_lint.sh'
       - 'graphstorm-processing/**'
       - '.github/workflows/gsprocessing-workflow.yml'  
-      - 'docs/'
+      - 'docs/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.number || github.event.pull_request.head.sha }}
