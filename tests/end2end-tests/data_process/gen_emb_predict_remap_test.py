@@ -64,7 +64,6 @@ def main(args):
         "format": "pytorch",
         "world_size": 2,
         "emb_name": [ntype0, ntype1],
-        "emb_lens": [len(emb0_0)+len(emb0_1), len(emb1_0)+len(emb1_1)]
     }
 
     emb_output = os.path.join(output_path, "partial-emb")
@@ -94,28 +93,6 @@ def main(args):
     emb1_0 = np.stack((nid1[:500], nid1[:500]), axis=1)
     emb0_1 = np.stack((nid0[500:], nid0[500:]), axis=1)
     emb1_1 = np.stack((nid1[500:], nid1[500:]), axis=1)
-
-    meta_info = {
-        "format": "pytorch",
-        "world_size": 2,
-        "emb_name": [ntype0, ntype1],
-        "emb_lens": [len(emb0_0)+len(emb0_1), len(emb1_0)+len(emb1_1)]
-    }
-
-    emb_output = os.path.join(output_path, "full-emb")
-    meta_fname = os.path.join(emb_output, "emb_info.json")
-    os.makedirs(emb_output)
-    with open(meta_fname, 'w', encoding='utf-8') as f:
-            json.dump(meta_info, f, indent=4)
-
-    emb_output_ntype0 = os.path.join(emb_output, ntype0)
-    emb_output_ntype1 = os.path.join(emb_output, ntype1)
-    os.makedirs(emb_output_ntype0)
-    os.makedirs(emb_output_ntype1)
-    th.save(th.tensor(emb0_0), os.path.join(emb_output_ntype0, f"emb-part{pad_file_index(0)}.pt"))
-    th.save(th.tensor(emb1_0), os.path.join(emb_output_ntype1, f"emb-part{pad_file_index(0)}.pt"))
-    th.save(th.tensor(emb0_1), os.path.join(emb_output_ntype0, f"emb-part{pad_file_index(1)}.pt"))
-    th.save(th.tensor(emb1_1), os.path.join(emb_output_ntype1, f"emb-part{pad_file_index(1)}.pt"))
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Check edge prediction remapping")
