@@ -285,6 +285,16 @@ def download_graph(graph_data_s3, graph_name, part_id, local_path, sagemaker_ses
     except Exception: # pylint: disable=broad-except
         print("node id mapping file does not exist")
 
+    # Try to get GraphStorm ID to Original ID remaping files if any
+    files = S3Downloader.list(graph_data_s3, sagemaker_session=sagemaker_session)
+    id_map_files = [file for file in files if file.endswith("id_remap.parquet")]
+    for file in id_map_files:
+        try:
+            S3Downloader.download(file, graph_path,
+                                  sagemaker_session=sagemaker_session)
+        except Exception: # pylint: disable=broad-except
+            print(f"node id remap file {file} does not exist")
+
     print(f"Finish download graph data from {graph_data_s3}")
     return os.path.join(graph_path, graph_config)
 
