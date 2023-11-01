@@ -54,7 +54,7 @@ Then run the command to create the ACM data with the required ``raw_w_text`` for
 
 .. code-block:: bash
     
-    python3 -m /graphstorm/examples/acm_data.py --output-path /tmp/acm_raw --output-type raw_w_text
+    python3 /graphstorm/examples/acm_data.py --output-path /tmp/acm_raw --output-type raw_w_text
 
 Once successful, the command will create a set of folders and files under the ``/tmp/acm_raw/`` folder. Format and contents of these files are similar to the :ref:`outputs<acm-raw-data-output>` in the :ref:`Use Your Own Data<use-own-data>` tutorial except that there is one new column, called "text", in node data files that contains text data as demonstrated in the figure below. For each ``paper`` node, the text data is the paper's title and abstract; for each ``author`` node, the text data is the author's full name; and for each ``subject``, the text data is the subject's ACM category code.
 
@@ -211,8 +211,9 @@ Model performance
 
 **Best accuracy on validation set:**
 
-* RGCN: ~0.59
+* RGCN: ~0.61
 * RGAT: ~0.62
+* HGT: ~0.58
 
 2. Fine-tune LMs on graph data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -264,6 +265,8 @@ Model performance
 **Best accuracy on validation set:**
 
 * LM: ~0.55
+
+.. _22two_step_mannual:
 
 2.2 Two-step co-training manually
 ``````````````````````````````````
@@ -354,14 +357,16 @@ All above best accuracy values were achieved using LP fine-tuning.
 
 There are two important pre-requisites for achieving good performance when using GLEM strategy.
 
-1. The pseudolabeling technique: it predicts pseudolabels on the unlabeled nodes and uses as additional supervision signal for mutual distillation between LM and GNN. This can be enabled by the ``--use-pseudolabel`` true argument in command line.
+1. Well pre-trained LM and GNN before the GLEM co-training: empirically, LM or GNN models that are not well-trained lead to degraded performance when co-training with GLEM directly. Therefore, users need to pre-train the LMs and GNN Models first.
 
-2. Well pre-trained LM and GNN before the co-training: empirically, LM or GNN models that are not well-trained lead to degraded performance when co-training with GLEM directly. Therefore, users need to pre-train the LMs and GNN Models first.
+To pre-train LMs and GNN models, users can follow the :ref:`22two_step_mannual` instruction and save the best LMs and GNN models.
+
+2. The pseudolabeling technique: this technique predicts pseudolabels on the unlabeled nodes and uses as additional supervision signal for mutual distillation between LM and GNN. This can be enabled by the setting ``use_pseudolabel`` argument.
 
 GraphStorm configurations
 ##########################
 
-To use GLEM, users need to set a new configuration set, called ``training_method``, which specifies how to utilize specific model training method. Users can refer to the ``acm_glem_nc_pretrain.yaml`` that includes the following ``training_method`` related configurations.
+To use GLEM, users need to set a new configuration se, called ``training_method``, which specifies how to utilize specific model training method. Users can refer to the ``acm_glem_nc_pretrain.yaml`` that includes the following ``training_method`` related configurations.
 
 .. code-block:: yaml
 
@@ -374,14 +379,14 @@ To use GLEM, users need to set a new configuration set, called ``training_method
         num_pretrain_epochs: 100
     use_pseudolabel: true
 
-To fulfill these two pre-requisites, users first can set ``use_pseudolabel`` configuration as shown in this snippet, and then provide a number for the ``num_pretrain_epochs`` configuration used for pre-train.
+Within the ``traing_method`` section, there are two important configurations. First, the ``pl_weight`` defines the weights of pseudolabel, which determines the importance of pseudolabel. Users can lower the value to reduce the influence of using pseudolabel. Users also need to set ``use_pseudolabel`` configuration to be true.
 
-After pre-train, users can set the ``num_pretrain_epochs`` to ``0`` to start GLEM training as shown in the ``acm_glem_nc.yaml`` file.
+The second important configuration is the ``num_pretrain_epochs``. The GLEM method provides its own pre-training implementation, which train LMs and GNN models iteratively in one epoch, i.e., first fix GNN model and train LMs in one forward and backward loop, and then fix LM but use it to embed text as input for GNN models to be trained in one loop. In the pre-training epochs, GLEM will not use the pseudolabel, but the true labels only.
 
 The launch command
 ######################
 
-The following command uses the ``acm_glem_nc_pretrain.yaml`` file to pre-train LMs and GNN models for using GLEM.
+The following command uses the ``acm_glem_nc_pretrain.yaml`` file to pre-train LMs and GNN models for using GLEM in the first 100 epochs.
 
 .. code-block:: bash
 
@@ -413,20 +418,25 @@ Once pre-training finished, users can specify the saved models and the LM layers
             --restore-model-path /tmp/acm_nc/pretrain_models/epoch-75/ \
             --restore-model-layers embed
 
+.. note:: 
+
+    The GLEM pre-training implementation will create a **LM**, and a **GNN** subfolder under the ``--save-model-path`` plus epoch number. However, if users pre-train LMs and GNN models with other methods, they will need to copy or move these saved LMs into a **LM** subfolder, and GNN models into a **GNN** subfolder both under the same folder to be specified in the ``--restore-model-pat`` argument.
+
 Model performance
 ###################
 
 **Run time:**
 
-* pre-training: ??s per epoch
-* GLEM LM training: per epoch
-* GLEM GNN training: 
-* GLEM validation:
-* model saving: 
+* GLEM LM training: 5s per epoch
+* GLEM LM validation: 5s per epoch
+* GLEM GNN training: 37s per epoch
+* GLEM GNN validation: 6s per epoch
+* LM model saving: 9s each time
+* GNN model saving: 1s each time
 
 **Best accuracy on validation set:**
 
-* RGCN: ~0.
+* RGCN: ~0.58
 * RGAT: ~0.
 * HGT: ~0.
 
