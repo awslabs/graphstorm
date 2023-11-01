@@ -652,6 +652,9 @@ def main(args, gs_config_args):
                             if "etypes" in info else []
                     if len(pred_ntypes) == 0:
                         pred_ntypes = info["ntypes"] if "ntypes" in info else []
+    else:
+        pred_etypes = []
+        pred_ntypes = []
 
 
     ntypes = []
@@ -662,7 +665,7 @@ def main(args, gs_config_args):
 
     if len(ntypes) == 0:
         # Nothing to remap
-        logging.warning("Skip remapping edge predictions and node predictions")
+        logging.warning("Skip remapping edge/node predictions and node embeddings")
         return
 
     for ntype in set(ntypes):
