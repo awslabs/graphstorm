@@ -44,7 +44,7 @@ def main(args):
     nid0_map.save(os.path.join(os.path.join(output_path, "id_mapping"), ntype0+"_id_remap.parquet"))
     nid1_map.save(os.path.join(os.path.join(output_path, "id_mapping"), ntype1+"_id_remap.parquet"))
 
-    # Case 1: Only part of nodes have node embeddings
+    # Only part of nodes have node embeddings
     # generate faked node embeddings
     nid0_0 = nid0[np.random.randint(1000, size=250)]
     nid1_0 = nid1[np.random.randint(1000, size=249)]
@@ -76,16 +76,16 @@ def main(args):
     emb_output_ntype1 = os.path.join(emb_output, ntype1)
     os.makedirs(emb_output_ntype0)
     os.makedirs(emb_output_ntype1)
-    th.save(th.tensor(emb0_0), os.path.join(emb_output_ntype0, f"emb-part{pad_file_index(0)}.pt"))
+    th.save(th.tensor(emb0_0), os.path.join(emb_output_ntype0, f"emb.part{pad_file_index(0)}.pt"))
     th.save(th.tensor(nid0_new_0), os.path.join(emb_output_ntype0, f"nids.part{pad_file_index(0)}.pt"))
 
-    th.save(th.tensor(emb1_0), os.path.join(emb_output_ntype1, f"emb-part{pad_file_index(0)}.pt"))
+    th.save(th.tensor(emb1_0), os.path.join(emb_output_ntype1, f"emb.part{pad_file_index(0)}.pt"))
     th.save(th.tensor(nid1_new_0), os.path.join(emb_output_ntype1, f"nids.part{pad_file_index(0)}.pt"))
 
-    th.save(th.tensor(emb0_1), os.path.join(emb_output_ntype0, f"emb-part{pad_file_index(1)}.pt"))
+    th.save(th.tensor(emb0_1), os.path.join(emb_output_ntype0, f"emb.part{pad_file_index(1)}.pt"))
     th.save(th.tensor(nid0_new_1), os.path.join(emb_output_ntype0, f"nids.part{pad_file_index(1)}.pt"))
 
-    th.save(th.tensor(emb1_1), os.path.join(emb_output_ntype1, f"emb-part{pad_file_index(1)}.pt"))
+    th.save(th.tensor(emb1_1), os.path.join(emb_output_ntype1, f"emb.part{pad_file_index(1)}.pt"))
     th.save(th.tensor(nid1_new_1), os.path.join(emb_output_ntype1, f"nids.part{pad_file_index(1)}.pt"))
 
     # Case two: All the nodes have node embeddings
