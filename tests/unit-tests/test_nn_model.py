@@ -225,10 +225,10 @@ def test_hgt_with_no_indegree_dstnodes(input_dim, output_dim):
     assert outputs['n2'].shape[1] == output_dim
 
 if __name__ == '__main__':
-    test_rgcn_with_zero_input(32, 32)
+    test_rgcn_with_zero_input(32, 64)
     test_rgat_with_zero_input(32, 64)
     test_hgt_with_zero_input(32, 64)
 
     test_rgcn_with_no_indegree_dstnodes(32, 64)
-    test_rgcn_with_no_indegree_dstnodes(32, 64)
+    test_rgat_with_no_indegree_dstnodes(32, 64)
     test_hgt_with_no_indegree_dstnodes(32, 64)

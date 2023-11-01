@@ -553,8 +553,13 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         self._max_val = np.array(max_val, dtype=np.float32) if max_val is not None else None
         self._min_val = np.array(min_val, dtype=np.float32) if min_val is not None else None
         self._conf = transform_conf
-        self._max_bound = max_bound
-        self._min_bound = min_bound
+        if out_dtype in [np.float64, np.float32, np.float16, np.int64, \
+                              np.int32, np.int16, np.int8]:
+            fifo = np.finfo(out_dtype)
+        else:
+            fifo = np.finfo(np.float32)
+        self._max_bound = fifo.max if max_bound>=fifo.max else max_bound
+        self._min_bound = -fifo.max if min_bound<=-fifo.max else min_bound
         out_dtype = np.float32 if out_dtype is None else out_dtype
         super(NumericalMinMaxTransform, self).__init__(col_name, feat_name, out_dtype)
 
