@@ -129,4 +129,3 @@ if __name__ == '__main__':
             train_remaped_emb = train_remaped_emb[th.argsort(th.tensor(train_remaped_nids))]
             infer_remaped_emb = infer_remaped_emb[th.argsort(th.tensor(infer_remaped_nids))]
             assert_almost_equal(train_remaped_emb, infer_remaped_emb, decimal=2)
-            assert_almost_equal(train_remaped_nids, infer_remaped_nids)

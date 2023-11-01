@@ -43,14 +43,20 @@ if __name__ == '__main__':
     # feats are same
     for ntype in info_emb_info["emb_name"]:
         train_emb = []
+        train_nids = []
         ntype_emb_path = os.path.join(args.train_embout, ntype)
         emb_files = os.listdir(ntype_emb_path)
-        ntype_emb_files = [file for file in emb_files if file.endswith(".bin")]
+        ntype_emb_files = [file for file in emb_files if file.endswith(".bin") and file.startswith("emb")]
+        ntype_nid_files = [file for file in emb_files if file.endswith(".bin") and file.startswith("nids")]
         ntype_emb_files = sorted(ntype_emb_files)
+        ntype_nid_files = sorted(ntype_nid_files)
         for f in ntype_emb_files:
             # Only work with torch 1.13+
             train_emb.append(th.load(os.path.join(ntype_emb_path, f),weights_only=True))
+        for f in ntype_nid_files:
+            train_nids.append(th.load(os.path.join(ntype_emb_path, f),weights_only=True))
         train_emb = th.cat(train_emb, dim=0)
+        train_nids = th.cat(train_nids, dim=0)
 
         ntype_remaped_emb_files = [file for file in emb_files if file.endswith(".parquet")]
         ntype_remaped_emb_files = sorted(ntype_remaped_emb_files)
@@ -67,13 +73,10 @@ if __name__ == '__main__':
         infer_emb = []
         infer_nids = []
         ntype_emb_path = os.path.join(args.infer_embout, ntype)
-        emb_files = [filename for filename in os.listdir(ntype_emb_path) \
-                           if filename.startswith("emb")]
-        ntype_emb_files = [file for file in emb_files if file.endswith(".bin")]
+        emb_files = os.listdir(ntype_emb_path)
+        ntype_emb_files = [file for file in emb_files if file.endswith(".bin") and file.startswith("emb")]
+        ntype_nid_files = [file for file in emb_files if file.endswith(".bin") and file.startswith("nids")]
         ntype_emb_files = sorted(ntype_emb_files)
-        ntype_nid_path = os.path.join(args.infer_embout, ntype)
-        ntype_nid_files = [filename for filename in os.listdir(ntype_emb_path) \
-                           if filename.startswith("nids")]
         ntype_nid_files = sorted(ntype_nid_files)
         for ef, nf in zip(ntype_emb_files, ntype_nid_files):
             # Only work with torch 1.13+
@@ -81,7 +84,6 @@ if __name__ == '__main__':
             infer_nids.append(th.load(os.path.join(ntype_emb_path, nf), weights_only=True))
         infer_emb = th.cat(infer_emb, dim=0)
         infer_nids = th.cat(infer_nids, dim=0)
-
         ntype_remaped_emb_files = [file for file in emb_files if file.endswith(".parquet")]
         ntype_remaped_emb_files = sorted(ntype_remaped_emb_files)
         infer_remaped_emb = []
@@ -99,6 +101,10 @@ if __name__ == '__main__':
         assert infer_remaped_emb.shape[0] == infer_nids.shape[0]
         assert infer_remaped_nids.shape[0] == infer_nids.shape[0]
 
+        # sort train embs
+        # train emb  [xxx, xxx, xxx]
+        # train nids [0, 1, 2, ...]
+        train_emb = train_emb[th.argsort(train_nids)]
         for nid, inf_emb in zip(infer_nids, infer_emb):
             assert_almost_equal(train_emb[nid].numpy(), inf_emb.numpy(), decimal=3)
 
