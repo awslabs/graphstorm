@@ -15,7 +15,7 @@ Available options:
 
 -h, --help          Print this help and exit
 -x, --verbose       Print script debug info (set -x)
--e, --environment   Image execution environment. Must be one of 'emr' or 'sagemaker'. Required.
+-e, --environment   Image execution environment. Must be one of 'emr-serverless' or 'sagemaker'. Required.
 -t, --target        Docker image target, must be one of 'prod' or 'test'. Default is 'test'.
 -p, --path          Path to graphstorm-processing directory, default is the current directory.
 -i, --image         Docker image name, default is 'graphstorm-processing'.

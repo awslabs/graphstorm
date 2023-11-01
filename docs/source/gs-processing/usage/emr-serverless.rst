@@ -213,7 +213,7 @@ as described in :ref:`gsp-upload-data-ref`.
         --execution-role-arn $ROLE \
         --job-driver "${ARGS_JSON}" # Need to surround ARGS_JSON with quotes here to maintain JSON formatting
 
-Ae with the SageMaker example, we need to run a follow-up job to align the output with the
+As with the SageMaker example, we need to run a follow-up job to align the output with the
 expectations of the DistDGL partitioning pipeline. The easiest is to run the job locally
 on an instance with S3 access:
 
