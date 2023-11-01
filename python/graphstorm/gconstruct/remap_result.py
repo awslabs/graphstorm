@@ -246,8 +246,10 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         out_embdir = os.path.join(output_dir, ntype)
         ntype_emb_files = os.listdir(input_emb_dir)
         # please note nid_files can be empty.
-        nid_files = [fname for fname in ntype_emb_files if fname.startswith("nids") and fname.endswith("pt")]
-        emb_files = [fname for fname in ntype_emb_files if fname.startswith("emb") and fname.endswith("pt")]
+        nid_files = [fname for fname in ntype_emb_files \
+                     if fname.startswith("nids") and fname.endswith("pt")]
+        emb_files = [fname for fname in ntype_emb_files \
+                     if fname.startswith("emb") and fname.endswith("pt")]
 
         nid_files.sort()
         emb_files.sort()
