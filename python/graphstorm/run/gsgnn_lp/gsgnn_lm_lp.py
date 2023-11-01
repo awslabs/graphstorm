@@ -24,17 +24,19 @@ from graphstorm.config import GSConfig
 from graphstorm.trainer import GSgnnLinkPredictionTrainer
 from graphstorm.dataloading import GSgnnLPTrainData
 from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
-from graphstorm.dataloading import GSgnnLPJointNegDataLoader
-from graphstorm.dataloading import GSgnnLPLocalUniformNegDataLoader
-from graphstorm.dataloading import GSgnnLPLocalJointNegDataLoader
+from graphstorm.dataloading import (GSgnnLPJointNegDataLoader,
+                                    GSgnnLPLocalUniformNegDataLoader,
+                                    GSgnnLPLocalJointNegDataLoader,
+                                    GSgnnLPInBatchJointNegDataLoader)
 from graphstorm.dataloading import GSgnnAllEtypeLPJointNegDataLoader
 from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
 from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
 from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
-from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
-from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
-from graphstorm.dataloading import BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER
-from graphstorm.dataloading import BUILTIN_LP_LOCALJOINT_NEG_SAMPLER
+from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
+                                    BUILTIN_LP_JOINT_NEG_SAMPLER,
+                                    BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER,
+                                    BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER,
+                                    BUILTIN_LP_LOCALJOINT_NEG_SAMPLER)
 from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER
 from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
@@ -113,6 +115,8 @@ def main(config_args):
         dataloader_cls = GSgnnLinkPredictionDataLoader
     elif config.train_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
         dataloader_cls = GSgnnLPJointNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER:
+        dataloader_cls = GSgnnLPInBatchJointNegDataLoader
     elif config.train_negative_sampler == BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER:
         dataloader_cls = GSgnnLPLocalUniformNegDataLoader
     elif config.train_negative_sampler == BUILTIN_LP_LOCALJOINT_NEG_SAMPLER:

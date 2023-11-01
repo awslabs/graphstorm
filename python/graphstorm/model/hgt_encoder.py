@@ -15,8 +15,7 @@
 
     Heterogeneous Graph Transformer (HGT) layer implementation
 """
-import warnings
-
+import logging
 import math
 import torch
 import torch.nn.functional as F
@@ -207,10 +206,6 @@ class HGTLayer(nn.Module):
                 # extract each relation as a sub graph
                 sub_graph = g[srctype, etype, dsttype]
 
-                # check if no edges exist for this can_etype
-                if sub_graph.num_edges() == 0:
-                    continue
-
                 k_linear = self.k_linears[srctype]
                 v_linear = self.v_linears[srctype]
                 q_linear = self.q_linears[dsttype]
@@ -252,19 +247,26 @@ class HGTLayer(nn.Module):
                     alpha = torch.sigmoid(self.skip[k])
                     if g.dstnodes[k].data.get('t') is not None:
                         t = g.dstnodes[k].data['t'].view(-1, self.out_dim)
-                        trans_out = self.drop(self.a_linears[k](t))
+                        trans_out = self.drop(t)
                         if g.is_block:
-                            trans_out = trans_out * alpha + h[k][:g.num_dst_nodes(k)] * (1-alpha)
+                            trans_out = trans_out * alpha + \
+                                self.a_linears[k](h[k][:g.num_dst_nodes(k)]) * (1-alpha)
                         else:
-                            trans_out = trans_out * alpha + h[k] * (1-alpha)
+                            trans_out = trans_out * alpha + self.a_linears[k](h[k]) * (1-alpha)
                     else:                       # Nodes not really in destination side.
-                        warnings.warn("Warning. Graph convolution returned empty "
-                          f"dictionary, for node with type: {str(k)}")
-                        # So add psudo self-loop with feature copy.
-                        trans_out = self.drop(self.a_linears[k](h[k]))
-                        trans_out = trans_out * alpha + h[k] * (1-alpha)
+                        logging.warning("Warning. Graph convolution returned empty " + \
+                          f"dictionary for nodes in type: {str(k)}. Please check your data" + \
+                          f" for no in-degree nodes in type: {str(k)}.")
+                        # So add psudo self-loop for the destination nodes with its own feature.
+                        dst_h = self.a_linears[k](h[k][:g.num_dst_nodes(k)])
+                        trans_out = self.drop(dst_h)
+                        trans_out = trans_out * alpha + dst_h * (1-alpha)
                 else:
-                    continue
+                    # Handle zero number of dst nodes, which is an extreme case
+                    if g.dstnodes[k].data.get('t') is not None:
+                        trans_out = self.a_linears[k](h[k])
+                    else:
+                        continue
 
                 if self.use_norm:
                     new_h[k] = self.norms[k](trans_out)
