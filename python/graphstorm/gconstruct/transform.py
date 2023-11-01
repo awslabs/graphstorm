@@ -955,6 +955,9 @@ def parse_feat_ops(confs):
     for feat in confs:
         assert 'feature_col' in feat, \
                 "'feature_col' must be defined in a feature field."
+        assert (isinstance(feat['feature_col'], str) and feat['feature_col'] != "") \
+               or (isinstance(feat['feature_col'], list) and len(feat['feature_col']) >= 1), \
+            "feature column should not be empty"
         feat_name = feat['feature_name'] if 'feature_name' in feat else feat['feature_col']
 
         out_dtype = _get_output_dtype(feat['out_dtype']) if 'out_dtype' in feat else None
@@ -969,7 +972,7 @@ def parse_feat_ops(confs):
                 assert 'max_seq_length' in conf, \
                         "'tokenize_hf' needs to have the 'max_seq_length' field."
                 if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
-                    raise TypeError("Not support multiple column for tokenizer")
+                    raise RuntimeError("Not support multiple column for tokenizer")
                 transform = Tokenizer(feat['feature_col'], feat_name, conf['bert_model'],
                                       int(conf['max_seq_length']))
             elif conf['name'] == 'bert_hf':

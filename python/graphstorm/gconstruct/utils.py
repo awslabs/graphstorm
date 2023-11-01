@@ -552,11 +552,13 @@ class ExtFeatureWrapper(ExtMemArrayWrapper):
         The shape of the array.
     dtype : numpy dtype
         The data type.
+    merged_file: str
+        The merged file name
     """
     def __init__(self, arr_path, shape, dtype,
                  merged_file="merged_feature.npy"):
         self._arr_path = arr_path
-        self._shape = shape
+        self._shape = (shape[0], 0)
         self._orig_dtype = self._dtype = dtype
         self._arr = None
         self.merged_file = merged_file
@@ -585,6 +587,8 @@ class ExtFeatureWrapper(ExtMemArrayWrapper):
         return self._shape[0]
 
     def __getitem__(self, idx):
+        if self._shape[1] == 0:
+            raise RuntimeError("The ExtFeatureWrapper needs to be merge first")
         if self._arr is None:
             self._arr = np.memmap(os.path.join(self._arr_path, self.merged_file),
                                   self._orig_dtype, mode="r",
@@ -621,7 +625,11 @@ class ExtFeatureWrapper(ExtMemArrayWrapper):
     def append(self, wrap, path=None):
         """Add external memory wrapper to the wrapper
         """
+        if self.shape[0] != wrap.shape[0]:
+            raise RuntimeError("Expect that ExtFeatureWrapper has a "
+                               "first dimension that is the same")
         if isinstance(wrap, np.ndarray):
+            assert path is not None, "path needs to be specified when storing numpy array"
             ext_val = np.memmap(path, wrap.dtype, mode="w+", shape=wrap.shape)
             ext_val[:] = wrap[:]
             ext_val.flush()
@@ -631,7 +639,6 @@ class ExtFeatureWrapper(ExtMemArrayWrapper):
     def merge(self):
         """ Return feature col-wised.
         """
-        self._shape = (self._shape[0], 0)
         for wrap in self.wrapper:
             self._shape = (wrap.shape[0], self._shape[1] + wrap.shape[1])
 
