@@ -187,10 +187,10 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     model.eval()
 
     len_dataloader = max_num_batch = len(loader)
-    tensor = th.tensor([len_dataloader], device=device)
+    num_batch = th.tensor([len_dataloader], device=device)
     if is_distributed():
-        th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
-        max_num_batch = tensor[0]
+        th.distributed.all_reduce(num_batch, op=th.distributed.ReduceOp.MAX)
+        max_num_batch = num_batch[0]
     dataloader_iter = iter(loader)
 
     with th.no_grad():

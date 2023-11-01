@@ -114,7 +114,7 @@ def prepare_batch_edge_input(g, input_edges,
             # concatenate multiple features together
             feats = []
             for fname in feat_name:
-                data = g.edges[etypes].data[fname] #g.nodes[ntype].data[fname]
+                data = g.edges[etypes].data[fname]
                 if is_wholegraph_embedding(data):
                     data = data.gather(eid.to(dev))
                 else:

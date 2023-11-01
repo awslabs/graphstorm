@@ -25,7 +25,7 @@ import logging
 import pylibwholegraph.torch as wgth
 
 
-def process_node_data(folder, node_feat_names):
+def get_node_feat_info(folder, node_feat_names):
     # per node type feature
     fname_dict = {}
     for feat_name in node_feat_names:
@@ -45,7 +45,7 @@ def process_node_data(folder, node_feat_names):
     return fname_dict
 
 
-def process_edge_data(folder, edge_feat_names):
+def get_edge_feat_info(folder, edge_feat_names):
     # per edge type feature
     fname_dict = {}
     for feat_name in edge_feat_names:
@@ -56,7 +56,7 @@ def process_edge_data(folder, edge_feat_names):
         etype = feat_info[0].split(',')
         assert len(etype) == 3, \
                 f"EDGE_TYPE should have 3 strings: {etype}, " + \
-                "must be NODE_TYPE:EDGE_TYPE:NODE_TYPE:"
+                "must be NODE_TYPE,EDGE_TYPE,NODE_TYPE:"
         etype = ":".join(etype)
         assert etype not in fname_dict, \
                 f"You already specify the feature names of {etype} " \
@@ -79,9 +79,9 @@ def convert_feat_to_wholegraph(fname_dict, file_name, metadata, local_comm, fold
         feats_data.append(dgl.data.utils.load_tensors(f'{path}/{file_name}'))
 
     num_parts = len(feats_data)
-    for ntype, feats in fname_dict.items():
+    for type_name, feats in fname_dict.items():
         for feat in feats:
-            feat = ntype + "/" + feat
+            feat = type_name + "/" + feat
             if feat not in feats_data[0]:
                 raise RuntimeError(f"Error: Unknown feature '{feat}'. Files contain \
                                    the following features: {feats_data[0].keys()}.")
@@ -128,7 +128,7 @@ def main(folder, node_feat_names, edge_feat_names):
     metadata = {}
     # Process node features
     if node_feat_names:
-        fname_dict = process_node_data(folder, node_feat_names)
+        fname_dict = get_node_feat_info(folder, node_feat_names)
         trimmed_feats = convert_feat_to_wholegraph(fname_dict, "node_feat.dgl", metadata, local_comm, folder)
         num_parts = len(trimmed_feats)
 
@@ -145,7 +145,7 @@ def main(folder, node_feat_names, edge_feat_names):
 
     # Process edge features
     if edge_feat_names:
-        fname_dict = process_edge_data(folder, edge_feat_names)
+        fname_dict = get_edge_feat_info(folder, edge_feat_names)
         trimmed_feats = convert_feat_to_wholegraph(fname_dict, "edge_feat.dgl", metadata, local_comm, folder)
         num_parts = len(trimmed_feats)
 

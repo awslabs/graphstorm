@@ -104,7 +104,7 @@ Similarly, users can use  `--edge-feat-names` to convert edge features to WholeG
 python3 convert_feat_to_wholegraph.py --dataset-path ogbn-mag240m-2p --node-feat-names paper:feat --edge-feat-names author,writes,paper:feat
 ```
 
-when `--edge-feat-names` are used, the  '`wholegraph`' folder will contain the edge features converted into WholeGraph format and will trim the distDGL file `edge_feat.dgl` in each partition to remove the specified feature attributes.
+when `--edge-feat-names` is used, the  '`wholegraph`' folder will contain the edge features converted into WholeGraph format and will trim the distDGL file `edge_feat.dgl` in each partition to remove the specified feature attributes.
 
 The features in those files can be loaded in memory via the WholeGraph API by giving the folder path and feature prefix (`<node_type>~<feat_name>`).
 Below is an example showing how to load the data:
