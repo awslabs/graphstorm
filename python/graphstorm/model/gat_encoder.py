@@ -96,11 +96,24 @@ class GATConv(nn.Module):
         dict{"_N", torch.Tensor}
             New node features for each node type.
         """
+        # add self-loop during computation.
+        src, dst = g.edges()
+        src = th.cat([src, th.arange(g.num_dst_nodes())], dim=0)
+        dst = th.cat([dst, th.arange(g.num_dst_nodes())], dim=0)
+        new_g= dgl.create_block(
+            (src, dst),
+            num_src_nodes=g.num_src_nodes(),
+            num_dst_nodes=g.num_dst_nodes(),
+            device=g.device
+        )
+
+        new_g.nodes[DEFAULT_NTYPE].data[dgl.NID] = g.nodes[DEFAULT_NTYPE].data[dgl.NID]
+        g = new_g
         g = g.local_var()
 
         assert DEFAULT_NTYPE in inputs, "GAT encoder only support homogeneous graph."
-
         inputs = inputs[DEFAULT_NTYPE]
+
         h_conv = self.conv(g, inputs)
         h_conv = h_conv.view(h_conv.shape[0], h_conv.shape[1] * h_conv.shape[2])
 
@@ -193,16 +206,5 @@ class GATEncoder(GraphConvEncoder):
             Input node feature for each node type.
         """
         for layer, block in zip(self.layers, blocks):
-            # add self-loop during computation.
-            src, dst = block.edges()
-            src = th.cat([src, th.arange(block.num_dst_nodes())], dim=0)
-            dst = th.cat([dst, th.arange(block.num_dst_nodes())], dim=0)
-            new_block = dgl.create_block(
-                (src, dst),
-                num_src_nodes=block.num_src_nodes(),
-                num_dst_nodes=block.num_dst_nodes()
-            )
-
-            print(new_block.edges())
-            h = layer(new_block, h)
+            h = layer(block, h)
         return h
