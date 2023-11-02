@@ -582,6 +582,9 @@ class GSConfig:
                 }
                 for key, val in glem_defaults.items():
                     self._training_method["kwargs"].setdefault(key, val)
+                if self.freeze_lm_encoder_epochs > 0:
+                    logging.warning("GLEM does not support 'freeze_lm_encoder_epochs'"\
+                                    "it will be ignored")
             return self._training_method
         return {"name": "default", "kwargs": {}}
 
