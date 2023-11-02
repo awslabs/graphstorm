@@ -625,6 +625,11 @@ def test_prepare_for_wholegraph():
         assert list(input_nodes.keys()) == g.ntypes
         assert list(input_edges.keys()) == g.canonical_etypes
 
+        input_edges = {}
+        prepare_for_wholegraph(g, None, input_edges)
+        assert input_nodes == None
+        assert list(input_edges.keys()) == g.canonical_etypes
+
         input_nodes = {"n0": th.ones((g.num_nodes(),), dtype=g.idtype)}
         input_edges = {("n0", "r0", "n1"): th.ones((g.num_nodes(),), dtype=g.idtype)}
         prepare_for_wholegraph(g, input_nodes, input_edges)

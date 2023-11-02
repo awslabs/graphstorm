@@ -114,9 +114,10 @@ def prepare_for_wholegraph(g, input_nodes, input_edges=None):
     input_edges : dict of Tensor
         Input edges retrieved from the dataloder
     """
-    for ntype in g.ntypes:
-        if ntype not in input_nodes:
-            input_nodes[ntype] = th.empty((0,), dtype=g.idtype)
+    if input_nodes is not None:
+        for ntype in g.ntypes:
+            if ntype not in input_nodes:
+                input_nodes[ntype] = th.empty((0,), dtype=g.idtype)
 
     if input_edges is not None:
         for etype in g.canonical_etypes:

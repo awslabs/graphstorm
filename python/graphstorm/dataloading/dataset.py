@@ -138,9 +138,12 @@ class GSgnnData():
     edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    decoder_edge_feat: str or dict of list of str
+        Edge features used by decoder
     """
 
-    def __init__(self, graph_name, part_config, node_feat_field, edge_feat_field):
+    def __init__(self, graph_name, part_config, node_feat_field, edge_feat_field,
+                 decoder_edge_feat):
         self._g = dgl.distributed.DistGraph(graph_name, part_config=part_config)
         self._node_feat_field = node_feat_field
         self._edge_feat_field = edge_feat_field
@@ -179,8 +182,9 @@ class GSgnnData():
                         self._g._ndata_store[ntype].update(data)
 
             # load edge feature from wholegraph memory
-            if edge_feat_field:
-                for etype, feat_names in edge_feat_field.items():
+            # TODO(IN): Add support for edge_feat_field
+            if decoder_edge_feat:
+                for etype, feat_names in decoder_edge_feat.items():
                     data = {}
                     etype_wg = ":".join(etype)
                     for name in feat_names:
@@ -361,7 +365,8 @@ class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
                  node_feat_field=None, edge_feat_field=None,
                  decoder_edge_feat=None):
         super(GSgnnEdgeData, self).__init__(graph_name, part_config,
-                                            node_feat_field, decoder_edge_feat)
+                                            node_feat_field, edge_feat_field,
+                                            decoder_edge_feat)
 
         self._label_field = label_field
         self._decoder_edge_feat = decoder_edge_feat
