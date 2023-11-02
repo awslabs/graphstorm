@@ -666,7 +666,6 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
     def unfreeze_input_encoder(self):
         """ Unfreeze input layer for model training
         """
-        # TODO(zhengda) we need to remove the computed BERT embeddings as node features.
         if self._node_input_encoder is not None:
             self._node_input_encoder.unfreeze()
 
