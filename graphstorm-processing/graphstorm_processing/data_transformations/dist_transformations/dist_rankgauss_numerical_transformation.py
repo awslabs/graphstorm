@@ -19,6 +19,8 @@ from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, FloatType
 import numpy as np
+import pandas as pd
+from scipy.special import erfinv
 
 from .base_dist_transformation import DistributedTransformation
 from .dist_numerical_transformation import apply_imputation
@@ -32,15 +34,17 @@ class DistRankGaussNumericalTransformation(DistributedTransformation):
     ----------
     cols : Sequence[str]
         The list of columns to apply the transformations on.
+    epsilon: float
+        Epsilon for normalization used to avoid INF float during computation.
     imputer : str
         The type of missing value imputation to apply to the column.
         Valid values are "mean", "median" and "most_frequent".
     """
 
-    # pylint: disable=redefined-builtin
     def __init__(
         self,
         cols: List[str],
+        epsilon: float = 0.0,
         imputer: str = "none",
     ) -> None:
         super().__init__(cols)
@@ -48,10 +52,31 @@ class DistRankGaussNumericalTransformation(DistributedTransformation):
         assert len(self.cols) == 1, "Bucket numerical transformation only supports single column"
         # Spark uses 'mode' for the most frequent element
         self.shared_imputation = "mode" if imputer == "most_frequent" else imputer
+        self.epsilon = epsilon
 
     @staticmethod
     def get_transformation_name() -> str:
         return "DistRankGaussNumericalTransformation"
 
     def apply(self, input_df: DataFrame) -> DataFrame:
-        return None
+        imputed_df = apply_imputation(self.cols, self.shared_imputation, input_df)
+        column_name = input_df.columns[0]
+
+        id_df = imputed_df.withColumn('id', F.monotonically_increasing_id())
+        sorted_df = id_df.orderBy(column_name)
+        indexed_df = sorted_df.withColumn('index', F.monotonically_increasing_id())
+
+        def gauss_transform(rank: pd.Series) -> pd.Series:
+            epsilon = self.epsilon
+            feat_range = num_rows - 1
+            normalized_rank = (rank - 1) / feat_range
+            clipped_rank = (normalized_rank - 0.5) * 2
+            clipped_rank = np.maximum(np.minimum(clipped_rank, 1 - epsilon), epsilon - 1)
+            return pd.Series(erfinv(clipped_rank))
+
+        gauss_udf = F.pandas_udf(gauss_transform, FloatType())
+        num_rows = indexed_df.count()
+        normalized_df = indexed_df.withColumn(column_name, gauss_udf('index'))
+        gauss_transformed_df = normalized_df.orderBy('id').drop('id', 'index')
+
+        return gauss_transformed_df
