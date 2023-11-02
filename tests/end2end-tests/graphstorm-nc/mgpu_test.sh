@@ -241,7 +241,7 @@ error_and_exit $?
 
 rm /tmp/train_log.txt
 
-echo "**************dataset: Movielens, do inference on saved model, decoder: dot"
+echo "**************dataset: Movielens, do inference on saved model, RGCN layer: 1, node feat: BERT nodes: movie, user"
 python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_text_infer.yaml --use-mini-batch-infer false   --save-embed-path /data/gsgnn_nc_ml_text/infer-emb/ --restore-model-path /data/gsgnn_nc_ml_text/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml_text/prediction/ --logging-file /tmp/log.txt --logging-level debug --preserve-input True
 
 error_and_exit $?
@@ -302,7 +302,7 @@ echo "The best model is saved in epoch $best_epoch"
 
 rm /tmp/train_log.txt
 
-echo "**************dataset: Movielens, do inference on saved model, decoder: dot"
+echo "**************dataset: Movielens, do inference on saved model, node feat: BERT nodes: movie, user, with warmup"
 python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_text_infer.yaml --use-mini-batch-infer false --save-embed-path /data/gsgnn_nc_ml_text/infer-emb/ --restore-model-path /data/gsgnn_nc_ml_text/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml_text/prediction/ --logging-file /tmp/log.txt --logging-level debug --preserve-input True
 
 error_and_exit $?
@@ -324,7 +324,7 @@ then
 fi
 
 cnt=$(ls -l /data/gsgnn_nc_ml_text/infer-emb/movie/ | grep "emb.part" | wc -l)
-if test $cnt != $NUM_INFERs
+if test $cnt != $NUM_INFERs * 2
 then
     echo "There must be $NUM_INFERs embedding parts"
     exit -1
