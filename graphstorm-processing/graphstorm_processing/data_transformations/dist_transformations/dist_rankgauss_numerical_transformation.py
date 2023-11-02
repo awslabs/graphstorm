@@ -49,7 +49,7 @@ class DistRankGaussNumericalTransformation(DistributedTransformation):
     ) -> None:
         super().__init__(cols)
         self.cols = cols
-        assert len(self.cols) == 1, "Bucket numerical transformation only supports single column"
+        assert len(self.cols) == 1, "Rank Guass numerical transformation only supports single column"
         # Spark uses 'mode' for the most frequent element
         self.shared_imputation = "mode" if imputer == "most_frequent" else imputer
         self.epsilon = epsilon
@@ -59,8 +59,9 @@ class DistRankGaussNumericalTransformation(DistributedTransformation):
         return "DistRankGaussNumericalTransformation"
 
     def apply(self, input_df: DataFrame) -> DataFrame:
-        imputed_df = apply_imputation(self.cols, self.shared_imputation, input_df)
-        column_name = input_df.columns[0]
+        column_name = self.cols[0]
+        select_df = input_df.select(column_name)
+        imputed_df = apply_imputation(self.cols, self.shared_imputation, select_df)
 
         id_df = imputed_df.withColumn('id', F.monotonically_increasing_id())
         sorted_df = id_df.orderBy(column_name)
@@ -69,14 +70,13 @@ class DistRankGaussNumericalTransformation(DistributedTransformation):
         def gauss_transform(rank: pd.Series) -> pd.Series:
             epsilon = self.epsilon
             feat_range = num_rows - 1
-            normalized_rank = (rank - 1) / feat_range
-            clipped_rank = (normalized_rank - 0.5) * 2
+            clipped_rank = (rank / feat_range - 0.5) * 2
             clipped_rank = np.maximum(np.minimum(clipped_rank, 1 - epsilon), epsilon - 1)
             return pd.Series(erfinv(clipped_rank))
 
         gauss_udf = F.pandas_udf(gauss_transform, FloatType())
         num_rows = indexed_df.count()
         normalized_df = indexed_df.withColumn(column_name, gauss_udf('index'))
-        gauss_transformed_df = normalized_df.orderBy('id').drop('id', 'index')
+        gauss_transformed_df = normalized_df.orderBy('id').drop("index", "id")
 
         return gauss_transformed_df
