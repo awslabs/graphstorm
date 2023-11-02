@@ -472,7 +472,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         if self.num_train == 0:
             self.freeze(g)
 
-    def freeze(self, g):
+    def freeze(self, _):
         """ Generate Bert caching if needed
         """
         # The lm_emb_cache is used in following cases:

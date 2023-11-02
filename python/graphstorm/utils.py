@@ -256,6 +256,17 @@ def create_dist_tensor(shape, dtype, name=None, part_policy=None, persistent=Fal
     logging.debug("Create DistTensor of %s with shape of %s", name, str(tensor.shape))
     return tensor
 
+def get_lm_ntypes(lm_configs):
+    """ Get the node types with text features.
+    """
+    if lm_configs is None:
+        return None
+
+    ntypes = []
+    for config in lm_configs:
+        ntypes.extend(config['node_types'])
+    return ntypes
+
 class SysTracker:
     """ This tracks the system performance.
 
