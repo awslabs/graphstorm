@@ -98,16 +98,16 @@ class GATConv(nn.Module):
         """
         # add self-loop during computation.
         src, dst = g.edges()
-        src = th.cat([src, th.arange(g.num_dst_nodes())], dim=0)
-        dst = th.cat([dst, th.arange(g.num_dst_nodes())], dim=0)
+        src = th.cat([src, th.arange(g.num_dst_nodes(), device=g.device)], dim=0)
+        dst = th.cat([dst, th.arange(g.num_dst_nodes(), device=g.device)], dim=0)
         new_g= dgl.create_block(
             (src, dst),
             num_src_nodes=g.num_src_nodes(),
             num_dst_nodes=g.num_dst_nodes(),
+            device=g.device
         )
 
         new_g.nodes[DEFAULT_NTYPE].data[dgl.NID] = g.nodes[DEFAULT_NTYPE].data[dgl.NID]
-        g = new_g.to(g.device)
         g = g.local_var()
 
         assert DEFAULT_NTYPE in inputs, "GAT encoder only support homogeneous graph."
