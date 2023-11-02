@@ -44,7 +44,8 @@ from .utils import (download_yaml_config,
 
 def launch_train_task(task_type, num_gpus, graph_config,
     save_model_path, ip_list, yaml_path,
-    extra_args, state_q, custom_script, restore_model_path=None):
+    extra_args, state_q, custom_script, restore_model_path=None,
+    output_chunk_size=100000):
     """ Launch SageMaker training task
 
     Parameters
@@ -72,6 +73,9 @@ def launch_train_task(task_type, num_gpus, graph_config,
     restore_model_path: str
         Path for the model to restore for model fine-tuning.
         Default: None
+    output_chunk_size: int
+        Number of rows per chunked prediction result or node embedding file.
+        Default: 100000
 
     Return
     ------
@@ -99,7 +103,9 @@ def launch_train_task(task_type, num_gpus, graph_config,
         "--part-config", f"{graph_config}",
         "--ip-config", f"{ip_list}",
         "--extra-envs", f"LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']} ",
-        "--ssh-port", "22"]
+        "--ssh-port", "22",
+        "--with-shared-fs", "False",
+        "--output-chunk-size", output_chunk_size]
     launch_cmd += [custom_script] if custom_script is not None else []
     launch_cmd += ["--cf", f"{yaml_path}",
         "--save-model-path", f"{save_model_path}"]
@@ -220,6 +226,7 @@ def run_train(args, unknownargs):
     train_yaml_s3 = args.train_yaml_s3
     model_artifact_s3 = args.model_artifact_s3.rstrip('/')
     custom_script = args.custom_script
+    output_chunk_size = args.output_chunk_size
 
     boto_session = boto3.session.Session(region_name=args.region)
     sagemaker_session = sagemaker.session.Session(boto_session=boto_session)
@@ -256,7 +263,8 @@ def run_train(args, unknownargs):
                                             gs_params,
                                             state_q,
                                             custom_script,
-                                            restore_model_path)
+                                            restore_model_path,
+                                            output_chunk_size=output_chunk_size)
             train_task.join()
             err_code = state_q.get()
         except RuntimeError as e:

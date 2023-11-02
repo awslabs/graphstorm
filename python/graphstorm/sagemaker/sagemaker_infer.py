@@ -49,7 +49,8 @@ from .utils import (download_yaml_config,
 
 def launch_infer_task(task_type, num_gpus, graph_config,
     load_model_path, save_emb_path, ip_list,
-    yaml_path, extra_args, state_q, custom_script):
+    yaml_path, extra_args, state_q, custom_script,
+    output_chunk_size=100000):
     """ Launch SageMaker training task
 
     Parameters
@@ -75,7 +76,14 @@ def launch_infer_task(task_type, num_gpus, graph_config,
     state_q: queue.Queue()
         A queue used to return execution result (success or failure)
     custom_script: str
-        Custom training script provided by a customer to run customer training logic.
+        Custom inference script provided by a customer to run customer inference logic.
+        output_chunk_size: int
+        Number of rows per chunked prediction result or node embedding file.
+        Default: 100000
+
+    Return
+    ------
+    Thread: inference task thread
     """
     if custom_script is not None:
         cmd = "graphstorm.run.launch"
@@ -99,7 +107,9 @@ def launch_infer_task(task_type, num_gpus, graph_config,
         "--part-config", f"{graph_config}",
         "--ip-config", f"{ip_list}",
         "--extra-envs", f"LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']} ",
-        "--ssh-port", "22", "--inference"]
+        "--ssh-port", "22", "--inference",
+        "--with-shared-fs", "False",
+        "--output-chunk-size", output_chunk_size]
     launch_cmd += [custom_script] if custom_script is not None else []
     launch_cmd += ["--cf", f"{yaml_path}",
          "--restore-model-path", f"{load_model_path}",
@@ -216,6 +226,7 @@ def run_infer(args, unknownargs):
     # remove tailing /
     output_emb_s3 = args.output_emb_s3.rstrip('/')
     custom_script = args.custom_script
+    output_chunk_size = args.output_chunk_size
     emb_path = os.path.join(output_path, "embs")
 
     if args.output_emb_s3 is not None:
@@ -258,7 +269,8 @@ def run_infer(args, unknownargs):
                                            yaml_path,
                                            gs_params,
                                            state_q,
-                                           custom_script)
+                                           custom_script,
+                                           output_chunk_size=output_chunk_size)
             train_task.join()
             err_code = state_q.get()
         except RuntimeError as e:
