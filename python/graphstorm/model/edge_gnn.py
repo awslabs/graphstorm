@@ -201,7 +201,7 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
             tmp_node_keys = tmp_edge_keys = []
             blocks = target_edge_graph = None
             input_nodes = {}
-            input_edges = {} if data.decoder_edge_feat is not None else None
+            input_edges = {}
             if iter_l < len_dataloader:
                 input_nodes, target_edge_graph, blocks = next(dataloader_iter)
                 if not isinstance(input_nodes, dict):
