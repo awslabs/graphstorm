@@ -104,11 +104,10 @@ class GATConv(nn.Module):
             (src, dst),
             num_src_nodes=g.num_src_nodes(),
             num_dst_nodes=g.num_dst_nodes(),
-            device=g.device
         )
 
         new_g.nodes[DEFAULT_NTYPE].data[dgl.NID] = g.nodes[DEFAULT_NTYPE].data[dgl.NID]
-        g = new_g
+        g = new_g.to(g.device)
         g = g.local_var()
 
         assert DEFAULT_NTYPE in inputs, "GAT encoder only support homogeneous graph."
