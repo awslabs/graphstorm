@@ -439,6 +439,7 @@ Model performance
 
 * RGCN: ~0.61
 * RGAT: ~0.62
+* HGT: ~0.61
 
 2.4 Co-train LMs and GNN models
 `````````````````````````````````
