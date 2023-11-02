@@ -25,6 +25,7 @@ import traceback
 import shutil
 import uuid
 import hashlib
+import warnings
 
 import numpy as np
 import dgl
@@ -563,6 +564,8 @@ class ExtFeatureWrapper(ExtNumpyWrapper):
     def shape(self):
         """ The shape of the array.
         """
+        if not self._shape:
+            warnings.warn("The ExtFeature Wrapper needs to be merged first")
         return self._shape
 
     def __getitem__(self, idx):
