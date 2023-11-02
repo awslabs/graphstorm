@@ -51,7 +51,6 @@ def main(config_args):
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field,
                                     lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
-    g = infer_data.g
 
     model = gs.create_builtin_node_gnn_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path,

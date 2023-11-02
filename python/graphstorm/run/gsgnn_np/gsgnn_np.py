@@ -74,7 +74,6 @@ def main(config_args):
                                     label_field=config.label_field,
                                     lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
-    g = train_data.g
 
     if config.training_method["name"] == "glem":
         trainer_class = GLEMNodePredictionTrainer
