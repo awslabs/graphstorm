@@ -362,12 +362,12 @@ There are two important pre-requisites for achieving good performance when using
 
 To pre-train LMs and GNN models, users can follow the :ref:`22two_step_mannually` instruction and save the best LMs and GNN models.
 
-2. The pseudolabeling technique: this technique predicts pseudolabels on the unlabeled nodes and uses as additional supervision signal for mutual distillation between LM and GNN. This can be enabled by the setting ``use_pseudolabel`` argument.
+2. The pseudolabeling technique: this technique predicts pseudolabels on the unlabeled nodes and uses them as additional supervision signals for mutual distillation between LM and GNN. This can be enabled by the setting the ``use_pseudolabel`` argument.
 
 GraphStorm configurations
 ##########################
 
-To use GLEM, users need to set a new configuration se, called ``training_method``, which specifies how to utilize specific model training method. Users can refer to the ``acm_glem_nc_pretrain.yaml`` that includes the following ``training_method`` related configurations.
+To use GLEM, users need to set a new configuration, called ``training_method``, which specifies how to utilize specific model training method. Users can refer to the ``acm_glem_nc_pretrain.yaml`` that includes the following ``training_method`` related configurations.
 
 .. code-block:: yaml
 
