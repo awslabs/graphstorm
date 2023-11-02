@@ -537,7 +537,15 @@ def load_pytorch_embedding(emb_path, part_policy, name):
 
 def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None):
-    """ Save embeddings through pytorch a distributed way
+    """ Save embeddings through pytorch a distributed way.
+
+        By default, `save_pytorch_embeddings` will shuffle the order of node embeddings
+        so that the node embeddings are shuffled according to node IDs in the GraphStorm
+        node ID space.
+
+        An alternative way to save node embeddings is calling `save_full_node_embeddings`
+        which is recommended as it is more efficient. Please refer to `save_full_node_embeddings`
+        for more details.
 
         Example:
         --------
@@ -742,7 +750,13 @@ def save_full_node_embeddings(g, save_embed_path,
                               embeddings,
                               node_id_mapping_file,
                               save_embed_format="pytorch"):
-    """ Save full node embeddings.
+    """ Save full node embeddings through pytorch in a distributed way.
+
+        `save_full_node_embeddings` will save two information of an embedding: 1)
+        the embedding and 2) its corresponding node ID in GraphStorm node ID space.
+        It assumes the input `embeddings` are stored in the DistDGL node ID space
+        and the DistDGL node ID starts from 0 to N. It will call NodeIDShuffler to
+        shuffle the node IDs from DistDGL ID space into GraphStorm node ID space.
 
         The saved node embeddings are in the following format:
 
@@ -763,6 +777,12 @@ def save_full_node_embeddings(g, save_embed_path,
         #     emb.part00000.bin
         #     emb.part00001.bin
         #     ...
+
+        Note: `save_pytorch_embeddings` (called by `save_embeddings`) is different from
+        `save_full_node_embeddings`. In `save_pytorch_embeddings`, it will shuffle the
+        order of node embeddings so that the node embeddings are shuffled according to
+        node IDs in the GraphStorm node ID space. While `save_full_node_embeddings`
+        shuffles node IDs instead of node embeddings, which is more efficient.
 
         Parameters
         ----------
