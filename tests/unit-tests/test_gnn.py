@@ -1527,6 +1527,8 @@ def test_node_mini_batch_gnn_predict():
     th.distributed.destroy_process_group()
 
 if __name__ == '__main__':
+    test_rgcn_node_prediction(None)
+    test_gat_node_prediction()
     test_mini_batch_full_graph_inference(0)
 
     test_gnn_model_load_save()
@@ -1537,10 +1539,8 @@ if __name__ == '__main__':
     test_hgt_edge_prediction()
     test_hgt_node_prediction()
     test_rgcn_edge_prediction(2)
-    test_rgcn_node_prediction(None)
     test_rgat_node_prediction(None)
     test_sage_node_prediction(None)
-    test_gat_node_prediction()
 
     test_edge_classification()
     test_edge_classification_feat()

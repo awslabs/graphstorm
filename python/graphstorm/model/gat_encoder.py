@@ -15,9 +15,12 @@
 
     Sage layer implementation.
 """
+import torch as th
 from torch import nn
 import torch.nn.functional as F
+import dgl
 import dgl.nn as dglnn
+from dgl.distributed.constants import DEFAULT_NTYPE
 
 from .ngnn_mlp import NGNNMLP
 from .gnn_encoder_base import GraphConvEncoder
@@ -95,16 +98,16 @@ class GATConv(nn.Module):
         """
         g = g.local_var()
 
-        assert '_N' in inputs, "GAT encoder only support homogeneous graph."
+        assert DEFAULT_NTYPE in inputs, "GAT encoder only support homogeneous graph."
 
-        inputs = inputs['_N']
+        inputs = inputs[DEFAULT_NTYPE]
         h_conv = self.conv(g, inputs)
         h_conv = h_conv.view(h_conv.shape[0], h_conv.shape[1] * h_conv.shape[2])
 
         if self.num_ffn_layers_in_gnn > 0:
             h_conv = self.ngnn_mlp(h_conv)
 
-        return {'_N': h_conv}
+        return {DEFAULT_NTYPE: h_conv}
 
 class GATEncoder(GraphConvEncoder):
     r""" GAT Conv Encoder
@@ -114,7 +117,7 @@ class GATEncoder(GraphConvEncoder):
 
     Examples:
     ----------
-    
+
     .. code:: python
 
         # Build model and do full-graph inference on GATEncoder
@@ -190,5 +193,16 @@ class GATEncoder(GraphConvEncoder):
             Input node feature for each node type.
         """
         for layer, block in zip(self.layers, blocks):
-            h = layer(block, h)
+            # add self-loop during computation.
+            src, dst = block.edges()
+            src = th.cat([src, th.arange(block.num_dst_nodes())], dim=0)
+            dst = th.cat([dst, th.arange(block.num_dst_nodes())], dim=0)
+            new_block = dgl.create_block(
+                (src, dst),
+                num_src_nodes=block.num_src_nodes(),
+                num_dst_nodes=block.num_dst_nodes()
+            )
+
+            print(new_block.edges())
+            h = layer(new_block, h)
         return h
