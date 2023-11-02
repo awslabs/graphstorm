@@ -256,16 +256,22 @@ class GLEM(GSgnnNodeModelBase):
         for param in self.trainable_parameters(part):
             param.requires_grad = not freeze
 
-    def toggle(self, part='lm'):
-        """The method toggles training between lm and gnn."""
+    def toggle(self, part='lm', data=None):
+        """The method toggles training between lm and gnn. It uses `toggle_params` to 
+        freeze/unfreeze model parameters and `(un)freeze_input_encoder` to control the
+        caching of LM embeddings"""
         if part == 'lm':
             self.training_lm = True
             self.toggle_params('gnn', True)
             self.toggle_params('lm', False)
+            # when training lm, do not use the cached LM
+            self.lm.unfreeze_input_encoder()
         elif part == 'gnn':
             self.training_lm = False
             self.toggle_params('lm', True)
             self.toggle_params('gnn', False)
+            # when training gnn, always cache LM embeddings
+            self.lm.freeze_input_encoder(data)
         else:
             raise ValueError(f"Unknown model part: {part}")
 
@@ -451,16 +457,21 @@ class GLEM(GSgnnNodeModelBase):
             preds = decoder.predict(emb)
         return preds, emb
 
-    def _get_seed_nodes(self, input_nodes, blocks):
-        """ Get seed nodes from input nodes and labels of the seed nodes.
+    def _get_seed_nodes(self, input_nodes, node_feats, blocks):
+        """ Get seed nodes and features from input nodes and labels of the seed nodes.
         Parameters
         ----------
         input_nodes : {target_ntype: tensor.shape [bs], other_ntype: []}
+        node_feats : {ntype: tensor}
         blocks : list[dgl.Block]
         """
         target_ntype = self.target_ntype
         n_seed_nodes = blocks[-1].num_dst_nodes()
-        return {target_ntype: input_nodes[target_ntype][:n_seed_nodes]}
+        seed_nodes = {target_ntype: input_nodes[target_ntype][:n_seed_nodes]}
+        seed_feats = {}
+        if target_ntype in node_feats:
+            seed_feats = {target_ntype: node_feats[target_ntype][:n_seed_nodes]}
+        return seed_nodes, seed_feats
 
     def _embed_nodes(self, blocks, node_feats, _, input_nodes=None, do_gnn_encode=True):
         """ Embed and encode nodes with LM, optionally followed by GNN encoder for GLEM model
@@ -474,9 +485,9 @@ class GLEM(GSgnnNodeModelBase):
             n_seed_nodes = blocks[-1].num_dst_nodes()
             return encode_embs[target_ntype][:n_seed_nodes], encode_embs_gnn[target_ntype]
         else:
-            # Get the projected LM embeddings for seed nodes:
-            seed_nodes = self._get_seed_nodes(input_nodes, blocks)
-            encode_embs = self.lm.comput_input_embed(seed_nodes, node_feats)
+            # Get the projected LM embeddings for seed nodes and corresponding node features:
+            seed_nodes, seed_feats = self._get_seed_nodes(input_nodes, node_feats, blocks)
+            encode_embs = self.lm.comput_input_embed(seed_nodes, seed_feats)
             return encode_embs[target_ntype], None
 
     def _process_labels(self, labels):
