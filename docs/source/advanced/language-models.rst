@@ -1,6 +1,6 @@
 .. _language_models:
 
-Use Language Model in GraphStorm
+Use Language Models in GraphStorm
 ==================================
 Many real world graphs have text contents as nodes' features, e.g., the title and description of a product, and the questions and comments from users. To leverage these text contents, GraphStorm supports language models (LMs), i.e., HuggingFace BERT models, to embed text contents and use these embeddings for various Graph Machine Learning tasks.
 
@@ -18,7 +18,7 @@ There are a set of modes to use LMs in GraphStorm.
 
     * Two-step co-training manually
 
-    In this mode, users can train both LMs and GNNs in two steps. The first step is similar as the Fine-tune LMs only mode, and the fine-tuned LMs are saved. In the second step, GraphStorm loads the saved LMs, computes embeddings on text features, and then use them to as input to train GNN models. In this mode, users have the options to fine-tune LMs on the GML tasks different from GNN models. For example, the fine-tuning could be done on a link prediction task, and the trained LMs then could be used by GNN models for node classification tasks.
+    In this mode, users can train both LMs and GNNs in two steps. The first step is similar as the Fine-tune LMs only mode, and the fine-tuned LMs are saved. In the second step, GraphStorm loads the saved LMs, computes embeddings on text features, and then use them as inputs to train GNN models. In this mode, users have the options to fine-tune LMs on the GML tasks different from GNN models. For example, the fine-tuning could be done on a link prediction task, and the trained LMs then could be used by GNN models for node classification tasks.
 
     * Auto two-step co-training (GLEM)
 
@@ -218,6 +218,8 @@ Model performance
 2. Fine-tune LMs on graph data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. _21ft_lm_only:
+
 2.1 Fine-tune LMs only
 ````````````````````````
 
@@ -266,14 +268,14 @@ Model performance
 
 * LM: ~0.55
 
-.. _22two_step_mannual:
+.. _22two_step_mannually:
 
 2.2 Two-step co-training manually
 ``````````````````````````````````
 
 GraphStorm configurations
 ############################
-In the two-step co-training, users not only can fine tune LMs with the same GML task, e.g., node classification in the previous 2.1 section, but also can fine tune LMs with different tasks, such as link prediction.
+In the two-step co-training, users not only can fine tune LMs with the same GML task, e.g., node classification in the :ref:`_21ft_lm_only` section, but also can fine tune LMs with different tasks, such as link prediction.
 
 To fine tune LMs for link prediction, users can refer to the ``acm_lm_ft_lp.yaml``, which includes the following link prediction related configurations.
 
@@ -312,8 +314,7 @@ The following command use the ``acm_lm_ft_lp.yaml`` file to fine-tune the LM on 
             --cf /graphstorm/examples/use_your_own_data/acm_lm_ft_lp.yaml \
             --save-model-path /tmp/acm_nc/models
 
-Then users can use the command below to train an RGCN model based on the saved fine-tuned LMs. Because the saved model folder varied from fine-tuning to fine-tuning, here the command uses the ``--restore-model-path``
-argument to provide this value, instead of defining it in the ``acm_lm_nc.yaml`` file. For the fine-tuning on link prediction task, users can choose one epoch that has the lowest training loss value.
+Then users can use the command below to train an RGCN model based on the saved fine-tuned LMs. Because the saved model folder varied from fine-tuning to fine-tuning, here the command uses the ``--restore-model-path`` argument to provide this value, instead of defining it in the ``acm_lm_nc.yaml`` file. For the fine-tuning on link prediction task, users can choose one epoch that has the lowest training loss value as the best fine-tuned checkpoint.
 
 .. code-block:: bash
 
@@ -338,7 +339,7 @@ Model performance
 **Run time:**
 
 * Link prediction fine-tuning training: 51s per epoch
-* Link prediction fine-tuned model saving: 3s each time
+* Link prediction fine-tuned model saving: 1s each time
 
 * GNN training: 2s per epoch
 * GNN validation: 0.5s per epoch
@@ -359,7 +360,7 @@ There are two important pre-requisites for achieving good performance when using
 
 1. Well pre-trained LM and GNN before the GLEM co-training: empirically, LM or GNN models that are not well-trained lead to degraded performance when co-training with GLEM directly. Therefore, users need to pre-train the LMs and GNN Models first.
 
-To pre-train LMs and GNN models, users can follow the :ref:`22two_step_mannual` instruction and save the best LMs and GNN models.
+To pre-train LMs and GNN models, users can follow the :ref:`22two_step_mannually` instruction and save the best LMs and GNN models.
 
 2. The pseudolabeling technique: this technique predicts pseudolabels on the unlabeled nodes and uses as additional supervision signal for mutual distillation between LM and GNN. This can be enabled by the setting ``use_pseudolabel`` argument.
 
@@ -436,9 +437,8 @@ Model performance
 
 **Best accuracy on validation set:**
 
-* RGCN: ~0.58
-* RGAT: ~0.
-* HGT: ~0.
+* RGCN: ~0.61
+* RGAT: ~0.62
 
 2.4 Co-train LMs and GNN models
 `````````````````````````````````
