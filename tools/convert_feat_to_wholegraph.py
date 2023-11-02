@@ -73,9 +73,10 @@ def convert_feat_to_wholegraph(fname_dict, file_name, metadata, local_comm, fold
     wg_folder = os.path.join(folder, 'wholegraph')
     folder_pattern = re.compile(r"^part[0-9]+$")
     # Read features from file
-    for path in (os.path.join(folder, name) for name in sorted( \
-        (f for f in os.listdir(folder) if os.path.isdir(os.path.join(folder, f)) \
-        and folder_pattern.match(f)), key=lambda x: int(x.split("part")[1]))):
+    part_files = [f for f in os.listdir(folder) if os.path.isdir(os.path.join(folder, f)) \
+        and folder_pattern.match(f)]
+    part_files = sorted(part_files, key=lambda x: int(x.split("part")[1]))
+    for path in (os.path.join(folder, name) for name in part_files):
         feats_data.append(dgl.data.utils.load_tensors(f'{path}/{file_name}'))
 
     num_parts = len(feats_data)
