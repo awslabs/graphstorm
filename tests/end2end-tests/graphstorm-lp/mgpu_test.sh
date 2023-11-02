@@ -319,7 +319,7 @@ rm /tmp/exec.log
 rm -fr /data/gsgnn_lp_ml_dot/*
 
 echo "**************dataset: Movielens, RGCN layer 1, BERT nodes: movie, user , inference: full-graph, negative_sampler: joint, decoder: Dot Product, exclude_training_targets: true, save model"
-python3 -m graphstorm.run.launch --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_lp_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 $GS_HOME/python/graphstorm/run/gsgnn_lp/gsgnn_lp.py --cf ml_lp_text.yaml --fanout '4' --num-layers 1 --use-mini-batch-infer false  --use-node-embeddings true --save-model-path /data/gsgnn_lp_ml_dotprod_text/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_dotprod_text/emb/ --lp-decoder-type dot_product --train-etype user,rating,movie --logging-file /tmp/train_log.txt --preserve-input True
+python3 -m graphstorm.run.launch --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_lp_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --preserve-input True $GS_HOME/python/graphstorm/run/gsgnn_lp/gsgnn_lp.py --cf ml_lp_text.yaml --fanout '4' --num-layers 1 --use-mini-batch-infer false  --use-node-embeddings true --save-model-path /data/gsgnn_lp_ml_dotprod_text/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_dotprod_text/emb/ --lp-decoder-type dot_product --train-etype user,rating,movie --logging-file /tmp/train_log.txt
 
 error_and_exit $?
 
@@ -329,7 +329,7 @@ echo "The best model is saved in epoch $best_epoch_dotprod"
 rm /tmp/train_log.txt
 
 echo "**************dataset: Movielens text, do inference on saved model, decoder: Dot Product"
-python3 -m graphstorm.run.launch --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_lp_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 $GS_HOME/python/graphstorm/run/gsgnn_lp/lp_infer_gnn.py --cf ml_lp_text_infer.yaml --fanout '4' --num-layers 1 --use-mini-batch-infer false --use-node-embeddings true   --save-embed-path /data/gsgnn_lp_ml_dotprod_text/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_dotprod_text/epoch-$best_epoch_dotprod/ --lp-decoder-type dot_product --no-validation False --train-etype user,rating,movie --preserve-input True
+python3 -m graphstorm.run.launch --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_lp_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --preserve-input True $GS_HOME/python/graphstorm/run/gsgnn_lp/lp_infer_gnn.py --cf ml_lp_text_infer.yaml --fanout '4' --num-layers 1 --use-mini-batch-infer false --use-node-embeddings true   --save-embed-path /data/gsgnn_lp_ml_dotprod_text/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_dotprod_text/epoch-$best_epoch_dotprod/ --lp-decoder-type dot_product --no-validation False --train-etype user,rating,movie
 
 error_and_exit $?
 
