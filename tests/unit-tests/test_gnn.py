@@ -92,16 +92,24 @@ def create_rgcn_node_model(g, norm=None):
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
     return model
 
-def create_rgcn_node_model_with_reconstruct(g, cache_embed):
+def create_rgcn_node_model_with_reconstruct(data, reconstructed_embed_ntype,
+        cache_embed=False, lm_configs=None):
     model = GSgnnNodeModel(alpha_l2norm=0)
 
-    feat_size = get_feat_size(g, {'n0': 'feat', 'n4': 'feat'})
-    reconstructed_embed_ntype=['n2']
-    encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
-                                      dropout=0,
-                                      use_node_embeddings=False,
-                                      force_no_embeddings=reconstructed_embed_ntype,
-                                      cache_embed=cache_embed)
+    g = data.g
+    node_feats = data.node_feat_field
+    feat_size = get_feat_size(g, node_feats)
+    if lm_configs is None:
+        encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+                                          dropout=0,
+                                          use_node_embeddings=False,
+                                          force_no_embeddings=reconstructed_embed_ntype,
+                                          cache_embed=cache_embed)
+    else:
+        encoder = GSLMNodeEncoderInputLayer(g, lm_configs, feat_size, 4,
+                                            num_train=0,
+                                            force_no_embeddings=reconstructed_embed_ntype)
+    feat_size = encoder.in_dims
     model.set_node_input_encoder(encoder)
 
     gnn_encoder = RelationalGCNEncoder(g, 4, 4,
@@ -110,6 +118,7 @@ def create_rgcn_node_model_with_reconstruct(g, cache_embed):
                                        dropout=0,
                                        use_self_loop=True)
     rel_names = get_rel_names_for_reconstruct(g, reconstructed_embed_ntype, feat_size)
+    assert len(rel_names) > 0
     dst_types = set([rel_name[2] for rel_name in rel_names])
     for ntype in reconstructed_embed_ntype:
         assert ntype in dst_types, \
@@ -273,7 +282,7 @@ def check_node_prediction(model, data, is_homo=False):
         assert(is_int(pred4))
         assert(th.equal(pred3.argmax(dim=1), pred4))
 
-def check_node_prediction_with_reconstruct(model, data):
+def check_node_prediction_with_reconstruct(model, data, construct_feat_ntype):
     """ Check whether full graph inference and mini batch inference generate the same
         prediction result for GSgnnNodeModel with GNN layers.
 
@@ -287,8 +296,10 @@ def check_node_prediction_with_reconstruct(model, data):
     target_ntype = data.train_ntypes[0]
     device = "cuda:0"
     g = data.g
-    feat_ntype = ['n0', 'n4']
-    construct_feat_ntype = ['n2']
+    if data.node_feat_field is None:
+        feat_ntype = []
+    else:
+        feat_ntype = list(data.node_feat_field.keys())
     model = model.to(device)
     def get_input_embeds(input_nodes):
         feats = prepare_batch_input(g, input_nodes, dev=device,
@@ -296,7 +307,7 @@ def check_node_prediction_with_reconstruct(model, data):
         return model.node_input_encoder(feats, input_nodes)
 
     # Verify the internal of full-graph inference.
-    feat_size = get_feat_size(g, {'n0': 'feat', 'n4': 'feat'})
+    feat_size = model.node_input_encoder.in_dims
     rel_names = get_rel_names_for_reconstruct(g, construct_feat_ntype, feat_size)
     constructed = construct_node_feat(g, rel_names, model.gnn_encoder._input_gnn,
                                       get_input_embeds, 10, device=device)
@@ -464,8 +475,33 @@ def test_rgcn_node_prediction_with_reconstruct(cache_embed):
         np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
                                      train_ntypes=['n0'], label_field='label',
                                      node_feat_field={'n0': ['feat'], 'n4': ['feat']})
-    model = create_rgcn_node_model_with_reconstruct(np_data.g, cache_embed=cache_embed)
-    check_node_prediction_with_reconstruct(model, np_data)
+    model = create_rgcn_node_model_with_reconstruct(np_data, ['n2'], cache_embed=cache_embed)
+    check_node_prediction_with_reconstruct(model, np_data, ['n2'])
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def test_lm_rgcn_node_prediction_with_reconstruct():
+    """ Test node prediction logic correctness with a node prediction model
+        composed of InputLayerEncoder + RGCNLayerWithReconstruct + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        lm_configs, _, _, _, g, part_config = create_lm_graph(tmpdirname)
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_ntypes=['n1'], label_field='label',
+                                     lm_feat_ntypes=['n0'])
+        np_data._g = g
+    model = create_rgcn_node_model_with_reconstruct(np_data, ['n1'], lm_configs=lm_configs)
+    check_node_prediction_with_reconstruct(model, np_data, ['n1'])
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -1530,6 +1566,7 @@ def test_node_mini_batch_gnn_predict():
     th.distributed.destroy_process_group()
 
 if __name__ == '__main__':
+    test_lm_rgcn_node_prediction_with_reconstruct()
     test_rgcn_node_prediction_with_reconstruct(True)
     test_rgcn_node_prediction_with_reconstruct(False)
     test_mini_batch_full_graph_inference(0)
