@@ -626,7 +626,8 @@ def test_prepare_for_wholegraph():
         assert list(input_edges.keys()) == g.canonical_etypes
 
         input_edges = {}
-        prepare_for_wholegraph(g, None, input_edges)
+        input_nodes = None
+        prepare_for_wholegraph(g, input_nodes, input_edges)
         assert input_nodes == None
         assert list(input_edges.keys()) == g.canonical_etypes
 
