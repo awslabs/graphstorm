@@ -541,34 +541,23 @@ class ExtNumpyWrapper(ExtMemArrayWrapper):
         """
         return th.tensor(self.to_numpy())
 
-class ExtFeatureWrapper(ExtMemArrayWrapper):
+class ExtFeatureWrapper(ExtNumpyWrapper):
     """ The wrapper to memory-mapped Numpy array when combining feature
 
     Parameters
     ----------
     arr_path : str
         The path to different feature files directory
-    shape : tuple
-        The shape of the array.
-    dtype : numpy dtype
-        The data type.
     merged_file: str
         The merged file name
+    wrapper: list
+        List of ExtNumpyWrapper
     """
-    def __init__(self, arr_path, shape, dtype,
-                 merged_file="merged_feature.npy"):
+    def __init__(self, arr_path, shape=None, dtype=None, merged_file="merged_feature.npy"):
+        super().__init__(arr_path, shape, dtype)
         self._arr_path = arr_path
-        self._shape = (shape[0], 0)
-        self._orig_dtype = self._dtype = dtype
-        self._arr = None
         self.merged_file = merged_file
         self.wrapper = []
-
-    @property
-    def dtype(self):
-        """ The data type
-        """
-        return self._dtype
 
     @property
     def shape(self):
@@ -576,22 +565,12 @@ class ExtFeatureWrapper(ExtMemArrayWrapper):
         """
         return self._shape
 
-    def astype(self, dtype):
-        """ Return an array with converted data type.
-        """
-        arr = copy.copy(self)
-        arr._dtype = dtype
-        return arr
-
-    def __len__(self):
-        return self._shape[0]
-
     def __getitem__(self, idx):
-        if self._shape[1] == 0:
+        if not self._shape:
             raise RuntimeError("The ExtFeatureWrapper needs to be merge first")
         if self._arr is None:
             self._arr = np.memmap(os.path.join(self._arr_path, self.merged_file),
-                                  self._orig_dtype, mode="r",
+                                  self._dtype, mode="r",
                                   shape=self._shape)
         return self._arr[idx].astype(self.dtype)
 
@@ -617,19 +596,17 @@ class ExtFeatureWrapper(ExtMemArrayWrapper):
         else:
             return self._arr.astype(self._dtype)
 
-    def to_tensor(self):
-        """ Return Pytorch tensor.
-        """
-        return th.tensor(self.to_numpy())
-
-    def append(self, wrap, path=None):
+    def append(self, wrap):
         """Add external memory wrapper to the wrapper
         """
-        if self.shape[0] != wrap.shape[0]:
+        if not self.shape:
+            self._shape = (wrap.shape[0], 0)
+        if self.shape and self.shape[0] != wrap.shape[0]:
             raise RuntimeError("Expect that ExtFeatureWrapper has a "
                                "first dimension that is the same")
         if isinstance(wrap, np.ndarray):
-            assert path is not None, "path needs to be specified when storing numpy array"
+            hash_hex = generate_hash()
+            path = self._arr_path + '/{}.npy'.format(hash_hex)
             ext_val = np.memmap(path, wrap.dtype, mode="w+", shape=wrap.shape)
             ext_val[:] = wrap[:]
             ext_val.flush()
@@ -639,8 +616,11 @@ class ExtFeatureWrapper(ExtMemArrayWrapper):
     def merge(self):
         """ Return feature col-wised.
         """
-        for wrap in self.wrapper:
-            self._shape = (wrap.shape[0], self._shape[1] + wrap.shape[1])
+        assert self.wrapper is not [], "Cannot merge None list, " \
+                                       "need to append external memory wrapper first"
+        feat_dim = sum([wrap.shape[1] for wrap in self.wrapper])
+        self._shape = (self.shape[0], feat_dim)
+        self._orig_dtype = self._dtype = self.wrapper[0].dtype
 
         out_arr = np.memmap(os.path.join(self._arr_path, self.merged_file), self._orig_dtype,
                             mode="w+", shape=self._shape)
@@ -649,7 +629,6 @@ class ExtFeatureWrapper(ExtMemArrayWrapper):
             col_end = col_start + wrap.shape[1]
             out_arr[:, col_start:col_end] = wrap.to_numpy()
             col_start = col_end
-
         out_arr.flush()
 
 def _merge_arrs(arrs, tensor_path):

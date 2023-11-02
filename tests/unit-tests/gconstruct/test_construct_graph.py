@@ -1549,7 +1549,7 @@ def test_multicolumn(ext_mem):
                       " categorical feature transformation"
     except RuntimeError as e:
         assert str(e) == "Do not support categorical feature " \
-                         "transform on multiple column"
+                         "transformation on multiple columns"
 
     feat_op8 = [{
         "feature_col": [],
@@ -1582,10 +1582,10 @@ def test_multicolumn(ext_mem):
     }]
     try:
         (res, _, _) = parse_feat_ops(feat_op10)
-        assert False, "expected Error not raised for multi column on" \
-                      " categorical feature transformation"
+        assert False, "expected Error raised for multi column on" \
+                      " tokenize_hf feature transformation"
     except RuntimeError as e:
-        assert str(e) == "Not support multiple column for tokenizer"
+        assert str(e) == "Not support multiple column for tokenize_hf transformation"
 
     feat_op11 = [{
         "feature_col": ["test1", "test2", "test3"],
@@ -1619,20 +1619,14 @@ def test_feature_wrapper():
     }
     if not os.path.exists("/tmp_featurewrapper"):
         os.makedirs("/tmp_featurewrapper")
-    test_extfeature_wrapper = ExtFeatureWrapper("/tmp_featurewrapper",
-                                                data["test1"].shape, data["test1"].dtype)
+    test_extfeature_wrapper = ExtFeatureWrapper("/tmp_featurewrapper")
     try:
         a = test_extfeature_wrapper[:]
     except RuntimeError as e:
         assert str(e) == "The ExtFeatureWrapper needs to be merge first"
 
-    try:
-        test_extfeature_wrapper.append(data["test1"])
-    except AssertionError as e:
-        assert str(e) == "path needs to be specified when storing numpy array"
-
-    test_extfeature_wrapper.append(data["test1"], "test1_file")
-    test_extfeature_wrapper.append(data["test2"], "test2_file")
+    test_extfeature_wrapper.append(data["test1"])
+    test_extfeature_wrapper.append(data["test2"])
     test_extfeature_wrapper.merge()
     data["test3"] = np.column_stack((data['test1'], data['test2']))
     np.testing.assert_allclose(test_extfeature_wrapper[:], data["test3"])
@@ -1644,11 +1638,10 @@ def test_feature_wrapper():
     }
     if not os.path.exists("/tmp_featurewrapper2"):
         os.makedirs("/tmp_featurewrapper2")
-    test_extfeature_wrapper = ExtFeatureWrapper("/tmp_featurewrapper2",
-                                                data["test1"].shape, data["test1"].dtype)
+    test_extfeature_wrapper = ExtFeatureWrapper("/tmp_featurewrapper2")
 
-    test_extfeature_wrapper.append(data["test1"], "test1_file")
-    test_extfeature_wrapper.append(data["test2"], "test2_file")
+    test_extfeature_wrapper.append(data["test1"])
+    test_extfeature_wrapper.append(data["test2"])
     test_extfeature_wrapper.merge()
     data["test3"] = np.column_stack((data['test1'], data['test2']))
     np.testing.assert_allclose(test_extfeature_wrapper[:], data["test3"])

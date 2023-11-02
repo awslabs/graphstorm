@@ -1020,7 +1020,7 @@ def parse_feat_ops(confs):
                 separator = conf['separator'] if 'separator' in conf else None
                 if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
                     raise RuntimeError("Do not support categorical "
-                                       "feature transformation on multiple column")
+                                       "feature transformation on multiple columns")
                 transform = CategoricalTransform(feat['feature_col'], feat_name,
                                                  separator=separator, transform_conf=conf)
             elif conf['name'] == 'bucket_numerical':
@@ -1082,7 +1082,10 @@ def preprocess_features(data, ops):
             col_name = op.col_name
         for col in col_name:
             res = op.pre_process(data[col])
-            assert isinstance(res, dict)
+            if len(col_name) > 1:
+                assert isinstance(res, dict) and len(res) == 1, \
+                    f"It is expected only have one feature name after the preprocess_features " \
+                    f"for multiple columns, but get {len(res)}"
             for key, val in res.items():
                 pre_data[key] = val
 
@@ -1109,18 +1112,24 @@ def process_features(data, ops, ext_mem=None):
     """
     new_data = {}
     for op in ops:
-        hash_hex_feature_path = generate_hash()
-        feature_path = 'feature_{}_{}'.format(op.feat_name, hash_hex_feature_path)
-        feature_path = ext_mem + feature_path if ext_mem is not None \
-            else feature_path
         if isinstance(op.col_name, str):
             col_name = [op.col_name]
         else:
             col_name = op.col_name
         tmp_key, wrapper = "", ""
+        # Create ExtFeatureWrapper for multiple columns on external memory
+        if ext_mem is not None:
+            hash_hex_feature_path = generate_hash()
+            feature_path = 'feature_{}_{}'.format(op.feat_name, hash_hex_feature_path)
+            feature_path = ext_mem + feature_path
+            os.makedirs(feature_path)
+            wrapper = ExtFeatureWrapper(feature_path)
         for col in col_name:
             res = op(data[col])
-            assert isinstance(res, dict)
+            if len(col_name) > 1:
+                assert isinstance(res, dict) and len(res) == 1, \
+                    f"It is expected only have one feature name after the process_features " \
+                    f"for multiple columns, but get {len(res)}"
             for key, val in res.items():
                 # Check if it has 1D features. If yes, convert to 2D features
                 if len(val.shape) == 1:
@@ -1134,13 +1143,7 @@ def process_features(data, ops, ext_mem=None):
                 tmp_key = key
                 # Use external memory if it is available
                 if ext_mem is not None:
-                    if not os.path.exists(feature_path):
-                        os.makedirs(feature_path)
-                        wrapper = ExtFeatureWrapper(feature_path, val.shape, val.dtype)
-
-                    hash_hex = generate_hash()
-                    val_path = feature_path + '/{}_{}.npy'.format(col, hash_hex)
-                    wrapper.append(val, val_path)
+                    wrapper.append(val)
                 else:
                     val = np.column_stack((new_data[key], val)) \
                         if key in new_data else val
