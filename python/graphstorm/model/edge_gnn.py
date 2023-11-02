@@ -212,8 +212,9 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                         for etype in target_edge_graph.canonical_etypes}
             if is_wholegraph():
                 tmp_node_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
-                tmp_edge_keys = [etype for etype in g.canonical_etypes \
-                    if etype not in input_edges]
+                if data.decoder_edge_feat is not None:
+                    tmp_edge_keys = [etype for etype in g.canonical_etypes \
+                        if etype not in input_edges]
                 prepare_for_wholegraph(g, input_nodes, input_edges)
             input_feats = data.get_node_feats(input_nodes, device)
             if blocks is None:
@@ -328,7 +329,7 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
                 if data.decoder_edge_feat is not None:
                     input_edges = {etype: target_edge_graph.edges[etype].data[dgl.EID] \
                         for etype in target_edge_graph.canonical_etypes}
-            if is_wholegraph():
+            if is_wholegraph() and data.decoder_edge_feat is not None:
                 tmp_edge_keys = [etype for etype in g.canonical_etypes \
                     if etype not in input_edges]
                 prepare_for_wholegraph(g, None, input_edges)

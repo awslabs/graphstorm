@@ -143,7 +143,7 @@ class GSgnnData():
     """
 
     def __init__(self, graph_name, part_config, node_feat_field, edge_feat_field,
-                 decoder_edge_feat):
+                 decoder_edge_feat=None):
         self._g = dgl.distributed.DistGraph(graph_name, part_config=part_config)
         self._node_feat_field = node_feat_field
         self._edge_feat_field = edge_feat_field
