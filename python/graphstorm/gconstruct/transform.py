@@ -977,7 +977,7 @@ def parse_feat_ops(confs):
                 assert 'max_seq_length' in conf, \
                         "'tokenize_hf' needs to have the 'max_seq_length' field."
                 if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
-                    raise RuntimeError("Not support multiple column for tokenizer")
+                    raise RuntimeError("Not support multiple column for tokenize_hf transformation")
                 transform = Tokenizer(feat['feature_col'], feat_name, conf['bert_model'],
                                       int(conf['max_seq_length']))
             elif conf['name'] == 'bert_hf':
@@ -998,7 +998,7 @@ def parse_feat_ops(confs):
                 if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
                     assert 'max_val' in conf and 'min_val' in conf, \
                         "max_val and min_val for max_min_norm feature transformation is needed"
-                    warnings.warn("The same max_val and min_val will apply to all column")
+                    warnings.warn("The same max_val and min_val will apply to all columns")
                 max_bound = conf['max_bound'] if 'max_bound' in conf else sys.float_info.max
                 min_bound = conf['min_bound'] if 'min_bound' in conf else -sys.float_info.max
                 max_val = conf['max_val'] if 'max_val' in conf else None
@@ -1020,7 +1020,7 @@ def parse_feat_ops(confs):
                 separator = conf['separator'] if 'separator' in conf else None
                 if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
                     raise RuntimeError("Do not support categorical "
-                                       "feature transform on multiple column")
+                                       "feature transformation on multiple column")
                 transform = CategoricalTransform(feat['feature_col'], feat_name,
                                                  separator=separator, transform_conf=conf)
             elif conf['name'] == 'bucket_numerical':
@@ -1029,7 +1029,7 @@ def parse_feat_ops(confs):
                 assert 'range' in conf, \
                     "It is required to provide range information for bucket feature transform"
                 if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
-                    warnings.warn("The same bucket range and count will apply to all column")
+                    warnings.warn("The same bucket range and count will apply to all columns")
                 bucket_cnt = conf['bucket_cnt']
                 bucket_range = conf['range']
                 if 'slide_window_size' in conf:

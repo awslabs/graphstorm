@@ -355,7 +355,7 @@ def _parse_file_format(conf, is_node, in_mem):
                 for feat_key in feat_conf["feature_col"]:
                     keys.append(feat_key)
             else:
-                raise TypeError("Feature column cannot be other type")
+                raise TypeError("Feature column must be a str or a list of string.")
     if "labels" in conf:
         for label_conf in conf["labels"]:
             if "label_col" in label_conf:
