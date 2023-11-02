@@ -217,6 +217,16 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
                         "slide_window_size": 5,
                     },
                 },
+                {
+                    "feature_col": ["num_citations"],
+                    "feature_name": "rank_gauss1",
+                    "transform": {"name": "rank_gauss"}
+                },
+                {
+                    "feature_col": ["num_citations"],
+                    "feature_name": "rank_gauss2",
+                    "transform": {"name": "rank_gauss", "epsilon": 0.1}
+                },
             ],
             "labels": [
                 {"label_col": "label", "task_type": "classification", "split_pct": [0.8, 0.1, 0.1]}
@@ -271,6 +281,22 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
                     "slide_window_size": 5,
                     "imputer": "none",
                 },
+            },
+        },
+        {
+            "column": "num_citations",
+            'name': 'rank_gauss1',
+            "transformation": {
+                "name": "rank-gauss",
+                "kwargs": {"normalizer": "none", "imputer": "none"},
+            },
+        },
+        {
+            "column": "num_citations",
+            'name': 'rank_gauss2',
+            "transformation": {
+                "name": "rank-gauss",
+                "kwargs": {"epsilon": 0.1, "normalizer": "none", "imputer": "none"},
             },
         },
     ]
