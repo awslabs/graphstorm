@@ -102,7 +102,7 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
         return dist_inference(g, self, get_input_embeds, batch_size, fanout,
                             edge_mask=edge_mask, task_tracker=task_tracker)
 
-def prepare_for_wholegraph(g, input_nodes):
+def prepare_for_wholegraph(g, input_nodes, input_edges=None):
     """ Add missing ntypes in input_nodes for wholegraph compatibility
 
     Parameters
@@ -111,13 +111,18 @@ def prepare_for_wholegraph(g, input_nodes):
         Input graph
     input_nodes : dict of Tensor
         Input nodes retrieved from the dataloder
+    input_edges : dict of Tensor
+        Input edges retrieved from the dataloder
     """
-    if input_nodes:
-        tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
-        input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
-            for ntype in tmp_keys})
-    else:
-        input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes})
+    if input_nodes is not None:
+        for ntype in g.ntypes:
+            if ntype not in input_nodes:
+                input_nodes[ntype] = th.empty((0,), dtype=g.idtype)
+
+    if input_edges is not None:
+        for etype in g.canonical_etypes:
+            if etype not in input_edges:
+                input_edges[etype] = th.empty((0,), dtype=g.idtype)
 
 def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                              edge_mask=None, target_ntypes=None, task_tracker=None):

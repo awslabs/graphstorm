@@ -84,11 +84,12 @@ python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
                                              --is-homo     
 ```
 
-## Convert node features from distDGL format to WholeGraph format
+## Convert features from distDGL format to WholeGraph format
 
-Use the `convert_feat_to_wholegraph.py` script with `--dataset-path` pointing to the distDGL folder of partitions and `--feat-names` to the features you want to convert to WholeGraph compatible format. For example:
+Use the `convert_feat_to_wholegraph.py` script with `--dataset-path` pointing to the distDGL folder of partitions. Use the argument `--node-feat-names` to specify the node features that should be converted to WholeGraph compatible format. Similarly, the `--edge-feat-names` allows you to specify the edge features that need to be transformed into a format suitable for WholeGraph. For example:
+
 ```
-python3 convert_feat_to_wholegraph.py --dataset-path ogbn-mag240m-2p --feat-names paper:feat
+python3 convert_feat_to_wholegraph.py --dataset-path ogbn-mag240m-2p --node-feat-names paper:feat
 ```
 or
 ```
@@ -96,6 +97,14 @@ python3 convert_feat_to_wholegraph.py --dataset-path dataset --feat-names paper:
 ```
 
 The script will create a new folder '`wholegraph`' under '`ogbn-mag240m-2p`' containing the WholeGraph input files and will trim the distDGL file `node_feat.dgl` in each partition to remove the specified feature attributes, leaving only other attributes such as `train_mask`, `test_mask`, `val_mask` or  `labels` intact. It also saves a backup `node_feat.dgl.bak`.
+
+Similarly, users can use  `--edge-feat-names` to convert edge features to WholeGraph compatible format.
+
+```
+python3 convert_feat_to_wholegraph.py --dataset-path ogbn-mag240m-2p --node-feat-names paper:feat --edge-feat-names author,writes,paper:feat
+```
+
+when `--edge-feat-names` is used, the  '`wholegraph`' folder will contain the edge features converted into WholeGraph format and will trim the distDGL file `edge_feat.dgl` in each partition to remove the specified feature attributes.
 
 The features in those files can be loaded in memory via the WholeGraph API by giving the folder path and feature prefix (`<node_type>~<feat_name>`).
 Below is an example showing how to load the data:
