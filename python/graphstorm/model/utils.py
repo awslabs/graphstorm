@@ -539,11 +539,11 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None):
     """ Save node embeddings as pytorch tensors in a distributed way.
 
-        Then input node `embeddings` are stored in Partition Node ID space.
+        The input node `embeddings` are stored in Partition Node ID space.
         By default, `save_pytorch_embeddings` will shuffle the order of
         node embeddings so that they are stored in Graph Node ID space.
 
-        The node embedding are stored into multiple pytorch files.
+        The node embeddings are stored into multiple pytorch files.
 
         Example:
         --------
@@ -765,7 +765,7 @@ def save_full_node_embeddings(g, save_embed_path,
     """ Save the entire node embeddings as pytorch tensors in
         a distributed way.
 
-        Then input node `embeddings` are stored in Partition Node ID space.
+        The input node `embeddings` are stored in Partition Node ID space.
         By default, `save_full_node_embeddings` will translate the node IDs
         from Partition Node ID space into their counterparts in Graph Node
         ID space.
@@ -804,10 +804,12 @@ def save_full_node_embeddings(g, save_embed_path,
         --------
 
         .. code::
-        Graph Node ID   |   embeddings
-        10              |   0.112,0.123,-0.011,...
-        1               |   0.872,0.321,-0.901,...
-        23              |   0.472,0.432,-0.732,...
+        nids.part00000.bin   |   emb.part00000.bin
+                             |
+        Graph Node ID        |   embeddings
+        10                   |   0.112,0.123,-0.011,...
+        1                    |   0.872,0.321,-0.901,...
+        23                   |   0.472,0.432,-0.732,...
         ...
 
         Note: `save_pytorch_embeddings` (called by `save_embeddings`) is different from
