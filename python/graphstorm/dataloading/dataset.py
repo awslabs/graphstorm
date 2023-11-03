@@ -166,6 +166,8 @@ class GSgnnData():
 
             # load node feature from wholegraph memory
             if node_feat_field:
+                if isinstance(node_feat_field, str):
+                    node_feat_field = {ntype: [node_feat_field] for ntype in self._g.ntypes}
                 for ntype, feat_names in node_feat_field.items():
                     data = {}
                     for name in feat_names:
@@ -184,6 +186,9 @@ class GSgnnData():
             # load edge feature from wholegraph memory
             # TODO(IN): Add support for edge_feat_field
             if decoder_edge_feat:
+                if isinstance(decoder_edge_feat, str):
+                    decoder_edge_feat = {etype: [decoder_edge_feat] \
+                        for etype in self._g.canonical_etypes}
                 for etype, feat_names in decoder_edge_feat.items():
                     data = {}
                     etype_wg = ":".join(etype)
