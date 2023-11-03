@@ -619,7 +619,7 @@ class ExtFeatureWrapper(ExtNumpyWrapper):
     def merge(self):
         """ Return feature col-wised.
         """
-        assert self.wrapper != [], "Cannot merge None list, " \
+        assert self.wrapper, "Cannot merge None list, " \
                                        "need to append external memory wrapper first"
         feat_dim = sum(wrap.shape[1] for wrap in self.wrapper)
         self._shape = (self.shape[0], feat_dim)
