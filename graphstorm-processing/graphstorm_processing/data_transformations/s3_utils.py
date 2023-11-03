@@ -109,6 +109,8 @@ def extract_bucket_and_key(
         ("my_bucket", "prefix/rest/of/path/to/key")
         >>> extract_bucket_and_key("s3://my-bucket/prefix/key")
         ("my_bucket", "prefix/key")
+        >>> extract_bucket_and_key("s3://my-bucket/")
+        ("my_bucket", "")
     """
     if not path_with_bucket.startswith("s3://"):
         path_with_bucket = f"s3://{path_with_bucket}"
@@ -122,7 +124,11 @@ def extract_bucket_and_key(
     # We split on '/' to get the bucket, as it's always the third split element in an S3 URI
     file_bucket = file_s3_uri.split("/")[2]
     # Similarly, by having maxsplit=3 we get the S3 key value as the fourth element
-    file_key = file_s3_uri.split("/", maxsplit=3)[3]
+    file_parts = file_s3_uri.split("/", maxsplit=3)
+    if len(file_parts) == 4:
+        file_key = file_parts[3]
+    else:
+        file_key = ""
     # We remove any trailing '/' from the key
     file_key = s3_path_remove_trailing(file_key)
 

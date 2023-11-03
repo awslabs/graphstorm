@@ -178,9 +178,10 @@ to launch your distributed processing job using Amazon SageMaker resources.
 Launch an EMR Serverless job using the example scripts.
 ------------------------------------------------------------
 
-Amazon SageMaker has a limitation of cluster sizes of 20 instances.
-If your data are larger (e.g. 30+ billion edges), you can use EMR Serverless
-as an execution environment. Its setup is more involved so we only recommend
+In addition to Amazon SageMaker you can also use EMR Serverless
+as an execution environment to allow you to scale to even larger datasets
+(recommended when your graph has 30B+ edges).
+Its setup is more involved that Amazon SageMaker, so we only recommend
 it for experienced AWS users.
 Follow the :doc:`EMR Serverless job guide <emr-serverless>`
 to launch your distributed processing job using EMR Serverless resources.
