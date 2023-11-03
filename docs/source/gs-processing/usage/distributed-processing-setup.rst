@@ -143,7 +143,7 @@ Upload data to S3
 
 For distributed jobs we use S3 as our storage source and target, so before
 running any example
-we'll need to upload our test data to S3. To do so you will need
+we'll need to upload our data to S3. To do so you will need
 to have read/write access to an S3 bucket, and the requisite AWS credentials
 and permissions.
 
@@ -153,7 +153,7 @@ and `configured <https://docs.aws.amazon.com/cli/latest/userguide/getting-starte
 in you local environment.
 
 Assuming ``graphstorm/graphstorm-processing`` is our current working
-directory we can upload the test data to S3 using:
+directory we can upload the data to S3 using:
 
 .. code-block:: bash
 

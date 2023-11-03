@@ -41,7 +41,7 @@ role the ability to pull the image from our ECR repository.
 
 To do so we need to add ECR actions to the entity that
 creates the EMR-S applications, and configure our ECR
-repository to provide access to the repository to our
+repository to provide access to our
 EMR-S application.
 
 To ensure the entity that creates the EMR-S application
@@ -100,7 +100,7 @@ Allow EMR Serverless to access the custom image repository
 ----------------------------------------------------------
 
 Finally we need to provide the EMR-S service principal access
-to the repository, for which we will need to modify the
+to the ECR image repository, for which we will need to modify the
 repository's policy statement.
 
 As shown in the `EMR docs <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/application-custom-image.html#access-repo>`,
@@ -152,7 +152,7 @@ With all the setup complete we should now have the following:
 
 To launch the same example job as we demonstrate in the :doc:`SageMaker Processing job guide <amazon-sagemaker>`
 you can use the following ``bash`` snippet. Note that we use ``jq`` to wrangle JSON data,
-which you can can from its `official website <https://jqlang.github.io/jq/download/>`_,
+which you can download from its `official website <https://jqlang.github.io/jq/download/>`_,
 using your package manager, or by running ``pip install jq``.
 
 Before starting  the job, make sure you have uploaded the input data
