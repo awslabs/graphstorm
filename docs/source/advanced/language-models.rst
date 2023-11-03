@@ -367,7 +367,7 @@ To pre-train LMs and GNN models, users can follow the :ref:`22two_step_mannually
 GraphStorm configurations
 ##########################
 
-To use GLEM, users need to set a new configuration, called ``training_method``, which specifies how to utilize specific model training method. Users can refer to the ``acm_glem_nc_pretrain.yaml`` that includes the following ``training_method`` related configurations.
+To use GLEM, users need to set a new configuration se, called ``training_method``, which specifies how to utilize specific model training method. Users can refer to the ``acm_glem_nc_pretrain.yaml`` that includes the following ``training_method`` related configurations.
 
 .. code-block:: yaml
 
@@ -380,9 +380,7 @@ To use GLEM, users need to set a new configuration, called ``training_method``, 
         num_pretrain_epochs: 100
     use_pseudolabel: true
 
-Within the ``traing_method`` section, there are two important configurations. First, the ``pl_weight`` defines the weights of pseudolabel, which determines the importance of pseudolabel. Users can lower the value to reduce the influence of using pseudolabel. Users also need to set ``use_pseudolabel`` configuration to be true.
-
-The second important configuration is the ``num_pretrain_epochs``. The GLEM method provides its own pre-training implementation, which train LMs and GNN models iteratively in one epoch, i.e., first fix GNN model and train LMs in one forward and backward loop, and then fix LM but use it to embed text as input for GNN models to be trained in one loop. In the pre-training epochs, GLEM will not use the pseudolabel, but the true labels only.
+Within the ``traing_method`` section, there are two important configurations. First, the ``pl_weight`` defines the weights of pseudolabel, which determines the importance of pseudolabel. Users can lower the value to reduce the influence of using pseudolabel. The second important configuration is the ``num_pretrain_epochs``. The GLEM method provides its own pre-training implementation, which train LMs and GNN models iteratively in one epoch, i.e., first fix GNN model and train LMs in one forward and backward loop, and then fix LM but use it to embed text as input for GNN models to be trained in one loop. In the pre-training epochs, GLEM will not use the pseudolabel, but the true labels only, even if users set the ``use_pseudolabel`` configuration to be true.
 
 The launch command
 ######################
