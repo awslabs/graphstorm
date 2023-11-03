@@ -46,7 +46,7 @@ This command will automatically download the ogbn-arxiv graph data and split the
 
 The ``ogbn-arxiv.json`` file contains meta data about the built distributed DGL graph. Because the command specifies to create one partition with the argument ``--num-parts 1``, there is one sub-folder, named ``part0``.  Files in the sub-folder includes three types of data, i.e., the graph structure (``graph.dgl``), the node features (``node_feat.dgl``), and edge features (``edge_feat.dgl``). The ``node_mapping.pt`` and ``edge_mapping.pt`` contain the ID mapping between the raw node and edge IDs with the built graph's node and edge IDs.
 
-Running the following command can download the ogbn-arxiv graph data and prepare the graph for a link prediction task. And the output of command is same as the above folder structure, except that the graph is split on edges. 
+Running the following command can download the ogbn-arxiv graph data and split the graph into one partition for a link prediction task. And the output of the command is same as the above folder structure, except that the graph is split on edges. 
 
 .. code-block:: bash
 
