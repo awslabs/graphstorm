@@ -218,7 +218,6 @@ def update_two_phase_feat_ops(phase_one_info, ops):
         if op.feat_name in feat_info:
             op.update_info(feat_info[op.feat_name])
 
-
 def multiprocessing_data_read(in_files, num_processes, user_parser):
     """ Read data from multiple files with multiprocessing.
 
@@ -371,6 +370,7 @@ class HDF5Handle:
 
     def __del__(self):
         return self._f.close()
+
 
 class HDF5Array(ExtMemArrayWrapper):
     """ This is an array wrapper class for HDF5 array.
