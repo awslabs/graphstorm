@@ -606,7 +606,7 @@ class ExtFeatureWrapper(ExtNumpyWrapper):
         self.wrapper.append(wrap)
 
     def merge(self):
-        """ Return feature col-wised.
+        """ Merge feature col-wised.
         """
         assert self.wrapper, "Cannot merge None list, " \
                              "need to append external memory wrapper first"
