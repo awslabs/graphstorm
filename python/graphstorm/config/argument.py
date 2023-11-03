@@ -368,6 +368,7 @@ class GSConfig:
             _ = self.gamma
             _ = self.lp_decoder_type
             _ = self.lp_edge_weight_for_loss
+            _ = self.contrastive_loss_temp
             _ = self.lp_loss_func
             _ = self.num_negative_edges
             _ = self.eval_negative_sampler
@@ -1772,6 +1773,16 @@ class GSConfig:
         return BUILTIN_LP_DISTMULT_DECODER
 
     @property
+    def contrastive_loss_temp(self):
+        """ Temperature of link prediction contrustive loss
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_contrastive_loss_temp"):
+            return self._contrastive_loss_temp
+
+        return 1.0
+
+    @property
     def lp_edge_weight_for_loss(self):
         """ The edge data fields that stores the edge weights used
             in computing link prediction loss
@@ -2398,6 +2409,8 @@ def _add_link_prediction_args(parser):
             default=argparse.SUPPRESS,
             help="Used in DistMult score func"
     )
+    group.add_argument("--contrastive-loss-temp", type=float, default=argparse.SUPPRESS,
+            help="Temperature of link prediction contrastive loss.")
     group.add_argument("--lp-edge-weight-for-loss", nargs='+', type=str, default=argparse.SUPPRESS,
             help="Edge feature field name for edge weights. It can be in following format: "
             "1) '--lp-edge-weight-for-loss feat_name': global feature name, "

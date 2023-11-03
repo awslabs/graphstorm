@@ -172,3 +172,50 @@ class WeightedLinkPredictLossFunc(GSLayer):
         int : the number of output dimensions.
         """
         return None
+
+class LinkPredictContrastiveLossFunc(GSLayer):
+    """ Contrastive Loss function for link prediction.
+
+        Parameters
+        ----------
+        temp: float
+            Temperature value
+    """
+    def __init__(self, temp=1.0):
+        super(LinkPredictContrastiveLossFunc, self).__init__()
+        self._temp = temp
+
+    def forward(self, pos_score, neg_score):
+        """ The forward function.
+        """
+        score = th.cat([pos_score, neg_score])
+        score = th.div(score, self._temp)
+
+        label = th.cat([th.ones_like(pos_score), th.zeros_like(neg_score)])
+
+        # Use cross entropy to comput loss between input logtis and target
+        # the target is formated as
+        # [[1, 0, 0, 0, ...],
+        #  ...
+        #  [1, 0, 0, 0, ...]]
+        return F.cross_entropy(score, label)
+
+    @property
+    def in_dims(self):
+        """ The number of input dimensions.
+
+        Returns
+        -------
+        int : the number of input dimensions.
+        """
+        return None
+
+    @property
+    def out_dims(self):
+        """ The number of output dimensions.
+
+        Returns
+        -------
+        int : the number of output dimensions.
+        """
+        return None

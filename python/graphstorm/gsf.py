@@ -32,6 +32,8 @@ from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from .config import BUILTIN_TASK_EDGE_REGRESSION
 from .config import BUILTIN_LP_DOT_DECODER
 from .config import BUILTIN_LP_DISTMULT_DECODER
+from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
+                     BUILTIN_LP_LOSS_CONTRASTIVELOSS)
 from .model.embed import GSNodeEncoderInputLayer
 from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from .model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
@@ -47,7 +49,8 @@ from .model.lp_gnn import GSgnnLinkPredictionModel
 from .model.loss_func import (ClassifyLossFunc,
                               RegressionLossFunc,
                               LinkPredictLossFunc,
-                              WeightedLinkPredictLossFunc)
+                              WeightedLinkPredictLossFunc,
+                              LinkPredictContrastiveLossFunc)
 from .model.node_decoder import EntityClassifier, EntityRegression
 from .model.edge_decoder import (DenseBiDecoder,
                                  MLPEdgeDecoder,
@@ -492,10 +495,15 @@ def create_builtin_lp_model(g, config, train_task):
     else:
         raise Exception(f"Unknow link prediction decoder type {config.lp_decoder_type}")
     model.set_decoder(decoder)
-    if config.lp_edge_weight_for_loss is None:
-        model.set_loss_func(LinkPredictLossFunc())
+    if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS:
+        model.set_loss_func(LinkPredictContrastiveLossFunc(config.contrastive_loss_temp))
+    elif config.lp_loss_func == BUILTIN_LP_LOSS_CROSS_ENTROPY:
+        if config.lp_edge_weight_for_loss is None:
+            model.set_loss_func(LinkPredictLossFunc())
+        else:
+            model.set_loss_func(WeightedLinkPredictLossFunc())
     else:
-        model.set_loss_func(WeightedLinkPredictLossFunc())
+        raise TypeError(f"Unknown link prediction loss function {config.lp_loss_func}")
     if train_task:
         model.init_optimizer(lr=config.lr, sparse_optimizer_lr=config.sparse_optimizer_lr,
                              weight_decay=config.wd_l2norm,
