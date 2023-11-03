@@ -2409,6 +2409,8 @@ def _add_link_prediction_args(parser):
             default=argparse.SUPPRESS,
             help="Used in DistMult score func"
     )
+    group.add_argument("--lp-loss-func", type=str, default=argparse.SUPPRESS,
+            help="Link prediction loss function.")
     group.add_argument("--contrastive-loss-temp", type=float, default=argparse.SUPPRESS,
             help="Temperature of link prediction contrastive loss.")
     group.add_argument("--lp-edge-weight-for-loss", nargs='+', type=str, default=argparse.SUPPRESS,
