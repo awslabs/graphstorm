@@ -385,7 +385,6 @@ class HDF5Array(ExtMemArrayWrapper):
     handle : HDF5Handle
         The handle that references to the opened HDF5 file.
     """
-
     def __init__(self, arr, handle):
         self._arr = arr
         self._handle = handle
