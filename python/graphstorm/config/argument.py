@@ -29,8 +29,9 @@ import torch.nn.functional as F
 from .config import BUILTIN_GNN_ENCODER
 from .config import BUILTIN_ENCODER
 from .config import SUPPORTED_BACKEND
-from .config import BUILTIN_LP_LOSS_FUNCTION
-from .config import BUILTIN_LP_LOSS_CROSS_ENTROPY
+from .config import (BUILTIN_LP_LOSS_FUNCTION,
+                     BUILTIN_LP_LOSS_CROSS_ENTROPY,
+                     BUILTIN_LP_LOSS_CONTRASTIVELOSS)
 
 from .config import BUILTIN_TASK_NODE_CLASSIFICATION
 from .config import BUILTIN_TASK_NODE_REGRESSION
@@ -1778,6 +1779,9 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_contrastive_loss_temp"):
+            assert self.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS, \
+                "Use contrastive-loss-temp only when the loss function is " \
+                f"{BUILTIN_LP_LOSS_CONTRASTIVELOSS} loss."
             return self._contrastive_loss_temp
 
         return 1.0

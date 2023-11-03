@@ -477,10 +477,10 @@ Link Prediction Task
     - Yaml: ``gamma: 10.0``
     - Argument: ``--gamma 10.0``
     - Default value: ``12.0``
-- **lp_loss_func**: Link prediction loss function. Builtin loss functions include ``cross_entropy`` and ``logsigmoid``.
+- **lp_loss_func**: Link prediction loss function. Builtin loss functions include ``cross_entropy`` and ``contrastive``.
 
     - Yaml: ``lp_loss_func: cross_entropy``
-    - Argument: ``--lp-loss-func logsigmoid``
+    - Argument: ``--lp-loss-func contrastive``
     - Default value: ``cross_entropy``
 
 - **lp_edge_weight_for_loss**: Edge feature field name for edge weight. The edge weight is used to rescale the positive edge loss for link prediction tasks.
@@ -493,6 +493,12 @@ Link Prediction Task
                 | ``- "ntype0,rel1,ntype1:weight1"``
     - Argument: ``--lp-edge-weight-for-loss ntype0,rel0,ntype1:weight0 ntype0,rel1,ntype1:weight1``
     - Default value: None
+
+- **contrastive-loss-temp**: Temperature of link prediction contrastive loss. This is used to rescale the link prediction positive and negative scores for the loss.
+
+    - Yaml: ``contrastive_loss_temp: 0.01```
+    - Argument: ``--contrastive-loss-temp 0.01``
+    - Default value: 1.0
 
 Distillation Specific Configurations
 --------------------------------------------
