@@ -35,10 +35,9 @@ from torch.multiprocessing import Process
 
 from ..utils import sys_tracker
 
-SHARED_MEM_OBJECT_THRESHOLD = 1.9 * 1024 * 1024 * 1024  # must < 2GB
+SHARED_MEM_OBJECT_THRESHOLD = 1.9 * 1024 * 1024 * 1024 # must < 2GB
 SHARED_MEMORY_CROSS_PROCESS_STORAGE = "shared_memory"
 PICKLE_CROSS_PROCESS_STORAGE = "pickle"
-
 
 def _to_shared_memory(data):
     """ Move all tensor objects into torch shared memory
@@ -80,7 +79,6 @@ def _to_shared_memory(data):
     # ignore other types
     return data
 
-
 def _to_numpy_array(data):
     """ Move all data objects back to numpy array
 
@@ -92,7 +90,7 @@ def _to_numpy_array(data):
     if th.is_tensor(data):
         return data.numpy()
     elif isinstance(data, np.ndarray):
-        return data  # do nothing
+        return data # do nothing
     elif isinstance(data, dict):
         new_data = {}
         for name, val in data.items():
@@ -111,7 +109,6 @@ def _to_numpy_array(data):
 
     # ignore other types
     return data
-
 
 def _estimate_sizeof(data):
     """ Estimate the size of a data.
@@ -148,7 +145,6 @@ def _estimate_sizeof(data):
 
     return data_size
 
-
 def generate_hash():
     """ Generate unique hashcode
     """
@@ -156,7 +152,6 @@ def generate_hash():
     hash_object = hashlib.sha256(str(random_uuid).encode())
     hash_hex_object = hash_object.hexdigest()
     return hash_hex_object
-
 
 def worker_fn(worker_id, task_queue, res_queue, user_parser):
     """ The worker function in the worker pool
@@ -204,7 +199,6 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser):
     except Exception as e:  # pylint: disable=broad-exception-caught
         e = ''.join(traceback.TracebackException.from_exception(e).format())
         res_queue.put((i, e))
-
 
 def update_two_phase_feat_ops(phase_one_info, ops):
     """ Update the ops for the second phase feat processing
@@ -269,7 +263,7 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
 
         return_dict = {}
         while len(return_dict) < num_files:
-            file_idx, vals = res_queue.get()
+            file_idx, vals= res_queue.get()
             if not isinstance(vals, tuple):
                 logging.error("Processing file %d fails.", file_idx)
                 logging.error(vals)
@@ -295,7 +289,6 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
             return_dict[i] = user_parser(in_file)
         return return_dict
 
-
 def _get_tot_shape(arrs):
     """ Get the shape after merging the arrays.
 
@@ -315,7 +308,6 @@ def _get_tot_shape(arrs):
     shape = [num_rows] + list(shape1)
     return tuple(shape)
 
-
 def _get_arrs_out_dtype(arrs):
     """ To get the output dtype by accessing the
         first element of the arrays (numpy array or HDFArray)
@@ -331,7 +323,6 @@ def _get_arrs_out_dtype(arrs):
         The input arrays.
     """
     return arrs[0][0].dtype
-
 
 class ExtMemArrayWrapper:
     """ An array wrapper for external-memory array.
@@ -368,7 +359,6 @@ class ExtMemArrayWrapper:
         """ The data type of the array.
         """
 
-
 class HDF5Handle:
     """ HDF5 file handle
 
@@ -380,13 +370,11 @@ class HDF5Handle:
     f : HDF5 file handle
         The handle to access the HDF5 file.
     """
-
     def __init__(self, f):
         self._f = f
 
     def __del__(self):
         return self._f.close()
-
 
 class HDF5Array(ExtMemArrayWrapper):
     """ This is an array wrapper class for HDF5 array.
@@ -405,7 +393,7 @@ class HDF5Array(ExtMemArrayWrapper):
     def __init__(self, arr, handle):
         self._arr = arr
         self._handle = handle
-        self._out_dtype = None  # Use the dtype of self._arr
+        self._out_dtype = None # Use the dtype of self._arr
 
     def __len__(self):
         return self._arr.shape[0]
@@ -488,7 +476,6 @@ class HDF5Array(ExtMemArrayWrapper):
         else:
             return self._arr.dtype
 
-
 class ExtNumpyWrapper(ExtMemArrayWrapper):
     """ The wrapper to memory-mapped Numpy array.
 
@@ -501,7 +488,6 @@ class ExtNumpyWrapper(ExtMemArrayWrapper):
     dtype : numpy dtype
         The data type.
     """
-
     def __init__(self, arr_path, shape, dtype):
         self._arr_path = arr_path
         self._shape = shape
@@ -557,7 +543,6 @@ class ExtNumpyWrapper(ExtMemArrayWrapper):
         """
         return th.tensor(self.to_numpy())
 
-
 class ExtFeatureWrapper(ExtNumpyWrapper):
     """ The wrapper to memory-mapped Numpy array when combining feature
 
@@ -570,7 +555,6 @@ class ExtFeatureWrapper(ExtNumpyWrapper):
     wrapper: list
         List of ExtNumpyWrapper
     """
-
     def __init__(self, arr_path, shape=None, dtype=None, merged_file="merged_feature.npy"):
         super().__init__(arr_path, shape, dtype)
         self.directory_path = arr_path
@@ -644,7 +628,6 @@ class ExtFeatureWrapper(ExtNumpyWrapper):
             col_start = col_end
         out_arr.flush()
 
-
 def _merge_arrs(arrs, tensor_path):
     """ Merge the arrays.
 
@@ -680,7 +663,6 @@ def _merge_arrs(arrs, tensor_path):
     else:
         return np.concatenate(arrs)
 
-
 class ExtMemArrayMerger:
     """ Merge multiple Numpy arrays.
 
@@ -693,7 +675,6 @@ class ExtMemArrayMerger:
     ext_mem_feat_size : int
         The threshold of the feature size that triggers storing data on disks.
     """
-
     def __init__(self, ext_mem_workspace, ext_mem_feat_size):
         self._ext_mem_workspace = ext_mem_workspace
         self._ext_mem_feat_size = ext_mem_feat_size
@@ -744,7 +725,6 @@ class ExtMemArrayMerger:
             em_arr.flush()
             return ExtNumpyWrapper(tensor_path, em_arr.shape, em_arr.dtype)
 
-
 def save_maps(output_dir, fname, map_data):
     """ Save node id mapping or edge id mapping
 
@@ -761,7 +741,6 @@ def save_maps(output_dir, fname, map_data):
     map_file = os.path.join(output_dir, map_file)
     # Use torch save as tensors are torch tensors
     th.save(map_data, map_file)
-
 
 def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_dir,
                     part_method=None, save_mapping=True):
