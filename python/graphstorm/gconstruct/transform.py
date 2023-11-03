@@ -1124,6 +1124,8 @@ def process_features(data, ops, ext_mem=None):
             feature_path = ext_mem + feature_path
             os.makedirs(feature_path)
             wrapper = ExtFeatureWrapper(feature_path)
+        else:
+            wrapper = None
         for col in col_name:
             res = op(data[col])
             if len(col_name) > 1:

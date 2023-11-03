@@ -1625,10 +1625,24 @@ def test_feature_wrapper():
     except RuntimeError as e:
         assert str(e) == "The ExtFeatureWrapper needs to be merge first"
 
+    try:
+        a = test_extfeature_wrapper.to_numpy()
+    except RuntimeError as e:
+        assert str(e) == "The ExtFeatureWrapper needs to be merge first"
+
     test_extfeature_wrapper.append(data["test1"])
+    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper")
+                     if os.path.isfile(os.path.join("/tmp_featurewrapper", name)))
+    assert file_count == 1
     test_extfeature_wrapper.append(data["test2"])
+    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper")
+                     if os.path.isfile(os.path.join("/tmp_featurewrapper", name)))
+    assert file_count == 2
     test_extfeature_wrapper.merge()
     data["test3"] = np.column_stack((data['test1'], data['test2']))
+    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper")
+                     if os.path.isfile(os.path.join("/tmp_featurewrapper", name)))
+    assert file_count == 3
     np.testing.assert_allclose(test_extfeature_wrapper[:], data["test3"])
 
     # different array size
@@ -1641,11 +1655,28 @@ def test_feature_wrapper():
     test_extfeature_wrapper = ExtFeatureWrapper("/tmp_featurewrapper2")
 
     test_extfeature_wrapper.append(data["test1"])
+    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper2")
+                     if os.path.isfile(os.path.join("/tmp_featurewrapper2", name)))
+    assert file_count == 1
     test_extfeature_wrapper.append(data["test2"])
+    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper2")
+                     if os.path.isfile(os.path.join("/tmp_featurewrapper2", name)))
+    assert file_count == 2
     test_extfeature_wrapper.merge()
+    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper2")
+                     if os.path.isfile(os.path.join("/tmp_featurewrapper2", name)))
+    assert file_count == 3
     data["test3"] = np.column_stack((data['test1'], data['test2']))
     np.testing.assert_allclose(test_extfeature_wrapper[:], data["test3"])
+    test_extfeature_wrapper = None
+    test_gc()
 
+
+def test_gc():
+    assert not os.path.isdir("/tmp_featurewrapper"), \
+        "Directory /tmp_featurewrapper should not exist after gc"
+    assert not os.path.isdir("/tmp_featurewrapper2"), \
+        "Directory /tmp_featurewrapper2 should not exist after gc"
 
 if __name__ == '__main__':
     test_parse_edge_data()
