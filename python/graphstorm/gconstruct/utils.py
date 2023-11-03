@@ -24,8 +24,6 @@ import copy
 import traceback
 import shutil
 import uuid
-import hashlib
-import warnings
 
 import numpy as np
 import dgl
@@ -149,9 +147,7 @@ def generate_hash():
     """ Generate unique hashcode
     """
     random_uuid = uuid.uuid4()
-    hash_object = hashlib.sha256(str(random_uuid).encode())
-    hash_hex_object = hash_object.hexdigest()
-    return hash_hex_object
+    return str(random_uuid)
 
 def worker_fn(worker_id, task_queue, res_queue, user_parser):
     """ The worker function in the worker pool
