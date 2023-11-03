@@ -15,7 +15,7 @@
 
     Remapping GraphStorm outputs (edge prediction results
     node prediction results and node embeddings)
-    into the original node ID space.
+    into the Raw Input Node ID space.
 """
 
 import os

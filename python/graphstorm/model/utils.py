@@ -537,15 +537,13 @@ def load_pytorch_embedding(emb_path, part_policy, name):
 
 def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None):
-    """ Save embeddings through pytorch a distributed way.
+    """ Save node embeddings as pytorch tensors in a distributed way.
 
-        By default, `save_pytorch_embeddings` will shuffle the order of node embeddings
-        so that the node embeddings are shuffled according to node IDs in the GraphStorm
-        node ID space.
+        Then input node `embeddings` are stored in Partition Graph ID space.
+        By default, `save_pytorch_embeddings` will shuffle the order of
+        node embeddings so that they are stored in Origin Graph ID space.
 
-        An alternative way to save node embeddings is calling `save_full_node_embeddings`
-        which is recommended as it is more efficient. Please refer to `save_full_node_embeddings`
-        for more details.
+        The node embedding are stored into multiple pytorch files.
 
         Example:
         --------
@@ -573,10 +571,22 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
                 "emb_name": ["movie", "user"]
             }
 
-        .. note::
-        The saved node embeddings are in GraphStorm node ID space.
-        You need to remap them into raw input
-        node ID space by following [LINK].
+        The order of embeddings are sorted according to the node ID in
+        Origin Graph ID space.
+
+        Example:
+        --------
+
+        .. code::
+        Node ID   |   embeddings
+        0         |   0.112,0.123,-0.011,...
+        1         |   0.872,0.321,-0.901,...
+        2         |   0.472,0.432,-0.732,...
+        ...
+
+        An alternative way to save node embeddings is calling `save_full_node_embeddings`
+        which is recommended as it is more efficient. Please refer to `save_full_node_embeddings`
+        for more details.
 
         Parameters
         ----------
@@ -750,13 +760,21 @@ def save_full_node_embeddings(g, save_embed_path,
                               embeddings,
                               node_id_mapping_file,
                               save_embed_format="pytorch"):
-    """ Save full node embeddings through pytorch in a distributed way.
+    """ Save the entire node embeddings as pytorch tensors in
+        a distributed way.
 
-        `save_full_node_embeddings` will save two information of an embedding: 1)
-        the embedding and 2) its corresponding node ID in GraphStorm node ID space.
-        It assumes the input `embeddings` are stored in the DistDGL node ID space
-        and the DistDGL node ID starts from 0 to N. It will call NodeIDShuffler to
-        shuffle the node IDs from DistDGL ID space into GraphStorm node ID space.
+        Then input node `embeddings` are stored in Partition Graph ID space.
+        By default, `save_full_node_embeddings` will translate the node IDs
+        in Partition Graph ID space into their counterparts in Origin Graph
+        ID space.
+
+        `save_full_node_embeddings` will save two information of an
+        embedding: 1) the embedding and 2) its corresponding node ID
+        in Origin Graph ID space.
+        It assumes the input `embeddings` are stored in Partition Graph
+        ID space and the IDs start from 0 to N. It will call NodeIDShuffler
+        to shuffle the node IDs from Partition Graph ID space into Origin
+        Graph ID space.
 
         The saved node embeddings are in the following format:
 
@@ -777,6 +795,18 @@ def save_full_node_embeddings(g, save_embed_path,
         #     emb.part00000.bin
         #     emb.part00001.bin
         #     ...
+
+        The content of nids.part files and emb.part files looks like:
+
+        Example:
+        --------
+
+        .. code::
+        Node ID   |   embeddings
+        10        |   0.112,0.123,-0.011,...
+        1         |   0.872,0.321,-0.901,...
+        23        |   0.472,0.432,-0.732,...
+        ...
 
         Note: `save_pytorch_embeddings` (called by `save_embeddings`) is different from
         `save_full_node_embeddings`. In `save_pytorch_embeddings`, it will shuffle the

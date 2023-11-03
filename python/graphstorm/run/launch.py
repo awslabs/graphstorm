@@ -1017,9 +1017,8 @@ def get_argument_parser():
         "--do-nid-remap",
         type=lambda x: (str(x).lower() in ['true', '1']),
         default=True,
-        help="Do GraphStorm node ID to Raw input node ID remapping in inference."
-        "If not set, the default behavior of inference is do remap "
-        "and the default behavior of training is not do remap."
+        help="Do Original Graph ID to Raw Input Node ID space remapping."
+        "If not set, the default behavior is to do remap."
     )
 
     parser = add_remap_result_args(parser)
