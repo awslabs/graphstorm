@@ -540,7 +540,9 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
     """ Save node embeddings as pytorch tensors in a distributed way.
 
         The input node `embeddings` are stored in Partition Node ID space.
-        By default, `save_pytorch_embeddings` will shuffle the order of
+        When `node_id_mapping_file` is provided (GraphStorm graph processing
+        pipeline automatically generate node id mapping files by default),
+        `save_pytorch_embeddings` will shuffle the order of
         node embeddings so that they are stored in Graph Node ID space.
 
         The node embeddings are stored into multiple pytorch files.
@@ -762,8 +764,7 @@ def save_full_node_embeddings(g, save_embed_path,
                               embeddings,
                               node_id_mapping_file,
                               save_embed_format="pytorch"):
-    """ Save the entire node embeddings as pytorch tensors in
-        a distributed way.
+    """ Save all node embeddings with node IDs in Graph Node ID space.
 
         The input node `embeddings` are stored in Partition Node ID space.
         By default, `save_full_node_embeddings` will translate the node IDs
@@ -817,6 +818,10 @@ def save_full_node_embeddings(g, save_embed_path,
         order of node embeddings so that the node embeddings are shuffled according to
         node IDs in Graph Node ID space. While `save_full_node_embeddings`
         shuffles node IDs instead of node embeddings, which is more efficient.
+
+        Note: User need to call graphstorm.gcostruct.remap_result to remap the output
+        of `save_full_node_embeddings` from Graph Node ID space to Raw Node ID space.
+        GraphStorm's launch scripts will automatically call remap_result by default.
 
         Parameters
         ----------
