@@ -179,6 +179,7 @@ class GATEncoder(GraphConvEncoder):
                  num_hidden_layers=1,
                  dropout=0,
                  activation=F.relu,
+                 last_layer_act=False,
                  num_ffn_layers_in_gnn=0):
         super(GATEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
 
@@ -186,13 +187,12 @@ class GATEncoder(GraphConvEncoder):
         for _ in range(num_hidden_layers):
             self.layers.append(GATConv(h_dim, h_dim, num_heads,
                                         activation=activation,
-                                        dropout=dropout, bias=False,
+                                        dropout=dropout, bias=True,
                                         num_ffn_layers_in_gnn=num_ffn_layers_in_gnn))
 
         self.layers.append(GATConv(h_dim, out_dim, num_heads,
-                                    activation=activation,
-                                    dropout=dropout, bias=False,
-                                    num_ffn_layers_in_gnn=num_ffn_layers_in_gnn))
+                                    activation=activation if last_layer_act else None,
+                                    dropout=dropout, bias=True))
 
     def forward(self, blocks, h):
         """Forward computation
