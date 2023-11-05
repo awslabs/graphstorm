@@ -188,17 +188,14 @@ class LinkPredictContrastiveLossFunc(GSLayer):
     def forward(self, pos_score, neg_score):
         """ The forward function.
         """
+        pos_score = th.div(pos_score, self._temp)
+        neg_score = th.div(neg_score, self._temp)
         score = th.cat([pos_score, neg_score])
-        score = th.div(score, self._temp)
 
-        label = th.cat([th.ones_like(pos_score), th.zeros_like(neg_score)])
+        exp_logits = th.exp(score)
+        log_prob = pos_score - th.log(exp_logits.sum(1))
 
-        # Use cross entropy to comput loss between input logtis and target
-        # the target is formated as
-        # [[1, 0, 0, 0, ...],
-        #  ...
-        #  [1, 0, 0, 0, ...]]
-        return F.cross_entropy(score, label)
+        return -log_prob.mean()
 
     @property
     def in_dims(self):
