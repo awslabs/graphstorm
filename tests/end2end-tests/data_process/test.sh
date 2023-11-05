@@ -112,11 +112,13 @@ cp -r /tmp/ep_remap/pred/1/* /tmp/ep_remap/pred/no-share/
 python3 $GS_HOME/tests/end2end-tests/data_process/check_edge_predict_remap.py --remap-output /tmp/ep_remap/pred/no-share/
 error_and_exit $?
 
+rm -fr /tmp/ep_remap/
+
 # Check node predict
 echo "********* Test the remap node predictions *********"
 python3 $GS_HOME/tests/end2end-tests/data_process/gen_node_predict_remap_test.py --output /tmp/np_remap/
 
-# Test remap edge prediction results
+# Test remap node prediction results
 python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/np_remap/id_mapping/ --logging-level debug --pred-ntypes "n0" "n1" --preserve-input True --prediction-dir /tmp/np_remap/pred/ --rank 0 --world-size 2
 error_and_exit $?
 
@@ -128,6 +130,7 @@ python3 $GS_HOME/tests/end2end-tests/data_process/check_node_predict_remap.py --
 error_and_exit $?
 
 # Test without shared filesystem
+echo "********* Test the remap node predictions without shared mem *********"
 mkdir /tmp/np_remap/pred/0/
 mkdir /tmp/np_remap/pred/1/
 mkdir /tmp/np_remap/pred/0/n0/
@@ -155,3 +158,51 @@ cp -r /tmp/np_remap/pred/1/* /tmp/np_remap/pred/no-share/
 python3 $GS_HOME/tests/end2end-tests/data_process/check_node_predict_remap.py --remap-output /tmp/np_remap/pred/no-share/
 
 error_and_exit $?
+
+rm -fr /tmp/np_remap/
+
+# Check node embedding
+echo "********* Test the remap node emb/partial emb *********"
+python3 $GS_HOME/tests/end2end-tests/data_process/gen_emb_predict_remap_test.py --output /tmp/em_remap/
+
+# Test remap emb results
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/em_remap/id_mapping/ --logging-level debug --node-emb-dir /tmp/em_remap/partial-emb/ --preserve-input True --rank 0 --world-size 2
+error_and_exit $?
+
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/em_remap/id_mapping/ --logging-level debug --node-emb-dir /tmp/em_remap/partial-emb/  --preserve-input True --rank 1 --world-size 2
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/data_process/check_emb_remap.py --remap-output /tmp/em_remap/partial-emb/
+
+error_and_exit $?
+
+# Test without shared filesystem
+echo "********* Test the remap partial node embedding without shared mem *********"
+mkdir /tmp/em_remap/partial-emb/0/
+mkdir /tmp/em_remap/partial-emb/1/
+mkdir /tmp/em_remap/partial-emb/0/n0/
+mkdir /tmp/em_remap/partial-emb/1/n1/
+mkdir /tmp/em_remap/partial-emb/0/n1/
+mkdir /tmp/em_remap/partial-emb/1/n0/
+
+cp -r /tmp/em_remap/partial-emb/n0/*0.bin /tmp/em_remap/partial-emb/0/n0/
+cp -r /tmp/em_remap/partial-emb/n0/*1.bin /tmp/em_remap/partial-emb/1/n0/
+cp -r /tmp/em_remap/partial-emb/n1/*0.bin /tmp/em_remap/partial-emb/0/n1/
+cp -r /tmp/em_remap/partial-emb/n1/*1.bin /tmp/em_remap/partial-emb/1/n1/
+
+# Test remap emb results
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/em_remap/id_mapping/ --logging-level debug --node-emb-dir /tmp/em_remap/partial-emb/0/ --preserve-input True --rank 0 --world-size 2 --with-shared-fs False
+error_and_exit $?
+
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/em_remap/id_mapping/ --logging-level debug --node-emb-dir /tmp/em_remap/partial-emb/1/  --preserve-input True --rank 1 --world-size 2 --with-shared-fs False
+error_and_exit $?
+
+mkdir /tmp/em_remap/partial-emb/no-share/
+cp -r /tmp/em_remap/partial-emb/0/* /tmp/em_remap/partial-emb/no-share/
+cp -r /tmp/em_remap/partial-emb/1/* /tmp/em_remap/partial-emb/no-share/
+
+python3 $GS_HOME/tests/end2end-tests/data_process/check_emb_remap.py --remap-output /tmp/em_remap/partial-emb/no-share/
+
+error_and_exit $?
+
+rm -fr /tmp/em_remap/

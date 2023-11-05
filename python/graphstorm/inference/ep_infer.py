@@ -18,13 +18,13 @@
 import time
 
 from .graphstorm_infer import GSInferrer
-from ..model.utils import save_embeddings as save_gsgnn_embeddings
+from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_edge_prediction_results
 from ..model.utils import NodeIDShuffler
 from ..model.gnn import do_full_graph_inference
 from ..model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 
-from ..utils import sys_tracker, get_world_size, get_rank, barrier
+from ..utils import sys_tracker, get_rank, barrier
 
 class GSgnnEdgePredictionInferrer(GSInferrer):
     """ Edge classification/regression inferrer.
@@ -117,7 +117,7 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
                                        test_score=test_score,
                                        dur_eval=time.time() - test_start,
                                        total_steps=0)
-        device = self.device
+        g = loader.data.g
         if save_embed_path is not None:
             target_ntypes = set()
             for etype in infer_data.eval_etypes:
@@ -126,16 +126,15 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
 
             # The order of the ntypes must be sorted
             embs = {ntype: embs[ntype] for ntype in sorted(target_ntypes)}
-            save_gsgnn_embeddings(save_embed_path, embs, get_rank(),
-                get_world_size(),
-                device=device,
-                node_id_mapping_file=node_id_mapping_file,
-                save_embed_format=save_embed_format)
+            save_gsgnn_embeddings(g,
+                                  save_embed_path,
+                                  embs,
+                                  node_id_mapping_file=node_id_mapping_file,
+                                  save_embed_format=save_embed_format)
             barrier()
             sys_tracker.check('save embeddings')
 
         if save_prediction_path is not None:
-            g = loader.data.g
             target_ntypes = set()
             for etype, _ in preds.items():
                 target_ntypes.add(etype[0])

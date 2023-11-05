@@ -235,6 +235,7 @@ then
 fi
 
 cnt=$(ls -l /data/gsgnn_nc_ml/infer-emb/movie/ | grep "emb.part" | wc -l)
+cnt=$(($cnt/2))
 if test $cnt != $NUM_TRAINERS
 then
     echo "There must be $NUM_TRAINERS embedding parts."
@@ -242,6 +243,7 @@ then
 fi
 
 cnt=$(ls -l /data/gsgnn_nc_ml/infer-emb/user/ | grep "emb.part" | wc -l)
+cnt=$(($cnt/2))
 if test $cnt != $NUM_TRAINERS
 then
     echo "There must be $NUM_TRAINERS embedding parts."

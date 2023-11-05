@@ -35,7 +35,6 @@ def main():
     lib_dir = os.path.abspath(os.path.dirname(__file__))
     if args.inference:
         cmd_path = os.path.join(lib_dir, "gsgnn_np/np_infer_gnn.py")
-        args.do_nid_remap = True
     else:
         cmd_path = os.path.join(lib_dir, "gsgnn_np/gsgnn_np.py")
     exec_script_args = [cmd_path] + exec_script_args
