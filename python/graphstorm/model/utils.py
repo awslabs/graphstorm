@@ -537,15 +537,15 @@ def load_pytorch_embedding(emb_path, part_policy, name):
 
 def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None):
-    """ Save embeddings through pytorch a distributed way.
+    """ Save node embeddings as pytorch tensors in a distributed way.
 
-        By default, `save_pytorch_embeddings` will shuffle the order of node embeddings
-        so that the node embeddings are shuffled according to node IDs in the GraphStorm
-        node ID space.
+        The input node `embeddings` are stored in Partition Node ID space.
+        When `node_id_mapping_file` is provided (GraphStorm graph processing
+        pipeline automatically generate node id mapping files by default),
+        `save_pytorch_embeddings` will shuffle the order of
+        node embeddings so that they are stored in Graph Node ID space.
 
-        An alternative way to save node embeddings is calling `save_full_node_embeddings`
-        which is recommended as it is more efficient. Please refer to `save_full_node_embeddings`
-        for more details.
+        The node embeddings are stored into multiple pytorch files.
 
         Example:
         --------
@@ -573,10 +573,22 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
                 "emb_name": ["movie", "user"]
             }
 
-        .. note::
-        The saved node embeddings are in GraphStorm node ID space.
-        You need to remap them into raw input
-        node ID space by following [LINK].
+        The order of embeddings are sorted according to the node IDs in
+        Graph Node ID space.
+
+        Example:
+        --------
+
+        .. code::
+        Graph Node ID   |   embeddings
+        0               |   0.112,0.123,-0.011,...
+        1               |   0.872,0.321,-0.901,...
+        2               |   0.472,0.432,-0.732,...
+        ...
+
+        An alternative way to save node embeddings is calling `save_full_node_embeddings`
+        which is recommended as it is more efficient. Please refer to `save_full_node_embeddings`
+        for more details.
 
         Parameters
         ----------
@@ -693,10 +705,12 @@ def save_hdf5_embeddings(emb_path, embeddings, rank, world_size,
             json.dump(emb_info, f, indent=4)
 
 def save_shuffled_node_embeddings(shuffled_embs, save_embed_path, save_embed_format="pytorch"):
-    """ Save node embeddings that have already been shuffled.
+    """ Save node embeddings that have corresponding node IDs shuffled into Graph
+        Node ID space.
 
         For each node embeddings, two tensors are required and should be
-        provided as a tuple: (embedding tensor, embdding nid tensor)
+        provided as a tuple: (embedding tensor, node ID tensor).
+        The node ID tensor stores node IDs in Graph Node ID space.
 
         Parameters
         ----------
@@ -750,13 +764,20 @@ def save_full_node_embeddings(g, save_embed_path,
                               embeddings,
                               node_id_mapping_file,
                               save_embed_format="pytorch"):
-    """ Save full node embeddings through pytorch in a distributed way.
+    """ Save all node embeddings with node IDs in Graph Node ID space.
 
-        `save_full_node_embeddings` will save two information of an embedding: 1)
-        the embedding and 2) its corresponding node ID in GraphStorm node ID space.
-        It assumes the input `embeddings` are stored in the DistDGL node ID space
-        and the DistDGL node ID starts from 0 to N. It will call NodeIDShuffler to
-        shuffle the node IDs from DistDGL ID space into GraphStorm node ID space.
+        The input node `embeddings` are stored in Partition Node ID space.
+        By default, `save_full_node_embeddings` will translate the node IDs
+        from Partition Node ID space into their counterparts in Graph Node
+        ID space.
+
+        `save_full_node_embeddings` will save two information of an
+        embedding: 1) the embedding and 2) its corresponding node ID
+        in Graph Node ID space.
+        It assumes the input `embeddings` are stored in Partition Node
+        ID space and the IDs start from 0 to N. It will call NodeIDShuffler
+        to shuffle the node IDs from Partition Node ID space into Graph
+        Node ID space.
 
         The saved node embeddings are in the following format:
 
@@ -778,11 +799,29 @@ def save_full_node_embeddings(g, save_embed_path,
         #     emb.part00001.bin
         #     ...
 
+        The content of nids.part files and emb.part files looks like:
+
+        Example:
+        --------
+
+        .. code::
+        nids.part00000.bin   |   emb.part00000.bin
+                             |
+        Graph Node ID        |   embeddings
+        10                   |   0.112,0.123,-0.011,...
+        1                    |   0.872,0.321,-0.901,...
+        23                   |   0.472,0.432,-0.732,...
+        ...
+
         Note: `save_pytorch_embeddings` (called by `save_embeddings`) is different from
         `save_full_node_embeddings`. In `save_pytorch_embeddings`, it will shuffle the
         order of node embeddings so that the node embeddings are shuffled according to
-        node IDs in the GraphStorm node ID space. While `save_full_node_embeddings`
+        node IDs in Graph Node ID space. While `save_full_node_embeddings`
         shuffles node IDs instead of node embeddings, which is more efficient.
+
+        Note: User need to call graphstorm.gcostruct.remap_result to remap the output
+        of `save_full_node_embeddings` from Graph Node ID space to Raw Node ID space.
+        GraphStorm's launch scripts will automatically call remap_result by default.
 
         Parameters
         ----------
@@ -904,7 +943,7 @@ def shuffle_predict(predictions, id_mapping_file, pred_type,
     return predictions[local_id_mapping]
 
 class NodeIDShuffler():
-    """ Shuffle node ids into the original node ids according to node_id_mappings
+    """ Shuffle node ids into the Graph Node ID space according to node_id_mappings
 
         Parameters
         ----------
@@ -952,7 +991,7 @@ class NodeIDShuffler():
         return id_mapping_info
 
     def shuffle_nids(self, ntype, nids):
-        """ Shuffle node ids of nype into their original id space.
+        """ Shuffle node ids of nype into their Graph Node ID space.
 
             Parameters
             ----------
@@ -1097,9 +1136,8 @@ def save_node_prediction_results(predictions, prediction_path):
             }
 
         .. note::
-        The saved prediction results are in GraphStorm node ID space.
-        You need to remap them into raw input
-        node ID space by following [LINK].
+        The saved prediction results are in Graph Node ID space.
+        You need to remap them into Raw Node ID space.
 
         Parameters
         ----------
@@ -1162,9 +1200,8 @@ def save_edge_prediction_results(predictions, prediction_path):
             }
 
         .. note::
-        The saved prediction results are in GraphStorm node ID space.
-        You need to remap them into raw input
-        node ID space by following [LINK].
+        The saved prediction results are in Graph Node ID space.
+        You need to remap them into Raw Node ID space.
 
         Parameters
         ----------

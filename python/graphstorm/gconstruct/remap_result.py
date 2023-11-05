@@ -15,7 +15,7 @@
 
     Remapping GraphStorm outputs (edge prediction results
     node prediction results and node embeddings)
-    into the original node ID space.
+    into the Raw Node ID space.
 """
 
 import os
@@ -577,8 +577,6 @@ def main(args, gs_config_args):
                 raise RuntimeError("You want to do prediction result remap as" \
                                    f"predict-dir {predict_dir} is not None. " \
                                    "but both pred-etypes and pred-ntypes are empty.")
-
-
 
     assert world_size > 0, \
         f"World size must be larger than 0, but get {world_size}."
