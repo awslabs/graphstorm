@@ -162,10 +162,6 @@ def convert_feat_to_wholegraph(fname_dict, file_name, metadata, folder, use_low_
         Name of the folder of the input feature files
     use_low_mem: bool
         Whether to use low memory version for conversion
-
-    Returns
-    -------
-    list of tensors : distDGL tensors after trimming out the processed features
     """
     wg_folder = os.path.join(folder, "wholegraph")
     folder_pattern = re.compile(r"^part[0-9]+$")
@@ -177,8 +173,10 @@ def convert_feat_to_wholegraph(fname_dict, file_name, metadata, folder, use_low_
     part_files = sorted(part_files, key=lambda x: int(x.split("part")[1]))
     feats_data = []
 
-    # When 'use_low_mem' is not enabled, this code loads and appends different features from
-    # individual partitions. Then each feature is converted into the WholeGraph format.
+    # When 'use_low_mem' is not enabled, this code loads and appends features from individual
+    # partitions. Then features are concatenated and converted into the WholeGraph format one
+    # by one. The minimum memory requirement for this approach is 2X the size of the input
+    # nodes or edges features in the graph.
     if not use_low_mem:
         # Read features from file
         for path in (os.path.join(folder, name) for name in part_files):
@@ -202,10 +200,14 @@ def convert_feat_to_wholegraph(fname_dict, file_name, metadata, folder, use_low_
                 wholegraph_processing(
                     whole_feat_tensor, metadata, feat, wg_folder, num_parts
                 )
+        # Trim the original distDGL tensors
+        for part in range(num_parts):
+            trim_feat_files(feats_data, folder, file_name, part)
 
-    # This version is less memory-consuming. For each feature, it iterates through all the
-    # partitions, loading the available features, but only stores (concatenating) only the
-    # current feature to be converted to WholeGraph.
+    # This low-memory version loads one partition at a time. It processes features one by one,
+    # iterating through all the partitions and appending only the current feature, converting
+    # it to a WholeGraph. The minimum memory requirement for this approach is 2X the size of
+    # the largest node or edge feature in the graph.
     else:  # low-mem
         for ntype, feats in fname_dict.items():
             for feat in feats:
@@ -234,45 +236,43 @@ def convert_feat_to_wholegraph(fname_dict, file_name, metadata, folder, use_low_
                     wg_folder,
                     num_parts,
                 )
-
+        num_parts = 0
         for path in (os.path.join(folder, name) for name in part_files):
-            feats_data.append(dgl.data.utils.load_tensors(f"{path}/{file_name}"))
+            feats_data = dgl.data.utils.load_tensors(f"{path}/{file_name}")
+            for type_name, feats in fname_dict.items():
+                for feat in feats:
+                    feat = type_name + "/" + feat
+                    # Delete processed feature from memory
+                    del feats_data[feat]
+            num_parts += 1
+            trim_feat_files(feats_data, folder, file_name, num_parts)
 
-        for type_name, feats in fname_dict.items():
-            for feat in feats:
-                feat = type_name + "/" + feat
-                # Delete processed feature from memory
-                for t in feats_data:
-                    del t[feat]
-    return feats_data
 
-
-def trim_feat_files(trimmed_feats, folder, file_name):
+def trim_feat_files(trimmed_feats, folder, file_name, part):
     """Save new truncated distDGL tensors
     Parameters
     ----------
-    trimmed_feats: list of tensors
+    trimmed_feats : list of tensors
         distDGL tensors after trimming out the processed features
-    folder: str
+    folder : str
         Name of the folder of the input feature files
-    file_name:
+    file_name : str
         Name of the feature file, either node_feat.dgl or edge_feat.dgl
+    part : int
+        Partition number of the input feature files
 
     """
-    num_parts = len(trimmed_feats)
-    for part in range(num_parts):
-        dgl.data.utils.save_tensors(
-            os.path.join(folder, f"part{part}", "new_" + file_name), trimmed_feats[part]
-        )
-    for part in range(num_parts):
-        os.rename(
-            os.path.join(folder, f"part{part}", file_name),
-            os.path.join(folder, f"part{part}", file_name + ".bak"),
-        )
-        os.rename(
-            os.path.join(folder, f"part{part}", "new_" + file_name),
-            os.path.join(folder, f"part{part}", file_name),
-        )
+    dgl.data.utils.save_tensors(
+        os.path.join(folder, f"part{part}", "new_" + file_name), trimmed_feats[part]
+    )
+    os.rename(
+        os.path.join(folder, f"part{part}", file_name),
+        os.path.join(folder, f"part{part}", file_name + ".bak"),
+    )
+    os.rename(
+        os.path.join(folder, f"part{part}", "new_" + file_name),
+        os.path.join(folder, f"part{part}", file_name),
+    )
 
 
 def main(folder, node_feat_names, edge_feat_names, use_low_mem=False):
@@ -292,18 +292,16 @@ def main(folder, node_feat_names, edge_feat_names, use_low_mem=False):
     # Process node features
     if node_feat_names:
         fname_dict = get_node_feat_info(node_feat_names)
-        trimmed_feats = convert_feat_to_wholegraph(
+        convert_feat_to_wholegraph(
             fname_dict, "node_feat.dgl", metadata, folder, use_low_mem
         )
-        trim_feat_files(trimmed_feats, folder, "node_feat.dgl")
 
     # Process edge features
     if edge_feat_names:
         fname_dict = get_edge_feat_info(edge_feat_names)
-        trimmed_feats = convert_feat_to_wholegraph(
+        convert_feat_to_wholegraph(
             fname_dict, "edge_feat.dgl", metadata, folder, use_low_mem
         )
-        trim_feat_files(trimmed_feats, folder, "edge_feat.dgl")
 
     # Save metatada
     with open(os.path.join(wg_folder, "metadata.json"), "w") as fp:
