@@ -1783,9 +1783,10 @@ class GSConfig:
                 "Use contrastive-loss-temp only when the loss function is " \
                 f"{BUILTIN_LP_LOSS_CONTRASTIVELOSS} loss."
 
-            assert self._contrastive_loss_temp > 0, \
+            contrastive_loss_temp = float(self._contrastive_loss_temp)
+            assert contrastive_loss_temp > 0.0, \
                 "Contrastive loss temperature must be larger than 0"
-            return self._contrastive_loss_temp
+            return contrastive_loss_temp
 
         return 1.0
 
