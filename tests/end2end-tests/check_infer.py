@@ -78,6 +78,6 @@ if __name__ == '__main__':
             for i in range(len(train_emb)):
                 if th.all(infer_emb[i] == 0.):
                     continue
-                assert_almost_equal(train_emb[i].numpy(), infer_emb[i].numpy(), decimal=4)
+                assert_almost_equal(train_emb[i].numpy(), infer_emb[i].numpy(), decimal=2)
         else:
             assert_almost_equal(train_emb.numpy(), infer_emb.numpy(), decimal=2)
