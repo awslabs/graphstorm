@@ -13,4 +13,3 @@ from .dist_numerical_transformation import (
     DistNumericalTransformation,
 )
 from .dist_bucket_numerical_transformation import DistBucketNumericalTransformation
-from .dist_rankgauss_numerical_transformation import DistRankGaussNumericalTransformation

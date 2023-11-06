@@ -94,6 +94,7 @@ class GConstructConfigConverter(ConfigConverter):
             gsp_transformation_dict: dict[str, Any] = {}
             if "transform" in gconstruct_feat_dict:
                 gconstruct_transform_dict = gconstruct_feat_dict["transform"]
+
                 if gconstruct_transform_dict["name"] == "max_min_norm":
                     gsp_transformation_dict["name"] = "numerical"
                     gsp_transformation_dict["kwargs"] = {"normalizer": "min-max", "imputer": "none"}
