@@ -1093,7 +1093,8 @@ def preprocess_features(data, ops):
             for key, val in res.items():
                 if key in pre_data:
                     assert pre_data[key] == val, f"It is expected same preprocessed value " \
-                                                 f"for each column but get {pre_data[key]} and {val}"
+                                                 f"for each column but get {pre_data[key]} " \
+                                                 f"and {val}"
                 pre_data[key] = val
 
     return pre_data
