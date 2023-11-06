@@ -166,16 +166,18 @@ def apply_norm(
             sorted_df = id_df.orderBy(column_name)
             indexed_df = sorted_df.withColumn(index_id_rank, F.monotonically_increasing_id())
 
-            def gauss_transform(rank: pd.Series, num_rows: int) -> pd.Series:
+            # pylint: disable = cell-var-from-loop
+            # It is required to put num_rows definition outside,
+            # or pandas.udf will throw an error
+            def gauss_transform(rank: pd.Series) -> pd.Series:
                 feat_range = num_rows - 1
                 clipped_rank = (rank / feat_range - 0.5) * 2
                 clipped_rank = np.maximum(np.minimum(clipped_rank, 1 - epsilon), epsilon - 1)
                 return pd.Series(erfinv(clipped_rank))
 
+            num_rows = indexed_df.count()
             gauss_udf = F.pandas_udf(gauss_transform, FloatType())
-            normalized_df = indexed_df.withColumn(
-                column_name, gauss_udf(index_id_rank, indexed_df.count())
-            )
+            normalized_df = indexed_df.withColumn(column_name, gauss_udf(index_id_rank))
             scaled_df = normalized_df.orderBy(original_id_rank).drop(
                 index_id_rank, original_id_rank
             )
