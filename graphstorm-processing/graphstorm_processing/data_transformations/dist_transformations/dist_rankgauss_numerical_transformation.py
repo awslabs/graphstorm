@@ -17,7 +17,7 @@ from typing import List
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
-from pyspark.sql.types import ArrayType, FloatType
+from pyspark.sql.types import FloatType
 import numpy as np
 import pandas as pd
 from scipy.special import erfinv
@@ -49,7 +49,8 @@ class DistRankGaussNumericalTransformation(DistributedTransformation):
     ) -> None:
         super().__init__(cols)
         self.cols = cols
-        assert len(self.cols) == 1, "Rank Guass numerical transformation only supports single column"
+        assert len(self.cols) == 1, \
+            "Rank Guass numerical transformation only supports single column"
         # Spark uses 'mode' for the most frequent element
         self.shared_imputation = "mode" if imputer == "most_frequent" else imputer
         self.epsilon = epsilon

@@ -53,7 +53,8 @@ class DistFeatureTransformer(object):
         elif feat_type == "bucket-numerical":
             self.transformation = DistBucketNumericalTransformation(**default_kwargs, **args_dict)
         elif feat_type == "rank-gauss":
-            self.transformation = DistRankGaussNumericalTransformation(**default_kwargs, **args_dict)
+            self.transformation = \
+                DistRankGaussNumericalTransformation(**default_kwargs, **args_dict)
         else:
             raise NotImplementedError(
                 f"Feature {feat_name} has type: {feat_type} that is not supported"

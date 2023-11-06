@@ -187,5 +187,7 @@ class RankGaussNumericalFeatureConfig(FeatureConfig):
             self.norm in VALID_NORMALIZERS
         ), f"Unknown normalizer requested, expected one of {VALID_NORMALIZERS}, got {self.norm}"
         assert (
-            self.epsilon == "none" or (isinstance(self.epsilon, numbers.Number) and 0.0 <= self.epsilon < 1.0)
+            self.epsilon == "none" or (isinstance(self.epsilon, numbers.Number) and
+                                       0.0 <= self.epsilon < 1.0)
         ), f"Expect epsilon {self.epsilon} be in range [0, 1], or not provided"
+        
