@@ -187,13 +187,34 @@ class LinkPredictContrastiveLossFunc(GSLayer):
 
     def forward(self, pos_score, neg_score):
         """ The forward function.
+
+            Parameters
+            ----------
+            pos_score: dict of tensors
+                A dictionary of etype -> pos scores.
+            neg_score: dict of tensors
+                A dictionary of etype -> neg scores.
         """
-        pos_score = th.div(pos_score, self._temp)
-        neg_score = th.div(neg_score, self._temp)
-        score = th.cat([pos_score, neg_score])
+        pscore = []
+        nscore = []
+        for key, p_s in pos_score.items():
+            assert key in neg_score, \
+                f"Negative scores of {key} must exists"
+            n_s = neg_score[key]
+
+            # Both p_s and n_s are soreted according to source nid
+            # (which are same in pos_graph and neg_graph)
+            pscore.append(p_s)
+            nscore.append(n_s.reshape(p_s.shape[0], -1))
+        pscore = th.cat(pscore, dim=0)
+        nscore = th.cat(nscore, dim=0)
+
+        pscore = th.div(pscore, self._temp)
+        nscore = th.div(nscore, self._temp)
+        score = th.cat([pscore.unsqueeze(1), nscore], dim=1)
 
         exp_logits = th.exp(score)
-        log_prob = pos_score - th.log(exp_logits.sum(1))
+        log_prob = pscore - th.log(exp_logits.sum(1))
 
         return -log_prob.mean()
 

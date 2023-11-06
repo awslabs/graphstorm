@@ -57,6 +57,8 @@ from .model.edge_decoder import (DenseBiDecoder,
                                  MLPEFeatEdgeDecoder)
 from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictDistMultDecoder,
+                                 LinkPredictContrastiveDotDecoder,
+                                 LinkPredictContrastiveDistMultDecoder,
                                  LinkPredictWeightedDotDecoder,
                                  LinkPredictWeightedDistMultDecoder)
 from .tracker import get_task_tracker_class
@@ -461,6 +463,9 @@ def create_builtin_lp_model(g, config, train_task):
     # if train etype is 1, There is no need to use DistMult
     assert num_train_etype > 1 or config.lp_decoder_type == BUILTIN_LP_DOT_DECODER, \
             "If number of train etype is 1, please use dot product"
+    out_dims = model.gnn_encoder.out_dims \
+                    if model.gnn_encoder is not None \
+                    else model.node_input_encoder.out_dims
     if config.lp_decoder_type == BUILTIN_LP_DOT_DECODER:
         # if the training set only contains one edge type or it is specified in the arguments,
         # we use dot product as the score function.
@@ -468,30 +473,28 @@ def create_builtin_lp_model(g, config, train_task):
             logging.debug('use dot product for single-etype task.')
             logging.debug("Using inner product objective for supervision")
         if config.lp_edge_weight_for_loss is None:
-            decoder = LinkPredictDotDecoder(model.gnn_encoder.out_dims \
-                                                if model.gnn_encoder is not None \
-                                                else model.node_input_encoder.out_dims)
+            decoder = LinkPredictContrastiveDotDecoder(out_dims) \
+                if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS else \
+                LinkPredictDotDecoder(out_dims)
         else:
-            decoder = LinkPredictWeightedDotDecoder(model.gnn_encoder.out_dims \
-                                                    if model.gnn_encoder is not None \
-                                                    else model.node_input_encoder.out_dims,
+            decoder = LinkPredictWeightedDotDecoder(out_dims,
                                                     config.lp_edge_weight_for_loss)
     elif config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER:
         if get_rank() == 0:
             logging.debug("Using distmult objective for supervision")
         if config.lp_edge_weight_for_loss is None:
-            decoder = LinkPredictDistMultDecoder(g.canonical_etypes,
-                                                model.gnn_encoder.out_dims \
-                                                    if model.gnn_encoder is not None \
-                                                    else model.node_input_encoder.out_dims,
-                                                config.gamma)
+            decoder = LinkPredictContrastiveDistMultDecoder(g.canonical_etypes,
+                                                            out_dims,
+                                                            config.gamma) \
+                if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS else \
+                LinkPredictDistMultDecoder(g.canonical_etypes,
+                                           out_dims,
+                                           config.gamma)
         else:
             decoder = LinkPredictWeightedDistMultDecoder(g.canonical_etypes,
-                                                model.gnn_encoder.out_dims \
-                                                    if model.gnn_encoder is not None \
-                                                    else model.node_input_encoder.out_dims,
-                                                config.gamma,
-                                                config.lp_edge_weight_for_loss)
+                                                         out_dims,
+                                                         config.gamma,
+                                                         config.lp_edge_weight_for_loss)
     else:
         raise Exception(f"Unknow link prediction decoder type {config.lp_decoder_type}")
     model.set_decoder(decoder)

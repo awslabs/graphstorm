@@ -713,6 +713,39 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
         """
         return 1
 
+class LinkPredictContrastiveDotDecoder(LinkPredictDotDecoder):
+    # pylint: disable=unused-argument
+    def forward(self, g, h, e_h=None):
+        with g.local_scope():
+            scores = {}
+
+            for canonical_etype in g.canonical_etypes:
+                if g.num_edges(canonical_etype) == 0:
+                    continue # the block might contain empty edge types
+
+                src_type, _, dest_type = canonical_etype
+                u, v = g.edges(etype=canonical_etype)
+                # Sort edges according to source node ids
+                # The same function is invoked by computing both pos scores
+                # and neg scores, by sorting edges according to source nids
+                # the output scores of pos_score and neg_score are compatible.
+                #
+                # For example:
+                #
+                # pos pairs   |  neg pairs
+                # (10, 20)    |  (10, 3), (10, 1), (10, 0), (10, 22)
+                # (13, 6)     |  (13, 3), (13, 1), (13, 0), (13, 22)
+                # (29, 8)     |  (29, 3), (29, 1), (29, 0), (29, 22)
+                u_sort_idx = th.argsort(u)
+                u = u[u_sort_idx]
+                v = v[u_sort_idx]
+                src_emb = h[src_type][u]
+                dest_emb = h[dest_type][v]
+                scores_etype = calc_dot_pos_score(src_emb, dest_emb)
+                scores[canonical_etype] = scores_etype
+
+            return scores
+
 class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
     """ Link prediction decoder with the score function of DistMult
 
@@ -921,6 +954,44 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
         int : the number of output dimensions.
         """
         return 1
+
+class LinkPredictContrastiveDistMultDecoder(LinkPredictDistMultDecoder):
+    # pylint: disable=unused-argument
+    def forward(self, g, h, e_h=None):
+        with g.local_scope():
+            scores = {}
+
+            for canonical_etype in g.canonical_etypes:
+                if g.num_edges(canonical_etype) == 0:
+                    continue # the block might contain empty edge types
+
+                i = self.etype2rid[canonical_etype]
+                self.trained_rels[i] += 1
+                rel_embedding = self._w_relation(th.tensor(i).to(self._w_relation.weight.device))
+                rel_embedding = rel_embedding.unsqueeze(dim=1)
+                src_type, _, dest_type = canonical_etype
+                u, v = g.edges(etype=canonical_etype)
+                # Sort edges according to source node ids
+                # The same function is invoked by computing both pos scores
+                # and neg scores, by sorting edges according to source nids
+                # the output scores of pos_score and neg_score are compatible.
+                #
+                # For example:
+                #
+                # pos pairs   |  neg pairs
+                # (10, 20)    |  (10, 3), (10, 1), (10, 0), (10, 22)
+                # (13, 6)     |  (13, 3), (13, 1), (13, 0), (13, 22)
+                # (29, 8)     |  (29, 3), (29, 1), (29, 0), (29, 22)
+                u_sort_idx = th.argsort(u)
+                u = u[u_sort_idx]
+                v = v[u_sort_idx]
+                src_emb = h[src_type][u]
+                dest_emb = h[dest_type][v]
+                rel_embedding = rel_embedding.repeat(1,dest_emb.shape[0]).T
+                scores_etype = calc_distmult_pos_score(src_emb, dest_emb, rel_embedding)
+                scores[canonical_etype] = scores_etype
+
+            return scores
 
 class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
     """Link prediction decoder with the score function of DistMult
