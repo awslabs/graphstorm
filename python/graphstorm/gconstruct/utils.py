@@ -591,7 +591,8 @@ class ExtFeatureWrapper(ExtNumpyWrapper):
             return self._arr.astype(self._dtype)
 
     def append(self, wrap):
-        """Add an external memory wrapper or numpy array
+        """Add an external memory wrapper or numpy array,
+        it will convert the numpy array to a memory wrapper
         Parameters
         ----------
         wrap : numpy.ndarray or ExtMemArrayWrapper
