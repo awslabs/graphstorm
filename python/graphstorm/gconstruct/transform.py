@@ -995,6 +995,9 @@ def parse_feat_ops(confs):
                                       infer_batch_size=infer_batch_size,
                                       out_dtype=out_dtype)
             elif conf['name'] == 'max_min_norm':
+                # TODO: support max_val and min_val in multiple column feature transformation
+                # If max_val and min_val are not explicitly defined, the preprocessing procedure
+                # will automatically determine these values from the last column.
                 if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
                     assert 'max_val' in conf and 'min_val' in conf, \
                         "max_val and min_val for max_min_norm feature transformation is needed"
@@ -1018,6 +1021,7 @@ def parse_feat_ops(confs):
                                                epsilon=epsilon)
             elif conf['name'] == 'to_categorical':
                 separator = conf['separator'] if 'separator' in conf else None
+                # Assigning the same category to every column is not meaningful.
                 if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
                     raise RuntimeError("Do not support categorical "
                                        "feature transformation on multiple columns")
@@ -1029,7 +1033,7 @@ def parse_feat_ops(confs):
                 assert 'range' in conf, \
                     "It is required to provide range information for bucket feature transform"
                 if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
-                    warnings.warn("The same bucket range and count will apply to all columns")
+                    warnings.warn("The same bucket range and count will be applied to all columns")
                 bucket_cnt = conf['bucket_cnt']
                 bucket_range = conf['range']
                 if 'slide_window_size' in conf:

@@ -91,7 +91,7 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file, ext_me
     read_file : callable
         The function to read the node file
     ext_mem: str or None
-        The address of external memory for multi-column feature
+        The path of external memory for multi-column feature
 
     Returns
     -------
@@ -157,7 +157,7 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
     skip_nonexist_edges : bool
         Whether or not to skip edges that don't exist.
     ext_mem: str or None
-        The address of external memory for multi-column feature
+        The path of external memory for multi-column feature
 
     Returns
     -------
