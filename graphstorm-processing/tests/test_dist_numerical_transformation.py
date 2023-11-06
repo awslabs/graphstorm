@@ -330,13 +330,15 @@ def test_rank_gauss(spark: SparkSession, check_df_schema, epsilon):
 
     expected_vals = rank_gauss(np.array([[0.0], [15.0], [26.0], [40.0]]), epsilon)
     for i, row in enumerate(out_rows):
-        assert_almost_equal([row["age"]], expected_vals[i, :], decimal=4, err_msg=f"Row {i} is not equal")
+        assert_almost_equal(
+            [row["age"]], expected_vals[i, :], decimal=4, err_msg=f"Row {i} is not equal"
+        )
 
 
 @pytest.mark.parametrize("epsilon", [0.0, 1e-6])
 def test_rank_gauss_reshuffling(spark: SparkSession, check_df_schema, epsilon):
     # Create DF with 10k values
-    random_values = np.random.rand(10 ** 3, 1)
+    random_values = np.random.rand(10**3, 1)
 
     # Convert the array of values into a list of single-value lists
     data = [(float(value),) for value in random_values]
@@ -357,4 +359,6 @@ def test_rank_gauss_reshuffling(spark: SparkSession, check_df_schema, epsilon):
 
     expected_vals = rank_gauss(np.array(part_rows), epsilon)
     for i, row in enumerate(out_rows):
-        assert_almost_equal([row["rand"]], expected_vals[i, :], decimal=4, err_msg=f"Row {i} is not equal")
+        assert_almost_equal(
+            [row["rand"]], expected_vals[i, :], decimal=4, err_msg=f"Row {i} is not equal"
+        )

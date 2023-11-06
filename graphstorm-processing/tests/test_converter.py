@@ -220,12 +220,12 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
                 {
                     "feature_col": ["num_citations"],
                     "feature_name": "rank_gauss1",
-                    "transform": {"name": "rank_gauss"}
+                    "transform": {"name": "rank_gauss"},
                 },
                 {
                     "feature_col": ["num_citations"],
                     "feature_name": "rank_gauss2",
-                    "transform": {"name": "rank_gauss", "epsilon": 0.1}
+                    "transform": {"name": "rank_gauss", "epsilon": 0.1},
                 },
             ],
             "labels": [
@@ -285,7 +285,7 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
         },
         {
             "column": "num_citations",
-            'name': 'rank_gauss1',
+            "name": "rank_gauss1",
             "transformation": {
                 "name": "numerical",
                 "kwargs": {"normalizer": "rank-gauss", "imputer": "none"},
@@ -293,7 +293,7 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
         },
         {
             "column": "num_citations",
-            'name': 'rank_gauss2',
+            "name": "rank_gauss2",
             "transformation": {
                 "name": "numerical",
                 "kwargs": {"epsilon": 0.1, "normalizer": "rank-gauss", "imputer": "none"},

@@ -385,8 +385,13 @@ arguments.
          imputation. Can take the following values:
          - ``none``: (Default) Don't normalize the numerical values during encoding.
          - ``min-max``: Normalize each value by subtracting the minimum value from it,
-        and then dividing it by the difference between the maximum value and the minimum.
-        - ``standard``: Normalize each value by dividing it by the sum of all the values.
+         and then dividing it by the difference between the maximum value and the minimum.
+         - ``standard``: Normalize each value by dividing it by the sum of all the values.
+         - ``rank-gauss``: Normalize each value by rank-gauss normalization. It maps the numeric feature values
+         to gaussian distribution based on ranking.Rank-gauss normalization requires lots of data reshuffling,
+         so it will be a great cost for memory. It is only for single column.
+      - ``epsilon``: Epsilon for normalization used to avoid INF float during computation
+        on "rank-gauss".
 -  ``multi-numerical``
 
    -  Column-wise transformation for vector-like numerical data using a missing data imputer and an

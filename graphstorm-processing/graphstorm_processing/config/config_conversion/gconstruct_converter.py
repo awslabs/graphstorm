@@ -116,11 +116,17 @@ class GConstructConfigConverter(ConfigConverter):
                     gsp_transformation_dict["name"] = "numerical"
                     if "epsilon" in gconstruct_transform_dict:
                         # pylint: disable=line-too-long
-                        gsp_transformation_dict["kwargs"] = {"epsilon": gconstruct_transform_dict["epsilon"],
-                                                            "normalizer": "rank-gauss", "imputer": "none"}
+                        gsp_transformation_dict["kwargs"] = {
+                            "epsilon": gconstruct_transform_dict["epsilon"],
+                            "normalizer": "rank-gauss",
+                            "imputer": "none",
+                        }
                     else:
                         # pylint: disable=line-too-long
-                        gsp_transformation_dict["kwargs"] = {"normalizer": "rank-gauss", "imputer": "none"}
+                        gsp_transformation_dict["kwargs"] = {
+                            "normalizer": "rank-gauss",
+                            "imputer": "none",
+                        }
                 # TODO: Add support for other common transformations here
                 else:
                     raise ValueError(
