@@ -28,12 +28,23 @@ import torch
 
 
 def get_node_feat_info(node_feat_names):
-    """Process node feature names"""
+    """Process node feature names
+
+    Parameters
+    ----------
+    node_feat_names : str or dict of list of str
+        The name of the node features. It's a dict if different node types have
+        different feature names.
+
+    Returns
+    -------
+        dict of list : dict of names of the node features of different node types
+    """
     fname_dict = {}
     for feat_name in node_feat_names:
         feat_info = feat_name.split(":")
         assert len(feat_info) == 2, (
-            f"Unknown format of the feature name: {feat_name}, "
+            f"Unknown format of the feature name: {feat_name}, " \
             + "must be NODE_TYPE:FEAT_NAME"
         )
         ntype = feat_info[0]
@@ -51,17 +62,29 @@ def get_node_feat_info(node_feat_names):
 
 
 def get_edge_feat_info(edge_feat_names):
-    """Process edge feature names"""
+    """Process edge feature names
+
+    Parameters
+    ----------
+    edge_feat_names : str or dict of list of str
+        The name of the edge features. It's a dict if different edge types have
+        different feature names.
+
+    Returns
+    -------
+        dict of list : dict of names of the edge features of different edge types
+    """
+
     fname_dict = {}
     for feat_name in edge_feat_names:
         feat_info = feat_name.split(":")
         assert len(feat_info) == 2, (
-            f"Unknown format of the feature name: {feat_name}, "
+            f"Unknown format of the feature name: {feat_name}, " \
             + "must be EDGE_TYPE:FEAT_NAME"
         )
         etype = feat_info[0].split(",")
         assert len(etype) == 3, (
-            f"EDGE_TYPE should have 3 strings: {etype}, "
+            f"EDGE_TYPE should have 3 strings: {etype}, " \
             + "must be NODE_TYPE,EDGE_TYPE,NODE_TYPE:"
         )
         etype = ":".join(etype)
@@ -69,22 +92,34 @@ def get_edge_feat_info(edge_feat_names):
             f"You already specify the feature names of {etype} "
             f"as {fname_dict[etype]}"
         )
-        assert isinstance(
-            feat_info[1], str
-        ), f"Feature name of {etype} should be a string not {feat_info[1]}"
         # multiple features separated by ','
         fname_dict[etype] = feat_info[1].split(",")
     return fname_dict
 
 
 def wholegraph_processing(
-    whole_feat_tensor, metadata, local_comm, feat, wg_folder, num_parts
+    whole_feat_tensor, metadata, feat, wg_folder, num_parts
 ):
-    """Convert DGL tensors to wholememory tensor"""
+    """Convert DGL tensors to wholememory tensor
+
+    Parameters
+    ----------
+    whole_feat_tensor : Tensor
+        The concatenated feature tensor of different partitions
+    metadata : Tensor
+        Metadata of the feature tensor
+    feat : str
+        Name of the feature to be converted
+    wg_folder : str
+        Name of the folder to store the converted files
+    num_parts : int
+        Number of partitions of the input features
+    """
     metadata[feat] = {
         "shape": list(whole_feat_tensor.shape),
         "dtype": str(whole_feat_tensor.dtype),
     }
+    local_comm = wgth.comm.get_local_device_communicator()
     # Round up the integer division to match WholeGraph partitioning scheme
     subpart_size = -(whole_feat_tensor.shape[0] // -num_parts)
 
@@ -113,8 +148,25 @@ def wholegraph_processing(
 
 
 def convert_feat_to_wholegraph(fname_dict, file_name, metadata, folder, use_low_mem):
-    """Convert features from distDGL tensor format to WholeGraph format"""
-    local_comm = wgth.comm.get_local_device_communicator()
+    """Convert features from distDGL tensor format to WholeGraph format
+
+    Parameters
+    ----------
+    fname_dict: dict of list
+        Dict of names of the edge features of different edge types
+    file_name:
+        Name of the feature file, either node_feat.dgl or edge_feat.dgl
+    metadata : Tensor
+        Metadata of the feature tensor
+    folder: str
+        Name of the folder of the input feature files
+    use_low_mem: bool
+        Whether to use low memory version for conversion
+
+    Returns
+    -------
+    list of tensors : distDGL tensors after trimming out the processed features
+    """
     wg_folder = os.path.join(folder, "wholegraph")
     folder_pattern = re.compile(r"^part[0-9]+$")
     part_files = [
@@ -148,7 +200,7 @@ def convert_feat_to_wholegraph(fname_dict, file_name, metadata, folder, use_low_
                 for t in feats_data:
                     del t[feat]
                 wholegraph_processing(
-                    whole_feat_tensor, metadata, local_comm, feat, wg_folder, num_parts
+                    whole_feat_tensor, metadata, feat, wg_folder, num_parts
                 )
 
     # This version is less memory-consuming. For each feature, it iterates through all the
@@ -158,7 +210,7 @@ def convert_feat_to_wholegraph(fname_dict, file_name, metadata, folder, use_low_
         for ntype, feats in fname_dict.items():
             for feat in feats:
                 feat = ntype + "/" + feat
-                node_feats_data = {feat: None}
+                node_feats_data = None
                 num_parts = 0
                 # Read features from file
                 for path in (os.path.join(folder, name) for name in part_files):
@@ -168,19 +220,16 @@ def convert_feat_to_wholegraph(fname_dict, file_name, metadata, folder, use_low_
                             f"Error: Unknown feature '{feat}'. Files contain \
                                        the following features: {nfeat.keys()}."
                         )
-                    if node_feats_data[feat] is None:
-                        node_feats_data[feat] = nfeat[feat]
+                    if node_feats_data is None:
+                        node_feats_data = nfeat[feat]
                     else:
-                        node_feats_data[feat] = torch.concat(
-                            (node_feats_data[feat], nfeat[feat]), dim=0
-                        )
+                        node_feats_data = torch.concat((node_feats_data, nfeat[feat]), dim=0)
                     num_parts += 1
                 del nfeat
                 gc.collect()
                 wholegraph_processing(
-                    node_feats_data[feat],
+                    node_feats_data,
                     metadata,
-                    local_comm,
                     feat,
                     wg_folder,
                     num_parts,
@@ -195,18 +244,26 @@ def convert_feat_to_wholegraph(fname_dict, file_name, metadata, folder, use_low_
                 # Delete processed feature from memory
                 for t in feats_data:
                     del t[feat]
-
     return feats_data
 
 
 def trim_feat_files(trimmed_feats, folder, file_name):
-    """Save new truncated distDGL tensors"""
+    """Save new truncated distDGL tensors
+    Parameters
+    ----------
+    trimmed_feats: list of tensors
+        distDGL tensors after trimming out the processed features
+    folder: str
+        Name of the folder of the input feature files
+    file_name:
+        Name of the feature file, either node_feat.dgl or edge_feat.dgl
+
+    """
     num_parts = len(trimmed_feats)
     for part in range(num_parts):
         dgl.data.utils.save_tensors(
             os.path.join(folder, f"part{part}", "new_" + file_name), trimmed_feats[part]
         )
-    # swap 'node_feat.dgl' files
     for part in range(num_parts):
         os.rename(
             os.path.join(folder, f"part{part}", file_name),
@@ -219,7 +276,6 @@ def trim_feat_files(trimmed_feats, folder, file_name):
 
 
 def main(folder, node_feat_names, edge_feat_names, use_low_mem=False):
-    """Convert node features from distDGL format to WholeGraph format"""
     os.environ["MASTER_ADDR"] = "127.0.0.1"
     os.environ["MASTER_PORT"] = "1234"
     torch.distributed.init_process_group("gloo", world_size=1, rank=0)
@@ -228,7 +284,7 @@ def main(folder, node_feat_names, edge_feat_names, use_low_mem=False):
         os.makedirs(wg_folder)
 
     logging.info(
-        "node features:{} and edge features: {} will be converted to WholeGraph"
+        "node features: %s and edge features: %s will be converted to WholeGraph"
         "format.".format(node_feat_names, edge_feat_names)
     )
 
