@@ -66,7 +66,9 @@ def generate_dummy_hetero_graph(size='tiny', gen_mask=True):
         ("n0", "r0", "n1"): (th.randint(data_size, (data_size,)),
                              th.randint(data_size, (data_size,))),
         ("n0", "r1", "n1"): (th.randint(data_size, (2 * data_size,)),
-                             th.randint(data_size, (2 * data_size,)))
+                             th.randint(data_size, (2 * data_size,))),
+        ("n1", "r2", "n0"): (th.randint(data_size, (2 * data_size,)),
+                             th.randint(data_size, (2 * data_size,))),
     }
 
     hetero_graph = dgl.heterograph(edges, num_nodes_dict=num_nodes_dict)
@@ -447,7 +449,7 @@ def load_lm_graph(part_config):
     g.nodes['n0'].data[VALID_LEN] = valid_len
     return g, lm_config
 
-def create_lm_graph(tmpdirname):
+def create_lm_graph(tmpdirname, text_ntype='n0'):
     """ Create a graph with textual feaures
         Only n0 has a textual feature.
         n1 does not have textual feature.
@@ -457,7 +459,7 @@ def create_lm_graph(tmpdirname):
     lm_config = [{"lm_type": "bert",
                   "model_name": bert_model_name,
                   "gradient_checkpoint": True,
-                  "node_types": ["n0"]}]
+                  "node_types": [text_ntype]}]
     # get the test dummy distributed graph
     g, part_config = generate_dummy_dist_graph(tmpdirname)
 
@@ -468,10 +470,10 @@ def create_lm_graph(tmpdirname):
         create_tokens(tokenizer=tokenizer,
                       input_text=input_text,
                       max_seq_length=max_seq_length,
-                      num_node=g.number_of_nodes('n0'))
+                      num_node=g.number_of_nodes(text_ntype))
 
-    g.nodes['n0'].data[TOKEN_IDX] = input_ids
-    g.nodes['n0'].data[VALID_LEN] = valid_len
+    g.nodes[text_ntype].data[TOKEN_IDX] = input_ids
+    g.nodes[text_ntype].data[VALID_LEN] = valid_len
 
     return lm_config, feat_size, input_ids, attention_mask, g, part_config
 

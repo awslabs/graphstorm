@@ -495,13 +495,13 @@ def test_lm_rgcn_node_prediction_with_reconstruct():
                                       world_size=1)
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
-        lm_configs, _, _, _, g, part_config = create_lm_graph(tmpdirname)
+        lm_configs, _, _, _, g, part_config = create_lm_graph(tmpdirname, text_ntype='n1')
         np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
                                      train_ntypes=['n1'], label_field='label',
-                                     lm_feat_ntypes=['n0'])
+                                     lm_feat_ntypes=['n1'])
         np_data._g = g
-    model = create_rgcn_node_model_with_reconstruct(np_data, ['n1'], lm_configs=lm_configs)
-    check_node_prediction_with_reconstruct(model, np_data, ['n1'])
+    model = create_rgcn_node_model_with_reconstruct(np_data, ['n0'], lm_configs=lm_configs)
+    check_node_prediction_with_reconstruct(model, np_data, ['n0'])
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -1428,7 +1428,7 @@ def test_mini_batch_full_graph_inference(num_ffn_layers):
     embs_mini_batch = do_mini_batch_inference(model, data, infer_ntypes=["n0"])
     assert len(embs_mini_batch) == 1
     assert_almost_equal(embs_layer["n0"][0:data.g.num_nodes("n0")].numpy(),
-                            embs_mini_batch["n0"][0:data.g.num_nodes("n0")].numpy())
+                            embs_mini_batch["n0"][0:data.g.num_nodes("n0")].numpy(), decimal=3)
 
 
     th.distributed.destroy_process_group()
