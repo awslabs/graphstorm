@@ -1277,8 +1277,8 @@ def test_parse_edge_data():
         assert "val_mask" in feat_data
         assert "test_mask" in feat_data
 
-@pytest.mark.parametrize("ext_mem", [None, "/"])
-def test_multicolumn(ext_mem):
+@pytest.mark.parametrize("ext_mem_path", [None, "/"])
+def test_multicolumn(ext_mem_path):
     # Just get the features without transformation.
     feat_op1 = [{
         "feature_col": ["test1", "test2"],
@@ -1295,7 +1295,7 @@ def test_multicolumn(ext_mem):
         "test2": np.random.rand(4, 2)
     }
     data["test3"] = np.column_stack((data['test1'], data['test2']))
-    proc_res = process_features(data, res, ext_mem=ext_mem)
+    proc_res = process_features(data, res, ext_mem_path=ext_mem_path)
     assert "test3" in proc_res
     assert proc_res["test3"].dtype == np.float32
     if isinstance(proc_res, ExtMemArrayWrapper):
@@ -1320,7 +1320,7 @@ def test_multicolumn(ext_mem):
     assert res[0].col_name == feat_op2[0]["feature_col"]
     assert res[0].feat_name == feat_op2[0]["feature_name"]
     assert isinstance(res[0], BucketTransform)
-    bucket_feats = process_features(data, res, ext_mem=ext_mem)
+    bucket_feats = process_features(data, res, ext_mem_path=ext_mem_path)
     assert "test3" in proc_res
     assert proc_res["test3"].dtype == np.float32
 
@@ -1375,7 +1375,7 @@ def test_multicolumn(ext_mem):
     assert res[0].col_name == feat_op3[0]["feature_col"]
     assert res[0].feat_name == feat_op3[0]["feature_name"]
     assert isinstance(res[0], RankGaussTransform)
-    rg_feats = process_features(data, res, ext_mem=ext_mem)
+    rg_feats = process_features(data, res, ext_mem_path=ext_mem_path)
     assert "test3" in proc_res
     assert proc_res["test3"].dtype == np.float32
 
@@ -1428,7 +1428,7 @@ def test_multicolumn(ext_mem):
     assert res[0].col_name == feat_op4[0]["feature_col"]
     assert res[0].feat_name == feat_op4[0]["feature_name"]
     assert isinstance(res[0], Text2BERT)
-    bert_feats = process_features(data, res, ext_mem=ext_mem)
+    bert_feats = process_features(data, res, ext_mem_path=ext_mem_path)
     assert "test3" in proc_res
 
     data_bert1 = {
@@ -1482,7 +1482,7 @@ def test_multicolumn(ext_mem):
     assert res[0].col_name == feat_op5[0]["feature_col"]
     assert res[0].feat_name == feat_op5[0]["feature_name"]
     assert isinstance(res[0], NumericalMinMaxTransform)
-    maxmin_feats = process_features(data, res, ext_mem=ext_mem)
+    maxmin_feats = process_features(data, res, ext_mem_path=ext_mem_path)
     assert "test3" in proc_res
     assert proc_res["test3"].dtype == np.float32
 
@@ -1603,7 +1603,7 @@ def test_multicolumn(ext_mem):
         "test3": np.random.rand(4, 2)
     }
     data["test4"] = np.column_stack((data['test1'], data['test2'], data['test3']))
-    proc_res = process_features(data, res, ext_mem=ext_mem)
+    proc_res = process_features(data, res, ext_mem_path=ext_mem_path)
     assert "test4" in proc_res
     assert proc_res["test4"].dtype == np.float32
     if isinstance(proc_res, ExtMemArrayWrapper):
@@ -1623,12 +1623,12 @@ def test_feature_wrapper():
     try:
         a = test_extfeature_wrapper[:]
     except RuntimeError as e:
-        assert str(e) == "The ExtFeatureWrapper needs to be merge first"
+        assert str(e) == "Call ExtFeatureWrapper.merge() first before calling __getitem__"
 
     try:
         a = test_extfeature_wrapper.to_numpy()
     except RuntimeError as e:
-        assert str(e) == "The ExtFeatureWrapper needs to be merge first"
+        assert str(e) == "Call ExtFeatureWrapper.merge() first before calling to_numpy()"
 
     test_extfeature_wrapper.append(data["test1"])
     file_count = sum(1 for name in os.listdir("/tmp_featurewrapper")
