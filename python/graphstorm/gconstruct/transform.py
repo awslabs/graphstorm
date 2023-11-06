@@ -1091,6 +1091,9 @@ def preprocess_features(data, ops):
                     f"It is expected only have one feature name after preprocessing features " \
                     f"for multiple column feature transformation, but get {len(res)}"
             for key, val in res.items():
+                if key in pre_data:
+                    assert pre_data[key] == val, f"It is expected same preprocessed value " \
+                                                 f"for each column but get {pre_data[key]} and {val}"
                 pre_data[key] = val
 
     return pre_data
@@ -1144,6 +1147,7 @@ def process_features(data, ops, ext_mem_path=None):
                         val = val.to_numpy().reshape(-1, 1)
                     else:
                         val = val.reshape(-1, 1)
+                # Tokenizer will have multiple key, value pair return
                 if len(col_name) == 1:
                     new_data[key] = val
                     continue

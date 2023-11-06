@@ -1565,7 +1565,7 @@ def test_multicolumn(ext_mem_path):
     }]
     try:
         (res, _, _) = parse_feat_ops(feat_op8)
-        assert False, "expected Error raised for invalid feature column"
+        assert False, "expected Error raised for invalid feature column []"
     except AssertionError as e:
         assert str(e) == "feature column should not be empty"
 
@@ -1576,7 +1576,7 @@ def test_multicolumn(ext_mem_path):
     }]
     try:
         (res, _, _) = parse_feat_ops(feat_op9)
-        assert False, "expected Error not raised for invalid feature column"
+        assert False, "expected Error not raised for invalid feature column """
     except AssertionError as e:
         assert str(e) == "feature column should not be empty"
 
