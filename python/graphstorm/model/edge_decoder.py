@@ -740,7 +740,9 @@ class LinkPredictContrastiveDotDecoder(LinkPredictDotDecoder):
                 # (10, 20)    |  (10, 3), (10, 1), (10, 0), (10, 22)
                 # (13, 6)     |  (13, 3), (13, 1), (13, 0), (13, 22)
                 # (29, 8)     |  (29, 3), (29, 1), (29, 0), (29, 22)
-                u_sort_idx = th.argsort(u)
+                # TODO: use stable to keep the order of negatives. This may not
+                # be necessary
+                u_sort_idx = th.argsort(u, stable=True)
                 u = u[u_sort_idx]
                 v = v[u_sort_idx]
                 src_emb = h[src_type][u]
@@ -990,7 +992,10 @@ class LinkPredictContrastiveDistMultDecoder(LinkPredictDistMultDecoder):
                 # (10, 20)    |  (10, 3), (10, 1), (10, 0), (10, 22)
                 # (13, 6)     |  (13, 3), (13, 1), (13, 0), (13, 22)
                 # (29, 8)     |  (29, 3), (29, 1), (29, 0), (29, 22)
-                u_sort_idx = th.argsort(u)
+                #
+                # TODO: use stable to keep the order of negatives. This may not
+                # be necessary
+                u_sort_idx = th.argsort(u, stable=True)
                 u = u[u_sort_idx]
                 v = v[u_sort_idx]
                 src_emb = h[src_type][u]

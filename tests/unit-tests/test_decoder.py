@@ -481,9 +481,9 @@ def test_MLPEFeatEdgeDecoder(h_dim, feat_dim, out_dim, num_ffn_layers):
         assert_almost_equal(prediction.cpu().numpy(), pred.cpu().numpy())
 
 if __name__ == '__main__':
-    test_LinkPredictContrastiveDistMultDecoder(16, 8, 1, "cpu")
+    test_LinkPredictContrastiveDistMultDecoder(32, 8, 16, "cpu")
     test_LinkPredictContrastiveDistMultDecoder(16, 32, 32, "cuda:0")
-    test_LinkPredictContrastiveDotDecoder(16, 8, 1, "cpu")
+    test_LinkPredictContrastiveDotDecoder(32, 8, 16, "cpu")
     test_LinkPredictContrastiveDotDecoder(16, 32, 32, "cuda:0")
 
     test_LinkPredictDistMultDecoder(16, 8, 1, "cpu")
