@@ -26,6 +26,9 @@ from pyspark.ml import Pipeline
 from pyspark.ml.functions import array_to_vector, vector_to_array
 
 import numpy as np
+import uuid
+import pandas as pd
+from scipy.special import erfinv
 
 from graphstorm_processing.constants import SPECIAL_CHARACTERS, VALID_IMPUTERS, VALID_NORMALIZERS
 from .base_dist_transformation import DistributedTransformation
@@ -74,7 +77,8 @@ def apply_imputation(cols: Sequence[str], shared_imputation: str, input_df: Data
     return imputed_df
 
 
-def apply_norm(cols: Sequence[str], shared_norm: str, imputed_df: DataFrame) -> DataFrame:
+def apply_norm(cols: Sequence[str], shared_norm: str, imputed_df: DataFrame,
+               epsilon: float = 1e-6) -> DataFrame:
     """Applies a single normalizer to the imputed dataframe, individually to each of the columns
     provided in the cols argument.
 
@@ -84,10 +88,13 @@ def apply_norm(cols: Sequence[str], shared_norm: str, imputed_df: DataFrame) -> 
         List of column names to apply normalization to.
     shared_norm : str
         The type of normalization to use. Valid values are "none", "min-max",
-        "standard".
+        "standard", "rank-gauss"
     imputed_df : DataFrame
         The input DataFrame to apply normalization to. It should not contain
         missing values.
+    epsilon: float
+        Epsilon for normalization used to avoid INF float during computation
+        on "rank-gauss".
 
     Returns
     -------
@@ -146,6 +153,30 @@ def apply_norm(cols: Sequence[str], shared_norm: str, imputed_df: DataFrame) -> 
         scaled_df = imputed_df.select(
             [(F.col(c) / col_sums[f"sum({c})"]).alias(c) for c in cols] + other_cols
         )
+    elif shared_norm == "rank-gauss":
+        assert len(cols) == 1, \
+            "Rank Guass numerical transformation only supports single column"
+        for column_name in cols:
+            select_df = imputed_df.select(column_name)
+            original_id_rank = f'id_{uuid.uuid4().hex[8]}'
+            index_id_rank = f'index_{uuid.uuid4().hex[8]}'
+            id_df = select_df.withColumn(original_id_rank,
+                                         F.monotonically_increasing_id())
+            sorted_df = id_df.orderBy(column_name)
+            indexed_df = sorted_df.withColumn(index_id_rank,
+                                              F.monotonically_increasing_id())
+
+            def gauss_transform(rank: pd.Series) -> pd.Series:
+                feat_range = num_rows - 1
+                clipped_rank = (rank / feat_range - 0.5) * 2
+                clipped_rank = np.maximum(np.minimum(clipped_rank, 1 - epsilon), epsilon - 1)
+                return pd.Series(erfinv(clipped_rank))
+
+            gauss_udf = F.pandas_udf(gauss_transform, FloatType())
+            num_rows = indexed_df.count()
+            normalized_df = indexed_df.withColumn(column_name, gauss_udf(index_id_rank))
+            scaled_df = normalized_df.orderBy(original_id_rank)\
+                                     .drop(index_id_rank, original_id_rank)
 
     return scaled_df
 
@@ -160,16 +191,20 @@ class DistNumericalTransformation(DistributedTransformation):
         The list of columns to apply the transformations on.
     normalizer : str
         The normalization to apply to the columns.
-        Valid values are "none", "min-max", and "standard".
+        Valid values are "none", "min-max", "standard", "rank-gauss".
     imputer : str
         The type of missing value imputation to apply to the column.
         Valid values are "mean", "median" and "most_frequent".
+    epsilon: float
+        Epsilon for normalization used to avoid INF float during computation.
     """
 
-    def __init__(self, cols: Sequence[str], normalizer: str, imputer: str) -> None:
+    def __init__(self, cols: Sequence[str], normalizer: str, imputer: str,
+                 epsilon: float = 1e-6) -> None:
         super().__init__(cols)
         self.cols = cols
         self.shared_norm = normalizer
+        self.epsilon = epsilon
         # Spark uses 'mode' for the most frequent element
         self.shared_imputation = "mode" if imputer == "most_frequent" else imputer
 
@@ -179,7 +214,7 @@ class DistNumericalTransformation(DistributedTransformation):
         )
 
         imputed_df = apply_imputation(self.cols, self.shared_imputation, input_df)
-        scaled_df = apply_norm(self.cols, self.shared_norm, imputed_df)
+        scaled_df = apply_norm(self.cols, self.shared_norm, imputed_df, self.epsilon)
 
         # TODO: Figure out why the transformation is producing Double values, and switch to float
         return scaled_df

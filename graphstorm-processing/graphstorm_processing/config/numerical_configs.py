@@ -32,7 +32,7 @@ class NumericalFeatureConfig(FeatureConfig):
 
     normalizer: str
         A normalization to apply to each column. Valid values are
-        "none", "min-max", and "standard".
+        "none", "min-max", "standard", and "rank-gauss"
 
         The transformation applied will be:
 
@@ -40,6 +40,7 @@ class NumericalFeatureConfig(FeatureConfig):
         * "min-max": Normalize each value by subtracting the minimum value from it,
         and then dividing it by the difference between the maximum value and the minimum.
         * "standard": Normalize each value by dividing it by the sum of all the values.
+        * "rank-gauss": Normalize each value by rank gauss normalization.
     """
 
     def __init__(self, config: Mapping):
@@ -143,51 +144,3 @@ class BucketNumericalFeatureConfig(FeatureConfig):
         assert (
             isinstance(self.slide_window_size, numbers.Number) or self.slide_window_size == "none"
         ), f"Expect no slide window size or expect {self.slide_window_size} is a number"
-
-
-class RankGaussNumericalFeatureConfig(FeatureConfig):
-    """Feature configuration for rank gauss numerical features.
-
-    Supported kwargs
-    ----------------
-    imputer: str
-        A method to fill in missing values in the data. Valid values are:
-        "none" (Default), "mean", "median", and "most_frequent". Missing values will be replaced
-        with the respective value computed from the data.
-
-    normalizer: str
-        A normalization to apply to each column. Valid values are
-        "none", "min-max", and "standard".
-
-        The transformation applied will be:
-
-        * "none": (Default) Don't normalize the numerical values during encoding.
-        * "min-max": Normalize each value by subtracting the minimum value from it,
-        and then dividing it by the difference between the maximum value and the minimum.
-        * "standard": Normalize each value by dividing it by the sum of all the values.
-
-    epsilon: float
-        Epsilon for normalization used to avoid INF float during computation.
-    """
-
-    def __init__(self, config: Mapping):
-        super().__init__(config)
-        self.imputer = self._transformation_kwargs.get("imputer", "none")
-        self.norm = self._transformation_kwargs.get("normalizer", "none")
-        self.epsilon = self._transformation_kwargs.get("epsilon", "none")
-
-        self._sanity_check()
-
-    def _sanity_check(self) -> None:
-        super()._sanity_check()
-        assert (
-            self.imputer in VALID_IMPUTERS
-        ), f"Unknown imputer requested, expected one of {VALID_IMPUTERS}, got {self.imputer}"
-        assert (
-            self.norm in VALID_NORMALIZERS
-        ), f"Unknown normalizer requested, expected one of {VALID_NORMALIZERS}, got {self.norm}"
-        assert (
-            self.epsilon == "none" or (isinstance(self.epsilon, numbers.Number) and
-                                       0.0 <= self.epsilon < 1.0)
-        ), f"Expect epsilon {self.epsilon} be in range [0, 1], or not provided"
-        

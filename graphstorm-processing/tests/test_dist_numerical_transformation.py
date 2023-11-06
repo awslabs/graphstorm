@@ -17,10 +17,11 @@ import os
 
 import pytest
 import pandas as pd
-from numpy.testing import assert_array_equal, assert_array_almost_equal
+import numpy as np
+from numpy.testing import assert_array_equal, assert_array_almost_equal, assert_almost_equal
 from pyspark.sql import SparkSession, DataFrame, functions as F
 from pyspark.sql.types import ArrayType, FloatType, StructField, StructType, StringType
-
+from scipy.special import erfinv
 from graphstorm_processing.data_transformations.dist_transformations import (
     DistNumericalTransformation,
     DistMultiNumericalTransformation,
@@ -297,3 +298,63 @@ def test_multi_numerical_transformation_with_array_input(spark: SparkSession, ch
     transformed_rows = transformed_df.collect()
     for row, expected_vector in zip(transformed_rows, expected_vals):
         assert_array_almost_equal(row["feat"], expected_vector, decimal=3)
+
+
+def rank_gauss(feat, eps):
+    lower = -1 + eps
+    upper = 1 - eps
+    range = upper - lower
+    i = np.argsort(feat, axis=0)
+    j = np.argsort(i, axis=0)
+    j_range = len(j) - 1
+    divider = j_range / range
+    feat = j / divider
+    feat = feat - upper
+    return erfinv(feat)
+
+
+@pytest.mark.parametrize("epsilon", [0.0, 1e-6])
+def test_rank_gauss(spark: SparkSession, check_df_schema, epsilon):
+    data = [("mark", 0.0, None), ("john", 15.0, 10000), ("tara", 26.0, 20000), ("jen", 40.0, 10000)]
+
+    columns = ["name", "age", "salary"]
+    input_df = spark.createDataFrame(data, schema=columns)
+    rg_transformation = DistNumericalTransformation(
+        ["age"], imputer="none", normalizer="rank-gauss", epsilon=epsilon
+    )
+
+    output_df = rg_transformation.apply(input_df)
+    check_df_schema(output_df)
+
+    out_rows = output_df.collect()
+
+    expected_vals = rank_gauss(np.array([[0.0], [15.0], [26.0], [40.0]]), epsilon)
+    for i, row in enumerate(out_rows):
+        assert_almost_equal([row["age"]], expected_vals[i, :], decimal=4, err_msg=f"Row {i} is not equal")
+
+
+@pytest.mark.parametrize("epsilon", [0.0, 1e-6])
+def test_rank_gauss_reshuffling(spark: SparkSession, check_df_schema, epsilon):
+    # Create DF with 10k values
+    random_values = np.random.rand(10 ** 3, 1)
+
+    # Convert the array of values into a list of single-value lists
+    data = [(float(value),) for value in random_values]
+    input_df = spark.createDataFrame(data, schema=["rand"])
+    # repartition dataset
+    input_df = input_df.repartition(4)
+    # collect partitioned data pre-transform
+    part_rows = [[row["rand"]] for row in input_df.collect()]
+
+    rg_transformation = DistNumericalTransformation(
+        ["rand"], imputer="none", normalizer="rank-gauss", epsilon=epsilon
+    )
+
+    output_df = rg_transformation.apply(input_df)
+    check_df_schema(output_df)
+
+    out_rows = output_df.collect()
+
+    expected_vals = rank_gauss(np.array(part_rows), epsilon)
+    for i, row in enumerate(out_rows):
+        assert_almost_equal([row["rand"]], expected_vals[i, :], decimal=4, err_msg=f"Row {i} is not equal")

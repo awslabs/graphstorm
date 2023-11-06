@@ -287,16 +287,16 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "column": "num_citations",
             'name': 'rank_gauss1',
             "transformation": {
-                "name": "rank-gauss",
-                "kwargs": {"normalizer": "none", "imputer": "none"},
+                "name": "numerical",
+                "kwargs": {"normalizer": "rank-gauss", "imputer": "none"},
             },
         },
         {
             "column": "num_citations",
             'name': 'rank_gauss2',
             "transformation": {
-                "name": "rank-gauss",
-                "kwargs": {"epsilon": 0.1, "normalizer": "none", "imputer": "none"},
+                "name": "numerical",
+                "kwargs": {"epsilon": 0.1, "normalizer": "rank-gauss", "imputer": "none"},
             },
         },
     ]

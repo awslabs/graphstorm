@@ -94,7 +94,6 @@ class GConstructConfigConverter(ConfigConverter):
             gsp_transformation_dict: dict[str, Any] = {}
             if "transform" in gconstruct_feat_dict:
                 gconstruct_transform_dict = gconstruct_feat_dict["transform"]
-
                 if gconstruct_transform_dict["name"] == "max_min_norm":
                     gsp_transformation_dict["name"] = "numerical"
                     gsp_transformation_dict["kwargs"] = {"normalizer": "min-max", "imputer": "none"}
@@ -113,14 +112,14 @@ class GConstructConfigConverter(ConfigConverter):
                         "imputer": "none",
                     }
                 elif gconstruct_transform_dict["name"] == "rank_gauss":
-                    gsp_transformation_dict["name"] = "rank-gauss"
+                    gsp_transformation_dict["name"] = "numerical"
                     if "epsilon" in gconstruct_transform_dict:
                         # pylint: disable=line-too-long
                         gsp_transformation_dict["kwargs"] = {"epsilon": gconstruct_transform_dict["epsilon"],
-                                                            "normalizer": "none", "imputer": "none"}
+                                                            "normalizer": "rank-gauss", "imputer": "none"}
                     else:
                         # pylint: disable=line-too-long
-                        gsp_transformation_dict["kwargs"] = {"normalizer": "none", "imputer": "none"}
+                        gsp_transformation_dict["kwargs"] = {"normalizer": "rank-gauss", "imputer": "none"}
                 # TODO: Add support for other common transformations here
                 else:
                     raise ValueError(
