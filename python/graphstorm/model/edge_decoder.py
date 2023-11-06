@@ -714,6 +714,10 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
         return 1
 
 class LinkPredictContrastiveDotDecoder(LinkPredictDotDecoder):
+    """ Link prediction decoder designed for contrastive loss
+        with the score function of dot product
+    """
+
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
         with g.local_scope():
@@ -956,6 +960,10 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
         return 1
 
 class LinkPredictContrastiveDistMultDecoder(LinkPredictDistMultDecoder):
+    """ Link prediction decoder designed for contrastive loss
+        with the score function of DistMult
+    """
+
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
         with g.local_scope():
