@@ -946,8 +946,6 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
             transformed_feature_df = transformer.apply_transformation(nodes_df)
 
-            logging.info("I am going to show the result here")
-            transformed_feature_df.show()
             # TODO: Remove hack with [feat_conf.feat_name]
             for feat_name, feat_col in zip([feat_conf.feat_name], feat_conf.cols):
                 node_transformation_start = perf_counter()

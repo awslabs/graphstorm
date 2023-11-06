@@ -88,7 +88,7 @@ def apply_norm(cols: Sequence[str], shared_norm: str, imputed_df: DataFrame,
         List of column names to apply normalization to.
     shared_norm : str
         The type of normalization to use. Valid values are "none", "min-max",
-        "standard", "rank-gauss"
+        "standard", "rank-gauss".
     imputed_df : DataFrame
         The input DataFrame to apply normalization to. It should not contain
         missing values.
