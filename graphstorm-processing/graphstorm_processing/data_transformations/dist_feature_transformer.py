@@ -23,6 +23,7 @@ from .dist_transformations import (
     NoopTransformation,
     DistNumericalTransformation,
     DistMultiNumericalTransformation,
+    DistBucketNumericalTransformation,
 )
 
 
@@ -48,6 +49,8 @@ class DistFeatureTransformer(object):
             self.transformation = DistNumericalTransformation(**default_kwargs, **args_dict)
         elif feat_type == "multi-numerical":
             self.transformation = DistMultiNumericalTransformation(**default_kwargs, **args_dict)
+        elif feat_type == "bucket-numerical":
+            self.transformation = DistBucketNumericalTransformation(**default_kwargs, **args_dict)
         else:
             raise NotImplementedError(
                 f"Feature {feat_name} has type: {feat_type} that is not supported"

@@ -222,6 +222,12 @@ class LMModels(nn.Module):
         """
         return list(self._lm_models.values())
 
+    def get_all_lm_hashes(self):
+        """ Compute the hash codes of all LM models across ntypes
+        """
+        all_hashes = [self.get_lm_model_hash(ntype) for ntype in self.ntypes]
+        return ':'.join(all_hashes)
+
 class LMCache:
     """ Cache for the LM embeddings.
 
@@ -237,6 +243,7 @@ class LMCache:
         self._lm_models = lm_models
         self._lm_emb_cache = {}
         self._embed_path = embed_path
+        self._lm_hash = ''
 
     def _get_model_hash(self, ntype):
         """ Get the hash code of a model.
@@ -322,11 +329,18 @@ class LMCache:
         if self._embed_path is not None:
             self._load_embeddings()
 
-        # If all embeddings are cached, don't compute the embeddings again.
+        # If all embeddings are cached:
         if np.all([ntype in self._lm_emb_cache for ntype in self._lm_models.ntypes]):
-            return
+            # check if lm is updated, if lm is updated, clear the current cache
+            if self._lm_hash != self._lm_models.get_all_lm_hashes():
+                self._clear_cache()
+            else:
+                # if lm models was not updated, don't compute the embeddings again
+                return
 
         embed_ndata_names = self.embed_ndata_name
+        # store/update the lm model hash used for the cache
+        self._lm_hash = self._lm_models.get_all_lm_hashes()
         for ntype in self._lm_models.ntypes:
             if get_rank() == 0:
                 logging.debug("compute embedding for node type %s", ntype)
@@ -372,6 +386,12 @@ class LMCache:
 
         if self._embed_path is not None:
             self._save_embeddings()
+
+    def _clear_cache(self):
+        """ Delete the current LM embed cache.
+        """
+        self._lm_hash = ''
+        self._lm_emb_cache = {}
 
 class GSPureLMNodeInputLayer(GSNodeInputLayer):
     """The input embedding layer with language model only for all nodes in a
