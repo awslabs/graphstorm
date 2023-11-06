@@ -20,6 +20,7 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import FloatType
 import numpy as np
 import pandas as pd
+# pylint: disable = no-name-in-module
 from scipy.special import erfinv
 
 from .base_dist_transformation import DistributedTransformation

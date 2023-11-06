@@ -115,9 +115,11 @@ class GConstructConfigConverter(ConfigConverter):
                 elif gconstruct_transform_dict["name"] == "rank_gauss":
                     gsp_transformation_dict["name"] = "rank-gauss"
                     if "epsilon" in gconstruct_transform_dict:
+                        # pylint: disable=line-too-long
                         gsp_transformation_dict["kwargs"] = {"epsilon": gconstruct_transform_dict["epsilon"],
                                                             "normalizer": "none", "imputer": "none"}
                     else:
+                        # pylint: disable=line-too-long
                         gsp_transformation_dict["kwargs"] = {"normalizer": "none", "imputer": "none"}
                 # TODO: Add support for other common transformations here
                 else:
