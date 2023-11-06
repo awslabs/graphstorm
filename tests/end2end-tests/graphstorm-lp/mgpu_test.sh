@@ -525,4 +525,4 @@ python3 -m graphstorm.run.launch --workspace $GS_HOME/training_scripts/gsgnn_lp 
 
 error_and_exit $?
 
-rm -fr /tmp/
+rm -fr /tmp/*

@@ -441,4 +441,4 @@ python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_s
 
 error_and_exit $?
 
-rm -fr /tmp/
+rm -fr /tmp/*
