@@ -1302,6 +1302,7 @@ def test_multicolumn(ext_mem_path):
         proc_res = proc_res.to_numpy()
     np.testing.assert_allclose(proc_res["test3"], data["test3"])
 
+    # test on multiple column bucket feature transformation
     feat_op2 = [{
         "feature_col": ["test1", "test2"],
         "feature_name": "test3",
@@ -1359,6 +1360,7 @@ def test_multicolumn(ext_mem_path):
         bucket_feats = bucket_feats.to_numpy()
     assert_equal(bucket_feats["test3"], bucket_expec)
 
+    # test on multiple column rank-gauss feature transformation
     feat_op3 = [{
         "feature_col": ["test1", "test2"],
         "feature_name": "test3",
@@ -1410,6 +1412,7 @@ def test_multicolumn(ext_mem_path):
         rg_feats = rg_feats.to_numpy()
     assert_equal(rg_feats["test3"], rg_expec)
 
+    # test on multiple column bert_hf feature transformation
     feat_op4 = [{
         "feature_col": ["test1", "test2"],
         "feature_name": "test3",
@@ -1464,6 +1467,7 @@ def test_multicolumn(ext_mem_path):
         bert_feats = bert_feats.to_numpy()
     assert_equal(bert_feats["test3"], bert_expec)
 
+    # test on max_min_norm with specifying max_val and min_val
     feat_op5 = [{
         "feature_col": ["test1", "test2"],
         "feature_name": "test3",
@@ -1521,6 +1525,8 @@ def test_multicolumn(ext_mem_path):
         maxmin_feats = maxmin_feats.to_numpy()
     assert_equal(maxmin_feats["test3"], maxmin_expec)
 
+    # test on max_min_norm without specifying max_val and min_val,
+    # expect to throw error
     feat_op6 = [{
         "feature_col": ["test1", "test2"],
         "feature_name": "test3",
@@ -1536,6 +1542,7 @@ def test_multicolumn(ext_mem_path):
         assert str(e) == "max_val and min_val for max_min_norm " \
                          "feature transformation is needed"
 
+    # test on to_categorical, expect to throw error
     feat_op7 = [{
         "feature_col": ["test1", "test2"],
         "feature_name": "test3",
@@ -1551,6 +1558,7 @@ def test_multicolumn(ext_mem_path):
         assert str(e) == "Do not support categorical feature " \
                          "transformation on multiple columns"
 
+    # test on no input
     feat_op8 = [{
         "feature_col": [],
         "feature_name": "test3"
@@ -1561,6 +1569,7 @@ def test_multicolumn(ext_mem_path):
     except AssertionError as e:
         assert str(e) == "feature column should not be empty"
 
+    # test on no input column
     feat_op9 = [{
         "feature_col": "",
         "feature_name": "test3"
@@ -1571,6 +1580,7 @@ def test_multicolumn(ext_mem_path):
     except AssertionError as e:
         assert str(e) == "feature column should not be empty"
 
+    # tests on tokenize_hf, expect to throw error
     feat_op10 = [{
         "feature_col": ["test1", "test2"],
         "feature_name": "test3",
@@ -1597,6 +1607,7 @@ def test_multicolumn(ext_mem_path):
     assert res[0].feat_name == feat_op11[0]["feature_name"]
     assert isinstance(res[0], Noop)
 
+    # tests on more than 2 columns
     data = {
         "test1": np.random.rand(4, 2),
         "test2": np.random.rand(4, 2),

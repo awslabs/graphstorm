@@ -561,8 +561,7 @@ class ExtFeatureWrapper(ExtNumpyWrapper):
 
     def __getitem__(self, idx):
         if not self._shape:
-            raise RuntimeError("Call ExtFeatureWrapper.merge() first \
-                                before calling __getitem__")
+            raise RuntimeError("Call ExtFeatureWrapper.merge() first before calling __getitem__")
         if self._arr is None:
             self._arr = np.memmap(self._arr_path, self._dtype, mode="r",
                                   shape=self._shape)
@@ -582,8 +581,7 @@ class ExtFeatureWrapper(ExtNumpyWrapper):
         """ Convert the data to Numpy array.
         """
         if not self._shape:
-            raise RuntimeError("Call ExtFeatureWrapper.merge() first "
-                               "before calling to_numpy()")
+            raise RuntimeError("Call ExtFeatureWrapper.merge() first before calling to_numpy()")
         if self._arr is None:
             arr = np.memmap(self._arr_path, self._orig_dtype, mode="r", shape=self._shape)
             if self._dtype != self._orig_dtype:
