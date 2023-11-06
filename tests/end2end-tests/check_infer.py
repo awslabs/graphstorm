@@ -69,8 +69,8 @@ if __name__ == '__main__':
                 infer_emb.append(th.load(os.path.join(args.infer_embout, f), weights_only=True))
         infer_emb = th.cat(infer_emb, dim=0)
 
-        assert train_emb.shape[0] == infer_emb.shape[0]
-        assert train_emb.shape[1] == infer_emb.shape[1]
+        assert train_emb.shape == infer_emb.shape, \
+                f"The shape doesn't match: {train_emb.shape} vs. {infer_emb.shape}"
 
         if args.mini_batch_infer:
             # When inference is done with minibatch inference, only node
