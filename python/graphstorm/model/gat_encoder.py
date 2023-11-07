@@ -15,9 +15,12 @@
 
     Sage layer implementation.
 """
+import torch as th
 from torch import nn
 import torch.nn.functional as F
+import dgl
 import dgl.nn as dglnn
+from dgl.distributed.constants import DEFAULT_NTYPE
 
 from .ngnn_mlp import NGNNMLP
 from .gnn_encoder_base import GraphConvEncoder
@@ -93,18 +96,30 @@ class GATConv(nn.Module):
         dict{"_N", torch.Tensor}
             New node features for each node type.
         """
+        # add self-loop during computation.
+        src, dst = g.edges()
+        src = th.cat([src, th.arange(g.num_dst_nodes(), device=g.device)], dim=0)
+        dst = th.cat([dst, th.arange(g.num_dst_nodes(), device=g.device)], dim=0)
+        new_g= dgl.create_block(
+            (src, dst),
+            num_src_nodes=g.num_src_nodes(),
+            num_dst_nodes=g.num_dst_nodes(),
+            device=g.device
+        )
+
+        new_g.nodes[DEFAULT_NTYPE].data[dgl.NID] = g.nodes[DEFAULT_NTYPE].data[dgl.NID]
         g = g.local_var()
 
-        assert '_N' in inputs, "GAT encoder only support homogeneous graph."
+        assert DEFAULT_NTYPE in inputs, "GAT encoder only support homogeneous graph."
+        inputs = inputs[DEFAULT_NTYPE]
 
-        inputs = inputs['_N']
         h_conv = self.conv(g, inputs)
         h_conv = h_conv.view(h_conv.shape[0], h_conv.shape[1] * h_conv.shape[2])
 
         if self.num_ffn_layers_in_gnn > 0:
             h_conv = self.ngnn_mlp(h_conv)
 
-        return {'_N': h_conv}
+        return {DEFAULT_NTYPE: h_conv}
 
 class GATEncoder(GraphConvEncoder):
     r""" GAT Conv Encoder
@@ -114,7 +129,7 @@ class GATEncoder(GraphConvEncoder):
 
     Examples:
     ----------
-    
+
     .. code:: python
 
         # Build model and do full-graph inference on GATEncoder
@@ -164,6 +179,7 @@ class GATEncoder(GraphConvEncoder):
                  num_hidden_layers=1,
                  dropout=0,
                  activation=F.relu,
+                 last_layer_act=False,
                  num_ffn_layers_in_gnn=0):
         super(GATEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
 
@@ -171,13 +187,12 @@ class GATEncoder(GraphConvEncoder):
         for _ in range(num_hidden_layers):
             self.layers.append(GATConv(h_dim, h_dim, num_heads,
                                         activation=activation,
-                                        dropout=dropout, bias=False,
+                                        dropout=dropout, bias=True,
                                         num_ffn_layers_in_gnn=num_ffn_layers_in_gnn))
 
         self.layers.append(GATConv(h_dim, out_dim, num_heads,
-                                    activation=activation,
-                                    dropout=dropout, bias=False,
-                                    num_ffn_layers_in_gnn=num_ffn_layers_in_gnn))
+                                    activation=activation if last_layer_act else None,
+                                    dropout=dropout, bias=True))
 
     def forward(self, blocks, h):
         """Forward computation
