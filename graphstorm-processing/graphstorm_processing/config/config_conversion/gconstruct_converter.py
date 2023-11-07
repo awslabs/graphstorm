@@ -242,4 +242,3 @@ class GConstructConfigConverter(ConfigConverter):
 
             res.append(cur_edge_config)
         return res
-    
