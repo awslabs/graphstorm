@@ -420,6 +420,16 @@ arguments.
         by specifying a slide-window size ``s``, where ``s`` can an integer or float. GSProcessing then transforms each
         numeric value ``v`` of the property into a range from ``v - s/2`` through ``v + s/2`` , and assigns the value v
         to every bucket that the range covers.
+
+-  ``categorical``
+
+   -  Transforms one value from a fixed list of possible values is a categorical feature which are encoded using one-hot encoding.
+
+-  ``multi_categorical``
+
+   -  Apply column-wise transformation for vector-like data from a fixed list of possible values is a categorical feature which are encoded using multi-hot encoding.
+      It only supports single column for GSProcessing.
+
 --------------
 
 Examples

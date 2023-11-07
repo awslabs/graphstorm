@@ -217,6 +217,20 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
                         "slide_window_size": 5,
                     },
                 },
+                {
+                    "feature_col": ["num_citations"],
+                    "transform": {
+                        "name": "to_categorical",
+                        "mapping": {"1", "2", "3"}
+                    },
+                },
+                {
+                    "feature_col": ["num_citations"],
+                    "transform": {
+                        "name": "to_categorical",
+                        "separator": ","
+                    },
+                },
             ],
             "labels": [
                 {"label_col": "label", "task_type": "classification", "split_pct": [0.8, 0.1, 0.1]}
@@ -270,6 +284,22 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
                     "range": [10, 100],
                     "slide_window_size": 5,
                     "imputer": "none",
+                },
+            },
+        },
+        {
+            "column": "num_citations",
+            "transformation": {
+                "name": "categorical",
+                "kwargs": {},
+            },
+        },
+        {
+            "column": "num_citations",
+            "transformation": {
+                "name": "multi-categorical",
+                "kwargs": {
+                    "separator": ","
                 },
             },
         },
