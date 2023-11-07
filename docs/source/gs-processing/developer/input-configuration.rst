@@ -387,11 +387,11 @@ arguments.
          - ``min-max``: Normalize each value by subtracting the minimum value from it,
          and then dividing it by the difference between the maximum value and the minimum.
          - ``standard``: Normalize each value by dividing it by the sum of all the values.
-         - ``rank-gauss``: Normalize each value by rank-gauss normalization. It maps the numeric feature values
-         to gaussian distribution based on ranking. Rank-gauss normalization requires lots of data reshuffling,
-         so it will be a great cost for memory. It is only for single column.
-      - ``epsilon``: Epsilon for normalization used to avoid INF float during computation
-        on "rank-gauss".
+         - ``rank-gauss``: Normalize each value using Rank-Gauss normalization. Rank-gauss first ranks all values,
+         converts the ranks to the -1/1 range, and applies the `inverse of the error function <https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.erfinv.html>`_ to make the values conform
+         to a Gaussian distribution shape. This transformation only supports a single column as input.
+      - ``epsilon``: Only relevant for ``rank-gauss``, this epsilon value is added to the denominator
+        to avoid infinite values during normalization.
 -  ``multi-numerical``
 
    -  Column-wise transformation for vector-like numerical data using a missing data imputer and an
