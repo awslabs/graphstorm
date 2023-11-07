@@ -367,7 +367,8 @@ def partion_and_load_distributed_graph(hetero_graph, dirname, graph_name='dummy'
     dist_graph = dist.DistGraph(graph_name=graph_name, part_config=part_config)
     return dist_graph, part_config
 
-def generate_dummy_dist_graph(dirname, size='tiny', graph_name='dummy', gen_mask=True, is_homo=False):
+def generate_dummy_dist_graph(dirname, size='tiny', graph_name='dummy',
+                              gen_mask=True, is_homo=False, add_reverse=False):
     """
     Generate a dummy DGL distributed graph with the given size
     Parameters
@@ -382,7 +383,8 @@ def generate_dummy_dist_graph(dirname, size='tiny', graph_name='dummy', gen_mask
     part_config : the path of the partition configuration file.
     """
     if not is_homo:
-        hetero_graph = generate_dummy_hetero_graph(size=size, gen_mask=gen_mask)
+        hetero_graph = generate_dummy_hetero_graph(size=size, gen_mask=gen_mask,
+                                                   add_reverse=add_reverse)
     else:
         hetero_graph = generate_dummy_homo_graph(size=size, gen_mask=gen_mask)
     return partion_and_load_distributed_graph(hetero_graph=hetero_graph, dirname=dirname,
