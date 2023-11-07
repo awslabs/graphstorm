@@ -366,6 +366,27 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
 
 def _gen_emb(g, feat_field, embed_layer, ntype):
     """ Test if the embed layer can generate embeddings on the node type.
+
+    If a node type doesn't have node features, running the input embedding layer
+    on the node type may not generate any tensors. This function is to check
+    it by attempting getting the embedding of node 0. If we cannot get
+    the embedding of node 0, we believe that the embedding layer cannot
+    generate embeddings for this node type.
+
+    Parameters
+    ----------
+    g : DistGraph
+        The distributed graph.
+    feat_field : str
+        The field of node features.
+    embed_layer : callable
+        The function to generate the embedding.
+    ntype : str
+        The node type that we will test if it generates node embeddings.
+
+    Returns
+    -------
+    bool : whether embed_layer can generate embeddings on the given node type.
     """
     input_nodes = th.tensor([0])
     dev = embed_layer.device

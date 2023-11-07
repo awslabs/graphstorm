@@ -130,6 +130,10 @@ class GSgnnData():
     edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    lm_feat_ntypes : list of str
+        The node types that contains text features.
+    lm_feat_etypes : list of tuples
+        The edge types that contains text features.
     """
 
     def __init__(self, graph_name, part_config, node_feat_field, edge_feat_field,
@@ -376,6 +380,10 @@ class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
         different feature names.
     decoder_edge_feat: str or dict of list of str
         Edge features used by decoder
+    lm_feat_ntypes : list of str
+        The node types that contains text features.
+    lm_feat_etypes : list of tuples
+        The edge types that contains text features.
     """
     def __init__(self, graph_name, part_config, label_field=None,
                  node_feat_field=None, edge_feat_field=None,
@@ -605,6 +613,10 @@ class GSgnnLPTrainData(GSgnnEdgeTrainData):
         different feature names.
     pos_graph_feat_field: str or dist of str
         The field of the edge features used by positive graph in link prediction.
+    lm_feat_ntypes : list of str
+        The node types that contains text features.
+    lm_feat_etypes : list of tuples
+        The edge types that contains text features.
     """
     def __init__(self, graph_name, part_config, train_etypes, eval_etypes=None,
                  label_field=None, node_feat_field=None,
@@ -646,6 +658,10 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
         different feature names.
     decoder_edge_feat: str or dict of list of str
         Edge features used by decoder
+    lm_feat_ntypes : list of str
+        The node types that contains text features.
+    lm_feat_etypes : list of tuples
+        The edge types that contains text features.
         
     Examples
     ----------
@@ -749,6 +765,10 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
     edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    lm_feat_ntypes : list of str
+        The node types that contains text features.
+    lm_feat_etypes : list of tuples
+        The edge types that contains text features.
     """
     def __init__(self, graph_name, part_config, label_field=None,
                  node_feat_field=None, edge_feat_field=None,
@@ -831,6 +851,10 @@ class GSgnnNodeTrainData(GSgnnNodeData):
     edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    lm_feat_ntypes : list of str
+        The node types that contains text features.
+    lm_feat_etypes : list of tuples
+        The edge types that contains text features.
     
     Examples
     ----------
@@ -975,6 +999,10 @@ class GSgnnNodeInferData(GSgnnNodeData):
     edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    lm_feat_ntypes : list of str
+        The node types that contains text features.
+    lm_feat_etypes : list of tuples
+        The edge types that contains text features.
     
     Examples
     ----------
