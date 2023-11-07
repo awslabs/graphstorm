@@ -428,7 +428,9 @@ arguments.
 
 -  ``categorical``
 
-   -  Transforms one value from a fixed list of possible values which can be treated as a categorical feature which are encoded using one-hot encoding. No kwargs required for categorical feature.
+   -  Transforms values from a fixed list of possible values (categorical features) to a one-hot encoding.
+   The length of the resulting vector will be the number of categories in the data minus one, with a 1 in
+   the index of the single category, and zero everywhere else.
 
 -  ``multi-categorical``
 
