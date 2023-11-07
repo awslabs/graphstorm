@@ -157,30 +157,34 @@ def apply_norm(
             [(F.col(c) / col_sums[f"sum({c})"]).alias(c) for c in cols] + other_cols
         )
     elif shared_norm == "rank-gauss":
-        assert len(cols) == 1, "Rank Guass numerical transformation only supports single column"
-        for column_name in cols:
-            select_df = imputed_df.select(column_name)
-            original_id_rank = f"id_{uuid.uuid4().hex[8]}"
-            index_id_rank = f"index_{uuid.uuid4().hex[8]}"
-            id_df = select_df.withColumn(original_id_rank, F.monotonically_increasing_id())
-            sorted_df = id_df.orderBy(column_name)
-            indexed_df = sorted_df.withColumn(index_id_rank, F.monotonically_increasing_id())
+        assert len(cols) == 1, "Rank-Guass numerical transformation only supports single column"
+        column_name = cols[0]
+        select_df = imputed_df.select(column_name)
+        # original id is the original order for the input data frame, index id is the sorted order.
+        # We need original id to help us restore the order.
+        original_order_col = f"original-order-{uuid.uuid4().hex[8]}"
+        value_rank_col = f"value-rank-{uuid.uuid4().hex[8]}"
+        df_with_order_idx = select_df.withColumn(
+            original_order_col, F.monotonically_increasing_id()
+        )
+        value_sorted_df = df_with_order_idx.orderBy(column_name)
+        value_rank_df = value_sorted_df.withColumn(value_rank_col, F.monotonically_increasing_id())
 
-            # pylint: disable = cell-var-from-loop
-            # It is required to put num_rows definition outside,
-            # or pandas.udf will throw an error
-            def gauss_transform(rank: pd.Series) -> pd.Series:
-                feat_range = num_rows - 1
-                clipped_rank = (rank / feat_range - 0.5) * 2
-                clipped_rank = np.maximum(np.minimum(clipped_rank, 1 - epsilon), epsilon - 1)
-                return pd.Series(erfinv(clipped_rank))
+        # pylint: disable = cell-var-from-loop
+        # It is required to put num_rows definition outside,
+        # or pandas.udf will throw an error
+        def gauss_transform(rank: pd.Series) -> pd.Series:
+            feat_range = num_rows - 1
+            clipped_rank = (rank / feat_range - 0.5) * 2
+            clipped_rank = np.maximum(np.minimum(clipped_rank, 1 - epsilon), epsilon - 1)
+            return pd.Series(erfinv(clipped_rank))
 
-            num_rows = indexed_df.count()
-            gauss_udf = F.pandas_udf(gauss_transform, FloatType())
-            normalized_df = indexed_df.withColumn(column_name, gauss_udf(index_id_rank))
-            scaled_df = normalized_df.orderBy(original_id_rank).drop(
-                index_id_rank, original_id_rank
-            )
+        num_rows = value_rank_df.count()
+        gauss_udf = F.pandas_udf(gauss_transform, FloatType())
+        normalized_df = value_rank_df.withColumn(column_name, gauss_udf(value_rank_col))
+        scaled_df = normalized_df.orderBy(original_order_col).drop(
+            value_rank_col, original_order_col
+        )
 
     return scaled_df
 

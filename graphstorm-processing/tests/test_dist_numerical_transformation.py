@@ -22,6 +22,7 @@ from numpy.testing import assert_array_equal, assert_array_almost_equal, assert_
 from pyspark.sql import SparkSession, DataFrame, functions as F
 from pyspark.sql.types import ArrayType, FloatType, StructField, StructType, StringType
 from scipy.special import erfinv
+
 from graphstorm_processing.data_transformations.dist_transformations import (
     DistNumericalTransformation,
     DistMultiNumericalTransformation,
@@ -315,10 +316,9 @@ def rank_gauss(feat, eps):
 
 @pytest.mark.parametrize("epsilon", [0.0, 1e-6])
 def test_rank_gauss(spark: SparkSession, check_df_schema, epsilon):
-    data = [("mark", 0.0, None), ("john", 15.0, 10000), ("tara", 26.0, 20000), ("jen", 40.0, 10000)]
+    data = [(0.0,), (15.0,), (26.0,), (40.0,)]
 
-    columns = ["name", "age", "salary"]
-    input_df = spark.createDataFrame(data, schema=columns)
+    input_df = spark.createDataFrame(data, schema=["age"])
     rg_transformation = DistNumericalTransformation(
         ["age"], imputer="none", normalizer="rank-gauss", epsilon=epsilon
     )
