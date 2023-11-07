@@ -531,8 +531,9 @@ class LinkPredictNoParamDecoder(GSLayerNoParam):
 
         Returns
         -------
-        th.Tensor
-            The prediction scores for all edges in the input graph.
+        dict of th.Tensor
+            The scores for edges of each edge type
+            in the input graph.
         """
 
 class LinkPredictLearnableDecoder(GSLayer):
@@ -556,8 +557,9 @@ class LinkPredictLearnableDecoder(GSLayer):
 
         Returns
         -------
-        th.Tensor
-            The prediction scores for all edges in the input graph.
+        dict of th.Tensor
+            The scores for edges of each edge type
+            in the input graph.
         """
 
 class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
@@ -569,7 +571,7 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
         with g.local_scope():
-            scores = []
+            scores = {}
 
             for canonical_etype in g.canonical_etypes:
                 if g.num_edges(canonical_etype) == 0:
@@ -580,9 +582,8 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
                 src_emb = h[src_type][u]
                 dest_emb = h[dest_type][v]
                 scores_etype = calc_dot_pos_score(src_emb, dest_emb)
-                scores.append(scores_etype)
+                scores[canonical_etype] = scores_etype
 
-            scores=th.cat(scores)
             return scores
 
     def calc_test_scores(self, emb, pos_neg_tuple, neg_sample_type, device):
@@ -798,7 +799,7 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
         with g.local_scope():
-            scores=[]
+            scores = {}
 
             for canonical_etype in g.canonical_etypes:
                 if g.num_edges(canonical_etype) == 0:
@@ -815,8 +816,8 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
                 dest_emb = h[dest_type][v]
                 rel_embedding = rel_embedding.repeat(1,dest_emb.shape[0]).T
                 scores_etype = calc_distmult_pos_score(src_emb, dest_emb, rel_embedding)
-                scores.append(scores_etype)
-            scores=th.cat(scores)
+                scores[canonical_etype] = scores_etype
+
             return scores
 
     def calc_test_scores(self, emb, pos_neg_tuple, neg_sample_type, device):
@@ -1023,8 +1024,7 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
         This computes the DistMult score on every edge type.
         """
         with g.local_scope():
-            scores=[]
-            weights = []
+            scores = {}
 
             for canonical_etype in g.canonical_etypes:
                 if g.num_edges(canonical_etype) == 0:
@@ -1051,13 +1051,12 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
                     weight = weight.flatten()
                 else:
                     # current etype does not has weight
-                    weight = th.ones((g.num_edges(canonical_etype),))
+                    weight = th.ones((g.num_edges(canonical_etype),),
+                                     device=scores_etype.device)
+                scores[canonical_etype] = (scores_etype,
+                                           weight)
 
-                weights.append(weight.to(scores_etype.device))
-                scores.append(scores_etype)
-            scores = th.cat(scores)
-            weights = th.cat(weights)
-            return (scores, weights)
+            return scores
 
 class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
     """Link prediction decoder with the score function of dot product
@@ -1076,8 +1075,7 @@ class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
         This computes the dot product score on every edge type.
         """
         with g.local_scope():
-            scores = []
-            weights = []
+            scores = {}
 
             for canonical_etype in g.canonical_etypes:
                 if g.num_edges(canonical_etype) == 0:
@@ -1098,10 +1096,8 @@ class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
                     weight = weight.flatten()
                 else:
                     # current etype does not has weight
-                    weight = th.ones((g.num_edges(canonical_etype),))
-                weights.append(weight.to(scores_etype.device))
-                scores.append(scores_etype)
-
-            scores = th.cat(scores)
-            weights = th.cat(weights)
-            return (scores, weights)
+                    weight = th.ones((g.num_edges(canonical_etype),),
+                                     device=scores_etype.device)
+                scores[canonical_etype] = (scores_etype,
+                                           weight)
+            return scores

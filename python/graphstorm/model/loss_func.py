@@ -110,9 +110,25 @@ class LinkPredictLossFunc(GSLayer):
 
     def forward(self, pos_score, neg_score):
         """ The forward function.
+
+            Parameters
+            ----------
+            pos_score: dict of Tensor
+                The scores for positive edges of each edge type.
+            neg_score: dict of Tensor
+                The scores for negative edges of each edge type.
         """
-        score = th.cat([pos_score, neg_score])
-        label = th.cat([th.ones_like(pos_score), th.zeros_like(neg_score)])
+        p_score = []
+        n_score = []
+        for key, p_s in pos_score:
+            n_s = neg_score[key]
+            p_score.append(p_s)
+            n_score.append(n_s)
+
+        p_score = th.cat(p_score)
+        n_score = th.cat(n_score)
+        score = th.cat([p_score, n_score])
+        label = th.cat([th.ones_like(p_score), th.zeros_like(n_score)])
         return F.binary_cross_entropy_with_logits(score, label)
 
     @property
@@ -141,16 +157,35 @@ class WeightedLinkPredictLossFunc(GSLayer):
 
     def forward(self, pos_score, neg_score):
         """ The forward function.
+
+            Parameters
+            ----------
+            pos_score: dict of tuple of Tensor
+                The (scores, edge weight) for positive edges of each edge type.
+            neg_score: dict of tuple of Tensor
+                The (scores, edge weight) for negative edges of each edge type.
         """
-        assert len(pos_score) == 2, \
-            "Pos score must include score and weight " \
-            "Please use LinkPredictWeightedDistMultDecoder or " \
-            "LinkPredictWeightedDotDecoder"
-        pos_score, pos_weight = pos_score
-        neg_score, _ = neg_score # neg_weight is always all 1
-        score = th.cat([pos_score, neg_score])
-        label = th.cat([th.ones_like(pos_score), th.zeros_like(neg_score)])
-        weight = th.cat([pos_weight, th.ones_like(neg_score)])
+        p_score = []
+        p_weight = []
+        n_score = []
+        for key, p_s in pos_score:
+            assert len(p_s) == 2, \
+                "Pos score must include score and weight " \
+                "Please use LinkPredictWeightedDistMultDecoder or " \
+                "LinkPredictWeightedDotDecoder"
+            n_s = neg_score[key]
+            p_s, p_w = p_s
+            n_s, _ = n_s # neg_weight is always all 1
+            p_score.append(p_s)
+            p_weight.append(p_w)
+            n_score.append(n_s)
+        p_score = th.cat(p_score)
+        p_weight = th.cat(p_weight)
+        n_score = th.cat(n_score)
+
+        score = th.cat([p_score, n_score])
+        label = th.cat([th.ones_like(p_score), th.zeros_like(n_score)])
+        weight = th.cat([p_weight, th.ones_like(n_score)])
         return F.binary_cross_entropy_with_logits(score, label, weight=weight)
 
     @property
@@ -190,10 +225,10 @@ class LinkPredictContrastiveLossFunc(GSLayer):
 
             Parameters
             ----------
-            pos_score: dict of tensors
-                A dictionary of etype -> pos scores.
-            neg_score: dict of tensors
-                A dictionary of etype -> neg scores.
+            pos_score: dict of Tensor
+                The scores for positive edges of each edge type.
+            neg_score: dict of Tensor
+                The scores for negative edges of each edge type.
         """
         pscore = []
         nscore = []
