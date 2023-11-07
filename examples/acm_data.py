@@ -226,8 +226,7 @@ def create_acm_raw_data(graph,
             elif col == 'dest_id':
                 edge_dict['dest_id_col'] = col
             elif col == 'label':
-                label_dict['label_col'] = col
-                label_dict['task_type'] = 'classification'      # In ACM data, we do not have this
+                label_dict['task_type'] = 'link_prediction'      # In ACM data, we do not have this
                                                                 # edge task. Here is just for demo
                 label_dict['split_pct'] = [0.8, 0.1, 0.1]       # Same as the label_split filed.
                                                                 # The split pct values are just for
@@ -342,10 +341,15 @@ def create_acm_dgl_graph(dowload_path='/tmp/ACM.mat',
         emb = nn.Parameter(th.Tensor(graph_acm.number_of_nodes(n_type), 256), requires_grad = False)
         nn.init.xavier_uniform_(emb)
         graph_acm.nodes[n_type].data['feat'] = emb
+        
+    # For link prediction task, use "paper, citing, paper" edges.
+    target_etype = ('paper', 'citing', 'paper')
+    graph_acm.edges[target_etype].data['label'] = th.ones(graph_acm.num_edges(target_etype))
     
     print(graph_acm)
     print(f'\n Number of classes: {labels.max() + 1}')
-    print(f'\n Paper nodes labels: {labels.shape}')
+    print(f'\n Paper node labels: {labels.shape}')
+    print(f'\n {target_etype} edge labels:{graph_acm.num_edges(target_etype)}')
     
     # Save the graph for later partition
     if dataset_name is None:
