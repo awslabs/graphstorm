@@ -85,7 +85,9 @@ python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
 ```
 
 ## Use WholeGraph to accelerate training and inferencing
-Graphstorm leverages NVIDIA’s [Wholegraph](https://github.com/rapidsai/wholegraph) framework to efficiently transfer node and edge features between machines. This capability can substantially enhance the speed of both training and inferencing pipelines. To take advantage of this feature, users are required to have EFA network support on their cluster. For a step-by-step setup guide, please refer to the [tutorial](https://graphstorm.readthedocs.io/en/latest/advanced/advanced-wholegraph.html). Converting node and edge features to the WholeGraph format is the only manual step; the rest of the process is seamless.
+Graphstorm leverages NVIDIA’s [Wholegraph](https://github.com/rapidsai/wholegraph) framework to efficiently transfer node and edge features between machines. This capability can substantially enhance the speed of both training and inferencing pipelines. To take advantage of this feature, users are required to have EFA network support on their cluster. For a step-by-step setup guide, please refer to the [tutorial](https://graphstorm.readthedocs.io/en/latest/advanced/advanced-wholegraph.html). Converting node and edge features to the WholeGraph format is the only manual step; the rest of the process is seamless. 
+
+Please not, we do not support conversion of `train_mask`, `test_mask`, `val_mask` or `labels` to WholeGraph format. 
 
 #### Convert features from distDGL format to WholeGraph format
 
@@ -115,4 +117,3 @@ The conversion script has a minimum memory requirement of 2X the size of the inp
 ```
 python3 convert_feat_to_wholegraph.py --dataset-path ogbn-mag240m-2p --node-feat-names paper:feat --low-mem
 ```
-
