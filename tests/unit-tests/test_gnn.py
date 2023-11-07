@@ -561,7 +561,8 @@ def test_sage_node_prediction(norm):
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
-def test_gat_node_prediction():
+@pytest.mark.parametrize("device", ['cpu', 'cuda:0'])
+def test_gat_node_prediction(device):
     """ Test edge prediction logic correctness with a node prediction model
         composed of InputLayerEncoder + GATConv + Decoder
 
@@ -580,6 +581,7 @@ def test_gat_node_prediction():
                                      train_ntypes=['_N'], label_field='label',
                                      node_feat_field='feat')
     model = create_gat_node_model(np_data.g)
+    model = model.to(device)
     check_node_prediction(model, np_data, is_homo=True)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -1540,7 +1542,8 @@ if __name__ == '__main__':
     test_rgcn_node_prediction(None)
     test_rgat_node_prediction(None)
     test_sage_node_prediction(None)
-    test_gat_node_prediction()
+    test_gat_node_prediction('cpu')
+    test_gat_node_prediction('cuda:0')
 
     test_edge_classification()
     test_edge_classification_feat()
