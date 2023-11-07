@@ -607,7 +607,9 @@ class ExtFeatureWrapper(ExtNumpyWrapper):
             raise RuntimeError(f"Expect that ExtFeatureWrapper has a "
                                f"first dimension that is the same but get "
                                f"{self.shape[0]} and {feature.shape[0]}")
-        # Convert the numpy array into a ExtNumpyWrapper
+        # Convert the numpy array into an ExtNumpyWrapper
+        # By converting into an ExtNumpyWrapper, it is possible to avoid loading
+        # all the numpy arrays into the memory at the same time.
         if isinstance(feature, np.ndarray):
             hash_hex = generate_hash()
             path = self._directory_path + '/{}.npy'.format(hash_hex)
@@ -631,6 +633,7 @@ class ExtFeatureWrapper(ExtNumpyWrapper):
         col_start = 0
         for wrap in self._wrapper:
             col_end = col_start + wrap.shape[1]
+            # load the numpy array from the disk one by one
             out_arr[:, col_start:col_end] = wrap.to_numpy()
             col_start = col_end
         out_arr.flush()

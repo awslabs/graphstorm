@@ -1021,7 +1021,9 @@ def parse_feat_ops(confs):
                                                epsilon=epsilon)
             elif conf['name'] == 'to_categorical':
                 separator = conf['separator'] if 'separator' in conf else None
-                # Assigning the same category to every column is not meaningful.
+                # TODO: If not explicitly defining the mapping for categorical feature,
+                # the preprocessing procedure will automatically determine these values
+                # from the last column.
                 if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
                     raise RuntimeError("Do not support categorical "
                                        "feature transformation on multiple columns")
