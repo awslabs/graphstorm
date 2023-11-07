@@ -219,6 +219,16 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
                 },
                 {
                     "feature_col": ["num_citations"],
+                    "feature_name": "rank_gauss1",
+                    "transform": {"name": "rank_gauss"},
+                },
+                {
+                    "feature_col": ["num_citations"],
+                    "feature_name": "rank_gauss2",
+                    "transform": {"name": "rank_gauss", "epsilon": 0.1},
+                },
+                {
+                    "feature_col": ["num_citations"],
                     "transform": {"name": "to_categorical", "mapping": {"1", "2", "3"}},
                 },
                 {
@@ -279,6 +289,22 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
                     "slide_window_size": 5,
                     "imputer": "none",
                 },
+            },
+        },
+        {
+            "column": "num_citations",
+            "name": "rank_gauss1",
+            "transformation": {
+                "name": "numerical",
+                "kwargs": {"normalizer": "rank-gauss", "imputer": "none"},
+            },
+        },
+        {
+            "column": "num_citations",
+            "name": "rank_gauss2",
+            "transformation": {
+                "name": "numerical",
+                "kwargs": {"epsilon": 0.1, "normalizer": "rank-gauss", "imputer": "none"},
             },
         },
         {
