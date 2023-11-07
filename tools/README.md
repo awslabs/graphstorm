@@ -84,7 +84,10 @@ python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
                                              --is-homo     
 ```
 
-## Convert features from distDGL format to WholeGraph format
+## Use WholeGraph to accelerate training and inferencing
+Graphstorm leverages NVIDIA’s [Wholegraph](https://github.com/rapidsai/wholegraph) framework to efficiently transfer node and edge features between machines. This capability can substantially enhance the speed of both training and inferencing pipelines. To take advantage of this feature, users are required to have EFA network support on their cluster. For a step-by-step setup guide, please refer to the [tutorial](https://graphstorm.readthedocs.io/en/latest/advanced/advanced-wholegraph.html). Converting node and edge features to the WholeGraph format is the only manual step; the rest of the process is seamless.
+
+#### Convert features from distDGL format to WholeGraph format
 
 Use the `convert_feat_to_wholegraph.py` script with `--dataset-path` pointing to the distDGL folder of partitions. Use the argument `--node-feat-names` to specify the node features that should be converted to WholeGraph compatible format. Similarly, the `--edge-feat-names` allows you to specify the edge features that need to be transformed into a format suitable for WholeGraph. For example:
 
@@ -93,7 +96,7 @@ python3 convert_feat_to_wholegraph.py --dataset-path ogbn-mag240m-2p --node-feat
 ```
 or
 ```
-python3 convert_feat_to_wholegraph.py --dataset-path dataset --feat-names paper:feat author:feat,feat2 institution:feat
+python3 convert_feat_to_wholegraph.py --dataset-path dataset --node-feat-names paper:feat author:feat,feat2 institution:feat
 ```
 
 The script will create a new folder '`wholegraph`' under '`ogbn-mag240m-2p`' containing the WholeGraph input files and will trim the distDGL file `node_feat.dgl` in each partition to remove the specified feature attributes, leaving only other attributes such as `train_mask`, `test_mask`, `val_mask` or  `labels` intact. It also saves a backup `node_feat.dgl.bak`.
@@ -106,41 +109,10 @@ python3 convert_feat_to_wholegraph.py --dataset-path ogbn-mag240m-2p --node-feat
 
 when `--edge-feat-names` is used, the  '`wholegraph`' folder will contain the edge features converted into WholeGraph format and will trim the distDGL file `edge_feat.dgl` in each partition to remove the specified feature attributes.
 
-The features in those files can be loaded in memory via the WholeGraph API by giving the folder path and feature prefix (`<node_type>~<feat_name>`).
-Below is an example showing how to load the data:
-```python
-import json
-import os
-import torch
-import pylibwholegraph.binding.wholememory_binding as wmb
-import pylibwholegraph.torch as wgth
+### Convert large features from distDGL format to WholeGraph format
 
-with open('ogbn-mag240m/wholegraph/metadata.json') as f:
-    metadata = json.load(f)
-
-torch.cuda.set_device(int(os.environ['LOCAL_RANK']))
-wmb.init(0)
-torch.distributed.init_process_group('nccl')
-global_comm = wgth.comm.get_global_communicator()
-
-cache_policy = wgth.create_builtin_cache_policy(
-    "none", # cache type
-    "distributed",
-    "cpu",
-    "readonly", # access type
-    0.0, # cache ratio
-)
-
-paper_feat_wg = wgth.create_embedding(
-                    global_comm,
-                    'distributed',
-                    'cpu',
-                    getattr(torch, metadata['paper/feat']['dtype'].split('.')[1]),
-                    metadata['paper/feat']['shape'],
-                    optimizer=None,
-                    cache_policy=cache_policy,
-                )
-# 'part_count' is the number of partition files. For distDGL it will always be the number of machines.
-paper_feat_wg.get_embedding_tensor().from_file_prefix('ogbn-mag240m/wholegraph/paper~feat', part_count=4)
+The conversion script has a minimum memory requirement of 2X the size of the input nodes or edge features in the graph. We offer a low-memory version that significantly reduces memory usage, requiring 2X the size of the largest node or edge feature, with the trade-off of longer conversion times. Users can enable this version by using the `--low-mem` argument.
+```
+python3 convert_feat_to_wholegraph.py --dataset-path ogbn-mag240m-2p --node-feat-names paper:feat --low-mem
 ```
 
