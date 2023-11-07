@@ -437,7 +437,7 @@ arguments.
    -  Encodes vector-like data from a fixed list of possible values (i.e. multi-label/multi-categorical data) using a multi-hot encoding. The length of the resulting vector will be the number of categories in the data minus one, and each value will have a 1 value for every category that appears, and 0 everwhere else.
    -  ``kwargs``:
       - ``separator`` (String, optional): Same as the one in the No-op operation, the separator is used to
-        split input value in CSV format. If it is not provided, then the whole value will be considered as an array.
+        split multiple input values for CSV files e.g. ``detective|noir``. If it is not provided, then the whole value will be considered as an array.
 --------------
 
 Examples
