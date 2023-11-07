@@ -434,7 +434,7 @@ arguments.
 
 -  ``multi-categorical``
 
-   -  Apply column-wise transformation for vector-like data from a fixed list of possible values which can be treated as a categorical feature which are encoded using multi-hot encoding.
+   -  Encodes vector-like data from a fixed list of possible values (i.e. multi-label/multi-categorical data) using a multi-hot encoding. The length of the resulting vector will be the number of categories in the data minus one, and each value will have a 1 value for every category that appears, and 0 everwhere else.
    -  ``kwargs``:
       - ``separator`` (String, optional): Same as the one in the No-op operation, the separator is used to
         split input value in CSV format. If it is not provided, then the whole value will be considered as an array.
