@@ -22,7 +22,7 @@ from graphstorm_processing.constants import SUPPORTED_FILE_TYPES
 from .label_config_base import LabelConfig, EdgeLabelConfig, NodeLabelConfig
 from .feature_config_base import FeatureConfig, NoopFeatureConfig
 from .numerical_configs import MultiNumericalFeatureConfig, NumericalFeatureConfig
-from .categorical_configs import MultiCategoricalFeatureConfig, CategoricalFeatureConfig
+from .categorical_configs import MultiCategoricalFeatureConfig
 from .data_config_base import DataStorageConfig
 
 
@@ -58,7 +58,7 @@ def parse_feat_config(feature_dict: Dict) -> FeatureConfig:
     elif transformation_name == "multi-numerical":
         return MultiNumericalFeatureConfig(feature_dict)
     elif transformation_name == "categorical":
-        return CategoricalFeatureConfig(feature_dict)
+        return FeatureConfig(feature_dict)
     elif transformation_name == "multi-categorical":
         return MultiCategoricalFeatureConfig(feature_dict)
     else:

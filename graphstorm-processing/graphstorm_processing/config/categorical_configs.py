@@ -17,18 +17,7 @@ from typing import Mapping
 from .feature_config_base import FeatureConfig
 
 
-class CategoricalFeatureConfig(FeatureConfig):
-    """Feature configuration for single-column categorical features."""
-
-    def __init__(self, config: Mapping):
-        super().__init__(config)
-        self._sanity_check()
-
-    def _sanity_check(self) -> None:
-        super()._sanity_check()
-
-
-class MultiCategoricalFeatureConfig(CategoricalFeatureConfig):
+class MultiCategoricalFeatureConfig(FeatureConfig):
     """Feature configuration for multi-column categorical features.
 
     Supported kwargs
