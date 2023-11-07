@@ -26,7 +26,7 @@ class MultiCategoricalFeatureConfig(FeatureConfig):
         A separator to use when splitting a delimited string into multiple numerical values
         as a vector. Only applicable to CSV input. Example: for a separator `'|'` the CSV
         value `1|2|3` would be transformed to a vector, `[1, 2, 3]`. When `None` the expected
-        input format is an array of numerical values.
+        input format is an array of string values.
 
     """
 
