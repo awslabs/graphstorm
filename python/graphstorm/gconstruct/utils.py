@@ -573,6 +573,9 @@ class ExtFeatureWrapper(ExtNumpyWrapper):
     def cleanup(self):
         """ Clean up the array.
         """
+        # Expected file structure:
+        # merged_file file_feature1 file_feature2
+        # rmtree will clean up all single feature files as ExtNumpyWrapper does not clean them up
         self._arr.flush()
         self._arr = None
         shutil.rmtree(self._directory_path)
@@ -590,27 +593,28 @@ class ExtFeatureWrapper(ExtNumpyWrapper):
         else:
             return self._arr.astype(self._dtype)
 
-    def append(self, wrap):
+    def append(self, feature):
         """Add an external memory wrapper or numpy array,
         it will convert the numpy array to a memory wrapper
         Parameters
         ----------
-        wrap : numpy.ndarray or ExtMemArrayWrapper
+        feature : numpy.ndarray or ExtMemArrayWrapper
             The value needs to be packed.
         """
         if not self._shape:
-            self._shape = (wrap.shape[0], 0)
-        if self._shape and self._shape[0] != wrap.shape[0]:
+            self._shape = (feature.shape[0], 0)
+        if self._shape and self._shape[0] != feature.shape[0]:
             raise RuntimeError(f"Expect that ExtFeatureWrapper has a "
                                f"first dimension that is the same but get "
-                               f"{self.shape[0]} and {wrap.shape[0]}")
-        if isinstance(wrap, np.ndarray):
+                               f"{self.shape[0]} and {feature.shape[0]}")
+        # Convert the numpy array into a ExtNumpyWrapper
+        if isinstance(feature, np.ndarray):
             hash_hex = generate_hash()
             path = self._directory_path + '/{}.npy'.format(hash_hex)
-            ext_val = np.memmap(path, wrap.dtype, mode="w+", shape=wrap.shape)
-            ext_val[:] = wrap[:]
+            ext_val = np.memmap(path, feature.dtype, mode="w+", shape=feature.shape)
+            ext_val[:] = feature[:]
             ext_val.flush()
-            wrap = ExtNumpyWrapper(path, wrap.shape, wrap.dtype)
+            wrap = ExtNumpyWrapper(path, feature.shape, feature.dtype)
         self._wrapper.append(wrap)
 
     def merge(self):
