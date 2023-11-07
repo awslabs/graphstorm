@@ -45,16 +45,13 @@ def get_node_feat_info(node_feat_names):
         feat_info = feat_name.split(":")
         assert len(feat_info) == 2, (
             f"Unknown format of the feature name: {feat_name}, " \
-            + "must be NODE_TYPE:FEAT_NAME"
+            "must be NODE_TYPE:FEAT_NAME"
         )
         ntype = feat_info[0]
         assert ntype not in fname_dict, (
-            f"You already specify the feature names of {ntype} "
+            f"You already specify the feature names of {ntype} " \
             f"as {fname_dict[ntype]}"
         )
-        assert isinstance(
-            feat_info[1], str
-        ), f"Feature name of {ntype} should be a string not {feat_info[1]}"
         # multiple features separated by ','
         fname_dict[ntype] = feat_info[1].split(",")
 
@@ -80,16 +77,16 @@ def get_edge_feat_info(edge_feat_names):
         feat_info = feat_name.split(":")
         assert len(feat_info) == 2, (
             f"Unknown format of the feature name: {feat_name}, " \
-            + "must be EDGE_TYPE:FEAT_NAME"
+            "must be EDGE_TYPE:FEAT_NAME"
         )
         etype = feat_info[0].split(",")
         assert len(etype) == 3, (
             f"EDGE_TYPE should have 3 strings: {etype}, " \
-            + "must be NODE_TYPE,EDGE_TYPE,NODE_TYPE:"
+            "must be NODE_TYPE,EDGE_TYPE,NODE_TYPE:"
         )
         etype = ":".join(etype)
         assert etype not in fname_dict, (
-            f"You already specify the feature names of {etype} "
+            f"You already specify the feature names of {etype} " \
             f"as {fname_dict[etype]}"
         )
         # multiple features separated by ','
@@ -125,11 +122,10 @@ def wholegraph_processing(
 
     for part_num in range(num_parts):
         st = part_num * subpart_size
-        end = (
-            (part_num + 1) * subpart_size
-            if part_num != (num_parts - 1)
+        end = (part_num + 1) * subpart_size \
+            if part_num != (num_parts - 1) \
             else whole_feat_tensor.shape[0]
-        )
+
         wg_tensor = wgth.create_wholememory_tensor(
             local_comm,
             "continuous",
@@ -190,7 +186,7 @@ def convert_feat_to_wholegraph(fname_dict, file_name, metadata, folder, use_low_
                         f"Error: Unknown feature '{feat}'. Files contain \
                                        the following features: {feats_data[0].keys()}."
                     )
-                logging.info(f"Processing '{feat}' features...")
+                logging.info("Processing %s features...", feat)
                 whole_feat_tensor = torch.concat(
                     tuple(t[feat] for t in feats_data), dim=0
                 )
@@ -276,6 +272,7 @@ def trim_feat_files(trimmed_feats, folder, file_name, part):
 
 
 def main(folder, node_feat_names, edge_feat_names, use_low_mem=False):
+    """Convert features from distDGL tensor format to WholeGraph format"""
     os.environ["MASTER_ADDR"] = "127.0.0.1"
     os.environ["MASTER_PORT"] = "1234"
     torch.distributed.init_process_group("gloo", world_size=1, rank=0)
@@ -285,7 +282,7 @@ def main(folder, node_feat_names, edge_feat_names, use_low_mem=False):
 
     logging.info(
         "node features: %s and edge features: %s will be converted to WholeGraph"
-        "format.".format(node_feat_names, edge_feat_names)
+        "format.", node_feat_names, edge_feat_names
     )
 
     metadata = {}
@@ -304,7 +301,7 @@ def main(folder, node_feat_names, edge_feat_names, use_low_mem=False):
         )
 
     # Save metatada
-    with open(os.path.join(wg_folder, "metadata.json"), "w") as fp:
+    with open(os.path.join(wg_folder, "metadata.json"), "w", encoding="utf8") as fp:
         json.dump(metadata, fp)
 
 
