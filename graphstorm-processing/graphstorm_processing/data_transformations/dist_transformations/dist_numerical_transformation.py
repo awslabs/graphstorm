@@ -160,7 +160,8 @@ def apply_norm(
         assert len(cols) == 1, "Rank-Guass numerical transformation only supports single column"
         column_name = cols[0]
         select_df = imputed_df.select(column_name)
-        # original id is the original order for the input data frame, value rank indicates the rank of each value in the column
+        # original id is the original order for the input data frame,
+        # value rank indicates the rank of each value in the column
         # We need original id to help us restore the order.
         original_order_col = f"original-order-{uuid.uuid4().hex[8]}"
         value_rank_col = f"value-rank-{uuid.uuid4().hex[8]}"
