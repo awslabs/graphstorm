@@ -120,7 +120,7 @@ class LinkPredictLossFunc(GSLayer):
         """
         p_score = []
         n_score = []
-        for key, p_s in pos_score:
+        for key, p_s in pos_score.items():
             n_s = neg_score[key]
             p_score.append(p_s)
             n_score.append(n_s)
@@ -168,7 +168,7 @@ class WeightedLinkPredictLossFunc(GSLayer):
         p_score = []
         p_weight = []
         n_score = []
-        for key, p_s in pos_score:
+        for key, p_s in pos_score.items():
             assert len(p_s) == 2, \
                 "Pos score must include score and weight " \
                 "Please use LinkPredictWeightedDistMultDecoder or " \
