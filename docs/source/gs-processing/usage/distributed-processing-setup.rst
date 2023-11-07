@@ -1,5 +1,5 @@
-GraphStorm Processing setup for Amazon SageMaker
-================================================
+GraphStorm Processing Distributed Setup
+=======================================
 
 In this guide we'll demonstrate how to prepare your environment to run
 GraphStorm Processing (GSProcessing) jobs on Amazon SageMaker.
@@ -15,7 +15,7 @@ The steps required are:
 - Set up AWS access.
 - Build the GraphStorm Processing image using Docker.
 - Push the image to the Amazon Elastic Container Registry (ECR).
-- Launch a SageMaker Processing job using the example scripts.
+- Launch a SageMaker Processing or EMR Serverless job using the example scripts.
 
 Clone the GraphStorm repository
 -------------------------------
@@ -126,8 +126,8 @@ and push the image tagged with the latest version of GSProcessing.
 The script supports 4 optional arguments:
 
 1. Image name/repository. (``-i/--image``) Default: ``graphstorm-processing-<environment>``
-2. Image tag. Default: (``-v/--version``) ``<latest_library_version>`` e.g. ``0.2.1``.
-3. ECR region. Default: (``-r/--region``) ``us-west-2``.
+2. Image tag. (``-v/--version``) Default: ``<latest_library_version>`` e.g. ``0.2.1``.
+3. ECR region. (``-r/--region``) Default: ``us-west-2``.
 4. AWS Account ID. (``-a/--account``) Default: Uses the account ID detected by the ``aws-cli``.
 
 Example:
@@ -181,7 +181,7 @@ Launch an EMR Serverless job using the example scripts.
 In addition to Amazon SageMaker you can also use EMR Serverless
 as an execution environment to allow you to scale to even larger datasets
 (recommended when your graph has 30B+ edges).
-Its setup is more involved that Amazon SageMaker, so we only recommend
+Its setup is more involved than Amazon SageMaker, so we only recommend
 it for experienced AWS users.
 Follow the :doc:`EMR Serverless job guide <emr-serverless>`
 to launch your distributed processing job using EMR Serverless resources.

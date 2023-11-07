@@ -20,7 +20,8 @@ Follow EMR Serverless set-up
 
 To get started with EMR-S we will need to have an administrative user,
 and use it to create the required roles and policies for EMR-S.
-To do so follow the EMR-S `Setting up guide. <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/setting-up.html>`
+To do so follow the EMR-S `Setting up guide
+<https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/setting-up.html>`_.
 
 Create an job runtime role for EMR Serverless
 ---------------------------------------------
@@ -28,9 +29,10 @@ Create an job runtime role for EMR Serverless
 To be able to run EMR-S jobs we will need access to a role that
 is configured with access to the S3 bucket we will use.
 
-Follow the `Create a job runtime role <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/getting-started.html#gs-prerequisites>`
+Follow the `Create a job runtime role
+<https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/getting-started.html#gs-prerequisites>`_
 guide to create such a role. You can replace ``DOC-EXAMPLE-BUCKET`` with the bucket you used
-to upload your test data.
+to upload your test data in :ref:`gsp-upload-data-ref`.
 
 Ensure EMR-S service role can access the ECR repository
 -------------------------------------------------------
@@ -45,12 +47,14 @@ repository to provide access to our
 EMR-S application.
 
 To ensure the entity that creates the EMR-S application
-can perform ECR actions, follow the `Prerequisites <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/application-custom-image.html#worker-configs>`
+can perform ECR actions, follow the
+`Prerequisites <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/application-custom-image.html#worker-configs>`_
 part of the `Customizing an image` EMR-S guide. If you're using
 an administrative user to work through this process you might
 already have full ECR access.
 
-If not using an administrative user, the relevant policy to attach would be:
+If not using an administrative user, the relevant policy to attach to the role/user
+you are using would be:
 
 .. code-block:: json
 
@@ -74,12 +78,11 @@ Create an EMR-S application that uses our custom image
 ------------------------------------------------------
 
 Next we will need to create an EMR-S application that
-will launch clusters that use our custom image.
-For a general guide see the `official docs <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/application-custom-image.html#create-app>`.
+uses our custom image.
+For a general guide see the
+`official docs <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/application-custom-image.html#create-app>`_.
 
-Here we will just show the image creation using the AWS CLI:
-
-Create an application with a custom image configuration:
+Here we will just show the custom image application creation using the AWS CLI:
 
 .. code-block:: bash
 
@@ -99,11 +102,12 @@ base image, so we need to ensure our application uses the same release.
 Allow EMR Serverless to access the custom image repository
 ----------------------------------------------------------
 
-Finally we need to provide the EMR-S service principal access
-to the ECR image repository, for which we will need to modify the
-repository's policy statement.
+Finally we need to provide the EMR-S service Principal access
+to the `graphstorm-processing-emr-serverless` ECR image repository,
+for which we will need to modify the repository's policy statement.
 
-As shown in the `EMR docs <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/application-custom-image.html#access-repo>`,
+As shown in the
+`EMR docs <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/application-custom-image.html#access-repo>`_,
 once we have the EMR-S Application ID (from creating the application in the previous step)
 we can use it to limit access to the repository to that particular application.
 
@@ -136,7 +140,7 @@ The policy we need to set would be the following:
 
 Where you would need to replace values for ``<aws-account-id>``, ``<region>``, and ``<application-id>``.
 
-See `Setting a private repository policy statement https://docs.aws.amazon.com/AmazonECR/latest/userguide/set-repository-policy.html`
+See `Setting a private repository policy statement <https://docs.aws.amazon.com/AmazonECR/latest/userguide/set-repository-policy.html>`_
 for how to set a repository policy.
 
 
@@ -153,7 +157,7 @@ With all the setup complete we should now have the following:
 To launch the same example job as we demonstrate in the :doc:`SageMaker Processing job guide <amazon-sagemaker>`
 you can use the following ``bash`` snippet. Note that we use ``jq`` to wrangle JSON data,
 which you can download from its `official website <https://jqlang.github.io/jq/download/>`_,
-using your package manager, or by running ``pip install jq``.
+install using your package manager, or by running ``pip install jq``.
 
 Before starting  the job, make sure you have uploaded the input data
 as described in :ref:`gsp-upload-data-ref`.
@@ -176,7 +180,6 @@ as described in :ref:`gsp-upload-data-ref`.
     S3_ENTRY_POINT="s3://${OUTPUT_BUCKET}/emr-serverless-scripts/distributed_executor.py"
 
     ROLE="arn:aws:iam::${ACCOUNT}:role/${EMR_S_ROLE_NAME}"
-
 
     export OUTPUT_PREFIX="s3://${OUTPUT_BUCKET}/gsprocessing/emr-s/${GRAPH_NAME}/${NUM_FILES}files/"
 
@@ -213,9 +216,9 @@ as described in :ref:`gsp-upload-data-ref`.
         --execution-role-arn $ROLE \
         --job-driver "${ARGS_JSON}" # Need to surround ARGS_JSON with quotes here to maintain JSON formatting
 
-As with the SageMaker example, we need to run a follow-up job to align the output with the
+Similar to the SageMaker example, we need to run a follow-up job to align the output with the
 expectations of the DistDGL partitioning pipeline. The easiest is to run the job locally
-on an instance with S3 access:
+on an instance with S3 access (where we installed GSProcessing):
 
 .. code-block:: bash
 
@@ -269,5 +272,6 @@ Run distributed partitioning and training on Amazon SageMaker
 -------------------------------------------------------------
 
 With the data now processed you can follow the
-`GraphStorm Amazon SageMaker guide <https://graphstorm.readthedocs.io/en/latest/scale/sagemaker.html>`_
+`GraphStorm Amazon SageMaker guide
+<https://graphstorm.readthedocs.io/en/latest/scale/sagemaker.html#run-graphstorm-on-sagemaker>`_
 to partition your data and run training on AWS.

@@ -21,7 +21,7 @@ to run a GSProcessing job on Amazon SageMaker.
 For this example we'll use a SageMaker Spark cluster with 2 ``ml.t3.xlarge`` instances
 since this is a tiny dataset. Using SageMaker you'll be able to create clusters
 of up to 20 instances, allowing you to scale your processing to massive graphs,
-using larger instances like `ml.r5.24xlarge`.
+using larger instances like ``ml.r5.24xlarge``.
 
 Since we're now executing on AWS, we'll need access to an execution role
 for SageMaker and the ECR image URI we created in :doc:`distributed-processing-setup`.
@@ -113,5 +113,6 @@ Run distributed partitioning and training on Amazon SageMaker
 -------------------------------------------------------------
 
 With the data now processed you can follow the
-`GraphStorm Amazon SageMaker guide <https://graphstorm.readthedocs.io/en/latest/scale/sagemaker.html>`_
+`GraphStorm Amazon SageMaker guide
+<https://graphstorm.readthedocs.io/en/latest/scale/sagemaker.html#run-graphstorm-on-sagemaker>`_
 to partition your data and run training on AWS.
