@@ -116,7 +116,7 @@ class GConstructConfigConverter(ConfigConverter):
                     if "separator" in gconstruct_transform_dict:
                         gsp_transformation_dict["name"] = "multi-categorical"
                         gsp_transformation_dict["kwargs"] = {
-                            "separator": gconstruct_transform_dict['separator']
+                            "separator": gconstruct_transform_dict["separator"]
                         }
                     else:
                         gsp_transformation_dict["name"] = "categorical"

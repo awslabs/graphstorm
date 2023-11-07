@@ -18,8 +18,7 @@ from .feature_config_base import FeatureConfig
 
 
 class CategoricalFeatureConfig(FeatureConfig):
-    """Feature configuration for single-column categorical features.
-    """
+    """Feature configuration for single-column categorical features."""
 
     def __init__(self, config: Mapping):
         super().__init__(config)
@@ -28,3 +27,22 @@ class CategoricalFeatureConfig(FeatureConfig):
     def _sanity_check(self) -> None:
         super()._sanity_check()
 
+
+class MultiCategoricalFeatureConfig(CategoricalFeatureConfig):
+    """Feature configuration for multi-column categorical features.
+
+    Supported kwargs
+    ----------------
+    separator: str, optional
+        A separator to use when splitting a delimited string into multiple numerical values
+        as a vector. Only applicable to CSV input. Example: for a separator `'|'` the CSV
+        value `1|2|3` would be transformed to a vector, `[1, 2, 3]`. When `None` the expected
+        input format is an array of numerical values.
+
+    """
+
+    def __init__(self, config: Mapping):
+        super().__init__(config)
+        self.separator = self._transformation_kwargs.get("separator", None)
+
+        self._sanity_check()

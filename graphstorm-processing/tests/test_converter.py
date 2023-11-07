@@ -219,17 +219,11 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
                 },
                 {
                     "feature_col": ["num_citations"],
-                    "transform": {
-                        "name": "to_categorical",
-                        "mapping": {"1", "2", "3"}
-                    },
+                    "transform": {"name": "to_categorical", "mapping": {"1", "2", "3"}},
                 },
                 {
                     "feature_col": ["num_citations"],
-                    "transform": {
-                        "name": "to_categorical",
-                        "separator": ","
-                    },
+                    "transform": {"name": "to_categorical", "separator": ","},
                 },
             ],
             "labels": [
@@ -298,9 +292,7 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "column": "num_citations",
             "transformation": {
                 "name": "multi-categorical",
-                "kwargs": {
-                    "separator": ","
-                },
+                "kwargs": {"separator": ","},
             },
         },
     ]
