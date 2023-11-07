@@ -428,13 +428,14 @@ arguments.
 
 -  ``categorical``
 
-   -  Transforms one value from a fixed list of possible values is a categorical feature which are encoded using one-hot encoding.
+   -  Transforms one value from a fixed list of possible values which can be treated as a categorical feature which are encoded using one-hot encoding. No kwargs required for categorical feature.
 
--  ``multi_categorical``
+-  ``multi-categorical``
 
-   -  Apply column-wise transformation for vector-like data from a fixed list of possible values is a categorical feature which are encoded using multi-hot encoding.
-      It only supports single column for GSProcessing.
-
+   -  Apply column-wise transformation for vector-like data from a fixed list of possible values which can be treated as a categorical feature which are encoded using multi-hot encoding.
+   -  ``kwargs``:
+      - ``separator`` (String, optional): Same as the one in the No-op operation, the separator is used to
+        split input value in CSV format. If it is not provided, then the whole value will be considered as an array.
 --------------
 
 Examples
