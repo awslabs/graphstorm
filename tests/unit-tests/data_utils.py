@@ -37,7 +37,7 @@ def generate_mask(idx, length):
     th_mask = th.tensor(mask, dtype=th.bool)
     return th_mask
 
-def generate_dummy_hetero_graph(size='tiny', gen_mask=True):
+def generate_dummy_hetero_graph(size='tiny', gen_mask=True, add_reverse=False):
     """
     generate a dummy heterogeneous graph.
     Parameters
@@ -67,9 +67,10 @@ def generate_dummy_hetero_graph(size='tiny', gen_mask=True):
                              th.randint(data_size, (data_size,))),
         ("n0", "r1", "n1"): (th.randint(data_size, (2 * data_size,)),
                              th.randint(data_size, (2 * data_size,))),
-        ("n1", "r2", "n0"): (th.randint(data_size, (2 * data_size,)),
-                             th.randint(data_size, (2 * data_size,))),
     }
+    if add_reverse:
+        edges[("n1", "r2", "n0")] = (th.randint(data_size, (2 * data_size,)),
+                th.randint(data_size, (2 * data_size,)))
 
     hetero_graph = dgl.heterograph(edges, num_nodes_dict=num_nodes_dict)
 
@@ -461,7 +462,7 @@ def create_lm_graph(tmpdirname, text_ntype='n0'):
                   "gradient_checkpoint": True,
                   "node_types": [text_ntype]}]
     # get the test dummy distributed graph
-    g, part_config = generate_dummy_dist_graph(tmpdirname)
+    g, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
 
     feat_size = get_feat_size(g, {'n0' : ['feat']})
     input_text = ["Hello world!"]
