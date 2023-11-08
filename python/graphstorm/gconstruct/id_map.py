@@ -99,7 +99,7 @@ class IdReverseMap:
 
         Returns
         -------
-        tensor: A tensor of raw IDs.
+        tensor: A numpy array of raw IDs.
         """
         return self._ids[start:end]
 
@@ -108,12 +108,12 @@ class IdReverseMap:
 
         Parameters
         ----------
-        ids : tensor
+        ids : numpy array
             The input IDs
 
         Returns
         -------
-        tensor: A tensor of raw IDs.
+        tensor: A numpy array of raw IDs.
         """
         if len(ids) == 0:
             return np.array([], dtype=np.str)

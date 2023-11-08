@@ -180,7 +180,7 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
                    with_shared_fs, preserve_input=False):
     """ Remap node embeddings.
 
-        The function wil iterate all the node types that
+        The function will iterate all the node types that
         have embeddings and spin num_proc workers
         to do the remapping jos.
 
@@ -385,7 +385,7 @@ def remap_edge_pred(pred_etypes, pred_dir,
                     preserve_input=False):
     """ Remap edge prediction result.
 
-        The function wil iterate all the edge types that
+        The function will iterate all the edge types that
         have prediction results and spin num_proc workers
         to do the rampping jos.
 
