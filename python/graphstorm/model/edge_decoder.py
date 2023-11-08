@@ -716,13 +716,22 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
 
 class LinkPredictContrastiveDotDecoder(LinkPredictDotDecoder):
     """ Link prediction decoder designed for contrastive loss
-        with the score function of dot product
+        with the score function of dot product.
 
         Note: This class is specifically implemented for contrastive loss
-        This may also be used by other pair-wise loss fuctions for link
+        This may also be used by other pair-wise loss functions for link
         prediction tasks.
-        TODO(xiang): develop a better solution to unify the implementation
-        of link prediction decoders.
+
+        TODO(xiang): Develop a better solution for supporting pair-wise
+        loss functions in link prediction tasks. The
+        LinkPredictContrastiveDotDecoder is implemented based on the
+        assumption that the same decoder.forward will be called twice
+        with a positive graph and negative graph respectively. And
+        the positive and negative graphs are compatible. We can simply
+        sort the edges in postive and negative graphs to create <pos, neg>
+        pairs. This implementation makes strong assumption of the correlation
+        between the Dataloader, Decoder and the Loss function. We should
+        find a better implementation.
     """
 
     # pylint: disable=unused-argument
@@ -748,7 +757,7 @@ class LinkPredictContrastiveDotDecoder(LinkPredictDotDecoder):
                 # (13, 6)     |  (13, 3), (13, 1), (13, 0), (13, 22)
                 # (29, 8)     |  (29, 3), (29, 1), (29, 0), (29, 22)
                 # TODO: use stable to keep the order of negatives. This may not
-                # be necessary
+                # be necessary.
                 u_sort_idx = th.argsort(u, stable=True)
                 u = u[u_sort_idx]
                 v = v[u_sort_idx]
@@ -970,7 +979,22 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
 
 class LinkPredictContrastiveDistMultDecoder(LinkPredictDistMultDecoder):
     """ Link prediction decoder designed for contrastive loss
-        with the score function of DistMult
+        with the score function of DistMult.
+
+        Note: This class is specifically implemented for contrastive loss
+        This may also be used by other pair-wise loss functions for link
+        prediction tasks.
+
+        TODO(xiang): Develop a better solution for supporting pair-wise
+        loss functions in link prediction tasks. The
+        LinkPredictContrastiveDotDecoder is implemented based on the
+        assumption that the same decoder.forward will be called twice
+        with a positive graph and negative graph respectively. And
+        the positive and negative graphs are compatible. We can simply
+        sort the edges in postive and negative graphs to create <pos, neg>
+        pairs. This implementation makes strong assumption of the correlation
+        between the Dataloader, Decoder and the Loss function. We should
+        find a better implementation.
     """
 
     # pylint: disable=unused-argument
