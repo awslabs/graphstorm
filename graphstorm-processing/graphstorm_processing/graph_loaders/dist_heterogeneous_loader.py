@@ -28,6 +28,7 @@ from pyspark.sql.types import (
     StructField,
     StringType,
     IntegerType,
+    LongType,
     ArrayType,
     ByteType,
 )
@@ -122,6 +123,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             if num_output_files and num_output_files > 0
             else int(spark.sparkContext.defaultParallelism)
         )
+        assert self.num_output_files > 0
         # Mapping from node type to filepath, each file is a node-str to node-int-id mapping
         self.node_mapping_paths = {}  # type: Dict[str, Sequence[str]]
         # Mapping from label name to value counts
@@ -703,7 +705,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             map_schema = StructType(
                 [
                     StructField(join_col, StringType(), True),
-                    StructField(index_col, IntegerType(), True),
+                    StructField(index_col, LongType(), True),
                 ]
             )
 
@@ -742,7 +744,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         node_rdd_with_ids = node_df.rdd.zipWithIndex()
 
         node_id_col = f"{node_col}-int_id"
-        new_schema = original_schema.add(StructField(node_id_col, IntegerType(), False))
+        new_schema = original_schema.add(StructField(node_id_col, LongType(), False))
 
         node_rdd_with_ids = node_rdd_with_ids.map(
             lambda rdd_row: (list(rdd_row[0]) + [rdd_row[1]])  # type: ignore
@@ -1064,6 +1066,11 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             The first list contains the original edge files, the second is the reversed
             edge files, will be empty if `self.add_reverse_edges` is False.
         """
+        # TODO: An option for dealing with skewed data:
+        # Find the heavy hitter, collect, do broadcast join with just them,
+        # (for both sides of the edge and filter the rows?) then do the join with
+        # the rest, then concat the two (or write to storage separately, concat at read-time)
+
         src_col = edge_config.src_col
         src_ntype = edge_config.src_ntype
         dst_col = edge_config.dst_col
@@ -1084,8 +1091,10 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             )
             .withColumnRenamed(NODE_MAPPING_INT, "src_int_id")
             .withColumnRenamed(NODE_MAPPING_STR, "src_str_id")
+            .repartition(self.num_output_files, F.col("src_str_id"))
         )
         # Join incoming edge df with mapping df to transform source str-ids to int ids
+        edge_df = edge_df.repartition(self.num_output_files, F.col(src_col))
         edge_df_with_int_src = src_node_id_mapping.join(
             edge_df,
             src_node_id_mapping["src_str_id"] == edge_df[src_col],
@@ -1115,9 +1124,13 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             )
             .withColumnRenamed(NODE_MAPPING_INT, "dst_int_id")
             .withColumnRenamed(NODE_MAPPING_STR, "dst_str_id")
+            .repartition(self.num_output_files, F.col("dst_str_id"))
         )
         # Join the newly created src-int-id edge df with mapping
         # df to transform destination str-ids to int ids
+        edge_df_with_int_src = edge_df_with_int_src.repartition(
+            self.num_output_files, F.col(dst_col)
+        )
         edge_df_with_int_ids = dst_node_id_mapping.join(
             edge_df_with_int_src,
             dst_node_id_mapping["dst_str_id"] == edge_df_with_int_src[dst_col],
