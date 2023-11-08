@@ -209,10 +209,10 @@ python3 -m graphstorm.run.gs_gen_node_embedding --workspace $GS_HOME/training_sc
 
 error_and_exit $?
 
-cnt=$(ls /data/gsgnn_lp_ml_dot/save-emb/movie | grep .bin | wc -l)
+cnt=$(ls /data/gsgnn_lp_ml_dot/save-emb/movie | grep .pt | wc -l)
 if test $cnt -ne 0
 then
-    echo "/data/gsgnn_lp_ml_dot/save-emb/movie/emb.part0000x.bin should be removed."
+    echo "/data/gsgnn_lp_ml_dot/save-emb/movie/emb.part0000x.pt should be removed."
     exit -1
 fi
 
@@ -223,10 +223,10 @@ then
     exit -1
 fi
 
-cnt=$(ls /data/gsgnn_lp_ml_dot/save-emb/user | grep .bin | wc -l)
+cnt=$(ls /data/gsgnn_lp_ml_dot/save-emb/user | grep .pt | wc -l)
 if test $cnt -ne 0
 then
-    echo "/data/gsgnn_lp_ml_dot/save-emb/user/emb.part0000x.bin should be removed."
+    echo "/data/gsgnn_lp_ml_dot/save-emb/user/emb.part0000x.pt should be removed."
     exit -1
 fi
 

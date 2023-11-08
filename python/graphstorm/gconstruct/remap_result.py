@@ -190,18 +190,18 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         --------
         # embedddings:
         #   ntype0:
-        #     nids.part00000.bin
-        #     nids.part00001.bin
+        #     nids.part00000.pt
+        #     nids.part00001.pt
         #     ...
-        #     emb.part00000.bin
-        #     emb.part00001.bin
+        #     emb.part00000.pt
+        #     emb.part00001.pt
         #     ...
         #   ntype1:
-        #     nids.part00000.bin
-        #     nids.part00001.bin
+        #     nids.part00000.pt
+        #     nids.part00001.pt
         #     ...
-        #     emb.part00000.bin
-        #     emb.part00001.bin
+        #     emb.part00000.pt
+        #     emb.part00001.pt
         #     ...
 
         The output files will be
@@ -247,9 +247,9 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         ntype_emb_files = os.listdir(input_emb_dir)
         # please note nid_files can be empty.
         nid_files = [fname for fname in ntype_emb_files \
-                     if fname.startswith("nids") and fname.endswith("bin")]
+                     if fname.startswith("nids") and fname.endswith("pt")]
         emb_files = [fname for fname in ntype_emb_files \
-                     if fname.startswith("emb") and fname.endswith("bin")]
+                     if fname.startswith("emb") and fname.endswith("pt")]
 
         nid_files.sort()
         emb_files.sort()
@@ -626,7 +626,7 @@ def main(args, gs_config_args):
             pred_etypes = exist_pred_etypes
 
         # If pred_ntypes (nodes with prediction results)
-        # is not empty, we need to remap edge prediction results
+        # is not empty, we need to remap node prediction results
         # Note: For distributed SageMaker runs, pred_ntypes must be
         # provided if node prediction result remap is required,
         # as result_info.json is only saved by rank0 and

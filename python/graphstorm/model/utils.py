@@ -164,6 +164,7 @@ def save_sparse_emb(model_path, sparse_emb, ntype):
         iterating all the sparse embeddings of the embed_layer
 
         .. code::
+
             # embed_layer is the input embed_layer
             embed_layer = embed_layer.module \
                 if isinstance(embed_layer, DistributedDataParallel) \
@@ -500,14 +501,15 @@ def save_pytorch_embedding(emb_path, embedding, rank, world_size):
     # make sure the emb_path permission is changed before other process start to save
     barrier()
 
-    assert rank < world_size
+    assert rank < world_size, \
+        f"Process rank {rank} must be smaller than the distributed cluster size {world_size}"
 
     assert isinstance(embedding, (dgl.distributed.DistTensor, LazyDistTensor)), \
         "Input embedding must be a dgl.distributed.DistTensor or a LazyDistTensor"
 
     start, end = get_data_range(rank, world_size, len(embedding))
     embedding = embedding[start:end]
-    th.save(embedding, os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.bin'))
+    th.save(embedding, os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.pt'))
 
 def load_pytorch_embedding(emb_path, part_policy, name):
     """ Load embedding tensor in Pytorch format.
@@ -527,7 +529,7 @@ def load_pytorch_embedding(emb_path, part_policy, name):
     """
     rank = get_rank()
     world_size = get_world_size()
-    emb = th.load(os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.bin'))
+    emb = th.load(os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.pt'))
     dist_emb = create_dist_tensor((part_policy.get_size(), emb.shape[1]), emb.dtype,
             name=name, part_policy=part_policy)
     start, end = get_data_range(rank, world_size, len(dist_emb))
@@ -552,11 +554,12 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
         The saved node embeddings looks like:
 
         .. code::
+
             PATH_TO_EMB:
                 |- emb_info.json
-                |- ntype0_emb.part00000.bin
+                |- ntype0_emb.part00000.pt
                 |- ...
-                |- ntype1_emb.part00000.bin
+                |- ntype1_emb.part00000.pt
                 |- ...
 
         The emb.info.json contains three information:
@@ -567,6 +570,7 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
         Example:
         --------
         .. code::
+
             {
                 "format": "pytorch",
                 "world_size": 8,
@@ -580,11 +584,12 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
         --------
 
         .. code::
-        Graph Node ID   |   embeddings
-        0               |   0.112,0.123,-0.011,...
-        1               |   0.872,0.321,-0.901,...
-        2               |   0.472,0.432,-0.732,...
-        ...
+
+            Graph Node ID   |   embeddings
+            0               |   0.112,0.123,-0.011,...
+            1               |   0.872,0.321,-0.901,...
+            2               |   0.472,0.432,-0.732,...
+            ...
 
         An alternative way to save node embeddings is calling `save_full_node_embeddings`
         which is recommended as it is more efficient. Please refer to `save_full_node_embeddings`
@@ -658,14 +663,14 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
         for name, emb in embeddings.items():
             os.makedirs(os.path.join(emb_path, name), exist_ok=True)
             th.save(emb, os.path.join(os.path.join(emb_path, name),
-                                      f'emb.part{pad_file_index(rank)}.bin'))
+                                      f'emb.part{pad_file_index(rank)}.pt'))
             emb_info["emb_name"].append(name)
     else:
         os.makedirs(os.path.join(emb_path, NTYPE), exist_ok=True)
         # There is no ntype for the embedding
         # use NTYPE
         th.save(embeddings, os.path.join(os.path.join(emb_path, NTYPE),
-                                         f'emb.part{pad_file_index(rank)}.bin'))
+                                         f'emb.part{pad_file_index(rank)}.pt'))
         emb_info["emb_name"] = NTYPE
 
     if rank == 0:
@@ -751,9 +756,9 @@ def save_shuffled_node_embeddings(shuffled_embs, save_embed_path, save_embed_for
         assert len(nids) == len(embs), \
             f"The embeding length {len(embs)} does not match the node id length {len(nids)}"
         th.save(embs, os.path.join(os.path.join(save_embed_path, ntype),
-                                  f'emb.part{pad_file_index(rank)}.bin'))
+                                  f'emb.part{pad_file_index(rank)}.pt'))
         th.save(nids, os.path.join(os.path.join(save_embed_path, ntype),
-                                  f'nids.part{pad_file_index(rank)}.bin'))
+                                  f'nids.part{pad_file_index(rank)}.pt'))
         emb_info["emb_name"].append(ntype)
 
     if rank == 0:
@@ -785,18 +790,18 @@ def save_full_node_embeddings(g, save_embed_path,
         --------
         # embedddings:
         #   ntype0:
-        #     nids.part00000.bin
-        #     nids.part00001.bin
+        #     nids.part00000.pt
+        #     nids.part00001.pt
         #     ...
-        #     emb.part00000.bin
-        #     emb.part00001.bin
+        #     emb.part00000.pt
+        #     emb.part00001.pt
         #     ...
         #   ntype1:
-        #     nids.part00000.bin
-        #     nids.part00001.bin
+        #     nids.part00000.pt
+        #     nids.part00001.pt
         #     ...
-        #     emb.part00000.bin
-        #     emb.part00001.bin
+        #     emb.part00000.pt
+        #     emb.part00001.pt
         #     ...
 
         The content of nids.part files and emb.part files looks like:
@@ -805,13 +810,14 @@ def save_full_node_embeddings(g, save_embed_path,
         --------
 
         .. code::
-        nids.part00000.bin   |   emb.part00000.bin
-                             |
-        Graph Node ID        |   embeddings
-        10                   |   0.112,0.123,-0.011,...
-        1                    |   0.872,0.321,-0.901,...
-        23                   |   0.472,0.432,-0.732,...
-        ...
+
+            nids.part00000.pt    |   emb.part00000.pt
+                                 |
+            Graph Node ID        |   embeddings
+            10                   |   0.112,0.123,-0.011,...
+            1                    |   0.872,0.321,-0.901,...
+            23                   |   0.472,0.432,-0.732,...
+            ...
 
         Note: `save_pytorch_embeddings` (called by `save_embeddings`) is different from
         `save_full_node_embeddings`. In `save_pytorch_embeddings`, it will shuffle the
@@ -819,7 +825,7 @@ def save_full_node_embeddings(g, save_embed_path,
         node IDs in Graph Node ID space. While `save_full_node_embeddings`
         shuffles node IDs instead of node embeddings, which is more efficient.
 
-        Note: User need to call graphstorm.gcostruct.remap_result to remap the output
+        Note: Users need to call graphstorm.gcostruct.remap_result to remap the output
         of `save_full_node_embeddings` from Graph Node ID space to Raw Node ID space.
         GraphStorm's launch scripts will automatically call remap_result by default.
 
@@ -848,7 +854,7 @@ def save_full_node_embeddings(g, save_embed_path,
     shuffled_embs = {}
     for ntype in ntypes:
         if get_rank() == 0:
-            logging.info("save embeddings pf %s to %s", ntype, save_embed_path)
+            logging.info("save embeddings of %s to %s", ntype, save_embed_path)
 
         # only save embeddings of target_nidx
         assert ntype in embeddings, \
@@ -1109,6 +1115,7 @@ def save_node_prediction_results(predictions, prediction_path):
         Example:
         --------
         .. code::
+
             PATH_TO_RESULTS:
             |- result_info.json
             |- ntype0
@@ -1129,6 +1136,7 @@ def save_node_prediction_results(predictions, prediction_path):
         Example:
         --------
         .. code::
+
             {
                 "format": "pytorch",
                 "world_size": 8,
@@ -1136,8 +1144,9 @@ def save_node_prediction_results(predictions, prediction_path):
             }
 
         .. note::
-        The saved prediction results are in Graph Node ID space.
-        You need to remap them into Raw Node ID space.
+
+            The saved prediction results are in Graph Node ID space.
+            You need to remap them into Raw Node ID space.
 
         Parameters
         ----------
@@ -1170,6 +1179,7 @@ def save_edge_prediction_results(predictions, prediction_path):
         The saved node prediction results looks like:
 
         .. code::
+
             PATH_TO_RESULTS:
             |- result_info.json
             |- etype0
@@ -1193,6 +1203,7 @@ def save_edge_prediction_results(predictions, prediction_path):
         Example:
         --------
         .. code::
+
             {
                 "format": "pytorch",
                 "world_size": 8,
@@ -1200,8 +1211,9 @@ def save_edge_prediction_results(predictions, prediction_path):
             }
 
         .. note::
-        The saved prediction results are in Graph Node ID space.
-        You need to remap them into Raw Node ID space.
+
+            The saved prediction results are in Graph Node ID space.
+            You need to remap them into Raw Node ID space.
 
         Parameters
         ----------
@@ -1285,6 +1297,7 @@ def load_sparse_emb(target_sparse_emb, ntype_emb_path):
         iterating all the sparse embeddings of the embed_layer
 
         .. code::
+
             # embed_layer is the input embed_layer
             # model_path is where the sparse embeddings are stored.
             for ntype, sparse_emb in embed_layer.sparse_embeds.items():
@@ -1601,6 +1614,7 @@ def create_sparse_emb_path(model_path, ntype):
         for each sparse embedding of the embed_layer
 
         .. code::
+
             # embed_layer is the input embed_layer
             embed_layer = embed_layer.module \
                 if isinstance(embed_layer, DistributedDataParallel) else embed_layer

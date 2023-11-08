@@ -185,10 +185,10 @@ mkdir /tmp/em_remap/partial-emb/1/n1/
 mkdir /tmp/em_remap/partial-emb/0/n1/
 mkdir /tmp/em_remap/partial-emb/1/n0/
 
-cp -r /tmp/em_remap/partial-emb/n0/*0.bin /tmp/em_remap/partial-emb/0/n0/
-cp -r /tmp/em_remap/partial-emb/n0/*1.bin /tmp/em_remap/partial-emb/1/n0/
-cp -r /tmp/em_remap/partial-emb/n1/*0.bin /tmp/em_remap/partial-emb/0/n1/
-cp -r /tmp/em_remap/partial-emb/n1/*1.bin /tmp/em_remap/partial-emb/1/n1/
+cp -r /tmp/em_remap/partial-emb/n0/*0.pt /tmp/em_remap/partial-emb/0/n0/
+cp -r /tmp/em_remap/partial-emb/n0/*1.pt /tmp/em_remap/partial-emb/1/n0/
+cp -r /tmp/em_remap/partial-emb/n1/*0.pt /tmp/em_remap/partial-emb/0/n1/
+cp -r /tmp/em_remap/partial-emb/n1/*1.pt /tmp/em_remap/partial-emb/1/n1/
 
 # Test remap emb results
 python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/em_remap/id_mapping/ --logging-level debug --node-emb-dir /tmp/em_remap/partial-emb/0/ --preserve-input True --rank 0 --world-size 2 --with-shared-fs False
