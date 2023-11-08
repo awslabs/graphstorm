@@ -42,4 +42,4 @@ EXECUTOR_MEM_OVERHEAD_RATIO = 0.1
 
 ################# Numerical transformations  ################
 VALID_IMPUTERS = ["none", "mean", "median", "most_frequent"]
-VALID_NORMALIZERS = ["none", "min-max", "standard"]
+VALID_NORMALIZERS = ["none", "min-max", "standard", "rank-gauss"]

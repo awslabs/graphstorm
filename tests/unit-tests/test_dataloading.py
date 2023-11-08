@@ -641,6 +641,23 @@ def test_GSgnnLinkPredictionTestDataLoader(batch_size, num_negative_edges):
                 assert neg_src.shape[1] == num_negative_edges
                 assert th.all(neg_src < g.number_of_nodes(canonical_etype[0]))
 
+        fixed_test_size = 10
+        dataloader = GSgnnLinkPredictionTestDataLoader(
+            lp_data,
+            target_idx=lp_data.train_idxs, # use train edges as val or test edges
+            batch_size=batch_size,
+            num_negative_edges=num_negative_edges,fixed_test_size=fixed_test_size)
+        num_samples = 0
+        for pos_neg_tuple, sample_type in dataloader:
+            num_samples += 1
+            assert isinstance(pos_neg_tuple, dict)
+            assert len(pos_neg_tuple) == 1
+            for _, pos_neg in pos_neg_tuple.items():
+                pos_src, _, pos_dst, _ = pos_neg
+                assert len(pos_src) <= batch_size
+
+        assert num_samples ==  -(-fixed_test_size // batch_size) * 2
+
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
