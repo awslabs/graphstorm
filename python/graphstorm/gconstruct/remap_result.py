@@ -526,6 +526,10 @@ def _parse_gs_config(config):
 def main(args, gs_config_args):
     """ main function
     """
+    rank = args.rank
+    world_size = args.world_size
+    with_shared_fs = args.with_shared_fs
+
     if args.yaml_config_file is not None:
         # Case 1: remap_result is called right after the
         # train/inference script.
@@ -562,9 +566,17 @@ def main(args, gs_config_args):
         else:
             pred_ntypes = []
 
-    rank = args.rank
-    world_size = args.world_size
-    with_shared_fs = args.with_shared_fs
+        if not with_shared_fs:
+            # When shared file system is not avaliable and the world_size is
+            # larger than 1, it means it is a distributed remap task.
+            # If remapping prediction result is required, i.e., predict_dir
+            # is not None, either pred_etypes or pred_ntypes must be
+            # provided.
+            if predict_dir is not None and world_size > 0 \
+                and len(pred_etypes) == 0 and len(pred_ntypes) == 0:
+                raise RuntimeError("You want to do prediction result remap as" \
+                                   f"predict-dir {predict_dir} is not None. " \
+                                   "but both pred-etypes and pred-ntypes are empty.")
 
     assert world_size > 0, \
         f"World size must be larger than 0, but get {world_size}."

@@ -151,6 +151,14 @@ python3 $GS_HOME/tests/end2end-tests/check_np_infer_emb.py --train_embout /data/
 
 error_and_exit $?
 
+echo "**************dataset: Movielens, do inference on saved model, remap without shared file system"
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer false  --save-embed-path /data/gsgnn_nc_ml/infer-emb-nosfs/ --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml/prediction-nosfs/ --logging-file /tmp/log.txt --preserve-input True --with-shared-fs False
+
+error_and_exit $?
+rm /tmp/log.txt
+
+python3 $GS_HOME/tests/end2end-tests/check_np_infer_emb.py --train_embout /data/gsgnn_nc_ml/emb/ --infer_embout /data/gsgnn_nc_ml/infer-emb-nosfs/
+
 echo "**************dataset: Movielens, use gen_embeddings to generate embeddings on node classification"
 python3 -m graphstorm.run.gs_gen_node_embedding --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-embed-path /data/gsgnn_nc_ml/save-emb/ --use-mini-batch-infer false --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True
 
@@ -354,6 +362,16 @@ fi
 python3 $GS_HOME/tests/end2end-tests/check_np_infer_emb.py --train_embout /data/gsgnn_nc_ml_text/emb/ --infer_embout /data/gsgnn_nc_ml_text/infer-emb/
 
 error_and_exit $?
+
+echo "**************dataset: Movielens, do inference on saved model, node feat: BERT nodes: movie, user, with-shared-fs False"
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_text_infer.yaml --use-mini-batch-infer false --save-embed-path /data/gsgnn_nc_ml_text/infer-emb/ --restore-model-path /data/gsgnn_nc_ml_text/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml_text/prediction-no-sf/ --logging-file /tmp/log.txt --logging-level debug --with-shared-fs False
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/check_predict_result.py --infer-prediction /data/gsgnn_nc_ml_text/prediction/movie/ --no-sfs-prediction /data/gsgnn_nc_ml_text/prediction-no-sf/movie/
+
+error_and_exit $?
+
 rm -fr /data/gsgnn_nc_ml_text/*
 
 echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: BERT nodes: movie, user inference: mini-batch save model save emb node, train_nodes 0"
@@ -422,3 +440,5 @@ echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat:
 python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --save-model-path /data/gsgnn_nc_ml/ --num-epochs 1 --backend nccl --node-feat-name movie:title user:feat
 
 error_and_exit $?
+
+rm -fr /tmp/*

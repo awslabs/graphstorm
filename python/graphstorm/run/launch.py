@@ -1017,7 +1017,7 @@ def get_argument_parser():
         "--do-nid-remap",
         type=lambda x: (str(x).lower() in ['true', '1']),
         default=True,
-        help="Do Original Graph ID to Raw Input Node ID space remapping."
+        help="Do Graph Node ID space to Raw Node ID space remapping."
         "If not set, the default behavior is to do remap."
     )
 
