@@ -88,14 +88,14 @@ Here we will just show the custom image application creation using the AWS CLI:
 
     aws emr-serverless create-application \
         --name gsprocessing-0.2.1 \
-        --release-label emr-6.11.0 \
+        --release-label emr-6.13.0 \
         --type SPARK \
         --image-configuration '{
-            "imageUri": "<aws-account-id>.dkr.ecr.<region>.amazonaws.com/graphstorm-processing-emr-serverless:0.2.1"
+            "imageUri": "<aws-account-id>.dkr.ecr.<region>.amazonaws.com/graphstorm-processing-emr-serverless:0.2.1-<arch>"
         }'
 
-Here you will need to replace ``<aws-account-id>`` and ``<region>`` with the correct values
-from the image you just created. GSProcessing version ``0.2.1`` uses ``emr-6.11.0`` as its
+Here you will need to replace ``<aws-account-id>``, ``<arch>`` (``x86_64`` or ``arm64``), and ``<region>`` with the correct values
+from the image you just created. GSProcessing version ``0.2.1`` uses ``emr-6.13.0`` as its
 base image, so we need to ensure our application uses the same release.
 
 
@@ -234,7 +234,7 @@ and building the GSProcessing SageMaker ECR image:
     bash docker/push_gsprocessing_image.sh --environment sagemaker --region ${REGION}
 
     SAGEMAKER_ROLE_NAME="enter-your-sagemaker-execution-role-name-here"
-    IMAGE_URI="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/graphstorm-processing-sagemaker:0.2.1"
+    IMAGE_URI="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/graphstorm-processing-sagemaker:0.2.1-x86_64"
     ROLE="arn:aws:iam::${ACCOUNT}:role/service-role/${SAGEMAKER_ROLE_NAME}"
     INSTANCE_TYPE="ml.t3.xlarge"
 

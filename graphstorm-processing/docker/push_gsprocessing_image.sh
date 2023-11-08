@@ -16,6 +16,7 @@ Available options:
 -h, --help          Print this help and exit
 -x, --verbose       Print script debug info
 -e, --environment   Image execution environment. Must be one of 'emr-serverless' or 'sagemaker'. Required.
+-c, --architecture  Image architecture. Must be one of 'x86_64' or 'arm64'. Default is 'x86_64'.
 -i, --image         Docker image name, default is 'graphstorm-processing'.
 -v, --version       Docker version tag, default is the library's current version (`poetry version --short`)
 -r, --region        AWS Region to which we'll push the image. By default will get from aws-cli configuration.
@@ -43,6 +44,7 @@ parse_params() {
   REGION=$(aws configure get region)
   REGION=${REGION:-us-west-2}
   ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+  ARCH='x86_64'
 
 
   while :; do
@@ -52,6 +54,10 @@ parse_params() {
     --no-color) NO_COLOR=1 ;;
     -e | --environment)
       EXEC_ENV="${2-}"
+      shift
+      ;;
+    -a | --architecture)
+      ARCH="${2-}"
       shift
       ;;
     -i | --image)
@@ -98,13 +104,14 @@ fi
 # script logic here
 msg "Execution parameters: "
 msg "- ENVIRONMENT: ${EXEC_ENV}"
+msg "- ARCHITECTURE: ${ARCH}"
 msg "- IMAGE: ${IMAGE}"
 msg "- VERSION: ${VERSION}"
 msg "- REGION: ${REGION}"
 msg "- ACCOUNT: ${ACCOUNT}"
 
-SUFFIX="${VERSION}"
-LATEST_SUFFIX="latest"
+SUFFIX="${VERSION}-${ARCH}"
+LATEST_SUFFIX="latest-${ARCH}"
 IMAGE_WITH_ENV="${IMAGE}-${EXEC_ENV}"
 
 
