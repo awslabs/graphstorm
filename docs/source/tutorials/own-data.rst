@@ -1,7 +1,7 @@
 .. _use-own-data:
 
-Use Your Own Data Tutorial
-============================
+Use Your Own Data
+==================
 It is easy for users to prepare their own graph data and leverage GraphStorm's built-in GNN models, e.g., RGCN and RGAT, to perform GML tasks.  It takes three steps to use your own graph data in GraphStorm:
 
 * Step 1: Prepare your own graph data in the required format.

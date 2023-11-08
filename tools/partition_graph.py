@@ -17,11 +17,15 @@
     node regression, edge classification and edge regression.
 """
 
-import dgl
-import numpy as np
-import torch as th
 import argparse
 import time
+import numpy as np
+import torch as th
+
+import dgl
+from dgl.distributed.constants import DEFAULT_NTYPE
+from dgl.distributed.constants import DEFAULT_ETYPE
+
 from graphstorm.data import OGBTextFeatDataset
 from graphstorm.data import MovieLens100kNCDataset
 from graphstorm.data import ConstructedGraphDataset
@@ -140,13 +144,13 @@ if __name__ == '__main__':
     pred_ntypes = args.target_ntype.split(',') if args.target_ntype is not None else None
     if pred_ntypes is None:
         try:
-            pred_ntypes = [dataset.predict_category] if not args.is_homo else ['_N']
+            pred_ntypes = [dataset.predict_category] if not args.is_homo else [DEFAULT_NTYPE]
         except:
             pass
     pred_etypes = [tuple(args.target_etype.split(','))] if args.target_etype is not None else None
     if pred_etypes is None:
         try:
-            pred_etypes = [dataset.target_etype] if not args.is_homo else ['_E']
+            pred_etypes = [dataset.target_etype] if not args.is_homo else [DEFAULT_ETYPE]
         except:
             pass
     assert pred_ntypes is not None or pred_etypes is not None, \

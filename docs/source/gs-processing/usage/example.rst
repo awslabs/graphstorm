@@ -258,7 +258,7 @@ to manage your own infrastructure, we recommend using GraphStorm's
 `SageMaker wrappers <https://graphstorm.readthedocs.io/en/latest/scale/sagemaker.html>`_
 that do all the hard work for you and allow
 you to focus on model development. In particular you can follow the GraphStorm documentation to run
-`distributed partititioning on SageMaker <https://github.com/awslabs/graphstorm/tree/main/sagemaker#launch-graph-partitioning-task>`_.
+`distributed partitioning on SageMaker <https://github.com/awslabs/graphstorm/tree/main/sagemaker#launch-graph-partitioning-task>`_.
 
 
 To run GSProcessing jobs on Amazon SageMaker we'll need to follow
