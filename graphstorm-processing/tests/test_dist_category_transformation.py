@@ -227,28 +227,27 @@ def test_parquet_input_multi_categorical(spark: SparkSession, check_df_schema):
     # Create a DataFrame using the sample data and the defined schema
     df = spark.createDataFrame(data, schema)
 
-    # Define the path for the Parquet file
-    parquet_path = "people_name.parquet"
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # Define the path for the Parquet file
+        parquet_path = f"{tmpdirname}/people_name.parquet"
 
-    # Write the DataFrame to a Parquet file
-    df.write.mode("overwrite").parquet(parquet_path)
+        # Write the DataFrame to a Parquet file
+        df.write.mode("overwrite").parquet(parquet_path)
 
-    # Read the Parquet file into a DataFrame
-    df_parquet = spark.read.parquet(parquet_path)
+        # Read the Parquet file into a DataFrame
+        df_parquet = spark.read.parquet(parquet_path)
 
-    # Show the DataFrame loaded from the Parquet file
-    dist_categorical_transormation = DistMultiCategoryTransformation(cols=["names"], separator=None)
+        # Show the DataFrame loaded from the Parquet file
+        dist_categorical_transormation = DistMultiCategoryTransformation(cols=["names"], separator=None)
 
-    transformed_df = dist_categorical_transormation.apply(df_parquet)
-    check_df_schema(transformed_df)
-    transformed_rows = transformed_df.collect()
-    expected_rows = [
-        [1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-        [0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0],
-    ]
-    for row, expected_row in zip(transformed_rows, expected_rows):
-        assert row["names"] == expected_row
-
-    shutil.rmtree(parquet_path)
+        transformed_df = dist_categorical_transormation.apply(df_parquet)
+        check_df_schema(transformed_df)
+        transformed_rows = transformed_df.collect()
+        expected_rows = [
+            [1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0],
+        ]
+        for row, expected_row in zip(transformed_rows, expected_rows):
+            assert row["names"] == expected_row
