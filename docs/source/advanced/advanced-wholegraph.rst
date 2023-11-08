@@ -58,7 +58,7 @@ Install aws-efa-installer on both the base instance and within the Docker contai
 .. code:: bash
 
     curl -O https://efa-installer.amazonaws.com/aws-efa-installer-latest.tar.gz \
-    && tar -xf $HOME/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz \
+    && tar -xf aws-efa-installer-latest.tar.gz \
     && cd aws-efa-installer \
     && apt-get update \
     && apt-get install -y libhwloc-dev \
