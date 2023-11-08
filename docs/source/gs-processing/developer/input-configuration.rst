@@ -432,12 +432,16 @@ arguments.
    The length of the resulting vector will be the number of categories in the data minus one, with a 1 in
    the index of the single category, and zero everywhere else.
 
+.. note::
+    The maximum number of categories in any categorical feature is 100. If a property has more than 100 categories of value,
+    only the most common 99 of them are placed in distinct categories, and the rest are placed in a special category named OTHER.
+
 -  ``multi-categorical``
 
    -  Encodes vector-like data from a fixed list of possible values (i.e. multi-label/multi-categorical data) using a multi-hot encoding. The length of the resulting vector will be the number of categories in the data minus one, and each value will have a 1 value for every category that appears, and 0 everwhere else.
    -  ``kwargs``:
       - ``separator`` (String, optional): Same as the one in the No-op operation, the separator is used to
-        split multiple input values for CSV files e.g. ``detective|noir``. If it is not provided, then the whole value will be considered as an array.
+        split multiple input values for CSV files e.g. ``detective|noir``. If it is not provided, then the whole value will be considered as an array. For parquet files, if the input type is ArrayType(StringType()), then the separator is ignored; if it is StringType(), it will apply same logic as in CSV. 
 --------------
 
 Examples
