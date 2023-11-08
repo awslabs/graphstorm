@@ -24,6 +24,8 @@ import torch as th
 import pandas as pd
 import dgl.distributed as dist
 import tempfile
+from dgl.distributed.constants import (DEFAULT_NTYPE,
+                                       DEFAULT_ETYPE)
 
 from transformers import AutoTokenizer
 from graphstorm import get_feat_size
@@ -295,31 +297,31 @@ def generate_dummy_homo_graph(size='tiny', gen_mask=True):
     data_size = int(size_dict[size])
 
     num_nodes_dict = {
-        "_N": data_size,
+        DEFAULT_NTYPE: data_size,
     }
 
     edges = {
-        ("_N", "_E", "_N"): (th.randint(data_size, (2 * data_size,)),
+        DEFAULT_ETYPE: (th.randint(data_size, (2 * data_size,)),
                              th.randint(data_size, (2 * data_size,)))
     }
 
     hetero_graph = dgl.heterograph(edges, num_nodes_dict=num_nodes_dict)
 
     # set node and edge features
-    node_feat = {'_N': th.randn(data_size, 2)}
+    node_feat = {DEFAULT_NTYPE: th.randn(data_size, 2)}
 
-    edge_feat = {'_E': th.randn(2 * data_size, 2)}
+    edge_feat = {DEFAULT_ETYPE: th.randn(2 * data_size, 2)}
 
-    hetero_graph.nodes['_N'].data['feat'] = node_feat['_N']
-    hetero_graph.nodes['_N'].data['label'] = th.randint(10, (hetero_graph.number_of_nodes('_N'), ))
+    hetero_graph.nodes[DEFAULT_NTYPE].data['feat'] = node_feat[DEFAULT_NTYPE]
+    hetero_graph.nodes[DEFAULT_NTYPE].data['label'] = th.randint(10, (hetero_graph.number_of_nodes(DEFAULT_NTYPE), ))
 
-    hetero_graph.edges['_E'].data['feat'] = edge_feat['_E']
-    hetero_graph.edges['_E'].data['label'] = th.randint(10, (hetero_graph.number_of_edges('_E'), ))
+    hetero_graph.edges[DEFAULT_ETYPE].data['feat'] = edge_feat[DEFAULT_ETYPE]
+    hetero_graph.edges[DEFAULT_ETYPE].data['label'] = th.randint(10, (hetero_graph.number_of_edges(DEFAULT_ETYPE), ))
 
     # set train/val/test masks for nodes and edges
     if gen_mask:
-        target_ntype = ['_N']
-        target_etype = [("_N", "_E", "_N")]
+        target_ntype = [DEFAULT_NTYPE]
+        target_etype = [DEFAULT_ETYPE]
 
         node_train_mask = generate_mask([0,1], data_size)
         node_val_mask = generate_mask([2,3], data_size)
@@ -537,7 +539,7 @@ def create_distill_data(tmpdirname, num_files):
 
         textual_embed_pddf = pd.DataFrame({
             "ids": id_col,
-            "textual_feats": textual_col, 
+            "textual_feats": textual_col,
             "embeddings": embeddings_col
             }).set_index("ids")
         textual_embed_pddf.to_parquet(os.path.join(tmpdirname, f"part-{part_i}.parquet"))
