@@ -431,7 +431,8 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
     start = time.time()
     with th.no_grad():
         for ntype in target_ntypes:
-            # If we cannot generate embeddings on the node type, let's skip the node type.
+            # When reconstructed_embed is enabled, we may not be able to generate
+            # embeddings on some node types. We will skip the node types.
             if not _gen_emb(g, feat_field, embed_layer, ntype):
                 continue
 
