@@ -29,7 +29,7 @@ def run_job(input_args, image):
     sm_task_name = input_args.task_name if input_args.task_name else timestamp
     role = input_args.role # SageMaker ARN role
     instance_type = input_args.instance_type # SageMaker instance type
-    instance_count = input_args.instance_count # Number of infernece instances
+    instance_count = input_args.instance_count # Number of partition instances
     region = input_args.region # AWS region
     entry_point = input_args.entry_point # GraphStorm training entry_point
     num_parts = input_args.num_parts # Number of partitions
@@ -64,7 +64,7 @@ def run_job(input_args, image):
     script_processor = ScriptProcessor(
         image_uri=image,
         role=role,
-        instance_count=int(instance_count),
+        instance_count=instance_count,
         instance_type=instance_type,
         command=["python3"],
         base_job_name=f"gs-partition-{sm_task_name}",
