@@ -995,9 +995,9 @@ def parse_feat_ops(confs):
                                       infer_batch_size=infer_batch_size,
                                       out_dtype=out_dtype)
             elif conf['name'] == 'max_min_norm':
-                # TODO: support max_val and min_val in multiple column feature transformation
-                # If max_val and min_val are not explicitly defined, the preprocessing procedure
-                # will automatically determine these values from the last column.
+                # TODO: Not support max_min_norm feature transformation on multiple column
+                # without explicitly defining max_val and min_val. Otherwise, it is not clear to
+                # define max_val and min_val for each column.
                 if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
                     assert 'max_val' in conf and 'min_val' in conf, \
                         "max_val and min_val for max_min_norm feature transformation is needed"
@@ -1021,9 +1021,8 @@ def parse_feat_ops(confs):
                                                epsilon=epsilon)
             elif conf['name'] == 'to_categorical':
                 separator = conf['separator'] if 'separator' in conf else None
-                # TODO: If not explicitly defining the mapping for categorical feature,
-                # the preprocessing procedure will automatically determine these values
-                # from the last column.
+                # TODO: Not support categorical feature transformation on multiple column.
+                # It is not clear to define category mapping for each column
                 if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
                     raise RuntimeError("Do not support categorical "
                                        "feature transformation on multiple columns")
