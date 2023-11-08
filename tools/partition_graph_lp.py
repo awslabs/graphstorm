@@ -72,8 +72,6 @@ if __name__ == '__main__':
     # output arguments
     argparser.add_argument('--output', type=str, default='data',
                            help='The output directory to store the partitioned results.')
-    argparser.add_argument('--save-mappings', action='store_true',
-                           help='Store the mappings for the edges and nodes after partition.')
     # bert model name if any
     argparser.add_argument('--lm-model-name', type=str, default='bert-base-uncased',
                            help='lm model use to encode text feature if any')
@@ -198,10 +196,8 @@ if __name__ == '__main__':
                                                                          num_trainers_per_machine=args.num_trainers_per_machine,
                                                                          return_mapping=True)
     sys_tracker.check('partition the graph')
-    if args.save_mappings:
-        # TODO add something that is more scalable here as a saving method
 
-        # the new_node_mapping contains per entity type on the ith row the original node id for the ith node.
-        th.save(new_node_mapping, os.path.join(args.output, "node_mapping.pt"))
-        # the new_edge_mapping contains per edge type on the ith row the original edge id for the ith edge.
-        th.save(new_edge_mapping, os.path.join(args.output, "edge_mapping.pt"))
+    # the new_node_mapping contains per entity type on the ith row the original node id for the ith node.
+    th.save(new_node_mapping, os.path.join(args.output, "node_mapping.pt"))
+    # the new_edge_mapping contains per edge type on the ith row the original edge id for the ith edge.
+    th.save(new_edge_mapping, os.path.join(args.output, "edge_mapping.pt"))

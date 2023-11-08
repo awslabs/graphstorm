@@ -24,6 +24,8 @@ import torch as th
 import torch.nn.functional as F
 from dataclasses import dataclass
 from dgl.distributed import role
+from dgl.distributed.constants import DEFAULT_NTYPE
+from dgl.distributed.constants import DEFAULT_ETYPE
 
 from .utils import sys_tracker, get_rank, get_world_size
 from .config import BUILTIN_TASK_NODE_CLASSIFICATION
@@ -632,7 +634,7 @@ def check_homo(g):
     g: DGLGraph
         The graph used in training and testing
     """
-    if g.ntypes == ['_N'] and g.etypes == ['_E']:
+    if g.ntypes == [DEFAULT_NTYPE] and g.etypes == [DEFAULT_ETYPE]:
         return True
     return False
 

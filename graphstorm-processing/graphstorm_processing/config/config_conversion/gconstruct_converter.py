@@ -112,6 +112,19 @@ class GConstructConfigConverter(ConfigConverter):
                         "slide_window_size": gconstruct_transform_dict["slide_window_size"],
                         "imputer": "none",
                     }
+                elif gconstruct_transform_dict["name"] == "rank_gauss":
+                    gsp_transformation_dict["name"] = "numerical"
+                    if "epsilon" in gconstruct_transform_dict:
+                        gsp_transformation_dict["kwargs"] = {
+                            "epsilon": gconstruct_transform_dict["epsilon"],
+                            "normalizer": "rank-gauss",
+                            "imputer": "none",
+                        }
+                    else:
+                        gsp_transformation_dict["kwargs"] = {
+                            "normalizer": "rank-gauss",
+                            "imputer": "none",
+                        }
                 # TODO: Add support for other common transformations here
                 else:
                     raise ValueError(
