@@ -298,7 +298,7 @@ def generate_dummy_homo_graph(size='tiny', gen_mask=True):
     }
 
     edges = {
-        (DEFAULT_NTYPE, DEFAULT_ETYPE, DEFAULT_NTYPE): (th.randint(data_size, (2 * data_size,)),
+        DEFAULT_ETYPE: (th.randint(data_size, (2 * data_size,)),
                              th.randint(data_size, (2 * data_size,)))
     }
 
@@ -318,7 +318,7 @@ def generate_dummy_homo_graph(size='tiny', gen_mask=True):
     # set train/val/test masks for nodes and edges
     if gen_mask:
         target_ntype = [DEFAULT_NTYPE]
-        target_etype = [(DEFAULT_NTYPE, DEFAULT_ETYPE, DEFAULT_NTYPE)]
+        target_etype = [DEFAULT_ETYPE]
 
         node_train_mask = generate_mask([0,1], data_size)
         node_val_mask = generate_mask([2,3], data_size)
