@@ -205,7 +205,7 @@ class GSgnnData():
                     else:
                         self._g._edata_store[etype].update(data)
 
-        barrier()
+            barrier()
         self.prepare_data(self._g)
         sys_tracker.check('construct training data')
 
