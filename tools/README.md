@@ -87,7 +87,7 @@ python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
 ## Use WholeGraph to accelerate training and inferencing
 Graphstorm leverages NVIDIA’s [Wholegraph](https://github.com/rapidsai/wholegraph) framework to efficiently transfer node and edge features between machines. This capability can substantially enhance the speed of both training and inferencing pipelines. To take advantage of this feature, users are required to have EFA network support on their cluster. For a step-by-step setup guide, please refer to the [tutorial](https://graphstorm.readthedocs.io/en/latest/advanced/advanced-wholegraph.html). Converting node and edge features to the WholeGraph format is the only manual step; the rest of the process is seamless. 
 
-Please not, we do not support conversion of `train_mask`, `test_mask`, `val_mask` or `labels` to WholeGraph format. 
+Please note, we do not support conversion of `train_mask`, `test_mask`, `val_mask` or `labels` to WholeGraph format. Make sure to convert all the node and edge features to WholeGraph format using `convert_feat_to_wholegraph.py` toolkit to utilize the framework.
 
 #### Convert features from distDGL format to WholeGraph format
 
@@ -113,7 +113,7 @@ when `--edge-feat-names` is used, the  '`wholegraph`' folder will contain the ed
 
 ### Convert large features from distDGL format to WholeGraph format
 
-The conversion script has a minimum memory requirement of 2X the size of the input nodes or edge features in the graph. We offer a low-memory version that significantly reduces memory usage, requiring 2X the size of the largest node or edge feature, with the trade-off of longer conversion times. Users can enable this version by using the `--low-mem` argument.
+The conversion script has a minimum memory requirement of 2X of the size of the input nodes and edge features in a graph. We offer a low-memory option that significantly reduces memory usage, requiring only 2X of the size of the largest node or edge feature in the graph, with the trade-off of longer conversion time. Users can enable this option by using the `--low-mem` argument.
 ```
 python3 convert_feat_to_wholegraph.py --dataset-path ogbn-mag240m-2p --node-feat-names paper:feat --low-mem
 ```
