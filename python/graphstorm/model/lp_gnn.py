@@ -98,6 +98,9 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
         # homogenous graph.
         pos_score = self.decoder(pos_graph, encode_embs, pos_edge_feats)
         neg_score = self.decoder(neg_graph, encode_embs, neg_edge_feats)
+        assert pos_score.keys() == neg_score.keys(), \
+            "Positive scores and Negative scores must have edges of same" \
+            f"edge types, but get {pos_score.keys()} and {neg_score.keys()}"
         pred_loss = self.loss_func(pos_score, neg_score)
 
         # add regularization loss to all parameters to avoid the unused parameter errors
