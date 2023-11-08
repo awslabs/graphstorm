@@ -104,7 +104,7 @@ class RegressionLossFunc(GSLayer):
         """
         return None
 
-class LinkPredictLossFunc(GSLayer):
+class LinkPredictBCELossFunc(GSLayer):
     """ Loss function for link prediction.
     """
 
@@ -151,7 +151,7 @@ class LinkPredictLossFunc(GSLayer):
         """
         return None
 
-class WeightedLinkPredictLossFunc(GSLayer):
+class WeightedLinkPredictBCELossFunc(GSLayer):
     """ Loss function for link prediction.
     """
 
@@ -210,6 +210,25 @@ class WeightedLinkPredictLossFunc(GSLayer):
 
 class LinkPredictContrastiveLossFunc(GSLayer):
     """ Contrastive Loss function for link prediction.
+
+        The positive and negative scores are computed through a
+        score function as:
+
+            score = f(<src, rel, dst>)
+
+        And we treat a score as the distance between `src` and
+        `dst` nodes under relation `rel`.
+
+        In contrastive loss, we assume one positive pair <src, dst>
+        has K corresponding negative pairs <src, neg_dst1>,
+        <src, neg_dst2> .... <src, neg_dstk> When we compute the
+        loss of <src, dst>, we follow the following equation:
+
+            .. math::
+            loss = -log(exp(pos\_score)/\sum_{1=0}^N exp(score_i))
+
+        where score includes both positive score of <src, dst> and
+        negative scores of <src, neg_dst0>, ... <src, neg_dstk>
 
         Parameters
         ----------

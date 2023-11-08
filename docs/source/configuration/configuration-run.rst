@@ -494,10 +494,10 @@ Link Prediction Task
     - Argument: ``--lp-edge-weight-for-loss ntype0,rel0,ntype1:weight0 ntype0,rel1,ntype1:weight1``
     - Default value: None
 
-- **contrastive-loss-temp**: Temperature of link prediction contrastive loss. This is used to rescale the link prediction positive and negative scores for the loss.
+- **contrastive-loss-temperature**: Temperature of link prediction contrastive loss. This is used to rescale the link prediction positive and negative scores for the loss.
 
-    - Yaml: ``contrastive_loss_temp: 0.01```
-    - Argument: ``--contrastive-loss-temp 0.01``
+    - Yaml: ``contrastive_loss_temperature: 0.01```
+    - Argument: ``--contrastive-loss-temperature 0.01``
     - Default value: 1.0
 
 Distillation Specific Configurations

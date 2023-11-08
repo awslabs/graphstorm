@@ -44,4 +44,4 @@ from .edge_decoder import (DenseBiDecoder,
                            LinkPredictContrastiveDotDecoder,
                            LinkPredictContrastiveDistMultDecoder)
 
-from .loss_func import ClassifyLossFunc, RegressionLossFunc, LinkPredictLossFunc
+from .loss_func import ClassifyLossFunc, RegressionLossFunc, LinkPredictBCELossFunc

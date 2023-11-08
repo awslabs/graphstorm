@@ -717,6 +717,12 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
 class LinkPredictContrastiveDotDecoder(LinkPredictDotDecoder):
     """ Link prediction decoder designed for contrastive loss
         with the score function of dot product
+
+        Note: This class is specifically implemented for contrastive loss
+        This may also be used by other pair-wise loss fuctions for link
+        prediction tasks.
+        TODO(xiang): develop a better solution to unify the implementation
+        of link prediction decoders.
     """
 
     # pylint: disable=unused-argument

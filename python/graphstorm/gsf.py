@@ -48,8 +48,8 @@ from .model.edge_gnn import GSgnnEdgeModel
 from .model.lp_gnn import GSgnnLinkPredictionModel
 from .model.loss_func import (ClassifyLossFunc,
                               RegressionLossFunc,
-                              LinkPredictLossFunc,
-                              WeightedLinkPredictLossFunc,
+                              LinkPredictBCELossFunc,
+                              WeightedLinkPredictBCELossFunc,
                               LinkPredictContrastiveLossFunc)
 from .model.node_decoder import EntityClassifier, EntityRegression
 from .model.edge_decoder import (DenseBiDecoder,
@@ -499,12 +499,12 @@ def create_builtin_lp_model(g, config, train_task):
         raise Exception(f"Unknow link prediction decoder type {config.lp_decoder_type}")
     model.set_decoder(decoder)
     if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS:
-        model.set_loss_func(LinkPredictContrastiveLossFunc(config.contrastive_loss_temp))
+        model.set_loss_func(LinkPredictContrastiveLossFunc(config.contrastive_loss_temperature))
     elif config.lp_loss_func == BUILTIN_LP_LOSS_CROSS_ENTROPY:
         if config.lp_edge_weight_for_loss is None:
-            model.set_loss_func(LinkPredictLossFunc())
+            model.set_loss_func(LinkPredictBCELossFunc())
         else:
-            model.set_loss_func(WeightedLinkPredictLossFunc())
+            model.set_loss_func(WeightedLinkPredictBCELossFunc())
     else:
         raise TypeError(f"Unknown link prediction loss function {config.lp_loss_func}")
     if train_task:

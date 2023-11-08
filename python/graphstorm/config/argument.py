@@ -369,7 +369,7 @@ class GSConfig:
             _ = self.gamma
             _ = self.lp_decoder_type
             _ = self.lp_edge_weight_for_loss
-            _ = self.contrastive_loss_temp
+            _ = self.contrastive_loss_temperature
             _ = self.lp_loss_func
             _ = self.num_negative_edges
             _ = self.eval_negative_sampler
@@ -1774,19 +1774,19 @@ class GSConfig:
         return BUILTIN_LP_DISTMULT_DECODER
 
     @property
-    def contrastive_loss_temp(self):
+    def contrastive_loss_temperature(self):
         """ Temperature of link prediction contrustive loss
         """
         # pylint: disable=no-member
-        if hasattr(self, "_contrastive_loss_temp"):
+        if hasattr(self, "_contrastive_loss_temperature"):
             assert self.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS, \
-                "Use contrastive-loss-temp only when the loss function is " \
+                "Use contrastive-loss-temperature only when the loss function is " \
                 f"{BUILTIN_LP_LOSS_CONTRASTIVELOSS} loss."
 
-            contrastive_loss_temp = float(self._contrastive_loss_temp)
-            assert contrastive_loss_temp > 0.0, \
+            contrastive_loss_temperature = float(self._contrastive_loss_temperature)
+            assert contrastive_loss_temperature > 0.0, \
                 "Contrastive loss temperature must be larger than 0"
-            return contrastive_loss_temp
+            return contrastive_loss_temperature
 
         return 1.0
 
@@ -2419,7 +2419,7 @@ def _add_link_prediction_args(parser):
     )
     group.add_argument("--lp-loss-func", type=str, default=argparse.SUPPRESS,
             help="Link prediction loss function.")
-    group.add_argument("--contrastive-loss-temp", type=float, default=argparse.SUPPRESS,
+    group.add_argument("--contrastive-loss-temperature", type=float, default=argparse.SUPPRESS,
             help="Temperature of link prediction contrastive loss.")
     group.add_argument("--lp-edge-weight-for-loss", nargs='+', type=str, default=argparse.SUPPRESS,
             help="Edge feature field name for edge weights. It can be in following format: "
