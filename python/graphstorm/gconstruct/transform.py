@@ -996,7 +996,7 @@ def parse_feat_ops(confs):
                                       out_dtype=out_dtype)
             elif conf['name'] == 'max_min_norm':
                 # TODO: Not support max_min_norm feature transformation on multiple columns
-                # without explicitly defining max_val and min_val. Otherwise, it is not clear to
+                # without explicitly defining max_val and min_val. Otherwise, the definition of max_val and min_val for each column is unclear.
                 # define max_val and min_val for each column.
                 if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
                     assert 'max_val' in conf and 'min_val' in conf, \
@@ -1087,8 +1087,8 @@ def preprocess_features(data, ops):
             col_name = op.col_name
         for col in col_name:
             res = op.pre_process(data[col])
-            # Do not expect multiple keys for multiple columns, expect output is
-            # {feat_name: encoding}. But for single column, some feature transformation like
+            # Do not expect multiple keys for multiple columns, the expected output will only have 1 key/val pair.
+            # But for single column, some feature transformations like
             # Tokenizer will return multiple key-val pairs, so do not check for single column
             if len(col_name) > 1:
                 assert isinstance(res, dict) and len(res) == 1, \
@@ -1146,7 +1146,7 @@ def process_features(data, ops, ext_mem_path=None):
             if len(col_name) > 1:
                 assert isinstance(res, dict) and len(res) == 1, \
                     f"It is expected only have one feature name after the process_features " \
-                    f"for multiple columns, but get {len(res)}"
+                    f"for multiple column feature transformation, but get {len(res)}"
             for key, val in res.items():
                 # Check if it has 1D features. If yes, convert to 2D features
                 if len(val.shape) == 1:
@@ -1158,7 +1158,7 @@ def process_features(data, ops, ext_mem_path=None):
                     new_data[key] = val
                     continue
                 tmp_key = key
-                # Use external memory if it is available
+                # Use external memory if it is required
                 if ext_mem_path is not None:
                     wrapper.append(val)
                 else:

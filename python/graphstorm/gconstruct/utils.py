@@ -544,7 +544,7 @@ class ExtFeatureWrapper(ExtNumpyWrapper):
     Parameters
     ----------
     arr_path : str
-        The path to different feature files directory
+        A path to the directory of different feature files.
     shape : tuple
         The shape of the array.
     dtype : numpy dtype
@@ -608,7 +608,7 @@ class ExtFeatureWrapper(ExtNumpyWrapper):
                                f"first dimension that is the same but get "
                                f"{self.shape[0]} and {feature.shape[0]}")
         # Convert the numpy array into an ExtNumpyWrapper
-        # By converting into an ExtNumpyWrapper, it is possible to avoid loading
+        # By converting it into an ExtNumpyWrapper, it will avoid loading
         # all the numpy arrays into the memory at the same time.
         if isinstance(feature, np.ndarray):
             hash_hex = generate_hash()
