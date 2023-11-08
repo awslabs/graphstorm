@@ -17,6 +17,7 @@ from typing import Tuple, Iterator
 import os
 import pytest
 import pandas as pd
+import shutil
 
 import mock
 from numpy.testing import assert_array_equal
@@ -180,14 +181,18 @@ def test_multi_category_limited_categories(multi_cat_df_and_separator):
 def test_csv_input_categorical(spark: SparkSession, check_df_schema):
     data_path = os.path.join(_ROOT, "resources/multi_num_numerical/multi_num.csv")
     long_vector_df = spark.read.csv(data_path, sep=",", header=True)
-    dist_categorical_transormation = DistCategoryTransformation(
-        cols=["id"]
-    )
+    dist_categorical_transormation = DistCategoryTransformation(cols=["id"])
 
     transformed_df = dist_categorical_transormation.apply(long_vector_df)
     check_df_schema(transformed_df)
     transformed_rows = transformed_df.collect()
-    expected_rows = [[1, 0, 0, 0, 0], [0, 1, 0, 0, 0], [0, 0, 1, 0, 0], [0, 0, 0, 1, 0], [0, 0, 0, 0, 1]]
+    expected_rows = [
+        [1, 0, 0, 0, 0],
+        [0, 1, 0, 0, 0],
+        [0, 0, 1, 0, 0],
+        [0, 0, 0, 1, 0],
+        [0, 0, 0, 0, 1],
+    ]
     for row, expected_row in zip(transformed_rows, expected_rows):
         assert row["id"] == expected_row
 
@@ -195,9 +200,7 @@ def test_csv_input_categorical(spark: SparkSession, check_df_schema):
 def test_csv_input_multi_categorical(spark: SparkSession, check_df_schema):
     data_path = os.path.join(_ROOT, "resources/multi_num_numerical/multi_num.csv")
     long_vector_df = spark.read.csv(data_path, sep=",", header=True)
-    dist_categorical_transormation = DistMultiCategoryTransformation(
-        cols=["feat"], separator=";"
-    )
+    dist_categorical_transormation = DistMultiCategoryTransformation(cols=["feat"], separator=";")
 
     transformed_df = dist_categorical_transormation.apply(long_vector_df)
     check_df_schema(transformed_df)
@@ -211,23 +214,41 @@ def test_csv_input_multi_categorical(spark: SparkSession, check_df_schema):
 
 def test_parquet_input_multi_categorical(spark: SparkSession, check_df_schema):
     # Define the schema for the DataFrame
-    schema = StructType([
-        StructField("id", IntegerType(), True),
-        StructField("names", ArrayType(StringType()), True)
-    ])
+    schema = StructType([StructField("names", ArrayType(StringType()), True)])
 
     # Sample data with arrays of strings
     data = [
-        (1, ["Alice", "Alicia"]),
-        (2, ["Bob", "Bobby"]),
-        (3, ["Cathy", "Catherine"]),
-        (4, ["David", "Dave"])
+        (["Alice", "Alicia"],),
+        (["Bob", "Bobby"],),
+        (["Cathy", "Catherine"],),
+        (["David", "Dave"],),
     ]
 
     # Create a DataFrame using the sample data and the defined schema
     df = spark.createDataFrame(data, schema)
 
-    # Write the DataFrame to a Parquet file
-    df.write.parquet('people_with_names_array.parquet')
+    # Define the path for the Parquet file
+    parquet_path = "people_name.parquet"
 
-    shutil.rmtree('people_with_names_array.parquet')
+    # Write the DataFrame to a Parquet file
+    df.write.mode("overwrite").parquet(parquet_path)
+
+    # Read the Parquet file into a DataFrame
+    df_parquet = spark.read.parquet(parquet_path)
+
+    # Show the DataFrame loaded from the Parquet file
+    dist_categorical_transormation = DistMultiCategoryTransformation(cols=["names"], separator=None)
+
+    transformed_df = dist_categorical_transormation.apply(df_parquet)
+    check_df_schema(transformed_df)
+    transformed_rows = transformed_df.collect()
+    expected_rows = [
+        [1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0],
+    ]
+    for row, expected_row in zip(transformed_rows, expected_rows):
+        assert row["names"] == expected_row
+
+    shutil.rmtree(parquet_path)
