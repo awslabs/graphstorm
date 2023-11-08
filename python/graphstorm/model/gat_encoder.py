@@ -89,11 +89,11 @@ class GATConv(nn.Module):
         ----------
         g : DGLHeteroGraph
             Input graph.
-        inputs : dict["_N", torch.Tensor]
+        inputs : dict[DEFAULT_NTYPE, torch.Tensor]
             Node feature for each node type.
         Returns
         -------
-        dict{"_N", torch.Tensor}
+        dict{DEFAULT_NTYPE, torch.Tensor}
             New node features for each node type.
         """
         # add self-loop during computation.
@@ -201,7 +201,7 @@ class GATEncoder(GraphConvEncoder):
         ----------
         blocks: DGL MFGs
             Sampled subgraph in DGL MFG
-        h: dict["_N", torch.Tensor]
+        h: dict[DEFAULT_NTYPE, torch.Tensor]
             Input node feature for each node type.
         """
         for layer, block in zip(self.layers, blocks):

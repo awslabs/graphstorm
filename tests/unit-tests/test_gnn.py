@@ -22,6 +22,7 @@ import pytest
 from argparse import Namespace
 from types import MethodType
 from unittest.mock import patch
+from dgl.distributed.constants import DEFAULT_NTYPE
 
 import torch as th
 from torch import nn
@@ -238,7 +239,7 @@ def check_node_prediction(model, data, is_homo=False):
                             embs4[ntype][0:len(embs4[ntype])].numpy())
 
     target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))} \
-        if not is_homo else {"_N": th.arange(g.number_of_nodes("_N"))}
+        if not is_homo else {DEFAULT_NTYPE: th.arange(g.number_of_nodes(DEFAULT_NTYPE))}
     dataloader1 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
                                       batch_size=10, device="cuda:0", train_task=False)
     pred1, labels1 = node_mini_batch_predict(model, embs, dataloader1, return_label=True)
@@ -554,7 +555,8 @@ def test_sage_node_prediction(norm):
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(tmpdirname, is_homo=True)
         np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_ntypes=['_N'], label_field='label',
+                                     train_ntypes=[DEFAULT_NTYPE],
+                                     label_field='label',
                                      node_feat_field='feat')
     model = create_sage_node_model(np_data.g, norm)
     check_node_prediction(model, np_data, is_homo=True)
@@ -578,7 +580,8 @@ def test_gat_node_prediction(device):
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(tmpdirname, is_homo=True)
         np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_ntypes=['_N'], label_field='label',
+                                     train_ntypes=[DEFAULT_NTYPE],
+                                     label_field='label',
                                      node_feat_field='feat')
     model = create_gat_node_model(np_data.g)
     model = model.to(device)
