@@ -996,7 +996,8 @@ def parse_feat_ops(confs):
                                       out_dtype=out_dtype)
             elif conf['name'] == 'max_min_norm':
                 # TODO: Not support max_min_norm feature transformation on multiple columns
-                # without explicitly defining max_val and min_val. Otherwise, the definition of max_val and min_val for each column is unclear.
+                # without explicitly defining max_val and min_val.
+                # Otherwise, the definition of max_val and min_val for each column is unclear.
                 # define max_val and min_val for each column.
                 if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
                     assert 'max_val' in conf and 'min_val' in conf, \
@@ -1087,7 +1088,7 @@ def preprocess_features(data, ops):
             col_name = op.col_name
         for col in col_name:
             res = op.pre_process(data[col])
-            # Do not expect multiple keys for multiple columns, the expected output will only 
+            # Do not expect multiple keys for multiple columns, the expected output will only
             # have 1 key/val pair. But for single column, some feature transformations like
             # Tokenizer will return multiple key-val pairs, so do not check for single column
             if len(col_name) > 1:
@@ -1140,7 +1141,7 @@ def process_features(data, ops, ext_mem_path=None):
             wrapper = None
         for col in col_name:
             res = op(data[col])
-            # Do not expect multiple keys for multiple columns, the expected output will only 
+            # Do not expect multiple keys for multiple columns, the expected output will only
             # have 1 key/val pair. But for single column, some feature transformations like
             # Tokenizer will return multiple key-val pairs, so do not check for single column
             if len(col_name) > 1:
