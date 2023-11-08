@@ -59,7 +59,7 @@ class DistSingleLabelTransformation(DistributedTransformation):
             self.label_column,
         )
 
-        # Labels that were and were assigned the value numLabels by the StringIndexer
+        # Labels that were missing and were assigned the value numLabels by the StringIndexer
         # are converted to None
         long_class_label = indexed_df.select(F.col(self.label_column).cast("long")).select(
             F.when(
