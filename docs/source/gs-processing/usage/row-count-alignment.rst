@@ -26,7 +26,7 @@ In code the above means:
 
     files_for_feat1 = os.listdir("edge_data/x:to:y-feat1/")
     files_for_feat2 = os.listdir("edge_data/x:to:y-feat2/")
-    files_for_edges = os.listdir("edges/x:to:y-feat2/")
+    files_for_edges = os.listdir("edges/x:to:y")
 
     num_feat1_files = len(files_for_feat1)
     num_feat2_files = len(files_for_feat2)
