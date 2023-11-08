@@ -1087,8 +1087,8 @@ def preprocess_features(data, ops):
             col_name = op.col_name
         for col in col_name:
             res = op.pre_process(data[col])
-            # Do not expect multiple keys for multiple columns, the expected output will only have 1 key/val pair.
-            # But for single column, some feature transformations like
+            # Do not expect multiple keys for multiple columns, the expected output will only 
+            # have 1 key/val pair. But for single column, some feature transformations like
             # Tokenizer will return multiple key-val pairs, so do not check for single column
             if len(col_name) > 1:
                 assert isinstance(res, dict) and len(res) == 1, \
@@ -1140,8 +1140,8 @@ def process_features(data, ops, ext_mem_path=None):
             wrapper = None
         for col in col_name:
             res = op(data[col])
-            # Do not expect multiple keys for multiple columns, expect output is
-            # {feat_name: encoding}. But for single column, some feature transformation like
+            # Do not expect multiple keys for multiple columns, the expected output will only 
+            # have 1 key/val pair. But for single column, some feature transformations like
             # Tokenizer will return multiple key-val pairs, so do not check for single column
             if len(col_name) > 1:
                 assert isinstance(res, dict) and len(res) == 1, \
