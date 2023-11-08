@@ -616,8 +616,8 @@ class ExtFeatureWrapper(ExtNumpyWrapper):
             ext_val = np.memmap(path, feature.dtype, mode="w+", shape=feature.shape)
             ext_val[:] = feature[:]
             ext_val.flush()
-            wrap = ExtNumpyWrapper(path, feature.shape, feature.dtype)
-        self._wrapper.append(wrap)
+            feature = ExtNumpyWrapper(path, feature.shape, feature.dtype)
+        self._wrapper.append(feature)
 
     def merge(self):
         """ Merge feature col-wised.
