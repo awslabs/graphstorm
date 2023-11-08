@@ -342,7 +342,7 @@ def create_acm_dgl_graph(dowload_path='/tmp/ACM.mat',
         nn.init.xavier_uniform_(emb)
         graph_acm.nodes[n_type].data['feat'] = emb
         
-    # For link prediction task, use "paper, citing, paper" edges.
+    # For link prediction task, use "paper, citing, paper" edges as targe-etype and create labels.
     target_etype = ('paper', 'citing', 'paper')
     graph_acm.edges[target_etype].data['label'] = th.ones(graph_acm.num_edges(target_etype))
     
