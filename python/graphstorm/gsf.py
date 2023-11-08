@@ -27,7 +27,7 @@ from dgl.distributed import role
 from dgl.distributed.constants import DEFAULT_NTYPE
 from dgl.distributed.constants import DEFAULT_ETYPE
 
-from .utils import sys_tracker, get_rank, get_world_size, use_wholegraph
+from .utils import sys_tracker, get_rank, get_world_size
 from .config import BUILTIN_TASK_NODE_CLASSIFICATION
 from .config import BUILTIN_TASK_NODE_REGRESSION
 from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
