@@ -243,9 +243,11 @@ and building the GSProcessing SageMaker ECR image:
         --instance-type ${INSTANCE_TYPE} --wait-for-job
 
 
-
 Note that ``${OUTPUT_PREFIX}`` here will need to match the value assigned when launching
 the EMR-S job, i.e. ``"s3://${OUTPUT_BUCKET}/gsprocessing/emr-s/small-graph/4files/"``
+
+For more details on the re-partitioning step see
+::doc:`row-count-alignment`.
 
 Examine the output
 ------------------
