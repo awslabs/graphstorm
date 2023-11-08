@@ -209,7 +209,7 @@ class WeightedLinkPredictBCELossFunc(GSLayer):
         return None
 
 class LinkPredictContrastiveLossFunc(GSLayer):
-    """ Contrastive Loss function for link prediction.
+    """r Contrastive Loss function for link prediction.
 
         The positive and negative scores are computed through a
         score function as:
