@@ -144,7 +144,8 @@ class ParquetRepartitioner:
     def create_new_relative_path_from_existing(
         original_relative_path: str, repartitioned_file_index: int, suffix: str = None
     ) -> str:
-        """Changes the index in the `original_relative_path` to `original_relative_path`.
+        """Changes the index of the filename ``part-<index>`` in `original_relative_path`
+        to the one given in `repartitioned_file_index`.
 
         Given a path of the form 'path/to/parquet/part-00001-filename.snappy.parquet', changes the
         numerical part of the filename to match the provided `repartitioned_file_index`,
