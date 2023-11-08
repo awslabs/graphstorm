@@ -17,7 +17,7 @@ from typing import Tuple, Iterator
 import os
 import pytest
 import pandas as pd
-import shutil
+import tempfile
 
 import mock
 from numpy.testing import assert_array_equal
