@@ -282,8 +282,6 @@ python3 $GS_HOME/tests/end2end-tests/check_np_infer_emb.py --train-embout /data/
 
 error_and_exit $?
 
-rm -fr /data/gsgnn_nc_ml_text/*
-
 echo "**************dataset: Movielens, use GLEM to restore checkpoint saved by GSgnnNodePredictionTrainer and do inference"
 # create softlinks for GLEM
 mkdir -p /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM
