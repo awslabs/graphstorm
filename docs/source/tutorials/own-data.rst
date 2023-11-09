@@ -18,8 +18,8 @@ Step 1: Prepare Your Own Graph Data
 -------------------------------------
 There are two options to prepare your own graph data for using GraphStorm:
 
-- Prepare your graph in the required raw data format, and use GraphStorm's construction tools to automatically generate the input files. **This is the preferred method**, as GraphStorm provides :ref:`distributed data processing and construciton tools<gs-processing>` to handle extreme large graph data.
-- Prepare your data as a DGL heterogeneous graph following the required format, and then use GraphStorm's partition tools to generate the input files. This option is for experienced DGL users and relatively small graph data.
+- Option 1: prepare your graph in the raw table data format that GraphStorm' construction tools required, and use these construction tools to automatically generate the input files. **This is the preferred method**, as GraphStorm provides :ref:`distributed data processing and construciton tools<gs-processing>` to handle extreme large graph data.
+- Option 2: prepare your data as a DGL heterogeneous graph following the specific format described below, and then use GraphStorm's partition tools to generate the input files. This option is for experienced DGL users and relatively small graph data.
 
 .. _option-1:
 
@@ -193,7 +193,7 @@ The raw node and edge data files are both in a parquet format, whose contents ar
 .. figure:: ../../../tutorial/ACM_raw_parquet.png
     :align: center
 
-In this example, only the ``paper`` nodes have labels and the task is node classification. So, in the JSON file, the ``paper`` node has the ``labels`` field, and the ``task_type`` is specified as ``classification``. Correspondingly, in the paper node parquet file, there is a column, ``label``, stores the label values. All edge types do not have features associated. Therefore, we only have two columns in these parquet files for edges, the ``source_id`` and the ``dest_id``. For the link prediction task, there is no actual labels. Users just need to specify the ``labels`` field in one or more ``edge`` objects of the JSON.
+In this example, only the ``paper`` nodes have labels and the task is node classification. So, in the JSON file, the ``paper`` node has the ``labels`` field, and the ``task_type`` is specified as ``classification``. Correspondingly, in the paper node parquet file, there is a column, ``label``, stores the label values. All edge types do not have features associated. Therefore, we only have two columns in these parquet files for edges, the ``source_id`` and the ``dest_id``. For the link prediction task, there is no actual labels. Users just need to specify the ``labels`` field in one or more ``edge`` objects of the JSON config file.
 
 Run graph construction
 ```````````````````````
@@ -231,7 +231,7 @@ Because the above command specifies the ``--num-parts`` to be ``1``, there is on
 .. note::
 
     - Because the parquet format has some limitations, such as only supporting 2 billion elements in a column, etc, we suggest users to use HDF5 format for very large datasets.
-    - The two mapping files, ``node_mapping.pt`` and ``edge_mapping.pt``, are used to record the mapping between the ogriginal node and edge ids in the raw data files and the ids of nodes and edges in the GraphStorm node ID space. They are important for mapping the training and inference outputs back to the original input data. Therefore, **DO NOT** move or delete them.
+    - The two mapping files, ``node_mapping.pt`` and ``edge_mapping.pt``, are used to record the mapping between the ogriginal node and edge ids in the raw data files and the ids of nodes and edges in the Graph Node ID space. They are important for mapping the training and inference outputs back to the Raw Node ID space in the original input data. Therefore, **DO NOT** move or delete them.
 
 .. _option-2:
 
