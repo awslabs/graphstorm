@@ -269,6 +269,7 @@ class LMCache:
     def _load_embeddings(self):
         """ Load LM embeddings from files.
         """
+        embed_ndata_names = self.embed_ndata_name
         for ntype in self._lm_models.ntypes:
             embed_path = os.path.join(os.path.join(self._embed_path, ntype),
                     self._get_model_name(ntype))
@@ -276,8 +277,9 @@ class LMCache:
                 if get_rank() == 0:
                     logging.info("load LM embedding from %s for node type %s",
                             embed_path, ntype)
+                embed_name = embed_ndata_names[ntype]
                 self._lm_emb_cache[ntype] = load_pytorch_embedding(embed_path,
-                        self._g.get_node_partition_policy(ntype), "bert_emb")
+                        self._g.get_node_partition_policy(ntype), embed_name)
 
     def _save_embeddings(self):
         """ Save LM embeddings.
@@ -295,11 +297,22 @@ class LMCache:
         """
         return self._lm_emb_cache[ntype]
 
+    def clear_cache(self):
+        """ Clear up the cached embeddings.
+        """
+        self._lm_emb_cache = {}
+
     @property
     def ntypes(self):
         """ Get the node types with embedding cache.
         """
         return self._lm_models.ntypes
+
+    @property
+    def embed_ndata_name(self):
+        """ The embed name of the node data
+        """
+        return {ntype: "bert_emb" for ntype in self.ntypes}
 
     def update_cache(self, lm_infer_batch_size, use_fp16=True):
         """ Update the LM embedding cache.
@@ -325,6 +338,7 @@ class LMCache:
                 # if lm models was not updated, don't compute the embeddings again
                 return
 
+        embed_ndata_names = self.embed_ndata_name
         # store/update the lm model hash used for the cache
         self._lm_hash = self._lm_models.get_all_lm_hashes()
         for ntype in self._lm_models.ntypes:
@@ -336,9 +350,10 @@ class LMCache:
             lm_model.eval()
             hidden_size = lm_model.feat_size
             if ntype not in self._lm_emb_cache:
+                embed_name = embed_ndata_names[ntype]
                 self._lm_emb_cache[ntype] = create_dist_tensor(
                         (self._g.number_of_nodes(ntype), hidden_size),
-                        name="bert_emb",
+                        name=embed_name,
                         dtype=th.float16 if use_fp16 else th.float32,
                         part_policy=self._g.get_node_partition_policy(ntype),
                         persistent=True)
@@ -493,6 +508,14 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         self.lm_emb_cache.update_cache(self.lm_infer_batch_size, use_fp16=self.use_fp16)
         self.use_cache = True
 
+    def unfreeze(self):
+        """ Disable Bert caching
+        """
+        self.use_cache = False
+        # We should clear up the LM cache here. When someone calls unfreeze,
+        # we expect that the LM model will be fine-tuned.
+        self.lm_emb_cache.clear_cache()
+
     def require_cache_embed(self):
         """ Whether to cache the embeddings for inference.
 
@@ -506,6 +529,9 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
     #pylint: disable=unused-argument
     def forward(self, input_feats, input_nodes):
         """Forward computation
+
+        The forward function only computes the BERT embeddings and
+        ignore the input node features if there are node features.
 
         Parameters
         ----------
@@ -522,12 +548,22 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
 
         cache = self.lm_emb_cache if len(self.lm_emb_cache) > 0 and self.use_cache else None
         embs = self._lm_models(input_nodes, lm_emb_cache=cache)
+
         # This module is only used for computing the BERT embeddings on the node types
         # with text features. If it is asked to compute embeddings for some nodes without
         # text features, it should report an error.
         for ntype in input_nodes:
             assert ntype in embs, f"Cannot compute BERT embeddings for node {ntype}."
         return embs
+
+    @property
+    def in_dims(self):
+        """ The input feature size.
+
+        The BERT embeddings are usually pre-computed as node features.
+        So we consider the BERT embedding size as input node feature size.
+        """
+        return self._feat_size
 
     @property
     def out_dims(self):
@@ -685,8 +721,10 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
     def unfreeze(self):
         """ Disable Bert caching
         """
-        if self.num_train != 0:
-            self.use_cache = False
+        self.use_cache = False
+        # We should clear up the LM cache here. When someone calls unfreeze,
+        # we expect that the LM model will be fine-tuned.
+        self.lm_emb_cache.clear_cache()
 
     def require_cache_embed(self):
         """ Whether to cache the embeddings for inference.
@@ -700,6 +738,9 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
     #pylint: disable=keyword-arg-before-vararg
     def forward(self, input_feats, input_nodes):
         """Forward computation
+
+        The forward function computes the BERT embeddings and combine them with
+        the input node features.
 
         Parameters
         ----------
@@ -722,7 +763,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         for ntype, lm_feat in lm_feats.items():
             # move lm_feat to the right device
             # we assume input_feats has already been moved to that device.
-            lm_feat = lm_feat.to(next(self.parameters()).device)
+            lm_feat = lm_feat.to(self.device)
             if ntype in input_feats:
                 input_feats[ntype] = th.cat((input_feats[ntype].float(), lm_feat), dim=-1)
             else:

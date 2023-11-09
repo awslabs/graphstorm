@@ -229,6 +229,21 @@ python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_n
 
 error_and_exit $?
 
+# Run the model training again and this time it should load the BERT embeddings saved
+# in the previous run.
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_movie_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_movie_utext.yaml  --save-model-path /data/gsgnn_nc_ml_movie_text/ --topk-model-to-save 1 --save-embed-path /data/gsgnn_nc_ml_text/emb/ --num-epochs 1 --construct-feat-ntype user --save-model-path /data/gsgnn_nc_ml_movie_text/
+
+error_and_exit $?
+
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_movie_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_movie_text_infer.yaml --use-mini-batch-infer true --save-embed-path /data/gsgnn_nc_ml_text/infer-emb/ --restore-model-path /data/gsgnn_nc_ml_movie_text/epoch-0/ --save-prediction-path /data/gsgnn_nc_ml_text/prediction/ --construct-feat-ntype user
+
+error_and_exit $?
+
+# Here we test the GNN embeddings with full-graph inference and mini-batch inference.
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_nc_ml_text/emb/ --infer_embout /data/gsgnn_nc_ml_text/infer-emb/ --mini-batch-infer
+
+error_and_exit $?
+
 echo "**************dataset: Movielens, use GLEM to restore checkpoint saved by GSgnnNodePredictionTrainer and do inference"
 # create softlinks for GLEM
 mkdir -p /data/gsgnn_nc_ml_text/epoch-$best_epoch/GLEM

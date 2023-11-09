@@ -51,6 +51,7 @@ from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
 from graphstorm.model.utils import save_embeddings
 from graphstorm.model import do_full_graph_inference
 from graphstorm.utils import rt_profiler, sys_tracker, setup_device, use_wholegraph
+from graphstorm.utils import get_lm_ntypes
 
 def get_evaluator(config, train_data):
     """ Get evaluator according to config
@@ -100,7 +101,8 @@ def main(config_args):
                                   train_etypes=config.train_etype,
                                   eval_etypes=config.eval_etype,
                                   node_feat_field=config.node_feat_name,
-                                  pos_graph_feat_field=config.lp_edge_weight_for_loss)
+                                  pos_graph_feat_field=config.lp_edge_weight_for_loss,
+                                  lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=True)
     trainer = GSgnnLinkPredictionTrainer(model, topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
