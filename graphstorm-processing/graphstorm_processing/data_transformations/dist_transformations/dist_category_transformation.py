@@ -19,7 +19,7 @@ import numpy as np
 
 from pyspark.sql import DataFrame, functions as F
 from pyspark.sql.functions import when
-from pyspark.sql.types import ArrayType, FloatType
+from pyspark.sql.types import ArrayType, FloatType, StringType
 from pyspark.ml.feature import StringIndexer, OneHotEncoder
 from pyspark.ml.functions import vector_to_array
 from pyspark.ml.linalg import Vectors
@@ -141,12 +141,27 @@ class DistMultiCategoryTransformation(DistributedTransformation):
         return "DistMultiCategoryTransformation"
 
     def apply(self, input_df: DataFrame) -> DataFrame:
-        # Count category frequency
-        distinct_category_counts = (
-            input_df.select(self.multi_column)
-            .withColumn(
-                SINGLE_CATEGORY_COL, F.explode(F.split(F.col(self.multi_column), self.separator))
+        col_datatype = input_df.schema[self.multi_column].dataType
+        is_array_col = False
+        if col_datatype.typeName() == "array":
+            assert isinstance(col_datatype, ArrayType)
+            if not isinstance(col_datatype.elementType, StringType):
+                raise ValueError(
+                    f"Unsupported array type {col_datatype.elementType} "
+                    f"for column {self.multi_column}, expected StringType"
+                )
+
+            is_array_col = True
+
+        if is_array_col:
+            list_df = input_df.select(self.multi_column).alias(self.multi_column)
+        else:
+            list_df = input_df.select(
+                F.split(F.col(self.multi_column), self.separator).alias(self.multi_column)
             )
+
+        distinct_category_counts = (
+            list_df.withColumn(SINGLE_CATEGORY_COL, F.explode(F.col(self.multi_column)))
             .groupBy(SINGLE_CATEGORY_COL)
             .count()
         )
@@ -206,11 +221,6 @@ class DistMultiCategoryTransformation(DistributedTransformation):
         # The encoding for the missing category is an all-zeroes vector
         category_map[MISSING_CATEGORY] = np.array([0] * len(valid_categories))
 
-        # Split tokens along separator to create List objects
-        token_list_df = input_df.select(
-            F.split(F.col(self.multi_column), self.separator).alias(self.multi_column)
-        )
-
         # Use mapping to convert token list to a multi-hot vector by summing one-hot vectors
         missing_vector = (
             category_map[RARE_CATEGORY]
@@ -241,7 +251,7 @@ class DistMultiCategoryTransformation(DistributedTransformation):
             token_list_to_multihot, ArrayType(FloatType(), containsNull=False)
         )
 
-        multihot_df = token_list_df.withColumn(
+        multihot_df = list_df.withColumn(
             self.multi_column, token_list_to_multihot_udf(F.col(self.multi_column))
         )
 

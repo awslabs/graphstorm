@@ -36,6 +36,7 @@ from graphstorm.model.utils import (save_node_prediction_results,
                                     save_full_node_embeddings)
 from graphstorm.gconstruct.utils import save_maps
 from graphstorm import get_feat_size
+from graphstorm.model.gnn_encoder_base import prepare_for_wholegraph
 
 from data_utils import generate_dummy_dist_graph
 from graphstorm.eval.utils import gen_mrr_score
@@ -1011,6 +1012,36 @@ def test_full_node_embeddings():
         assert_equal(embeddings[target_ntype1].numpy(), ntype1_emb.numpy())
         assert_equal(ori_nid_maps[target_ntype1].numpy(), ntype1_nid.numpy())
 
+def test_prepare_for_wholegraph():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
+        input_nodes = {"n0": th.ones((g.num_nodes(),), dtype=g.idtype)}
+        prepare_for_wholegraph(g, input_nodes)
+        assert list(input_nodes.keys()) == g.ntypes
+
+        input_nodes2 = {}
+        prepare_for_wholegraph(g, input_nodes2)
+        assert list(input_nodes2.keys()) == g.ntypes
+
+        input_edges = {}
+        input_nodes = {}
+        prepare_for_wholegraph(g, input_nodes, input_edges)
+        assert list(input_nodes.keys()) == g.ntypes
+        assert list(input_edges.keys()) == g.canonical_etypes
+
+        input_edges = {}
+        input_nodes = None
+        prepare_for_wholegraph(g, input_nodes, input_edges)
+        assert input_nodes == None
+        assert list(input_edges.keys()) == g.canonical_etypes
+
+        input_nodes = {"n0": th.ones((g.num_nodes(),), dtype=g.idtype)}
+        input_edges = {("n0", "r0", "n1"): th.ones((g.num_nodes(),), dtype=g.idtype)}
+        prepare_for_wholegraph(g, input_nodes, input_edges)
+        assert list(input_nodes.keys()) == g.ntypes
+        assert list(input_edges.keys()) == g.canonical_etypes
+
 if __name__ == '__main__':
     test_full_node_embeddings()
 
@@ -1038,3 +1069,4 @@ if __name__ == '__main__':
     test_gen_mrr_score()
 
     test_stream_dist_tensors_to_hdf5()
+    test_prepare_for_wholegraph()

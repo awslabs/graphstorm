@@ -125,6 +125,15 @@ class GConstructConfigConverter(ConfigConverter):
                             "normalizer": "rank-gauss",
                             "imputer": "none",
                         }
+                elif gconstruct_transform_dict["name"] == "to_categorical":
+                    if "separator" in gconstruct_transform_dict:
+                        gsp_transformation_dict["name"] = "multi-categorical"
+                        gsp_transformation_dict["kwargs"] = {
+                            "separator": gconstruct_transform_dict["separator"]
+                        }
+                    else:
+                        gsp_transformation_dict["name"] = "categorical"
+                        gsp_transformation_dict["kwargs"] = {}
                 # TODO: Add support for other common transformations here
                 else:
                     raise ValueError(

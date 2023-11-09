@@ -181,6 +181,11 @@ node_conf = [
                 "feature_name": "feat_fp16_hdf5",
                 "out_dtype": 'float16',
             },
+            {
+                "feature_col": ["data", "float3"],
+                "feature_name": "feat_multicol",
+                "out_dtype": 'float16',
+            },
         ],
     },
     {
@@ -326,6 +331,11 @@ edge_conf = [
                 "feature_name": "feat_fp16_hdf5",
                 "out_dtype": 'float16',
             },
+            {
+                "feature_col": ["float1", "float1_fp16"],
+                "feature_name": "feat_multicol",
+                "out_dtype": 'float16',
+            }
         ],
     },
     {

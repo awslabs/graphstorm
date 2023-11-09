@@ -106,6 +106,8 @@ assert data.dtype is th.float16
 data = np.sort(data.numpy(), axis=0)
 rev_data = np.flip(data, axis=0)
 assert np.all(data + rev_data == 0)
+data = g.nodes["node1"].data['feat_multicol']
+assert data.dtype is th.float16
 
 
 #test data type
@@ -159,6 +161,8 @@ assert data.dtype is th.float16
 data = np.sort(data.numpy(), axis=0)
 rev_data = np.flip(data, axis=0)
 assert np.all(data + rev_data == 0)
+data = g.edges[('node1', 'relation1', 'node2')].data['feat_multicol']
+assert data.dtype is th.float16
 
 #test data type
 data = g.edges[('node1', 'relation1', 'node2')].data['feat1']
