@@ -1,11 +1,10 @@
 """ Launch SageMaker training task
 """
-import os
 import logging
 from time import strftime, gmtime
 
 import boto3 # pylint: disable=import-error
-from sagemaker.pytorch.estimator import PyTorch
+from sagemaker.processing import ScriptProcessor
 import sagemaker
 
 from common_parser import ( # pylint: disable=wrong-import-order
@@ -30,7 +29,7 @@ def run_job(input_args, image):
     sm_task_name = input_args.task_name if input_args.task_name else timestamp
     role = input_args.role # SageMaker ARN role
     instance_type = input_args.instance_type # SageMaker instance type
-    instance_count = input_args.instance_count # Number of infernece instances
+    instance_count = input_args.instance_count # Number of partition instances
     region = input_args.region # AWS region
     entry_point = input_args.entry_point # GraphStorm training entry_point
     num_parts = input_args.num_parts # Number of partitions
@@ -45,40 +44,43 @@ def run_job(input_args, image):
     sagemaker_session = sagemaker.Session(boto3.Session(region_name=region))
 
     skip_partitioning_str = "true" if input_args.skip_partitioning else "false"
-    params = {"graph-data-s3": graph_data_s3,
-              "metadata-filename": metadata_filename,
-              "num-parts": num_parts,
-              "output-data-s3": output_data_s3,
-              "skip-partitioning": skip_partitioning_str,
-              "log-level": input_args.log_level,
-              "partition-algorithm": input_args.partition_algorithm,}
+    arguments = [
+        "--graph-data-s3", graph_data_s3,
+        "--metadata-filename", metadata_filename,
+        "--num-parts", num_parts,
+        "--output-data-s3", output_data_s3,
+        "--skip-partitioning", skip_partitioning_str,
+        "--log-level", input_args.log_level,
+        "--partition-algorithm", input_args.partition_algorithm,
+    ]
+    arguments = [str(x) for x in arguments]
 
-    print(f"Parameters {params}")
+    print(f"Parameters {arguments}")
     if input_args.sm_estimator_parameters:
         print(f"SageMaker Estimator parameters: '{input_args.sm_estimator_parameters}'")
 
     estimator_kwargs = parse_estimator_kwargs(input_args.sm_estimator_parameters)
 
-    est = PyTorch(
-        disable_profiler=True,
-        debugger_hook_config=False,
-        entry_point=os.path.basename(entry_point),
-        source_dir=os.path.dirname(entry_point),
+    script_processor = ScriptProcessor(
         image_uri=image,
         role=role,
         instance_count=instance_count,
         instance_type=instance_type,
-        py_version="py3",
-        hyperparameters=params,
-        sagemaker_session=sagemaker_session,
+        command=["python3"],
         base_job_name=f"gs-partition-{sm_task_name}",
+        sagemaker_session=sagemaker_session,
         tags=[{"Key":"GraphStorm", "Value":"beta"},
               {"Key":"GraphStorm_Task", "Value":"Partition"}],
-        container_log_level=logging.getLevelName(input_args.log_level),
         **estimator_kwargs
     )
 
-    est.fit(wait=not input_args.async_execution)
+    script_processor.run(
+        code=entry_point,
+        arguments=arguments,
+        inputs=[],
+        outputs=[],
+        wait=not input_args.async_execution
+    )
 
 def get_partition_parser():
     """
