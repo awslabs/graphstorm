@@ -30,10 +30,6 @@ if __name__ == '__main__':
                            help="Path to embedding saved by trainer")
     argparser.add_argument("--infer-embout", type=str, required=True,
                            help="Path to embedding saved by trainer")
-    argparser.add_argument("--link-prediction", action='store_true',
-                           help="Path to embedding saved by trainer")
-    argparser.add_argument("--mini-batch-infer", action='store_true',
-                           help="Inference use minibatch inference.")
     args = argparser.parse_args()
     with open(os.path.join(args.train_embout, "emb_info.json"), 'r', encoding='utf-8') as f:
         train_emb_info = json.load(f)
@@ -42,15 +38,7 @@ if __name__ == '__main__':
         info_emb_info = json.load(f)
 
     # meta info should be same
-    if args.link_prediction:
-        # For link prediction, both training and inference will save
-        # node embeddings for each node type.
-        assert len(train_emb_info["emb_name"]) == len(info_emb_info["emb_name"])
-        assert sorted(train_emb_info["emb_name"]) == sorted(info_emb_info["emb_name"])
-    else:
-        # For other tasks, we only save node embeddings for the target type
-        # in the inference.
-        assert len(train_emb_info["emb_name"]) >= len(info_emb_info["emb_name"])
+    assert len(train_emb_info["emb_name"]) == len(info_emb_info["emb_name"])
 
     # feats are same
     for ntype in info_emb_info["emb_name"]:
@@ -90,14 +78,12 @@ if __name__ == '__main__':
         ntype_nid_files = [file for file in emb_files if file.endswith(".pt") and file.startswith("nids")]
         ntype_emb_files = sorted(ntype_emb_files)
         ntype_nid_files = sorted(ntype_nid_files)
-        for f in ntype_emb_files:
+        for ef, nf in zip(ntype_emb_files, ntype_nid_files):
             # Only work with torch 1.13+
-            infer_emb.append(th.load(os.path.join(ntype_emb_path, f), weights_only=True))
-        for f in ntype_nid_files:
-            infer_nids.append(th.load(os.path.join(ntype_emb_path, f),weights_only=True))
+            infer_emb.append(th.load(os.path.join(ntype_emb_path, ef), weights_only=True))
+            infer_nids.append(th.load(os.path.join(ntype_emb_path, nf), weights_only=True))
         infer_emb = th.cat(infer_emb, dim=0)
         infer_nids = th.cat(infer_nids, dim=0)
-
         ntype_remaped_emb_files = [file for file in emb_files if file.endswith(".parquet")]
         ntype_remaped_emb_files = sorted(ntype_remaped_emb_files)
         infer_remaped_emb = []
@@ -110,24 +96,20 @@ if __name__ == '__main__':
         infer_remaped_emb = np.concatenate(infer_remaped_emb)
         infer_remaped_nids = np.concatenate(infer_remaped_nids)
 
-        assert train_emb.shape[0] == train_nids.shape[0]
         assert infer_emb.shape[0] == infer_nids.shape[0]
         assert train_emb.shape[1] == infer_emb.shape[1]
-        assert train_remaped_emb.shape[0] == train_remaped_nids.shape[0]
-        assert infer_remaped_emb.shape[0] == infer_remaped_nids.shape[0]
-        assert train_remaped_emb.shape[1] == infer_remaped_emb.shape[1]
+        assert infer_remaped_emb.shape[0] == infer_nids.shape[0]
+        assert infer_remaped_nids.shape[0] == infer_nids.shape[0]
 
+        # sort train embs
+        # train emb  [xxx, xxx, xxx]
+        # train nids [0, 1, 2, ...]
         train_emb = train_emb[th.argsort(train_nids)]
-        infer_emb = infer_emb[th.argsort(infer_nids)]
-        if args.mini_batch_infer:
-            # When inference is done with minibatch inference, only node
-            # embeddings of the test set are computed.
-            for i in range(len(train_emb)):
-                if th.all(infer_emb[i] == 0.):
-                    continue
-                assert_almost_equal(train_emb[i].numpy(), infer_emb[i].numpy(), decimal=2)
-        else:
-            assert_almost_equal(train_emb.numpy(), infer_emb.numpy(), decimal=2)
-            train_remaped_emb = train_remaped_emb[th.argsort(th.tensor(train_remaped_nids))]
-            infer_remaped_emb = infer_remaped_emb[th.argsort(th.tensor(infer_remaped_nids))]
-            assert_almost_equal(train_remaped_emb, infer_remaped_emb, decimal=2)
+        for nid, inf_emb in zip(infer_nids, infer_emb):
+            assert_almost_equal(train_emb[nid].numpy(), inf_emb.numpy(), decimal=2)
+
+        train_remap_embs = {}
+        for nid, train_emb in zip (train_remaped_nids, train_remaped_emb):
+            train_remap_embs[nid] = train_emb
+        for nid, inf_emb in zip(infer_remaped_nids, infer_remaped_emb):
+            assert_almost_equal(train_remap_embs[nid], inf_emb, decimal=2)

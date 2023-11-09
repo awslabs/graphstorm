@@ -48,7 +48,7 @@ from graphstorm.dataloading import (FastGSgnnLinkPredictionDataLoader,
                                     FastGSgnnLPLocalUniformNegDataLoader,
                                     FastGSgnnLPLocalJointNegDataLoader)
 from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
-from graphstorm.model.utils import save_embeddings
+from graphstorm.model.utils import save_full_node_embeddings
 from graphstorm.model import do_full_graph_inference
 from graphstorm.utils import rt_profiler, sys_tracker, setup_device, use_wholegraph
 from graphstorm.utils import get_lm_ntypes
@@ -207,11 +207,12 @@ def main(config_args):
         # TODO(zhengda) we may not want to only use training edges to generate GNN embeddings.
         embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
                                              edge_mask="train_mask", task_tracker=tracker)
-        save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
-                        gs.get_world_size(),
-                        device=device,
-                        node_id_mapping_file=config.node_id_mapping_file,
-                        save_embed_format=config.save_embed_format)
+        save_full_node_embeddings(
+            train_data.g,
+            config.save_embed_path,
+            embeddings,
+            node_id_mapping_file=config.node_id_mapping_file,
+            save_embed_format=config.save_embed_format)
 
 def generate_parser():
     """ Generate an argument parser

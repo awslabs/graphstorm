@@ -284,6 +284,66 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
             return_dict[i] = user_parser(in_file)
         return return_dict
 
+def worker_fn_no_return(worker_id, task_queue, func):
+    """ Process tasks in the task_queue with multiprocessing
+        without returning any value.
+
+        Parameters
+        ----------
+        worker_id: int
+            Worker id.
+        task_queue: Queue
+            Task queue.
+        func: function
+            Function to be executed.
+    """
+    try:
+        while True:
+            # If the queue is empty, it will raise the Empty exception.
+            idx, task_args = task_queue.get_nowait()
+            logging.debug("worker %d Processing %s task", worker_id, idx)
+            func(**task_args)
+    except queue.Empty:
+        pass
+
+def multiprocessing_exec_no_return(tasks, num_proc, exec_func):
+    """ Do multi-processing execution without
+        returning any value.
+
+        Each worker process will call exec_func
+        independently.
+
+        Parameters
+        ----------
+        task: list
+            List of remap tasks.
+        num_proc: int
+            Number of workers to spin up.
+        exec_func: func
+            function to execute.
+    """
+    if num_proc > 1 and len(tasks) > 1:
+        if num_proc > len(tasks):
+            num_proc = len(tasks)
+        processes = []
+        manager = multiprocessing.Manager()
+        task_queue = manager.Queue()
+        for i, task in enumerate(tasks):
+            task_queue.put((i, task))
+
+        for i in range(num_proc):
+            proc = Process(target=worker_fn_no_return, args=(i, task_queue, exec_func))
+            proc.start()
+            processes.append(proc)
+
+        for proc in processes:
+            proc.join()
+    else:
+        for i, task_args in enumerate(tasks):
+            logging.debug("worker 0 Processing %s task", i)
+            exec_func(**task_args)
+
+
 def _get_tot_shape(arrs):
     """ Get the shape after merging the arrays.
 

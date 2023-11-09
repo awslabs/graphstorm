@@ -32,7 +32,7 @@ USE_WHOLEGRAPH = False
 
 def setup_device(local_rank):
     r"""Setup computation device.
-    
+
     Parameters
     -----------
     local_rank: int

@@ -25,6 +25,7 @@ GraphStorm's `graphstorm.run.launch <https://github.com/awslabs/graphstorm/blob/
     - --extra-envs LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
     - NCCL_DEBUG=INFO
 - **lm-encoder-only**: Indicate that the model is using language model + decoder only. model. No GNN is involved, only graph structure.
+- **do-nid-remap**: Do GraphStorm node ID to Raw input node ID remapping for prediction results and node embeddings. Default is True.
 
 ..  note:: Below configurations can be set either in a YAML configuration file or be added as arguments of launch command.
 

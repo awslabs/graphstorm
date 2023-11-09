@@ -31,7 +31,7 @@ from .embed import GSNodeInputLayer
 from .embed import GSNodeEncoderInputLayer
 from .lm_model import init_lm_model
 from .lm_model import get_lm_node_feats
-from .utils import load_pytorch_embedding, save_embeddings
+from .utils import load_pytorch_embedding, save_pytorch_embedding
 from ..utils import get_rank, get_world_size, barrier, create_dist_tensor
 
 class LMModels(nn.Module):
@@ -271,7 +271,8 @@ class LMCache:
         """
         embed_ndata_names = self.embed_ndata_name
         for ntype in self._lm_models.ntypes:
-            embed_path = os.path.join(os.path.join(self._embed_path, ntype),
+            embed_path = os.path.join(os.path.join(
+                    os.path.join(self._embed_path, "lm_cache"), ntype),
                     self._get_model_name(ntype))
             if os.path.exists(embed_path):
                 if get_rank() == 0:
@@ -285,9 +286,13 @@ class LMCache:
         """ Save LM embeddings.
         """
         for ntype in self._lm_models.ntypes:
-            embed_path = os.path.join(os.path.join(self._embed_path, ntype),
+            embed_path = os.path.join(os.path.join(
+                    os.path.join(self._embed_path, "lm_cache"), ntype),
                     self._get_model_name(ntype))
-            save_embeddings(embed_path, self._lm_emb_cache[ntype], get_rank(), get_world_size())
+            save_pytorch_embedding(embed_path,
+                                   self._lm_emb_cache[ntype],
+                                   get_rank(),
+                                   get_world_size())
 
     def __len__(self):
         return len(self._lm_emb_cache)
@@ -414,11 +419,11 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         Number of trainable texts. Default: 0
     lm_infer_batch_size: int
         Batch size used for computing text embeddings for static lm model. Default: 16
-    use_fp16 : bool 
+    use_fp16 : bool
         Use float16 to store LM embeddings. Default: True
     cached_embed_path : str
         The path where the LM embeddings are cached.
-    
+
     Examples:
     ----------
 
@@ -627,10 +632,10 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         lm_train_nodes=10
 
         encoder = GSLMNodeEncoderInputLayer(
-            g=np_data.g, 
+            g=np_data.g,
             node_lm_configs=node_lm_configs,
-            feat_size=feat_size, 
-            embed_size=128, 
+            feat_size=feat_size,
+            embed_size=128,
             num_train=lm_train_nodes
         )
         model.set_node_input_encoder(encoder)
