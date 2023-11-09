@@ -22,6 +22,8 @@ import gc
 import logging
 import copy
 import traceback
+import shutil
+import uuid
 
 import numpy as np
 import dgl
@@ -140,6 +142,12 @@ def _estimate_sizeof(data):
         data_size = 0
 
     return data_size
+
+def generate_hash():
+    """ Generate unique hashcode
+    """
+    random_uuid = uuid.uuid4()
+    return str(random_uuid)
 
 def worker_fn(worker_id, task_queue, res_queue, user_parser):
     """ The worker function in the worker pool
@@ -529,6 +537,107 @@ class ExtNumpyWrapper(ExtMemArrayWrapper):
         """ Return Pytorch tensor.
         """
         return th.tensor(self.to_numpy())
+
+class ExtFeatureWrapper(ExtNumpyWrapper):
+    """ The wrapper to memory-mapped Numpy array when combining features
+
+    Parameters
+    ----------
+    arr_path : str
+        A path to the directory of different feature files.
+    shape : tuple
+        The shape of the array.
+    dtype : numpy dtype
+        The data type.
+    merged_file: str
+        The merged file name
+    """
+    def __init__(self, arr_path, shape=None, dtype=None, merged_file="merged_feature.npy"):
+        super().__init__(arr_path, shape, dtype)
+        self._directory_path = arr_path
+        self._merged_file = merged_file
+        self._wrapper = []
+        self._arr_path = os.path.join(self._directory_path, self._merged_file)
+
+    def __getitem__(self, idx):
+        if not self._shape:
+            raise RuntimeError("Call ExtFeatureWrapper.merge() first before calling __getitem__")
+        if self._arr is None:
+            self._arr = np.memmap(self._arr_path, self._dtype, mode="r",
+                                  shape=self._shape)
+        return self._arr[idx].astype(self.dtype)
+
+    def __del__(self):
+        self.cleanup()
+
+    def cleanup(self):
+        """ Clean up the array.
+        """
+        # Expected file structure:
+        # merged_file file_feature1 file_feature2
+        # rmtree will clean up all single feature files as ExtNumpyWrapper does not clean them up
+        self._arr.flush()
+        self._arr = None
+        shutil.rmtree(self._directory_path)
+
+    def to_numpy(self):
+        """ Convert the data to Numpy array.
+        """
+        if not self._shape:
+            raise RuntimeError("Call ExtFeatureWrapper.merge() first before calling to_numpy()")
+        if self._arr is None:
+            arr = np.memmap(self._arr_path, self._orig_dtype, mode="r", shape=self._shape)
+            if self._dtype != self._orig_dtype:
+                arr = arr.astype(self._dtype)
+            return arr
+        else:
+            return self._arr.astype(self._dtype)
+
+    def append(self, feature):
+        """Add an external memory wrapper or numpy array,
+        it will convert the numpy array to a memory wrapper
+        Parameters
+        ----------
+        feature : numpy.ndarray or ExtMemArrayWrapper
+            The value needs to be packed.
+        """
+        if not self._shape:
+            self._shape = (feature.shape[0], 0)
+        if self._shape and self._shape[0] != feature.shape[0]:
+            raise RuntimeError(f"Expect that ExtFeatureWrapper has a "
+                               f"first dimension that is the same but get "
+                               f"{self.shape[0]} and {feature.shape[0]}")
+        # Convert the numpy array into an ExtNumpyWrapper
+        # By converting it into an ExtNumpyWrapper, it will avoid loading
+        # all the numpy arrays into the memory at the same time.
+        if isinstance(feature, np.ndarray):
+            hash_hex = generate_hash()
+            path = self._directory_path + '/{}.npy'.format(hash_hex)
+            ext_val = np.memmap(path, feature.dtype, mode="w+", shape=feature.shape)
+            ext_val[:] = feature[:]
+            ext_val.flush()
+            feature = ExtNumpyWrapper(path, feature.shape, feature.dtype)
+        self._wrapper.append(feature)
+
+    def merge(self):
+        """ Merge feature col-wised.
+        """
+        assert self._wrapper, "Cannot merge an empty list, " \
+                             "need to append external memory wrapper first"
+        feat_dim = sum(wrap.shape[1] for wrap in self._wrapper)
+        self._shape = (self._shape[0], feat_dim)
+        self._orig_dtype = self._dtype = self._wrapper[0].dtype
+
+        out_arr = np.memmap(self._arr_path, self._orig_dtype,
+                            mode="w+", shape=self._shape)
+        col_start = 0
+        for wrap in self._wrapper:
+            col_end = col_start + wrap.shape[1]
+            # load the numpy array from the disk one by one
+            out_arr[:, col_start:col_end] = wrap.to_numpy()
+            col_start = col_end
+        out_arr.flush()
+        return self
 
 def _merge_arrs(arrs, tensor_path):
     """ Merge the arrays.

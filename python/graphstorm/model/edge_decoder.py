@@ -531,8 +531,9 @@ class LinkPredictNoParamDecoder(GSLayerNoParam):
 
         Returns
         -------
-        th.Tensor
-            The prediction scores for all edges in the input graph.
+        dict of th.Tensor
+            The scores for edges of each edge type
+            in the input graph.
         """
 
 class LinkPredictLearnableDecoder(GSLayer):
@@ -556,8 +557,9 @@ class LinkPredictLearnableDecoder(GSLayer):
 
         Returns
         -------
-        th.Tensor
-            The prediction scores for all edges in the input graph.
+        dict of th.Tensor
+            The scores for edges of each edge type
+            in the input graph.
         """
 
 class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
@@ -569,7 +571,7 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
         with g.local_scope():
-            scores = []
+            scores = {}
 
             for canonical_etype in g.canonical_etypes:
                 if g.num_edges(canonical_etype) == 0:
@@ -580,9 +582,8 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
                 src_emb = h[src_type][u]
                 dest_emb = h[dest_type][v]
                 scores_etype = calc_dot_pos_score(src_emb, dest_emb)
-                scores.append(scores_etype)
+                scores[canonical_etype] = scores_etype
 
-            scores=th.cat(scores)
             return scores
 
     def calc_test_scores(self, emb, pos_neg_tuple, neg_sample_type, device):
@@ -713,6 +714,60 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
         """
         return 1
 
+class LinkPredictContrastiveDotDecoder(LinkPredictDotDecoder):
+    """ Link prediction decoder designed for contrastive loss
+        with the score function of dot product.
+
+        Note: This class is specifically implemented for contrastive loss
+        This may also be used by other pair-wise loss functions for link
+        prediction tasks.
+
+        TODO(xiang): Develop a better solution for supporting pair-wise
+        loss functions in link prediction tasks. The
+        LinkPredictContrastiveDotDecoder is implemented based on the
+        assumption that the same decoder.forward will be called twice
+        with a positive graph and negative graph respectively. And
+        the positive and negative graphs are compatible. We can simply
+        sort the edges in postive and negative graphs to create <pos, neg>
+        pairs. This implementation makes strong assumption of the correlation
+        between the Dataloader, Decoder and the Loss function. We should
+        find a better implementation.
+    """
+
+    # pylint: disable=unused-argument
+    def forward(self, g, h, e_h=None):
+        with g.local_scope():
+            scores = {}
+
+            for canonical_etype in g.canonical_etypes:
+                if g.num_edges(canonical_etype) == 0:
+                    continue # the block might contain empty edge types
+
+                src_type, _, dest_type = canonical_etype
+                u, v = g.edges(etype=canonical_etype)
+                # Sort edges according to source node ids
+                # The same function is invoked by computing both pos scores
+                # and neg scores, by sorting edges according to source nids
+                # the output scores of pos_score and neg_score are compatible.
+                #
+                # For example:
+                #
+                # pos pairs   |  neg pairs
+                # (10, 20)    |  (10, 3), (10, 1), (10, 0), (10, 22)
+                # (13, 6)     |  (13, 3), (13, 1), (13, 0), (13, 22)
+                # (29, 8)     |  (29, 3), (29, 1), (29, 0), (29, 22)
+                # TODO: use stable to keep the order of negatives. This may not
+                # be necessary.
+                u_sort_idx = th.argsort(u, stable=True)
+                u = u[u_sort_idx]
+                v = v[u_sort_idx]
+                src_emb = h[src_type][u]
+                dest_emb = h[dest_type][v]
+                scores_etype = calc_dot_pos_score(src_emb, dest_emb)
+                scores[canonical_etype] = scores_etype
+
+            return scores
+
 class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
     """ Link prediction decoder with the score function of DistMult
 
@@ -759,7 +814,7 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
         with g.local_scope():
-            scores=[]
+            scores = {}
 
             for canonical_etype in g.canonical_etypes:
                 if g.num_edges(canonical_etype) == 0:
@@ -776,8 +831,8 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
                 dest_emb = h[dest_type][v]
                 rel_embedding = rel_embedding.repeat(1,dest_emb.shape[0]).T
                 scores_etype = calc_distmult_pos_score(src_emb, dest_emb, rel_embedding)
-                scores.append(scores_etype)
-            scores=th.cat(scores)
+                scores[canonical_etype] = scores_etype
+
             return scores
 
     def calc_test_scores(self, emb, pos_neg_tuple, neg_sample_type, device):
@@ -922,6 +977,66 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
         """
         return 1
 
+class LinkPredictContrastiveDistMultDecoder(LinkPredictDistMultDecoder):
+    """ Link prediction decoder designed for contrastive loss
+        with the score function of DistMult.
+
+        Note: This class is specifically implemented for contrastive loss
+        This may also be used by other pair-wise loss functions for link
+        prediction tasks.
+
+        TODO(xiang): Develop a better solution for supporting pair-wise
+        loss functions in link prediction tasks. The
+        LinkPredictContrastiveDotDecoder is implemented based on the
+        assumption that the same decoder.forward will be called twice
+        with a positive graph and negative graph respectively. And
+        the positive and negative graphs are compatible. We can simply
+        sort the edges in postive and negative graphs to create <pos, neg>
+        pairs. This implementation makes strong assumption of the correlation
+        between the Dataloader, Decoder and the Loss function. We should
+        find a better implementation.
+    """
+
+    # pylint: disable=unused-argument
+    def forward(self, g, h, e_h=None):
+        with g.local_scope():
+            scores = {}
+
+            for canonical_etype in g.canonical_etypes:
+                if g.num_edges(canonical_etype) == 0:
+                    continue # the block might contain empty edge types
+
+                i = self.etype2rid[canonical_etype]
+                self.trained_rels[i] += 1
+                rel_embedding = self._w_relation(th.tensor(i).to(self._w_relation.weight.device))
+                rel_embedding = rel_embedding.unsqueeze(dim=1)
+                src_type, _, dest_type = canonical_etype
+                u, v = g.edges(etype=canonical_etype)
+                # Sort edges according to source node ids
+                # The same function is invoked by computing both pos scores
+                # and neg scores, by sorting edges according to source nids
+                # the output scores of pos_score and neg_score are compatible.
+                #
+                # For example:
+                #
+                # pos pairs   |  neg pairs
+                # (10, 20)    |  (10, 3), (10, 1), (10, 0), (10, 22)
+                # (13, 6)     |  (13, 3), (13, 1), (13, 0), (13, 22)
+                # (29, 8)     |  (29, 3), (29, 1), (29, 0), (29, 22)
+                #
+                # TODO: use stable to keep the order of negatives. This may not
+                # be necessary
+                u_sort_idx = th.argsort(u, stable=True)
+                u = u[u_sort_idx]
+                v = v[u_sort_idx]
+                src_emb = h[src_type][u]
+                dest_emb = h[dest_type][v]
+                rel_embedding = rel_embedding.repeat(1,dest_emb.shape[0]).T
+                scores_etype = calc_distmult_pos_score(src_emb, dest_emb, rel_embedding)
+                scores[canonical_etype] = scores_etype
+
+            return scores
+
 class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
     """Link prediction decoder with the score function of DistMult
        with edge weight.
@@ -939,8 +1054,7 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
         This computes the DistMult score on every edge type.
         """
         with g.local_scope():
-            scores=[]
-            weights = []
+            scores = {}
 
             for canonical_etype in g.canonical_etypes:
                 if g.num_edges(canonical_etype) == 0:
@@ -967,13 +1081,12 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
                     weight = weight.flatten()
                 else:
                     # current etype does not has weight
-                    weight = th.ones((g.num_edges(canonical_etype),))
+                    weight = th.ones((g.num_edges(canonical_etype),),
+                                     device=scores_etype.device)
+                scores[canonical_etype] = (scores_etype,
+                                           weight)
 
-                weights.append(weight.to(scores_etype.device))
-                scores.append(scores_etype)
-            scores = th.cat(scores)
-            weights = th.cat(weights)
-            return (scores, weights)
+            return scores
 
 class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
     """Link prediction decoder with the score function of dot product
@@ -992,8 +1105,7 @@ class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
         This computes the dot product score on every edge type.
         """
         with g.local_scope():
-            scores = []
-            weights = []
+            scores = {}
 
             for canonical_etype in g.canonical_etypes:
                 if g.num_edges(canonical_etype) == 0:
@@ -1014,10 +1126,8 @@ class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
                     weight = weight.flatten()
                 else:
                     # current etype does not has weight
-                    weight = th.ones((g.num_edges(canonical_etype),))
-                weights.append(weight.to(scores_etype.device))
-                scores.append(scores_etype)
-
-            scores = th.cat(scores)
-            weights = th.cat(weights)
-            return (scores, weights)
+                    weight = th.ones((g.num_edges(canonical_etype),),
+                                     device=scores_etype.device)
+                scores[canonical_etype] = (scores_etype,
+                                           weight)
+            return scores

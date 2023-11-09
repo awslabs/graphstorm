@@ -21,6 +21,7 @@ import logging
 import torch as th
 from torch import nn
 import torch.nn.functional as F
+import dgl
 from dgl.distributed import DistEmbedding, node_split
 
 from .gs_layer import GSLayer
@@ -169,6 +170,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         Number of layers of feedforward neural network for each node type in the input layers
     ffn_activation : callable
         The activation function for the feedforward neural networks.
+    cache_embed : bool
+        Whether or not to cache the embeddings.
 
     Examples:
     ----------
@@ -198,27 +201,27 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  force_no_embeddings=None,
                  num_ffn_layers_in_input=0,
                  ffn_activation=F.relu,
-                 ):
+                 cache_embed=False):
         super(GSNodeEncoderInputLayer, self).__init__(g)
         self.embed_size = embed_size
         self.dropout = nn.Dropout(dropout)
         self.use_node_embeddings = use_node_embeddings
+        self.feat_size = feat_size
         if force_no_embeddings is None:
             force_no_embeddings = []
 
         self.activation = activation
+        self.cache_embed = cache_embed
 
-        # NCCL backend is not supported for utilizing learnable embeddings on nodes. It has a
-        # dependency on distDGL (PR https://github.com/dmlc/dgl/pull/5929).
-        # TODO (Israt): Add NCCL support to distDGL.
-        if is_distributed() and get_backend() == "nccl":
+        if dgl.__version__ <= "1.1.2" and is_distributed() and get_backend() == "nccl":
             if self.use_node_embeddings:
-                raise NotImplementedError('NCCL backend is not supported for utilizing \
-                    node embeddings. Please use gloo backend.')
+                raise NotImplementedError('NCCL backend is not supported for utilizing ' +
+                    'node embeddings. Please use DGL version >=1.1.2 or gloo backend.')
             for ntype in g.ntypes:
                 if not feat_size[ntype]:
-                    raise NotImplementedError('NCCL backend is not supported for utilizing \
-                        learnable embeddings on featureless nodes. Please use gloo backend.')
+                    raise NotImplementedError('NCCL backend is not supported for utilizing ' +
+                        'learnable embeddings on featureless nodes. Please use DGL version ' + 
+                        '>=1.1.2 or gloo backend.')
 
         # create weight embeddings for each node for each relation
         self.proj_matrix = nn.ParameterDict()
@@ -324,6 +327,19 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         embs = {ntype: _apply(ntype, h) for ntype, h in embs.items()}
         return embs
 
+    def require_cache_embed(self):
+        """ Whether to cache the embeddings for inference.
+
+        If the input encoder has heavy computations, such as BERT computations,
+        it should return True and the inference engine will cache the embeddings
+        from the input encoder.
+
+        Returns
+        -------
+        Bool : True if we need to cache the embeddings for inference.
+        """
+        return self.cache_embed
+
     def get_sparse_params(self):
         """ get the sparse parameters.
 
@@ -337,10 +353,46 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
             return []
 
     @property
+    def in_dims(self):
+        """ The input feature size.
+        """
+        return self.feat_size
+
+    @property
     def out_dims(self):
         """ The number of output dimensions.
         """
         return self.embed_size
+
+def _gen_emb(g, feat_field, embed_layer, ntype):
+    """ Test if the embed layer can generate embeddings on the node type.
+
+    If a node type doesn't have node features, running the input embedding layer
+    on the node type may not generate any tensors. This function is to check
+    it by attempting getting the embedding of node 0. If we cannot get
+    the embedding of node 0, we believe that the embedding layer cannot
+    generate embeddings for this node type.
+
+    Parameters
+    ----------
+    g : DistGraph
+        The distributed graph.
+    feat_field : str
+        The field of node features.
+    embed_layer : callable
+        The function to generate the embedding.
+    ntype : str
+        The node type that we will test if it generates node embeddings.
+
+    Returns
+    -------
+    bool : whether embed_layer can generate embeddings on the given node type.
+    """
+    input_nodes = th.tensor([0])
+    dev = embed_layer.device
+    feat = prepare_batch_input(g, {ntype: input_nodes}, dev=dev, feat_field=feat_field)
+    emb = embed_layer(feat, {ntype: input_nodes})
+    return ntype in emb
 
 def compute_node_input_embeddings(g, batch_size, embed_layer,
                                   task_tracker=None, feat_field='feat',
@@ -379,6 +431,11 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
     start = time.time()
     with th.no_grad():
         for ntype in target_ntypes:
+            # When reconstructed_embed is enabled, we may not be able to generate
+            # embeddings on some node types. We will skip the node types.
+            if not _gen_emb(g, feat_field, embed_layer, ntype):
+                continue
+
             embed_size = embed_layer.out_dims
             # TODO(zhengda) we need to be careful about this. Here it creates a persistent
             # distributed tensor to store the node embeddings. This can potentially consume
@@ -407,7 +464,7 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
                 emb = embed_layer(feat, {ntype: input_nodes})
                 input_emb[input_nodes] = emb[ntype].to('cpu')
                 if iter_l % 200 == 0 and g.rank() == 0:
-                    logging.debug("compute input embeddings on %s: %d of %d, takes %.3f seconds",
+                    logging.debug("compute input embeddings on %s: %d of %d, takes %.3f s",
                                   ntype, iter_l, len(node_list), time.time() - iter_start)
             n_embs[ntype] = input_emb
     if embed_layer is not None:

@@ -35,12 +35,15 @@ from graphstorm.gconstruct.file_io import write_index_json
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features, preprocess_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
 from graphstorm.gconstruct.transform import Noop, do_multiprocess_transform, LinkPredictionProcessor
+from graphstorm.gconstruct.transform import (BucketTransform, RankGaussTransform,
+                                             Text2BERT, NumericalMinMaxTransform,
+                                             CategoricalTransform)
 from graphstorm.gconstruct.id_map import IdMap, map_node_ids
 from graphstorm.gconstruct.utils import (ExtMemArrayMerger,
                                          ExtMemArrayWrapper,
                                          partition_graph,
                                          update_two_phase_feat_ops,
-                                         HDF5Array)
+                                         HDF5Array, ExtFeatureWrapper)
 
 def test_parquet():
     handle, tmpfile = tempfile.mkstemp()
@@ -1274,6 +1277,418 @@ def test_parse_edge_data():
         assert "val_mask" in feat_data
         assert "test_mask" in feat_data
 
+@pytest.mark.parametrize("ext_mem_path", [None, "/"])
+def test_multicolumn(ext_mem_path):
+    # Just get the features without transformation.
+    feat_op1 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+    }]
+    (res, _, _) = parse_feat_ops(feat_op1)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op1[0]["feature_col"]
+    assert res[0].feat_name == feat_op1[0]["feature_name"]
+    assert isinstance(res[0], Noop)
+
+    data = {
+        "test1": np.random.rand(4, 2),
+        "test2": np.random.rand(4, 2)
+    }
+    data["test3"] = np.column_stack((data['test1'], data['test2']))
+    proc_res = process_features(data, res, ext_mem_path=ext_mem_path)
+    assert "test3" in proc_res
+    assert proc_res["test3"].dtype == np.float32
+    if isinstance(proc_res, ExtMemArrayWrapper):
+        proc_res = proc_res.to_numpy()
+    np.testing.assert_allclose(proc_res["test3"], data["test3"])
+
+    # test on multiple column bucket feature transformation
+    feat_op2 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+        "transform":{
+            "name": "bucket_numerical",
+            "range": [10, 200],
+            "bucket_cnt": 10
+        }
+    }]
+    data = {
+        "test1": np.random.randint(0, 100, 3),
+        "test2": np.random.randint(0, 100, 3)
+    }
+    (res, _, _) = parse_feat_ops(feat_op2)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op2[0]["feature_col"]
+    assert res[0].feat_name == feat_op2[0]["feature_name"]
+    assert isinstance(res[0], BucketTransform)
+    bucket_feats = process_features(data, res, ext_mem_path=ext_mem_path)
+    assert "test3" in proc_res
+    assert proc_res["test3"].dtype == np.float32
+
+    data_bucket1 = {
+        "test1": data["test1"]
+    }
+    feat_bucket_single1 = [{
+        "feature_col": "test1",
+        "feature_name": "test3",
+        "transform":{
+            "name": "bucket_numerical",
+            "range": [10, 200],
+            "bucket_cnt": 10
+        }
+    }]
+    (res, _, _) = parse_feat_ops(feat_bucket_single1)
+    bucket_feat_single1 = process_features(data_bucket1, res)
+
+    data_bucket2 = {
+        "test2": data["test2"]
+    }
+    feat_bucket_single2 = [{
+        "feature_col": "test2",
+        "feature_name": "test3",
+        "transform":{
+            "name": "bucket_numerical",
+            "range": [10, 200],
+            "bucket_cnt": 10
+        }
+    }]
+    (res, _, _) = parse_feat_ops(feat_bucket_single2)
+    bucket_feat_single2 = process_features(data_bucket2, res)
+    bucket_expec = np.column_stack((bucket_feat_single1["test3"],
+                                    bucket_feat_single2["test3"]))
+    if isinstance(proc_res, ExtMemArrayWrapper):
+        bucket_feats = bucket_feats.to_numpy()
+    assert_equal(bucket_feats["test3"], bucket_expec)
+
+    # test on multiple column rank-gauss feature transformation
+    feat_op3 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+        "transform":{
+            "name": "rank_gauss"
+        }
+    }]
+    data = {
+        "test1": np.random.randint(0, 100, 3),
+        "test2": np.random.randint(0, 100, 3)
+    }
+    (res, _, _) = parse_feat_ops(feat_op3)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op3[0]["feature_col"]
+    assert res[0].feat_name == feat_op3[0]["feature_name"]
+    assert isinstance(res[0], RankGaussTransform)
+    rg_feats = process_features(data, res, ext_mem_path=ext_mem_path)
+    assert "test3" in proc_res
+    assert proc_res["test3"].dtype == np.float32
+
+    data_rg1 = {
+        "test1": data["test1"]
+    }
+    feat_rg_single1 = [{
+        "feature_col": "test1",
+        "feature_name": "test3",
+        "transform":{
+            "name": "rank_gauss"
+        }
+    }]
+    (res, _, _) = parse_feat_ops(feat_rg_single1)
+    rg_feat_single1 = process_features(data_rg1, res)
+
+    data_rg2 = {
+        "test2": data["test2"]
+    }
+    feat_rg_single2 = [{
+        "feature_col": "test2",
+        "feature_name": "test3",
+        "transform":{
+            "name": "rank_gauss",
+        }
+    }]
+    (res, _, _) = parse_feat_ops(feat_rg_single2)
+    rg_feat_single2 = process_features(data_rg2, res)
+    rg_expec = np.column_stack((rg_feat_single1["test3"],
+                                rg_feat_single2["test3"]))
+    if isinstance(rg_feats, ExtMemArrayWrapper):
+        rg_feats = rg_feats.to_numpy()
+    assert_equal(rg_feats["test3"], rg_expec)
+
+    # test on multiple column bert_hf feature transformation
+    feat_op4 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+        "transform": {"name": 'bert_hf',
+                      'bert_model': 'bert-base-uncased',
+                      'max_seq_length': 16
+                      },
+    }]
+
+    data = {
+        "test1": ["test", "haha", "failure"],
+        "test2": ["never", "pass", "lint"]
+    }
+    (res, _, _) = parse_feat_ops(feat_op4)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op4[0]["feature_col"]
+    assert res[0].feat_name == feat_op4[0]["feature_name"]
+    assert isinstance(res[0], Text2BERT)
+    bert_feats = process_features(data, res, ext_mem_path=ext_mem_path)
+    assert "test3" in proc_res
+
+    data_bert1 = {
+        "test1": data["test1"]
+    }
+    feat_bert_single1 = [{
+        "feature_col": "test1",
+        "feature_name": "test3",
+        "transform": {"name": 'bert_hf',
+                      'bert_model': 'bert-base-uncased',
+                      'max_seq_length': 16
+                      },
+    }]
+    (res, _, _) = parse_feat_ops(feat_bert_single1)
+    bert_feat_single1 = process_features(data_bert1, res)
+
+    data_bert2 = {
+        "test2": data["test2"]
+    }
+    feat_bert_single2 = [{
+        "feature_col": "test2",
+        "feature_name": "test3",
+        "transform": {"name": 'bert_hf',
+                      'bert_model': 'bert-base-uncased',
+                      'max_seq_length': 16
+                      },
+    }]
+    (res, _, _) = parse_feat_ops(feat_bert_single2)
+    bert_feat_single2 = process_features(data_bert2, res)
+    bert_expec = np.column_stack((bert_feat_single1["test3"],
+                                bert_feat_single2["test3"]))
+    if isinstance(bert_feats, ExtMemArrayWrapper):
+        bert_feats = bert_feats.to_numpy()
+    assert_equal(bert_feats["test3"], bert_expec)
+
+    # test on max_min_norm with specifying max_val and min_val
+    feat_op5 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+        "transform":{
+            "name": "max_min_norm",
+            "max_val": 100,
+            "min_val": 0
+        }
+    }]
+    data = {
+        "test1": np.random.randint(0, 100, 3),
+        "test2": np.random.randint(0, 100, 3)
+    }
+    (res, _, _) = parse_feat_ops(feat_op5)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op5[0]["feature_col"]
+    assert res[0].feat_name == feat_op5[0]["feature_name"]
+    assert isinstance(res[0], NumericalMinMaxTransform)
+    maxmin_feats = process_features(data, res, ext_mem_path=ext_mem_path)
+    assert "test3" in proc_res
+    assert proc_res["test3"].dtype == np.float32
+
+    data_maxmin1 = {
+        "test1": data["test1"]
+    }
+    feat_maxmin_single1 = [{
+        "feature_col": "test1",
+        "feature_name": "test3",
+        "transform":{
+            "name": "max_min_norm",
+            "max_val": 100,
+            "min_val": 0
+        }
+    }]
+    (res, _, _) = parse_feat_ops(feat_maxmin_single1)
+    maxmin_feat_single1 = process_features(data_maxmin1, res)
+
+    data_maxmin2 = {
+        "test2": data["test2"]
+    }
+    feat_maxmin_single2 = [{
+        "feature_col": "test2",
+        "feature_name": "test3",
+        "transform":{
+            "name": "max_min_norm",
+            "max_val": 100,
+            "min_val": 0
+        }
+    }]
+    (res, _, _) = parse_feat_ops(feat_maxmin_single2)
+    maxmin_feat_single2 = process_features(data_maxmin2, res)
+    maxmin_expec = np.column_stack((maxmin_feat_single1["test3"],
+                                maxmin_feat_single2["test3"]))
+    if isinstance(maxmin_feats, ExtMemArrayWrapper):
+        maxmin_feats = maxmin_feats.to_numpy()
+    assert_equal(maxmin_feats["test3"], maxmin_expec)
+
+    # test on max_min_norm without specifying max_val and min_val,
+    # expect to throw error
+    feat_op6 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+        "transform":{
+            "name": "max_min_norm",
+        }
+    }]
+    try:
+        (res, _, _) = parse_feat_ops(feat_op6)
+        assert False, "expected Error raised for not " \
+                      "specifying max_val and min_val"
+    except AssertionError as e:
+        assert str(e) == "max_val and min_val for max_min_norm " \
+                         "feature transformation is needed"
+
+    # test on to_categorical, expect to throw error
+    feat_op7 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+        "transform":{
+            "name": "to_categorical",
+        }
+    }]
+    try:
+        (res, _, _) = parse_feat_ops(feat_op7)
+        assert False, "expected Error raised for multi column on" \
+                      " categorical feature transformation"
+    except RuntimeError as e:
+        assert str(e) == "Do not support categorical feature " \
+                         "transformation on multiple columns"
+
+    # test on no input
+    feat_op8 = [{
+        "feature_col": [],
+        "feature_name": "test3"
+    }]
+    try:
+        (res, _, _) = parse_feat_ops(feat_op8)
+        assert False, "expected Error raised for invalid feature column []"
+    except AssertionError as e:
+        assert str(e) == "feature column should not be empty"
+
+    # test on no input column
+    feat_op9 = [{
+        "feature_col": "",
+        "feature_name": "test3"
+    }]
+    try:
+        (res, _, _) = parse_feat_ops(feat_op9)
+        assert False, "expected Error not raised for invalid feature column """
+    except AssertionError as e:
+        assert str(e) == "feature column should not be empty"
+
+    # tests on tokenize_hf, expect to throw error
+    feat_op10 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+        "transform": {
+            "name": 'tokenize_hf',
+            "bert_model": 'bert-base-uncased',
+            "max_seq_length": 16
+            },
+    }]
+    try:
+        (res, _, _) = parse_feat_ops(feat_op10)
+        assert False, "expected Error raised for multi column on" \
+                      " tokenize_hf feature transformation"
+    except RuntimeError as e:
+        assert str(e) == "Not support multiple column for tokenize_hf transformation"
+
+    feat_op11 = [{
+        "feature_col": ["test1", "test2", "test3"],
+        "feature_name": "test4",
+    }]
+    (res, _, _) = parse_feat_ops(feat_op11)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op11[0]["feature_col"]
+    assert res[0].feat_name == feat_op11[0]["feature_name"]
+    assert isinstance(res[0], Noop)
+
+    # tests on more than 2 columns
+    data = {
+        "test1": np.random.rand(4, 2),
+        "test2": np.random.rand(4, 2),
+        "test3": np.random.rand(4, 2)
+    }
+    data["test4"] = np.column_stack((data['test1'], data['test2'], data['test3']))
+    proc_res = process_features(data, res, ext_mem_path=ext_mem_path)
+    assert "test4" in proc_res
+    assert proc_res["test4"].dtype == np.float32
+    if isinstance(proc_res, ExtMemArrayWrapper):
+        proc_res = proc_res.to_numpy()
+    np.testing.assert_allclose(proc_res["test4"], data["test4"])
+
+
+def test_feature_wrapper():
+    # same array size
+    data = {
+        "test1": np.random.randint(0, 100, (3, 1)),
+        "test2": np.random.randint(0, 100, (3, 1))
+    }
+    if not os.path.exists("/tmp_featurewrapper"):
+        os.makedirs("/tmp_featurewrapper")
+    test_extfeature_wrapper = ExtFeatureWrapper("/tmp_featurewrapper")
+    try:
+        a = test_extfeature_wrapper[:]
+    except RuntimeError as e:
+        assert str(e) == "Call ExtFeatureWrapper.merge() first before calling __getitem__"
+
+    try:
+        a = test_extfeature_wrapper.to_numpy()
+    except RuntimeError as e:
+        assert str(e) == "Call ExtFeatureWrapper.merge() first before calling to_numpy()"
+
+    test_extfeature_wrapper.append(data["test1"])
+    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper")
+                     if os.path.isfile(os.path.join("/tmp_featurewrapper", name)))
+    assert file_count == 1
+    test_extfeature_wrapper.append(data["test2"])
+    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper")
+                     if os.path.isfile(os.path.join("/tmp_featurewrapper", name)))
+    assert file_count == 2
+    test_extfeature_wrapper.merge()
+    data["test3"] = np.column_stack((data['test1'], data['test2']))
+    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper")
+                     if os.path.isfile(os.path.join("/tmp_featurewrapper", name)))
+    assert file_count == 3
+    np.testing.assert_allclose(test_extfeature_wrapper[:], data["test3"])
+
+    # different array size
+    data = {
+        "test1": np.random.randint(0, 100, (3, 7)),
+        "test2": np.random.randint(0, 100, (3, 1))
+    }
+    if not os.path.exists("/tmp_featurewrapper2"):
+        os.makedirs("/tmp_featurewrapper2")
+    test_extfeature_wrapper = ExtFeatureWrapper("/tmp_featurewrapper2")
+
+    test_extfeature_wrapper.append(data["test1"])
+    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper2")
+                     if os.path.isfile(os.path.join("/tmp_featurewrapper2", name)))
+    assert file_count == 1
+    test_extfeature_wrapper.append(data["test2"])
+    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper2")
+                     if os.path.isfile(os.path.join("/tmp_featurewrapper2", name)))
+    assert file_count == 2
+    test_extfeature_wrapper.merge()
+    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper2")
+                     if os.path.isfile(os.path.join("/tmp_featurewrapper2", name)))
+    assert file_count == 3
+    data["test3"] = np.column_stack((data['test1'], data['test2']))
+    np.testing.assert_allclose(test_extfeature_wrapper[:], data["test3"])
+    test_extfeature_wrapper = None
+    test_gc()
+
+
+def test_gc():
+    assert not os.path.isdir("/tmp_featurewrapper"), \
+        "Directory /tmp_featurewrapper should not exist after gc"
+    assert not os.path.isdir("/tmp_featurewrapper2"), \
+        "Directory /tmp_featurewrapper2 should not exist after gc"
+
 if __name__ == '__main__':
     test_parse_edge_data()
     test_multiprocessing_checks()
@@ -1289,3 +1704,6 @@ if __name__ == '__main__':
     test_process_features()
     test_process_features_fp16()
     test_label()
+    test_multicolumn(None)
+    test_multicolumn("/")
+    test_feature_wrapper()

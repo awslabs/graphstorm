@@ -42,6 +42,7 @@ from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnNodeSemiSupDataLoader)
 from graphstorm.dataloading import (GSgnnLinkPredictionDataLoader,
                                     GSgnnLPJointNegDataLoader,
+                                    GSgnnLPInBatchJointNegDataLoader,
                                     GSgnnLPLocalUniformNegDataLoader,
                                     GSgnnLPLocalJointNegDataLoader,
                                     FastGSgnnLinkPredictionDataLoader,
@@ -54,6 +55,8 @@ from graphstorm.dataloading import DistillDataloaderGenerator, DistillDataManage
 from graphstorm.dataloading import DistributedFileSampler
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
+
+from graphstorm.dataloading.sampler import InbatchJointUniform
 
 from graphstorm.dataloading.dataset import (prepare_batch_input,
                                             prepare_batch_edge_input)
@@ -637,6 +640,23 @@ def test_GSgnnLinkPredictionTestDataLoader(batch_size, num_negative_edges):
                 assert neg_src.shape[0] == pos_src.shape[0]
                 assert neg_src.shape[1] == num_negative_edges
                 assert th.all(neg_src < g.number_of_nodes(canonical_etype[0]))
+
+        fixed_test_size = 10
+        dataloader = GSgnnLinkPredictionTestDataLoader(
+            lp_data,
+            target_idx=lp_data.train_idxs, # use train edges as val or test edges
+            batch_size=batch_size,
+            num_negative_edges=num_negative_edges,fixed_test_size=fixed_test_size)
+        num_samples = 0
+        for pos_neg_tuple, sample_type in dataloader:
+            num_samples += 1
+            assert isinstance(pos_neg_tuple, dict)
+            assert len(pos_neg_tuple) == 1
+            for _, pos_neg in pos_neg_tuple.items():
+                pos_src, _, pos_dst, _ = pos_neg
+                assert len(pos_src) <= batch_size
+
+        assert num_samples ==  -(-fixed_test_size // batch_size) * 2
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
@@ -1266,6 +1286,10 @@ def test_lp_dataloader_len(batch_size):
                                                device='cuda:0', train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
+    dataloader = GSgnnLPInBatchJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
     dataloader = GSgnnLPLocalJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
                                                device='cuda:0', train_task=False)
     assert len(dataloader) == len(list(dataloader))
@@ -1305,8 +1329,35 @@ def test_lp_dataloader_len(batch_size):
     dataloader = FastGSgnnLPLocalJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
                                                device='cuda:0', train_task=True)
     assert len(dataloader) == len(list(dataloader))
+
+@pytest.mark.parametrize("num_pos", [2, 10])
+@pytest.mark.parametrize("num_neg", [5, 20])
+def test_inbatch_joint_neg_sampler(num_pos, num_neg):
+    src = th.arange(num_pos)
+    dst = th.arange(num_pos)
+    g = dgl.heterograph({
+        ("n0", "r0", "n1"): (src, dst),
+    })
+    sampler = InbatchJointUniform(num_neg)
+    src, dst = sampler._generate(g, th.arange(num_pos), ("n0", "r0", "n1"))
+    # In batch joint negative includes
+    # uniform negatives + in-batch negatives.
+    assert len(src) == num_pos * num_neg +  num_pos * (num_pos - 1)
+    assert len(dst) == num_pos * num_neg + num_pos * (num_pos - 1)
+    in_batch_src = src[-num_pos * (num_pos - 1):]
+    in_batch_dst = dst[-num_pos * (num_pos - 1):]
+
+    for i in range(num_pos):
+        assert_equal(in_batch_src[i*(num_pos-1):(i+1)*(num_pos-1)].numpy(), np.repeat(i, (num_pos-1)))
+        tmp_idx = np.ones(num_pos, dtype=bool)
+        tmp_idx[i] = False
+        assert_equal(in_batch_dst[i*(num_pos-1):(i+1)*(num_pos-1)].numpy(),
+                     np.arange(num_pos)[tmp_idx])
+
 
 if __name__ == '__main__':
+    test_inbatch_joint_neg_sampler(10, 20)
+
     test_np_dataloader_len(11)
     test_ep_dataloader_len(11)
     test_lp_dataloader_len(11)

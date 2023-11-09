@@ -26,7 +26,7 @@ from graphstorm.config import  (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_EDGE_REGRESSION,
                                 BUILTIN_TASK_LINK_PREDICTION)
 from graphstorm.inference import GSgnnEmbGenInferer
-
+from graphstorm.utils import get_lm_ntypes
 
 def main(config_args):
     """ main function
@@ -47,17 +47,20 @@ def main(config_args):
         input_data = GSgnnEdgeInferData(config.graph_name,
                                         config.part_config,
                                         eval_etypes=config.eval_etype,
-                                        node_feat_field=config.node_feat_name)
+                                        node_feat_field=config.node_feat_name,
+                                        lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     elif config.task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
         input_data = GSgnnNodeInferData(config.graph_name,
                                         config.part_config,
                                         eval_ntypes=config.target_ntype,
-                                        node_feat_field=config.node_feat_name)
+                                        node_feat_field=config.node_feat_name,
+                                        lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     elif config.task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
         input_data = GSgnnEdgeInferData(config.graph_name,
                                         config.part_config,
                                         eval_etypes=config.target_etype,
-                                        node_feat_field=config.node_feat_name)
+                                        node_feat_field=config.node_feat_name,
+                                        lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     else:
         raise TypeError("Not supported for task type: ", config.task_type)
 

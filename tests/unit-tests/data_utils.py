@@ -24,6 +24,8 @@ import torch as th
 import pandas as pd
 import dgl.distributed as dist
 import tempfile
+from dgl.distributed.constants import (DEFAULT_NTYPE,
+                                       DEFAULT_ETYPE)
 
 from transformers import AutoTokenizer
 from graphstorm import get_feat_size
@@ -37,7 +39,7 @@ def generate_mask(idx, length):
     th_mask = th.tensor(mask, dtype=th.bool)
     return th_mask
 
-def generate_dummy_hetero_graph(size='tiny', gen_mask=True):
+def generate_dummy_hetero_graph(size='tiny', gen_mask=True, add_reverse=False):
     """
     generate a dummy heterogeneous graph.
     Parameters
@@ -66,8 +68,11 @@ def generate_dummy_hetero_graph(size='tiny', gen_mask=True):
         ("n0", "r0", "n1"): (th.randint(data_size, (data_size,)),
                              th.randint(data_size, (data_size,))),
         ("n0", "r1", "n1"): (th.randint(data_size, (2 * data_size,)),
-                             th.randint(data_size, (2 * data_size,)))
+                             th.randint(data_size, (2 * data_size,))),
     }
+    if add_reverse:
+        edges[("n1", "r2", "n0")] = (th.randint(data_size, (2 * data_size,)),
+                th.randint(data_size, (2 * data_size,)))
 
     hetero_graph = dgl.heterograph(edges, num_nodes_dict=num_nodes_dict)
 
@@ -292,31 +297,31 @@ def generate_dummy_homo_graph(size='tiny', gen_mask=True):
     data_size = int(size_dict[size])
 
     num_nodes_dict = {
-        "_N": data_size,
+        DEFAULT_NTYPE: data_size,
     }
 
     edges = {
-        ("_N", "_E", "_N"): (th.randint(data_size, (2 * data_size,)),
+        DEFAULT_ETYPE: (th.randint(data_size, (2 * data_size,)),
                              th.randint(data_size, (2 * data_size,)))
     }
 
     hetero_graph = dgl.heterograph(edges, num_nodes_dict=num_nodes_dict)
 
     # set node and edge features
-    node_feat = {'_N': th.randn(data_size, 2)}
+    node_feat = {DEFAULT_NTYPE: th.randn(data_size, 2)}
 
-    edge_feat = {'_E': th.randn(2 * data_size, 2)}
+    edge_feat = {DEFAULT_ETYPE: th.randn(2 * data_size, 2)}
 
-    hetero_graph.nodes['_N'].data['feat'] = node_feat['_N']
-    hetero_graph.nodes['_N'].data['label'] = th.randint(10, (hetero_graph.number_of_nodes('_N'), ))
+    hetero_graph.nodes[DEFAULT_NTYPE].data['feat'] = node_feat[DEFAULT_NTYPE]
+    hetero_graph.nodes[DEFAULT_NTYPE].data['label'] = th.randint(10, (hetero_graph.number_of_nodes(DEFAULT_NTYPE), ))
 
-    hetero_graph.edges['_E'].data['feat'] = edge_feat['_E']
-    hetero_graph.edges['_E'].data['label'] = th.randint(10, (hetero_graph.number_of_edges('_E'), ))
+    hetero_graph.edges[DEFAULT_ETYPE].data['feat'] = edge_feat[DEFAULT_ETYPE]
+    hetero_graph.edges[DEFAULT_ETYPE].data['label'] = th.randint(10, (hetero_graph.number_of_edges(DEFAULT_ETYPE), ))
 
     # set train/val/test masks for nodes and edges
     if gen_mask:
-        target_ntype = ['_N']
-        target_etype = [("_N", "_E", "_N")]
+        target_ntype = [DEFAULT_NTYPE]
+        target_etype = [DEFAULT_ETYPE]
 
         node_train_mask = generate_mask([0,1], data_size)
         node_val_mask = generate_mask([2,3], data_size)
@@ -364,7 +369,8 @@ def partion_and_load_distributed_graph(hetero_graph, dirname, graph_name='dummy'
     dist_graph = dist.DistGraph(graph_name=graph_name, part_config=part_config)
     return dist_graph, part_config
 
-def generate_dummy_dist_graph(dirname, size='tiny', graph_name='dummy', gen_mask=True, is_homo=False):
+def generate_dummy_dist_graph(dirname, size='tiny', graph_name='dummy',
+                              gen_mask=True, is_homo=False, add_reverse=False):
     """
     Generate a dummy DGL distributed graph with the given size
     Parameters
@@ -379,7 +385,8 @@ def generate_dummy_dist_graph(dirname, size='tiny', graph_name='dummy', gen_mask
     part_config : the path of the partition configuration file.
     """
     if not is_homo:
-        hetero_graph = generate_dummy_hetero_graph(size=size, gen_mask=gen_mask)
+        hetero_graph = generate_dummy_hetero_graph(size=size, gen_mask=gen_mask,
+                                                   add_reverse=add_reverse)
     else:
         hetero_graph = generate_dummy_homo_graph(size=size, gen_mask=gen_mask)
     return partion_and_load_distributed_graph(hetero_graph=hetero_graph, dirname=dirname,
@@ -447,7 +454,7 @@ def load_lm_graph(part_config):
     g.nodes['n0'].data[VALID_LEN] = valid_len
     return g, lm_config
 
-def create_lm_graph(tmpdirname):
+def create_lm_graph(tmpdirname, text_ntype='n0'):
     """ Create a graph with textual feaures
         Only n0 has a textual feature.
         n1 does not have textual feature.
@@ -457,9 +464,9 @@ def create_lm_graph(tmpdirname):
     lm_config = [{"lm_type": "bert",
                   "model_name": bert_model_name,
                   "gradient_checkpoint": True,
-                  "node_types": ["n0"]}]
+                  "node_types": [text_ntype]}]
     # get the test dummy distributed graph
-    g, part_config = generate_dummy_dist_graph(tmpdirname)
+    g, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
 
     feat_size = get_feat_size(g, {'n0' : ['feat']})
     input_text = ["Hello world!"]
@@ -468,10 +475,10 @@ def create_lm_graph(tmpdirname):
         create_tokens(tokenizer=tokenizer,
                       input_text=input_text,
                       max_seq_length=max_seq_length,
-                      num_node=g.number_of_nodes('n0'))
+                      num_node=g.number_of_nodes(text_ntype))
 
-    g.nodes['n0'].data[TOKEN_IDX] = input_ids
-    g.nodes['n0'].data[VALID_LEN] = valid_len
+    g.nodes[text_ntype].data[TOKEN_IDX] = input_ids
+    g.nodes[text_ntype].data[VALID_LEN] = valid_len
 
     return lm_config, feat_size, input_ids, attention_mask, g, part_config
 
@@ -532,7 +539,7 @@ def create_distill_data(tmpdirname, num_files):
 
         textual_embed_pddf = pd.DataFrame({
             "ids": id_col,
-            "textual_feats": textual_col, 
+            "textual_feats": textual_col,
             "embeddings": embeddings_col
             }).set_index("ids")
         textual_embed_pddf.to_parquet(os.path.join(tmpdirname, f"part-{part_i}.parquet"))

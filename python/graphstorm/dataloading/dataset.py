@@ -19,14 +19,15 @@ import os
 import abc
 import json
 import logging
+import re
 
 import torch as th
 import dgl
 from torch.utils.data import Dataset
 import pandas as pd
 
-from ..utils import get_rank, get_world_size, is_distributed
-from ..utils import sys_tracker, use_wholegraph
+from ..utils import get_rank, get_world_size, is_distributed, barrier
+from ..utils import sys_tracker, is_wholegraph
 from .utils import dist_sum, flip_node_mask, is_wholegraph_embedding
 
 def split_full_edge_list(g, etype, rank):
@@ -111,8 +112,15 @@ def prepare_batch_edge_input(g, input_edges,
 
         if feat_name is not None:
             # concatenate multiple features together
-            feat[etypes] = th.cat([g.edges[etypes].data[fname][eid].to(dev) \
-                for fname in feat_name], dim=-1)
+            feats = []
+            for fname in feat_name:
+                data = g.edges[etypes].data[fname]
+                if is_wholegraph_embedding(data):
+                    data = data.gather(eid.to(dev))
+                else:
+                    data = data[eid].to(dev)
+                feats.append(data)
+            feat[etypes] = th.cat(feats, dim=1)
     return feat
 
 class GSgnnData():
@@ -130,12 +138,21 @@ class GSgnnData():
     edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    decoder_edge_feat: str or dict of list of str
+        Edge features used by decoder
+    lm_feat_ntypes : list of str
+        The node types that contains text features.
+    lm_feat_etypes : list of tuples
+        The edge types that contains text features.
     """
 
-    def __init__(self, graph_name, part_config, node_feat_field, edge_feat_field):
+    def __init__(self, graph_name, part_config, node_feat_field, edge_feat_field,
+                 decoder_edge_feat=None, lm_feat_ntypes=None, lm_feat_etypes=None):
         self._g = dgl.distributed.DistGraph(graph_name, part_config=part_config)
         self._node_feat_field = node_feat_field
         self._edge_feat_field = edge_feat_field
+        self._lm_feat_ntypes = lm_feat_ntypes if lm_feat_ntypes is not None else []
+        self._lm_feat_etypes = lm_feat_etypes if lm_feat_etypes is not None else []
 
         self._train_idxs = {}
         self._val_idxs = {}
@@ -149,24 +166,52 @@ class GSgnnData():
                 logging.debug("%s has %d edges.", str(etype), g.number_of_edges(etype))
 
         # Use wholegraph for feature transfer
-        if is_distributed() and use_wholegraph(part_config):
+        if is_distributed() and is_wholegraph():
             logging.info("Allocate features with Wholegraph")
             num_parts = self._g.get_partition_book().num_partitions()
 
             # load node feature from wholegraph memory
-            for ntype in node_feat_field.keys():
-                assert ntype in self._g.ntypes, \
-                        f"Cannot load features of node type '{ntype}' as graph has" \
-                        f" no such node type."
-                data = {}
-                feat_names = node_feat_field[ntype]
-                for name in feat_names:
-                    data[name] = self.load_wg_feat(part_config, num_parts, ntype, name)
-                if len(self._g.ntypes) == 1:
-                    self._g._ndata_store.update(data)
-                else:
-                    self._g._ndata_store[ntype].update(data)
+            if node_feat_field:
+                if isinstance(node_feat_field, str):
+                    node_feat_field = {ntype: [node_feat_field] for ntype in self._g.ntypes}
+                for ntype, feat_names in node_feat_field.items():
+                    data = {}
+                    for name in feat_names:
+                        wg_folder = os.path.join(os.path.dirname(part_config), 'wholegraph')
+                        assert len([feat_file for feat_file in os.listdir(wg_folder) \
+                            if re.search(ntype + '~' + name, feat_file)]) > 0, \
+                            f"Feature '{name}' of '{ntype}' is not in WholeGraph format. " \
+                            f"Please convert all the available features to WholeGraph " \
+                            f"format to utilize WholeGraph."
+                        data[name] = self.load_wg_feat(part_config, num_parts, ntype, name)
+                    if len(self._g.ntypes) == 1:
+                        self._g._ndata_store.update(data)
+                    else:
+                        self._g._ndata_store[ntype].update(data)
 
+            # load edge feature from wholegraph memory
+            # TODO(IN): Add support for edge_feat_field
+            if decoder_edge_feat:
+                if isinstance(decoder_edge_feat, str):
+                    decoder_edge_feat = {etype: [decoder_edge_feat] \
+                        for etype in self._g.canonical_etypes}
+                for etype, feat_names in decoder_edge_feat.items():
+                    data = {}
+                    etype_wg = ":".join(etype)
+                    for name in feat_names:
+                        wg_folder = os.path.join(os.path.dirname(part_config), 'wholegraph')
+                        assert len([feat_file for feat_file in os.listdir(wg_folder) \
+                            if re.search(etype_wg + '~' + name, feat_file)]) > 0, \
+                            f"Feature '{name}' of '{etype}' is not in WholeGraph format. " \
+                            f"Please convert all the available features to WholeGraph " \
+                            f"format to utilize WholeGraph."
+                        data[name] = self.load_wg_feat(part_config, num_parts, etype_wg, name)
+                    if len(self._g.canonical_etypes) == 1:
+                        self._g._edata_store.update(data)
+                    else:
+                        self._g._edata_store[etype].update(data)
+
+            barrier()
         self.prepare_data(self._g)
         sys_tracker.check('construct training data')
 
@@ -195,7 +240,7 @@ class GSgnnData():
         """the field of edge feature"""
         return self._edge_feat_field
 
-    def load_wg_feat(self, part_config_path, num_parts, ntype, name):
+    def load_wg_feat(self, part_config_path, num_parts, type_name, name):
         """Load features from wholegraph memory
 
         Parameters
@@ -204,10 +249,10 @@ class GSgnnData():
             The path of the partition configuration file.
         num_parts : int
             The number of partitions of the dataset
-        ntype: str
-            The type of node for which to fetch features or labels for.
+        type_name: str
+            The type of node or edge for which to fetch features or labels for.
         name: str
-            The name of the features or labels to load
+            The name of the features to load
         """
         import pylibwholegraph.torch as wgth
 
@@ -226,21 +271,21 @@ class GSgnnData():
                                      'wholegraph/metadata.json')
         with open(metadata_file, encoding="utf8") as f:
             wg_metadata = json.load(f)
-        data_shape = wg_metadata[ntype + '/' + name]['shape']
-        node_feat_wm_embedding = wgth.create_embedding(
+        data_shape = wg_metadata[type_name + '/' + name]['shape']
+        feat_wm_embedding = wgth.create_embedding(
             feature_comm,
             embedding_wholememory_type,
             embedding_wholememory_location,
-            getattr(th, wg_metadata[ntype + '/' + name]['dtype'].split('.')[1]),
+            getattr(th, wg_metadata[type_name + '/' + name]['dtype'].split('.')[1]),
             [data_shape[0],1] if len(data_shape) == 1 else data_shape,
             optimizer=None,
             cache_policy=cache_policy,
         )
         feat_path = os.path.join(os.path.dirname(part_config_path), 'wholegraph', \
-                                                 ntype + '~' + name)
-        node_feat_wm_embedding.get_embedding_tensor().from_file_prefix(feat_path,
+                                                 type_name + '~' + name)
+        feat_wm_embedding.get_embedding_tensor().from_file_prefix(feat_path,
                                                                        part_count=num_parts)
-        return node_feat_wm_embedding
+        return feat_wm_embedding
 
     def has_node_feats(self, ntype):
         """ Test if the specified node type has features.
@@ -260,6 +305,53 @@ class GSgnnData():
             return False
         else:
             return ntype in self.node_feat_field
+
+    def has_edge_feats(self, etype):
+        """ Test if the specified edge type has features.
+
+        Parameters
+        ----------
+        etype : (str, str, str)
+            The canonical edge type
+
+        Returns
+        -------
+        bool : whether the edge type has features
+        """
+        if isinstance(self.edge_feat_field, str):
+            return True
+        elif self.edge_feat_field is None:
+            return False
+        else:
+            return etype in self.edge_feat_field
+
+    def has_node_lm_feats(self, ntype):
+        """ Test if the specified node type has text features.
+
+        Parameters
+        ----------
+        ntype : str
+            The node type
+
+        Returns
+        -------
+        bool : whether the node type has features.
+        """
+        return ntype in self._lm_feat_ntypes
+
+    def has_edge_lm_feats(self, etype):
+        """ Test if the specified edge type has text features.
+
+        Parameters
+        ----------
+        etype : (str, str, str)
+            The edge type
+
+        Returns
+        -------
+        bool : whether the node type has features.
+        """
+        return etype in self._lm_feat_etypes
 
     def get_node_feats(self, input_nodes, device='cpu'):
         """ Get the node features
@@ -326,13 +418,19 @@ class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
         different feature names.
     decoder_edge_feat: str or dict of list of str
         Edge features used by decoder
+    lm_feat_ntypes : list of str
+        The node types that contains text features.
+    lm_feat_etypes : list of tuples
+        The edge types that contains text features.
     """
     def __init__(self, graph_name, part_config, label_field=None,
                  node_feat_field=None, edge_feat_field=None,
-                 decoder_edge_feat=None):
+                 decoder_edge_feat=None, lm_feat_ntypes=None, lm_feat_etypes=None):
         super(GSgnnEdgeData, self).__init__(graph_name, part_config,
-                                            node_feat_field, edge_feat_field)
-
+                                            node_feat_field, edge_feat_field,
+                                            decoder_edge_feat,
+                                            lm_feat_ntypes=lm_feat_ntypes,
+                                            lm_feat_etypes=lm_feat_etypes)
         self._label_field = label_field
         self._decoder_edge_feat = decoder_edge_feat
         if label_field is not None:
@@ -431,7 +529,7 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
     """
     def __init__(self, graph_name, part_config, train_etypes, eval_etypes=None,
                  label_field=None, node_feat_field=None, edge_feat_field=None,
-                 decoder_edge_feat=None):
+                 decoder_edge_feat=None, lm_feat_ntypes=None, lm_feat_etypes=None):
         if train_etypes is not None:
             assert isinstance(train_etypes, (tuple, list)), \
                     "The prediction etypes for training has to be a tuple or a list of tuples."
@@ -452,7 +550,9 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
 
         super(GSgnnEdgeTrainData, self).__init__(graph_name, part_config, label_field,
                                                  node_feat_field, edge_feat_field,
-                                                 decoder_edge_feat)
+                                                 decoder_edge_feat,
+                                                 lm_feat_ntypes=lm_feat_ntypes,
+                                                 lm_feat_etypes=lm_feat_etypes)
 
     def prepare_data(self, g):
         """
@@ -551,13 +651,20 @@ class GSgnnLPTrainData(GSgnnEdgeTrainData):
         different feature names.
     pos_graph_feat_field: str or dist of str
         The field of the edge features used by positive graph in link prediction.
+    lm_feat_ntypes : list of str
+        The node types that contains text features.
+    lm_feat_etypes : list of tuples
+        The edge types that contains text features.
     """
     def __init__(self, graph_name, part_config, train_etypes, eval_etypes=None,
                  label_field=None, node_feat_field=None,
-                 edge_feat_field=None, pos_graph_feat_field=None):
+                 edge_feat_field=None, pos_graph_feat_field=None,
+                 lm_feat_ntypes=None, lm_feat_etypes=None):
         super(GSgnnLPTrainData, self).__init__(graph_name, part_config,
                                                train_etypes, eval_etypes, label_field,
-                                               node_feat_field, edge_feat_field)
+                                               node_feat_field, edge_feat_field,
+                                               lm_feat_ntypes=lm_feat_ntypes,
+                                               lm_feat_etypes=lm_feat_etypes)
         self._pos_graph_feat_field = pos_graph_feat_field
 
     @property
@@ -589,6 +696,10 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
         different feature names.
     decoder_edge_feat: str or dict of list of str
         Edge features used by decoder
+    lm_feat_ntypes : list of str
+        The node types that contains text features.
+    lm_feat_etypes : list of tuples
+        The edge types that contains text features.
         
     Examples
     ----------
@@ -605,7 +716,7 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
     """
     def __init__(self, graph_name, part_config, eval_etypes,
                  label_field=None, node_feat_field=None, edge_feat_field=None,
-                 decoder_edge_feat=None):
+                 decoder_edge_feat=None, lm_feat_ntypes=None, lm_feat_etypes=None):
         if eval_etypes is not None:
             assert isinstance(eval_etypes, (tuple, list)), \
                     "The prediction etypes for evaluation has to be a tuple or a list of tuples."
@@ -617,7 +728,9 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
 
         super(GSgnnEdgeInferData, self).__init__(graph_name, part_config, label_field,
                                                  node_feat_field, edge_feat_field,
-                                                 decoder_edge_feat)
+                                                 decoder_edge_feat,
+                                                 lm_feat_ntypes=lm_feat_ntypes,
+                                                 lm_feat_etypes=lm_feat_etypes)
 
     def prepare_data(self, g):
         """ Prepare the testing edge set if any
@@ -690,11 +803,18 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
     edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    lm_feat_ntypes : list of str
+        The node types that contains text features.
+    lm_feat_etypes : list of tuples
+        The edge types that contains text features.
     """
     def __init__(self, graph_name, part_config, label_field=None,
-                 node_feat_field=None, edge_feat_field=None):
+                 node_feat_field=None, edge_feat_field=None,
+                 lm_feat_ntypes=None, lm_feat_etypes=None):
         super(GSgnnNodeData, self).__init__(graph_name, part_config,
-                                            node_feat_field, edge_feat_field)
+                                            node_feat_field, edge_feat_field,
+                                            lm_feat_ntypes=lm_feat_ntypes,
+                                            lm_feat_etypes=lm_feat_etypes)
         self._label_field = label_field
         if label_field is not None:
             self._labels = {}
@@ -769,6 +889,10 @@ class GSgnnNodeTrainData(GSgnnNodeData):
     edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    lm_feat_ntypes : list of str
+        The node types that contains text features.
+    lm_feat_etypes : list of tuples
+        The edge types that contains text features.
     
     Examples
     ----------
@@ -785,7 +909,8 @@ class GSgnnNodeTrainData(GSgnnNodeData):
                                             fanout=[15, 10], batch_size=128)
     """
     def __init__(self, graph_name, part_config, train_ntypes, eval_ntypes=None,
-                 label_field=None, node_feat_field=None, edge_feat_field=None):
+                 label_field=None, node_feat_field=None, edge_feat_field=None,
+                 lm_feat_ntypes=None, lm_feat_etypes=None):
         if isinstance(train_ntypes, str):
             train_ntypes = [train_ntypes]
         assert isinstance(train_ntypes, list), \
@@ -804,7 +929,9 @@ class GSgnnNodeTrainData(GSgnnNodeData):
         super(GSgnnNodeTrainData, self).__init__(graph_name, part_config,
                                                  label_field=label_field,
                                                  node_feat_field=node_feat_field,
-                                                 edge_feat_field=edge_feat_field)
+                                                 edge_feat_field=edge_feat_field,
+                                                 lm_feat_ntypes=lm_feat_ntypes,
+                                                 lm_feat_etypes=lm_feat_etypes)
 
     def prepare_data(self, g):
         pb = g.get_partition_book()
@@ -910,6 +1037,10 @@ class GSgnnNodeInferData(GSgnnNodeData):
     edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+    lm_feat_ntypes : list of str
+        The node types that contains text features.
+    lm_feat_etypes : list of tuples
+        The edge types that contains text features.
     
     Examples
     ----------
@@ -926,7 +1057,8 @@ class GSgnnNodeInferData(GSgnnNodeData):
                                             fanout=[15, 10], batch_size=128)
     """
     def __init__(self, graph_name, part_config, eval_ntypes,
-                 label_field=None, node_feat_field=None, edge_feat_field=None):
+                 label_field=None, node_feat_field=None, edge_feat_field=None,
+                 lm_feat_ntypes=None, lm_feat_etypes=None):
         if isinstance(eval_ntypes, str):
             eval_ntypes = [eval_ntypes]
         assert isinstance(eval_ntypes, list), \
@@ -936,7 +1068,9 @@ class GSgnnNodeInferData(GSgnnNodeData):
         super(GSgnnNodeInferData, self).__init__(graph_name, part_config,
                                                  label_field=label_field,
                                                  node_feat_field=node_feat_field,
-                                                 edge_feat_field=edge_feat_field)
+                                                 edge_feat_field=edge_feat_field,
+                                                 lm_feat_ntypes=lm_feat_ntypes,
+                                                 lm_feat_etypes=lm_feat_etypes)
 
     def prepare_data(self, g):
         """
