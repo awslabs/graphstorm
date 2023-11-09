@@ -110,9 +110,11 @@ if __name__ == '__main__':
         infer_remaped_emb = np.concatenate(infer_remaped_emb)
         infer_remaped_nids = np.concatenate(infer_remaped_nids)
 
+        assert train_emb.shape[0] == train_nids.shape[0]
         assert infer_emb.shape[0] == infer_nids.shape[0]
         assert train_emb.shape[1] == infer_emb.shape[1]
-        assert train_remaped_emb.shape[0] == infer_remaped_emb.shape[0]
+        assert train_remaped_emb.shape[0] == train_remaped_nids.shape[0]
+        assert infer_remaped_emb.shape[0] == infer_remaped_nids.shape[0]
         assert train_remaped_emb.shape[1] == infer_remaped_emb.shape[1]
 
         train_emb = train_emb[th.argsort(train_nids)]
