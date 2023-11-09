@@ -271,7 +271,8 @@ class LMCache:
         """
         embed_ndata_names = self.embed_ndata_name
         for ntype in self._lm_models.ntypes:
-            embed_path = os.path.join(os.path.join(self._embed_path, ntype),
+            embed_path = os.path.join(os.path.join(
+                    os.path.join(self._embed_path, "lm_cache"), ntype),
                     self._get_model_name(ntype))
             if os.path.exists(embed_path):
                 if get_rank() == 0:
@@ -285,7 +286,8 @@ class LMCache:
         """ Save LM embeddings.
         """
         for ntype in self._lm_models.ntypes:
-            embed_path = os.path.join(os.path.join(self._embed_path, ntype),
+            embed_path = os.path.join(os.path.join(
+                    os.path.join(self._embed_path, "lm_cache"), ntype),
                     self._get_model_name(ntype))
             save_pytorch_embedding(embed_path,
                                    self._lm_emb_cache[ntype],

@@ -239,7 +239,6 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         preserve_input: bool
             Whether the input data should be removed.
     """
-    start = time.time()
     task_list = []
     for ntype in emb_ntypes:
         input_emb_dir = os.path.join(node_emb_dir, ntype)
@@ -332,7 +331,7 @@ def remap_node_pred(pred_ntypes, pred_dir,
         preserve_input: bool
             Whether the input data should be removed.
     """
-    start = time.time()
+    start_time = time.time()
     task_list = []
     for ntype in pred_ntypes:
         input_pred_dir = os.path.join(pred_dir, ntype)
@@ -375,7 +374,7 @@ def remap_node_pred(pred_ntypes, pred_dir,
 
     multiprocessing_remap(task_list, num_proc, worker_remap_node_data)
 
-    dur = time.time() - start
+    dur = time.time() - start_time
     logging.info("{%d} Remapping edge predictions takes {%f} secs", rank, dur)
 
 
@@ -427,7 +426,7 @@ def remap_edge_pred(pred_etypes, pred_dir,
         preserve_input: bool
             Whether the input data should be removed.
     """
-    start = time.time()
+    start_time = time.time()
     task_list = []
     for etype in pred_etypes:
         input_pred_dir = os.path.join(pred_dir, "_".join(etype))
@@ -485,7 +484,7 @@ def remap_edge_pred(pred_etypes, pred_dir,
             })
 
     multiprocessing_remap(task_list, num_proc, worker_remap_edge_pred)
-    dur = time.time() - start
+    dur = time.time() - start_time
     logging.debug("%d Finish edge rempaing in %f secs}", rank, dur)
 
 def _parse_gs_config(config):
