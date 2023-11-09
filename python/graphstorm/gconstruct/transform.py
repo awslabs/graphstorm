@@ -22,6 +22,7 @@ import os
 import sys
 import abc
 import json
+import warnings
 
 import numpy as np
 import torch as th
@@ -31,7 +32,7 @@ from transformers import AutoTokenizer
 from transformers import AutoModel, AutoConfig
 
 from .file_io import read_index_json
-from .utils import ExtMemArrayWrapper
+from .utils import ExtMemArrayWrapper, ExtFeatureWrapper, generate_hash
 
 LABEL_STATS_FIELD = "training_label_stats"
 LABEL_STATS_FREQUENCY_COUNT = "frequency_cnt"
@@ -959,6 +960,9 @@ def parse_feat_ops(confs):
     for feat in confs:
         assert 'feature_col' in feat, \
                 "'feature_col' must be defined in a feature field."
+        assert (isinstance(feat['feature_col'], str) and feat['feature_col'] != "") \
+               or (isinstance(feat['feature_col'], list) and len(feat['feature_col']) >= 1), \
+            "feature column should not be empty"
         feat_name = feat['feature_name'] if 'feature_name' in feat else feat['feature_col']
 
         out_dtype = _get_output_dtype(feat['out_dtype']) if 'out_dtype' in feat else None
@@ -972,6 +976,8 @@ def parse_feat_ops(confs):
                         "'tokenize_hf' needs to have the 'bert_model' field."
                 assert 'max_seq_length' in conf, \
                         "'tokenize_hf' needs to have the 'max_seq_length' field."
+                if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
+                    raise RuntimeError("Not support multiple column for tokenize_hf transformation")
                 transform = Tokenizer(feat['feature_col'], feat_name, conf['bert_model'],
                                       int(conf['max_seq_length']))
             elif conf['name'] == 'bert_hf':
@@ -989,6 +995,14 @@ def parse_feat_ops(confs):
                                       infer_batch_size=infer_batch_size,
                                       out_dtype=out_dtype)
             elif conf['name'] == 'max_min_norm':
+                # TODO: Not support max_min_norm feature transformation on multiple columns
+                # without explicitly defining max_val and min_val.
+                # Otherwise, the definition of max_val and min_val for each column is unclear.
+                # define max_val and min_val for each column.
+                if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
+                    assert 'max_val' in conf and 'min_val' in conf, \
+                        "max_val and min_val for max_min_norm feature transformation is needed"
+                    warnings.warn("The same max_val and min_val will apply to all columns")
                 max_bound = conf['max_bound'] if 'max_bound' in conf else sys.float_info.max
                 min_bound = conf['min_bound'] if 'min_bound' in conf else -sys.float_info.max
                 max_val = conf['max_val'] if 'max_val' in conf else None
@@ -1008,6 +1022,11 @@ def parse_feat_ops(confs):
                                                epsilon=epsilon)
             elif conf['name'] == 'to_categorical':
                 separator = conf['separator'] if 'separator' in conf else None
+                # TODO: Not support categorical feature transformation on multiple columns.
+                # It is not clear to define category mapping for each column
+                if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
+                    raise RuntimeError("Do not support categorical "
+                                       "feature transformation on multiple columns")
                 transform = CategoricalTransform(feat['feature_col'], feat_name,
                                                  separator=separator, transform_conf=conf)
             elif conf['name'] == 'bucket_numerical':
@@ -1015,6 +1034,8 @@ def parse_feat_ops(confs):
                     "It is required to count of bucket information for bucket feature transform"
                 assert 'range' in conf, \
                     "It is required to provide range information for bucket feature transform"
+                if isinstance(feat['feature_col'], list) and len(feat['feature_col']) > 1:
+                    warnings.warn("The same bucket range and count will be applied to all columns")
                 bucket_cnt = conf['bucket_cnt']
                 bucket_range = conf['range']
                 if 'slide_window_size' in conf:
@@ -1061,14 +1082,29 @@ def preprocess_features(data, ops):
     """
     pre_data = {}
     for op in ops:
-        res = op.pre_process(data[op.col_name])
-        assert isinstance(res, dict)
-        for key, val in res.items():
-            pre_data[key] = val
+        if isinstance(op.col_name, str):
+            col_name = [op.col_name]
+        else:
+            col_name = op.col_name
+        for col in col_name:
+            res = op.pre_process(data[col])
+            # Do not expect multiple keys for multiple columns, the expected output will only
+            # have 1 key/val pair. But for single column, some feature transformations like
+            # Tokenizer will return multiple key-val pairs, so do not check for single column
+            if len(col_name) > 1:
+                assert isinstance(res, dict) and len(res) == 1, \
+                    f"It is expected only have one feature name after preprocessing features " \
+                    f"for multiple column feature transformation, but get {len(res)}"
+            for key, val in res.items():
+                if key in pre_data:
+                    assert pre_data[key] == val, f"It is expected same preprocessed value " \
+                                                 f"for each column but get {pre_data[key]} " \
+                                                 f"and {val}"
+                pre_data[key] = val
 
     return pre_data
 
-def process_features(data, ops):
+def process_features(data, ops, ext_mem_path=None):
     """ Process the data with the specified operations.
 
     This function runs the input operations on the corresponding data
@@ -1080,6 +1116,8 @@ def process_features(data, ops):
         The data stored as a dict.
     ops : list of FeatTransform
         The operations that transform features.
+    ext_mem_path: str or None
+        The path of external memory
 
     Returns
     -------
@@ -1087,16 +1125,51 @@ def process_features(data, ops):
     """
     new_data = {}
     for op in ops:
-        res = op(data[op.col_name])
-        assert isinstance(res, dict)
-        for key, val in res.items():
-            # Check if has 1D features. If yes, convert to 2D features
-            if len(val.shape) == 1:
-                if isinstance(val, ExtMemArrayWrapper):
-                    val = val.to_numpy().reshape(-1, 1)
+        if isinstance(op.col_name, str):
+            col_name = [op.col_name]
+        else:
+            col_name = op.col_name
+        tmp_key, wrapper = "", ""
+        # Create ExtFeatureWrapper for multiple columns on external memory
+        if ext_mem_path is not None:
+            hash_hex_feature_path = generate_hash()
+            feature_path = 'feature_{}_{}'.format(op.feat_name, hash_hex_feature_path)
+            feature_path = ext_mem_path + feature_path
+            os.makedirs(feature_path)
+            wrapper = ExtFeatureWrapper(feature_path)
+        else:
+            wrapper = None
+        for col in col_name:
+            res = op(data[col])
+            # Do not expect multiple keys for multiple columns, the expected output will only
+            # have 1 key/val pair. But for single column, some feature transformations like
+            # Tokenizer will return multiple key-val pairs, so do not check for single column
+            if len(col_name) > 1:
+                assert isinstance(res, dict) and len(res) == 1, \
+                    f"It is expected only have one feature name after the process_features " \
+                    f"for multiple column feature transformation, but get {len(res)}"
+            for key, val in res.items():
+                # Check if it has 1D features. If yes, convert to 2D features
+                if len(val.shape) == 1:
+                    if isinstance(val, ExtMemArrayWrapper):
+                        val = val.to_numpy().reshape(-1, 1)
+                    else:
+                        val = val.reshape(-1, 1)
+                if len(col_name) == 1:
+                    new_data[key] = val
+                    continue
+                tmp_key = key
+                # Use external memory if it is required
+                if ext_mem_path is not None:
+                    wrapper.append(val)
                 else:
-                    val = val.reshape(-1, 1)
-            new_data[key] = val
+                    val = np.column_stack((new_data[key], val)) \
+                        if key in new_data else val
+                    new_data[key] = val
+
+        if len(col_name) > 1 and ext_mem_path is not None:
+            new_data[tmp_key] = wrapper.merge()
+
     return new_data
 
 def get_valid_label_index(label):

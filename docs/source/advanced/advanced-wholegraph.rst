@@ -53,12 +53,12 @@ While launching the EFA supported EC2 instances, in the Network settings section
 Install aws-efa-installer on the EC2 instance
 ----------------------------------------------
 
-Install aws-efa-installer on both the base instance and within the Docker container. This enables the instance to use AWS's EFA kernel instead of Ubuntu's default kernel. Install the EFA installer without `--skip-kmod` on the instance and with `--skip-kmod` in the container. A command is provided for the base instance installation, and the Dockerfile will handle container installation in the next step.
+Install aws-efa-installer on both the base instance and within the Docker container. This enables the instance to use AWS's EFA kernel instead of Ubuntu's default kernel. Install the EFA installer without ``--skip-kmod`` on the instance and with ``--skip-kmod`` in the container. A command is provided for the base instance installation, and the Dockerfile will handle container installation in the next step.
 
 .. code:: bash
 
     curl -O https://efa-installer.amazonaws.com/aws-efa-installer-latest.tar.gz \
-    && tar -xf $HOME/aws-efa-installer-${EFA_INSTALLER_VERSION}.tar.gz \
+    && tar -xf aws-efa-installer-latest.tar.gz \
     && cd aws-efa-installer \
     && apt-get update \
     && apt-get install -y libhwloc-dev \

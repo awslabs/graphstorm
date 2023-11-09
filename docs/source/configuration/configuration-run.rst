@@ -25,6 +25,7 @@ GraphStorm's `graphstorm.run.launch <https://github.com/awslabs/graphstorm/blob/
     - --extra-envs LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
     - NCCL_DEBUG=INFO
 - **lm-encoder-only**: Indicate that the model is using language model + decoder only. model. No GNN is involved, only graph structure.
+- **do-nid-remap**: Do GraphStorm node ID to Raw input node ID remapping for prediction results and node embeddings. Default is True.
 
 ..  note:: Below configurations can be set either in a YAML configuration file or be added as arguments of launch command.
 
@@ -287,6 +288,11 @@ GraphStorm provides a set of parameters to control model evaluation.
     - Yaml: ``no_validation: true``
     - Argument: ``--no-validation true``
     - Default value: ``false``
+- **fixed_test_size**: Set the number of validation and test data used during link prediction training evaluaiotn. This is useful for reducing the overhead of doing link prediction evaluation when the graph size is large.
+
+    - Yaml: ``fixed_test_size: 100000``
+    - Argument: ``--fixed-test-size 100000``
+    - Default value: None, Use the full validation and test set.
 
 Language Model Specific Configurations
 ---------------------------------------------------
@@ -472,10 +478,10 @@ Link Prediction Task
     - Yaml: ``gamma: 10.0``
     - Argument: ``--gamma 10.0``
     - Default value: ``12.0``
-- **lp_loss_func**: Link prediction loss function. Builtin loss functions include ``cross_entropy`` and ``logsigmoid``.
+- **lp_loss_func**: Link prediction loss function. Builtin loss functions include ``cross_entropy`` and ``contrastive``.
 
     - Yaml: ``lp_loss_func: cross_entropy``
-    - Argument: ``--lp-loss-func logsigmoid``
+    - Argument: ``--lp-loss-func contrastive``
     - Default value: ``cross_entropy``
 
 - **lp_edge_weight_for_loss**: Edge feature field name for edge weight. The edge weight is used to rescale the positive edge loss for link prediction tasks.
@@ -488,6 +494,12 @@ Link Prediction Task
                 | ``- "ntype0,rel1,ntype1:weight1"``
     - Argument: ``--lp-edge-weight-for-loss ntype0,rel0,ntype1:weight0 ntype0,rel1,ntype1:weight1``
     - Default value: None
+
+- **contrastive-loss-temperature**: Temperature of link prediction contrastive loss. This is used to rescale the link prediction positive and negative scores for the loss.
+
+    - Yaml: ``contrastive_loss_temperature: 0.01```
+    - Argument: ``--contrastive-loss-temperature 0.01``
+    - Default value: 1.0
 
 Distillation Specific Configurations
 --------------------------------------------

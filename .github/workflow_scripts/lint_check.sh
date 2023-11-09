@@ -17,5 +17,6 @@ pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/inference/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/tracker/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/run/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/utils.py
+pylint --rcfile=./tests/lint/pylintrc ./tools/convert_feat_to_wholegraph.py
 
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/sagemaker/

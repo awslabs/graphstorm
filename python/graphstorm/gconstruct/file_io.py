@@ -349,11 +349,18 @@ def _parse_file_format(conf, is_node, in_mem):
     if "features" in conf:
         for feat_conf in conf["features"]:
             assert "feature_col" in feat_conf, "A feature config needs a feature_col."
-            keys.append(feat_conf["feature_col"])
+            if isinstance(feat_conf["feature_col"], str):
+                keys.append(feat_conf["feature_col"])
+            elif isinstance(feat_conf["feature_col"], list):
+                for feat_key in feat_conf["feature_col"]:
+                    keys.append(feat_key)
+            else:
+                raise TypeError("Feature column must be a str or a list of string.")
     if "labels" in conf:
         for label_conf in conf["labels"]:
             if "label_col" in label_conf:
                 keys.append(label_conf["label_col"])
+
     # We need to remove duplicated keys to avoid retrieve the same data multiple times.
     keys = list(set(keys))
     if fmt["name"] == "parquet":

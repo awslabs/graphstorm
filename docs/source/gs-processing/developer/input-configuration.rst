@@ -381,12 +381,18 @@ arguments.
          Valid values are:
          ``none`` (Default), ``mean``, ``median``, and ``most_frequent``. Missing values will be replaced
          with the respective value computed from the data.
-      - ``normalizer`` (String, optional): Applies a normalization to the data, after
-         imputation. Can take the following values:
+      - ``normalizer`` (String, optional): Applies a normalization to the data, after imputation.
+        Can take the following values:
+
          - ``none``: (Default) Don't normalize the numerical values during encoding.
          - ``min-max``: Normalize each value by subtracting the minimum value from it,
-        and then dividing it by the difference between the maximum value and the minimum.
-        - ``standard``: Normalize each value by dividing it by the sum of all the values.
+         and then dividing it by the difference between the maximum value and the minimum.
+         - ``standard``: Normalize each value by dividing it by the sum of all the values.
+         - ``rank-gauss``: Normalize each value using Rank-Gauss normalization. Rank-gauss first ranks all values,
+         converts the ranks to the -1/1 range, and applies the `inverse of the error function <https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.erfinv.html>`_ to make the values conform
+         to a Gaussian distribution shape. This transformation only supports a single column as input.
+      - ``epsilon``: Only relevant for ``rank-gauss``, this epsilon value is added to the denominator
+        to avoid infinite values during normalization.
 -  ``multi-numerical``
 
    -  Column-wise transformation for vector-like numerical data using a missing data imputer and an
@@ -394,13 +400,51 @@ arguments.
    -  ``kwargs``:
 
       - ``imputer`` (String, optional): Same as for ``numerical`` transformation, will
-        apply the ``mean`` transformation by default.
+        apply no imputation by default.
       - ``normalizer`` (String, optional): Same as for ``numerical`` transformation, no
         normalization is applied by default.
       - ``separator`` (String, optional): Same as for ``no-op`` transformation, used to separate numerical
         values in CSV input. If the input data are in Parquet format, each value in the
         column is assumed to be an array of floats.
+-  ``bucket-numerical``
 
+   -  Transforms a numerical column to a one-hot or multi-hot bucket representation, using bucketization.
+       Also supports optional missing value imputation through the `imputer` kwarg.```
+   -  ``kwargs``:
+
+      - ``imputer`` (String, optional): A method to fill in missing values in the data.
+        Valid values are:
+        ``none`` (Default), ``mean``, ``median``, and ``most_frequent``. Missing values will be replaced
+        with the respective value computed from the data.
+      - ``range`` (List[float], required), The range defines the start and end point of the buckets with ``[a, b]``. It should be
+        a list of two floats. For example, ``[10, 30]`` defines a bucketing range between 10 and 30.
+      - ``bucket_cnt`` (Integer, required), The count of bucket lists used in the bucket feature transform. GSProcessing
+        calculates the size of each bucket as  ``( b - a ) / c`` , and encodes each numeric value as the number
+        of whatever bucket it falls into. Any value less than a is considered to belong in the first bucket,
+        and any value greater than b is considered to belong in the last bucket.
+      - ``slide_window_size`` (Integer, optional), slide_window_size can be used to make numeric values fall into more than one bucket,
+        by specifying a slide-window size ``s``, where ``s`` can an integer or float. GSProcessing then transforms each
+        numeric value ``v`` of the property into a range from ``v - s/2`` through ``v + s/2`` , and assigns the value v
+        to every bucket that the range covers.
+
+-  ``categorical``
+
+   -  Transforms values from a fixed list of possible values (categorical features) to a one-hot encoding.
+   The length of the resulting vector will be the number of categories in the data minus one, with a 1 in
+   the index of the single category, and zero everywhere else.
+
+.. note::
+    The maximum number of categories in any categorical feature is 100. If a property has more than 100 categories of value,
+    only the most common 99 of them are placed in distinct categories, and the rest are placed in a special category named OTHER.
+
+-  ``multi-categorical``
+
+   -  Encodes vector-like data from a fixed list of possible values (i.e. multi-label/multi-categorical data) using a multi-hot encoding. The length of the resulting vector will be the number of categories in the data minus one, and each value will have a 1 value for every category that appears, and 0 everwhere else.
+   -  ``kwargs``:
+      - ``separator`` (String, optional): Same as the one in the No-op operation, the separator is used to
+        split multiple input values for CSV files e.g. ``detective|noir``. If it is not provided, then the whole value 
+        will be considered as an array. For Parquet files, if the input type is ArrayType(StringType()), then the 
+        separator is ignored; if it is StringType(), it will apply same logic as in CSV. 
 --------------
 
 Examples

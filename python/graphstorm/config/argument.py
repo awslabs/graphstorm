@@ -29,8 +29,9 @@ import torch.nn.functional as F
 from .config import BUILTIN_GNN_ENCODER
 from .config import BUILTIN_ENCODER
 from .config import SUPPORTED_BACKEND
-from .config import BUILTIN_LP_LOSS_FUNCTION
-from .config import BUILTIN_LP_LOSS_CROSS_ENTROPY
+from .config import (BUILTIN_LP_LOSS_FUNCTION,
+                     BUILTIN_LP_LOSS_CROSS_ENTROPY,
+                     BUILTIN_LP_LOSS_CONTRASTIVELOSS)
 
 from .config import BUILTIN_TASK_NODE_CLASSIFICATION
 from .config import BUILTIN_TASK_NODE_REGRESSION
@@ -264,6 +265,7 @@ class GSConfig:
         _ = self.decoder_edge_feat
 
         # Evaluation
+        _ = self.fixed_test_size
         _ = self.eval_fanout
         _ = self.use_mini_batch_infer
         _ = self.eval_batch_size
@@ -367,6 +369,7 @@ class GSConfig:
             _ = self.gamma
             _ = self.lp_decoder_type
             _ = self.lp_edge_weight_for_loss
+            _ = self.contrastive_loss_temperature
             _ = self.lp_loss_func
             _ = self.num_negative_edges
             _ = self.eval_negative_sampler
@@ -582,6 +585,9 @@ class GSConfig:
                 }
                 for key, val in glem_defaults.items():
                     self._training_method["kwargs"].setdefault(key, val)
+                if self.freeze_lm_encoder_epochs > 0:
+                    logging.warning("GLEM does not support 'freeze_lm_encoder_epochs'"\
+                                    "it will be ignored")
             return self._training_method
         return {"name": "default", "kwargs": {}}
 
@@ -797,6 +803,25 @@ class GSConfig:
         else:
             # By default use -1 as full neighbor
             return [-1] * self.num_layers
+
+    @property
+    def fixed_test_size(self):
+        """ Fixed number of test data used in evaluation
+
+            This is useful for reducing the overhead of doing link prediction evaluation.
+
+            TODO: support fixed_test_size in
+            node prediction and edge prediction tasks.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_fixed_test_size"):
+            assert self._fixed_test_size > 0, \
+                "fixed_test_size must be larger than 0"
+            return self._fixed_test_size
+
+        # Use the full test set
+        return None
+
 
     @property
     def textual_data_path(self):
@@ -1749,6 +1774,23 @@ class GSConfig:
         return BUILTIN_LP_DISTMULT_DECODER
 
     @property
+    def contrastive_loss_temperature(self):
+        """ Temperature of link prediction contrustive loss
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_contrastive_loss_temperature"):
+            assert self.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS, \
+                "Use contrastive-loss-temperature only when the loss function is " \
+                f"{BUILTIN_LP_LOSS_CONTRASTIVELOSS} loss."
+
+            contrastive_loss_temperature = float(self._contrastive_loss_temperature)
+            assert contrastive_loss_temperature > 0.0, \
+                "Contrastive loss temperature must be larger than 0"
+            return contrastive_loss_temperature
+
+        return 1.0
+
+    @property
     def lp_edge_weight_for_loss(self):
         """ The edge data fields that stores the edge weights used
             in computing link prediction loss
@@ -2336,6 +2378,8 @@ def _add_link_prediction_args(parser):
             help="Link prediction decoder type.")
     group.add_argument("--num-negative-edges", type=int, default=argparse.SUPPRESS,
             help="Number of edges consider for the negative batch of edges.")
+    group.add_argument("--fixed-test-size", type=int, default=argparse.SUPPRESS,
+            help="Fixed number of test data used in evaluation.")
     group.add_argument("--num-negative-edges-eval", type=int, default=argparse.SUPPRESS,
             help="Number of edges consider for the negative "
                  "batch of edges for the model evaluation. "
@@ -2373,6 +2417,10 @@ def _add_link_prediction_args(parser):
             default=argparse.SUPPRESS,
             help="Used in DistMult score func"
     )
+    group.add_argument("--lp-loss-func", type=str, default=argparse.SUPPRESS,
+            help="Link prediction loss function.")
+    group.add_argument("--contrastive-loss-temperature", type=float, default=argparse.SUPPRESS,
+            help="Temperature of link prediction contrastive loss.")
     group.add_argument("--lp-edge-weight-for-loss", nargs='+', type=str, default=argparse.SUPPRESS,
             help="Edge feature field name for edge weights. It can be in following format: "
             "1) '--lp-edge-weight-for-loss feat_name': global feature name, "

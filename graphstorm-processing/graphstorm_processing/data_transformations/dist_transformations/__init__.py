@@ -12,3 +12,4 @@ from .dist_numerical_transformation import (
     DistMultiNumericalTransformation,
     DistNumericalTransformation,
 )
+from .dist_bucket_numerical_transformation import DistBucketNumericalTransformation
