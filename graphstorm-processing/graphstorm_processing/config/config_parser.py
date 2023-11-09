@@ -26,6 +26,7 @@ from .numerical_configs import (
     MultiNumericalFeatureConfig,
     NumericalFeatureConfig,
 )
+from .categorical_configs import MultiCategoricalFeatureConfig
 from .data_config_base import DataStorageConfig
 
 
@@ -62,6 +63,10 @@ def parse_feat_config(feature_dict: Dict) -> FeatureConfig:
         return MultiNumericalFeatureConfig(feature_dict)
     elif transformation_name == "bucket-numerical":
         return BucketNumericalFeatureConfig(feature_dict)
+    elif transformation_name == "categorical":
+        return FeatureConfig(feature_dict)
+    elif transformation_name == "multi-categorical":
+        return MultiCategoricalFeatureConfig(feature_dict)
     else:
         raise RuntimeError(f"Unknown transformation name: '{transformation_name}'")
 
