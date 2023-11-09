@@ -180,7 +180,7 @@ fi
 
 rm /tmp/log.txt
 
-python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_lp_ml_dot/emb/ --infer_embout /data/gsgnn_lp_ml_dot/infer-emb/ --link_prediction
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_lp_ml_dot/emb/ --infer-embout /data/gsgnn_lp_ml_dot/infer-emb/ --link-prediction
 
 error_and_exit $?
 
@@ -197,7 +197,7 @@ python3 -m graphstorm.run.gs_link_prediction --inference --workspace $GS_HOME/in
 
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_lp_ml_dot/emb/ --infer_embout /data/gsgnn_lp_ml_dot/infer-emb/ --link_prediction
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_lp_ml_dot/emb/ --infer-embout /data/gsgnn_lp_ml_dot/infer-emb/ --link-prediction
 
 error_and_exit $?
 
@@ -279,7 +279,7 @@ fi
 
 rm /tmp/log.txt
 
-python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_lp_ml_dot/emb/ --infer_embout /data/gsgnn_lp_ml_dot/infer-emb/ --link_prediction
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_lp_ml_dot/emb/ --infer-embout /data/gsgnn_lp_ml_dot/infer-emb/ --link-prediction
 
 error_and_exit $?
 rm -fr /data/gsgnn_lp_ml_dot/infer-emb/
@@ -289,7 +289,7 @@ python3 -m graphstorm.run.gs_link_prediction --inference --workspace $GS_HOME/in
 
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_lp_ml_distmult/emb/ --infer_embout /data/gsgnn_lp_ml_distmult/infer-emb/ --link_prediction
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_lp_ml_distmult/emb/ --infer-embout /data/gsgnn_lp_ml_distmult/infer-emb/ --link-prediction
 
 error_and_exit $?
 
@@ -345,7 +345,7 @@ python3 -m graphstorm.run.launch --workspace $GS_HOME/inference_scripts/lp_infer
 
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_lp_ml_dotprod_text/emb/ --infer_embout /data/gsgnn_lp_ml_dotprod_text/infer-emb/ --link_prediction
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_lp_ml_dotprod_text/emb/ --infer-embout /data/gsgnn_lp_ml_dotprod_text/infer-emb/ --link-prediction
 
 error_and_exit $?
 
@@ -408,7 +408,7 @@ python3 -m graphstorm.run.gs_link_prediction --inference --workspace $GS_HOME/in
 
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_lp_ml_distmult_all_etype/emb/ --infer_embout /data/gsgnn_lp_ml_distmult_all_etype/infer-emb/ --link_prediction
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_lp_ml_distmult_all_etype/emb/ --infer-embout /data/gsgnn_lp_ml_distmult_all_etype/infer-emb/ --link-prediction
 
 error_and_exit $?
 
@@ -436,7 +436,7 @@ python3 -m graphstorm.run.gs_link_prediction --lm-encoder-only --inference --wor
 
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_lp_ml_lm_dot_all_etype/emb/ --infer_embout /data/gsgnn_lp_ml_lm_dot_all_etype/infer-emb/ --link_prediction
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_lp_ml_lm_dot_all_etype/emb/ --infer-embout /data/gsgnn_lp_ml_lm_dot_all_etype/infer-emb/ --link-prediction
 
 error_and_exit $?
 
@@ -465,7 +465,7 @@ python3 -m graphstorm.run.launch --workspace $GS_HOME/inference_scripts/lp_infer
 
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_lp_ml_lmmlp_dot_all_etype/emb/ --infer_embout /data/gsgnn_lp_ml_lmmlp_dot_all_etype/infer-emb/ --link_prediction
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_lp_ml_lmmlp_dot_all_etype/emb/ --infer-embout /data/gsgnn_lp_ml_lmmlp_dot_all_etype/infer-emb/ --link-prediction
 
 error_and_exit $?
 

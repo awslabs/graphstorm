@@ -30,6 +30,7 @@ from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.model.utils import save_full_node_embeddings
 from graphstorm.model import do_full_graph_inference
 from graphstorm.utils import rt_profiler, sys_tracker, setup_device, use_wholegraph
+from graphstorm.utils import get_lm_ntypes
 
 def get_evaluator(config):
     """ Get evaluator class
@@ -70,8 +71,10 @@ def main(config_args):
                                     train_ntypes=config.target_ntype,
                                     eval_ntypes=config.eval_target_ntype,
                                     node_feat_field=config.node_feat_name,
-                                    label_field=config.label_field)
+                                    label_field=config.label_field,
+                                    lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
+
     if config.training_method["name"] == "glem":
         trainer_class = GLEMNodePredictionTrainer
     elif config.training_method["name"] == "default":
@@ -91,6 +94,7 @@ def main(config_args):
     if gs.get_rank() == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
+
     if config.use_pseudolabel:
         # Use nodes not in train_idxs as unlabeled node sets
         unlabeled_idxs = train_data.get_unlabeled_idxs()

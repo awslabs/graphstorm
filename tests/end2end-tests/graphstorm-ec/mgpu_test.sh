@@ -152,7 +152,7 @@ fi
 rm /tmp/log.txt
 
 cd $GS_HOME/tests/end2end-tests/
-python3 check_infer.py --train_embout /data/gsgnn_ec/emb/ --infer_embout /data/gsgnn_ec/infer-emb/
+python3 check_infer.py --train-embout /data/gsgnn_ec/emb/ --infer-embout /data/gsgnn_ec/infer-emb/
 
 error_and_exit $?
 
@@ -169,7 +169,7 @@ python3 -m graphstorm.run.gs_gen_node_embedding --workspace $GS_HOME/training_sc
 
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/check_infer.py --train_embout /data/gsgnn_ec/emb/ --infer_embout /data/gsgnn_ec/save-emb/
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_ec/emb/ --infer-embout /data/gsgnn_ec/save-emb/
 
 error_and_exit $?
 
@@ -203,7 +203,7 @@ python3 -m graphstorm.run.gs_edge_classification --lm-encoder-only --inference -
 error_and_exit $?
 
 cd $GS_HOME/tests/end2end-tests/
-python3 check_infer.py --train_embout /data/gsgnn_ec_lm/emb/ --infer_embout /data/gsgnn_ec_lm/infer-emb/
+python3 check_infer.py --train-embout /data/gsgnn_ec_lm/emb/ --infer-embout /data/gsgnn_ec_lm/infer-emb/
 
 error_and_exit $?
 rm -fr /data/gsgnn_ec_lm/*

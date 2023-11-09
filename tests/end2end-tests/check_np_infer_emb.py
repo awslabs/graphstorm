@@ -26,9 +26,9 @@ from graphstorm.gconstruct.file_io import read_data_parquet
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("check_infer")
-    argparser.add_argument("--train_embout", type=str, required=True,
+    argparser.add_argument("--train-embout", type=str, required=True,
                            help="Path to embedding saved by trainer")
-    argparser.add_argument("--infer_embout", type=str, required=True,
+    argparser.add_argument("--infer-embout", type=str, required=True,
                            help="Path to embedding saved by trainer")
     args = argparser.parse_args()
     with open(os.path.join(args.train_embout, "emb_info.json"), 'r', encoding='utf-8') as f:

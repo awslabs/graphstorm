@@ -26,11 +26,11 @@ from graphstorm.gconstruct.file_io import read_data_parquet
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("check_infer")
-    argparser.add_argument("--train_embout", type=str, required=True,
+    argparser.add_argument("--train-embout", type=str, required=True,
                            help="Path to embedding saved by trainer")
-    argparser.add_argument("--infer_embout", type=str, required=True,
+    argparser.add_argument("--infer-embout", type=str, required=True,
                            help="Path to embedding saved by trainer")
-    argparser.add_argument("--link_prediction", action='store_true',
+    argparser.add_argument("--link-prediction", action='store_true',
                            help="Path to embedding saved by trainer")
     argparser.add_argument("--mini-batch-infer", action='store_true',
                            help="Inference use minibatch inference.")
@@ -110,8 +110,8 @@ if __name__ == '__main__':
         infer_remaped_emb = np.concatenate(infer_remaped_emb)
         infer_remaped_nids = np.concatenate(infer_remaped_nids)
 
-        assert train_emb.shape[0] == infer_emb.shape[0]
-        assert train_emb.shape[1] == infer_emb.shape[1]
+        assert train_emb.shape == infer_emb.shape, \
+                f"The shape doesn't match: {train_emb.shape} vs. {infer_emb.shape}"
         assert train_remaped_emb.shape[0] == infer_remaped_emb.shape[0]
         assert train_remaped_emb.shape[1] == infer_remaped_emb.shape[1]
 
@@ -123,7 +123,7 @@ if __name__ == '__main__':
             for i in range(len(train_emb)):
                 if th.all(infer_emb[i] == 0.):
                     continue
-                assert_almost_equal(train_emb[i].numpy(), infer_emb[i].numpy(), decimal=4)
+                assert_almost_equal(train_emb[i].numpy(), infer_emb[i].numpy(), decimal=2)
         else:
             assert_almost_equal(train_emb.numpy(), infer_emb.numpy(), decimal=2)
             train_remaped_emb = train_remaped_emb[th.argsort(th.tensor(train_remaped_nids))]

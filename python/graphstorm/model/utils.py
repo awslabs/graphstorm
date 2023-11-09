@@ -533,6 +533,9 @@ def load_pytorch_embedding(emb_path, part_policy, name):
     dist_emb = create_dist_tensor((part_policy.get_size(), emb.shape[1]), emb.dtype,
             name=name, part_policy=part_policy)
     start, end = get_data_range(rank, world_size, len(dist_emb))
+    assert end - start == emb.shape[0], \
+            f"The loaded BERT embeddings have {emb.shape[0]} rows, " + \
+            f"doesn't match the required data range [{start}, {end}]."
     dist_emb[start:end] = emb
     barrier()
     return dist_emb
