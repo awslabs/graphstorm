@@ -161,7 +161,10 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         process_start_time = perf_counter()
 
         if not self._at_least_one_label_exists(data_configs):
-            logging.warning("No labels exist in the dataset, will not produce any masks")
+            logging.warning(
+                "No labels exist in the dataset, will not produce any masks, "
+                "and set task to 'link_prediction'."
+            )
             self.skip_train_masks = True
 
         metadata_dict = self._initialize_metadata_dict(data_configs)
