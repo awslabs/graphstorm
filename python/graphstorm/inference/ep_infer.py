@@ -21,7 +21,7 @@ from .graphstorm_infer import GSInferrer
 from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_edge_prediction_results
 from ..model.utils import NodeIDShuffler
-from ..model.gnn import do_full_graph_inference
+from ..model.graph_utils import do_full_graph_inference
 from ..model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
 
 from ..utils import sys_tracker, get_rank, barrier

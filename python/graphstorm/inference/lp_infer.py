@@ -21,7 +21,7 @@ from .graphstorm_infer import GSInferrer
 from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_relation_embeddings
 from ..model.edge_decoder import LinkPredictDistMultDecoder
-from ..model.gnn import do_full_graph_inference, do_mini_batch_inference
+from ..model import do_full_graph_inference, do_mini_batch_inference
 from ..model.lp_gnn import lp_mini_batch_predict
 
 from ..utils import sys_tracker, get_rank, barrier

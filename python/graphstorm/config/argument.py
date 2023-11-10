@@ -49,6 +49,7 @@ from .config import SUPPORTED_TASKS
 
 from .config import BUILTIN_LP_DISTMULT_DECODER
 from .config import SUPPORTED_LP_DECODER
+from .config import GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS
 
 from .config import (GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_EMBED_LAYER,
                      GRAPHSTORM_MODEL_DECODER_LAYER, GRAPHSTORM_MODEL_LAYER_OPTIONS)
@@ -375,6 +376,7 @@ class GSConfig:
             _ = self.eval_negative_sampler
             _ = self.num_negative_edges_eval
             _ = self.model_select_etype
+            _ = self.lp_embed_normalizer
 
     def _turn_off_gradient_checkpoint(self, reason):
         """Turn off `gradient_checkpoint` flags in `node_lm_configs`
@@ -1774,6 +1776,20 @@ class GSConfig:
         return BUILTIN_LP_DISTMULT_DECODER
 
     @property
+    def lp_embed_normalizer(self):
+        """ Type of normalization method applied on node embeddings
+            in link prediction.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_lp_embed_normalizer"):
+            normalizer = self._lp_embed_normalizer.lower()
+            assert normalizer in GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS, \
+                f"Link prediction embedding normalizer {normalizer} not supported. " \
+                f"GraphStorm only support {GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS}"
+            return normalizer
+        return None
+
+    @property
     def contrastive_loss_temperature(self):
         """ Temperature of link prediction contrustive loss
         """
@@ -2421,6 +2437,10 @@ def _add_link_prediction_args(parser):
             help="Link prediction loss function.")
     group.add_argument("--contrastive-loss-temperature", type=float, default=argparse.SUPPRESS,
             help="Temperature of link prediction contrastive loss.")
+    group.add_argument("--lp-embed-normalizer", type=str, default=argparse.SUPPRESS,
+            help="Normalization method used to normalize node embeddings in"
+                 "link prediction. Supported methods "
+                 f"include {GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS}")
     group.add_argument("--lp-edge-weight-for-loss", nargs='+', type=str, default=argparse.SUPPRESS,
             help="Edge feature field name for edge weights. It can be in following format: "
             "1) '--lp-edge-weight-for-loss feat_name': global feature name, "

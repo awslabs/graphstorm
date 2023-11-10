@@ -501,6 +501,12 @@ Link Prediction Task
     - Argument: ``--contrastive-loss-temperature 0.01``
     - Default value: 1.0
 
+- **lp-embed-normalizer**: Type of normalization method used to normalize node embeddings in link prediction tasks. Currently GraphStorm only supports l2 normalization (`l2_norm`).
+
+    - Yaml: ``lp_embed_normalizer: l2_norm``
+    - Argument: ``--lp-embed-normalizer l2_norm``
+    - Default value: None
+
 Distillation Specific Configurations
 --------------------------------------------
 GraphStorm provides a set of parameters to control GNN distillation.

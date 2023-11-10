@@ -23,7 +23,7 @@ from torch.nn.parallel import DistributedDataParallel
 
 from ..model.node_gnn import node_mini_batch_gnn_predict, node_mini_batch_predict
 from ..model.node_gnn import GSgnnNodeModelInterface
-from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
+from ..model import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker, rt_profiler, print_mem, get_rank

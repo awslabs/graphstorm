@@ -22,7 +22,7 @@ from .graphstorm_infer import GSInferrer
 from ..model.utils import save_shuffled_node_embeddings
 from ..model.utils import save_node_prediction_results
 from ..model.utils import NodeIDShuffler
-from ..model.gnn import do_full_graph_inference
+from ..model import do_full_graph_inference
 from ..model.node_gnn import node_mini_batch_gnn_predict
 from ..model.node_gnn import node_mini_batch_predict
 

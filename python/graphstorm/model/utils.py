@@ -23,10 +23,12 @@ import logging
 
 import torch as th
 from torch import nn
+import torch.nn.functional as F
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 import dgl
 
+from ..config import GRAPHSTORM_LP_EMB_L2_NORMALIZATION
 from ..gconstruct.file_io import stream_dist_tensors_to_hdf5
 from ..utils import get_rank, barrier, get_world_size, create_dist_tensor
 from ..data.utils import alltoallv_cpu, alltoallv_nccl
@@ -1686,3 +1688,45 @@ def append_to_dict(from_dict, to_dict):
             to_dict[k].append(v.cpu())
         else:
             to_dict[k] = [v.cpu()]
+
+def normalize_node_embs(embs, norm_method, is_train=False):
+    """ Do node embedding normalization
+
+        Parameters
+        ----------
+        embs: dict of Tensor
+            node embeddings.
+        norm_method: str
+            Node embedding normalization method.
+        is_train: bool
+            Whether it is called during training.
+    """
+    if norm_method is None or norm_method == "":
+        def norm(emb):
+            return emb
+        norm_func = norm
+    elif norm_method == GRAPHSTORM_LP_EMB_L2_NORMALIZATION:
+        def l2_norm(emb):
+            if is_train is True:
+                # When it is training, we expect the size of emb is small
+                return F.normalize(emb)
+
+            rank = get_rank()
+            world_size = get_world_size()
+            if isinstance(emb, (dgl.distributed.DistTensor, LazyDistTensor)):
+                start, end = get_data_range(rank, world_size, len(emb))
+            else:
+                start, end = 0, len(emb)
+            idx = start
+            while idx + 1024 < end:
+                emb[idx:idx+1024] = F.normalize(emb[idx:idx+1024])
+                idx += 1024
+            emb[idx:end] = F.normalize(emb[idx:end])
+
+            return emb
+        norm_func = l2_norm
+    else:
+        raise RuntimeError(f"Unsupported embedding normalization method {norm_method}")
+
+    embs = {key: norm_func(emb) for key, emb in embs.items()}
+    return embs
