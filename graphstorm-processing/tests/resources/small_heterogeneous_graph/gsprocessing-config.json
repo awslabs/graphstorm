@@ -21,7 +21,7 @@
                     ],
                     "separator": ","
                 },
-                "type": "movies",
+                "type": "movie",
                 "column": "~id"
             },
             {
