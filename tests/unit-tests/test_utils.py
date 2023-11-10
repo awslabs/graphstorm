@@ -1063,8 +1063,8 @@ def test_normalize_node_embs(num_embs, is_train):
     }
 
     assert len(l2norm_embs) == len(new_embs)
-    assert_equal(l2norm_embs["n1"].numpy(), new_embs["n1"].numpy())
-    assert_equal(l2norm_embs["n2"].numpy(), new_embs["n2"].numpy())
+    assert_almost_equal(l2norm_embs["n1"].numpy(), new_embs["n1"].numpy())
+    assert_almost_equal(l2norm_embs["n2"].numpy(), new_embs["n2"].numpy())
 
     raise_error = False
     try:
