@@ -180,4 +180,4 @@ To get started with developing the package refer to :doc:`developer/developer-gu
 .. [#f1] DGL expects that every file produced for a single node/edge type
     has matching row counts, which is something that Spark cannot guarantee.
     We use the re-partitioning script to fix this where needed in the produced
-    output.
+    output. See :doc:`usage/row-count-alignment` for details.
