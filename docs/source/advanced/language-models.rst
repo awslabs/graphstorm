@@ -2,7 +2,7 @@
 
 Use Language Models in GraphStorm
 ==================================
-Many real world graphs have text contents as nodes' features, e.g., the title and description of a product, and the questions and comments from users. To leverage these text contents, GraphStorm supports language models (LMs), i.e., HuggingFace BERT models, to embed text contents and use these embeddings for various Graph Machine Learning tasks.
+Many real world graphs have text contents as nodes' features, e.g., the title and description of a product, and the questions and comments from users. To leverage these text contents, GraphStorm supports multiple language models (LMs) from HuggingFace to embed text contents and use these embeddings for various Graph Machine Learning tasks.
 
 There are a set of modes to use LMs in GraphStorm.
 
