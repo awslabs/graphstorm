@@ -114,9 +114,13 @@ for more information.
 Support for arm64 architecture
 ------------------------------
 
-You might have noticed that we include the image's architecture, ``x86_64`` in the image name.
 For EMR Serverless images, it is possible to build images that support ``arm64`` instances,
-which can lead to improved runtime and cost compared to ``x86_64``. To build ``arm64`` images
+which can lead to improved runtime and cost compared to ``x86_64``. You can build an ``arm64``
+image natively by installing Docker and following the above process on an ARM instance such
+as ``M6G`` or ``M7G``. See the `AWS documentation <https://aws.amazon.com/ec2/graviton/>`_
+for instances powered by the Graviton processor.
+
+To build ``arm64`` images
 on an ``x86_64`` host you need to enable multi-platform builds for Docker. The easiest way
 to do so is to use QEMU emulation. To install the QEMU related libraries you can run
 
@@ -159,9 +163,10 @@ To build an EMR Serverless GSProcessing image for the ``arm64`` architecture you
 
     Building images under emulation using QEMU can be significantly slower than native builds
     (more than 20 minutes to build the GSProcessing ``arm64`` image).
-    To speed up the build process you can look into using ``buildx`` with multiple native nodes,
-    or cross-compilation.
-    See `the official Docker documentation <https://docs.docker.com/build/building/multi-platform/>`_  for details.
+    To speed up the build process you can build on an ARM instances,
+    look into using ``buildx`` with multiple native nodes, or use cross-compilation.
+    See `the official Docker documentation <https://docs.docker.com/build/building/multi-platform/>`_
+    for details.
 
 Push the image to the Amazon Elastic Container Registry (ECR)
 -------------------------------------------------------------
