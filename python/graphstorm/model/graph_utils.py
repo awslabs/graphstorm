@@ -206,4 +206,3 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
     if get_rank() == 0:
         logging.debug("computing GNN embeddings: %.4f seconds", time.time() - t1)
     return embeddings
-
