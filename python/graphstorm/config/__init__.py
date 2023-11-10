@@ -40,3 +40,6 @@ from .config import (GRAPHSTORM_MODEL_EMBED_LAYER,
 from .config import (BUILTIN_GNN_NORM,
                      BUILDIN_GNN_LAYER_NORM,
                      BUILDIN_GNN_BATCH_NORM)
+
+from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
+                     BUILTIN_LP_LOSS_CONTRASTIVELOSS)

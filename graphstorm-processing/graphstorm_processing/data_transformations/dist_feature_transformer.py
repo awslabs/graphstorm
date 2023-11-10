@@ -13,10 +13,20 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+import logging
+
 from pyspark.sql import DataFrame
 
 from graphstorm_processing.config.feature_config_base import FeatureConfig
-from .dist_transformations import DistributedTransformation, NoopTransformation
+from .dist_transformations import (
+    DistributedTransformation,
+    NoopTransformation,
+    DistNumericalTransformation,
+    DistMultiNumericalTransformation,
+    DistBucketNumericalTransformation,
+    DistCategoryTransformation,
+    DistMultiCategoryTransformation,
+)
 
 
 class DistFeatureTransformer(object):
@@ -32,9 +42,21 @@ class DistFeatureTransformer(object):
         self.transformation: DistributedTransformation
 
         default_kwargs = {"cols": feature_config.cols}
+        logging.info("Feature name: %s", feat_name)
+        logging.info("Transformation type: %s", feat_type)
 
         if feat_type == "no-op":
             self.transformation = NoopTransformation(**default_kwargs, **args_dict)
+        elif feat_type == "numerical":
+            self.transformation = DistNumericalTransformation(**default_kwargs, **args_dict)
+        elif feat_type == "multi-numerical":
+            self.transformation = DistMultiNumericalTransformation(**default_kwargs, **args_dict)
+        elif feat_type == "bucket-numerical":
+            self.transformation = DistBucketNumericalTransformation(**default_kwargs, **args_dict)
+        elif feat_type == "categorical":
+            self.transformation = DistCategoryTransformation(**default_kwargs, **args_dict)
+        elif feat_type == "multi-categorical":
+            self.transformation = DistMultiCategoryTransformation(**default_kwargs, **args_dict)
         else:
             raise NotImplementedError(
                 f"Feature {feat_name} has type: {feat_type} that is not supported"

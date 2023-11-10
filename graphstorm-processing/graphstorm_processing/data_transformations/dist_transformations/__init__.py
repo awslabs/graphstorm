@@ -8,3 +8,8 @@ from .dist_category_transformation import (
 )
 from .dist_noop_transformation import NoopTransformation
 from .dist_label_transformation import DistSingleLabelTransformation, DistMultiLabelTransformation
+from .dist_numerical_transformation import (
+    DistMultiNumericalTransformation,
+    DistNumericalTransformation,
+)
+from .dist_bucket_numerical_transformation import DistBucketNumericalTransformation
