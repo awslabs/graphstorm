@@ -75,6 +75,7 @@ job, followed by the re-partitioning job, both on SageMaker:
     The re-partitioning job runs on a single instance, so for large graphs you will
     want to scale up to an instance with more memory to avoid memory errors. `ml.r5` instances
     should allow you to re-partition graph data with billions of nodes and edges.
+    For more details on the re-partitioning step see ::doc:`row-count-alignment`.
 
 The ``--num-output-files`` parameter
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
