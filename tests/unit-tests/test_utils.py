@@ -1044,7 +1044,7 @@ def test_prepare_for_wholegraph():
         assert list(input_edges.keys()) == g.canonical_etypes
 
 @pytest.mark.parametrize("num_embs", [10, 10000])
-@pytest.mask.parametrize("is_train", [False, True])
+@pytest.mark.parametrize("is_train", [False, True])
 def test_normalize_node_embs(num_embs, is_train):
     embs = {"n1": th.rand((10, num_embs)),
             "n2": th.rand((5, num_embs))}
