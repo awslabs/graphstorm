@@ -77,7 +77,7 @@ def launch_infer_task(task_type, num_gpus, graph_config,
         A queue used to return execution result (success or failure)
     custom_script: str
         Custom inference script provided by a customer to run customer inference logic.
-        output_chunk_size: int
+    output_chunk_size: int
         Number of rows per chunked prediction result or node embedding file.
         Default: 100000
 
@@ -108,7 +108,7 @@ def launch_infer_task(task_type, num_gpus, graph_config,
         "--ip-config", f"{ip_list}",
         "--extra-envs", f"LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']} ",
         "--ssh-port", "22", "--inference",
-        "--with-shared-fs", "False",
+        "--with-shared-fs", "False", # We assume there is no shared filesystem in SageMaker
         "--output-chunk-size", output_chunk_size]
     launch_cmd += [custom_script] if custom_script is not None else []
     launch_cmd += ["--cf", f"{yaml_path}",
