@@ -35,7 +35,7 @@ The GSProcessing input data configuration has two top-level objects:
 We describe the ``graph`` object next.
 
 Contents of the ``graph`` configuration object
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The ``graph`` configuration object can have two top-level objects:
 
@@ -386,11 +386,11 @@ arguments.
 
          - ``none``: (Default) Don't normalize the numerical values during encoding.
          - ``min-max``: Normalize each value by subtracting the minimum value from it,
-         and then dividing it by the difference between the maximum value and the minimum.
+           and then dividing it by the difference between the maximum value and the minimum.
          - ``standard``: Normalize each value by dividing it by the sum of all the values.
          - ``rank-gauss``: Normalize each value using Rank-Gauss normalization. Rank-gauss first ranks all values,
-         converts the ranks to the -1/1 range, and applies the `inverse of the error function <https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.erfinv.html>`_ to make the values conform
-         to a Gaussian distribution shape. This transformation only supports a single column as input.
+           converts the ranks to the -1/1 range, and applies the `inverse of the error function <https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.erfinv.html>`_ to make the values conform
+           to a Gaussian distribution shape. This transformation only supports a single column as input.
       - ``epsilon``: Only relevant for ``rank-gauss``, this epsilon value is added to the denominator
         to avoid infinite values during normalization.
 -  ``multi-numerical``
@@ -430,8 +430,8 @@ arguments.
 -  ``categorical``
 
    -  Transforms values from a fixed list of possible values (categorical features) to a one-hot encoding.
-   The length of the resulting vector will be the number of categories in the data minus one, with a 1 in
-   the index of the single category, and zero everywhere else.
+      The length of the resulting vector will be the number of categories in the data minus one, with a 1 in
+      the index of the single category, and zero everywhere else.
 
 .. note::
     The maximum number of categories in any categorical feature is 100. If a property has more than 100 categories of value,
@@ -441,11 +441,21 @@ arguments.
 
    -  Encodes vector-like data from a fixed list of possible values (i.e. multi-label/multi-categorical data) using a multi-hot encoding. The length of the resulting vector will be the number of categories in the data minus one, and each value will have a 1 value for every category that appears, and 0 everwhere else.
    -  ``kwargs``:
+
       - ``separator`` (String, optional): Same as the one in the No-op operation, the separator is used to
-        split multiple input values for CSV files e.g. ``detective|noir``. If it is not provided, then the whole value 
-        will be considered as an array. For Parquet files, if the input type is ArrayType(StringType()), then the 
-        separator is ignored; if it is StringType(), it will apply same logic as in CSV. 
+        split multiple input values for CSV files e.g. ``detective|noir``. If it is not provided, then the whole value
+        will be considered as an array. For Parquet files, if the input type is ArrayType(StringType()), then the
+        separator is ignored; if it is StringType(), it will apply same logic as in CSV.
+
 --------------
+
+Creating a graph for inference
+------------------------------
+
+If no label entries are provided for any of the entries
+in the input configuration, the processed data will not
+include any train/val/test masks. You can use this mode
+when you want to produce a graph just for inference.
 
 Examples
 ~~~~~~~~

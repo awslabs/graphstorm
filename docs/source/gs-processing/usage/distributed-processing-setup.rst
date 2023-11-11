@@ -161,8 +161,11 @@ To build an EMR Serverless GSProcessing image for the ``arm64`` architecture you
 
 .. note::
 
-    Building images under emulation using QEMU can be significantly slower than native builds
+    Building images for the first time under emulation using QEMU
+    can be significantly slower than native builds
     (more than 20 minutes to build the GSProcessing ``arm64`` image).
+    After the first build, follow up builds that only change the GSProcessing code
+    will be less than a minute thanks to Docker's caching.
     To speed up the build process you can build on an ARM instances,
     look into using ``buildx`` with multiple native nodes, or use cross-compilation.
     See `the official Docker documentation <https://docs.docker.com/build/building/multi-platform/>`_

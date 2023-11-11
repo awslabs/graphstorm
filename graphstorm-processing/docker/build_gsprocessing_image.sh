@@ -22,6 +22,7 @@ Available options:
 -p, --path          Path to graphstorm-processing directory, default is the current directory.
 -i, --image         Docker image name, default is 'graphstorm-processing'.
 -v, --version       Docker version tag, default is the library's current version (`poetry version --short`)
+-s, --suffix        Suffix for the image tag, can be used to push custom image tags. Default is "".
 -b, --build         Docker build directory, default is '/tmp/`
 EOF
   exit
@@ -46,6 +47,7 @@ parse_params() {
   BUILD_DIR='/tmp'
   TARGET='test'
   ARCH='x86_64'
+  SUFFIX=""
 
   while :; do
     case "${1-}" in
@@ -78,6 +80,10 @@ parse_params() {
       ;;
     -v | --version)
       VERSION="${2-}"
+      shift
+      ;;
+    -s | --suffix)
+      SUFFIX="${2-}"
       shift
       ;;
     -?*) die "Unknown option: $1" ;;
@@ -128,6 +134,7 @@ msg "- TARGET: ${TARGET}"
 msg "- GSP_HOME: ${GSP_HOME}"
 msg "- IMAGE_NAME: ${IMAGE_NAME}"
 msg "- VERSION: ${VERSION}"
+msg "- SUFFIX: ${SUFFIX}"
 
 # Prepare Docker build directory
 rm -rf "${BUILD_DIR}/docker/code"
@@ -151,7 +158,7 @@ cp ${GSP_HOME}/docker-entry.sh "${BUILD_DIR}/docker/code/"
 poetry export -f requirements.txt --output "${BUILD_DIR}/docker/requirements.txt"
 
 # Set image name
-DOCKER_FULLNAME="${IMAGE_NAME}-${EXEC_ENV}:${VERSION}-${ARCH}"
+DOCKER_FULLNAME="${IMAGE_NAME}-${EXEC_ENV}:${VERSION}-${ARCH}${SUFFIX}"
 
 # Login to ECR to be able to pull source SageMaker image
 if [[ ${EXEC_ENV} == "sagemaker" ]]; then

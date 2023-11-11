@@ -737,7 +737,6 @@ def parse_args(args):
         default=False,
         help="When True will use low-memory file-streaming repartitioning. "
         "Note that this option is much slower than the in-memory default.",
-        choices=["True", "False", "1", "0"],
     )
     parser.add_argument(
         "--metadata-file-name",
@@ -839,7 +838,7 @@ def main():
 
     edge_structure_meta = metadata_dict["edges"]  # type: Dict[str, Dict[str, Dict]]
 
-    task_type = metadata_dict["graph_info"]["task_type"]  # type: str
+    task_type = metadata_dict["graph_info"].get("task_type", "link_prediction")  # type: str
 
     edge_data_exist = "edge_data" in metadata_dict.keys() and metadata_dict["edge_data"]
     node_data_exist = "node_data" in metadata_dict.keys() and metadata_dict["node_data"]
