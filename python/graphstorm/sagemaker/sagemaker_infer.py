@@ -109,7 +109,7 @@ def launch_infer_task(task_type, num_gpus, graph_config,
         "--extra-envs", f"LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']} ",
         "--ssh-port", "22", "--inference",
         "--with-shared-fs", "False", # We assume there is no shared filesystem in SageMaker
-        "--output-chunk-size", output_chunk_size]
+        "--output-chunk-size", f"{output_chunk_size}"]
     launch_cmd += [custom_script] if custom_script is not None else []
     launch_cmd += ["--cf", f"{yaml_path}",
          "--restore-model-path", f"{load_model_path}",
