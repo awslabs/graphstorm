@@ -244,9 +244,9 @@ class RelGraphConvLayer(nn.Module):
         for k, _ in inputs.items():
             if g.number_of_dst_nodes(k) > 0:
                 if k not in hs:
-                    logging.warning("Warning. Graph convolution returned empty " + \
-                          f"dictionary for nodes in type: {str(k)}. Please check your data" + \
-                          f" for no in-degree nodes in type: {str(k)}.")
+                    #logging.warning("Warning. Graph convolution returned empty " + \
+                    #      f"dictionary for nodes in type: {str(k)}. Please check your data" + \
+                    #      f" for no in-degree nodes in type: {str(k)}.")
                     hs[k] = th.zeros((g.number_of_dst_nodes(k),
                                       self.out_feat),
                                      device=inputs[k].device)
