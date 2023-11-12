@@ -13,6 +13,15 @@ SUPPORTED_TASKS = {
     "link_prediction"
 }
 
+SUPPORTED_INFER_TASKS = {
+    "node_classification",
+    "node_regression",
+    "edge_classification",
+    "edge_regression",
+    "link_prediction",
+    "comput_emb"
+}
+
 def get_common_parser() -> argparse.ArgumentParser:
     """
     Returns an argument parser that can be used by all

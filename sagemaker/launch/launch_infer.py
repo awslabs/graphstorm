@@ -21,7 +21,7 @@ import boto3 # pylint: disable=import-error
 import sagemaker
 from sagemaker.pytorch.estimator import PyTorch
 
-from common_parser import get_common_parser, parse_estimator_kwargs, SUPPORTED_TASKS
+from common_parser import get_common_parser, parse_estimator_kwargs, SUPPORTED_INFER_TASKS
 
 INSTANCE_TYPE = "ml.g4dn.12xlarge"
 
@@ -147,7 +147,7 @@ def get_inference_parser():
         help="S3 location of input inference graph",
         required=True)
     inference_args.add_argument("--task-type", type=str,
-        help=f"Task type in {SUPPORTED_TASKS}",
+        help=f"Task type in {SUPPORTED_INFER_TASKS}",
         required=True)
     inference_args.add_argument("--yaml-s3", type=str,
         help="S3 location of inference yaml file. "
