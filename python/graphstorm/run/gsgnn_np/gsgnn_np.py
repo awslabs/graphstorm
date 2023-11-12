@@ -101,7 +101,9 @@ def main(config_args):
         # semi-supervised loader
         dataloader = GSgnnNodeSemiSupDataLoader(train_data, train_data.train_idxs, unlabeled_idxs,
                                                 fanout=config.fanout, batch_size=config.batch_size,
-                                                device=device, train_task=True)
+                                                device=device, train_task=True,
+                                                construct_feat_ntype=config.construct_feat_ntype,
+                                                construct_feat_fanout=config.construct_feat_fanout)
     else:
         dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
                                          batch_size=config.batch_size,
