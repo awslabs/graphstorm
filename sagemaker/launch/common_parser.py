@@ -5,6 +5,10 @@ from typing import Any, Dict
 from ast import literal_eval
 import argparse
 
+# Npte: Sync with graphstorm.config SUPPORTED_TASKS
+# We do not import graphstorm.config.SUPPORTED_TASKS so
+# that the launch script is decoupled with graphstorm
+# package
 SUPPORTED_TASKS = {
     "node_classification",
     "node_regression",
