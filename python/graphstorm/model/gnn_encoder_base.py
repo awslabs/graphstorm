@@ -292,8 +292,8 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
             # node features anymore. Hence, we don't need to create dummy tensors for
             # wholegraph compatibility. Also, ntypes of input nodes might conflict with
             # the ntypes of ouput nodes.
-            if int(layer_id) > 0:
-                continue
+            #if int(layer_id) > 0:
+            #    continue
             input_nodes = {ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes}
             blocks = None
         if iter_l % 100000 == 0 and get_rank() == 0:
