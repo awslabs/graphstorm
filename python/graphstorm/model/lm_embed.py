@@ -532,7 +532,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
 
     #pylint: disable=keyword-arg-before-vararg
     #pylint: disable=unused-argument
-    def forward(self, input_feats, input_nodes):
+    def forward(self, input_feats, input_nodes, use_cache=True):
         """Forward computation
 
         The forward function only computes the BERT embeddings and
@@ -544,6 +544,8 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
             input features, ignored
         input_nodes: dict
             input node ids
+        use_cache: bool
+            to decide whether to retrieve embeddings from cache, it overrides self.use_cache
 
         Returns
         -------
@@ -552,6 +554,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
 
         cache = self.lm_emb_cache if len(self.lm_emb_cache) > 0 and self.use_cache else None
+        cache = cache if use_cache else None
         embs = self._lm_models(input_nodes, lm_emb_cache=cache)
 
         # This module is only used for computing the BERT embeddings on the node types
@@ -741,7 +744,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         return True
 
     #pylint: disable=keyword-arg-before-vararg
-    def forward(self, input_feats, input_nodes):
+    def forward(self, input_feats, input_nodes, use_cache=True):
         """Forward computation
 
         The forward function computes the BERT embeddings and combine them with
@@ -753,6 +756,8 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
             input features
         input_nodes: dict
             input node ids
+        use_cache: bool
+            to decide whether to retrieve embeddings from cache, it overrides self.use_cache
 
         Returns
         -------
@@ -763,15 +768,17 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
 
         # Compute language model features first
         cache = self.lm_emb_cache if len(self.lm_emb_cache) > 0 and self.use_cache else None
+        cache = cache if use_cache else None
         lm_feats = self._lm_models(input_nodes, lm_emb_cache=cache)
 
+        combined_feats = {} # to prevent modifying input_feats inplace
         for ntype, lm_feat in lm_feats.items():
             # move lm_feat to the right device
             # we assume input_feats has already been moved to that device.
             lm_feat = lm_feat.to(self.device)
             if ntype in input_feats:
-                input_feats[ntype] = th.cat((input_feats[ntype].float(), lm_feat), dim=-1)
+                combined_feats[ntype] = th.cat((input_feats[ntype].float(), lm_feat), dim=-1)
             else:
-                input_feats[ntype] = lm_feat
+                combined_feats[ntype] = lm_feat
 
-        return super(GSLMNodeEncoderInputLayer, self).forward(input_feats, input_nodes)
+        return super(GSLMNodeEncoderInputLayer, self).forward(combined_feats, input_nodes)

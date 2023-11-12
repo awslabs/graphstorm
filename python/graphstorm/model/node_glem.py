@@ -264,9 +264,11 @@ class GLEM(GSgnnNodeModelBase):
             self.training_lm = True
             self.toggle_params('gnn', True)
             self.toggle_params('lm', False)
-            # when training lm, do not use the cached LM
-            self.lm.unfreeze_input_encoder()
+            # when training lm: gnn still uses the cached LM embeddings from previous iteration
+            # hence we don't unfreeze nor update the cache
         elif part == 'gnn':
+            # clear previous cache
+            self.lm.unfreeze_input_encoder()
             self.training_lm = False
             self.toggle_params('lm', True)
             self.toggle_params('gnn', False)
@@ -479,15 +481,23 @@ class GLEM(GSgnnNodeModelBase):
         target_ntype = self.target_ntype
         if do_gnn_encode:
             # Get the projected LM embeddings without GNN message passing
-            encode_embs = self.lm.comput_input_embed(input_nodes, node_feats)
-            # GNN message passing
-            encode_embs_gnn = self.gnn.gnn_encoder(blocks, encode_embs)
-            n_seed_nodes = blocks[-1].num_dst_nodes()
-            return encode_embs[target_ntype][:n_seed_nodes], encode_embs_gnn[target_ntype]
+            # retrieving from cache:
+            encode_embs_frozen = self.node_input_encoder(node_feats, input_nodes)
+            # GNN message passing (should always use embs from cached LM)
+            encode_embs_gnn = self.gnn.gnn_encoder(blocks, encode_embs_frozen)
+            if self.training_lm:
+                # use the forward pass to get the lm embs for seed nodes when training lm
+                seed_nodes, seed_feats = self._get_seed_nodes(input_nodes, node_feats, blocks)
+                encode_embs_hot = self.node_input_encoder(seed_feats, seed_nodes, use_cache=False)
+                encode_embs_lm = encode_embs_hot[target_ntype]
+            else:
+                n_seed_nodes = blocks[-1].num_dst_nodes()
+                encode_embs_lm = encode_embs_frozen[target_ntype][:n_seed_nodes]
+            return encode_embs_lm, encode_embs_gnn[target_ntype]
         else:
             # Get the projected LM embeddings for seed nodes and corresponding node features:
             seed_nodes, seed_feats = self._get_seed_nodes(input_nodes, node_feats, blocks)
-            encode_embs = self.lm.comput_input_embed(seed_nodes, seed_feats)
+            encode_embs = self.node_input_encoder(seed_feats, seed_nodes)
             return encode_embs[target_ntype], None
 
     def _process_labels(self, labels):
