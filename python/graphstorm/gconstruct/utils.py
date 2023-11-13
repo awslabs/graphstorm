@@ -181,7 +181,7 @@ def generate_hash():
     random_uuid = uuid.uuid4()
     return str(random_uuid)
 
-def worker_fn(worker_id, task_queue, res_queue, user_parser, ext_mem_folder):
+def worker_fn(worker_id, task_queue, res_queue, user_parser, ext_mem_workspace):
     """ The worker function in the worker pool
 
     Parameters
@@ -195,6 +195,8 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser, ext_mem_folder):
         communication between the worker processes and the master process.
     user_parser : callable
         The user-defined function to read and process the data files.
+    ext_mem_workspace : str
+        The path of the external-memory work space.
     """
     # We need to set a GPU device for each worker process in case that
     # some transformations (e.g., computing BERT embeddings) require GPU computation.
@@ -212,8 +214,8 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser, ext_mem_folder):
             logging.debug("%d Processing %s", worker_id, in_file)
             data = user_parser(in_file)
             size = _estimate_sizeof(data)
-            if ext_mem_folder is not None:
-                data = (EXT_MEMORY_STORAGE, _to_ext_mem(data, ext_mem_folder))
+            if ext_mem_workspace is not None:
+                data = (EXT_MEMORY_STORAGE, _to_ext_mem(data, ext_mem_workspace))
             # Max pickle obj size is 2 GByte
             elif size > SHARED_MEM_OBJECT_THRESHOLD:
                 # Use torch shared memory as a workaround
@@ -252,7 +254,7 @@ def update_two_phase_feat_ops(phase_one_info, ops):
         if op.feat_name in feat_info:
             op.update_info(feat_info[op.feat_name])
 
-def multiprocessing_data_read(in_files, num_processes, user_parser, ext_mem_folder):
+def multiprocessing_data_read(in_files, num_processes, user_parser, ext_mem_workspace):
     """ Read data from multiple files with multiprocessing.
 
     It creates a set of worker processes, each of which runs a worker function.
@@ -272,6 +274,8 @@ def multiprocessing_data_read(in_files, num_processes, user_parser, ext_mem_fold
         The number of processes that run in parallel.
     user_parser : callable
         The user-defined function to read and process the data files.
+    ext_mem_workspace : str
+        The path of the external-memory work space.
 
     Returns
     -------
@@ -286,7 +290,8 @@ def multiprocessing_data_read(in_files, num_processes, user_parser, ext_mem_fold
         for i, in_file in enumerate(in_files):
             task_queue.put((i, in_file))
         for i in range(num_processes):
-            proc = Process(target=worker_fn, args=(i, task_queue, res_queue, user_parser, ext_mem_folder))
+            proc = Process(target=worker_fn, args=(i, task_queue, res_queue, user_parser,
+                                                   ext_mem_workspace))
             proc.start()
             processes.append(proc)
 
@@ -316,8 +321,8 @@ def multiprocessing_data_read(in_files, num_processes, user_parser, ext_mem_fold
         return_dict = {}
         for i, in_file in enumerate(in_files):
             return_dict[i] = user_parser(in_file)
-            if ext_mem_folder is not None:
-                return_dict[i] = _to_ext_memory(None, return_dict[i], ext_mem_folder)
+            if ext_mem_workspace is not None:
+                return_dict[i] = _to_ext_memory(None, return_dict[i], ext_mem_workspace)
             for arr in return_dict[i]:
                 if isinstance(arr, dict):
                     for name, val in arr.items():
