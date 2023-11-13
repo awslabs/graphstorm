@@ -771,14 +771,13 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         cache = cache if use_cache else None
         lm_feats = self._lm_models(input_nodes, lm_emb_cache=cache)
 
-        combined_feats = {} # to prevent modifying input_feats inplace
         for ntype, lm_feat in lm_feats.items():
             # move lm_feat to the right device
             # we assume input_feats has already been moved to that device.
             lm_feat = lm_feat.to(self.device)
             if ntype in input_feats:
-                combined_feats[ntype] = th.cat((input_feats[ntype].float(), lm_feat), dim=-1)
+                input_feats[ntype] = th.cat((input_feats[ntype].float(), lm_feat), dim=-1)
             else:
-                combined_feats[ntype] = lm_feat
+                input_feats[ntype] = lm_feat
 
-        return super(GSLMNodeEncoderInputLayer, self).forward(combined_feats, input_nodes)
+        return super(GSLMNodeEncoderInputLayer, self).forward(input_feats, input_nodes)

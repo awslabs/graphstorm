@@ -481,18 +481,19 @@ class GLEM(GSgnnNodeModelBase):
         target_ntype = self.target_ntype
         if do_gnn_encode:
             # Get the projected LM embeddings without GNN message passing
-            # retrieving from cache:
-            encode_embs_frozen = self.node_input_encoder(node_feats, input_nodes)
-            # GNN message passing (should always use embs from cached LM)
-            encode_embs_gnn = self.gnn.gnn_encoder(blocks, encode_embs_frozen)
             if self.training_lm:
                 # use the forward pass to get the lm embs for seed nodes when training lm
                 seed_nodes, seed_feats = self._get_seed_nodes(input_nodes, node_feats, blocks)
                 encode_embs_hot = self.node_input_encoder(seed_feats, seed_nodes, use_cache=False)
                 encode_embs_lm = encode_embs_hot[target_ntype]
-            else:
+            # retrieving from cache:
+            encode_embs_frozen = self.node_input_encoder(node_feats, input_nodes)
+            if not self.training_lm:
+                # when lm is not being trained, subset the cached embs to seed nodes
                 n_seed_nodes = blocks[-1].num_dst_nodes()
                 encode_embs_lm = encode_embs_frozen[target_ntype][:n_seed_nodes]
+            # GNN message passing (should always use embs from cached LM)
+            encode_embs_gnn = self.gnn.gnn_encoder(blocks, encode_embs_frozen)
             return encode_embs_lm, encode_embs_gnn[target_ntype]
         else:
             # Get the projected LM embeddings for seed nodes and corresponding node features:

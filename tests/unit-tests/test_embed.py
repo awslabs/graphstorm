@@ -499,6 +499,7 @@ def test_lm_embed_warmup(dev):
     assert_almost_equal(emb_0['n0'].detach().cpu().numpy(), emb_1['n0'].detach().cpu().numpy(), decimal=6)
 
     # pass use_cache=False while model is frozen to override the using of cache
+    feat = prepare_batch_input(g, input_nodes, dev=dev, feat_field=feat_field)
     emb_12 = layer(feat, input_nodes, use_cache=False)
     with assert_raises(AssertionError):
         assert_almost_equal(emb_0['n0'].detach().cpu().numpy(), emb_12['n0'].detach().cpu().numpy(), decimal=1)
