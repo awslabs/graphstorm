@@ -36,6 +36,38 @@ from ..utils import sys_tracker
 SHARED_MEM_OBJECT_THRESHOLD = 1.9 * 1024 * 1024 * 1024 # must < 2GB
 SHARED_MEMORY_CROSS_PROCESS_STORAGE = "shared_memory"
 PICKLE_CROSS_PROCESS_STORAGE = "pickle"
+EXT_MEMORY_STORAGE = "ext_memory"
+
+def _to_ext_memory(name, data, path):
+    if isinstance(data, np.ndarray):
+        assert name is not None
+        path = os.path.join(path, f"{name}.npy")
+        print(f"save data in {path}")
+        ext_mem_arr = convert_to_ext_mem_numpy(path, data)
+        # We need to pass the array to another process. We don't want it
+        # to reference to data in the file.
+        ext_mem_arr.cleanup()
+        return ext_mem_arr
+    elif isinstance(data, dict):
+        new_data = {}
+        for key, val in data.items():
+            new_data[key] = _to_ext_memory(key, val,
+                    os.path.join(path, name) if name is not None else path)
+        return new_data
+    elif isinstance(data, list):
+        new_data = []
+        for i, val in enumerate(data):
+            new_data.append(_to_ext_memory(f"item-{i}", val,
+                os.path.join(path, name) if name is not None else path))
+        return new_data
+    elif isinstance(data, tuple):
+        new_data = []
+        for i, val in enumerate(list(data)):
+            new_data.append(_to_ext_memory(f"item-{i}", val,
+                os.path.join(path, name) if name is not None else path))
+        return tuple(new_data)
+    else:
+        raise ValueError(f"unknown type: {type(data)}")
 
 def _to_shared_memory(data):
     """ Move all tensor objects into torch shared memory
@@ -149,7 +181,7 @@ def generate_hash():
     random_uuid = uuid.uuid4()
     return str(random_uuid)
 
-def worker_fn(worker_id, task_queue, res_queue, user_parser):
+def worker_fn(worker_id, task_queue, res_queue, user_parser, ext_mem_folder):
     """ The worker function in the worker pool
 
     Parameters
@@ -180,8 +212,10 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser):
             logging.debug("%d Processing %s", worker_id, in_file)
             data = user_parser(in_file)
             size = _estimate_sizeof(data)
+            if ext_mem_folder is not None:
+                data = (EXT_MEMORY_STORAGE, _to_ext_mem(data, ext_mem_folder))
             # Max pickle obj size is 2 GByte
-            if size > SHARED_MEM_OBJECT_THRESHOLD:
+            elif size > SHARED_MEM_OBJECT_THRESHOLD:
                 # Use torch shared memory as a workaround
                 # This will consume shared memory and cause an additional
                 # data copy, i.e., general memory to torch shared memory.
@@ -218,7 +252,7 @@ def update_two_phase_feat_ops(phase_one_info, ops):
         if op.feat_name in feat_info:
             op.update_info(feat_info[op.feat_name])
 
-def multiprocessing_data_read(in_files, num_processes, user_parser):
+def multiprocessing_data_read(in_files, num_processes, user_parser, ext_mem_folder):
     """ Read data from multiple files with multiprocessing.
 
     It creates a set of worker processes, each of which runs a worker function.
@@ -252,7 +286,7 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
         for i, in_file in enumerate(in_files):
             task_queue.put((i, in_file))
         for i in range(num_processes):
-            proc = Process(target=worker_fn, args=(i, task_queue, res_queue, user_parser))
+            proc = Process(target=worker_fn, args=(i, task_queue, res_queue, user_parser, ext_mem_folder))
             proc.start()
             processes.append(proc)
 
@@ -282,6 +316,14 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
         return_dict = {}
         for i, in_file in enumerate(in_files):
             return_dict[i] = user_parser(in_file)
+            if ext_mem_folder is not None:
+                return_dict[i] = _to_ext_memory(None, return_dict[i], ext_mem_folder)
+            for arr in return_dict[i]:
+                if isinstance(arr, dict):
+                    for name, val in arr.items():
+                        print(i, name, type(val))
+                else:
+                    print(i, type(arr))
         return return_dict
 
 def worker_fn_no_return(worker_id, task_queue, func):
@@ -579,7 +621,8 @@ class ExtNumpyWrapper(ExtMemArrayWrapper):
     def cleanup(self):
         """ Clean up the array.
         """
-        self._arr.flush()
+        if self._arr is not None:
+            self._arr.flush()
         self._arr = None
 
     def to_numpy(self):
@@ -636,7 +679,8 @@ class ExtFeatureWrapper(ExtNumpyWrapper):
         # Expected file structure:
         # merged_file file_feature1 file_feature2
         # rmtree will clean up all single feature files as ExtNumpyWrapper does not clean them up
-        self._arr.flush()
+        if self._arr is not None:
+            self._arr.flush()
         self._arr = None
         shutil.rmtree(self._directory_path)
 
@@ -673,10 +717,7 @@ class ExtFeatureWrapper(ExtNumpyWrapper):
         if isinstance(feature, np.ndarray):
             hash_hex = generate_hash()
             path = self._directory_path + '/{}.npy'.format(hash_hex)
-            ext_val = np.memmap(path, feature.dtype, mode="w+", shape=feature.shape)
-            ext_val[:] = feature[:]
-            ext_val.flush()
-            feature = ExtNumpyWrapper(path, feature.shape, feature.dtype)
+            feature = convert_to_ext_mem_numpy(path, feature)
         self._wrapper.append(feature)
 
     def merge(self):
@@ -788,13 +829,14 @@ class ExtMemArrayMerger:
         if len(arrs) > 1:
             return _merge_arrs(arrs, tensor_path)
         else:
-            # To get the output dtype or arrs
-            dtype = _get_arrs_out_dtype(arrs)
-            arr = arrs[0]
-            em_arr = np.memmap(tensor_path, dtype, mode="w+", shape=shape)
-            em_arr[:] = arr[:]
-            em_arr.flush()
-            return ExtNumpyWrapper(tensor_path, em_arr.shape, em_arr.dtype)
+            return convert_to_ext_mem_numpy(tensor_path, arrs[0])
+
+def convert_to_ext_mem_numpy(tensor_path, arr):
+    os.makedirs(os.path.dirname(tensor_path), exist_ok=True)
+    em_arr = np.memmap(tensor_path, arr.dtype, mode="w+", shape=arr.shape)
+    em_arr[:] = arr[:]
+    em_arr.flush()
+    return ExtNumpyWrapper(tensor_path, em_arr.shape, em_arr.dtype)
 
 def save_maps(output_dir, fname, map_data):
     """ Save node id mapping or edge id mapping

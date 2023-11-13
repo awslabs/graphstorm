@@ -199,7 +199,8 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
 
 def _process_data(user_pre_parser, user_parser,
                   two_phase_feat_ops,
-                  in_files, num_proc, task_info):
+                  in_files, num_proc, task_info,
+                  ext_mem_folder):
     """ Process node and edge data.
 
     Parameter
@@ -219,7 +220,7 @@ def _process_data(user_pre_parser, user_parser,
     """
     if len(two_phase_feat_ops) > 0:
         pre_parse_start = time.time()
-        phase_one_ret = multiprocessing_data_read(in_files, num_proc, user_pre_parser)
+        phase_one_ret = multiprocessing_data_read(in_files, num_proc, user_pre_parser, ext_mem_folder)
         update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
 
         dur = time.time() - pre_parse_start
@@ -227,7 +228,7 @@ def _process_data(user_pre_parser, user_parser,
                       task_info, dur)
 
     start = time.time()
-    return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
+    return_dict = multiprocessing_data_read(in_files, num_proc, user_parser, ext_mem_folder)
     dur = time.time() - start
     logging.debug("Processing data files for %s takes %.3f seconds.",
                     task_info, dur)
@@ -320,7 +321,8 @@ def process_node_data(process_confs, arr_merger, remap_id, ext_mem=None, num_pro
                                     two_phase_feat_ops,
                                     in_files,
                                     num_proc,
-                                    f"node {node_type}")
+                                    f"node {node_type}",
+                                    ext_mem)
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
         for i, (node_ids, data) in return_dict.items():
@@ -500,7 +502,8 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                                     two_phase_feat_ops,
                                     in_files,
                                     num_proc,
-                                    f"edge {edge_type}")
+                                    f"edge {edge_type}",
+                                    ext_mem)
         type_src_ids = [None] * len(return_dict)
         type_dst_ids = [None] * len(return_dict)
         type_edge_data = {}
