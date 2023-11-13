@@ -61,8 +61,8 @@ class GSgnnLinkPredictionModelInterface:
 
             Normalize_node_embs should be called in forward().
 
-            Normalize_node_embs is Called by do_full_graph_inference()
-            and do_mini_batch_inference() in evaluation time or inference
+            Normalize_node_embs is called by do_full_graph_inference()
+            and do_mini_batch_inference() in evaluation time and inference
             time.
 
         Parameters
