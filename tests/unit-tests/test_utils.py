@@ -487,6 +487,7 @@ def test_shuffle_emb_with_shuffle_nids(map_pattern):
             save_maps(tmpdirname, "node_mapping", ori_nid_mappings)
             nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
         else:
+            os.mkdir(os.path.join(tmpdirname, "part"))
             nid_mapping_file = os.path.join(os.path.join(tmpdirname, "part"),
                                             "orig_nids.dgl")
             dgl.data.utils.save_tensors(nid_mapping_file, ori_nid_mappings)
@@ -1072,7 +1073,8 @@ if __name__ == '__main__':
     test_exchange_node_id_mapping(101, backend='nccl')
     test_save_embeddings_with_id_mapping(num_embs=16, backend='gloo')
     test_save_embeddings_with_id_mapping(num_embs=17, backend='nccl')
-    test_shuffle_emb_with_shuffle_nids()
+    test_shuffle_emb_with_shuffle_nids("distdgl")
+    test_shuffle_emb_with_shuffle_nids("gconstruct")
 
     test_get_feat_size()
     test_save_embeddings()
