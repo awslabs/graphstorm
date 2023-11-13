@@ -1689,6 +1689,48 @@ def append_to_dict(from_dict, to_dict):
         else:
             to_dict[k] = [v.cpu()]
 
+def do_l2_norm(emb, is_train):
+    """ Normalize the embedding `emb` using L2 norm.
+
+        If it is in training, we expect the size of emb is small
+        and we call torch.nn.functional.normalize directly.
+        If it is inference, we do it in a mini-batch way.
+
+        Parameters
+        ----------
+        emb: torch.Tensor or dgl DistTensor or LazyDistTensor
+            Input embedding.
+        is_train: bool
+            Whether it is training or not.
+
+        Return
+        ------
+        torch.Tensor:
+            The normalized embedding.
+    """
+    if is_train is True:
+        # When it is training, we expect the size of emb is small
+        return F.normalize(emb)
+
+    rank = get_rank()
+    world_size = get_world_size()
+    if isinstance(emb, (dgl.distributed.DistTensor, LazyDistTensor)):
+        # If emb is a distributed tensor, multiple processes are doing
+        # embdding normalization concurrently. We need to split
+        # the task. (From full_graph_inference)
+        start, end = get_data_range(rank, world_size, len(emb))
+    else:
+        # If emb is just a torch Tensor. do normalization directly.
+        # (From mini_batch_inference)
+        start, end = 0, len(emb)
+    idx = start
+    while idx + 1024 < end:
+        emb[idx:idx+1024] = F.normalize(emb[idx:idx+1024])
+        idx += 1024
+    emb[idx:end] = F.normalize(emb[idx:end])
+
+    return emb
+
 def normalize_node_embs(embs, norm_method, is_train=False):
     """ Do node embedding normalization
 
@@ -1706,25 +1748,7 @@ def normalize_node_embs(embs, norm_method, is_train=False):
             return emb
         norm_func = norm
     elif norm_method == GRAPHSTORM_LP_EMB_L2_NORMALIZATION:
-        def l2_norm(emb):
-            if is_train is True:
-                # When it is training, we expect the size of emb is small
-                return F.normalize(emb)
-
-            rank = get_rank()
-            world_size = get_world_size()
-            if isinstance(emb, (dgl.distributed.DistTensor, LazyDistTensor)):
-                start, end = get_data_range(rank, world_size, len(emb))
-            else:
-                start, end = 0, len(emb)
-            idx = start
-            while idx + 1024 < end:
-                emb[idx:idx+1024] = F.normalize(emb[idx:idx+1024])
-                idx += 1024
-            emb[idx:end] = F.normalize(emb[idx:end])
-
-            return emb
-        norm_func = l2_norm
+        norm_func = do_l2_norm
     else:
         raise RuntimeError(f"Unsupported embedding normalization method {norm_method}")
 
