@@ -59,6 +59,12 @@ class GSgnnLinkPredictionModelInterface:
     def normalize_node_embs(self, embs):
         """ Normalize node embeddings when needed.
 
+            Normalize_node_embs should be called in forward().
+
+            Normalize_node_embs is Called by do_full_graph_inference()
+            and do_mini_batch_inference() in evaluation time or inference
+            time.
+
         Parameters
         ----------
         embs: dict of Tensors
