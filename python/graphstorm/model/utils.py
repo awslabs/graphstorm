@@ -403,7 +403,7 @@ def distribute_nid_map(embeddings, rank, world_size,
             if node_id_mapping_file.endswith("dgl"):
                 # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
                 ori_node_id_mapping = dgl.data.utils.load_tensors(node_id_mapping_file)
-            else:
+            else: # endswith "pt"
                 ori_node_id_mapping = th.load(node_id_mapping_file)
             _, node_id_mapping = th.sort(ori_node_id_mapping)
         else:
@@ -418,7 +418,7 @@ def distribute_nid_map(embeddings, rank, world_size,
             if node_id_mapping_file.endswith("dgl"):
                 # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
                 node_id_mappings = dgl.data.utils.load_tensors(node_id_mapping_file)
-            else:
+            else: # endswith "pt"
                 node_id_mappings = th.load(node_id_mapping_file)
         else:
             node_id_mappings = None
@@ -988,7 +988,7 @@ class NodeIDShuffler():
             # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
             id_mappings = dgl.data.utils.load_tensors(node_id_mapping_file) \
                 if get_rank() == 0 else None
-        else:
+        else: # endswith pt
             # node id mapping file from gconstruct.
             id_mappings = th.load(node_id_mapping_file) if get_rank() == 0 else None
 
