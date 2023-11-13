@@ -42,7 +42,6 @@ def _to_ext_memory(name, data, path):
     if isinstance(data, np.ndarray):
         assert name is not None
         path = os.path.join(path, f"{name}.npy")
-        print(f"save data in {path}")
         ext_mem_arr = convert_to_ext_mem_numpy(path, data)
         # We need to pass the array to another process. We don't want it
         # to reference to data in the file.
@@ -254,7 +253,7 @@ def update_two_phase_feat_ops(phase_one_info, ops):
         if op.feat_name in feat_info:
             op.update_info(feat_info[op.feat_name])
 
-def multiprocessing_data_read(in_files, num_processes, user_parser, ext_mem_workspace):
+def multiprocessing_data_read(in_files, num_processes, user_parser, ext_mem_workspace=None):
     """ Read data from multiple files with multiprocessing.
 
     It creates a set of worker processes, each of which runs a worker function.
