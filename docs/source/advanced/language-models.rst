@@ -7,7 +7,7 @@ Many real world graphs have text contents as nodes' features, e.g., the title an
 There are a set of modes to use LMs in GraphStorm.
 
 #. Use Pre-trained LMs only without fine-tuning
-    In this mode, users can embed text contents with pre-trained LMs, and then use them as the input node features to train GNN models, but do not fine-tune the LMs. Model training speed in this mode is fast, and memory consumption will be lower. However, in some cases, pre-trained LMs may not fit to the graph data well, hence not improving performance.
+    In this mode, users can embed text contents with pre-trained LMs, and then use them as the input node features to train GNN models, but do not fine-tune the LMs. Model training speed in this mode is fast, and memory consumption will be lower. However, in some cases, pre-trained LMs may not fit to the text data on graph well, hence not improving performance.
 
 #. Fine-tune LMs on graph data
     To achieve better performance, it is better to fine-tune LMs with graph data. To achieve this goal, GraphStorm provides four training strategies.
@@ -28,7 +28,7 @@ There are a set of modes to use LMs in GraphStorm.
 
     In this mode, LMs and GML models are co-train in the same training epoch simultaneousely, which will better fit the LMs and GNN models to graph data. However, co-train LMs and GNN models will consume much more memory, particularly GPU memory, and take much longer time to complete training loops.
 
-This tutorial will help users to learn how to use GraphStorm for all of the above modes. Given that using language models on text could take longer time than general GNN only training, this tutorial uses a relatively small demo graph for a quick-start. Users can refer the `GraphStorm MAG example <https://github.com/awslabs/graphstorm/tree/main/examples/mag>`_ for an large texture graph example.
+This tutorial will help users to learn how to use GraphStorm for all of the above modes. Given that using language models on text could take longer time than general GNN only training, this tutorial uses a relatively small demo graph for a quick-start. Users can refer the `GraphStorm MAG example <https://github.com/awslabs/graphstorm/tree/main/examples/mag>`_ for an large textual graph example.
 
 .. warning::
 
@@ -367,7 +367,7 @@ To pre-train LMs and GNN models, users can follow the :ref:`22two_step_mannually
 GraphStorm configurations
 ##########################
 
-To use GLEM, users need to set a new configuration se, called ``training_method``, which specifies how to utilize specific model training method. Users can refer to the ``acm_glem_nc_pretrain.yaml`` that includes the following ``training_method`` related configurations.
+To use GLEM, users need to set a new configuration, called ``training_method``, which specifies how to utilize specific model training method. Users can refer to the ``acm_glem_nc_pretrain.yaml`` that includes the following ``training_method`` related configurations.
 
 .. code-block:: yaml
 
@@ -380,7 +380,7 @@ To use GLEM, users need to set a new configuration se, called ``training_method`
         num_pretrain_epochs: 100
     use_pseudolabel: true
 
-Within the ``traing_method`` section, there are two important configurations. First, the ``pl_weight`` defines the weights of pseudolabel, which determines the importance of pseudolabel. Users can lower the value to reduce the influence of using pseudolabel. The second important configuration is the ``num_pretrain_epochs``. The GLEM method provides its own pre-training implementation, which train LMs and GNN models iteratively in one epoch, i.e., first fix GNN model and train LMs in one forward and backward loop, and then fix LM but use it to embed text as input for GNN models to be trained in one loop. In the pre-training epochs, GLEM will not use the pseudolabel, but the true labels only, even if users set the ``use_pseudolabel`` configuration to be true.
+Within the ``traing_method`` section, there are two important configurations. First, the ``pl_weight`` defines the weights of pseudolabel, which determines the importance of pseudolabel in mutual distillation. Users can lower the value to reduce the influence of using pseudolabel. The second important configuration is the ``num_pretrain_epochs``. The GLEM method provides its own pre-training implementation, which train LMs and GNN models iteratively in one epoch, i.e., first fix GNN model and train LMs in one forward and backward loop, and then fix LM but use it to embed text as input for GNN models to be trained in one loop. In the pre-training epochs, GLEM will not use the pseudolabel, but the true labels only, even if users set the ``use_pseudolabel`` configuration to be true.
 
 The launch command
 ######################
