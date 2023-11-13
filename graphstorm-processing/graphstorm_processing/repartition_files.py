@@ -34,8 +34,10 @@ import shutil
 import sys
 import tempfile
 import time
-from pathlib import Path
+import uuid
 from collections import Counter, defaultdict
+from itertools import accumulate
+from pathlib import Path
 from typing import Collection, Dict, List, Optional
 
 import boto3
@@ -63,6 +65,10 @@ class ParquetRepartitioner:
         Region to be used for S3 interactions, by default None.
     verify_outputs : bool, optional
         Whether to verify the correctness of the outputs created by the script, by default True.
+    streaming_repartitioning: bool, optional
+        When True will perform file streaming re-partitioning, holding at most 2 files
+        worth of data in memory. When False (default), will load an entire feature/structure
+        in memory and perform the re-partitioning using thread-parallelism.
     """
 
     def __init__(
@@ -71,6 +77,7 @@ class ParquetRepartitioner:
         filesystem_type: str,
         region: Optional[str] = None,
         verify_outputs: bool = True,
+        streaming_repartitioning=False,
     ):
         assert filesystem_type in [
             "local",
@@ -86,6 +93,7 @@ class ParquetRepartitioner:
         else:
             self.pyarrow_fs = fs.LocalFileSystem()
         self.verify_outputs = verify_outputs
+        self.streaming_repartitioning = streaming_repartitioning
 
     def read_dataset_from_relative_path(self, relative_path: str) -> ds.Dataset:
         """
@@ -125,8 +133,7 @@ class ParquetRepartitioner:
         # this is called to ensure consistency?
         file_path = os.path.join(self.input_prefix, relative_path)
         if self.filesystem_type == "local":
-            if not os.path.exists(Path(file_path).parent):
-                os.makedirs(Path(file_path).parent)
+            os.makedirs(Path(file_path).parent, exist_ok=True)
         pq.write_table(table, file_path, filesystem=self.pyarrow_fs, compression="snappy")
         if self.verify_outputs:
             expected_rows = desired_count if desired_count else table.num_rows
@@ -135,17 +142,46 @@ class ParquetRepartitioner:
 
     @staticmethod
     def create_new_relative_path_from_existing(
-        original_relative_path: str, repartitioned_file_index: int
+        original_relative_path: str, repartitioned_file_index: int, suffix: str = None
     ) -> str:
-        """
+        """Changes the index of the filename ``part-<index>`` in `original_relative_path`
+        to the one given in `repartitioned_file_index`.
+
         Given a path of the form 'path/to/parquet/part-00001-filename.snappy.parquet', changes the
         numerical part of the filename to match the provided `repartitioned_file_index`,
-        and changes the path prefix to 'path/to/parquet-repartitioned/'.
+        and changes the path prefix to 'path/to/parquet-repartitioned/', or
+        'path/to/parquet-repartitioned-{suffix}/' if `suffix` is provided.
 
-        Example:
-            > create_new_relative_path_from_existing(
+
+        Parameters
+        ----------
+        original_relative_path : str
+            Filepath of the form 'path/to/parquet/part-00001-filename.snappy.parquet'.
+        repartitioned_file_index : int
+            The new index to assign to the file
+        suffix : str, optional
+            Suffix to add to the returned path, by default None
+
+        Returns
+        -------
+        str
+            The `original_relative_path` with the part index modified, and `parquet/`
+            modified to `parquet-repartitioned` or `parquet-repartitioned-{suffix}/`}
+
+        Raises
+        ------
+        RuntimeError
+            If the filename does not conform to the ``r"^part-[0-9]{5}"`` regex,
+            which is the expected Spark filename output.
+
+        Examples
+        --------
+            >>> create_new_relative_path_from_existing(
                 "path/to/parquet/part-00001-filename.snappy.parquet", 3)
-            > "path/to/parquet-repartitioned/part-00003-filename.snappy.parquet"
+            "path/to/parquet-repartitioned-{uuid}/part-00003-filename.snappy.parquet"
+            >>> create_new_relative_path_from_existing(
+                "path/to/parquet/part-00001-filename.snappy.parquet", 3, "my-suffix")
+            "path/to/parquet-repartitioned-my-suffix/part-00003-filename.snappy.parquet"
         """
         original_relative_path_obj = Path(original_relative_path)
         # We expect files to have a path of the form /path/to/parquet/part-00001.snappy.parquet
@@ -164,18 +200,21 @@ class ParquetRepartitioner:
             r"^part-[0-9]{5}", padded_file_idx, original_relative_path_obj.parts[-1]
         )
 
+        new_sub_path = (
+            "parquet-repartitioned" if suffix is None else f"parquet-repartitioned-{suffix}"
+        )
         new_relative_path = "/".join(
-            [*original_relative_path_obj.parts[:-2], "parquet-repartitioned", new_file_name]
+            [*original_relative_path_obj.parts[:-2], new_sub_path, new_file_name]
         )
 
         return new_relative_path
 
-    def repartition_parquet_files_in_memory(
+    def repartition_parquet_files(
         self, data_entry_dict: Dict, desired_counts: Collection[int]
     ) -> Dict:
         """
-        Re-partitions the parquet files in `data_entry_dict` so that their row count
-        matches the one provided in desired_counts. We assume that the file counts between the
+        Re-partitions the Parquet files in `data_entry_dict` so that their row count
+        matches the one provided in `desired_counts`. We assume that the number of files between the
         input and output will remain the same.
 
         The output is written to storage and the `data_entry_dict` dictionary file is
@@ -208,17 +247,28 @@ class ParquetRepartitioner:
         Dict
             A data format dictionary with the row
             counts updated to match desired_counts.
+        """
+        if self.streaming_repartitioning:
+            return self._repartition_parquet_files_streaming(data_entry_dict, desired_counts)
+        else:
+            return self._repartition_parquet_files_in_memory(data_entry_dict, desired_counts)
+
+    def _repartition_parquet_files_in_memory(
+        self, data_entry_dict: Dict, desired_counts: Collection[int]
+    ) -> Dict:
+        """
+        In-memory, thread-parallel implementation of Parquet file repartitioning.
+
+        Notes
+        -----
+        This function assumes the entire dataset described in `data_entry_dict`
+        can be held in memory.
 
         Raises
         ------
         RuntimeError
             In cases where the sum of the desired counts does not match
             the sum of actual file row counts, or the files are not in Parquet format.
-
-        Notes
-        -----
-        This function assumes the entire dataset described in `data_entry_dict`
-        can be held in memory.
         """
         if sum(desired_counts) != sum(data_entry_dict["row_counts"]):
             raise RuntimeError(
@@ -260,30 +310,36 @@ class ParquetRepartitioner:
         logging.debug("Desired counts: %s", desired_counts)
         logging.debug("Row counts: %s", data_entry_dict["row_counts"])
 
-        offset = 0
-        new_data_entries = []
         # From the dataset we read into memory, we slice a part according to desired_counts and
         # write a new file to S3.
-        for idx, desired_count in enumerate(desired_counts):
-            sliced_data = table.slice(offset=offset, length=desired_count)
-            new_relative_path = self.create_new_relative_path_from_existing(datafile_list[0], idx)
-            self.write_parquet_to_relative_path(new_relative_path, sliced_data, desired_count)
-            new_data_entries.append(new_relative_path)
-            offset += desired_count
+        offsets = accumulate([0] + desired_counts)
+        zero_copy_slices = [
+            table.slice(offset=offset, length=desired_count)
+            for offset, desired_count in zip(offsets, desired_counts)
+        ]
+        uid_for_entry = uuid.uuid4().hex[:8]
+        relative_paths = [
+            self.create_new_relative_path_from_existing(datafile_list[0], idx, uid_for_entry)
+            for idx in range(len(desired_counts))
+        ]
+        with Parallel(n_jobs=min(16, os.cpu_count()), verbose=10, prefer="threads") as parallel:
+            parallel(
+                delayed(self.write_parquet_to_relative_path)(
+                    relative_path,
+                    slice,
+                )
+                for slice, relative_path in zip(zero_copy_slices, relative_paths)
+            )
 
-        data_entry_dict["data"] = new_data_entries
+        data_entry_dict["data"] = relative_paths
         data_entry_dict["row_counts"] = desired_counts
 
         return data_entry_dict
 
-    def repartition_parquet_files_streaming(
+    def _repartition_parquet_files_streaming(
         self, data_entry_dict: Dict, desired_counts: Collection[int]
     ) -> Dict:
         """Repartition parquet files using file streaming.
-
-        Re-partitions the parquet files in data_entry_dict so that their row count
-        matches the one provided in desired_counts. We assume that the file counts between the
-        input and output will remain the same.
 
         This function will maintain at most 2 files worth of data in memory.
 
@@ -296,33 +352,6 @@ class ParquetRepartitioner:
 
         The output is written to storage and the `data_entry_dict` dictionary file is
         modified in-place and returned.
-
-        Parameters
-        ----------
-        data_entry_dict : Dict
-            A data format dictionary formatted as:
-            {
-                "format": {
-                    "name": "parquet"
-                },
-                "data": [
-                    "relative/path/to/file1.parquet",
-                    "relative/path/to/file2.parquet",
-                    ...
-                ] # n files
-                "row_counts": [
-                    10,
-                    12,
-                    ...
-                ] # n row counts
-            }
-        desired_counts : Collection[int]
-            A list of desired row counts.
-
-        Returns
-        -------
-            A data format dictionary with the row
-            count of each file updated to match desired_counts.
 
         Raises
         ------
@@ -345,7 +374,11 @@ class ParquetRepartitioner:
         remainder_table = None  # pyarrow.Table
         new_data_entries = []
 
+        # TODO: Instead of limiting to two tables in memory, we could monitor memory and load files
+        # until we run out of memory and process together to speed up the process.
+
         # TODO: Zip with original counts, if num rows match, no need to read the file into memory
+        uid_for_entry = uuid.uuid4().hex[:8]
         for repartitioned_file_index, desired_count in enumerate(desired_counts):
             logging.debug(
                 "At start of iter: repartitioned_file_index: %d, original_file_index: %d",
@@ -358,7 +391,7 @@ class ParquetRepartitioner:
             # and rename to
             # relative/path/to/file/parquet-repartitioned/part-00000.snappy.parquet
             new_relative_path = self.create_new_relative_path_from_existing(
-                original_relative_path, repartitioned_file_index
+                original_relative_path, repartitioned_file_index, uid_for_entry
             )
 
             remainder_used = False
@@ -699,6 +732,13 @@ def parse_args(args):
         "Can be a local path (starting with '/') or S3 prefix (starting with 's3://').",
     )
     parser.add_argument(
+        "--streaming-repartitioning",
+        type=lambda x: (str(x).lower() in ["true", "1"]),
+        default=False,
+        help="When True will use low-memory file-streaming repartitioning. "
+        "Note that this option is much slower than the in-memory default.",
+    )
+    parser.add_argument(
         "--metadata-file-name",
         default="metadata.json",
         type=str,
@@ -741,6 +781,9 @@ def main():
         Prefix path to where the output was generated
         from the distributed processing pipeline.
         Can be a local path or S3 prefix (starting with 's3://').
+    streaming_repartitioning: bool
+        When True will use low-memory file-streaming repartitioning.
+        Note that this option is much slower than the in-memory default.
     metadata_file_name : str
         Name of the original partitioning pipeline metadata file.
     updated_metadata_file_name : str
@@ -795,7 +838,7 @@ def main():
 
     edge_structure_meta = metadata_dict["edges"]  # type: Dict[str, Dict[str, Dict]]
 
-    task_type = metadata_dict["graph_info"]["task_type"]  # type: str
+    task_type = metadata_dict["graph_info"].get("task_type", "link_prediction")  # type: str
 
     edge_data_exist = "edge_data" in metadata_dict.keys() and metadata_dict["edge_data"]
     node_data_exist = "node_data" in metadata_dict.keys() and metadata_dict["node_data"]
@@ -848,7 +891,11 @@ def main():
             reverse_edge_type_name = f"{dst}:{relation}-rev:{src}"
             most_frequent_counts = list(edge_row_counts_frequencies[type_name].most_common(1)[0][0])
             repartitioner = ParquetRepartitioner(
-                input_prefix, filesystem_type, region, verify_outputs=True
+                input_prefix,
+                filesystem_type,
+                region,
+                verify_outputs=True,
+                streaming_repartitioning=args.streaming_repartitioning,
             )
 
             structure_counts = edge_structure_meta[type_name]["row_counts"]
@@ -862,7 +909,7 @@ def main():
                     type_name,
                 )
 
-                edge_structure_meta[type_name] = repartitioner.repartition_parquet_files_in_memory(
+                edge_structure_meta[type_name] = repartitioner.repartition_parquet_files(
                     edge_structure_meta[type_name], most_frequent_counts
                 )
             else:
@@ -886,7 +933,7 @@ def main():
                     )
                     edge_structure_meta[
                         reverse_edge_type_name
-                    ] = repartitioner.repartition_parquet_files_in_memory(
+                    ] = repartitioner.repartition_parquet_files(
                         edge_structure_meta[reverse_edge_type_name], most_frequent_counts
                     )
 
@@ -900,7 +947,7 @@ def main():
                         len(type_data_dict),
                         feature_name,
                     )
-                    feature_dict = repartitioner.repartition_parquet_files_in_memory(
+                    feature_dict = repartitioner.repartition_parquet_files(
                         feature_dict, most_frequent_counts
                     )
                     if (
@@ -962,7 +1009,11 @@ def main():
         for type_idx, (type_name, type_data_dict) in enumerate(node_data_meta.items()):
             most_frequent_counts = list(node_row_counts_frequencies[type_name].most_common(1)[0][0])
             repartitioner = ParquetRepartitioner(
-                input_prefix, filesystem_type, region, verify_outputs=True
+                input_prefix,
+                filesystem_type,
+                region,
+                verify_outputs=True,
+                streaming_repartitioning=args.streaming_repartitioning,
             )
 
             for feature_idx, (feature_name, feature_dict) in enumerate(type_data_dict.items()):
@@ -974,9 +1025,7 @@ def main():
                         feature_idx + 1,
                         len(type_data_dict),
                     )
-                    repartitioner.repartition_parquet_files_in_memory(
-                        feature_dict, most_frequent_counts
-                    )
+                    repartitioner.repartition_parquet_files(feature_dict, most_frequent_counts)
                 else:
                     logging.info(
                         "Skipping repartitioning feature files for node type '%s',"

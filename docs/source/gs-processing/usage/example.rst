@@ -188,6 +188,9 @@ guarantees the data conform to the expectations of DGL:
 
     gs-repartition --input-prefix /tmp/gsprocessing-example/
 
+For more details on the re-partitioning step see
+::doc:`row-count-alignment`.
+
 .. _gsp-examining-output:
 
 Examining the job output

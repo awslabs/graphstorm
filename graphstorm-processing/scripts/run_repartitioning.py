@@ -73,6 +73,21 @@ def parse_args() -> argparse.Namespace:
     """Parse repartitioning args"""
     parser = script_utils.get_common_parser()  # type: argparse.ArgumentParser
 
+    parser.add_argument(
+        "--streaming-repartitioning",
+        type=lambda x: (str(x).lower() in ["true", "1"]),
+        default=False,
+        help="When True will use low-memory file-streaming repartitioning. "
+        "Note that this option is much slower than the in-memory default.",
+        choices=["True", "False", "1", "0"],
+    )
+    parser.add_argument(
+        "--updated-metadata-file-name",
+        type=str,
+        help="The name for the updated metadata file.",
+        default="updated_row_counts_metadata.json",
+    )
+
     return parser.parse_args()
 
 
@@ -90,10 +105,14 @@ def main():
     container_args = [
         "--input-prefix",
         s3_input_prefix,
+        "--streaming-repartitioning",
+        "True" if args.streaming_repartitioning else "False",
         "--metadata-file-name",
         args.config_filename,
         "--log-level",
         args.container_log_level,
+        "--updated-metadata-file-name",
+        args.updated_metadata_file_name,
     ]
 
     if args.job_name is None:
