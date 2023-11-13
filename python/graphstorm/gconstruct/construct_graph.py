@@ -200,7 +200,7 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
 def _process_data(user_pre_parser, user_parser,
                   two_phase_feat_ops,
                   in_files, num_proc, task_info,
-                  ext_mem_folder):
+                  ext_mem_workspace):
     """ Process node and edge data.
 
     Parameter
@@ -217,10 +217,13 @@ def _process_data(user_pre_parser, user_parser,
         Number of processes to do processing.
     task_info: str
         Task meta info for debugging.
+    ext_mem_workspace : str
+        The path of the external-memory work space.
     """
     if len(two_phase_feat_ops) > 0:
         pre_parse_start = time.time()
-        phase_one_ret = multiprocessing_data_read(in_files, num_proc, user_pre_parser, ext_mem_folder)
+        phase_one_ret = multiprocessing_data_read(in_files, num_proc, user_pre_parser,
+                                                  ext_mem_workspace)
         update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
 
         dur = time.time() - pre_parse_start
@@ -228,14 +231,16 @@ def _process_data(user_pre_parser, user_parser,
                       task_info, dur)
 
     start = time.time()
-    return_dict = multiprocessing_data_read(in_files, num_proc, user_parser, ext_mem_folder)
+    return_dict = multiprocessing_data_read(in_files, num_proc, user_parser,
+                                            ext_mem_workspace)
     dur = time.time() - start
     logging.debug("Processing data files for %s takes %.3f seconds.",
                     task_info, dur)
     return return_dict
 
 
-def process_node_data(process_confs, arr_merger, remap_id, ext_mem=None, num_processes=1):
+def process_node_data(process_confs, arr_merger, remap_id,
+                      ext_mem_workspace=None, num_processes=1):
     """ Process node data
 
     We need to process all node data before we can process edge data.
@@ -273,8 +278,8 @@ def process_node_data(process_confs, arr_merger, remap_id, ext_mem=None, num_pro
         Whether or not to remap node IDs
     num_processes: int
         The number of processes to process the input files.
-    ext_mem: str or None
-        The address of external memory for multi-column feature
+    ext_mem_workspace: str or None
+        The path of external-memory work space for multi-column features
 
     Returns
     -------
@@ -314,7 +319,7 @@ def process_node_data(process_confs, arr_merger, remap_id, ext_mem=None, num_pro
                               label_ops=label_ops,
                               node_id_col=node_id_col,
                               read_file=read_file,
-                              ext_mem=ext_mem)
+                              ext_mem=ext_mem_workspace)
 
         return_dict = _process_data(user_pre_parser,
                                     user_parser,
@@ -322,7 +327,7 @@ def process_node_data(process_confs, arr_merger, remap_id, ext_mem=None, num_pro
                                     in_files,
                                     num_proc,
                                     f"node {node_type}",
-                                    ext_mem)
+                                    ext_mem_workspace)
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
         for i, (node_ids, data) in return_dict.items():
@@ -409,7 +414,7 @@ def process_node_data(process_confs, arr_merger, remap_id, ext_mem=None, num_pro
     return (node_id_map, node_data, label_stats)
 
 def process_edge_data(process_confs, node_id_map, arr_merger,
-                      ext_mem=None, num_processes=1,
+                      ext_mem_workspace=None, num_processes=1,
                       skip_nonexist_edges=False):
     """ Process edge data
 
@@ -448,8 +453,8 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         The number of processes to process the input files.
     skip_nonexist_edges : bool
         Whether or not to skip edges that don't exist.
-    ext_mem: str or None
-        The address of external memory for multi-column feature
+    ext_mem_workspace: str or None
+        The path of external-memory work space for multi-column features
 
     Returns
     -------
@@ -495,7 +500,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                               read_file=read_file,
                               conf=process_conf,
                               skip_nonexist_edges=skip_nonexist_edges,
-                              ext_mem=ext_mem)
+                              ext_mem=ext_mem_workspace)
 
         return_dict = _process_data(user_pre_parser,
                                     user_parser,
@@ -503,7 +508,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                                     in_files,
                                     num_proc,
                                     f"edge {edge_type}",
-                                    ext_mem)
+                                    ext_mem_workspace)
         type_src_ids = [None] * len(return_dict)
         type_dst_ids = [None] * len(return_dict)
         type_edge_data = {}
