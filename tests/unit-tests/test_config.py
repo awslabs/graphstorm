@@ -22,6 +22,9 @@ import math
 import unittest, pytest
 from argparse import Namespace
 
+import dgl
+import torch as th
+
 from graphstorm.config import GSConfig
 from graphstorm.config.config import BUILTIN_LP_LOSS_CROSS_ENTROPY
 from graphstorm.config.config import BUILTIN_LP_LOSS_LOGSIGMOID_RANKING
@@ -1536,10 +1539,64 @@ def test_check_node_lm_config():
                       "node_types": []}]
         must_fail(lm_config)
 
+def test_id_mapping_file():
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        yaml_object = create_dummpy_config_obj()
+        part_path = os.path.join(tmpdirname, "graph")
+        yaml_object["gsf"]["basic"] = {
+            "part_config": os.path.join(part_path, "graph.json"),
+        }
 
+        with open(os.path.join(tmpdirname, "check_lm_config_default.yaml"), "w") as f:
+            yaml.dump(yaml_object, f)
+            os.mkdir(part_path)
+            with open(os.path.join(part_path, "graph.json"), "w") as j_f:
+                json.dump({}, j_f)
 
+            part_path_p0 = os.path.join(part_path, "part0")
+            part_path_p1 = os.path.join(part_path, "part1")
+            os.mkdir(part_path_p0)
+            os.mkdir(part_path_p1)
+
+            args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname),
+                'check_lm_config_default.yaml'), local_rank=0)
+            config = GSConfig(args)
+            assert config.node_id_mapping_file is None
+            assert config.edge_id_mapping_file is None
+
+            # create dummpy node id mapping files
+            id_map = {
+                "n0": th.arange(10),
+                "n1": th.arange(20)
+            }
+            # GConstruct node id mapping files are stored under dist graph folder
+            nid_map_file = os.path.join(part_path, "node_mapping.pt")
+            eid_map_file = os.path.join(part_path, "edge_mapping.pt")
+            th.save(id_map, nid_map_file)
+            th.save(id_map, eid_map_file)
+
+            assert config.node_id_mapping_file == nid_map_file
+            assert config.edge_id_mapping_file == eid_map_file
+
+            os.remove(nid_map_file)
+            os.remove(eid_map_file)
+
+            assert config.node_id_mapping_file is None
+            assert config.edge_id_mapping_file is None
+
+            # Dist partition node id mapping files are stored under part0,
+            # part1 ... folders.
+            nid_map_file = os.path.join(part_path_p0, "orig_nids.dgl")
+            eid_map_file = os.path.join(part_path_p0, "orig_eids.dgl")
+            dgl.data.utils.save_tensors(nid_map_file, id_map)
+            dgl.data.utils.save_tensors(eid_map_file, id_map)
+
+            assert config.node_id_mapping_file == nid_map_file
+            assert config.edge_id_mapping_file == eid_map_file
 
 if __name__ == '__main__':
+    test_id_mapping_file()
     test_load_basic_info()
     test_gnn_info()
     test_load_io_info()
