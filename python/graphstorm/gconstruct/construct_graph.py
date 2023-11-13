@@ -321,13 +321,15 @@ def process_node_data(process_confs, arr_merger, remap_id,
                               read_file=read_file,
                               ext_mem=ext_mem_workspace)
 
+        ext_mem_workspace_type = os.path.join(ext_mem_workspace, node_type) \
+                if ext_mem_workspace is not None else None
         return_dict = _process_data(user_pre_parser,
                                     user_parser,
                                     two_phase_feat_ops,
                                     in_files,
                                     num_proc,
                                     f"node {node_type}",
-                                    os.path.join(ext_mem_workspace, node_type))
+                                    ext_mem_workspace_type)
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
         for i, (node_ids, data) in return_dict.items():
@@ -502,13 +504,15 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                               skip_nonexist_edges=skip_nonexist_edges,
                               ext_mem=ext_mem_workspace)
 
+        ext_mem_workspace_type = os.path.join(ext_mem_workspace, edge_type) \
+                if ext_mem_workspace is not None else None
         return_dict = _process_data(user_pre_parser,
                                     user_parser,
                                     two_phase_feat_ops,
                                     in_files,
                                     num_proc,
                                     f"edge {edge_type}",
-                                    os.path.join(ext_mem_workspace, edge_type))
+                                    ext_mem_workspace_type)
         type_src_ids = [None] * len(return_dict)
         type_dst_ids = [None] * len(return_dict)
         type_edge_data = {}
