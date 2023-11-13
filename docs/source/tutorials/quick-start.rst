@@ -44,7 +44,7 @@ This command will automatically download the ogbn-arxiv graph data and split the
 
 The ``ogbn-arxiv.json`` file contains meta data about the built distributed DGL graph. Because the command specifies to create one partition with the argument ``--num-parts 1``, there is one sub-folder, named ``part0``.  Files in the sub-folder includes three types of data, i.e., the graph structure (``graph.dgl``), the node features (``node_feat.dgl``), and edge features (``edge_feat.dgl``). The ``node_mapping.pt`` and ``edge_mapping.pt`` contain the ID mapping between the raw node and edge IDs with the built graph's node and edge IDs.
 
-Running the following command can download the ogbn-arxiv graph data and split the graph into one partition for a link prediction task. And the output of the command is same as the above folder structure, except that the graph is split on edges. 
+Running the following command can download the ogbn-arxiv graph data and split the graph into one partition for a link prediction task. And the output of the command is same as the above folder structure, except that the graph is split on edges.
 
 .. code-block:: bash
 
@@ -82,7 +82,7 @@ Then run the below command to start a training job that trains an built-in RGCN 
 This command uses GraphStorm's training scripts and default settings defined in the `/graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml <https://github.com/awslabs/graphstorm/blob/main/training_scripts/gsgnn_np/arxiv_nc.yaml>`_ file. It will train an RGCN model by 10 epochs and save the model files after each epoch at the ``/tmp/ogbn-arxiv-nc/models`` folder whose contents are like the below structure.
 
 .. code-block:: bash
-    
+
     /tmp/ogbn-arxiv-nc/models
     |- epoch-0
         model.bin
@@ -159,7 +159,7 @@ Inference on link prediction is similar as shown in the command below.
             --save-embed-path /tmp/ogbn-arxiv-lp/predictions/ \
             --restore-model-path /tmp/ogbn-arxiv-lp/models/epoch-2/
 
-The inference outputs include a **"emb_info.json"** metadata file and the prediction result file, **"node_emb.part00000.bin"** in the ``/tmp/ogbn-arxiv-lp/predictions/`` folder.
+The inference outputs include a **"emb_info.json"** metadata file and the prediction result file, **"emb.part00000.pt"** in the ``/tmp/ogbn-arxiv-lp/predictions/`` folder.
 
 Generating Embedding
 --------------------
@@ -184,7 +184,8 @@ Users need to specify ``--restore-model-path`` and ``--save-embed-path`` when us
 
     /tmp/ogbn-arxiv-nc/saved_embed
         emb_info.json
-        node_emb.part00000.bin
+        node/
+            node_emb.part00000.pt
 
 
 For node classification/regression task, if ``target_ntype`` is provided, the command will generate and save node embeddings on ``target_ntype``, otherwise it will generate embeddings for all node types.
@@ -199,14 +200,22 @@ The saved result will be like:
 
     /tmp/saved_embed
         emb_info.json
-        {node_type1}_emb.part00000.bin
-        {node_type1}_emb.part00001.bin
-        ...
-        {node_type2}_emb.part00000.bin
-        {node_type2}_emb.part00001.bin
-        ...
+        node_type1/
+            nids.part00000.pt
+            nids.part00001.pt
+            ...
+            emb.part00000.pt
+            emb.part00001.pt
+            ...
+        node_type2/
+            nids.part00000.pt
+            nids.part00001.pt
+            ...
+            emb.part00000.pt
+            emb.part00001.pt
+            ...
 
-**That is it!** You have learnt how to use GraphStorm in three steps. 
+**That is it!** You have learnt how to use GraphStorm in three steps.
 
 Next users can check the :ref:`Use Your Own Graph Data<use-own-data>` tutorial to prepare your own graph data for using GraphStorm.
 

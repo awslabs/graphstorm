@@ -35,10 +35,9 @@ from graphstorm.gconstruct.file_io import write_index_json
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features, preprocess_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
 from graphstorm.gconstruct.transform import Noop, do_multiprocess_transform, LinkPredictionProcessor
+from graphstorm.gconstruct.id_map import IdMap, IdReverseMap, map_node_ids
 from graphstorm.gconstruct.transform import (BucketTransform, RankGaussTransform,
-                                             Text2BERT, NumericalMinMaxTransform,
-                                             CategoricalTransform)
-from graphstorm.gconstruct.id_map import IdMap, map_node_ids
+                                             Text2BERT, NumericalMinMaxTransform)
 from graphstorm.gconstruct.utils import (ExtMemArrayMerger,
                                          ExtMemArrayWrapper,
                                          partition_graph,
@@ -908,6 +907,23 @@ def test_id_map():
                                                          decimal.Decimal(15),
                                                          decimal.Decimal(20)]))
 
+def test_id_reverse_map():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        str_ids = np.array([str(i) for i in range(10)])
+        id_map = IdMap(str_ids)
+        id_map.save(os.path.join(tmpdirname, "id_map.parquet"))
+        id_reverse_map = IdReverseMap(os.path.join(tmpdirname, "id_map.parquet"))
+        assert len(id_reverse_map) == len(id_map)
+
+        test_ids = np.random.permutation(10)
+        test_reverse = id_reverse_map.map_id(test_ids)
+        new_ids = np.array([id_map._ids[str(key)] for key in test_reverse])
+        assert_equal(test_ids, new_ids)
+
+        test_reverse = id_reverse_map.map_range(1,9)
+        new_ids = np.array([id_map._ids[str(key)] for key in test_reverse])
+        assert_equal(np.arange(1, 9), new_ids)
+
 def check_map_node_ids_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that both source node IDs and destination node IDs exist.
     src_ids = np.array([str(random.randint(0, len(str_src_ids) - 1)) for _ in range(15)])
@@ -1699,6 +1715,7 @@ if __name__ == '__main__':
     test_merge_arrays()
     test_map_node_ids()
     test_id_map()
+    test_id_reverse_map()
     test_parquet()
     test_feat_ops()
     test_process_features()

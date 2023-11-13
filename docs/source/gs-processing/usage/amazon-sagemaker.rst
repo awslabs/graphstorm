@@ -45,7 +45,7 @@ job, followed by the re-partitioning job, both on SageMaker:
     INSTANCE_TYPE="ml.t3.xlarge"
     NUM_FILES="4"
 
-    IMAGE_URI="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/graphstorm-processing-sagemaker:0.2.1"
+    IMAGE_URI="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/graphstorm-processing-sagemaker:0.2.1-x86_64"
     ROLE="arn:aws:iam::${ACCOUNT}:role/service-role/${SAGEMAKER_ROLE_NAME}"
 
     OUTPUT_PREFIX="s3://${OUTPUT_BUCKET}/gsprocessing/sagemaker/${GRAPH_NAME}/${INSTANCE_COUNT}x-${INSTANCE_TYPE}-${NUM_FILES}files/"
@@ -75,6 +75,7 @@ job, followed by the re-partitioning job, both on SageMaker:
     The re-partitioning job runs on a single instance, so for large graphs you will
     want to scale up to an instance with more memory to avoid memory errors. `ml.r5` instances
     should allow you to re-partition graph data with billions of nodes and edges.
+    For more details on the re-partitioning step see ::doc:`row-count-alignment`.
 
 The ``--num-output-files`` parameter
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

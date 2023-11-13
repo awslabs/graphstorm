@@ -43,4 +43,3 @@ if __name__ == "__main__":
     FMT = "%(asctime)s %(levelname)s %(message)s"
     logging.basicConfig(format=FMT, level=logging.INFO)
     main()
-    
