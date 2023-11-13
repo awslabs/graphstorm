@@ -215,7 +215,7 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser, ext_mem_workspace):
             data = user_parser(in_file)
             size = _estimate_sizeof(data)
             if ext_mem_workspace is not None:
-                data = (EXT_MEMORY_STORAGE, _to_ext_mem(data, ext_mem_workspace))
+                data = (EXT_MEMORY_STORAGE, _to_ext_memory(None, data, ext_mem_workspace))
             # Max pickle obj size is 2 GByte
             elif size > SHARED_MEM_OBJECT_THRESHOLD:
                 # Use torch shared memory as a workaround
@@ -323,12 +323,6 @@ def multiprocessing_data_read(in_files, num_processes, user_parser, ext_mem_work
             return_dict[i] = user_parser(in_file)
             if ext_mem_workspace is not None:
                 return_dict[i] = _to_ext_memory(None, return_dict[i], ext_mem_workspace)
-            for arr in return_dict[i]:
-                if isinstance(arr, dict):
-                    for name, val in arr.items():
-                        print(i, name, type(val))
-                else:
-                    print(i, type(arr))
         return return_dict
 
 def worker_fn_no_return(worker_id, task_queue, func):
