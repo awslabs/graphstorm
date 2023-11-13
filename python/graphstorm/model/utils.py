@@ -1744,7 +1744,7 @@ def normalize_node_embs(embs, norm_method, is_train=False):
             Whether it is called during training.
     """
     if norm_method is None or norm_method == "":
-        def norm(emb):
+        def norm(emb, _):
             return emb
         norm_func = norm
     elif norm_method == GRAPHSTORM_LP_EMB_L2_NORMALIZATION:
@@ -1752,5 +1752,5 @@ def normalize_node_embs(embs, norm_method, is_train=False):
     else:
         raise RuntimeError(f"Unsupported embedding normalization method {norm_method}")
 
-    embs = {key: norm_func(emb) for key, emb in embs.items()}
+    embs = {key: norm_func(emb, is_train) for key, emb in embs.items()}
     return embs
