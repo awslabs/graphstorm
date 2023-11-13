@@ -830,6 +830,19 @@ class ExtMemArrayMerger:
             return convert_to_ext_mem_numpy(tensor_path, arrs[0])
 
 def convert_to_ext_mem_numpy(tensor_path, arr):
+    """ Convert a numpy array to memory mapped array.
+
+    Parameters
+    ----------
+    tensor_path : str
+        The path of the file to store the Numpy array.
+    arr : Numpy array
+        The Numpy array
+
+    Returns
+    -------
+    ExtNumpyWrapper : the wrapper of the memory mapped array.
+    """
     os.makedirs(os.path.dirname(tensor_path), exist_ok=True)
     em_arr = np.memmap(tensor_path, arr.dtype, mode="w+", shape=arr.shape)
     em_arr[:] = arr[:]
