@@ -16,10 +16,13 @@ Available options:
 -h, --help          Print this help and exit
 -x, --verbose       Print script debug info (set -x)
 -e, --environment   Image execution environment. Must be one of 'emr-serverless' or 'sagemaker'. Required.
+-a, --architecture  Image architecture. Must be one of 'x86_64' or 'arm64'. Default is 'x86_64'.
+                    Note that only x86_64 architecture is supported for SageMaker.
 -t, --target        Docker image target, must be one of 'prod' or 'test'. Default is 'test'.
 -p, --path          Path to graphstorm-processing directory, default is the current directory.
 -i, --image         Docker image name, default is 'graphstorm-processing'.
 -v, --version       Docker version tag, default is the library's current version (`poetry version --short`)
+-s, --suffix        Suffix for the image tag, can be used to push custom image tags. Default is "".
 -b, --build         Docker build directory, default is '/tmp/`
 EOF
   exit
@@ -43,6 +46,8 @@ parse_params() {
   VERSION=`poetry version --short`
   BUILD_DIR='/tmp'
   TARGET='test'
+  ARCH='x86_64'
+  SUFFIX=""
 
   while :; do
     case "${1-}" in
@@ -55,6 +60,10 @@ parse_params() {
       ;;
     -e | --environment)
       EXEC_ENV="${2-}"
+      shift
+      ;;
+    -a | --architecture)
+      ARCH="${2-}"
       shift
       ;;
     -p | --path)
@@ -71,6 +80,10 @@ parse_params() {
       ;;
     -v | --version)
       VERSION="${2-}"
+      shift
+      ;;
+    -s | --suffix)
+      SUFFIX="${2-}"
       shift
       ;;
     -?*) die "Unknown option: $1" ;;
@@ -103,19 +116,25 @@ else
     die "--target parameter needs to be one of 'prod' or 'test', got ${TARGET}"
 fi
 
-if [[ ${EXEC_ENV} == "sagemaker" || ${EXEC_ENV} == "emr-serverless" ]]; then
+if [[ ${ARCH} == "x86_64" || ${ARCH} == "arm64" ]]; then
     :  # Do nothing
 else
-    die "--environment parameter needs to be one of 'emr-serverless' or 'sagemaker', got ${EXEC_ENV}"
+    die "--architecture parameter needs to be one of 'arm64' or 'x86_64', got ${ARCH}"
+fi
+
+if [[ ${EXEC_ENV} == "sagemaker" && ${ARCH} == "arm64" ]]; then
+    die "arm64 architecture is not supported for SageMaker"
 fi
 
 # script logic here
 msg "Execution parameters:"
 msg "- ENVIRONMENT: ${EXEC_ENV}"
+msg "- ARCHITECTURE: ${ARCH}"
 msg "- TARGET: ${TARGET}"
 msg "- GSP_HOME: ${GSP_HOME}"
 msg "- IMAGE_NAME: ${IMAGE_NAME}"
 msg "- VERSION: ${VERSION}"
+msg "- SUFFIX: ${SUFFIX}"
 
 # Prepare Docker build directory
 rm -rf "${BUILD_DIR}/docker/code"
@@ -139,7 +158,7 @@ cp ${GSP_HOME}/docker-entry.sh "${BUILD_DIR}/docker/code/"
 poetry export -f requirements.txt --output "${BUILD_DIR}/docker/requirements.txt"
 
 # Set image name
-DOCKER_FULLNAME="${IMAGE_NAME}-${EXEC_ENV}:${VERSION}"
+DOCKER_FULLNAME="${IMAGE_NAME}-${EXEC_ENV}:${VERSION}-${ARCH}${SUFFIX}"
 
 # Login to ECR to be able to pull source SageMaker image
 if [[ ${EXEC_ENV} == "sagemaker" ]]; then
@@ -147,10 +166,8 @@ if [[ ${EXEC_ENV} == "sagemaker" ]]; then
         | docker login --username AWS --password-stdin 153931337802.dkr.ecr.us-west-2.amazonaws.com
 else
     aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
-    # aws ecr get-login-password --region us-west-2 \
-    #     | docker login --username AWS --password-stdin 895885662937.dkr.ecr.us-west-2.amazonaws.com
 fi
 
 echo "Build a Docker image ${DOCKER_FULLNAME}"
-DOCKER_BUILDKIT=1 docker build -f "${GSP_HOME}/docker/${VERSION}/${EXEC_ENV}/Dockerfile.cpu" \
-    "${BUILD_DIR}/docker/" -t $DOCKER_FULLNAME --target ${TARGET}
+DOCKER_BUILDKIT=1 docker build --platform "linux/${ARCH}" -f "${GSP_HOME}/docker/${VERSION}/${EXEC_ENV}/Dockerfile.cpu" \
+    "${BUILD_DIR}/docker/" -t $DOCKER_FULLNAME --target ${TARGET} --build-arg ARCH=${ARCH}

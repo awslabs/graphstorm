@@ -104,12 +104,72 @@ the following to build the SageMaker image:
     bash docker/build_gsprocessing_image.sh --environment sagemaker
 
 The above will use the SageMaker-specific Dockerfile of the latest available GSProcessing version,
-build an image and tag it as ``graphstorm-processing-sagemaker:${VERSION}`` where
+build an image and tag it as ``graphstorm-processing-sagemaker:${VERSION}-x86_64`` where
 ``${VERSION}`` will take be the latest available GSProcessing version (e.g. ``0.2.1``).
 
 The script also supports other arguments to customize the image name,
 tag and other aspects of the build. See ``bash docker/build_gsprocessing_image.sh --help``
 for more information.
+
+Support for arm64 architecture
+------------------------------
+
+For EMR Serverless images, it is possible to build images that support ``arm64`` instances,
+which can lead to improved runtime and cost compared to ``x86_64``. You can build an ``arm64``
+image natively by installing Docker and following the above process on an ARM instance such
+as ``M6G`` or ``M7G``. See the `AWS documentation <https://aws.amazon.com/ec2/graviton/>`_
+for instances powered by the Graviton processor.
+
+To build ``arm64`` images
+on an ``x86_64`` host you need to enable multi-platform builds for Docker. The easiest way
+to do so is to use QEMU emulation. To install the QEMU related libraries you can run
+
+On Ubuntu
+
+.. code-block:: bash
+
+    sudo apt install -y qemu binfmt-support qemu-user-static
+
+On Amazon Linux/CentOS:
+
+.. code-block:: bash
+
+    sudo yum instal -y qemu-system-arm qemu qemu-user qemu-kvm qemu-kvm-tools \
+        libvirt virt-install libvirt-python libguestfs-tools-c
+
+Finally you'd need to ensure ``binfmt_misc`` is configured for different platforms by running
+
+.. code-block:: bash
+
+    docker run --privileged --rm tonistiigi/binfmt --install all
+
+To verify your Docker installation is ready for multi-platform builds you can run:
+
+.. code-block:: bash
+
+    docker buildx ls
+
+    NAME/NODE   DRIVER/ENDPOINT STATUS  BUILDKIT     PLATFORMS
+    default *   docker
+    default     default         running v0.8+unknown linux/amd64, linux/arm64
+
+To build an EMR Serverless GSProcessing image for the ``arm64`` architecture you can run:
+
+.. code-block:: bash
+
+    bash docker/build_gsprocessing_image.sh --environment sagemaker --architecture arm64
+
+.. note::
+
+    Building images for the first time under emulation using QEMU
+    can be significantly slower than native builds
+    (more than 20 minutes to build the GSProcessing ``arm64`` image).
+    After the first build, follow up builds that only change the GSProcessing code
+    will be less than a minute thanks to Docker's caching.
+    To speed up the build process you can build on an ARM instances,
+    look into using ``buildx`` with multiple native nodes, or use cross-compilation.
+    See `the official Docker documentation <https://docs.docker.com/build/building/multi-platform/>`_
+    for details.
 
 Push the image to the Amazon Elastic Container Registry (ECR)
 -------------------------------------------------------------
@@ -135,6 +195,13 @@ Example:
 .. code-block:: bash
 
     bash docker/push_gsprocessing_image.sh -e sagemaker -i "graphstorm-processing" -v "0.2.1" -r "us-west-2" -a "1234567890"
+
+To push an EMR Serverless ``arm64`` image you'd similarly run:
+
+.. code-block:: bash
+
+    bash docker/push_gsprocessing_image.sh -e emr-serverless --architecture arm64 \
+        -i "graphstorm-processing" -v "0.2.1" -r "us-west-2" -a "1234567890"
 
 .. _gsp-upload-data-ref:
 
