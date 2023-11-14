@@ -99,7 +99,9 @@ def launch_train_task(task_type, num_gpus, graph_config,
         "--part-config", f"{graph_config}",
         "--ip-config", f"{ip_list}",
         "--extra-envs", f"LD_LIBRARY_PATH={os.environ['LD_LIBRARY_PATH']} ",
-        "--ssh-port", "22"]
+        "--ssh-port", "22",
+        "--do-nid-remap", "False" # No need to do nid map in SageMaker trianing.
+        ]
     launch_cmd += [custom_script] if custom_script is not None else []
     launch_cmd += ["--cf", f"{yaml_path}",
         "--save-model-path", f"{save_model_path}"]
