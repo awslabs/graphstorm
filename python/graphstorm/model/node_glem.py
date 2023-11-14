@@ -457,6 +457,21 @@ class GLEM(GSgnnNodeModelBase):
             preds = decoder.predict(emb)
         return preds, emb
 
+    # pylint: disable=unused-argument
+    def inplace_normalize_node_embs(self, embs):
+        """ Do inplace node embedding normalization.
+
+            This function is called by do_full_graph_inference().
+
+            Parameters
+            ----------
+            embs: dict of Tensor
+                Node embeddings.
+        """
+        # GLEM node model does not need normalization
+        # do nothing.
+        return
+
     def _get_seed_nodes(self, input_nodes, node_feats, blocks):
         """ Get seed nodes and features from input nodes and labels of the seed nodes.
         Parameters
