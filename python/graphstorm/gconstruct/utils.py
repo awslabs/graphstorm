@@ -66,7 +66,7 @@ def _to_ext_memory(name, data, path):
                 os.path.join(path, name) if name is not None else path))
         return tuple(new_data)
     else:
-        raise ValueError(f"unknown type: {type(data)}")
+        return data
 
 def _to_shared_memory(data):
     """ Move all tensor objects into torch shared memory
