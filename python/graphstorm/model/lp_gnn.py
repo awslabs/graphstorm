@@ -91,8 +91,7 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
         self.embed_norm_method = embed_norm_method
 
     def normalize_node_embs(self, embs):
-        return normalize_node_embs(embs, self.embed_norm_method,
-                                   is_train=self.training)
+        return normalize_node_embs(embs, self.embed_norm_method)
 
     # pylint: disable=unused-argument
     def forward(self, blocks, pos_graph,
@@ -111,7 +110,7 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
             encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
 
         # Call emb normalization.
-        encode_embs = self.normalize_node_embs(encode_embs)
+        self.normalize_node_embs(encode_embs)
 
         # TODO add w_relation in calculating the score. The current is only valid for
         # homogenous graph.

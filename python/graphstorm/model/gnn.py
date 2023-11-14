@@ -28,11 +28,13 @@ from .utils import save_model as save_gsgnn_model
 from .utils import save_opt_state, load_opt_state
 from .utils import save_sparse_embeds, load_sparse_embeds
 from .utils import create_sparse_embeds_path
+from .utils import LazyDistTensor
+from .utils import get_data_range
 from .embed import compute_node_input_embeddings
 from .embed import GSNodeInputLayer
 from .gs_layer import GSLayerBase
 from .gnn_encoder_base import dist_minibatch_inference
-from ..utils import get_rank, barrier
+from ..utils import get_rank, get_world_size, barrier
 from ..dataloading.dataset import prepare_batch_input
 
 from ..config import (GRAPHSTORM_MODEL_ALL_LAYERS,
@@ -819,6 +821,34 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         save_sparse_embeds(model_path,
                            self.node_input_encoder)
 
+    def inplace_normalize_node_embs(self, embs):
+        """ Do node embedding normalization
+
+        Parameters
+        ----------
+        embs: dict of Tensor
+            node embeddings.
+        """
+        rank = get_rank()
+        world_size = get_world_size()
+        for key, emb in embs.items():
+            if isinstance(emb, (dgl.distributed.DistTensor, LazyDistTensor)):
+                # If emb is a distributed tensor, multiple processes are doing
+                # embdding normalization concurrently. We need to split
+                # the task. (From full_graph_inference)
+                start, end = get_data_range(rank, world_size, len(emb))
+            else:
+                # If emb is just a torch Tensor. do normalization directly.
+                # (From mini_batch_inference)
+                start, end = 0, len(emb)
+            idx = start
+            while idx + 1024 < end:
+                emb[idx:idx+1024] = \
+                    self.normalize_node_embs({key:emb[idx:idx+1024]})
+                idx += 1024
+            emb[idx:end] = \
+                self.normalize_node_embs({key:emb[idx:end]})
+
     @property
     def node_input_encoder(self):
         """the input layer's node encoder used in this GNN class
@@ -937,7 +967,9 @@ def do_mini_batch_inference(model, data, batch_size=1024,
                                                 target_ntypes=infer_ntypes,
                                                 task_tracker=task_tracker)
     # Called when model.eval()
-    embeddings = model.normalize_node_embs(embeddings)
+    # TODO: do_mini_batch_inference is not TRUE mini-batch inference
+    #       Need to change the implementation.
+    model.inplace_normalize_node_embs(embeddings)
     model.train()
     if get_rank() == 0:
         logging.debug("computing GNN embeddings: %.4f seconds", time.time() - t1)
@@ -1023,7 +1055,7 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
                                                     batch_size, fanout, edge_mask=edge_mask,
                                                     task_tracker=task_tracker)
     # Called when model.eval()
-    embeddings = model.normalize_node_embs(embeddings)
+    model.inplace_normalize_node_embs(embeddings)
     model.train()
 
     if get_rank() == 0:
