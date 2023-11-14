@@ -68,7 +68,7 @@ def run_job(input_args, image, unknownargs):
     prefix = f"gs-infer-{graph_name}"
 
     # In Link Prediction, no prediction outputs
-    if task_type == "link_prediction" or task_type == "compute_emb":
+    if task_type == "link_prediction" or "compute_emb":
         params = {"task-type": task_type,
                   "graph-name": graph_name,
                   "graph-data-s3": graph_data_s3,
