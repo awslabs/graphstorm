@@ -826,19 +826,20 @@ def main(args, gs_config_args):
 
     if len(ntypes) == 0:
         # Nothing to remap
-        logging.warning("Skip remapping edge/node predictions and node embeddings")
-        return
+        logging.fatal("No node types to remap.")
+        sys.exit(1)
 
     for ntype in set(ntypes):
-        mapping_file = os.path.join(id_mapping_path, ntype + "_id_remap.parquet")
+        mapping_prefix = os.path.join(id_mapping_path, ntype)
         logging.debug("loading mapping file %s",
-                      mapping_file)
-        if os.path.exists(mapping_file):
+                      mapping_prefix)
+        if os.path.exists(mapping_prefix):
             id_maps[ntype] = \
-                IdReverseMap(mapping_file)
+                IdReverseMap(mapping_prefix)
         else:
-            logging.warning("ID mapping file %s does not exists, skip remapping", mapping_file)
-            return
+            logging.fatal("ID mapping prefix %s does not exist, cannot complete remapping",
+                          mapping_prefix)
+            sys.exit(1)
 
     num_proc = args.num_processes if args.num_processes > 0 else 1
     col_name_map = None

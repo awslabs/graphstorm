@@ -64,10 +64,9 @@ def test_worker_remap_node_data(data_col):
         num_ids = 1000
         num_data = 1000
         mappings = gen_id_maps(num_ids)
-        map_files = {}
         ntypes = []
-        for ntype, map in mappings.items():
-            map_files[ntype] = map.save(os.path.join(tmpdirname, ntype + "_id_remap.parquet"))
+        for ntype, id_map in mappings.items():
+            id_map.save(os.path.join(tmpdirname, ntype))
             ntypes.append(ntype)
 
         data, nids = gen_node_data(num_ids, num_data)
@@ -79,7 +78,7 @@ def test_worker_remap_node_data(data_col):
         chunk_size = 256
 
         for ntype in ntypes:
-            remap_result.id_maps[ntype] = IdReverseMap(os.path.join(tmpdirname, ntype + "_id_remap.parquet"))
+            remap_result.id_maps[ntype] = IdReverseMap(os.path.join(tmpdirname, ntype))
 
         worker_remap_node_data(data_path, nid_path, ntypes[0], data_col,
                                output_path_prefix, chunk_size,
@@ -150,10 +149,9 @@ def test_worker_remap_edge_pred():
         num_ids = 1000
         num_preds = 1000
         mappings = gen_id_maps(num_ids)
-        map_files = {}
         ntypes = []
         for ntype, map in mappings.items():
-            map_files[ntype] = map.save(os.path.join(tmpdirname, ntype + "_id_remap.parquet"))
+            map.save(os.path.join(tmpdirname, ntype))
             ntypes.append(ntype)
         preds, src_nids, dst_nids = gen_edge_preds(num_ids, num_preds)
         pred_path = os.path.join(tmpdirname, "pred-00000.pt")
@@ -166,7 +164,7 @@ def test_worker_remap_edge_pred():
         chunk_size = 256
 
         for ntype in ntypes:
-            remap_result.id_maps[ntype] = IdReverseMap(os.path.join(tmpdirname, ntype + "_id_remap.parquet"))
+            remap_result.id_maps[ntype] = IdReverseMap(os.path.join(tmpdirname, ntype))
 
         worker_remap_edge_pred(pred_path, src_nid_path, dst_nid_path,
                                ntypes[0], ntypes[1], output_path_prefix,

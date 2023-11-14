@@ -1294,7 +1294,7 @@ def test_parse_edge_data():
         assert "val_mask" in feat_data
         assert "test_mask" in feat_data
 
-@pytest.mark.parametrize("ext_mem_path", [None, "/"])
+@pytest.mark.parametrize("ext_mem_path", [None, "/tmp/"])
 def test_multicolumn(ext_mem_path):
     # Just get the features without transformation.
     feat_op1 = [{
@@ -1645,9 +1645,9 @@ def test_feature_wrapper():
         "test1": np.random.randint(0, 100, (3, 1)),
         "test2": np.random.randint(0, 100, (3, 1))
     }
-    if not os.path.exists("/tmp_featurewrapper"):
-        os.makedirs("/tmp_featurewrapper")
-    test_extfeature_wrapper = ExtFeatureWrapper("/tmp_featurewrapper")
+    if not os.path.exists("/tmp/featurewrapper"):
+        os.makedirs("/tmp/featurewrapper")
+    test_extfeature_wrapper = ExtFeatureWrapper("/tmp/featurewrapper")
     try:
         a = test_extfeature_wrapper[:]
     except RuntimeError as e:
@@ -1659,17 +1659,17 @@ def test_feature_wrapper():
         assert str(e) == "Call ExtFeatureWrapper.merge() first before calling to_numpy()"
 
     test_extfeature_wrapper.append(data["test1"])
-    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper")
-                     if os.path.isfile(os.path.join("/tmp_featurewrapper", name)))
+    file_count = sum(1 for name in os.listdir("/tmp/featurewrapper")
+                     if os.path.isfile(os.path.join("/tmp/featurewrapper", name)))
     assert file_count == 1
     test_extfeature_wrapper.append(data["test2"])
-    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper")
-                     if os.path.isfile(os.path.join("/tmp_featurewrapper", name)))
+    file_count = sum(1 for name in os.listdir("/tmp/featurewrapper")
+                     if os.path.isfile(os.path.join("/tmp/featurewrapper", name)))
     assert file_count == 2
     test_extfeature_wrapper.merge()
     data["test3"] = np.column_stack((data['test1'], data['test2']))
-    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper")
-                     if os.path.isfile(os.path.join("/tmp_featurewrapper", name)))
+    file_count = sum(1 for name in os.listdir("/tmp/featurewrapper")
+                     if os.path.isfile(os.path.join("/tmp/featurewrapper", name)))
     assert file_count == 3
     np.testing.assert_allclose(test_extfeature_wrapper[:], data["test3"])
 
@@ -1678,21 +1678,21 @@ def test_feature_wrapper():
         "test1": np.random.randint(0, 100, (3, 7)),
         "test2": np.random.randint(0, 100, (3, 1))
     }
-    if not os.path.exists("/tmp_featurewrapper2"):
-        os.makedirs("/tmp_featurewrapper2")
-    test_extfeature_wrapper = ExtFeatureWrapper("/tmp_featurewrapper2")
+    if not os.path.exists("/tmp/featurewrapper2"):
+        os.makedirs("/tmp/featurewrapper2")
+    test_extfeature_wrapper = ExtFeatureWrapper("/tmp/featurewrapper2")
 
     test_extfeature_wrapper.append(data["test1"])
-    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper2")
-                     if os.path.isfile(os.path.join("/tmp_featurewrapper2", name)))
+    file_count = sum(1 for name in os.listdir("/tmp/featurewrapper2")
+                     if os.path.isfile(os.path.join("/tmp/featurewrapper2", name)))
     assert file_count == 1
     test_extfeature_wrapper.append(data["test2"])
-    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper2")
-                     if os.path.isfile(os.path.join("/tmp_featurewrapper2", name)))
+    file_count = sum(1 for name in os.listdir("/tmp/featurewrapper2")
+                     if os.path.isfile(os.path.join("/tmp/featurewrapper2", name)))
     assert file_count == 2
     test_extfeature_wrapper.merge()
-    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper2")
-                     if os.path.isfile(os.path.join("/tmp_featurewrapper2", name)))
+    file_count = sum(1 for name in os.listdir("/tmp/featurewrapper2")
+                     if os.path.isfile(os.path.join("/tmp/featurewrapper2", name)))
     assert file_count == 3
     data["test3"] = np.column_stack((data['test1'], data['test2']))
     np.testing.assert_allclose(test_extfeature_wrapper[:], data["test3"])
@@ -1701,10 +1701,63 @@ def test_feature_wrapper():
 
 
 def test_gc():
-    assert not os.path.isdir("/tmp_featurewrapper"), \
-        "Directory /tmp_featurewrapper should not exist after gc"
-    assert not os.path.isdir("/tmp_featurewrapper2"), \
-        "Directory /tmp_featurewrapper2 should not exist after gc"
+    assert not os.path.isdir("/tmp/featurewrapper"), \
+        "Directory /tmp/featurewrapper should not exist after gc"
+    assert not os.path.isdir("/tmp/featurewrapper2"), \
+        "Directory /tmp/featurewrapper2 should not exist after gc"
+
+
+def test_homogeneous():
+    # single node type and edge type input
+    conf = {
+        "version": "gconstruct-v0.1", "nodes": [
+            {"node_id_col": "id", "node_type": "movie", "format": {"name": "parquet"},
+             "files": "/data/ml-100k/movie.parquet", "features": [
+                {"feature_col": "title", "transform": {
+                    "name": "bert_hf", "bert_model": "bert-base-uncased", "max_seq_length": 16}}],
+             "labels": [{"label_col": "label", "task_type": "classification", "split_pct": [0.8, 0.1, 0.1]}]}],
+        "edges": [
+            {"source_id_col": "src_id", "dest_id_col": "dst_id", "relation": ["movie", "rating", "movie"],
+             "format": {"name": "parquet"}, "files": "/data/ml-100k/edges_homo.parquet", "labels": [
+                {"label_col": "rate", "task_type": "classification", "split_pct": [0.1, 0.1, 0.1]}]}]
+    }
+    assert is_homogeneous(conf)
+    verify_confs(conf)
+    assert conf['nodes'][0]["node_type"] == "_N"
+    assert conf['edges'][0]['relation'] == ["_N", "_E", "_N"]
+    conf["edges"][0]["relation"] = ["movie_fake", "rating", "movie"]
+    conf["nodes"].append(copy.deepcopy(conf["nodes"][0]))
+    conf["nodes"][0]["node_type"] = "movie"
+    conf["nodes"][1]["node_type"] = "movie_fake"
+    assert not is_homogeneous(conf)
+
+
+    # multiple node types and edge types input
+    conf = {
+        "version": "gconstruct-v0.1", "nodes": [
+            {"node_id_col": "id", "node_type": "movie", "format": {"name": "parquet"},
+             "files": "/data/ml-100k/movie.parquet", "features": [
+                {"feature_col": "title", "transform": {
+                    "name": "bert_hf", "bert_model": "bert-base-uncased", "max_seq_length": 16}}],
+             "labels": [{"label_col": "label", "task_type": "classification", "split_pct": [0.8, 0.1, 0.1]}]},
+            {"node_type": "movie", "format": {"name": "parquet"}, "files": "/data/ml-100k/movie.parquet",
+             "features": [{"feature_col": "id"}]}],
+        "edges": [
+            {"source_id_col": "src_id", "dest_id_col": "dst_id", "relation": ["movie", "rating", "movie"],
+             "format": {"name": "parquet"}, "files": "/data/ml-100k/edges_homo.parquet", "labels": [
+                {"label_col": "rate", "task_type": "classification", "split_pct": [0.1, 0.1, 0.1]}]},
+            {"relation": ["movie", "rating", "movie"], "format": {"name": "parquet"},
+             "files": "/data/ml-100k/edges_homo.parquet"}]
+    }
+    assert is_homogeneous(conf)
+    verify_confs(conf)
+    assert conf['nodes'][0]["node_type"] == "_N"
+    assert conf['edges'][0]['relation'] == ["_N", "_E", "_N"]
+    conf["edges"][0]["relation"] = ["movie_fake", "rating", "movie"]
+    conf["nodes"].append(copy.deepcopy(conf["nodes"][0]))
+    conf["nodes"][0]["node_type"] = "movie"
+    conf["nodes"][1]["node_type"] = "movie_fake"
+    assert not is_homogeneous(conf)
 
 
 def test_homogeneous():
@@ -1776,6 +1829,6 @@ if __name__ == '__main__':
     test_process_features_fp16()
     test_label()
     test_multicolumn(None)
-    test_multicolumn("/")
+    test_multicolumn("/tmp/")
     test_feature_wrapper()
     test_homogeneous()

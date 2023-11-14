@@ -209,7 +209,8 @@ def download_model(model_artifact_s3, model_path, sagemaker_session):
                            f"{err}")
 
 def download_graph(graph_data_s3, graph_name, part_id, world_size,
-                   local_path, sagemaker_session):
+                   local_path, sagemaker_session,
+                   node_mapping_prefix_s3=None):
     """ download graph data
 
     Parameters
@@ -226,6 +227,8 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
         Path to store graph data
     sagemaker_session: sagemaker.session.Session
         sagemaker_session to run download
+    node_mapping_prefix_s3: str, optional
+        S3 prefix to where the node_id_mapping data are stored
 
     Return
     ------
@@ -242,6 +245,18 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
     os.makedirs(graph_part_path, exist_ok=True)
 
     graph_data_s3 = graph_data_s3[:-1] if graph_data_s3.endswith('/') else graph_data_s3
+
+    # By default we assume the node mappings exist
+    # under the same path as the rest of the graph data
+    if not node_mapping_prefix_s3:
+        node_mapping_prefix_s3 = f"{graph_data_s3}/node_id_mappings"
+    else:
+        node_mapping_prefix_s3 = (
+            node_mapping_prefix_s3[:-1] if node_mapping_prefix_s3.endswith('/')
+            else node_mapping_prefix_s3)
+        assert node_mapping_prefix_s3.endswith("node_id_mappings"), \
+            "node_mapping_prefix_s3 must end with 'node_id_mappings'"
+
 
     # We split on '/' to get the bucket, as it's always the third split element in an S3 URI
     s3_input_bucket = graph_data_s3.split("/")[2]
@@ -313,17 +328,15 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
             except Exception: # pylint: disable=broad-except
                 logging.info("node id mapping file %s does not exist", s3_path)
 
-    # Try to get GraphStorm ID to Original ID remaping files if any
-    files = S3Downloader.list(graph_data_s3, sagemaker_session=sagemaker_session)
-    id_map_files = [file for file in files if file.endswith("id_remap.parquet")]
-    for file in id_map_files:
+    # Try to get GraphStorm ID to Original ID remapping files if any
+    id_map_files = S3Downloader.list(node_mapping_prefix_s3, sagemaker_session=sagemaker_session)
+    for mapping_file in id_map_files:
         try:
-            logging.info("Download graph remap from %s to %s",
-                         file, graph_path)
-            S3Downloader.download(file, graph_path,
+            S3Downloader.download(mapping_file, graph_path,
                                   sagemaker_session=sagemaker_session)
         except Exception: # pylint: disable=broad-except
-            logging.warning("node id remap file %s does not exist", file)
+            logging.warning("Could not download node id remap file %s",
+                            mapping_file)
 
     logging.info("Finished downloading graph data from %s", graph_data_s3)
     return os.path.join(graph_path, graph_config)

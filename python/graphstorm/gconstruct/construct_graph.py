@@ -801,11 +801,11 @@ def process_graph(args):
     if len(edge_label_stats) > 0:
         save_edge_label_stats(args.output_dir, edge_label_stats)
 
-    for ntype in node_id_map:
-        map_file = os.path.join(args.output_dir, ntype + "_id_remap.parquet")
-        if node_id_map[ntype].save(map_file):
-            logging.info("Graph construction generates new node IDs for '%s'. " + \
-                    "The ID map is saved in %s.", ntype, map_file)
+    for ntype, node_id_map in node_id_map.items():
+        map_prefix = os.path.join(args.output_dir, "node_id_mappings", ntype)
+        node_id_map.save(map_prefix)
+        logging.info("Graph construction generated new node IDs for '%s'. " + \
+                    "The ID map is saved under %s.", ntype, map_prefix)
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")
@@ -814,11 +814,11 @@ if __name__ == '__main__':
     argparser.add_argument("--output-conf-file", type=str,
                            help="The output file with the updated configurations.")
     argparser.add_argument("--num-processes", type=int, default=1,
-                           help="The number of processes to process the data simulteneously.")
+                           help="The number of processes to process the data simultaneously.")
     argparser.add_argument("--num-processes-for-nodes", type=int,
-                           help="The number of processes to process node data simulteneously.")
+                           help="The number of processes to process node data simultaneously.")
     argparser.add_argument("--num-processes-for-edges", type=int,
-                           help="The number of processes to process edge data simulteneously.")
+                           help="The number of processes to process edge data simultaneously.")
     argparser.add_argument("--output-dir", type=str, required=True,
                            help="The path of the output data folder.")
     argparser.add_argument("--graph-name", type=str, required=True,
