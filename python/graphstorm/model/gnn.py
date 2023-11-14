@@ -290,11 +290,7 @@ class GSgnnModelBase(nn.Module):
     def normalize_node_embs(self, embs):
         """ Normalize node embeddings when needed.
 
-            Normalize_node_embs should be called in forward().
-
-            Normalize_node_embs is also called in do_full_graph_inference()
-            and do_mini_batch_inference() in evaluation time and inference
-            time.
+            Normalize_node_embs should be called in forward() and predict()
 
         Parameters
         ----------
