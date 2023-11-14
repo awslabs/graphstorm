@@ -110,7 +110,7 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
             encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
 
         # Call emb normalization.
-        self.normalize_node_embs(encode_embs)
+        encode_embs = self.normalize_node_embs(encode_embs)
 
         # TODO add w_relation in calculating the score. The current is only valid for
         # homogenous graph.
