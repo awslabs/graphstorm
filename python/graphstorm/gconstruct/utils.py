@@ -42,11 +42,12 @@ def _to_ext_memory(name, data, path):
     if isinstance(data, np.ndarray):
         assert name is not None
         path = os.path.join(path, f"{name}.npy")
-        ext_mem_arr = convert_to_ext_mem_numpy(path, data)
-        # We need to pass the array to another process. We don't want it
-        # to reference to data in the file.
-        ext_mem_arr.cleanup()
-        return ext_mem_arr
+        if len(data) > 0:
+            data = convert_to_ext_mem_numpy(path, data)
+            # We need to pass the array to another process. We don't want it
+            # to reference to data in the file.
+            data.cleanup()
+        return data
     elif isinstance(data, dict):
         new_data = {}
         for key, val in data.items():

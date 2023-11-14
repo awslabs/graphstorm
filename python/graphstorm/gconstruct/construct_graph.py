@@ -504,7 +504,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                               skip_nonexist_edges=skip_nonexist_edges,
                               ext_mem=ext_mem_workspace)
 
-        ext_mem_workspace_type = os.path.join(ext_mem_workspace, edge_type) \
+        ext_mem_workspace_type = os.path.join(ext_mem_workspace, "_".join(edge_type)) \
                 if ext_mem_workspace is not None else None
         return_dict = _process_data(user_pre_parser,
                                     user_parser,
