@@ -21,8 +21,8 @@ from .lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from .utils import sparse_emb_initializer
 
 from .gnn import GSgnnModel, GSgnnModelBase, GSOptimizer
-from .graph_utils import do_full_graph_inference
-from .graph_utils import do_mini_batch_inference
+from .gnn import do_full_graph_inference
+from .gnn import do_mini_batch_inference
 from .node_gnn import GSgnnNodeModel, GSgnnNodeModelBase, GSgnnNodeModelInterface
 from .node_gnn import node_mini_batch_gnn_predict, node_mini_batch_predict
 from .edge_gnn import GSgnnEdgeModel, GSgnnEdgeModelBase, GSgnnEdgeModelInterface

@@ -128,6 +128,10 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
             encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
+        # Call emb normalization.
+        # the default behavior is doing nothing.
+        encode_embs = self.normalize_node_embs(encode_embs)
+
         # TODO(zhengda) we only support prediction on one edge type now
         assert len(labels) == 1, "We only support prediction on one edge type for now."
         target_etype = list(labels.keys())[0]
@@ -153,6 +157,10 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
             encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
+
+        # Call emb normalization.
+        # the default behavior is doing nothing.
+        encode_embs = self.normalize_node_embs(encode_embs)
         if return_proba:
             return self.decoder.predict_proba(target_edges, encode_embs, target_edge_feats)
         return self.decoder.predict(target_edges, encode_embs, target_edge_feats)

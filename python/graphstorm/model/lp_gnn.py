@@ -55,27 +55,6 @@ class GSgnnLinkPredictionModelInterface:
         The loss of prediction.
         """
 
-    @abc.abstractmethod
-    def normalize_node_embs(self, embs):
-        """ Normalize node embeddings when needed.
-
-            Normalize_node_embs should be called in forward().
-
-            Normalize_node_embs is called by do_full_graph_inference()
-            and do_mini_batch_inference() in evaluation time and inference
-            time.
-
-        Parameters
-        ----------
-        embs: dict of Tensors
-            A dict of node embeddings.
-
-        Returns
-        -------
-        dict of Tensors:
-            Normalized node embeddings.
-        """
-
 # pylint: disable=abstract-method
 class GSgnnLinkPredictionModelBase(GSgnnLinkPredictionModelInterface,
                                    GSgnnModelBase):
@@ -131,6 +110,7 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
             # GNN message passing
             encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
 
+        # Call emb normalization.
         encode_embs = self.normalize_node_embs(encode_embs)
 
         # TODO add w_relation in calculating the score. The current is only valid for

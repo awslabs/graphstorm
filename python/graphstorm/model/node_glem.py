@@ -257,7 +257,7 @@ class GLEM(GSgnnNodeModelBase):
             param.requires_grad = not freeze
 
     def toggle(self, part='lm', data=None):
-        """The method toggles training between lm and gnn. It uses `toggle_params` to 
+        """The method toggles training between lm and gnn. It uses `toggle_params` to
         freeze/unfreeze model parameters and `(un)freeze_input_encoder` to control the
         caching of LM embeddings"""
         if part == 'lm':
@@ -483,12 +483,23 @@ class GLEM(GSgnnNodeModelBase):
             # GNN message passing
             encode_embs_gnn = self.gnn.gnn_encoder(blocks, encode_embs)
             n_seed_nodes = blocks[-1].num_dst_nodes()
-            return encode_embs[target_ntype][:n_seed_nodes], encode_embs_gnn[target_ntype]
+
+            # Call emb normalization.
+            # the default behavior is doing nothing.
+            encode_emb = self.normalize_node_embs(
+                {target_ntype:encode_embs[target_ntype][:n_seed_nodes]})[target_ntype]
+            encode_emb_gnn = self.normalize_node_embs(
+                {target_ntype:encode_embs_gnn[target_ntype]})[target_ntype]
+            return encode_emb, encode_emb_gnn
         else:
             # Get the projected LM embeddings for seed nodes and corresponding node features:
             seed_nodes, seed_feats = self._get_seed_nodes(input_nodes, node_feats, blocks)
             encode_embs = self.lm.comput_input_embed(seed_nodes, seed_feats)
-            return encode_embs[target_ntype], None
+            # Call emb normalization.
+            # the default behavior is doing nothing.
+            encode_emb = self.normalize_node_embs(
+                {target_ntype:encode_embs[target_ntype]})[target_ntype]
+            return encode_emb, None
 
     def _process_labels(self, labels):
         # TODO(zhengda) we only support node prediction on one node type now

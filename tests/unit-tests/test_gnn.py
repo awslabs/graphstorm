@@ -58,7 +58,7 @@ from graphstorm import create_builtin_edge_gnn_model, create_builtin_node_gnn_mo
 from graphstorm import create_builtin_lp_gnn_model
 from graphstorm import get_feat_size
 from graphstorm.gsf import get_rel_names_for_reconstruct
-from graphstorm.model.graph_utils import do_full_graph_inference, do_mini_batch_inference
+from graphstorm.model import do_full_graph_inference, do_mini_batch_inference
 from graphstorm.model.node_gnn import node_mini_batch_predict, node_mini_batch_gnn_predict
 from graphstorm.model.node_gnn import GSgnnNodeModelInterface
 from graphstorm.model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
