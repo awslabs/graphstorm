@@ -818,12 +818,14 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
                            self.node_input_encoder)
 
     def inplace_normalize_node_embs(self, embs):
-        """ Do node embedding normalization
+        """ Do inplace node embedding normalization.
 
-        Parameters
-        ----------
-        embs: dict of Tensor
-            node embeddings.
+            This function is called by do_full_graph_inference().
+
+            Parameters
+            ----------
+            embs: dict of Tensor
+                Node embeddings.
         """
         rank = get_rank()
         world_size = get_world_size()
