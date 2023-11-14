@@ -936,8 +936,8 @@ def do_mini_batch_inference(model, data, batch_size=1024,
                                                 edge_mask=edge_mask,
                                                 target_ntypes=infer_ntypes,
                                                 task_tracker=task_tracker)
-        # Called when model.eval()
-        embeddings = model.normalize_node_embs(embeddings)
+    # Called when model.eval()
+    embeddings = model.normalize_node_embs(embeddings)
     model.train()
     if get_rank() == 0:
         logging.debug("computing GNN embeddings: %.4f seconds", time.time() - t1)
@@ -1022,8 +1022,8 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
         embeddings = model.gnn_encoder.dist_inference(data.g, get_input_embeds,
                                                     batch_size, fanout, edge_mask=edge_mask,
                                                     task_tracker=task_tracker)
-        # Called when model.eval()
-        embeddings = model.normalize_node_embs(embeddings)
+    # Called when model.eval()
+    embeddings = model.normalize_node_embs(embeddings)
     model.train()
 
     if get_rank() == 0:
