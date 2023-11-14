@@ -1367,8 +1367,8 @@ def test_link_prediction(num_embs):
     embs_new = model.normalize_node_embs(embs)
     model.inplace_normalize_node_embs(embs)
 
+    assert_equal(embs["n0"].numpy(), embs_new["n0"].numpy())
     assert_equal(embs["n1"].numpy(), embs_new["n1"].numpy())
-    assert_equal(embs["n2"].numpy(), embs_new["n2"].numpy())
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()

@@ -842,10 +842,10 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             idx = start
             while idx + 1024 < end:
                 emb[idx:idx+1024] = \
-                    self.normalize_node_embs({key:emb[idx:idx+1024]})
+                    self.normalize_node_embs({key:emb[idx:idx+1024]})[key]
                 idx += 1024
             emb[idx:end] = \
-                self.normalize_node_embs({key:emb[idx:end]})
+                self.normalize_node_embs({key:emb[idx:end]})[key]
 
     @property
     def node_input_encoder(self):
