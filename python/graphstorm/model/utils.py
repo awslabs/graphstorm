@@ -402,7 +402,11 @@ def distribute_nid_map(embeddings, rank, world_size,
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
         # only host 0 will load node id mapping from disk
         if rank == 0:
-            ori_node_id_mapping = th.load(node_id_mapping_file)
+            if node_id_mapping_file.endswith("dgl"):
+                # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
+                ori_node_id_mapping = dgl.data.utils.load_tensors(node_id_mapping_file)
+            else: # endswith "pt"
+                ori_node_id_mapping = th.load(node_id_mapping_file)
             _, node_id_mapping = th.sort(ori_node_id_mapping)
         else:
             node_id_mapping = None
@@ -412,8 +416,14 @@ def distribute_nid_map(embeddings, rank, world_size,
     elif isinstance(embeddings, dict):
         nid_mapping = {}
         # only host 0 will load node id mapping from disk
-        node_id_mappings = th.load(node_id_mapping_file) \
-            if rank == 0 else None
+        if rank == 0:
+            if node_id_mapping_file.endswith("dgl"):
+                # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
+                node_id_mappings = dgl.data.utils.load_tensors(node_id_mapping_file)
+            else: # endswith "pt"
+                node_id_mappings = th.load(node_id_mapping_file)
+        else:
+            node_id_mappings = None
 
         for name, emb in embeddings.items():
             if rank == 0:
@@ -975,7 +985,14 @@ class NodeIDShuffler():
         ntypes = ntypes if ntypes is not None else g.ntypes
         assert isinstance(ntypes, list) and len(ntypes) > 0, \
             f"ntypes is not a list or is an empty list {ntypes}"
-        id_mappings = th.load(node_id_mapping_file) if get_rank() == 0 else None
+
+        if node_id_mapping_file.endswith("dgl"):
+            # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
+            id_mappings = dgl.data.utils.load_tensors(node_id_mapping_file) \
+                if get_rank() == 0 else None
+        else: # endswith pt
+            # node id mapping file from gconstruct.
+            id_mappings = th.load(node_id_mapping_file) if get_rank() == 0 else None
 
         self._id_mapping_info = {
             ntype: self._load_id_mapping(g, ntype, id_mappings) \
