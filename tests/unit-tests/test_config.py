@@ -19,7 +19,7 @@ from tempfile import tempdir
 import json
 import yaml
 import math
-import unittest, pytest
+import tempfile
 from argparse import Namespace
 
 import dgl
@@ -114,7 +114,6 @@ def create_basic_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
 def test_load_basic_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_basic_config(Path(tmpdirname), 'basic_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'basic_test.yaml'),
@@ -186,7 +185,6 @@ def create_task_tracker_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
 def test_task_tracker_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_task_tracker_config(Path(tmpdirname), 'task_tracker_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'task_tracker_test_default.yaml'),
@@ -297,7 +295,6 @@ def create_train_config(tmp_path, file_name):
 
 
 def test_train_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_train_config(Path(tmpdirname), 'train_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test_default.yaml'), local_rank=0)
@@ -406,7 +403,6 @@ def create_rgcn_config(tmp_path, file_name):
 
 
 def test_rgcn_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_rgcn_config(Path(tmpdirname), 'rgcn_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgcn_test_default.yaml'), local_rank=0)
@@ -446,7 +442,6 @@ def create_rgat_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
 def test_rgat_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_rgat_config(Path(tmpdirname), 'rgat_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgat_test_default.yaml'), local_rank=0)
@@ -614,7 +609,6 @@ def create_node_class_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
 def test_node_class_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_node_class_config(Path(tmpdirname), 'node_class_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_default.yaml'), local_rank=0)
@@ -750,7 +744,6 @@ def create_node_regress_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
 def test_node_regress_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_node_regress_config(Path(tmpdirname), 'node_regress_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test_default.yaml'), local_rank=0)
@@ -843,7 +836,6 @@ def create_edge_class_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
 def test_edge_class_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_edge_class_config(Path(tmpdirname), 'edge_class_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test_default.yaml'), local_rank=0)
@@ -989,7 +981,6 @@ def create_lp_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
 def test_lp_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_lp_config(Path(tmpdirname), 'lp_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_default.yaml'), local_rank=0)
@@ -1171,7 +1162,6 @@ def create_gnn_config(tmp_path, file_name):
 
 
 def test_gnn_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_gnn_config(Path(tmpdirname), 'gnn_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test1.yaml'),
@@ -1293,7 +1283,6 @@ def create_io_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
 def test_load_io_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_io_config(Path(tmpdirname), 'io_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test_default.yaml'),
@@ -1427,7 +1416,6 @@ def create_lm_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
 def test_lm():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_lm_config(Path(tmpdirname), 'lm_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test_default.yaml'),
@@ -1494,7 +1482,6 @@ def test_lm():
         check_failure(config, "freeze_lm_encoder_epochs")
 
 def test_check_node_lm_config():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         yaml_object = create_dummpy_config_obj()
 
@@ -1540,7 +1527,6 @@ def test_check_node_lm_config():
         must_fail(lm_config)
 
 def test_id_mapping_file():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         yaml_object = create_dummpy_config_obj()
         part_path = os.path.join(tmpdirname, "graph")
