@@ -43,6 +43,7 @@ def _to_ext_memory(name, data, path):
         assert name is not None
         path = os.path.join(path, f"{name}.npy")
         if len(data) > 0:
+            logging.debug("save data %s in %s.", name, path)
             data = convert_to_ext_mem_numpy(path, data)
             # We need to pass the array to another process. We don't want it
             # to reference to data in the file.
