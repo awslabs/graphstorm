@@ -75,7 +75,7 @@ class OGBTextFeatDataset(GSgnnTextDataset):
 
         if self.is_homo:
             self.node_type = dgl.distributed.constants.DEFAULT_NTYPE
-            self.edge_type = dgl.distributed.constants.DEFAULT_ETYPE
+            self.edge_type = dgl.distributed.constants.DEFAULT_ETYPE[1]
         else:
             self.node_type = 'node'
             self.edge_type, self.rev_edge_type = 'interacts', 'rev-interacts'
