@@ -288,12 +288,10 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
                 input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
                     for ntype in tmp_keys})
         else:
-            # Embeddings when layer_id > 0 depend on the output of layer 0, not on
-            # node features anymore. Hence, we don't need to create dummy tensors for
-            # wholegraph compatibility. Also, ntypes of input nodes might conflict with
-            # the ntypes of ouput nodes.
-            #if int(layer_id) > 0:
-            #    continue
+            # For the last few iterations, some processes may not have mini-batches,
+            # we should create empty input tensors to trigger the computation. This is
+            # necessary for WholeGraph, which requires all processes to perform
+            # computations in every iteration.
             input_nodes = {ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes}
             blocks = None
         if iter_l % 100000 == 0 and get_rank() == 0:
