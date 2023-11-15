@@ -42,7 +42,7 @@ from graphstorm_processing.constants import (
     SPECIAL_CHARACTERS,
 )
 from ..config.config_parser import EdgeConfig, NodeConfig, StructureConfig
-from ..config.label_config_base import LabelConfig, EdgeLabelConfig
+from ..config.label_config_base import LabelConfig
 from ..config.feature_config_base import FeatureConfig
 from ..data_transformations.dist_feature_transformer import DistFeatureTransformer
 from ..data_transformations.dist_label_loader import DistLabelLoader, SplitRates
@@ -136,6 +136,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         self.column_substitutions = {}  # type: Dict[str, str]
         self.graph_info = {}  # type: Dict[str, Any]
         self.graph_name = graph_name
+        self.skip_train_masks = False
 
     def process_and_write_graph_data(
         self, data_configs: Mapping[str, Sequence[StructureConfig]]
@@ -160,7 +161,11 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         process_start_time = perf_counter()
 
         if not self._at_least_one_label_exists(data_configs):
-            self._insert_link_prediction_labels(data_configs["edges"])
+            logging.warning(
+                "No labels exist in the dataset, will not produce any masks, "
+                "and set task to 'link_prediction'."
+            )
+            self.skip_train_masks = True
 
         metadata_dict = self._initialize_metadata_dict(data_configs)
 
@@ -260,25 +265,6 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
         return False
 
-    @staticmethod
-    def _insert_link_prediction_labels(edge_configs: Sequence[StructureConfig]) -> None:
-        """
-        Inserts a link prediction label entry into the `edges` top-level keys.
-        Modifies the data_configs object in-place.
-
-        Parameters
-        ----------
-        edge_configs
-            A sequence of edge structure configurations
-        """
-        for edge_config in edge_configs:
-            config_dict = {
-                "column": "",
-                "type": "link_prediction",
-                "split_rate": {"train": 0.9, "val": 0.1, "test": 0.0},
-            }
-            edge_config.set_labels([EdgeLabelConfig(config_dict)])
-
     def _initialize_metadata_dict(
         self, data_configs: Mapping[str, Sequence[StructureConfig]]
     ) -> Dict:
@@ -325,6 +311,8 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         return metadata_dict
 
     def _finalize_graphinfo_dict(self, metadata_dict: Dict) -> Dict:
+        if self.skip_train_masks:
+            self.graph_info["task_type"] = "link_prediction"
         self.graph_info["graph_type"] = "heterogeneous"
 
         self.graph_info["num_nodes"] = sum(metadata_dict["num_nodes_per_type"])
@@ -1142,7 +1130,9 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         # TODO: We need to repartition to ensure same file count for
         # all downstream DataFrames, but it causes a full shuffle.
         # Can it be avoided?
-        edge_df_with_int_ids = edge_df_with_int_ids.repartition(self.num_output_files)
+        edge_df_with_int_ids = edge_df_with_int_ids.drop(src_col, dst_col).repartition(
+            self.num_output_files
+        )
         edge_df_with_int_ids_and_all_features = edge_df_with_int_ids
         edge_df_with_only_int_ids = edge_df_with_int_ids.select(["src_int_id", "dst_int_id"])
 
@@ -1447,7 +1437,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
                 self._update_label_properties(edge_type, edges_df, label_conf)
             else:
-                self.graph_info["task_type"] = "link_predict"
+                self.graph_info["task_type"] = "link_prediction"
                 logging.info(
                     "Skipping processing label for '%s' because task is link prediction",
                     rel_type_prefix,
@@ -1619,15 +1609,15 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             )
             return out_path_list
 
-        train_mask_df = int_group_df.withColumn("train_mask", F.col(group_col_name)[0])
+        train_mask_df = int_group_df.select(F.col(group_col_name)[0].alias("train_mask"))
         out_path_list = write_mask("train", train_mask_df)
         split_metadata["train_mask"] = create_metadata_entry(out_path_list)
 
-        val_mask_df = int_group_df.withColumn("val_mask", F.col(group_col_name)[1])
+        val_mask_df = int_group_df.select(F.col(group_col_name)[1].alias("val_mask"))
         out_path_list = write_mask("val", val_mask_df)
         split_metadata["val_mask"] = create_metadata_entry(out_path_list)
 
-        test_mask_df = int_group_df.withColumn("test_mask", F.col(group_col_name)[2])
+        test_mask_df = int_group_df.select(F.col(group_col_name)[2].alias("test_mask"))
         out_path_list = write_mask("test", test_mask_df)
         split_metadata["test_mask"] = create_metadata_entry(out_path_list)
 
