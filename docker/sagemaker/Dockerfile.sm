@@ -18,7 +18,15 @@ FROM branch-${DEVICE} AS final
 LABEL maintainer="Amazon AI Graph ML team"
 
 # Install related Python packages
-RUN pip3 install ogb==1.3.6 scipy pyarrow boto3 scikit-learn transformers==4.28.1 \
+RUN pip3 install \
+        boto3 \
+        numba==0.58.1 \
+        numpy==1.26.1 \
+        ogb==1.3.6 \
+        pyarrow \
+        scikit-learn \
+        scipy \
+        transformers==4.28.1 \
     && rm -rf /root/.cache
 
 # Install MPI etc needed by DistDGL

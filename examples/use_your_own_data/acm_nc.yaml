@@ -19,7 +19,7 @@ gsf:
     dropout: 0.
     lr: 0.0001
     lm_tune_lr: 0.0001
-    num_epochs: 200
+    num_epochs: 300
     batch_size: 1024
     wd_l2norm: 0
     alpha_l2norm: 0.

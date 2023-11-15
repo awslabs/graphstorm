@@ -222,7 +222,7 @@ ensure it runs before every commit.
 .. note::
 
     The pre-commit hook will also apply to all commits you make to the root
-    GraphStorm repository. Since that Graphstorm doesn't use ``black``, you might
+    GraphStorm repository. Since Graphstorm doesn't use ``black``, you might
     want to remove the ``black`` hook. You can do so from the root repo
     using ``rm -rf .git/hooks``.
 

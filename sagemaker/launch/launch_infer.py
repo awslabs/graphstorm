@@ -21,7 +21,7 @@ import boto3 # pylint: disable=import-error
 import sagemaker
 from sagemaker.pytorch.estimator import PyTorch
 
-from common_parser import get_common_parser, parse_estimator_kwargs, SUPPORTED_TASKS
+from common_parser import get_common_parser, parse_estimator_kwargs, SUPPORTED_INFER_TASKS
 
 INSTANCE_TYPE = "ml.g4dn.12xlarge"
 
@@ -54,6 +54,7 @@ def run_job(input_args, image, unknownargs):
     output_emb_s3_path = input_args.output_emb_s3 # S3 location to save node embeddings
     output_predict_s3_path = input_args.output_prediction_s3 # S3 location to save prediction results
     model_artifact_s3 = input_args.model_artifact_s3 # S3 location of saved model artifacts
+    output_chunk_size = input_args.output_chunk_size # Number of rows per chunked prediction result or node embedding file.
 
     boto_session = boto3.session.Session(region_name=region)
     sagemaker_client = boto_session.client(service_name="sagemaker", region_name=region)
@@ -68,13 +69,14 @@ def run_job(input_args, image, unknownargs):
     prefix = f"gs-infer-{graph_name}"
 
     # In Link Prediction, no prediction outputs
-    if task_type == "link_prediction":
+    if task_type == "link_prediction" or task_type == "compute_emb":
         params = {"task-type": task_type,
                   "graph-name": graph_name,
                   "graph-data-s3": graph_data_s3,
                   "infer-yaml-s3": infer_yaml_s3,
                   "output-emb-s3": output_emb_s3_path,
-                  "model-artifact-s3": model_artifact_s3}
+                  "model-artifact-s3": model_artifact_s3,
+                  "output-chunk-size": output_chunk_size}
     else:
         params = {"task-type": task_type,
                   "graph-name": graph_name,
@@ -82,7 +84,8 @@ def run_job(input_args, image, unknownargs):
                   "infer-yaml-s3": infer_yaml_s3,
                   "output-emb-s3": output_emb_s3_path,
                   "output-prediction-s3": output_predict_s3_path,
-                  "model-artifact-s3": model_artifact_s3}
+                  "model-artifact-s3": model_artifact_s3,
+                  "output-chunk-size": output_chunk_size}
     # We must handle cases like
     # --target-etype query,clicks,asin query,search,asin
     # --feat-name ntype0:feat0 ntype1:feat1
@@ -144,7 +147,7 @@ def get_inference_parser():
         help="S3 location of input inference graph",
         required=True)
     inference_args.add_argument("--task-type", type=str,
-        help=f"Task type in {SUPPORTED_TASKS}",
+        help=f"Task type in {SUPPORTED_INFER_TASKS}",
         required=True)
     inference_args.add_argument("--yaml-s3", type=str,
         help="S3 location of inference yaml file. "
@@ -161,6 +164,8 @@ def get_inference_parser():
              "(Only works with node classification/regression " \
              "and edge classification/regression tasks)",
         default=None)
+    parser.add_argument("--output-chunk-size", type=int, default=100000,
+        help="Number of rows per chunked prediction result or node embedding file.")
     inference_args.add_argument("--model-sub-path", type=str, default=None,
         help="Relative path to the trained model under <model_artifact_s3>."
              "There can be multiple model checkpoints under"

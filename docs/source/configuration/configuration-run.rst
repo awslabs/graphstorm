@@ -25,6 +25,7 @@ GraphStorm's `graphstorm.run.launch <https://github.com/awslabs/graphstorm/blob/
     - --extra-envs LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
     - NCCL_DEBUG=INFO
 - **lm-encoder-only**: Indicate that the model is using language model + decoder only. model. No GNN is involved, only graph structure.
+- **do-nid-remap**: Do GraphStorm node ID to Raw input node ID remapping for prediction results and node embeddings. Default is True.
 
 ..  note:: Below configurations can be set either in a YAML configuration file or be added as arguments of launch command.
 
@@ -499,6 +500,12 @@ Link Prediction Task
     - Yaml: ``contrastive_loss_temperature: 0.01```
     - Argument: ``--contrastive-loss-temperature 0.01``
     - Default value: 1.0
+
+- **lp-embed-normalizer**: Type of normalization method used to normalize node embeddings in link prediction tasks. Currently GraphStorm only supports l2 normalization (`l2_norm`).
+
+    - Yaml: ``lp_embed_normalizer: l2_norm``
+    - Argument: ``--lp-embed-normalizer l2_norm``
+    - Default value: None
 
 Distillation Specific Configurations
 --------------------------------------------
