@@ -941,7 +941,7 @@ def add_distributed_remap_args(parser):
     group.add_argument("--rank", type=int, default=0,
                        help="The rank of current worker.")
     group.add_argument("--world-size", type=int, default=1,
-                       help="Totoal number of workers in the cluster.")
+                       help="Total number of workers in the cluster.")
     return parser
 
 def generate_parser():
