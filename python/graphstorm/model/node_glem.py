@@ -19,11 +19,9 @@ import os
 from copy import deepcopy
 import torch as th
 import dgl
-import logging
 
 from .gnn import GSOptimizer
 from .node_gnn import GSgnnNodeModel, GSgnnNodeModelBase
-from ..utils import get_rank
 
 # GLEM supports configuring the parameter grouping of the following:
 GLEM_CONFIGURABLE_PARAMETER_NAMES = {
@@ -268,16 +266,12 @@ class GLEM(GSgnnNodeModelBase):
             self.toggle_params('lm', False)
             # when training lm, do not use the cached LM
             self.lm.unfreeze_input_encoder()
-            if get_rank() == 0:
-                logging.info("Train the LM module.")
         elif part == 'gnn':
             self.training_lm = False
             self.toggle_params('lm', True)
             self.toggle_params('gnn', False)
             # when training gnn, always cache LM embeddings
             self.lm.freeze_input_encoder(data)
-            if get_rank() == 0:
-                logging.info("Train the GNN module.")
         else:
             raise ValueError(f"Unknown model part: {part}")
 
