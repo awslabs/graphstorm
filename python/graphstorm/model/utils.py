@@ -23,10 +23,12 @@ import logging
 
 import torch as th
 from torch import nn
+import torch.nn.functional as F
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 import dgl
 
+from ..config import GRAPHSTORM_LP_EMB_L2_NORMALIZATION
 from ..gconstruct.file_io import stream_dist_tensors_to_hdf5
 from ..utils import get_rank, barrier, get_world_size, create_dist_tensor
 from ..data.utils import alltoallv_cpu, alltoallv_nccl
@@ -1703,3 +1705,31 @@ def append_to_dict(from_dict, to_dict):
             to_dict[k].append(v.cpu())
         else:
             to_dict[k] = [v.cpu()]
+
+def normalize_node_embs(embs, norm_method):
+    """ Do node embedding normalization
+
+        Parameters
+        ----------
+        embs: dict of Tensor
+            node embeddings.
+        norm_method: str
+            Node embedding normalization method.
+
+        Return
+        ------
+        dict of Tensor: Dict of normalized embeddings.
+    """
+    if norm_method is None or norm_method == "":
+        def norm(emb):
+            return emb
+        norm_func = norm
+    elif norm_method == GRAPHSTORM_LP_EMB_L2_NORMALIZATION:
+        def do_l2_norm(emb):
+            return F.normalize(emb)
+        norm_func = do_l2_norm
+    else:
+        raise RuntimeError(f"Unsupported embedding normalization method {norm_method}")
+
+    embs = {key: norm_func(emb) for key, emb in embs.items()}
+    return embs

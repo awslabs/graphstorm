@@ -44,3 +44,5 @@ from .config import (BUILTIN_GNN_NORM,
 
 from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_LP_LOSS_CONTRASTIVELOSS)
+from .config import (GRAPHSTORM_LP_EMB_L2_NORMALIZATION,
+                     GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS)

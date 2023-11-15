@@ -34,6 +34,7 @@ from graphstorm.model.utils import (save_node_prediction_results,
                                     save_edge_prediction_results,
                                     save_shuffled_node_embeddings,
                                     save_full_node_embeddings)
+from graphstorm.model.utils import normalize_node_embs
 from graphstorm.gconstruct.utils import save_maps
 from graphstorm import get_feat_size
 from graphstorm.model.gnn_encoder_base import prepare_for_wholegraph
@@ -1055,7 +1056,38 @@ def test_prepare_for_wholegraph():
         assert list(input_nodes.keys()) == g.ntypes
         assert list(input_edges.keys()) == g.canonical_etypes
 
+@pytest.mark.parametrize("num_embs", [10, 100])
+def test_normalize_node_embs(num_embs):
+    embs = {"n1": th.rand((10, num_embs)),
+            "n2": th.rand((5, num_embs))}
+    new_embs = normalize_node_embs(embs, None)
+
+    assert len(embs) == len(new_embs)
+    assert_equal(embs["n1"].numpy(), new_embs["n1"].numpy())
+    assert_equal(embs["n2"].numpy(), new_embs["n2"].numpy())
+
+    new_embs = normalize_node_embs(embs, "l2_norm")
+    def l2_norm(emb):
+        return emb / th.norm(emb, p=2, dim=1).reshape(-1, 1)
+    l2norm_embs = {
+        "n1": l2_norm(embs["n1"]),
+        "n2": l2_norm(embs["n2"])
+    }
+
+    assert len(l2norm_embs) == len(new_embs)
+    assert_almost_equal(l2norm_embs["n1"].numpy(), new_embs["n1"].numpy())
+    assert_almost_equal(l2norm_embs["n2"].numpy(), new_embs["n2"].numpy())
+
+    raise_error = False
+    try:
+        normalize_node_embs(embs, "unknown")
+    except:
+        raise_error = True
+    assert raise_error
+
+
 if __name__ == '__main__':
+    test_normalize_node_embs(10000)
     test_full_node_embeddings()
 
     test_shuffle_nids()
