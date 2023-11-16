@@ -89,15 +89,7 @@ then
 fi
 
 echo "**************dataset: Generated multilabel MovieLens EC, do inference on saved model"
-python3 -m graphstorm.run.gs_edge_classification --inference --workspace $GS_HOME/inference_scripts/ep_infer \
-    --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 \
-    --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json \
-    --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec_infer.yaml  \
-    --multilabel true --num-classes 6 --node-feat-name movie:title user:feat \
-    --use-mini-batch-infer false --save-embed-path /data/gsgnn_ec/infer-emb/ \
-    --restore-model-path /data/gsgnn_ec/epoch-$best_epoch/ \
-    --save-prediction-path /data/gsgnn_ec/prediction/ --logging-file /tmp/log.txt  \
-    --logging-level debug --preserve-input True
+python3 -m graphstorm.run.gs_edge_classification --inference --workspace $GS_HOME/inference_scripts/ep_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec_infer.yaml  --multilabel true --num-classes 6 --node-feat-name movie:title user:feat --use-mini-batch-infer false --save-embed-path /data/gsgnn_ec/infer-emb/ --restore-model-path /data/gsgnn_ec/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_ec/prediction/ --logging-file /tmp/log.txt  --logging-level debug --preserve-input True
 
 error_and_exit $?
 

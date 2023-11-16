@@ -200,7 +200,7 @@ def read_data_parquet(data_file, data_fields=None):
     """
     table = pq.read_table(data_file)
     data = {}
-    df_table: pd.DataFrame = table.to_pandas()
+    df_table = table.to_pandas()
     assert df_table.shape[0] > 0, \
         f"{data_file} has an empty data. The data frame shape is {df_table.shape}"
 
@@ -208,8 +208,7 @@ def read_data_parquet(data_file, data_fields=None):
         data_fields = list(df_table.keys())
     for key in data_fields:
         assert key in df_table, f"The data field {key} does not exist in {data_file}."
-        val = df_table[key].to_numpy()
-        d = np.array(val)
+        d = df_table[key].to_numpy()
 
         # For multi-dimension arrays, we split them by rows and
         # save them as objects in parquet. We need to merge them
