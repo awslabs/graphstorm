@@ -210,7 +210,7 @@ def download_model(model_artifact_s3, model_path, sagemaker_session):
 
 def download_graph(graph_data_s3, graph_name, part_id, world_size,
                    local_path, sagemaker_session,
-                   node_mapping_prefix_s3=None):
+                   raw_node_mapping_prefix_s3=None):
     """ download graph data
 
     Parameters
@@ -227,7 +227,7 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
         Path to store graph data
     sagemaker_session: sagemaker.session.Session
         sagemaker_session to run download
-    node_mapping_prefix_s3: str, optional
+    raw_node_mapping_prefix_s3: str, optional
         S3 prefix to where the node_id_mapping data are stored
 
     Return
@@ -248,14 +248,14 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
 
     # By default we assume the node mappings exist
     # under the same path as the rest of the graph data
-    if not node_mapping_prefix_s3:
-        node_mapping_prefix_s3 = f"{graph_data_s3}/node_id_mappings"
+    if not raw_node_mapping_prefix_s3:
+        raw_node_mapping_prefix_s3 = f"{graph_data_s3}/raw_id_mappings"
     else:
-        node_mapping_prefix_s3 = (
-            node_mapping_prefix_s3[:-1] if node_mapping_prefix_s3.endswith('/')
-            else node_mapping_prefix_s3)
-        assert node_mapping_prefix_s3.endswith("node_id_mappings"), \
-            "node_mapping_prefix_s3 must end with 'node_id_mappings'"
+        raw_node_mapping_prefix_s3 = (
+            raw_node_mapping_prefix_s3[:-1] if raw_node_mapping_prefix_s3.endswith('/')
+            else raw_node_mapping_prefix_s3)
+        assert raw_node_mapping_prefix_s3.endswith("raw_id_mappings"), \
+            "node_mapping_prefix_s3 must end with 'raw_id_mappings'"
 
 
     # We split on '/' to get the bucket, as it's always the third split element in an S3 URI
@@ -329,11 +329,17 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
                 logging.info("node id mapping file %s does not exist", s3_path)
 
     # Try to get GraphStorm ID to Original ID remapping files if any
-    id_map_files = S3Downloader.list(node_mapping_prefix_s3, sagemaker_session=sagemaker_session)
+    id_map_files = S3Downloader.list(
+        raw_node_mapping_prefix_s3, sagemaker_session=sagemaker_session)
     for mapping_file in id_map_files:
+        # The expected layout for mapping files on S3 is:
+        # raw_id_mappings/node_type/part-xxxxx.parquet
+        ntype = mapping_file.split("/")[-2]
         try:
-            S3Downloader.download(mapping_file, graph_path,
-                                  sagemaker_session=sagemaker_session)
+            S3Downloader.download(
+                mapping_file,
+                os.path.join(graph_path, "raw_id_mappings", ntype),
+                sagemaker_session=sagemaker_session)
         except Exception: # pylint: disable=broad-except
             logging.warning("Could not download node id remap file %s",
                             mapping_file)

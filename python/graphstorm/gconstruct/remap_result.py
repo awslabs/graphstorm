@@ -652,7 +652,7 @@ def _parse_gs_config(config):
         list of str: etypes that have prediction results
     """
     part_config = config.part_config
-    node_id_mapping = os.path.join(os.path.dirname(part_config), "node_id_mappings")
+    node_id_mapping = os.path.join(os.path.dirname(part_config), "raw_id_mappings")
     predict_dir = config.save_prediction_path
     emb_dir = config.save_embed_path
     task_type = config.task_type
@@ -838,7 +838,7 @@ def main(args, gs_config_args):
             id_maps[ntype] = \
                 IdReverseMap(mapping_prefix)
         else:
-            logging.fatal("ID mapping prefix %s does not exist, skipping remapping",
+            logging.warning("ID mapping prefix %s does not exist, skipping remapping",
                 mapping_prefix)
             sys.exit(0)
 

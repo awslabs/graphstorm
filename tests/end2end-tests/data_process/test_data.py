@@ -57,9 +57,9 @@ elif args.graph_format == "DistDGL":
 else:
     raise ValueError('Invalid graph format: {}'.format(args.graph_format))
 
-node1_map = read_data_parquet(os.path.join(out_dir, "node_id_mappings", "node1"))
+node1_map = read_data_parquet(os.path.join(out_dir, "raw_id_mappings", "node1"))
 reverse_node1_map = {val: key for key, val in zip(node1_map['orig'], node1_map['new'])}
-node3_map = read_data_parquet(os.path.join(out_dir, "node_id_mappings", "node3"))
+node3_map = read_data_parquet(os.path.join(out_dir, "raw_id_mappings", "node3"))
 reverse_node3_map = {val: key for key, val in zip(node3_map['orig'], node3_map['new'])}
 
 # Test the first node data
@@ -133,7 +133,7 @@ for node_conf in conf["nodes"]:
         assert len(node_conf["features"][0]["transform"]["mapping"]) == 10
 
 # id remap for node4 exists
-assert os.path.isdir(os.path.join(out_dir, "node_id_mappings", "node4"))
+assert os.path.isdir(os.path.join(out_dir, "raw_id_mappings", "node4"))
 
 # Test the edge data of edge type 1
 src_ids, dst_ids = g.edges(etype=('node1', 'relation1', 'node2'))
