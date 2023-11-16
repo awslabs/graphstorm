@@ -986,18 +986,31 @@ class NodeIDShuffler():
         assert isinstance(ntypes, list) and len(ntypes) > 0, \
             f"ntypes is not a list or is an empty list {ntypes}"
 
-        if node_id_mapping_file.endswith("dgl"):
-            # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
-            id_mappings = dgl.data.utils.load_tensors(node_id_mapping_file) \
-                if get_rank() == 0 else None
-        else: # endswith pt
+        if node_id_mapping_file.endswith("pt"):
             # node id mapping file from gconstruct.
             id_mappings = th.load(node_id_mapping_file) if get_rank() == 0 else None
+        else:
+            # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
+            # node_id_mapping_file it is actually a directory
+            # <node_id_mapping_file>/part0, <node_id_mapping_file>/part1, ...
+            part_dirs = [part_path for part_path in os.listdir(node_id_mapping_file) \
+                     if part_path.startswith("part")]
+
+            # we need the mapping chunks are ordered like part0, part1, ...
+            id_mappings = {ntype:[] for ntype in ntypes}
+            for i in range(len(part_dirs)):
+                id_mapping_part = dgl.data.utils.load_tensors(
+                    os.path.join(node_id_mapping_file, f"part{i}", "orig_nids.dgl"))
+                for ntype in ntypes:
+                    id_mappings[ntype].append(id_mapping_part[ntype])
+            id_mappings = {
+                ntype: th.cat(mappings) for ntype, mappings in id_mappings.items()
+            }
 
         self._id_mapping_info = {
-            ntype: self._load_id_mapping(g, ntype, id_mappings) \
-                for ntype in ntypes
-        }
+                ntype: self._load_id_mapping(g, ntype, id_mappings) \
+                    for ntype in ntypes
+            }
 
     def _load_id_mapping(self, g, ntype, id_mappings):
         """load id mapping of ntype"""
