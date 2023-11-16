@@ -183,8 +183,8 @@ def download_yaml_config(yaml_s3, local_path, sagemaker_session):
     try:
         S3Downloader.download(yaml_s3, local_path,
             sagemaker_session=sagemaker_session)
-    except Exception: # pylint: disable=broad-except
-        raise RuntimeError(f"Fail to download yaml file {yaml_s3}")
+    except Exception as err: # pylint: disable=broad-except
+        raise RuntimeError(f"Fail to download yaml file {yaml_s3}: {err}")
 
     return yaml_path
 
@@ -206,9 +206,10 @@ def download_model(model_artifact_s3, model_path, sagemaker_session):
     try:
         S3Downloader.download(model_artifact_s3,
             model_path, sagemaker_session=sagemaker_session)
-    except Exception: # pylint: disable=broad-except
+    except Exception as err: # pylint: disable=broad-except
         raise RuntimeError("Can not download saved model artifact" \
-                           f"model.bin from {model_artifact_s3}.")
+                           f"model.bin from {model_artifact_s3}." \
+                           f"{err}")
 
 def download_graph(graph_data_s3, graph_name, part_id, local_path, sagemaker_session):
     """ download graph data
@@ -273,10 +274,10 @@ def download_graph(graph_data_s3, graph_name, part_id, local_path, sagemaker_ses
         logging.info(f"Download graph from {os.path.join(graph_data_s3, graph_part)} to {graph_part_path}")
         S3Downloader.download(os.path.join(graph_data_s3, graph_part),
             graph_part_path, sagemaker_session=sagemaker_session)
-    except Exception as e: # pylint: disable=broad-except
+    except Exception as err: # pylint: disable=broad-except
         logging.error("Can not download graph_data from %s, %s.",
-                      graph_data_s3, str(e))
-        raise RuntimeError(f"Can not download graph_data from {graph_data_s3}, {str(e)}.")
+                      graph_data_s3, str(err))
+        raise RuntimeError(f"Can not download graph_data from {graph_data_s3}, {err}.")
 
     node_id_mapping = "node_mapping.pt"
 
@@ -319,9 +320,9 @@ def upload_data_to_s3(s3_path, data_path, sagemaker_session):
     try:
         ret = S3Uploader.upload(data_path, s3_path,
             sagemaker_session=sagemaker_session)
-    except Exception: # pylint: disable=broad-except
-        print(f"Can not upload data into {s3_path}")
-        raise RuntimeError(f"Can not upload data into {s3_path}")
+    except Exception as err: # pylint: disable=broad-except
+        logging.error("Can not upload data into %s", s3_path)
+        raise RuntimeError(f"Can not upload data into {s3_path}. {err}")
     return ret
 
 def upload_model_artifacts(model_s3_path, model_path, sagemaker_session):
@@ -340,7 +341,7 @@ def upload_model_artifacts(model_s3_path, model_path, sagemaker_session):
     sagemaker_session: sagemaker.session.Session
         sagemaker_session to run download
     """
-    print(f"Upload model artifacts to {model_s3_path}")
+    logging.info("Upload model artifacts to %s", model_s3_path)
     # Rank0 will upload both dense models and learnable embeddings owned by Rank0.
     # Other ranks will only upload learnable embeddings owned by themselves.
     return upload_data_to_s3(model_s3_path, model_path, sagemaker_session)
