@@ -168,7 +168,7 @@ The output should resemble with the following screenshot which includes `NCCL IN
 Convert node features to a WholeGraph-compatible format
 ---------------------------------------------------------
 
-Different from typical GraphStorm training where node features are stored in the ``node_feat.dgl`` in each partition, to utilize WholeGraph, the node features must be converted into a compatible WholeGraph format. After construct your raw data into GraphStorm required DistDGL format following this :ref:`graph construction tutorial<use-own-data>`, users can achieve this by utilizing the ``convert_feat_to_wholegraph.py`` script with ``--dataset-path`` pointing to the folder with the partitioned graph data and specify the features to be transformed using the ``--feat-names`` option. For example:
+Different from typical GraphStorm training where node features are stored in the ``node_feat.dgl`` in each partition, to utilize WholeGraph, the node features must be converted into a compatible WholeGraph format. After construct your raw data into GraphStorm required DistDGL format following this :ref:`graph construction tutorial<use-own-data>`, users can achieve this by utilizing the `convert_feat_to_wholegraph.py <https://github.com/awslabs/graphstorm/blob/main/tools/convert_feat_to_wholegraph.py>`_ script with ``--dataset-path`` pointing to the folder with the partitioned graph data and specify the features to be transformed using the ``--feat-names`` option. For example:
 
 .. code:: bash
 
@@ -191,13 +191,13 @@ For example link prediction task can be initiated using the following command:
 
     python3 -m graphstorm.run.gs_link_prediction \
             --workspace /data/ogbn_mag_lp/ \
-            --num_trainers 4 \
-            --num_servers 1 \
-            --num_samplers 0 \
-            --part_config /data/ogbn_mag_lp_2p/ogbn-mag.json \
-            --ip_config /data/ip_list.txt \
-            --ssh_port 2222 \
-            --graph_format csc,coo \
+            --num-trainers 4 \
+            --num-servers 1 \
+            --num-samplers 0 \
+            --part-config /data/ogbn_mag_lp_2p/ogbn-mag.json \
+            --ip-config /data/ip_list.txt \
+            --ssh-port 2222 \
+            --graph-format csc,coo \
             --cf /graphstorm/training_scripts/gsgnn_lp/mag_lp.yaml \
             --node-feat-name paper:feat
 
