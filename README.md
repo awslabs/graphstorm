@@ -43,11 +43,11 @@ python /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
 
 GraphStorm training relies on ssh to launch training jobs. The GraphStorm standalone mode uses ssh services in port 22. 
 
-In addition, users need to collect the IP addresses of all machines and put all IP addresses in an ip_list.txt file, in which every row is an IP address. We suggest users to provide the ip_list.txt file’s absolute path in the launch script. If run GraphStorm training in a single machine, the ip_list.txt only contains one row as below.
+In addition, to run GraphStorm training in a single machine, users need to create a ``ip_list.txt`` file that contains one row as below, which will facilitate ssh communication to the machine itself.
 
 ```127.0.0.1```
 
-NOTE: Users can use the following command to create the simple ip_list.txt file.
+Users can use the following command to create the simple ip_list.txt file.
 
 ```
 touch /tmp/ip_list.txt
