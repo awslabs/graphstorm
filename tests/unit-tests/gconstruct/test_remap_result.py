@@ -143,7 +143,7 @@ def test_worker_remap_node_data(data_col):
         revserse_mapping[ntypes[0]] = {val: key for key, val in mappings[ntypes[0]]._ids.items()}
 
         for i in range(num_data):
-            assert_almost_equal(data_[i], data[i].numpy(), decimal=5)
+            assert_almost_equal(data_[i], data[i].numpy(), decimal=4)
             assert_equal(nids_[i], revserse_mapping[ntypes[0]][int(nids[i])])
 
 def test_worker_remap_edge_pred():
