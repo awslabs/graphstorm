@@ -80,7 +80,7 @@ In the container environment, users can check the connectivity with the command 
 
 If succeeds, you should login to the container in the ``<ip-in-the-cluster>`` instance. 
 
-If not, please make sure there is no limitation of port 2222. 
+If not, please make sure there is no restriction of exposing port 2222. 
 
 For distributed training, users also need to make sure ports under 65536 is open for DistDGL to use.
 
