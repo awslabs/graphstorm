@@ -1014,7 +1014,8 @@ class NodeIDShuffler():
             id_mappings = th.load(node_id_mapping_file) if get_rank() == 0 else None
         else:
             # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
-            id_mappings = _load_dist_nid_map(node_id_mapping_file, ntypes)
+            id_mappings = _load_dist_nid_map(node_id_mapping_file, ntypes) \
+                if get_rank() == 0 else None
 
         self._id_mapping_info = {
                 ntype: self._load_id_mapping(g, ntype, id_mappings) \
