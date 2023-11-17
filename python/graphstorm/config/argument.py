@@ -487,8 +487,9 @@ class GSConfig:
                      if part_path.startswith("part")]
         node_id_mapping_file = os.path.join(os.path.join(path, part_dirs[0]),
                                             "orig_nids.dgl")
-        return node_id_mapping_file if os.path.isfile(node_id_mapping_file) \
-            else None
+        # if orig_nids.dgl exists, there means there are id mapping there.
+        # Rank 0 need to load all the mapping files.
+        return path if os.path.isfile(node_id_mapping_file) else None
 
     @property
     def edge_id_mapping_file(self):
@@ -518,7 +519,9 @@ class GSConfig:
                      if part_path.startswith("part")]
         edge_id_mapping_file = os.path.join(os.path.join(path, part_dirs[0]),
                                             "orig_eids.dgl")
-        return edge_id_mapping_file if os.path.isfile(edge_id_mapping_file) \
+        # if orig_eids.dgl exists, there means there are id mapping there.
+        # Rank 0 need to load all the mapping files.
+        return path if os.path.isfile(edge_id_mapping_file) \
             else None
 
     @property
