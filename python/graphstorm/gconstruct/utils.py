@@ -579,7 +579,8 @@ class ExtNumpyWrapper(ExtMemArrayWrapper):
     def cleanup(self):
         """ Clean up the array.
         """
-        self._arr.flush()
+        if self._arr is not None:
+            self._arr.flush()
         self._arr = None
 
     def to_numpy(self):
@@ -636,7 +637,8 @@ class ExtFeatureWrapper(ExtNumpyWrapper):
         # Expected file structure:
         # merged_file file_feature1 file_feature2
         # rmtree will clean up all single feature files as ExtNumpyWrapper does not clean them up
-        self._arr.flush()
+        if self._arr is not None:
+            self._arr.flush()
         self._arr = None
         shutil.rmtree(self._directory_path)
 

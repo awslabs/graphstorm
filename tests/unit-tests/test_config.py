@@ -1578,8 +1578,8 @@ def test_id_mapping_file():
             dgl.data.utils.save_tensors(nid_map_file, id_map)
             dgl.data.utils.save_tensors(eid_map_file, id_map)
 
-            assert config.node_id_mapping_file == nid_map_file
-            assert config.edge_id_mapping_file == eid_map_file
+            assert config.node_id_mapping_file == part_path
+            assert config.edge_id_mapping_file == part_path
 
 if __name__ == '__main__':
     test_id_mapping_file()
