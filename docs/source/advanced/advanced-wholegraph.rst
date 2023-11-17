@@ -121,6 +121,10 @@ If succeeds, the command prompt will change to the container's, like
 
     root@<ip-address>:/#
 
+.. note::
+    
+    If you want to use the built Docker image in a distributed cluster, please make sure you follow the :ref:`Create a GraphStorm Cluster<create_cluster>` step and use the WholeGraph-supported Docker image in your cluster.
+
 Verify EFA and NCCL configuration
 -----------------------------------
 
