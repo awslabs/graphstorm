@@ -117,7 +117,7 @@ def write_data_csv_file(data, file_prefix, delimiter=",", col_name_map=None):
         elif len(vals.shape) == 2:
             csv_data[key] = [";".join([str(v) for v in val]) \
                              for val in vals.tolist()]
-    data_frame = pd.DataFrame(data)
+    data_frame = pd.DataFrame(csv_data)
     data_frame.to_csv(output_fname, index=False, sep=delimiter)
 
 def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
