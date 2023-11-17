@@ -22,7 +22,7 @@ GraphStorm can be installed with pip and it can be used to train GNN models in a
 
 ### Run GraphStorm with OGB datasets
 
-**Note**: we assume users have setup a GraphStorm standalone environment following the [Setup GraphStorm with pip Packages](https://graphstorm.readthedocs.io/en/latest/install/env-setup.html#setup-graphstorm-with-pip-packages) instructions. And users git clone the GraphStorm source code into the `/graphstorm/` folder to use some complimentatry tools.
+**Note**: we assume users have setup a GraphStorm standalone environment following the [Setup GraphStorm with pip Packages](https://graphstorm.readthedocs.io/en/latest/install/env-setup.html#setup-graphstorm-with-pip-packages) instructions. And users have git cloned the GraphStorm source code into the `/graphstorm/` folder to use some complimentatry tools.
 
 **Node classification on OGB arxiv graph**
 First, use the below command to download the [OGB arxiv](https://ogb.stanford.edu/docs/nodeprop/#ogbn-arxiv) data and process it into a DGL graph for the node classification task.
