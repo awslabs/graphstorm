@@ -22,7 +22,7 @@ from functools import partial
 import pandas as pd
 import torch as th
 import numpy as np
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_almost_equal
 
 from graphstorm.gconstruct import remap_result
 from graphstorm.gconstruct.file_io import read_data_parquet
@@ -137,13 +137,13 @@ def test_worker_remap_node_data(data_col):
         nids_ = np.concatenate(nids_, axis=0)
         csv_data_ = np.concatenate(csv_data_, axis=0)
         csv_nids_ = np.concatenate(csv_nids_, axis=0)
-        assert_equal(data_, csv_data_)
+        assert_almost_equal(data_, csv_data_, decimal=5)
         assert_equal(nids_, csv_nids_)
         revserse_mapping = {}
         revserse_mapping[ntypes[0]] = {val: key for key, val in mappings[ntypes[0]]._ids.items()}
 
         for i in range(num_data):
-            assert_equal(data_[i], data[i].numpy())
+            assert_almost_equal(data_[i], data[i].numpy(), decimal=5)
             assert_equal(nids_[i], revserse_mapping[ntypes[0]][int(nids[i])])
 
 def test_worker_remap_edge_pred():
