@@ -104,6 +104,8 @@ python3 -m graphstorm.run.gs_link_prediction \
         --save-perf-results-path /tmp/ogbn-mag/models
 ```
 
+To learn GraphStorm's full capabilities, please refer to our [Documentations and Tutorials](https://graphstorm.readthedocs.io/en/latest/).
+
 ## Limitation
 GraphStorm framework now supports using CPU or NVidia GPU for model training and inference. But it only works with PyTorch-gloo backend. It was only tested on AWS CPU instances or AWS GPU instances equipped with NVidia GPUs including P4, V100, A10 and A100.
 
