@@ -247,6 +247,49 @@ def test_shuffle_nids():
         p0.join()
         assert p0.exitcode == 0
 
+def test_shuffle_nids_dist_part():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        g, part_config = generate_dummy_dist_graph(tmpdirname, size="tiny")
+        nid_map_dict_path0 = os.path.join(tmpdirname, "part0")
+        nid_map_dict_path1 = os.path.join(tmpdirname, "part1")
+        # part0 should exists
+        os.mkdir(nid_map_dict_path1)
+
+        target_ntype0 = g.ntypes[0]
+        target_ntype1 = g.ntypes[1]
+        ori_nid_maps = {target_ntype0: th.randperm(g.number_of_nodes(target_ntype0)),
+                        target_ntype1: th.randperm(g.number_of_nodes(target_ntype1))}
+        mapping0 = {
+            target_ntype0: ori_nid_maps[target_ntype0][0:g.number_of_nodes(target_ntype0)//2],
+            target_ntype1: ori_nid_maps[target_ntype1][0:g.number_of_nodes(target_ntype0)//2],
+        }
+        mapping1 = {
+            target_ntype0: ori_nid_maps[target_ntype0][g.number_of_nodes(target_ntype0)//2:],
+            target_ntype1: ori_nid_maps[target_ntype1][g.number_of_nodes(target_ntype0)//2:],
+        }
+        dgl.data.utils.save_tensors(os.path.join(nid_map_dict_path0,
+                                                 "orig_nids.dgl"),
+                                    mapping0)
+        dgl.data.utils.save_tensors(os.path.join(nid_map_dict_path1,
+                                                 "orig_nids.dgl"),
+                                    mapping1)
+
+        test_nids0 = th.randint(g.number_of_nodes(target_ntype0),
+                                (g.number_of_nodes(target_ntype0),))
+        orig_nids0 = ori_nid_maps[target_ntype0][test_nids0]
+        test_nids1 = th.arange(10)
+        orig_nids1 = ori_nid_maps[target_ntype1][test_nids1]
+
+        ctx = mp.get_context('spawn')
+        p0 = ctx.Process(target=run_distributed_shuffle_nids,
+                        args=(part_config, target_ntype0, target_ntype1,
+                              test_nids0, test_nids1, tmpdirname,
+                              0, 1, orig_nids0, orig_nids1))
+        p0.start()
+        p0.join()
+        assert p0.exitcode == 0
+
+
 @pytest.mark.parametrize("backend", ["gloo", "nccl"])
 @pytest.mark.parametrize("map_pattern", ["gconstruct", "distdgl"])
 def test_distribute_nid_map(backend, map_pattern):
@@ -274,8 +317,18 @@ def test_distribute_nid_map(backend, map_pattern):
             nid_map_dict_path = os.path.join(tmpdirname, "nid_map_dict.pt")
             th.save(ori_nid_maps, nid_map_dict_path)
         else: # distdgl
-            nid_map_dict_path = os.path.join(tmpdirname, "orig_nids.dgl")
-            dgl.data.utils.save_tensors(nid_map_dict_path, ori_nid_maps)
+            nid_map_dict_path = tmpdirname
+            for i in range(4):
+                local_map_dict_path = os.path.join(nid_map_dict_path, f"part{i}")
+                if i > 0:
+                    os.mkdir(local_map_dict_path)
+                mapping = {
+                    nt: nid_map[i:i+1 if i < 3 else g.number_of_nodes(ntype)] \
+                        for nt, nid_map in ori_nid_maps.items()
+                }
+                dgl.data.utils.save_tensors(os.path.join(local_map_dict_path,
+                                                 "orig_nids.dgl"),
+                                            mapping)
 
         nid_map_tensor_path = os.path.join(tmpdirname, "nid_map_tensor.pt")
         dummy_ntype = g.ntypes[0]
@@ -488,10 +541,10 @@ def test_shuffle_emb_with_shuffle_nids(map_pattern):
             save_maps(tmpdirname, "node_mapping", ori_nid_mappings)
             nid_mapping_file = os.path.join(tmpdirname, "node_mapping.pt")
         else:
-            os.mkdir(os.path.join(tmpdirname, "part"))
-            nid_mapping_file = os.path.join(os.path.join(tmpdirname, "part"),
-                                            "orig_nids.dgl")
-            dgl.data.utils.save_tensors(nid_mapping_file, ori_nid_mappings)
+            dist_nid_mapping_file = os.path.join(os.path.join(tmpdirname, "part0"),
+                                                 "orig_nids.dgl")
+            dgl.data.utils.save_tensors(dist_nid_mapping_file, ori_nid_mappings)
+            nid_mapping_file = tmpdirname
         ctx = mp.get_context('spawn')
         conn1, conn2 = mp.Pipe()
         p0 = ctx.Process(target=do_dist_shuffle_nids,
@@ -1087,6 +1140,11 @@ def test_normalize_node_embs(num_embs):
 
 
 if __name__ == '__main__':
+    test_shuffle_nids_dist_part()
+    test_distribute_nid_map(backend='gloo', map_pattern='distdgl')
+    test_distribute_nid_map(backend='nccl', map_pattern='gconstruct')
+    test_shuffle_emb_with_shuffle_nids("distdgl")
+    test_shuffle_emb_with_shuffle_nids("gconstruct")
     test_normalize_node_embs(10000)
     test_full_node_embeddings()
 
@@ -1094,8 +1152,6 @@ if __name__ == '__main__':
     test_save_node_prediction_results()
     test_save_edge_prediction_results()
     test_save_shuffled_node_embeddings()
-    test_distribute_nid_map(backend='gloo')
-    test_distribute_nid_map(backend='nccl')
 
     test_shuffle_predict(num_embs=16, backend='gloo')
     test_shuffle_predict(num_embs=17, backend='nccl')
@@ -1105,8 +1161,6 @@ if __name__ == '__main__':
     test_exchange_node_id_mapping(101, backend='nccl')
     test_save_embeddings_with_id_mapping(num_embs=16, backend='gloo')
     test_save_embeddings_with_id_mapping(num_embs=17, backend='nccl')
-    test_shuffle_emb_with_shuffle_nids("distdgl")
-    test_shuffle_emb_with_shuffle_nids("gconstruct")
 
     test_get_feat_size()
     test_save_embeddings()
