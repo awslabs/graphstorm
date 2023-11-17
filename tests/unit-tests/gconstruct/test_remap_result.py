@@ -91,7 +91,7 @@ def test_worker_remap_node_data(data_col):
         def read_csv(file, delimiter=","):
             data = pd.read_csv(file, delimiter=delimiter)
             nid = data["nid"].to_numpy()
-            data_ = [np.array(d.split(";")) for d in data[data_col]]
+            data_ = [np.array(d.split(";")).astype(np.float32) for d in data[data_col]]
 
             return {"nid": nid,
                     data_col: data_}
