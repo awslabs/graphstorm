@@ -1303,7 +1303,7 @@ def test_load_io_info():
         assert config.save_model_path == os.path.join(Path(tmpdirname), "save")
         assert config.save_model_frequency == 100
         assert config.save_embed_path == "./save_emb"
-        assert config.save_prediction_path == "./save_emb"
+        assert config.save_prediction_path == None
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test2.yaml'),
                          local_rank=0)

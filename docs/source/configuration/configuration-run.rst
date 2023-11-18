@@ -377,7 +377,7 @@ Classification and Regression Task
 
     - Yaml: ``save_prediction_path: /data/infer-output/predictions/``
     - Argument: ``--save-prediction-path /data/infer-output/predictions/``
-    - Default value: If not provided, it will be the same as save_embed_path.
+    - Default value: If not provided, no prediction results will be saved.
 
 Node Classification/Regression Specific
 .........................................

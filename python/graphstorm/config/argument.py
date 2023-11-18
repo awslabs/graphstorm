@@ -272,7 +272,6 @@ class GSConfig:
         _ = self.eval_batch_size
         _ = self.eval_frequency
         _ = self.no_validation
-        _ = self.save_prediction_path
         _ = self.eval_etype
         if self.task_type is not None:
             _ = self.eval_metric
@@ -300,6 +299,9 @@ class GSConfig:
             _ = self.train_negative_sampler
             _ = self.train_etype
             _ = self.remove_target_edge_type
+        else:
+            # inference
+            _ = self.save_prediction_path
 
         # LM module
         if self.node_lm_configs:
@@ -1564,8 +1566,9 @@ class GSConfig:
             return self._save_prediction_path
 
         # if save_prediction_path is not specified in inference
-        # use save_embed_path
-        return self.save_embed_path
+        logging.warning("save_prediction_path is not set. Prediction results" \
+                        "will not be saved for node or edge prediction tasks.")
+        return None
 
     ### Node related task variables ###
     @property
