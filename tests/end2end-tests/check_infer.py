@@ -58,8 +58,8 @@ if __name__ == '__main__':
         train_nids = []
         ntype_emb_path = os.path.join(args.train_embout, ntype)
         emb_files = os.listdir(ntype_emb_path)
-        ntype_emb_files = [file for file in emb_files if file.endswith(".pt") and file.startswith("emb")]
-        ntype_nid_files = [file for file in emb_files if file.endswith(".pt") and file.startswith("nids")]
+        ntype_emb_files = [file for file in emb_files if file.endswith(".pt") and file.startswith("embed-")]
+        ntype_nid_files = [file for file in emb_files if file.endswith(".pt") and file.startswith("embed_nids-")]
         ntype_emb_files = sorted(ntype_emb_files)
         ntype_nid_files = sorted(ntype_nid_files)
         for f in ntype_emb_files:
@@ -86,8 +86,8 @@ if __name__ == '__main__':
         infer_nids = []
         ntype_emb_path = os.path.join(args.infer_embout, ntype)
         emb_files = os.listdir(ntype_emb_path)
-        ntype_emb_files = [file for file in emb_files if file.endswith(".pt") and file.startswith("emb")]
-        ntype_nid_files = [file for file in emb_files if file.endswith(".pt") and file.startswith("nids")]
+        ntype_emb_files = [file for file in emb_files if file.endswith(".pt") and file.startswith("embed-")]
+        ntype_nid_files = [file for file in emb_files if file.endswith(".pt") and file.startswith("embed_nids-")]
         ntype_emb_files = sorted(ntype_emb_files)
         ntype_nid_files = sorted(ntype_nid_files)
         for f in ntype_emb_files:
