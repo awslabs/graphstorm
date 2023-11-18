@@ -593,9 +593,9 @@ def test_save_embeddings_with_id_mapping(num_embs, backend):
 
         # Load saved embeddings
         emb0 = th.load(os.path.join(os.path.join(tmpdirname, dgl.NTYPE),
-                                    f'emb.part{pad_file_index(0)}.pt'), weights_only=True)
+                                    f'embed-{pad_file_index(0)}.pt'), weights_only=True)
         emb1 = th.load(os.path.join(os.path.join(tmpdirname, dgl.NTYPE),
-                                    f'emb.part{pad_file_index(1)}.pt'), weights_only=True)
+                                    f'embed-{pad_file_index(1)}.pt'), weights_only=True)
         saved_emb = th.cat([emb0, emb1], dim=0)
         assert len(saved_emb) == len(emb)
         assert_equal(emb[nid_mapping].numpy(), saved_emb.numpy())
@@ -635,25 +635,25 @@ def test_save_embeddings_with_id_mapping(num_embs, backend):
 
         # Load saved embeddings
         emb0 = th.load(os.path.join(os.path.join(tmpdirname, 'n0'),
-                                    f'emb.part{pad_file_index(0)}.pt'), weights_only=True)
+                                    f'embed-{pad_file_index(0)}.pt'), weights_only=True)
         emb1 = th.load(os.path.join(os.path.join(tmpdirname, 'n0'),
-                                    f'emb.part{pad_file_index(1)}.pt'), weights_only=True)
+                                    f'embed-{pad_file_index(1)}.pt'), weights_only=True)
         saved_emb = th.cat([emb0, emb1], dim=0)
         assert len(saved_emb) == len(embs['n0'])
         assert_equal(embs['n0'][nid_mappings['n0']].numpy(), saved_emb.numpy())
 
         emb0 = th.load(os.path.join(os.path.join(tmpdirname, 'n1'),
-                                    f'emb.part{pad_file_index(0)}.pt'), weights_only=True)
+                                    f'embed-{pad_file_index(0)}.pt'), weights_only=True)
         emb1 = th.load(os.path.join(os.path.join(tmpdirname, 'n1'),
-                                    f'emb.part{pad_file_index(1)}.pt'), weights_only=True)
+                                    f'embed-{pad_file_index(1)}.pt'), weights_only=True)
         saved_emb = th.cat([emb0, emb1], dim=0)
         assert len(saved_emb) == len(embs['n1'])
         assert_equal(embs['n1'][nid_mappings['n1']].numpy(), saved_emb.numpy())
 
         emb0 = th.load(os.path.join(os.path.join(tmpdirname, 'n2'),
-                                    f'emb.part{pad_file_index(0)}.pt'), weights_only=True)
+                                    f'embed-{pad_file_index(0)}.pt'), weights_only=True)
         emb1 = th.load(os.path.join(os.path.join(tmpdirname, 'n2'),
-                                    f'emb.part{pad_file_index(1)}.pt'), weights_only=True)
+                                    f'embed-{pad_file_index(1)}.pt'), weights_only=True)
         saved_emb = th.cat([emb0, emb1], dim=0)
         assert len(saved_emb) == len(embs['n2'])
         assert_equal(embs['n2'][nid_mappings['n2']].numpy(), saved_emb.numpy())
@@ -671,12 +671,12 @@ def test_save_embeddings():
 
         # Only work with torch 1.13+
         feats_type0 = [th.load(os.path.join(os.path.join(tmpdirname, "type0"),
-                                            f"emb.part{pad_file_index(i)}.pt"),
+                                            f"embed-{pad_file_index(i)}.pt"),
                                weights_only=True) for i in range(4)]
         feats_type0 = th.cat(feats_type0, dim=0)
         # Only work with torch 1.13+
         feats_type1 = [th.load(os.path.join(os.path.join(tmpdirname, "type1"),
-                                            f"emb.part{pad_file_index(i)}.pt"),
+                                            f"embed-{pad_file_index(i)}.pt"),
                                weights_only=True) for i in range(4)]
         feats_type1 = th.cat(feats_type1, dim=0)
 
@@ -867,12 +867,12 @@ def test_save_node_prediction_results():
 
         n0_feat0 = th.load(os.path.join(tmpdirname, os.path.join(ntype0, "predict-00000.pt")))
         n0_feat1 = th.load(os.path.join(tmpdirname, os.path.join(ntype0, "predict-00001.pt")))
-        n0_nid0 = th.load(os.path.join(tmpdirname, os.path.join(ntype0, "nids-00000.pt")))
-        n0_nid1 = th.load(os.path.join(tmpdirname, os.path.join(ntype0, "nids-00001.pt")))
+        n0_nid0 = th.load(os.path.join(tmpdirname, os.path.join(ntype0, "predict_nids-00000.pt")))
+        n0_nid1 = th.load(os.path.join(tmpdirname, os.path.join(ntype0, "predict_nids-00001.pt")))
         n1_feat0 = th.load(os.path.join(tmpdirname, os.path.join(ntype1, "predict-00000.pt")))
         n1_feat1 = th.load(os.path.join(tmpdirname, os.path.join(ntype1, "predict-00001.pt")))
-        n1_nid0 = th.load(os.path.join(tmpdirname, os.path.join(ntype1, "nids-00000.pt")))
-        n1_nid1 = th.load(os.path.join(tmpdirname, os.path.join(ntype1, "nids-00001.pt")))
+        n1_nid0 = th.load(os.path.join(tmpdirname, os.path.join(ntype1, "predict_nids-00000.pt")))
+        n1_nid1 = th.load(os.path.join(tmpdirname, os.path.join(ntype1, "predict_nids-00001.pt")))
 
         assert_almost_equal(th.cat([n0_feat0, n0_feat1]).numpy(),
                             th.cat([predictions0[ntype0][0], predictions1[ntype0][0]]).numpy())
@@ -912,13 +912,13 @@ def test_save_shuffled_node_embeddings():
 
         os.path.exists(os.path.join(tmpdirname, "emb_info.json"))
         os.path.exists(os.path.join(tmpdirname,
-                                    os.path.join(ntype0, "emb.part00000.pt")))
+                                    os.path.join(ntype0, "embed-00000.pt")))
         os.path.exists(os.path.join(tmpdirname,
-                                    os.path.join(ntype0, "emb.part00001.pt")))
+                                    os.path.join(ntype0, "embed-00001.pt")))
         os.path.exists(os.path.join(tmpdirname,
-                                    os.path.join(ntype1, "emb.part00000.pt")))
+                                    os.path.join(ntype1, "embed-00000.pt")))
         os.path.exists(os.path.join(tmpdirname,
-                                    os.path.join(ntype1, "emb.part00001.pt")))
+                                    os.path.join(ntype1, "embed-00001.pt")))
         with open(os.path.join(tmpdirname, "emb_info.json"), 'r', encoding='utf-8') as f:
             info = json.load(f)
             assert info["format"] == "pytorch"
@@ -926,21 +926,21 @@ def test_save_shuffled_node_embeddings():
             assert set(info["emb_name"]) == set([ntype0, ntype1])
 
         n0_feat0 = th.load(os.path.join(tmpdirname,
-                                        os.path.join(ntype0, "emb.part00000.pt")))
+                                        os.path.join(ntype0, "embed-00000.pt")))
         n0_feat1 = th.load(os.path.join(tmpdirname,
-                                        os.path.join(ntype0, "emb.part00001.pt")))
+                                        os.path.join(ntype0, "embed-00001.pt")))
         n0_nid0 = th.load(os.path.join(tmpdirname,
-                                       os.path.join(ntype0, "nids.part00000.pt")))
+                                       os.path.join(ntype0, "embed_nids-00000.pt")))
         n0_nid1 = th.load(os.path.join(tmpdirname,
-                                       os.path.join(ntype0, "nids.part00001.pt")))
+                                       os.path.join(ntype0, "embed_nids-00001.pt")))
         n1_feat0 = th.load(os.path.join(tmpdirname,
-                                        os.path.join(ntype1, "emb.part00000.pt")))
+                                        os.path.join(ntype1, "embed-00000.pt")))
         n1_feat1 = th.load(os.path.join(tmpdirname,
-                                        os.path.join(ntype1, "emb.part00001.pt")))
+                                        os.path.join(ntype1, "embed-00001.pt")))
         n1_nid0 = th.load(os.path.join(tmpdirname,
-                                       os.path.join(ntype1, "nids.part00000.pt")))
+                                       os.path.join(ntype1, "embed_nids-00000.pt")))
         n1_nid1 = th.load(os.path.join(tmpdirname,
-                                       os.path.join(ntype1, "nids.part00001.pt")))
+                                       os.path.join(ntype1, "embed_nids-00001.pt")))
 
         assert_almost_equal(th.cat([n0_feat0, n0_feat1]).numpy(),
                             th.cat([embs0[ntype0][0], embs1[ntype0][0]]).numpy())
@@ -1068,14 +1068,14 @@ def test_full_node_embeddings():
         assert p0.exitcode == 0
 
         ntype0_emb_path = os.path.join(emb_path, target_ntype0)
-        ntype0_emb = th.load(os.path.join(ntype0_emb_path, "emb.part00000.pt"))
-        ntype0_nid = th.load(os.path.join(ntype0_emb_path, "nids.part00000.pt"))
+        ntype0_emb = th.load(os.path.join(ntype0_emb_path, "embed-00000.pt"))
+        ntype0_nid = th.load(os.path.join(ntype0_emb_path, "embed_nids-00000.pt"))
         assert_equal(embeddings[target_ntype0].numpy(), ntype0_emb.numpy())
         assert_equal(ori_nid_maps[target_ntype0].numpy(), ntype0_nid.numpy())
 
         ntype1_emb_path = os.path.join(emb_path, target_ntype1)
-        ntype1_emb = th.load(os.path.join(ntype1_emb_path, "emb.part00000.pt"))
-        ntype1_nid = th.load(os.path.join(ntype1_emb_path, "nids.part00000.pt"))
+        ntype1_emb = th.load(os.path.join(ntype1_emb_path, "embed-00000.pt"))
+        ntype1_nid = th.load(os.path.join(ntype1_emb_path, "embed_nids-00000.pt"))
         assert_equal(embeddings[target_ntype1].numpy(), ntype1_emb.numpy())
         assert_equal(ori_nid_maps[target_ntype1].numpy(), ntype1_nid.numpy())
 

@@ -159,7 +159,7 @@ Inference on link prediction is similar as shown in the command below.
             --save-embed-path /tmp/ogbn-arxiv-lp/predictions/ \
             --restore-model-path /tmp/ogbn-arxiv-lp/models/epoch-2/
 
-The inference outputs include a **"emb_info.json"** metadata file and the prediction result file, **"emb.part00000.pt"** in the ``/tmp/ogbn-arxiv-lp/predictions/`` folder.
+The inference outputs include a **"emb_info.json"** metadata file and the prediction result file, **"embed-00000.pt"** in the ``/tmp/ogbn-arxiv-lp/predictions/`` folder.
 
 Generating Embedding
 --------------------
@@ -185,7 +185,7 @@ Users need to specify ``--restore-model-path`` and ``--save-embed-path`` when us
     /tmp/ogbn-arxiv-nc/saved_embed
         emb_info.json
         node/
-            node_emb.part00000.pt
+            node_embed-00000.pt
 
 
 For node classification/regression task, if ``target_ntype`` is provided, the command will generate and save node embeddings on ``target_ntype``, otherwise it will generate embeddings for all node types.
@@ -201,18 +201,18 @@ The saved result will be like:
     /tmp/saved_embed
         emb_info.json
         node_type1/
-            nids.part00000.pt
-            nids.part00001.pt
+            embed_nids-00000.pt
+            embed_nids-00001.pt
             ...
-            emb.part00000.pt
-            emb.part00001.pt
+            embed-00000.pt
+            embed-00001.pt
             ...
         node_type2/
-            nids.part00000.pt
-            nids.part00001.pt
+            embed_nids-00000.pt
+            embed_nids-00001.pt
             ...
-            emb.part00000.pt
-            emb.part00001.pt
+            embed-00000.pt
+            embed-00001.pt
             ...
 
 **That is it!** You have learnt how to use GraphStorm in three steps.
