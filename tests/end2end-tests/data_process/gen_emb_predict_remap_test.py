@@ -76,17 +76,17 @@ def main(args):
     emb_output_ntype1 = os.path.join(emb_output, ntype1)
     os.makedirs(emb_output_ntype0)
     os.makedirs(emb_output_ntype1)
-    th.save(th.tensor(emb0_0), os.path.join(emb_output_ntype0, f"emb.part{pad_file_index(0)}.pt"))
-    th.save(th.tensor(nid0_new_0), os.path.join(emb_output_ntype0, f"nids.part{pad_file_index(0)}.pt"))
+    th.save(th.tensor(emb0_0), os.path.join(emb_output_ntype0, f"embed-{pad_file_index(0)}.pt"))
+    th.save(th.tensor(nid0_new_0), os.path.join(emb_output_ntype0, f"embed_nids-{pad_file_index(0)}.pt"))
 
-    th.save(th.tensor(emb1_0), os.path.join(emb_output_ntype1, f"emb.part{pad_file_index(0)}.pt"))
-    th.save(th.tensor(nid1_new_0), os.path.join(emb_output_ntype1, f"nids.part{pad_file_index(0)}.pt"))
+    th.save(th.tensor(emb1_0), os.path.join(emb_output_ntype1, f"embed-{pad_file_index(0)}.pt"))
+    th.save(th.tensor(nid1_new_0), os.path.join(emb_output_ntype1, f"embed_nids-{pad_file_index(0)}.pt"))
 
-    th.save(th.tensor(emb0_1), os.path.join(emb_output_ntype0, f"emb.part{pad_file_index(1)}.pt"))
-    th.save(th.tensor(nid0_new_1), os.path.join(emb_output_ntype0, f"nids.part{pad_file_index(1)}.pt"))
+    th.save(th.tensor(emb0_1), os.path.join(emb_output_ntype0, f"embed-{pad_file_index(1)}.pt"))
+    th.save(th.tensor(nid0_new_1), os.path.join(emb_output_ntype0, f"embed_nids-{pad_file_index(1)}.pt"))
 
-    th.save(th.tensor(emb1_1), os.path.join(emb_output_ntype1, f"emb.part{pad_file_index(1)}.pt"))
-    th.save(th.tensor(nid1_new_1), os.path.join(emb_output_ntype1, f"nids.part{pad_file_index(1)}.pt"))
+    th.save(th.tensor(emb1_1), os.path.join(emb_output_ntype1, f"embed-{pad_file_index(1)}.pt"))
+    th.save(th.tensor(nid1_new_1), os.path.join(emb_output_ntype1, f"embed_nids-{pad_file_index(1)}.pt"))
 
     # Case two: All the nodes have node embeddings
     emb0_0 = np.stack((nid0[:500], nid0[:500]), axis=1)
