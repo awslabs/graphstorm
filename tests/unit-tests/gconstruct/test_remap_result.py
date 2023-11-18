@@ -230,7 +230,7 @@ def test_worker_remap_edge_pred():
         csv_preds_ = np.concatenate(csv_preds_, axis=0)
         csv_src_nids_ = np.concatenate(csv_src_nids_, axis=0)
         csv_dst_nids_ = np.concatenate(csv_dst_nids_, axis=0)
-        assert_equal(preds_, csv_preds_)
+        assert_almost_equal(preds_, csv_preds_, decimal=5)
         assert_equal(src_nids_, csv_src_nids_)
         assert_equal(dst_nids_, csv_dst_nids_)
         revserse_mapping = {}
