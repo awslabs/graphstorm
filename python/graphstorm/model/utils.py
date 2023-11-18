@@ -544,7 +544,7 @@ def save_pytorch_embedding(emb_path, embedding, rank, world_size):
 
     start, end = get_data_range(rank, world_size, len(embedding))
     embedding = embedding[start:end]
-    th.save(embedding, os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.pt'))
+    th.save(embedding, os.path.join(emb_path, f'embed-{pad_file_index(rank)}.pt'))
 
 def load_pytorch_embedding(emb_path, part_policy, name):
     """ Load embedding tensor in Pytorch format.
@@ -564,7 +564,7 @@ def load_pytorch_embedding(emb_path, part_policy, name):
     """
     rank = get_rank()
     world_size = get_world_size()
-    emb = th.load(os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.pt'))
+    emb = th.load(os.path.join(emb_path, f'embed-{pad_file_index(rank)}.pt'))
     dist_emb = create_dist_tensor((part_policy.get_size(), emb.shape[1]), emb.dtype,
             name=name, part_policy=part_policy)
     start, end = get_data_range(rank, world_size, len(dist_emb))
@@ -595,9 +595,9 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
 
             PATH_TO_EMB:
                 |- emb_info.json
-                |- ntype0_emb.part00000.pt
+                |- ntype0_embed-00000.pt
                 |- ...
-                |- ntype1_emb.part00000.pt
+                |- ntype1_embed-00000.pt
                 |- ...
 
         The emb.info.json contains three information:
@@ -701,14 +701,14 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
         for name, emb in embeddings.items():
             os.makedirs(os.path.join(emb_path, name), exist_ok=True)
             th.save(emb, os.path.join(os.path.join(emb_path, name),
-                                      f'emb.part{pad_file_index(rank)}.pt'))
+                                      f'embed-{pad_file_index(rank)}.pt'))
             emb_info["emb_name"].append(name)
     else:
         os.makedirs(os.path.join(emb_path, NTYPE), exist_ok=True)
         # There is no ntype for the embedding
         # use NTYPE
         th.save(embeddings, os.path.join(os.path.join(emb_path, NTYPE),
-                                         f'emb.part{pad_file_index(rank)}.pt'))
+                                         f'embed-{pad_file_index(rank)}.pt'))
         emb_info["emb_name"] = NTYPE
 
     if rank == 0:
@@ -794,9 +794,9 @@ def save_shuffled_node_embeddings(shuffled_embs, save_embed_path, save_embed_for
         assert len(nids) == len(embs), \
             f"The embeding length {len(embs)} does not match the node id length {len(nids)}"
         th.save(embs, os.path.join(os.path.join(save_embed_path, ntype),
-                                  f'emb.part{pad_file_index(rank)}.pt'))
+                                  f'embed-{pad_file_index(rank)}.pt'))
         th.save(nids, os.path.join(os.path.join(save_embed_path, ntype),
-                                  f'nids.part{pad_file_index(rank)}.pt'))
+                                  f'embed_nids-{pad_file_index(rank)}.pt'))
         emb_info["emb_name"].append(ntype)
 
     if rank == 0:
@@ -828,28 +828,28 @@ def save_full_node_embeddings(g, save_embed_path,
         --------
         # embedddings:
         #   ntype0:
-        #     nids.part00000.pt
-        #     nids.part00001.pt
+        #     embed_nids-00000.pt
+        #     embed_nids-00001.pt
         #     ...
-        #     emb.part00000.pt
-        #     emb.part00001.pt
+        #     embed-00000.pt
+        #     embed-00001.pt
         #     ...
         #   ntype1:
-        #     nids.part00000.pt
-        #     nids.part00001.pt
+        #     embed_nids-00000.pt
+        #     embed_nids-00001.pt
         #     ...
-        #     emb.part00000.pt
-        #     emb.part00001.pt
+        #     embed-00000.pt
+        #     embed-00001.pt
         #     ...
 
-        The content of nids.part files and emb.part files looks like:
+        The content of embed_nids- files and embed- files looks like:
 
         Example:
         --------
 
         .. code::
 
-            nids.part00000.pt    |   emb.part00000.pt
+            embed_nids-00000.pt    |   embed-00000.pt
                                  |
             Graph Node ID        |   embeddings
             10                   |   0.112,0.123,-0.011,...
@@ -1125,7 +1125,7 @@ def save_node_prediction_result(predictions, nids,
     # make sure the prediction_path permission is changed before other process start to save
     barrier()
     th.save(predictions, os.path.join(prediction_path, f"predict-{pad_file_index(rank)}.pt"))
-    th.save(nids, os.path.join(prediction_path, f"nids-{pad_file_index(rank)}.pt"))
+    th.save(nids, os.path.join(prediction_path, f"predict_nids-{pad_file_index(rank)}.pt"))
 
 def save_prediction_results(predictions, prediction_path, rank):
     """ Save node predictions to the given path
@@ -1167,8 +1167,8 @@ def save_node_prediction_results(predictions, prediction_path):
                 |- predict-00000.pt
                 |- predict-00001.pt
                 |- ...
-                |- nids-00000.pt
-                |- nids-00001.pt
+                |- predict_nids-00000.pt
+                |- predict_nids-00001.pt
                 |- ...
             |- ntype1
                 |- ...
