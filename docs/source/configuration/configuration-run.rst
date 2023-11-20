@@ -19,12 +19,12 @@ GraphStorm's `graphstorm.run.launch <https://github.com/awslabs/graphstorm/blob/
 - **ssh-port**: SSH port used by the host node to communicate with the other nodes in the cluster.
 - **ssh-username**: Optional. When issuing commands (via ssh) to cluster, use the provided username in the ssh command.
 - **graph-format**: The format of the graph structure of each partition. The allowed formats are csr, csc and coo. A user can specify multiple formats, separated by ",". For example, the graph format is "csr,csc".
+- **cf** or **yaml-config-file**: (**Required**) Path to the YAML configuration file.
 - **extra-envs**: Extra environment parameters need to be set. For example, you can set the LD_LIBRARY_PATH and NCCL_DEBUG by adding:
 
     - --extra_envs LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
     - --extra-envs LD_LIBRARY_PATH=/usr/local/cuda/lib64:$LD_LIBRARY_PATH
     - NCCL_DEBUG=INFO
-- **lm-encoder-only**: Indicate that the model is using language model + decoder only. model. No GNN is involved, only graph structure.
 - **do-nid-remap**: Do GraphStorm node ID to Raw input node ID remapping for prediction results and node embeddings. Default is True.
 
 ..  note:: Below configurations can be set either in a YAML configuration file or be added as arguments of launch command.
