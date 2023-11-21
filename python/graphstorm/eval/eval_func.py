@@ -195,13 +195,17 @@ def eval_roc_auc(logits,labels):
     # The roc_auc_score function computes the area under the receiver operating characteristic
     # (ROC) curve, which is also denoted by AUC or AUROC. The following returns the average AUC.
     rocauc_list = []
-    labels=labels_to_one_hot(labels, predicted_labels.shape[1])
-    for i in range(labels.shape[1]):
-        # AUC is only defined when there is at least one positive data.
-        if np.sum(labels[:, i] == 1) > 0 and np.sum(labels[:, i] == 0) > 0:
-            is_labeled = labels[:, i] == labels[:, i]
-            rocauc_list.append(roc_auc_score(labels[is_labeled, i],
-                                             predicted_labels[is_labeled, i]))
+    if predicted_labels.shape[1] == 2:
+        rocauc_list.append(roc_auc_score(labels,
+                                predicted_labels[:, 1]))
+    else:
+        labels=labels_to_one_hot(labels, predicted_labels.shape[1])
+        for i in range(labels.shape[1]):
+            # AUC is only defined when there is at least one positive data.
+            if np.sum(labels[:, i] == 1) > 0 and np.sum(labels[:, i] == 0) > 0:
+                is_labeled = labels[:, i] == labels[:, i]
+                rocauc_list.append(roc_auc_score(labels[is_labeled, i],
+                                                predicted_labels[is_labeled, i]))
 
     if len(rocauc_list) == 0:
         logging.error('No positively labeled data available. Cannot compute ROC-AUC.')
@@ -326,6 +330,9 @@ def compute_precision_recall_auc(y_preds, y_targets, weights=None):
     """
     y_true = y_targets.cpu().numpy()
     y_pred = y_preds.cpu().numpy()
+    # binary classification 
+    if y_pred.shape[1] == 2:
+        y_pred = y_pred[:, 1]
     keys = [key.value for key in PRKeys]
     auc_score = -1
     # adding checks since in certain cases the auc might not be defined we do not want to fail
