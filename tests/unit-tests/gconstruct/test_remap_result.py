@@ -181,7 +181,7 @@ def test_worker_remap_edge_pred():
             data = pd.read_csv(file, delimiter=delimiter)
             src_nid = data["src_nid"].to_numpy()
             dst_nid = data["dst_nid"].to_numpy()
-            pred = [np.array(p.split(";")) for p in data["pred"]]
+            pred = [np.array(p.split(";")).astype(np.float32) for p in data["pred"]]
 
             return {"src_nid": src_nid,
                     "dst_nid": dst_nid,
