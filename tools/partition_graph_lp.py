@@ -175,9 +175,13 @@ if __name__ == '__main__':
                                         int(num_nodes * (args.train_pct + args.val_pct))]
                 test_idx = shuffled_index[int(num_nodes * (args.train_pct + args.val_pct)): ]
                 # 2. find all out-edges for the sets of head nodes:
-                train_eids = g.out_edges(train_idx, form='eid', etype=target_e)
-                val_eids = g.out_edges(val_idx, form='eid', etype=target_e)
-                test_eids = g.out_edges(test_idx, form='eid', etype=target_e)
+                # we should remove edges spanning nodes across splits
+                _, train_v, train_eids = g.out_edges(train_idx, form='all', etype=target_e)
+                train_eids = train_eids[np.in1d(train_v, train_idx)]
+                _, val_v, val_eids = g.out_edges(val_idx, form='all', etype=target_e)
+                val_eids = val_eids[np.in1d(val_v, train_idx)]
+                _, test_v, test_eids = g.out_edges(test_idx, form='all', etype=target_e)
+                test_eids = test_eids[np.in1d(test_v, train_idx)]
                 # 3. build boolean edge masks
                 g.edges[target_e].data['train_mask'][train_eids] = True
                 g.edges[target_e].data['val_mask'][val_eids] = True

@@ -24,8 +24,10 @@ from graphstorm.eval import GSgnnMrrLPEvaluator
 from graphstorm.dataloading import GSgnnEdgeInferData
 from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
 from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
+from graphstorm.dataloading import GSgnnLinkPredictionRetrievalDataLoader
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
+from graphstorm.dataloading import BUILTIN_LP_RETRIEVAL_NEG_SAMPLER
 from graphstorm.utils import setup_device, get_lm_ntypes
 
 def main(config_args):
@@ -62,6 +64,8 @@ def main(config_args):
         test_dataloader_cls = GSgnnLinkPredictionTestDataLoader
     elif config.eval_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
         test_dataloader_cls = GSgnnLinkPredictionJointTestDataLoader
+    elif config.eval_negative_sampler == BUILTIN_LP_RETRIEVAL_NEG_SAMPLER:
+        test_dataloader_cls = GSgnnLinkPredictionRetrievalDataLoader
     else:
         raise ValueError('Unknown test negative sampler.'
             'Supported test negative samplers include '
@@ -71,6 +75,7 @@ def main(config_args):
                                      batch_size=config.eval_batch_size,
                                      num_negative_edges=config.num_negative_edges_eval,
                                      fanout=config.eval_fanout)
+    # the line below produce gnn embeddings for all nodes on the graph
     infer.infer(infer_data, dataloader,
                 save_embed_path=config.save_embed_path,
                 edge_mask_for_gnn_embeddings=None if config.no_validation else \

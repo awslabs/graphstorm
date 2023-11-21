@@ -359,6 +359,7 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
 
 BUILTIN_LP_UNIFORM_NEG_SAMPLER = 'uniform'
 BUILTIN_LP_JOINT_NEG_SAMPLER = 'joint'
+BUILTIN_LP_RETRIEVAL_NEG_SAMPLER = 'full'
 BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER = 'inbatch_joint'
 BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER = 'localuniform'
 BUILTIN_LP_LOCALJOINT_NEG_SAMPLER = 'localjoint'
@@ -1058,6 +1059,33 @@ class GSgnnLinkPredictionJointTestDataLoader(GSgnnLinkPredictionTestDataLoader):
         negative_sampler = JointUniform(num_negative_edges)
         self._neg_sample_type = BUILTIN_LP_JOINT_NEG_SAMPLER
         return negative_sampler
+
+class GSgnnLinkPredictionRetrievalDataLoader(GSgnnLinkPredictionTestDataLoader):
+    """ Link prediction minibatch dataloader for validation and test
+        with the full train graph as the negative sampler.
+        This is intended for retrieval setting, where a model should compute negative scores
+        from all the nodes in the training graph 
+    """
+    def _prepare_negative_sampler(self, num_negative_edges):
+        # set `_negative_sampler` to None
+        negative_sampler = None
+        self._neg_sample_type = BUILTIN_LP_RETRIEVAL_NEG_SAMPLER
+        return negative_sampler
+
+    def _next_data(self, etype):
+        """ Get postive edges for the next iteration for a specific edge type
+        """
+        g = self._data.g
+        current_pos = self._current_pos[etype]
+        end_of_etype = current_pos + self._batch_size >= self._fixed_test_size[etype]
+
+        pos_eids = self._target_idx[etype][current_pos:self._fixed_test_size[etype]] \
+            if end_of_etype \
+            else self._target_idx[etype][current_pos:current_pos+self._batch_size]
+        pos_pairs = g.find_edges(pos_eids, etype=etype)
+        self._current_pos[etype] += self._batch_size
+        return {etype: pos_pairs}, end_of_etype
+
 
 ################ Minibatch DataLoader (Node classification) #######################
 
