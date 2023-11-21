@@ -335,6 +335,7 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
         # The expected layout for mapping files on S3 is:
         # raw_id_mappings/node_type/part-xxxxx.parquet
         ntype = mapping_file.split("/")[-2]
+        os.makedirs(os.path.join(graph_path, "raw_id_mappings", ntype), exist_ok=True)
         try:
             S3Downloader.download(
                 mapping_file,
