@@ -93,7 +93,7 @@ def write_data_csv_file(data, file_prefix, delimiter=",", col_name_map=None):
         .. code::
 
             nide, emb
-            0, 0.001;1.2000;0.736;
+            0, 0.001;1.2000;0.736;...
 
         Parameters
         ----------
@@ -102,7 +102,7 @@ def write_data_csv_file(data, file_prefix, delimiter=",", col_name_map=None):
         file_prefix: str
             File prefix. The output will be <file_prefix>.parquet.
         delimiter: str
-            Delimiter used to separate file.s
+            Delimiter used to separate columns.
         col_name_map: dict
             A mapping from builtin column name to user defined column name.
     """
@@ -777,6 +777,7 @@ def main(args, gs_config_args):
     col_name_map = None
     if args.column_names is not None:
         col_name_map = {}
+        # Load customized column names
         for col_rename_pair in args.column_names:
             orig_name, new_name = col_rename_pair.split(":")
             assert orig_name in GS_REMAP_BUILTIN_COLS, \
