@@ -188,9 +188,9 @@ Users need to specify ``--restore-model-path`` and ``--save-embed-path`` when us
             node_embed-00000.pt
 
 
-For node classification/regression task, if ``target_ntype`` is provided, the command will generate and save node embeddings on ``target_ntype``, otherwise it will generate embeddings for all node types.
+For node classification/regression task, ``target_ntype`` is necessary, the command will generate and save node embeddings on ``target_ntype``. If it requires generating embeddings on multiple nodes, the input ``target_ntype`` should be a list of node types.
 
-For edge classification/regression task, it ``target_etype`` is provided, the command will generate and save node embeddings on source and destination node types defined in the ``target_etype``, otherwise it will generate embeddings for all node types.
+For edge classification/regression task, ``target_etype`` is necessary, the command will generate and save node embeddings on source and destination node types defined in the ``target_etype``. If it requires generating embeddings on multiple nodes, the input ``target_etype`` should be a list of edge types.
 
 For link prediction task, it will generate and save node embeddings for all node types.
 
