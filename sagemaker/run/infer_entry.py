@@ -22,10 +22,10 @@ import subprocess
 from graphstorm.config import SUPPORTED_TASKS
 from graphstorm.sagemaker.sagemaker_infer import run_infer
 
-def parse_train_args():
-    """  Add arguments for model training
+def parse_inference_args():
+    """  Add arguments for model inference
     """
-    parser = argparse.ArgumentParser(description='gs sagemaker train pipeline')
+    parser = argparse.ArgumentParser(description='gs sagemaker inference pipeline')
 
     parser.add_argument("--task-type", type=str,
         help=f"task type, builtin task type includes: {SUPPORTED_TASKS}")
@@ -67,7 +67,7 @@ def parse_train_args():
     return parser
 
 if __name__ =='__main__':
-    parser = parse_train_args()
+    parser = parse_inference_args()
     args, unknownargs = parser.parse_known_args()
 
     subprocess.run(["df", "-h"], check=True)

@@ -36,6 +36,8 @@ def get_common_parser() -> argparse.ArgumentParser:
 
     common_args = parser.add_argument_group("Common arguments")
 
+    common_args.add_argument("--graph-data-s3", type=str,
+        help="S3 location of input graph data", required=True)
     common_args.add_argument("--image-url", type=str,
         help="GraphStorm SageMaker docker image URI",
         required=True)
