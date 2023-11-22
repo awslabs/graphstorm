@@ -47,7 +47,7 @@ def parse_inference_args():
         default=None)
     parser.add_argument("--model-artifact-s3", type=str,
         help="S3 bucket to load the saved model artifacts")
-    parser.add_argument("--node-mappings-s3", type=str, required=False,
+    parser.add_argument("--raw-node-mappings-s3", type=str, required=False,
         default=None, help="S3 location where the node mappings exist.")
     parser.add_argument("--custom-script", type=str, default=None,
         help="Custom training script provided by a customer to run customer training logic. \

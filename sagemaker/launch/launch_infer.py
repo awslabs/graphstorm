@@ -74,7 +74,7 @@ def run_job(input_args, image, unknownargs):
         "graph-name": graph_name,
         "infer-yaml-s3": infer_yaml_s3,
         "model-artifact-s3": model_artifact_s3,
-        "node-mappings-s3": input_args.node_mappings_s3,
+        "raw-node-mappings-s3": input_args.raw_node_mappings_s3,
         "output-chunk-size": output_chunk_size,
         "output-emb-s3": output_emb_s3_path,
         "task-type": task_type,
@@ -151,7 +151,7 @@ def get_inference_parser():
     inference_args.add_argument("--model-artifact-s3", type=str,
         help="S3 location to load the saved model artifacts from",
         required=True)
-    inference_args.add_argument("--node-id-mappings-s3", type=str,
+    inference_args.add_argument("--raw-node-mappings-s3", type=str,
         help="S3 location to load the node id mappings from",
         required=False)
     inference_args.add_argument("--output-emb-s3", type=str,
