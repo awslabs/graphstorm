@@ -141,8 +141,6 @@ def run_train(args, unknownargs):
             S3 location of training yaml file.
         model_artifact_s3: str
             S3 location to store the model artifacts.
-        node_mappings_s3: str
-            S3 location where the node mappings are stored.
         custom_script: str
             Custom training script provided by a customer to run
             customer training logic. Can be None.
@@ -236,7 +234,7 @@ def run_train(args, unknownargs):
     yaml_path = download_yaml_config(train_yaml_s3,
         data_path, sagemaker_session)
     graph_config_path = download_graph(graph_data_s3, graph_name,
-        host_rank,  world_size, data_path, sagemaker_session, args.node_mappings_s3)
+        host_rank,  world_size, data_path, sagemaker_session)
     if model_checkpoint_s3 is not None:
         # Download Saved model checkpoint to resume
         download_model(model_checkpoint_s3, restore_model_path, sagemaker_session)

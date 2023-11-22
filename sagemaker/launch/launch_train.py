@@ -137,9 +137,6 @@ def get_train_parser():
     training_args.add_argument("--yaml-s3", type=str,
         help="S3 location of training yaml file. "
              "Do not store it with partitioned graph", required=True)
-    training_args.add_argument("--node-mappings-s3", type=str,
-        help="S3 location to load the node id mappings from",
-        required=False)
     training_args.add_argument("--model-artifact-s3", type=str, default=None,
         help="S3 path to save model artifacts")
     training_args.add_argument("--model-checkpoint-to-load", type=str, default=None,
