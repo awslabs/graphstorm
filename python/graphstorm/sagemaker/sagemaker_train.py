@@ -234,7 +234,7 @@ def run_train(args, unknownargs):
     yaml_path = download_yaml_config(train_yaml_s3,
         data_path, sagemaker_session)
     graph_config_path = download_graph(graph_data_s3, graph_name,
-        host_rank,  world_size, data_path, sagemaker_session)
+        host_rank, world_size, data_path, sagemaker_session)
     if model_checkpoint_s3 is not None:
         # Download Saved model checkpoint to resume
         download_model(model_checkpoint_s3, restore_model_path, sagemaker_session)
