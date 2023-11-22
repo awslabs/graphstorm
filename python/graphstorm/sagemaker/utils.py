@@ -329,6 +329,8 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
                 logging.info("node id mapping file %s does not exist", s3_path)
 
     # Try to get GraphStorm ID to Original ID remapping files if any
+    # The S3 path can be empty, which means no Raw ID mapping is needed.
+    # For exampling during SageMaker training.
     id_map_files = S3Downloader.list(
         raw_node_mapping_prefix_s3, sagemaker_session=sagemaker_session)
     for mapping_file in id_map_files:
