@@ -55,8 +55,8 @@ from .row_count_utils import ParquetRowCounter  # pylint: disable=no-name-in-mod
 
 FORMAT_NAME = "parquet"
 DELIMITER = "" if FORMAT_NAME == "parquet" else ","
-NODE_MAPPING_STR = "node_str_id"
-NODE_MAPPING_INT = "node_int_id"
+NODE_MAPPING_STR = "orig"
+NODE_MAPPING_INT = "new"
 
 
 class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):

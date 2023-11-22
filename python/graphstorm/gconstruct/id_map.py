@@ -78,8 +78,14 @@ class IdReverseMap:
     """
     def __init__(self, id_map_prefix):
         assert os.path.exists(id_map_prefix), \
-            f"{id_map_prefix} does not exits."
-        data = read_data_parquet(id_map_prefix, ["orig", "new"])
+            f"{id_map_prefix} does not exist."
+        try:
+            data = read_data_parquet(id_map_prefix, ["orig", "new"])
+        except AssertionError:
+            data = read_data_parquet(id_map_prefix, ["node_str_id", "node_int_id"])
+            data["new"] = data["node_int_id"]
+            data["orig"] = data["node_str_id"]
+
         sort_idx = np.argsort(data['new'])
         self._ids = data['orig'][sort_idx]
 
