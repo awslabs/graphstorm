@@ -39,8 +39,6 @@ def parse_train_args():
              "Do not store it with partitioned graph")
     parser.add_argument("--model-artifact-s3", type=str,
         help="S3 location to store the model artifacts.")
-    parser.add_argument("--node-mappings-s3", type=str, required=False,
-        default=None, help="S3 location where the node mappings exist.")
     parser.add_argument("--model-checkpoint-to-load", type=str, default=None,
         help="S3 path to a model checkpoint from a previous training task "
              "that is going to be resumed.")
