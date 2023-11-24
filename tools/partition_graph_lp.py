@@ -175,7 +175,7 @@ if __name__ == '__main__':
                                         int(num_nodes * (args.train_pct + args.val_pct))]
                 test_idx = shuffled_index[int(num_nodes * (args.train_pct + args.val_pct)): ]
                 # 2. find all out-edges for the sets of head nodes:
-                # we should remove edges spanning nodes across splits
+                # we remove edges with tail nodes outside of the training set
                 _, train_v, train_eids = g.out_edges(train_idx, form='all', etype=target_e)
                 train_eids = train_eids[np.in1d(train_v, train_idx)]
                 _, val_v, val_eids = g.out_edges(val_idx, form='all', etype=target_e)
