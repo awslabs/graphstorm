@@ -24,7 +24,7 @@ from torch.nn.parallel import DistributedDataParallel
 
 from ..model.edge_gnn import edge_mini_batch_gnn_predict, edge_mini_batch_predict
 from ..model.edge_gnn import GSgnnEdgeModelInterface
-from ..model.gnn import do_full_graph_inference, GSgnnModelBase, GSgnnModel
+from ..model import do_full_graph_inference, GSgnnModelBase, GSgnnModel
 from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker, rt_profiler, print_mem, get_rank

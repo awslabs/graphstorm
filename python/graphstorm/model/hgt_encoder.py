@@ -315,7 +315,7 @@ class HGTEncoder(GraphConvEncoder):
         from graphstorm.model.edge_decoder import MLPEdgeDecoder
         from graphstorm.model import GSgnnEdgeModel, GSNodeEncoderInputLayer
         from graphstorm.dataloading import GSgnnNodeTrainData
-        from graphstorm.model.gnn import do_full_graph_inference
+        from graphstorm.model import do_full_graph_inference
 
         np_data = GSgnnNodeTrainData(...)
 

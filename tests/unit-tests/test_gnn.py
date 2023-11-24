@@ -58,7 +58,7 @@ from graphstorm import create_builtin_edge_gnn_model, create_builtin_node_gnn_mo
 from graphstorm import create_builtin_lp_gnn_model
 from graphstorm import get_feat_size
 from graphstorm.gsf import get_rel_names_for_reconstruct
-from graphstorm.model.gnn import do_full_graph_inference, do_mini_batch_inference
+from graphstorm.model import do_full_graph_inference, do_mini_batch_inference
 from graphstorm.model.node_gnn import node_mini_batch_predict, node_mini_batch_gnn_predict
 from graphstorm.model.node_gnn import GSgnnNodeModelInterface
 from graphstorm.model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
@@ -1337,7 +1337,8 @@ def create_lp_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name), "w") as f:
         yaml.dump(conf_object, f)
 
-def test_link_prediction():
+@pytest.mark.parametrize("num_embs", [10, 10000])
+def test_link_prediction(num_embs):
     """ Test logic of building a link prediction model
     """
     # initialize the torch distributed environment
@@ -1350,13 +1351,25 @@ def test_link_prediction():
         g, _ = generate_dummy_dist_graph(tmpdirname)
         create_lp_config(Path(tmpdirname), 'gnn_lp.yaml')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
-                         local_rank=0)
+                         local_rank=0,
+                         lp_embed_normalizer="l2_norm")
         config = GSConfig(args)
     model = create_builtin_lp_gnn_model(g, config, True)
     assert model.gnn_encoder.num_layers == 1
     assert model.gnn_encoder.out_dims == 4
     assert isinstance(model.gnn_encoder, RelationalGATEncoder)
     assert isinstance(model.decoder, LinkPredictDotDecoder)
+
+    embs = {
+        "n0": th.rand((num_embs, 10)),
+        "n1": th.rand((num_embs, 20))
+    }
+    embs_new = model.normalize_node_embs(embs)
+    model.inplace_normalize_node_embs(embs)
+
+    assert_equal(embs["n0"].numpy(), embs_new["n0"].numpy())
+    assert_equal(embs["n1"].numpy(), embs_new["n1"].numpy())
+
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -1594,7 +1607,7 @@ if __name__ == '__main__':
     test_edge_regression()
     test_node_classification()
     test_node_regression()
-    test_link_prediction()
+    test_link_prediction(10000)
     test_link_prediction_weight()
 
     test_mlp_edge_prediction(2)
