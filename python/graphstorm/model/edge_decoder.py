@@ -719,18 +719,19 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
             "single target training edge type"
         canonical_etype = list(pos_pairs.keys())[0]
         pos_src, pos_dst = pos_pairs[canonical_etype]
+        # print('pos_src.shape')
+        # print(pos_src.shape, th.unique_consecutive(pos_src).shape)
         utype, _, vtype = canonical_etype
         pos_src_emb = emb[utype][pos_src].to(device)
         pos_dst_emb = emb[vtype][pos_dst].to(device)
-
         scores = {}
+        # print('pos_emb.shape:', pos_src_emb.shape, pos_dst_emb.shape)
         pos_scores = calc_dot_pos_score(pos_src_emb, pos_dst_emb)
-        neg_dst_emb = emb[vtype][:].to(device)
+        # print('pos_scores.shape', pos_scores.shape)
+        neg_dst_emb = emb[vtype][np.arange(emb[vtype].shape[0])].to(device)
         # neg_scores = calc_dot_pos_score(pos_src_emb, neg_dst_emb)
         neg_scores = th.mm(pos_src_emb, neg_dst_emb.transpose(0, 1)) # [n_pos, n_train]
-        # this remove duplicated pos_src
-        # pos_src_emb_uniq = emb[utype][th.unique_consecutive(pos_src)]
-        # neg_scores = th.mm(pos_src_emb_uniq, neg_dst_emb.transpose(0, 1))
+        # print('neg_scores.shape', neg_scores.shape)
         # gloo with cpu will consume less GPU memory
         neg_scores = neg_scores.cpu() \
             if is_distributed() and get_backend() == "gloo" \

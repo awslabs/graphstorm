@@ -312,6 +312,7 @@ class GSConfig:
         _ = self.restore_model_layers
         _ = self.restore_model_path
         _ = self.restore_optimizer_path
+        _ = self.restore_embed_path
         _ = self.save_embed_path
         _ = self.save_embed_format
 
@@ -974,6 +975,15 @@ class GSConfig:
         # pylint: disable=no-member
         if hasattr(self, "_restore_optimizer_path"):
             return self._restore_optimizer_path
+        return None
+
+    @property
+    def restore_embed_path(self):
+        """ Path to the saved GNN embeddings.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_restore_embed_path"):
+            return self._restore_embed_path
         return None
 
     ### Save model ###
@@ -2168,6 +2178,8 @@ def _add_input_args(parser):
             help='Restore the model weights saved in the specified directory.')
     group.add_argument('--restore-optimizer-path', type=str, default=argparse.SUPPRESS,
             help='Restore the optimizer snapshot saved in the specified directory.')
+    group.add_argument('--restore-embed-path', type=str, default=argparse.SUPPRESS,
+            help='Restore the GNN embeddings saved in the specified directory.')
     return parser
 
 def _add_output_args(parser):

@@ -872,6 +872,33 @@ def save_full_node_embeddings(g, save_embed_path,
 
     save_shuffled_node_embeddings(shuffled_embs, save_embed_path, save_embed_format)
 
+def load_gsgnn_embeddings(emb_path, g):
+    '''Load from `save_full_node_embeddings` to a dict of DistTensor's
+    '''
+    with open(os.path.join(emb_path, "emb_info.json"), 'r', encoding='utf-8') as f:
+        emb_info = json.load(f)
+    embs = {}
+    for ntype in emb_info["emb_name"]:
+        dist_emb = None
+
+        ntype_emb_path = os.path.join(emb_path, ntype)
+        emb_files = os.listdir(ntype_emb_path)
+        ntype_emb_files = [file for file in emb_files if file.endswith(".pt") and file.startswith("emb")]
+        ntype_nid_files = [file for file in emb_files if file.endswith(".pt") and file.startswith("nids")]
+        ntype_emb_files = sorted(ntype_emb_files)
+        ntype_nid_files = sorted(ntype_nid_files)
+        part_policy = g.get_node_partition_policy(ntype)
+        for emb_file, nid_file in zip(ntype_emb_files, ntype_nid_files):
+            # Only work with torch 1.13+
+            emb = th.load(os.path.join(ntype_emb_path, emb_file),weights_only=True)
+            nids = th.load(os.path.join(ntype_emb_path, nid_file),weights_only=True)
+            if dist_emb is None:
+                dist_emb = create_dist_tensor((part_policy.get_size(), emb.shape[1]), emb.dtype,
+                        name=ntype, part_policy=part_policy)
+            dist_emb[nids] = emb
+            barrier()
+        embs[ntype] = dist_emb
+    return embs
 
 def save_embeddings(emb_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None,

@@ -82,7 +82,9 @@ def main(config_args):
                     'train_mask', # if no validation,any edge can be used in message passing.
                 use_mini_batch_infer=config.use_mini_batch_infer,
                 node_id_mapping_file=config.node_id_mapping_file,
-                save_embed_format=config.save_embed_format)
+                save_embed_format=config.save_embed_format,
+                load_embed_path=config.restore_embed_path
+                )
 
 def generate_parser():
     """ Generate an argument parser

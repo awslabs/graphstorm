@@ -15,11 +15,12 @@
 
     Inferrer wrapper for link predicion.
 """
+import os
 import time
 
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
-from ..model.utils import save_relation_embeddings
+from ..model.utils import save_relation_embeddings, load_gsgnn_embeddings
 from ..model.edge_decoder import LinkPredictDistMultDecoder
 from ..model.gnn import do_full_graph_inference, do_mini_batch_inference
 from ..model.lp_gnn import lp_mini_batch_predict
@@ -77,6 +78,7 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
         """
         sys_tracker.check('start inferencing')
         self._model.eval()
+        g = data.g
         if load_embed_path is None:
             if use_mini_batch_infer:
                 embs = do_mini_batch_inference(self._model, data, fanout=loader.fanout,
@@ -88,9 +90,10 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
                                             task_tracker=self.task_tracker)
             sys_tracker.check('compute embeddings')
         else:
-            embs = load_embed(load_embed_path) # TODO
+            print('loading embs from ', load_embed_path)
+            embs = load_gsgnn_embeddings(load_embed_path, g) # load embs from files
         device = self.device
-        g = data.g
+
         if save_embed_path is not None:
             save_gsgnn_embeddings(g,
                                   save_embed_path,
@@ -102,12 +105,8 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
 
         if self.evaluator is not None:
             test_start = time.time()
-            if save_embed_path is not None:
-                # this line compute rankings of pos links using the pos_neg_pairs produced by the loader
-                test_rankings = lp_mini_batch_predict(self._model, embs, loader, device)
-            else:
-                # compute test_rankings via faiss
-                
+            # this line compute rankings of pos links using the pos_neg_pairs produced by the loader
+            test_rankings = lp_mini_batch_predict(self._model, embs, loader, device)
             val_mrr, test_mrr = self.evaluator.evaluate(None, test_rankings, 0)
             sys_tracker.check('run evaluation')
             if get_rank() == 0:
