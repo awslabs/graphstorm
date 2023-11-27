@@ -111,7 +111,13 @@ def keep_alive(client_list, world_size, task_end):
     while task_end.is_set() is False:
         time.sleep(60)
         for rank in range(1, world_size):
-            client_list[rank].send(b"Dummy")
+            # It is possible that keep alive is in the for loop
+            # while task_end is set. This will cause the failure of
+            # the send keep alive message.
+            # So we check the task_end.is_set() before send the keep
+            # alive message.
+            if task_end.is_set() is False:
+                client_list[rank].send(b"Dummy")
 
     logging.info("keepalive thread exiting...")
 
