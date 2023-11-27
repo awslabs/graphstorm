@@ -234,7 +234,7 @@ then
     exit -1
 fi
 
-cnt=$(ls -l /data/gsgnn_nc_ml/infer-emb/movie/ | grep "emb.part" | wc -l)
+cnt=$(ls -l /data/gsgnn_nc_ml/infer-emb/movie/ | grep "embed-" | wc -l)
 cnt=$(($cnt/2))
 if test $cnt != $NUM_TRAINERS
 then
@@ -242,7 +242,7 @@ then
     exit -1
 fi
 
-cnt=$(ls -l /data/gsgnn_nc_ml/infer-emb/user/ | grep "emb.part" | wc -l)
+cnt=$(ls -l /data/gsgnn_nc_ml/infer-emb/user/ | grep "embed-" | wc -l)
 cnt=$(($cnt/2))
 if test $cnt != $NUM_TRAINERS
 then

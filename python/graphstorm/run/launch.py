@@ -1046,7 +1046,9 @@ def add_remap_result_args(parser):
                        help="Number of rows per output file.")
     group.add_argument("--preserve-input", type=bool, default=False,
                        help="Whether we preserve the input data.")
-    group.add_argument("--with-shared-fs", type=bool, default=True,
+    group.add_argument("--with-shared-fs",
+                       type=lambda x: (str(x).lower() in ["true", "1"]),
+                       default=True,
                        help="Whether all files are stored in a shared file system"
                             "False when it is running on SageMaker")
     return parser

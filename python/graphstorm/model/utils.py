@@ -23,10 +23,12 @@ import logging
 
 import torch as th
 from torch import nn
+import torch.nn.functional as F
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 import dgl
 
+from ..config import GRAPHSTORM_LP_EMB_L2_NORMALIZATION
 from ..gconstruct.file_io import stream_dist_tensors_to_hdf5
 from ..utils import get_rank, barrier, get_world_size, create_dist_tensor
 from ..data.utils import alltoallv_cpu, alltoallv_nccl
@@ -372,6 +374,27 @@ def _exchange_node_id_mapping(rank, world_size, device,
     # move mapping into CPU
     return gather_list[0].to(th.device("cpu"))
 
+def _load_dist_nid_map(node_id_mapping_file, ntypes):
+    """ Load id mapping files in dist partition format.
+    """
+    # node_id_mapping_file it is actually a directory
+    # <node_id_mapping_file>/part0, <node_id_mapping_file>/part1, ...
+    part_dirs = [part_path for part_path in os.listdir(node_id_mapping_file) \
+                if part_path.startswith("part")]
+
+    # we need the mapping chunks are ordered like part0, part1, ...
+    id_mappings = {ntype:[] for ntype in ntypes}
+    for i in range(len(part_dirs)):
+        id_mapping_part = dgl.data.utils.load_tensors(
+            os.path.join(node_id_mapping_file, f"part{i}", "orig_nids.dgl"))
+        for ntype in ntypes:
+            id_mappings[ntype].append(id_mapping_part[ntype])
+    id_mappings = {
+        ntype: th.cat(mappings) for ntype, mappings in id_mappings.items()
+    }
+
+    return id_mappings
+
 def distribute_nid_map(embeddings, rank, world_size,
     node_id_mapping_file, device=th.device('cpu')):
     """ Distribute nid_map to all workers.
@@ -400,7 +423,12 @@ def distribute_nid_map(embeddings, rank, world_size,
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
         # only host 0 will load node id mapping from disk
         if rank == 0:
-            ori_node_id_mapping = th.load(node_id_mapping_file)
+            if node_id_mapping_file.endswith("pt"):
+                ori_node_id_mapping = th.load(node_id_mapping_file)
+            else:
+                # Homogeneous graph
+                # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
+                ori_node_id_mapping = _load_dist_nid_map(node_id_mapping_file, ["_N"])["_N"]
             _, node_id_mapping = th.sort(ori_node_id_mapping)
         else:
             node_id_mapping = None
@@ -410,8 +438,15 @@ def distribute_nid_map(embeddings, rank, world_size,
     elif isinstance(embeddings, dict):
         nid_mapping = {}
         # only host 0 will load node id mapping from disk
-        node_id_mappings = th.load(node_id_mapping_file) \
-            if rank == 0 else None
+        if rank == 0:
+            if node_id_mapping_file.endswith("pt"):
+                node_id_mappings = th.load(node_id_mapping_file)
+            else:
+                # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
+                node_id_mappings = _load_dist_nid_map(node_id_mapping_file,
+                                                      list(embeddings.keys()))
+        else:
+            node_id_mappings = None
 
         for name, emb in embeddings.items():
             if rank == 0:
@@ -509,7 +544,7 @@ def save_pytorch_embedding(emb_path, embedding, rank, world_size):
 
     start, end = get_data_range(rank, world_size, len(embedding))
     embedding = embedding[start:end]
-    th.save(embedding, os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.pt'))
+    th.save(embedding, os.path.join(emb_path, f'embed-{pad_file_index(rank)}.pt'))
 
 def load_pytorch_embedding(emb_path, part_policy, name):
     """ Load embedding tensor in Pytorch format.
@@ -529,7 +564,7 @@ def load_pytorch_embedding(emb_path, part_policy, name):
     """
     rank = get_rank()
     world_size = get_world_size()
-    emb = th.load(os.path.join(emb_path, f'emb.part{pad_file_index(rank)}.pt'))
+    emb = th.load(os.path.join(emb_path, f'embed-{pad_file_index(rank)}.pt'))
     dist_emb = create_dist_tensor((part_policy.get_size(), emb.shape[1]), emb.dtype,
             name=name, part_policy=part_policy)
     start, end = get_data_range(rank, world_size, len(dist_emb))
@@ -560,9 +595,9 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
 
             PATH_TO_EMB:
                 |- emb_info.json
-                |- ntype0_emb.part00000.pt
+                |- ntype0_embed-00000.pt
                 |- ...
-                |- ntype1_emb.part00000.pt
+                |- ntype1_embed-00000.pt
                 |- ...
 
         The emb.info.json contains three information:
@@ -666,14 +701,14 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
         for name, emb in embeddings.items():
             os.makedirs(os.path.join(emb_path, name), exist_ok=True)
             th.save(emb, os.path.join(os.path.join(emb_path, name),
-                                      f'emb.part{pad_file_index(rank)}.pt'))
+                                      f'embed-{pad_file_index(rank)}.pt'))
             emb_info["emb_name"].append(name)
     else:
         os.makedirs(os.path.join(emb_path, NTYPE), exist_ok=True)
         # There is no ntype for the embedding
         # use NTYPE
         th.save(embeddings, os.path.join(os.path.join(emb_path, NTYPE),
-                                         f'emb.part{pad_file_index(rank)}.pt'))
+                                         f'embed-{pad_file_index(rank)}.pt'))
         emb_info["emb_name"] = NTYPE
 
     if rank == 0:
@@ -759,9 +794,9 @@ def save_shuffled_node_embeddings(shuffled_embs, save_embed_path, save_embed_for
         assert len(nids) == len(embs), \
             f"The embeding length {len(embs)} does not match the node id length {len(nids)}"
         th.save(embs, os.path.join(os.path.join(save_embed_path, ntype),
-                                  f'emb.part{pad_file_index(rank)}.pt'))
+                                  f'embed-{pad_file_index(rank)}.pt'))
         th.save(nids, os.path.join(os.path.join(save_embed_path, ntype),
-                                  f'nids.part{pad_file_index(rank)}.pt'))
+                                  f'embed_nids-{pad_file_index(rank)}.pt'))
         emb_info["emb_name"].append(ntype)
 
     if rank == 0:
@@ -793,28 +828,28 @@ def save_full_node_embeddings(g, save_embed_path,
         --------
         # embedddings:
         #   ntype0:
-        #     nids.part00000.pt
-        #     nids.part00001.pt
+        #     embed_nids-00000.pt
+        #     embed_nids-00001.pt
         #     ...
-        #     emb.part00000.pt
-        #     emb.part00001.pt
+        #     embed-00000.pt
+        #     embed-00001.pt
         #     ...
         #   ntype1:
-        #     nids.part00000.pt
-        #     nids.part00001.pt
+        #     embed_nids-00000.pt
+        #     embed_nids-00001.pt
         #     ...
-        #     emb.part00000.pt
-        #     emb.part00001.pt
+        #     embed-00000.pt
+        #     embed-00001.pt
         #     ...
 
-        The content of nids.part files and emb.part files looks like:
+        The content of embed_nids- files and embed- files looks like:
 
         Example:
         --------
 
         .. code::
 
-            nids.part00000.pt    |   emb.part00000.pt
+            embed_nids-00000.pt    |   embed-00000.pt
                                  |
             Graph Node ID        |   embeddings
             10                   |   0.112,0.123,-0.011,...
@@ -973,12 +1008,19 @@ class NodeIDShuffler():
         ntypes = ntypes if ntypes is not None else g.ntypes
         assert isinstance(ntypes, list) and len(ntypes) > 0, \
             f"ntypes is not a list or is an empty list {ntypes}"
-        id_mappings = th.load(node_id_mapping_file) if get_rank() == 0 else None
+
+        if node_id_mapping_file.endswith("pt"):
+            # node id mapping file from gconstruct.
+            id_mappings = th.load(node_id_mapping_file) if get_rank() == 0 else None
+        else:
+            # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
+            id_mappings = _load_dist_nid_map(node_id_mapping_file, ntypes) \
+                if get_rank() == 0 else None
 
         self._id_mapping_info = {
-            ntype: self._load_id_mapping(g, ntype, id_mappings) \
-                for ntype in ntypes
-        }
+                ntype: self._load_id_mapping(g, ntype, id_mappings) \
+                    for ntype in ntypes
+            }
 
     def _load_id_mapping(self, g, ntype, id_mappings):
         """load id mapping of ntype"""
@@ -1083,7 +1125,7 @@ def save_node_prediction_result(predictions, nids,
     # make sure the prediction_path permission is changed before other process start to save
     barrier()
     th.save(predictions, os.path.join(prediction_path, f"predict-{pad_file_index(rank)}.pt"))
-    th.save(nids, os.path.join(prediction_path, f"nids-{pad_file_index(rank)}.pt"))
+    th.save(nids, os.path.join(prediction_path, f"predict_nids-{pad_file_index(rank)}.pt"))
 
 def save_prediction_results(predictions, prediction_path, rank):
     """ Save node predictions to the given path
@@ -1125,8 +1167,8 @@ def save_node_prediction_results(predictions, prediction_path):
                 |- predict-00000.pt
                 |- predict-00001.pt
                 |- ...
-                |- nids-00000.pt
-                |- nids-00001.pt
+                |- predict_nids-00000.pt
+                |- predict_nids-00001.pt
                 |- ...
             |- ntype1
                 |- ...
@@ -1686,3 +1728,31 @@ def append_to_dict(from_dict, to_dict):
             to_dict[k].append(v.cpu())
         else:
             to_dict[k] = [v.cpu()]
+
+def normalize_node_embs(embs, norm_method):
+    """ Do node embedding normalization
+
+        Parameters
+        ----------
+        embs: dict of Tensor
+            node embeddings.
+        norm_method: str
+            Node embedding normalization method.
+
+        Return
+        ------
+        dict of Tensor: Dict of normalized embeddings.
+    """
+    if norm_method is None or norm_method == "":
+        def norm(emb):
+            return emb
+        norm_func = norm
+    elif norm_method == GRAPHSTORM_LP_EMB_L2_NORMALIZATION:
+        def do_l2_norm(emb):
+            return F.normalize(emb)
+        norm_func = do_l2_norm
+    else:
+        raise RuntimeError(f"Unsupported embedding normalization method {norm_method}")
+
+    embs = {key: norm_func(emb) for key, emb in embs.items()}
+    return embs
