@@ -15,7 +15,6 @@
 
     Inferrer wrapper for link predicion.
 """
-import os
 import time
 
 from .graphstorm_infer import GSInferrer
@@ -90,10 +89,8 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
                                             task_tracker=self.task_tracker)
             sys_tracker.check('compute embeddings')
         else:
-            print('loading embs from ', load_embed_path)
-            embs = load_gsgnn_embeddings(load_embed_path, g) # load embs from files
+            embs = load_gsgnn_embeddings(load_embed_path, g)
         device = self.device
-
         if save_embed_path is not None:
             save_gsgnn_embeddings(g,
                                   save_embed_path,
@@ -105,7 +102,6 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
 
         if self.evaluator is not None:
             test_start = time.time()
-            # this line compute rankings of pos links using the pos_neg_pairs produced by the loader
             test_rankings = lp_mini_batch_predict(self._model, embs, loader, device)
             val_mrr, test_mrr = self.evaluator.evaluate(None, test_rankings, 0)
             sys_tracker.check('run evaluation')

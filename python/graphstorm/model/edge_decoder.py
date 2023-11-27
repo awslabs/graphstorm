@@ -713,25 +713,22 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
             Return a dictionary of edge type to
             (positive scores, negative scores)
         """
-        # print(type(pos_pairs), len(pos_pairs))
         assert isinstance(pos_pairs, dict) and len(pos_pairs) == 1, \
             "DotDecoder is only applicable to link prediction task with " \
             "single target training edge type"
         canonical_etype = list(pos_pairs.keys())[0]
         pos_src, pos_dst = pos_pairs[canonical_etype]
-        # print('pos_src.shape')
-        # print(pos_src.shape, th.unique_consecutive(pos_src).shape)
         utype, _, vtype = canonical_etype
         pos_src_emb = emb[utype][pos_src].to(device)
         pos_dst_emb = emb[vtype][pos_dst].to(device)
         scores = {}
-        # print('pos_emb.shape:', pos_src_emb.shape, pos_dst_emb.shape)
         pos_scores = calc_dot_pos_score(pos_src_emb, pos_dst_emb)
-        # print('pos_scores.shape', pos_scores.shape)
         neg_dst_emb = emb[vtype][np.arange(emb[vtype].shape[0])].to(device)
-        # neg_scores = calc_dot_pos_score(pos_src_emb, neg_dst_emb)
+        # neg_dst_emb should contains train nodes only:
+        # v_train_mask = g.nodes[vtype].data['train_mask'][np.arange(g.number_of_nodes(vtype))]
+        # train_nids = np.where(v_train_mask)[0]
+        # neg_dst_emb = emb[vtype][train_nids].to(device)
         neg_scores = th.mm(pos_src_emb, neg_dst_emb.transpose(0, 1)) # [n_pos, n_train]
-        # print('neg_scores.shape', neg_scores.shape)
         # gloo with cpu will consume less GPU memory
         neg_scores = neg_scores.cpu() \
             if is_distributed() and get_backend() == "gloo" \
@@ -742,7 +739,7 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
             else pos_scores
         scores[canonical_etype] = (pos_scores, neg_scores)
         return scores
-    
+
     @property
     def in_dims(self):
         """ The number of input dimensions.

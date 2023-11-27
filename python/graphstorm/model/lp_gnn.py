@@ -140,7 +140,6 @@ def lp_mini_batch_predict(model, emb, loader, device):
         ranking = {}
         for pos_neg_tuple, neg_sample_type in loader:
             if neg_sample_type == 'full':
-                # Another option is to compute the score via faiss
                 score = \
                     decoder.calc_retrieval_scores(emb, pos_neg_tuple, device)
             else:
