@@ -779,7 +779,9 @@ def main(args, gs_config_args):
         col_name_map = {}
         # Load customized column names
         for col_rename_pair in args.column_names:
-            orig_name, new_name = col_rename_pair.split(":")
+            # : has special meaning in Graph Database like Neptune
+            # Here, we use ,  as the delimiter.
+            orig_name, new_name = col_rename_pair.split(",")
             assert orig_name in GS_REMAP_BUILTIN_COLS, \
                 f"Expect the original col name is in {GS_REMAP_BUILTIN_COLS}, " \
                 f"but get {orig_name}"
@@ -896,8 +898,8 @@ def generate_parser():
                        help="The delimiter used when saving data in CSV format.")
     group.add_argument("--column-names", type=str, nargs="+", default=None,
                        help="Defines how to rename default column names to new names."
-                       f"For example, given --column-names {GS_REMAP_NID_COL}:~id "
-                       f"{GS_REMAP_EMBED_COL}:embedding. The column "
+                       f"For example, given --column-names {GS_REMAP_NID_COL},~id "
+                       f"{GS_REMAP_EMBED_COL},embedding. The column "
                        f"{GS_REMAP_NID_COL} will be renamed to ~id. "
                        f"The column {GS_REMAP_EMBED_COL} will be renamed to embedding.")
     group.add_argument("--logging-level", type=str, default="info",

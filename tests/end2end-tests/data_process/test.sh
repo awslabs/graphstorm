@@ -86,6 +86,19 @@ python3 $GS_HOME/tests/end2end-tests/data_process/check_edge_predict_remap.py --
 
 error_and_exit $?
 
+cp -r /tmp/ep_remap/pred/ /tmp/ep_remap/rename-pred/
+# Test remap edge prediction results and rename col names
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/ep_remap/id_mapping/ --logging-level debug --pred-etypes "n0,access,n1" "n1,access,n0" --preserve-input True --prediction-dir /tmp/ep_remap/rename-pred/ --rank 0 --world-size 2 --column-names "src_nid,~from:STRING" "dst_nid,~to:STRING" "pred,pred:FLOAT"
+error_and_exit $?
+
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/ep_remap/id_mapping/ --logging-level debug --pred-etypes "n0,access,n1" "n1,access,n0" --preserve-input True --prediction-dir /tmp/ep_remap/rename-pred/ --rank 1 --world-size 2 --column-names "src_nid,~from:STRING" "dst_nid,~to:STRING" "pred,pred:FLOAT"
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/data_process/check_edge_predict_remap.py --remap-output /tmp/ep_remap/rename-pred/ --column-names "src_nid,~from:STRING" "dst_nid,~to:STRING" "pred,pred:FLOAT"
+
+error_and_exit $?
+rm -fr /tmp/ep_remap/rename-pred/
+
 # Test without shared filesystem
 mkdir /tmp/ep_remap/pred/0/
 mkdir /tmp/ep_remap/pred/1/
@@ -173,6 +186,19 @@ python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mappi
 error_and_exit $?
 
 python3 $GS_HOME/tests/end2end-tests/data_process/check_emb_remap.py --remap-output /tmp/em_remap/partial-emb/
+
+error_and_exit $?
+
+cp -r /tmp/em_remap/partial-emb/ /tmp/em_remap/partial-rename-emb/
+
+# Test remap emb results and rename col names
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/em_remap/id_mapping/ --logging-level debug --node-emb-dir /tmp/em_remap/partial-rename-emb/ --preserve-input True --rank 0 --world-size 2 --column-names "nid,~id:STRING" "emb,emb:FLOAT"
+error_and_exit $?
+
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/em_remap/id_mapping/ --logging-level debug --node-emb-dir /tmp/em_remap/partial-rename-emb/  --preserve-input True --rank 1 --world-size 2 --column-names "nid,~id:STRING" "emb,emb:FLOAT"
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/data_process/check_emb_remap.py --remap-output /tmp/em_remap/partial-rename-emb/ --column-names "nid,~id:STRING" "emb,emb:FLOAT"
 
 error_and_exit $?
 
