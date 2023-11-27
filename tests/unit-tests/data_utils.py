@@ -248,6 +248,8 @@ def generate_dummy_hetero_graph_reconstruct(size='tiny', gen_mask=True):
                              th.randint(data_size, (data_size,))),
         ("n4", "r3", "n2"): (th.randint(data_size, (data_size,)),
                              th.randint(data_size, (data_size,))),
+        ("n1", "r5", "n2"): (th.randint(data_size, (data_size,)),
+                             th.randint(data_size, (data_size,))),
         ("n0", "r4", "n3"): (th.randint(data_size, (data_size,)),
                              th.randint(data_size, (data_size,))),
     }

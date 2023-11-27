@@ -299,10 +299,10 @@ then
     exit -1
 fi
 
-cnt=$(ls -l /data/gsgnn_nc_ml_text/prediction/movie/ | grep nids | wc -l)
+cnt=$(ls -l /data/gsgnn_nc_ml_text/prediction/movie/ | grep predict_nids | wc -l)
 if test $cnt != 0
 then
-    echo "nids-xxx should be removed"
+    echo "predict_nids-xxx should be removed"
     exit -1
 fi
 
@@ -346,7 +346,7 @@ then
     exit -1
 fi
 
-cnt=$(ls -l /data/gsgnn_nc_ml_text/infer-emb/movie/ | grep "emb.part" | wc -l)
+cnt=$(ls -l /data/gsgnn_nc_ml_text/infer-emb/movie/ | grep "embed-" | wc -l)
 if test $cnt != $NUM_INFERs * 2
 then
     echo "There must be $NUM_INFERs embedding parts"

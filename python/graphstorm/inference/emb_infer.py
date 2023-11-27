@@ -23,7 +23,7 @@ from graphstorm.config import  (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_LINK_PREDICTION)
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
-from ..model.gnn import do_full_graph_inference, do_mini_batch_inference
+from ..model import do_full_graph_inference, do_mini_batch_inference
 from ..utils import sys_tracker, get_rank, barrier
 
 

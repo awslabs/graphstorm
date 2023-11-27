@@ -516,10 +516,11 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
     def unfreeze(self):
         """ Disable Bert caching
         """
-        self.use_cache = False
-        # We should clear up the LM cache here. When someone calls unfreeze,
-        # we expect that the LM model will be fine-tuned.
-        self.lm_emb_cache.clear_cache()
+        if self.num_train > 0:
+            self.use_cache = False
+            # We should clear up the LM cache here. When someone calls unfreeze,
+            # we expect that the LM model will be fine-tuned.
+            self.lm_emb_cache.clear_cache()
 
     def require_cache_embed(self):
         """ Whether to cache the embeddings for inference.
@@ -726,10 +727,11 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
     def unfreeze(self):
         """ Disable Bert caching
         """
-        self.use_cache = False
-        # We should clear up the LM cache here. When someone calls unfreeze,
-        # we expect that the LM model will be fine-tuned.
-        self.lm_emb_cache.clear_cache()
+        if self.num_train > 0:
+            self.use_cache = False
+            # We should clear up the LM cache here. When someone calls unfreeze,
+            # we expect that the LM model will be fine-tuned.
+            self.lm_emb_cache.clear_cache()
 
     def require_cache_embed(self):
         """ Whether to cache the embeddings for inference.

@@ -16,9 +16,7 @@ This tutorial will use GraphStorm's built-in OGB-arxiv dataset for a node classi
 
     - All commands below are designed to run in a GraphStorm Docker container. Please refer to the :ref:`GraphStorm Docker environment setup<setup>` to prepare the Docker container environment.
 
-    - If you set up the :ref:`GraphStorm environment with pip Packages<setup_pip>`, please replace all occurrences of "2222" in the argument ``--ssh-port`` with **22**, and clone GraphStorm toolkits.
-
-    - If use this method to setup GraphStorm environment, you may need to replace the ``python3`` command with ``python``, depending on your Python versions.
+    - If you set up the :ref:`GraphStorm environment with pip Packages<setup_pip>`, please replace all occurrences of "2222" in the argument ``--ssh-port`` with **22**, and clone GraphStorm toolkits. And if use this method to setup GraphStorm environment, you may need to replace the ``python3`` command with ``python``, depending on your Python versions.
 
 Download and Partition OGB-arxiv Data
 --------------------------------------
@@ -161,7 +159,7 @@ Inference on link prediction is similar as shown in the command below.
             --save-embed-path /tmp/ogbn-arxiv-lp/predictions/ \
             --restore-model-path /tmp/ogbn-arxiv-lp/models/epoch-2/
 
-The inference outputs include a **"emb_info.json"** metadata file and the prediction result file, **"emb.part00000.pt"** in the ``/tmp/ogbn-arxiv-lp/predictions/`` folder.
+The inference outputs include a **"emb_info.json"** metadata file and the prediction result file, **"embed-00000.pt"** in the ``/tmp/ogbn-arxiv-lp/predictions/`` folder.
 
 Generating Embedding
 --------------------
@@ -187,12 +185,12 @@ Users need to specify ``--restore-model-path`` and ``--save-embed-path`` when us
     /tmp/ogbn-arxiv-nc/saved_embed
         emb_info.json
         node/
-            node_emb.part00000.pt
+            node_embed-00000.pt
 
 
-For node classification/regression task, if ``target_ntype`` is provided, the command will generate and save node embeddings on ``target_ntype``, otherwise it will generate embeddings for all node types.
+For node classification/regression task, ``target_ntype`` is necessary, the command will generate and save node embeddings on ``target_ntype``. If it requires generating embeddings on multiple nodes, the input ``target_ntype`` should be a list of node types.
 
-For edge classification/regression task, it ``target_etype`` is provided, the command will generate and save node embeddings on source and destination node types defined in the ``target_etype``, otherwise it will generate embeddings for all node types.
+For edge classification/regression task, ``target_etype`` is necessary, the command will generate and save node embeddings on source and destination node types defined in the ``target_etype``. If it requires generating embeddings on multiple nodes, the input ``target_etype`` should be a list of edge types.
 
 For link prediction task, it will generate and save node embeddings for all node types.
 
@@ -203,18 +201,18 @@ The saved result will be like:
     /tmp/saved_embed
         emb_info.json
         node_type1/
-            nids.part00000.pt
-            nids.part00001.pt
+            embed_nids-00000.pt
+            embed_nids-00001.pt
             ...
-            emb.part00000.pt
-            emb.part00001.pt
+            embed-00000.pt
+            embed-00001.pt
             ...
         node_type2/
-            nids.part00000.pt
-            nids.part00001.pt
+            embed_nids-00000.pt
+            embed_nids-00001.pt
             ...
-            emb.part00000.pt
-            emb.part00001.pt
+            embed-00000.pt
+            embed-00001.pt
             ...
 
 **That is it!** You have learnt how to use GraphStorm in three steps.

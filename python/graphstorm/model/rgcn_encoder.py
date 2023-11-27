@@ -294,7 +294,7 @@ class RelationalGCNEncoder(GraphConvEncoder):
         from graphstorm.model.node_decoder import EntityClassifier
         from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
         from graphstorm.dataloading import GSgnnNodeTrainData
-        from graphstorm.model.gnn import do_full_graph_inference
+        from graphstorm.model import do_full_graph_inference
 
         np_data = GSgnnNodeTrainData(...)
 
