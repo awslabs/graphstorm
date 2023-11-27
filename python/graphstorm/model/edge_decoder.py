@@ -724,11 +724,7 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
         scores = {}
         pos_scores = calc_dot_pos_score(pos_src_emb, pos_dst_emb)
         neg_dst_emb = emb[vtype][np.arange(emb[vtype].shape[0])].to(device)
-        # neg_dst_emb should contains train nodes only:
-        # v_train_mask = g.nodes[vtype].data['train_mask'][np.arange(g.number_of_nodes(vtype))]
-        # train_nids = np.where(v_train_mask)[0]
-        # neg_dst_emb = emb[vtype][train_nids].to(device)
-        neg_scores = th.mm(pos_src_emb, neg_dst_emb.transpose(0, 1)) # [n_pos, n_train]
+        neg_scores = th.mm(pos_src_emb, neg_dst_emb.transpose(0, 1)) # [n_pos, n_embs]
         # gloo with cpu will consume less GPU memory
         neg_scores = neg_scores.cpu() \
             if is_distributed() and get_backend() == "gloo" \
