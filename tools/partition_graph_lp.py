@@ -48,6 +48,8 @@ if __name__ == '__main__':
     argparser.add_argument('--inductive-split', action='store_true',
                            help='split links for inductive settings: no overlapping nodes across '
                            + 'splits.')
+    argparser.add_argument('--seed', type=int, default=42,
+                           help='random seed for splitting links')
     # graph modification arguments
     argparser.add_argument('--add-reverse-edges', action='store_true',
                            help='turn the graph into an undirected graph.')
@@ -85,6 +87,7 @@ if __name__ == '__main__':
     args = argparser.parse_args()
     print(args)
     start = time.time()
+    np.random.seed(args.seed)
 
     constructed_graph = False
 
@@ -153,6 +156,7 @@ if __name__ == '__main__':
         target_etypes = [target_etypes]
 
     if constructed_graph:
+        d_shuffled_nids = {} # to store shuffled nids by ntype to avoid different orders for the same ntype
         for target_e in target_etypes:
             num_edges = g.num_edges(target_e)
             g.edges[target_e].data['train_mask'] = th.full((num_edges,), False, dtype=th.bool)
@@ -166,22 +170,25 @@ if __name__ == '__main__':
                 g.edges[target_e].data['test_mask'][int(num_edges * (args.train_pct + args.val_pct)): ] = True
             else:
                 # Inductive split for link prediction
-                # 1. split the head nodes
-                ntype = target_e[0]
-                num_nodes = g.number_of_nodes(ntype)
-                shuffled_index = np.random.permutation(np.arange(num_nodes))
-                train_idx = shuffled_index[: int(num_nodes * args.train_pct)]
-                val_idx = shuffled_index[int(num_nodes * args.train_pct): \
+                # 1. split the head nodes u
+                utype, _, vtype = target_e
+                num_nodes = g.number_of_nodes(utype)
+                shuffled_index = d_shuffled_nids.get(utype,
+                                                     np.random.permutation(np.arange(num_nodes)))
+                if utype not in d_shuffled_nids:
+                    d_shuffled_nids[utype] = shuffled_index
+                train_u = shuffled_index[: int(num_nodes * args.train_pct)]
+                val_u = shuffled_index[int(num_nodes * args.train_pct): \
                                         int(num_nodes * (args.train_pct + args.val_pct))]
-                test_idx = shuffled_index[int(num_nodes * (args.train_pct + args.val_pct)): ]
+                test_u = shuffled_index[int(num_nodes * (args.train_pct + args.val_pct)): ]
                 # 2. find all out-edges for the sets of head nodes:
-                # we remove edges with tail nodes outside of the training set
-                _, train_v, train_eids = g.out_edges(train_idx, form='all', etype=target_e)
-                train_eids = train_eids[np.in1d(train_v, train_idx)]
-                _, val_v, val_eids = g.out_edges(val_idx, form='all', etype=target_e)
-                val_eids = val_eids[np.in1d(val_v, train_idx)]
-                _, test_v, test_eids = g.out_edges(test_idx, form='all', etype=target_e)
-                test_eids = test_eids[np.in1d(test_v, train_idx)]
+                _, train_v, train_eids = g.out_edges(train_u, form='all', etype=target_e)
+                val_eids = g.out_edges(val_u, form='eid', etype=target_e)
+                test_eids = g.out_edges(test_u, form='eid', etype=target_e)
+                if utype == vtype:
+                    # we remove edges with tail nodes outside of the training set
+                    # this isn't necessary if head and tail are different types
+                    train_eids = train_eids[np.in1d(train_v, train_u)]
                 # 3. build boolean edge masks
                 g.edges[target_e].data['train_mask'][train_eids] = True
                 g.edges[target_e].data['val_mask'][val_eids] = True
