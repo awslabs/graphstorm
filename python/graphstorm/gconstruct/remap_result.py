@@ -210,12 +210,12 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         --------
         # embedddings:
         #   ntype0:
-        #     emb_part00000_00000.parquet
-        #     emb_part00000_00001.parquet
+        #     embed-00000_00000.parquet
+        #     embed-00000_00001.parquet
         #     ...
         #   ntype1:
-        #     emb_part00000_00000.parquet
-        #     emb_part00000_00001.parquet
+        #     embed-00000_00000.parquet
+        #     embed-00000_00001.parquet
         #     ...
 
         Parameters
@@ -400,7 +400,7 @@ def remap_edge_pred(pred_etypes, pred_dir,
         #    dst_nids-00001.pt
         #    ...
 
-        The output emb files will be
+        The output prediction files will be
         #    predict-00000_00000.parquet
         #    predict-00000_00001.parquet
         #    ...

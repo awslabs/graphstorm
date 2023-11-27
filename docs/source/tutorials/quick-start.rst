@@ -140,7 +140,7 @@ The inference command is:
                --save-prediction-path /tmp/ogbn-arxiv-nc/predictions/ \
                --restore-model-path /tmp/ogbn-arxiv-nc/models/epoch-7/
 
-This inference command predicts the classes of nodes in the testing set and saves the results, a Pytorch tensor file named "**predict-00000.pt**", into the ``/tmp/ogbn-arxiv-nc/predictions/`` folder.
+This inference command predicts the classes of nodes in the testing set and saves the results, a list of parquet files named **predict-00000_00000.parquet**, **predict-00001_00000.parquet**, ..., into the ``/tmp/ogbn-arxiv-nc/predictions/node/`` folder. Each parquet file has two columns, `nid` column for storing node IDs and `pred` column for storing prediction results.
 
 Inference on link prediction is similar as shown in the command below.
 
@@ -159,7 +159,7 @@ Inference on link prediction is similar as shown in the command below.
             --save-embed-path /tmp/ogbn-arxiv-lp/predictions/ \
             --restore-model-path /tmp/ogbn-arxiv-lp/models/epoch-2/
 
-The inference outputs include a **"emb_info.json"** metadata file and the prediction result file, **"embed-00000.pt"** in the ``/tmp/ogbn-arxiv-lp/predictions/`` folder.
+The inference outputs the saved embeddings, a list of parquet files named **embed-00000_00000.parquet**, **embed-00001_00000.parquet**, ...,  in the ``/tmp/ogbn-arxiv-lp/predictions/node/`` folder. Each parquet file has two columns, `nid` column for storing node IDs and `emb` column for storing embeddings.
 
 Generating Embedding
 --------------------
@@ -201,18 +201,12 @@ The saved result will be like:
     /tmp/saved_embed
         emb_info.json
         node_type1/
-            embed_nids-00000.pt
-            embed_nids-00001.pt
-            ...
-            embed-00000.pt
-            embed-00001.pt
+            embed-00000_00000.parquet
+            embed-00000_00001.parquet
             ...
         node_type2/
-            embed_nids-00000.pt
-            embed_nids-00001.pt
-            ...
-            embed-00000.pt
-            embed-00001.pt
+            embed-00000_00000.parquet
+            embed-00000_00001.parquet
             ...
 
 **That is it!** You have learnt how to use GraphStorm in three steps.
