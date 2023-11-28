@@ -112,9 +112,23 @@ def write_data_csv_file(data, file_prefix, delimiter=",", col_name_map=None):
     output_fname = f"{file_prefix}.csv"
     csv_data = {}
     for key, vals in data.items():
+        # Each <key, val> pair represents the column name and
+        # the column data of a column.
         if len(vals.shape) == 1:
+            # vals is a 1D matrix.
+            # The data will be saved as
+            #   key,
+            #   0.1,
+            #   0.2,
+            #   ...
             csv_data[key] = vals.tolist()
         elif len(vals.shape) == 2:
+            # vals is a 2D matrix.
+            # The data will be saved as
+            #   key,
+            #   0.001;1.2000;0.736;...,
+            #   0.002;1.1010;0.834;...,
+            #   ...
             csv_data[key] = [";".join([str(v) for v in val]) \
                              for val in vals.tolist()]
     data_frame = pd.DataFrame(csv_data)
