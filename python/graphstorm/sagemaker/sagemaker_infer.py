@@ -19,6 +19,7 @@
 """
 # Install additional requirements
 import os
+import logging
 import socket
 import time
 import json
@@ -117,13 +118,14 @@ def launch_infer_task(task_type, num_gpus, graph_config,
     launch_cmd += ["--cf", f"{yaml_path}",
          "--restore-model-path", f"{load_model_path}",
          "--save-embed-path", f"{save_emb_path}"] + extra_args
+    logging.debug("Launch inference %s", launch_cmd)
 
     def run(launch_cmd, state_q):
         try:
             subprocess.check_call(launch_cmd, shell=False)
             state_q.put(0)
         except subprocess.CalledProcessError as err:
-            print(f"Called process error {err}")
+            logging.error("Called process error %s", err)
             state_q.put(err.returncode)
         except Exception: # pylint: disable=broad-except
             state_q.put(-1)
@@ -174,8 +176,8 @@ def run_infer(args, unknownargs):
     # start the ssh server
     subprocess.run(["service", "ssh", "start"], check=True)
 
-    print(f"Know args {args}")
-    print(f"Unknow args {unknownargs}")
+    logging.info("Know args %s", args)
+    logging.info("Unknow args %s", unknownargs)
 
     train_env = json.loads(args.sm_dist_env)
     hosts = train_env['hosts']
@@ -184,9 +186,15 @@ def run_infer(args, unknownargs):
     os.environ['WORLD_SIZE'] = str(world_size)
     host_rank = hosts.index(current_host)
 
+    # NOTE: Ensure no logging has been done before setting logging configuration
+    logging.basicConfig(
+        level=getattr(logging, args.log_level.upper(), None),
+        format=f'{current_host}: %(asctime)s - %(levelname)s - %(message)s',
+        force=True)
+
     try:
         for host in hosts:
-            print(f"The {host} IP is {socket.gethostbyname(host)}")
+            logging.info("The %s IP is %s", host, {socket.gethostbyname(host)})
     except:
         raise RuntimeError(f"Can not get host name of {hosts}")
 
@@ -210,9 +218,9 @@ def run_infer(args, unknownargs):
                 sock.connect((master_addr, 12345))
                 break
             except: # pylint: disable=bare-except
-                print(f"Try to connect {master_addr}")
+                logging.info("Try to connect %s", master_addr)
                 time.sleep(10)
-        print("Connected")
+        logging.info("Connected")
 
     # write ip list info into disk
     ip_list_path = os.path.join(data_path, 'ip_list.txt')
@@ -247,7 +255,8 @@ def run_infer(args, unknownargs):
 
     # Download Saved model
     download_model(model_artifact_s3, model_path, sagemaker_session)
-    print(f"{model_path} {os.listdir(model_path)}")
+    logging.info("Successfully download the model into %s.\n The model has: %s.",
+                 model_path, os.listdir(model_path))
 
     err_code = 0
     if host_rank == 0:
@@ -281,7 +290,7 @@ def run_infer(args, unknownargs):
             err_code = -1
 
         terminate_workers(client_list, world_size, task_end)
-        print("Master End")
+        logging.info("Master End")
         if err_code != -1:
             upload_embs(output_emb_s3, emb_path, sagemaker_session)
             # clean embs, so SageMaker does not need to upload embs again
@@ -295,12 +304,12 @@ def run_infer(args, unknownargs):
         upload_embs(output_emb_s3, emb_path, sagemaker_session)
         # clean embs, so SageMaker does not need to upload embs again
         remove_embs(emb_path)
-        print("Worker End")
+        logging.info("Worker End")
 
     sock.close()
     if err_code != 0:
         # Report an error
-        print("Task failed")
+        logging.info("Task failed")
         sys.exit(-1)
 
     if args.output_prediction_s3 is not None:

@@ -52,6 +52,7 @@ def run_job(input_args, image, unknowargs):
     model_artifact_s3 = input_args.model_artifact_s3 # Where to store model artifacts
     model_checkpoint_to_load = input_args.model_checkpoint_to_load # S3 location of a saved model.
     custom_script = input_args.custom_script # custom_script if any
+    log_level = input_args.log_level # SageMaker runner logging level
 
     boto_session = boto3.session.Session(region_name=region)
     sagemaker_client = boto_session.client(service_name="sagemaker", region_name=region)
@@ -66,7 +67,8 @@ def run_job(input_args, image, unknowargs):
               "graph-name": graph_name,
               "graph-data-s3": graph_data_s3,
               "train-yaml-s3": train_yaml_s3,
-              "model-artifact-s3": model_artifact_s3}
+              "model-artifact-s3": model_artifact_s3,
+              "log-level": log_level}
     if custom_script is not None:
         params["custom-script"] = custom_script
     if model_checkpoint_to_load is not None:
@@ -143,6 +145,8 @@ def get_train_parser():
     training_args.add_argument("--custom-script", type=str, default=None,
         help="Custom training script provided by a customer to run customer training logic. \
             Please provide the path of the script within the docker image")
+    training_args.add_argument('--log-level', default='INFO',
+        type=str, choices=['DEBUG', 'INFO', 'WARNING', 'CRITICAL', 'FATAL'])
 
     return parser
 

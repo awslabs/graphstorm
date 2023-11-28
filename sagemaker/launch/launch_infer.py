@@ -55,6 +55,7 @@ def run_job(input_args, image, unknownargs):
     output_predict_s3_path = input_args.output_prediction_s3 # S3 location to save prediction results
     model_artifact_s3 = input_args.model_artifact_s3 # S3 location of saved model artifacts
     output_chunk_size = input_args.output_chunk_size # Number of rows per chunked prediction result or node embedding file.
+    log_level = input_args.log_level # SageMaker runner logging level
 
     boto_session = boto3.session.Session(region_name=region)
     sagemaker_client = boto_session.client(service_name="sagemaker", region_name=region)
@@ -76,7 +77,8 @@ def run_job(input_args, image, unknownargs):
                   "infer-yaml-s3": infer_yaml_s3,
                   "output-emb-s3": output_emb_s3_path,
                   "model-artifact-s3": model_artifact_s3,
-                  "output-chunk-size": output_chunk_size}
+                  "output-chunk-size": output_chunk_size,
+                  "log-level": log_level}
     else:
         params = {"task-type": task_type,
                   "graph-name": graph_name,
@@ -85,7 +87,8 @@ def run_job(input_args, image, unknownargs):
                   "output-emb-s3": output_emb_s3_path,
                   "output-prediction-s3": output_predict_s3_path,
                   "model-artifact-s3": model_artifact_s3,
-                  "output-chunk-size": output_chunk_size}
+                  "output-chunk-size": output_chunk_size,
+                  "log-level": log_level}
     # We must handle cases like
     # --target-etype query,clicks,asin query,search,asin
     # --feat-name ntype0:feat0 ntype1:feat1
@@ -170,6 +173,8 @@ def get_inference_parser():
         help="Relative path to the trained model under <model_artifact_s3>."
              "There can be multiple model checkpoints under"
              "<model_artifact_s3>, this argument is used to choose one.")
+    inference_args.add_argument('--log-level', default='INFO',
+        type=str, choices=['DEBUG', 'INFO', 'WARNING', 'CRITICAL', 'FATAL'])
 
     return parser
 

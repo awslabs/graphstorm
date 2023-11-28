@@ -17,6 +17,7 @@
 """
 # Install additional requirements
 import os
+import logging
 import socket
 import time
 import json
@@ -108,15 +109,14 @@ def launch_train_task(task_type, num_gpus, graph_config,
     launch_cmd += ["--restore-model-path", f"{restore_model_path}"] \
             if restore_model_path is not None else []
     launch_cmd += extra_args
-
-    print(launch_cmd)
+    logging.debug("Launch training %s", launch_cmd)
 
     def run(launch_cmd, state_q):
         try:
             subprocess.check_call(launch_cmd, shell=False)
             state_q.put(0)
         except subprocess.CalledProcessError as err:
-            print(f"Called process error {err}")
+            logging.error("Called process error %s", err)
             state_q.put(err.returncode)
         except Exception: # pylint: disable=broad-except
             state_q.put(-1)
@@ -167,8 +167,8 @@ def run_train(args, unknownargs):
     # start the ssh server
     subprocess.run(["service", "ssh", "start"], check=True)
 
-    print(f"Know args {args}")
-    print(f"Unknow args {unknownargs}")
+    logging.info("Know args %s", args)
+    logging.info("Unknow args %s", unknownargs)
 
     save_model_path = os.path.join(output_path, "model_checkpoint")
 
@@ -179,9 +179,15 @@ def run_train(args, unknownargs):
     os.environ['WORLD_SIZE'] = str(world_size)
     host_rank = hosts.index(current_host)
 
+    # NOTE: Ensure no logging has been done before setting logging configuration
+    logging.basicConfig(
+        level=getattr(logging, args.log_level.upper(), None),
+        format=f'{current_host}: %(asctime)s - %(levelname)s - %(message)s',
+        force=True)
+
     try:
         for host in hosts:
-            print(f"The {host} IP is {socket.gethostbyname(host)}")
+            logging.info("The %s IP is %s", host, socket.gethostbyname(host))
     except:
         raise RuntimeError(f"Can not get host name of {hosts}")
 
@@ -205,9 +211,9 @@ def run_train(args, unknownargs):
                 sock.connect((master_addr, 12345))
                 break
             except: # pylint: disable=bare-except
-                print(f"Try to connect {master_addr}")
+                logging.info("Try to connect %s", master_addr)
                 time.sleep(10)
-        print("Connected")
+        logging.info("Connected")
 
     # write ip list info into disk
     ip_list_path = os.path.join(data_path, 'ip_list.txt')
@@ -232,8 +238,8 @@ def run_train(args, unknownargs):
     if model_checkpoint_s3 is not None:
         # Download Saved model checkpoint to resume
         download_model(model_checkpoint_s3, restore_model_path, sagemaker_session)
-        print(f"{restore_model_path} {os.listdir(restore_model_path)}")
-
+        logging.info("Successfully download the model into %s.\n The model has: %s.",
+                     restore_model_path, os.listdir(restore_model_path))
 
     err_code = 0
     if host_rank == 0:
@@ -265,18 +271,18 @@ def run_train(args, unknownargs):
             print(e)
             err_code = -1
         terminate_workers(client_list, world_size, task_end)
-        print("Master End")
+        logging.info("Master End")
     else:
         barrier(sock)
         # Block util training finished
         # Listen to end command
         wait_for_exit(sock)
-        print("Worker End")
+        logging.info("Worker End")
 
     sock.close()
     if err_code != 0:
         # Report an error
-        print("Task failed")
+        logging.error("Task failed")
         sys.exit(-1)
 
     # If there are saved models
