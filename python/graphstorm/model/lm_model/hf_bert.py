@@ -30,10 +30,13 @@ def load_hfbert_model(bert_configs: dict):
     """ Load huggingface LM model
     """
     model_name = bert_configs["model_name"]
-    config = AutoConfig.from_pretrained(
-        model_name, **{key: val for key, val in bert_configs.items() if key != 'model_name'})
+    # config = AutoConfig.from_pretrained(
+    #     model_name, **{key: val for key, val in bert_configs.items() if key != 'model_name'})
+    #
+    # lm_model = AutoModel.from_pretrained(model_name, config=config)
+    config = AutoConfig.from_pretrained("./local_lm_model")
+    lm_model = AutoModel.from_pretrained("./local_lm_model", config=config)
 
-    lm_model = AutoModel.from_pretrained(model_name, config=config)
     return lm_model
 
 class HFBertWrapper(GSFLanguageModelWrapper):
