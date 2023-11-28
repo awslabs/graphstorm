@@ -274,7 +274,7 @@ jobs that rely on the ``Estimator`` base class: For a full list of
 The GConstruct job will launch a SageMaker Processing job that relies on
 the ``Processor`` base class, so its arguments are different,
 e.g. ``volume_size_in_gb`` for the ``Processor`` vs. ``volume_size`` for
-the ``Estimator``. For a full list of ``Processor`` parameters see the `SageMaker Processor documentation.
+the ``Estimator``. For a full list of ``Processor`` parameters, see the `SageMaker Processor documentation.
 <https://sagemaker.readthedocs.io/en/stable/api/training/processing.html>`_
 
 Using ``Processor`` arguments the above example would become:
