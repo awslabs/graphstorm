@@ -208,8 +208,7 @@ Users can use the following commands to check the corresponding outputs:
     aws s3 ls s3://<PATH_TO_SAVE_PREDICTION_RESULTS>/
 
 Launch graph partitioning task
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+```````````````````````````````
 If your data are in the `DGL chunked
 format <https://docs.dgl.ai/guide/distributed-preprocessing.html#specification>`_
 you can perform distributed partitioning using SageMaker to prepare your
@@ -236,11 +235,10 @@ from ``${DATASET_S3_PATH}`` as input and create a DistDGL graph with
 ``${NUM_PARTITIONS}`` under the output path, ``${OUTPUT_PATH}``.
 Currently we only support ``random`` as the partitioning algorithm.
 
-Passing additional arguments to the SageMaker Estimator/Processor
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+Passing additional arguments to the SageMaker
+`````````````````````````````````````````````
 Sometimes you might want to pass additional arguments to the constructor
-of the SageMaker Estimator/Processor object we use to launch SageMaker
+of the SageMaker Estimator/Processor object that we use to launch SageMaker
 tasks, e.g. to set a max runtime, or set a VPC configuration. Our launch
 scripts support forwarding arguments to the base class object through a
 ``kwargs`` dictionary.
@@ -252,7 +250,7 @@ quotes ``"`` to ensure correct parsing) and the format
 ``<argname>=<value>`` for each argument.
 
 ``<argname>`` needs to be a valid SageMaker Estimator/Processor argument
-name and ``<value>`` a value that can be parsed as a Python literal,
+name and ``<value>`` is a value that can be parsed as a Python literal,
 **without spaces**.
 
 For example, to pass a specific max runtime, subnet list, and enable
@@ -276,9 +274,7 @@ jobs that rely on the ``Estimator`` base class: For a full list of
 The GConstruct job will launch a SageMaker Processing job that relies on
 the ``Processor`` base class, so its arguments are different,
 e.g. ``volume_size_in_gb`` for the ``Processor`` vs. ``volume_size`` for
-the ``Estimator``.
-
-For a full list of ``Processor`` parameters see the `SageMaker Processor documentation.
+the ``Estimator``. For a full list of ``Processor`` parameters, see the `SageMaker Processor documentation.
 <https://sagemaker.readthedocs.io/en/stable/api/training/processing.html>`_
 
 Using ``Processor`` arguments the above example would become:
