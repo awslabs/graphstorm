@@ -262,18 +262,18 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         --------
         # embedddings:
         #   ntype0:
-        #     nids.part00000.pt
-        #     nids.part00001.pt
+        #     embed_nids-00000.pt
+        #     embed_nids-00001.pt
         #     ...
-        #     emb.part00000.pt
-        #     emb.part00001.pt
+        #     embed-00000.pt
+        #     embed-00001.pt
         #     ...
         #   ntype1:
-        #     nids.part00000.pt
-        #     nids.part00001.pt
+        #     embed_nids-00000.pt
+        #     embed_nids-00001.pt
         #     ...
-        #     emb.part00000.pt
-        #     emb.part00001.pt
+        #     embed-00000.pt
+        #     embed-00001.pt
         #     ...
 
         The output files will be
@@ -282,12 +282,12 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         --------
         # embedddings:
         #   ntype0:
-        #     emb_part00000_00000.parquet
-        #     emb_part00000_00001.parquet
+        #     embed-00000_00000.parquet
+        #     embed-00000_00001.parquet
         #     ...
         #   ntype1:
-        #     emb_part00000_00000.parquet
-        #     emb_part00000_00001.parquet
+        #     embed-00000_00000.parquet
+        #     embed-00000_00001.parquet
         #     ...
 
         Parameters
@@ -320,9 +320,9 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         ntype_emb_files = os.listdir(input_emb_dir)
         # please note nid_files can be empty.
         nid_files = [fname for fname in ntype_emb_files \
-                     if fname.startswith("nids") and fname.endswith("pt")]
+                     if fname.startswith("embed_nids-") and fname.endswith("pt")]
         emb_files = [fname for fname in ntype_emb_files \
-                     if fname.startswith("emb") and fname.endswith("pt")]
+                     if fname.startswith("embed-") and fname.endswith("pt")]
 
         nid_files.sort()
         emb_files.sort()
@@ -377,8 +377,8 @@ def remap_node_pred(pred_ntypes, pred_dir,
         #    predict-00000.pt
         #    predict-00001.pt
         #    ...
-        #    nids-00000.pt
-        #    nids-00001.pt
+        #    predict_nids-00000.pt
+        #    predict_nids-00001.pt
 
         The output files will be
         #    predict-00000_00000.parquet
@@ -414,8 +414,8 @@ def remap_node_pred(pred_ntypes, pred_dir,
         input_pred_dir = os.path.join(pred_dir, ntype)
         out_pred_dir = os.path.join(output_dir, ntype)
         ntype_pred_files = os.listdir(input_pred_dir)
-        nid_files = [fname for fname in ntype_pred_files if fname.startswith("nids")]
-        pred_files = [fname for fname in ntype_pred_files if fname.startswith("predict")]
+        nid_files = [fname for fname in ntype_pred_files if fname.startswith("predict_nids-")]
+        pred_files = [fname for fname in ntype_pred_files if fname.startswith("predict-")]
 
         nid_files.sort()
         pred_files.sort()
@@ -478,7 +478,7 @@ def remap_edge_pred(pred_etypes, pred_dir,
         #    dst_nids-00001.pt
         #    ...
 
-        The output emb files will be
+        The output prediction files will be
         #    predict-00000_00000.parquet
         #    predict-00000_00001.parquet
         #    ...
@@ -512,9 +512,9 @@ def remap_edge_pred(pred_etypes, pred_dir,
         input_pred_dir = os.path.join(pred_dir, "_".join(etype))
         out_pred_dir = os.path.join(output_dir, "_".join(etype))
         etype_pred_files = os.listdir(input_pred_dir)
-        src_nid_files = [fname for fname in etype_pred_files if fname.startswith("src_nids")]
-        dst_nid_files = [fname for fname in etype_pred_files if fname.startswith("dst_nids")]
-        pred_files = [fname for fname in etype_pred_files if fname.startswith("predict")]
+        src_nid_files = [fname for fname in etype_pred_files if fname.startswith("src_nids-")]
+        dst_nid_files = [fname for fname in etype_pred_files if fname.startswith("dst_nids-")]
+        pred_files = [fname for fname in etype_pred_files if fname.startswith("predict-")]
         src_nid_files.sort()
         dst_nid_files.sort()
         pred_files.sort()

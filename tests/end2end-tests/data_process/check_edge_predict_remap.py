@@ -16,8 +16,6 @@
 """
 import os
 import argparse
-import json
-import torch as th
 
 from graphstorm.gconstruct.file_io import read_data_parquet
 from numpy.testing import assert_equal
