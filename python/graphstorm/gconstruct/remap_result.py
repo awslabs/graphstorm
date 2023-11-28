@@ -632,7 +632,7 @@ def main(args, gs_config_args):
         gs_config_args = ["--cf", args.yaml_config_file,
                           "--logging-level", args.logging_level] + gs_config_args
         gs_parser = get_argument_parser()
-        gs_args = gs_parser.parse_args(gs_config_args)
+        gs_args, _ = gs_parser.parse_known_args(gs_config_args)
         config = GSConfig(gs_args)
         config.verify_arguments(False)
         id_mapping_path, predict_dir, node_emb_dir, pred_ntypes, pred_etypes = \
