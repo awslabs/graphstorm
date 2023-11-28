@@ -264,7 +264,11 @@ def run_train(args, unknownargs):
         except RuntimeError as e:
             print(e)
             err_code = -1
-        terminate_workers(client_list, world_size, task_end)
+        # Indicate we can stop sending keepalive messages
+        task_end.set()
+        # Ensure the keepalive thread has finished before closing sockets
+        thread.join()
+        terminate_workers(client_list, world_size)
         print("Master End")
     else:
         barrier(sock)
