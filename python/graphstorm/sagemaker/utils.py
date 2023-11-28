@@ -291,7 +291,10 @@ def download_graph(graph_data_s3, graph_name, part_id, local_path, sagemaker_ses
         S3Downloader.download(os.path.join(graph_data_s3, node_id_mapping),
             graph_path, sagemaker_session=sagemaker_session)
     except Exception: # pylint: disable=broad-except
-        logging.warning("node id mapping file does not exist")
+        logging.warning("Node id mapping file does not exist."
+                        "If you are running GraphStorm on a graph with "
+                        "more than 1 partition, it is recommended to provide "
+                        "the node id mapping file created by gconstruct or gsprocessing.")
 
     # Try to get GraphStorm ID to Original ID remaping files if any
     files = S3Downloader.list(graph_data_s3, sagemaker_session=sagemaker_session)
@@ -305,7 +308,7 @@ def download_graph(graph_data_s3, graph_name, part_id, local_path, sagemaker_ses
         except Exception: # pylint: disable=broad-except
             logging.warning("node id remap file %s does not exist", file)
 
-    logging.info("Finish download graph data from %s", graph_data_s3)
+    logging.info("Finished downloading graph data from %s", graph_data_s3)
     return os.path.join(graph_path, graph_config)
 
 
@@ -345,7 +348,7 @@ def upload_model_artifacts(model_s3_path, model_path, sagemaker_session):
     sagemaker_session: sagemaker.session.Session
         sagemaker_session to run download
     """
-    logging.info("Upload model artifacts to %s", model_s3_path)
+    logging.info("Uploading model artifacts to %s", model_s3_path)
     # Rank0 will upload both dense models and learnable embeddings owned by Rank0.
     # Other ranks will only upload learnable embeddings owned by themselves.
     return upload_data_to_s3(model_s3_path, model_path, sagemaker_session)

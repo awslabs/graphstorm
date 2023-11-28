@@ -167,8 +167,8 @@ def run_train(args, unknownargs):
     # start the ssh server
     subprocess.run(["service", "ssh", "start"], check=True)
 
-    logging.info("Know args %s", args)
-    logging.info("Unknow args %s", unknownargs)
+    logging.info("Known args %s", args)
+    logging.info("Unknown args %s", unknownargs)
 
     save_model_path = os.path.join(output_path, "model_checkpoint")
 
@@ -238,7 +238,7 @@ def run_train(args, unknownargs):
     if model_checkpoint_s3 is not None:
         # Download Saved model checkpoint to resume
         download_model(model_checkpoint_s3, restore_model_path, sagemaker_session)
-        logging.info("Successfully download the model into %s.\n The model has: %s.",
+        logging.info("Successfully downloaded the model into %s.\n The model files are: %s.",
                      restore_model_path, os.listdir(restore_model_path))
 
     err_code = 0

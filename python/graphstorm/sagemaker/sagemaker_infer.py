@@ -176,8 +176,8 @@ def run_infer(args, unknownargs):
     # start the ssh server
     subprocess.run(["service", "ssh", "start"], check=True)
 
-    logging.info("Know args %s", args)
-    logging.info("Unknow args %s", unknownargs)
+    logging.info("Known args %s", args)
+    logging.info("Unknown args %s", unknownargs)
 
     train_env = json.loads(args.sm_dist_env)
     hosts = train_env['hosts']
@@ -255,7 +255,7 @@ def run_infer(args, unknownargs):
 
     # Download Saved model
     download_model(model_artifact_s3, model_path, sagemaker_session)
-    logging.info("Successfully download the model into %s.\n The model has: %s.",
+    logging.info("Successfully downloaded the model into %s.\n The model files are: %s.",
                  model_path, os.listdir(model_path))
 
     err_code = 0
@@ -309,7 +309,7 @@ def run_infer(args, unknownargs):
     sock.close()
     if err_code != 0:
         # Report an error
-        logging.info("Task failed")
+        logging.error("Task failed")
         sys.exit(-1)
 
     if args.output_prediction_s3 is not None:
