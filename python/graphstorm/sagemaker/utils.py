@@ -271,7 +271,9 @@ def download_graph(graph_data_s3, graph_name, part_id, local_path, sagemaker_ses
     S3Downloader.download(os.path.join(graph_data_s3, graph_config),
             graph_path, sagemaker_session=sagemaker_session)
     try:
-        logging.info(f"Download graph from {os.path.join(graph_data_s3, graph_part)} to {graph_part_path}")
+        logging.info(f"Download graph from %s to %s",
+                     os.path.join(graph_data_s3, graph_part),
+                     graph_part_path)
         S3Downloader.download(os.path.join(graph_data_s3, graph_part),
             graph_part_path, sagemaker_session=sagemaker_session)
     except Exception as err: # pylint: disable=broad-except
@@ -283,7 +285,9 @@ def download_graph(graph_data_s3, graph_name, part_id, local_path, sagemaker_ses
 
     # Try to download node id mapping file if any
     try:
-        logging.info(f"Download graph id mapping from {os.path.join(graph_data_s3, node_id_mapping)} to {graph_path}")
+        logging.info(f"Download graph id mapping from %s to %s",
+                     os.path.join(graph_data_s3, node_id_mapping),
+                     graph_path)
         S3Downloader.download(os.path.join(graph_data_s3, node_id_mapping),
             graph_path, sagemaker_session=sagemaker_session)
     except Exception: # pylint: disable=broad-except
