@@ -76,16 +76,16 @@ def main(args):
     os.makedirs(pred_output_ntype0)
     os.makedirs(pred_output_ntype1)
     th.save(th.tensor(pred0_0), os.path.join(pred_output_ntype0, f"predict-{pad_file_index(0)}.pt"))
-    th.save(th.tensor(nid0_new_0), os.path.join(pred_output_ntype0, f"nids-{pad_file_index(0)}.pt"))
+    th.save(th.tensor(nid0_new_0), os.path.join(pred_output_ntype0, f"predict_nids-{pad_file_index(0)}.pt"))
 
     th.save(th.tensor(pred1_0), os.path.join(pred_output_ntype1, f"predict-{pad_file_index(0)}.pt"))
-    th.save(th.tensor(nid1_new_0), os.path.join(pred_output_ntype1, f"nids-{pad_file_index(0)}.pt"))
+    th.save(th.tensor(nid1_new_0), os.path.join(pred_output_ntype1, f"predict_nids-{pad_file_index(0)}.pt"))
 
     th.save(th.tensor(pred0_1), os.path.join(pred_output_ntype0, f"predict-{pad_file_index(1)}.pt"))
-    th.save(th.tensor(nid0_new_1), os.path.join(pred_output_ntype0, f"nids-{pad_file_index(1)}.pt"))
+    th.save(th.tensor(nid0_new_1), os.path.join(pred_output_ntype0, f"predict_nids-{pad_file_index(1)}.pt"))
 
     th.save(th.tensor(pred1_1), os.path.join(pred_output_ntype1, f"predict-{pad_file_index(1)}.pt"))
-    th.save(th.tensor(nid1_new_1), os.path.join(pred_output_ntype1, f"nids-{pad_file_index(1)}.pt"))
+    th.save(th.tensor(nid1_new_1), os.path.join(pred_output_ntype1, f"predict_nids-{pad_file_index(1)}.pt"))
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Check edge prediction remapping")

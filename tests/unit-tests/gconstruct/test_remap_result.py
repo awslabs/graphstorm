@@ -17,10 +17,12 @@ import pytest
 import os
 import tempfile
 import pytest
+from functools import partial
 
+import pandas as pd
 import torch as th
 import numpy as np
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_almost_equal
 
 from graphstorm.gconstruct import remap_result
 from graphstorm.gconstruct.file_io import read_data_parquet
@@ -28,6 +30,8 @@ from graphstorm.gconstruct.id_map import IdMap, IdReverseMap
 from graphstorm.gconstruct.remap_result import _get_file_range
 from graphstorm.gconstruct.remap_result import (worker_remap_edge_pred,
                                                 worker_remap_node_data)
+from graphstorm.gconstruct.remap_result import (write_data_parquet_file,
+                                                write_data_csv_file)
 
 def gen_id_maps(num_ids=1000):
     nid0 = np.random.permutation(num_ids).tolist()
@@ -78,11 +82,28 @@ def test_worker_remap_node_data(data_col):
             remap_result.id_maps[ntype] = IdReverseMap(os.path.join(tmpdirname, ntype + "_id_remap.parquet"))
 
         worker_remap_node_data(data_path, nid_path, ntypes[0], data_col,
-                               output_path_prefix, chunk_size, preserve_input=True)
+                               output_path_prefix, chunk_size,
+                               write_data_parquet_file, preserve_input=True)
+        worker_remap_node_data(data_path, nid_path, ntypes[0], data_col,
+                               output_path_prefix, chunk_size,
+                               partial(write_data_csv_file, delimiter=","),
+                               preserve_input=True)
+        def read_csv(file, delimiter=","):
+            data = pd.read_csv(file, delimiter=delimiter)
+            nid = data["nid"].to_numpy()
+            data_ = [np.array(d.split(";")).astype(np.float32) for d in data[data_col]]
+
+            return {"nid": nid,
+                    data_col: data_}
+
         assert os.path.exists(f"{output_path_prefix}_00000.parquet")
         assert os.path.exists(f"{output_path_prefix}_00001.parquet")
         assert os.path.exists(f"{output_path_prefix}_00002.parquet")
         assert os.path.exists(f"{output_path_prefix}_00003.parquet")
+        assert os.path.exists(f"{output_path_prefix}_00000.csv")
+        assert os.path.exists(f"{output_path_prefix}_00001.csv")
+        assert os.path.exists(f"{output_path_prefix}_00002.csv")
+        assert os.path.exists(f"{output_path_prefix}_00003.csv")
 
         data0 = read_data_parquet(f"{output_path_prefix}_00000.parquet",
                                   [data_col, "nid"])
@@ -92,21 +113,37 @@ def test_worker_remap_node_data(data_col):
                                   [data_col, "nid"])
         data3 = read_data_parquet(f"{output_path_prefix}_00003.parquet",
                                   [data_col, "nid"])
+        data0_csv = read_csv(f"{output_path_prefix}_00000.csv")
+        data1_csv = read_csv(f"{output_path_prefix}_00001.csv")
+        data2_csv = read_csv(f"{output_path_prefix}_00002.csv")
+        data3_csv = read_csv(f"{output_path_prefix}_00003.csv")
         assert len(data0[data_col]) == 256
         assert len(data1[data_col]) == 256
         assert len(data2[data_col]) == 256
         assert len(data3[data_col]) == 232
+        assert len(data0_csv[data_col]) == 256
+        assert len(data1_csv[data_col]) == 256
+        assert len(data2_csv[data_col]) == 256
+        assert len(data3_csv[data_col]) == 232
 
         data_ = [data0[data_col], data1[data_col], data2[data_col], data3[data_col]]
         nids_ = [data0["nid"], data1["nid"], data2["nid"], data3["nid"]]
+        csv_data_ = [data0_csv[data_col], data1_csv[data_col],
+                     data2_csv[data_col], data3_csv[data_col]]
+        csv_nids_ = [data0_csv["nid"], data1_csv["nid"],
+                     data2_csv["nid"], data3_csv["nid"]]
 
         data_ = np.concatenate(data_, axis=0)
         nids_ = np.concatenate(nids_, axis=0)
+        csv_data_ = np.concatenate(csv_data_, axis=0)
+        csv_nids_ = np.concatenate(csv_nids_, axis=0)
+        assert_almost_equal(data_, csv_data_, decimal=5)
+        assert_equal(nids_, csv_nids_)
         revserse_mapping = {}
         revserse_mapping[ntypes[0]] = {val: key for key, val in mappings[ntypes[0]]._ids.items()}
 
         for i in range(num_data):
-            assert_equal(data_[i], data[i].numpy())
+            assert_almost_equal(data_[i], data[i].numpy(), decimal=4)
             assert_equal(nids_[i], revserse_mapping[ntypes[0]][int(nids[i])])
 
 def test_worker_remap_edge_pred():
@@ -134,12 +171,30 @@ def test_worker_remap_edge_pred():
 
         worker_remap_edge_pred(pred_path, src_nid_path, dst_nid_path,
                                ntypes[0], ntypes[1], output_path_prefix,
-                               chunk_size, preserve_input=True)
+                               chunk_size, write_data_parquet_file,
+                               preserve_input=True)
+        worker_remap_edge_pred(pred_path, src_nid_path, dst_nid_path,
+                               ntypes[0], ntypes[1], output_path_prefix,
+                               chunk_size, partial(write_data_csv_file, delimiter=","),
+                               preserve_input=True)
+        def read_csv(file, delimiter=","):
+            data = pd.read_csv(file, delimiter=delimiter)
+            src_nid = data["src_nid"].to_numpy()
+            dst_nid = data["dst_nid"].to_numpy()
+            pred = [np.array(p.split(";")).astype(np.float32) for p in data["pred"]]
+
+            return {"src_nid": src_nid,
+                    "dst_nid": dst_nid,
+                    "pred": pred}
 
         assert os.path.exists(f"{output_path_prefix}_00000.parquet")
         assert os.path.exists(f"{output_path_prefix}_00001.parquet")
         assert os.path.exists(f"{output_path_prefix}_00002.parquet")
         assert os.path.exists(f"{output_path_prefix}_00003.parquet")
+        assert os.path.exists(f"{output_path_prefix}_00000.csv")
+        assert os.path.exists(f"{output_path_prefix}_00001.csv")
+        assert os.path.exists(f"{output_path_prefix}_00002.csv")
+        assert os.path.exists(f"{output_path_prefix}_00003.csv")
         data0 = read_data_parquet(f"{output_path_prefix}_00000.parquet",
                                   ["pred", "src_nid", "dst_nid"])
         data1 = read_data_parquet(f"{output_path_prefix}_00001.parquet",
@@ -148,16 +203,36 @@ def test_worker_remap_edge_pred():
                                   ["pred", "src_nid", "dst_nid"])
         data3 = read_data_parquet(f"{output_path_prefix}_00003.parquet",
                                   ["pred", "src_nid", "dst_nid"])
+        data0_csv = read_csv(f"{output_path_prefix}_00000.csv")
+        data1_csv = read_csv(f"{output_path_prefix}_00001.csv")
+        data2_csv = read_csv(f"{output_path_prefix}_00002.csv")
+        data3_csv = read_csv(f"{output_path_prefix}_00003.csv")
         assert len(data0["pred"]) == 256
         assert len(data1["pred"]) == 256
         assert len(data2["pred"]) == 256
         assert len(data3["pred"]) == 232
+        assert len(data0_csv["pred"]) == 256
+        assert len(data1_csv["pred"]) == 256
+        assert len(data2_csv["pred"]) == 256
+        assert len(data3_csv["pred"]) == 232
         preds_ = [data0["pred"], data1["pred"], data2["pred"], data3["pred"]]
         src_nids_ = [data0["src_nid"], data1["src_nid"], data2["src_nid"], data3["src_nid"]]
         dst_nids_ = [data0["dst_nid"], data1["dst_nid"], data2["dst_nid"], data3["dst_nid"]]
+        csv_preds_ = [data0_csv["pred"], data1_csv["pred"],
+                      data2_csv["pred"], data3_csv["pred"]]
+        csv_src_nids_ = [data0_csv["src_nid"], data1_csv["src_nid"],
+                         data2_csv["src_nid"], data3_csv["src_nid"]]
+        csv_dst_nids_ = [data0_csv["dst_nid"], data1_csv["dst_nid"],
+                         data2_csv["dst_nid"], data3_csv["dst_nid"]]
         preds_ = np.concatenate(preds_, axis=0)
         src_nids_ = np.concatenate(src_nids_, axis=0)
         dst_nids_ = np.concatenate(dst_nids_, axis=0)
+        csv_preds_ = np.concatenate(csv_preds_, axis=0)
+        csv_src_nids_ = np.concatenate(csv_src_nids_, axis=0)
+        csv_dst_nids_ = np.concatenate(csv_dst_nids_, axis=0)
+        assert_almost_equal(preds_, csv_preds_, decimal=5)
+        assert_equal(src_nids_, csv_src_nids_)
+        assert_equal(dst_nids_, csv_dst_nids_)
         revserse_mapping = {}
         revserse_mapping[ntypes[0]] = {val: key for key, val in mappings[ntypes[0]]._ids.items()}
         revserse_mapping[ntypes[1]] = {val: key for key, val in mappings[ntypes[1]]._ids.items()}

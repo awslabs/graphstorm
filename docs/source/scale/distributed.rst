@@ -11,12 +11,18 @@ GraphStorm can scale to the enterprise-level graphs in the distributed mode by u
 
 The first section of this tutorial uses the `OGB-MAG <https://ogb.stanford.edu/docs/nodeprop/#ogbn-mag>`_ as an example data to demonstrate how to use GraphStorm to train an RGCN model (a built-in model) in a cluster with three EC2 instances. The OGB-MAG data is large enough to demonstrate the scalability of GraphStorm, and also small enough to complete training in short time.
 
+.. _create_cluster:
+
 Create a GraphStorm Cluster
 ----------------------------
 
 Setup the instance of a cluster
 .......................................
-A cluster contains several GPU installed instances each of which can run GraphStorm Docker container. For each instance, please follow the :ref:`Environment Setup <setup_docker>` description to setup GraphStorm Docker container environment. This tutorial uses three EC2 instances in the cluster.
+A cluster contains several instances each of which can run GraphStorm Docker container.
+
+To create such a cluster, in one instance, please follow the :ref:`Environment Setup <setup_docker>` description to setup GraphStorm Docker container environment, and use a Docker management system, e.g., AWS ECR, to upload the Docker image built in the instance to a Docker repository and pull it to the rest of the instances in the cluster. 
+
+If there is no such Docker manangement system available in your environment, in **each** instance of the cluster, follow the :ref:`Environment Setup <setup_docker>` description to build a GraphStorm Docker image, and start the image as a container. Then exchange the ssh key from inside of one GraphStorm Docker containers to the rest containers in the cluster, i.e., copy the keys from the ``/root/.ssh/id_rsa.pub`` from one container to ``/root/.ssh/authorized_keys`` in containers on all other containers.
 
 Setup of a shared file system for the cluster
 ...............................................
@@ -74,8 +80,7 @@ In the container environment, users can check the connectivity with the command 
 
 If succeeds, you should login to the container in the ``<ip-in-the-cluster>`` instance. 
 
-If not, please make sure there is no limitation of port 2222. 
-You may also have to exchange the keys from inside the GraphStorm Docker containers to allow their communication. For that, copy the keys from the ``/root/.ssh/id_rsa.pub`` from this container to ``/root/.ssh/authorized_keys`` in containers on every machine in your cluster.
+If not, please make sure there is no restriction of exposing port 2222. 
 
 For distributed training, users also need to make sure ports under 65536 is open for DistDGL to use.
 

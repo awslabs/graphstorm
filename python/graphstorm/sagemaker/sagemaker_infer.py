@@ -251,7 +251,7 @@ def run_infer(args, unknownargs):
     yaml_path = download_yaml_config(infer_yaml_s3,
         data_path, sagemaker_session)
     graph_config_path = download_graph(graph_data_s3, graph_name,
-        host_rank, data_path, sagemaker_session)
+        host_rank, world_size, data_path, sagemaker_session)
 
     # Download Saved model
     download_model(model_artifact_s3, model_path, sagemaker_session)

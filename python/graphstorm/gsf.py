@@ -649,7 +649,7 @@ def check_homo(g):
     g: DGLGraph
         The graph used in training and testing
     """
-    if g.ntypes == [DEFAULT_NTYPE] and g.etypes == [DEFAULT_ETYPE]:
+    if g.ntypes == [DEFAULT_NTYPE] and g.etypes == [DEFAULT_ETYPE[1]]:
         return True
     return False
 
