@@ -170,7 +170,8 @@ if __name__ == '__main__':
                 g.edges[target_e].data['test_mask'][int(num_edges * (args.train_pct + args.val_pct)): ] = True
             else:
                 # Inductive split for link prediction
-                # 1. split the head nodes u
+                # 1. split the head nodes u into three disjoint sets (train/val/test)
+                # such that model will be evaluted to predict links for unseen nodes
                 utype, _, vtype = target_e
                 num_nodes = g.number_of_nodes(utype)
                 shuffled_index = d_shuffled_nids.get(utype,
@@ -181,14 +182,17 @@ if __name__ == '__main__':
                 val_u = shuffled_index[int(num_nodes * args.train_pct): \
                                         int(num_nodes * (args.train_pct + args.val_pct))]
                 test_u = shuffled_index[int(num_nodes * (args.train_pct + args.val_pct)): ]
-                # 2. find all out-edges for the sets of head nodes:
+                # 2. find all out-edges for the 3 sets of head nodes:
                 _, train_v, train_eids = g.out_edges(train_u, form='all', etype=target_e)
-                val_eids = g.out_edges(val_u, form='eid', etype=target_e)
-                test_eids = g.out_edges(test_u, form='eid', etype=target_e)
+                _, val_v, val_eids = g.out_edges(val_u, form='all', etype=target_e)
+                _, test_v, test_eids = g.out_edges(test_u, form='all', etype=target_e)
                 if utype == vtype:
                     # we remove edges with tail nodes outside of the training set
                     # this isn't necessary if head and tail are different types
                     train_eids = train_eids[np.in1d(train_v, train_u)]
+                    # remove overlaps between val and test
+                    val_eids = val_eids[~np.in1d(val_v, test_u)]
+                    test_eids = test_eids[~np.in1d(test_v, val_u)]
                 # 3. build boolean edge masks
                 g.edges[target_e].data['train_mask'][train_eids] = True
                 g.edges[target_e].data['val_mask'][val_eids] = True
