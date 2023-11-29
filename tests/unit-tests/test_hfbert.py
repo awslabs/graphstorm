@@ -16,11 +16,13 @@
 from transformers import AutoTokenizer
 from numpy.testing import assert_almost_equal
 import pytest
+import os, shutil
 
 from util import create_tokens
 from graphstorm.model.lm_model import init_lm_model
 from graphstorm.model.lm_model import BUILTIN_HF_BERT
 from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, TOKEN_TID_IDX, VALID_LEN
+from transformers import AutoConfig, AutoModel
 # pylint: disable=redefined-outer-name line-too-long missing-function-docstring
 
 def comput_bert(lm_model, input_ids, attention_masks, token_type_ids=None):
@@ -159,6 +161,63 @@ def test_hfbert_wrapper_profile():
     assert prof_static_len > 0
     assert prof_static_flops > 0
 
+def test_local_file():
+    base_dir = '/local_lm_model_unittest'
+    device = 'cuda:0'
+    _ = AutoConfig.from_pretrained('bert-base-uncased', cache_dir=base_dir)
+    _ = AutoModel.from_pretrained('bert-base-uncased', cache_dir=base_dir)
+    input_ntypes = ["n1", "n2", "n3"]
+    # Walk through the directory tree
+    for dirpath, dirnames, filenames in os.walk(base_dir):
+        if 'config.json' in filenames:
+            source_path = os.path.join(dirpath, 'config.json')
+            destination_path = os.path.join(base_dir, 'config.json')
+            shutil.copyfile(source_path, destination_path)
+        if 'model.safetensors' in filenames:
+            source_path = os.path.join(dirpath, 'model.safetensors')
+            destination_path = os.path.join(base_dir, 'model.safetensors')
+            shutil.copyfile(source_path, destination_path)
+    lm_model = init_lm_model({"lm_type": BUILTIN_HF_BERT,
+                              "model_name": "bert-base-uncased",
+                              "gradient_checkpoint": True,
+                              "local_path": base_dir},
+                              num_train=10,
+                              profile=True)
+    lm_model = lm_model.to(device)
+    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+    input_texts = [["A Graph neural network (GNN) is a class of artificial neural networks for processing data that can be represented as graphs."], ["Amazon Web Services, Inc. (AWS) is a subsidiary of Amazon that provides on-demand cloud computing platforms and APIs to individuals, companies, and governments, on a metered, pay-as-you-go basis."], ["Hello world!"]]
+    num_nodes = [100, 50, 1]
+    generate_tid = True
+    inputs = {}
+    for i, ntype in enumerate(input_ntypes):
+        # test valid_len
+        input_ids, valid_len, attention_mask, token_type_ids = \
+            create_tokens(tokenizer=tokenizer,
+                          input_text=input_texts[i],
+                          max_seq_length=32,
+                          num_node=num_nodes[i],
+                          return_token_type_ids=generate_tid)
+        inputs[ntype] = (input_ids, valid_len, attention_mask, token_type_ids)
+
+    input_lm_feats = {}
+    for ntype in input_ntypes:
+        input_lm_feats[ntype] = {
+            TOKEN_IDX: inputs[ntype][0],
+            VALID_LEN: inputs[ntype][1],
+        }
+        if generate_tid:
+            input_lm_feats[ntype][TOKEN_TID_IDX] = inputs[ntype][3].detach()
+    lm_model.eval()
+    wrapper_emb = lm_model(input_ntypes, input_lm_feats)
+
+    for ntype in input_ntypes:
+        emb = comput_bert(lm_model,
+                          inputs[ntype][0].to(device),
+                          inputs[ntype][2].to(device),
+                          inputs[ntype][3].to(device) \
+                            if inputs[ntype][3] is not None else None)
+        assert_almost_equal(wrapper_emb[ntype].detach().cpu().numpy(), emb.numpy(), decimal=5)
+
 if __name__ == '__main__':
     lm_type, bert_model_name = BUILTIN_HF_BERT, "bert-base-uncased"
     test_hfbert_wrapper(0, ["n1", "n2", "n3"], False, lm_type, bert_model_name)
@@ -170,3 +229,5 @@ if __name__ == '__main__':
     test_hfbert_wrapper(-1, ["n1", "n2", "n3"], True, lm_type, bert_model_name)
     test_hfbert_wrapper(10, ["n1"], False, lm_type, bert_model_name)
     test_hfbert_wrapper_profile()
+
+    test_local_file()
