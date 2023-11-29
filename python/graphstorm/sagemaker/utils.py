@@ -116,7 +116,7 @@ def keep_alive(client_list, world_size, task_end):
     logging.info("keepalive thread exiting...")
 
 def terminate_workers(client_list, world_size):
-    """ termiate all worker deamons.
+    """ terminate all worker daemons.
 
     Parameters
     ----------
