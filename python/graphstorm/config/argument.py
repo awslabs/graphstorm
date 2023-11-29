@@ -631,9 +631,7 @@ class GSConfig:
             "node_lm_models"
         assert len(lm_config["node_types"]) >= 1, "number of node types " \
             "must be larger than 1"
-        if "local_path" not in lm_config or not lm_config["local_path"]:
-            lm_config["local_path"] = False
-        else:
+        if "local_path" in lm_config:
             assert os.path.exists(os.path.join(lm_config["local_path"], LOCAL_LM_CONFIG)), \
                 f"Expect {LOCAL_LM_CONFIG} under {lm_config['local_path']}"
             assert os.path.exists(os.path.join(lm_config["local_path"], LOCAL_LM_MODEL)), \
