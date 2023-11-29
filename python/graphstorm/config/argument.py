@@ -54,6 +54,8 @@ from .config import GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS
 from .config import (GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_EMBED_LAYER,
                      GRAPHSTORM_MODEL_DECODER_LAYER, GRAPHSTORM_MODEL_LAYER_OPTIONS)
 
+from .config import LOCAL_LM_CONFIG, LOCAL_LM_MODEL
+
 from .utils import get_graph_name
 from ..utils import TORCH_MAJOR_VER, get_log_level
 
@@ -629,6 +631,13 @@ class GSConfig:
             "node_lm_models"
         assert len(lm_config["node_types"]) >= 1, "number of node types " \
             "must be larger than 1"
+        if "local_path" not in lm_config:
+            lm_config["local_path"] = False
+        else:
+            assert os.path.exists(os.path.join(lm_config["local_path"], LOCAL_LM_CONFIG)), \
+                f"Expect {LOCAL_LM_CONFIG} under {lm_config['local_path']}"
+            assert os.path.exists(os.path.join(lm_config["local_path"], LOCAL_LM_MODEL)), \
+                f"Expect {LOCAL_LM_MODEL} under {lm_config['local_path']}"
 
     @property
     def node_lm_configs(self):

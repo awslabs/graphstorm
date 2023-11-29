@@ -30,12 +30,14 @@ def load_hfbert_model(bert_configs: dict):
     """ Load huggingface LM model
     """
     model_name = bert_configs["model_name"]
-    # config = AutoConfig.from_pretrained(
-    #     model_name, **{key: val for key, val in bert_configs.items() if key != 'model_name'})
-    #
-    # lm_model = AutoModel.from_pretrained(model_name, config=config)
-    config = AutoConfig.from_pretrained("/tmp/lm_model")
-    lm_model = AutoModel.from_pretrained("/tmp/lm_model", config=config)
+    if not bert_configs["local_path"]:
+        config = AutoConfig.from_pretrained(
+            model_name, **{key: val for key, val in bert_configs.items() if key != 'model_name'})
+
+        lm_model = AutoModel.from_pretrained(model_name, config=config)
+    else:
+        config = AutoConfig.from_pretrained(bert_configs["local_path"])
+        lm_model = AutoModel.from_pretrained(bert_configs["local_path"], config=config)
 
     return lm_model
 
