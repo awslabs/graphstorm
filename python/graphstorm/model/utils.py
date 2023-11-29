@@ -1035,7 +1035,8 @@ class NodeIDShuffler():
             # Shuffled node ID: 0, 1, 2
             id_mapping = id_mappings[ntype] if isinstance(id_mappings, dict) else id_mappings
             assert id_mapping.shape[0] == num_nodes, \
-                "id mapping should have the same size of num_nodes"
+                "Id mapping should have the same size of num_nodes." \
+                f"Expect {id_mapping.shape[0]}, but get {num_nodes}"
             # Save ID mapping into dist tensor
             id_mapping_info[th.arange(num_nodes)] = id_mapping
         barrier()
