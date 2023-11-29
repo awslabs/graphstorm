@@ -115,8 +115,8 @@ def keep_alive(client_list, world_size, task_end):
 
     logging.info("keepalive thread exiting...")
 
-def terminate_workers(client_list, world_size, task_end):
-    """ termiate all worker deamons.
+def terminate_workers(client_list, world_size):
+    """ terminate all worker daemons.
 
     Parameters
     ----------
@@ -124,10 +124,7 @@ def terminate_workers(client_list, world_size, task_end):
         List of socket clients
     world_size: int
         Size of the distributed training/inference cluster
-    task_end: threading.Event
-        Indicate whether the task has finished.
     """
-    task_end.set()
     for rank in range(1, world_size):
         client_list[rank].send(b"Done")
         msg = client_list[rank].recv(8)
