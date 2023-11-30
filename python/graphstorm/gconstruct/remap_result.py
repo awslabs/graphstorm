@@ -461,6 +461,11 @@ def remap_node_pred(pred_ntypes, pred_dir,
         pred_files.sort()
         num_parts = len(pred_files)
         logging.debug("{%s} has {%d} prediction files", ntype, num_parts)
+        assert len(nid_files) == len(pred_files), \
+            "Expect the number of nid files equal to " \
+            "the number of prediction result files, but get " \
+            f"{len(nid_files)} and {len(pred_files)}"
+
         files_to_remove += [os.path.join(input_pred_dir, nid_file) \
                             for nid_file in nid_files]
         files_to_remove += [os.path.join(input_pred_dir, pred_file) \
@@ -491,7 +496,6 @@ def remap_node_pred(pred_ntypes, pred_dir,
                     f"pred.{pred_file[:pred_file.rindex('.')]}"),
                 "chunk_size": out_chunk_size,
                 "output_func": output_func,
-                "preserve_input": preserve_input,
             })
 
     multiprocessing_remap(task_list, num_proc, worker_remap_node_data)
@@ -615,7 +619,6 @@ def remap_edge_pred(pred_etypes, pred_dir,
                     f"pred.{pred_file[:pred_file.rindex('.')]}"),
                 "chunk_size": out_chunk_size,
                 "output_func": output_func,
-                "preserve_input": preserve_input
             })
 
     multiprocessing_remap(task_list, num_proc, worker_remap_edge_pred)
