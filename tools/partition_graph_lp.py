@@ -193,7 +193,8 @@ if __name__ == '__main__':
                     # remove overlaps between val and test
                     val_eids = val_eids[~np.in1d(val_v, test_u)]
                     test_eids = test_eids[~np.in1d(test_v, val_u)]
-                # 3. build boolean edge masks
+                # 3. build boolean edge masks: the edge mask prevents message-passing
+                # flow graphs from fetching edges outside of the splits
                 g.edges[target_e].data['train_mask'][train_eids] = True
                 g.edges[target_e].data['val_mask'][val_eids] = True
                 g.edges[target_e].data['test_mask'][test_eids] = True
