@@ -265,23 +265,20 @@ def _remove_inputs(with_shared_fs, files_to_remove,
         # Only rank 0 is going to remove the files.
         if rank == 0:
             for i in range(1, world_size):
-                while not os.path.isfile(os.path.join(work_dir, f"SUCC_pred_{i}")):
+                while not os.path.isfile(os.path.join(work_dir, f"SUCC_{i}")):
                     time.sleep(1)
-            # All processes report success
-            for i in range(1, world_size):
-                os.remove(os.path.join(work_dir, f"SUCC_pred_{i}"))
+                os.remove(os.path.join(work_dir, f"SUCC_{i}"))
             for file in files_to_remove:
                 os.remove(file)
         else:
             # Tell rank 0, rank n has finished its work.
-            with open(os.path.join(work_dir, f"SUCC_pred_{rank}"), 'a', encoding='utf-8'):
+            with open(os.path.join(work_dir, f"SUCC_{rank}"), 'w', encoding='utf-8') as f:
                 pass
 
 def remap_node_emb(emb_ntypes, node_emb_dir,
                    output_dir, out_chunk_size,
                    num_proc, rank, world_size,
-                   with_shared_fs, output_func,
-                   preserve_input=False):
+                   with_shared_fs, output_func):
     """ Remap node embeddings.
 
         The function will iterate all the node types that
@@ -342,8 +339,11 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
             Whether shared file system is avaliable.
         output_func: func
             Function used to write data to disk.
-        preserve_input: bool
-            Whether the input data should be removed.
+
+        Return
+        --------
+        list of str
+            The list of files to be removed.
     """
     task_list = []
     files_to_remove = []
@@ -397,14 +397,12 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
             })
 
     multiprocessing_remap(task_list, num_proc, worker_remap_node_data)
-
-    if preserve_input is False:
-        _remove_inputs(with_shared_fs, files_to_remove, rank, world_size, node_emb_dir)
+    return files_to_remove
 
 def remap_node_pred(pred_ntypes, pred_dir,
                     output_dir, out_chunk_size,
                     num_proc, rank, world_size, with_shared_fs,
-                    output_func, preserve_input=False):
+                    output_func):
     """ Remap node prediction result.
 
         The function wil iterate all the node types that
@@ -444,8 +442,11 @@ def remap_node_pred(pred_ntypes, pred_dir,
             Whether shared file system is avaliable.
         output_func: func
             Function used to write data to disk.
-        preserve_input: bool
-            Whether the input data should be removed.
+
+        Return
+        --------
+        list of str
+            The list of files to be removed.
     """
     start_time = time.time()
     task_list = []
@@ -500,17 +501,14 @@ def remap_node_pred(pred_ntypes, pred_dir,
 
     multiprocessing_remap(task_list, num_proc, worker_remap_node_data)
 
-    if preserve_input is False:
-        _remove_inputs(with_shared_fs, files_to_remove, rank, world_size, pred_dir)
-
     dur = time.time() - start_time
     logging.info("{%d} Remapping edge predictions takes {%f} secs", rank, dur)
-
+    return files_to_remove
 
 def remap_edge_pred(pred_etypes, pred_dir,
                     output_dir, out_chunk_size,
                     num_proc, rank, world_size, with_shared_fs,
-                    output_func, preserve_input=False):
+                    output_func):
     """ Remap edge prediction result.
 
         The function will iterate all the edge types that
@@ -554,8 +552,11 @@ def remap_edge_pred(pred_etypes, pred_dir,
             Whether shared file system is avaliable.
         output_func: func
             Function used to write data to disk.
-        preserve_input: bool
-            Whether the input data should be removed.
+
+        Return
+        --------
+        list of str
+            The list of files to be removed.
     """
     start_time = time.time()
     task_list = []
@@ -623,11 +624,9 @@ def remap_edge_pred(pred_etypes, pred_dir,
 
     multiprocessing_remap(task_list, num_proc, worker_remap_edge_pred)
 
-    if preserve_input is False:
-        _remove_inputs(with_shared_fs, files_to_remove, rank, world_size, pred_dir)
-
     dur = time.time() - start_time
     logging.debug("%d Finish edge rempaing in %f secs}", rank, dur)
+    return files_to_remove
 
 def _parse_gs_config(config):
     """ Get remapping related information from GSConfig
@@ -857,48 +856,57 @@ def main(args, gs_config_args):
     else:
         raise TypeError(f"Output format not supported {args.output_format}")
 
+    files_to_remove = []
     if len(emb_ntypes) > 0:
         emb_output = node_emb_dir
         # We need to do ID remapping for node embeddings
-        remap_node_emb(emb_ntypes,
-                       node_emb_dir,
-                       emb_output,
-                       out_chunk_size,
-                       num_proc,
-                       rank,
-                       world_size,
-                       with_shared_fs,
-                       output_func,
-                       args.preserve_input)
+        emb_files_to_remove = \
+            remap_node_emb(emb_ntypes,
+                           node_emb_dir,
+                           emb_output,
+                           out_chunk_size,
+                           num_proc,
+                           rank,
+                           world_size,
+                           with_shared_fs,
+                           output_func)
+        files_to_remove += emb_files_to_remove
 
     if len(pred_etypes) > 0:
         pred_output = predict_dir
         # We need to do ID remapping for edge prediction result
-        remap_edge_pred(pred_etypes,
-                        predict_dir,
-                        pred_output,
-                        out_chunk_size,
-                        num_proc,
-                        rank,
-                        world_size,
-                        with_shared_fs,
-                        output_func,
-                        args.preserve_input)
+        pred_files_to_remove = \
+            remap_edge_pred(pred_etypes,
+                            predict_dir,
+                            pred_output,
+                            out_chunk_size,
+                            num_proc,
+                            rank,
+                            world_size,
+                            with_shared_fs,
+                            output_func)
+        files_to_remove += pred_files_to_remove
 
     if len(pred_ntypes) > 0:
         pred_output = predict_dir
         # We need to do ID remapping for node prediction result
-        remap_node_pred(pred_ntypes,
-                        predict_dir,
-                        pred_output,
-                        out_chunk_size,
-                        num_proc,
-                        rank,
-                        world_size,
-                        with_shared_fs,
-                        output_func,
-                        args.preserve_input)
+        pred_files_to_remove = \
+            remap_node_pred(pred_ntypes,
+                            predict_dir,
+                            pred_output,
+                            out_chunk_size,
+                            num_proc,
+                            rank,
+                            world_size,
+                            with_shared_fs,
+                            output_func)
+        files_to_remove += pred_files_to_remove
 
+    if len(files_to_remove) > 0:
+        # If files_to_remove is not empty, at least node_emb_dir or
+        # predict_dir is not None.
+        _remove_inputs(with_shared_fs, files_to_remove, rank, world_size,
+                       node_emb_dir if node_emb_dir is not None else predict_dir)
 
 def add_distributed_remap_args(parser):
     """ Distributed remapping only
