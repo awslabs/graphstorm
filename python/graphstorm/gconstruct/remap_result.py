@@ -274,7 +274,8 @@ def _remove_inputs(with_shared_fs, files_to_remove,
                 os.remove(file)
         else:
             # Tell rank 0, rank n has finished its work.
-            open(os.path.join(work_dir, f"SUCC_pred_{rank}"), 'a').close()
+            with open(os.path.join(work_dir, f"SUCC_pred_{rank}"), 'a', encoding='utf-8'):
+                pass
 
 def remap_node_emb(emb_ntypes, node_emb_dir,
                    output_dir, out_chunk_size,
