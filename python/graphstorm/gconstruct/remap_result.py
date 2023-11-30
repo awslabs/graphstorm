@@ -135,7 +135,7 @@ def write_data_csv_file(data, file_prefix, delimiter=",", col_name_map=None):
     data_frame.to_csv(output_fname, index=False, sep=delimiter)
 
 def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
-    output_fname_prefix, chunk_size, output_func, preserve_input):
+    output_fname_prefix, chunk_size, output_func):
     """ Do one node prediction remapping task
 
         Parameters
@@ -154,8 +154,6 @@ def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
             Max number of raws per output file.
         output_func: func
             Function used to write data to disk.
-        preserve_input: bool
-            Whether the input data should be removed.
     """
     node_data = th.load(data_file_path).numpy()
     nids = th.load(nid_path).numpy()
@@ -170,10 +168,6 @@ def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
         data = {data_col_key: data,
                 GS_REMAP_NID_COL: nid}
         output_func(data, f"{output_fname_prefix}_{pad_file_index(i)}")
-
-    if preserve_input is False:
-        os.remove(data_file_path)
-        os.remove(nid_path)
 
 def worker_remap_edge_pred(pred_file_path, src_nid_path,
     dst_nid_path, src_type, dst_type,
@@ -261,7 +255,7 @@ def _get_file_range(num_files, rank, world_size):
 
 def remap_node_emb(emb_ntypes, node_emb_dir,
                    output_dir, out_chunk_size,
-                   num_proc, rank,  world_size,
+                   num_proc, rank, world_size,
                    with_shared_fs, output_func,
                    preserve_input=False):
     """ Remap node embeddings.
@@ -328,6 +322,7 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
             Whether the input data should be removed.
     """
     task_list = []
+    files_to_remove = []
     for ntype in emb_ntypes:
         input_emb_dir = os.path.join(node_emb_dir, ntype)
         out_embdir = os.path.join(output_dir, ntype)
@@ -345,6 +340,8 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         assert len(nid_files) == len(emb_files), \
             "Number of nid files must match number of embedding files. " \
             f"But get {len(nid_files)} and {len(emb_files)}."
+        files_to_remove += nid_files
+        files_to_remove += emb_files
 
         if with_shared_fs:
             # If the data are stored in a shared filesystem,
@@ -371,10 +368,22 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
                     f"{emb_file[:emb_file.rindex('.')]}"),
                 "chunk_size": out_chunk_size,
                 "output_func": output_func,
-                "preserve_input": preserve_input
             })
 
     multiprocessing_remap(task_list, num_proc, worker_remap_node_data)
+
+    if preserve_input is False:
+        if with_shared_fs is False:
+            # Not using shared file system
+            # each process will remove the files itself
+            for file in files_to_remove:
+                os.remove(file)
+        else:
+            # Shared file system is used
+            # Only rank 0 is going to remove the files
+            if rank == 0:
+                for file in files_to_remove:
+                    os.remove(file)
 
 def remap_node_pred(pred_ntypes, pred_dir,
                     output_dir, out_chunk_size,
@@ -424,6 +433,7 @@ def remap_node_pred(pred_ntypes, pred_dir,
     """
     start_time = time.time()
     task_list = []
+    files_to_remove = []
     for ntype in pred_ntypes:
         input_pred_dir = os.path.join(pred_dir, ntype)
         out_pred_dir = os.path.join(output_dir, ntype)
@@ -435,6 +445,8 @@ def remap_node_pred(pred_ntypes, pred_dir,
         pred_files.sort()
         num_parts = len(pred_files)
         logging.debug("{%s} has {%d} prediction files", ntype, num_parts)
+        files_to_remove += nid_files
+        files_to_remove += pred_files
 
         if with_shared_fs:
             # If the data are stored in a shared filesystem,
@@ -465,6 +477,19 @@ def remap_node_pred(pred_ntypes, pred_dir,
             })
 
     multiprocessing_remap(task_list, num_proc, worker_remap_node_data)
+
+    if preserve_input is False:
+        if with_shared_fs is False:
+            # Not using shared file system
+            # each process will remove the files itself
+            for file in files_to_remove:
+                os.remove(file)
+        else:
+            # Shared file system is used
+            # Only rank 0 is going to remove the files
+            if rank == 0:
+                for file in files_to_remove:
+                    os.remove(file)
 
     dur = time.time() - start_time
     logging.info("{%d} Remapping edge predictions takes {%f} secs", rank, dur)
@@ -522,6 +547,7 @@ def remap_edge_pred(pred_etypes, pred_dir,
     """
     start_time = time.time()
     task_list = []
+    files_to_remove = []
     for etype in pred_etypes:
         input_pred_dir = os.path.join(pred_dir, "_".join(etype))
         out_pred_dir = os.path.join(output_dir, "_".join(etype))
@@ -543,6 +569,9 @@ def remap_edge_pred(pred_etypes, pred_dir,
             "Expect the number of destination nid files equal to " \
             "the number of prediction result files, but get " \
             f"{len(dst_nid_files)} and {len(pred_files)}"
+        files_to_remove += src_nid_files
+        files_to_remove += dst_nid_files
+        files_to_remove += pred_files
 
         if with_shared_fs:
             # If the data are stored in a shared filesystem,
@@ -579,6 +608,19 @@ def remap_edge_pred(pred_etypes, pred_dir,
             })
 
     multiprocessing_remap(task_list, num_proc, worker_remap_edge_pred)
+
+    if preserve_input is False:
+        if with_shared_fs is False:
+            # Not using shared file system
+            # each process will remove the files itself
+            for file in files_to_remove:
+                os.remove(file)
+        else:
+            # Shared file system is used
+            # Only rank 0 is going to remove the files
+            if rank == 0:
+                for file in files_to_remove:
+                    os.remove(file)
     dur = time.time() - start_time
     logging.debug("%d Finish edge rempaing in %f secs}", rank, dur)
 
