@@ -253,6 +253,29 @@ def _get_file_range(num_files, rank, world_size):
 
     return start, end
 
+def _remove_inputs(with_shared_fs, files_to_remove,
+                   rank, world_size, work_dir):
+    if with_shared_fs is False:
+        # Not using shared file system. There is no contention.
+        # Each process will remove the files itself
+        for file in files_to_remove:
+            os.remove(file)
+    else:
+        # Shared file system is used.
+        # Only rank 0 is going to remove the files.
+        if rank == 0:
+            for i in range(1, world_size):
+                while not os.path.isfile(os.path.join(work_dir, f"SUCC_pred_{i}")):
+                    time.sleep(1)
+            # All processes report success
+            for i in range(1, world_size):
+                os.remove(os.path.join(work_dir, f"SUCC_pred_{i}"))
+            for file in files_to_remove:
+                os.remove(file)
+        else:
+            # Tell rank 0, rank n has finished its work.
+            open(os.path.join(work_dir, f"SUCC_pred_{rank}"), 'a').close()
+
 def remap_node_emb(emb_ntypes, node_emb_dir,
                    output_dir, out_chunk_size,
                    num_proc, rank, world_size,
@@ -340,8 +363,10 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         assert len(nid_files) == len(emb_files), \
             "Number of nid files must match number of embedding files. " \
             f"But get {len(nid_files)} and {len(emb_files)}."
-        files_to_remove += nid_files
-        files_to_remove += emb_files
+        files_to_remove += [os.path.join(input_emb_dir, nid_file) \
+                            for nid_file in nid_files]
+        files_to_remove += [os.path.join(input_emb_dir, emb_file) \
+                            for emb_file in emb_files]
 
         if with_shared_fs:
             # If the data are stored in a shared filesystem,
@@ -373,17 +398,7 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
     multiprocessing_remap(task_list, num_proc, worker_remap_node_data)
 
     if preserve_input is False:
-        if with_shared_fs is False:
-            # Not using shared file system
-            # each process will remove the files itself
-            for file in files_to_remove:
-                os.remove(file)
-        else:
-            # Shared file system is used
-            # Only rank 0 is going to remove the files
-            if rank == 0:
-                for file in files_to_remove:
-                    os.remove(file)
+        _remove_inputs(with_shared_fs, files_to_remove, rank, world_size, node_emb_dir)
 
 def remap_node_pred(pred_ntypes, pred_dir,
                     output_dir, out_chunk_size,
@@ -445,8 +460,10 @@ def remap_node_pred(pred_ntypes, pred_dir,
         pred_files.sort()
         num_parts = len(pred_files)
         logging.debug("{%s} has {%d} prediction files", ntype, num_parts)
-        files_to_remove += nid_files
-        files_to_remove += pred_files
+        files_to_remove += [os.path.join(input_pred_dir, nid_file) \
+                            for nid_file in nid_files]
+        files_to_remove += [os.path.join(input_pred_dir, pred_file) \
+                            for pred_file in pred_files]
 
         if with_shared_fs:
             # If the data are stored in a shared filesystem,
@@ -479,17 +496,7 @@ def remap_node_pred(pred_ntypes, pred_dir,
     multiprocessing_remap(task_list, num_proc, worker_remap_node_data)
 
     if preserve_input is False:
-        if with_shared_fs is False:
-            # Not using shared file system
-            # each process will remove the files itself
-            for file in files_to_remove:
-                os.remove(file)
-        else:
-            # Shared file system is used
-            # Only rank 0 is going to remove the files
-            if rank == 0:
-                for file in files_to_remove:
-                    os.remove(file)
+        _remove_inputs(with_shared_fs, files_to_remove, rank, world_size, pred_dir)
 
     dur = time.time() - start_time
     logging.info("{%d} Remapping edge predictions takes {%f} secs", rank, dur)
@@ -569,9 +576,12 @@ def remap_edge_pred(pred_etypes, pred_dir,
             "Expect the number of destination nid files equal to " \
             "the number of prediction result files, but get " \
             f"{len(dst_nid_files)} and {len(pred_files)}"
-        files_to_remove += src_nid_files
-        files_to_remove += dst_nid_files
-        files_to_remove += pred_files
+        files_to_remove += [os.path.join(input_pred_dir, src_nid_file) \
+                            for src_nid_file in src_nid_files]
+        files_to_remove += [os.path.join(input_pred_dir, dst_nid_file) \
+                            for dst_nid_file in dst_nid_files]
+        files_to_remove += [os.path.join(input_pred_dir, pred_file) \
+                            for pred_file in pred_files]
 
         if with_shared_fs:
             # If the data are stored in a shared filesystem,
@@ -610,17 +620,8 @@ def remap_edge_pred(pred_etypes, pred_dir,
     multiprocessing_remap(task_list, num_proc, worker_remap_edge_pred)
 
     if preserve_input is False:
-        if with_shared_fs is False:
-            # Not using shared file system
-            # each process will remove the files itself
-            for file in files_to_remove:
-                os.remove(file)
-        else:
-            # Shared file system is used
-            # Only rank 0 is going to remove the files
-            if rank == 0:
-                for file in files_to_remove:
-                    os.remove(file)
+        _remove_inputs(with_shared_fs, files_to_remove, rank, world_size, pred_dir)
+
     dur = time.time() - start_time
     logging.debug("%d Finish edge rempaing in %f secs}", rank, dur)
 
