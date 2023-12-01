@@ -172,7 +172,7 @@ def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
 def worker_remap_edge_pred(pred_file_path, src_nid_path,
     dst_nid_path, src_type, dst_type,
     output_fname_prefix, chunk_size,
-    output_func, preserve_input):
+    output_func):
     """ Do one edge remapping task
 
         Parameters
@@ -193,8 +193,6 @@ def worker_remap_edge_pred(pred_file_path, src_nid_path,
             Max number of raws per output file.
         output_func: func
             Function used to write data to disk.
-        preserve_input: bool
-            Whether the input data should be removed.
     """
     pred_result = th.load(pred_file_path).numpy()
     src_nids = th.load(src_nid_path).numpy()
@@ -213,11 +211,6 @@ def worker_remap_edge_pred(pred_file_path, src_nid_path,
                 GS_REMAP_DST_NID_COL: dst_nid}
 
         output_func(data, f"{output_fname_prefix}_{pad_file_index(i)}")
-
-    if preserve_input is False:
-        os.remove(pred_file_path)
-        os.remove(src_nid_path)
-        os.remove(dst_nid_path)
 
 def _get_file_range(num_files, rank, world_size):
     """ Get the range of files to process by the current instance.
@@ -272,7 +265,8 @@ def _remove_inputs(with_shared_fs, files_to_remove,
                 os.remove(file)
         else:
             # Tell rank 0, rank n has finished its work.
-            with open(os.path.join(work_dir, f"SUCC_{rank}"), 'w', encoding='utf-8') as f:
+            with open(os.path.join(work_dir, f"SUCC_{rank}"),
+                      'w', encoding='utf-8') as f: # pylint: disable=unused-variable
                 pass
 
 def remap_node_emb(emb_ntypes, node_emb_dir,
@@ -902,7 +896,7 @@ def main(args, gs_config_args):
                             output_func)
         files_to_remove += pred_files_to_remove
 
-    if len(files_to_remove) > 0:
+    if args.preserve_input is False and len(files_to_remove) > 0:
         # If files_to_remove is not empty, at least node_emb_dir or
         # predict_dir is not None.
         _remove_inputs(with_shared_fs, files_to_remove, rank, world_size,
