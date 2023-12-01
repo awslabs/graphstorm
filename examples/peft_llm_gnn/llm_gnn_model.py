@@ -59,7 +59,6 @@ class LLMGraphModel(gsmodel.GSgnnNodeModelBase):
         )
         peft_config = LoraConfig(task_type="SEQ_CLS", inference_mode=False, r=8, lora_alpha=16, lora_dropout=0.1)
         self.llm = get_peft_model(base_model, peft_config)
-        # use GSF components
         lm_feat_names = ['input_ids', 'attention_mask']
         self._lm_node_feats = {}
         for lm_config in node_lm_configs:
@@ -70,7 +69,6 @@ class LLMGraphModel(gsmodel.GSgnnNodeModelBase):
                 assert ntype not in self._lm_node_feats, \
                         f"More than one BERT model runs on Node {ntype}."
                 self._lm_node_feats[ntype] = feats
-        self._loss_fn = gsmodel.ClassifyLossFunc(multilabel=False)
         for _ in range(num_layers):
             pass
 
