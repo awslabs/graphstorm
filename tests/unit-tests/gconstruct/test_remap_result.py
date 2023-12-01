@@ -83,11 +83,10 @@ def test_worker_remap_node_data(data_col):
 
         worker_remap_node_data(data_path, nid_path, ntypes[0], data_col,
                                output_path_prefix, chunk_size,
-                               write_data_parquet_file, preserve_input=True)
+                               write_data_parquet_file)
         worker_remap_node_data(data_path, nid_path, ntypes[0], data_col,
                                output_path_prefix, chunk_size,
-                               partial(write_data_csv_file, delimiter=","),
-                               preserve_input=True)
+                               partial(write_data_csv_file, delimiter=","))
         def read_csv(file, delimiter=","):
             data = pd.read_csv(file, delimiter=delimiter)
             nid = data["nid"].to_numpy()
@@ -171,12 +170,10 @@ def test_worker_remap_edge_pred():
 
         worker_remap_edge_pred(pred_path, src_nid_path, dst_nid_path,
                                ntypes[0], ntypes[1], output_path_prefix,
-                               chunk_size, write_data_parquet_file,
-                               preserve_input=True)
+                               chunk_size, write_data_parquet_file)
         worker_remap_edge_pred(pred_path, src_nid_path, dst_nid_path,
                                ntypes[0], ntypes[1], output_path_prefix,
-                               chunk_size, partial(write_data_csv_file, delimiter=","),
-                               preserve_input=True)
+                               chunk_size, partial(write_data_csv_file, delimiter=","))
         def read_csv(file, delimiter=","):
             data = pd.read_csv(file, delimiter=delimiter)
             src_nid = data["src_nid"].to_numpy()
