@@ -33,7 +33,8 @@ from .sampler import (LocalUniform,
                       JointLocalUniform,
                       InbatchJointUniform,
                       FastMultiLayerNeighborSampler,
-                      DistributedFileSampler)
+                      DistributedFileSampler,
+                      GSHardEdgeDstNegative)
 from .utils import trim_data, modify_fanout_for_target_etype
 from .dataset import GSDistillData
 
@@ -972,9 +973,11 @@ class GSgnnLinkPredictionTestDataLoader():
         When test is huge, using fixed_test_size
         can save validation and test time.
         Default: None.
+    fixed_edge_dst_negative_field: str or list of str
+        The feature field(s) that store the fixed negative set for each edge.
     """
-    def __init__(self, dataset, target_idx, batch_size, num_negative_edges, fanout=None,
-    fixed_test_size=None):
+    def __init__(self, dataset, target_idx, batch_size, num_negative_edges,
+                 fanout=None, fixed_test_size=None, fixed_edge_dst_negative_field=None):
         self._data = dataset
         self._fanout = fanout
         for etype in target_idx:
@@ -991,6 +994,7 @@ class GSgnnLinkPredictionTestDataLoader():
                                 "is %d, which is smaller than the expected"
                                 "test size %d, force it to %d",
                                 etype, len(t_idx), self._fixed_test_size[etype], len(t_idx))
+        self._fixed_edge_dst_negative_field = fixed_edge_dst_negative_field
         self._negative_sampler = self._prepare_negative_sampler(num_negative_edges)
         self._reinit_dataset()
 
@@ -1009,6 +1013,10 @@ class GSgnnLinkPredictionTestDataLoader():
         # the default negative sampler is uniform sampler
         self._neg_sample_type = BUILTIN_LP_UNIFORM_NEG_SAMPLER
         negative_sampler = GlobalUniform(num_negative_edges)
+        if self._fixed_edge_dst_negative_field:
+            negative_sampler = GSHardEdgeDstNegative(num_negative_edges,
+                                                     self._fixed_edge_dst_negative_field,
+                                                     negative_sampler)
         return negative_sampler
 
     def __iter__(self):
@@ -1057,6 +1065,10 @@ class GSgnnLinkPredictionJointTestDataLoader(GSgnnLinkPredictionTestDataLoader):
         # the default negative sampler is uniform sampler
         negative_sampler = JointUniform(num_negative_edges)
         self._neg_sample_type = BUILTIN_LP_JOINT_NEG_SAMPLER
+        if self._fixed_edge_dst_negative_field:
+            negative_sampler = GSHardEdgeDstNegative(num_negative_edges,
+                                                     self._fixed_edge_dst_negative_field,
+                                                     negative_sampler)
         return negative_sampler
 
 ################ Minibatch DataLoader (Node classification) #######################

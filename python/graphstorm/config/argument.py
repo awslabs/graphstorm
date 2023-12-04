@@ -1875,8 +1875,127 @@ class GSConfig:
         return None
 
     @property
+    def train_hard_edge_dstnode_negative(self):
+        """ The list of canonical etypes that have hard negative sets
+
+            The format of the arguement should be:
+            train_hard_edge_dstnode_negative:
+              - src_type,rel_type0,dst_type:negative_nid_field
+              - src_type,rel_type1,dst_type:negative_nid_field
+            Each edge type can have different fields storing the hard negatives.
+
+            or
+            train_hard_edge_dstnode_negative:
+              - negative_nid_field
+            All the edge types use the same filed storing the hard negatives.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_train_hard_edge_dstnode_negative"):
+            assert self.task_type == BUILTIN_TASK_LINK_PREDICTION, \
+                "Hard negative only works with link prediction"
+            hard_negatives = self._train_hard_edge_dstnode_negative
+            if len(hard_negatives) == 1 and \
+                ":" not in hard_negatives[0]:
+                # global feat_name
+                return hard_negatives[0]
+
+            # per edge type feature
+            hard_negative_dict = {}
+            for hard_negative in hard_negatives:
+                negative_info = hard_negative.split(":")
+                etype = tuple(negative_info[0].split(","))
+                assert etype not in hard_negative_dict, \
+                    f"You already specify the fixed negative of {etype} " \
+                    f"as {hard_negative_dict[etype]}"
+
+                hard_negative_dict[etype] = negative_info[1]
+            return hard_negative_dict
+
+        # By default fixed negative is not used
+        return None
+
+    @property
+    def num_hard_negatives(self):
+        """ Number of hard negatives per edge type
+
+            The format of the arguement should be:
+            num_hard_negatives:
+              - src_type,rel_type0,dst_type:num_negatives
+              - src_type,rel_type1,dst_type:num_negatives
+            Each edge type can have different number of hard negatives.
+
+            or
+            num_hard_negatives:
+              - num_negatives
+            All the edge types use the same number of hard negatives.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_num_hard_negatives"):
+            assert self.task_type == BUILTIN_TASK_LINK_PREDICTION, \
+                "Hard negative only works with link prediction"
+            num_negatives = self._num_hard_negatives
+            if len(num_negatives) == 1 and \
+                ":" not in num_negatives[0]:
+                # global feat_name
+                return int(num_negatives[0])
+
+            # per edge type feature
+            num_hard_negative_dict = {}
+            for num_negative in num_negatives:
+                negative_info = num_negative.split(":")
+                etype = tuple(negative_info[0].split(","))
+                assert etype not in num_hard_negative_dict, \
+                    f"You already specify the fixed negative of {etype} " \
+                    f"as {num_hard_negative_dict[etype]}"
+
+                num_hard_negative_dict[etype] = int(negative_info[1])
+            return num_hard_negative_dict
+
+        return None
+
+    @property
+    def eval_fixed_edge_dstnode_negative(self):
+        """ The list of canonical etypes that have predefined negative sets
+
+            The format of the arguement should be:
+            eval_fixed_edge_dstnode_negative:
+              - src_type,rel_type0,dst_type:negative_nid_field
+              - src_type,rel_type1,dst_type:negative_nid_field
+            Each edge type can have different fields storing the fixed negatives.
+
+            or
+            eval_fixed_edge_dstnode_negative:
+              - negative_nid_field
+            All the edge types use the same filed storing the fixed negatives.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_eval_fixed_edge_dstnode_negative"):
+            assert self.task_type == BUILTIN_TASK_LINK_PREDICTION, \
+                "Fixed negative only works with link prediction"
+            fixed_negatives = self._eval_fixed_edge_dstnode_negative
+            if len(fixed_negatives) == 1 and \
+                ":" not in fixed_negatives[0]:
+                # global feat_name
+                return fixed_negatives[0]
+
+            # per edge type feature
+            fixed_negative_dict = {}
+            for fixed_negative in fixed_negatives:
+                negative_info = fixed_negative.split(":")
+                etype = tuple(negative_info[0].split(","))
+                assert etype not in fixed_negative_dict, \
+                    f"You already specify the fixed negative of {etype} " \
+                    f"as {fixed_negative_dict[etype]}"
+
+                fixed_negative_dict[etype] = negative_info[1]
+            return fixed_negative_dict
+
+        # By default fixed negative is not used
+        return None
+
+    @property
     def train_etype(self):
-        """ The list of canonical etype that will be added as
+        """ The list of canonical etypes that will be added as
             training target with the target e type(s)
 
             If not provided, all edge types will be used as training target.

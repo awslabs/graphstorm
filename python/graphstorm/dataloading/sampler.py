@@ -70,6 +70,167 @@ class LocalUniform(Uniform):
         dst = F.randint(shape, dtype, ctx, 0, self._local_neg_nids[vtype].shape[0])
         return src, self._local_neg_nids[vtype][dst]
 
+class GSHardEdgeDstNegative(object):
+    """ GraphStorm negativer sampler that chooses negative destination nodes
+        from a fixed set to create negative edges.
+    """
+    def __init__(self, k, dst_negative_field, negative_sampler, num_hard_negs=None):
+        self._dst_negative_field = dst_negative_field
+        self._k = k
+        self._negative_sampler = negative_sampler
+        self._num_hard_negs = num_hard_negs
+
+    def _generate(self, g, eids, canonical_etype):
+        if isinstance(self._dst_negative_field, str):
+            dst_negative_field = self._dst_negative_field
+        elif canonical_etype in self._dst_negative_field:
+            dst_negative_field = self._dst_negative_field[canonical_etype]
+        else:
+            dst_negative_field = None
+
+        if isinstance(self._num_hard_negs, int):
+            required_num_hard_neg = self._num_hard_negs
+        elif canonical_etype in self._num_hard_negs:
+            required_num_hard_neg = self._num_hard_negs[canonical_etype]
+        else:
+            required_num_hard_neg = 0
+
+        if dst_negative_field is None or required_num_hard_neg == 0:
+            # no hard negative, fallback to random negative
+            return self._negative_sampler._generate(g, eids, canonical_etype)
+
+        hard_negatives = g.edges[canonical_etype].data[dst_negative_field][eids]
+        # It is possible that different edges may have different number of
+        # pre-defined negatives. For pre-defined negatives, the corresponding
+        # value in `hard_negatives` will be integers representing the node ids.
+        # For others, they will be -1s meaning there are missing fixed negatives.
+        if th.sum(hard_negatives == -1) == 0:
+            # Fast track, there is no -1 in hard_negatives
+            max_num_hard_neg = hard_negatives.shape[1]
+            neg_idx = th.randperm(max_num_hard_neg)
+            hard_negatives = hard_negatives[:,neg_idx]
+            if required_num_hard_neg >= self._k and max_num_hard_neg >= self._k:
+                # All negative should be hard negative and
+                # there are enough hard negatives.
+                src, _ = g.find_edges(eids, etype=canonical_etype)
+                src = F.repeat(src, self.k, 0)
+                return src, hard_negatives.reshape((-1,))
+            else:
+                if required_num_hard_neg < max_num_hard_neg:
+                    # Only need required_num_hard_neg hard negatives.
+                    hard_negatives = hard_negatives[:,:required_num_hard_neg]
+                    num_hard_neg = required_num_hard_neg
+                else:
+                    # There is not enough hard negative to fill required_num_hard_neg
+                    num_hard_neg = max_num_hard_neg
+
+                # There is not enough negatives
+                src, neg = self._negative_sampler._generate(g, eids, canonical_etype)
+                # replace random negatives with fixed negatives
+                neg[:,:num_hard_neg] = hard_negatives
+                return src, neg
+        else:
+            # slow track, we need to handle cases when there are -1s
+            hard_negatives, _ = th.sort(dim=1, descending=True)
+
+            src, neg = self._negative_sampler._generate(g, eids, canonical_etype)
+            for i in range(len(eids)):
+                hard_negative = hard_negatives[i]
+                # ignore -1s
+                hard_negative = hard_negative[hard_negative > -1]
+                max_num_hard_neg = hard_negative.shape[0]
+                hard_negative = hard_negative[th.randperm(max_num_hard_neg)]
+
+                if required_num_hard_neg < max_num_hard_neg:
+                    # Only need required_num_hard_neg hard negatives.
+                    hard_negative = hard_negative[:required_num_hard_neg]
+                    num_hard_neg = required_num_hard_neg
+                else:
+                    num_hard_neg = max_num_hard_neg
+
+                # replace random negatives with fixed negatives
+                neg[i*self._k:i*self._k + num_hard_neg \
+                              if num_hard_neg < self._k else self._k] = \
+                    hard_negative[:num_hard_neg if num_hard_neg < self._k else self._k]
+            return src, neg
+
+    def gen_neg_pairs(self, g, pos_pairs):
+        """ Returns negative examples associated with positive examples.
+            It only return dst negatives.
+
+        Parameters
+        ----------
+        g : DGLGraph
+            The graph.
+        pos_pairs : (Tensor, Tensor) or dict[etype, (Tensor, Tensor)]
+            The positive node pairs
+
+        Returns
+        -------
+        tuple[Tensor, Tensor, Tensor, Tensor] or
+        dict[etype, tuple(Tensor, Tensor Tensor, Tensor)
+            The returned [positive source, negative source,
+            postive destination, negatve destination]
+            tuples as pos-neg examples.
+        """
+        def _gen_neg_pair(pos_pair, canonical_etype):
+            src, pos_dst = pos_pair
+            eids = g.edge_ids(src, pos_dst, etype=canonical_etype)
+
+            if isinstance(self._dst_negative_field, str):
+                dst_negative_field = self._dst_negative_field
+            elif canonical_etype in self._dst_negative_field:
+                dst_negative_field = self._dst_negative_field[canonical_etype]
+            else:
+                dst_negative_field = None
+
+            if dst_negative_field is None:
+                src, _, pos_dst, neg_dst = \
+                    self._negative_sampler.gen_neg_pairs(g, {canonical_etype:pos_pair})
+                return (src, None, pos_dst, neg_dst)
+
+            hard_negatives = g.edges[canonical_etype].data[dst_negative_field][eids]
+            # It is possible that different edges may have different number of
+            # pre-defined negatives. For pre-defined negatives, the corresponding
+            # value in `hard_negatives` will be integers representing the node ids.
+            # For others, they will be -1s meaning there are missing fixed negatives.
+            if th.sum(hard_negatives == -1) == 0:
+                # Fast track, there is no -1 in hard_negatives
+                num_hard_neg = hard_negatives.shape[1]
+                if self._k < num_hard_neg:
+                    hard_negatives = hard_negatives[:self._k]
+                    return (src, None, pos_dst, hard_negatives)
+                else:
+                    # random negative are needed
+                    src, _, pos_dst, neg_dst = \
+                        self._negative_sampler.gen_neg_pairs(g, {canonical_etype:pos_pair})
+                    neg_dst[:,:num_hard_neg] = hard_negatives
+                    return (src, None, pos_dst, neg_dst)
+            else:
+                # slow track, we need to handle cases when there are -1s
+                hard_negatives, _ = th.sort(dim=1, descending=True)
+
+                src, _, pos_dst, neg_dst = \
+                    self._negative_sampler.gen_neg_pairs(g, {canonical_etype:pos_pair})
+                for i in range(len(eids)):
+                    hard_negative = hard_negatives[i]
+                    # ignore -1s
+                    hard_negative = hard_negative[hard_negative > -1]
+                    num_hard_neg = hard_negative.shape[0]
+                    neg_dst[:num_hard_neg if num_hard_neg < self._k else self._k] = \
+                        hard_negative[:num_hard_neg if num_hard_neg < self._k else self._k]
+                return (src, _, pos_dst, neg_dst)
+
+        if isinstance(pos_pairs, Mapping):
+            pos_neg_tuple = {}
+            for canonical_etype, pos_pair in pos_pairs.items():
+                pos_neg_tuple[canonical_etype] = _gen_neg_pair(pos_pair, canonical_etype)
+        else:
+            assert len(g.canonical_etypes) == 1, \
+                'please specify a dict of etypes and ids for graphs with multiple edge types'
+            pos_neg_tuple = _gen_neg_pair(pos_pairs, canonical_etype)
+        return pos_neg_tuple
+
 class GlobalUniform(Uniform):
     """Negative sampler that randomly chooses negative destination nodes
     for each source node according to a uniform distribution.
