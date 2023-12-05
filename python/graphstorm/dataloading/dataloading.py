@@ -1277,16 +1277,19 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
         Whether or not for training.
     """
     def __init__(self, dataset, target_idx, unlabeled_idx, fanout, batch_size, device,
-                 train_task=True):
+                 train_task=True, construct_feat_ntype=None, construct_feat_fanout=5):
         super().__init__(dataset, target_idx, fanout, batch_size // 2, device,
-                         train_task=train_task)
+                         train_task=train_task, construct_feat_ntype=construct_feat_ntype,
+                         construct_feat_fanout=construct_feat_fanout)
         # loader for unlabeled nodes:
         self.unlabeled_dataloader = self._prepare_dataloader(dataset,
                                                    unlabeled_idx,
                                                    fanout,
                                                    batch_size // 2,
                                                    train_task,
-                                                   device)
+                                                   device,
+                                                   construct_feat_ntype=construct_feat_ntype,
+                                                   construct_feat_fanout=construct_feat_fanout)
 
     def __iter__(self):
         return zip(self.dataloader.__iter__(), self.unlabeled_dataloader.__iter__())

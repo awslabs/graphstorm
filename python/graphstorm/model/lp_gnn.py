@@ -18,6 +18,7 @@
 import abc
 import torch as th
 from .gnn import GSgnnModel, GSgnnModelBase
+from .utils import normalize_node_embs
 from ..eval.utils import calc_ranking
 
 class GSgnnLinkPredictionModelInterface:
@@ -65,18 +66,32 @@ class GSgnnLinkPredictionModelBase(GSgnnLinkPredictionModelInterface,
     `save_model`, `restore_model` and `create_optimizer`.
     """
 
+    def normalize_node_embs(self, embs):
+        """ By default do nothing.
+
+            One can implement his/her own node normalization method or call
+            .utils.normalize_node_embs to leverage the builtin normalization
+            methods.
+        """
+        return embs
 
 class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
     """ GraphStorm GNN model for link prediction
 
-    Parameters
-    ----------
-    alpha_l2norm : float
-        The alpha for L2 normalization.
+        Parameters
+        ----------
+        alpha_l2norm : float
+            The alpha for L2 normalization.
+        embed_norm_method: str
+            Node embedding normalization method
     """
-    def __init__(self, alpha_l2norm):
+    def __init__(self, alpha_l2norm, embed_norm_method=None):
         super(GSgnnLinkPredictionModel, self).__init__()
         self.alpha_l2norm = alpha_l2norm
+        self.embed_norm_method = embed_norm_method
+
+    def normalize_node_embs(self, embs):
+        return normalize_node_embs(embs, self.embed_norm_method)
 
     # pylint: disable=unused-argument
     def forward(self, blocks, pos_graph,
@@ -93,6 +108,9 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
         else:
             # GNN message passing
             encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
+
+        # Call emb normalization.
+        encode_embs = self.normalize_node_embs(encode_embs)
 
         # TODO add w_relation in calculating the score. The current is only valid for
         # homogenous graph.

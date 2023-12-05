@@ -456,7 +456,8 @@ def create_builtin_lp_model(g, config, train_task):
     -------
     GSgnnModel : The model.
     """
-    model = GSgnnLinkPredictionModel(config.alpha_l2norm)
+    model = GSgnnLinkPredictionModel(config.alpha_l2norm,
+                                     config.lp_embed_normalizer)
     set_encoder(model, g, config, train_task)
     num_train_etype = len(config.train_etype) \
         if config.train_etype is not None \
@@ -648,7 +649,7 @@ def check_homo(g):
     g: DGLGraph
         The graph used in training and testing
     """
-    if g.ntypes == [DEFAULT_NTYPE] and g.etypes == [DEFAULT_ETYPE]:
+    if g.ntypes == [DEFAULT_NTYPE] and g.etypes == [DEFAULT_ETYPE[1]]:
         return True
     return False
 

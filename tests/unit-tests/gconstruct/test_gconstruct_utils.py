@@ -25,6 +25,7 @@ import pyarrow as pa
 
 from graphstorm.gconstruct.utils import _estimate_sizeof, _to_numpy_array, _to_shared_memory
 from graphstorm.gconstruct.utils import HDF5Array, ExtNumpyWrapper
+from graphstorm.gconstruct.utils import convert_to_ext_mem_numpy, _to_ext_memory
 from graphstorm.gconstruct.utils import multiprocessing_data_read
 from graphstorm.gconstruct.file_io import (write_data_hdf5,
                                            read_data_hdf5,
@@ -175,9 +176,30 @@ def test_ext_mem_array():
     with tempfile.TemporaryDirectory() as tmpdirname:
         data = np.random.uniform(size=(1000, 10)).astype(np.float32)
         tensor_path = os.path.join(tmpdirname, "tmp1.npy")
-        out_arr = np.memmap(tensor_path, np.float32, mode="w+", shape=(1000, 10))
-        out_arr[:] = data
-        check_ext_mem_array(ExtNumpyWrapper(tensor_path, out_arr.shape, out_arr.dtype), data)
+        check_ext_mem_array(convert_to_ext_mem_numpy(tensor_path, data), data)
+
+        data1 = np.random.uniform(size=(1000, 10)).astype(np.float32)
+        data2 = np.random.uniform(size=(1000,)).astype(np.float32)
+        data3 = np.random.uniform(size=(1000, 10)).astype(np.float32)
+        data4 = np.random.uniform(size=(1000,)).astype(np.float32)
+        arr_dict = {
+                "test1": (data1, data2),
+                "test2": [data3, data4],
+        }
+        arr_dict1 = _to_ext_memory(None, arr_dict, tmpdirname)
+        assert isinstance(arr_dict1, dict)
+        assert "test1" in arr_dict1
+        assert "test2" in arr_dict1
+        assert isinstance(arr_dict1["test1"], tuple)
+        assert isinstance(arr_dict1["test2"], list)
+        assert isinstance(arr_dict1["test1"][0], ExtNumpyWrapper)
+        assert isinstance(arr_dict1["test1"][1], ExtNumpyWrapper)
+        assert isinstance(arr_dict1["test2"][0], ExtNumpyWrapper)
+        assert isinstance(arr_dict1["test2"][1], ExtNumpyWrapper)
+        assert np.all(arr_dict1["test1"][0].to_numpy() == data1)
+        assert np.all(arr_dict1["test1"][1].to_numpy() == data2)
+        assert np.all(arr_dict1["test2"][0].to_numpy() == data3)
+        assert np.all(arr_dict1["test2"][1].to_numpy() == data4)
 
         tensor_path = os.path.join(tmpdirname, "tmp2.hdf5")
         write_data_hdf5({"test": data}, tensor_path)
@@ -281,7 +303,7 @@ if __name__ == '__main__':
     test_read_empty_parquet()
     test_read_empty_json()
     test_read_empty_csv()
-    test_multiprocessing_read()
     test_estimate_sizeof()
     test_object_conversion()
     test_ext_mem_array()
+    test_multiprocessing_read()

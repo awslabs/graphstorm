@@ -218,28 +218,28 @@ error_and_exit $?
 cnt=$(ls /data/gsgnn_lp_ml_dot/save-emb/movie | grep .pt | wc -l)
 if test $cnt -ne 0
 then
-    echo "/data/gsgnn_lp_ml_dot/save-emb/movie/emb.part0000x.pt should be removed."
+    echo "/data/gsgnn_lp_ml_dot/save-emb/movie/embed-0000x.pt should be removed."
     exit -1
 fi
 
 cnt=$(ls /data/gsgnn_lp_ml_dot/save-emb/movie | grep .parquet | wc -l)
 if test $cnt -ne $NUM_TRAINERS
 then
-    echo "$NUM_TRAINERS /data/gsgnn_lp_ml_dot/save-emb/movie/emb.part0000x_0000x.parquet files must exist."
+    echo "$NUM_TRAINERS /data/gsgnn_lp_ml_dot/save-emb/movie/embed-0000x_0000x.parquet files must exist."
     exit -1
 fi
 
 cnt=$(ls /data/gsgnn_lp_ml_dot/save-emb/user | grep .pt | wc -l)
 if test $cnt -ne 0
 then
-    echo "/data/gsgnn_lp_ml_dot/save-emb/user/emb.part0000x.pt should be removed."
+    echo "/data/gsgnn_lp_ml_dot/save-emb/user/embed-0000x.pt should be removed."
     exit -1
 fi
 
 cnt=$(ls /data/gsgnn_lp_ml_dot/save-emb/user | grep .parquet | wc -l)
 if test $cnt -ne $NUM_TRAINERS
 then
-    echo "$NUM_TRAINERS /data/gsgnn_lp_ml_dot/save-emb/user/emb.part0000x_0000x.parquet files must exist."
+    echo "$NUM_TRAINERS /data/gsgnn_lp_ml_dot/save-emb/user/embed-0000x_0000x.parquet files must exist."
     exit -1
 fi
 

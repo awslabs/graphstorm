@@ -25,7 +25,9 @@ import json
 import time
 import sys
 import math
+from functools import partial
 
+import pandas as pd
 import torch as th
 from ..model.utils import pad_file_index
 from .file_io import write_data_parquet
@@ -40,6 +42,21 @@ from ..config import (GSConfig,
                       BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_NODE_REGRESSION)
 
+GS_OUTPUT_FORMAT_PARQUET = "parquet"
+GS_OUTPUT_FORMAT_CSV = "csv"
+
+GS_REMAP_NID_COL = "nid"
+GS_REMAP_PREDICTION_COL = "pred"
+GS_REMAP_SRC_NID_COL = "src_nid"
+GS_REMAP_DST_NID_COL = "dst_nid"
+GS_REMAP_EMBED_COL = "emb"
+
+GS_REMAP_BUILTIN_COLS = [GS_REMAP_NID_COL,
+                         GS_REMAP_PREDICTION_COL,
+                         GS_REMAP_SRC_NID_COL,
+                         GS_REMAP_DST_NID_COL,
+                         GS_REMAP_EMBED_COL]
+
 # Id_maps is a global variable.
 # When using multi-processing to do id remap,
 # we do not want to pass id_maps to each worker process
@@ -49,8 +66,76 @@ from ..config import (GSConfig,
 # id_maps to each worker process.
 id_maps = {}
 
+def write_data_parquet_file(data, file_prefix, col_name_map=None):
+    """ Write data into disk using parquet format.
+
+        Parameters
+        ----------
+        data: dict of numpy Arrays
+            Data to be written into disk.
+        file_prefix: str
+            File prefix. The output will be <file_prefix>.parquet.
+        col_name_map: dict
+            A mapping from builtin column name to user defined column name.
+    """
+    if col_name_map is not None:
+        data = {col_name_map[key]: val for key, val in data.items()}
+    output_fname = f"{file_prefix}.parquet"
+    write_data_parquet(data, output_fname)
+
+def write_data_csv_file(data, file_prefix, delimiter=",", col_name_map=None):
+    """ Write data into disk using csv format.
+
+        Multiple values for a field are specified with a semicolon (;) between values.
+
+        Example:
+
+        .. code::
+
+            nide, emb
+            0, 0.001;1.2000;0.736;...
+
+        Parameters
+        ----------
+        data: dict of numpy Arrays
+            Data to be written into disk.
+        file_prefix: str
+            File prefix. The output will be <file_prefix>.parquet.
+        delimiter: str
+            Delimiter used to separate columns.
+        col_name_map: dict
+            A mapping from builtin column name to user defined column name.
+    """
+    if col_name_map is not None:
+        data = {col_name_map[key]: val for key, val in data.items()}
+
+    output_fname = f"{file_prefix}.csv"
+    csv_data = {}
+    for key, vals in data.items():
+        # Each <key, val> pair represents the column name and
+        # the column data of a column.
+        if len(vals.shape) == 1:
+            # vals is a 1D matrix.
+            # The data will be saved as
+            #   key,
+            #   0.1,
+            #   0.2,
+            #   ...
+            csv_data[key] = vals.tolist()
+        elif len(vals.shape) == 2:
+            # vals is a 2D matrix.
+            # The data will be saved as
+            #   key,
+            #   0.001;1.2000;0.736;...,
+            #   0.002;1.1010;0.834;...,
+            #   ...
+            csv_data[key] = [";".join([str(v) for v in val]) \
+                             for val in vals.tolist()]
+    data_frame = pd.DataFrame(csv_data)
+    data_frame.to_csv(output_fname, index=False, sep=delimiter)
+
 def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
-    output_fname_prefix, chunk_size, preserve_input):
+    output_fname_prefix, chunk_size, output_func):
     """ Do one node prediction remapping task
 
         Parameters
@@ -67,8 +152,8 @@ def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
             Output file name prefix.
         chunk_size: int
             Max number of raws per output file.
-        preserve_input: bool
-            Whether the input data should be removed.
+        output_func: func
+            Function used to write data to disk.
     """
     node_data = th.load(data_file_path).numpy()
     nids = th.load(nid_path).numpy()
@@ -76,24 +161,18 @@ def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
     num_chunks = math.ceil(len(node_data) / chunk_size)
 
     for i in range(num_chunks):
-        output_fname = f"{output_fname_prefix}_{pad_file_index(i)}.parquet"
-
         start = i * chunk_size
         end = (i + 1) * chunk_size if i + 1 < num_chunks else len(node_data)
         data = node_data[start:end]
         nid = nid_map.map_id(nids[start:end])
         data = {data_col_key: data,
-                "nid": nid}
-
-        write_data_parquet(data, output_fname)
-
-    if preserve_input is False:
-        os.remove(data_file_path)
-        os.remove(nid_path)
+                GS_REMAP_NID_COL: nid}
+        output_func(data, f"{output_fname_prefix}_{pad_file_index(i)}")
 
 def worker_remap_edge_pred(pred_file_path, src_nid_path,
     dst_nid_path, src_type, dst_type,
-    output_fname_prefix, chunk_size, preserve_input):
+    output_fname_prefix, chunk_size,
+    output_func):
     """ Do one edge remapping task
 
         Parameters
@@ -112,8 +191,8 @@ def worker_remap_edge_pred(pred_file_path, src_nid_path,
             Output file name prefix.
         chunk_size: int
             Max number of raws per output file.
-        preserve_input: bool
-            Whether the input data should be removed.
+        output_func: func
+            Function used to write data to disk.
     """
     pred_result = th.load(pred_file_path).numpy()
     src_nids = th.load(src_nid_path).numpy()
@@ -122,23 +201,16 @@ def worker_remap_edge_pred(pred_file_path, src_nid_path,
     dst_id_map = id_maps[dst_type]
     num_chunks = math.ceil(len(pred_result) / chunk_size)
     for i in range(num_chunks):
-        output_fname = f"{output_fname_prefix}_{pad_file_index(i)}.parquet"
-
         start = i * chunk_size
         end = (i + 1) * chunk_size if i + 1 < num_chunks else len(pred_result)
         pred = pred_result[start:end]
         src_nid = src_id_map.map_id(src_nids[start:end])
         dst_nid = dst_id_map.map_id(dst_nids[start:end])
-        data = {"pred": pred,
-                "src_nid": src_nid,
-                "dst_nid": dst_nid}
+        data = {GS_REMAP_PREDICTION_COL: pred,
+                GS_REMAP_SRC_NID_COL: src_nid,
+                GS_REMAP_DST_NID_COL: dst_nid}
 
-        write_data_parquet(data, output_fname)
-
-    if preserve_input is False:
-        os.remove(pred_file_path)
-        os.remove(src_nid_path)
-        os.remove(dst_nid_path)
+        output_func(data, f"{output_fname_prefix}_{pad_file_index(i)}")
 
 def _get_file_range(num_files, rank, world_size):
     """ Get the range of files to process by the current instance.
@@ -174,10 +246,33 @@ def _get_file_range(num_files, rank, world_size):
 
     return start, end
 
+def _remove_inputs(with_shared_fs, files_to_remove,
+                   rank, world_size, work_dir):
+    if with_shared_fs is False:
+        # Not using shared file system. There is no contention.
+        # Each process will remove the files itself
+        for file in files_to_remove:
+            os.remove(file)
+    else:
+        # Shared file system is used.
+        # Only rank 0 is going to remove the files.
+        if rank == 0:
+            for i in range(1, world_size):
+                while not os.path.isfile(os.path.join(work_dir, f"SUCC_{i}")):
+                    time.sleep(1)
+                os.remove(os.path.join(work_dir, f"SUCC_{i}"))
+            for file in files_to_remove:
+                os.remove(file)
+        else:
+            # Tell rank 0, rank n has finished its work.
+            with open(os.path.join(work_dir, f"SUCC_{rank}"),
+                      'w', encoding='utf-8') as f: # pylint: disable=unused-variable
+                pass
+
 def remap_node_emb(emb_ntypes, node_emb_dir,
                    output_dir, out_chunk_size,
-                   num_proc, rank,  world_size,
-                   with_shared_fs, preserve_input=False):
+                   num_proc, rank, world_size,
+                   with_shared_fs, output_func):
     """ Remap node embeddings.
 
         The function will iterate all the node types that
@@ -190,18 +285,18 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         --------
         # embedddings:
         #   ntype0:
-        #     nids.part00000.pt
-        #     nids.part00001.pt
+        #     embed_nids-00000.pt
+        #     embed_nids-00001.pt
         #     ...
-        #     emb.part00000.pt
-        #     emb.part00001.pt
+        #     embed-00000.pt
+        #     embed-00001.pt
         #     ...
         #   ntype1:
-        #     nids.part00000.pt
-        #     nids.part00001.pt
+        #     embed_nids-00000.pt
+        #     embed_nids-00001.pt
         #     ...
-        #     emb.part00000.pt
-        #     emb.part00001.pt
+        #     embed-00000.pt
+        #     embed-00001.pt
         #     ...
 
         The output files will be
@@ -210,12 +305,12 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         --------
         # embedddings:
         #   ntype0:
-        #     emb_part00000_00000.parquet
-        #     emb_part00000_00001.parquet
+        #     embed-00000_00000.parquet
+        #     embed-00000_00001.parquet
         #     ...
         #   ntype1:
-        #     emb_part00000_00000.parquet
-        #     emb_part00000_00001.parquet
+        #     embed-00000_00000.parquet
+        #     embed-00000_00001.parquet
         #     ...
 
         Parameters
@@ -235,20 +330,26 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         world_size: int
             The total number of processes in the cluster.
         with_shared_fs: bool
-            Whether shared file system is avaliable
-        preserve_input: bool
-            Whether the input data should be removed.
+            Whether shared file system is avaliable.
+        output_func: func
+            Function used to write data to disk.
+
+        Return
+        --------
+        list of str
+            The list of files to be removed.
     """
     task_list = []
+    files_to_remove = []
     for ntype in emb_ntypes:
         input_emb_dir = os.path.join(node_emb_dir, ntype)
         out_embdir = os.path.join(output_dir, ntype)
         ntype_emb_files = os.listdir(input_emb_dir)
         # please note nid_files can be empty.
         nid_files = [fname for fname in ntype_emb_files \
-                     if fname.startswith("nids") and fname.endswith("pt")]
+                     if fname.startswith("embed_nids-") and fname.endswith("pt")]
         emb_files = [fname for fname in ntype_emb_files \
-                     if fname.startswith("emb") and fname.endswith("pt")]
+                     if fname.startswith("embed-") and fname.endswith("pt")]
 
         nid_files.sort()
         emb_files.sort()
@@ -257,6 +358,10 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         assert len(nid_files) == len(emb_files), \
             "Number of nid files must match number of embedding files. " \
             f"But get {len(nid_files)} and {len(emb_files)}."
+        files_to_remove += [os.path.join(input_emb_dir, nid_file) \
+                            for nid_file in nid_files]
+        files_to_remove += [os.path.join(input_emb_dir, emb_file) \
+                            for emb_file in emb_files]
 
         if with_shared_fs:
             # If the data are stored in a shared filesystem,
@@ -278,19 +383,20 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
                 "data_file_path": os.path.join(input_emb_dir, emb_file),
                 "nid_path": os.path.join(input_emb_dir, nid_file),
                 "ntype": ntype,
-                "data_col_key": "emb",
+                "data_col_key": GS_REMAP_EMBED_COL,
                 "output_fname_prefix": os.path.join(out_embdir, \
                     f"{emb_file[:emb_file.rindex('.')]}"),
                 "chunk_size": out_chunk_size,
-                "preserve_input": preserve_input
+                "output_func": output_func,
             })
 
     multiprocessing_remap(task_list, num_proc, worker_remap_node_data)
+    return files_to_remove
 
 def remap_node_pred(pred_ntypes, pred_dir,
                     output_dir, out_chunk_size,
                     num_proc, rank, world_size, with_shared_fs,
-                    preserve_input=False):
+                    output_func):
     """ Remap node prediction result.
 
         The function wil iterate all the node types that
@@ -302,8 +408,8 @@ def remap_node_pred(pred_ntypes, pred_dir,
         #    predict-00000.pt
         #    predict-00001.pt
         #    ...
-        #    nids-00000.pt
-        #    nids-00001.pt
+        #    predict_nids-00000.pt
+        #    predict_nids-00001.pt
 
         The output files will be
         #    predict-00000_00000.parquet
@@ -327,23 +433,38 @@ def remap_node_pred(pred_ntypes, pred_dir,
         world_size: int
             The total number of processes in the cluster.
         with_shared_fs: bool
-            Whether shared file system is avaliable
-        preserve_input: bool
-            Whether the input data should be removed.
+            Whether shared file system is avaliable.
+        output_func: func
+            Function used to write data to disk.
+
+        Return
+        --------
+        list of str
+            The list of files to be removed.
     """
     start_time = time.time()
     task_list = []
+    files_to_remove = []
     for ntype in pred_ntypes:
         input_pred_dir = os.path.join(pred_dir, ntype)
         out_pred_dir = os.path.join(output_dir, ntype)
         ntype_pred_files = os.listdir(input_pred_dir)
-        nid_files = [fname for fname in ntype_pred_files if fname.startswith("nids")]
-        pred_files = [fname for fname in ntype_pred_files if fname.startswith("predict")]
+        nid_files = [fname for fname in ntype_pred_files if fname.startswith("predict_nids-")]
+        pred_files = [fname for fname in ntype_pred_files if fname.startswith("predict-")]
 
         nid_files.sort()
         pred_files.sort()
         num_parts = len(pred_files)
         logging.debug("{%s} has {%d} prediction files", ntype, num_parts)
+        assert len(nid_files) == len(pred_files), \
+            "Expect the number of nid files equal to " \
+            "the number of prediction result files, but get " \
+            f"{len(nid_files)} and {len(pred_files)}"
+
+        files_to_remove += [os.path.join(input_pred_dir, nid_file) \
+                            for nid_file in nid_files]
+        files_to_remove += [os.path.join(input_pred_dir, pred_file) \
+                            for pred_file in pred_files]
 
         if with_shared_fs:
             # If the data are stored in a shared filesystem,
@@ -365,23 +486,23 @@ def remap_node_pred(pred_ntypes, pred_dir,
                 "data_file_path": os.path.join(input_pred_dir, pred_file),
                 "nid_path": os.path.join(input_pred_dir, nid_file),
                 "ntype": ntype,
-                "data_col_key": "pred",
+                "data_col_key": GS_REMAP_PREDICTION_COL,
                 "output_fname_prefix": os.path.join(out_pred_dir, \
                     f"pred.{pred_file[:pred_file.rindex('.')]}"),
                 "chunk_size": out_chunk_size,
-                "preserve_input": preserve_input
+                "output_func": output_func,
             })
 
     multiprocessing_remap(task_list, num_proc, worker_remap_node_data)
 
     dur = time.time() - start_time
     logging.info("{%d} Remapping edge predictions takes {%f} secs", rank, dur)
-
+    return files_to_remove
 
 def remap_edge_pred(pred_etypes, pred_dir,
                     output_dir, out_chunk_size,
                     num_proc, rank, world_size, with_shared_fs,
-                    preserve_input=False):
+                    output_func):
     """ Remap edge prediction result.
 
         The function will iterate all the edge types that
@@ -400,7 +521,7 @@ def remap_edge_pred(pred_etypes, pred_dir,
         #    dst_nids-00001.pt
         #    ...
 
-        The output emb files will be
+        The output prediction files will be
         #    predict-00000_00000.parquet
         #    predict-00000_00001.parquet
         #    ...
@@ -422,19 +543,25 @@ def remap_edge_pred(pred_etypes, pred_dir,
         world_size: int
             The total number of processes in the cluster.
         with_shared_fs: bool
-            Whether shared file system is avaliable
-        preserve_input: bool
-            Whether the input data should be removed.
+            Whether shared file system is avaliable.
+        output_func: func
+            Function used to write data to disk.
+
+        Return
+        --------
+        list of str
+            The list of files to be removed.
     """
     start_time = time.time()
     task_list = []
+    files_to_remove = []
     for etype in pred_etypes:
         input_pred_dir = os.path.join(pred_dir, "_".join(etype))
         out_pred_dir = os.path.join(output_dir, "_".join(etype))
         etype_pred_files = os.listdir(input_pred_dir)
-        src_nid_files = [fname for fname in etype_pred_files if fname.startswith("src_nids")]
-        dst_nid_files = [fname for fname in etype_pred_files if fname.startswith("dst_nids")]
-        pred_files = [fname for fname in etype_pred_files if fname.startswith("predict")]
+        src_nid_files = [fname for fname in etype_pred_files if fname.startswith("src_nids-")]
+        dst_nid_files = [fname for fname in etype_pred_files if fname.startswith("dst_nids-")]
+        pred_files = [fname for fname in etype_pred_files if fname.startswith("predict-")]
         src_nid_files.sort()
         dst_nid_files.sort()
         pred_files.sort()
@@ -449,6 +576,12 @@ def remap_edge_pred(pred_etypes, pred_dir,
             "Expect the number of destination nid files equal to " \
             "the number of prediction result files, but get " \
             f"{len(dst_nid_files)} and {len(pred_files)}"
+        files_to_remove += [os.path.join(input_pred_dir, src_nid_file) \
+                            for src_nid_file in src_nid_files]
+        files_to_remove += [os.path.join(input_pred_dir, dst_nid_file) \
+                            for dst_nid_file in dst_nid_files]
+        files_to_remove += [os.path.join(input_pred_dir, pred_file) \
+                            for pred_file in pred_files]
 
         if with_shared_fs:
             # If the data are stored in a shared filesystem,
@@ -480,12 +613,14 @@ def remap_edge_pred(pred_etypes, pred_dir,
                 "output_fname_prefix": os.path.join(out_pred_dir, \
                     f"pred.{pred_file[:pred_file.rindex('.')]}"),
                 "chunk_size": out_chunk_size,
-                "preserve_input": preserve_input
+                "output_func": output_func,
             })
 
     multiprocessing_remap(task_list, num_proc, worker_remap_edge_pred)
+
     dur = time.time() - start_time
     logging.debug("%d Finish edge rempaing in %f secs}", rank, dur)
+    return files_to_remove
 
 def _parse_gs_config(config):
     """ Get remapping related information from GSConfig
@@ -537,7 +672,7 @@ def main(args, gs_config_args):
         gs_config_args = ["--cf", args.yaml_config_file,
                           "--logging-level", args.logging_level] + gs_config_args
         gs_parser = get_argument_parser()
-        gs_args = gs_parser.parse_args(gs_config_args)
+        gs_args, _ = gs_parser.parse_known_args(gs_config_args)
         config = GSConfig(gs_args)
         config.verify_arguments(False)
         id_mapping_path, predict_dir, node_emb_dir, pred_ntypes, pred_etypes = \
@@ -693,46 +828,79 @@ def main(args, gs_config_args):
             return
 
     num_proc = args.num_processes if args.num_processes > 0 else 1
+    col_name_map = None
+    if args.column_names is not None:
+        col_name_map = {}
+        # Load customized column names
+        for col_rename_pair in args.column_names:
+            # : has special meaning in Graph Database like Neptune
+            # Here, we use ,  as the delimiter.
+            orig_name, new_name = col_rename_pair.split(",")
+            assert orig_name in GS_REMAP_BUILTIN_COLS, \
+                f"Expect the original col name is in {GS_REMAP_BUILTIN_COLS}, " \
+                f"but get {orig_name}"
+            col_name_map[orig_name] = new_name
+    if args.output_format == GS_OUTPUT_FORMAT_PARQUET:
+        output_func = partial(write_data_parquet_file,
+                              col_name_map=col_name_map)
+    elif args.output_format == GS_OUTPUT_FORMAT_CSV:
+        output_func = partial(write_data_csv_file,
+                              delimiter=args.output_delimiter,
+                              col_name_map=col_name_map)
+    else:
+        raise TypeError(f"Output format not supported {args.output_format}")
 
+    files_to_remove = []
     if len(emb_ntypes) > 0:
         emb_output = node_emb_dir
         # We need to do ID remapping for node embeddings
-        remap_node_emb(emb_ntypes,
-                       node_emb_dir,
-                       emb_output,
-                       out_chunk_size,
-                       num_proc,
-                       rank,
-                       world_size,
-                       with_shared_fs,
-                       args.preserve_input)
+        emb_files_to_remove = \
+            remap_node_emb(emb_ntypes,
+                           node_emb_dir,
+                           emb_output,
+                           out_chunk_size,
+                           num_proc,
+                           rank,
+                           world_size,
+                           with_shared_fs,
+                           output_func)
+        files_to_remove += emb_files_to_remove
 
     if len(pred_etypes) > 0:
         pred_output = predict_dir
         # We need to do ID remapping for edge prediction result
-        remap_edge_pred(pred_etypes,
-                        predict_dir,
-                        pred_output,
-                        out_chunk_size,
-                        num_proc,
-                        rank,
-                        world_size,
-                        with_shared_fs,
-                        args.preserve_input)
+        pred_files_to_remove = \
+            remap_edge_pred(pred_etypes,
+                            predict_dir,
+                            pred_output,
+                            out_chunk_size,
+                            num_proc,
+                            rank,
+                            world_size,
+                            with_shared_fs,
+                            output_func)
+        files_to_remove += pred_files_to_remove
 
     if len(pred_ntypes) > 0:
         pred_output = predict_dir
         # We need to do ID remapping for node prediction result
-        remap_node_pred(pred_ntypes,
-                        predict_dir,
-                        pred_output,
-                        out_chunk_size,
-                        num_proc,
-                        rank,
-                        world_size,
-                        with_shared_fs,
-                        args.preserve_input)
+        pred_files_to_remove = \
+            remap_node_pred(pred_ntypes,
+                            predict_dir,
+                            pred_output,
+                            out_chunk_size,
+                            num_proc,
+                            rank,
+                            world_size,
+                            with_shared_fs,
+                            output_func)
+        files_to_remove += pred_files_to_remove
 
+    if args.preserve_input is False and len(files_to_remove) > 0:
+        # If files_to_remove is not empty, at least node_emb_dir or
+        # predict_dir is not None.
+        _remove_inputs(with_shared_fs, files_to_remove, rank, world_size,
+                       node_emb_dir if node_emb_dir is not None else predict_dir)
 
 def add_distributed_remap_args(parser):
     """ Distributed remapping only
@@ -786,9 +954,17 @@ def generate_parser():
                        default=None,
                        help="The directory storing the node embeddings.")
     group.add_argument("--output-format", type=str,
-                       default="parquet",
-                       choices=['parquet'],
+                       default=GS_OUTPUT_FORMAT_PARQUET,
+                       choices=[GS_OUTPUT_FORMAT_PARQUET, GS_OUTPUT_FORMAT_CSV],
                        help="The format of the output.")
+    group.add_argument("--output-delimiter", type=str, default=",",
+                       help="The delimiter used when saving data in CSV format.")
+    group.add_argument("--column-names", type=str, nargs="+", default=None,
+                       help="Defines how to rename default column names to new names."
+                       f"For example, given --column-names {GS_REMAP_NID_COL},~id "
+                       f"{GS_REMAP_EMBED_COL},embedding. The column "
+                       f"{GS_REMAP_NID_COL} will be renamed to ~id. "
+                       f"The column {GS_REMAP_EMBED_COL} will be renamed to embedding.")
     group.add_argument("--logging-level", type=str, default="info",
                        help="The logging level. The possible values: debug, info, warning, \
                                    error. The default value is info.")
