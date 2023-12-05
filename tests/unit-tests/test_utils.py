@@ -774,7 +774,7 @@ def test_gen_mrr_score():
 
     metrics_opti = gen_mrr_score(ranking)
 
-    assert th.isclose(metrics['mrr'], metrics_opti['mrr'])  # Default tolerance: 1e-08
+    assert th.isclose(metrics['mrr'], metrics_opti)  # Default tolerance: 1e-08
 
 def test_stream_dist_tensors_to_hdf5():
     with tempfile.TemporaryDirectory() as tmpdirname:
