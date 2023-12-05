@@ -376,7 +376,7 @@ def run_partition(job_config: PartitionJobConfig):
         # Ensure the keepalive thread has finished before closing sockets
         thread.join()
         # Close connections with workers
-        utils.terminate_workers(client_list, world_size, task_end)
+        utils.terminate_workers(client_list, world_size)
     else:
         # Block until dispatch_data finished
         # Listen to end command
