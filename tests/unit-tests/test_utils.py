@@ -39,7 +39,7 @@ from graphstorm import get_feat_size
 from graphstorm.model.gnn_encoder_base import prepare_for_wholegraph
 
 from data_utils import generate_dummy_dist_graph
-from graphstorm.eval.utils import gen_mrr_score
+from graphstorm.eval.eval_func import gen_mrr_score
 from graphstorm.utils import setup_device
 
 from graphstorm.gconstruct.file_io import stream_dist_tensors_to_hdf5

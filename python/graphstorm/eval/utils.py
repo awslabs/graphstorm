@@ -266,22 +266,6 @@ def gen_lp_score(ranking):
         metrics[metric] = th.tensor(sum(log[metric] for log in logs) / len(logs))
     return metrics
 
-def gen_mrr_score(ranking):
-    """ Get link prediction mrr metrics
-
-        Parameters
-        ----------
-        ranking:
-            ranking of each positive edge
-
-        Returns
-        -------
-        link prediction eval metrics: list of dict
-    """
-    logs = th.div(1.0, ranking)
-    metrics = {"mrr": th.tensor(th.div(th.sum(logs),len(logs)))}
-    return metrics
-
 
 def broadcast_data(rank, world_size, data_tensor):
     """ Broadcast local data to all trainers in the cluster using all2all

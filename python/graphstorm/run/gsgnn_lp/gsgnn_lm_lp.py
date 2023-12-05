@@ -54,10 +54,9 @@ def get_evaluator(config, train_data):
         train_data: GSgnnEdgeData
             Training data
     """
-    assert len(config.eval_metric) == 1, \
-        "GraphStorm doees not support computing multiple metrics at the same time."
     if config.report_eval_per_type:
         return GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency,
+                                           config.eval_metric,
                                            train_data,
                                            config.num_negative_edges_eval,
                                            config.lp_decoder_type,
@@ -65,16 +64,19 @@ def get_evaluator(config, train_data):
                                            config.use_early_stop,
                                            config.early_stop_burnin_rounds,
                                            config.early_stop_rounds,
-                                           config.early_stop_strategy)
+                                           config.early_stop_strategy,
+                                           config.eval_k)
     else:
         return GSgnnMrrLPEvaluator(config.eval_frequency,
+                                   config.eval_metric,
                                    train_data,
                                    config.num_negative_edges_eval,
                                    config.lp_decoder_type,
                                    config.use_early_stop,
                                    config.early_stop_burnin_rounds,
                                    config.early_stop_rounds,
-                                   config.early_stop_strategy)
+                                   config.early_stop_strategy,
+                                   config.eval_k)
 
 def main(config_args):
     """ main function

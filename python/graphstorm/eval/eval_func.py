@@ -27,7 +27,7 @@ from sklearn.metrics import precision_recall_curve, auc, classification_report
 SUPPORTED_CLASSIFICATION_METRICS = {'accuracy', 'precision_recall', \
     'roc_auc', 'f1_score', 'per_class_f1_score', 'per_class_roc_auc'}
 SUPPORTED_REGRESSION_METRICS = {'rmse', 'mse', 'mae'}
-SUPPORTED_LINK_PREDICTION_METRICS = {"mrr"}
+SUPPORTED_LINK_PREDICTION_METRICS = {"mrr", "hits"}
 
 class ClassificationMetrics:
     """ object that compute metrics for classification tasks.
@@ -127,12 +127,19 @@ class RegressionMetrics:
 class LinkPredictionMetrics:
     """ object that compute metrics for LP tasks.
     """
-    def __init__(self):
+    def __init__(self, k=100):
         self.supported_metrics = SUPPORTED_LINK_PREDICTION_METRICS
+        self.k = k
 
         # This is the operator used to compare whether current value is better than the current best
         self.metric_comparator = {}
         self.metric_comparator["mrr"] = operator.le
+        self.metric_comparator["hits"] = operator.le
+
+        # This is the operator used to measure each metric performance
+        self.metric_function = {}
+        self.metric_function["mrr"] = gen_mrr_score
+        self.metric_function["hits"] = partial(hits_at_k, k=k)
 
     def assert_supported_metric(self, metric):
         """ check if the given metric is supported.
@@ -414,3 +421,33 @@ def compute_mae(pred, labels):
 
     diff = th.abs(pred.cpu() - labels.cpu())
     return th.mean(diff).cpu().item()
+
+def gen_mrr_score(ranking):
+    """ Get link prediction mrr metrics
+
+        Parameters
+        ----------
+        ranking:
+            ranking of each positive edge
+
+        Returns
+        -------
+        link prediction eval metric: tensor
+    """
+    logs = th.div(1.0, ranking)
+    return th.tensor(th.div(th.sum(logs),len(logs)))
+
+def hits_at_k(rankings, k):
+    """ Hits@k metric for link prediction
+        Parameters
+        ----------
+        ranking:
+            ranking of each positive edge
+        k: int
+            the maximum rank considered to accept a positive
+        Returns
+        -------
+        link prediction eval metric: tensor
+    """
+    score = th.tensor(th.div(th.sum(rankings < k), len(rankings)))
+    return score

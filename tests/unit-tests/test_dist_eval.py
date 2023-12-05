@@ -50,6 +50,7 @@ def run_dist_lp_eval_worker(worker_rank, train_data, config, val_scores, test_sc
                                       rank=worker_rank)
 
     lp_eval = GSgnnMrrLPEvaluator(config.eval_frequency,
+                                  config.eval_metric,
                                   train_data,
                                   num_negative_edges_eval=config.num_negative_edges_eval,
                                   lp_decoder_type=config.lp_decoder_type,
@@ -105,6 +106,7 @@ def run_local_lp_eval_worker(train_data, config, val_scores, test_scores, conn):
                                       rank=0)
 
     lp_eval = GSgnnMrrLPEvaluator(config.eval_frequency,
+                                  config.eval_metric,
                                   train_data,
                                   num_negative_edges_eval=config.num_negative_edges_eval,
                                   lp_decoder_type=config.lp_decoder_type,

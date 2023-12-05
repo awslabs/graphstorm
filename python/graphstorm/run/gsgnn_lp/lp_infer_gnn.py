@@ -51,9 +51,11 @@ def main(config_args):
     if not config.no_validation:
         infer.setup_evaluator(
             GSgnnMrrLPEvaluator(config.eval_frequency,
+                                config.eval_metric,
                                 infer_data,
                                 config.num_negative_edges_eval,
-                                config.lp_decoder_type))
+                                config.lp_decoder_type,
+                                k=config.eval_k))
         assert len(infer_data.test_idxs) > 0, "There is not test data for evaluation."
     tracker = gs.create_builtin_task_tracker(config)
     infer.setup_task_tracker(tracker)

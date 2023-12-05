@@ -2036,6 +2036,14 @@ class GSConfig:
         return eval_metric
 
     @property
+    def eval_k(self):
+        """ k used for link prediction evaluation metrics including hits@k
+        """
+        if hasattr(self, "_eval_k"):
+            return self._eval_k
+        return 100
+
+    @property
     def model_select_etype(self):
         """ Canonical etype used for selecting the best model
         """
@@ -2449,6 +2457,8 @@ def _add_task_general_args(parser):
             help="Whether report evaluation metrics per node type or edge type."
                  "If True, report evaluation results for each node type/edge type."
                  "If False, report an average evaluation result.")
+    group.add_argument('--eval-k', type=int, default=argparse.SUPPRESS,
+            help="k used for link prediction evaluation metrics including hits@k.")
     return parser
 
 def _add_inference_args(parser):

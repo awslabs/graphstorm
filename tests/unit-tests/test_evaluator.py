@@ -61,6 +61,7 @@ def gen_mrr_lp_eval_data():
             "num_negative_edges_eval": 10,
             "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
             "eval_frequency": 100,
+            "eval_metric": ["mrr", "hits"],
             "use_early_stop": False,
         })
 
@@ -89,7 +90,7 @@ def test_mrr_per_etype_lp_evaluation():
     }
 
     # Test get_major_score
-    lp = GSgnnPerEtypeMrrLPEvaluator(10,
+    lp = GSgnnPerEtypeMrrLPEvaluator(10, config.eval_metric,
         train_data,
         num_negative_edges_eval=4,
         lp_decoder_type=BUILTIN_LP_DOT_DECODER,
@@ -100,7 +101,7 @@ def test_mrr_per_etype_lp_evaluation():
     assert m_score == sum(score.values()) / 2
 
     # Test get_major_score
-    lp = GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency,
+    lp = GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency, config.eval_metric,
         train_data,
         major_etype=("a", "r2", "b"),
         num_negative_edges_eval=config.num_negative_edges_eval,
@@ -114,7 +115,7 @@ def test_mrr_per_etype_lp_evaluation():
     val_pos_scores, val_neg_scores = val_scores
     test_pos_scores, test_neg_scores = test_scores
 
-    lp = GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency,
+    lp = GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency, config.eval_metric,
         train_data,
         num_negative_edges_eval=config.num_negative_edges_eval,
         lp_decoder_type=config.lp_decoder_type,
@@ -179,7 +180,7 @@ def test_mrr_per_etype_lp_evaluation():
     assert_almost_equal(np.array([val_s_mrr]), lp.best_val_score['mrr'])
     assert_almost_equal(np.array([test_s_mrr]), lp.best_test_score['mrr'])
 
-    lp = GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency,
+    lp = GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency, config.eval_metric,
         train_data,
         major_etype=etypes[1],
         num_negative_edges_eval=config.num_negative_edges_eval,
@@ -210,6 +211,7 @@ def test_mrr_lp_evaluator():
     test_pos_scores, test_neg_scores = test_scores
 
     lp = GSgnnMrrLPEvaluator(config.eval_frequency,
+                             config.eval_metric,
                              train_data,
                              num_negative_edges_eval=config.num_negative_edges_eval,
                              lp_decoder_type=config.lp_decoder_type,
@@ -234,6 +236,9 @@ def test_mrr_lp_evaluator():
     mrr = 1.0/val_ranks[etypes[0]]
     mrr = th.sum(mrr) / len(mrr)
     assert_almost_equal(val_s['mrr'], mrr.numpy(), decimal=7)
+    hits = val_ranks[etypes[0]] < lp.metrics_obj.k
+    hits = th.sum(hits) / len(hits)
+    assert_almost_equal(val_s['hits'], hits.numpy(), decimal=7)
 
     rank = []
     for i in range(len(test_pos_scores)):
@@ -254,55 +259,62 @@ def test_mrr_lp_evaluator():
     mrr = 1.0/test_ranks[etypes[0]]
     mrr = th.sum(mrr) / len(mrr)
     assert_almost_equal(test_s['mrr'], mrr.numpy(), decimal=7)
+    hits = test_ranks[etypes[0]] < lp.metrics_obj.k
+    hits = th.sum(hits) / len(hits)
+    assert_almost_equal(test_s['hits'], hits.numpy(), decimal=7)
 
     val_sc, test_sc = lp.evaluate(val_ranks, test_ranks, 0)
-    assert_equal(val_s['mrr'], val_sc['mrr'])
-    assert_equal(test_s['mrr'], test_sc['mrr'])
+    for metric in lp.metric:
+        assert_equal(val_s[metric], val_sc[metric])
+        assert_equal(test_s[metric], test_sc[metric])
 
     # val_ranks is None
     val_sc, test_sc = lp.evaluate(None, test_ranks, 0)
-    assert_equal(val_sc['mrr'], "N/A")
-    assert_equal(test_s['mrr'], test_sc['mrr'])
+    for metric in lp.metric:
+        assert_equal(val_sc[metric], "N/A")
+        assert_equal(test_s[metric], test_sc[metric])
 
     # test_ranks is None
     val_sc, test_sc = lp.evaluate(val_ranks, None, 0)
-    assert_equal(val_s['mrr'], val_sc['mrr'])
-    assert_equal(test_sc['mrr'], "N/A")
+    for metric in lp.metric:
+        assert_equal(val_s[metric], val_sc[metric])
+        assert_equal(test_sc[metric], "N/A")
 
     # test evaluate
     @patch.object(GSgnnMrrLPEvaluator, 'compute_score')
     def check_evaluate(mock_compute_score):
         lp = GSgnnMrrLPEvaluator(config.eval_frequency,
+                                 config.eval_metric,
                                  train_data,
                                  num_negative_edges_eval=config. num_negative_edges_eval,
                                  lp_decoder_type=config.lp_decoder_type,
                                  use_early_stop=config.use_early_stop)
 
         mock_compute_score.side_effect = [
-            {"mrr": 0.6},
-            {"mrr": 0.7},
-            {"mrr": 0.65},
-            {"mrr": 0.8},
-            {"mrr": 0.8},
-            {"mrr": 0.7}
+            {"mrr": 0.6, "hits": 0.5},
+            {"mrr": 0.7, "hits": 0.6},
+            {"mrr": 0.65, "hits": 0.55},
+            {"mrr": 0.8, "hits": 0.7},
+            {"mrr": 0.8, "hits": 0.7},
+            {"mrr": 0.7, "hits": 0.4}
         ]
 
         val_score, test_score = lp.evaluate(
             {("u", "b", "v") : ()}, {("u", "b", "v") : ()}, 100)
-        assert val_score["mrr"] == 0.7
-        assert test_score["mrr"] == 0.6
+        assert val_score["mrr"] == 0.7 and val_score["hits"] == 0.6
+        assert test_score["mrr"] == 0.6 and test_score["hits"] == 0.5
         val_score, test_score = lp.evaluate(
             {("u", "b", "v") : ()}, {("u", "b", "v") : ()}, 200)
-        assert val_score["mrr"] == 0.8
-        assert test_score["mrr"] == 0.65
+        assert val_score["mrr"] == 0.8 and val_score["hits"] == 0.7
+        assert test_score["mrr"] == 0.65 and test_score["hits"] == 0.55
         val_score, test_score = lp.evaluate(
             {("u", "b", "v") : ()}, {("u", "b", "v") : ()}, 300)
-        assert val_score["mrr"] == 0.7
-        assert test_score["mrr"] == 0.8
+        assert val_score["mrr"] == 0.7 and val_score["hits"] == 0.4
+        assert test_score["mrr"] == 0.8 and test_score["hits"] == 0.7
 
-        assert lp.best_val_score["mrr"] == 0.8
-        assert lp.best_test_score["mrr"] == 0.65
-        assert lp.best_iter_num["mrr"] == 200
+        assert lp.best_val_score["mrr"] == 0.8 and lp.best_val_score["hits"] == 0.7
+        assert lp.best_test_score["mrr"] == 0.65 and lp.best_test_score["hits"] == 0.55
+        assert lp.best_iter_num["mrr"] == 200 and lp.best_iter_num["hits"] == 200
 
     # check GSgnnMrrLPEvaluator.evaluate()
     check_evaluate()
@@ -318,6 +330,7 @@ def test_mrr_lp_evaluator():
     @patch.object(GSgnnMrrLPEvaluator, 'compute_score')
     def check_evaluate_infer(mock_compute_score):
         lp = GSgnnMrrLPEvaluator(config.eval_frequency,
+                                 config.eval_metric,
                                  train_data,
                                  num_negative_edges_eval=config.num_negative_edges_eval,
                                  lp_decoder_type=config.lp_decoder_type,
@@ -346,6 +359,7 @@ def test_mrr_lp_evaluator():
     # train_data.do_validation True
     # config.no_validation False
     lp = GSgnnMrrLPEvaluator(config.eval_frequency,
+                             config.eval_metric,
                              train_data,
                              num_negative_edges_eval=config.num_negative_edges_eval,
                              lp_decoder_type=config.lp_decoder_type,
@@ -359,6 +373,7 @@ def test_mrr_lp_evaluator():
             "num_negative_edges_eval": 10,
             "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
             "eval_frequency": 0,
+            "eval_metric": ["mrr"],
             "use_early_stop": False,
         })
 
@@ -366,6 +381,7 @@ def test_mrr_lp_evaluator():
     # config.no_validation False
     # eval_frequency is 0
     lp = GSgnnMrrLPEvaluator(config3.eval_frequency,
+                             config3.eval_metric,
                              train_data,
                              num_negative_edges_eval=config3.num_negative_edges_eval,
                              lp_decoder_type=config3.lp_decoder_type,
@@ -755,9 +771,11 @@ def test_early_stop_lp_evaluator():
             "num_negative_edges_eval": 10,
             "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
             "eval_frequency": 100,
+            "eval_metric": ["mrr"],
             "use_early_stop": False,
         })
     evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
+                                    config.eval_metric,
                                     train_data,
                                     num_negative_edges_eval=config.num_negative_edges_eval,
                                     lp_decoder_type=config.lp_decoder_type,
@@ -770,12 +788,14 @@ def test_early_stop_lp_evaluator():
             "num_negative_edges_eval": 10,
             "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
             "eval_frequency": 100,
+            "eval_metric": ["mrr"],
             "use_early_stop": True,
             "early_stop_burnin_rounds": 5,
             "early_stop_rounds": 3,
             "early_stop_strategy": EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY,
         })
     evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
+                                    config.eval_metric,
                                     train_data,
                                     num_negative_edges_eval=config.num_negative_edges_eval,
                                     lp_decoder_type=config.lp_decoder_type,
@@ -800,12 +820,14 @@ def test_early_stop_lp_evaluator():
             "num_negative_edges_eval": 10,
             "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
             "eval_frequency": 100,
+            "eval_metric": ["mrr"],
             "use_early_stop": True,
             "early_stop_burnin_rounds": 5,
             "early_stop_rounds": 3,
             "early_stop_strategy": EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
         })
     evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
+                                    config.eval_metric,
                                     train_data,
                                     num_negative_edges_eval=config.num_negative_edges_eval,
                                     lp_decoder_type=config.lp_decoder_type,
@@ -906,6 +928,7 @@ def test_get_val_score_rank():
         })
 
     evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
+                                    config.eval_metric,
                                     train_data,
                                     num_negative_edges_eval=config.num_negative_edges_eval,
                                     lp_decoder_type=config.lp_decoder_type,
