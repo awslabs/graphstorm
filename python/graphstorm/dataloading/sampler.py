@@ -28,6 +28,8 @@ from dgl.dataloading.negative_sampler import Uniform
 from dgl.dataloading import NeighborSampler
 from dgl.transforms import to_block
 
+from ..utils import is_wholegraph
+
 class LocalUniform(Uniform):
     """Negative sampler that randomly chooses negative destination nodes
     for each source node according to a uniform distribution.
@@ -73,8 +75,22 @@ class LocalUniform(Uniform):
 class GSHardEdgeDstNegative(object):
     """ GraphStorm negativer sampler that chooses negative destination nodes
         from a fixed set to create negative edges.
+
+        Parameters
+        ----------
+        k: int
+            Number of negatives to sample.
+        dst_negative_field: str or dict of str
+            The field storing the hard negatives.
+        negative_sampler: sampler
+            The negative sampler to generate negatives
+            if there is not enough hard negatives.
+        num_hard_negs: int or dict of int
+            Number of hard negatives.
     """
     def __init__(self, k, dst_negative_field, negative_sampler, num_hard_negs=None):
+        assert is_wholegraph() is False, \
+                "Hard negative is not supported for WholeGraph."
         self._dst_negative_field = dst_negative_field
         self._k = k
         self._negative_sampler = negative_sampler
@@ -108,12 +124,16 @@ class GSHardEdgeDstNegative(object):
             # Fast track, there is no -1 in hard_negatives
             max_num_hard_neg = hard_negatives.shape[1]
             neg_idx = th.randperm(max_num_hard_neg)
+            # shuffle the hard negatives
             hard_negatives = hard_negatives[:,neg_idx]
+
+            print(f"{required_num_hard_neg} {max_num_hard_neg} {self._k}")
             if required_num_hard_neg >= self._k and max_num_hard_neg >= self._k:
                 # All negative should be hard negative and
                 # there are enough hard negatives.
+                hard_negatives = hard_negatives[:,:self._k]
                 src, _ = g.find_edges(eids, etype=canonical_etype)
-                src = F.repeat(src, self.k, 0)
+                src = F.repeat(src, self._k, 0)
                 return src, hard_negatives.reshape((-1,))
             else:
                 if required_num_hard_neg < max_num_hard_neg:
@@ -127,8 +147,9 @@ class GSHardEdgeDstNegative(object):
                 # There is not enough negatives
                 src, neg = self._negative_sampler._generate(g, eids, canonical_etype)
                 # replace random negatives with fixed negatives
-                neg[:,:num_hard_neg] = hard_negatives
-                return src, neg
+                neg = neg.reshape(-1, self._k)
+                neg[:,:num_hard_neg] = hard_negatives[:,:num_hard_neg]
+                return src, neg.reshape((-1,))
         else:
             # slow track, we need to handle cases when there are -1s
             hard_negatives, _ = th.sort(dim=1, descending=True)
