@@ -272,7 +272,7 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
             graph_path, sagemaker_session=sagemaker_session)
     try:
         logging.info("Download graph from %s to %s",
-                     os.path.join(graph_data_s3, graph_part),
+                     os.path.join(os.path.join(graph_data_s3, graph_part), ""),
                      graph_part_path)
         # add tailing / to s3:/xxxx/partN
         S3Downloader.download(os.path.join(os.path.join(graph_data_s3, graph_part), ""),
