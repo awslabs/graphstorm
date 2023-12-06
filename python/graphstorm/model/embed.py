@@ -26,7 +26,7 @@ from dgl.distributed import DistEmbedding, node_split
 
 from .gs_layer import GSLayer
 from ..dataloading.dataset import prepare_batch_input
-from ..utils import get_rank, barrier, is_distributed, get_backend, create_dist_tensor
+from ..utils import get_rank, barrier, is_distributed, get_backend, create_dist_tensor, is_wholegraph_sparse_emb, is_wholegraph_embedding_module
 from .ngnn_mlp import NGNNMLP
 
 def init_emb(shape, dtype):
@@ -175,7 +175,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
 
     Examples:
     ----------
-    
+
     .. code:: python
 
         from graphstorm import get_feat_size
@@ -213,20 +213,25 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         self.activation = activation
         self.cache_embed = cache_embed
 
-        if dgl.__version__ <= "1.1.2" and is_distributed() and get_backend() == "nccl":
+        if dgl.__version__ <= "1.1.2" and is_distributed() and get_backend() == "nccl" and not is_wholegraph_sparse_emb():
             if self.use_node_embeddings:
                 raise NotImplementedError('NCCL backend is not supported for utilizing ' +
                     'node embeddings. Please use DGL version >=1.1.2 or gloo backend.')
             for ntype in g.ntypes:
                 if not feat_size[ntype]:
                     raise NotImplementedError('NCCL backend is not supported for utilizing ' +
-                        'learnable embeddings on featureless nodes. Please use DGL version ' + 
+                        'learnable embeddings on featureless nodes. Please use DGL version ' +
                         '>=1.1.2 or gloo backend.')
 
         # create weight embeddings for each node for each relation
         self.proj_matrix = nn.ParameterDict()
         self.input_projs = nn.ParameterDict()
         embed_name = 'embed'
+        if is_distributed() and is_wholegraph_sparse_emb():
+            # WG sparse optimizer has to be created at first like below
+            # This is because WG embedding depends on WG sparse optimizer to track/trace the gradients for embeddings
+            # See: https://github.com/rapidsai/wholegraph/blob/fbc7951/python/pylibwholegraph/pylibwholegraph/torch/embedding.py#L277
+            self.wg_sparse_embs_optimizer = self.create_wholememory_optimizer("adam", {})
         for ntype in g.ntypes:
             feat_dim = 0
             if feat_size[ntype] > 0:
@@ -238,32 +243,51 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 nn.init.xavier_uniform_(input_projs, gain=nn.init.calculate_gain('relu'))
                 self.input_projs[ntype] = input_projs
                 if self.use_node_embeddings:
-                    if get_rank() == 0:
-                        logging.debug('Use additional sparse embeddings on node %s', ntype)
-                    part_policy = g.get_node_partition_policy(ntype)
-                    self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
-                                                               self.embed_size,
-                                                               embed_name + '_' + ntype,
-                                                               init_emb,
-                                                               part_policy)
+                    if is_distributed() and is_wholegraph_sparse_emb():
+                        if get_rank() == 0:
+                            logging.debug('Use WholeGraph to host additional sparse embeddings on node %s', ntype)
+
+
+                        # if wholegraph enabled, _sparse_embeds[ntype] is the obj of WholeMemoryEmbeddingModule
+                        # Question(chang-l): cannot pass the embed name into WG embedding, would this be a problem?
+                        self._sparse_embeds[ntype] = self.create_wg_sparse_params(g.number_of_nodes(ntype),
+                                                                                  self.embed_size, self.wg_sparse_embs_optimizer)
+                    else:
+                        if get_rank() == 0:
+                            logging.debug('Use additional sparse embeddings on node %s', ntype)
+                        part_policy = g.get_node_partition_policy(ntype)
+                        self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
+                                                                   self.embed_size,
+                                                                   embed_name + '_' + ntype,
+                                                                   init_emb,
+                                                                   part_policy)
                     proj_matrix = nn.Parameter(th.Tensor(2 * self.embed_size, self.embed_size))
                     nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain('relu'))
                     # nn.ParameterDict support this assignment operation if not None,
                     # so disable the pylint error
                     self.proj_matrix[ntype] = proj_matrix   # pylint: disable=unsupported-assignment-operation
             elif ntype not in force_no_embeddings:
-                part_policy = g.get_node_partition_policy(ntype)
-                if get_rank() == 0:
-                    logging.debug('Use sparse embeddings on node %s:%d',
-                                  ntype, g.number_of_nodes(ntype))
+                if is_distributed() and is_wholegraph_sparse_emb():
+                    if get_rank() == 0:
+                        logging.debug('Use WholeGraph to host sparse embeddings on node %s:%d',
+                                      ntype, g.number_of_nodes(ntype))
+                    # if wholegraph enabled, _sparse_embeds[ntype] is the obj of WholeMemoryEmbeddingModule
+                    self._sparse_embeds[ntype] = self.create_wg_sparse_params(g.number_of_nodes(ntype),
+                                                                              self.embed_size, self.wg_sparse_embs_optimizer)
+                else:
+                    if get_rank() == 0:
+                        logging.debug('Use sparse embeddings on node %s:%d',
+                                      ntype, g.number_of_nodes(ntype))
+                    part_policy = g.get_node_partition_policy(ntype)
+                    self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
+                                    self.embed_size,
+                                    embed_name + '_' + ntype,
+                                    init_emb,
+                                    part_policy=part_policy)
+
                 proj_matrix = nn.Parameter(th.Tensor(self.embed_size, self.embed_size))
                 nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain('relu'))
                 self.proj_matrix[ntype] = proj_matrix
-                self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
-                                self.embed_size,
-                                embed_name + '_' + ntype,
-                                init_emb,
-                                part_policy=part_policy)
 
         # ngnn
         self.num_ffn_layers_in_input = num_ffn_layers_in_input
@@ -299,7 +323,13 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 if self.use_node_embeddings:
                     assert ntype in self.sparse_embeds, \
                             f"We need sparse embedding for node type {ntype}"
-                    node_emb = self.sparse_embeds[ntype](input_nodes[ntype], emb.device)
+                    # emb.device: target device to put the gathered results
+                    if is_wholegraph_embedding_module(self.sparse_embeds[ntype]):
+                        # output to local device
+                        node_emb = self.sparse_embeds[ntype](input_nodes[ntype].cuda())
+                        node_emb = node_emb.to(emb.device, non_blocking=True)
+                    else:
+                        node_emb = self.sparse_embeds[ntype](input_nodes[ntype], emb.device)
                     concat_emb=th.cat((emb, node_emb),dim=1)
                     emb = concat_emb @ self.proj_matrix[ntype]
             elif ntype in self.sparse_embeds: # nodes do not have input features
@@ -307,11 +337,22 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 # return an empty tensor with shape (0, emb_size)
                 device = self.proj_matrix[ntype].device
                 if len(input_nodes[ntype]) == 0:
-                    dtype = self.sparse_embeds[ntype].weight.dtype
-                    embs[ntype] = th.zeros((0, self.sparse_embeds[ntype].embedding_dim),
+                    if is_wholegraph_embedding_module(self.sparse_embeds[ntype]):
+                        dtype = self.sparse_embeds[ntype].wm_embedding.get_embedding_tensor().dtype
+                        embedding_dim = self.sparse_embeds[ntype].wm_embedding.shape[1]
+                    else:
+                        dtype = self.sparse_embeds[ntype].weight.dtype
+                        embedding_dim = self.sparse_embeds[ntype].embedding_dim
+                    embs[ntype] = th.zeros((0, embedding_dim),
                                            device=device, dtype=dtype)
                     continue
-                emb = self.sparse_embeds[ntype](input_nodes[ntype], device)
+                if is_wholegraph_embedding_module(self.sparse_embeds[ntype]):
+                    # output to local device
+                    node_emb = self.sparse_embeds[ntype](input_nodes[ntype].cuda())
+                    node_emb = node_emb.to(device, non_blocking=True)
+                else:
+                    node_emb = self.sparse_embeds[ntype](input_nodes[ntype], device)
+
                 emb = emb @ self.proj_matrix[ntype]
             if emb is not None:
                 if self.activation is not None:
@@ -339,6 +380,31 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         Bool : True if we need to cache the embeddings for inference.
         """
         return self.cache_embed
+
+    def create_wholememory_optimizer(self, optimizer_type: str, param_dict: dict):
+        import pylibwholegraph.torch as wgth
+        return wgth.create_wholememory_optimizer(optimizer_type, param_dict)
+
+    def create_wg_sparse_params(self, nnodes, embedding_dim, optimizer, location='cpu'): # location = ['cpu'|'cuda']
+        import pylibwholegraph.torch as wgth
+
+        global_comm = wgth.comm.get_global_communicator()
+        embedding_wholememory_type = 'distributed'
+        embedding_wholememory_location = location
+        # Here the  initializer is different. DistDGL uses init_emb (uniform_), while wg uses torch.nn.init.xavier_uniform_(local_tensor) to initialize
+        dist_embedding = wgth.create_embedding(
+            global_comm,
+            embedding_wholememory_type,
+            embedding_wholememory_location,
+            # due to here: https://github.com/dmlc/dgl/blob/master/python/dgl/distributed/nn/pytorch/sparse_emb.py#L79C12-L79C23
+            th.float32,
+            [nnodes, embedding_dim],
+            optimizer=optimizer,
+            cache_policy=None, # disable cache for now
+            random_init=True,
+        )
+        # wrap over emb into wg nn module to trace grad/update embed
+        return wgth.WholeMemoryEmbeddingModule(dist_embedding)
 
     def get_sparse_params(self):
         """ get the sparse parameters.

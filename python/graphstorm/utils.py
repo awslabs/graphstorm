@@ -29,6 +29,7 @@ import numpy as np
 
 TORCH_MAJOR_VER = int(th.__version__.split('.', maxsplit=1)[0])
 USE_WHOLEGRAPH = False
+USE_WHOLEGRAPH_SPARSEEMB = False
 
 def setup_device(local_rank):
     r"""Setup computation device.
@@ -91,10 +92,50 @@ def use_wholegraph(part_config):
         os.path.dirname(part_config), 'wholegraph')))
     return USE_WHOLEGRAPH
 
+def use_wholegraph_sparse_emb():
+    """ Use wholegraph for feature fetching directly
+    """
+    global USE_WHOLEGRAPH_SPARSEEMB
+    #Question(chang-l): Do we need to have an option in gs config file?
+    try:
+        import pylibwholegraph
+        USE_WHOLEGRAPH_SPARSEEMB = True
+        return USE_WHOLEGRAPH_SPARSEEMB
+    except: # pylint: disable=bare-except
+        USE_WHOLEGRAPH_SPARSEEMB = False
+        return False
+
 def is_wholegraph():
     """ Check whether global USE_WHOLEGRAPH is true
     """
     return USE_WHOLEGRAPH
+
+def is_wholegraph_sparse_emb():
+    """ Check whether global USE_WHOLEGRAPH_SPARSEEMB is true
+    """
+    return USE_WHOLEGRAPH_SPARSEEMB
+
+def is_wholegraph_embedding_module(data):
+    """ Check if the data is in WholeMemory emedding format which
+        is required to use wholegraph framework.
+    """
+    try:
+        import pylibwholegraph
+        assert USE_WHOLEGRAPH_SPARSEEMB, "WholeGraph needs to be enabled and WholeGraph Embedding needs to be created first."
+        return isinstance(data, pylibwholegraph.torch.WholeMemoryEmbeddingModule)
+    except: # pylint: disable=bare-except
+        return False
+
+def is_wholegraph_optimizer(data):
+    """ Check if the data is in WholeMemoryOptimizer format which
+        is required to use wholegraph framework.
+    """
+    try:
+        import pylibwholegraph
+        assert USE_WHOLEGRAPH_SPARSEEMB, "WholeGraph needs to be enabled and WholeGraph Optimizer needs to be created first."
+        return isinstance(data, pylibwholegraph.torch.WholeMemoryOptimizer)
+    except: # pylint: disable=bare-except
+        return False
 
 def estimate_mem_train(root, task):
     ''' Estimate the memory consumption per machine during training.

@@ -30,7 +30,7 @@ import dgl
 
 from ..config import GRAPHSTORM_LP_EMB_L2_NORMALIZATION
 from ..gconstruct.file_io import stream_dist_tensors_to_hdf5
-from ..utils import get_rank, barrier, get_world_size, create_dist_tensor
+from ..utils import get_rank, barrier, get_world_size, create_dist_tensor, is_wholegraph_sparse_emb, is_wholegraph_embedding_module
 from ..data.utils import alltoallv_cpu, alltoallv_nccl
 
 # placeholder of the ntype for homogeneous graphs
@@ -186,19 +186,33 @@ def save_sparse_emb(model_path, sparse_emb, ntype):
     """
     rank = get_rank()
     world_size = get_world_size()
-    num_embs = sparse_emb.num_embeddings
+    if is_wholegraph_sparse_emb() and is_wholegraph_embedding_module(sparse_emb):
+        num_embs = sparse_emb.wm_embedding.shape[0]
+    else:
+        num_embs = sparse_emb.num_embeddings
+    # wholegraph local embedding boundary is consistent to _get_sparse_emb_range
     start, end = _get_sparse_emb_range(num_embs, rank, world_size)
     # collect sparse_emb in a iterative way
-    embs = []
-    batch_size = 10240
-    # TODO: dgl.distributed.DistEmbedding should provide emb.shape
 
-    idxs = th.split(th.arange(start=start, end=end), batch_size, dim=0)
-    for idx in idxs:
-        # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
-        embs.append(sparse_emb._tensor[idx])
+    if is_wholegraph_sparse_emb() and is_wholegraph_embedding_module(sparse_emb):
+        local_idx = th.arange(start=start, end=end).cuda()
+        local_tensor, _  = sparse_emb.wm_embedding.get_embedding_tensor().get_local_tensor(host_view=True)
+        if local_tensor.shape[0] > end - start: # this could only happen in unit test
+            embs = local_tensor[start:end]
+        else:
+            assert local_tensor.shape[0] == end - start, "Save/Load has invalid dimensions."
+            embs = local_tensor
+    else:
+        embs = []
+        batch_size = 10240
+        # TODO: dgl.distributed.DistEmbedding should provide emb.shape
 
-    embs = th.cat(embs, dim=0)
+        idxs = th.split(th.arange(start=start, end=end), batch_size, dim=0)
+        for idx in idxs:
+            # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
+            embs.append(sparse_emb._tensor[idx])
+
+        embs = th.cat(embs, dim=0)
     # In distributed mode where uses an NFS folder, directly call this makedirs method to
     # create spare embedding path will cause folder permission error that prevents
     # non-rank 0 process from saving embeddings. Therefore, need rank 0 process to call
@@ -1359,29 +1373,52 @@ def load_sparse_emb(target_sparse_emb, ntype_emb_path):
     rank = get_rank()
     world_size = get_world_size()
     num_files = len(os.listdir(ntype_emb_path))
-    num_embs = target_sparse_emb.num_embeddings
-    # Suppose a sparse embedding is trained and saved using N trainers (e.g., GPUs).
-    # We are going to use K trainers/infers to load it.
-    # The code handles the following cases:
-    # 1. N == K
-    # 2. N > K, some trainers/infers need to load more than one files
-    # 3. N < K, some trainers/infers do not need to load any files
-    for i in range(math.ceil(num_files/world_size)):
-        file_idx = i * world_size + rank
-        if file_idx < num_files:
-            emb = th.load(os.path.join(ntype_emb_path,
-                                       f'sparse_emb_{pad_file_index(file_idx)}.pt'))
+    if is_wholegraph_sparse_emb() and is_wholegraph_embedding_module(target_sparse_emb):
+        num_embs = target_sparse_emb.wm_embedding.shape[0]
+    else:
+        num_embs = target_sparse_emb.num_embeddings
 
-            # Get the target idx range for sparse_emb_{rank}.pt
-            start, end = _get_sparse_emb_range(num_embs,
-                                                rank=file_idx,
-                                                world_size=num_files)
-            # write sparse_emb back in an iterative way
-            batch_size = 10240
-            idxs = th.split(th.arange(end - start), batch_size, dim=0)
-            for idx in idxs:
-                # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
-                target_sparse_emb._tensor[start+idx] = emb[idx]
+    if is_wholegraph_sparse_emb() and is_wholegraph_embedding_module(target_sparse_emb):
+        # Suppose a sparse embedding is trained and saved using N trainers (e.g., GPUs).
+        # We have to use the same number of N trainers/infers to load it.
+        assert num_files == world_size, "When using WholeGraph to manage sparse embeddings, it requires N (# of trainers) = K (# of trainers) for now."
+        file_idx = rank
+        emb = th.load(os.path.join(ntype_emb_path,
+                                  f'sparse_emb_{pad_file_index(file_idx)}.pt'))
+        loc_sta, loc_end = _get_sparse_emb_range(num_embs, rank=rank, world_size=world_size)
+        assert loc_end - loc_sta == emb.shape[0], "Save/Load has invalid dimensions."
+        local_tensor, _ = target_sparse_emb.wm_embedding.get_embedding_tensor().get_local_tensor(host_view=True)
+        if local_tensor.shape[0] > emb.shape[0]: # this could only happen in unit test
+            local_tensor[loc_sta:loc_end] = emb
+        else:
+            local_tensor.copy_(emb)
+        # TODO(chang-l): Extend to the case when N!=K, same as DistEmbedding (need scatter to broadcast the values)
+        # only copy_ the overlapped chunks
+        # scatter the non-local(non-overlapped) chunks of emb to target_sparse_emb
+        # e.g., target_sparse_emb.wm_embedding.get_embedding_tensor().scatter(emb, indices)
+    else:
+        # Suppose a sparse embedding is trained and saved using N trainers (e.g., GPUs).
+        # We are going to use K trainers/infers to load it.
+        # The code handles the following cases:
+        # 1. N == K
+        # 2. N > K, some trainers/infers need to load more than one files
+        # 3. N < K, some trainers/infers do not need to load any files
+        for i in range(math.ceil(num_files/world_size)):
+            file_idx = i * world_size + rank
+            if file_idx < num_files:
+                emb = th.load(os.path.join(ntype_emb_path,
+                                           f'sparse_emb_{pad_file_index(file_idx)}.pt'))
+
+                # Get the target idx range for sparse_emb_{rank}.pt
+                start, end = _get_sparse_emb_range(num_embs,
+                                                   rank=file_idx,
+                                                   world_size=num_files)
+                # write sparse_emb back in an iterative way
+                batch_size = 10240
+                idxs = th.split(th.arange(end - start), batch_size, dim=0)
+                for idx in idxs:
+                    # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
+                    target_sparse_emb._tensor[start+idx] = emb[idx]
 
 def load_sparse_embeds(model_path, embed_layer):
     """load sparse embeddings if any
