@@ -6,6 +6,7 @@ from graphstorm.dataloading import GSgnnNodeDataLoader
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.dataloading import GSgnnNodeTrainData
 from graphstorm.utils import setup_device
+from graphstorm.inference import GSgnnNodePredictionInferrer
 from graphstorm.trainer import GSgnnNodePredictionTrainer
 from graphstorm.tracker import GSSageMakerTaskTracker
 from llm_gnn_model import LLMGraphModel
@@ -84,7 +85,29 @@ def main(config_args):
         train_task=False,
     )
 
-    # create test loader
+    # Start the training process.
+    model.prepare_input_encoder(train_data)
+    trainer.fit(
+        train_loader=dataloader,
+        num_epochs=config.num_epochs,
+        val_loader=val_dataloader,
+        # disable testing during training
+        test_loader=None,
+        save_model_path=config.save_model_path,
+        save_model_frequency=config.save_model_frequency,
+        use_mini_batch_infer=True
+    )
+    
+    # Load the best checkpoint
+    best_model_path = trainer.get_best_model_path()
+    model.restore_model(best_model_path)
+
+    # Create an inference for a node task.
+    infer = GSgnnNodePredictionInferrer(model)
+    infer.setup_device(device=device)
+    infer.setup_evaluator(evaluator)
+    infer.setup_task_tracker(tracker)
+    # Create test loader
     test_dataloader = GSgnnNodeDataLoader(
         train_data,
         train_data.test_idxs,
@@ -93,20 +116,10 @@ def main(config_args):
         device=device,
         train_task=False,
     )
-
-    # Start the training process.
-    model.prepare_input_encoder(train_data)
-    trainer.fit(
-        train_loader=dataloader,
-        num_epochs=config.num_epochs,
-        val_loader=val_dataloader,
-        test_loader=test_dataloader,
-        save_model_path=config.save_model_path,
-        save_model_frequency=config.save_model_frequency,
-        use_mini_batch_infer=True
-    )
-    #best_model_path = trainer.get_best_model_path()
-    #model.restore_model(best_model_path)
+    # Run inference on the inference dataset and save the GNN embeddings in the specified path.
+    infer.infer(test_dataloader, save_embed_path=None,
+                save_prediction_path=config.save_prediction_path,
+                use_mini_batch_infer=True)
 
 
 def generate_parser():

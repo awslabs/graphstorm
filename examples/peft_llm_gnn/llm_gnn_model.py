@@ -1,7 +1,7 @@
 from graphstorm import model as gsmodel
 import torch
 import torch.nn as nn
-import re
+import os
 import torch.nn.functional as F
 from transformers import (
     AutoConfig,
@@ -53,9 +53,9 @@ class LLMGraphModel(gsmodel.GSgnnNodeModelBase):
         self.alpha_l2norm = alpha_l2norm
         self.lr = lr
         model_id = "facebook/opt-2.7b"
-        config = AutoConfig.from_pretrained(model_id, num_labels=out_dim)
+        self.config = AutoConfig.from_pretrained(model_id, num_labels=out_dim)
         base_model = AutoModelForSequenceClassification.from_pretrained(
-            model_id,config=config
+            model_id,config=self.config
         )
         peft_config = LoraConfig(task_type="SEQ_CLS", inference_mode=False, r=8, lora_alpha=16, lora_dropout=0.1)
         self.llm = get_peft_model(base_model, peft_config)
@@ -73,12 +73,13 @@ class LLMGraphModel(gsmodel.GSgnnNodeModelBase):
             pass
 
     def forward(self, blocks, node_feats, edge_feats, labels, input_nodes):
-        # input layer
+        # TODO (qzhuamzn): use GNNs to generate graph tokens
         h = {}
         output_nodes = blocks[-1].dstdata["_ID"]
 
         input_ids = self._lm_node_feats[self.target_ntype]["input_ids"][output_nodes].to(self.llm.device)
         attention_mask = self._lm_node_feats[self.target_ntype]["attention_mask"][output_nodes].to(self.llm.device)
+        # TODO (qzhuamzn): modify input_ids into input_embeds=[graph_tokens, input_embeds] to support GPEFT
         model_output = self.llm(input_ids=input_ids, attention_mask=attention_mask, labels=labels[self.target_ntype])
         return model_output.loss
 
@@ -97,8 +98,17 @@ class LLMGraphModel(gsmodel.GSgnnNodeModelBase):
             return model_output.logits.argmax(dim=-1), model_output.logits
         
     def create_optimizer(self):
-        # Here we don't set up an optimizer for sparse embeddings.
+        # Here we assume there are no sparse embeddings.
         pytorch_total_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
         print(f"Num of trainable params: {pytorch_total_params}")
 
         return torch.optim.Adam(self.parameters(), lr=self.lr)
+    
+    def restore_model(self, restore_model_path):
+        self.llm = AutoModelForSequenceClassification.from_pretrained(restore_model_path, config=self.config)
+
+    def save_model(self, model_path):
+        os.makedirs(model_path, exist_ok=True)
+        os.chmod(model_path, 0o767)
+        if torch.distributed.get_rank() == 0:
+            self.llm.save_pretrained(model_path) 
