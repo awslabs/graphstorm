@@ -35,6 +35,7 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.coverage",
     "sphinx.ext.mathjax",
+    "nbsphinx",
 ]
 templates_path = ['_templates']
 exclude_patterns = []

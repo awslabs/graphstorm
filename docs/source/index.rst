@@ -36,6 +36,12 @@ Welcome to the GraphStorm Documentation and Tutorials
    scale/sagemaker
 
 .. toctree::
+   :maxdepth: 2
+   :caption: Programming User Guide
+
+   ../../examples/notebooks/Notebook 0: Data prepare
+
+.. toctree::
    :maxdepth: 1
    :caption: Advanced Topics
    :hidden:
