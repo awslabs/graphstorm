@@ -39,7 +39,7 @@ Welcome to the GraphStorm Documentation and Tutorials
    :maxdepth: 2
    :caption: Programming User Guide
 
-   ../../examples/notebooks/Notebook 0: Data prepare
+   notebooks/Notebook 1: Built-in RGCN for Node Classification
 
 .. toctree::
    :maxdepth: 1
