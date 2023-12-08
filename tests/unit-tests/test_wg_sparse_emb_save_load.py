@@ -20,6 +20,8 @@ import dgl
 import pytest
 import tempfile
 
+import numpy as np
+
 import torch as th
 from numpy.testing import assert_equal
 from unittest.mock import patch
@@ -98,9 +100,9 @@ def test_wg_sparse_embed_save(world_size):
             for ntype in embed_layer.sparse_embeds.keys():
                 saved_embs = []
                 for i in range(world_size):
-                    saved_embs.append(th.load(
+                    saved_embs.append(th.from_numpy(np.load(
                         os.path.join(os.path.join(model_path, ntype),
-                                    f'sparse_emb_{pad_file_index(i)}.pt')))
+                                f'sparse_emb_{pad_file_index(i)}.npy'))))
                 saved_embs = th.cat(saved_embs, dim=0)
                 assert_equal(saved_embs.numpy(), sparse_embs[ntype].numpy())
         check_saved_sparse_emb()

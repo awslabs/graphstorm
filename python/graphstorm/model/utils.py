@@ -21,6 +21,8 @@ import json
 import shutil
 import logging
 
+import numpy as np
+
 import torch as th
 from torch import nn
 import torch.nn.functional as F
@@ -194,15 +196,24 @@ def save_sparse_emb(model_path, sparse_emb, ntype):
     start, end = _get_sparse_emb_range(num_embs, rank, world_size)
     # collect sparse_emb in a iterative way
 
+    # In distributed mode where uses an NFS folder, directly call this makedirs method to
+    # create spare embedding path will cause folder permission error that prevents
+    # non-rank 0 process from saving embeddings. Therefore, need rank 0 process to call
+    # the create_sparse_embeds_path() method first before calling save_sparse_embeds().
+    emb_path = os.path.join(model_path, ntype)
+    os.makedirs(emb_path, exist_ok=True)
+
     if is_wholegraph_sparse_emb() and is_wholegraph_embedding_module(sparse_emb):
-        local_idx = th.arange(start=start, end=end).cuda()
+        emb_file_path = os.path.join(emb_path, f'sparse_emb_{pad_file_index(rank)}.npy')
         local_tensor, _  = sparse_emb.wm_embedding.get_embedding_tensor().get_local_tensor(host_view=True)
         if local_tensor.shape[0] > end - start: # this could only happen in unit test
-            embs = local_tensor[start:end]
+            embs = local_tensor[start:end].numpy()
         else:
             assert local_tensor.shape[0] == end - start, "Save/Load has invalid dimensions."
-            embs = local_tensor
+            embs = local_tensor.numpy()
+        np.save(emb_file_path, embs)
     else:
+        emb_file_path = os.path.join(emb_path, f'sparse_emb_{pad_file_index(rank)}.pt')
         embs = []
         batch_size = 10240
         # TODO: dgl.distributed.DistEmbedding should provide emb.shape
@@ -213,14 +224,7 @@ def save_sparse_emb(model_path, sparse_emb, ntype):
             embs.append(sparse_emb._tensor[idx])
 
         embs = th.cat(embs, dim=0)
-    # In distributed mode where uses an NFS folder, directly call this makedirs method to
-    # create spare embedding path will cause folder permission error that prevents
-    # non-rank 0 process from saving embeddings. Therefore, need rank 0 process to call
-    # the create_sparse_embeds_path() method first before calling save_sparse_embeds().
-    emb_path = os.path.join(model_path, ntype)
-    os.makedirs(emb_path, exist_ok=True)
-    emb_file_path = os.path.join(emb_path, f'sparse_emb_{pad_file_index(rank)}.pt')
-    th.save(embs, emb_file_path)
+        th.save(embs, emb_file_path)
 
 def save_sparse_embeds(model_path, embed_layer):
     """ save sparse embeddings if embed_layer has any
@@ -1381,17 +1385,87 @@ def load_sparse_emb(target_sparse_emb, ntype_emb_path):
     if is_wholegraph_sparse_emb() and is_wholegraph_embedding_module(target_sparse_emb):
         # Suppose a sparse embedding is trained and saved using N trainers (e.g., GPUs).
         # We have to use the same number of N trainers/infers to load it.
-        assert num_files == world_size, "When using WholeGraph to manage sparse embeddings, it requires N (# of trainers) = K (# of trainers) for now."
-        file_idx = rank
-        emb = th.load(os.path.join(ntype_emb_path,
-                                  f'sparse_emb_{pad_file_index(file_idx)}.pt'))
-        loc_sta, loc_end = _get_sparse_emb_range(num_embs, rank=rank, world_size=world_size)
-        assert loc_end - loc_sta == emb.shape[0], "Save/Load has invalid dimensions."
-        local_tensor, _ = target_sparse_emb.wm_embedding.get_embedding_tensor().get_local_tensor(host_view=True)
-        if local_tensor.shape[0] > emb.shape[0]: # this could only happen in unit test
-            local_tensor[loc_sta:loc_end] = emb
+        # save and load need to have the same dtype
+        if False: #(num_files == world_size):
+            file_idx = rank
+            filepath = os.path.join(ntype_emb_path, f'sparse_emb_{pad_file_index(file_idx)}.bin')
+
+            loc_sta, loc_end = _get_sparse_emb_range(num_embs, rank=rank, world_size=world_size)
+            assert loc_end - loc_sta == emb.shape[0], "Save/Load has invalid dimensions."
+            local_tensor, _ = target_sparse_emb.wm_embedding.get_embedding_tensor().get_local_tensor(host_view=True)
+            if local_tensor.shape[0] > emb.shape[0]: # this could only happen in unit test
+                local_tensor[loc_sta:loc_end] = emb
+            else:
+                local_tensor.copy_(emb)
+
+            target_sparse_emb.wm_embedding.get_embedding_tensor().from_filelist([filepath])
+
         else:
-            local_tensor.copy_(emb)
+            loc_sta, loc_end = _get_sparse_emb_range(num_embs, rank=rank, world_size=world_size)
+            assert loc_end - loc_sta == emb.shape[0], "Save/Load has invalid dimensions."
+            local_tensor, _ = target_sparse_emb.wm_embedding.get_embedding_tensor().get_local_tensor(host_view=True)
+
+            # Dict of torch dtype -> numpy dtype (when the correspondence exists)
+            th_to_np_dtype_dict = {
+                th.bool  : np.bool_,
+                th.uint8 : np.uint8,
+                th.int8  : np.int8,
+                th.int16 : np.int16,
+                th.int32 : np.int32,
+                th.int64 : np.int64,
+                th.float16 : np.float16,
+                th.float32 : np.float32,
+                th.float64 : np.float64,
+                th.complex64 : np.complex64,
+                th.complex128 : np.complex128
+            }
+            for i in range(num_files):
+                file_idx = i
+                file_path=os.path.join(ntype_emb_path, f'sparse_emb_{pad_file_index(file_idx)}.bin')
+                dtype = target_sparse_emb.wm_embedding.get_embedding_tensor().dtype
+                start, end = _get_sparse_emb_range(num_embs, rank=file_idx, world_size=num_files)
+                file_offset = start
+                file_size = end - start
+
+                loc_sta, loc_end = _get_sparse_emb_range(file_size, rank, world_size)
+                rank_offset = loc_sta
+                # TODO(chang-l): when loc_sta == loc_end, ie., file_size < world_size
+                # if so, we can let every proc read every file and load the needed part
+                assert(loc_end > loc_sta, "File size too small. # of store embs at each file must be > world_size.")
+                offset = rank_offset * target_sparse_emb.wm_embedding.shape[1] * th.tensor([], dtype=dtype).element_size()
+                shape = (loc_end-loc_sta, target_sparse_emb.wm_embedding.shape[1])
+
+                # memmap from file underneath, no heap memory allocation involved
+                emb = th.from_numpy(np.memmap(file_path, dtype=th_to_np_dtype_dict[dtype], mode='r', offset=offset, shape=shape))
+
+                # write sparse_emb back by wm_scatter function distributedly via nccl
+                # due to device memory limitation (scattered embeddings have to go through device), write back in a batched way
+                batch_size = 102400
+                loc_part_size = math.ceil(file_size / world_size)
+                standard_idxs = th.split(th.arange(loc_part_size), batch_size, dim=0)
+
+                idxs  = th.split(th.arange(loc_end - loc_sta), batch_size, dim=0) # file local idx
+                assert len(standard_idxs) >=  len(idxs)
+                if len(standard_idxs) !=  len(idxs): # last rank
+                    t1 = th.arange(loc_end - loc_sta)
+                    nrepeat = loc_part_size + loc_sta - loc_end
+                    t2 = t1[-1].repeat(nrepeat)
+                    idxs = th.split(th.cat((t1,t2),0), batch_size, dim=0)
+                assert len(standard_idxs) ==  len(idxs)
+                for idx in idxs:
+                    scatter_input = emb[idx].cuda() # read from file into device memory
+                    scatter_gidx = file_offset + rank_offset + idx
+                    scatter_gidx = scatter_gidx.cuda()
+                    target_sparse_emb.wm_embedding.get_embedding_tensor().scatter(scatter_input, scatter_gidx)
+
+        #loc_sta, loc_end = _get_sparse_emb_range(num_embs, rank=rank, world_size=world_size)
+        #assert loc_end - loc_sta == emb.shape[0], "Save/Load has invalid dimensions."
+        #local_tensor, _ = target_sparse_emb.wm_embedding.get_embedding_tensor().get_local_tensor(host_view=True)
+        #if local_tensor.shape[0] > emb.shape[0]: # this could only happen in unit test
+        #    local_tensor[loc_sta:loc_end] = emb
+        #else:
+        #    local_tensor.copy_(emb)
+
         # TODO(chang-l): Extend to the case when N!=K, same as DistEmbedding (need scatter to broadcast the values)
         # only copy_ the overlapped chunks
         # scatter the non-local(non-overlapped) chunks of emb to target_sparse_emb
