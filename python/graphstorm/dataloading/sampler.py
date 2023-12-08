@@ -152,7 +152,7 @@ class GSHardEdgeDstNegative(object):
                 return src, neg.reshape((-1,))
         else:
             # slow track, we need to handle cases when there are -1s
-            hard_negatives, _ = th.sort(dim=1, descending=True)
+            hard_negatives, _ = th.sort(hard_negatives, dim=1, descending=True)
 
             src, neg = self._negative_sampler._generate(g, eids, canonical_etype)
             for i in range(len(eids)):
@@ -170,8 +170,8 @@ class GSHardEdgeDstNegative(object):
                     num_hard_neg = max_num_hard_neg
 
                 # replace random negatives with fixed negatives
-                neg[i*self._k:i*self._k + num_hard_neg \
-                              if num_hard_neg < self._k else self._k] = \
+                neg[i*self._k:i*self._k + (num_hard_neg \
+                              if num_hard_neg < self._k else self._k)] = \
                     hard_negative[:num_hard_neg if num_hard_neg < self._k else self._k]
             return src, neg
 
