@@ -206,8 +206,9 @@ class GSHardEdgeDstNegative(object):
                 dst_negative_field = None
 
             if dst_negative_field is None:
-                src, _, pos_dst, neg_dst = \
+                random_neg_pairs = \
                     self._negative_sampler.gen_neg_pairs(g, {canonical_etype:pos_pair})
+                src, _, pos_dst, neg_dst = random_neg_pairs[canonical_etype]
                 return (src, None, pos_dst, neg_dst)
 
             hard_negatives = g.edges[canonical_etype].data[dst_negative_field][eids]
@@ -219,26 +220,29 @@ class GSHardEdgeDstNegative(object):
                 # Fast track, there is no -1 in hard_negatives
                 num_hard_neg = hard_negatives.shape[1]
                 if self._k < num_hard_neg:
-                    hard_negatives = hard_negatives[:self._k]
+                    hard_negatives = hard_negatives[:,:self._k]
                     return (src, None, pos_dst, hard_negatives)
                 else:
                     # random negative are needed
-                    src, _, pos_dst, neg_dst = \
-                        self._negative_sampler.gen_neg_pairs(g, {canonical_etype:pos_pair})
+                    random_neg_pairs = \
+                        self._negative_sampler.gen_neg_pairs(g,
+                         {canonical_etype:pos_pair})
+                    src, _, pos_dst, neg_dst = random_neg_pairs[canonical_etype]
                     neg_dst[:,:num_hard_neg] = hard_negatives
                     return (src, None, pos_dst, neg_dst)
             else:
                 # slow track, we need to handle cases when there are -1s
-                hard_negatives, _ = th.sort(dim=1, descending=True)
+                hard_negatives, _ = th.sort(hard_negatives, dim=1, descending=True)
 
-                src, _, pos_dst, neg_dst = \
+                random_neg_pairs = \
                     self._negative_sampler.gen_neg_pairs(g, {canonical_etype:pos_pair})
+                src, _, pos_dst, neg_dst = random_neg_pairs[canonical_etype]
                 for i in range(len(eids)):
                     hard_negative = hard_negatives[i]
                     # ignore -1s
                     hard_negative = hard_negative[hard_negative > -1]
                     num_hard_neg = hard_negative.shape[0]
-                    neg_dst[:num_hard_neg if num_hard_neg < self._k else self._k] = \
+                    neg_dst[i][:num_hard_neg if num_hard_neg < self._k else self._k] = \
                         hard_negative[:num_hard_neg if num_hard_neg < self._k else self._k]
                 return (src, _, pos_dst, neg_dst)
 
