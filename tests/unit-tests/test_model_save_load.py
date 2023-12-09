@@ -146,7 +146,7 @@ def test_sparse_embed_load(infer_world_size, train_world_size):
 
             for i in range(infer_world_size):
                 mock_get_rank.side_effect = [i] * 2
-                mock_get_world_size.side_effect = [train_world_size] * 2
+                mock_get_world_size.side_effect = [infer_world_size] * 2
                 load_sparse_embeds(model_path, embed_layer)
             load_sparse_embs = \
                 {ntype: sparse_emb._tensor[th.arange(embed_layer.g.number_of_nodes(ntype))] \
