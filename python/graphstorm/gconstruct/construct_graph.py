@@ -582,7 +582,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
 
     return (edges, edge_data, label_stats)
 
-def verify_confs(confs, args=None):
+def verify_confs(confs, rev_edges):
     """ Verify the configuration of the input data.
     """
     if "version" not in confs:
@@ -592,7 +592,7 @@ def verify_confs(confs, args=None):
     ntypes = {conf['node_type'] for conf in confs["nodes"]}
     etypes = [conf['relation'] for conf in confs["edges"]]
     # Adjust input to DGL requirement if it is a honogeneous graph
-    if len(ntypes) == 1 and len(etypes) == 1 and not args.add_reverse_edges:
+    if len(ntypes) == 1 and len(etypes) == 1 and not rev_edges:
         assert etypes[0][0] in ntypes, \
             f"source node type {etypes[0][0]} does not exist. Please check your input data."
         assert etypes[0][2] in ntypes, \
@@ -678,7 +678,7 @@ def process_graph(args):
             if args.num_processes_for_nodes is not None else args.num_processes
     num_processes_for_edges = args.num_processes_for_edges \
             if args.num_processes_for_edges is not None else args.num_processes
-    verify_confs(process_confs, args)
+    verify_confs(process_confs, args.add_reverse_edges)
     output_format = args.output_format
     for out_format in output_format:
         assert out_format in ["DGL", "DistDGL"], \

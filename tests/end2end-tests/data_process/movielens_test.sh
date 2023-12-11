@@ -5,8 +5,9 @@ service ssh restart
 GS_HOME=$(pwd)
 NUM_TRAINERS=4
 export PYTHONPATH=$GS_HOME/python/
+cd $GS_HOME/training_scripts/gsgnn_np
+echo "127.0.0.1" > ip_list.txt
 cd $GS_HOME/training_scripts/gsgnn_ep
-
 echo "127.0.0.1" > ip_list.txt
 
 error_and_exit () {
@@ -25,6 +26,13 @@ echo "********* Test the DistDGL graph format ********"
 python3 $GS_HOME/tests/end2end-tests/data_gen/process_movielens.py
 python3 -m graphstorm.gconstruct.construct_graph --conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_text.json --num-processes 1 --output-dir /tmp/movielens_with_tokens --graph-name ml --add-reverse-edges --part-method random
 
+error_and_exit $?
+
+echo "********* Test Homogeneous Graph Optimization ********"
+python3 -m graphstorm.gconstruct.construct_graph --conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_homo.json --num-processes 1 --output-dir /tmp/movielen_100k_train_val_1p_4t_homo --graph-name movie-lens-100k
+error_and_exit $?
+
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /tmp/movielen_100k_train_val_1p_4t_homo/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --target-ntype _N
 error_and_exit $?
 
 echo "********* Test the DistDGL graph format with BERT embeddings ********"
