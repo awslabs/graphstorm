@@ -1745,3 +1745,4 @@ if __name__ == '__main__':
     test_multicolumn(None)
     test_multicolumn("/")
     test_feature_wrapper()
+    test_homo()
