@@ -21,12 +21,13 @@ import decimal
 import pyarrow.parquet as pq
 import numpy as np
 import dgl
+import argparse
 import torch as th
 
 from functools import partial
 from numpy.testing import assert_equal, assert_almost_equal
 
-from graphstorm.gconstruct.construct_graph import parse_edge_data
+from graphstorm.gconstruct.construct_graph import parse_edge_data, verify_confs
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
 from graphstorm.gconstruct.file_io import write_data_csv, read_data_csv
@@ -1704,6 +1705,26 @@ def test_gc():
         "Directory /tmp_featurewrapper should not exist after gc"
     assert not os.path.isdir("/tmp_featurewrapper2"), \
         "Directory /tmp_featurewrapper2 should not exist after gc"
+
+
+def test_homo():
+    conf = {'version': 'gconstruct-v0.1', 'nodes': [{'node_id_col': 'id', 'node_type': 'movie', 'format': {'name': 'parquet'},
+                                              'files': '/data/ml-100k/movie.parquet', 'features': [
+            {'feature_col': 'title',
+             'transform': {'name': 'bert_hf', 'bert_model': 'bert-base-uncased', 'max_seq_length': 16}}], 'labels': [
+            {'label_col': 'label', 'task_type': 'classification', 'split_pct': [0.8, 0.1, 0.1]}]}], 'edges': [
+        {'source_id_col': 'src_id', 'dest_id_col': 'dst_id', 'relation': ['movie', 'rating', 'movie'],
+         'format': {'name': 'parquet'}, 'files': '/data/ml-100k/edges.parquet',
+         'labels': [{'label_col': 'rate', 'task_type': 'classification', 'split_pct': [0.1, 0.1, 0.1]}]}]}
+    verify_confs(conf, rev_edges=False)
+    assert conf['nodes'][0]["node_type"] == "_N"
+    assert conf['edges'][0]['relation'] == ["_N", "_E", "_N"]
+
+    conf['nodes'][0]["node_type"] = "movie"
+    conf['edges'][0]['relation'] = ['movie', 'rating', 'movie']
+    verify_confs(conf, rev_edges=True)
+    assert conf['nodes'][0]["node_type"] == "movie"
+    assert conf['edges'][0]['relation'] == ["movie", "rating", "movie"]
 
 if __name__ == '__main__':
     test_parse_edge_data()
