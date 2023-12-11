@@ -348,7 +348,16 @@ edge_conf = [
             {
                 "task_type":    "link_prediction",
                 "split_pct":   [0.8, 0.2, 0.0],
+                "hard_neg_dst_node_col": "hard_neg",
+                "hard_neg_dst_feat_name": "hard_neg"
             },
+        ],
+        "features": [
+            {
+                "feature_col": "hard_neg",
+                "feature_name": "hard_neg",
+                "transform": {"name": "edge_dst_hard_negative"}
+            }
         ],
     },
     {
@@ -373,6 +382,19 @@ edge_conf = [
                 "feature_col": "data",
                 "feature_name": "feat2",
             },
+        ],
+    },
+    {
+        "relation":         ("node2", "relation3", "node3"),
+        "format":           {"name": "parquet"},
+        "files":            os.path.join(in_dir, "edge_data3_*.parquet"),
+        "features": [
+            {
+                "feature_col": "hard_neg",
+                "feature_name": "hard_neg",
+                "transform": {"name": "edge_dst_hard_negative",
+                              "separator": ","}
+            }
         ],
     },
 ]
