@@ -38,6 +38,8 @@ Welcome to the GraphStorm Documentation and Tutorials
 .. toctree::
    :maxdepth: 1
    :caption: Programming User Guide
+   :hidden:
+   :glob:
 
    notebooks/Notebook_0
    notebooks/Notebook 1: Built-in RGCN for Node Classification
