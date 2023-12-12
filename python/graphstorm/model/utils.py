@@ -1384,6 +1384,49 @@ def load_sparse_emb(target_sparse_emb, ntype_emb_path):
     else:
         num_embs = target_sparse_emb.num_embeddings
 
+    def _wholegraph_load_scatter(num_embs, file_id, num_files, file_path):
+        def _get_sparse_emb_lowerbound_range(file_size, rank, world_size):
+            assert rank < world_size, \
+                "local rank {rank} shold be smaller than world size {world_size}"
+            if file_size < world_size:
+                start = rank if rank < file_size else file_size
+                end = rank + 1 if rank < file_size else file_size
+            else:
+                part = file_size // world_size
+                start = rank * part
+                end = (rank + 1) * part
+                end = file_size if rank + 1 == world_size else end
+            return start, end
+
+        file_start, file_end = _get_sparse_emb_range(num_embs, rank=file_id, world_size=num_files)
+        file_size = file_end - file_start
+        rank_sta, rank_end = _get_sparse_emb_lowerbound_range(file_size, rank, world_size)
+        # TODO(chang-l): verify if loc_sta == loc_end, ie., file_size < world_size, still works.
+
+        # memmap from file, no heap memory allocation involved here for now
+        np_emb = np.load(file_path, mmap_mode='r')
+        emb = th.from_numpy(np_emb)[rank_sta:rank_end]
+        # write sparse_emb back by wm_scatter function distributedly via nccl
+        # due to device memory limitation (scattered embeddings have to go through device), write back in a batched way
+        batch_size = 102400
+        std_part_size = file_size // world_size
+        nbatches = std_part_size // batch_size
+        if (nbatches != (rank_end-rank_sta) // batch_size):
+            batch_size = (rank_end-rank_sta) // nbatches
+            assert(nbatches == (rank_end-rank_sta) // batch_size)
+        idxs  = th.split(th.arange(rank_end - rank_sta), batch_size, dim=0) # local idx for embs saved in each file read by each rank
+        for idx in idxs:
+            scatter_input = emb[idx].cuda() # read from file into device memory
+            scatter_gidx = file_start + rank_sta + idx # file offset and rank offset
+            scatter_gidx = scatter_gidx.cuda()
+            import pylibwholegraph
+            if pylibwholegraph.__version__ < "23.12.00":
+                import pylibwholegraph.torch.wholememory_ops as wm_ops
+                wmb_tensor = target_sparse_emb.wm_embedding.wmb_embedding.get_embedding_tensor()
+                wm_ops.wholememory_scatter_functor(scatter_input, scatter_gidx, wmb_tensor)
+            else:
+                target_sparse_emb.wm_embedding.get_embedding_tensor().scatter(scatter_input, scatter_gidx)
+
     # Suppose a sparse embedding is trained and saved using N trainers (e.g., GPUs).
     # We are going to use K trainers/infers to load it.
     # The code handles the following cases:
@@ -1409,50 +1452,6 @@ def load_sparse_emb(target_sparse_emb, ntype_emb_path):
         else:
             # When N!=K, we process all saved files one by one, using all procs
             # Then, followed by a distribute scatter operation to propagate the embs
-
-            def _wholegraph_load_scatter(num_embs, file_id, num_files, file_path):
-                file_start, file_end = _get_sparse_emb_range(num_embs, rank=file_id, world_size=num_files)
-                file_size = file_end - file_start
-                rank_sta, rank_end = _get_sparse_emb_lowerbound_range(file_size, rank, world_size)
-                # TODO(chang-l): verify if loc_sta == loc_end, ie., file_size < world_size, still works.
-
-                # memmap from file, no heap memory allocation involved here for now
-                np_emb = np.load(file_path, mmap_mode='r')
-                emb = th.from_numpy(np_emb)[rank_sta:rank_end]
-                # write sparse_emb back by wm_scatter function distributedly via nccl
-                # due to device memory limitation (scattered embeddings have to go through device), write back in a batched way
-                batch_size = 102400
-                std_part_size = file_size // world_size
-                nbatches = std_part_size // batch_size
-                if (nbatches != (rank_end-rank_sta) // batch_size):
-                    batch_size = (rank_end-rank_sta) // nbatches
-                    assert(nbatches == (rank_end-rank_sta) // batch_size)
-                idxs  = th.split(th.arange(rank_end - rank_sta), batch_size, dim=0) # local idx for embs saved in each file read by each rank
-                for idx in idxs:
-                    scatter_input = emb[idx].cuda() # read from file into device memory
-                    scatter_gidx = file_start + rank_sta + idx # file offset and rank offset
-                    scatter_gidx = scatter_gidx.cuda()
-                    import pylibwholegraph
-                    if pylibwholegraph.__version__ < "23.12.00":
-                        import pylibwholegraph.torch.wholememory_ops as wm_ops
-                        wmb_tensor = target_sparse_emb.wm_embedding.wmb_embedding.get_embedding_tensor()
-                        wm_ops.wholememory_scatter_functor(scatter_input, scatter_gidx, wmb_tensor)
-                    else:
-                        target_sparse_emb.wm_embedding.get_embedding_tensor().scatter(scatter_input, scatter_gidx)
-
-            def _get_sparse_emb_lowerbound_range(file_size, rank, world_size):
-                assert rank < world_size, \
-                    "local rank {rank} shold be smaller than world size {world_size}"
-                if file_size < world_size:
-                    start = rank if rank < file_size else file_size
-                    end = rank + 1 if rank < file_size else file_size
-                else:
-                    part = file_size // world_size
-                    start = rank * part
-                    end = (rank + 1) * part
-                    end = file_size if rank + 1 == world_size else end
-                return start, end
-
             for i in range(num_files):
                 file_idx = i
                 file_path=os.path.join(ntype_emb_path, f'sparse_emb_{pad_file_index(file_idx)}.npy')
