@@ -1577,6 +1577,8 @@ class GSConfig:
         if hasattr(self, "_target_ntype"):
             return self._target_ntype
         else:
+            logging.warning("There is not target ntype provided, "
+                            "will treat as homogeneous graph")
             return DEFAULT_NTYPE
 
     @property
@@ -1650,8 +1652,10 @@ class GSConfig:
             classification/regression. Support multiple tasks when needed.
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_target_etype"), \
-            "Edge classification task needs a target etype"
+        if not hasattr(self, "_target_etype"):
+            logging.warning("There is not target etype provided, "
+                            "will treat as homogeneous graph")
+            return DEFAULT_ETYPE
         assert isinstance(self._target_etype, list), \
             "target_etype must be a list in format: " \
             "[\"query,clicks,asin\", \"query,search,asin\"]."
