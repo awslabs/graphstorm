@@ -23,11 +23,15 @@ import pandas as pd
 import pyarrow.parquet as pq
 import pyarrow as pa
 
+from numpy.testing import assert_almost_equal
+
 from graphstorm.gconstruct.utils import _estimate_sizeof, _to_numpy_array, _to_shared_memory
 from graphstorm.gconstruct.utils import HDF5Array, ExtNumpyWrapper
 from graphstorm.gconstruct.utils import convert_to_ext_mem_numpy, _to_ext_memory
 from graphstorm.gconstruct.utils import multiprocessing_data_read
-from graphstorm.gconstruct.utils import get_hard_edge_negs_feats
+from graphstorm.gconstruct.utils import (save_maps,
+                                         load_maps,
+                                         get_hard_edge_negs_feats)
 from graphstorm.gconstruct.file_io import (write_data_hdf5,
                                            read_data_hdf5,
                                            get_in_files,
@@ -316,8 +320,18 @@ def test_get_hard_edge_negs_feats():
     assert set(hard_edge_neg_feats[("src", "rel0", "dst")]) == set(["hard_neg", "hard_neg1"])
     assert len(hard_edge_neg_feats[("src", "rel1", "dst")]) == 1
 
+def test_save_load_maps():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        map_data = {"a": th.randint(100, (10,)),
+                    "b": th.randint(100, (10,))}
+        save_maps(tmpdirname, "node_mapping", map_data)
+        node_mapping = load_maps(tmpdirname, "node_mapping")
+        assert_almost_equal(node_mapping["a"].numpy(), map_data["a"].numpy())
+        assert_almost_equal(node_mapping["b"].numpy(), map_data["b"].numpy())
+
 
 if __name__ == '__main__':
+    test_save_load_maps()
     test_get_hard_edge_negs_feats()
     test_get_in_files()
     test_read_empty_parquet()
