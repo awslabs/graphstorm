@@ -17,6 +17,7 @@
 """
 
 import os
+from dgl.distributed.constants import DEFAULT_NTYPE
 
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
@@ -74,7 +75,7 @@ def main(config_args):
                                     label_field=config.label_field,
                                     lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     if config.is_homo:
-        assert train_data.g.ntypes == ["_N"], "It is required to be a homogeneous graph " \
+        assert train_data.g.ntypes == [DEFAULT_NTYPE], "It is required to be a homogeneous graph " \
                                               "when not providing target_ntype on node task"
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
 
