@@ -971,6 +971,12 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
         """
         return self._target_etype
 
+    @property
+    def neg_ntype(self):
+        """ Return the node type of hard negatives
+        """
+        return self._target_ntype
+
     def set_id_maps(self, id_maps):
         """ Set ID mapping for converting raw string ID to Graph ID
         """

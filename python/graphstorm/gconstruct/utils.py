@@ -1011,10 +1011,16 @@ def get_hard_edge_negs_feats(hard_edge_neg_ops):
     hard_edge_neg_feats = {}
     for hard_edge_neg_op in hard_edge_neg_ops:
         edge_type = hard_edge_neg_op.target_etype
+        neg_ntype = hard_edge_neg_op.neg_ntype
+
         if edge_type not in hard_edge_neg_feats:
-            hard_edge_neg_feats[edge_type] = [hard_edge_neg_op.feat_name]
+            hard_edge_neg_feats[edge_type] = {neg_ntype: hard_edge_neg_op.feat_name}
         else:
-            hard_edge_neg_feats[edge_type].append(hard_edge_neg_op.feat_name)
+            if neg_ntype in hard_edge_neg_feats[edge_type]:
+                hard_edge_neg_feats[edge_type][neg_ntype].append(hard_edge_neg_op.feat_name)
+            else:
+                hard_edge_neg_feats[edge_type][neg_ntype] = [hard_edge_neg_op.feat_name]
+
     return hard_edge_neg_feats
 
 def shuffle_hard_nids(data_path, num_parts, hard_edge_neg_feats):
@@ -1031,10 +1037,39 @@ def shuffle_hard_nids(data_path, num_parts, hard_edge_neg_feats):
             A directory storing hard negative features for each edge type.
     """
     # Load node id remapping
+    # The node mapping stores the mapping from Partition Node IDs to Graph Node IDs
     node_mapping = load_maps(data_path, "node_mapping")
+    gnid2pnid_mapping = {}
+
+    def get_gnid2pnid_map(ntype):
+        if ntype in gnid2pnid_mapping:
+            return gnid2pnid_mapping[ntype]
+        else:
+            pnid2gnid_map = node_mapping[ntype]
+            gnid2pnid_map = th.argsort(pnid2gnid_map)
+            gnid2pnid_mapping[ntype] = gnid2pnid_map
+            # del ntype in node_mapping to save memory
+            del node_mapping[ntype]
+            return gnid2pnid_mapping[ntype]
 
     # iterate all the partitions to convert hard negative node ids.
     for i in range(num_parts):
         part_path = os.path.join(data_path, f"part{i}")
-        edge_faet_path = os.path.join(part_path, "edge_feat.dgl")
+        edge_feat_path = os.path.join(part_path, "edge_feat.dgl")
 
+        # load edge features first
+        edge_feats = dgl.data.utils.load_tensors(edge_feat_path)
+
+        for etype, hard_neg_feats in hard_edge_neg_feats.items():
+            etype = ":".join(etype)
+            for neg_ntype, neg_feats in hard_neg_feats.items():
+                for neg_feat in neg_feats:
+                    efeat_name = f"{etype}/{neg_feat}"
+                    hard_nids = edge_feats[efeat_name]
+                    hard_nid_idx = hard_nids > -1
+                    gnid2pnid_map = get_gnid2pnid_map(neg_ntype)
+                    hard_nids[hard_nid_idx] = gnid2pnid_map[hard_nids[hard_nid_idx]]
+
+        # replace the edge_feat.dgl with the updated one.
+        os.remove(edge_feat_path)
+        dgl.data.utils.save_tensors(edge_feat_path, edge_feats)

@@ -799,6 +799,7 @@ def test_hard_edge_dst_negative_transform():
     assert pass_set_id_maps
 
     hard_neg_trasnform.set_target_etype(("src", "rel", "dst"))
+    assert hard_neg_trasnform.neg_ntype == "dst"
     try:
         # set_id_maps will fail as target_ntype is dst
         # but only src has id mapping.
