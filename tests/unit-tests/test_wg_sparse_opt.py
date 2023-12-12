@@ -96,6 +96,9 @@ def create_wg_sparse_params(wgth, nnodes, embedding_dim, sparse_opt, location='c
 def test_wg_sparse_opt(embed_dim, num_indices):
      # initialize the torch and wholegraph distributed environment
     wgth = pytest.importorskip("pylibwholegraph.torch")
+    import pylibwholegraph
+    if pylibwholegraph.__version__ < "24.02":
+        pytest.skip("Skipping this accuracy test due to a dependency on a fix from rapidsai/wholegraph:PR#108, which is targeted for release in version 24.02.")
     use_wholegraph_sparse_emb()
     initialize(use_wholegraph=is_wholegraph_sparse_emb())
 
@@ -147,6 +150,10 @@ def test_wg_sparse_opt(embed_dim, num_indices):
     assert th.allclose(torch_weight, wg_weight, atol=1e-05, rtol=1e-03)
     if is_wholegraph_sparse_emb():
         wgth.finalize()
+        import pylibwholegraph.torch.comm as wgth_comm
+        wgth_comm.global_communicators = {}
+        wgth_comm.local_node_communicator = None
+        wgth_comm.local_device_communicator = None
     th.distributed.destroy_process_group()
 
 

@@ -34,7 +34,15 @@ from .embed import compute_node_input_embeddings
 from .embed import GSNodeInputLayer
 from .gs_layer import GSLayerBase
 from .gnn_encoder_base import dist_minibatch_inference
-from ..utils import get_rank, get_world_size, barrier, is_distributed, is_wholegraph_sparse_emb, is_wholegraph_embedding_module, is_wholegraph_optimizer
+from ..utils import (
+    get_rank,
+    get_world_size,
+    barrier,
+    is_distributed,
+    is_wholegraph_sparse_emb,
+    is_wholegraph_embedding_module,
+    is_wholegraph_optimizer,
+)
 from ..dataloading.dataset import prepare_batch_input
 
 from ..config import (GRAPHSTORM_MODEL_ALL_LAYERS,
@@ -97,7 +105,6 @@ class GSOptimizer():
         for optimizer in all_opts:
             # WholeGraph optimizer does not have/need to zero_grad
             # the backward pass does not accum. grad
-            # Ref: https://github.com/rapidsai/wholegraph/blob/branch-23.12/python/pylibwholegraph/pylibwholegraph/torch/embedding.py#L250
             if not is_wholegraph_optimizer(optimizer):
                 optimizer.zero_grad()
 
@@ -107,7 +114,8 @@ class GSOptimizer():
         all_opts = self.dense_opts + self.lm_opts + self.sparse_opts
         for optimizer in all_opts:
             if is_wholegraph_optimizer(optimizer):
-                #TODO(@chang-l): request wholegraph to update their optimizer to align with pytorch conventions
+                #TODO(@chang-l): request wholegraph to update
+                # their optimizer to align with pytorch conventions
                 optimizer.step(optimizer.lr)
             else:
                 optimizer.step()
@@ -699,7 +707,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         if self._edge_input_encoder is not None:
             self._edge_input_encoder.unfreeze()
 
-    #pylint: disable=signature-differs
+    # pylint: disable=signature-differs
     def restore_dense_model(self, restore_model_path,
                             model_layer_to_load=None):
         # TODO(zhengda) we need to load edge_input_encoder.
@@ -738,18 +746,24 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         sparse_params = self.get_sparse_params()
         if len(sparse_params) > 0:
             if is_distributed() and is_wholegraph_sparse_emb():
-                import pylibwholegraph.torch as wgth
-                # To use wholegraph sparse optimizer, optimizer needs to be created before sparse embeddings.
-                # so, here we just get the created optimizer and ensure they are identical
+                # To use wholegraph sparse optimizer, optimizer needs to be created
+                # before sparse embeddings. So, here we just get the created optimizer
+                # and ensure they all identical.
                 for params in sparse_params:
-                    assert is_wholegraph_embedding_module(params), "Sparse params should be WholeMemoryEmbeddingModule if enable WholeGraph."
+                    assert is_wholegraph_embedding_module(
+                        params
+                    ), "Sparse params should be WholeMemoryEmbeddingModule if enable WholeGraph."
                     emb_optimizer = params.wm_embedding.wmb_optimizer
                     break
                 for params in sparse_params:
-                    assert emb_optimizer is params.wm_embedding.wmb_optimizer, "We only need one wholegraph optimizer for all wm_embeddings."
+                    assert (
+                        emb_optimizer is params.wm_embedding.wmb_optimizer
+                    ), "We only need one wholegraph optimizer for all wm_embeddings."
                 emb_optimizer.lr = sparse_optimizer_lr
             else:
-                emb_optimizer = dgl.distributed.optim.SparseAdam(sparse_params, lr=sparse_optimizer_lr)
+                emb_optimizer = dgl.distributed.optim.SparseAdam(
+                    sparse_params, lr=sparse_optimizer_lr
+                )
             sparse_opts = [emb_optimizer]
         else:
             sparse_opts = []

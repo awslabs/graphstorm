@@ -113,6 +113,13 @@ def test_wg_sparse_embed_save(world_size):
 
     if is_wholegraph_sparse_emb():
         wgth.finalize()
+        # below patch fix (manually reset wg comm) will not be needed
+        # once PR: https://github.com/rapidsai/wholegraph/pull/111 is merged.
+        import pylibwholegraph.torch.comm as wgth_comm
+        wgth_comm.global_communicators = {}
+        wgth_comm.local_node_communicator = None
+        wgth_comm.local_device_communicator = None
+
     th.distributed.destroy_process_group()
 
 @pytest.mark.parametrize("infer_world_size", [3, 8, 16])
@@ -178,6 +185,12 @@ def test_wg_sparse_embed_load(infer_world_size, train_world_size):
 
     if is_wholegraph_sparse_emb():
         wgth.finalize()
+        # below patch fix (manually reset wg comm) will not be needed
+        # once PR: https://github.com/rapidsai/wholegraph/pull/111 is merged.
+        import pylibwholegraph.torch.comm as wgth_comm
+        wgth_comm.global_communicators = {}
+        wgth_comm.local_node_communicator = None
+        wgth_comm.local_device_communicator = None
     th.distributed.destroy_process_group()
 
 
@@ -246,6 +259,12 @@ def test_wg_input_layer3(dev):
 
     if is_wholegraph_sparse_emb():
         wgth.finalize()
+        # below patch fix (manually reset wg comm) will not be needed
+        # once PR: https://github.com/rapidsai/wholegraph/pull/111 is merged.
+        import pylibwholegraph.torch.comm as wgth_comm
+        wgth_comm.global_communicators = {}
+        wgth_comm.local_node_communicator = None
+        wgth_comm.local_device_communicator = None
     th.distributed.destroy_process_group()
 
 # In this case, we use both node features and sparse embeddings.
@@ -288,6 +307,12 @@ def test_wg_input_layer2():
         assert_almost_equal(embed[ntype].detach().cpu().numpy(), true_val)
     if is_wholegraph_sparse_emb():
         wgth.finalize()
+        # below patch fix (manually reset wg comm) will not be needed
+        # once PR: https://github.com/rapidsai/wholegraph/pull/111 is merged.
+        import pylibwholegraph.torch.comm as wgth_comm
+        wgth_comm.global_communicators = {}
+        wgth_comm.local_node_communicator = None
+        wgth_comm.local_device_communicator = None
     th.distributed.destroy_process_group()
 
 # Refer to: unit-tests/test_embed.py:test_compute_embed
@@ -322,6 +347,12 @@ def test_wg_compute_embed(dev):
                                            feat_field={'n0' : ['feat']})
     if is_wholegraph_sparse_emb():
         wgth.finalize()
+        # below patch fix (manually reset wg comm) will not be needed
+        # once PR: https://github.com/rapidsai/wholegraph/pull/111 is merged.
+        import pylibwholegraph.torch.comm as wgth_comm
+        wgth_comm.global_communicators = {}
+        wgth_comm.local_node_communicator = None
+        wgth_comm.local_device_communicator = None
     th.distributed.destroy_process_group()
 
 if __name__ == '__main__':
