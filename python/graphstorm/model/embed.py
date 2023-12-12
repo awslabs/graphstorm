@@ -18,6 +18,7 @@
 
 import time
 import logging
+import numpy as np
 import torch as th
 from torch import nn
 import torch.nn.functional as F
@@ -314,6 +315,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
         embs = {}
         for ntype in input_nodes:
+            if isinstance(input_nodes[ntype], np.ndarray):
+                input_nodes[ntype] = th.from_numpy(input_nodes[ntype])
             emb = None
             if ntype in input_feats:
                 assert ntype in self.input_projs, \
@@ -346,12 +349,13 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     embs[ntype] = th.zeros((0, embedding_dim),
                                            device=device, dtype=dtype)
                     continue
+
                 if is_wholegraph_embedding_module(self.sparse_embeds[ntype]):
                     # output to local device
                     node_emb = self.sparse_embeds[ntype](input_nodes[ntype].cuda())
-                    node_emb = node_emb.to(device, non_blocking=True)
+                    emb = node_emb.to(device, non_blocking=True)
                 else:
-                    node_emb = self.sparse_embeds[ntype](input_nodes[ntype], device)
+                    emb = self.sparse_embeds[ntype](input_nodes[ntype], device)
 
                 emb = emb @ self.proj_matrix[ntype]
             if emb is not None:
