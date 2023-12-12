@@ -499,7 +499,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         # For edge hard negative transformation ops, more information is needed
         for op in hard_edge_neg_ops:
             op.set_target_etype(edge_type)
-            op.set_id_map(id_map)
+            op.set_id_maps(id_map)
 
         multiprocessing = do_multiprocess_transform(process_conf,
                                                     feat_ops,

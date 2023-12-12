@@ -936,7 +936,7 @@ class Noop(FeatTransform):
         return {self.feat_name: feats}
 
 class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
-    """ Translate input data into node ids for hard negative
+    """ Translate input data into node ids for hard negative stored as edge features
 
     Parameters
     ----------
@@ -954,14 +954,16 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
         super().__init__(col_name, feat_name, out_dtype=np.int64)
 
     def set_target_etype(self, etype):
-        """ Set the etype of this hard edge negative transformation ops.
+        """ Set the etype of this hard edge negative transformation ops
+            and associated hard negative information. For example,
+            self._target_ntype.
 
         Parameters
         ----------
         etype : tuple of str
             The edge type the hard negatives belonging to.
         """
-        self._target_etype = etype
+        raise NotImplementedError
 
     @property
     def target_etype(self):
@@ -969,10 +971,16 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
         """
         return self._target_etype
 
-    def set_id_map(self, id_map):
+    def set_id_maps(self, id_maps):
         """ Set ID mapping for converting raw string ID to Graph ID
         """
-        self._nid_map = id_map
+        assert self._target_ntype is not None, \
+            "The target node type should be set, it can be the source node type " \
+            "or the destination node type depending on the hard negative case."
+        assert self._target_ntype in id_maps, \
+            f"The nid mapping should have the mapping for {self._target_ntype}. " \
+            f"But only has {id_maps.keys()}"
+        self._nid_map = id_maps
 
     def pre_process(self, feats):
         """ Pre-process data
@@ -992,7 +1000,9 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
             max_dim = feats.shape[1]
         else:
             assert feats.dtype.type is np.str_, \
-                "We can only convert strings to multiple hard negatives with separators."
+                "We can only convert strings to multiple hard negatives when a separator is given."
+            assert len(feats.shape) == 1 or feats.shape[1] == 1, \
+                "When a separator is given, the input feats must be a list of strings."
             max_dim = 0
             for feat in feats:
                 dim_size = len(feat.split(self._separator))
@@ -1034,6 +1044,9 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
         return {self.feat_name: neg_ids}
 
 class HardEdgeDstNegativeTransform(HardEdgeNegativeTransform):
+    """ Translate input data (destination node raw id) into GraphStorm node ids
+        for hard negative stored as edge features.
+    """
 
     def set_target_etype(self, etype):
         self._target_etype = etype
