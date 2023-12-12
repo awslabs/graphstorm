@@ -27,6 +27,7 @@ from graphstorm.gconstruct.utils import _estimate_sizeof, _to_numpy_array, _to_s
 from graphstorm.gconstruct.utils import HDF5Array, ExtNumpyWrapper
 from graphstorm.gconstruct.utils import convert_to_ext_mem_numpy, _to_ext_memory
 from graphstorm.gconstruct.utils import multiprocessing_data_read
+from graphstorm.gconstruct.utils import get_hard_edge_negs_feats
 from graphstorm.gconstruct.file_io import (write_data_hdf5,
                                            read_data_hdf5,
                                            get_in_files,
@@ -34,6 +35,7 @@ from graphstorm.gconstruct.file_io import (write_data_hdf5,
 from graphstorm.gconstruct.file_io import (read_data_csv,
                                            read_data_json,
                                            read_data_parquet)
+from graphstorm.gconstruct.transform import HardEdgeDstNegativeTransform
 
 def gen_data():
     data_th = th.zeros((1024, 16), dtype=th.float32)
@@ -298,7 +300,25 @@ def test_get_in_files():
             pass_test = True
         assert pass_test
 
+def test_get_hard_edge_negs_feats():
+    hard_trans0 = HardEdgeDstNegativeTransform("hard_neg", "hard_neg")
+    hard_trans0.set_target_etype(("src", "rel0", "dst"))
+
+    hard_trans1 = HardEdgeDstNegativeTransform("hard_neg", "hard_neg1")
+    hard_trans1.set_target_etype(("src", "rel0", "dst"))
+
+    hard_trans2 = HardEdgeDstNegativeTransform("hard_neg", "hard_neg")
+    hard_trans2.set_target_etype(("src", "rel1", "dst"))
+
+    hard_edge_neg_feats = get_hard_edge_negs_feats([hard_trans0, hard_trans1, hard_trans2])
+    assert len(hard_edge_neg_feats) == 2
+    assert len(hard_edge_neg_feats[("src", "rel0", "dst")]) == 2
+    assert set(hard_edge_neg_feats[("src", "rel0", "dst")]) == set(["hard_neg", "hard_neg1"])
+    assert len(hard_edge_neg_feats[("src", "rel1", "dst")]) == 1
+
+
 if __name__ == '__main__':
+    test_get_hard_edge_negs_feats()
     test_get_in_files()
     test_read_empty_parquet()
     test_read_empty_json()

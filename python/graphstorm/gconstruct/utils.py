@@ -1001,19 +1001,34 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
         save_maps(output_dir, "edge_mapping", new_edge_mapping)
 
 def get_hard_edge_negs_feats(hard_edge_neg_ops):
+    """ Get feature names of hard negatives for each edge type.
+
+        Parameters
+        ----------
+        hard_edge_neg_ops: HardEdgeNegativeTransform
+            A list of edge hard negative transformations.
     """
-    """
-    hard_edge_negs = {}
+    hard_edge_neg_feats = {}
     for hard_edge_neg_op in hard_edge_neg_ops:
         edge_type = hard_edge_neg_op.target_etype
-        if edge_type not in hard_edge_negs:
-            hard_edge_negs[edge_type] = [hard_edge_neg_op.feat_name]
+        if edge_type not in hard_edge_neg_feats:
+            hard_edge_neg_feats[edge_type] = [hard_edge_neg_op.feat_name]
         else:
-            hard_edge_negs[edge_type].append(hard_edge_neg_op.feat_name)
-    return hard_edge_negs
+            hard_edge_neg_feats[edge_type].append(hard_edge_neg_op.feat_name)
+    return hard_edge_neg_feats
 
 def shuffle_hard_nids(data_path, num_parts, hard_edge_neg_feats):
-    """
+    """ Shuffle node ids of hard negatives from Graph node id space to
+        Partition Node id space.
+
+        Parameters
+        ----------
+        data_path: str
+            Path to the directory storing the partitioned graph.
+        num_parts: int
+            Number of partitions.
+        hard_edge_neg_feats: dict of lists
+            A directory storing hard negative features for each edge type.
     """
     # Load node id remapping
     node_mapping = load_maps(data_path, "node_mapping")
@@ -1022,3 +1037,4 @@ def shuffle_hard_nids(data_path, num_parts, hard_edge_neg_feats):
     for i in range(num_parts):
         part_path = os.path.join(data_path, f"part{i}")
         edge_faet_path = os.path.join(part_path, "edge_feat.dgl")
+
