@@ -67,7 +67,7 @@ def test_wg_sparse_embed_save(world_size):
         It will mimic the logic when multiple trainers are saving the embedding.
         And then check the value of the saved embedding.
     """
-    # initialize the torch distributed environment
+    # initialize the torch and wholegraph distributed environment
     wgth = pytest.importorskip("pylibwholegraph.torch")
     use_wholegraph_sparse_emb()
     initialize(use_wholegraph=is_wholegraph_sparse_emb())
@@ -113,10 +113,7 @@ def test_wg_sparse_embed_save(world_size):
 
     if is_wholegraph_sparse_emb():
         wgth.finalize()
-        th.distributed.destroy_process_group()
-    else:
-        th.distributed.destroy_process_group()
-        dgl.distributed.kvstore.close_kvstore()
+    th.distributed.destroy_process_group()
 
 @pytest.mark.parametrize("infer_world_size", [3, 8, 16])
 @pytest.mark.parametrize("train_world_size", [8])
@@ -128,7 +125,7 @@ def test_wg_sparse_embed_load(infer_world_size, train_world_size):
         different number of processes to load the sparse embedding.
         It will compare the embedings stored and loaded.
     """
-    # initialize the torch distributed environment
+    # initialize the torch and wholegraph distributed environment
     wgth = pytest.importorskip("pylibwholegraph.torch")
     use_wholegraph_sparse_emb()
     initialize(use_wholegraph=is_wholegraph_sparse_emb())
@@ -181,16 +178,15 @@ def test_wg_sparse_embed_load(infer_world_size, train_world_size):
 
     if is_wholegraph_sparse_emb():
         wgth.finalize()
-        th.distributed.destroy_process_group()
-    else:
-        th.distributed.destroy_process_group()
-        dgl.distributed.kvstore.close_kvstore()
+    th.distributed.destroy_process_group()
+
 
 # In this case, we use node feature on one node type and
 # use sparse embedding on the other node type.
+# Refer to: unit-tests/test_embed.py:test_input_layer3
 @pytest.mark.parametrize("dev", ['cpu','cuda:0'])
 def test_wg_input_layer3(dev):
-    # initialize the torch distributed environment
+    # initialize the torch and wholegraph distributed environment
     wgth = pytest.importorskip("pylibwholegraph.torch")
     use_wholegraph_sparse_emb()
     initialize(use_wholegraph=is_wholegraph_sparse_emb())
@@ -250,11 +246,12 @@ def test_wg_input_layer3(dev):
 
     if is_wholegraph_sparse_emb():
         wgth.finalize()
-        th.distributed.destroy_process_group()
+    th.distributed.destroy_process_group()
 
 # In this case, we use both node features and sparse embeddings.
+# Refer to: unit-tests/test_embed.py:test_input_layer2
 def test_wg_input_layer2():
-    # initialize the torch distributed environment
+    # initialize the torch and wholegraph distributed environment
     wgth = pytest.importorskip("pylibwholegraph.torch")
     use_wholegraph_sparse_emb()
     initialize(use_wholegraph=is_wholegraph_sparse_emb())
@@ -291,11 +288,12 @@ def test_wg_input_layer2():
         assert_almost_equal(embed[ntype].detach().cpu().numpy(), true_val)
     if is_wholegraph_sparse_emb():
         wgth.finalize()
-        th.distributed.destroy_process_group()
+    th.distributed.destroy_process_group()
 
+# Refer to: unit-tests/test_embed.py:test_compute_embed
 @pytest.mark.parametrize("dev", ['cpu','cuda:0'])
 def test_wg_compute_embed(dev):
-    # initialize the torch distributed environment
+    # initialize the torch and wholegraph distributed environment
     wgth = pytest.importorskip("pylibwholegraph.torch")
     use_wholegraph_sparse_emb()
     initialize(use_wholegraph=is_wholegraph_sparse_emb())
@@ -324,9 +322,15 @@ def test_wg_compute_embed(dev):
                                            feat_field={'n0' : ['feat']})
     if is_wholegraph_sparse_emb():
         wgth.finalize()
-        th.distributed.destroy_process_group()
+    th.distributed.destroy_process_group()
 
 if __name__ == '__main__':
     test_wg_sparse_embed_save(4)
     test_wg_sparse_embed_load(3, 8)
     test_wg_sparse_embed_load(8, 8)
+
+    test_wg_input_layer2()
+    test_wg_input_layer3('cpu')
+    test_wg_input_layer3('cuda:0')
+    test_wg_compute_embed('cpu')
+    test_wg_compute_embed('cuda:0')
