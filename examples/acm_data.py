@@ -67,6 +67,10 @@ def create_acm_raw_data(graph,
     This graph is based on the DGL graph created by the create_acm_dgl_graph() function. Because we
     only use three relationships in the original ACM data, the number of graph nodes could be less 
     than the papers, authors, and subjects in the original node lists.
+    
+    In addition, to demonstrate string type node ids, we add the first letter of each node type
+    name to the original numerical ids, i.e., "author" -> "a", "paper" -> "p", and "subject" ->
+    "s".
 
     Parameters
     ----------
@@ -88,12 +92,18 @@ def create_acm_raw_data(graph,
     # generate node dataframe: we use the graph node ids and node name as node_type
     node_list = []
 
+    node_prefix_dict = {}
+    for ntype in graph.ntypes:
+        node_prefix_dict[ntype] = ntype[0]
+
     for ntype in graph.ntypes:
         node_dict = {}
         # generate the id column
         node_ids = graph.nodes(ntype)
-        # convert tensor to list of arrays for saving in parquet format
-        node_dict['node_id'] = convert_tensor_to_list_arrays(node_ids)
+        # pad a prefix before each node id.
+        str_node_ids = np.array([f'{node_prefix_dict[ntype]}{i}' for i in node_ids.numpy()])
+        
+        node_dict['node_id'] = str_node_ids
 
         # generate the feature columns and label column
         if graph.nodes[ntype].data:
@@ -125,8 +135,10 @@ def create_acm_raw_data(graph,
         # generate the ids columns for both source nodes and destination nodes
         src_ids, dst_ids = graph.edges(etype=(src_ntype, etype, dst_ntype))
        # convert tensor to list of arrays for saving in parquet format
-        edge_dict['source_id'] = convert_tensor_to_list_arrays(src_ids)
-        edge_dict['dest_id'] = convert_tensor_to_list_arrays(dst_ids)
+        str_src_ids = np.array([f'{node_prefix_dict[src_ntype]}{i}' for i in src_ids.numpy()])
+        str_dst_ids = np.array([f'{node_prefix_dict[dst_ntype]}{i}' for i in dst_ids.numpy()])
+        edge_dict['source_id'] = str_src_ids
+        edge_dict['dest_id'] = str_dst_ids
         
         # generate feature columns and label col
         if graph.edges[(src_ntype, etype, dst_ntype)].data:
@@ -231,7 +243,7 @@ def create_acm_raw_data(graph,
             elif col == 'dest_id':
                 edge_dict['dest_id_col'] = col
             elif col == 'label':
-                label_dict['task_type'] = 'link_prediction'      # In ACM data, we do not have this
+                label_dict['task_type'] = 'link_prediction'     # In ACM data, we do not have this
                                                                 # edge task. Here is just for demo
                 label_dict['split_pct'] = [0.8, 0.1, 0.1]       # Same as the label_split filed.
                                                                 # The split pct values are just for
@@ -252,6 +264,7 @@ def create_acm_raw_data(graph,
         
     # generate the configuration JSON file
     data_json = {}
+    data_json['version'] = 'gconstruct-v0.1'
     data_json['nodes'] = node_jsons
     data_json['edges'] = edge_jsons
         
