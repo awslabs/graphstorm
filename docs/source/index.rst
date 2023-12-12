@@ -36,9 +36,10 @@ Welcome to the GraphStorm Documentation and Tutorials
    scale/sagemaker
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Programming User Guide
 
+   notebooks/Notebook_0
    notebooks/Notebook 1: Built-in RGCN for Node Classification
 
 .. toctree::
