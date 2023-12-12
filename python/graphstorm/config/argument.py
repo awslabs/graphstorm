@@ -149,6 +149,7 @@ class GSConfig:
         # Override class attributes using command-line arguments
         self.override_arguments(cmd_args)
         self.local_rank = cmd_args.local_rank
+        self.is_homo = False
 
         logging.debug(str(configuration))
         cmd_args_dict = cmd_args.__dict__
@@ -1573,9 +1574,11 @@ class GSConfig:
         """ The node type for prediction
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_target_ntype"), \
-            "Must provide the target ntype through target_ntype"
-        return self._target_ntype
+        if hasattr(self, "_target_ntype"):
+            return self._target_ntype
+        else:
+            self.is_homo = True
+            return "_N"
 
     @property
     def eval_target_ntype(self):

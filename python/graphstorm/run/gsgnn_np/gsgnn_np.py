@@ -73,6 +73,9 @@ def main(config_args):
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field,
                                     lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
+    if config.is_homo:
+        assert train_data.g.ntypes == ["_N"], "It is required to be a homogeneous graph " \
+                                              "when not providing target_ntype on node task"
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
 
     if config.training_method["name"] == "glem":
