@@ -25,6 +25,7 @@ import logging
 import yaml
 import torch as th
 import torch.nn.functional as F
+from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 
 from .config import BUILTIN_GNN_ENCODER
 from .config import BUILTIN_ENCODER
@@ -149,7 +150,6 @@ class GSConfig:
         # Override class attributes using command-line arguments
         self.override_arguments(cmd_args)
         self.local_rank = cmd_args.local_rank
-        self.is_homo = False
 
         logging.debug(str(configuration))
         cmd_args_dict = cmd_args.__dict__
@@ -1577,8 +1577,7 @@ class GSConfig:
         if hasattr(self, "_target_ntype"):
             return self._target_ntype
         else:
-            self.is_homo = True
-            return "_N"
+            return DEFAULT_NTYPE
 
     @property
     def eval_target_ntype(self):
