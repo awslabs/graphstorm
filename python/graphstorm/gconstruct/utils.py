@@ -1014,7 +1014,7 @@ def get_hard_edge_negs_feats(hard_edge_neg_ops):
         neg_ntype = hard_edge_neg_op.neg_ntype
 
         if edge_type not in hard_edge_neg_feats:
-            hard_edge_neg_feats[edge_type] = {neg_ntype: hard_edge_neg_op.feat_name}
+            hard_edge_neg_feats[edge_type] = {neg_ntype: [hard_edge_neg_op.feat_name]}
         else:
             if neg_ntype in hard_edge_neg_feats[edge_type]:
                 hard_edge_neg_feats[edge_type][neg_ntype].append(hard_edge_neg_op.feat_name)
