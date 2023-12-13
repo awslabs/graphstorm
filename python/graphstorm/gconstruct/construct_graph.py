@@ -591,14 +591,14 @@ def verify_confs(confs, rev_edges):
             "The config file does not have a 'version' entry. Assuming gconstruct-v0.1")
     ntypes = {conf['node_type'] for conf in confs["nodes"]}
     etypes = [conf['relation'] for conf in confs["edges"]]
-    # Adjust input to DGL requirement if it is a honogeneous graph
+    # Adjust input to DGL homogeneous graph format if it is a homogeneous graph
     if len(ntypes) == 1 and len(etypes) == 1 and not rev_edges:
         assert etypes[0][0] in ntypes, \
             f"source node type {etypes[0][0]} does not exist. Please check your input data."
         assert etypes[0][2] in ntypes, \
             f"dest node type {etypes[0][2]} does not exist. Please check your input data."
         logging.warning("Generated Graph is a homogeneous graph, so the node type will be "
-                        "changed to _N and edge type should be changed to [_N, _E, _N]")
+                        "changed to _N and edge type will be changed to [_N, _E, _N]")
         confs['nodes'][0]['node_type'] = "_N"
         confs['edges'][0]['relation'] = ["_N", "_E", "_N"]
     for etype in etypes:
