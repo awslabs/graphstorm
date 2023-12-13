@@ -949,6 +949,7 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
     """
     def __init__(self, col_name, feat_name, separator=None):
         self._target_ntype = None
+        self._target_etype = None
         self._nid_map = None
         self._separator = separator
         super().__init__(col_name, feat_name, out_dtype=np.int64)
