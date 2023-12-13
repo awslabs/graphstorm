@@ -97,8 +97,10 @@ def use_wholegraph_sparse_emb():
     """
     global USE_WHOLEGRAPH_SPARSEEMB
     try:
-        #Question(chang-l): Do we need to have an option in gs config file?
-        USE_WHOLEGRAPH_SPARSEEMB = True
+        # Question(chang-l): Do we need to have an option in gs config file?
+        USE_WHOLEGRAPH_SPARSEEMB = (
+            "USE_WG_SPARSE_EMB" in os.environ and os.environ.get("USE_WG_SPARSE_EMB") != "0"
+        )
         return USE_WHOLEGRAPH_SPARSEEMB
     except: # pylint: disable=bare-except
         USE_WHOLEGRAPH_SPARSEEMB = False

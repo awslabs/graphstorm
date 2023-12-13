@@ -50,7 +50,13 @@ from graphstorm.dataloading import (FastGSgnnLinkPredictionDataLoader,
 from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
 from graphstorm.model.utils import save_full_node_embeddings
 from graphstorm.model import do_full_graph_inference
-from graphstorm.utils import rt_profiler, sys_tracker, setup_device, use_wholegraph
+from graphstorm.utils import (
+    rt_profiler,
+    sys_tracker,
+    setup_device,
+    use_wholegraph,
+    use_wholegraph_sparse_emb,
+)
 from graphstorm.utils import get_lm_ntypes
 
 def get_evaluator(config, train_data):
@@ -91,8 +97,10 @@ def main(config_args):
     config = GSConfig(config_args)
     config.verify_arguments(True)
 
+    use_wg_sparse_emb = use_wholegraph_sparse_emb()
+    use_wg_feats = use_wholegraph(config.part_config)
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
-                  use_wholegraph=use_wholegraph(config.part_config))
+                  use_wholegraph=use_wg_sparse_emb or use_wg_feats)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
     device = setup_device(config.local_rank)
