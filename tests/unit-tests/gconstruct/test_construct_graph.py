@@ -1708,6 +1708,7 @@ def test_gc():
 
 
 def test_homo():
+    # single node type and edge type input
     conf = {'version': 'gconstruct-v0.1', 'nodes': [{'node_id_col': 'id', 'node_type': 'movie', 'format': {'name': 'parquet'},
                                               'files': '/data/ml-100k/movie.parquet', 'features': [
             {'feature_col': 'title',
@@ -1716,6 +1717,33 @@ def test_homo():
         {'source_id_col': 'src_id', 'dest_id_col': 'dst_id', 'relation': ['movie', 'rating', 'movie'],
          'format': {'name': 'parquet'}, 'files': '/data/ml-100k/edges.parquet',
          'labels': [{'label_col': 'rate', 'task_type': 'classification', 'split_pct': [0.1, 0.1, 0.1]}]}]}
+    verify_confs(conf, rev_edges=False)
+    assert conf['nodes'][0]["node_type"] == "_N"
+    assert conf['edges'][0]['relation'] == ["_N", "_E", "_N"]
+
+    conf['nodes'][0]["node_type"] = "movie"
+    conf['edges'][0]['relation'] = ['movie', 'rating', 'movie']
+    verify_confs(conf, rev_edges=True)
+    assert conf['nodes'][0]["node_type"] == "movie"
+    assert conf['edges'][0]['relation'] == ["movie", "rating", "movie"]
+
+    # multiple node types and edge types input
+    conf = {
+        "version": "gconstruct-v0.1", "nodes": [
+            {"node_id_col": "id", "node_type": "movie", "format": {"name": "parquet"},
+             "files": "/data/ml-100k/movie.parquet", "features": [
+                {"feature_col": "title", "transform": {
+                    "name": "bert_hf", "bert_model": "bert-base-uncased", "max_seq_length": 16}}],
+             "labels": [{"label_col": "label", "task_type": "classification", "split_pct": [0.8, 0.1, 0.1]}]},
+            {"node_type": "movie", "format": {"name": "parquet"}, "files": "/data/ml-100k/movie.parquet",
+             "features": [{"feature_col": "id"}]}],
+        "edges": [
+            {"source_id_col": "src_id", "dest_id_col": "dst_id", "relation": ["movie", "rating", "movie"],
+             "format": {"name": "parquet"}, "files": "/data/ml-100k/edges_homo.parquet", "labels": [
+                {"label_col": "rate", "task_type": "classification", "split_pct": [0.1, 0.1, 0.1]}]},
+            {"relation": ["movie", "rating", "movie"], "format": {"name": "parquet"},
+             "files": "/data/ml-100k/edges_homo.parquet"}]
+    }
     verify_confs(conf, rev_edges=False)
     assert conf['nodes'][0]["node_type"] == "_N"
     assert conf['edges'][0]['relation'] == ["_N", "_E", "_N"]

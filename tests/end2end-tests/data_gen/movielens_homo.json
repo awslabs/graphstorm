@@ -23,6 +23,16 @@
                             "split_pct":	[0.8, 0.1, 0.1]
                         }
                     ]
+            },
+            {
+                    "node_type":    "movie",
+                    "format":       {"name": "parquet"},
+                    "files":        "/data/ml-100k/movie.parquet",
+                    "features":     [
+                           {
+                                   "feature_col":  "id"
+                           }
+                    ]
             }
     ],
     "edges": [
@@ -39,6 +49,11 @@
                             "split_pct":	[0.1, 0.1, 0.1]
                         }
                     ]
+            },
+            {
+                    "relation":         ["movie", "rating", "movie"],
+                    "format":           {"name": "parquet"},
+                    "files":        "/data/ml-100k/edges_homo.parquet"
             }
     ]
 }
