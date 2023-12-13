@@ -21,7 +21,6 @@ import decimal
 import pyarrow.parquet as pq
 import numpy as np
 import dgl
-import argparse
 import torch as th
 
 from functools import partial
