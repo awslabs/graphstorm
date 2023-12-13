@@ -604,8 +604,10 @@ def verify_confs(confs, rev_edges):
             f"dest node type {etypes[0][2]} does not exist. Please check your input data."
         logging.warning("Generated Graph is a homogeneous graph, so the node type will be "
                         "changed to _N and edge type will be changed to [_N, _E, _N]")
-        [node.update({'node_type': "_N"}) for node in confs['nodes']]
-        [edge.update({'relation': ["_N", "_E", "_N"]}) for edge in confs['edges']]
+        for node in confs['nodes']:
+            node['node_type'] = "_N"
+        for edge in confs['edges']:
+            edge['relation'] = ["_N", "_E", "_N"]
     for etype in etypes:
         assert len(etype) == 3, \
                 "The edge type must be (source node type, relation type, dest node type)."
