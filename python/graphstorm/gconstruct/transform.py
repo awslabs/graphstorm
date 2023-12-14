@@ -319,6 +319,9 @@ class TwoPhaseFeatTransform(FeatTransform):
         ----------
         feats:
             feats to be processed
+
+        Return:
+            dict: {feature_name: feats_statistics}
         """
 
     def update_info(self, info):
@@ -326,8 +329,8 @@ class TwoPhaseFeatTransform(FeatTransform):
 
         Parameters
         ----------
-        info:
-            Information to be collected
+        info: list
+            Information to be collected. A list of feats_statistics returned by pre_process
         """
 
     def call(self, feats):
@@ -441,13 +444,6 @@ class CategoricalTransform(TwoPhaseFeatTransform):
         super(CategoricalTransform, self).__init__(col_name, feat_name)
 
     def pre_process(self, feats):
-        """ Pre-process data
-
-        Parameters
-        ----------
-        feats: np.array
-            Data to be processed
-        """
         # If the mapping already exists, we don't need to do anything.
         if len(self._val_dict) > 0:
             return {}
@@ -472,13 +468,6 @@ class CategoricalTransform(TwoPhaseFeatTransform):
 
 
     def update_info(self, info):
-        """ Store global information for the second phase data processing
-
-        Parameters
-        ----------
-        info: list
-            Information to be collected
-        """
         # We already have the mapping.
         if len(self._val_dict) > 0:
             assert len(info) == 0
@@ -564,13 +553,6 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         super(NumericalMinMaxTransform, self).__init__(col_name, feat_name, out_dtype)
 
     def pre_process(self, feats):
-        """ Pre-process data
-
-        Parameters
-        ----------
-        feats: np.array
-            Data to be processed
-        """
         assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
             "Feature of NumericalMinMaxTransform must be numpy array or ExtMemArray"
 
@@ -614,13 +596,6 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         return {self.feat_name: (max_val, min_val)}
 
     def update_info(self, info):
-        """ Store global information for the second phase data processing
-
-        Parameters
-        ----------
-        info: list
-            Information to be collected
-        """
         max_vals = []
         min_vals = []
         for (max_val, min_val) in info:
@@ -990,7 +965,7 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
         self._nid_map = id_maps
 
     def pre_process(self, feats):
-        """ Pre-process data
+        """ Pre-process input feats
 
             Not all the edges have the same number of hard negatives.
             Thus we need to know the maxmun number of hard negatives first.
@@ -999,6 +974,9 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
         ----------
         feats:
             feats to be processed
+
+        Return:
+            dict: {feature_name: feats_statistics}
         """
         assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
             "Feature of HardEdgeNegativeTransform must be numpy array or ExtMemArray"
@@ -1016,7 +994,6 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
                                 "But we get %s. Will convert the input feats into str array",
                                 feats.dtype.type)
             feats = feats.astype(str)
-            print(feats.dtype.type)
             max_dim = 0
             for feat in feats:
                 dim_size = len(feat.split(self._separator))
@@ -1024,17 +1001,21 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
         return {self.feat_name: max_dim}
 
     def update_info(self, info):
-        """ Store global information for the second phase data processing
-
-        Parameters
-        ----------
-        info:
-            Information to be collected
-        """
         max_dim = max(info)
         self._max_dim = max_dim
 
     def call(self, feats):
+        """ Generate hard negatives as features
+
+        Parameters
+        ----------
+        feats : np array
+            Data with hard negatives.
+
+        Returns
+        -------
+        np.array
+        """
         assert self._target_ntype is not None, \
             "The target node type should be set, it can be the source node type " \
             "or the destination node type depending on the hard negative case."
@@ -1048,7 +1029,7 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
                 # raw_ids is a numpy array
                 # handle empty strings in raw_ids
                 raw_ids = raw_ids.astype(str)
-                nid_idx = (raw_ids != "")
+                nid_idx = raw_ids != ""
                 nids, _ = nid_map.map_id(raw_ids[nid_idx].astype(
                     nid_map.map_key_dtype))
                 neg_ids[i][nid_idx] = nids
