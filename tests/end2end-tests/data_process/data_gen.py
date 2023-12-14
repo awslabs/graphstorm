@@ -90,9 +90,12 @@ edge_data1 = {
     'dst': dst1,
     'label': (src1 + dst1) % 100,
 }
+src2 = node_data1['id'][np.random.randint(0, 9999, 50000)]
+dst2 = node_data1['id'][np.random.randint(0, 9999, 50000)]
 edge_data2 = {
-    'src': node_data1['id'][np.random.randint(0, 9999, 50000)],
-    'dst': node_data1['id'][np.random.randint(0, 9999, 50000)],
+    'src': src2,
+    'dst': dst2,
+    "hard_neg" : np.concatenate((src2.reshape(-1,1), dst2.reshape(-1,1)), axis=1).astype(str)
 }
 
 edge_data1_2_float = np.random.rand(src1.shape[0], 10) * 2
@@ -107,11 +110,13 @@ edge_data1_2 = {
 
 src3 = node_data2['id'][np.random.randint(0, 20000, 100000)]
 dst_idx = np.random.randint(0, 5000, 100000)
+dst3 = node_data3['id'][dst_idx]
 edge_data3 = {
     'src': src3,
-    'dst': node_data3['id'][dst_idx],
+    'dst': dst3,
     'data': src3 + node_id3[dst_idx],
     'data1': np.repeat(src3 + node_id3[dst_idx], 5).reshape(len(src3), 5),
+    "neg" : np.array([f"{str(nid)},{str(nid)}" for nid in dst3]).astype(str)
 }
 edge_data3_2 = {
     'data': src3 + node_id3[dst_idx],
@@ -149,6 +154,7 @@ write_data_hdf5(edge_data1_2, os.path.join(in_dir, f'edge_data1_2.hdf5'))
 for i, edge_data in enumerate(split_data(edge_data3, 10)):
     write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data3_{i}.parquet'))
 write_data_hdf5(edge_data3_2, os.path.join(in_dir, f'edge_data3_2.hdf5'))
+
 
 node_conf = [
     {
@@ -203,7 +209,7 @@ node_conf = [
                 # tokenize_hf generates multiple features.
                 # It defines feature names itself.
                 "transform": {"name": "tokenize_hf",
-                              "bert_model": "/root/.cache/huggingface/hub/models--bert-base-uncased/snapshots/a265f773a47193eed794233aa2a0f0bb6d3eaa63/",
+                              "bert_model": "bert-base-uncased",
                               "max_seq_length": 16},
             },
             {
@@ -211,7 +217,7 @@ node_conf = [
                 "feature_name": "bert",
                 "out_dtype": 'float32',
                 "transform": {"name": "bert_hf",
-                              "bert_model": "/root/.cache/huggingface/hub/models--bert-base-uncased/snapshots/a265f773a47193eed794233aa2a0f0bb6d3eaa63/",
+                              "bert_model": "bert-base-uncased",
                               "max_seq_length": 16},
             },
             {
@@ -347,9 +353,7 @@ edge_conf = [
         "labels":       [
             {
                 "task_type":    "link_prediction",
-                "split_pct":   [0.8, 0.2, 0.0],
-                "hard_neg_dst_node_col": "hard_neg",
-                "hard_neg_dst_feat_name": "hard_neg"
+                "split_pct":   [0.8, 0.2, 0.0]
             },
         ],
         "features": [
@@ -371,6 +375,12 @@ edge_conf = [
                 "feature_col": "data",
                 "feature_name": "feat",
             },
+            {
+                "feature_col": "neg",
+                "feature_name": "hard_neg",
+                "transform": {"name": "edge_dst_hard_negative",
+                              "separator": ","}
+            }
         ],
     },
     {
@@ -383,20 +393,7 @@ edge_conf = [
                 "feature_name": "feat2",
             },
         ],
-    },
-    {
-        "relation":         ("node2", "relation3", "node3"),
-        "format":           {"name": "parquet"},
-        "files":            os.path.join(in_dir, "edge_data3_*.parquet"),
-        "features": [
-            {
-                "feature_col": "hard_neg",
-                "feature_name": "hard_neg",
-                "transform": {"name": "edge_dst_hard_negative",
-                              "separator": ","}
-            }
-        ],
-    },
+    }
 ]
 transform_conf = {
     "nodes": node_conf,

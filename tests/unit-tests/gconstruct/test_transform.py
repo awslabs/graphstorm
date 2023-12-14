@@ -861,6 +861,57 @@ def test_hard_edge_dst_negative_transform():
     assert_equal(neg1["hard_neg"][20][:15], np.array([(99-i) for i in range(15)]))
     assert_equal(neg1["hard_neg"][20][15:], np.full((5,), -1, dtype=np.int64))
 
+    # nid map use int as key
+    id_maps = {"dst": IdMap(str_ids)}
+    hard_neg_trasnform.set_id_maps(id_maps)
+
+    input_feats = np.random.randint(0, 100, size=(20, 10), dtype=np.int64)
+    input_str_feats = input_feats.astype(str)
+    info = hard_neg_trasnform.pre_process(input_str_feats)
+    assert info["hard_neg"] == 10
+
+    hard_neg_trasnform.update_info([info["hard_neg"]])
+    assert hard_neg_trasnform._max_dim == 10
+
+    neg = hard_neg_trasnform(input_str_feats)
+    assert_equal(neg["hard_neg"], 99-input_feats)
+
+    hard_neg_trasnform = HardEdgeDstNegativeTransform("hard_neg", "hard_neg", separator=",")
+    hard_neg_trasnform.set_target_etype(("src", "rel", "dst"))
+    hard_neg_trasnform.set_id_maps(id_maps)
+
+    input_feats = np.random.randint(0, 100, size=(20, 10), dtype=np.int64)
+    input_str_feats = [",".join(feats) for feats in input_feats.astype(str).tolist()]
+    input_str_feats.append(",".join([str(i) for i in range(15)]))
+    input_str_feats = np.array(input_str_feats)
+    info = hard_neg_trasnform.pre_process(input_str_feats)
+    assert info["hard_neg"] == 15
+
+    hard_neg_trasnform.update_info([info["hard_neg"]])
+    assert hard_neg_trasnform._max_dim == 15
+    neg0 = hard_neg_trasnform(input_str_feats0)
+    assert_equal(neg0["hard_neg"][:20,:10], 99-input_feats0)
+    assert_equal(neg0["hard_neg"][20][:15], np.array([(99-i) for i in range(15)]))
+
+    # test when there are empty string in input array
+    id_maps = {"dst": IdMap(str_ids.astype(str))}
+    hard_neg_trasnform.set_id_maps(id_maps)
+
+    input_feats = np.random.randint(0, 100, size=(20, 10), dtype=np.int64)
+    input_str_feats = input_feats.astype(str)
+    input_str_feats[0][-1] = ""
+    input_str_feats[1][-2] = ""
+    info = hard_neg_trasnform.pre_process(input_str_feats)
+    assert info["hard_neg"] == 10
+
+    hard_neg_trasnform.update_info([info["hard_neg"]])
+    assert hard_neg_trasnform._max_dim == 10
+
+    neg = hard_neg_trasnform(input_str_feats)
+    ground_truth = 99-input_feats
+    ground_truth[0][-1] = -1
+    ground_truth[1][-2] = -1
+    assert_equal(neg["hard_neg"][:,:10], 99-input_feats)
 
 if __name__ == '__main__':
     test_hard_edge_dst_negative_transform()

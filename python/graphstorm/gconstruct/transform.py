@@ -1006,10 +1006,15 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
         if self._separator is None:
             max_dim = feats.shape[1]
         else:
-            assert feats.dtype.type is np.str_, \
-                "We can only convert strings to multiple hard negatives when a separator is given."
             assert len(feats.shape) == 1 or feats.shape[1] == 1, \
                 "When a separator is given, the input feats must be a list of strings."
+
+
+            if feats.dtype.type is not np.str_:
+                logging.warning("When a separator is given, the input feats must be a list of strings."
+                                "But we get %s. Will convert the input feats into str array", feats.dtype.type)
+            feats = feats.astype(str)
+            print(feats.dtype.type)
             max_dim = 0
             for feat in feats:
                 dim_size = len(feat.split(self._separator))
@@ -1038,14 +1043,18 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
             for i, raw_ids in enumerate(feats):
                 if raw_ids is None:
                     continue
-                nids, _ = nid_map.map_id(raw_ids)
-                neg_ids[i][:nids.shape[0]] = nids
+                # raw_ids is a numpy array
+                # handle empty strings in raw_ids
+                raw_ids = raw_ids.astype(str)
+                nid_idx = (raw_ids != "")
+                nids, _ = nid_map.map_id(raw_ids[nid_idx].astype(nid_map.map_key_dtype))
+                neg_ids[i][nid_idx] = nids
         else:
             for i, feat in enumerate(feats):
                 if feat is None:
                     continue
                 raw_ids = np.array(feat.split(self._separator))
-                nids, _ = nid_map.map_id(raw_ids)
+                nids, _ = nid_map.map_id(raw_ids.astype(nid_map.map_key_dtype))
                 neg_ids[i][:nids.shape[0]] = nids
 
         return {self.feat_name: neg_ids}
