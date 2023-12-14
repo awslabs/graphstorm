@@ -28,6 +28,7 @@ import logging
 import numpy as np
 import torch as th
 import dgl
+from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 
 from ..utils import sys_tracker, get_log_level
 from .file_io import parse_node_file_format, parse_edge_file_format
@@ -582,12 +583,23 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
 
     return (edges, edge_data, label_stats)
 
-def verify_confs(confs, rev_edges):
+def is_homogeneous(confs):
+    """ Verify if it is a homogeneous graph
+    Parameter
+    ---------
+    confs: dict
+        A dict containing all user input config
+    """
+    ntypes = {conf['node_type'] for conf in confs["nodes"]}
+    etypes = set(tuple(conf['relation']) for conf in confs["edges"])
+    return len(ntypes) == 1 and len(etypes) == 1
+
+def verify_confs(confs):
     """ Verify the configuration of the input data.
-    Parameters
-    ----------
-    rev_edges: bool
-        Whether to add reverse edges
+    Parameter
+    ---------
+    confs: dict
+        A dict containing all user input config
     """
     if "version" not in confs:
         # TODO: Make a requirement with v1.0 launch
@@ -596,8 +608,7 @@ def verify_confs(confs, rev_edges):
     ntypes = {conf['node_type'] for conf in confs["nodes"]}
     etypes = [conf['relation'] for conf in confs["edges"]]
     # Adjust input to DGL homogeneous graph format if it is a homogeneous graph
-    etype_set = set(tuple(relation) for relation in etypes)
-    if len(ntypes) == 1 and len(etype_set) == 1 and not rev_edges:
+    if is_homogeneous(confs):
         assert etypes[0][0] in ntypes, \
             f"source node type {etypes[0][0]} does not exist. Please check your input data."
         assert etypes[0][2] in ntypes, \
@@ -605,9 +616,9 @@ def verify_confs(confs, rev_edges):
         logging.warning("Generated Graph is a homogeneous graph, so the node type will be "
                         "changed to _N and edge type will be changed to [_N, _E, _N]")
         for node in confs['nodes']:
-            node['node_type'] = "_N"
+            node['node_type'] = DEFAULT_NTYPE
         for edge in confs['edges']:
-            edge['relation'] = ["_N", "_E", "_N"]
+            edge['relation'] = DEFAULT_ETYPE
     for etype in etypes:
         assert len(etype) == 3, \
                 "The edge type must be (source node type, relation type, dest node type)."
@@ -685,7 +696,7 @@ def process_graph(args):
             if args.num_processes_for_nodes is not None else args.num_processes
     num_processes_for_edges = args.num_processes_for_edges \
             if args.num_processes_for_edges is not None else args.num_processes
-    verify_confs(process_confs, args.add_reverse_edges)
+    verify_confs(process_confs)
     output_format = args.output_format
     for out_format in output_format:
         assert out_format in ["DGL", "DistDGL"], \
@@ -715,12 +726,29 @@ def process_graph(args):
 
     if args.add_reverse_edges:
         edges1 = {}
-        for etype in edges:
-            e = edges[etype]
+        if is_homogeneous(process_confs):
+            logging.warning("For homogeneous graph, the generated reverse edge will "
+                            "be the same edge type as the original graph. Instead for "
+                            "heterogeneous graph, the generated reverse edge type will "
+                            "add -rev as a suffix")
+            e = edges[DEFAULT_ETYPE]
             assert isinstance(e, tuple) and len(e) == 2
-            assert isinstance(etype, tuple) and len(etype) == 3
-            edges1[etype] = e
-            edges1[etype[2], etype[1] + "-rev", etype[0]] = (e[1], e[0])
+            edges1[DEFAULT_ETYPE] = e
+            edges1[DEFAULT_ETYPE] = (np.concatenate([e[0], e[1]]),
+                                     np.concatenate([e[1], e[0]]))
+            if DEFAULT_ETYPE in edge_data:
+                data = edge_data[DEFAULT_ETYPE]
+                logging.warning("Reverse edge for homogeneous graph will have same feature as "
+                                "what we have in the original edges")
+                for key, value in data.items():
+                    data[key] = np.concatenate([value, value])
+        else:
+            for etype in edges:
+                e = edges[etype]
+                assert isinstance(e, tuple) and len(e) == 2
+                assert isinstance(etype, tuple) and len(etype) == 3
+                edges1[etype] = e
+                edges1[etype[2], etype[1] + "-rev", etype[0]] = (e[1], e[0])
         edges = edges1
         sys_tracker.check('Add reverse edges')
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)

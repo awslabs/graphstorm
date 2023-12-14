@@ -1706,7 +1706,7 @@ def test_gc():
         "Directory /tmp_featurewrapper2 should not exist after gc"
 
 
-def test_homo():
+def test_homogeneous():
     # single node type and edge type input
     conf = {
         "version": "gconstruct-v0.1", "nodes": [
@@ -1776,4 +1776,4 @@ if __name__ == '__main__':
     test_multicolumn(None)
     test_multicolumn("/")
     test_feature_wrapper()
-    test_homo()
+    test_homogeneous()

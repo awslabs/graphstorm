@@ -42,6 +42,10 @@
                     "relation":         ["movie", "rating", "movie"],
                     "format":           {"name": "parquet"},
                     "files":        "/data/ml-100k/edges_homo.parquet",
+                    "features": [
+                                  {
+                                   "feature_col":  "rate"
+                           }],
                     "labels":	[
                         {
                             "label_col":	"rate",
