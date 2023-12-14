@@ -1029,7 +1029,7 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
                 # raw_ids is a numpy array
                 # handle empty strings in raw_ids
                 raw_ids = raw_ids.astype(str)
-                nid_idx = raw_ids != ""
+                nid_idx = np.nonzero(raw_ids != "")[0]
                 nids, _ = nid_map.map_id(raw_ids[nid_idx].astype(
                     nid_map.map_key_dtype))
                 neg_ids[i][nid_idx] = nids
