@@ -862,6 +862,8 @@ def test_hard_edge_dst_negative_transform():
     assert_equal(neg1["hard_neg"][20][15:], np.full((5,), -1, dtype=np.int64))
 
     # nid map use int as key
+    hard_neg_trasnform = HardEdgeDstNegativeTransform("hard_neg", "hard_neg")
+    hard_neg_trasnform.set_target_etype(("src", "rel", "dst"))
     id_maps = {"dst": IdMap(str_ids)}
     hard_neg_trasnform.set_id_maps(id_maps)
 
@@ -894,6 +896,8 @@ def test_hard_edge_dst_negative_transform():
     assert_equal(neg0["hard_neg"][20][:15], np.array([(99-i) for i in range(15)]))
 
     # test when there are empty string in input array
+    hard_neg_trasnform = HardEdgeDstNegativeTransform("hard_neg", "hard_neg")
+    hard_neg_trasnform.set_target_etype(("src", "rel", "dst"))
     id_maps = {"dst": IdMap(str_ids.astype(str))}
     hard_neg_trasnform.set_id_maps(id_maps)
 
