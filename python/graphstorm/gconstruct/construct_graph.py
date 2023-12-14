@@ -618,7 +618,7 @@ def verify_confs(confs):
         for node in confs['nodes']:
             node['node_type'] = DEFAULT_NTYPE
         for edge in confs['edges']:
-            edge['relation'] = DEFAULT_ETYPE
+            edge['relation'] = list(DEFAULT_ETYPE)
     for etype in etypes:
         assert len(etype) == 3, \
                 "The edge type must be (source node type, relation type, dest node type)."
@@ -736,6 +736,7 @@ def process_graph(args):
             edges1[DEFAULT_ETYPE] = e
             edges1[DEFAULT_ETYPE] = (np.concatenate([e[0], e[1]]),
                                      np.concatenate([e[1], e[0]]))
+            # Double edge feature as it is necessary to match tensor size in generated graph
             if DEFAULT_ETYPE in edge_data:
                 data = edge_data[DEFAULT_ETYPE]
                 logging.warning("Reverse edge for homogeneous graph will have same feature as "
