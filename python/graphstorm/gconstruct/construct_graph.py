@@ -737,12 +737,17 @@ def process_graph(args):
             edges1[DEFAULT_ETYPE] = (np.concatenate([e[0], e[1]]),
                                      np.concatenate([e[1], e[0]]))
             # Double edge feature as it is necessary to match tensor size in generated graph
+            # Only generate mask on original graph
             if DEFAULT_ETYPE in edge_data:
                 data = edge_data[DEFAULT_ETYPE]
                 logging.warning("Reverse edge for homogeneous graph will have same feature as "
                                 "what we have in the original edges")
                 for key, value in data.items():
-                    data[key] = np.concatenate([value, value])
+                    if key not in ["train_mask", "test_mask", "val_mask"]:
+                        data[key] = np.concatenate([value, value])
+                    else:
+                        data[key] = np.concatenate([value, [0]*len(value)])
+
         else:
             for etype in edges:
                 e = edges[etype]
