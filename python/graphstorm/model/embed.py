@@ -368,25 +368,25 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 # If the number of the input node of a node type is 0,
                 # return an empty tensor with shape (0, emb_size)
                 device = self.proj_matrix[ntype].device
-                if len(input_nodes[ntype]) == 0:
-                    if is_wholegraph_embedding_module(self.sparse_embeds[ntype]):
+                if is_wholegraph_embedding_module(self.sparse_embeds[ntype]):
+                    # Need all procs pass here due to nccl all2lallv in wholegraph
+                    node_emb = self.sparse_embeds[ntype](input_nodes[ntype].cuda())
+                    if len(input_nodes[ntype]) == 0:
                         dtype = self.sparse_embeds[ntype].wm_embedding.get_embedding_tensor().dtype
                         embedding_dim = self.sparse_embeds[ntype].wm_embedding.shape[1]
-                    else:
-                        dtype = self.sparse_embeds[ntype].weight.dtype
-                        embedding_dim = self.sparse_embeds[ntype].embedding_dim
-                    embs[ntype] = th.zeros((0, embedding_dim),
-                                           device=device, dtype=dtype)
-                    continue
-
-                if is_wholegraph_embedding_module(self.sparse_embeds[ntype]):
-                    # output to local device
-                    node_emb = self.sparse_embeds[ntype](input_nodes[ntype].cuda())
+                        embs[ntype] = th.zeros((0, embedding_dim),
+                                                device=device, dtype=dtype)
+                        continue
                     emb = node_emb.to(device, non_blocking=True)
                 else:
+                    if len(input_nodes[ntype]) == 0:
+                        dtype = self.sparse_embeds[ntype].weight.dtype
+                        embs[ntype] = th.zeros((0, self.sparse_embeds[ntype].embedding_dim),
+                                                device=device, dtype=dtype)
+                        continue
                     emb = self.sparse_embeds[ntype](input_nodes[ntype], device)
-
                 emb = emb @ self.proj_matrix[ntype]
+
             if emb is not None:
                 if self.activation is not None:
                     emb = self.activation(emb)
