@@ -93,7 +93,7 @@ write_data_parquet(edge_data, '/data/ml-100k/edges.parquet')
 # generate data for homogeneous optimization test
 edges = pandas.read_csv('/data/ml-100k/u.data', delimiter='\t', header=None)
 edge_data = {'src_id': edges[1], 'dst_id': edges[1], 'rate': edges[2]}
-write_data_parquet(edge_data, '/data/ml-100k/edges_homo.parquet')
+write_data_parquet(edge_data, '/data/ml-100k/edges_homogeneous.parquet')
 
 # generate synthetic user data with label
 user_labels = np.random.randint(11, size=feat.shape[0])

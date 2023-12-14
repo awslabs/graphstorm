@@ -41,7 +41,7 @@
                     "dest_id_col":      "dst_id",
                     "relation":         ["movie", "rating", "movie"],
                     "format":           {"name": "parquet"},
-                    "files":        "/data/ml-100k/edges_homo.parquet",
+                    "files":        "/data/ml-100k/edges_homogeneous.parquet",
                     "features": [
                                   {
                                    "feature_col":  "rate"
@@ -57,7 +57,7 @@
             {
                     "relation":         ["movie", "rating", "movie"],
                     "format":           {"name": "parquet"},
-                    "files":        "/data/ml-100k/edges_homo.parquet"
+                    "files":        "/data/ml-100k/edges_homogeneous.parquet"
             }
     ]
 }
