@@ -915,7 +915,7 @@ def test_hard_edge_dst_negative_transform():
     ground_truth = 99-input_feats
     ground_truth[0][-1] = -1
     ground_truth[1][-2] = -1
-    assert_equal(neg["hard_neg"][:,:10], 99-input_feats)
+    assert_equal(neg["hard_neg"][:,:10], ground_truth)
 
 if __name__ == '__main__':
     test_hard_edge_dst_negative_transform()
