@@ -1011,8 +1011,10 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
 
 
             if feats.dtype.type is not np.str_:
-                logging.warning("When a separator is given, the input feats must be a list of strings."
-                                "But we get %s. Will convert the input feats into str array", feats.dtype.type)
+                logging.warning("When a separator is given, "
+                                "the input feats must be a list of strings."
+                                "But we get %s. Will convert the input feats into str array",
+                                feats.dtype.type)
             feats = feats.astype(str)
             print(feats.dtype.type)
             max_dim = 0
@@ -1047,7 +1049,8 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
                 # handle empty strings in raw_ids
                 raw_ids = raw_ids.astype(str)
                 nid_idx = (raw_ids != "")
-                nids, _ = nid_map.map_id(raw_ids[nid_idx].astype(nid_map.map_key_dtype))
+                nids, _ = nid_map.map_id(raw_ids[nid_idx].astype(
+                    nid_map.map_key_dtype))
                 neg_ids[i][nid_idx] = nids
         else:
             for i, feat in enumerate(feats):
