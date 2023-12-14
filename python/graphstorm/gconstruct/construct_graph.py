@@ -733,7 +733,6 @@ def process_graph(args):
                             "add -rev as a suffix")
             e = edges[DEFAULT_ETYPE]
             assert isinstance(e, tuple) and len(e) == 2
-            edges1[DEFAULT_ETYPE] = e
             edges1[DEFAULT_ETYPE] = (np.concatenate([e[0], e[1]]),
                                      np.concatenate([e[1], e[0]]))
             # Double edge feature as it is necessary to match tensor size in generated graph
