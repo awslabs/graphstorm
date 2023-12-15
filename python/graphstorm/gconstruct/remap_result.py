@@ -79,14 +79,7 @@ def write_data_parquet_file(data, file_prefix, col_name_map=None):
             A mapping from builtin column name to user defined column name.
     """
     if col_name_map is not None:
-        updated_data = {}
-        for key, val in data.items():
-            if key in col_name_map:
-                updated_data[col_name_map[key]] = val
-            else:
-                updated_data[key] = val
-        data = updated_data
-
+        data = {col_name_map[key]: val for key, val in data.items()}
     output_fname = f"{file_prefix}.parquet"
     write_data_parquet(data, output_fname)
 
@@ -114,13 +107,7 @@ def write_data_csv_file(data, file_prefix, delimiter=",", col_name_map=None):
             A mapping from builtin column name to user defined column name.
     """
     if col_name_map is not None:
-        updated_data = {}
-        for key, val in data.items():
-            if key in col_name_map:
-                updated_data[col_name_map[key]] = val
-            else:
-                updated_data[key] = val
-        data = updated_data
+        data = {col_name_map[key]: val for key, val in data.items()}
 
     output_fname = f"{file_prefix}.csv"
     csv_data = {}
