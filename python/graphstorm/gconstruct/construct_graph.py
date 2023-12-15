@@ -591,13 +591,8 @@ def is_homogeneous(confs):
         A dict containing all user input config
     """
     ntypes = {conf['node_type'] for conf in confs["nodes"]}
-    etypes = [conf['relation'] for conf in confs["edges"]]
-    etypes_set = set(tuple(conf['relation']) for conf in confs["edges"])
-    assert etypes[0][0] in ntypes, \
-        f"source node type {etypes[0][0]} does not exist. Please check your input data."
-    assert etypes[0][2] in ntypes, \
-        f"dest node type {etypes[0][2]} does not exist. Please check your input data."
-    return len(ntypes) == 1 and len(etypes_set) == 1
+    etypes = set(tuple(conf['relation']) for conf in confs["edges"])
+    return len(ntypes) == 1 and len(etypes) == 1
 
 def verify_confs(confs):
     """ Verify the configuration of the input data.
@@ -612,14 +607,6 @@ def verify_confs(confs):
             "The config file does not have a 'version' entry. Assuming gconstruct-v0.1")
     ntypes = {conf['node_type'] for conf in confs["nodes"]}
     etypes = [conf['relation'] for conf in confs["edges"]]
-    # Adjust input to DGL homogeneous graph format if it is a homogeneous graph
-    if is_homogeneous(confs):
-        logging.warning("Generated Graph is a homogeneous graph, so the node type will be "
-                        "changed to _N and edge type will be changed to [_N, _E, _N]")
-        for node in confs['nodes']:
-            node['node_type'] = DEFAULT_NTYPE
-        for edge in confs['edges']:
-            edge['relation'] = list(DEFAULT_ETYPE)
     for etype in etypes:
         assert len(etype) == 3, \
                 "The edge type must be (source node type, relation type, dest node type)."
@@ -628,6 +615,14 @@ def verify_confs(confs):
                 f"source node type {src_type} does not exist. Please check your input data."
         assert dst_type in ntypes, \
                 f"dest node type {dst_type} does not exist. Please check your input data."
+    # Adjust input to DGL homogeneous graph format if it is a homogeneous graph
+    if is_homogeneous(confs):
+        logging.warning("Generated Graph is a homogeneous graph, so the node type will be "
+                        "changed to _N and edge type will be changed to [_N, _E, _N]")
+        for node in confs['nodes']:
+            node['node_type'] = DEFAULT_NTYPE
+        for edge in confs['edges']:
+            edge['relation'] = list(DEFAULT_ETYPE)
 
 def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats):
     """ Print graph information.

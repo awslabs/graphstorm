@@ -1727,10 +1727,6 @@ def test_homogeneous():
     assert conf['nodes'][0]["node_type"] == "_N"
     assert conf['edges'][0]['relation'] == ["_N", "_E", "_N"]
     conf["edges"][0]["relation"] = ["movie_fake", "rating", "movie"]
-    try:
-        is_homogeneous(conf)
-    except AssertionError as e:
-        assert str(e) == "source node type movie_fake does not exist. Please check your input data."
     conf["nodes"].append(copy.deepcopy(conf["nodes"][0]))
     conf["nodes"][0]["node_type"] = "movie"
     conf["nodes"][1]["node_type"] = "movie_fake"
@@ -1759,10 +1755,6 @@ def test_homogeneous():
     assert conf['nodes'][0]["node_type"] == "_N"
     assert conf['edges'][0]['relation'] == ["_N", "_E", "_N"]
     conf["edges"][0]["relation"] = ["movie_fake", "rating", "movie"]
-    try:
-        is_homogeneous(conf)
-    except AssertionError as e:
-        assert str(e) == "source node type movie_fake does not exist. Please check your input data."
     conf["nodes"].append(copy.deepcopy(conf["nodes"][0]))
     conf["nodes"][0]["node_type"] = "movie"
     conf["nodes"][1]["node_type"] = "movie_fake"
