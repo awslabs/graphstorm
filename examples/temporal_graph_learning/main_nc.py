@@ -106,8 +106,8 @@ def generate_parser():
 if __name__ == "__main__":
     arg_parser = generate_parser()
 
-    # Ignore unknown args to make script more robust to input arguments
-    args, _ = arg_parser.parse_known_args()
+    args = arg_parser.parse_args()
+    print(args)
     main(args)
 
 

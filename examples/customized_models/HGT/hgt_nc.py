@@ -393,8 +393,7 @@ if __name__ == '__main__':
     argparser.add_argument("--local_rank", type=int,
                            help="The rank of the trainer. \
                                  For customized models, MUST have this argument!!")
+    args = argparser.parse_args()
 
-    # Ignore unknown args to make script more robust to input arguments
-    args, _ = argparser.parse_known_args()
     print(args)
     main(args)
