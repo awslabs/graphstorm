@@ -1655,8 +1655,7 @@ class GSConfig:
         if not hasattr(self, "_target_etype"):
             logging.warning("There is not target etype provided, "
                             "will treat as homogeneous graph")
-            print("argument: ", list(DEFAULT_ETYPE))
-            return list(DEFAULT_ETYPE)
+            return [DEFAULT_ETYPE]
         assert isinstance(self._target_etype, list), \
             "target_etype must be a list in format: " \
             "[\"query,clicks,asin\", \"query,search,asin\"]."
