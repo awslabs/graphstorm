@@ -28,6 +28,7 @@ import logging
 import numpy as np
 import torch as th
 import dgl
+from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 
 from ..utils import sys_tracker, get_log_level
 from .file_io import parse_node_file_format, parse_edge_file_format
@@ -582,8 +583,23 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
 
     return (edges, edge_data, label_stats)
 
+def is_homogeneous(confs):
+    """ Verify if it is a homogeneous graph
+    Parameter
+    ---------
+    confs: dict
+        A dict containing all user input config
+    """
+    ntypes = {conf['node_type'] for conf in confs["nodes"]}
+    etypes = set(tuple(conf['relation']) for conf in confs["edges"])
+    return len(ntypes) == 1 and len(etypes) == 1
+
 def verify_confs(confs):
     """ Verify the configuration of the input data.
+    Parameter
+    ---------
+    confs: dict
+        A dict containing all user input config
     """
     if "version" not in confs:
         # TODO: Make a requirement with v1.0 launch
@@ -599,6 +615,14 @@ def verify_confs(confs):
                 f"source node type {src_type} does not exist. Please check your input data."
         assert dst_type in ntypes, \
                 f"dest node type {dst_type} does not exist. Please check your input data."
+    # Adjust input to DGL homogeneous graph format if it is a homogeneous graph
+    if is_homogeneous(confs):
+        logging.warning("Generated Graph is a homogeneous graph, so the node type will be "
+                        "changed to _N and edge type will be changed to [_N, _E, _N]")
+        for node in confs['nodes']:
+            node['node_type'] = DEFAULT_NTYPE
+        for edge in confs['edges']:
+            edge['relation'] = list(DEFAULT_ETYPE)
 
 def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats):
     """ Print graph information.
@@ -698,12 +722,35 @@ def process_graph(args):
 
     if args.add_reverse_edges:
         edges1 = {}
-        for etype in edges:
-            e = edges[etype]
+        if is_homogeneous(process_confs):
+            logging.warning("For homogeneous graph, the generated reverse edge will "
+                            "be the same edge type as the original graph. Instead for "
+                            "heterogeneous graph, the generated reverse edge type will "
+                            "add -rev as a suffix")
+            e = edges[DEFAULT_ETYPE]
             assert isinstance(e, tuple) and len(e) == 2
-            assert isinstance(etype, tuple) and len(etype) == 3
-            edges1[etype] = e
-            edges1[etype[2], etype[1] + "-rev", etype[0]] = (e[1], e[0])
+            edges1[DEFAULT_ETYPE] = (np.concatenate([e[0], e[1]]),
+                                     np.concatenate([e[1], e[0]]))
+            # Double edge feature as it is necessary to match tensor size in generated graph
+            # Only generate mask on original graph
+            if edge_data:
+                data = edge_data[DEFAULT_ETYPE]
+                logging.warning("Reverse edge for homogeneous graph will have same feature as "
+                                "what we have in the original edges")
+                for key, value in data.items():
+                    if key not in ["train_mask", "test_mask", "val_mask"]:
+                        data[key] = np.concatenate([value, value])
+                    else:
+                        data[key] = np.concatenate([value, np.zeros(value.shape,
+                                                                       dtype=value.dtype)])
+
+        else:
+            for etype in edges:
+                e = edges[etype]
+                assert isinstance(e, tuple) and len(e) == 2
+                assert isinstance(etype, tuple) and len(etype) == 3
+                edges1[etype] = e
+                edges1[etype[2], etype[1] + "-rev", etype[0]] = (e[1], e[0])
         edges = edges1
         sys_tracker.check('Add reverse edges')
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
