@@ -737,7 +737,7 @@ def process_graph(args):
                                      np.concatenate([e[1], e[0]]))
             # Double edge feature as it is necessary to match tensor size in generated graph
             # Only generate mask on original graph
-            if DEFAULT_ETYPE in edge_data:
+            if edge_data:
                 data = edge_data[DEFAULT_ETYPE]
                 logging.warning("Reverse edge for homogeneous graph will have same feature as "
                                 "what we have in the original edges")
