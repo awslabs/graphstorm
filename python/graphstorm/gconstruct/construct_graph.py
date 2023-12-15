@@ -745,7 +745,7 @@ def process_graph(args):
                     if key not in ["train_mask", "test_mask", "val_mask"]:
                         data[key] = np.concatenate([value, value])
                     else:
-                        data[key] = np.concatenate([value, [0]*len(value)])
+                        data[key] = np.concatenate([value, numpy.zeros(value.shape, dtype=value.dtype)])
 
         else:
             for etype in edges:
