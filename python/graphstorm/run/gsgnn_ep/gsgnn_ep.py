@@ -17,6 +17,7 @@
 """
 
 import os
+from dgl.distributed.constants import DEFAULT_ETYPE
 
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
