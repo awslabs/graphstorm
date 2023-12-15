@@ -17,7 +17,6 @@
 """
 
 import os
-from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
@@ -74,13 +73,6 @@ def main(config_args):
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field,
                                     lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
-    if config.target_ntype == DEFAULT_NTYPE:
-        assert train_data.g.ntypes == [DEFAULT_NTYPE] and \
-               train_data.g.etypes == [DEFAULT_ETYPE[1]], \
-            f"It is required to be a homogeneous graph when not providing " \
-            f"target_ntype on node task, expect node type {[DEFAULT_NTYPE]} and " \
-            f"edge type {[DEFAULT_ETYPE[1]]}, but get {train_data.g.ntypes} " \
-            f"and {train_data.g.etypes}"
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
 
     if config.training_method["name"] == "glem":

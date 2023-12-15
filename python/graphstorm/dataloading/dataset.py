@@ -23,6 +23,7 @@ import re
 
 import torch as th
 import dgl
+from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 from torch.utils.data import Dataset
 import pandas as pd
 
@@ -536,6 +537,13 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
             if isinstance(train_etypes, tuple):
                 train_etypes = [train_etypes]
             self._train_etypes = train_etypes
+            if self._train_etypes == [DEFAULT_ETYPE]:
+                assert self.g.ntypes == [DEFAULT_NTYPE] and \
+                       self.g.etypes == [DEFAULT_ETYPE[1]], \
+                    f"It is required to be a homogeneous graph when not providing " \
+                    f"target_etype on node task, expect node type {[DEFAULT_NTYPE]} and " \
+                    f"edge type {[DEFAULT_ETYPE[1]]}, but get {self.g.ntypes} " \
+                    f"and {self.g.etypes}"
         else:
             self._train_etypes = None
 
@@ -916,7 +924,13 @@ class GSgnnNodeTrainData(GSgnnNodeData):
         assert isinstance(train_ntypes, list), \
                 "prediction ntypes for training has to be a string or a list of strings."
         self._train_ntypes = train_ntypes
-
+        if self._train_ntypes == DEFAULT_NTYPE:
+            assert self.g.ntypes == [DEFAULT_NTYPE] and \
+                   self.g.etypes == [DEFAULT_ETYPE[1]], \
+                f"It is required to be a homogeneous graph when not providing " \
+                f"target_ntype on node task, expect node type {[DEFAULT_NTYPE]} and " \
+                f"edge type {[DEFAULT_ETYPE[1]]}, but get {self.g.ntypes} " \
+                f"and {self.g.etypes}"
         if eval_ntypes is not None:
             if isinstance(eval_ntypes, str):
                 eval_ntypes = [eval_ntypes]
