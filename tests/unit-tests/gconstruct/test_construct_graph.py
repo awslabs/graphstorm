@@ -990,8 +990,8 @@ def check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map):
     assert len(new_src_ids) == num_valid
     assert len(new_dst_ids) == num_valid
     assert src_exist_locs is None
-    assert_equal(src_ids[dst_exist_locs].astype(np.int64), new_src_ids)
-    assert_equal(dst_ids[dst_exist_locs].astype(np.int64), new_dst_ids)
+    assert_equal(src_ids[dst_exist_locs].astype(np.int64).reshape((-1,)), new_src_ids)
+    assert_equal(dst_ids[dst_exist_locs].astype(np.int64).reshape((-1,)), new_dst_ids)
     assert dst_exist_locs is not None
 
     # Test the case that none of the destination node IDs exists and we skip non exist edges.
