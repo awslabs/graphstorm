@@ -13,6 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import copy
 import random
 import os
 import tempfile
@@ -22,11 +23,12 @@ import pyarrow.parquet as pq
 import numpy as np
 import dgl
 import torch as th
+import copy
 
 from functools import partial
 from numpy.testing import assert_equal, assert_almost_equal
 
-from graphstorm.gconstruct.construct_graph import parse_edge_data, verify_confs
+from graphstorm.gconstruct.construct_graph import parse_edge_data, verify_confs, is_homogeneous
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
 from graphstorm.gconstruct.file_io import write_data_csv, read_data_csv
@@ -1720,9 +1722,20 @@ def test_homogeneous():
              "format": {"name": "parquet"}, "files": "/data/ml-100k/edges_homo.parquet", "labels": [
                 {"label_col": "rate", "task_type": "classification", "split_pct": [0.1, 0.1, 0.1]}]}]
     }
+    assert is_homogeneous(conf)
     verify_confs(conf)
     assert conf['nodes'][0]["node_type"] == "_N"
     assert conf['edges'][0]['relation'] == ["_N", "_E", "_N"]
+    conf["edges"][0]["relation"] = ["movie_fake", "rating", "movie"]
+    try:
+        is_homogeneous(conf)
+    except AssertionError as e:
+        assert str(e) == "source node type movie_fake does not exist. Please check your input data."
+    conf["nodes"].append(copy.deepcopy(conf["nodes"][0]))
+    conf["nodes"][0]["node_type"] = "movie"
+    conf["nodes"][1]["node_type"] = "movie_fake"
+    assert not is_homogeneous(conf)
+
 
     # multiple node types and edge types input
     conf = {
@@ -1741,9 +1754,19 @@ def test_homogeneous():
             {"relation": ["movie", "rating", "movie"], "format": {"name": "parquet"},
              "files": "/data/ml-100k/edges_homo.parquet"}]
     }
+    assert is_homogeneous(conf)
     verify_confs(conf)
     assert conf['nodes'][0]["node_type"] == "_N"
     assert conf['edges'][0]['relation'] == ["_N", "_E", "_N"]
+    conf["edges"][0]["relation"] = ["movie_fake", "rating", "movie"]
+    try:
+        is_homogeneous(conf)
+    except AssertionError as e:
+        assert str(e) == "source node type movie_fake does not exist. Please check your input data."
+    conf["nodes"].append(copy.deepcopy(conf["nodes"][0]))
+    conf["nodes"][0]["node_type"] = "movie"
+    conf["nodes"][1]["node_type"] = "movie_fake"
+    assert not is_homogeneous(conf)
 
 if __name__ == '__main__':
     test_parse_edge_data()

@@ -591,8 +591,13 @@ def is_homogeneous(confs):
         A dict containing all user input config
     """
     ntypes = {conf['node_type'] for conf in confs["nodes"]}
-    etypes = set(tuple(conf['relation']) for conf in confs["edges"])
-    return len(ntypes) == 1 and len(etypes) == 1
+    etypes = [conf['relation'] for conf in confs["edges"]]
+    etypes_set = set(tuple(conf['relation']) for conf in confs["edges"])
+    assert etypes[0][0] in ntypes, \
+        f"source node type {etypes[0][0]} does not exist. Please check your input data."
+    assert etypes[0][2] in ntypes, \
+        f"dest node type {etypes[0][2]} does not exist. Please check your input data."
+    return len(ntypes) == 1 and len(etypes_set) == 1
 
 def verify_confs(confs):
     """ Verify the configuration of the input data.
@@ -609,10 +614,6 @@ def verify_confs(confs):
     etypes = [conf['relation'] for conf in confs["edges"]]
     # Adjust input to DGL homogeneous graph format if it is a homogeneous graph
     if is_homogeneous(confs):
-        assert etypes[0][0] in ntypes, \
-            f"source node type {etypes[0][0]} does not exist. Please check your input data."
-        assert etypes[0][2] in ntypes, \
-            f"dest node type {etypes[0][2]} does not exist. Please check your input data."
         logging.warning("Generated Graph is a homogeneous graph, so the node type will be "
                         "changed to _N and edge type will be changed to [_N, _E, _N]")
         for node in confs['nodes']:
@@ -745,7 +746,8 @@ def process_graph(args):
                     if key not in ["train_mask", "test_mask", "val_mask"]:
                         data[key] = np.concatenate([value, value])
                     else:
-                        data[key] = np.concatenate([value, numpy.zeros(value.shape, dtype=value.dtype)])
+                        data[key] = np.concatenate([value, np.zeros(value.shape,
+                                                                       dtype=value.dtype)])
 
         else:
             for etype in edges:
