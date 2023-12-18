@@ -559,8 +559,8 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
                    self._g.etypes == [DEFAULT_ETYPE[1]], \
                 f"It is required to be a homogeneous graph when not providing " \
                 f"target_etype on node task, expect node type {[DEFAULT_NTYPE]} and " \
-                f"edge type {[DEFAULT_ETYPE[1]]}, but get {self.g.ntypes} " \
-                f"and {self.g.etypes}"
+                f"edge type {[DEFAULT_ETYPE[1]]}, but get {self._g.ntypes} " \
+                f"and {self._g.etypes}"
 
     def prepare_data(self, g):
         """
@@ -739,6 +739,13 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
                                                  decoder_edge_feat,
                                                  lm_feat_ntypes=lm_feat_ntypes,
                                                  lm_feat_etypes=lm_feat_etypes)
+        if self._eval_etypes == [DEFAULT_ETYPE]:
+            assert self._g.ntypes == [DEFAULT_NTYPE] and \
+                   self._g.etypes == [DEFAULT_ETYPE[1]], \
+                f"It is required to be a homogeneous graph when not providing " \
+                f"target_etype on node task, expect node type {[DEFAULT_NTYPE]} and " \
+                f"edge type {[DEFAULT_ETYPE[1]]}, but get {self._g.ntypes} " \
+                f"and {self._g.etypes}"
 
     def prepare_data(self, g):
         """ Prepare the testing edge set if any
@@ -944,8 +951,8 @@ class GSgnnNodeTrainData(GSgnnNodeData):
                    self._g.etypes == [DEFAULT_ETYPE[1]], \
                 f"It is required to be a homogeneous graph when not providing " \
                 f"target_ntype on node task, expect node type {[DEFAULT_NTYPE]} and " \
-                f"edge type {[DEFAULT_ETYPE[1]]}, but get {self.g.ntypes} " \
-                f"and {self.g.etypes}"
+                f"edge type {[DEFAULT_ETYPE[1]]}, but get {self._g.ntypes} " \
+                f"and {self._g.etypes}"
 
     def prepare_data(self, g):
         pb = g.get_partition_book()
@@ -1086,6 +1093,13 @@ class GSgnnNodeInferData(GSgnnNodeData):
                                                  lm_feat_ntypes=lm_feat_ntypes,
                                                  lm_feat_etypes=lm_feat_etypes)
 
+        if self._eval_ntypes == [DEFAULT_NTYPE]:
+            assert self._g.ntypes == [DEFAULT_NTYPE] and \
+                   self._g.etypes == [DEFAULT_ETYPE[1]], \
+                f"It is required to be a homogeneous graph when not providing " \
+                f"target_ntype on node task, expect node type {[DEFAULT_NTYPE]} and " \
+                f"edge type {[DEFAULT_ETYPE[1]]}, but get {self._g.ntypes} " \
+                f"and {self._g.etypes}"
     def prepare_data(self, g):
         """
         Prepare the testing node set if any

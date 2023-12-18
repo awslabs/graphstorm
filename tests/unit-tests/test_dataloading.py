@@ -1383,6 +1383,22 @@ def test_GSgnnTrainData_homogeneous():
         except AssertionError as _:
             pass
 
+        # get the test dummy distributed graph
+        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
+                                                            dirname=tmpdirname,
+                                                            is_homo=True)
+        _ = GSgnnNodeInferData(graph_name='dummy', part_config=part_config,
+                                     eval_ntypes=va_ntypes)
+
+        dist_graph, part_config = generate_dummy_dist_graph_homo_failure_graph(graph_name='dummy',
+                                                            dirname=tmpdirname)
+        try:
+            _ = GSgnnNodeInferData(graph_name='dummy', part_config=part_config,
+                                        eval_ntypes=va_ntypes)
+            assert False, "expected Error raised for non-homogeneous graph input"
+        except AssertionError as _:
+            pass
+
     tr_etypes = [("_N", "_E", "_N")]
     va_etypes = [("_N", "_E", "_N")]
 
@@ -1400,8 +1416,25 @@ def test_GSgnnTrainData_homogeneous():
                                                             dirname=os.path.join(tmpdirname, 'dummy'))
         try:
             _ = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                   train_etypes=tr_etypes, eval_etypes=va_etypes,
-                                   label_field='label')
+                                       train_etypes=tr_etypes, eval_etypes=va_etypes,
+                                       label_field='label')
+            assert False, "expected Error raised for non-homogeneous graph input"
+        except AssertionError as _:
+            pass
+
+        # get the test dummy distributed graph
+        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
+                                                            dirname=os.path.join(tmpdirname, 'dummy'),
+                                                            is_homo=True)
+        _ = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
+                                    eval_etypes=va_etypes)
+
+        # get the test dummy distributed graph
+        dist_graph, part_config = generate_dummy_dist_graph_homo_failure_graph(graph_name='dummy',
+                                                            dirname=os.path.join(tmpdirname, 'dummy'))
+        try:
+            _ = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
+                                    eval_etypes=va_etypes)
             assert False, "expected Error raised for non-homogeneous graph input"
         except AssertionError as _:
             pass
