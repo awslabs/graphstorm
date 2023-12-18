@@ -71,13 +71,12 @@ def flush_data():
     # Therefore, no trainer processes will issue new write requests to servers.
     # In the meanwhile, no trainer processes are writing data to shared memory
     # in the local machine either.
-    if dgl.distributed.get_rank() == 0:
-        request = FlushRequest()
-        # send request to all the server nodes
-        server_count = rpc.get_num_server()
-        for server_id in range(server_count):
-            rpc.send_request(server_id, request)
-        # recv response from all the server nodes
-        for _ in range(server_count):
-            response = rpc.recv_response()
+    request = FlushRequest()
+    # send request to all the server nodes
+    server_count = rpc.get_num_server()
+    for server_id in range(server_count):
+        rpc.send_request(server_id, request)
+    # recv response from all the server nodes
+    for _ in range(server_count):
+        response = rpc.recv_response()
     barrier()
