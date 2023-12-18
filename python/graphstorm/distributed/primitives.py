@@ -16,7 +16,10 @@
     The primitives required for distributed computations.
 """
 
+import dgl
 from dgl.distributed import rpc
+
+from ..utils import barrier
 
 FLUSH_DATA = 1000001
 
@@ -78,4 +81,4 @@ def flush_data():
         for _ in range(server_count):
             response = rpc.recv_response()
             assert response.msg == FLUSH_DATA
-    dgl.distributed.barrier()
+    barrier()
