@@ -32,6 +32,7 @@ from ..config import GRAPHSTORM_LP_EMB_L2_NORMALIZATION
 from ..gconstruct.file_io import stream_dist_tensors_to_hdf5
 from ..utils import get_rank, barrier, get_world_size, create_dist_tensor
 from ..data.utils import alltoallv_cpu, alltoallv_nccl
+from ..distributed import flush_data
 
 # placeholder of the ntype for homogeneous graphs
 NTYPE = dgl.NTYPE
@@ -1039,7 +1040,7 @@ class NodeIDShuffler():
                 f"Expect {id_mapping.shape[0]}, but get {num_nodes}"
             # Save ID mapping into dist tensor
             id_mapping_info[th.arange(num_nodes)] = id_mapping
-        barrier()
+        flush_data()
         return id_mapping_info
 
     def shuffle_nids(self, ntype, nids):
