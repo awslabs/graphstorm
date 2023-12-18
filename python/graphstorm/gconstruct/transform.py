@@ -1005,7 +1005,7 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
         self._max_dim = max_dim
 
     def call(self, feats):
-        """ Generate hard negatives as features
+        """ Parse hard negatives as features
 
         Hard negatives can be stored as string arrays where
         each string is a node id. For example:

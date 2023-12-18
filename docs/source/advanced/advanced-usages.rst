@@ -24,9 +24,9 @@ With DGL 1.0.4, ``fast_localuniform`` dataloader can speedup 2.4X over ``localun
 
 Hard Negative sampling in Link Prediction Training
 -------------------------------------
-GraphStorm provides support for users to define hard negative nodes for a positive edge during Link Prediction Training.
-Currently, hard negative nodes can only be destination nodes.
-For example, given an edge (``src_pos``, ``dst_pos``) and hard negative nodes ``hard_0`` and ``hand_1``, GraphStorm will construct two hard negative edges, i.e., (``src_pos``, ``hard_0``) and (``src_pos``, ``hand_1``).
+GraphStorm provides support for users to define hard negative edges for a positive edge during Link Prediction Training.
+Currently, hard negative edges are constructed by replacing the destination nodes of edges with pre-defined hard negatives.
+For example, given an edge (``src_pos``, ``dst_pos``) and its hard negative destination nodes ``hard_0`` and ``hand_1``, GraphStorm will construct two hard negative edges, i.e., (``src_pos``, ``hard_0``) and (``src_pos``, ``hand_1``).
 
 The hard negatives are stored as edge features of the target edge type.
 Users can provide the hard negatives for each edge type through ``train_hard_edge_dstnode_negative`` in the training config yaml.
@@ -53,7 +53,7 @@ In general, GraphStorm covers following cases:
 
 - ``num_hard_negatives`` is larger or equal to ``num_negative_edges``. GraphStorm will only sample hard negative nodes.
 - There are enough hard negatives for a positive edge. GraphStorm will randomly sample ``num_hard_negatives`` hard negative nodes from the hard negative set and then randomly sample ``num_negative_edges - num_hard_negatives`` negative nodes.
-- There is not enough hard negatives for a positive edge. GraphStorm will sample all the hard negatives first and then randomly sample negative nodes to fulfill the requirement of ``num_negative_edges``
+- There is not enough hard negatives for a positive edge. GraphStorm will use all the hard negatives first and then randomly sample negative nodes to fulfill the requirement of ``num_negative_edges``
 
 ** Preparing graph data for hard negative sampling **
 
