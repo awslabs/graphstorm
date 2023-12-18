@@ -22,6 +22,52 @@ To be more specific, these dataloaders will do neighbor sampling regardless of a
 
 With DGL 1.0.4, ``fast_localuniform`` dataloader can speedup 2.4X over ``localuniform`` dataloader on training a 2 layer RGCN on MAG dataset on four g5.48x instances.
 
+Hard Negative sampling in Link Prediction Training
+-------------------------------------
+GraphStorm provides support for users to define hard negative nodes for a positive edge during Link Prediction Training.
+Currently, hard negative nodes can only be destination nodes.
+For example, given an edge (``src_pos``, ``dst_pos``) and hard negative nodes ``hard_0`` and ``hand_1``, GraphStorm will construct two hard negative edges, i.e., (``src_pos``, ``hard_0``) and (``src_pos``, ``hand_1``).
+
+The hard negatives are stored as edge features of the target edge type.
+Users can provide the hard negatives for each edge type through ``train_hard_edge_dstnode_negative`` in the training config yaml.
+For example, the following yaml block defines the hard negatives for edge type (``src_type``,``rel_type0``,``dst_type``) as the edge feature ``negative_nid_field_0`` and the hard negatives for edge type (``src_type``,``rel_type1``,``dst_type``) as the edge feature ``negative_nid_field_1``.
+
+  .. code-block:: yaml
+
+    train_hard_edge_dstnode_negative:
+      - src_type,rel_type0,dst_type:negative_nid_field_0
+      - src_type,rel_type1,dst_type:negative_nid_field_1
+
+Users can also define the number of hard negatives to sample for each edge type during training though ``num_hard_negatives`` in the training config yaml.
+For example, the following yaml block defines the number of hard negatives for edge type (``src_type``,``rel_type0``,``dst_type``) is 5 and the number of hard negatives for edge type (``src_type``,``rel_type1``,``dst_type``) is 10.
+
+  .. code-block:: yaml
+
+    num_hard_negatives:
+      - src_type,rel_type0,dst_type:5
+      - src_type,rel_type1,dst_type:10
+
+Hard negative sampling can be used together with any link prediction negative sampler, such as ``uniform``, ``joint``, ``inbatch_joint``, etc.
+By default, GraphStorm will sample hard negatives first to fulfill the requirement of ``num_hard_negatives`` and then sample random negatives to fulfill the requirement of ``num_negative_edges``.
+In general, GraphStorm covers following cases:
+
+- ``num_hard_negatives`` is larger or equal to ``num_negative_edges``. GraphStorm will only sample hard negative nodes.
+- There are enough hard negatives for a positive edge. GraphStorm will randomly sample ``num_hard_negatives`` hard negative nodes from the hard negative set and then randomly sample ``num_negative_edges - num_hard_negatives`` negative nodes.
+- There is not enough hard negatives for a positive edge. GraphStorm will sample all the hard negatives first and then randomly sample negative nodes to fulfill the requirement of ``num_negative_edges``
+
+** Preparing graph data for hard negative sampling **
+
+The gconstruct pipeline of GraphStorm provides support to load hard negative data from raw input.
+Hard destination negatives can be defined through ``edge_dst_hard_negative`` transformation.
+The ``feature_col`` field of ``edge_dst_hard_negative`` must stores the raw node ids of hard destination nodes.
+GraphStorm accepts two types of hard negative inputs:
+
+- **An array of strings** When the input format is ``Parquet`` or ``HDFS``, the ``feature_col`` can store string arrays. In this case, each row stores a string array representing the hard negative node ids of the corresponding edge. The ``feature_col`` will be a 2D string array, for example ``[["e0_hard_0", "e0_hard_1"],["e1_hard_0", "e1_hard_1"], ..., ["en_hard_0", "en_hard_1"]]``. It is required that each row has the same dimension size. In case when some edges do not have enough pre-defined hard negatives, GraphStorm allows users to use an empty string to fill the array. GraphStorm will automatically handle the case when some edges do not have enough hard negatives.
+
+- **A single string** The ``feature_col`` stores strings instead of string arrays. In this case, a ``separator`` must be provided to split the strings into node ids. The ``feature_col`` will be a 1D string list, for example ``["e0_hard_0;e0_hard_1", "e1_hard_0;e1_hard_1", ..., "en_hard_0;en_hard_1"]``. The string length, i.e., number of hard negatives, can vary from row to row. GraphStorm will automatically handle the case when some edges do not have enough hard negatives.
+
+GraphStorm will automatically translate the Raw Node IDs of hard negatives into Partition Node IDs in a DistDGL graph.
+
 Multiple Target Node Types Training
 -------------------------------------
 

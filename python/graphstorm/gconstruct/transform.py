@@ -1007,6 +1007,30 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
     def call(self, feats):
         """ Generate hard negatives as features
 
+        Hard negatives can be stored as string arrays where
+        each string is a node id. For example:
+
+        .. code::
+
+            src | dst | hard_negs
+            s_0 | d_0 | ["h_0", "h_1"]
+            s_1 | d_1 | ["h_2", "h_3"]
+            s_2 | d_2 | ["h_4", ""]
+            s_3 | d_3 | ["h_5", "h_3"]
+            ...
+
+        Or strings with a delimeter to separate node ids.
+        For example:
+
+        .. code::
+
+            src | dst | hard_negs
+            s_0 | d_0 | "h_0;h_1"
+            s_1 | d_1 | "h_2;h_3"
+            s_2 | d_2 | "h_4"
+            s_3 | d_3 | "h_5;h_3"
+            ...
+
         Parameters
         ----------
         feats : np array
@@ -1021,17 +1045,27 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
             "or the destination node type depending on the hard negative case."
         nid_map = self._nid_map[self._target_ntype]
 
+        # It is possible that some edges do not
+        # have enough pre-defined hard negatives.
+        # In certain cases, GraphStorm will fill the
+        # un-provided hard negatives with -1s.
         neg_ids = np.full((len(feats), self._max_dim), -1, dtype=np.int64)
         if self._separator is None:
             for i, raw_ids in enumerate(feats):
                 if raw_ids is None:
                     continue
-                # raw_ids is a numpy array
-                # handle empty strings in raw_ids
+                # GraphStorm allows users to use an empty
+                # string to prepresent un-provided hard
+                # negatives when the input data is a string array.
+                #
+                # Raw_ids is a numpy string array.
+                # Handle empty strings in raw_ids.
                 raw_ids = raw_ids.astype(str)
                 nid_idx = np.nonzero(raw_ids != "")[0]
                 nids, _ = nid_map.map_id(raw_ids[nid_idx].astype(
                     nid_map.map_key_dtype))
+                # Write hard negative node ids into the hard
+                # negative features.
                 neg_ids[i][nid_idx] = nids
         else:
             for i, feat in enumerate(feats):
@@ -1039,6 +1073,8 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
                     continue
                 raw_ids = np.array(feat.split(self._separator))
                 nids, _ = nid_map.map_id(raw_ids.astype(nid_map.map_key_dtype))
+                # when len(raw_ids) < self._max_dim (max negatives
+                # per edge), GraphStorm fills the rest with -1.
                 neg_ids[i][:nids.shape[0]] = nids
 
         return {self.feat_name: neg_ids}
