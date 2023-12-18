@@ -80,5 +80,4 @@ def flush_data():
         # recv response from all the server nodes
         for _ in range(server_count):
             response = rpc.recv_response()
-            assert response.msg == FLUSH_DATA
     barrier()
