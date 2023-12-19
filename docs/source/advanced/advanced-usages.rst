@@ -29,30 +29,30 @@ Currently, hard negative edges are constructed by replacing the destination node
 For example, given an edge (``src_pos``, ``dst_pos``) and its hard negative destination nodes ``hard_0`` and ``hand_1``, GraphStorm will construct two hard negative edges, i.e., (``src_pos``, ``hard_0``) and (``src_pos``, ``hand_1``).
 
 The hard negatives are stored as edge features of the target edge type.
-Users can provide the hard negatives for each edge type through ``train_hard_edge_dstnode_negative`` in the training config yaml.
+Users can provide the hard negatives for each edge type through ``train_etypes_negative_dstnode`` in the training config yaml.
 For example, the following yaml block defines the hard negatives for edge type (``src_type``,``rel_type0``,``dst_type``) as the edge feature ``negative_nid_field_0`` and the hard negatives for edge type (``src_type``,``rel_type1``,``dst_type``) as the edge feature ``negative_nid_field_1``.
 
   .. code-block:: yaml
 
-    train_hard_edge_dstnode_negative:
+    train_etypes_negative_dstnode:
       - src_type,rel_type0,dst_type:negative_nid_field_0
       - src_type,rel_type1,dst_type:negative_nid_field_1
 
-Users can also define the number of hard negatives to sample for each edge type during training though ``num_hard_negatives`` in the training config yaml.
+Users can also define the number of hard negatives to sample for each edge type during training though ``num_train_hard_negatives`` in the training config yaml.
 For example, the following yaml block defines the number of hard negatives for edge type (``src_type``,``rel_type0``,``dst_type``) is 5 and the number of hard negatives for edge type (``src_type``,``rel_type1``,``dst_type``) is 10.
 
   .. code-block:: yaml
 
-    num_hard_negatives:
+    num_train_hard_negatives:
       - src_type,rel_type0,dst_type:5
       - src_type,rel_type1,dst_type:10
 
 Hard negative sampling can be used together with any link prediction negative sampler, such as ``uniform``, ``joint``, ``inbatch_joint``, etc.
-By default, GraphStorm will sample hard negatives first to fulfill the requirement of ``num_hard_negatives`` and then sample random negatives to fulfill the requirement of ``num_negative_edges``.
+By default, GraphStorm will sample hard negatives first to fulfill the requirement of ``num_train_hard_negatives`` and then sample random negatives to fulfill the requirement of ``num_negative_edges``.
 In general, GraphStorm covers following cases:
 
-- ``num_hard_negatives`` is larger or equal to ``num_negative_edges``. GraphStorm will only sample hard negative nodes.
-- There are enough hard negatives for a positive edge. GraphStorm will randomly sample ``num_hard_negatives`` hard negative nodes from the hard negative set and then randomly sample ``num_negative_edges - num_hard_negatives`` negative nodes.
+- ``num_train_hard_negatives`` is larger or equal to ``num_negative_edges``. GraphStorm will only sample hard negative nodes.
+- There are enough hard negatives for a positive edge. GraphStorm will randomly sample ``num_train_hard_negatives`` hard negative nodes from the hard negative set and then randomly sample ``num_negative_edges - num_train_hard_negatives`` negative nodes.
 - There is not enough hard negatives for a positive edge. GraphStorm will use all the hard negatives first and then randomly sample negative nodes to fulfill the requirement of ``num_negative_edges``
 
 ** Preparing graph data for hard negative sampling **
