@@ -381,20 +381,20 @@ Classification and Regression Task
 
 Node Classification/Regression Specific
 .........................................
-- **target_ntype**: (**Required**) The node type for prediction.
+- **target_ntype**: The node type for prediction.
 
     - Yaml: ``target_ntype: movie``
     - Argument: ``--target-ntype movie``
-    - Default value: This parameter must be provided by user.
+    - Default value: This parameter must be provided by user. If not provided, will be default to "_N", and require homogeneous graph input.
 
 Edge Classification/Regression Specific
 ..........................................
-- **target_etype**: (**Required**) The list of canonical edge types that will be added as a training target in edge classification/regression tasks, for example ``--train-etype query,clicks,asin`` or ``--train-etype query,clicks,asin query,search,asin``. A canonical edge type should be formatted as `src_node_type,relation_type,dst_node_type`. Currently, GraphStorm only supports single task edge classification/regression, i.e., it only accepts one canonical edge type.
+- **target_etype**: The list of canonical edge types that will be added as a training target in edge classification/regression tasks, for example ``--train-etype query,clicks,asin`` or ``--train-etype query,clicks,asin query,search,asin``. A canonical edge type should be formatted as `src_node_type,relation_type,dst_node_type`. Currently, GraphStorm only supports single task edge classification/regression, i.e., it only accepts one canonical edge type.
 
     - Yaml: ``target_etype:``
            | ``- query,clicks,asin``
     - Argument: ``--target-etype query,clicks,asin``
-    - Default value: This parameter must be provided by user.
+    - Default value: This parameter must be provided by user. If not provided, will be default to ("_N", "_E", "_N"), and require homogeneous graph input.
 - **remove_target_edge_type**: When set to true, GraphStorm removes target_etype in message passing, i.e., any edge with target_etype will not be sampled during training and inference.
 
     - Yaml: ``remove_target_edge_type: false``
