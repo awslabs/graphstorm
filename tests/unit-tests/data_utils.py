@@ -347,10 +347,11 @@ def generate_dummy_homogeneous_failure_graph(size='tiny', gen_mask=True, type='n
     """
     generate a dummy homogeneous graph for failure case.
 
-    In a homogeneous graph, the node type should be "_N" and the edge type ("_N", "_E", "_N").
-    For testing, with type="node", an error should be triggered by using the right node type "_N"
-    but a wrong edge type, with type="edge", an error should be triggered by using
-    the right edge type ("_N", "_E", "_N") but a wrong node type.
+    In a homogeneous graph, the node type should be ["_N"] and the edge type [("_N", "_E", "_N")],
+    otherwise it should not be a valid homogeneous graph input. This function aims to generate
+    failure case for homogeneous graph input. When type="node", it will generate a graph with
+    ["_N"] node type and [("_N", "_E", "_N"), ("_N", "fake_E", "_N")] edge type. When type="edge",
+    it will generate a graph with ["_N", "fake_N"] node type and [("_N", "_E", "_N")] edge type.
     The unit test should detect errors in both scenarios.
     Parameters
     ----------
