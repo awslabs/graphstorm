@@ -1578,7 +1578,7 @@ class GSConfig:
             return self._target_ntype
         else:
             logging.warning("There is not target ntype provided, "
-                            "will treat as homogeneous graph")
+                            "will treat the input graph as a homogeneous graph")
             return DEFAULT_NTYPE
 
     @property
@@ -1654,7 +1654,7 @@ class GSConfig:
         # pylint: disable=no-member
         if not hasattr(self, "_target_etype"):
             logging.warning("There is not target etype provided, "
-                            "will treat as homogeneous graph")
+                            "will treat the input graph as a homogeneous graph")
             return [DEFAULT_ETYPE]
         assert isinstance(self._target_etype, list), \
             "target_etype must be a list in format: " \

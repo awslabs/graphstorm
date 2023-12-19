@@ -385,7 +385,7 @@ Node Classification/Regression Specific
 
     - Yaml: ``target_ntype: movie``
     - Argument: ``--target-ntype movie``
-    - Default value: This parameter must be provided by user. If not provided, will be default to "_N", and require homogeneous graph input.
+    - Default value: For heterogeneous input graph, this parameter must be provided by the user. If not provided, GraphStorm will assume the input graph is a homogeneous graph and set ``target_ntype`` to "_N".
 
 Edge Classification/Regression Specific
 ..........................................
@@ -394,7 +394,7 @@ Edge Classification/Regression Specific
     - Yaml: ``target_etype:``
            | ``- query,clicks,asin``
     - Argument: ``--target-etype query,clicks,asin``
-    - Default value: This parameter must be provided by user. If not provided, will be default to ("_N", "_E", "_N"), and require homogeneous graph input.
+    - Default value: For heterogeneous input graph, this parameter must be provided by the user. If not provided, GraphStorm will assume the input graph is a homogeneous graph and set ``target_etype`` to ("_N", "_E", "_N").
 - **remove_target_edge_type**: When set to true, GraphStorm removes target_etype in message passing, i.e., any edge with target_etype will not be sampled during training and inference.
 
     - Yaml: ``remove_target_edge_type: false``

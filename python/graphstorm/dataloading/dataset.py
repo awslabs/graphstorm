@@ -558,8 +558,8 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
             assert self._g.ntypes == [DEFAULT_NTYPE] and \
                    self._g.etypes == [DEFAULT_ETYPE[1]], \
                 f"It is required to be a homogeneous graph when not providing " \
-                f"target_etype on node task, expect node type {[DEFAULT_NTYPE]} and " \
-                f"edge type {[DEFAULT_ETYPE[1]]}, but get {self._g.ntypes} " \
+                f"target_etype on node task, expect node type to be {[DEFAULT_NTYPE]} and " \
+                f"edge type to be {[DEFAULT_ETYPE[1]]}, but get {self._g.ntypes} " \
                 f"and {self._g.etypes}"
 
     def prepare_data(self, g):
@@ -743,8 +743,8 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
             assert self._g.ntypes == [DEFAULT_NTYPE] and \
                    self._g.etypes == [DEFAULT_ETYPE[1]], \
                 f"It is required to be a homogeneous graph when not providing " \
-                f"target_etype on node task, expect node type {[DEFAULT_NTYPE]} and " \
-                f"edge type {[DEFAULT_ETYPE[1]]}, but get {self._g.ntypes} " \
+                f"target_etype on node task, expect node type to be {[DEFAULT_NTYPE]} and " \
+                f"edge type to be {[DEFAULT_ETYPE[1]]}, but get {self._g.ntypes} " \
                 f"and {self._g.etypes}"
 
     def prepare_data(self, g):
@@ -950,8 +950,8 @@ class GSgnnNodeTrainData(GSgnnNodeData):
             assert self._g.ntypes == [DEFAULT_NTYPE] and \
                    self._g.etypes == [DEFAULT_ETYPE[1]], \
                 f"It is required to be a homogeneous graph when not providing " \
-                f"target_ntype on node task, expect node type {[DEFAULT_NTYPE]} and " \
-                f"edge type {[DEFAULT_ETYPE[1]]}, but get {self._g.ntypes} " \
+                f"target_ntype on node task, expect node type to be {[DEFAULT_NTYPE]} and " \
+                f"edge type to be {[DEFAULT_ETYPE[1]]}, but get {self._g.ntypes} " \
                 f"and {self._g.etypes}"
 
     def prepare_data(self, g):
@@ -1097,8 +1097,8 @@ class GSgnnNodeInferData(GSgnnNodeData):
             assert self._g.ntypes == [DEFAULT_NTYPE] and \
                    self._g.etypes == [DEFAULT_ETYPE[1]], \
                 f"It is required to be a homogeneous graph when not providing " \
-                f"target_ntype on node task, expect node type {[DEFAULT_NTYPE]} and " \
-                f"edge type {[DEFAULT_ETYPE[1]]}, but get {self._g.ntypes} " \
+                f"target_ntype on node task, expect node type to be {[DEFAULT_NTYPE]} and " \
+                f"edge type to be {[DEFAULT_ETYPE[1]]}, but get {self._g.ntypes} " \
                 f"and {self._g.etypes}"
     def prepare_data(self, g):
         """
