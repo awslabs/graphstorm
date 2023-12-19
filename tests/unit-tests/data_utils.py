@@ -354,7 +354,7 @@ def generate_dummy_homogeneous_failure_graph(size='tiny', gen_mask=True, type='n
     Conversely, for type="edge", the function generates a graph with an incorrect node type ["_N", "fake_N"] while
     maintaining the correct edge type [("_N", "_E", "_N")]. The unit test is expected to identify and flag errors
     in both these scenarios.
-    
+
     Parameters
     ----------
     size: the size of dummy graph data, could be one of tiny, small, medium, large, and largest
@@ -374,7 +374,7 @@ def generate_dummy_homogeneous_failure_graph(size='tiny', gen_mask=True, type='n
     data_size = int(size_dict[size])
 
     if type == 'node':
-        ntype = DEFAULT_NTYPE
+        ntype = "_N"
         etype = ("_N", "fake_E", "_N")
 
         num_nodes_dict = {
