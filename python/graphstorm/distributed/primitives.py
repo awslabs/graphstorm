@@ -32,7 +32,7 @@ class FlushRequest(rpc.Request):
     when the operation returns. In practice, we don't need to perform any operations
     in the request, except just sending responses to the client. The reason is
     that when servers receive requests from clients, they processes them in
-    the FIFO order. When a server gets the opportunities to process the request,
+    the FIFO order. When a server gets the opportunities to process the Flush request,
     it means that the server has processed all requests before it and has written
     data to the distributed tensors.
     """
@@ -64,13 +64,16 @@ class FlushResponse(rpc.Response):
 rpc.register_service(FLUSH_DATA, FlushRequest, FlushResponse)
 
 def flush_data():
-    # We have the rank 0 process to talk to all server processes and
-    # make sure all server processes complete processing the write requests
-    # issued by the trainer processes. When this function is called, all
-    # trainer processes except the rank 0 process are waiting on the barrier.
-    # Therefore, no trainer processes will issue new write requests to servers.
-    # In the meanwhile, no trainer processes are writing data to shared memory
-    # in the local machine either.
+    # All processes need to talk to all server processes and make sure
+    # all server processes complete processing the write requests issued by
+    # the trainer processes. The reason that we need to have all processes
+    # to communicate with all servers is that there are N*M communication channels,
+    # where N is the number of trainer processes and M is the number of servers.
+    # We need to make sure we flush data in all communication channels.
+    # This function is called after trainer processes have finished issuing write
+    # requests to servers and have written data to shared memory.
+    # We can guarantee that all data are written to distributed tensors when
+    # this function returns.
     request = FlushRequest()
     # send request to all the server nodes
     server_count = rpc.get_num_server()
