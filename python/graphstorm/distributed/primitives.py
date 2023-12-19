@@ -16,7 +16,6 @@
     The primitives required for distributed computations.
 """
 
-import dgl
 from dgl.distributed import rpc
 
 from ..utils import barrier
@@ -88,5 +87,5 @@ def flush_data():
         rpc.send_request(server_id, request)
     # recv response from all the server nodes
     for _ in range(server_count):
-        response = rpc.recv_response()
+        _ = rpc.recv_response()
     barrier()
