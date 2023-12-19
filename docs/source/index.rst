@@ -42,7 +42,6 @@ Welcome to the GraphStorm Documentation and Tutorials
    :glob:
 
    notebooks/Notebook_0_Data_Prepare
-   notebooks/Notebook_1_Builtin_RGCN_for_NC
 
 .. toctree::
    :maxdepth: 1
