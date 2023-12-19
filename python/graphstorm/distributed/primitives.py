@@ -47,6 +47,10 @@ class FlushRequest(rpc.Request):
         pass
 
     def process_request(self, server_state):
+        """ Process the request.
+
+        Here we don't need to do anything except returning the flush response.
+        """
         return FlushResponse()
 
 class FlushResponse(rpc.Response):
@@ -64,16 +68,19 @@ class FlushResponse(rpc.Response):
 rpc.register_service(FLUSH_DATA, FlushRequest, FlushResponse)
 
 def flush_data():
-    # All processes need to talk to all server processes and make sure
-    # all server processes complete processing the write requests issued by
-    # the trainer processes. The reason that we need to have all processes
-    # to communicate with all servers is that there are N*M communication channels,
-    # where N is the number of trainer processes and M is the number of servers.
-    # We need to make sure we flush data in all communication channels.
-    # This function is called after trainer processes have finished issuing write
-    # requests to servers and have written data to shared memory.
-    # We can guarantee that all data are written to distributed tensors when
-    # this function returns.
+    """ Flush data in distributed writes of DGL.
+
+    All processes need to talk to all server processes and make sure
+    all server processes complete processing the write requests issued by
+    the trainer processes. The reason that we need to have all processes
+    to communicate with all servers is that there are N*M communication channels,
+    where N is the number of trainer processes and M is the number of servers.
+    We need to make sure we flush data in all communication channels.
+    This function is called after trainer processes have finished issuing write
+    requests to servers and have written data to shared memory.
+    We can guarantee that all data are written to distributed tensors when
+    this function returns.
+    """
     request = FlushRequest()
     # send request to all the server nodes
     server_count = rpc.get_num_server()
