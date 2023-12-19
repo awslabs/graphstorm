@@ -202,6 +202,7 @@ def create_acm_raw_data(graph,
                 label_dict['label_col'] = col
                 label_dict['task_type'] = 'classification'
                 label_dict['split_pct'] = [0.8, 0.1, 0.1]
+                label_dict['label_stats_type'] = 'frequency_cnt'
                 labels_list.append(label_dict)
             elif col == 'text':
                 feat_dict['feature_col'] = col

@@ -41,8 +41,8 @@ Welcome to the GraphStorm Documentation and Tutorials
    :hidden:
    :glob:
 
-   notebooks/Notebook_0
-   notebooks/Notebook 1: Built-in RGCN for Node Classification
+   notebooks/Notebook_0_Data_Prepare
+   notebooks/Notebook_1_Builtin_RGCN_for_NC
 
 .. toctree::
    :maxdepth: 1
