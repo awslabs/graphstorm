@@ -389,7 +389,7 @@ Node Classification/Regression Specific
 
 Edge Classification/Regression Specific
 ..........................................
-- **target_etype**: The list of canonical edge types that will be added as a training target in edge classification/regression tasks, for example ``--train-etype query,clicks,asin`` or ``--train-etype query,clicks,asin query,search,asin``. A canonical edge type should be formatted as `src_node_type,relation_type,dst_node_type`. Currently, GraphStorm only supports single task edge classification/regression, i.e., it only accepts one canonical edge type.
+- **target_etype**: The list of canonical edge types that will be added as training targets in edge classification/regression tasks, for example ``--train-etype query,clicks,asin`` or ``--train-etype query,clicks,asin query,search,asin``. A canonical edge type should be formatted as `src_node_type,relation_type,dst_node_type`. Currently, GraphStorm only supports single task edge classification/regression, i.e., it only accepts one canonical edge type.
 
     - Yaml: ``target_etype:``
            | ``- query,clicks,asin``

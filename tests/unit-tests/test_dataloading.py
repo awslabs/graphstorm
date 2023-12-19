@@ -29,7 +29,7 @@ import pytest
 from data_utils import (
     generate_dummy_dist_graph,
     generate_dummy_dist_graph_reconstruct,
-    generate_dummy_dist_graph_homo_failure_graph,
+    generate_dummy_dist_graph_homogeneous_failure_graph,
     create_distill_data,
 )
 
@@ -1377,7 +1377,7 @@ def test_GSgnnTrainData_homogeneous():
         # generate the test dummy distributed graph with "_N" node type. As it is expected to be
         # a homogeneous graph with "_N" as node type and ("_N", "_E", "_N") as edge type.
         # It should throw an error to clarify that.
-        dist_graph, part_config = generate_dummy_dist_graph_homo_failure_graph(graph_name='dummy',
+        dist_graph, part_config = generate_dummy_dist_graph_homogeneous_failure_graph(graph_name='dummy',
                                                             dirname=tmpdirname)
         try:
             _ = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
@@ -1398,7 +1398,7 @@ def test_GSgnnTrainData_homogeneous():
         # generate the test dummy distributed graph with "_N" node type. As it is expected to be
         # a homogeneous graph with "_N" as node type and ("_N", "_E", "_N") as edge type.
         # It should throw an error to clarify that.
-        dist_graph, part_config = generate_dummy_dist_graph_homo_failure_graph(graph_name='dummy',
+        dist_graph, part_config = generate_dummy_dist_graph_homogeneous_failure_graph(graph_name='dummy',
                                                             dirname=tmpdirname)
         try:
             _ = GSgnnNodeInferData(graph_name='dummy', part_config=part_config,
@@ -1423,7 +1423,7 @@ def test_GSgnnTrainData_homogeneous():
         # generate the test dummy distributed graph with "_N" node type. As it is expected to be
         # a homogeneous graph with "_N" as node type and ("_N", "_E", "_N") as edge type.
         # It should throw an error to clarify that.
-        dist_graph, part_config = generate_dummy_dist_graph_homo_failure_graph(graph_name='dummy',
+        dist_graph, part_config = generate_dummy_dist_graph_homogeneous_failure_graph(graph_name='dummy',
                                                             dirname=os.path.join(tmpdirname, 'dummy'))
         try:
             _ = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
@@ -1444,7 +1444,7 @@ def test_GSgnnTrainData_homogeneous():
         # generate the test dummy distributed graph with "_N" node type. As it is expected to be
         # a homogeneous graph with "_N" as node type and ("_N", "_E", "_N") as edge type.
         # It should throw an error to clarify that.
-        dist_graph, part_config = generate_dummy_dist_graph_homo_failure_graph(graph_name='dummy',
+        dist_graph, part_config = generate_dummy_dist_graph_homogeneous_failure_graph(graph_name='dummy',
                                                             dirname=os.path.join(tmpdirname, 'dummy'))
         try:
             _ = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,

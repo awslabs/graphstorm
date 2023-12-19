@@ -343,9 +343,15 @@ def generate_dummy_homo_graph(size='tiny', gen_mask=True):
 
     return hetero_graph
 
-def generate_dummy_homo_failure_graph(size='tiny', gen_mask=True, type='node'):
+def generate_dummy_homogeneous_failure_graph(size='tiny', gen_mask=True, type='node'):
     """
-    generate a dummy homogeneous graph.
+    generate a dummy homogeneous graph for failure case.
+
+    In a homogeneous graph, the node type should be "_N" and the edge type ("_N", "_E", "_N").
+    For testing, with type="node", an error should be triggered by using the right node type "_N"
+    but a wrong edge type, with type="edge", an error should be triggered by using
+    the right edge type ("_N", "_E", "_N") but a wrong node type.
+    The unit test should detect errors in both scenarios.
     Parameters
     ----------
     size: the size of dummy graph data, could be one of tiny, small, medium, large, and largest
@@ -509,7 +515,7 @@ def generate_dummy_dist_graph_multi_target_ntypes(dirname, size='tiny', graph_na
                                               graph_name=graph_name)
 
 
-def generate_dummy_dist_graph_homo_failure_graph(dirname, size='tiny', graph_name='dummy',
+def generate_dummy_dist_graph_homogeneous_failure_graph(dirname, size='tiny', graph_name='dummy',
                                                  gen_mask=True, type='node'):
     """
     Generate a dummy DGL distributed graph with the given size
@@ -526,7 +532,7 @@ def generate_dummy_dist_graph_homo_failure_graph(dirname, size='tiny', graph_nam
     part_config : the path of the partition configuration file.
     type:
     """
-    hetero_graph = generate_dummy_homo_failure_graph(size=size, gen_mask=gen_mask, type=type)
+    hetero_graph = generate_dummy_homogeneous_failure_graph(size=size, gen_mask=gen_mask, type=type)
     return partion_and_load_distributed_graph(hetero_graph=hetero_graph, dirname=dirname,
                                               graph_name=graph_name)
 
