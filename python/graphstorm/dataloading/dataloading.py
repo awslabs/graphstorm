@@ -34,7 +34,7 @@ from .sampler import (LocalUniform,
                       InbatchJointUniform,
                       FastMultiLayerNeighborSampler,
                       DistributedFileSampler,
-                      GSHardEdgeDstNegative)
+                      GSHardEdgeDstNegativeSampler)
 from .utils import trim_data, modify_fanout_for_target_etype
 from .dataset import GSDistillData
 
@@ -1014,7 +1014,7 @@ class GSgnnLinkPredictionTestDataLoader():
         self._neg_sample_type = BUILTIN_LP_UNIFORM_NEG_SAMPLER
         negative_sampler = GlobalUniform(num_negative_edges)
         if self._fixed_edge_dst_negative_field:
-            negative_sampler = GSHardEdgeDstNegative(num_negative_edges,
+            negative_sampler = GSHardEdgeDstNegativeSampler(num_negative_edges,
                                                      self._fixed_edge_dst_negative_field,
                                                      negative_sampler)
         return negative_sampler
@@ -1066,7 +1066,7 @@ class GSgnnLinkPredictionJointTestDataLoader(GSgnnLinkPredictionTestDataLoader):
         negative_sampler = JointUniform(num_negative_edges)
         self._neg_sample_type = BUILTIN_LP_JOINT_NEG_SAMPLER
         if self._fixed_edge_dst_negative_field:
-            negative_sampler = GSHardEdgeDstNegative(num_negative_edges,
+            negative_sampler = GSHardEdgeDstNegativeSampler(num_negative_edges,
                                                      self._fixed_edge_dst_negative_field,
                                                      negative_sampler)
         return negative_sampler

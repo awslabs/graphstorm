@@ -72,8 +72,8 @@ class LocalUniform(Uniform):
         dst = F.randint(shape, dtype, ctx, 0, self._local_neg_nids[vtype].shape[0])
         return src, self._local_neg_nids[vtype][dst]
 
-class GSHardEdgeDstNegative(object):
-    """ GraphStorm negativer sampler that chooses negative destination nodes
+class GSHardEdgeDstNegativeSampler(object):
+    """ GraphStorm negative sampler that chooses negative destination nodes
         from a fixed set to create negative edges.
 
         Parameters
@@ -127,7 +127,6 @@ class GSHardEdgeDstNegative(object):
             # shuffle the hard negatives
             hard_negatives = hard_negatives[:,neg_idx]
 
-            print(f"{required_num_hard_neg} {max_num_hard_neg} {self._k}")
             if required_num_hard_neg >= self._k and max_num_hard_neg >= self._k:
                 # All negative should be hard negative and
                 # there are enough hard negatives.
@@ -174,6 +173,20 @@ class GSHardEdgeDstNegative(object):
                               if num_hard_neg < self._k else self._k)] = \
                     hard_negative[:num_hard_neg if num_hard_neg < self._k else self._k]
             return src, neg
+
+class GSFixedEdgeDstNegativeSampler(object):
+    """ GraphStorm negative sampler that uses fixed negative destination nodes
+        to create negative edges.
+
+        Parameters
+        ----------
+        dst_negative_field: str or dict of str
+            The field storing the hard negatives.
+    """
+    def __init__(self, dst_negative_field):
+        assert is_wholegraph() is False, \
+                "Hard negative is not supported for WholeGraph."
+        self._dst_negative_field = dst_negative_field
 
     def gen_neg_pairs(self, g, pos_pairs):
         """ Returns negative examples associated with positive examples.

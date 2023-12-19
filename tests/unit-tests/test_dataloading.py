@@ -58,7 +58,7 @@ from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 
 from graphstorm.dataloading.sampler import InbatchJointUniform
 from graphstorm.dataloading.sampler import GlobalUniform
-from graphstorm.dataloading.sampler import GSHardEdgeDstNegative
+from graphstorm.dataloading.sampler import GSHardEdgeDstNegativeSampler
 
 from graphstorm.dataloading.dataset import (prepare_batch_input,
                                             prepare_batch_edge_input)
@@ -1356,9 +1356,9 @@ def _create_hard_neg_graph(num_nodes, num_negs):
     return etype0, etype1, etype2, hard0, hard1, hard2, src, dst, g
 
 def test_hard_edge_dst_negative_sample_generate_complex_case():
-    # test GSHardEdgeDstNegative._generate with slow track when not all the pos edges have enough hard negatives defined
+    # test GSHardEdgeDstNegativeSampler._generate with slow track when not all the pos edges have enough hard negatives defined
     num_nodes = 1000
-    # test GSHardEdgeDstNegative._generate when all some pos edges do not have enough hard negatives defined
+    # test GSHardEdgeDstNegativeSampler._generate when all some pos edges do not have enough hard negatives defined
     num_negs = 10
     etype0, etype1, etype2, hard0, hard1, hard2, src, _, g = _create_hard_neg_graph(num_nodes, num_negs)
 
@@ -1458,7 +1458,7 @@ def test_hard_edge_dst_negative_sample_generate_complex_case():
     #   1. Only 2 hard negatives are returned
     #   2. Others will be random negatives
     sampler = GlobalUniform(num_negs)
-    hard_sampler = GSHardEdgeDstNegative(num_negs, "hard_negative", sampler, num_hard_negs=2)
+    hard_sampler = GSHardEdgeDstNegativeSampler(num_negs, "hard_negative", sampler, num_hard_negs=2)
     check_less_hard_negs(hard_sampler, etype0, hard0, 2, check_missing_hard_neg=False)
 
     # Case 2:
@@ -1488,7 +1488,7 @@ def test_hard_edge_dst_negative_sample_generate_complex_case():
     #   2. Others will be random negatives
     #   3. eid 0 will have 2 more random negatives
     #      and eid 1 will have 1 more random negatives
-    hard_sampler = GSHardEdgeDstNegative(num_negs, "hard_negative", sampler, num_hard_negs=8)
+    hard_sampler = GSHardEdgeDstNegativeSampler(num_negs, "hard_negative", sampler, num_hard_negs=8)
     check_less_hard_negs(hard_sampler, etype0, hard0, 4, check_missing_hard_neg=True)
 
     # Case 4:
@@ -1515,7 +1515,7 @@ def test_hard_edge_dst_negative_sample_generate_complex_case():
             hard_neg_set = set(hard_neg_data[i].tolist())
             assert hard_neg_dst == hard_neg_set
 
-    hard_sampler = GSHardEdgeDstNegative(num_negs, "hard_negative", sampler, num_hard_negs=num_negs)
+    hard_sampler = GSHardEdgeDstNegativeSampler(num_negs, "hard_negative", sampler, num_hard_negs=num_negs)
     check_enough_hard_negs(hard_sampler, etype1, hard1)
 
     # Case 5:
@@ -1541,7 +1541,7 @@ def test_hard_edge_dst_negative_sample_generate_complex_case():
     check_more_hard_negs(hard_sampler, etype2, hard2)
 
 def test_hard_edge_dst_negative_sample_generate():
-    # test GSHardEdgeDstNegative._generate with fast track when all pos edges have enough hard negatives defined
+    # test GSHardEdgeDstNegativeSampler._generate with fast track when all pos edges have enough hard negatives defined
     num_nodes = 100
     num_negs = 10
     etype0, etype1, etype2, hard0, hard1, hard2, src, _, g = _create_hard_neg_graph(num_nodes, num_negs)
@@ -1575,7 +1575,7 @@ def test_hard_edge_dst_negative_sample_generate():
     #   1. Only 2 hard negatives are returned
     #   2. Others will be random negatives
     sampler = GlobalUniform(num_negs)
-    hard_sampler = GSHardEdgeDstNegative(num_negs, "hard_negative", sampler, num_hard_negs=2)
+    hard_sampler = GSHardEdgeDstNegativeSampler(num_negs, "hard_negative", sampler, num_hard_negs=2)
     check_less_hard_negs(hard_sampler, etype0, hard0, 2)
 
     # Case 2:
@@ -1602,7 +1602,7 @@ def test_hard_edge_dst_negative_sample_generate():
     # expected behavior:
     #   1. Only 4 hard negatives are returned
     #   2. Others will be random negatives
-    hard_sampler = GSHardEdgeDstNegative(num_negs, "hard_negative", sampler, num_hard_negs=8)
+    hard_sampler = GSHardEdgeDstNegativeSampler(num_negs, "hard_negative", sampler, num_hard_negs=8)
     check_less_hard_negs(hard_sampler, etype0, hard0, 4)
 
     # Case 4:
@@ -1625,7 +1625,7 @@ def test_hard_edge_dst_negative_sample_generate():
             hard_neg_dst = set(neg_dst[i].tolist())
             hard_neg_set = set(hard_neg_data[i].tolist())
             assert hard_neg_dst == hard_neg_set
-    hard_sampler = GSHardEdgeDstNegative(num_negs, "hard_negative", sampler, num_hard_negs=num_negs)
+    hard_sampler = GSHardEdgeDstNegativeSampler(num_negs, "hard_negative", sampler, num_hard_negs=num_negs)
     check_enough_hard_negs(hard_sampler, etype1, hard1)
 
     # Case 5:
@@ -1661,7 +1661,7 @@ def test_hard_edge_dst_negative_sample_generate():
     # expected behavior:
     #   1. Only 2 hard negatives are returned
     #   2. Others will be random negatives
-    hard_sampler = GSHardEdgeDstNegative(
+    hard_sampler = GSHardEdgeDstNegativeSampler(
         num_negs,
         {etype0: "hard_negative",
          etype1: "hard_negative",
@@ -1709,20 +1709,20 @@ def test_hard_edge_dst_negative_sample_generate():
             assert hard_neg_dst.issubset(hard_neg_set) is False
     # Case 9:
     # dst_negative_field is not provided
-    hard_sampler = GSHardEdgeDstNegative(
+    hard_sampler = GSHardEdgeDstNegativeSampler(
         num_negs, {}, sampler, 2)
     check_none_hard_negs(hard_sampler, etype2, hard2)
 
     # Case 10:
     # num_hard_negs is not provided
-    hard_sampler = GSHardEdgeDstNegative(
+    hard_sampler = GSHardEdgeDstNegativeSampler(
         num_negs, "hard_negative", sampler, {})
     check_none_hard_negs(hard_sampler, etype2, hard2)
 
 def test_hard_edge_dst_negative_sample_gen_neg_pairs_complex_case():
-    # test GSHardEdgeDstNegative.gen_neg_pairs with slow track when not all edges have enough predefined negatives
+    # test GSHardEdgeDstNegativeSampler.gen_neg_pairs with slow track when not all edges have enough predefined negatives
     num_nodes = 1000
-    # test GSHardEdgeDstNegative._generate when all some pos edges do not have enough hard negatives defined
+    # test GSHardEdgeDstNegativeSampler._generate when all some pos edges do not have enough hard negatives defined
     num_negs = 10
     etype0, etype1, etype2, hard0, hard1, hard2, src, dst, g = _create_hard_neg_graph(num_nodes, num_negs)
 
@@ -1817,7 +1817,7 @@ def test_hard_edge_dst_negative_sample_gen_neg_pairs_complex_case():
                 rand_neg_dst.issubset(hard_neg_set) is False
 
     sampler = GlobalUniform(num_negs)
-    hard_sampler = GSHardEdgeDstNegative(num_negs, "hard_negative", sampler)
+    hard_sampler = GSHardEdgeDstNegativeSampler(num_negs, "hard_negative", sampler)
     pos_neg_tuple = hard_sampler.gen_neg_pairs(g, pos_pairs)
 
     # Case 1:
@@ -1851,9 +1851,9 @@ def test_hard_edge_dst_negative_sample_gen_neg_pairs_complex_case():
 
 
 def test_hard_edge_dst_negative_sample_gen_neg_pairs():
-    # test GSHardEdgeDstNegative.gen_neg_pairs with fast track when all edges have enough predefined negatives
+    # test GSHardEdgeDstNegativeSampler.gen_neg_pairs with fast track when all edges have enough predefined negatives
     num_nodes = 1000
-    # test GSHardEdgeDstNegative._generate when all some pos edges do not have enough hard negatives defined
+    # test GSHardEdgeDstNegativeSampler._generate when all some pos edges do not have enough hard negatives defined
     num_negs = 10
     etype0, etype1, etype2, hard0, hard1, hard2, src, dst, g = _create_hard_neg_graph(num_nodes, num_negs)
 
@@ -1884,7 +1884,7 @@ def test_hard_edge_dst_negative_sample_gen_neg_pairs():
                 rand_neg_dst.issubset(hard_neg_set) is False
 
     sampler = GlobalUniform(num_negs)
-    hard_sampler = GSHardEdgeDstNegative(num_negs, "hard_negative", sampler)
+    hard_sampler = GSHardEdgeDstNegativeSampler(num_negs, "hard_negative", sampler)
     pos_neg_tuple = hard_sampler.gen_neg_pairs(g, pos_pairs)
 
     # Case 1:
@@ -1913,7 +1913,7 @@ def test_hard_edge_dst_negative_sample_gen_neg_pairs():
     #   1. all negatives are predefined negatives
     check_hard_negs(pos_neg_tuple, etype2, hard2, num_negs)
 
-    hard_sampler = GSHardEdgeDstNegative(num_negs,
+    hard_sampler = GSHardEdgeDstNegativeSampler(num_negs,
                                          {etype0: "hard_negative",
                                           etype1: "hard_negative",
                                           etype2: "hard_negative"},
@@ -1961,7 +1961,7 @@ def test_hard_edge_dst_negative_sample_gen_neg_pairs():
 
     # Case 9:
     # dst_negative_field is not provided
-    hard_sampler = GSHardEdgeDstNegative(
+    hard_sampler = GSHardEdgeDstNegativeSampler(
         num_negs, {}, sampler)
     pos_neg_tuple = hard_sampler.gen_neg_pairs(g, pos_pairs)
     check_none_hard_negs(pos_neg_tuple, etype2, hard2)
