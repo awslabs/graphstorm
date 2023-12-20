@@ -1953,7 +1953,12 @@ class GSConfig:
             num_hard_negative_dict = {}
             for num_negative in num_negatives:
                 negative_info = num_negative.split(":")
+                assert len(negative_info) == 2, \
+                    "Number of train hard negative information must be provided in format of " \
+                    f"src,relation,dst:10, but get {num_negative}"
                 etype = tuple(negative_info[0].split(","))
+                assert len(etype) == 3, \
+                    f"Edge type must in format of (src,relation,dst), but get {etype}"
                 assert etype not in num_hard_negative_dict, \
                     f"You already specify the fixed negative of {etype} " \
                     f"as {num_hard_negative_dict[etype]}"
