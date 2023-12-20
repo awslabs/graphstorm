@@ -224,40 +224,19 @@ class GSFixedEdgeDstNegativeSampler(object):
                 src, _, pos_dst, neg_dst = random_neg_pairs[canonical_etype]
                 return (src, None, pos_dst, neg_dst)
 
-            hard_negatives = g.edges[canonical_etype].data[dst_negative_field][eids]
-            # It is possible that different edges may have different number of
-            # pre-defined negatives. For pre-defined negatives, the corresponding
-            # value in `hard_negatives` will be integers representing the node ids.
-            # For others, they will be -1s meaning there are missing fixed negatives.
-            if th.sum(hard_negatives == -1) == 0:
-                # Fast track, there is no -1 in hard_negatives
-                num_hard_neg = hard_negatives.shape[1]
-                if self._k < num_hard_neg:
-                    hard_negatives = hard_negatives[:,:self._k]
-                    return (src, None, pos_dst, hard_negatives)
-                else:
-                    # random negative are needed
-                    random_neg_pairs = \
-                        self._negative_sampler.gen_neg_pairs(g,
-                         {canonical_etype:pos_pair})
-                    src, _, pos_dst, neg_dst = random_neg_pairs[canonical_etype]
-                    neg_dst[:,:num_hard_neg] = hard_negatives
-                    return (src, None, pos_dst, neg_dst)
-            else:
-                # slow track, we need to handle cases when there are -1s
-                hard_negatives, _ = th.sort(hard_negatives, dim=1, descending=True)
+            fixed_negatives = g.edges[canonical_etype].data[dst_negative_field][eids]
 
-                random_neg_pairs = \
-                    self._negative_sampler.gen_neg_pairs(g, {canonical_etype:pos_pair})
-                src, _, pos_dst, neg_dst = random_neg_pairs[canonical_etype]
-                for i in range(len(eids)):
-                    hard_negative = hard_negatives[i]
-                    # ignore -1s
-                    hard_negative = hard_negative[hard_negative > -1]
-                    num_hard_neg = hard_negative.shape[0]
-                    neg_dst[i][:num_hard_neg if num_hard_neg < self._k else self._k] = \
-                        hard_negative[:num_hard_neg if num_hard_neg < self._k else self._k]
-                return (src, _, pos_dst, neg_dst)
+            # Users may use HardEdgeDstNegativeTransform
+            # to prepare the fixed negatives.
+            assert th.sum(fixed_negatives == -1) == 0, \
+                "When using fixed negative destination nodes to construct testing edges," \
+                "it is required that for each positive edge there are enough negative " \
+                f"destination nodes. Please check the {dst_negative_field} feature " \
+                f"of edge type {canonical_etype}"
+
+            num_fixed_neg = fixed_negatives.shape[1]
+            logging.debug("The number of fixed negative is %d", num_fixed_neg)
+            return (src, None, pos_dst, fixed_negatives)
 
         if isinstance(pos_pairs, Mapping):
             pos_neg_tuple = {}
