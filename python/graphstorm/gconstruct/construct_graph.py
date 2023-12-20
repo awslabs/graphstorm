@@ -299,13 +299,13 @@ def process_node_data(process_confs, arr_merger, remap_id,
         assert 'files' in process_conf, \
                 "'files' must be defined for a node type"
         in_files = get_in_files(process_conf['files'])
+        assert 'format' in process_conf, \
+                "'format' must be defined for a node type"
         (feat_ops, two_phase_feat_ops, after_merge_feat_ops, _) = \
-            parse_feat_ops(process_conf['features']) \
+            parse_feat_ops(process_conf['features'], process_conf['format']['name']) \
                 if 'features' in process_conf else (None, [], {}, [])
         label_ops = parse_label_ops(process_conf, is_node=True) \
                 if 'labels' in process_conf else None
-        assert 'format' in process_conf, \
-                "'format' must be defined for a node type"
 
         # If it requires multiprocessing, we need to read data to memory.
         node_id_col = process_conf['node_id_col'] if 'node_id_col' in process_conf else None
@@ -485,7 +485,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         assert 'format' in process_conf, \
                 "'format' is not defined for an edge type."
         (feat_ops, two_phase_feat_ops, after_merge_feat_ops, hard_edge_neg_ops) = \
-            parse_feat_ops(process_conf['features']) \
+            parse_feat_ops(process_conf['features'], process_conf['format']['name'])\
                 if 'features' in process_conf else (None, [], {}, [])
         label_ops = parse_label_ops(process_conf, is_node=False) \
                 if 'labels' in process_conf else None

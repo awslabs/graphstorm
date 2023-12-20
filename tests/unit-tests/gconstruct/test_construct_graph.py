@@ -1705,7 +1705,49 @@ def test_gc():
     assert not os.path.isdir("/tmp_featurewrapper2"), \
         "Directory /tmp_featurewrapper2 should not exist after gc"
 
+def test_parse_feat_ops_data_format():
+    conf = {
+        "format": {"name": "hdf5"},
+        "features":     [
+            {
+                "feature_col":  "feat",
+                "transform": {"name": 'edge_dst_hard_negative'},
+            },
+            {
+                "feature_col":  "feat2",
+                "transform": {"name": 'max_min_norm'},
+            },
+            {
+                "feature_col":  "feat3",
+                "transform": {"name": 'rank_gauss'},
+            },
+        ],
+    }
+    try:
+        (feat_ops, _, _, _) = parse_feat_ops(conf['features'], conf['format']['name'])
+        assert False, "edge_dst_hard_negative can not work with hdf5."
+    except AssertionError as e:
+        assert str(e) == "Edge_dst_hard_negative transformation does not work with hdf5 inputs."
+
+    conf['format']['name'] = "parquet"
+    (feat_ops, two_phase_feat_ops, after_merge_feat_ops, hard_edge_neg_ops) = \
+        parse_feat_ops(conf['features'], conf['format']['name'])
+    assert len(feat_ops) == 3
+    assert len(two_phase_feat_ops) == 2 # max_min_norm and edge_dst_hard_negative
+    assert len(after_merge_feat_ops) == 1 # rank_gauss
+    assert len(hard_edge_neg_ops) == 1 # edge_dst_hard_negative
+
+    conf['format']['name'] = "csv"
+    (feat_ops, two_phase_feat_ops, after_merge_feat_ops, hard_edge_neg_ops) = \
+        parse_feat_ops(conf['features'], conf['format']['name'])
+    assert len(feat_ops) == 3
+    assert len(two_phase_feat_ops) == 2 # max_min_norm and edge_dst_hard_negative
+    assert len(after_merge_feat_ops) == 1 # rank_gauss
+    assert len(hard_edge_neg_ops) == 1 # edge_dst_hard_negative
+
+
 if __name__ == '__main__':
+    test_parse_feat_ops_data_format()
     test_parse_edge_data()
     test_multiprocessing_checks()
     test_csv(None)

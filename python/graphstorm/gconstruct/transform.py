@@ -987,12 +987,6 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
             assert len(feats.shape) == 1 or feats.shape[1] == 1, \
                 "When a separator is given, the input feats must be a list of strings."
 
-
-            if feats.dtype.type is not np.str_:
-                logging.warning("When a separator is given, "
-                                "the input feats must be a list of strings."
-                                "But we get %s. Will convert the input feats into str array",
-                                feats.dtype.type)
             feats = feats.astype(str)
             max_dim = 0
             for feat in feats:
@@ -1089,7 +1083,7 @@ class HardEdgeDstNegativeTransform(HardEdgeNegativeTransform):
         # target node type is destination node type.
         self._target_ntype = etype[2]
 
-def parse_feat_ops(confs):
+def parse_feat_ops(confs, input_data_format=None):
     """ Parse the configurations for processing the features
 
     The feature transformation:
@@ -1103,6 +1097,8 @@ def parse_feat_ops(confs):
     ----------
     confs : list
         A list of feature transformations.
+    input_data_format: str
+        Input data format, it can be parquet, csv, hdf5.
 
     Returns
     -------
@@ -1203,6 +1199,8 @@ def parse_feat_ops(confs):
                                                slide_window_size=slide_window_size,
                                                out_dtype=out_dtype)
             elif conf['name'] == 'edge_dst_hard_negative':
+                assert input_data_format not in ["hdf5"], \
+                    "Edge_dst_hard_negative transformation does not work with hdf5 inputs."
                 separator = conf['separator'] if 'separator' in conf else None
                 transform = HardEdgeDstNegativeTransform(feat['feature_col'],
                                                          feat_name,

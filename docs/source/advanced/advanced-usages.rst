@@ -52,7 +52,7 @@ By default, GraphStorm will sample hard negatives first to fulfill the requireme
 In general, GraphStorm covers following cases:
 
 - ``num_train_hard_negatives`` is larger or equal to ``num_negative_edges``. GraphStorm will only sample hard negative nodes.
-- There are enough hard negatives for a positive edge. GraphStorm will randomly sample ``num_train_hard_negatives`` hard negative nodes from the hard negative set and then randomly sample ``num_negative_edges - num_train_hard_negatives`` negative nodes.
+- ``num_train_hard_negatives`` is smaller than ``num_negative_edges``. GraphStorm will randomly sample ``num_train_hard_negatives`` hard negative nodes from the hard negative set and then randomly sample ``num_negative_edges - num_train_hard_negatives`` negative nodes.
 - There is not enough hard negatives for a positive edge. GraphStorm will use all the hard negatives first and then randomly sample negative nodes to fulfill the requirement of ``num_negative_edges``
 
 ** Preparing graph data for hard negative sampling **
@@ -62,9 +62,9 @@ Hard destination negatives can be defined through ``edge_dst_hard_negative`` tra
 The ``feature_col`` field of ``edge_dst_hard_negative`` must stores the raw node ids of hard destination nodes.
 GraphStorm accepts two types of hard negative inputs:
 
-- **An array of strings** When the input format is ``Parquet`` or ``HDFS``, the ``feature_col`` can store string arrays. In this case, each row stores a string array representing the hard negative node ids of the corresponding edge. The ``feature_col`` will be a 2D string array, for example ``[["e0_hard_0", "e0_hard_1"],["e1_hard_0", "e1_hard_1"], ..., ["en_hard_0", "en_hard_1"]]``. It is required that each row has the same dimension size. In case when some edges do not have enough pre-defined hard negatives, GraphStorm allows users to use an empty string to fill the array. GraphStorm will automatically handle the case when some edges do not have enough hard negatives.
+- **An array of strings** When the input format is ``Parquet``, the ``feature_col`` can store string arrays. In this case, each row stores a string array representing the hard negative node ids of the corresponding edge. The ``feature_col`` will be a 2D string array, for example ``[["e0_hard_0", "e0_hard_1"],["e1_hard_0", "e1_hard_1"], ..., ["en_hard_0", "en_hard_1"]]``. It is required that each row has the same dimension size. In case when some edges do not have enough pre-defined hard negatives, GraphStorm allows users to use an empty string to fill the array. GraphStorm will automatically handle the case when some edges do not have enough hard negatives.
 
-- **A single string** The ``feature_col`` stores strings instead of string arrays. In this case, a ``separator`` must be provided to split the strings into node ids. The ``feature_col`` will be a 1D string list, for example ``["e0_hard_0;e0_hard_1", "e1_hard_0;e1_hard_1", ..., "en_hard_0;en_hard_1"]``. The string length, i.e., number of hard negatives, can vary from row to row. GraphStorm will automatically handle the case when some edges do not have enough hard negatives.
+- **A single string** The ``feature_col`` stores strings instead of string arrays. (When the input format is ``Parquet`` or ``CSV``) In this case, a ``separator`` must be provided to split the strings into node ids. The ``feature_col`` will be a 1D string list, for example ``["e0_hard_0;e0_hard_1", "e1_hard_0;e1_hard_1", ..., "en_hard_0;en_hard_1"]``. The string length, i.e., number of hard negatives, can vary from row to row. GraphStorm will automatically handle the case when some edges do not have enough hard negatives.
 
 GraphStorm will automatically translate the Raw Node IDs of hard negatives into Partition Node IDs in a DistDGL graph.
 
