@@ -26,6 +26,7 @@ from dgl.distributed import node_split
 from .gs_layer import GSLayer
 
 from ..utils import get_rank, barrier, is_distributed, create_dist_tensor, is_wholegraph
+from ..distributed import flush_data
 
 class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
     r"""General encoder for graph data.
@@ -336,6 +337,7 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
             if k in output_nodes:
                 assert k in y, "All mini-batch outputs should have the same tensor names."
                 y[k][output_nodes[k]] = h[k].cpu()
+    flush_data()
     return y
 
 def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
