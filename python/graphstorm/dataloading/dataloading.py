@@ -34,7 +34,8 @@ from .sampler import (LocalUniform,
                       InbatchJointUniform,
                       FastMultiLayerNeighborSampler,
                       DistributedFileSampler,
-                      GSHardEdgeDstNegativeSampler)
+                      GSHardEdgeDstNegativeSampler,
+                      GSFixedEdgeDstNegativeSampler)
 from .utils import trim_data, modify_fanout_for_target_etype
 from .dataset import GSDistillData
 
@@ -369,6 +370,7 @@ BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER = 'fast_uniform'
 BUILTIN_FAST_LP_JOINT_NEG_SAMPLER = 'fast_joint'
 BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER = 'fast_localuniform'
 BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER = 'fast_localjoint'
+BUILTIN_LP_FIXED_NEG_SAMPLER = 'fixed'
 
 class GSgnnLinkPredictionDataLoaderBase():
     """ The base class of link prediction dataloader.
@@ -1012,11 +1014,13 @@ class GSgnnLinkPredictionTestDataLoader():
     def _prepare_negative_sampler(self, num_negative_edges):
         # the default negative sampler is uniform sampler
         self._neg_sample_type = BUILTIN_LP_UNIFORM_NEG_SAMPLER
-        negative_sampler = GlobalUniform(num_negative_edges)
+
         if self._fixed_edge_dst_negative_field:
-            negative_sampler = GSHardEdgeDstNegativeSampler(num_negative_edges,
-                                                     self._fixed_edge_dst_negative_field,
-                                                     negative_sampler)
+            negative_sampler = GSFixedEdgeDstNegativeSampler(self._fixed_edge_dst_negative_field)
+            self._neg_sample_type = BUILTIN_LP_FIXED_NEG_SAMPLER
+        else:
+            negative_sampler = GlobalUniform(num_negative_edges)
+            self._neg_sample_type = BUILTIN_LP_UNIFORM_NEG_SAMPLER
         return negative_sampler
 
     def __iter__(self):
