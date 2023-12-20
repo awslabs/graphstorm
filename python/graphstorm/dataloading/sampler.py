@@ -179,15 +179,6 @@ class GSHardEdgeDstNegativeSampler(_BaseNegativeSampler):
                     hard_negative[:num_hard_neg if num_hard_neg < self._k else self._k]
             return src, neg
 
-    def gen_neg_pairs(self, _):
-        """ TODO: Do not support generating negative pairs for evaluation in the same way as
-            generating negative pairs for training now.
-            Please use GSFixedEdgeDstNegativeSampler instead.
-        """
-        raise RuntimeError("Sampling negative edges for evaluation purpose"
-                            "is not supported for GSHardEdgeDstNegativeSampler. "
-                            "Please use GSFixedEdgeDstNegativeSampler instead.")
-
 class GSFixedEdgeDstNegativeSampler(object):
     """ GraphStorm negative sampler that uses fixed negative destination nodes
         to create negative edges.
@@ -204,7 +195,7 @@ class GSFixedEdgeDstNegativeSampler(object):
                 "Hard negative is not supported for WholeGraph."
         self._dst_negative_field = dst_negative_field
 
-    def gen_neg_pairs(self, g, pos_pairs):
+    def gen_etype_neg_pairs(self, g, etype, pos_eids):
         """ Returns negative examples associated with positive examples.
             It only return dst negatives.
 
@@ -215,33 +206,25 @@ class GSFixedEdgeDstNegativeSampler(object):
         ----------
         g : DGLGraph
             The graph.
-        pos_pairs : (Tensor, Tensor) or dict[etype, (Tensor, Tensor)]
-            The positive node pairs
+        pos_eids : (Tensor, Tensor) or dict[etype, (Tensor, Tensor)]
+            The positive edge ids.
 
         Returns
         -------
-        tuple[Tensor, Tensor, Tensor, Tensor] or
         dict[etype, tuple(Tensor, Tensor Tensor, Tensor)
             The returned [positive source, negative source,
             postive destination, negatve destination]
             tuples as pos-neg examples.
         """
-        def _gen_neg_pair(pos_pair, canonical_etype):
-            src, pos_dst = pos_pair
-            eids = g.edge_ids(src, pos_dst, etype=canonical_etype)
+        def _gen_neg_pair(eids, canonical_etype):
+            src, pos_dst = g.find_edges(eids, etype=canonical_etype)
 
             if isinstance(self._dst_negative_field, str):
                 dst_negative_field = self._dst_negative_field
             elif canonical_etype in self._dst_negative_field:
                 dst_negative_field = self._dst_negative_field[canonical_etype]
             else:
-                dst_negative_field = None
-
-            if dst_negative_field is None:
-                random_neg_pairs = \
-                    self._negative_sampler.gen_neg_pairs(g, {canonical_etype:pos_pair})
-                src, _, pos_dst, neg_dst = random_neg_pairs[canonical_etype]
-                return (src, None, pos_dst, neg_dst)
+                raise RuntimeError(f"{etype} does not have pre-defined negatives")
 
             fixed_negatives = g.edges[canonical_etype].data[dst_negative_field][eids]
 
@@ -257,15 +240,11 @@ class GSFixedEdgeDstNegativeSampler(object):
             logging.debug("The number of fixed negative is %d", num_fixed_neg)
             return (src, None, pos_dst, fixed_negatives)
 
-        if isinstance(pos_pairs, Mapping):
-            pos_neg_tuple = {}
-            for canonical_etype, pos_pair in pos_pairs.items():
-                pos_neg_tuple[canonical_etype] = _gen_neg_pair(pos_pair, canonical_etype)
-        else:
-            assert len(g.canonical_etypes) == 1, \
-                'please specify a dict of etypes and ids for graphs with multiple edge types'
-            pos_neg_tuple = _gen_neg_pair(pos_pairs, canonical_etype)
-        return pos_neg_tuple
+        assert etype in g.canonical_etypes, \
+            f"Edge type {etype} does not exist in graph. Expecting an edge type in " \
+            f"{g.canonical_etypes}, but get {etype}"
+
+        return {etype: _gen_neg_pair(pos_eids, etype)}
 
 class GlobalUniform(Uniform):
     """Negative sampler that randomly chooses negative destination nodes

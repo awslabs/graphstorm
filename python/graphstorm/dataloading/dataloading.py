@@ -1117,6 +1117,20 @@ class GSgnnLinkPredictionPredefinedTestDataLoader(GSgnnLinkPredictionTestDataLoa
         self._neg_sample_type = BUILTIN_LP_FIXED_NEG_SAMPLER
         return negative_sampler
 
+    def _next_data(self, etype):
+        """ Get postive edges for the next iteration for a specific edge type
+        """
+        g = self._data.g
+        current_pos = self._current_pos[etype]
+        end_of_etype = current_pos + self._batch_size >= self._fixed_test_size[etype]
+
+        pos_eids = self._target_idx[etype][current_pos:self._fixed_test_size[etype]] \
+            if end_of_etype \
+            else self._target_idx[etype][current_pos:current_pos+self._batch_size]
+        pos_neg_tuple = self._negative_sampler.gen_etype_neg_pairs(g, etype, pos_eids)
+        self._current_pos[etype] += self._batch_size
+        return pos_neg_tuple, end_of_etype
+
 ################ Minibatch DataLoader (Node classification) #######################
 
 class GSgnnNodeDataLoaderBase():

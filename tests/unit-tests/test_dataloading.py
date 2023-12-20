@@ -687,7 +687,6 @@ def test_GSgnnLinkPredictionPredefinedTestDataLoader(batch_size):
             lp_data,
             target_idx=lp_data.infer_idxs, # use train edges as val or test edges
             batch_size=batch_size,
-            num_negative_edges=0,
             fixed_edge_dst_negative_field="neg")
 
         total_edges = {etype: len(lp_data.infer_idxs[etype]) for etype in test_etypes}
@@ -695,7 +694,7 @@ def test_GSgnnLinkPredictionPredefinedTestDataLoader(batch_size):
         for pos_neg_tuple, sample_type in dataloader:
             assert sample_type == BUILTIN_LP_FIXED_NEG_SAMPLER
             assert isinstance(pos_neg_tuple, dict)
-            assert len(pos_neg_tuple) == 2
+            assert len(pos_neg_tuple) == 1
             for canonical_etype, pos_neg in pos_neg_tuple.items():
                 assert len(pos_neg) == 4
                 pos_src, _, pos_dst, neg_dst = pos_neg
@@ -703,10 +702,10 @@ def test_GSgnnLinkPredictionPredefinedTestDataLoader(batch_size):
                 assert pos_src.shape[0] == batch_size \
                     if num_pos_edges[canonical_etype] + batch_size < total_edges[canonical_etype] \
                     else total_edges[canonical_etype] - num_pos_edges[canonical_etype]
-                eid = lp_data.train_idxs[canonical_etype][num_pos_edges[canonical_etype]: \
+                eid = lp_data.infer_idxs[canonical_etype][num_pos_edges[canonical_etype]: \
                     num_pos_edges[canonical_etype]+batch_size] \
                     if num_pos_edges[canonical_etype]+batch_size < total_edges[canonical_etype] \
-                    else lp_data.train_idxs[canonical_etype] \
+                    else lp_data.infer_idxs[canonical_etype] \
                         [num_pos_edges[canonical_etype]:]
                 src, dst = g.find_edges(eid, etype=canonical_etype)
                 assert_equal(pos_src.numpy(), src.numpy())
@@ -1780,12 +1779,9 @@ def test_edge_fixed_dst_negative_sample_gen_neg_pairs():
     num_nodes = 1000
     # test GSHardEdgeDstNegativeSampler._generate when all some pos edges do not have enough hard negatives defined
     num_negs = 10
-    etype0, etype1, etype2, hard0, _, _, src, dst, g = _create_hard_neg_graph(num_nodes, num_negs)
+    etype0, etype1, etype2, hard0, hard1, hard2, src, dst, g = _create_hard_neg_graph(num_nodes, num_negs)
 
     num_edges = 10
-    pos_pairs = {etype0: (th.arange(10), th.arange(10)),
-                 etype1: (th.arange(10), th.arange(10)),
-                 etype2: (th.arange(10), th.arange(10))}
 
     def check_fixed_negs(pos_neg_tuple, etype, hard_neg_data):
         neg_src, _, pos_dst, neg_dst = pos_neg_tuple[etype]
@@ -1799,19 +1795,28 @@ def test_edge_fixed_dst_negative_sample_gen_neg_pairs():
         assert_equal(hard_neg_data[:10].numpy(), neg_dst.numpy())
 
     hard_sampler = GSFixedEdgeDstNegativeSampler("hard_negative")
-    pos_neg_tuple = hard_sampler.gen_neg_pairs(g, pos_pairs)
+    pos_neg_tuple = hard_sampler.gen_etype_neg_pairs(g, etype0, th.arange(10))
     check_fixed_negs(pos_neg_tuple, etype0, hard0)
+    pos_neg_tuple = hard_sampler.gen_etype_neg_pairs(g, etype1, th.arange(10))
+    check_fixed_negs(pos_neg_tuple, etype1, hard1)
+    pos_neg_tuple = hard_sampler.gen_etype_neg_pairs(g, etype2, th.arange(10))
+    check_fixed_negs(pos_neg_tuple, etype2, hard2)
 
     hard_sampler = GSFixedEdgeDstNegativeSampler({etype0: "hard_negative",
                                           etype1: "hard_negative",
                                           etype2: "hard_negative"})
+    pos_neg_tuple = hard_sampler.gen_etype_neg_pairs(g, etype0, th.arange(10))
     check_fixed_negs(pos_neg_tuple, etype0, hard0)
+    pos_neg_tuple = hard_sampler.gen_etype_neg_pairs(g, etype1, th.arange(10))
+    check_fixed_negs(pos_neg_tuple, etype1, hard1)
+    pos_neg_tuple = hard_sampler.gen_etype_neg_pairs(g, etype2, th.arange(10))
+    check_fixed_negs(pos_neg_tuple, etype2, hard2)
 
     # each positive edge should have enough fixed negatives
     hard0[0][-1] = -1
     fail = False
     try:
-        pos_neg_tuple = hard_sampler.gen_neg_pairs(g, pos_pairs)
+        pos_neg_tuple = hard_sampler.gen_neg_pairs(g, etype0, th.arange(10))
     except:
         fail = True
     assert fail
