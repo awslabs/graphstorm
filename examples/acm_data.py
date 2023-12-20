@@ -68,9 +68,9 @@ def create_acm_raw_data(graph,
     only use three relationships in the original ACM data, the number of graph nodes could be less 
     than the papers, authors, and subjects in the original node lists.
     
-    In addition, to demonstrate string type node ids, we add the first letter of each node type
-    name to the original numerical ids, i.e., "author" -> "a", "paper" -> "p", and "subject" ->
-    "s".
+    In addition, to demonstrate the use of string type node ids in the raw graph data, we add the 
+    first letter of each node type name to the original numerical ids, i.e., "author" -> "a", 
+    "paper" -> "p", and "subject" -> "s".
 
     Parameters
     ----------
@@ -92,6 +92,7 @@ def create_acm_raw_data(graph,
     # generate node dataframe: we use the graph node ids and node name as node_type
     node_list = []
 
+    # extract the first letter of each node type name as the prefix
     node_prefix_dict = {}
     for ntype in graph.ntypes:
         node_prefix_dict[ntype] = ntype[0]
@@ -100,7 +101,7 @@ def create_acm_raw_data(graph,
         node_dict = {}
         # generate the id column
         node_ids = graph.nodes(ntype)
-        # pad a prefix before each node id.
+        # pad a prefix before each node id
         str_node_ids = np.array([f'{node_prefix_dict[ntype]}{i}' for i in node_ids.numpy()])
         
         node_dict['node_id'] = str_node_ids
@@ -134,7 +135,7 @@ def create_acm_raw_data(graph,
         edge_dict = {}
         # generate the ids columns for both source nodes and destination nodes
         src_ids, dst_ids = graph.edges(etype=(src_ntype, etype, dst_ntype))
-       # convert tensor to list of arrays for saving in parquet format
+        # pad a prefix before each node id
         str_src_ids = np.array([f'{node_prefix_dict[src_ntype]}{i}' for i in src_ids.numpy()])
         str_dst_ids = np.array([f'{node_prefix_dict[dst_ntype]}{i}' for i in dst_ids.numpy()])
         edge_dict['source_id'] = str_src_ids
