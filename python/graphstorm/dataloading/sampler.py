@@ -24,7 +24,8 @@ import numpy as np
 from dgl import backend as F
 from dgl import EID, NID
 from dgl.distributed import node_split
-from dgl.dataloading.negative_sampler import Uniform
+from dgl.dataloading.negative_sampler import (Uniform,
+                                              _BaseNegativeSampler)
 from dgl.dataloading import NeighborSampler
 from dgl.transforms import to_block
 
@@ -72,7 +73,7 @@ class LocalUniform(Uniform):
         dst = F.randint(shape, dtype, ctx, 0, self._local_neg_nids[vtype].shape[0])
         return src, self._local_neg_nids[vtype][dst]
 
-class GSHardEdgeDstNegativeSampler(object):
+class GSHardEdgeDstNegativeSampler(_BaseNegativeSampler):
     """ GraphStorm negative sampler that chooses negative destination nodes
         from a fixed set to create negative edges.
 
@@ -97,6 +98,10 @@ class GSHardEdgeDstNegativeSampler(object):
         self._num_hard_negs = num_hard_negs
 
     def _generate(self, g, eids, canonical_etype):
+        """ _generate() is called by DGL BaseNegativeSampler to generate negative pairs.
+
+            See https://github.com/dmlc/dgl/blob/1.1.x/python/dgl/dataloading/negative_sampler.py#L7 For more detials
+        """
         if isinstance(self._dst_negative_field, str):
             dst_negative_field = self._dst_negative_field
         elif canonical_etype in self._dst_negative_field:
@@ -174,9 +179,20 @@ class GSHardEdgeDstNegativeSampler(object):
                     hard_negative[:num_hard_neg if num_hard_neg < self._k else self._k]
             return src, neg
 
+    def gen_neg_pairs(self, g, pos_pairs):
+        """ TODO: Do not support generating negative pairs for evaluation in the same way as
+            generating negative pairs for training now.
+            Please use GSFixedEdgeDstNegativeSampler instead.
+        """
+        raise RuntimeError("Sampling negative edges for evaluation purpose"
+                            "is not supported for GSHardEdgeDstNegativeSampler. "
+                            "Please use GSFixedEdgeDstNegativeSampler instead.")
+
 class GSFixedEdgeDstNegativeSampler(object):
     """ GraphStorm negative sampler that uses fixed negative destination nodes
         to create negative edges.
+
+        GSFixedEdgeDstNegativeSampler only works with test dataloader.
 
         Parameters
         ----------
@@ -191,6 +207,9 @@ class GSFixedEdgeDstNegativeSampler(object):
     def gen_neg_pairs(self, g, pos_pairs):
         """ Returns negative examples associated with positive examples.
             It only return dst negatives.
+
+            This function is called by GSgnnLinkPredictionTestDataLoader._next_data()
+            to generate testing edges.
 
         Parameters
         ----------

@@ -1874,6 +1874,30 @@ class GSConfig:
 
         return None
 
+    def _get_predefined_negatives_per_etype(negatives):
+        if len(negatives) == 1 and \
+            ":" not in negatives[0]:
+            # global feat_name
+            return int(negatives[0])
+
+        # per edge type feature
+        negative_dict = {}
+        for negative in negatives:
+            negative_info = negative.split(":")
+            assert len(negative_info) == 2, \
+                "negative dstnode information must be provided in format of " \
+                f"src,relation,dst:feature_name, but get {negative}"
+
+            etype = tuple(negative_info[0].split(","))
+            assert len(etype) == 3, \
+                f"Edge type must in format of (src,relation,dst), but get {etype}"
+            assert etype not in negative_dict, \
+                f"You already specify the fixed negative of {etype} " \
+                f"as {negative_dict[etype]}"
+
+            negative_dict[etype] = negative_info[1]
+        return negative_dict
+
     @property
     def train_etypes_negative_dstnode(self):
         """ The list of canonical etypes that have hard negative edges
@@ -1895,29 +1919,7 @@ class GSConfig:
             assert self.task_type == BUILTIN_TASK_LINK_PREDICTION, \
                 "Hard negative only works with link prediction"
             hard_negatives = self._train_etypes_negative_dstnode
-            if len(hard_negatives) == 1 and \
-                ":" not in hard_negatives[0]:
-                # global feat_name
-                return hard_negatives[0]
-
-            # per edge type feature
-            hard_negative_dict = {}
-            for hard_negative in hard_negatives:
-                negative_info = hard_negative.split(":")
-                assert len(negative_info) == 2, \
-                    "negative dstnode information must be provided in format of " \
-                    f"src,relation,dst:feature_name, but get {hard_negative}"
-
-                etype = tuple(negative_info[0].split(","))
-                assert len(etype) == 3, \
-                    f"Edge type must in format of (src,relation,dst), but get {etype}"
-
-                assert etype not in hard_negative_dict, \
-                    f"You already specify the fixed negative of {etype} " \
-                    f"as {hard_negative_dict[etype]}"
-
-                hard_negative_dict[etype] = negative_info[1]
-            return hard_negative_dict
+            return self._get_predefined_negatives_per_etype(hard_negatives)
 
         # By default fixed negative is not used
         return None
@@ -1982,28 +1984,7 @@ class GSConfig:
             assert self.task_type == BUILTIN_TASK_LINK_PREDICTION, \
                 "Fixed negative only works with link prediction"
             fixed_negatives = self._eval_etypes_negative_dstnode
-            if len(fixed_negatives) == 1 and \
-                ":" not in fixed_negatives[0]:
-                # global feat_name
-                return fixed_negatives[0]
-
-            # per edge type feature
-            fixed_negative_dict = {}
-            for fixed_negative in fixed_negatives:
-                negative_info = fixed_negative.split(":")
-                assert len(negative_info) == 2, \
-                    "negative dstnode information must be provided in format of " \
-                    f"src,relation,dst:feature_name, but get {fixed_negative}"
-
-                etype = tuple(negative_info[0].split(","))
-                assert len(etype) == 3, \
-                    f"Edge type must in format of (src,relation,dst), but get {etype}"
-                assert etype not in fixed_negative_dict, \
-                    f"You already specify the fixed negative of {etype} " \
-                    f"as {fixed_negative_dict[etype]}"
-
-                fixed_negative_dict[etype] = negative_info[1]
-            return fixed_negative_dict
+            return self._get_predefined_negatives_per_etype(fixed_negatives)
 
         # By default fixed negative is not used
         return None
