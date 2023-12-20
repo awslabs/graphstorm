@@ -488,6 +488,10 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
         The node types that requires to construct node features.
     construct_feat_fanout : int
         The fanout required to construct node features.
+    edge_dst_negative_field: str or dict of str
+        The feature field(s) that store the hard negative edges for each edge type.
+    num_hard_negs: int or dict of int
+        The number of hard negatives per positive edge for each edge type
 
     Examples
     ------------
@@ -510,7 +514,9 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
     def __init__(self, dataset, target_idx, fanout, batch_size, num_negative_edges, device='cpu',
                  train_task=True, reverse_edge_types_map=None, exclude_training_targets=False,
                  edge_mask_for_gnn_embeddings='train_mask',
-                 construct_feat_ntype=None, construct_feat_fanout=5):
+                 construct_feat_ntype=None, construct_feat_fanout=5,
+                 edge_dst_negative_field=None,
+                 num_hard_negs=None):
         super().__init__(dataset, target_idx, fanout)
         self._device = device
         for etype in target_idx:
@@ -524,7 +530,9 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
                 reverse_edge_types_map=reverse_edge_types_map,
                 edge_mask_for_gnn_embeddings=edge_mask_for_gnn_embeddings,
                 construct_feat_ntype=construct_feat_ntype,
-                construct_feat_fanout=construct_feat_fanout)
+                construct_feat_fanout=construct_feat_fanout,
+                edge_dst_negative_field=edge_dst_negative_field,
+                num_hard_negs=num_hard_negs)
 
     def _prepare_negative_sampler(self, num_negative_edges):
         # the default negative sampler is uniform sampler
@@ -535,7 +543,8 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
                             num_negative_edges, batch_size, device, train_task=True,
                             exclude_training_targets=False, reverse_edge_types_map=None,
                             edge_mask_for_gnn_embeddings=None, construct_feat_ntype=None,
-                            construct_feat_fanout=5):
+                            construct_feat_fanout=5, edge_dst_negative_field=None,
+                            num_hard_negs=None):
         g = dataset.g
         if construct_feat_ntype is None:
             construct_feat_ntype = []
@@ -556,6 +565,11 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
             sampler = MultiLayerNeighborSamplerForReconstruct(sampler,
                     dataset, construct_feat_ntype, construct_feat_fanout)
         negative_sampler = self._prepare_negative_sampler(num_negative_edges)
+        if edge_dst_negative_field is not None:
+            negative_sampler = GSHardEdgeDstNegativeSampler(num_negative_edges,
+                                                            edge_dst_negative_field,
+                                                            negative_sampler,
+                                                            num_hard_negs)
 
         # edge loader
         if train_task:
@@ -642,7 +656,8 @@ class FastGSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
                             num_negative_edges, batch_size, device, train_task=True,
                             exclude_training_targets=False, reverse_edge_types_map=None,
                             edge_mask_for_gnn_embeddings=None, construct_feat_ntype=None,
-                            construct_feat_fanout=5):
+                            construct_feat_fanout=5, edge_dst_negative_field=None,
+                            num_hard_negs=None):
         g = dataset.g
         if construct_feat_ntype is None:
             construct_feat_ntype = []
@@ -663,6 +678,11 @@ class FastGSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
             sampler = MultiLayerNeighborSamplerForReconstruct(sampler,
                     dataset, construct_feat_ntype, construct_feat_fanout)
         negative_sampler = self._prepare_negative_sampler(num_negative_edges)
+        if edge_dst_negative_field is not None:
+            negative_sampler = GSHardEdgeDstNegativeSampler(num_negative_edges,
+                                                            edge_dst_negative_field,
+                                                            negative_sampler,
+                                                            num_hard_negs)
 
         # edge loader
         if train_task:
@@ -975,11 +995,9 @@ class GSgnnLinkPredictionTestDataLoader():
         When test is huge, using fixed_test_size
         can save validation and test time.
         Default: None.
-    fixed_edge_dst_negative_field: str or list of str
-        The feature field(s) that store the fixed negative set for each edge.
     """
     def __init__(self, dataset, target_idx, batch_size, num_negative_edges,
-                 fanout=None, fixed_test_size=None, fixed_edge_dst_negative_field=None):
+                 fanout=None, fixed_test_size=None):
         self._data = dataset
         self._fanout = fanout
         for etype in target_idx:
@@ -996,7 +1014,6 @@ class GSgnnLinkPredictionTestDataLoader():
                                 "is %d, which is smaller than the expected"
                                 "test size %d, force it to %d",
                                 etype, len(t_idx), self._fixed_test_size[etype], len(t_idx))
-        self._fixed_edge_dst_negative_field = fixed_edge_dst_negative_field
         self._negative_sampler = self._prepare_negative_sampler(num_negative_edges)
         self._reinit_dataset()
 
@@ -1014,13 +1031,7 @@ class GSgnnLinkPredictionTestDataLoader():
     def _prepare_negative_sampler(self, num_negative_edges):
         # the default negative sampler is uniform sampler
         self._neg_sample_type = BUILTIN_LP_UNIFORM_NEG_SAMPLER
-
-        if self._fixed_edge_dst_negative_field:
-            negative_sampler = GSFixedEdgeDstNegativeSampler(self._fixed_edge_dst_negative_field)
-            self._neg_sample_type = BUILTIN_LP_FIXED_NEG_SAMPLER
-        else:
-            negative_sampler = GlobalUniform(num_negative_edges)
-            self._neg_sample_type = BUILTIN_LP_UNIFORM_NEG_SAMPLER
+        negative_sampler = GlobalUniform(num_negative_edges)
         return negative_sampler
 
     def __iter__(self):
@@ -1069,10 +1080,41 @@ class GSgnnLinkPredictionJointTestDataLoader(GSgnnLinkPredictionTestDataLoader):
         # the default negative sampler is uniform sampler
         negative_sampler = JointUniform(num_negative_edges)
         self._neg_sample_type = BUILTIN_LP_JOINT_NEG_SAMPLER
-        if self._fixed_edge_dst_negative_field:
-            negative_sampler = GSHardEdgeDstNegativeSampler(num_negative_edges,
-                                                     self._fixed_edge_dst_negative_field,
-                                                     negative_sampler)
+        return negative_sampler
+
+class GSgnnLinkPredictionPredefinedTestDataLoader(GSgnnLinkPredictionTestDataLoader):
+    """ Link prediction minibatch dataloader for validation and test
+        with predefined negatives.
+
+    Parameters
+    -----------
+    dataset: GSgnnEdgeData
+        The GraphStorm edge dataset
+    target_idx : dict of Tensors
+        The target edges for prediction
+    batch_size: int
+        Batch size
+    fanout: int
+        Evaluation fanout for computing node embedding
+    fixed_test_size: int
+        Fixed number of test data used in evaluation.
+        If it is none, use the whole testset.
+        When test is huge, using fixed_test_size
+        can save validation and test time.
+        Default: None.
+    fixed_edge_dst_negative_field: str or list of str
+        The feature field(s) that store the fixed negative set for each edge.
+    """
+    def __init__(self, dataset, target_idx, batch_size, fixed_edge_dst_negative_field,
+                 fanout=None, fixed_test_size=None):
+        self._fixed_edge_dst_negative_field = fixed_edge_dst_negative_field
+        super().__init__(dataset, target_idx, batch_size,
+                        num_negative_edges=0, # num_negative_edges is not used
+                        fanout=fanout, fixed_test_size=fixed_test_size)
+
+    def _prepare_negative_sampler(self, _):
+        negative_sampler = GSFixedEdgeDstNegativeSampler(self._fixed_edge_dst_negative_field)
+        self._neg_sample_type = BUILTIN_LP_FIXED_NEG_SAMPLER
         return negative_sampler
 
 ################ Minibatch DataLoader (Node classification) #######################

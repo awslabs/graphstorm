@@ -179,7 +179,7 @@ class GSHardEdgeDstNegativeSampler(_BaseNegativeSampler):
                     hard_negative[:num_hard_neg if num_hard_neg < self._k else self._k]
             return src, neg
 
-    def gen_neg_pairs(self, g, pos_pairs):
+    def gen_neg_pairs(self, _):
         """ TODO: Do not support generating negative pairs for evaluation in the same way as
             generating negative pairs for training now.
             Please use GSFixedEdgeDstNegativeSampler instead.

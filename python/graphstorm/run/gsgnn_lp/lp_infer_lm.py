@@ -23,8 +23,9 @@ from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnLinkPredictionInferrer
 from graphstorm.eval import GSgnnMrrLPEvaluator
 from graphstorm.dataloading import GSgnnEdgeInferData
-from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
-from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
+from graphstorm.dataloading import (GSgnnLinkPredictionTestDataLoader,
+                                    GSgnnLinkPredictionJointTestDataLoader,
+                                    GSgnnLinkPredictionPredefinedTestDataLoader)
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.utils import setup_device
@@ -58,7 +59,9 @@ def main(config_args):
     tracker = gs.create_builtin_task_tracker(config)
     infer.setup_task_tracker(tracker)
     # We only support full-graph inference for now.
-    if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+    if config.eval_etypes_negative_dstnode is not None:
+        test_dataloader_cls = GSgnnLinkPredictionPredefinedTestDataLoader
+    elif config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
         test_dataloader_cls = GSgnnLinkPredictionTestDataLoader
     elif config.eval_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
         test_dataloader_cls = GSgnnLinkPredictionJointTestDataLoader
@@ -67,9 +70,14 @@ def main(config_args):
             'Supported test negative samplers include '
             f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
 
-    dataloader = test_dataloader_cls(infer_data, infer_data.test_idxs,
-                                     batch_size=config.eval_batch_size,
-                                     num_negative_edges=config.num_negative_edges_eval)
+    if config.eval_etypes_negative_dstnode is not None:
+        dataloader = test_dataloader_cls(infer_data, infer_data.test_idxs,
+                                         batch_size=config.eval_batch_size,
+                                         fixed_edge_dst_negative_field=config.eval_etypes_negative_dstnode)
+    else:
+        dataloader = test_dataloader_cls(infer_data, infer_data.test_idxs,
+                                         batch_size=config.eval_batch_size,
+                                         num_negative_edges=config.num_negative_edges_eval)
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
     # For example pre-compute all BERT embeddings

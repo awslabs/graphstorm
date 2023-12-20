@@ -49,12 +49,14 @@ from graphstorm.dataloading import (GSgnnLinkPredictionDataLoader,
                                     FastGSgnnLPJointNegDataLoader,
                                     FastGSgnnLPLocalUniformNegDataLoader,
                                     FastGSgnnLPLocalJointNegDataLoader)
-from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
-from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
+from graphstorm.dataloading import (GSgnnLinkPredictionTestDataLoader,
+                                    GSgnnLinkPredictionJointTestDataLoader,
+                                    GSgnnLinkPredictionPredefinedTestDataLoader)
 from graphstorm.dataloading import DistillDataloaderGenerator, DistillDataManager
 from graphstorm.dataloading import DistributedFileSampler
-from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
-from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
+from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
+                                    BUILTIN_LP_JOINT_NEG_SAMPLER,
+                                    BUILTIN_LP_FIXED_NEG_SAMPLER)
 
 from graphstorm.dataloading.sampler import InbatchJointUniform
 from graphstorm.dataloading.sampler import GlobalUniform
@@ -661,6 +663,59 @@ def test_GSgnnLinkPredictionTestDataLoader(batch_size, num_negative_edges):
 
         assert num_samples ==  -(-fixed_test_size // batch_size) * 2
 
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()
+
+def test_GSgnnLinkPredictionPredefinedTestDataLoader(batch_size):
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    test_etypes = [("n0", "r1", "n1"), ("n0", "r0", "n1")]
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        lp_data = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
+                                     eval_etypes=test_etypes)
+        g = lp_data.g
+        g.edges[("n0", "r1", "n1")].data["neg"] = th.randint(g.num_nodes("n1"),
+                                                             (g.num_edges(("n0", "r1", "n1")), 10))
+        g.edges[("n0", "r0", "n1")].data["neg"] = th.randint(g.num_nodes("n1"),
+                                                             (g.num_edges(("n0", "r0", "n1")), 10))
+
+        dataloader = GSgnnLinkPredictionPredefinedTestDataLoader(
+            lp_data,
+            target_idx=lp_data.infer_idxs, # use train edges as val or test edges
+            batch_size=batch_size,
+            num_negative_edges=0,
+            fixed_edge_dst_negative_field="neg")
+
+        total_edges = {etype: len(lp_data.infer_idxs[etype]) for etype in test_etypes}
+        num_pos_edges = {etype: 0 for etype in test_etypes}
+        for pos_neg_tuple, sample_type in dataloader:
+            assert sample_type == BUILTIN_LP_FIXED_NEG_SAMPLER
+            assert isinstance(pos_neg_tuple, dict)
+            assert len(pos_neg_tuple) == 2
+            for canonical_etype, pos_neg in pos_neg_tuple.items():
+                assert len(pos_neg) == 4
+                pos_src, _, pos_dst, neg_dst = pos_neg
+                assert pos_src.shape == pos_dst.shape
+                assert pos_src.shape[0] == batch_size \
+                    if num_pos_edges[canonical_etype] + batch_size < total_edges[canonical_etype] \
+                    else total_edges[canonical_etype] - num_pos_edges[canonical_etype]
+                eid = lp_data.train_idxs[canonical_etype][num_pos_edges[canonical_etype]: \
+                    num_pos_edges[canonical_etype]+batch_size] \
+                    if num_pos_edges[canonical_etype]+batch_size < total_edges[canonical_etype] \
+                    else lp_data.train_idxs[canonical_etype] \
+                        [num_pos_edges[canonical_etype]:]
+                src, dst = g.find_edges(eid, etype=canonical_etype)
+                assert_equal(pos_src.numpy(), src.numpy())
+                assert_equal(pos_dst.numpy(), dst.numpy())
+                assert len(neg_dst.shape) == 2
+                assert neg_dst.shape[1] == 10
+                assert_equal(neg_dst.numpy(), g.edges[canonical_etype].data["neg"][eid].numpy())
+
+                num_pos_edges[canonical_etype] += batch_size
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
@@ -1788,6 +1843,8 @@ def test_inbatch_joint_neg_sampler(num_pos, num_neg):
 
 
 if __name__ == '__main__':
+    test_GSgnnLinkPredictionPredefinedTestDataLoader(1)
+    test_GSgnnLinkPredictionPredefinedTestDataLoader(10)
     test_edge_fixed_dst_negative_sample_gen_neg_pairs()
     test_hard_edge_dst_negative_sample_generate_complex_case()
     test_hard_edge_dst_negative_sample_generate()
