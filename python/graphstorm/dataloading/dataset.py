@@ -23,6 +23,7 @@ import re
 
 import torch as th
 import dgl
+from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 from torch.utils.data import Dataset
 import pandas as pd
 
@@ -554,6 +555,15 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
                                                  lm_feat_ntypes=lm_feat_ntypes,
                                                  lm_feat_etypes=lm_feat_etypes)
 
+        if self._train_etypes == [DEFAULT_ETYPE]:
+            # DGL Graph edge type is not canonical. It is just list[str].
+            assert self._g.ntypes == [DEFAULT_NTYPE] and \
+                   self._g.etypes == [DEFAULT_ETYPE[1]], \
+                f"It is required to be a homogeneous graph when target_etype is not provided " \
+                f"or is set to {DEFAULT_ETYPE} on edge tasks, expect node type " \
+                f"to be {[DEFAULT_NTYPE]} and edge type to be {[DEFAULT_ETYPE[1]]}, " \
+                f"but get {self._g.ntypes} and {self._g.etypes}"
+
     def prepare_data(self, g):
         """
         Prepare the training, validation and testing edge set.
@@ -731,6 +741,14 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
                                                  decoder_edge_feat,
                                                  lm_feat_ntypes=lm_feat_ntypes,
                                                  lm_feat_etypes=lm_feat_etypes)
+        if self._eval_etypes == [DEFAULT_ETYPE]:
+            # DGL Graph edge type is not canonical. It is just list[str].
+            assert self._g.ntypes == [DEFAULT_NTYPE] and \
+                   self._g.etypes == [DEFAULT_ETYPE[1]], \
+                f"It is required to be a homogeneous graph when target_etype is not provided " \
+                f"or is set to {DEFAULT_ETYPE} on edge tasks, expect node type " \
+                f"to be {[DEFAULT_NTYPE]} and edge type to be {[DEFAULT_ETYPE[1]]}, " \
+                f"but get {self._g.ntypes} and {self._g.etypes}"
 
     def prepare_data(self, g):
         """ Prepare the testing edge set if any
@@ -916,7 +934,6 @@ class GSgnnNodeTrainData(GSgnnNodeData):
         assert isinstance(train_ntypes, list), \
                 "prediction ntypes for training has to be a string or a list of strings."
         self._train_ntypes = train_ntypes
-
         if eval_ntypes is not None:
             if isinstance(eval_ntypes, str):
                 eval_ntypes = [eval_ntypes]
@@ -932,6 +949,14 @@ class GSgnnNodeTrainData(GSgnnNodeData):
                                                  edge_feat_field=edge_feat_field,
                                                  lm_feat_ntypes=lm_feat_ntypes,
                                                  lm_feat_etypes=lm_feat_etypes)
+        if self._train_ntypes == [DEFAULT_NTYPE]:
+            # DGL Graph edge type is not canonical. It is just list[str].
+            assert self._g.ntypes == [DEFAULT_NTYPE] and \
+                   self._g.etypes == [DEFAULT_ETYPE[1]], \
+                f"It is required to be a homogeneous graph when target_ntype is not provided " \
+                f"or is set to {DEFAULT_NTYPE} on node tasks, expect node type " \
+                f"to be {[DEFAULT_NTYPE]} and edge type to be {[DEFAULT_ETYPE[1]]}, " \
+                f"but get {self._g.ntypes} and {self._g.etypes}"
 
     def prepare_data(self, g):
         pb = g.get_partition_book()
@@ -1071,6 +1096,15 @@ class GSgnnNodeInferData(GSgnnNodeData):
                                                  edge_feat_field=edge_feat_field,
                                                  lm_feat_ntypes=lm_feat_ntypes,
                                                  lm_feat_etypes=lm_feat_etypes)
+
+        if self._eval_ntypes == [DEFAULT_NTYPE]:
+            # DGL Graph edge type is not canonical. It is just list[str].
+            assert self._g.ntypes == [DEFAULT_NTYPE] and \
+                   self._g.etypes == [DEFAULT_ETYPE[1]], \
+                f"It is required to be a homogeneous graph when target_ntype is not provided " \
+                f"or is set to {DEFAULT_NTYPE} on node tasks, expect node type " \
+                f"to be {[DEFAULT_NTYPE]} and edge type to be {[DEFAULT_ETYPE[1]]}, " \
+                f"but get {self._g.ntypes} and {self._g.etypes}"
 
     def prepare_data(self, g):
         """

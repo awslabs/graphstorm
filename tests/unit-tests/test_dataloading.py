@@ -29,6 +29,7 @@ import pytest
 from data_utils import (
     generate_dummy_dist_graph,
     generate_dummy_dist_graph_reconstruct,
+    generate_dummy_dist_graph_homogeneous_failure_graph,
     create_distill_data,
 )
 
@@ -1354,6 +1355,106 @@ def test_inbatch_joint_neg_sampler(num_pos, num_neg):
         assert_equal(in_batch_dst[i*(num_pos-1):(i+1)*(num_pos-1)].numpy(),
                      np.arange(num_pos)[tmp_idx])
 
+def test_GSgnnTrainData_homogeneous():
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    tr_ntypes = ["_N"]
+    va_ntypes = ["_N"]
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # generate the test dummy homogeneous distributed graph and
+        # test if it is possible to create GSgnnNodeTrainData on homogeneous graph
+        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
+                                                            dirname=tmpdirname,
+                                                            is_homo=True)
+        _ = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_ntypes=tr_ntypes, eval_ntypes=va_ntypes,
+                                     label_field='label')
+
+        # generate the test dummy distributed graph with "_N" node type. As it is expected to be
+        # a homogeneous graph with "_N" as node type and ("_N", "_E", "_N") as edge type.
+        # It should throw an error to clarify that.
+        dist_graph, part_config = generate_dummy_dist_graph_homogeneous_failure_graph(graph_name='dummy',
+                                                            dirname=tmpdirname)
+        try:
+            _ = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                         train_ntypes=tr_ntypes, eval_ntypes=va_ntypes,
+                                         label_field='label')
+            assert False, "expected Error raised for non-homogeneous graph input"
+        except AssertionError as _:
+            pass
+
+        # generate the test dummy homogeneous distributed graph and
+        # test if it is possible to create GSgnnNodeInferData on homogeneous graph
+        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
+                                                            dirname=tmpdirname,
+                                                            is_homo=True)
+        _ = GSgnnNodeInferData(graph_name='dummy', part_config=part_config,
+                                     eval_ntypes=va_ntypes)
+
+        # generate the test dummy distributed graph with "_N" node type. As it is expected to be
+        # a homogeneous graph with "_N" as node type and ("_N", "_E", "_N") as edge type.
+        # It should throw an error to clarify that.
+        dist_graph, part_config = generate_dummy_dist_graph_homogeneous_failure_graph(graph_name='dummy',
+                                                            dirname=tmpdirname)
+        try:
+            _ = GSgnnNodeInferData(graph_name='dummy', part_config=part_config,
+                                        eval_ntypes=va_ntypes)
+            assert False, "expected Error raised for non-homogeneous graph input"
+        except AssertionError as _:
+            pass
+
+    tr_etypes = [("_N", "_E", "_N")]
+    va_etypes = [("_N", "_E", "_N")]
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # generate the test dummy homogeneous distributed graph and
+        # test if it is possible to create GSgnnEdgeTrainData on homogeneous graph
+        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
+                                                            dirname=os.path.join(tmpdirname, 'dummy'),
+                                                            is_homo=True)
+        _ = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_etypes=tr_etypes, eval_etypes=va_etypes,
+                                     label_field='label')
+
+        # generate the test dummy distributed graph with "_N" node type. As it is expected to be
+        # a homogeneous graph with "_N" as node type and ("_N", "_E", "_N") as edge type.
+        # It should throw an error to clarify that.
+        dist_graph, part_config = generate_dummy_dist_graph_homogeneous_failure_graph(graph_name='dummy',
+                                                            dirname=os.path.join(tmpdirname, 'dummy'))
+        try:
+            _ = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                       train_etypes=tr_etypes, eval_etypes=va_etypes,
+                                       label_field='label')
+            assert False, "expected Error raised for non-homogeneous graph input"
+        except AssertionError as _:
+            pass
+
+        # generate the test dummy homogeneous distributed graph and
+        # test if it is possible to create GSgnnEdgeInferData on homogeneous graph
+        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
+                                                            dirname=os.path.join(tmpdirname, 'dummy'),
+                                                            is_homo=True)
+        _ = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
+                                    eval_etypes=va_etypes)
+
+        # generate the test dummy distributed graph with "_N" node type. As it is expected to be
+        # a homogeneous graph with "_N" as node type and ("_N", "_E", "_N") as edge type.
+        # It should throw an error to clarify that.
+        dist_graph, part_config = generate_dummy_dist_graph_homogeneous_failure_graph(graph_name='dummy',
+                                                            dirname=os.path.join(tmpdirname, 'dummy'))
+        try:
+            _ = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
+                                    eval_etypes=va_etypes)
+            assert False, "expected Error raised for non-homogeneous graph input"
+        except AssertionError as _:
+            pass
+
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()
 
 if __name__ == '__main__':
     test_inbatch_joint_neg_sampler(10, 20)
@@ -1387,3 +1488,5 @@ if __name__ == '__main__':
     test_DistillDistributedFileSampler(num_files=7, is_train=True, \
         infinite=False, shuffle=True)
     test_DistillDataloaderGenerator("gloo", 7, True)
+
+    test_GSgnnTrainData_homogeneous()
