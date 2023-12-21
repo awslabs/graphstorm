@@ -220,7 +220,7 @@ def read_data_parquet(data_file, data_fields=None):
                 # if each row has the same shape
                 # merge them together
                 d = np.stack(new_d)
-            except:
+            except Exception: # pylint: disable=broad-exception-caught
                 # keep it as an ndarry of ndarrys
                 # It may happen loading hard negatives for hard negative transform.
                 pass
