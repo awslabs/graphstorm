@@ -22,6 +22,7 @@ import pyarrow.parquet as pq
 import numpy as np
 import dgl
 import torch as th
+import pandas as pd
 
 from functools import partial
 from numpy.testing import assert_equal, assert_almost_equal
@@ -71,6 +72,23 @@ def test_parquet():
         assert False, "This shouldn't happen."
     except:
         pass
+    os.remove(tmpfile)
+
+    # create a parquet with variable length of data
+    data = {
+        "data": [[95, 85], [88], [76, 89, 92]]
+    }
+    df = pd.DataFrame(data)
+    df.to_parquet(tmpfile)
+
+    data1 = read_data_parquet(tmpfile, data_fields=['data'])
+    assert len(data1) == 1
+    assert "data" in data1
+    data1 = data1["data"]
+    assert len(data1) == 3
+    np.testing.assert_equal(data1[0], np.array(data["data"][0]))
+    np.testing.assert_equal(data1[1], np.array(data["data"][1]))
+    np.testing.assert_equal(data1[2], np.array(data["data"][2]))
 
     os.remove(tmpfile)
 

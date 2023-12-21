@@ -986,7 +986,7 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
             # np.array(np.array(), np.array(), ...)
             # when the input is a array of variable length list.
             if len(feats.shape) == 1:
-                max_dim = max([len(feat) for feat in feats])
+                max_dim = max(len(feat) for feat in feats)
             else:
                 max_dim = feats.shape[1]
         else:

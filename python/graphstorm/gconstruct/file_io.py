@@ -215,8 +215,15 @@ def read_data_parquet(data_file, data_fields=None):
         # save them as objects in parquet. We need to merge them
         # together and store them in a tensor.
         if d.dtype.hasobject and isinstance(d[0], np.ndarray):
-            d = [d[i] for i in range(len(d))]
-            d = np.stack(d)
+            new_d = [d[i] for i in range(len(d))]
+            try:
+                # if each row has the same shape
+                # merge them together
+                d = np.stack(new_d)
+            except:
+                # keep it as an ndarry of ndarrys
+                # It may happen loading hard negatives for hard negative transform.
+                pass
         data[key] = d
     return data
 
