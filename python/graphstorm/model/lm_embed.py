@@ -721,6 +721,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         #    nodes are set to 0 and the lm_emb_cache is not refreshed.
         #
         # 3) if train_nodes > 0, no emb_cache is used unless Case 2.
+        self.lm_emb_cache._lm_hash = self.lm_emb_cache._lm_models.get_all_lm_hashes()
         self.lm_emb_cache.update_cache(self.lm_infer_batch_size, use_fp16=self.use_fp16)
         self.use_cache = True
 
