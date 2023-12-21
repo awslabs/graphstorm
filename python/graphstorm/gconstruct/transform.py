@@ -982,7 +982,13 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
             "Feature of HardEdgeNegativeTransform must be numpy array or ExtMemArray"
 
         if self._separator is None:
-            max_dim = feats.shape[1]
+            # It is possible that the input is a
+            # np.array(np.array(), np.array(), ...)
+            # when the input is a array of variable length list.
+            if len(feats.shape) == 1:
+                max_dim = max([len(feat) for feat in feats])
+            else:
+                max_dim = feats.shape[1]
         else:
             assert len(feats.shape) == 1 or feats.shape[1] == 1, \
                 "When a separator is given, the input feats must be a list of strings."
@@ -1044,32 +1050,22 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
         # In certain cases, GraphStorm will fill the
         # un-provided hard negatives with -1s.
         neg_ids = np.full((len(feats), self._max_dim), -1, dtype=np.int64)
-        if self._separator is None:
-            for i, raw_ids in enumerate(feats):
-                if raw_ids is None:
-                    continue
-                # GraphStorm allows users to use an empty
-                # string to prepresent un-provided hard
-                # negatives when the input data is a string array.
-                #
-                # Raw_ids is a numpy string array.
-                # Handle empty strings in raw_ids.
-                raw_ids = raw_ids.astype(str)
-                nid_idx = np.nonzero(raw_ids != "")[0]
-                nids, _ = nid_map.map_id(raw_ids[nid_idx].astype(
-                    nid_map.map_key_dtype))
-                # Write hard negative node ids into the hard
-                # negative features.
-                neg_ids[i][nid_idx] = nids
-        else:
-            for i, feat in enumerate(feats):
-                if feat is None:
-                    continue
+        for i, feat in enumerate(feats):
+            if feat is None:
+                continue
+
+            if self._separator is None:
+                raw_ids = feat
+            else:
                 raw_ids = np.array(feat.split(self._separator))
-                nids, _ = nid_map.map_id(raw_ids.astype(nid_map.map_key_dtype))
-                # when len(raw_ids) < self._max_dim (max negatives
-                # per edge), GraphStorm fills the rest with -1.
-                neg_ids[i][:nids.shape[0]] = nids
+            nids, _ = nid_map.map_id(raw_ids.astype(
+                nid_map.map_key_dtype))
+
+            # Write hard negative node ids into the hard
+            # negative features.
+            # When len(raw_ids) < self._max_dim (max negatives
+            # per edge), GraphStorm fills the rest with -1.
+            neg_ids[i][:nids.shape[0]] = nids
 
         return {self.feat_name: neg_ids}
 
