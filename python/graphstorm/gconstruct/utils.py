@@ -42,7 +42,10 @@ def _to_ext_memory(name, data, path):
     if isinstance(data, np.ndarray):
         assert name is not None
         path = os.path.join(path, f"{name}.npy")
-        if len(data) > 0:
+        # We only save a data matrix to the disk.
+        # This avoids the problem of saving an array of objects to disks.
+        # Note: There is a bug in Numpy when saving an array of objects to disks.
+        if len(data) > 0 and len(data.shape) > 1 and np.prod(data.shape[1:]) > 1:
             logging.debug("save data %s in %s.", name, path)
             data = convert_to_ext_mem_numpy(path, data)
             # We need to pass the array to another process. We don't want it
