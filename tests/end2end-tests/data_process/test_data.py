@@ -215,3 +215,10 @@ hard_neg = g.edges[("node2", "relation3", "node3")].data["hard_neg"]
 _, dst_ids = g.edges(etype=("node2", "relation3", "node3"))
 ground_truth = th.cat((dst_ids.reshape(-1,1), dst_ids.reshape(-1,1)), dim=1)
 assert th.sum(hard_neg-ground_truth) == 0
+
+hard_neg = g.edges[("node2", "relation3", "node3")].data["hard_neg2"]
+_, dst_ids = g.edges(etype=("node2", "relation3", "node3"))
+ground_truth = th.cat([dst_ids.reshape(-1,1), dst_ids.reshape(-1,1), th.full((dst_ids.shape[0], 2), -1, dtype=dst_ids.dtype)], dim=1)
+ground_truth[0][2] = dst_ids[0]
+ground_truth[0][3] = dst_ids[0]
+assert th.sum(hard_neg-ground_truth) == 0

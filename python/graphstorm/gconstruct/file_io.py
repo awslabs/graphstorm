@@ -20,6 +20,7 @@ from functools import partial
 import glob
 import json
 import os
+import logging
 
 import pyarrow.parquet as pq
 import pyarrow as pa
@@ -222,7 +223,10 @@ def read_data_parquet(data_file, data_fields=None):
                 d = np.stack(new_d)
             except Exception: # pylint: disable=broad-exception-caught
                 # keep it as an ndarry of ndarrys
-                # It may happen loading hard negatives for hard negative transform.
+                # It may happen when loading hard negatives for hard negative transformation.
+                logging.warning("The %s column of parquet file %s has " \
+                    "variable length of feature, it is only suported when " \
+                    "transformation is a hard negative transformation", key, data_file)
                 pass
         data[key] = d
     return data

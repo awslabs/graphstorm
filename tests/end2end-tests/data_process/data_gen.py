@@ -20,7 +20,7 @@ import copy
 import json
 import os
 import pyarrow.parquet as pq
-import pyarrow as pa
+import pandas as pd
 import numpy as np
 
 from graphstorm.gconstruct.file_io import write_data_parquet, write_data_json, write_data_csv
@@ -121,6 +121,10 @@ edge_data3 = {
 edge_data3_2 = {
     'data': src3 + node_id3[dst_idx],
 }
+edge_data3_3 = {
+    'data': [[nid, nid] for nid in dst3]
+}
+edge_data3_3['data'][0] = edge_data3_3['data'][0] + edge_data3_3['data'][0]
 
 in_dir = '/tmp/test_data/'
 out_dir = '/tmp/test_out/'
@@ -153,6 +157,10 @@ for i, edge_data in enumerate(split_data(edge_data2, 10)):
 write_data_hdf5(edge_data1_2, os.path.join(in_dir, f'edge_data1_2.hdf5'))
 for i, edge_data in enumerate(split_data(edge_data3, 10)):
     write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data3_{i}.parquet'))
+df = pd.DataFrame(edge_data3_3)
+df.to_parquet(os.path.join(in_dir,
+                           f'ng_edge_data3.parquet'))
+
 write_data_hdf5(edge_data3_2, os.path.join(in_dir, f'edge_data3_2.hdf5'))
 
 
@@ -381,6 +389,18 @@ edge_conf = [
                 "transform": {"name": "edge_dst_hard_negative",
                               "separator": ","}
             }
+        ],
+    },
+    {
+        "relation":         ("node2", "relation3", "node3"),
+        "format":           {"name": "parquet"},
+        "files":            os.path.join(in_dir, "ng_edge_data3.parquet"),
+        "features": [
+            {
+                "feature_col": "data",
+                "feature_name": "hard_neg2",
+                "transform": {"name": "edge_dst_hard_negative"}
+            },
         ],
     },
     {
