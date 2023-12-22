@@ -21,6 +21,7 @@ import yaml
 import math
 import tempfile
 from argparse import Namespace
+from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 
 import dgl
 import torch as th
@@ -613,7 +614,7 @@ def test_node_class_info():
         create_node_class_config(Path(tmpdirname), 'node_class_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_default.yaml'), local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "target_ntype")
+        assert config.target_ntype == DEFAULT_NTYPE
         check_failure(config, "label_field")
         assert config.multilabel == False
         assert config.multilabel_weights == None
@@ -748,7 +749,7 @@ def test_node_regress_info():
         create_node_regress_config(Path(tmpdirname), 'node_regress_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test_default.yaml'), local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "target_ntype")
+        assert config.target_ntype == DEFAULT_NTYPE
         check_failure(config, "label_field")
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "rmse"
@@ -840,7 +841,7 @@ def test_edge_class_info():
         create_edge_class_config(Path(tmpdirname), 'edge_class_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test_default.yaml'), local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "target_etype")
+        assert config.target_etype == [DEFAULT_ETYPE]
         assert config.decoder_type == "DenseBiDecoder"
         assert config.num_decoder_basis == 2
         assert config.remove_target_edge_type == True
