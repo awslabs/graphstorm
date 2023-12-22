@@ -227,7 +227,6 @@ def read_data_parquet(data_file, data_fields=None):
                 logging.warning("The %s column of parquet file %s has " \
                     "variable length of feature, it is only suported when " \
                     "transformation is a hard negative transformation", key, data_file)
-                pass
         data[key] = d
     return data
 
