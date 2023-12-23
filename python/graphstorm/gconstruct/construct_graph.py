@@ -44,6 +44,8 @@ from .id_map import NoopMap, IdMap, map_node_ids
 from .utils import (multiprocessing_data_read,
                     update_two_phase_feat_ops, ExtMemArrayMerger,
                     partition_graph, ExtMemArrayWrapper)
+from .utils import (get_hard_edge_negs_feats,
+                    shuffle_hard_nids)
 
 def prepare_node_data(in_file, feat_ops, read_file):
     """ Prepare node data information for data transformation.
@@ -297,13 +299,13 @@ def process_node_data(process_confs, arr_merger, remap_id,
         assert 'files' in process_conf, \
                 "'files' must be defined for a node type"
         in_files = get_in_files(process_conf['files'])
-        (feat_ops, two_phase_feat_ops, after_merge_feat_ops) = \
-            parse_feat_ops(process_conf['features']) \
-                if 'features' in process_conf else (None, [], {})
-        label_ops = parse_label_ops(process_conf, is_node=True) \
-                if 'labels' in process_conf else None
         assert 'format' in process_conf, \
                 "'format' must be defined for a node type"
+        (feat_ops, two_phase_feat_ops, after_merge_feat_ops, _) = \
+            parse_feat_ops(process_conf['features'], process_conf['format']['name']) \
+                if 'features' in process_conf else (None, [], {}, [])
+        label_ops = parse_label_ops(process_conf, is_node=True) \
+                if 'labels' in process_conf else None
 
         # If it requires multiprocessing, we need to read data to memory.
         node_id_col = process_conf['node_id_col'] if 'node_id_col' in process_conf else None
@@ -460,7 +462,14 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
 
     Returns
     -------
-    dict: edge features.
+    edges: dict
+        Edges.
+    edge_data: dict
+        Edge features.
+    label_stats: dict
+        Edge label statistics.
+    hard_edge_neg_ops: list
+        Hard edge negative ops.
     """
     edges = {}
     edge_data = {}
@@ -475,9 +484,9 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         in_files = get_in_files(process_conf['files'])
         assert 'format' in process_conf, \
                 "'format' is not defined for an edge type."
-        (feat_ops, two_phase_feat_ops, after_merge_feat_ops) = \
-            parse_feat_ops(process_conf['features']) \
-                if 'features' in process_conf else (None, [], {})
+        (feat_ops, two_phase_feat_ops, after_merge_feat_ops, hard_edge_neg_ops) = \
+            parse_feat_ops(process_conf['features'], process_conf['format']['name'])\
+                if 'features' in process_conf else (None, [], {}, [])
         label_ops = parse_label_ops(process_conf, is_node=False) \
                 if 'labels' in process_conf else None
 
@@ -486,6 +495,11 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         # are sufficient.
         id_map = {edge_type[0]: node_id_map[edge_type[0]],
                   edge_type[2]: node_id_map[edge_type[2]]}
+
+        # For edge hard negative transformation ops, more information is needed
+        for op in hard_edge_neg_ops:
+            op.set_target_etype(edge_type)
+            op.set_id_maps(id_map)
 
         multiprocessing = do_multiprocess_transform(process_conf,
                                                     feat_ops,
@@ -580,7 +594,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                 f"does not match the number of edges of {edge_type}. " \
                 f"Expecting {len(edges[edge_type][0])}, but get {len(efeats)}"
 
-    return (edges, edge_data, label_stats)
+    return (edges, edge_data, label_stats, hard_edge_neg_ops)
 
 def verify_confs(confs):
     """ Verify the configuration of the input data.
@@ -684,7 +698,7 @@ def process_graph(args):
                           args.remap_node_id, ext_mem_workspace,
                           num_processes=num_processes_for_nodes)
     sys_tracker.check('Process the node data')
-    edges, edge_data, edge_label_stats = \
+    edges, edge_data, edge_label_stats, hard_edge_neg_ops = \
         process_edge_data(process_confs['edges'], node_id_map,
                           convert2ext_mem, ext_mem_workspace,
                           num_processes=num_processes_for_edges,
@@ -733,6 +747,12 @@ def process_graph(args):
                         args.num_parts, args.output_dir,
                         save_mapping=True, # always save mapping
                         part_method=args.part_method)
+
+        # There are hard negatives, we need to do NID remapping
+        if len(hard_edge_neg_ops) > 0:
+            # we need to load each partition file to remap the node ids.
+            hard_edge_neg_feats = get_hard_edge_negs_feats(hard_edge_neg_ops)
+            shuffle_hard_nids(args.output_dir, args.num_parts, hard_edge_neg_feats)
 
     if "DGL" in output_format:
         for ntype in node_data:

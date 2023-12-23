@@ -25,13 +25,15 @@ from graphstorm.gconstruct.transform import (_get_output_dtype,
                                              Noop,
                                              RankGaussTransform,
                                              CategoricalTransform,
-                                             BucketTransform)
+                                             BucketTransform,
+                                             HardEdgeDstNegativeTransform)
 from graphstorm.gconstruct.transform import (_check_label_stats_type,
                                              collect_label_stats,
                                              CustomLabelProcessor,
                                              ClassificationProcessor)
 from graphstorm.gconstruct.transform import (LABEL_STATS_FIELD,
                                              LABEL_STATS_FREQUENCY_COUNT)
+from graphstorm.gconstruct.id_map import IdMap
 
 def test_get_output_dtype():
     assert _get_output_dtype("float16") == np.float16
@@ -779,7 +781,149 @@ def test_bucket_transform(out_dtype):
     feats_tar = np.array([[1, 1], [1, 1], [1, 1], [1, 1]], dtype=out_dtype)
     assert_equal(bucket_feats['test'], feats_tar)
 
+@pytest.mark.parametrize("id_dtype", [str, np.int64])
+def test_hard_edge_dst_negative_transform(id_dtype):
+    hard_neg_trasnform = HardEdgeDstNegativeTransform("hard_neg", "hard_neg")
+    assert hard_neg_trasnform.col_name == "hard_neg"
+    assert hard_neg_trasnform.feat_name == "hard_neg"
+    assert hard_neg_trasnform.out_dtype == np.int64
+
+    raw_ids = np.array([(99-i) for i in range(100)])
+    id_maps = {"src": IdMap(raw_ids.astype(id_dtype))}
+    pass_set_id_maps = False
+    try:
+        # set_id_maps will fail if target_ntype is None
+        assert hard_neg_trasnform._target_ntype is None
+        hard_neg_trasnform.set_id_maps(id_maps)
+    except:
+        pass_set_id_maps = True
+    assert pass_set_id_maps
+
+    hard_neg_trasnform.set_target_etype(("src", "rel", "dst"))
+    assert hard_neg_trasnform.neg_ntype == "dst"
+    try:
+        # set_id_maps will fail as target_ntype is dst
+        # but only src has id mapping.
+        hard_neg_trasnform.set_id_maps(id_maps)
+    except:
+        pass_set_id_maps = True
+    assert pass_set_id_maps
+
+    id_maps = {"dst": IdMap(raw_ids.astype(id_dtype))}
+    hard_neg_trasnform.set_id_maps(id_maps)
+
+    input_feats0 = np.random.randint(0, 100, size=(20, 10), dtype=np.int64)
+    input_id_feats0 = input_feats0.astype(id_dtype)
+    info0 = hard_neg_trasnform.pre_process(input_id_feats0)
+    assert info0["hard_neg"] == 10
+
+    input_feats1 = np.random.randint(0, 100, size=(20, 20), dtype=np.int64)
+    input_id_feats1 = input_feats1.astype(id_dtype)
+    info1 = hard_neg_trasnform.pre_process(input_id_feats1)
+    assert info1["hard_neg"] == 20
+
+    hard_neg_trasnform.update_info([info0["hard_neg"], info1["hard_neg"]])
+    assert hard_neg_trasnform._max_dim == 20
+
+    neg0 = hard_neg_trasnform(input_id_feats0)
+    assert_equal(neg0["hard_neg"][:,:10], 99-input_feats0)
+    assert_equal(neg0["hard_neg"][:,10:], np.full((20, 10), -1, dtype=np.int64))
+    neg1 = hard_neg_trasnform(input_id_feats1)
+    assert_equal(neg1["hard_neg"], 99-input_feats1)
+
+    hard_neg_trasnform = HardEdgeDstNegativeTransform("hard_neg", "hard_neg", separator=",")
+    hard_neg_trasnform.set_target_etype(("src", "rel", "dst"))
+    hard_neg_trasnform.set_id_maps(id_maps)
+
+    input_feats0 = np.random.randint(0, 100, size=(20, 10), dtype=np.int64)
+    input_id_feats0 = [",".join(feats) for feats in input_feats0.astype(str).tolist()]
+    input_id_feats0.append(",".join([str(i) for i in range(15)]))
+    input_id_feats0 = np.array(input_id_feats0)
+    info0 = hard_neg_trasnform.pre_process(input_id_feats0)
+    assert info0["hard_neg"] == 15
+
+    input_feats1 = np.random.randint(0, 100, size=(20, 20), dtype=np.int64)
+    input_id_feats1 = [",".join(feats) for feats in input_feats1.astype(str).tolist()]
+    input_id_feats1.append(",".join([str(i) for i in range(15)]))
+    input_id_feats1 = np.array(input_id_feats1)
+    info1 = hard_neg_trasnform.pre_process(input_id_feats1)
+    assert info1["hard_neg"] == 20
+
+    hard_neg_trasnform.update_info([info0["hard_neg"], info1["hard_neg"]])
+    assert hard_neg_trasnform._max_dim == 20
+
+    neg0 = hard_neg_trasnform(input_id_feats0)
+    assert_equal(neg0["hard_neg"][:20,:10], 99-input_feats0)
+    assert_equal(neg0["hard_neg"][:20,10:], np.full((20, 10), -1, dtype=np.int64))
+    assert_equal(neg0["hard_neg"][20][:15], np.array([(99-i) for i in range(15)]))
+    assert_equal(neg0["hard_neg"][20][15:], np.full((5,), -1, dtype=np.int64))
+    neg1 = hard_neg_trasnform(input_id_feats1)
+    assert_equal(neg1["hard_neg"][:20], 99-input_feats1)
+    assert_equal(neg1["hard_neg"][20][:15], np.array([(99-i) for i in range(15)]))
+    assert_equal(neg1["hard_neg"][20][15:], np.full((5,), -1, dtype=np.int64))
+
+    # nid map use int as key
+    hard_neg_trasnform = HardEdgeDstNegativeTransform("hard_neg", "hard_neg")
+    hard_neg_trasnform.set_target_etype(("src", "rel", "dst"))
+    id_maps = {"dst": IdMap(raw_ids)}
+    hard_neg_trasnform.set_id_maps(id_maps)
+
+    input_feats = np.random.randint(0, 100, size=(20, 10), dtype=np.int64)
+    input_id_feats = input_feats.astype(id_dtype)
+    info = hard_neg_trasnform.pre_process(input_id_feats)
+    assert info["hard_neg"] == 10
+
+    hard_neg_trasnform.update_info([info["hard_neg"]])
+    assert hard_neg_trasnform._max_dim == 10
+
+    neg = hard_neg_trasnform(input_id_feats)
+    assert_equal(neg["hard_neg"], 99-input_feats)
+
+    hard_neg_trasnform = HardEdgeDstNegativeTransform("hard_neg", "hard_neg", separator=",")
+    hard_neg_trasnform.set_target_etype(("src", "rel", "dst"))
+    hard_neg_trasnform.set_id_maps(id_maps)
+
+    input_feats = np.random.randint(0, 100, size=(20, 10), dtype=np.int64)
+    input_id_feats = [",".join(feats) for feats in input_feats.astype(str).tolist()]
+    input_id_feats.append(",".join([str(i) for i in range(15)]))
+    input_id_feats = np.array(input_id_feats)
+    info = hard_neg_trasnform.pre_process(input_id_feats)
+    assert info["hard_neg"] == 15
+
+    hard_neg_trasnform.update_info([info["hard_neg"]])
+    assert hard_neg_trasnform._max_dim == 15
+    neg0 = hard_neg_trasnform(input_id_feats0)
+    assert_equal(neg0["hard_neg"][:20,:10], 99-input_feats0)
+    assert_equal(neg0["hard_neg"][20][:15], np.array([(99-i) for i in range(15)]))
+
+    # test when there are empty string in input array
+    hard_neg_trasnform = HardEdgeDstNegativeTransform("hard_neg", "hard_neg")
+    hard_neg_trasnform.set_target_etype(("src", "rel", "dst"))
+    id_maps = {"dst": IdMap(raw_ids.astype(id_dtype))}
+    hard_neg_trasnform.set_id_maps(id_maps)
+
+    input_feats = np.random.randint(0, 100, size=(20, 10), dtype=np.int64)
+    input_id_feats = input_feats.tolist()
+    input_id_feats[0] = input_id_feats[0][:-1]
+    input_id_feats[1] = input_id_feats[1][:-2]
+    input_id_feats = np.array([np.array(feat) for feat in input_id_feats], dtype=object)
+    info = hard_neg_trasnform.pre_process(input_id_feats)
+    assert info["hard_neg"] == 10
+
+    hard_neg_trasnform.update_info([info["hard_neg"]])
+    assert hard_neg_trasnform._max_dim == 10
+
+    neg = hard_neg_trasnform(input_id_feats)
+    ground_truth = 99-input_feats
+    ground_truth[0][-1] = -1
+    ground_truth[1][-1] = -1
+    ground_truth[1][-2] = -1
+    assert_equal(neg["hard_neg"][:,:10], ground_truth)
+
 if __name__ == '__main__':
+    test_hard_edge_dst_negative_transform(str)
+    test_hard_edge_dst_negative_transform(np.int64)
+
     test_categorize_transform()
     test_get_output_dtype()
     test_fp_transform(np.cfloat)

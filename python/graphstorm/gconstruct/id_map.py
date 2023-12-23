@@ -149,6 +149,16 @@ class IdMap:
     def __len__(self):
         return len(self._ids)
 
+    @property
+    def map_key_dtype(self):
+        """ Return the data type of map keys.
+        """
+        for id_ in self._ids:
+            if isinstance(id_, np.ndarray):
+                return id_.dtype
+            else:
+                return type(id_)
+
     def map_id(self, ids):
         """ Map the input IDs to the new IDs.
 
