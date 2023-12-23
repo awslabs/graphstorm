@@ -17,16 +17,23 @@ import os
 import tempfile
 import json
 
+import dgl
 import numpy as np
 import torch as th
 import pandas as pd
 import pyarrow.parquet as pq
 import pyarrow as pa
 
+from numpy.testing import assert_almost_equal
+
 from graphstorm.gconstruct.utils import _estimate_sizeof, _to_numpy_array, _to_shared_memory
 from graphstorm.gconstruct.utils import HDF5Array, ExtNumpyWrapper
 from graphstorm.gconstruct.utils import convert_to_ext_mem_numpy, _to_ext_memory
 from graphstorm.gconstruct.utils import multiprocessing_data_read
+from graphstorm.gconstruct.utils import (save_maps,
+                                         load_maps,
+                                         get_hard_edge_negs_feats,
+                                         shuffle_hard_nids)
 from graphstorm.gconstruct.file_io import (write_data_hdf5,
                                            read_data_hdf5,
                                            get_in_files,
@@ -34,6 +41,7 @@ from graphstorm.gconstruct.file_io import (write_data_hdf5,
 from graphstorm.gconstruct.file_io import (read_data_csv,
                                            read_data_json,
                                            read_data_parquet)
+from graphstorm.gconstruct.transform import HardEdgeDstNegativeTransform
 
 def gen_data():
     data_th = th.zeros((1024, 16), dtype=th.float32)
@@ -298,7 +306,152 @@ def test_get_in_files():
             pass_test = True
         assert pass_test
 
+def test_get_hard_edge_negs_feats():
+    hard_trans0 = HardEdgeDstNegativeTransform("hard_neg", "hard_neg")
+    hard_trans0.set_target_etype(("src", "rel0", "dst"))
+
+    hard_trans1 = HardEdgeDstNegativeTransform("hard_neg", "hard_neg1")
+    hard_trans1.set_target_etype(("src", "rel0", "dst"))
+
+    hard_trans2 = HardEdgeDstNegativeTransform("hard_neg", "hard_neg")
+    hard_trans2.set_target_etype(("src", "rel1", "dst"))
+
+    hard_edge_neg_feats = get_hard_edge_negs_feats([hard_trans0, hard_trans1, hard_trans2])
+    assert len(hard_edge_neg_feats) == 2
+    assert len(hard_edge_neg_feats[("src", "rel0", "dst")]) == 1
+    assert len(hard_edge_neg_feats[("src", "rel0", "dst")]["dst"]) == 2
+    assert set(hard_edge_neg_feats[("src", "rel0", "dst")]["dst"]) == set(["hard_neg", "hard_neg1"])
+    assert len(hard_edge_neg_feats[("src", "rel1", "dst")]) == 1
+    assert len(hard_edge_neg_feats[("src", "rel1", "dst")]["dst"]) == 1
+
+def test_save_load_maps():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        map_data = {"a": th.randint(100, (10,)),
+                    "b": th.randint(100, (10,))}
+        save_maps(tmpdirname, "node_mapping", map_data)
+        node_mapping = load_maps(tmpdirname, "node_mapping")
+        assert_almost_equal(node_mapping["a"].numpy(), map_data["a"].numpy())
+        assert_almost_equal(node_mapping["b"].numpy(), map_data["b"].numpy())
+
+def test_shuffle_hard_nids():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        num_parts = 2
+        # generate node_mapping
+        node_mapping = {
+            "dst0" : 99 - th.arange(100),
+            "dst1" : 199 - th.arange(200)
+        }
+        save_maps(tmpdirname, "node_mapping", node_mapping)
+
+        reverse_map_dst0 = {gid: i for i, gid in enumerate(node_mapping["dst0"].tolist())}
+        reverse_map_dst0[-1] = -1
+        reverse_map_dst1 = {gid: i for i, gid in enumerate(node_mapping["dst1"].tolist())}
+        reverse_map_dst1[-1] = -1
+
+        static_feat = th.rand((100, 10))
+        # generate edge features
+        etype0 = ("src", "rel0", "dst0")
+        etype1 = ("src", "rel0", "dst1")
+        p0_etype0_neg0 = th.randint(100, (100, 5))
+        p0_etype0_neg1 = th.randint(100, (100, 10))
+        p0_etype1_neg0 = th.randint(100, (100, 5))
+
+        p0_etype0_neg0_shuffled = [
+            [reverse_map_dst0[nid] for nid in negs] \
+                for negs in p0_etype0_neg0.tolist()]
+        p0_etype0_neg0_shuffled = np.array(p0_etype0_neg0_shuffled)
+        p0_etype0_neg1_shuffled = [
+            [reverse_map_dst0[nid] for nid in negs] \
+                for negs in p0_etype0_neg1.tolist()]
+        p0_etype0_neg1_shuffled = np.array(p0_etype0_neg1_shuffled)
+
+        p0_etype1_neg0_shuffled = [
+            [reverse_map_dst1[nid] for nid in negs] \
+                for negs in p0_etype1_neg0.tolist()]
+        p0_etype1_neg0_shuffled = np.array(p0_etype1_neg0_shuffled)
+
+        edge_feats_part0 = {
+            ":".join(etype0)+"/static_feat": static_feat,
+            ":".join(etype0)+"/hard_neg0": p0_etype0_neg0,
+            ":".join(etype0)+"/hard_neg1": p0_etype0_neg1,
+            ":".join(etype1)+"/hard_neg0": p0_etype1_neg0
+        }
+        part_path = os.path.join(tmpdirname, f"part{0}")
+        os.mkdir(part_path)
+        edge_feat_path = os.path.join(part_path, "edge_feat.dgl")
+        dgl.data.utils.save_tensors(edge_feat_path, edge_feats_part0)
+
+
+        p1_etype0_neg0 = th.randint(100, (100, 5))
+        p1_etype0_neg1 = th.randint(100, (100, 10))
+        p1_etype1_neg0 = th.randint(100, (100, 5))
+        p1_etype0_neg1[:,-2:] = -1
+        p1_etype1_neg0[0][-1] = -1
+
+        p1_etype0_neg0_shuffled = [
+            [reverse_map_dst0[nid] for nid in negs] \
+                for negs in p1_etype0_neg0.tolist()]
+        p1_etype0_neg0_shuffled = np.array(p1_etype0_neg0_shuffled)
+
+        p1_etype0_neg1_shuffled = [
+            [reverse_map_dst0[nid] for nid in negs ] \
+                for negs in p1_etype0_neg1.tolist()]
+        p1_etype0_neg1_shuffled = np.array(p1_etype0_neg1_shuffled)
+
+        p1_etype1_neg0_shuffled = [
+            [reverse_map_dst1[nid] for nid in negs] \
+                for negs in p1_etype1_neg0.tolist()]
+        p1_etype1_neg0_shuffled = np.array(p1_etype1_neg0_shuffled)
+
+        edge_feats_part1 = {
+            ":".join(etype0)+"/static_feat": static_feat,
+            ":".join(etype0)+"/hard_neg0": p1_etype0_neg0,
+            ":".join(etype0)+"/hard_neg1": p1_etype0_neg1,
+            ":".join(etype1)+"/hard_neg0": p1_etype1_neg0
+        }
+
+        part_path = os.path.join(tmpdirname, f"part{1}")
+        os.mkdir(part_path)
+        edge_feat_path = os.path.join(part_path, "edge_feat.dgl")
+        dgl.data.utils.save_tensors(edge_feat_path, edge_feats_part1)
+
+        hard_edge_neg_feats = {
+            etype0: {"dst0": ["hard_neg0", "hard_neg1"]},
+            etype1: {"dst1": ["hard_neg0"]}
+        }
+        # test
+        shuffle_hard_nids(tmpdirname, 2, hard_edge_neg_feats)
+
+        part_path = os.path.join(tmpdirname, f"part{0}")
+        edge_feat_path = os.path.join(part_path, "edge_feat.dgl")
+        p0_new_edge_feats = dgl.data.utils.load_tensors(edge_feat_path)
+
+        assert_almost_equal(p0_new_edge_feats[":".join(etype0)+"/static_feat"].numpy(),
+                            static_feat.numpy())
+        assert_almost_equal(p0_new_edge_feats[":".join(etype0)+"/hard_neg0"].numpy(),
+                            p0_etype0_neg0_shuffled)
+        assert_almost_equal(p0_new_edge_feats[":".join(etype0)+"/hard_neg1"].numpy(),
+                            p0_etype0_neg1_shuffled)
+        assert_almost_equal(p0_new_edge_feats[":".join(etype1)+"/hard_neg0"].numpy(),
+                            p0_etype1_neg0_shuffled)
+
+        part_path = os.path.join(tmpdirname, f"part{1}")
+        edge_feat_path = os.path.join(part_path, "edge_feat.dgl")
+        p1_new_edge_feats = dgl.data.utils.load_tensors(edge_feat_path)
+        assert_almost_equal(p1_new_edge_feats[":".join(etype0)+"/static_feat"].numpy(),
+                            static_feat.numpy())
+        assert_almost_equal(p1_new_edge_feats[":".join(etype0)+"/hard_neg0"].numpy(),
+                            p1_etype0_neg0_shuffled)
+        assert_almost_equal(p1_new_edge_feats[":".join(etype0)+"/hard_neg1"].numpy(),
+                            p1_etype0_neg1_shuffled)
+        assert_almost_equal(p1_new_edge_feats[":".join(etype1)+"/hard_neg0"].numpy(),
+                            p1_etype1_neg0_shuffled)
+
+
 if __name__ == '__main__':
+    test_shuffle_hard_nids()
+    test_save_load_maps()
+    test_get_hard_edge_negs_feats()
     test_get_in_files()
     test_read_empty_parquet()
     test_read_empty_json()
