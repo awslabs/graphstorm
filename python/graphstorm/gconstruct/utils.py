@@ -38,14 +38,19 @@ SHARED_MEMORY_CROSS_PROCESS_STORAGE = "shared_memory"
 PICKLE_CROSS_PROCESS_STORAGE = "pickle"
 EXT_MEMORY_STORAGE = "ext_memory"
 
+def _is_numeric(arr):
+    """ Check if the input array has the numeric data type.
+    """
+    return np.issubdtype(arr.dtype, np.number) or arr.dtype == bool
+
 def _to_ext_memory(name, data, path):
     if isinstance(data, np.ndarray):
         assert name is not None
         path = os.path.join(path, f"{name}.npy")
-        # We only save a data matrix to the disk.
+        # We only save a data array with numeric or boolean values to the disk.
         # This avoids the problem of saving an array of objects to disks.
         # Note: There is a bug in Numpy when saving an array of objects to disks.
-        if len(data) > 0 and len(data.shape) > 1 and np.prod(data.shape[1:]) > 1:
+        if len(data) > 0 and _is_numeric(data):
             logging.debug("save data %s in %s.", name, path)
             data = convert_to_ext_mem_numpy(path, data)
             # We need to pass the array to another process. We don't want it
