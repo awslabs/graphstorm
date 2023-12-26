@@ -904,7 +904,9 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
                             reverse_edge_types_map=None,
                             edge_mask_for_gnn_embeddings=None,
                             construct_feat_ntype=None,
-                            construct_feat_fanout=5):
+                            construct_feat_fanout=5,
+                            edge_dst_negative_field=None,
+                            num_hard_negs=None):
         g = dataset.g
         if construct_feat_ntype is None:
             construct_feat_ntype = []
@@ -920,6 +922,12 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
             sampler = MultiLayerNeighborSamplerForReconstruct(sampler,
                     dataset, construct_feat_ntype, construct_feat_fanout)
         negative_sampler = self._prepare_negative_sampler(num_negative_edges)
+
+        if edge_dst_negative_field is not None:
+            negative_sampler = GSHardEdgeDstNegativeSampler(num_negative_edges,
+                                                            edge_dst_negative_field,
+                                                            negative_sampler,
+                                                            num_hard_negs)
 
         # edge loader
         if train_task:
