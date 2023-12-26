@@ -100,7 +100,8 @@ class GSHardEdgeDstNegativeSampler(_BaseNegativeSampler):
     def _generate(self, g, eids, canonical_etype):
         """ _generate() is called by DGL BaseNegativeSampler to generate negative pairs.
 
-            See https://github.com/dmlc/dgl/blob/1.1.x/python/dgl/dataloading/negative_sampler.py#L7 For more detials
+        See https://github.com/dmlc/dgl/blob/1.1.x/python/dgl/dataloading/negative_sampler.py#L7
+        For more detials
         """
         if isinstance(self._dst_negative_field, str):
             dst_negative_field = self._dst_negative_field
