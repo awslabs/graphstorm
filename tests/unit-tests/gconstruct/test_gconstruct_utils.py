@@ -197,7 +197,7 @@ def test_ext_mem_array():
         assert isinstance(arr_dict1["test1"][1], ExtNumpyWrapper)
         assert isinstance(arr_dict1["test2"][0], ExtNumpyWrapper)
         assert isinstance(arr_dict1["test2"][1], ExtNumpyWrapper)
-        assert isinstance(arr_dict1["test2"][3], np.ndarray)
+        assert isinstance(arr_dict1["test2"][2], np.ndarray)
         assert np.all(arr_dict1["test1"][0].to_numpy() == data1)
         assert np.all(arr_dict1["test1"][1].to_numpy() == data2)
         assert np.all(arr_dict1["test2"][0].to_numpy() == data3)
