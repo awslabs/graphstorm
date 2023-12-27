@@ -21,6 +21,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import os
+import logging
 
 from graphstorm import model as gsmodel
 from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX
@@ -63,6 +64,24 @@ class LLMGraphModel(gsmodel.GSgnnNodeModelBase):
 
     Parameters
     ----------
+    g : dgl DistGraph
+        Input DistDGL graph
+    node_lm_configs : list
+        language model config for each node type
+    h_dim : int
+        hidden dimension of GNN encoder
+    out_dim : int
+        Output dimension of the model, e.g. number of classes.
+    num_layers : int
+        Number of GNN encoder layers.
+    target_ntype : str
+        The node type for prediction.
+    use_norm: boolean, optional
+        If use layer normalization or not. Default: True
+    alpha_l2norm: float, optional
+        The alpha for L2 normalization. Default: 0
+    lr : float, optional
+        Normalization Method. Default: 0.001
     """
     def __init__(self, g, node_lm_configs, h_dim, out_dim, num_layers,
                  target_ntype,     # the node type to be predict
@@ -75,7 +94,7 @@ class LLMGraphModel(gsmodel.GSgnnNodeModelBase):
         self.alpha_l2norm = alpha_l2norm
         self.lr = lr
         # assume only one LLM is used
-        model_id = node_lm_configs[0]['model_name']
+        model_id = node_lm_configs[0]["model_name"]
         self.config = AutoConfig.from_pretrained(model_id)
         base_model = AutoModel.from_pretrained(
             model_id,config=self.config
@@ -87,6 +106,8 @@ class LLMGraphModel(gsmodel.GSgnnNodeModelBase):
         for lm_config in node_lm_configs:
             # A list of node types sharing the same lm model
             lm_ntypes = lm_config["node_types"]
+            if lm_config["model_name"] != model_id:
+                logging.warning("Mutiple LLM model name is found. Only one LLM is supported.")
             lm_node_feats = get_lm_node_feats(g, lm_feat_names, lm_ntypes)
             for ntype, feats in lm_node_feats.items():
                 assert ntype not in self._lm_node_feats, \
@@ -128,7 +149,7 @@ class LLMGraphModel(gsmodel.GSgnnNodeModelBase):
     def create_optimizer(self):
         # Here we assume there are no sparse embeddings.
         pytorch_total_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
-        print(f"Num of trainable params: {pytorch_total_params}")
+        logging.debug(f"Num of trainable params: {pytorch_total_params}")
 
         return torch.optim.Adam(self.parameters(), lr=self.lr)
     

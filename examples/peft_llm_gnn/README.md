@@ -1,5 +1,5 @@
 This folder contains the data processing script to process the raw Amazon Review dataset
-downloaded from https://cseweb.ucsd.edu/~jmcauley/datasets/amazon_v2/. We  domain Video
+downloaded from https://cseweb.ucsd.edu/~jmcauley/datasets/amazon_v2/. We use domain Video
 Games https://datarepo.eng.ucsd.edu/mcauley_group/data/amazon_v2/metaFiles2/meta_Video_Games.json.gz 
 and put it under raw_data as an example.
 ```

@@ -120,7 +120,6 @@ def construct_graph(directory_path, ood_fields = ['Video_Games, Automotive']):
     
     cnt = 0
     for dirpath, dirnames, filenames in os.walk(directory_path):
-        print(filenames)
         for filename in filenames:
             full_file_path = os.path.join(dirpath, filename)
             if filename.endswith('.json.gz'):
