@@ -107,7 +107,7 @@ class LLMGraphModel(gsmodel.GSgnnNodeModelBase):
             # A list of node types sharing the same lm model
             lm_ntypes = lm_config["node_types"]
             if lm_config["model_name"] != model_id:
-                logging.warning("Mutiple LLM model name is found. Only one LLM is supported.")
+                logging.warning("Multiple LLM model names are found in the config. However, the example only supports one LLM.")
             lm_node_feats = get_lm_node_feats(g, lm_feat_names, lm_ntypes)
             for ntype, feats in lm_node_feats.items():
                 assert ntype not in self._lm_node_feats, \
