@@ -340,7 +340,11 @@ class LMCache:
         lm_infer_batch_size: int
             Language model inference batch size
         use_fp16 : bool
-            Use float16 to store BERT embeddings.
+            Use float16 to store LM embeddings.
+
+        Returns
+        -------
+        bool : return True if new LM embeddings are computed else return False.
         """
         # If the embeddings have been cached in files, we should load them instead of
         # computing them from scratch.
@@ -354,7 +358,7 @@ class LMCache:
                 self._clear_cache()
             else:
                 # if lm models was not updated, don't compute the embeddings again
-                return
+                return False
 
         # We need to compute the LM embeddings from scratch.
         embed_ndata_names = self.embed_ndata_name
@@ -405,6 +409,7 @@ class LMCache:
 
         if self._embed_path is not None:
             self._save_embeddings()
+        return True
 
     def _clear_cache(self):
         """ Delete the current LM embed cache.

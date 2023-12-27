@@ -229,11 +229,17 @@ def test_lm_cache():
         # Create the second cache. It should loads the embeddings from
         # the first cache.
         lm_cache2 = LMCache(g, lm_models, tmpdirname)
-        lm_cache2.update_cache(100)
+        ret = lm_cache2.update_cache(100)
+        assert ret == False     # It loads LM embeddings directly.
         assert len(lm_cache2) == 1
         emb1 = lm_cache["n0"]
         emb2 = lm_cache2["n0"]
         assert np.all(emb1[0:len(emb1)].numpy() == emb2[0:len(emb2)].numpy())
+        ret = lm_cache2.update_cache(100)
+        assert ret == False     # It uses the loaded embeddings.
+        lm_cache2.clear_cache()
+        ret = lm_cache2.update_cache(100)
+        assert ret == True
 
         # If the model is changed, the model name should also be changed.
         model_name = lm_cache._get_model_name("n0")
