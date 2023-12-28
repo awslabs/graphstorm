@@ -24,17 +24,19 @@ from graphstorm.config import GSConfig
 from graphstorm.trainer import GSgnnLinkPredictionTrainer
 from graphstorm.dataloading import GSgnnLPTrainData
 from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
-from graphstorm.dataloading import GSgnnLPJointNegDataLoader
-from graphstorm.dataloading import GSgnnLPLocalUniformNegDataLoader
-from graphstorm.dataloading import GSgnnLPLocalJointNegDataLoader
+from graphstorm.dataloading import (GSgnnLPJointNegDataLoader,
+                                    GSgnnLPLocalUniformNegDataLoader,
+                                    GSgnnLPLocalJointNegDataLoader,
+                                    GSgnnLPInBatchJointNegDataLoader)
 from graphstorm.dataloading import GSgnnAllEtypeLPJointNegDataLoader
 from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
 from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
 from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
-from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
-from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
-from graphstorm.dataloading import BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER
-from graphstorm.dataloading import BUILTIN_LP_LOCALJOINT_NEG_SAMPLER
+from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
+                                    BUILTIN_LP_JOINT_NEG_SAMPLER,
+                                    BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER,
+                                    BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER,
+                                    BUILTIN_LP_LOCALJOINT_NEG_SAMPLER)
 from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER
 from graphstorm.dataloading import (BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER,
@@ -46,9 +48,10 @@ from graphstorm.dataloading import (FastGSgnnLinkPredictionDataLoader,
                                     FastGSgnnLPLocalUniformNegDataLoader,
                                     FastGSgnnLPLocalJointNegDataLoader)
 from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
-from graphstorm.model.utils import save_embeddings
+from graphstorm.model.utils import save_full_node_embeddings
 from graphstorm.model import do_full_graph_inference
 from graphstorm.utils import rt_profiler, sys_tracker, setup_device, use_wholegraph
+from graphstorm.utils import get_lm_ntypes
 
 def get_evaluator(config, train_data):
     """ Get evaluator according to config
@@ -98,7 +101,8 @@ def main(config_args):
                                   train_etypes=config.train_etype,
                                   eval_etypes=config.eval_etype,
                                   node_feat_field=config.node_feat_name,
-                                  pos_graph_feat_field=config.lp_edge_weight_for_loss)
+                                  pos_graph_feat_field=config.lp_edge_weight_for_loss,
+                                  lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=True)
     trainer = GSgnnLinkPredictionTrainer(model, topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
@@ -122,6 +126,8 @@ def main(config_args):
         dataloader_cls = GSgnnLinkPredictionDataLoader
     elif config.train_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
         dataloader_cls = GSgnnLPJointNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER:
+        dataloader_cls = GSgnnLPInBatchJointNegDataLoader
     elif config.train_negative_sampler == BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER:
         dataloader_cls = GSgnnLPLocalUniformNegDataLoader
     elif config.train_negative_sampler == BUILTIN_LP_LOCALJOINT_NEG_SAMPLER:
@@ -161,10 +167,12 @@ def main(config_args):
     test_dataloader = None
     if len(train_data.val_idxs) > 0:
         val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
-            config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout)
+            config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout,
+            fixed_test_size=config.fixed_test_size)
     if len(train_data.test_idxs) > 0:
         test_dataloader = test_dataloader_cls(train_data, train_data.test_idxs,
-            config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout)
+            config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout,
+            fixed_test_size=config.fixed_test_size)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
@@ -199,10 +207,12 @@ def main(config_args):
         # TODO(zhengda) we may not want to only use training edges to generate GNN embeddings.
         embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
                                              edge_mask="train_mask", task_tracker=tracker)
-        save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
-                        gs.get_world_size(),
-                        device=device,
-                        node_id_mapping_file=config.node_id_mapping_file)
+        save_full_node_embeddings(
+            train_data.g,
+            config.save_embed_path,
+            embeddings,
+            node_id_mapping_file=config.node_id_mapping_file,
+            save_embed_format=config.save_embed_format)
 
 def generate_parser():
     """ Generate an argument parser
@@ -213,5 +223,6 @@ def generate_parser():
 if __name__ == '__main__':
     arg_parser=generate_parser()
 
-    args = arg_parser.parse_args()
-    main(args)
+    # Ignore unknown args to make script more robust to input arguments
+    gs_args, _ = arg_parser.parse_known_args()
+    main(gs_args)

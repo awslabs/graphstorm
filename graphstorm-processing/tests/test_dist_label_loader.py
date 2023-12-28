@@ -46,10 +46,8 @@ def test_dist_classification_label(spark: SparkSession, check_df_schema):
     label_transformer = DistLabelLoader(LabelConfig(classification_config), spark)
 
     transformed_labels = label_transformer.process_label(names_df)
-    transformed_labels.show()
 
     label_map = label_transformer.label_map
-    print(label_map)
 
     assert set(label_map.keys()) == {"mark", "john", "tara", "jen"}
 

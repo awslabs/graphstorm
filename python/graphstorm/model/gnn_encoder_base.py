@@ -22,10 +22,11 @@ import logging
 import dgl
 import torch as th
 from torch import nn
-from dgl.distributed import DistTensor, node_split
+from dgl.distributed import node_split
 from .gs_layer import GSLayer
 
-from ..utils import get_rank, barrier, is_distributed
+from ..utils import get_rank, barrier, is_distributed, create_dist_tensor, is_wholegraph
+from ..distributed import flush_data
 
 class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
     r"""General encoder for graph data.
@@ -102,6 +103,28 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
         return dist_inference(g, self, get_input_embeds, batch_size, fanout,
                             edge_mask=edge_mask, task_tracker=task_tracker)
 
+def prepare_for_wholegraph(g, input_nodes, input_edges=None):
+    """ Add missing ntypes in input_nodes for wholegraph compatibility
+
+    Parameters
+    ----------
+    g : DistGraph
+        Input graph
+    input_nodes : dict of Tensor
+        Input nodes retrieved from the dataloder
+    input_edges : dict of Tensor
+        Input edges retrieved from the dataloder
+    """
+    if input_nodes is not None:
+        for ntype in g.ntypes:
+            if ntype not in input_nodes:
+                input_nodes[ntype] = th.empty((0,), dtype=g.idtype)
+
+    if input_edges is not None:
+        for etype in g.canonical_etypes:
+            if etype not in input_edges:
+                input_edges[etype] = th.empty((0,), dtype=g.idtype)
+
 def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                              edge_mask=None, target_ntypes=None, task_tracker=None):
     """Distributed inference of final representation over all node types
@@ -142,11 +165,11 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
         for ntype in target_ntypes:
             h_dim = gnn_encoder.out_dims
             # Create dist tensor to store the output embeddings
-            out_embs[ntype] = DistTensor((g.number_of_nodes(ntype), h_dim),
-                                         dtype=th.float32, name='h-last',
-                                         part_policy=g.get_node_partition_policy (ntype),
-                                         # TODO(zhengda) this makes the tensor persistent in memory.
-                                         persistent=True)
+            out_embs[ntype] = create_dist_tensor((g.number_of_nodes(ntype), h_dim),
+                                                 dtype=th.float32, name='h-last',
+                                                 part_policy=g.get_node_partition_policy (ntype),
+                                                 # TODO(zhengda) this makes the tensor persistent.
+                                                 persistent=True)
             infer_nodes[ntype] = node_split(th.ones((g.number_of_nodes(ntype),),
                                                         dtype=th.bool),
                                                 partition_book=g.get_partition_book(),
@@ -158,7 +181,11 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
                                                             shuffle=False,
                                                             drop_last=False)
 
-        len_dataloader = max_num_batch = len(list(dataloader))
+        # Follow
+        # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
+        # DistDataLoader.expected_idxs is the length of the datalaoder
+        len_dataloader = max_num_batch = dataloader.expected_idxs
+
         tensor = th.tensor([len_dataloader], device=device)
         if is_distributed():
             th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
@@ -169,6 +196,7 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
         # TODO (IN): Fix dataloader to have same number of minibatches.
         for iter_l in range(max_num_batch):
             tmp_keys = []
+            blocks = None
             if iter_l < len_dataloader:
                 input_nodes, output_nodes, blocks = next(dataloader_iter)
                 if not isinstance(input_nodes, dict):
@@ -179,13 +207,9 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
                     # This happens on a homogeneous graph.
                     assert len(g.ntypes) == 1
                     output_nodes = {g.ntypes[0]: output_nodes}
+            if is_wholegraph():
                 tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
-                # All samples should contain all the ntypes for wholegraph compatibility
-                input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
-                    for ntype in tmp_keys})
-            else:
-                input_nodes = {ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes}
-                blocks = None
+                prepare_for_wholegraph(g, input_nodes)
             if iter_l % 100000 == 0 and get_rank() == 0:
                 logging.info("[Rank 0] dist inference: " \
                         "finishes %d iterations.", iter_l)
@@ -195,6 +219,7 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
             h = get_input_embeds(input_nodes)
             if blocks is None:
                 continue
+            # Remove additional keys (ntypes) added for WholeGraph compatibility
             for ntype in tmp_keys:
                 del input_nodes[ntype]
             blocks = [block.to(device) for block in blocks]
@@ -202,6 +227,12 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
 
             for ntype, out_nodes in output_nodes.items():
                 out_embs[ntype][out_nodes] = output[ntype].cpu()
+        # The nodes are split in such a way that all processes only need to compute
+        # the embeddings of the nodes in the local partition. Therefore, a barrier
+        # is enough to ensure that all data have been written to memory for distributed
+        # read after this function is returned.
+        # Note: there is a risk here. If the nodes for inference on each partition
+        # are very skewed, some of the processes may timeout in the barrier.
         barrier()
     return out_embs
 
@@ -232,7 +263,10 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
     -------
         dict of Tensors : the inferenced tensors.
     """
-    len_dataloader = max_num_batch = len(list(dataloader))
+    # Follow
+    # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
+    # DistDataLoader.expected_idxs is the length of the datalaoder
+    len_dataloader = max_num_batch = dataloader.expected_idxs
     tensor = th.tensor([len_dataloader], device=device)
     if is_distributed():
         th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
@@ -261,12 +295,10 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
                 input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
                     for ntype in tmp_keys})
         else:
-            # Embeddings when layer_id > 0 depend on the output of layer 0, not on
-            # node features anymore. Hence, we don't need to create dummy tensors for
-            # wholegraph compatibility. Also, ntypes of input nodes might conflict with
-            # the ntypes of ouput nodes.
-            if int(layer_id) > 0:
-                continue
+            # For the last few iterations, some processes may not have mini-batches,
+            # we should create empty input tensors to trigger the computation. This is
+            # necessary for WholeGraph, which requires all processes to perform
+            # computations in every iteration.
             input_nodes = {ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes}
             blocks = None
         if iter_l % 100000 == 0 and get_rank() == 0:
@@ -278,6 +310,7 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
         h = get_input_embeds(input_nodes)
         if blocks is None:
             continue
+        # Remove additional keys (ntypes) added for WholeGraph compatibility
         for ntype in tmp_keys:
             del input_nodes[ntype]
         block = blocks[0].to(device)
@@ -298,11 +331,11 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
 
             # Create distributed tensors to store the embeddings.
             for k in target_ntypes:
-                y[k] = DistTensor((g.number_of_nodes(k), h_dim),
-                                  dtype=dtype, name=f'h-{layer_id}',
-                                  part_policy=g.get_node_partition_policy(k),
-                                  # TODO(zhengda) this makes the tensor persistent in memory.
-                                  persistent=True)
+                y[k] = create_dist_tensor((g.number_of_nodes(k), h_dim),
+                                          dtype=dtype, name=f'h-{layer_id}',
+                                          part_policy=g.get_node_partition_policy(k),
+                                          # TODO(zhengda) this makes the tensor persistent.
+                                          persistent=True)
 
         for k in h.keys():
             # some ntypes might be in the tensor h but are not in the output nodes
@@ -310,6 +343,13 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
             if k in output_nodes:
                 assert k in y, "All mini-batch outputs should have the same tensor names."
                 y[k][output_nodes[k]] = h[k].cpu()
+    # The nodes are split in such a way that all processes only need to compute
+    # the embeddings of the nodes in the local partition. Therefore, a barrier
+    # is enough to ensure that all data have been written to memory for distributed
+    # read after this function is returned.
+    # Note: there is a risk here. If the nodes for inference on each partition
+    # are very skewed, some of the processes may timeout in the barrier.
+    barrier()
     return y
 
 def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
@@ -364,5 +404,4 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                                                         list(infer_nodes.keys()),
                                                         layer, get_input_embeds, device,
                                                         task_tracker)
-            barrier()
     return next_layer_input

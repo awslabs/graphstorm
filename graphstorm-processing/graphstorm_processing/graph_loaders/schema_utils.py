@@ -94,9 +94,12 @@ def determine_spark_feature_type(feature_type: str) -> Type[DataType]:
     # TODO: Replace with pattern matching after moving to Python 3.10?
     if feature_type in [
         "no-op",
+        "multi-numerical",
+        "categorical",
+        "multi-categorical",
     ] or feature_type.startswith("text"):
         return StringType
-    if feature_type in ["numerical", "bucket_numerical", "none"]:
+    if feature_type in ["numerical", "bucket-numerical", "none"]:
         return FloatType
     else:
         raise NotImplementedError(f"Unknown feature type: {feature_type}")

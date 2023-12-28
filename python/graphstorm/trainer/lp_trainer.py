@@ -24,10 +24,10 @@ import dgl
 
 from ..model.lp_gnn import GSgnnLinkPredictionModelInterface
 from ..model.lp_gnn import lp_mini_batch_predict
-from ..model.gnn import (do_full_graph_inference,
-                         do_mini_batch_inference,
-                         GSgnnModelBase,
-                         GSgnnModel)
+from ..model import (do_full_graph_inference,
+                     do_mini_batch_inference,
+                     GSgnnModelBase,
+                     GSgnnModel)
 from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker, rt_profiler, print_mem, get_rank

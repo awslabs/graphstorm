@@ -16,17 +16,17 @@
     Inferrer wrapper for node classification and regression.
 """
 import time
-from dgl.distributed import DistTensor
+import logging
 
 from .graphstorm_infer import GSInferrer
-from ..model.utils import save_embeddings as save_gsgnn_embeddings
-from ..model.utils import save_prediction_results
-from ..model.utils import shuffle_predict
-from ..model.gnn import do_full_graph_inference
+from ..model.utils import save_shuffled_node_embeddings
+from ..model.utils import save_node_prediction_results
+from ..model.utils import NodeIDShuffler
+from ..model import do_full_graph_inference
 from ..model.node_gnn import node_mini_batch_gnn_predict
 from ..model.node_gnn import node_mini_batch_predict
 
-from ..utils import sys_tracker, get_world_size, get_rank, barrier
+from ..utils import sys_tracker, get_rank, barrier
 
 class GSgnnNodePredictionInferrer(GSInferrer):
     """ Node classification/regression inferrer.
@@ -79,88 +79,85 @@ class GSgnnNodePredictionInferrer(GSInferrer):
 
         sys_tracker.check('start inferencing')
         self._model.eval()
-        # TODO support multiple ntypes
-        assert len(loader.data.eval_ntypes) == 1, \
-            "GraphStorm only support single target node type for training and inference"
-        ntype = loader.data.eval_ntypes[0]
+        ntypes = loader.data.eval_ntypes
 
         if use_mini_batch_infer:
             res = node_mini_batch_gnn_predict(self._model, loader, return_proba,
                                               return_label=do_eval)
-            pred = res[0]
+            preds = res[0]
             embs = res[1]
-            label = res[2] if do_eval else None
-
-            if isinstance(embs, dict):
-                embs = {ntype: embs[ntype]}
-            else:
-                embs = {ntype: embs}
+            labels = res[2] if do_eval else None
         else:
             embs = do_full_graph_inference(self._model, loader.data, fanout=loader.fanout,
                                            task_tracker=self.task_tracker)
             res = node_mini_batch_predict(self._model, embs, loader, return_proba,
                                           return_label=do_eval)
-            pred = res[0]
-            label = res[1] if do_eval else None
-        if isinstance(pred, dict):
-            pred = pred[ntype]
-        if isinstance(label, dict):
-            label = label[ntype]
-        sys_tracker.check('compute embeddings')
+            preds = res[0]
+            labels = res[1] if do_eval else None
 
-        device = self.device
+            if save_embed_path is not None:
+                # Only embeddings of the target nodes will be saved.
+                embs = {ntype: embs[ntype][loader.target_nidx[ntype]] \
+                        for ntype in ntypes}
+            else:
+                # release embs
+                del embs
+        sys_tracker.check('finish compute embeddings')
 
         # do evaluation first
-        # do evaluation if any
         if do_eval:
-            test_start = time.time()
-            val_score, test_score = self.evaluator.evaluate(pred, pred, label, label, 0)
-            sys_tracker.check('run evaluation')
-            if get_rank() == 0:
-                self.log_print_metrics(val_score=val_score,
-                                       test_score=test_score,
-                                       dur_eval=time.time() - test_start,
-                                       total_steps=0)
+            # iterate all the target ntypes
+            for ntype in ntypes:
+                pred = preds[ntype]
+                label = labels[ntype]
+                test_start = time.time()
+                val_score, test_score = self.evaluator.evaluate(pred, pred, label, label, 0)
+                sys_tracker.check('run evaluation')
+                if get_rank() == 0:
+                    self.log_print_metrics(val_score=val_score,
+                                        test_score=test_score,
+                                        dur_eval=time.time() - test_start,
+                                        total_steps=0)
 
+        nid_shuffler = None
+        g = loader.data.g
         if save_embed_path is not None:
-            if use_mini_batch_infer:
-                g = loader.data.g
-                ntype_emb = DistTensor((g.num_nodes(ntype), embs[ntype].shape[1]),
-                                       dtype=embs[ntype].dtype, name=f'gen-emb-{ntype}',
-                                       part_policy=g.get_node_partition_policy(ntype),
-                                       # TODO: this makes the tensor persistent in memory.
-                                       persistent=True)
-                # nodes that do prediction in mini-batch may be just a subset of the
-                # entire node set.
-                ntype_emb[loader.target_nidx[ntype]] = embs[ntype]
-            else:
-                ntype_emb = embs[ntype]
-            embeddings = {ntype: ntype_emb}
+            # We are going to save the node embeddings of loader.target_nidx[ntype]
+            nid_shuffler = NodeIDShuffler(g, node_id_mapping_file, ntypes) \
+                if node_id_mapping_file else None
+            shuffled_embs = {}
+            for ntype in ntypes:
+                if get_rank() == 0:
+                    logging.info("save embeddings pf %s to %s", ntype, save_embed_path)
 
-            save_gsgnn_embeddings(save_embed_path, embeddings, get_rank(),
-                get_world_size(),
-                device=device,
-                node_id_mapping_file=node_id_mapping_file,
-                save_embed_format=save_embed_format)
+                # only save embeddings of target_nidx
+                assert ntype in embs, \
+                    f"{ntype} is not in the set of evaluation ntypes {ntypes}"
+                emb_nids = loader.target_nidx[ntype]
+
+                if node_id_mapping_file is not None:
+                    emb_nids = nid_shuffler.shuffle_nids(ntype, emb_nids)
+                shuffled_embs[ntype] = (embs[ntype], emb_nids)
+            save_shuffled_node_embeddings(shuffled_embs, save_embed_path, save_embed_format)
+
             barrier()
             sys_tracker.check('save embeddings')
 
         if save_prediction_path is not None:
-            # shuffle pred results according to node_id_mapping_file
-            if node_id_mapping_file is not None:
-                g = loader.data.g
+            # save_embed_path may be None. In that case, we need to init nid_shuffler
+            if nid_shuffler is None:
+                nid_shuffler = NodeIDShuffler(g, node_id_mapping_file, list(preds.keys())) \
+                    if node_id_mapping_file else None
+            shuffled_preds = {}
+            for ntype, pred in preds.items():
+                assert ntype in ntypes, \
+                    f"{ntype} is not in the set of evaluation ntypes {loader.data.eval_ntypes}"
 
-                pred_shape = list(pred.shape)
-                pred_shape[0] = g.num_nodes(ntype)
-                pred_data = DistTensor(pred_shape, dtype=pred.dtype, name=f'predict-{ntype}',
-                                       part_policy=g.get_node_partition_policy(ntype),
-                                       # TODO: this makes the tensor persistent in memory.
-                                       persistent=True)
-                # nodes that have predictions may be just a subset of the
-                # entire node set.
-                pred_data[loader.target_nidx[ntype]] = pred.cpu()
-                pred = shuffle_predict(pred_data, node_id_mapping_file, ntype, get_rank(),
-                                       get_world_size(), device=device)
-            save_prediction_results(pred, save_prediction_path, get_rank())
+                pred_nids = loader.target_nidx[ntype]
+                if node_id_mapping_file is not None:
+                    pred_nids = nid_shuffler.shuffle_nids(ntype, pred_nids)
+                shuffled_preds[ntype] = (pred, pred_nids)
+
+            save_node_prediction_results(shuffled_preds, save_prediction_path)
         barrier()
         sys_tracker.check('save predictions')

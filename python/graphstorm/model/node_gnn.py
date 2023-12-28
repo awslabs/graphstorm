@@ -15,12 +15,15 @@
 
     GNN model for node prediction task in GraphStorm.
 """
+import time
+import logging
 import abc
 import torch as th
 
 from .gnn import GSgnnModel, GSgnnModelBase
+from .gnn_encoder_base import prepare_for_wholegraph
 from .utils import append_to_dict
-from ..utils import is_distributed
+from ..utils import is_distributed, get_rank, is_wholegraph
 
 class GSgnnNodeModelInterface:
     """ The interface for GraphStorm node prediction model.
@@ -115,6 +118,10 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
             encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
+        # Call emb normalization.
+        # the default behavior is doing nothing.
+        encode_embs = self.normalize_node_embs(encode_embs)
+
         target_ntypes = list(labels.keys())
         # compute loss for each node type and aggregate per node type loss
         pred_loss = 0
@@ -153,6 +160,10 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
             encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
+        # Call emb normalization.
+        # the default behavior is doing nothing.
+        encode_embs = self.normalize_node_embs(encode_embs)
+
         target_ntypes = list(encode_embs.keys())
         # predict for each node type
         predicts = {}
@@ -191,6 +202,8 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     dict of Tensor : GNN embeddings.
     dict of Tensor : labels if return_labels is True
     """
+    if get_rank() == 0:
+        logging.debug("Perform mini-batch inference for node prediction.")
     device = model.device
     data = loader.data
     g = data.g
@@ -205,7 +218,7 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     labels = {}
     model.eval()
 
-    len_dataloader = max_num_batch = len(list(loader))
+    len_dataloader = max_num_batch = len(loader)
     tensor = th.tensor([len_dataloader], device=device)
     if is_distributed():
         th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
@@ -217,23 +230,21 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
         # WholeGraph does not support imbalanced batch numbers across processes/trainers
         # TODO (IN): Fix dataloader to have the same number of minibatches
         for iter_l in range(max_num_batch):
+            iter_start = time.time()
             tmp_keys = []
+            blocks = None
             if iter_l < len_dataloader:
                 input_nodes, seeds, blocks = next(dataloader_iter)
                 if not isinstance(input_nodes, dict):
                     assert len(g.ntypes) == 1
                     input_nodes = {g.ntypes[0]: input_nodes}
+            if is_wholegraph():
                 tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
-                # All samples should contain all the ntypes for wholegraph compatibility
-                input_nodes.update({ntype: th.empty((0,), dtype=g.idtype) \
-                    for ntype in tmp_keys})
-            else:
-                input_nodes = {ntype: th.empty((0,), dtype=g.idtype) for ntype in g.ntypes}
-                blocks = None
-
+                prepare_for_wholegraph(g, input_nodes)
             input_feats = data.get_node_feats(input_nodes, device)
             if blocks is None:
                 continue
+            # Remove additional keys (ntypes) added for WholeGraph compatibility
             for ntype in tmp_keys:
                 del input_nodes[ntype]
             blocks = [block.to(device) for block in blocks]
@@ -258,6 +269,9 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
             else: # in case model (e.g., llm encoder) only output a tensor without ntype
                 ntype = list(seeds.keys())[0]
                 append_to_dict({ntype: emb}, embs)
+            if get_rank() == 0 and iter_l % 20 == 0:
+                logging.debug("iter %d out of %d: takes %.3f seconds",
+                              iter_l, max_num_batch, time.time() - iter_start)
 
     model.train()
     for ntype, ntype_pred in preds.items():

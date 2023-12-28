@@ -23,11 +23,10 @@ from torch.nn.parallel import DistributedDataParallel
 
 from ..model.node_gnn import GSgnnNodeModelInterface
 from ..model.node_glem import GLEM
-from ..model.gnn import GSgnnModel
 from .np_trainer import GSgnnNodePredictionTrainer
 
 from ..utils import sys_tracker, rt_profiler, print_mem
-from ..utils import barrier, get_rank
+from ..utils import barrier, get_rank, is_distributed
 from ..dataloading import GSgnnNodeSemiSupDataLoader
 
 class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
@@ -134,9 +133,6 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
         if self.evaluator is not None:
             assert val_loader is not None, \
                     "The evaluator is provided but validation set is not provided."
-        if not use_mini_batch_infer:
-            assert isinstance(self._model, GSgnnModel), \
-                    "Only GSgnnModel supports full-graph inference."
 
         # computation graph will be changed during training.
         on_cpu = self.device == th.device('cpu')
@@ -146,11 +142,6 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                                         static_graph=False)
         device = model.device
         data = train_loader.data
-
-        # turn off pl loss in the epochs when LM is frozen
-        no_pl = freeze_input_layer_epochs > 0
-        if freeze_input_layer_epochs > 0:
-            self._model.lm.freeze_input_encoder(data)
 
         # training loop
         dur = []
@@ -162,21 +153,18 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             t0 = time.time()
             rt_profiler.start_record()
 
-            if freeze_input_layer_epochs <= epoch:
-                self._model.lm.unfreeze_input_encoder()
-                no_pl = False
-
             use_gnn = self._model.em_order_gnn_first
             # `use_gnn`` determines which part to train, if `em_order_gnn_first`
             # 1st round: train GNN, fix LM; 2nd round: train LM fix gnn
             for _ in range(2):
                 stage_start_time = time.time()
                 part_to_train = 'gnn' if use_gnn else 'lm'
-                self._model.toggle(part_to_train)
+                self._model.toggle(part_to_train, data)
+
                 self._fit_one_epoch(use_gnn, model, g, data, train_loader, val_loader, test_loader,
                                     device, rt_profiler,
                                     epoch, total_steps, use_mini_batch_infer,
-                                    save_model_path, save_model_frequency, no_pl, max_grad_norm,
+                                    save_model_path, save_model_frequency, max_grad_norm,
                                     grad_norm_type)
                 stage_finish_time = time.time()
                 if get_rank() == 0:
@@ -208,7 +196,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                        epoch, total_steps,
                        use_mini_batch_infer=True,
                        save_model_path=None,
-                       save_model_frequency=-1, no_pl=False,
+                       save_model_frequency=-1,
                        max_grad_norm=None, grad_norm_type=2.0):
         """Fit model for one epoch
         """
@@ -245,15 +233,15 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             batch_tic = time.time()
             # Run forward function to compute loss:
             loss = model(blocks, input_feats, None, lbl, input_nodes, use_gnn=use_gnn,
-                         no_pl=no_pl or (epoch < self.num_pretrain_epochs),
+                         no_pl=epoch < self.num_pretrain_epochs,
                          blocks_u=blocks_u, node_feats_u=input_feats_u, edge_feats_u=None,
                          input_nodes_u=input_nodes_u)
             profiler.record('train_forward')
-
-            self.optimizer.zero_grad()
+            module = model.module if is_distributed() else model
+            self.optimizer.zero_grad(optimize_sparse_params=module.training_sparse_embed)
             loss.backward()
             profiler.record('train_backward')
-            self.optimizer.step()
+            self.optimizer.step(optimize_sparse_params=module.training_sparse_embed)
             profiler.record('train_step')
 
             if max_grad_norm is not None:

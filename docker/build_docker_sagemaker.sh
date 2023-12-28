@@ -43,12 +43,16 @@ DOCKER_FULLNAME="${IMAGE_NAME}:${TAG}"
 
 echo "Build a sagemaker docker image ${DOCKER_FULLNAME}"
 
+# Log in to ECR to pull Docker image
+aws ecr get-login-password --region us-east-1 \
+        | docker login --username AWS --password-stdin 763104351884.dkr.ecr.us-east-1.amazonaws.com
+
 if [ $IMAGE_TYPE = "gpu" ] || [ $IMAGE_TYPE = "cpu" ]; then
-    # User Buildkit to avoid pulling both CPU and GPU images
+    # Use Buildkit to avoid pulling both CPU and GPU images
     DOCKER_BUILDKIT=1 docker build --build-arg DEVICE=$IMAGE_TYPE \
-        -f $GSF_HOME"docker/sagemaker/Dockerfile.sm" . -t $DOCKER_FULLNAME
+        -f "${GSF_HOME}/docker/sagemaker/Dockerfile.sm" . -t $DOCKER_FULLNAME
 else
-    echo "Image type can only be \"gpu\" or \"cpu\", but get \""$IMAGE_TYPE"\""
+    echo "Image type can only be \"gpu\" or \"cpu\", but got \""$IMAGE_TYPE"\""
     # remove the temporary code folder
     rm -rf code
     exit 1

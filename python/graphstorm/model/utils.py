@@ -23,13 +23,19 @@ import logging
 
 import torch as th
 from torch import nn
+import torch.nn.functional as F
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 import dgl
 
+from ..config import GRAPHSTORM_LP_EMB_L2_NORMALIZATION
 from ..gconstruct.file_io import stream_dist_tensors_to_hdf5
-from ..utils import get_rank, barrier, get_world_size
+from ..utils import get_rank, barrier, get_world_size, create_dist_tensor
 from ..data.utils import alltoallv_cpu, alltoallv_nccl
+from ..distributed import flush_data
+
+# placeholder of the ntype for homogeneous graphs
+NTYPE = dgl.NTYPE
 
 def pad_file_index(file_index, width=5):
     """ Left pad file_index with zerros.
@@ -161,6 +167,7 @@ def save_sparse_emb(model_path, sparse_emb, ntype):
         iterating all the sparse embeddings of the embed_layer
 
         .. code::
+
             # embed_layer is the input embed_layer
             embed_layer = embed_layer.module \
                 if isinstance(embed_layer, DistributedDataParallel) \
@@ -283,7 +290,7 @@ def save_relation_embeddings(emb_path, decoder):
         json.dump(et2id_map, f, ensure_ascii=False, indent=4)
     th.save(relembs, os.path.join(emb_path, "rel_emb.pt"))
 
-def _get_data_range(rank, world_size, num_embs):
+def get_data_range(rank, world_size, num_embs):
     """ save_embeddings will evenly split node embeddings across all
         the workers to save. This function returns the data range according
         to the current worker rank and the total number of nodes (embeddings).
@@ -343,7 +350,7 @@ def _exchange_node_id_mapping(rank, world_size, device,
     if rank == 0:
         data_tensors = []
         for i in range(world_size):
-            start_idx, end_idx = _get_data_range(i, world_size, num_embs)
+            start_idx, end_idx = get_data_range(i, world_size, num_embs)
             data_tensors.append(
                 node_id_mapping[start_idx:end_idx].to(device))
     else:
@@ -352,7 +359,7 @@ def _exchange_node_id_mapping(rank, world_size, device,
                                     device=device) \
             for _ in range(world_size)]
 
-    start_idx, end_idx = _get_data_range(rank, world_size, num_embs)
+    start_idx, end_idx = get_data_range(rank, world_size, num_embs)
     gather_list = \
         [th.empty((end_idx-start_idx,),
                     dtype=th.long,
@@ -367,6 +374,27 @@ def _exchange_node_id_mapping(rank, world_size, device,
         alltoallv_nccl(gather_list, data_tensors)
     # move mapping into CPU
     return gather_list[0].to(th.device("cpu"))
+
+def _load_dist_nid_map(node_id_mapping_file, ntypes):
+    """ Load id mapping files in dist partition format.
+    """
+    # node_id_mapping_file it is actually a directory
+    # <node_id_mapping_file>/part0, <node_id_mapping_file>/part1, ...
+    part_dirs = [part_path for part_path in os.listdir(node_id_mapping_file) \
+                if part_path.startswith("part")]
+
+    # we need the mapping chunks are ordered like part0, part1, ...
+    id_mappings = {ntype:[] for ntype in ntypes}
+    for i in range(len(part_dirs)):
+        id_mapping_part = dgl.data.utils.load_tensors(
+            os.path.join(node_id_mapping_file, f"part{i}", "orig_nids.dgl"))
+        for ntype in ntypes:
+            id_mappings[ntype].append(id_mapping_part[ntype])
+    id_mappings = {
+        ntype: th.cat(mappings) for ntype, mappings in id_mappings.items()
+    }
+
+    return id_mappings
 
 def distribute_nid_map(embeddings, rank, world_size,
     node_id_mapping_file, device=th.device('cpu')):
@@ -396,7 +424,12 @@ def distribute_nid_map(embeddings, rank, world_size,
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
         # only host 0 will load node id mapping from disk
         if rank == 0:
-            ori_node_id_mapping = th.load(node_id_mapping_file)
+            if node_id_mapping_file.endswith("pt"):
+                ori_node_id_mapping = th.load(node_id_mapping_file)
+            else:
+                # Homogeneous graph
+                # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
+                ori_node_id_mapping = _load_dist_nid_map(node_id_mapping_file, ["_N"])["_N"]
             _, node_id_mapping = th.sort(ori_node_id_mapping)
         else:
             node_id_mapping = None
@@ -406,8 +439,15 @@ def distribute_nid_map(embeddings, rank, world_size,
     elif isinstance(embeddings, dict):
         nid_mapping = {}
         # only host 0 will load node id mapping from disk
-        node_id_mappings = th.load(node_id_mapping_file) \
-            if rank == 0 else None
+        if rank == 0:
+            if node_id_mapping_file.endswith("pt"):
+                node_id_mappings = th.load(node_id_mapping_file)
+            else:
+                # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
+                node_id_mappings = _load_dist_nid_map(node_id_mapping_file,
+                                                      list(embeddings.keys()))
+        else:
+            node_id_mappings = None
 
         for name, emb in embeddings.items():
             if rank == 0:
@@ -456,7 +496,7 @@ def remap_embeddings(embeddings, rank, world_size,
             node_id_mapping_file, device)
 
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
-        start, end = _get_data_range(rank, world_size, len(embeddings))
+        start, end = get_data_range(rank, world_size, len(embeddings))
         embeddings[list(range(start, end))] = embeddings[nid_mapping]
     elif isinstance(embeddings, dict):
         # We need to duplicate the dict so that the input argument is not changed.
@@ -464,22 +504,141 @@ def remap_embeddings(embeddings, rank, world_size,
         for name, emb in embeddings.items():
             if isinstance(emb, (dgl.distributed.DistTensor, LazyDistTensor)):
                 # this is the same window as nid_mapping
-                start, end = _get_data_range(rank, world_size, len(emb))
+                start, end = get_data_range(rank, world_size, len(emb))
                 # we need to keep emb to be dist tensor unchanged
                 emb[th.arange(start, end)] = emb[nid_mapping[name]]
-            th.distributed.barrier()
+            barrier()
 
     return embeddings
 
-def save_pytorch_embeddings(model_path, embeddings, rank, world_size,
-    device=th.device('cpu'), node_id_mapping_file=None):
-    """ Save embeddings through pytorch a distributed way
+def save_pytorch_embedding(emb_path, embedding, rank, world_size):
+    """ Save Dist embedding tensor in Pytorch format.
 
         Parameters
         ----------
-        model_path : str
-            The path of the folder where the model is saved.
-        embeddings : DistTensor
+        emb_path : str
+            The path of the save embedding files.
+        embedding : DistTensor
+            The Dist tensor to save.
+        rank : int
+            Rank of the current process in a distributed environment.
+        world_size : int
+            World size in a distributed env.
+    """
+    os.makedirs(emb_path, exist_ok=True)
+    # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
+    if rank == 0:
+        # mode 767 means rwx-rw-rwx:
+        #     - owner of the folder can read, write, and execute;
+        #     - owner' group can read, write;
+        #     - others can read, write, and execute.
+        os.chmod(emb_path, 0o767)
+
+    # make sure the emb_path permission is changed before other process start to save
+    barrier()
+
+    assert rank < world_size, \
+        f"Process rank {rank} must be smaller than the distributed cluster size {world_size}"
+
+    assert isinstance(embedding, (dgl.distributed.DistTensor, LazyDistTensor)), \
+        "Input embedding must be a dgl.distributed.DistTensor or a LazyDistTensor"
+
+    start, end = get_data_range(rank, world_size, len(embedding))
+    embedding = embedding[start:end]
+    th.save(embedding, os.path.join(emb_path, f'embed-{pad_file_index(rank)}.pt'))
+
+def load_pytorch_embedding(emb_path, part_policy, name):
+    """ Load embedding tensor in Pytorch format.
+
+    Parameters
+    ----------
+    emb_path : str
+        The path of the save embedding files.
+    part_policy : dgl.distributed.PartitionPolicy
+        The partitioning policy
+    name : str
+        The name of the created distributed tensor.
+
+    Returns
+    -------
+    DistTensor : the loaded embeddings.
+    """
+    rank = get_rank()
+    world_size = get_world_size()
+    emb = th.load(os.path.join(emb_path, f'embed-{pad_file_index(rank)}.pt'))
+    dist_emb = create_dist_tensor((part_policy.get_size(), emb.shape[1]), emb.dtype,
+            name=name, part_policy=part_policy)
+    start, end = get_data_range(rank, world_size, len(dist_emb))
+    assert end - start == emb.shape[0], \
+            f"The loaded BERT embeddings have {emb.shape[0]} rows, " + \
+            f"doesn't match the required data range [{start}, {end}]."
+    dist_emb[start:end] = emb
+    barrier()
+    return dist_emb
+
+def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
+    device=th.device('cpu'), node_id_mapping_file=None):
+    """ Save node embeddings as pytorch tensors in a distributed way.
+
+        The input node `embeddings` are stored in Partition Node ID space.
+        When `node_id_mapping_file` is provided (GraphStorm graph processing
+        pipeline automatically generate node id mapping files by default),
+        `save_pytorch_embeddings` will shuffle the order of
+        node embeddings so that they are stored in Graph Node ID space.
+
+        The node embeddings are stored into multiple pytorch files.
+
+        Example:
+        --------
+        The saved node embeddings looks like:
+
+        .. code::
+
+            PATH_TO_EMB:
+                |- emb_info.json
+                |- ntype0_embed-00000.pt
+                |- ...
+                |- ntype1_embed-00000.pt
+                |- ...
+
+        The emb.info.json contains three information:
+            * "format", how data are stored, e.g., "pytorch".
+            * "world_size", the total number of file parts. 0 means there is no partition.
+            * "emb_name", a list of node types that have embeddings saved.
+
+        Example:
+        --------
+        .. code::
+
+            {
+                "format": "pytorch",
+                "world_size": 8,
+                "emb_name": ["movie", "user"]
+            }
+
+        The order of embeddings are sorted according to the node IDs in
+        Graph Node ID space.
+
+        Example:
+        --------
+
+        .. code::
+
+            Graph Node ID   |   embeddings
+            0               |   0.112,0.123,-0.011,...
+            1               |   0.872,0.321,-0.901,...
+            2               |   0.472,0.432,-0.732,...
+            ...
+
+        An alternative way to save node embeddings is calling `save_full_node_embeddings`
+        which is recommended as it is more efficient. Please refer to `save_full_node_embeddings`
+        for more details.
+
+        Parameters
+        ----------
+        emb_path : str
+            The path of the folder where the embeddings are saved.
+        embeddings : DistTensor or dict of DistTensor
             Embeddings to save
         rank : int
             Rank of the current process in a distributed environment.
@@ -499,9 +658,9 @@ def save_pytorch_embeddings(model_path, embeddings, rank, world_size,
         #     - owner of the folder can read, write, and execute;
         #     - owner' group can read, write;
         #     - others can read, write, and execute.
-        os.chmod(model_path, 0o767)
+        os.chmod(emb_path, 0o767)
 
-    # make sure the model_path permission is changed before other process start to save
+    # make sure the emb_path permission is changed before other process start to save
     barrier()
 
     assert rank < world_size
@@ -516,7 +675,7 @@ def save_pytorch_embeddings(model_path, embeddings, rank, world_size,
 
     if isinstance(embeddings, (dgl.distributed.DistTensor, LazyDistTensor)):
         if nid_mapping is None:
-            start, end = _get_data_range(rank, world_size, len(embeddings))
+            start, end = get_data_range(rank, world_size, len(embeddings))
             embeddings = embeddings[start:end]
         else:
             embeddings = embeddings[nid_mapping]
@@ -526,38 +685,45 @@ def save_pytorch_embeddings(model_path, embeddings, rank, world_size,
         for name, emb in embeddings.items():
             if isinstance(emb, (dgl.distributed.DistTensor, LazyDistTensor)):
                 if nid_mapping is None:
-                    start, end = _get_data_range(rank, world_size, len(emb))
+                    start, end = get_data_range(rank, world_size, len(emb))
                     emb = emb[start:end]
                 else:
                     emb = emb[nid_mapping[name]]
                 embeddings[name] = emb
 
     emb_info = {
-        "emb_name":[],
-        "world_size":world_size
+        "format": "pytorch",
+        "emb_name":[], # This is telling how many node types have node embeddings
+        "world_size": world_size
     }
 
     if isinstance(embeddings, dict):
         # embedding per node type
         for name, emb in embeddings.items():
-            th.save(emb, os.path.join(model_path, f'{name}_emb.part{pad_file_index(rank)}.bin'))
+            os.makedirs(os.path.join(emb_path, name), exist_ok=True)
+            th.save(emb, os.path.join(os.path.join(emb_path, name),
+                                      f'embed-{pad_file_index(rank)}.pt'))
             emb_info["emb_name"].append(name)
     else:
-        th.save(embeddings, os.path.join(model_path, f'emb.part{pad_file_index(rank)}.bin'))
-        emb_info["emb_name"] = None
+        os.makedirs(os.path.join(emb_path, NTYPE), exist_ok=True)
+        # There is no ntype for the embedding
+        # use NTYPE
+        th.save(embeddings, os.path.join(os.path.join(emb_path, NTYPE),
+                                         f'embed-{pad_file_index(rank)}.pt'))
+        emb_info["emb_name"] = NTYPE
 
     if rank == 0:
-        with open(os.path.join(model_path, "emb_info.json"), 'w', encoding='utf-8') as f:
-            f.write(json.dumps(emb_info))
+        with open(os.path.join(emb_path, "emb_info.json"), 'w', encoding='utf-8') as f:
+            json.dump(emb_info, f, indent=4)
 
-def save_hdf5_embeddings(model_path, embeddings, rank, world_size,
+def save_hdf5_embeddings(emb_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None):
     """ Save embeddings through hdf5 into a single file.
 
         Parameters
         ----------
-        model_path : str
-            The path of the folder where the model is saved.
+        emb_path : str
+            The path of the folder where the embeddings are saved.
         embeddings : DistTensor
             Embeddings to save
         rank : int
@@ -572,21 +738,187 @@ def save_hdf5_embeddings(model_path, embeddings, rank, world_size,
             Path to the file storing node id mapping generated by the
             graph partition algorithm.
     """
-    mapped_embeds = remap_embeddings(embeddings, rank, world_size,
-    node_id_mapping_file, device)
+    mapped_embeds = remap_embeddings(embeddings, rank, world_size, node_id_mapping_file, device)
     if rank == 0:
-        stream_dist_tensors_to_hdf5(mapped_embeds, os.path.join(model_path, "embed_dict.hdf5"))
+        stream_dist_tensors_to_hdf5(mapped_embeds, os.path.join(emb_path, "embed_dict.hdf5"))
+        emb_info = {
+            "format": "hdf5",
+            "world_size":0
+        }
+        with open(os.path.join(emb_path, "emb_info.json"), 'w', encoding='utf-8') as f:
+            json.dump(emb_info, f, indent=4)
 
-def save_embeddings(model_path, embeddings, rank, world_size,
+def save_shuffled_node_embeddings(shuffled_embs, save_embed_path, save_embed_format="pytorch"):
+    """ Save node embeddings that have corresponding node IDs shuffled into Graph
+        Node ID space.
+
+        For each node embeddings, two tensors are required and should be
+        provided as a tuple: (embedding tensor, node ID tensor).
+        The node ID tensor stores node IDs in Graph Node ID space.
+
+        Parameters
+        ----------
+        shuffled_embs: dict of tuple of tensors
+            Embeddings and their associated node ids to be saved
+        save_embed_path: str
+            Path to save the embeddings
+        save_embed_format : str
+            The format of saved embeddings.
+            Currently support ["pytorch"].
+    """
+    os.makedirs(save_embed_path, exist_ok=True)
+    assert save_embed_format == "pytorch", \
+        "save_shuffled_node_embeddings only supports pytorch format now."
+    rank = get_rank()
+    world_size = get_world_size()
+    # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
+    if rank == 0:
+        # mode 767 means rwx-rw-rwx:
+        #     - owner of the folder can read, write, and execute;
+        #     - owner' group can read, write;
+        #     - others can read, write, and execute.
+        os.chmod(save_embed_path, 0o767)
+        logging.info("Writing GNN embeddings to "\
+            "%s in pytorch format.", save_embed_path)
+
+    # make sure the save_embed_path permission is changed before other process start to save
+    barrier()
+
+    emb_info = {
+        "format": "pytorch",
+        "emb_name":[],
+        "world_size":world_size
+    }
+
+    for ntype, (embs, nids) in shuffled_embs.items():
+        os.makedirs(os.path.join(save_embed_path, ntype), exist_ok=True)
+        assert len(nids) == len(embs), \
+            f"The embeding length {len(embs)} does not match the node id length {len(nids)}"
+        th.save(embs, os.path.join(os.path.join(save_embed_path, ntype),
+                                  f'embed-{pad_file_index(rank)}.pt'))
+        th.save(nids, os.path.join(os.path.join(save_embed_path, ntype),
+                                  f'embed_nids-{pad_file_index(rank)}.pt'))
+        emb_info["emb_name"].append(ntype)
+
+    if rank == 0:
+        with open(os.path.join(save_embed_path, "emb_info.json"), 'w', encoding='utf-8') as f:
+            json.dump(emb_info, f, indent=4)
+
+def save_full_node_embeddings(g, save_embed_path,
+                              embeddings,
+                              node_id_mapping_file,
+                              save_embed_format="pytorch"):
+    """ Save all node embeddings with node IDs in Graph Node ID space.
+
+        The input node `embeddings` are stored in Partition Node ID space.
+        By default, `save_full_node_embeddings` will translate the node IDs
+        from Partition Node ID space into their counterparts in Graph Node
+        ID space.
+
+        `save_full_node_embeddings` will save two information of an
+        embedding: 1) the embedding and 2) its corresponding node ID
+        in Graph Node ID space.
+        It assumes the input `embeddings` are stored in Partition Node
+        ID space and the IDs start from 0 to N. It will call NodeIDShuffler
+        to shuffle the node IDs from Partition Node ID space into Graph
+        Node ID space.
+
+        The saved node embeddings are in the following format:
+
+        Example
+        --------
+        # embedddings:
+        #   ntype0:
+        #     embed_nids-00000.pt
+        #     embed_nids-00001.pt
+        #     ...
+        #     embed-00000.pt
+        #     embed-00001.pt
+        #     ...
+        #   ntype1:
+        #     embed_nids-00000.pt
+        #     embed_nids-00001.pt
+        #     ...
+        #     embed-00000.pt
+        #     embed-00001.pt
+        #     ...
+
+        The content of embed_nids- files and embed- files looks like:
+
+        Example:
+        --------
+
+        .. code::
+
+            embed_nids-00000.pt    |   embed-00000.pt
+                                 |
+            Graph Node ID        |   embeddings
+            10                   |   0.112,0.123,-0.011,...
+            1                    |   0.872,0.321,-0.901,...
+            23                   |   0.472,0.432,-0.732,...
+            ...
+
+        Note: `save_pytorch_embeddings` (called by `save_embeddings`) is different from
+        `save_full_node_embeddings`. In `save_pytorch_embeddings`, it will shuffle the
+        order of node embeddings so that the node embeddings are shuffled according to
+        node IDs in Graph Node ID space. While `save_full_node_embeddings`
+        shuffles node IDs instead of node embeddings, which is more efficient.
+
+        Note: Users need to call graphstorm.gcostruct.remap_result to remap the output
+        of `save_full_node_embeddings` from Graph Node ID space to Raw Node ID space.
+        GraphStorm's launch scripts will automatically call remap_result by default.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph
+        save_embed_path : str
+            The path of the folder where the embeddings are saved.
+        embeddings : DistTensor or dict of DistTensor
+            Embeddings to save
+        node_id_mapping_file : str
+            Path to the file storing node id mapping generated by the
+            graph partition algorithm.
+        save_embed_format : str
+            The format of saved embeddings.
+            Currently support ["pytorch"].
+    """
+    assert save_embed_format in ["pytorch"], \
+        "Only support save embeddings in the format of ['pytorch']"
+    ntypes = list(embeddings.keys())
+    nid_shuffler = NodeIDShuffler(g, node_id_mapping_file, ntypes) \
+                if node_id_mapping_file else None
+
+    pb = g.get_partition_book()
+    shuffled_embs = {}
+    for ntype in ntypes:
+        if get_rank() == 0:
+            logging.info("save embeddings of %s to %s", ntype, save_embed_path)
+
+        # only save embeddings of target_nidx
+        assert ntype in embeddings, \
+            f"{ntype} is not in the set of evaluation ntypes {ntypes}"
+        emb_nids = \
+            dgl.distributed.node_split(th.full((g.num_nodes(ntype),), True, dtype=th.bool),
+                                       pb, ntype=ntype, force_even=True)
+        emb = embeddings[ntype][emb_nids]
+        if nid_shuffler is not None:
+            emb_nids = nid_shuffler.shuffle_nids(ntype, emb_nids)
+        shuffled_embs[ntype] = (emb, emb_nids)
+
+    save_shuffled_node_embeddings(shuffled_embs, save_embed_path, save_embed_format)
+
+
+def save_embeddings(emb_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None,
     save_embed_format="pytorch"):
     """ Save embeddings.
 
         Parameters
         ----------
-        model_path : str
-            The path of the folder where the model is saved.
-        embeddings : DistTensor
+        emb_path : str
+            The path of the folder where the embeddings are saved.
+        embeddings : DistTensor or dict of DistTensor
             Embeddings to save
         rank : int
             Rank of the current process in a distributed environment.
@@ -603,22 +935,21 @@ def save_embeddings(model_path, embeddings, rank, world_size,
             The format of saved embeddings.
             Currently support ["pytorch", "hdf5"].
     """
-    os.makedirs(model_path, exist_ok=True)
+    os.makedirs(emb_path, exist_ok=True)
     if save_embed_format == "pytorch":
         if rank == 0:
-            logging.info("Writing GNN embeddings to "\
-                "%s in pytorch format.", model_path)
-        save_pytorch_embeddings(model_path, embeddings, rank, world_size,
+            logging.info("Writing GNN embeddings to %s in pytorch format.",
+                    emb_path)
+        save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
             device, node_id_mapping_file)
     elif save_embed_format == "hdf5":
         if rank == 0:
-            logging.info("Writing GNN embeddings to "\
-                "%s in hdf5 format.", \
-                os.path.join(model_path, 'embed_dict.hdf5'))
-        save_hdf5_embeddings(model_path, embeddings, rank, world_size,
+            logging.info("Writing GNN embeddings to %s in hdf5 format.", \
+                os.path.join(emb_path, 'embed_dict.hdf5'))
+        save_hdf5_embeddings(emb_path, embeddings, rank, world_size,
             device, node_id_mapping_file)
     else:
-        raise ValueError(f"{model_path} is not supported for save_embed_format")
+        raise ValueError(f"{emb_path} is not supported for save_embed_format")
 
 def shuffle_predict(predictions, id_mapping_file, pred_type,
                     rank, world_size, device):
@@ -656,8 +987,150 @@ def shuffle_predict(predictions, id_mapping_file, pred_type,
                 len(predictions)).cpu() # predictions are stored in CPU
     return predictions[local_id_mapping]
 
+class NodeIDShuffler():
+    """ Shuffle node ids into the Graph Node ID space according to node_id_mappings
+
+        Parameters
+        ----------
+        g: Dist DGLGraph
+            Graph.
+        node_id_mapping_file:
+            Path to the file storing node id mapping generated by the
+            graph partition algorithm.
+        ntypes: list of str
+            The node types that will have node ids shuffled.
+    """
+    def __init__(self, g, node_id_mapping_file, ntypes=None):
+        self._g = g
+        assert node_id_mapping_file is not None \
+            and os.path.exists(node_id_mapping_file), \
+            f"{node_id_mapping_file} must exist."
+
+        ntypes = ntypes if ntypes is not None else g.ntypes
+        assert isinstance(ntypes, list) and len(ntypes) > 0, \
+            f"ntypes is not a list or is an empty list {ntypes}"
+
+        if node_id_mapping_file.endswith("pt"):
+            # node id mapping file from gconstruct.
+            id_mappings = th.load(node_id_mapping_file) if get_rank() == 0 else None
+        else:
+            # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
+            id_mappings = _load_dist_nid_map(node_id_mapping_file, ntypes) \
+                if get_rank() == 0 else None
+
+        self._id_mapping_info = {
+                ntype: self._load_id_mapping(g, ntype, id_mappings) \
+                    for ntype in ntypes
+            }
+
+    def _load_id_mapping(self, g, ntype, id_mappings):
+        """load id mapping of ntype"""
+        num_nodes = g.num_nodes(ntype)
+        id_mapping_info = create_dist_tensor((num_nodes,), dtype=th.int64,
+                                             name=f"mapping-{ntype}",
+                                             part_policy=g.get_node_partition_policy(ntype))
+        if get_rank() == 0:
+            # the id_mapping stores the mapping from shuffled node ID to original ID
+            # For example, the id_mapping [1, 0 ,2] means:
+            # Original node ID: 1, 0, 2
+            # Shuffled node ID: 0, 1, 2
+            id_mapping = id_mappings[ntype] if isinstance(id_mappings, dict) else id_mappings
+            assert id_mapping.shape[0] == num_nodes, \
+                "Id mapping should have the same size of num_nodes." \
+                f"Expect {id_mapping.shape[0]}, but get {num_nodes}"
+            # Save ID mapping into dist tensor
+            id_mapping_info[th.arange(num_nodes)] = id_mapping
+        flush_data()
+        return id_mapping_info
+
+    def shuffle_nids(self, ntype, nids):
+        """ Shuffle node ids of nype into their Graph Node ID space.
+
+            Parameters
+            ----------
+            ntype: str
+                Node type of nids.
+            nids: torch.Tensor
+                Node ids.
+        """
+        assert ntype in self._id_mapping_info, \
+            f"The id mapping of {ntype} is not loaded, please provide ntypes" \
+            "when initializing NodeIDShuffler"
+
+        return self._id_mapping_info[ntype][nids]
+
+def save_edge_prediction_result(predictions, src_nids, dst_nids,
+                               prediction_path, rank):
+    """ Save edge predictions to the given path, i.e., prediction_path.
+
+        The function will save three tensors: 1) predictions, which stores
+        the prediction results; 2) src_nids, which stores the source
+        node ids of target edges and 3) dst_nids, which stores the
+        destination node ids of target edges.
+        The (src_nid, dst_nid) pairs can be used to identify the target
+        edges.
+
+        Parameters
+        ----------
+        prediction_path: tensor
+            The tensor of predictions.
+        src_nids: tensor
+            The tensor of src node ids.
+        dst_nids: tensor
+            The tensor of dst node ids.
+        prediction_path: str
+            The path of the prediction is saved.
+        rank: int
+            Rank of the current process in a distributed environment.
+    """
+    os.makedirs(prediction_path, exist_ok=True)
+    # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
+    if rank == 0:
+        # mode 767 means rwx-rw-rwx:
+        #     - owner of the folder can read, write, and execute;
+        #     - owner' group can read, write;
+        #     - others can read, write, and execute.
+        os.chmod(prediction_path, 0o767)
+    # make sure the prediction_path permission is changed before other process start to save
+    barrier()
+    th.save(predictions, os.path.join(prediction_path, f"predict-{pad_file_index(rank)}.pt"))
+    th.save(src_nids, os.path.join(prediction_path, f"src_nids-{pad_file_index(rank)}.pt"))
+    th.save(dst_nids, os.path.join(prediction_path, f"dst_nids-{pad_file_index(rank)}.pt"))
+
+def save_node_prediction_result(predictions, nids,
+                               prediction_path, rank):
+    """ Save node predictions to the given path, i.e., prediction_path.
+
+        The function will save two tensors: 1) predictions, which stores
+        the prediction results; 2) nides, which stores the node ids of the
+        target nodes.
+
+        Parameters
+        ----------
+        prediction_path: tensor
+            The tensor of predictions.
+        nids: tensor
+            The tensor of target node ids.
+        prediction_path: str
+            The path of the prediction is saved.
+        rank: int
+            Rank of the current process in a distributed environment.
+    """
+    os.makedirs(prediction_path, exist_ok=True)
+    # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
+    if rank == 0:
+        # mode 767 means rwx-rw-rwx:
+        #     - owner of the folder can read, write, and execute;
+        #     - owner' group can read, write;
+        #     - others can read, write, and execute.
+        os.chmod(prediction_path, 0o767)
+    # make sure the prediction_path permission is changed before other process start to save
+    barrier()
+    th.save(predictions, os.path.join(prediction_path, f"predict-{pad_file_index(rank)}.pt"))
+    th.save(nids, os.path.join(prediction_path, f"predict_nids-{pad_file_index(rank)}.pt"))
+
 def save_prediction_results(predictions, prediction_path, rank):
-    """ Save node and edge predictions to the given path
+    """ Save node predictions to the given path
 
         Parameters
         ----------
@@ -680,6 +1153,138 @@ def save_prediction_results(predictions, prediction_path, rank):
     barrier()
 
     th.save(predictions, os.path.join(prediction_path, f"predict-{pad_file_index(rank)}.pt"))
+
+def save_node_prediction_results(predictions, prediction_path):
+    """ Save node predictions to the given path
+
+        The saved node prediction results looks like:
+
+        Example:
+        --------
+        .. code::
+
+            PATH_TO_RESULTS:
+            |- result_info.json
+            |- ntype0
+                |- predict-00000.pt
+                |- predict-00001.pt
+                |- ...
+                |- predict_nids-00000.pt
+                |- predict_nids-00001.pt
+                |- ...
+            |- ntype1
+                |- ...
+
+        The result_info.json contains three information:
+           * "format", how data are stored, e.g., "pytorch".
+           * "world_size", the total number of file parts. 0 means there is no partition.
+           * "ntypes", a list of node types that have prediction results.
+
+        Example:
+        --------
+        .. code::
+
+            {
+                "format": "pytorch",
+                "world_size": 8,
+                "ntypes": ["movie", "user"]
+            }
+
+        .. note::
+
+            The saved prediction results are in Graph Node ID space.
+            You need to remap them into Raw Node ID space.
+
+        Parameters
+        ----------
+        predictions: dict of tuple of tensors
+            The dict of tuple of tensors of predict results and the corresponding nids
+        prediction_path: str
+            The path of the prediction is saved.
+    """
+    rank = get_rank()
+    world_size = get_world_size()
+    for ntype, (pred, nids) in predictions.items():
+        save_node_prediction_result(pred, nids,
+                                    os.path.join(prediction_path, ntype),
+                                    rank)
+    if rank == 0:
+        meta_fname = os.path.join(prediction_path, "result_info.json")
+        meta_info = {
+            "format": "pytorch",
+            "world_size": world_size,
+            "ntypes": list(predictions.keys())
+        }
+        with open(meta_fname, 'w', encoding='utf-8') as f:
+            json.dump(meta_info, f, indent=4)
+
+def save_edge_prediction_results(predictions, prediction_path):
+    """ Save edge predictions to the given path
+
+        Example:
+        --------
+        The saved node prediction results looks like:
+
+        .. code::
+
+            PATH_TO_RESULTS:
+            |- result_info.json
+            |- etype0
+                |- predict-00000.pt
+                |- predict-00001.pt
+                |- ...
+                |- src_nids-00000.pt
+                |- src_nids-00001.pt
+                |- ...
+                |- dst_nids-00000.pt
+                |- dst_nids-00001.pt
+                |- ...
+            |- etype1
+                |- ...
+
+        The result_info.json contains three information:
+           * "format", how data are stored, e.g., "pytorch".
+           * "world_size", the total number of file parts. 0 means there is no partition.
+           * "etypes", a list of edge types that have prediction results.
+
+        Example:
+        --------
+        .. code::
+
+            {
+                "format": "pytorch",
+                "world_size": 8,
+                "etypes": [("movie","rated-by","user"), ("user","watched","movie")]
+            }
+
+        .. note::
+
+            The saved prediction results are in Graph Node ID space.
+            You need to remap them into Raw Node ID space.
+
+        Parameters
+        ----------
+        prediction: dict of tensor
+            The dict of tensors of predictions.
+        prediction_path: str
+            The path of the prediction is saved.
+    """
+    rank = get_rank()
+    world_size = get_world_size()
+    for etype, pred in predictions.items():
+        pred_val, src_nid, dst_nid = pred
+        save_edge_prediction_result(pred_val, src_nid, dst_nid,
+                                     os.path.join(prediction_path, "_".join(etype)), rank)
+
+    if rank == 0:
+        meta_fname = os.path.join(prediction_path, "result_info.json")
+        meta_info = {
+            "format": "pytorch",
+            "world_size": world_size,
+            "etypes": list(predictions.keys())
+        }
+        with open(meta_fname, 'w', encoding='utf-8') as f:
+            json.dump(meta_info, f, indent=4)
 
 def load_model(model_path, gnn_model=None, embed_layer=None, decoder=None):
     """ Load a complete gnn model.
@@ -739,6 +1344,7 @@ def load_sparse_emb(target_sparse_emb, ntype_emb_path):
         iterating all the sparse embeddings of the embed_layer
 
         .. code::
+
             # embed_layer is the input embed_layer
             # model_path is where the sparse embeddings are stored.
             for ntype, sparse_emb in embed_layer.sparse_embeds.items():
@@ -1055,6 +1661,7 @@ def create_sparse_emb_path(model_path, ntype):
         for each sparse embedding of the embed_layer
 
         .. code::
+
             # embed_layer is the input embed_layer
             embed_layer = embed_layer.module \
                 if isinstance(embed_layer, DistributedDataParallel) else embed_layer
@@ -1123,3 +1730,31 @@ def append_to_dict(from_dict, to_dict):
             to_dict[k].append(v.cpu())
         else:
             to_dict[k] = [v.cpu()]
+
+def normalize_node_embs(embs, norm_method):
+    """ Do node embedding normalization
+
+        Parameters
+        ----------
+        embs: dict of Tensor
+            node embeddings.
+        norm_method: str
+            Node embedding normalization method.
+
+        Return
+        ------
+        dict of Tensor: Dict of normalized embeddings.
+    """
+    if norm_method is None or norm_method == "":
+        def norm(emb):
+            return emb
+        norm_func = norm
+    elif norm_method == GRAPHSTORM_LP_EMB_L2_NORMALIZATION:
+        def do_l2_norm(emb):
+            return F.normalize(emb)
+        norm_func = do_l2_norm
+    else:
+        raise RuntimeError(f"Unsupported embedding normalization method {norm_method}")
+
+    embs = {key: norm_func(emb) for key, emb in embs.items()}
+    return embs

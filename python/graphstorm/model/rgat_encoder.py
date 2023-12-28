@@ -177,6 +177,9 @@ class RelationalAttLayer(nn.Module):
         hs = self.conv(g, inputs_src)
 
         def _apply(ntype, h):
+            # handle the case when len(h) is 0
+            if h.shape[0] == 0:
+                return h.reshape((0, self.out_feat))
             if self.self_loop:
                 h = h + th.matmul(inputs_dst[ntype], self.loop_weight)
             if self.bias:
@@ -192,10 +195,12 @@ class RelationalAttLayer(nn.Module):
         for k, _ in inputs.items():
             if g.number_of_dst_nodes(k) > 0:
                 if k not in hs:
-                    logging.warning("Graph convolution returns empty dict for node of %s.", k)
-                    for _, in_v in inputs_src.items():
-                        device = in_v.device
-                    hs[k] = th.zeros((g.number_of_dst_nodes(k), self.out_feat), device=device)
+                    logging.warning("Warning. Graph convolution returned empty " + \
+                          f"dictionary for nodes in type: {str(k)}. Please check your data" + \
+                          f" for no in-degree nodes in type: {str(k)}.")
+                    hs[k] = th.zeros((g.number_of_dst_nodes(k),
+                                      self.out_feat),
+                                     device=inputs[k].device)
                     # TODO the above might fail if the device is a different GPU
                 else:
                     hs[k] = hs[k].view(hs[k].shape[0], hs[k].shape[1] * hs[k].shape[2])
@@ -242,7 +247,7 @@ class RelationalGATEncoder(GraphConvEncoder):
         from graphstorm.model.node_decoder import EntityClassifier
         from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
         from graphstorm.dataloading import GSgnnNodeTrainData
-        from graphstorm.model.gnn import do_full_graph_inference
+        from graphstorm.model import do_full_graph_inference
 
         np_data = GSgnnNodeTrainData(...)
 

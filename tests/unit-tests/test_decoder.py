@@ -16,6 +16,7 @@
 
 import pytest
 
+import dgl
 import torch as th
 from numpy.testing import assert_almost_equal
 
@@ -23,7 +24,9 @@ from graphstorm.model import (LinkPredictDotDecoder,
                               LinkPredictDistMultDecoder,
                               LinkPredictWeightedDotDecoder,
                               LinkPredictWeightedDistMultDecoder,
-                              MLPEFeatEdgeDecoder)
+                              MLPEFeatEdgeDecoder,
+                              LinkPredictContrastiveDotDecoder,
+                              LinkPredictContrastiveDistMultDecoder)
 from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                                     BUILTIN_LP_JOINT_NEG_SAMPLER)
 from graphstorm.eval.utils import calc_distmult_pos_score
@@ -360,6 +363,80 @@ def test_LinkPredictDotDecoder(h_dim, num_pos, num_neg, device):
     check_calc_test_scores_dot_uniform_neg(decoder, etype, h_dim, num_pos, num_neg, device)
     check_calc_test_scores_dot_joint_neg(decoder, etype, h_dim, num_pos, num_neg, device)
 
+def check_forward(decoder, etype, h_dim, num_pos, num_neg, comput_score, device):
+    n0_embs = th.rand((1000, h_dim), device=device)
+    n1_embs = th.rand((1000, h_dim), device=device)
+
+    src = th.arange(num_pos)
+    dst = th.arange(num_pos)
+    dst_neg = th.randint(1000, (num_neg,))
+
+    src_randidx = th.randperm(num_pos)
+    new_src = src[src_randidx]
+    new_dst = dst[src_randidx]
+
+    src_neg = src.reshape(-1, 1).repeat(1, num_neg).reshape(-1,)
+    dst_neg = dst_neg.repeat(num_pos)
+
+    new_src_neg = new_src.reshape(-1, 1).repeat(1, num_neg).reshape(-1,)
+
+    pos_g = dgl.heterograph(
+        {etype: (new_src, new_dst)},
+        num_nodes_dict={
+            etype[0]: 1000,
+            etype[2]: 1000,
+        })
+
+    neg_g = dgl.heterograph(
+        {etype: (new_src_neg, dst_neg)},
+        num_nodes_dict={
+            etype[0]: 1000,
+            etype[2]: 1000,
+        })
+
+    pos_g = pos_g.to(device)
+    neg_g = neg_g.to(device)
+
+    pos_scores = decoder(pos_g, {etype[0]: n0_embs, etype[2]:n1_embs})
+    neg_scores = decoder(neg_g, {etype[0]: n0_embs, etype[2]:n1_embs})
+
+    pos_scores_ = comput_score(n0_embs[src.to(device)], n1_embs[dst.to(device)])
+    neg_scores_ = comput_score(n0_embs[src_neg.to(device)], n1_embs[dst_neg.to(device)])
+
+    assert_almost_equal(pos_scores[etype].detach().cpu().numpy(),
+                        pos_scores_.detach().cpu().numpy())
+    assert_almost_equal(neg_scores[etype].detach().cpu().numpy(),
+                        neg_scores_.detach().cpu().numpy())
+
+@pytest.mark.parametrize("h_dim", [16, 64])
+@pytest.mark.parametrize("num_pos", [8, 32])
+@pytest.mark.parametrize("num_neg", [1, 32])
+@pytest.mark.parametrize("device",["cpu", "cuda:0"])
+def test_LinkPredictContrastiveDotDecoder(h_dim, num_pos, num_neg, device):
+    th.manual_seed(1)
+    etype = ('a', 'r1', 'b')
+    decoder = LinkPredictContrastiveDotDecoder(h_dim)
+    def comput_score(src_emb, dst_emb):
+        return th.sum(src_emb * dst_emb, dim=-1)
+
+    check_forward(decoder, etype, h_dim, num_pos, num_neg, comput_score, device)
+
+@pytest.mark.parametrize("h_dim", [16, 64])
+@pytest.mark.parametrize("num_pos", [8, 32])
+@pytest.mark.parametrize("num_neg", [1, 32])
+@pytest.mark.parametrize("device",["cpu", "cuda:0"])
+def test_LinkPredictContrastiveDistMultDecoder(h_dim, num_pos, num_neg, device):
+    th.manual_seed(1)
+    etype = ('a', 'r1', 'b')
+    decoder = LinkPredictContrastiveDistMultDecoder([etype], h_dim)
+    decoder.trained_rels[0] = 1 # trick the decoder
+    decoder = decoder.to(device)
+    rel_emb = decoder.get_relemb(etype).to(device)
+    def comput_score(src_emb, dst_emb):
+        return th.sum(src_emb * rel_emb * dst_emb, dim=-1)
+
+    check_forward(decoder, etype, h_dim, num_pos, num_neg, comput_score, device)
+
 @pytest.mark.parametrize("h_dim", [16, 64])
 @pytest.mark.parametrize("feat_dim", [8, 32])
 @pytest.mark.parametrize("out_dim", [2, 32])
@@ -404,6 +481,11 @@ def test_MLPEFeatEdgeDecoder(h_dim, feat_dim, out_dim, num_ffn_layers):
         assert_almost_equal(prediction.cpu().numpy(), pred.cpu().numpy())
 
 if __name__ == '__main__':
+    test_LinkPredictContrastiveDistMultDecoder(32, 8, 16, "cpu")
+    test_LinkPredictContrastiveDistMultDecoder(16, 32, 32, "cuda:0")
+    test_LinkPredictContrastiveDotDecoder(32, 8, 16, "cpu")
+    test_LinkPredictContrastiveDotDecoder(16, 32, 32, "cuda:0")
+
     test_LinkPredictDistMultDecoder(16, 8, 1, "cpu")
     test_LinkPredictDistMultDecoder(16, 32, 32, "cuda:0")
     test_LinkPredictDotDecoder(16, 8, 1, "cpu")

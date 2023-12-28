@@ -61,7 +61,10 @@ def construct_node_feat(g, rel_names, input_gnn, get_input_embeds, batch_size,
                                             partition_book=g.get_partition_book(),
                                             ntype=ntype, force_even=False)
         # We use all neighbors to reconstruct node features.
-        sampler = dgl.dataloading.MultiLayerNeighborSampler([-1], mask=edge_mask)
+        fanout = {rel_name: 0 for rel_name in g.canonical_etypes}
+        for rel_name in rel_names:
+            fanout[rel_name] = -1
+        sampler = dgl.dataloading.MultiLayerNeighborSampler([fanout], mask=edge_mask)
         dataloader = dgl.dataloading.DistNodeDataLoader(g, infer_nodes, sampler,
                                                         batch_size=batch_size,
                                                         shuffle=False,

@@ -16,13 +16,14 @@
     Generate example graph data using built-in datasets for node classifcation,
     node regression, edge classification and edge regression.
 """
+import os
 import logging
-
 import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import numpy as np
 
+from .file_io import read_data_parquet
 from .utils import ExtMemArrayWrapper
 
 class NoopMap:
@@ -65,6 +66,59 @@ class NoopMap:
         file_path : str
             The file where the ID map is saved to.
         """
+
+class IdReverseMap:
+    """ Map GraphStorm node ID into original Node ID
+
+        This loads an ID map for output IDs.
+
+        Parameters
+        ----------
+        id_map_path : str
+            Id mapping file path
+    """
+    def __init__(self, id_map_path):
+        assert os.path.exists(id_map_path), \
+            f"{id_map_path} does not exits."
+        data = read_data_parquet(id_map_path, ["new", "orig"])
+        sort_idx = np.argsort(data['new'])
+        self._ids = data['orig'][sort_idx]
+
+    def __len__(self):
+        return len(self._ids)
+
+    def map_range(self, start, end):
+        """ Map a range of GraphStorm IDs to the raw IDs.
+
+        Parameters
+        ----------
+        start : int
+            Starting idx
+        end: int
+            Ending indx
+
+        Returns
+        -------
+        tensor: A numpy array of raw IDs.
+        """
+        return self._ids[start:end]
+
+    def map_id(self, ids):
+        """ Map the GraphStorm IDs to the raw IDs.
+
+        Parameters
+        ----------
+        ids : numpy array
+            The input IDs
+
+        Returns
+        -------
+        tensor: A numpy array of raw IDs.
+        """
+        if len(ids) == 0:
+            return np.array([], dtype=np.str)
+
+        return self._ids[ids]
 
 class IdMap:
     """ Map an ID to a new ID.
@@ -180,10 +234,23 @@ def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
 
     Returns
     -------
-    tuple of tensors : the remapped source and destination node IDs.
+    tuple of tensors :
+        src_ids: The remapped source node IDs.
+        dst_ids: The remapped destination node IDs.
+        src_exist_locs: The locations of source node IDs that
+                        have existing edges. Only valid when
+                        skip_nonexist_edges is True.
+        dst_exist_locs: The location of destination node IDs that
+                        have existing edges. Only valid when
+                        skip_nonexist_edges is True.
+
+        How to use src_exist_locs and dst_exist_locs:
+        feat_data = feat_data[src_exist_locs][dst_exist_locs]
     """
     src_type, _, dst_type = edge_type
     new_src_ids, orig_locs = node_id_map[src_type].map_id(src_ids)
+    src_exist_locs = None
+    dst_exist_locs = None
     # If some of the source nodes don't exist in the node set.
     if len(orig_locs) != len(src_ids):
         bool_mask = np.ones(len(src_ids), dtype=bool)
@@ -195,6 +262,7 @@ def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
         else:
             raise ValueError(f"source nodes of {src_type} do not exist: {src_ids[bool_mask]}")
         dst_ids = dst_ids[orig_locs] if len(orig_locs) > 0 else np.array([], dtype=dst_ids.dtype)
+        src_exist_locs = orig_locs
     src_ids = new_src_ids
 
     new_dst_ids, orig_locs = node_id_map[dst_type].map_id(dst_ids)
@@ -210,5 +278,6 @@ def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
             raise ValueError(f"dest nodes of {dst_type} do not exist: {dst_ids[bool_mask]}")
         # We need to remove the source nodes as well.
         src_ids = src_ids[orig_locs] if len(orig_locs) > 0 else np.array([], dtype=src_ids.dtype)
+        dst_exist_locs = orig_locs
     dst_ids = new_dst_ids
-    return src_ids, dst_ids
+    return src_ids, dst_ids, src_exist_locs, dst_exist_locs

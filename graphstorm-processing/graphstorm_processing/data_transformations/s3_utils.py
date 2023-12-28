@@ -43,7 +43,7 @@ def list_s3_objects(bucket: str, prefix: str, s3_boto_client: boto3.client = Non
     """
     assert not prefix.startswith(
         "s3://"
-    ), f"Prefix should not start with 's3://' but be relative to bucket, got {prefix}"
+    ), f"Prefix should not start with 's3://' but be relative to the bucket, {bucket}, got {prefix}"
     s3_boto_client = get_high_retry_s3_client() if s3_boto_client is None else s3_boto_client
     paginator = s3_boto_client.get_paginator("list_objects_v2")
     pages = paginator.paginate(Bucket=bucket, Prefix=prefix)
@@ -82,14 +82,15 @@ def extract_bucket_and_key(
     path_with_bucket: str, relative_path: Optional[str] = None
 ) -> tuple[str, str]:
     """Given an S3 path that includes a bucket, and a relative path,
-    extracts the bucket name and full key path.
+    extracts the bucket name and full key path. If only `path_with_bucket`
+    is provided, will split that path into bucket name and prefix path.
 
     Parameters
     ----------
     path_with_bucket : str
         An S3 path that can include a bucket name and a key prefix, e.g.
         's3://my-bucket/my/prefix/'.
-    relative_path : Optional[str], optional
+    relative_path : Optional[str]
         An S3 key path that's relative to `path_with_bucket`, e.g.
         'rest/of/path/to/key'. If not provided only `path_with_bucket`
         will be split.
@@ -99,9 +100,21 @@ def extract_bucket_and_key(
     str
         A tuple whose first element is the bucket name and the second
         the full path to the key.
+
+    Example
+    -------
+    .. code::
+
+        >>> extract_bucket_and_key("s3://my-bucket/prefix", "rest/of/path/to/key")
+        ("my_bucket", "prefix/rest/of/path/to/key")
+        >>> extract_bucket_and_key("s3://my-bucket/prefix/key")
+        ("my_bucket", "prefix/key")
+        >>> extract_bucket_and_key("s3://my-bucket/")
+        ("my_bucket", "")
     """
     if not path_with_bucket.startswith("s3://"):
         path_with_bucket = f"s3://{path_with_bucket}"
+    path_with_bucket = s3_path_remove_trailing(path_with_bucket)
     if relative_path:
         if relative_path.startswith("/"):
             relative_path = relative_path[1:]
@@ -111,7 +124,11 @@ def extract_bucket_and_key(
     # We split on '/' to get the bucket, as it's always the third split element in an S3 URI
     file_bucket = file_s3_uri.split("/")[2]
     # Similarly, by having maxsplit=3 we get the S3 key value as the fourth element
-    file_key = file_s3_uri.split("/", 3)[3]
+    file_parts = file_s3_uri.split("/", maxsplit=3)
+    if len(file_parts) == 4:
+        file_key = file_parts[3]
+    else:
+        file_key = ""
     # We remove any trailing '/' from the key
     file_key = s3_path_remove_trailing(file_key)
 

@@ -24,7 +24,7 @@ error_and_exit () {
 }
 
 echo "**************dataset: Generated multilabel MovieLens EC, RGCN layer: 1, node feat: generated feature, inference: full graph, exclude-training-targets: True"
-python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 6 --node-feat-name movie:title user:feat --use-mini-batch-infer false --topk-model-to-save 1  --save-embed-path /data/gsgnn_ec/emb/ --save-model-path /data/gsgnn_ec/ --save-model-frequency 1000 --logging-file /tmp/train_log.txt --logging-level debug
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 6 --node-feat-name movie:title user:feat --use-mini-batch-infer false --topk-model-to-save 1  --save-embed-path /data/gsgnn_ec/emb/ --save-model-path /data/gsgnn_ec/ --save-model-frequency 1000 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True
 
 error_and_exit $?
 
@@ -89,7 +89,7 @@ then
 fi
 
 echo "**************dataset: Generated multilabel MovieLens EC, do inference on saved model"
-python3 -m graphstorm.run.gs_edge_classification --inference --workspace $GS_HOME/inference_scripts/ep_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec_infer.yaml  --multilabel true --num-classes 6 --node-feat-name movie:title user:feat --use-mini-batch-infer false --save-embed-path /data/gsgnn_ec/infer-emb/ --restore-model-path /data/gsgnn_ec/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_ec/prediction/ --logging-file /tmp/log.txt  --logging-level debug
+python3 -m graphstorm.run.gs_edge_classification --inference --workspace $GS_HOME/inference_scripts/ep_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec_infer.yaml  --multilabel true --num-classes 6 --node-feat-name movie:title user:feat --use-mini-batch-infer false --save-embed-path /data/gsgnn_ec/infer-emb/ --restore-model-path /data/gsgnn_ec/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_ec/prediction/ --logging-file /tmp/log.txt  --logging-level debug --preserve-input True
 
 error_and_exit $?
 
@@ -128,10 +128,48 @@ then
     exit -1
 fi
 
+cnt=$(ls -l /data/gsgnn_ec/prediction/user_rating_movie/ | grep predict | wc -l)
+if test $cnt != $NUM_INFO_TRAINERS * 2
+then
+    echo "The number of saved prediction results $cnt is not equal to the number of inferers $NUM_INFO_TRAINERS * 2 as --preserve-input is True"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_ec/prediction/user_rating_movie/ | grep src_nids | wc -l)
+if test $cnt != $NUM_INFO_TRAINERS
+then
+    echo "The number of saved source node ids $cnt is not equal to the number of inferers $NUM_INFO_TRAINERS"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_ec/prediction/user_rating_movie/ | grep dst_nids | wc -l)
+if test $cnt != $NUM_INFO_TRAINERS
+then
+    echo "The number of saved dst node ids results $cnt is not equal to the number of inferers $NUM_INFO_TRAINERS"
+    exit -1
+fi
+
 rm /tmp/log.txt
 
 cd $GS_HOME/tests/end2end-tests/
-python3 check_infer.py --train_embout /data/gsgnn_ec/emb/ --infer_embout /data/gsgnn_ec/infer-emb/
+python3 check_infer.py --train-embout /data/gsgnn_ec/emb/ --infer-embout /data/gsgnn_ec/infer-emb/
+
+error_and_exit $?
+
+python3 -m graphstorm.run.gs_edge_classification --inference --workspace $GS_HOME/inference_scripts/ep_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec_infer.yaml  --multilabel true --num-classes 6 --node-feat-name movie:title user:feat --use-mini-batch-infer false --save-embed-path /data/gsgnn_ec/infer-emb/ --restore-model-path /data/gsgnn_ec/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_ec/prediction-no-sf/ --logging-file /tmp/log.txt  --logging-level debug --with-shared-fs False
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/check_predict_result.py --infer-prediction /data/gsgnn_ec/prediction/user_rating_movie/ --no-sfs-prediction /data/gsgnn_ec/prediction-no-sf/user_rating_movie/ --edge-prediction
+
+error_and_exit $?
+
+echo "**************dataset: Movielens, use gen_node_embeddings to generate embeddings on edge classification"
+python3 -m graphstorm.run.gs_gen_node_embedding --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --use-mini-batch-infer false --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 6 --node-feat-name movie:title user:feat --save-embed-path /data/gsgnn_ec/save-emb/ --restore-model-path /data/gsgnn_ec/epoch-$best_epoch/ --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_ec/emb/ --infer-embout /data/gsgnn_ec/save-emb/
 
 error_and_exit $?
 
@@ -140,10 +178,17 @@ python3 -m graphstorm.run.gs_edge_classification --inference --workspace $GS_HOM
 
 error_and_exit $?
 
+cnt=$(ls -l /data/gsgnn_ec/prediction/user_rating_movie/ | grep parquet | wc -l)
+if test $cnt != $NUM_INFO_TRAINERS
+then
+    echo "The number of remapped prediction results $cnt is not equal to the number of inferers $NUM_INFO_TRAINERS"
+    exit -1
+fi
+
 rm -fr /data/gsgnn_ec/*
 
 echo "**************dataset: Generated MovieLens EC, language model only, node feat: text feature, inference: full graph, train_nodes 10"
-python3 -m graphstorm.run.gs_edge_classification --lm-encoder-only --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lm_ec.yaml --num-classes 6 --use-mini-batch-infer false --topk-model-to-save 1  --save-embed-path /data/gsgnn_ec_lm/emb/ --save-model-path /data/gsgnn_ec_lm/ --save-model-frequency 1000 --logging-file /tmp/train_log.txt
+python3 -m graphstorm.run.gs_edge_classification --lm-encoder-only --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lm_ec.yaml --num-classes 6 --use-mini-batch-infer false --topk-model-to-save 1  --save-embed-path /data/gsgnn_ec_lm/emb/ --save-model-path /data/gsgnn_ec_lm/ --save-model-frequency 1000 --logging-file /tmp/train_log.txt --preserve-input True
 
 error_and_exit $?
 
@@ -153,12 +198,12 @@ echo "The best model is saved in epoch $best_epoch"
 rm /tmp/train_log.txt
 
 echo "**************dataset: Generated MovieLens EC, node feat: text feature, do inference on saved model"
-python3 -m graphstorm.run.gs_edge_classification --lm-encoder-only --inference --workspace $GS_HOME/inference_scripts/ep_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lm_ec_infer.yaml   --num-classes 6 --use-mini-batch-infer false --save-embed-path /data/gsgnn_ec_lm/infer-emb/ --restore-model-path /data/gsgnn_ec_lm/epoch-$best_epoch/
+python3 -m graphstorm.run.gs_edge_classification --lm-encoder-only --inference --workspace $GS_HOME/inference_scripts/ep_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lm_ec_infer.yaml   --num-classes 6 --use-mini-batch-infer false --save-embed-path /data/gsgnn_ec_lm/infer-emb/ --restore-model-path /data/gsgnn_ec_lm/epoch-$best_epoch/ --preserve-input True
 
 error_and_exit $?
 
 cd $GS_HOME/tests/end2end-tests/
-python3 check_infer.py --train_embout /data/gsgnn_ec_lm/emb/ --infer_embout /data/gsgnn_ec_lm/infer-emb/
+python3 check_infer.py --train-embout /data/gsgnn_ec_lm/emb/ --infer-embout /data/gsgnn_ec_lm/infer-emb/
 
 error_and_exit $?
 rm -fr /data/gsgnn_ec_lm/*
@@ -180,3 +225,4 @@ python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_s
 error_and_exit $?
 rm -fr /data/gsgnn_ec/*
 
+rm -fr /tmp/*

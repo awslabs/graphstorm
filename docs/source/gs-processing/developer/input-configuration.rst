@@ -12,8 +12,8 @@ between other config formats, such as the one used
 by the single-machine GConstruct module.
 
 GSProcessing can take a GConstruct-formatted file
-directly, and we also provide `a script <https://github.com/awslabs/graphstorm/blob/main/graphstorm-processing/scripts/convert_gconstruct_config.py>`
-that can convert a `GConstruct <https://graphstorm.readthedocs.io/en/latest/configuration/configuration-gconstruction.html#configuration-json-explanations>`
+directly, and we also provide `a script <https://github.com/awslabs/graphstorm/blob/main/graphstorm-processing/scripts/convert_gconstruct_config.py>`_
+that can convert a `GConstruct <https://graphstorm.readthedocs.io/en/latest/configuration/configuration-gconstruction.html#configuration-json-explanations>`_
 input configuration file into the ``GSProcessing`` format,
 although this is mostly aimed at developers, users are
 can rely on the automatic conversion.
@@ -30,12 +30,12 @@ The GSProcessing input data configuration has two top-level objects:
 -  ``version`` (String, required): The version of configuration file being used. We include
    the package name to allow self-contained identification of the file format.
 -  ``graph`` (JSON object, required): one configuration object that defines each
-   of the node types and edge types that describe the graph.
+   of the edge and node types that constitute the graph.
 
 We describe the ``graph`` object next.
 
-``graph`` configuration object
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Contents of the ``graph`` configuration object
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The ``graph`` configuration object can have two top-level objects:
 
@@ -71,7 +71,7 @@ objects:
      },
      "source": {"column": "String", "type": "String"},
      "relation": {"type": "String"},
-     "destination": {"column": "String", "type": "String"},
+     "dest": {"column": "String", "type": "String"},
      "labels" : [
             {
                 "column": "String",
@@ -82,8 +82,8 @@ objects:
                     "test": "Float"
                 }
             },
-      ]
-       "features": [{}]
+      ],
+      "features": [{}]
    }
 
 -  ``data`` (JSON Object, required): Describes the physical files
@@ -135,13 +135,12 @@ objects:
    ``source`` key, with a JSON object that contains
    ``{“column: String, and ”type“: String}``.
 -  ``relation``: (JSON object, required): Describes the relation
-   modeled by the edges. A relation can be common among all edges, or it
-   can have sub-types. The top-level objects for the object are:
+   modeled by the edges. The top-level keys for the object are:
 
    -  ``type`` (String, required): The type of the relation described by
       the edges. For example, for a source type ``user``, destination
-      ``movie`` we can have a relation type ``interacted_with`` for an
-      edge type ``user:interacted_with:movie``.
+      ``movie`` we can have a relation type ``rated`` for an
+      edge type ``user:rated:movie``.
 
 -  ``labels`` (List of JSON objects, optional): Describes the label
    for the current edge type. The label object has the following
@@ -171,9 +170,9 @@ objects:
       -  ``train``: The percentage of the data with available labels to
          assign to the train set (0.0, 1.0].
       -  ``val``: The percentage of the data with available labels to
-         assign to the train set [0.0, 1.0).
+         assign to the validation set [0.0, 1.0).
       -  ``test``: The percentage of the data with available labels to
-         assign to the train set [0.0, 1.0).
+         assign to the test set [0.0, 1.0).
 
 -  ``features`` (List of JSON objects, optional)\ **:** Describes
    the set of features for the current edge type. See the :ref:`features-object` section for details.
@@ -194,13 +193,12 @@ following top-level keys:
             "files": ["String"],
             "separator": "String"
         },
-        "column" : "String",
-        "type" : "String",
+        "column": "String",
+        "type": "String",
         "labels" : [
             {
                 "column": "String",
                 "type": "String",
-                "separator": "String",
                 "split_rate": {
                     "train": "Float",
                     "val": "Float",
@@ -215,8 +213,8 @@ following top-level keys:
    the edges object, with one top-level key for the ``format`` that
    takes a String value, and one for the ``files`` that takes an array
    of String values.
--  ``column``: (String, required): The column in the data that
-   corresponds to the column that stores the node ids.
+-  ``column``: (String, required): The name of the column in the data that
+   stores the node ids.
 -  ``type:`` (String, optional): A type name for the nodes described
    in this object. If not provided the ``column`` value is used as the
    node type.
@@ -248,12 +246,12 @@ following top-level keys:
       -  ``train``: The percentage of the data with available labels to
          assign to the train set (0.0, 1.0].
       -  ``val``: The percentage of the data with available labels to
-         assign to the train set [0.0, 1.0).
+         assign to the validation set [0.0, 1.0).
       -  ``test``: The percentage of the data with available labels to
-         assign to the train set [0.0, 1.0).
+         assign to the test set [0.0, 1.0).
 
 -  ``features`` (List of JSON objects, optional): Describes
-   the set of features for the current edge type. See the next section, :ref:`features-object`
+   the set of features for the current node type. See the section :ref:`features-object`
    for details.
 
 --------------
@@ -272,10 +270,10 @@ can contain the following top-level keys:
         "column": "String",
         "name": "String",
         "transformation": {
-        "name": "String",
-        "kwargs": {
-            "arg_name": "<value>"
-        }
+            "name": "String",
+            "kwargs": {
+                "arg_name": "<value>"
+            }
         },
         "data": {
             "format": "String",
@@ -285,7 +283,7 @@ can contain the following top-level keys:
     }
 
 -  ``column`` (String, required): The column that contains the raw
-   feature values in the dataset
+   feature values in the data.
 -  ``transformation`` (JSON object, optional): The type of
    transformation that will be applied to the feature. For details on
    the individual transformations supported see :ref:`supported-transformations`.
@@ -309,7 +307,7 @@ can contain the following top-level keys:
 
         # Example node config with multiple features
         {
-            # This is where the node structure data exist just need an id col
+            # This is where the node structure data exist, just need an id col in these files
             "data": {
                 "format": "parquet",
                 "files": ["path/to/node_ids"]
@@ -356,7 +354,7 @@ Supported transformations
 
 In this section we'll describe the transformations we support.
 The name of the transformation is the value that would appear
-in the ``transform['name']`` element of the feature configuration,
+in the ``['transformation']['name']`` element of the feature configuration,
 with the attached ``kwargs`` for the transformations that support
 arguments.
 
@@ -373,8 +371,91 @@ arguments.
          split the values in the column and create a vector column
          output. Example: for a separator ``'|'`` the CSV value
          ``1|2|3`` would be transformed to a vector, ``[1, 2, 3]``.
+-  ``numerical``
+
+   -  Transforms a numerical column using a missing data imputer and an
+      optional normalizer.
+   -  ``kwargs``:
+
+      -  ``imputer`` (String, optional): A method to fill in missing values in the data.
+         Valid values are:
+         ``none`` (Default), ``mean``, ``median``, and ``most_frequent``. Missing values will be replaced
+         with the respective value computed from the data.
+      - ``normalizer`` (String, optional): Applies a normalization to the data, after imputation.
+        Can take the following values:
+
+         - ``none``: (Default) Don't normalize the numerical values during encoding.
+         - ``min-max``: Normalize each value by subtracting the minimum value from it,
+           and then dividing it by the difference between the maximum value and the minimum.
+         - ``standard``: Normalize each value by dividing it by the sum of all the values.
+         - ``rank-gauss``: Normalize each value using Rank-Gauss normalization. Rank-gauss first ranks all values,
+           converts the ranks to the -1/1 range, and applies the `inverse of the error function <https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.erfinv.html>`_ to make the values conform
+           to a Gaussian distribution shape. This transformation only supports a single column as input.
+      - ``epsilon``: Only relevant for ``rank-gauss``, this epsilon value is added to the denominator
+        to avoid infinite values during normalization.
+-  ``multi-numerical``
+
+   -  Column-wise transformation for vector-like numerical data using a missing data imputer and an
+      optional normalizer.
+   -  ``kwargs``:
+
+      - ``imputer`` (String, optional): Same as for ``numerical`` transformation, will
+        apply no imputation by default.
+      - ``normalizer`` (String, optional): Same as for ``numerical`` transformation, no
+        normalization is applied by default.
+      - ``separator`` (String, optional): Same as for ``no-op`` transformation, used to separate numerical
+        values in CSV input. If the input data are in Parquet format, each value in the
+        column is assumed to be an array of floats.
+-  ``bucket-numerical``
+
+   -  Transforms a numerical column to a one-hot or multi-hot bucket representation, using bucketization.
+       Also supports optional missing value imputation through the `imputer` kwarg.```
+   -  ``kwargs``:
+
+      - ``imputer`` (String, optional): A method to fill in missing values in the data.
+        Valid values are:
+        ``none`` (Default), ``mean``, ``median``, and ``most_frequent``. Missing values will be replaced
+        with the respective value computed from the data.
+      - ``range`` (List[float], required), The range defines the start and end point of the buckets with ``[a, b]``. It should be
+        a list of two floats. For example, ``[10, 30]`` defines a bucketing range between 10 and 30.
+      - ``bucket_cnt`` (Integer, required), The count of bucket lists used in the bucket feature transform. GSProcessing
+        calculates the size of each bucket as  ``( b - a ) / c`` , and encodes each numeric value as the number
+        of whatever bucket it falls into. Any value less than a is considered to belong in the first bucket,
+        and any value greater than b is considered to belong in the last bucket.
+      - ``slide_window_size`` (Integer, optional), slide_window_size can be used to make numeric values fall into more than one bucket,
+        by specifying a slide-window size ``s``, where ``s`` can an integer or float. GSProcessing then transforms each
+        numeric value ``v`` of the property into a range from ``v - s/2`` through ``v + s/2`` , and assigns the value v
+        to every bucket that the range covers.
+
+-  ``categorical``
+
+   -  Transforms values from a fixed list of possible values (categorical features) to a one-hot encoding.
+      The length of the resulting vector will be the number of categories in the data minus one, with a 1 in
+      the index of the single category, and zero everywhere else.
+
+.. note::
+    The maximum number of categories in any categorical feature is 100. If a property has more than 100 categories of value,
+    only the most common 99 of them are placed in distinct categories, and the rest are placed in a special category named OTHER.
+
+-  ``multi-categorical``
+
+   -  Encodes vector-like data from a fixed list of possible values (i.e. multi-label/multi-categorical data) using a multi-hot encoding. The length of the resulting vector will be the number of categories in the data minus one, and each value will have a 1 value for every category that appears, and 0 everwhere else.
+   -  ``kwargs``:
+
+      - ``separator`` (String, optional): Same as the one in the No-op operation, the separator is used to
+        split multiple input values for CSV files e.g. ``detective|noir``. If it is not provided, then the whole value
+        will be considered as an array. For Parquet files, if the input type is ArrayType(StringType()), then the
+        separator is ignored; if it is StringType(), it will apply same logic as in CSV.
 
 --------------
+
+Creating a graph for inference
+------------------------------
+
+If no label entries are provided for any of the entries
+in the input configuration, the processed data will not
+include any train/val/test masks. You can use this mode
+when you want to produce a graph just for inference.
 
 Examples
 ~~~~~~~~
@@ -403,6 +484,8 @@ OAG-Paper dataset
             ],
             "nodes" : [
                 {
+                    "type": "paper",
+                    "column": "ID",
                     "data": {
                         "format": "csv",
                         "separator": ",",
@@ -410,8 +493,18 @@ OAG-Paper dataset
                             "node_feat.csv"
                         ]
                     },
-                    "type": "paper",
-                    "column": "ID",
+                    "features": [
+                        {
+                            "column": "n_citation",
+                            "transformation": {
+                                "name": "numerical",
+                                "kwargs": {
+                                    "imputer": "mean",
+                                    "normalizer": "min-max"
+                                }
+                            }
+                        }
+                    ],
                     "labels": [
                         {
                             "column": "field",

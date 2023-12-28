@@ -24,14 +24,18 @@ import torch as th
 import torch.nn.functional as F
 from dataclasses import dataclass
 from dgl.distributed import role
+from dgl.distributed.constants import DEFAULT_NTYPE
+from dgl.distributed.constants import DEFAULT_ETYPE
 
-from .utils import sys_tracker, get_rank, get_world_size, use_wholegraph
+from .utils import sys_tracker, get_rank, get_world_size
 from .config import BUILTIN_TASK_NODE_CLASSIFICATION
 from .config import BUILTIN_TASK_NODE_REGRESSION
 from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from .config import BUILTIN_TASK_EDGE_REGRESSION
 from .config import BUILTIN_LP_DOT_DECODER
 from .config import BUILTIN_LP_DISTMULT_DECODER
+from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
+                     BUILTIN_LP_LOSS_CONTRASTIVELOSS)
 from .model.embed import GSNodeEncoderInputLayer
 from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from .model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
@@ -39,20 +43,24 @@ from .model.rgat_encoder import RelationalGATEncoder
 from .model.hgt_encoder import HGTEncoder
 from .model.gnn_with_reconstruct import GNNEncoderWithReconstructedEmbed
 from .model.sage_encoder import SAGEEncoder
+from .model.gat_encoder import GATEncoder
 from .model.node_gnn import GSgnnNodeModel
 from .model.node_glem import GLEM
 from .model.edge_gnn import GSgnnEdgeModel
 from .model.lp_gnn import GSgnnLinkPredictionModel
 from .model.loss_func import (ClassifyLossFunc,
                               RegressionLossFunc,
-                              LinkPredictLossFunc,
-                              WeightedLinkPredictLossFunc)
+                              LinkPredictBCELossFunc,
+                              WeightedLinkPredictBCELossFunc,
+                              LinkPredictContrastiveLossFunc)
 from .model.node_decoder import EntityClassifier, EntityRegression
 from .model.edge_decoder import (DenseBiDecoder,
                                  MLPEdgeDecoder,
                                  MLPEFeatEdgeDecoder)
 from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictDistMultDecoder,
+                                 LinkPredictContrastiveDotDecoder,
+                                 LinkPredictContrastiveDistMultDecoder,
                                  LinkPredictWeightedDotDecoder,
                                  LinkPredictWeightedDistMultDecoder)
 from .tracker import get_task_tracker_class
@@ -448,7 +456,8 @@ def create_builtin_lp_model(g, config, train_task):
     -------
     GSgnnModel : The model.
     """
-    model = GSgnnLinkPredictionModel(config.alpha_l2norm)
+    model = GSgnnLinkPredictionModel(config.alpha_l2norm,
+                                     config.lp_embed_normalizer)
     set_encoder(model, g, config, train_task)
     num_train_etype = len(config.train_etype) \
         if config.train_etype is not None \
@@ -457,6 +466,9 @@ def create_builtin_lp_model(g, config, train_task):
     # if train etype is 1, There is no need to use DistMult
     assert num_train_etype > 1 or config.lp_decoder_type == BUILTIN_LP_DOT_DECODER, \
             "If number of train etype is 1, please use dot product"
+    out_dims = model.gnn_encoder.out_dims \
+                    if model.gnn_encoder is not None \
+                    else model.node_input_encoder.out_dims
     if config.lp_decoder_type == BUILTIN_LP_DOT_DECODER:
         # if the training set only contains one edge type or it is specified in the arguments,
         # we use dot product as the score function.
@@ -464,37 +476,40 @@ def create_builtin_lp_model(g, config, train_task):
             logging.debug('use dot product for single-etype task.')
             logging.debug("Using inner product objective for supervision")
         if config.lp_edge_weight_for_loss is None:
-            decoder = LinkPredictDotDecoder(model.gnn_encoder.out_dims \
-                                                if model.gnn_encoder is not None \
-                                                else model.node_input_encoder.out_dims)
+            decoder = LinkPredictContrastiveDotDecoder(out_dims) \
+                if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS else \
+                LinkPredictDotDecoder(out_dims)
         else:
-            decoder = LinkPredictWeightedDotDecoder(model.gnn_encoder.out_dims \
-                                                    if model.gnn_encoder is not None \
-                                                    else model.node_input_encoder.out_dims,
+            decoder = LinkPredictWeightedDotDecoder(out_dims,
                                                     config.lp_edge_weight_for_loss)
     elif config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER:
         if get_rank() == 0:
             logging.debug("Using distmult objective for supervision")
         if config.lp_edge_weight_for_loss is None:
-            decoder = LinkPredictDistMultDecoder(g.canonical_etypes,
-                                                model.gnn_encoder.out_dims \
-                                                    if model.gnn_encoder is not None \
-                                                    else model.node_input_encoder.out_dims,
-                                                config.gamma)
+            decoder = LinkPredictContrastiveDistMultDecoder(g.canonical_etypes,
+                                                            out_dims,
+                                                            config.gamma) \
+                if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS else \
+                LinkPredictDistMultDecoder(g.canonical_etypes,
+                                           out_dims,
+                                           config.gamma)
         else:
             decoder = LinkPredictWeightedDistMultDecoder(g.canonical_etypes,
-                                                model.gnn_encoder.out_dims \
-                                                    if model.gnn_encoder is not None \
-                                                    else model.node_input_encoder.out_dims,
-                                                config.gamma,
-                                                config.lp_edge_weight_for_loss)
+                                                         out_dims,
+                                                         config.gamma,
+                                                         config.lp_edge_weight_for_loss)
     else:
         raise Exception(f"Unknow link prediction decoder type {config.lp_decoder_type}")
     model.set_decoder(decoder)
-    if config.lp_edge_weight_for_loss is None:
-        model.set_loss_func(LinkPredictLossFunc())
+    if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS:
+        model.set_loss_func(LinkPredictContrastiveLossFunc(config.contrastive_loss_temperature))
+    elif config.lp_loss_func == BUILTIN_LP_LOSS_CROSS_ENTROPY:
+        if config.lp_edge_weight_for_loss is None:
+            model.set_loss_func(LinkPredictBCELossFunc())
+        else:
+            model.set_loss_func(WeightedLinkPredictBCELossFunc())
     else:
-        model.set_loss_func(WeightedLinkPredictLossFunc())
+        raise TypeError(f"Unknown link prediction loss function {config.lp_loss_func}")
     if train_task:
         model.init_optimizer(lr=config.lr, sparse_optimizer_lr=config.sparse_optimizer_lr,
                              weight_decay=config.wd_l2norm,
@@ -518,18 +533,23 @@ def set_encoder(model, g, config, train_task):
     reconstruct_feats = len(config.construct_feat_ntype) > 0
     model_encoder_type = config.model_encoder_type
     if config.node_lm_configs is not None:
+        emb_path = os.path.join(os.path.dirname(config.part_config),
+                "cached_embs") if config.cache_lm_embed else None
         if model_encoder_type == "lm":
             # only use language model(s) as input layer encoder(s)
             encoder = GSPureLMNodeInputLayer(g, config.node_lm_configs,
                                              num_train=config.lm_train_nodes,
-                                             lm_infer_batch_size=config.lm_infer_batch_size)
+                                             lm_infer_batch_size=config.lm_infer_batch_size,
+                                             cached_embed_path=emb_path)
         else:
             encoder = GSLMNodeEncoderInputLayer(g, config.node_lm_configs,
                                                 feat_size, config.hidden_size,
                                                 num_train=config.lm_train_nodes,
                                                 lm_infer_batch_size=config.lm_infer_batch_size,
                                                 dropout=config.dropout,
-                                                use_node_embeddings=config.use_node_embeddings)
+                                                use_node_embeddings=config.use_node_embeddings,
+                                                cached_embed_path=emb_path,
+                                                force_no_embeddings=config.construct_feat_ntype)
     else:
         encoder = GSNodeEncoderInputLayer(g, feat_size, config.hidden_size,
                                           dropout=config.dropout,
@@ -537,6 +557,9 @@ def set_encoder(model, g, config, train_task):
                                           use_node_embeddings=config.use_node_embeddings,
                                           force_no_embeddings=config.construct_feat_ntype,
                                           num_ffn_layers_in_input=config.num_ffn_layers_in_input)
+    # The number of feature dimensions can change. For example, the feature dimensions
+    # of BERT embeddings are determined when the input encoder is created.
+    feat_size = encoder.in_dims
     model.set_node_input_encoder(encoder)
 
     # Set GNN encoders
@@ -589,6 +612,13 @@ def set_encoder(model, g, config, train_task):
                                   aggregator_type='pool',
                                   num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn,
                                   norm=config.gnn_norm)
+    elif model_encoder_type == "gat":
+        gnn_encoder = GATEncoder(h_dim=config.hidden_size,
+                                 out_dim=config.hidden_size,
+                                 num_heads=config.num_heads,
+                                 num_hidden_layers=config.num_layers -1,
+                                 dropout=dropout,
+                                 num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     else:
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
 
@@ -619,7 +649,7 @@ def check_homo(g):
     g: DGLGraph
         The graph used in training and testing
     """
-    if g.ntypes == ['_N'] and g.etypes == ['_E']:
+    if g.ntypes == [DEFAULT_NTYPE] and g.etypes == [DEFAULT_ETYPE[1]]:
         return True
     return False
 

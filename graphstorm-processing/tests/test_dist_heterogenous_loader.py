@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Tuple
 import json
 import os
 import shutil
@@ -33,7 +33,6 @@ from graphstorm_processing.graph_loaders.dist_heterogeneous_loader import (
 from graphstorm_processing.data_transformations.dist_label_loader import SplitRates
 from graphstorm_processing.config.label_config_base import NodeLabelConfig, EdgeLabelConfig
 from graphstorm_processing.config.config_parser import (
-    StructureConfig,
     create_config_objects,
     EdgeConfig,
 )
@@ -58,12 +57,13 @@ def tempdir_fixture():
 
 @pytest.fixture(scope="function", name="data_configs_with_label")
 def data_configs_with_label_fixture():
-    """Create data configuration object that contain labels"""
-    config_path = os.path.join(_ROOT, "resources/small_heterogeneous_graph/gconstruct-config.json")
+    """Create data configuration object that contain features and labels"""
+    config_path = os.path.join(
+        _ROOT, "resources/small_heterogeneous_graph/gsprocessing-config.json"
+    )
 
     with open(config_path, "r", encoding="utf-8") as conf_file:
-        gconstruct_config = json.load(conf_file)
-        gsprocessing_config = GConstructConfigConverter().convert_to_gsprocessing(gconstruct_config)
+        gsprocessing_config = json.load(conf_file)
 
     data_configs_dict = create_config_objects(gsprocessing_config["graph"])
 
@@ -230,7 +230,7 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
         metadata = json.load(mfile)
 
     graphinfo_updates = {
-        "nfeat_size": {"user": {"age": 1}},
+        "nfeat_size": {"user": {"age": 1, "multi": 2}},
         "etype_label": [],
         "etype_label_property": [],
         "ntype_label": ["user"],
@@ -245,7 +245,7 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
     verify_integ_test_output(metadata, dghl_loader, graphinfo_updates)
 
     expected_node_data = {
-        "user": {"gender", "train_mask", "val_mask", "test_mask", "age"},
+        "user": {"gender", "train_mask", "val_mask", "test_mask", "age", "multi"},
     }
 
     for node_type in metadata["node_data"]:
@@ -263,15 +263,8 @@ def test_load_dist_hgl_without_labels(dghl_loader_no_label: DistHeterogeneousGra
 
     graphinfo_updates = {
         "nfeat_size": {},
-        "task_type": "link_predict",
-        "etype_label": [
-            "movie:included_in:genre",
-            "genre:included_in-rev:movie",
-            "user:rated:movie",
-            "movie:rated-rev:user",
-            "director:directed:movie",
-            "movie:directed-rev:director",
-        ],
+        "task_type": "link_prediction",
+        "etype_label": [],
         "etype_label_property": [],
         "ntype_label": [],
         "ntype_label_property": [],
@@ -281,28 +274,9 @@ def test_load_dist_hgl_without_labels(dghl_loader_no_label: DistHeterogeneousGra
 
     verify_integ_test_output(metadata, dghl_loader_no_label, graphinfo_updates)
 
-    expected_edge_data = {
-        "user:rated:movie": {"train_mask", "val_mask", "test_mask"},
-        "movie:rated-rev:user": {"train_mask", "val_mask", "test_mask"},
-        "movie:included_in:genre": {"train_mask", "val_mask", "test_mask"},
-        "genre:included_in-rev:movie": {"train_mask", "val_mask", "test_mask"},
-        "director:directed:movie": {"train_mask", "val_mask", "test_mask"},
-        "movie:directed-rev:director": {"train_mask", "val_mask", "test_mask"},
-    }
+    expected_edge_data = {}
 
-    for edge_type in metadata["edge_data"]:
-        assert metadata["edge_data"][edge_type].keys() == expected_edge_data[edge_type]
-        if not "-rev" in edge_type:
-            src_type, relation, dst_type = edge_type.split(":")
-            rev_type = f"{dst_type}:{relation}-rev:{src_type}"
-            assert (
-                metadata["edge_data"][rev_type]["train_mask"]
-                == metadata["edge_data"][edge_type]["train_mask"]
-            )
-            assert (
-                metadata["edge_data"][rev_type]["val_mask"]
-                == metadata["edge_data"][edge_type]["val_mask"]
-            )
+    assert metadata["edge_data"] == expected_edge_data
 
 
 def test_write_edge_structure_no_reverse_edges(
@@ -530,18 +504,6 @@ def test_at_least_one_label_exists(no_label_data_configs, data_configs_with_labe
     assert not DistHeterogeneousGraphLoader._at_least_one_label_exists(no_label_data_configs)
 
     assert DistHeterogeneousGraphLoader._at_least_one_label_exists(data_configs_with_label)
-
-
-def test_insert_link_prediction_labels(no_label_data_configs: Dict[str, Sequence[StructureConfig]]):
-    """Test inserting link prediction labels when no labels are provided"""
-    DistHeterogeneousGraphLoader._insert_link_prediction_labels(no_label_data_configs["edges"])
-
-    modified_edge_configs = no_label_data_configs["edges"]  # type: Sequence[StructureConfig]
-
-    for edge_config in modified_edge_configs:
-        assert edge_config.label_configs
-        assert edge_config.label_configs[0].task_type == "link_prediction"
-        assert edge_config.label_configs[0].label_column == ""
 
 
 def test_create_split_files_from_rates_empty_col(

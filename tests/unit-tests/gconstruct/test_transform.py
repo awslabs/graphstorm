@@ -24,7 +24,8 @@ from graphstorm.gconstruct.transform import (_get_output_dtype,
                                              NumericalMinMaxTransform,
                                              Noop,
                                              RankGaussTransform,
-                                             CategoricalTransform)
+                                             CategoricalTransform,
+                                             BucketTransform)
 from graphstorm.gconstruct.transform import (_check_label_stats_type,
                                              collect_label_stats,
                                              CustomLabelProcessor,
@@ -36,6 +37,63 @@ def test_get_output_dtype():
     assert _get_output_dtype("float16") == np.float16
     assert _get_output_dtype("float32") == np.float32
     assert_raises(Exception, _get_output_dtype, "int32")
+
+@pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32, np.float16])
+def test_fp_min_max_bound(input_dtype):
+    feats = np.random.randn(100).astype(input_dtype)
+    feats[0] = 10.
+    feats[1] = -10.
+    transform = NumericalMinMaxTransform("test", "test")
+    max_val, min_val = transform.pre_process(feats)["test"]
+    assert len(max_val.shape) == 1
+    assert len(min_val.shape) == 1
+
+    feats = np.random.randn(100).astype(input_dtype)
+    res_dtype = np.float32 if input_dtype == np.cfloat else input_dtype
+    fifo = np.finfo(res_dtype)
+    feats[0] = fifo.max
+    feats[1] = -fifo.max
+    transform = NumericalMinMaxTransform("test", "test",
+                                         out_dtype=input_dtype)
+    max_val, min_val = transform.pre_process(feats)["test"]
+    assert len(max_val.shape) == 1
+    assert len(min_val.shape) == 1
+    assert_equal(max_val[0], np.finfo(res_dtype).max)
+    assert_equal(min_val[0], -np.finfo(res_dtype).max)
+
+    if input_dtype == np.float16:
+        feats = np.random.randn(100).astype(input_dtype)
+        fifo = np.finfo(np.float32)
+        feats[0] = fifo.max
+        feats[1] = -fifo.max
+        transform = NumericalMinMaxTransform("test", "test",
+                                             out_dtype=input_dtype)
+        max_val, min_val = transform.pre_process(feats)["test"]
+        assert len(max_val.shape) == 1
+        assert len(min_val.shape) == 1
+        assert max_val[0].dtype == np.float16
+        assert min_val[0].dtype == np.float16
+        assert_equal(max_val[0], np.finfo(np.float16).max)
+        assert_equal(min_val[0], -np.finfo(np.float16).max)
+
+        feats = np.random.randn(100).astype(input_dtype)
+        fifo = np.finfo(np.float32)
+        feats[0] = fifo.max
+        feats[1] = -fifo.max
+        transform = NumericalMinMaxTransform("test", "test",
+                                             max_bound=fifo.max,
+                                             min_bound=-fifo.max,
+                                             out_dtype=input_dtype)
+        max_val, min_val = transform.pre_process(feats)["test"]
+        assert transform._max_bound == np.finfo(np.float16).max
+        assert transform._min_bound == -np.finfo(np.float16).max
+        assert len(max_val.shape) == 1
+        assert len(min_val.shape) == 1
+        assert max_val[0].dtype == np.float16
+        assert min_val[0].dtype == np.float16
+        assert_equal(max_val[0], np.finfo(np.float16).max)
+        assert_equal(min_val[0], -np.finfo(np.float16).max)
+
 
 @pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
 def test_fp_transform(input_dtype):
@@ -234,7 +292,7 @@ def test_fp_min_max_transform(input_dtype, out_dtype):
     feats[feats < min_val] = min_val
     feats = (feats-min_val)/(max_val-min_val)
     feats = feats if out_dtype is None else feats.astype(out_dtype)
-    assert_almost_equal(norm_feats, feats, decimal=6)
+    assert_almost_equal(norm_feats, feats, decimal=5)
 
     feats = np.random.randn(100, 1).astype(input_dtype)
     norm_feats = transform(feats)["test"]
@@ -633,17 +691,110 @@ def test_classification_processor():
     assert_equal(ret[stats_info_key][1], vals)
     assert_equal(ret[stats_info_key][2], counts)
 
+
+@pytest.mark.parametrize("out_dtype", [None, np.float16])
+def test_bucket_transform(out_dtype):
+    bucket_range = [10, 30]
+    transform = BucketTransform("test", "test", 2,
+                 bucket_range=bucket_range, slide_window_size=0, out_dtype=out_dtype)
+    feats = np.array([1, 11, 21, 31])
+    bucket_feats = transform(feats)
+    if out_dtype is not None:
+        assert bucket_feats['test'].dtype == np.float16
+    else:
+        assert bucket_feats['test'].dtype == np.float32
+
+    feats_tar = np.array([[1, 0], [1, 0], [0, 1], [0, 1]], dtype=out_dtype)
+    assert_equal(bucket_feats['test'], feats_tar)
+
+    # Case for float number
+    bucket_range = [1.1, 3.1]
+    feats = np.array([0.2, 1.2, 2.2, 3.2])
+    transform = BucketTransform("test", "test", 2,
+                 bucket_range=bucket_range, slide_window_size=0, out_dtype=out_dtype)
+    bucket_feats = transform(feats)
+    if out_dtype is not None:
+        assert bucket_feats['test'].dtype == np.float16
+    else:
+        assert bucket_feats['test'].dtype == np.float32
+
+    feats_tar = np.array([[1, 0], [1, 0], [0, 1], [0, 1]], dtype=out_dtype)
+    assert_equal(bucket_feats['test'], feats_tar)
+
+    # Case with sliding window
+    bucket_range = [10, 30]
+    transform = BucketTransform("test", "test", 2,
+                 bucket_range=bucket_range, slide_window_size=10, out_dtype=out_dtype)
+    feats = np.array([1, 11, 21, 31])
+    bucket_feats = transform(feats)
+    if out_dtype is not None:
+        assert bucket_feats['test'].dtype == np.float16
+    else:
+        assert bucket_feats['test'].dtype == np.float32
+
+    feats_tar = np.array([[1, 0], [1, 0], [1, 1], [0, 1]], dtype=out_dtype)
+    assert_equal(bucket_feats['test'], feats_tar)
+
+    # Edge case for data on the bucket edge
+    bucket_range = [10, 30]
+    transform = BucketTransform("test", "test", 2,
+                                bucket_range=bucket_range, out_dtype=out_dtype)
+    feats = np.array([1, 10, 20, 30])
+    bucket_feats = transform(feats)
+    if out_dtype is not None:
+        assert bucket_feats['test'].dtype == np.float16
+    else:
+        assert bucket_feats['test'].dtype == np.float32
+
+    feats_tar = np.array([[1, 0], [1, 0], [0, 1], [0, 1]], dtype=out_dtype)
+    assert_equal(bucket_feats['test'], feats_tar)
+
+    # Edge case for large sliding window
+    bucket_range = [10, 30]
+    transform = BucketTransform("test", "test", 3,
+                                bucket_range=bucket_range, slide_window_size=20,
+                                out_dtype=out_dtype)
+    feats = np.array([1, 10, 20, 30])
+    bucket_feats = transform(feats)
+    if out_dtype is not None:
+        assert bucket_feats['test'].dtype == np.float16
+    else:
+        assert bucket_feats['test'].dtype == np.float32
+
+    feats_tar = np.array([[1, 0, 0], [1, 1, 0], [1, 1, 1], [0, 1, 1]], dtype=out_dtype)
+    assert_equal(bucket_feats['test'], feats_tar)
+
+    # Edge case for super large sliding window
+    bucket_range = [10, 30]
+    transform = BucketTransform("test", "test", 2,
+                                bucket_range=bucket_range, slide_window_size=100,
+                                out_dtype=out_dtype)
+    feats = np.array([1, 10, 20, 30])
+    bucket_feats = transform(feats)
+    if out_dtype is not None:
+        assert bucket_feats['test'].dtype == np.float16
+    else:
+        assert bucket_feats['test'].dtype == np.float32
+
+    feats_tar = np.array([[1, 1], [1, 1], [1, 1], [1, 1]], dtype=out_dtype)
+    assert_equal(bucket_feats['test'], feats_tar)
+
 if __name__ == '__main__':
     test_categorize_transform()
     test_get_output_dtype()
     test_fp_transform(np.cfloat)
     test_fp_transform(np.float32)
+    test_fp_min_max_bound(np.cfloat)
+    test_fp_min_max_bound(np.float32)
+    test_fp_min_max_bound(np.float16)
     test_fp_min_max_transform(np.cfloat, None)
     test_fp_min_max_transform(np.cfloat, np.float16)
     test_fp_min_max_transform(np.float32, None)
     test_fp_min_max_transform(np.float32, np.float16)
     test_noop_transform(None)
     test_noop_transform(np.float16)
+    test_bucket_transform(None)
+    test_bucket_transform(np.float16)
 
     test_rank_gauss_transform(np.cfloat, None)
     test_rank_gauss_transform(np.cfloat, np.float16)

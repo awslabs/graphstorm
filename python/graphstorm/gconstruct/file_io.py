@@ -80,6 +80,9 @@ def read_data_csv(data_file, data_fields=None, delimiter=','):
     dict of Numpy arrays.
     """
     data = pd.read_csv(data_file, delimiter=delimiter)
+    assert data.shape[0] > 0, \
+        f"{data_file} has an empty data. The data frame shape is {data.shape}"
+
     if data_fields is not None:
         for field in data_fields:
             assert field in data, f"The data field {field} does not exist in the data file."
@@ -132,6 +135,8 @@ def read_data_json(data_file, data_fields):
         for line in json_file.readlines():
             record = json.loads(line)
             data_records.append(record)
+    assert len(data_records) > 0, \
+        f"{data_file} is empty {data_records}."
 
     data = {key: [] for key in data_fields}
     for record in data_records:
@@ -196,12 +201,16 @@ def read_data_parquet(data_file, data_fields=None):
     table = pq.read_table(data_file)
     data = {}
     df_table = table.to_pandas()
+    assert df_table.shape[0] > 0, \
+        f"{data_file} has an empty data. The data frame shape is {df_table.shape}"
+
     if data_fields is None:
         data_fields = list(df_table.keys())
     for key in data_fields:
         assert key in df_table, f"The data field {key} does not exist in {data_file}."
         val = df_table[key]
         d = np.array(val)
+
         # For multi-dimension arrays, we split them by rows and
         # save them as objects in parquet. We need to merge them
         # together and store them in a tensor.
@@ -340,11 +349,20 @@ def _parse_file_format(conf, is_node, in_mem):
     if "features" in conf:
         for feat_conf in conf["features"]:
             assert "feature_col" in feat_conf, "A feature config needs a feature_col."
-            keys.append(feat_conf["feature_col"])
+            if isinstance(feat_conf["feature_col"], str):
+                keys.append(feat_conf["feature_col"])
+            elif isinstance(feat_conf["feature_col"], list):
+                for feat_key in feat_conf["feature_col"]:
+                    keys.append(feat_key)
+            else:
+                raise TypeError("Feature column must be a str or a list of string.")
     if "labels" in conf:
         for label_conf in conf["labels"]:
             if "label_col" in label_conf:
                 keys.append(label_conf["label_col"])
+
+    # We need to remove duplicated keys to avoid retrieve the same data multiple times.
+    keys = list(set(keys))
     if fmt["name"] == "parquet":
         return partial(read_data_parquet, data_fields=keys)
     elif fmt["name"] == "json":
@@ -378,6 +396,8 @@ def get_in_files(in_files):
     # If the input file has a wildcard, get all files that matches the input file name.
     if '*' in in_files:
         in_files = glob.glob(in_files)
+        assert len(in_files) > 0, \
+            f"There is no file matching {in_files} pattern"
     # This is a single file.
     elif not isinstance(in_files, list):
         in_files = [in_files]

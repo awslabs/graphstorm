@@ -22,9 +22,12 @@ import pyarrow.parquet as pq
 import numpy as np
 import dgl
 import torch as th
+import copy
 
+from functools import partial
 from numpy.testing import assert_equal, assert_almost_equal
 
+from graphstorm.gconstruct.construct_graph import parse_edge_data, verify_confs, is_homogeneous
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
 from graphstorm.gconstruct.file_io import write_data_csv, read_data_csv
@@ -32,13 +35,15 @@ from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5, HDF5A
 from graphstorm.gconstruct.file_io import write_index_json
 from graphstorm.gconstruct.transform import parse_feat_ops, process_features, preprocess_features
 from graphstorm.gconstruct.transform import parse_label_ops, process_labels
-from graphstorm.gconstruct.transform import Noop, do_multiprocess_transform
-from graphstorm.gconstruct.id_map import IdMap, map_node_ids
+from graphstorm.gconstruct.transform import Noop, do_multiprocess_transform, LinkPredictionProcessor
+from graphstorm.gconstruct.id_map import IdMap, IdReverseMap, map_node_ids
+from graphstorm.gconstruct.transform import (BucketTransform, RankGaussTransform,
+                                             Text2BERT, NumericalMinMaxTransform)
 from graphstorm.gconstruct.utils import (ExtMemArrayMerger,
                                          ExtMemArrayWrapper,
                                          partition_graph,
                                          update_two_phase_feat_ops,
-                                         HDF5Array)
+                                         HDF5Array, ExtFeatureWrapper)
 
 def test_parquet():
     handle, tmpfile = tempfile.mkstemp()
@@ -903,14 +908,34 @@ def test_id_map():
                                                          decimal.Decimal(15),
                                                          decimal.Decimal(20)]))
 
+def test_id_reverse_map():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        str_ids = np.array([str(i) for i in range(10)])
+        id_map = IdMap(str_ids)
+        id_map.save(os.path.join(tmpdirname, "id_map.parquet"))
+        id_reverse_map = IdReverseMap(os.path.join(tmpdirname, "id_map.parquet"))
+        assert len(id_reverse_map) == len(id_map)
+
+        test_ids = np.random.permutation(10)
+        test_reverse = id_reverse_map.map_id(test_ids)
+        new_ids = np.array([id_map._ids[str(key)] for key in test_reverse])
+        assert_equal(test_ids, new_ids)
+
+        test_reverse = id_reverse_map.map_range(1,9)
+        new_ids = np.array([id_map._ids[str(key)] for key in test_reverse])
+        assert_equal(np.arange(1, 9), new_ids)
+
 def check_map_node_ids_exist(str_src_ids, str_dst_ids, id_map):
     # Test the case that both source node IDs and destination node IDs exist.
     src_ids = np.array([str(random.randint(0, len(str_src_ids) - 1)) for _ in range(15)])
     dst_ids = np.array([str(random.randint(0, len(str_dst_ids) - 1)) for _ in range(15)])
-    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+    new_src_ids, new_dst_ids, src_exist_locs, dst_exist_locs = \
+        map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                             id_map, False)
     assert len(new_src_ids) == len(src_ids)
     assert len(new_dst_ids) == len(dst_ids)
+    assert src_exist_locs is None
+    assert dst_exist_locs is None
     for src_id1, src_id2 in zip(new_src_ids, src_ids):
         assert src_id1 == int(src_id2)
     for dst_id1, dst_id2 in zip(new_dst_ids, dst_ids):
@@ -921,22 +946,28 @@ def check_map_node_ids_src_not_exist(str_src_ids, str_dst_ids, id_map):
     src_ids = np.array([str(random.randint(0, 20)) for _ in range(15)])
     dst_ids = np.array([str(random.randint(0, len(str_dst_ids) - 1)) for _ in range(15)])
     try:
-        new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+        new_src_ids, new_dst_ids, _, _ = \
+            map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                                 id_map, False)
         raise ValueError("fail")
     except:
         pass
 
     # Test the case that source node IDs don't exist and we skip non exist edges.
-    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+    new_src_ids, new_dst_ids, src_exist_locs, dst_exist_locs \
+        = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                             id_map, True)
     num_valid = sum([int(id_) < len(str_src_ids) for id_ in src_ids])
     assert len(new_src_ids) == num_valid
     assert len(new_dst_ids) == num_valid
+    assert src_exist_locs is not None
+    assert_equal(src_ids[src_exist_locs].astype(np.int64), new_src_ids)
+    assert_equal(dst_ids[src_exist_locs].astype(np.int64), new_dst_ids)
+    assert dst_exist_locs is None
 
     # Test the case that none of the source node IDs exists and we skip non exist edges.
     src_ids = np.array([str(random.randint(20, 100)) for _ in range(15)])
-    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+    new_src_ids, new_dst_ids, _, _ = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                             id_map, True)
     assert len(new_src_ids) == 0
     assert len(new_dst_ids) == 0
@@ -946,22 +977,27 @@ def check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map):
     src_ids = np.array([str(random.randint(0, len(str_src_ids) - 1)) for _ in range(15)])
     dst_ids = np.array([str(random.randint(0, 20)) for _ in range(15)])
     try:
-        new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+        new_src_ids, new_dst_ids, _, _ = \
+            map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                                 id_map, False)
         raise ValueError("fail")
     except:
         pass
 
     # Test the case that destination node IDs don't exist and we skip non exist edges.
-    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+    new_src_ids, new_dst_ids, src_exist_locs, dst_exist_locs = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                             id_map, True)
     num_valid = sum([int(id_) < len(str_dst_ids) for id_ in dst_ids])
     assert len(new_src_ids) == num_valid
     assert len(new_dst_ids) == num_valid
+    assert src_exist_locs is None
+    assert_equal(src_ids[dst_exist_locs].astype(np.int64), new_src_ids)
+    assert_equal(dst_ids[dst_exist_locs].astype(np.int64), new_dst_ids)
+    assert dst_exist_locs is not None
 
     # Test the case that none of the destination node IDs exists and we skip non exist edges.
     dst_ids = np.array([str(random.randint(20, 100)) for _ in range(15)])
-    new_src_ids, new_dst_ids = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
+    new_src_ids, new_dst_ids, _, _ = map_node_ids(src_ids, dst_ids, ("src", None, "dst"),
                                             id_map, True)
     assert len(new_src_ids) == 0
     assert len(new_dst_ids) == 0
@@ -1217,17 +1253,529 @@ def test_multiprocessing_checks():
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == False
 
+def test_parse_edge_data():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        str_src_ids = np.array([str(i) for i in range(10)])
+        str_dst_ids = np.array([str(i) for i in range(15)])
+        node_id_map = {"src": IdMap(str_src_ids),
+                       "dst": IdMap(str_dst_ids)}
+
+        src_ids = np.array([str(random.randint(0, 20)) for _ in range(15)])
+        dst_ids = np.array([str(random.randint(0, 25)) for _ in range(15)])
+        feat = np.random.rand(15, 10)
+        data = {
+            "src_id": src_ids,
+            "dst_id": dst_ids,
+            "feat": feat,
+        }
+
+        feat_ops = [Noop("feat", "feat", None)]
+        label_ops = [
+            LinkPredictionProcessor(None, None, [0.7,0.1,0.2], None)]
+        data_file = os.path.join(tmpdirname, "data.parquet")
+        write_data_parquet(data, data_file)
+
+        conf = {
+            "source_id_col": "src_id",
+            "dest_id_col": "dst_id",
+            "relation": ("src", "rel", "dst")
+        }
+        keys = ["src_id", "dst_id", "feat"]
+        src_ids, dst_ids, feat_data = \
+            parse_edge_data(data_file, feat_ops, label_ops, node_id_map,
+                            partial(read_data_parquet, data_fields=keys),
+                            conf, skip_nonexist_edges=True)
+        for _, val in feat_data.items():
+            assert len(src_ids) == len(val)
+            assert len(dst_ids) == len(val)
+
+        assert "feat" in feat_data
+        assert "train_mask" in feat_data
+        assert "val_mask" in feat_data
+        assert "test_mask" in feat_data
+
+@pytest.mark.parametrize("ext_mem_path", [None, "/"])
+def test_multicolumn(ext_mem_path):
+    # Just get the features without transformation.
+    feat_op1 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+    }]
+    (res, _, _) = parse_feat_ops(feat_op1)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op1[0]["feature_col"]
+    assert res[0].feat_name == feat_op1[0]["feature_name"]
+    assert isinstance(res[0], Noop)
+
+    data = {
+        "test1": np.random.rand(4, 2),
+        "test2": np.random.rand(4, 2)
+    }
+    data["test3"] = np.column_stack((data['test1'], data['test2']))
+    proc_res = process_features(data, res, ext_mem_path=ext_mem_path)
+    assert "test3" in proc_res
+    assert proc_res["test3"].dtype == np.float32
+    if isinstance(proc_res, ExtMemArrayWrapper):
+        proc_res = proc_res.to_numpy()
+    np.testing.assert_allclose(proc_res["test3"], data["test3"])
+
+    # test on multiple column bucket feature transformation
+    feat_op2 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+        "transform":{
+            "name": "bucket_numerical",
+            "range": [10, 200],
+            "bucket_cnt": 10
+        }
+    }]
+    data = {
+        "test1": np.random.randint(0, 100, 3),
+        "test2": np.random.randint(0, 100, 3)
+    }
+    (res, _, _) = parse_feat_ops(feat_op2)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op2[0]["feature_col"]
+    assert res[0].feat_name == feat_op2[0]["feature_name"]
+    assert isinstance(res[0], BucketTransform)
+    bucket_feats = process_features(data, res, ext_mem_path=ext_mem_path)
+    assert "test3" in proc_res
+    assert proc_res["test3"].dtype == np.float32
+
+    data_bucket1 = {
+        "test1": data["test1"]
+    }
+    feat_bucket_single1 = [{
+        "feature_col": "test1",
+        "feature_name": "test3",
+        "transform":{
+            "name": "bucket_numerical",
+            "range": [10, 200],
+            "bucket_cnt": 10
+        }
+    }]
+    (res, _, _) = parse_feat_ops(feat_bucket_single1)
+    bucket_feat_single1 = process_features(data_bucket1, res)
+
+    data_bucket2 = {
+        "test2": data["test2"]
+    }
+    feat_bucket_single2 = [{
+        "feature_col": "test2",
+        "feature_name": "test3",
+        "transform":{
+            "name": "bucket_numerical",
+            "range": [10, 200],
+            "bucket_cnt": 10
+        }
+    }]
+    (res, _, _) = parse_feat_ops(feat_bucket_single2)
+    bucket_feat_single2 = process_features(data_bucket2, res)
+    bucket_expec = np.column_stack((bucket_feat_single1["test3"],
+                                    bucket_feat_single2["test3"]))
+    if isinstance(proc_res, ExtMemArrayWrapper):
+        bucket_feats = bucket_feats.to_numpy()
+    assert_equal(bucket_feats["test3"], bucket_expec)
+
+    # test on multiple column rank-gauss feature transformation
+    feat_op3 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+        "transform":{
+            "name": "rank_gauss"
+        }
+    }]
+    data = {
+        "test1": np.random.randint(0, 100, 3),
+        "test2": np.random.randint(0, 100, 3)
+    }
+    (res, _, _) = parse_feat_ops(feat_op3)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op3[0]["feature_col"]
+    assert res[0].feat_name == feat_op3[0]["feature_name"]
+    assert isinstance(res[0], RankGaussTransform)
+    rg_feats = process_features(data, res, ext_mem_path=ext_mem_path)
+    assert "test3" in proc_res
+    assert proc_res["test3"].dtype == np.float32
+
+    data_rg1 = {
+        "test1": data["test1"]
+    }
+    feat_rg_single1 = [{
+        "feature_col": "test1",
+        "feature_name": "test3",
+        "transform":{
+            "name": "rank_gauss"
+        }
+    }]
+    (res, _, _) = parse_feat_ops(feat_rg_single1)
+    rg_feat_single1 = process_features(data_rg1, res)
+
+    data_rg2 = {
+        "test2": data["test2"]
+    }
+    feat_rg_single2 = [{
+        "feature_col": "test2",
+        "feature_name": "test3",
+        "transform":{
+            "name": "rank_gauss",
+        }
+    }]
+    (res, _, _) = parse_feat_ops(feat_rg_single2)
+    rg_feat_single2 = process_features(data_rg2, res)
+    rg_expec = np.column_stack((rg_feat_single1["test3"],
+                                rg_feat_single2["test3"]))
+    if isinstance(rg_feats, ExtMemArrayWrapper):
+        rg_feats = rg_feats.to_numpy()
+    assert_equal(rg_feats["test3"], rg_expec)
+
+    # test on multiple column bert_hf feature transformation
+    feat_op4 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+        "transform": {"name": 'bert_hf',
+                      'bert_model': 'bert-base-uncased',
+                      'max_seq_length': 16
+                      },
+    }]
+
+    data = {
+        "test1": ["test", "haha", "failure"],
+        "test2": ["never", "pass", "lint"]
+    }
+    (res, _, _) = parse_feat_ops(feat_op4)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op4[0]["feature_col"]
+    assert res[0].feat_name == feat_op4[0]["feature_name"]
+    assert isinstance(res[0], Text2BERT)
+    bert_feats = process_features(data, res, ext_mem_path=ext_mem_path)
+    assert "test3" in proc_res
+
+    data_bert1 = {
+        "test1": data["test1"]
+    }
+    feat_bert_single1 = [{
+        "feature_col": "test1",
+        "feature_name": "test3",
+        "transform": {"name": 'bert_hf',
+                      'bert_model': 'bert-base-uncased',
+                      'max_seq_length': 16
+                      },
+    }]
+    (res, _, _) = parse_feat_ops(feat_bert_single1)
+    bert_feat_single1 = process_features(data_bert1, res)
+
+    data_bert2 = {
+        "test2": data["test2"]
+    }
+    feat_bert_single2 = [{
+        "feature_col": "test2",
+        "feature_name": "test3",
+        "transform": {"name": 'bert_hf',
+                      'bert_model': 'bert-base-uncased',
+                      'max_seq_length': 16
+                      },
+    }]
+    (res, _, _) = parse_feat_ops(feat_bert_single2)
+    bert_feat_single2 = process_features(data_bert2, res)
+    bert_expec = np.column_stack((bert_feat_single1["test3"],
+                                bert_feat_single2["test3"]))
+    if isinstance(bert_feats, ExtMemArrayWrapper):
+        bert_feats = bert_feats.to_numpy()
+    assert_equal(bert_feats["test3"], bert_expec)
+
+    # test on max_min_norm with specifying max_val and min_val
+    feat_op5 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+        "transform":{
+            "name": "max_min_norm",
+            "max_val": 100,
+            "min_val": 0
+        }
+    }]
+    data = {
+        "test1": np.random.randint(0, 100, 3),
+        "test2": np.random.randint(0, 100, 3)
+    }
+    (res, _, _) = parse_feat_ops(feat_op5)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op5[0]["feature_col"]
+    assert res[0].feat_name == feat_op5[0]["feature_name"]
+    assert isinstance(res[0], NumericalMinMaxTransform)
+    maxmin_feats = process_features(data, res, ext_mem_path=ext_mem_path)
+    assert "test3" in proc_res
+    assert proc_res["test3"].dtype == np.float32
+
+    data_maxmin1 = {
+        "test1": data["test1"]
+    }
+    feat_maxmin_single1 = [{
+        "feature_col": "test1",
+        "feature_name": "test3",
+        "transform":{
+            "name": "max_min_norm",
+            "max_val": 100,
+            "min_val": 0
+        }
+    }]
+    (res, _, _) = parse_feat_ops(feat_maxmin_single1)
+    maxmin_feat_single1 = process_features(data_maxmin1, res)
+
+    data_maxmin2 = {
+        "test2": data["test2"]
+    }
+    feat_maxmin_single2 = [{
+        "feature_col": "test2",
+        "feature_name": "test3",
+        "transform":{
+            "name": "max_min_norm",
+            "max_val": 100,
+            "min_val": 0
+        }
+    }]
+    (res, _, _) = parse_feat_ops(feat_maxmin_single2)
+    maxmin_feat_single2 = process_features(data_maxmin2, res)
+    maxmin_expec = np.column_stack((maxmin_feat_single1["test3"],
+                                maxmin_feat_single2["test3"]))
+    if isinstance(maxmin_feats, ExtMemArrayWrapper):
+        maxmin_feats = maxmin_feats.to_numpy()
+    assert_equal(maxmin_feats["test3"], maxmin_expec)
+
+    # test on max_min_norm without specifying max_val and min_val,
+    # expect to throw error
+    feat_op6 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+        "transform":{
+            "name": "max_min_norm",
+        }
+    }]
+    try:
+        (res, _, _) = parse_feat_ops(feat_op6)
+        assert False, "expected Error raised for not " \
+                      "specifying max_val and min_val"
+    except AssertionError as e:
+        assert str(e) == "max_val and min_val for max_min_norm " \
+                         "feature transformation is needed"
+
+    # test on to_categorical, expect to throw error
+    feat_op7 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+        "transform":{
+            "name": "to_categorical",
+        }
+    }]
+    try:
+        (res, _, _) = parse_feat_ops(feat_op7)
+        assert False, "expected Error raised for multi column on" \
+                      " categorical feature transformation"
+    except RuntimeError as e:
+        assert str(e) == "Do not support categorical feature " \
+                         "transformation on multiple columns"
+
+    # test on no input
+    feat_op8 = [{
+        "feature_col": [],
+        "feature_name": "test3"
+    }]
+    try:
+        (res, _, _) = parse_feat_ops(feat_op8)
+        assert False, "expected Error raised for invalid feature column []"
+    except AssertionError as e:
+        assert str(e) == "feature column should not be empty"
+
+    # test on no input column
+    feat_op9 = [{
+        "feature_col": "",
+        "feature_name": "test3"
+    }]
+    try:
+        (res, _, _) = parse_feat_ops(feat_op9)
+        assert False, "expected Error not raised for invalid feature column """
+    except AssertionError as e:
+        assert str(e) == "feature column should not be empty"
+
+    # tests on tokenize_hf, expect to throw error
+    feat_op10 = [{
+        "feature_col": ["test1", "test2"],
+        "feature_name": "test3",
+        "transform": {
+            "name": 'tokenize_hf',
+            "bert_model": 'bert-base-uncased',
+            "max_seq_length": 16
+            },
+    }]
+    try:
+        (res, _, _) = parse_feat_ops(feat_op10)
+        assert False, "expected Error raised for multi column on" \
+                      " tokenize_hf feature transformation"
+    except RuntimeError as e:
+        assert str(e) == "Not support multiple column for tokenize_hf transformation"
+
+    feat_op11 = [{
+        "feature_col": ["test1", "test2", "test3"],
+        "feature_name": "test4",
+    }]
+    (res, _, _) = parse_feat_ops(feat_op11)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op11[0]["feature_col"]
+    assert res[0].feat_name == feat_op11[0]["feature_name"]
+    assert isinstance(res[0], Noop)
+
+    # tests on more than 2 columns
+    data = {
+        "test1": np.random.rand(4, 2),
+        "test2": np.random.rand(4, 2),
+        "test3": np.random.rand(4, 2)
+    }
+    data["test4"] = np.column_stack((data['test1'], data['test2'], data['test3']))
+    proc_res = process_features(data, res, ext_mem_path=ext_mem_path)
+    assert "test4" in proc_res
+    assert proc_res["test4"].dtype == np.float32
+    if isinstance(proc_res, ExtMemArrayWrapper):
+        proc_res = proc_res.to_numpy()
+    np.testing.assert_allclose(proc_res["test4"], data["test4"])
+
+
+def test_feature_wrapper():
+    # same array size
+    data = {
+        "test1": np.random.randint(0, 100, (3, 1)),
+        "test2": np.random.randint(0, 100, (3, 1))
+    }
+    if not os.path.exists("/tmp_featurewrapper"):
+        os.makedirs("/tmp_featurewrapper")
+    test_extfeature_wrapper = ExtFeatureWrapper("/tmp_featurewrapper")
+    try:
+        a = test_extfeature_wrapper[:]
+    except RuntimeError as e:
+        assert str(e) == "Call ExtFeatureWrapper.merge() first before calling __getitem__"
+
+    try:
+        a = test_extfeature_wrapper.to_numpy()
+    except RuntimeError as e:
+        assert str(e) == "Call ExtFeatureWrapper.merge() first before calling to_numpy()"
+
+    test_extfeature_wrapper.append(data["test1"])
+    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper")
+                     if os.path.isfile(os.path.join("/tmp_featurewrapper", name)))
+    assert file_count == 1
+    test_extfeature_wrapper.append(data["test2"])
+    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper")
+                     if os.path.isfile(os.path.join("/tmp_featurewrapper", name)))
+    assert file_count == 2
+    test_extfeature_wrapper.merge()
+    data["test3"] = np.column_stack((data['test1'], data['test2']))
+    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper")
+                     if os.path.isfile(os.path.join("/tmp_featurewrapper", name)))
+    assert file_count == 3
+    np.testing.assert_allclose(test_extfeature_wrapper[:], data["test3"])
+
+    # different array size
+    data = {
+        "test1": np.random.randint(0, 100, (3, 7)),
+        "test2": np.random.randint(0, 100, (3, 1))
+    }
+    if not os.path.exists("/tmp_featurewrapper2"):
+        os.makedirs("/tmp_featurewrapper2")
+    test_extfeature_wrapper = ExtFeatureWrapper("/tmp_featurewrapper2")
+
+    test_extfeature_wrapper.append(data["test1"])
+    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper2")
+                     if os.path.isfile(os.path.join("/tmp_featurewrapper2", name)))
+    assert file_count == 1
+    test_extfeature_wrapper.append(data["test2"])
+    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper2")
+                     if os.path.isfile(os.path.join("/tmp_featurewrapper2", name)))
+    assert file_count == 2
+    test_extfeature_wrapper.merge()
+    file_count = sum(1 for name in os.listdir("/tmp_featurewrapper2")
+                     if os.path.isfile(os.path.join("/tmp_featurewrapper2", name)))
+    assert file_count == 3
+    data["test3"] = np.column_stack((data['test1'], data['test2']))
+    np.testing.assert_allclose(test_extfeature_wrapper[:], data["test3"])
+    test_extfeature_wrapper = None
+    test_gc()
+
+
+def test_gc():
+    assert not os.path.isdir("/tmp_featurewrapper"), \
+        "Directory /tmp_featurewrapper should not exist after gc"
+    assert not os.path.isdir("/tmp_featurewrapper2"), \
+        "Directory /tmp_featurewrapper2 should not exist after gc"
+
+
+def test_homogeneous():
+    # single node type and edge type input
+    conf = {
+        "version": "gconstruct-v0.1", "nodes": [
+            {"node_id_col": "id", "node_type": "movie", "format": {"name": "parquet"},
+             "files": "/data/ml-100k/movie.parquet", "features": [
+                {"feature_col": "title", "transform": {
+                    "name": "bert_hf", "bert_model": "bert-base-uncased", "max_seq_length": 16}}],
+             "labels": [{"label_col": "label", "task_type": "classification", "split_pct": [0.8, 0.1, 0.1]}]}],
+        "edges": [
+            {"source_id_col": "src_id", "dest_id_col": "dst_id", "relation": ["movie", "rating", "movie"],
+             "format": {"name": "parquet"}, "files": "/data/ml-100k/edges_homo.parquet", "labels": [
+                {"label_col": "rate", "task_type": "classification", "split_pct": [0.1, 0.1, 0.1]}]}]
+    }
+    assert is_homogeneous(conf)
+    verify_confs(conf)
+    assert conf['nodes'][0]["node_type"] == "_N"
+    assert conf['edges'][0]['relation'] == ["_N", "_E", "_N"]
+    conf["edges"][0]["relation"] = ["movie_fake", "rating", "movie"]
+    conf["nodes"].append(copy.deepcopy(conf["nodes"][0]))
+    conf["nodes"][0]["node_type"] = "movie"
+    conf["nodes"][1]["node_type"] = "movie_fake"
+    assert not is_homogeneous(conf)
+
+
+    # multiple node types and edge types input
+    conf = {
+        "version": "gconstruct-v0.1", "nodes": [
+            {"node_id_col": "id", "node_type": "movie", "format": {"name": "parquet"},
+             "files": "/data/ml-100k/movie.parquet", "features": [
+                {"feature_col": "title", "transform": {
+                    "name": "bert_hf", "bert_model": "bert-base-uncased", "max_seq_length": 16}}],
+             "labels": [{"label_col": "label", "task_type": "classification", "split_pct": [0.8, 0.1, 0.1]}]},
+            {"node_type": "movie", "format": {"name": "parquet"}, "files": "/data/ml-100k/movie.parquet",
+             "features": [{"feature_col": "id"}]}],
+        "edges": [
+            {"source_id_col": "src_id", "dest_id_col": "dst_id", "relation": ["movie", "rating", "movie"],
+             "format": {"name": "parquet"}, "files": "/data/ml-100k/edges_homo.parquet", "labels": [
+                {"label_col": "rate", "task_type": "classification", "split_pct": [0.1, 0.1, 0.1]}]},
+            {"relation": ["movie", "rating", "movie"], "format": {"name": "parquet"},
+             "files": "/data/ml-100k/edges_homo.parquet"}]
+    }
+    assert is_homogeneous(conf)
+    verify_confs(conf)
+    assert conf['nodes'][0]["node_type"] == "_N"
+    assert conf['edges'][0]['relation'] == ["_N", "_E", "_N"]
+    conf["edges"][0]["relation"] = ["movie_fake", "rating", "movie"]
+    conf["nodes"].append(copy.deepcopy(conf["nodes"][0]))
+    conf["nodes"][0]["node_type"] = "movie"
+    conf["nodes"][1]["node_type"] = "movie_fake"
+    assert not is_homogeneous(conf)
+
 if __name__ == '__main__':
+    test_parse_edge_data()
     test_multiprocessing_checks()
-    test_csv()
+    test_csv(None)
     test_hdf5()
     test_json()
-    test_partition_graph()
+    test_partition_graph(1)
     test_merge_arrays()
     test_map_node_ids()
     test_id_map()
+    test_id_reverse_map()
     test_parquet()
     test_feat_ops()
     test_process_features()
     test_process_features_fp16()
     test_label()
+    test_multicolumn(None)
+    test_multicolumn("/")
+    test_feature_wrapper()
+    test_homogeneous()

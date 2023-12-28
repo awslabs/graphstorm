@@ -98,11 +98,27 @@ python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scrip
 error_and_exit $?
 
 echo "**************dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, exclude_training_targets: false, mlp layer between GNN layer: 1"
-python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --use-node-embeddings true --use-mini-batch-infer false --num-epochs 1 --eval-frequency 300 --num-ffn-layers-in-gnn 1 --save-model-path ./models/movielen_100k/train_val/movielen_100k_ngnn_model
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --use-node-embeddings true --use-mini-batch-infer false --num-epochs 1 --eval-frequency 300 --num-ffn-layers-in-gnn 1 --save-model-path ./models/movielen_100k/train_val/movielen_100k_ngnn_model --lp-embed-normalizer l2_norm --save-embed-path /data/gsgnn_lp_ml/emb/
 
 error_and_exit $?
 
-python3 -m graphstorm.run.gs_link_prediction --inference --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --use-node-embeddings true --use-mini-batch-infer false --num-epochs 1 --eval-frequency 300 --restore-model-path ./models/movielen_100k/train_val/movielen_100k_ngnn_model/epoch-0/
+python3 $GS_HOME/tests/end2end-tests/check_l2_norm_emb.py --embout /data/gsgnn_lp_ml/emb/
+
+error_and_exit $?
+
+python3 -m graphstorm.run.gs_link_prediction --inference --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --use-node-embeddings true --use-mini-batch-infer false --num-epochs 1 --eval-frequency 300 --restore-model-path ./models/movielen_100k/train_val/movielen_100k_ngnn_model/epoch-0/ --lp-embed-normalizer l2_norm --save-embed-path /data/gsgnn_lp_ml/full-infer-emb/
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/check_l2_norm_emb.py --embout /data/gsgnn_lp_ml/full-infer-emb/
+
+error_and_exit $?
+
+python3 -m graphstorm.run.gs_link_prediction --inference --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --use-node-embeddings true --use-mini-batch-infer true --num-epochs 1 --eval-frequency 300 --restore-model-path ./models/movielen_100k/train_val/movielen_100k_ngnn_model/epoch-0/ --lp-embed-normalizer l2_norm --save-embed-path /data/gsgnn_lp_ml/mini-infer-emb/
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/check_l2_norm_emb.py --embout /data/gsgnn_lp_ml/mini-infer-emb/
 
 error_and_exit $?
 
@@ -126,6 +142,17 @@ error_and_exit $?
 
 echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, exclude_training_targets: false"
 python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false  --use-node-embeddings true --num-epochs 1 --eval-frequency 300
+
+error_and_exit $?
+
+
+echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, exclude_training_targets: false, contrastive loss"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --num-epochs 1 --eval-frequency 300 --contrastive-loss-temperature 0.01 --lp-loss-func contrastive
+
+error_and_exit $?
+
+echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, decoder: DistMult, exclude_training_targets: false, contrastive loss"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --lp-decoder-type distmult --train-etype user,rating,movie movie,rating-rev,user --num-epochs 1 --eval-frequency 300 --contrastive-loss-temperature 0.01 --lp-loss-func contrastive
 
 error_and_exit $?
 

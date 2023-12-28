@@ -27,8 +27,9 @@ import torch as th
 import dgl
 import pytest
 from data_utils import (
-    generate_dummy_dist_graph, 
+    generate_dummy_dist_graph,
     generate_dummy_dist_graph_reconstruct,
+    generate_dummy_dist_graph_homogeneous_failure_graph,
     create_distill_data,
 )
 
@@ -37,15 +38,26 @@ from graphstorm.utils import setup_device
 from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeInferData
 from graphstorm.dataloading import GSgnnEdgeTrainData, GSgnnEdgeInferData
 from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
-from graphstorm.dataloading import GSgnnNodeDataLoader, GSgnnEdgeDataLoader
+from graphstorm.dataloading import (GSgnnNodeDataLoader,
+                                    GSgnnEdgeDataLoader,
+                                    GSgnnNodeSemiSupDataLoader)
 from graphstorm.dataloading import (GSgnnLinkPredictionDataLoader,
-                                   FastGSgnnLinkPredictionDataLoader)
+                                    GSgnnLPJointNegDataLoader,
+                                    GSgnnLPInBatchJointNegDataLoader,
+                                    GSgnnLPLocalUniformNegDataLoader,
+                                    GSgnnLPLocalJointNegDataLoader,
+                                    FastGSgnnLinkPredictionDataLoader,
+                                    FastGSgnnLPJointNegDataLoader,
+                                    FastGSgnnLPLocalUniformNegDataLoader,
+                                    FastGSgnnLPLocalJointNegDataLoader)
 from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
 from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
 from graphstorm.dataloading import DistillDataloaderGenerator, DistillDataManager
 from graphstorm.dataloading import DistributedFileSampler
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
+
+from graphstorm.dataloading.sampler import InbatchJointUniform
 
 from graphstorm.dataloading.dataset import (prepare_batch_input,
                                             prepare_batch_edge_input)
@@ -630,6 +642,23 @@ def test_GSgnnLinkPredictionTestDataLoader(batch_size, num_negative_edges):
                 assert neg_src.shape[1] == num_negative_edges
                 assert th.all(neg_src < g.number_of_nodes(canonical_etype[0]))
 
+        fixed_test_size = 10
+        dataloader = GSgnnLinkPredictionTestDataLoader(
+            lp_data,
+            target_idx=lp_data.train_idxs, # use train edges as val or test edges
+            batch_size=batch_size,
+            num_negative_edges=num_negative_edges,fixed_test_size=fixed_test_size)
+        num_samples = 0
+        for pos_neg_tuple, sample_type in dataloader:
+            num_samples += 1
+            assert isinstance(pos_neg_tuple, dict)
+            assert len(pos_neg_tuple) == 1
+            for _, pos_neg in pos_neg_tuple.items():
+                pos_src, _, pos_dst, _ = pos_neg
+                assert len(pos_src) <= batch_size
+
+        assert num_samples ==  -(-fixed_test_size // batch_size) * 2
+
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
@@ -944,7 +973,7 @@ def test_distill_sampler_get_file(num_files):
         file_list = os.listdir(tmpdirname)
         tracker = {
             "global_start": [],
-            "global_end": [], 
+            "global_end": [],
             "part_len": [],
         }
         for rank in range(4):
@@ -969,7 +998,7 @@ def test_distill_sampler_get_file(num_files):
             tracker["part_len"].append(dist_sampler.part_len)
             if rank == 0:
                 tracker["remainder"] = dist_sampler.remainder
-            
+
             # test DistributedFileSampler.get_file
             if num_files == 3:
                 if rank == 0 or rank == 3:
@@ -1024,7 +1053,7 @@ def test_distill_sampler_get_file(num_files):
 @pytest.mark.parametrize("is_train", [True, False])
 @pytest.mark.parametrize("infinite", [False, True])
 @pytest.mark.parametrize("shuffle", [True, False])
-def test_DistillDistributedFileSampler(num_files, is_train, 
+def test_DistillDistributedFileSampler(num_files, is_train,
     infinite, shuffle):
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_distill_data(tmpdirname, num_files)
@@ -1072,7 +1101,7 @@ def test_DistillDistributedFileSampler(num_files, is_train,
         assert set(global_sampled_files) == set(os.listdir(tmpdirname))
 
 
-def run_distill_dist_data(worker_rank, world_size, 
+def run_distill_dist_data(worker_rank, world_size,
     backend, tmpdirname, num_files, is_train):
     dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
         master_ip='127.0.0.1', master_port='12345')
@@ -1165,7 +1194,275 @@ def test_DistillDataloaderGenerator(backend, num_files, is_train):
         assert p2.exitcode == 0
         assert p3.exitcode == 0
 
+@pytest.mark.parametrize("batch_size", [10, 11])
+def test_np_dataloader_len(batch_size):
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_ntypes=['n1'], label_field='label')
+
+    # Without shuffling, the seed nodes should have the same order as the target nodes.
+    target_idx = {'n1': th.arange(np_data.g.number_of_nodes('n1'))}
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], batch_size, 'cuda:0',
+                                     train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], batch_size, 'cuda:0',
+                                     train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+    target_idx_2 = {'n1': th.arange(np_data.g.number_of_nodes('n1')//2)}
+    # target_idx > unlabeled_idx
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx, target_idx_2, [10], batch_size, 'cuda:0',
+                                     train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx, target_idx_2, [10], batch_size, 'cuda:0',
+                                     train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+    # target_idx < unlabeled_idx
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx_2, target_idx, [10], batch_size, 'cuda:0',
+                                     train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx_2, target_idx, [10], batch_size, 'cuda:0',
+                                     train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+@pytest.mark.parametrize("batch_size", [10, 11])
+def test_ep_dataloader_len(batch_size):
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_etypes=[('n0', 'r1', 'n1')], label_field='label')
+
+    ################### Test train_task #######################
+
+    # Without shuffling, the seed nodes should have the same order as the target nodes.
+    target_idx = {('n0', 'r1', 'n1'): th.arange(ep_data.g.number_of_edges('r1'))}
+    dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], batch_size, 'cuda:0',
+                                     train_task=False, remove_target_edge_type=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], batch_size, 'cuda:0',
+                                     train_task=True, remove_target_edge_type=False)
+    assert len(dataloader) == len(list(dataloader))
+
+@pytest.mark.parametrize("batch_size", [10, 11])
+def test_lp_dataloader_len(batch_size):
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_etypes=[('n0', 'r1', 'n1')])
+
+    ################### Test train_task #######################
+
+    # Without shuffling, the seed nodes should have the same order as the target nodes.
+    target_idx = {('n0', 'r1', 'n1'): th.arange(ep_data.g.number_of_edges('r1'))}
+    dataloader = GSgnnLinkPredictionDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnLinkPredictionDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnLPJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnLPJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnLPLocalUniformNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnLPLocalUniformNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnLPInBatchJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnLPLocalJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = GSgnnLPLocalJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = FastGSgnnLinkPredictionDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = FastGSgnnLinkPredictionDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = FastGSgnnLPJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = FastGSgnnLPJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = FastGSgnnLPLocalUniformNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = FastGSgnnLPLocalUniformNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = FastGSgnnLPLocalJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=False)
+    assert len(dataloader) == len(list(dataloader))
+
+    dataloader = FastGSgnnLPLocalJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
+                                               device='cuda:0', train_task=True)
+    assert len(dataloader) == len(list(dataloader))
+
+@pytest.mark.parametrize("num_pos", [2, 10])
+@pytest.mark.parametrize("num_neg", [5, 20])
+def test_inbatch_joint_neg_sampler(num_pos, num_neg):
+    src = th.arange(num_pos)
+    dst = th.arange(num_pos)
+    g = dgl.heterograph({
+        ("n0", "r0", "n1"): (src, dst),
+    })
+    sampler = InbatchJointUniform(num_neg)
+    src, dst = sampler._generate(g, th.arange(num_pos), ("n0", "r0", "n1"))
+    # In batch joint negative includes
+    # uniform negatives + in-batch negatives.
+    assert len(src) == num_pos * num_neg +  num_pos * (num_pos - 1)
+    assert len(dst) == num_pos * num_neg + num_pos * (num_pos - 1)
+    in_batch_src = src[-num_pos * (num_pos - 1):]
+    in_batch_dst = dst[-num_pos * (num_pos - 1):]
+
+    for i in range(num_pos):
+        assert_equal(in_batch_src[i*(num_pos-1):(i+1)*(num_pos-1)].numpy(), np.repeat(i, (num_pos-1)))
+        tmp_idx = np.ones(num_pos, dtype=bool)
+        tmp_idx[i] = False
+        assert_equal(in_batch_dst[i*(num_pos-1):(i+1)*(num_pos-1)].numpy(),
+                     np.arange(num_pos)[tmp_idx])
+
+def test_GSgnnTrainData_homogeneous():
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    tr_ntypes = ["_N"]
+    va_ntypes = ["_N"]
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # generate the test dummy homogeneous distributed graph and
+        # test if it is possible to create GSgnnNodeTrainData on homogeneous graph
+        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
+                                                            dirname=tmpdirname,
+                                                            is_homo=True)
+        _ = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_ntypes=tr_ntypes, eval_ntypes=va_ntypes,
+                                     label_field='label')
+
+        # generate the test dummy distributed graph with "_N" node type. As it is expected to be
+        # a homogeneous graph with "_N" as node type and ("_N", "_E", "_N") as edge type.
+        # It should throw an error to clarify that.
+        dist_graph, part_config = generate_dummy_dist_graph_homogeneous_failure_graph(graph_name='dummy',
+                                                            dirname=tmpdirname)
+        try:
+            _ = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                         train_ntypes=tr_ntypes, eval_ntypes=va_ntypes,
+                                         label_field='label')
+            assert False, "expected Error raised for non-homogeneous graph input"
+        except AssertionError as _:
+            pass
+
+        # generate the test dummy homogeneous distributed graph and
+        # test if it is possible to create GSgnnNodeInferData on homogeneous graph
+        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
+                                                            dirname=tmpdirname,
+                                                            is_homo=True)
+        _ = GSgnnNodeInferData(graph_name='dummy', part_config=part_config,
+                                     eval_ntypes=va_ntypes)
+
+        # generate the test dummy distributed graph with "_N" node type. As it is expected to be
+        # a homogeneous graph with "_N" as node type and ("_N", "_E", "_N") as edge type.
+        # It should throw an error to clarify that.
+        dist_graph, part_config = generate_dummy_dist_graph_homogeneous_failure_graph(graph_name='dummy',
+                                                            dirname=tmpdirname)
+        try:
+            _ = GSgnnNodeInferData(graph_name='dummy', part_config=part_config,
+                                        eval_ntypes=va_ntypes)
+            assert False, "expected Error raised for non-homogeneous graph input"
+        except AssertionError as _:
+            pass
+
+    tr_etypes = [("_N", "_E", "_N")]
+    va_etypes = [("_N", "_E", "_N")]
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # generate the test dummy homogeneous distributed graph and
+        # test if it is possible to create GSgnnEdgeTrainData on homogeneous graph
+        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
+                                                            dirname=os.path.join(tmpdirname, 'dummy'),
+                                                            is_homo=True)
+        _ = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_etypes=tr_etypes, eval_etypes=va_etypes,
+                                     label_field='label')
+
+        # generate the test dummy distributed graph with "_N" node type. As it is expected to be
+        # a homogeneous graph with "_N" as node type and ("_N", "_E", "_N") as edge type.
+        # It should throw an error to clarify that.
+        dist_graph, part_config = generate_dummy_dist_graph_homogeneous_failure_graph(graph_name='dummy',
+                                                            dirname=os.path.join(tmpdirname, 'dummy'))
+        try:
+            _ = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                       train_etypes=tr_etypes, eval_etypes=va_etypes,
+                                       label_field='label')
+            assert False, "expected Error raised for non-homogeneous graph input"
+        except AssertionError as _:
+            pass
+
+        # generate the test dummy homogeneous distributed graph and
+        # test if it is possible to create GSgnnEdgeInferData on homogeneous graph
+        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
+                                                            dirname=os.path.join(tmpdirname, 'dummy'),
+                                                            is_homo=True)
+        _ = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
+                                    eval_etypes=va_etypes)
+
+        # generate the test dummy distributed graph with "_N" node type. As it is expected to be
+        # a homogeneous graph with "_N" as node type and ("_N", "_E", "_N") as edge type.
+        # It should throw an error to clarify that.
+        dist_graph, part_config = generate_dummy_dist_graph_homogeneous_failure_graph(graph_name='dummy',
+                                                            dirname=os.path.join(tmpdirname, 'dummy'))
+        try:
+            _ = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
+                                    eval_etypes=va_etypes)
+            assert False, "expected Error raised for non-homogeneous graph input"
+        except AssertionError as _:
+            pass
+
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()
+
 if __name__ == '__main__':
+    test_inbatch_joint_neg_sampler(10, 20)
+
+    test_np_dataloader_len(11)
+    test_ep_dataloader_len(11)
+    test_lp_dataloader_len(11)
+
     test_np_dataloader_trim_data(GSgnnNodeDataLoader)
     test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
     test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
@@ -1191,3 +1488,5 @@ if __name__ == '__main__':
     test_DistillDistributedFileSampler(num_files=7, is_train=True, \
         infinite=False, shuffle=True)
     test_DistillDataloaderGenerator("gloo", 7, True)
+
+    test_GSgnnTrainData_homogeneous()

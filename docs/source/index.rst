@@ -23,6 +23,8 @@ Welcome to the GraphStorm Documentation and Tutorials
    gs-processing/usage/example
    gs-processing/usage/distributed-processing-setup
    gs-processing/usage/amazon-sagemaker
+   gs-processing/usage/emr-serverless
+   gs-processing/developer/input-configuration
 
 .. toctree::
    :maxdepth: 1
@@ -42,6 +44,7 @@ Welcome to the GraphStorm Documentation and Tutorials
    advanced/own-models
    advanced/language-models
    advanced/advanced-usages
+   advanced/advanced-wholegraph
 
 .. toctree::
    :maxdepth: 1
@@ -72,8 +75,9 @@ Once successfully set up the GraphStorm Docker running environment,
 Scale to Giant Graphs
 ---------------------------------
 
-For experienced users who wish to train and run infernece on very large graphs,
+For users who wish to train and run infernece on very large graphs,
 
+- follow the :ref:`Use GraphStorm Distributed Data Processing<gs-processing>` tutorial to process and construction large graphs in the Distributed mode.
 - follow the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>` tutorial to use GraphStorm in the Distributed mode.
 - follow the :ref:`Use GraphStorm on SageMaker<distributed-sagemaker>` tutorial to use GraphStorm in the Distribute mode based on Amazon SageMaker.
 
@@ -81,7 +85,7 @@ Advanced Topics
 --------------------
 
 - For users who want to use their own GML models in GraphStorm, follow the :ref:`Use Your Own GNN Models<use-own-models>` tutorial to learn the programming interfaces and the steps of how to modify users' own models.
-- For users who want to use text as node features, follow the :ref:`Use Text as Node Features<language_models>` tutorial to learn how to leverage BERT models to use text as node features in GraphStorm.
+- For users who want to leverage language models on nodes with text features, follow the :ref:`Use Language Model in GraphStorm<language_models>` tutorial to learn how to leverage BERT models to use text as node features in GraphStorm.
 - There are various usages of GraphStorm to both speed up training process and help to boost model performance. Users can find these usages in the :ref:`Advanced Usages<advanced_usages>` page.
 
 Contribution

@@ -89,8 +89,7 @@ class ConfigConverter(abc.ABC):
 
         gsprocessing_dict: dict[str, Any] = {}
 
-        # hardcode the version number for the first version
-        gsprocessing_dict["version"] = "gsprocessing-1.0"
+        gsprocessing_dict["version"] = "gsprocessing-v1.0"
         gsprocessing_dict["graph"] = {}
 
         # deal with nodes

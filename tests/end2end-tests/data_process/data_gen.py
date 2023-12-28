@@ -102,6 +102,7 @@ edge_data1_2 = {
     'float_feat_rank_gauss': np.random.rand(src1.shape[0], 2),
     'float_feat_rank_gauss_fp16': np.random.rand(src1.shape[0], 2),
     'float1_max_min': edge_data1_2_float,
+    'float1_bucket': edge_data1_2_float,
 }
 
 src3 = node_data2['id'][np.random.randint(0, 20000, 100000)]
@@ -180,6 +181,11 @@ node_conf = [
                 "feature_name": "feat_fp16_hdf5",
                 "out_dtype": 'float16',
             },
+            {
+                "feature_col": ["data", "float3"],
+                "feature_name": "feat_multicol",
+                "out_dtype": 'float16',
+            },
         ],
     },
     {
@@ -221,6 +227,16 @@ node_conf = [
                 "feature_name": "feat_fp16",
                 "out_dtype": 'float16',
             },
+            {
+                "feature_col": "float2",
+                "feature_name": "feat_bucket",
+                "out_dtype": 'float16',
+                "transform": {"name": "bucket_numerical",
+                              "range": [10, 50],
+                              "bucket_cnt": 2,
+                              "slide_window_size": 10
+}
+            }
         ],
         "labels":       [
             {
@@ -254,6 +270,10 @@ node_conf = [
             {
                 "feature_col": "data",
                 "feature_name": "feat",
+            },
+            {
+                "feature_col": "data",
+                "feature_name": "feat1",
             },
         ],
     },
@@ -311,6 +331,11 @@ edge_conf = [
                 "feature_name": "feat_fp16_hdf5",
                 "out_dtype": 'float16',
             },
+            {
+                "feature_col": ["float1", "float1_fp16"],
+                "feature_name": "feat_multicol",
+                "out_dtype": 'float16',
+            }
         ],
     },
     {

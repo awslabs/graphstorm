@@ -160,6 +160,11 @@ Because we are using a three-partition OGB-MAG graph, we need to set the ``--ins
 
 The trained model artifact will be stored in the S3 location provided through the ``--model-artifact-s3`` argument. You can use the following command to check the model artifacts after the training completes.
 
+If you want to resume a saved model checkpoint to do model fine-tuning you can pass
+the S3 address of the model checkpoint through the ``--model-checkpoint-to-load``
+argument. For example by passing ``--model-checkpoint-to-load s3://mag-model/epoch-2/``,
+GraphStorm will initialize the model parameters with the model checkpoint stored in ``s3://mag-model/epoch-2/``.
+
 .. code-block:: bash
 
     aws s3 ls s3://<PATH_TO_SAVE_TRAINED_MODEL>/
@@ -201,6 +206,85 @@ Users can use the following commands to check the corresponding outputs:
 
     aws s3 ls s3://<PATH_TO_SAVE_GENERATED_NODE_EMBEDDING>/
     aws s3 ls s3://<PATH_TO_SAVE_PREDICTION_RESULTS>/
+
+Launch graph partitioning task
+```````````````````````````````
+If your data are in the `DGL chunked
+format <https://docs.dgl.ai/guide/distributed-preprocessing.html#specification>`_
+you can perform distributed partitioning using SageMaker to prepare your
+data for distributed training.
+
+.. code:: bash
+
+   python launch/launch_partition.py \
+       --graph-data-s3 ${DATASET_S3_PATH} \
+       --num-parts ${NUM_PARTITIONS} \
+       --instance-count ${NUM_PARTITIONS} \
+       --output-data-s3 ${OUTPUT_PATH} \
+       --instance-type ${INSTANCE_TYPE} \
+       --image-url ${IMAGE_URI} \
+       --region ${REGION} \
+       --role ${ROLE}  \
+       --entry-point "run/partition_entry.py" \
+       --metadata-filename ${METADATA_FILE} \
+       --log-level INFO \
+       --partition-algorithm ${ALGORITHM}
+
+Running the above will take the dataset in chunked format
+from ``${DATASET_S3_PATH}`` as input and create a DistDGL graph with
+``${NUM_PARTITIONS}`` under the output path, ``${OUTPUT_PATH}``.
+Currently we only support ``random`` as the partitioning algorithm.
+
+Passing additional arguments to the SageMaker
+`````````````````````````````````````````````
+Sometimes you might want to pass additional arguments to the constructor
+of the SageMaker Estimator/Processor object that we use to launch SageMaker
+tasks, e.g. to set a max runtime, or set a VPC configuration. Our launch
+scripts support forwarding arguments to the base class object through a
+``kwargs`` dictionary.
+
+To pass additional ``kwargs`` directly to the Estimator/Processor
+constructor, you can use the ``--sm-estimator-parameters`` argument,
+providing a string of space-separated arguments (enclosed in double
+quotes ``"`` to ensure correct parsing) and the format
+``<argname>=<value>`` for each argument.
+
+``<argname>`` needs to be a valid SageMaker Estimator/Processor argument
+name and ``<value>`` is a value that can be parsed as a Python literal,
+**without spaces**.
+
+For example, to pass a specific max runtime, subnet list, and enable
+inter-container traffic encryption for a train, inference, or partition
+job you'd use:
+
+.. code:: bash
+
+   python3 launch/launch_[infer|train|partition] \
+       <other arugments> \
+       --sm-estimator-parameters "max_run=3600 volume_size=100 encrypt_inter_container_traffic=True subnets=['subnet-1234','subnet-4567']"
+
+Notice how we don't include any spaces in
+``['subnet-1234','subnet-4567']`` to ensure correct parsing of the list.
+
+The train, inference and partition scripts launch SageMaker Training
+jobs that rely on the ``Estimator`` base class: For a full list of
+``Estimator`` parameters see the `SageMaker Estimator documentation.
+<https://sagemaker.readthedocs.io/en/stable/api/training/estimators.html#sagemaker.estimator.EstimatorBase>`_
+
+The GConstruct job will launch a SageMaker Processing job that relies on
+the ``Processor`` base class, so its arguments are different,
+e.g. ``volume_size_in_gb`` for the ``Processor`` vs. ``volume_size`` for
+the ``Estimator``. For a full list of ``Processor`` parameters, see the `SageMaker Processor documentation.
+<https://sagemaker.readthedocs.io/en/stable/api/training/processing.html>`_
+
+Using ``Processor`` arguments the above example would become:
+
+.. code:: bash
+
+   python3 launch/launch_gconstruct \
+       <other arugments> \
+       --sm-estimator-parameters "max_runtime_in_seconds=3600 volume_size_in_gb=100"
+
 
 Run GraphStorm SageMaker with Docker Compose
 ..............................................

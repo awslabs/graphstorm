@@ -212,6 +212,55 @@ class JointUniform(object):
                 g.canonical_etypes[0][0], g.canonical_etypes[0][2])
         return pos_neg_tuple
 
+class InbatchJointUniform(JointUniform):
+    '''Jointly corrupt a group of edges.
+    The main idea is to sample a set of nodes and use them to corrupt all edges in a mini-batch.
+    This algorithm won't change the sampling probability for each individual edge, but can
+    significantly reduce the number of nodes in a mini-batch.
+    '''
+
+    def _generate(self, g, eids, canonical_etype):
+        """ The return negative edges will be in the format of:
+            src-uniform-joint | src-in-batch
+            dst-uniform-joint | dst-in-batch
+
+            The first part comes from uniform joint negative sampling.
+            The second part comes from in batch negative sampling.
+        """
+        _, _, vtype = canonical_etype
+        shape = eids.shape
+        dtype = eids.dtype
+        ctx = eids.device
+        pos_src, pos_dst = g.find_edges(eids, etype=canonical_etype)
+        pos_src = pos_src.numpy()
+        num_pos_edges = len(pos_src)
+        src = np.repeat(pos_src, self.k)
+        dst = th.randint(g.number_of_nodes(vtype), (shape[0],), dtype=dtype, device=ctx)
+        dst = np.tile(dst, self.k)
+        if num_pos_edges > 1:
+            # Only when there are more than 1 edges, we can do in batch negative
+            src_in_batch = np.repeat(pos_src, num_pos_edges)
+            dst_in_batch = np.repeat(pos_dst.reshape(1, -1), num_pos_edges, axis=0).reshape(-1,)
+
+            # remove false negatives
+            # 1 1 1 2 2 2 3 3 3
+            # 1 2 3 1 2 3 1 2 3
+            # ->
+            # 1 1 2 2 3 3
+            # 2 3 1 3 1 2
+            in_batch_negs = th.ones(num_pos_edges*num_pos_edges, dtype=th.bool)
+            false_negative_idx = th.arange(num_pos_edges) * (num_pos_edges + 1)
+            in_batch_negs[false_negative_idx] = 0
+            src_in_batch = th.as_tensor(src_in_batch)[in_batch_negs]
+            dst_in_batch = th.as_tensor(dst_in_batch)[in_batch_negs]
+
+            src = th.cat((th.as_tensor(src), src_in_batch))
+            dst = th.cat((th.as_tensor(dst), dst_in_batch))
+        else:
+            src = th.as_tensor(src)
+            dst = th.as_tensor(dst)
+        return src, dst
+
 class JointLocalUniform(JointUniform):
     '''Jointly corrupt a group of edges.
 
@@ -360,7 +409,8 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
                 output_device=self.output_device,
                 exclude_edges=exclude_eids,
             )
-            eid = frontier.edata[EID]
+            eid = {etype: frontier.edges[etype].data[EID] \
+                   for etype in frontier.canonical_etypes}
             new_eid = dict(eid)
             if self.mask is not None:
                 new_edges = {}
@@ -387,7 +437,10 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
             else:
                 new_frontier = frontier
             block = to_block(new_frontier, seed_nodes)
-            block.edata[EID] = new_eid
+            # When there is only one etype
+            # we can not use block.edata[EID] = new_eid
+            for etype in block.canonical_etypes:
+                block.edges[etype].data[EID] = new_eid[etype]
             seed_nodes = block.srcdata[NID]
             blocks.insert(0, block)
 
@@ -395,7 +448,7 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
 
 class FileSamplerInterface:
     r"""File Sampler Interface. This interface defines the
-    # operation supported by a file sampler and the common 
+    # operation supported by a file sampler and the common
     # check and processing for dataset_path.
 
     Parameters:

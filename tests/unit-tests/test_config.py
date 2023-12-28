@@ -19,8 +19,12 @@ from tempfile import tempdir
 import json
 import yaml
 import math
-import unittest, pytest
+import tempfile
 from argparse import Namespace
+from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
+
+import dgl
+import torch as th
 
 from graphstorm.config import GSConfig
 from graphstorm.config.config import BUILTIN_LP_LOSS_CROSS_ENTROPY
@@ -111,7 +115,6 @@ def create_basic_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
 def test_load_basic_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_basic_config(Path(tmpdirname), 'basic_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'basic_test.yaml'),
@@ -183,7 +186,6 @@ def create_task_tracker_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
 def test_task_tracker_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_task_tracker_config(Path(tmpdirname), 'task_tracker_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'task_tracker_test_default.yaml'),
@@ -294,7 +296,6 @@ def create_train_config(tmp_path, file_name):
 
 
 def test_train_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_train_config(Path(tmpdirname), 'train_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test_default.yaml'), local_rank=0)
@@ -403,7 +404,6 @@ def create_rgcn_config(tmp_path, file_name):
 
 
 def test_rgcn_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_rgcn_config(Path(tmpdirname), 'rgcn_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgcn_test_default.yaml'), local_rank=0)
@@ -443,7 +443,6 @@ def create_rgat_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
 def test_rgat_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_rgat_config(Path(tmpdirname), 'rgat_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'rgat_test_default.yaml'), local_rank=0)
@@ -611,12 +610,11 @@ def create_node_class_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
 def test_node_class_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_node_class_config(Path(tmpdirname), 'node_class_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_default.yaml'), local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "target_ntype")
+        assert config.target_ntype == DEFAULT_NTYPE
         check_failure(config, "label_field")
         assert config.multilabel == False
         assert config.multilabel_weights == None
@@ -747,12 +745,11 @@ def create_node_regress_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
 def test_node_regress_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_node_regress_config(Path(tmpdirname), 'node_regress_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test_default.yaml'), local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "target_ntype")
+        assert config.target_ntype == DEFAULT_NTYPE
         check_failure(config, "label_field")
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "rmse"
@@ -840,12 +837,11 @@ def create_edge_class_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
 def test_edge_class_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_edge_class_config(Path(tmpdirname), 'edge_class_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test_default.yaml'), local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "target_etype")
+        assert config.target_etype == [DEFAULT_ETYPE]
         assert config.decoder_type == "DenseBiDecoder"
         assert config.num_decoder_basis == 2
         assert config.remove_target_edge_type == True
@@ -986,7 +982,6 @@ def create_lp_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
 def test_lp_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_lp_config(Path(tmpdirname), 'lp_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_default.yaml'), local_rank=0)
@@ -1168,7 +1163,6 @@ def create_gnn_config(tmp_path, file_name):
 
 
 def test_gnn_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_gnn_config(Path(tmpdirname), 'gnn_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test1.yaml'),
@@ -1290,7 +1284,6 @@ def create_io_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
 def test_load_io_info():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_io_config(Path(tmpdirname), 'io_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'io_test_default.yaml'),
@@ -1424,7 +1417,6 @@ def create_lm_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
 def test_lm():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_lm_config(Path(tmpdirname), 'lm_test')
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lm_test_default.yaml'),
@@ -1491,7 +1483,6 @@ def test_lm():
         check_failure(config, "freeze_lm_encoder_epochs")
 
 def test_check_node_lm_config():
-    import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
         yaml_object = create_dummpy_config_obj()
 
@@ -1536,10 +1527,63 @@ def test_check_node_lm_config():
                       "node_types": []}]
         must_fail(lm_config)
 
+def test_id_mapping_file():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        yaml_object = create_dummpy_config_obj()
+        part_path = os.path.join(tmpdirname, "graph")
+        yaml_object["gsf"]["basic"] = {
+            "part_config": os.path.join(part_path, "graph.json"),
+        }
 
+        with open(os.path.join(tmpdirname, "check_lm_config_default.yaml"), "w") as f:
+            yaml.dump(yaml_object, f)
+            os.mkdir(part_path)
+            with open(os.path.join(part_path, "graph.json"), "w") as j_f:
+                json.dump({}, j_f)
 
+            part_path_p0 = os.path.join(part_path, "part0")
+            part_path_p1 = os.path.join(part_path, "part1")
+            os.mkdir(part_path_p0)
+            os.mkdir(part_path_p1)
+
+            args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname),
+                'check_lm_config_default.yaml'), local_rank=0)
+            config = GSConfig(args)
+            assert config.node_id_mapping_file is None
+            assert config.edge_id_mapping_file is None
+
+            # create dummpy node id mapping files
+            id_map = {
+                "n0": th.arange(10),
+                "n1": th.arange(20)
+            }
+            # GConstruct node id mapping files are stored under dist graph folder
+            nid_map_file = os.path.join(part_path, "node_mapping.pt")
+            eid_map_file = os.path.join(part_path, "edge_mapping.pt")
+            th.save(id_map, nid_map_file)
+            th.save(id_map, eid_map_file)
+
+            assert config.node_id_mapping_file == nid_map_file
+            assert config.edge_id_mapping_file == eid_map_file
+
+            os.remove(nid_map_file)
+            os.remove(eid_map_file)
+
+            assert config.node_id_mapping_file is None
+            assert config.edge_id_mapping_file is None
+
+            # Dist partition node id mapping files are stored under part0,
+            # part1 ... folders.
+            nid_map_file = os.path.join(part_path_p0, "orig_nids.dgl")
+            eid_map_file = os.path.join(part_path_p0, "orig_eids.dgl")
+            dgl.data.utils.save_tensors(nid_map_file, id_map)
+            dgl.data.utils.save_tensors(eid_map_file, id_map)
+
+            assert config.node_id_mapping_file == part_path
+            assert config.edge_id_mapping_file == part_path
 
 if __name__ == '__main__':
+    test_id_mapping_file()
     test_load_basic_info()
     test_gnn_info()
     test_load_io_info()

@@ -10,11 +10,11 @@ https://github.com/aws/sagemaker-spark-container/blob/4ef476fd535040f245def3d38c
 """
 import logging
 import uuid
-from typing import Tuple
+from typing import Tuple, Sequence
 
 import psutil
 
-from pyspark.sql import SparkSession, DataFrame
+from pyspark.sql import SparkSession, DataFrame, functions as F
 from graphstorm_processing import constants
 
 try:
@@ -172,8 +172,8 @@ def safe_rename_column(
 
     Returns
     -------
-    DataFrame
-        The modified dataframe.
+    tuple[DataFrame, str]
+        The modified dataframe and the new column name.
     """
     if old_colum_name in dataframe.columns:
         if new_column_name in dataframe.columns:
@@ -190,3 +190,31 @@ def safe_rename_column(
     else:
         logging.warning("Column %s not found in dataframe. Skipping renaming.", old_colum_name)
     return dataframe, new_column_name
+
+
+def rename_multiple_cols(
+    df: DataFrame, old_cols: Sequence[str], new_cols: Sequence[str]
+) -> Tuple[DataFrame, Sequence[str]]:
+    """Safely renames multiple columns at once. All columns not listed in the passed args are left as is.
+
+    Parameters
+    ----------
+    df : DataFrame
+        Input DataFrame
+    old_cols : Sequence[str]
+        List of column names to change
+    new_cols : Sequence[str]
+        List of new column names.
+
+    Returns
+    -------
+    Tuple[DataFrame, Sequence[str]]
+        DataFrame with renamed columns, and a list of the new column names.
+    """
+    assert len(old_cols) == len(new_cols)
+    safe_new_cols = []
+    for old_name, new_name in zip(old_cols, new_cols):
+        _, safe_new_name = safe_rename_column(df, old_name, new_name)
+        safe_new_cols.append(safe_new_name)
+    mapping = dict(zip(old_cols, safe_new_cols))
+    return df.select([F.col(c).alias(mapping.get(c, c)) for c in df.columns]), safe_new_cols

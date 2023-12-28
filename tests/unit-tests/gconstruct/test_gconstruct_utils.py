@@ -15,14 +15,25 @@
 """
 import os
 import tempfile
+import json
 
 import numpy as np
 import torch as th
+import pandas as pd
+import pyarrow.parquet as pq
+import pyarrow as pa
 
 from graphstorm.gconstruct.utils import _estimate_sizeof, _to_numpy_array, _to_shared_memory
 from graphstorm.gconstruct.utils import HDF5Array, ExtNumpyWrapper
+from graphstorm.gconstruct.utils import convert_to_ext_mem_numpy, _to_ext_memory
 from graphstorm.gconstruct.utils import multiprocessing_data_read
-from graphstorm.gconstruct.file_io import write_data_hdf5, read_data_hdf5
+from graphstorm.gconstruct.file_io import (write_data_hdf5,
+                                           read_data_hdf5,
+                                           get_in_files,
+                                           write_data_parquet)
+from graphstorm.gconstruct.file_io import (read_data_csv,
+                                           read_data_json,
+                                           read_data_parquet)
 
 def gen_data():
     data_th = th.zeros((1024, 16), dtype=th.float32)
@@ -165,9 +176,32 @@ def test_ext_mem_array():
     with tempfile.TemporaryDirectory() as tmpdirname:
         data = np.random.uniform(size=(1000, 10)).astype(np.float32)
         tensor_path = os.path.join(tmpdirname, "tmp1.npy")
-        out_arr = np.memmap(tensor_path, np.float32, mode="w+", shape=(1000, 10))
-        out_arr[:] = data
-        check_ext_mem_array(ExtNumpyWrapper(tensor_path, out_arr.shape, out_arr.dtype), data)
+        check_ext_mem_array(convert_to_ext_mem_numpy(tensor_path, data), data)
+
+        data1 = np.random.uniform(size=(1000, 10)).astype(np.float32)
+        data2 = np.random.uniform(size=(1000,)).astype(np.float32)
+        data3 = np.random.uniform(size=(1000, 10)).astype(np.float32)
+        data4 = np.random.uniform(size=(1000,)).astype(np.float32)
+        data5 = np.random.uniform(size=(1000,)).astype(str)
+        arr_dict = {
+                "test1": (data1, data2),
+                "test2": [data3, data4, data5],
+        }
+        arr_dict1 = _to_ext_memory(None, arr_dict, tmpdirname)
+        assert isinstance(arr_dict1, dict)
+        assert "test1" in arr_dict1
+        assert "test2" in arr_dict1
+        assert isinstance(arr_dict1["test1"], tuple)
+        assert isinstance(arr_dict1["test2"], list)
+        assert isinstance(arr_dict1["test1"][0], ExtNumpyWrapper)
+        assert isinstance(arr_dict1["test1"][1], ExtNumpyWrapper)
+        assert isinstance(arr_dict1["test2"][0], ExtNumpyWrapper)
+        assert isinstance(arr_dict1["test2"][1], ExtNumpyWrapper)
+        assert isinstance(arr_dict1["test2"][2], np.ndarray)
+        assert np.all(arr_dict1["test1"][0].to_numpy() == data1)
+        assert np.all(arr_dict1["test1"][1].to_numpy() == data2)
+        assert np.all(arr_dict1["test2"][0].to_numpy() == data3)
+        assert np.all(arr_dict1["test2"][1].to_numpy() == data4)
 
         tensor_path = os.path.join(tmpdirname, "tmp2.hdf5")
         write_data_hdf5({"test": data}, tensor_path)
@@ -185,8 +219,93 @@ def test_multiprocessing_read():
         return
     assert False
 
+def test_read_empty_parquet():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        data_file = os.path.join(tmpdirname, "test.parquet")
+        fields = ["a", "b"]
+        empty_df = pd.DataFrame(columns=fields)
+        empty_table = pa.Table.from_pandas(empty_df)
+        pq.write_table(empty_table, data_file)
+
+        pass_test = False
+        try:
+            read_data_parquet(data_file, fields)
+        except:
+            pass_test = True
+        assert pass_test
+
+def test_read_empty_csv():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        data_file = os.path.join(tmpdirname, "test.parquet")
+        fields = ["a", "b"]
+        empty_df = pd.DataFrame(columns=fields)
+        empty_df.to_csv(data_file, index=True, sep=",")
+
+        pass_test = False
+        try:
+            read_data_csv(data_file, fields, ",")
+        except:
+            pass_test = True
+        assert pass_test
+
+def test_read_empty_json():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        data_file = os.path.join(tmpdirname, "test.json")
+        data = {}
+        with open(data_file, 'w', encoding="utf8") as json_file:
+            json.dump(data, json_file)
+
+        pass_test = False
+        try:
+            read_data_json(data_file)
+        except:
+            pass_test = True
+        assert pass_test
+
+def test_read_empty_parquet():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        data_file = os.path.join(tmpdirname, "test.parquet")
+        fields = ["a", "b"]
+        empty_df = pd.DataFrame(columns=fields)
+        empty_table = pa.Table.from_pandas(empty_df)
+        pq.write_table(empty_table, data_file)
+
+        pass_test = False
+        try:
+            read_data_parquet(data_file, fields)
+        except:
+            pass_test = True
+        assert pass_test
+
+def test_get_in_files():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        files = [os.path.join(tmpdirname, f"test{i}.parquet") for i in range(10)]
+        for i in range(10):
+            data = {"test": np.random.rand(10)}
+            write_data_parquet(data, files[i])
+
+        in_files = get_in_files(os.path.join(tmpdirname,"*.parquet"))
+        assert len(in_files) == 10
+        files.sort()
+        assert files == in_files
+
+        in_files = get_in_files(os.path.join(tmpdirname,"test9.parquet"))
+        assert len(in_files) == 1
+        assert os.path.join(tmpdirname,"test9.parquet") == in_files[0]
+
+        pass_test = False
+        try:
+            in_files = get_in_files(os.path.join(tmpdirname,"test10.parquet"))
+        except:
+            pass_test = True
+        assert pass_test
+
 if __name__ == '__main__':
-    test_multiprocessing_read()
+    test_get_in_files()
+    test_read_empty_parquet()
+    test_read_empty_json()
+    test_read_empty_csv()
     test_estimate_sizeof()
     test_object_conversion()
     test_ext_mem_array()
+    test_multiprocessing_read()

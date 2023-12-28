@@ -1,0 +1,136 @@
+{
+    "version": "gsprocessing-v1.0",
+    "graph": {
+        "nodes": [
+            {
+                "data": {
+                    "format": "csv",
+                    "files": [
+                        "nodes/genre.csv"
+                    ],
+                    "separator": ","
+                },
+                "type": "genre",
+                "column": "~id"
+            },
+            {
+                "data": {
+                    "format": "csv",
+                    "files": [
+                        "nodes/movie.csv"
+                    ],
+                    "separator": ","
+                },
+                "type": "movie",
+                "column": "~id"
+            },
+            {
+                "data": {
+                    "format": "csv",
+                    "files": [
+                        "nodes/user.csv"
+                    ],
+                    "separator": ","
+                },
+                "type": "user",
+                "column": "~id",
+                "features": [
+                    {
+                        "column": "age",
+                        "transformation": {
+                            "name": "numerical",
+                            "kwargs": {
+                                "normalizer": "none",
+                                "imputer": "mean"
+                            }
+                        }
+                    },
+                    {
+                        "column": "multi",
+                        "transformation": {
+                            "name": "multi-numerical",
+                            "kwargs": {
+                                "normalizer": "standard",
+                                "imputer": "mean",
+                                "separator": "|"
+                            }
+                        }
+                    }
+                ],
+                "labels": [
+                    {
+                        "column": "gender",
+                        "type": "classification",
+                        "split_rate": {
+                            "train": 0.8,
+                            "val": 0.1,
+                            "test": 0.1
+                        }
+                    }
+                ]
+            }
+        ],
+        "edges": [
+            {
+                "data": {
+                    "format": "csv",
+                    "files": [
+                        "edges/movie-included_in-genre.csv"
+                    ],
+                    "separator": ","
+                },
+                "source": {
+                    "column": "~from",
+                    "type": "movie"
+                },
+                "dest": {
+                    "column": "~to",
+                    "type": "genre"
+                },
+                "relation": {
+                    "type": "included_in"
+                }
+            },
+            {
+                "data": {
+                    "format": "csv",
+                    "files": [
+                        "edges/user-rated-movie.csv"
+                    ],
+                    "separator": ","
+                },
+                "source": {
+                    "column": "~from",
+                    "type": "user"
+                },
+                "dest": {
+                    "column": "~to",
+                    "type": "movie"
+                },
+                "relation": {
+                    "type": "rated"
+                }
+            },
+            {
+                "data": {
+                    "format": "csv",
+                    "files": [
+                        "edges/director-directed-movie.csv"
+                    ],
+                    "separator": ","
+                },
+                "source": {
+                    "column": "~from",
+                    "type": "director"
+                },
+                "dest": {
+                    "column": "~to",
+                    "type": "movie"
+                },
+                "relation": {
+                    "type": "directed"
+                }
+            }
+        ]
+    }
+}

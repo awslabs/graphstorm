@@ -124,6 +124,14 @@ python3 -m graphstorm.gconstruct.construct_graph \
 	--graph-name movie-lens-100k-text \
 	--add-reverse-edges
 
+# For tests using lm-encoder on movies - node classification and edge classification
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_movie_lm_encoder.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_movie_lm_encoder_train_val_1p_4t \
+	--graph-name movie-lens-100k-text \
+	--add-reverse-edges
+
 # roberta as the LM:
 python3 -m graphstorm.gconstruct.construct_graph \
 	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_roberta_encoder.json \

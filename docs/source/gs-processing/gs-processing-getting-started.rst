@@ -1,3 +1,5 @@
+.. _gs-processing:
+
 GraphStorm Processing Getting Started
 =====================================
 
@@ -136,34 +138,41 @@ make sure the produced data matches the assumptions of DGL [#f1]_.
 
 .. code-block:: bash
 
-    gs-repartition \
-        --input-prefix /path/to/output/data
+    gs-repartition --input-prefix /path/to/output/data
 
 Once this script completes, the data are ready to be fed into DGL's distributed
 partitioning pipeline.
-See `this guide <https://github.com/awslabs/graphstorm/blob/main/sagemaker/README.md#launch-graph-partitioning-task>`_
-for more details on how to use GraphStorm distributed partitioning on SageMaker.
+See `this guide <https://graphstorm.readthedocs.io/en/latest/scale/sagemaker.html>`_
+for more details on how to use GraphStorm distributed partitioning and training on SageMaker.
 
 See :doc:`usage/example` for a detailed walkthrough of using GSProcessing to
-wrangle data into a format that's ready to be consumed by the GraphStorm/DGL
-partitioning pipeline.
+wrangle data into a format that's ready to be consumed by the GraphStorm
+distributed training pipeline.
 
 
-Using with Amazon SageMaker
----------------------------
+Running on AWS resources
+------------------------
 
-To run distributed jobs on Amazon SageMaker we will have to build a Docker image
+GSProcessing supports Amazon SageMaker and EMR Serverless as execution environments.
+To run distributed jobs on AWS resources we will have to build a Docker image
 and push it to the Amazon Elastic Container Registry, which we cover in
 :doc:`usage/distributed-processing-setup` and run a SageMaker Processing
-job which we describe in :doc:`usage/amazon-sagemaker`.
+job which we describe in :doc:`usage/amazon-sagemaker`, or EMR Serverless
+job that is covered in :doc:`usage/emr-serverless`.
+
+
+Input configuration
+-------------------
+
+GSProcessing supports both the GConstruct JSON configuration format,
+as well as its own GSProcessing config. You can learn about the
+GSProcessing JSON configuration in :doc:`developer/input-configuration`.
 
 
 Developer guide
 ---------------
 
 To get started with developing the package refer to :doc:`developer/developer-guide`.
-To see the input configuration format that GSProcessing uses internally see
-:doc:`developer/input-configuration`.
 
 
 .. rubric:: Footnotes
@@ -171,4 +180,4 @@ To see the input configuration format that GSProcessing uses internally see
 .. [#f1] DGL expects that every file produced for a single node/edge type
     has matching row counts, which is something that Spark cannot guarantee.
     We use the re-partitioning script to fix this where needed in the produced
-    output.
+    output. See :doc:`usage/row-count-alignment` for details.

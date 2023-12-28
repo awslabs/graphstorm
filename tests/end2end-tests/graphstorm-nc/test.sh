@@ -28,9 +28,11 @@ echo "Test GraphStorm node classification"
 date
 
 echo "**************standalone"
-python3 $GS_HOME/python/graphstorm/run/gsgnn_np/gsgnn_np.py --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --cf $GS_HOME/training_scripts/gsgnn_np/ml_nc.yaml
+python3 $GS_HOME/python/graphstorm/run/gsgnn_np/gsgnn_np.py --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --cf $GS_HOME/training_scripts/gsgnn_np/ml_nc.yaml --save-model-path ./models/movielen_100k/train_val/standalone
 
 error_and_exit $?
+
+rm -R ./models/movielen_100k/train_val/standalone
 
 echo "**************dataset: MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch"
 python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml
@@ -216,9 +218,74 @@ python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_s
 error_and_exit $?
 
 echo "**************dataset: multi target ntypes MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_target_ntypes_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_multi_target_ntypes.yaml --num-epochs 3
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_target_ntypes_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_multi_target_ntypes.yaml --num-epochs 3 --save-model-path /data/gsgnn_nc_ml/
 
 error_and_exit $?
+
+echo "**************dataset: multi target ntypes MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, do inference"
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_target_ntypes_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_multi_target_ntypes.yaml --save-embed-path /data/gsgnn_nc_ml/infer-emb/ --save-prediction-path /data/gsgnn_nc_ml/prediction/ --restore-model-path /data/gsgnn_nc_ml/epoch-2/ --preserve-input True
+
+error_and_exit $?
+
+cnt=$(ls -l /data/gsgnn_nc_ml/infer-emb/ | wc -l)
+if test $cnt != 4
+then
+    echo "We save both movie and user"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_nc_ml/infer-emb/movie/ | grep "embed-" | wc -l)
+cnt=$(($cnt/2))
+if test $cnt != $NUM_TRAINERS
+then
+    echo "There must be $NUM_TRAINERS embedding parts."
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_nc_ml/infer-emb/user/ | grep "embed-" | wc -l)
+cnt=$(($cnt/2))
+if test $cnt != $NUM_TRAINERS
+then
+    echo "There must be $NUM_TRAINERS embedding parts."
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_nc_ml/prediction/| wc -l)
+if test $cnt != 4
+then
+    echo "We save prediction results of movie and user."
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_nc_ml/prediction/movie/ | grep "predict" | wc -l)
+if test $cnt != $NUM_TRAINERS * 2
+then
+    echo "There must be $NUM_TRAINERS * 2 prediction parts for movie as --preserve-input is True."
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_nc_ml/prediction/movie/ | grep "nids" | wc -l)
+if test $cnt != $NUM_TRAINERS
+then
+    echo "There must be $NUM_TRAINERS prediction parts for movie."
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_nc_ml/prediction/user/ | grep "predict" | wc -l)
+if test $cnt != $NUM_TRAINERS * 2
+then
+    echo "There must be $NUM_TRAINERS * 2 prediction parts for user as --preserve-input is True."
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_nc_ml/prediction/user/ | grep "nids" | wc -l)
+if test $cnt != $NUM_TRAINERS
+then
+    echo "There must be $NUM_TRAINERS prediction parts for user."
+    exit -1
+fi
+
+rm -fr /data/gsgnn_nc_ml/*
 
 echo "**************dataset: multi target ntypes multiclass MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch"
 # generate a dataset with user and movie have multilabel

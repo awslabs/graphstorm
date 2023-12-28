@@ -27,9 +27,10 @@ from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeDataLoader,\
     GSgnnNodeSemiSupDataLoader
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
-from graphstorm.model.utils import save_embeddings
+from graphstorm.model.utils import save_full_node_embeddings
 from graphstorm.model import do_full_graph_inference
 from graphstorm.utils import rt_profiler, sys_tracker, setup_device, use_wholegraph
+from graphstorm.utils import get_lm_ntypes
 
 def get_evaluator(config):
     """ Get evaluator class
@@ -70,8 +71,10 @@ def main(config_args):
                                     train_ntypes=config.target_ntype,
                                     eval_ntypes=config.eval_target_ntype,
                                     node_feat_field=config.node_feat_name,
-                                    label_field=config.label_field)
+                                    label_field=config.label_field,
+                                    lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
+
     if config.training_method["name"] == "glem":
         trainer_class = GLEMNodePredictionTrainer
     elif config.training_method["name"] == "default":
@@ -91,13 +94,16 @@ def main(config_args):
     if gs.get_rank() == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
+
     if config.use_pseudolabel:
         # Use nodes not in train_idxs as unlabeled node sets
         unlabeled_idxs = train_data.get_unlabeled_idxs()
         # semi-supervised loader
         dataloader = GSgnnNodeSemiSupDataLoader(train_data, train_data.train_idxs, unlabeled_idxs,
                                                 fanout=config.fanout, batch_size=config.batch_size,
-                                                device=device, train_task=True)
+                                                device=device, train_task=True,
+                                                construct_feat_ntype=config.construct_feat_ntype,
+                                                construct_feat_fanout=config.construct_feat_fanout)
     else:
         dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
                                          batch_size=config.batch_size,
@@ -153,10 +159,19 @@ def main(config_args):
         model.prepare_input_encoder(train_data)
         embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
                                              task_tracker=tracker)
-        save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
-                        gs.get_world_size(),
-                        device=device,
-                        node_id_mapping_file=config.node_id_mapping_file)
+        # Only save embeddings of nodes from target ntype(s).
+        # Embeddings of nodes from other ntype(s) are meaningless,
+        # as they are not trained. Specifically, the model parameters
+        # of the weight matrics of the edge types of the last layer GNN
+        # targetting these ntype(s) will not receive any gradient from
+        # the training loss.
+        embeddings = {ntype: embeddings[ntype] for ntype in train_data.train_ntypes}
+        save_full_node_embeddings(
+            train_data.g,
+            config.save_embed_path,
+            embeddings,
+            node_id_mapping_file=config.node_id_mapping_file,
+            save_embed_format=config.save_embed_format)
 
 def generate_parser():
     """ Generate an argument parser
@@ -167,5 +182,6 @@ def generate_parser():
 if __name__ == '__main__':
     arg_parser=generate_parser()
 
-    args = arg_parser.parse_args()
-    main(args)
+    # Ignore unknown args to make script more robust to input arguments
+    gs_args, _ = arg_parser.parse_known_args()
+    main(gs_args)

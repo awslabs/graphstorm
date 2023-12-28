@@ -28,11 +28,13 @@ from .utils import save_model as save_gsgnn_model
 from .utils import save_opt_state, load_opt_state
 from .utils import save_sparse_embeds, load_sparse_embeds
 from .utils import create_sparse_embeds_path
+from .utils import LazyDistTensor
+from .utils import get_data_range
 from .embed import compute_node_input_embeddings
 from .embed import GSNodeInputLayer
 from .gs_layer import GSLayerBase
 from .gnn_encoder_base import dist_minibatch_inference
-from ..utils import get_rank, barrier
+from ..utils import get_rank, get_world_size, barrier
 from ..dataloading.dataset import prepare_batch_input
 
 from ..config import (GRAPHSTORM_MODEL_ALL_LAYERS,
@@ -265,7 +267,7 @@ class GSgnnModelBase(nn.Module):
         .. code:: python
 
             from graphstorm.model.util import create_sparse_emb_path
-           
+
             for ntype, sparse_emb in sparse_embeds.items():
                 create_sparse_emb_path(model_path, ntype)
             # make sure rank 0 creates the folder and change permission first
@@ -275,7 +277,7 @@ class GSgnnModelBase(nn.Module):
         .. code:: python
 
             from graphstorm.model.utils import save_sparse_emb
-           
+
             for ntype, sparse_emb in sparse_embeds.items():
                 save_sparse_emb(model_path, sparse_emb, ntype)
 
@@ -285,6 +287,23 @@ class GSgnnModelBase(nn.Module):
             The path where all model parameters and optimizer states are saved.
         """
 
+    def normalize_node_embs(self, embs):
+        """ Normalize node embeddings when needed.
+
+            Normalize_node_embs should be called in forward() and predict()
+
+        Parameters
+        ----------
+        embs: dict of Tensors
+            A dict of node embeddings.
+
+        Returns
+        -------
+        dict of Tensors:
+            Normalized node embeddings.
+        """
+        # by default, we do nothing
+        return embs
 
     def restore_model(self, restore_model_path, model_layer_to_load=None):
         """Restore saved checkpoints of a GNN model.
@@ -300,7 +319,7 @@ class GSgnnModelBase(nn.Module):
 
             # CustomGSgnnModel is a child class of GSgnnModelBase
             model = CustomGSgnnModel()
-            
+
             # Restore model parameters from "/tmp/checkpoints"
             model.restore_model("/tmp/checkpoints")
 
@@ -388,9 +407,9 @@ class GSgnnModelBase(nn.Module):
         optimizers.
 
         Example:
-        
+
         Case 1: if there is only one optimizer:
-        
+
         .. code:: python
 
             def create_optimizer(self):
@@ -398,7 +417,7 @@ class GSgnnModelBase(nn.Module):
                 return optimizer
 
         Case 2: if there are both dense and sparse optimizers:
-        
+
         .. code:: python
 
             def create_optimizer(self):
@@ -798,6 +817,36 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         save_sparse_embeds(model_path,
                            self.node_input_encoder)
 
+    def inplace_normalize_node_embs(self, embs):
+        """ Do inplace node embedding normalization.
+
+            This function is called by do_full_graph_inference().
+
+            Parameters
+            ----------
+            embs: dict of Tensor
+                Node embeddings.
+        """
+        rank = get_rank()
+        world_size = get_world_size()
+        for key, emb in embs.items():
+            if isinstance(emb, (dgl.distributed.DistTensor, LazyDistTensor)):
+                # If emb is a distributed tensor, multiple processes are doing
+                # embdding normalization concurrently. We need to split
+                # the task. (From full_graph_inference)
+                start, end = get_data_range(rank, world_size, len(emb))
+            else:
+                # If emb is just a torch Tensor. do normalization directly.
+                # (From mini_batch_inference)
+                start, end = 0, len(emb)
+            idx = start
+            while idx + 1024 < end:
+                emb[idx:idx+1024] = \
+                    self.normalize_node_embs({key:emb[idx:idx+1024]})[key]
+                idx += 1024
+            emb[idx:end] = \
+                self.normalize_node_embs({key:emb[idx:end]})[key]
+
     @property
     def node_input_encoder(self):
         """the input layer's node encoder used in this GNN class
@@ -862,6 +911,8 @@ def do_mini_batch_inference(model, data, batch_size=1024,
     -------
     dict of th.Tensor : node embeddings.
     """
+    if get_rank() == 0:
+        logging.debug("Perform mini-batch inference on the full graph.")
     t1 = time.time() # pylint: disable=invalid-name
     barrier()
     if model.gnn_encoder is None:
@@ -872,6 +923,7 @@ def do_mini_batch_inference(model, data, batch_size=1024,
                                                    task_tracker=task_tracker,
                                                    feat_field=data.node_feat_field,
                                                    target_ntypes=infer_ntypes)
+        model.eval()
     elif model.node_input_encoder.require_cache_embed():
         # If the input encoder has heavy computation, we should compute
         # the embeddings and cache them.
@@ -912,6 +964,10 @@ def do_mini_batch_inference(model, data, batch_size=1024,
                                                 edge_mask=edge_mask,
                                                 target_ntypes=infer_ntypes,
                                                 task_tracker=task_tracker)
+    # Called when model.eval()
+    # TODO: do_mini_batch_inference is not TRUE mini-batch inference
+    #       Need to change the implementation.
+    model.inplace_normalize_node_embs(embeddings)
     model.train()
     if get_rank() == 0:
         logging.debug("computing GNN embeddings: %.4f seconds", time.time() - t1)
@@ -942,7 +998,11 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
     -------
     dict of th.Tensor : node embeddings.
     """
-    assert isinstance(model, GSgnnModel), "Only GSgnnModel supports full-graph inference."
+    if get_rank() == 0:
+        logging.debug("Perform full-graph inference with batch size %d and fanout %s.",
+                      batch_size, str(fanout))
+    assert isinstance(model, GSgnnModel) or type(model).__name__ == 'GLEM',\
+        "Only GSgnnModel and GLEM support full-graph inference."
     t1 = time.time() # pylint: disable=invalid-name
     # full graph evaluation
     barrier()
@@ -953,6 +1013,7 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
                                                    model.node_input_encoder,
                                                    task_tracker=task_tracker,
                                                    feat_field=data.node_feat_field)
+        model.eval()
     elif model.node_input_encoder.require_cache_embed():
         # If the input encoder has heavy computation, we should compute
         # the embeddings and cache them.
@@ -967,12 +1028,16 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
             if not isinstance(input_nodes, dict):
                 assert len(data.g.ntypes) == 1
                 input_nodes = {data.g.ntypes[0]: input_nodes}
-            return {ntype: input_embeds[ntype][ids].to(device) \
-                    for ntype, ids in input_nodes.items()}
+            res = {}
+            # If the input node layer doesn't generate embeddings for a node type,
+            # we ignore it. This behavior is the same as reading node features below.
+            for ntype, ids in input_nodes.items():
+                if ntype in input_embeds:
+                    res[ntype] = input_embeds[ntype][ids].to(device)
+            return res
         embeddings = model.gnn_encoder.dist_inference(data.g, get_input_embeds,
                                                     batch_size, fanout, edge_mask=edge_mask,
                                                     task_tracker=task_tracker)
-        model.train()
     else:
         model.eval()
         device = model.gnn_encoder.device
@@ -987,7 +1052,10 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
         embeddings = model.gnn_encoder.dist_inference(data.g, get_input_embeds,
                                                     batch_size, fanout, edge_mask=edge_mask,
                                                     task_tracker=task_tracker)
-        model.train()
+    # Called when model.eval()
+    model.inplace_normalize_node_embs(embeddings)
+    model.train()
+
     if get_rank() == 0:
         logging.debug("computing GNN embeddings: %.4f seconds", time.time() - t1)
     return embeddings

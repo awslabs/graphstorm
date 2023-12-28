@@ -30,9 +30,30 @@ import pandas as pd
 import numpy as np
 import torch as th
 import torch.nn as nn
-from dgl.data.utils import save_graphs
 
-from utils import convert_tensor_to_list_arrays
+
+def convert_tensor_to_list_arrays(tensor):
+    """ Convert Pytorch Tensor to a list of arrays
+    
+    Since a pandas DataFrame cannot save a 2D numpy array in parquet format, it is necessary to
+    convert the tensor (1D or 2D) into a list of lists or a list of array. This converted tensor
+    can then be used to build a pandas DataFrame, which can be saved in parquet format. However,
+    tensor with a dimension greater than or equal to 3D cannot be processed or saved into parquet
+    files.
+
+    Parameters:
+    tensor: Pytorch Tensor
+        The input Pytorch tensor (1D or 2D) to be converted
+    
+    Returns:
+    list_array: list of numpy arrays
+        A list of numpy arrays
+    """
+    
+    np_array = tensor.numpy()
+    list_array = [np_array[i] for i in range(len(np_array))]
+
+    return list_array
 
 
 def create_acm_raw_data(graph,
@@ -51,6 +72,11 @@ def create_acm_raw_data(graph,
     ----------
     graph : DGL heterogeneous graph
         The generated dgl.heterograph object.
+    text_feat: dict
+        The raw text of "paper", "author", and "subject" nodes.
+            For "paper" nodes, the text is paper's title plus abstract;
+            For "author" nodes, the text is author's full name;
+            For "subject" nodes, the text is the ACM's subject code, e.g., "A.0".
     output_path: str
         The folder path to save output files
 
@@ -205,8 +231,7 @@ def create_acm_raw_data(graph,
             elif col == 'dest_id':
                 edge_dict['dest_id_col'] = col
             elif col == 'label':
-                label_dict['label_col'] = col
-                label_dict['task_type'] = 'classification'      # In ACM data, we do not have this
+                label_dict['task_type'] = 'link_prediction'      # In ACM data, we do not have this
                                                                 # edge task. Here is just for demo
                 label_dict['split_pct'] = [0.8, 0.1, 0.1]       # Same as the label_split filed.
                                                                 # The split pct values are just for
@@ -260,6 +285,17 @@ def create_acm_dgl_graph(dowload_path='/tmp/ACM.mat',
     -------
     graph_acm: DGL graph
         Return the generated DGL graph, and save it to the given output_path
+        - The graph has three types of nodes, "paper", "author", and "subject", and six types of
+        edges, including reversed edge types. 
+        - Each node have a 256 dimension random feature, and raw text, which is stored in the
+        text_feat dictionary.
+        - For "paper" nodes, each has a label that is the category of a paper, coming from the
+        PvsC relation. There are total 14 classes for paper nodes.
+    text_feat: dict
+        The raw text of "paper", "author", and "subject" nodes.
+            For "paper" nodes, the text is paper's title plus abstract;
+            For "author" nodes, the text is author's full name;
+            For "subject" nodes, the text is the ACM's subject code, e.g., "A.0".
     """
     if not os.path.exists(dowload_path):
         data_url = 'https://data.dgl.ai/dataset/ACM.mat'
@@ -321,10 +357,15 @@ def create_acm_dgl_graph(dowload_path='/tmp/ACM.mat',
         emb = nn.Parameter(th.Tensor(graph_acm.number_of_nodes(n_type), 256), requires_grad = False)
         nn.init.xavier_uniform_(emb)
         graph_acm.nodes[n_type].data['feat'] = emb
+        
+    # For link prediction task, use "paper, citing, paper" edges as targe-etype and create labels.
+    target_etype = ('paper', 'citing', 'paper')
+    graph_acm.edges[target_etype].data['label'] = th.ones(graph_acm.num_edges(target_etype))
     
     print(graph_acm)
     print(f'\n Number of classes: {labels.max() + 1}')
-    print(f'\n Paper nodes labels: {labels.shape}')
+    print(f'\n Paper node labels: {labels.shape}')
+    print(f'\n {target_etype} edge labels:{graph_acm.num_edges(target_etype)}')
     
     # Save the graph for later partition
     if dataset_name is None:
@@ -336,7 +377,7 @@ def create_acm_dgl_graph(dowload_path='/tmp/ACM.mat',
         # Save DGL graph
         output_graph_file_path = os.path.join(output_path, dataset_name + '.dgl')
         print(f'Saving ACM data to {output_graph_file_path} ......')
-        save_graphs(output_graph_file_path, [graph_acm], None)
+        dgl.save_graphs(output_graph_file_path, [graph_acm], None)
         print(f'{output_graph_file_path} saved.')
         # Save raw node text
         output_text_file_path = os.path.join(output_path, dataset_name + '_text.pkl')

@@ -19,6 +19,8 @@ gsf:
     backend: gloo
     verbose: false
     save_perf_results_path: null
+  lm:
+    cache_lm_embed: true
   gnn:
     model_encoder_type: rgcn
     num_layers: 2

@@ -18,6 +18,7 @@
 from torch import nn
 import torch.nn.functional as F
 import dgl.nn as dglnn
+from dgl.distributed.constants import DEFAULT_NTYPE
 
 from .ngnn_mlp import NGNNMLP
 from .gnn_encoder_base import GraphConvEncoder
@@ -124,16 +125,16 @@ class SAGEConv(nn.Module):
         ----------
         g : DGLHeteroGraph
             Input graph.
-        inputs : dict["_N", torch.Tensor]
+        inputs : dict[DEFAULT_NTYPE, torch.Tensor]
             Node feature for each node type.
         Returns
         -------
-        dict{"_N", torch.Tensor}
+        dict{DEFAULT_NTYPE, torch.Tensor}
             New node features for each node type.
         """
         g = g.local_var()
 
-        inputs = inputs['_N']
+        inputs = inputs[DEFAULT_NTYPE]
         h_conv = self.conv(g, inputs)
         if self.norm:
             h_conv = self.norm(h_conv)
@@ -142,7 +143,7 @@ class SAGEConv(nn.Module):
         if self.num_ffn_layers_in_gnn > 0:
             h_conv = self.ngnn_mlp(h_conv)
 
-        return {'_N': h_conv}
+        return {DEFAULT_NTYPE: h_conv}
 
 
 class SAGEEncoder(GraphConvEncoder):
@@ -168,7 +169,7 @@ class SAGEEncoder(GraphConvEncoder):
 
     Examples:
     ----------
-    
+
     .. code:: python
 
         # Build model and do full-graph inference on SAGEEncoder
@@ -177,7 +178,7 @@ class SAGEEncoder(GraphConvEncoder):
         from graphstorm.model.node_decoder import EntityClassifier
         from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
         from graphstorm.dataloading import GSgnnNodeTrainData
-        from graphstorm.model.gnn import do_full_graph_inference
+        from graphstorm.model import do_full_graph_inference
 
         np_data = GSgnnNodeTrainData(...)
 
@@ -228,7 +229,7 @@ class SAGEEncoder(GraphConvEncoder):
         ----------
         blocks: DGL MFGs
             Sampled subgraph in DGL MFG
-        h: dict["_N", torch.Tensor]
+        h: dict[DEFAULT_NTYPE, torch.Tensor]
             Input node feature for each node type.
         """
         for layer, block in zip(self.layers, blocks):

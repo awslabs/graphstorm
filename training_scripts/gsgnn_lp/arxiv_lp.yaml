@@ -4,12 +4,11 @@ gsf:
   basic:
     model_encoder_type: rgcn
     backend: gloo
-    num_gpus: 4
     verbose: false
   gnn:
     fanout: "3"
-    n_layers: 1
-    n_hidden: 128
+    num_layers: 1
+    hidden_size: 128
     mini_batch_infer: true
   input:
     restore_model_path: null
@@ -22,12 +21,12 @@ gsf:
     lr: 0.001
     bert_tune_lr: 0.0001
     num_epochs: 3
-    batch_size: 128
-    eval_batch_size: 1024
+    batch_size: 5120
+    eval_batch_size: 10240
     wd_l2norm: 0
     no_validation: false
   rgcn:
-    n_bases: -1
+    num_bases: -1
     use_self_loop: true
     lp_decoder_type: "dot_product"
     sparse_optimizer_lr: 1e-2

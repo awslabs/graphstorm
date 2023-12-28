@@ -214,7 +214,8 @@ def run_partition(job_config: PartitionJobConfig):
     metadata_filename = job_config.metadata_filename
     skip_partitioning = job_config.skip_partitioning == 'true'
 
-    sm_env = json.loads(os.environ['SM_TRAINING_ENV'])
+    with open("/opt/ml/config/resourceconfig.json", "r", encoding="utf-8") as f:
+        sm_env = json.load(f)
     hosts = sm_env['hosts']
     current_host = sm_env['current_host']
     world_size = len(hosts)
@@ -239,7 +240,7 @@ def run_partition(job_config: PartitionJobConfig):
     for key, val in os.environ.items():
         logging.debug("%s: %s", key, val)
 
-    leader_addr = os.environ['MASTER_ADDR']
+    leader_addr = socket.gethostbyname('algo-1')
     # sync with all instances in the cluster
     if host_rank == 0:
         # sync with workers
@@ -375,7 +376,7 @@ def run_partition(job_config: PartitionJobConfig):
         # Ensure the keepalive thread has finished before closing sockets
         thread.join()
         # Close connections with workers
-        utils.terminate_workers(client_list, world_size, task_end)
+        utils.terminate_workers(client_list, world_size)
     else:
         # Block until dispatch_data finished
         # Listen to end command

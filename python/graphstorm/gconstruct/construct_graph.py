@@ -28,6 +28,7 @@ import logging
 import numpy as np
 import torch as th
 import dgl
+from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 
 from ..utils import sys_tracker, get_log_level
 from .file_io import parse_node_file_format, parse_edge_file_format
@@ -71,7 +72,7 @@ def prepare_node_data(in_file, feat_ops, read_file):
 
     return feat_info
 
-def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
+def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file, ext_mem=None):
     """ Parse node data.
 
     The function parses a node file that contains node IDs, features and labels
@@ -90,13 +91,15 @@ def parse_node_data(in_file, feat_ops, label_ops, node_id_col, read_file):
         The column name that contains the node ID.
     read_file : callable
         The function to read the node file
+    ext_mem: str or None
+        The path of external memory for multi-column feature
 
     Returns
     -------
     tuple : node ID array and a dict of node feature tensors.
     """
     data = read_file(in_file)
-    feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
+    feat_data = process_features(data, feat_ops, ext_mem) if feat_ops is not None else {}
     if label_ops is not None:
         label_data = process_labels(data, label_ops)
         for key, val in label_data.items():
@@ -131,7 +134,7 @@ def prepare_edge_data(in_file, feat_ops, read_file):
     return feat_info
 
 def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
-                    conf, skip_nonexist_edges):
+                    conf, skip_nonexist_edges, ext_mem=None):
     """ Parse edge data.
 
     The function parses an edge file that contains the source and destination node
@@ -154,6 +157,8 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
         The configuration for parsing edge data.
     skip_nonexist_edges : bool
         Whether or not to skip edges that don't exist.
+    ext_mem: str or None
+        The path of external memory for multi-column feature
 
     Returns
     -------
@@ -167,7 +172,7 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
     edge_type = conf['relation']
 
     data = read_file(in_file)
-    feat_data = process_features(data, feat_ops) if feat_ops is not None else {}
+    feat_data = process_features(data, feat_ops, ext_mem) if feat_ops is not None else {}
     if label_ops is not None:
         label_data = process_labels(data, label_ops)
         for key, val in label_data.items():
@@ -175,13 +180,28 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
     src_ids = data[src_id_col] if src_id_col is not None else None
     dst_ids = data[dst_id_col] if dst_id_col is not None else None
     if src_ids is not None:
-        src_ids, dst_ids = map_node_ids(src_ids, dst_ids, edge_type, node_id_map,
+        src_ids, dst_ids, src_exist_locs, dst_exist_locs = \
+            map_node_ids(src_ids, dst_ids, edge_type, node_id_map,
                                         skip_nonexist_edges)
+        if src_exist_locs is not None:
+            feat_data = {key: feat[src_exist_locs] \
+                         for key, feat in feat_data.items()}
+        if dst_exist_locs is not None:
+            feat_data = {key: feat[dst_exist_locs] \
+                         for key, feat in feat_data.items()}
+        # do some check
+        if src_exist_locs is not None or dst_exist_locs is not None:
+            for key, feat in feat_data.items():
+                assert len(src_ids) == len(feat), \
+                    f"Expecting the edge feature {key} has the same length" \
+                    f"as num existing edges {len(src_ids)}, but get {len(feat)}"
+
     return (src_ids, dst_ids, feat_data)
 
 def _process_data(user_pre_parser, user_parser,
                   two_phase_feat_ops,
-                  in_files, num_proc, task_info):
+                  in_files, num_proc, task_info,
+                  ext_mem_workspace):
     """ Process node and edge data.
 
     Parameter
@@ -198,10 +218,13 @@ def _process_data(user_pre_parser, user_parser,
         Number of processes to do processing.
     task_info: str
         Task meta info for debugging.
+    ext_mem_workspace : str
+        The path of the external-memory work space.
     """
     if len(two_phase_feat_ops) > 0:
         pre_parse_start = time.time()
-        phase_one_ret = multiprocessing_data_read(in_files, num_proc, user_pre_parser)
+        phase_one_ret = multiprocessing_data_read(in_files, num_proc, user_pre_parser,
+                                                  ext_mem_workspace)
         update_two_phase_feat_ops(phase_one_ret, two_phase_feat_ops)
 
         dur = time.time() - pre_parse_start
@@ -209,14 +232,16 @@ def _process_data(user_pre_parser, user_parser,
                       task_info, dur)
 
     start = time.time()
-    return_dict = multiprocessing_data_read(in_files, num_proc, user_parser)
+    return_dict = multiprocessing_data_read(in_files, num_proc, user_parser,
+                                            ext_mem_workspace)
     dur = time.time() - start
     logging.debug("Processing data files for %s takes %.3f seconds.",
                     task_info, dur)
     return return_dict
 
 
-def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
+def process_node_data(process_confs, arr_merger, remap_id,
+                      ext_mem_workspace=None, num_processes=1):
     """ Process node data
 
     We need to process all node data before we can process edge data.
@@ -254,6 +279,8 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         Whether or not to remap node IDs
     num_processes: int
         The number of processes to process the input files.
+    ext_mem_workspace: str or None
+        The path of external-memory work space for multi-column features
 
     Returns
     -------
@@ -292,14 +319,18 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
         user_parser = partial(parse_node_data, feat_ops=feat_ops,
                               label_ops=label_ops,
                               node_id_col=node_id_col,
-                              read_file=read_file)
+                              read_file=read_file,
+                              ext_mem=ext_mem_workspace)
 
+        ext_mem_workspace_type = os.path.join(ext_mem_workspace, node_type) \
+                if ext_mem_workspace is not None else None
         return_dict = _process_data(user_pre_parser,
                                     user_parser,
                                     two_phase_feat_ops,
                                     in_files,
                                     num_proc,
-                                    f"node {node_type}")
+                                    f"node {node_type}",
+                                    ext_mem_workspace_type)
         type_node_id_map = [None] * len(return_dict)
         type_node_data = {}
         for i, (node_ids, data) in return_dict.items():
@@ -386,7 +417,7 @@ def process_node_data(process_confs, arr_merger, remap_id, num_processes=1):
     return (node_id_map, node_data, label_stats)
 
 def process_edge_data(process_confs, node_id_map, arr_merger,
-                      num_processes=1,
+                      ext_mem_workspace=None, num_processes=1,
                       skip_nonexist_edges=False):
     """ Process edge data
 
@@ -425,6 +456,8 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         The number of processes to process the input files.
     skip_nonexist_edges : bool
         Whether or not to skip edges that don't exist.
+    ext_mem_workspace: str or None
+        The path of external-memory work space for multi-column features
 
     Returns
     -------
@@ -469,14 +502,18 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                               node_id_map=id_map,
                               read_file=read_file,
                               conf=process_conf,
-                              skip_nonexist_edges=skip_nonexist_edges)
+                              skip_nonexist_edges=skip_nonexist_edges,
+                              ext_mem=ext_mem_workspace)
 
+        ext_mem_workspace_type = os.path.join(ext_mem_workspace, "_".join(edge_type)) \
+                if ext_mem_workspace is not None else None
         return_dict = _process_data(user_pre_parser,
                                     user_parser,
                                     two_phase_feat_ops,
                                     in_files,
                                     num_proc,
-                                    f"edge {edge_type}")
+                                    f"edge {edge_type}",
+                                    ext_mem_workspace_type)
         type_src_ids = [None] * len(return_dict)
         type_dst_ids = [None] * len(return_dict)
         type_edge_data = {}
@@ -546,8 +583,23 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
 
     return (edges, edge_data, label_stats)
 
+def is_homogeneous(confs):
+    """ Verify if it is a homogeneous graph
+    Parameter
+    ---------
+    confs: dict
+        A dict containing all user input config
+    """
+    ntypes = {conf['node_type'] for conf in confs["nodes"]}
+    etypes = set(tuple(conf['relation']) for conf in confs["edges"])
+    return len(ntypes) == 1 and len(etypes) == 1
+
 def verify_confs(confs):
     """ Verify the configuration of the input data.
+    Parameter
+    ---------
+    confs: dict
+        A dict containing all user input config
     """
     if "version" not in confs:
         # TODO: Make a requirement with v1.0 launch
@@ -563,6 +615,14 @@ def verify_confs(confs):
                 f"source node type {src_type} does not exist. Please check your input data."
         assert dst_type in ntypes, \
                 f"dest node type {dst_type} does not exist. Please check your input data."
+    # Adjust input to DGL homogeneous graph format if it is a homogeneous graph
+    if is_homogeneous(confs):
+        logging.warning("Generated Graph is a homogeneous graph, so the node type will be "
+                        "changed to _N and edge type will be changed to [_N, _E, _N]")
+        for node in confs['nodes']:
+            node['node_type'] = DEFAULT_NTYPE
+        for edge in confs['edges']:
+            edge['relation'] = list(DEFAULT_ETYPE)
 
 def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats):
     """ Print graph information.
@@ -582,11 +642,14 @@ def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats
     """
     logging.info("The graph has %d node types and %d edge types.",
                  len(g.ntypes), len(g.etypes))
+    for ntype in g.ntypes:
+        logging.info("Node type %s has %d nodes", ntype, g.number_of_nodes(ntype))
+    for etype in g.canonical_etypes:
+        logging.info("Edge type %s has %d edges", etype, g.number_of_edges(etype))
 
     for ntype in node_data:
         feat_names = list(node_data[ntype].keys())
-        logging.info("Node type %s has %d nodes with features: %s.",
-                     ntype, g.number_of_nodes(ntype), str(feat_names))
+        logging.info("Node type %s has features: %s.", ntype, str(feat_names))
         num_train = np.sum(node_data[ntype]["train_mask"]) \
                 if "train_mask" in node_data[ntype] else 0
         num_val = np.sum(node_data[ntype]["val_mask"]) \
@@ -598,8 +661,7 @@ def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats
                          ntype, num_train, num_val, num_test)
     for etype in edge_data:
         feat_names = list(edge_data[etype].keys())
-        logging.info("Edge type %s has %d edges with features: %s.",
-                     str(etype), g.number_of_edges(etype), str(feat_names))
+        logging.info("Edge type %s has features: %s.", str(etype), str(feat_names))
         num_train = np.sum(edge_data[etype]["train_mask"]) \
                 if "train_mask" in edge_data[etype] else 0
         num_val = np.sum(edge_data[etype]["val_mask"]) \
@@ -643,12 +705,12 @@ def process_graph(args):
 
     node_id_map, node_data, node_label_stats = \
         process_node_data(process_confs['nodes'], convert2ext_mem,
-                          args.remap_node_id,
+                          args.remap_node_id, ext_mem_workspace,
                           num_processes=num_processes_for_nodes)
     sys_tracker.check('Process the node data')
     edges, edge_data, edge_label_stats = \
         process_edge_data(process_confs['edges'], node_id_map,
-                          convert2ext_mem,
+                          convert2ext_mem, ext_mem_workspace,
                           num_processes=num_processes_for_edges,
                           skip_nonexist_edges=args.skip_nonexist_edges)
     sys_tracker.check('Process the edge data')
@@ -660,12 +722,35 @@ def process_graph(args):
 
     if args.add_reverse_edges:
         edges1 = {}
-        for etype in edges:
-            e = edges[etype]
+        if is_homogeneous(process_confs):
+            logging.warning("For homogeneous graph, the generated reverse edge will "
+                            "be the same edge type as the original graph. Instead for "
+                            "heterogeneous graph, the generated reverse edge type will "
+                            "add -rev as a suffix")
+            e = edges[DEFAULT_ETYPE]
             assert isinstance(e, tuple) and len(e) == 2
-            assert isinstance(etype, tuple) and len(etype) == 3
-            edges1[etype] = e
-            edges1[etype[2], etype[1] + "-rev", etype[0]] = (e[1], e[0])
+            edges1[DEFAULT_ETYPE] = (np.concatenate([e[0], e[1]]),
+                                     np.concatenate([e[1], e[0]]))
+            # Double edge feature as it is necessary to match tensor size in generated graph
+            # Only generate mask on original graph
+            if edge_data:
+                data = edge_data[DEFAULT_ETYPE]
+                logging.warning("Reverse edge for homogeneous graph will have same feature as "
+                                "what we have in the original edges")
+                for key, value in data.items():
+                    if key not in ["train_mask", "test_mask", "val_mask"]:
+                        data[key] = np.concatenate([value, value])
+                    else:
+                        data[key] = np.concatenate([value, np.zeros(value.shape,
+                                                                       dtype=value.dtype)])
+
+        else:
+            for etype in edges:
+                e = edges[etype]
+                assert isinstance(e, tuple) and len(e) == 2
+                assert isinstance(etype, tuple) and len(etype) == 3
+                edges1[etype] = e
+                edges1[etype[2], etype[1] + "-rev", etype[0]] = (e[1], e[0])
         edges = edges1
         sys_tracker.check('Add reverse edges')
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)

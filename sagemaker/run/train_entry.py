@@ -39,9 +39,14 @@ def parse_train_args():
              "Do not store it with partitioned graph")
     parser.add_argument("--model-artifact-s3", type=str,
         help="S3 location to store the model artifacts.")
+    parser.add_argument("--model-checkpoint-to-load", type=str, default=None,
+        help="S3 path to a model checkpoint from a previous training task "
+             "that is going to be resumed.")
     parser.add_argument("--custom-script", type=str, default=None,
         help="Custom training script provided by a customer to run customer training logic. \
             Please provide the path of the script within the docker image")
+    parser.add_argument('--log-level', default='INFO',
+        type=str, choices=['DEBUG', 'INFO', 'WARNING', 'CRITICAL', 'FATAL'])
 
     # following arguments are required to launch a distributed GraphStorm training task
     parser.add_argument('--data-path', type=str, default=os.environ['SM_CHANNEL_TRAIN'])

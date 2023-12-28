@@ -25,9 +25,10 @@ from graphstorm.trainer import GSgnnEdgePredictionTrainer
 from graphstorm.dataloading import GSgnnEdgeTrainData, GSgnnEdgeDataLoader
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
-from graphstorm.model.utils import save_embeddings
+from graphstorm.model.utils import save_full_node_embeddings
 from graphstorm.model import do_full_graph_inference
 from graphstorm.utils import rt_profiler, sys_tracker, setup_device, use_wholegraph
+from graphstorm.utils import get_lm_ntypes
 
 def get_evaluator(config):
     """ Get evaluator class
@@ -67,7 +68,8 @@ def main(config_args):
                                     train_etypes=config.target_etype,
                                     node_feat_field=config.node_feat_name,
                                     label_field=config.label_field,
-                                    decoder_edge_feat=config.decoder_edge_feat)
+                                    decoder_edge_feat=config.decoder_edge_feat,
+                                    lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     model = gs.create_builtin_edge_gnn_model(train_data.g, config, train_task=True)
     trainer = GSgnnEdgePredictionTrainer(model, topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
@@ -153,10 +155,12 @@ def main(config_args):
 
         # The order of the ntypes must be sorted
         embs = {ntype: embeddings[ntype] for ntype in sorted(target_ntypes)}
-        save_embeddings(config.save_embed_path, embs, gs.get_rank(),
-                        gs.get_world_size(),
-                        device=device,
-                        node_id_mapping_file=config.node_id_mapping_file)
+        save_full_node_embeddings(
+            train_data.g,
+            config.save_embed_path,
+            embs,
+            node_id_mapping_file=config.node_id_mapping_file,
+            save_embed_format=config.save_embed_format)
 
 def generate_parser():
     """ Generate an argument parser
@@ -167,5 +171,6 @@ def generate_parser():
 if __name__ == '__main__':
     arg_parser=generate_parser()
 
-    args = arg_parser.parse_args()
-    main(args)
+    # Ignore unknown args to make script more robust to input arguments
+    gs_args, _ = arg_parser.parse_known_args()
+    main(gs_args)

@@ -21,7 +21,7 @@ from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnNodePredictionInferrer
 from graphstorm.eval import GSgnnAccEvaluator, GSgnnRegressionEvaluator
 from graphstorm.dataloading import GSgnnNodeInferData, GSgnnNodeDataLoader
-from graphstorm.utils import setup_device
+from graphstorm.utils import setup_device, get_lm_ntypes
 
 def get_evaluator(config): # pylint: disable=unused-argument
     """ Get evaluator class
@@ -49,7 +49,9 @@ def main(config_args):
                                     config.part_config,
                                     eval_ntypes=config.target_ntype,
                                     node_feat_field=config.node_feat_name,
-                                    label_field=config.label_field)
+                                    label_field=config.label_field,
+                                    lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
+
     model = gs.create_builtin_node_gnn_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
@@ -92,5 +94,6 @@ def generate_parser():
 if __name__ == '__main__':
     arg_parser=generate_parser()
 
-    args = arg_parser.parse_args()
-    main(args)
+    # Ignore unknown args to make script more robust to input arguments
+    gs_args, _ = arg_parser.parse_known_args()
+    main(gs_args)

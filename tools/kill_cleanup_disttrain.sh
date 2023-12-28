@@ -20,6 +20,7 @@ fi
 
 for ip in "${ips[@]}"; do
     echo "Clean up $ip"
+    ssh -p $port_num -n $ip "killall -9 python"
     ssh -p $port_num -n $ip "killall -9 python3"
     ssh -p $port_num -n $ip "rm -rf /dev/shm/node:*"
     ssh -p $port_num -n $ip "rm -rf /dev/shm/edge:*"

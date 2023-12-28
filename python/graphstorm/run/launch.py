@@ -323,6 +323,58 @@ def construct_torch_dist_launcher_cmd(
         master_port=master_port,
     )
 
+def wrap_dist_remap_command(
+        udf_command: str,
+        rank: int,
+        world_size: int,
+        with_shared_fs: bool,
+        num_trainers: int,
+        output_chunk_size: int = 100000,
+        preserve_input: bool = False):
+    """ Wrap distributed remap command
+
+        Parameters
+        ----------
+        udf_command:
+            Execution command.
+        rank:
+            Worker's rank in a distributed cluster.
+        world_size:
+            Total number of workers
+        with_shared_fs:
+            Whether all files are stored in a shared fs.
+        num_trainers:
+            Number of trainers on each machine.
+        output_chunk_size:
+            Number of rows per output file.
+        preserve_input:
+            Whether we preserve the input data.
+    """
+    # Get the python interpreter used right now.
+    # If we can not get it we go with the default `python3`
+    python_bin = sys.executable \
+        if sys.executable is not None and sys.executable != "" \
+        else "python3 "
+
+    udf_command[0] = "graphstorm.gconstruct.remap_result"
+
+    # Add remap related arguments
+    udf_command += ["--rank", str(rank)]
+    udf_command += ["--world-size", str(world_size)]
+    udf_command += ["--with-shared-fs", "True" if with_shared_fs else "False"]
+    udf_command += ["--num-processes", str(num_trainers)]
+    udf_command += ["--output-chunk-size", str(output_chunk_size)]
+    udf_command += ["--preserve-input", "True" if preserve_input else "False"]
+
+    # transforms the udf_command from:
+    #     path/to/dist_trainer.py arg0 arg1
+    # to:
+    #     python -m torch.distributed.launch [DIST TORCH ARGS] path/to/dist_trainer.py arg0 arg1
+    udf_command = " ".join(udf_command)
+    new_udf_command = f"{python_bin} -m {udf_command}"
+
+    return new_udf_command
+
 
 def wrap_udf_in_torch_dist_launcher(
     udf_command: str,
@@ -611,6 +663,75 @@ def get_available_port(ip):
             return port
     raise RuntimeError("Failed to get available port for ip~{}".format(ip))
 
+def submit_remap_jobs(args, udf_command, hosts):
+    """Submit distributed remap jobs via ssh
+
+        Parameters
+        ----------
+        args:
+            Launch arguments
+        udf_command: list
+            Execution arguments to update
+    """
+    clients_cmd = []
+    thread_list = []
+    state_q = queue.Queue()
+
+    pythonpath=os.environ.get("PYTHONPATH", "")
+    env_vars = f"PYTHONPATH={pythonpath} "
+
+    for node_id, host in enumerate(hosts):
+        ip, _ = host
+        remap_dist_command = wrap_dist_remap_command(udf_command,
+                                                     node_id,
+                                                     len(hosts),
+                                                     args.with_shared_fs,
+                                                     args.num_trainers,
+                                                     args.output_chunk_size,
+                                                     args.preserve_input)
+
+        cmd = wrap_cmd_with_local_envvars(remap_dist_command, env_vars)
+
+        cmd = "cd " + str(args.workspace) + "; " + cmd
+        clients_cmd.append(cmd)
+        thread_list.append(
+            execute_remote(
+                cmd, state_q, ip, args.ssh_port, username=args.ssh_username
+            )
+        )
+
+        logging.debug(cmd)
+        logging.info(cmd)
+
+    # Start a cleanup process dedicated for cleaning up remote jobs.
+    conn1, conn2 = multiprocessing.Pipe()
+    func = partial(get_all_remote_pids, hosts, args.ssh_port, udf_command)
+    process = multiprocessing.Process(target=cleanup_proc, args=(func, conn1))
+    process.start()
+
+    def signal_handler(sig, frame): # pylint: disable=unused-argument
+        logging.info("Stop launcher")
+        # We need to tell the cleanup process to kill remote training jobs.
+        conn2.send("cleanup")
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+
+    err = 0
+    for thread in thread_list:
+        thread.join()
+        err_code = state_q.get()
+        if err_code != 0:
+            # Record err_code
+            # We record one of the error if there are multiple
+            err = err_code
+
+    # The remap processes complete. We should tell the cleanup process to exit.
+    conn2.send("exit")
+    process.join()
+    if err != 0:
+        logging.error("Remapping task failed")
+        sys.exit(-1)
 
 def submit_jobs(args, udf_command):
     """Submit distributed jobs (server and client processes) via ssh
@@ -650,7 +771,7 @@ def submit_jobs(args, udf_command):
                 hosts.append((ip, port))
             else:
                 raise RuntimeError("Format error of ip_config.")
-            server_count_per_machine = args.num_servers
+    server_count_per_machine = args.num_servers
 
     # Get partition info of the graph data
     # The path to the partition config file can be a absolute path or
@@ -784,6 +905,11 @@ def submit_jobs(args, udf_command):
         logging.error("Task failed")
         sys.exit(-1)
 
+    logging.info("Start doing node id remapping")
+    if args.do_nid_remap:
+        submit_remap_jobs(args, udf_command, hosts)
+    logging.info("Finish doing node id remapping")
+
 def get_argument_parser():
     """ Arguments listed here are those used by the launch script to launch
         a distribute task.
@@ -887,6 +1013,44 @@ def get_argument_parser():
             No GNN is involved, only graph structure. \
             Used with built-in training/inference scripts"
     )
+    parser.add_argument(
+        "--do-nid-remap",
+        type=lambda x: (str(x).lower() in ['true', '1']),
+        default=True,
+        help="Do Graph Node ID space to Raw Node ID space remapping."
+        "If not set, the default behavior is to do remap."
+    )
+
+    parser = add_remap_result_args(parser)
+    return parser
+
+def add_remap_result_args(parser):
+    """ Add node id remapping related arguments
+
+        Output_chunk_size is used to control the max number of raws of each
+        output (e.g., parquet) file.
+        Preserve_input is used to indicate whether GSF will keep the un-remapped data
+        in the output folder. The main purpose of setting preserve_input to True is
+        for debugging.
+        With_shared_fs tells whether the task is running on a system without shared
+        file system support (e.g., SageMaker). The main purpose of this argument is
+        supporting SageMaker.
+
+    Parameters
+    ----------
+    parser:
+        ArgParser
+    """
+    group = parser.add_argument_group(title="remap")
+    group.add_argument("--output-chunk-size", type=int, default=100000,
+                       help="Number of rows per output file.")
+    group.add_argument("--preserve-input", type=bool, default=False,
+                       help="Whether we preserve the input data.")
+    group.add_argument("--with-shared-fs",
+                       type=lambda x: (str(x).lower() in ["true", "1"]),
+                       default=True,
+                       help="Whether all files are stored in a shared file system"
+                            "False when it is running on SageMaker")
     return parser
 
 def check_input_arguments(args):
@@ -908,7 +1072,7 @@ def check_input_arguments(args):
     ), "--num-servers must be a positive number."
     assert (
         args.part_config is not None
-    ), "A user has to specify a partition configuration file with --part-onfig."
+    ), "A user has to specify a partition configuration file with --part-config."
     assert (
         args.ip_config is not None
     ), "A user has to specify an IP configuration file with --ip-config."

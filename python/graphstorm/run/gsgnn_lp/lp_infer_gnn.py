@@ -26,7 +26,7 @@ from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
 from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
-from graphstorm.utils import setup_device
+from graphstorm.utils import setup_device, get_lm_ntypes
 
 def main(config_args):
     """ main function
@@ -41,7 +41,8 @@ def main(config_args):
                                     config.part_config,
                                     eval_etypes=config.eval_etype,
                                     node_feat_field=config.node_feat_name,
-                                    decoder_edge_feat=config.decoder_edge_feat)
+                                    decoder_edge_feat=config.decoder_edge_feat,
+                                    lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     model = gs.create_builtin_lp_gnn_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
@@ -87,5 +88,6 @@ def generate_parser():
 if __name__ == '__main__':
     arg_parser=generate_parser()
 
-    args = arg_parser.parse_args()
-    main(args)
+    # Ignore unknown args to make script more robust to input arguments
+    gs_args, _ = arg_parser.parse_known_args()
+    main(gs_args)

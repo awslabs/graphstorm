@@ -82,8 +82,13 @@ class FeatureConfig(abc.ABC):
 
 
 class NoopFeatureConfig(FeatureConfig):
-    """
-    Feature configuration for features that do not need to be transformed.
+    """Feature configuration for features that do not need to be transformed.
+
+    Supported kwargs
+    ----------------
+    separator: str
+        When provided will treat the input as strings, split each value in the string using
+        the separator, and convert the resulting list of floats into a float-vector feature.
     """
 
     def __init__(self, config: Mapping):
@@ -98,4 +103,4 @@ class NoopFeatureConfig(FeatureConfig):
     def _sanity_check(self) -> None:
         super()._sanity_check()
         if self._data_config and self.value_separator and self._data_config.format != "csv":
-            raise RuntimeError("value_separator should only be provided for CSV data")
+            raise RuntimeError("separator should only be provided for CSV data")

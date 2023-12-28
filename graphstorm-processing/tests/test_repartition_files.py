@@ -14,11 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 import json
+from pathlib import Path
 import os
 import shutil
 import sys
 from typing import Callable, List
 
+from numpy.testing import assert_array_equal
 import pytest
 import pyarrow as pa
 from pyarrow import parquet as pq
@@ -161,10 +163,13 @@ def create_parquet_files_fixture():
 )
 @pytest.mark.parametrize(
     "partition_function_name",
-    ["repartition_parquet_files_in_memory", "repartition_parquet_files_streaming"],
+    [
+        "_repartition_parquet_files_in_memory",
+        "_repartition_parquet_files_streaming",
+    ],
 )
 def test_repartition_functions(desired_counts: List[int], partition_function_name: str):
-    """Test the repartition function, streaming and in-memory"""
+    """Test the repartition functions, streaming and in-memory"""
     assert sum(desired_counts) == 50
 
     my_partitioner = ParquetRepartitioner(TEMP_DATA_PREFIX, filesystem_type="local")
@@ -186,12 +191,26 @@ def test_repartition_functions(desired_counts: List[int], partition_function_nam
     assert updated_meta["row_counts"] == desired_counts
     assert len(updated_meta["data"]) == len(desired_counts)
 
-    # Ensure actual rows match to expectation
+    # Ensure actual row counts match to expectation
     for expected_count, result_filepath in zip(desired_counts, updated_meta["data"]):
         assert (
             expected_count
             == pq.read_metadata(os.path.join(TEMP_DATA_PREFIX, result_filepath)).num_rows
         )
+
+    # Ensure order/content of rows matches to expectation
+    original_table = (
+        pq.read_table(os.path.join(TEMP_DATA_PREFIX, Path(edge_type_meta["data"][0]).parent))
+        .to_pandas()
+        .to_numpy()
+    )
+    repartitioned_table = (
+        pq.read_table(os.path.join(TEMP_DATA_PREFIX, Path(updated_meta["data"][0]).parent))
+        .to_pandas()
+        .to_numpy()
+    )
+
+    assert_array_equal(original_table, repartitioned_table)
 
 
 # TODO: Add simple tests for the load functions

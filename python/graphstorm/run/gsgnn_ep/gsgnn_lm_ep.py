@@ -25,7 +25,7 @@ from graphstorm.trainer import GSgnnEdgePredictionTrainer
 from graphstorm.dataloading import GSgnnEdgeTrainData, GSgnnEdgeDataLoader
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
-from graphstorm.model.utils import save_embeddings
+from graphstorm.model.utils import save_full_node_embeddings
 from graphstorm.model import do_full_graph_inference
 from graphstorm.utils import rt_profiler, sys_tracker, setup_device
 
@@ -132,10 +132,12 @@ def main(config_args):
         model.prepare_input_encoder(train_data)
         embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
                                              task_tracker=tracker)
-        save_embeddings(config.save_embed_path, embeddings, gs.get_rank(),
-                        gs.get_world_size(),
-                        device=device,
-                        node_id_mapping_file=config.node_id_mapping_file)
+        save_full_node_embeddings(
+            train_data.g,
+            config.save_embed_path,
+            embeddings,
+            node_id_mapping_file=config.node_id_mapping_file,
+            save_embed_format=config.save_embed_format)
 
 def generate_parser():
     """ Generate an argument parser
@@ -146,5 +148,6 @@ def generate_parser():
 if __name__ == '__main__':
     arg_parser=generate_parser()
 
-    args = arg_parser.parse_args()
-    main(args)
+    # Ignore unknown args to make script more robust to input arguments
+    gs_args, _ = arg_parser.parse_known_args()
+    main(gs_args)

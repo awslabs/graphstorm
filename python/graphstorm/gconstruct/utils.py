@@ -22,6 +22,8 @@ import gc
 import logging
 import copy
 import traceback
+import shutil
+import uuid
 
 import numpy as np
 import dgl
@@ -34,6 +36,47 @@ from ..utils import sys_tracker
 SHARED_MEM_OBJECT_THRESHOLD = 1.9 * 1024 * 1024 * 1024 # must < 2GB
 SHARED_MEMORY_CROSS_PROCESS_STORAGE = "shared_memory"
 PICKLE_CROSS_PROCESS_STORAGE = "pickle"
+EXT_MEMORY_STORAGE = "ext_memory"
+
+def _is_numeric(arr):
+    """ Check if the input array has the numeric data type.
+    """
+    return np.issubdtype(arr.dtype, np.number) or arr.dtype == bool
+
+def _to_ext_memory(name, data, path):
+    if isinstance(data, np.ndarray):
+        assert name is not None
+        path = os.path.join(path, f"{name}.npy")
+        # We only save a data array with numeric or boolean values to the disk.
+        # This avoids the problem of saving an array of objects to disks.
+        # Note: There is a bug in Numpy when saving an array of objects to disks.
+        if len(data) > 0 and _is_numeric(data):
+            logging.debug("save data %s in %s.", name, path)
+            data = convert_to_ext_mem_numpy(path, data)
+            # We need to pass the array to another process. We don't want it
+            # to reference to data in the file.
+            data.cleanup()
+        return data
+    elif isinstance(data, dict):
+        new_data = {}
+        for key, val in data.items():
+            new_data[key] = _to_ext_memory(key, val,
+                    os.path.join(path, name) if name is not None else path)
+        return new_data
+    elif isinstance(data, list):
+        new_data = []
+        for i, val in enumerate(data):
+            new_data.append(_to_ext_memory(f"item-{i}", val,
+                os.path.join(path, name) if name is not None else path))
+        return new_data
+    elif isinstance(data, tuple):
+        new_data = []
+        for i, val in enumerate(list(data)):
+            new_data.append(_to_ext_memory(f"item-{i}", val,
+                os.path.join(path, name) if name is not None else path))
+        return tuple(new_data)
+    else:
+        return data
 
 def _to_shared_memory(data):
     """ Move all tensor objects into torch shared memory
@@ -141,7 +184,13 @@ def _estimate_sizeof(data):
 
     return data_size
 
-def worker_fn(worker_id, task_queue, res_queue, user_parser):
+def generate_hash():
+    """ Generate unique hashcode
+    """
+    random_uuid = uuid.uuid4()
+    return str(random_uuid)
+
+def worker_fn(worker_id, task_queue, res_queue, user_parser, ext_mem_workspace):
     """ The worker function in the worker pool
 
     Parameters
@@ -155,6 +204,8 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser):
         communication between the worker processes and the master process.
     user_parser : callable
         The user-defined function to read and process the data files.
+    ext_mem_workspace : str
+        The path of the external-memory work space.
     """
     # We need to set a GPU device for each worker process in case that
     # some transformations (e.g., computing BERT embeddings) require GPU computation.
@@ -172,8 +223,10 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser):
             logging.debug("%d Processing %s", worker_id, in_file)
             data = user_parser(in_file)
             size = _estimate_sizeof(data)
+            if ext_mem_workspace is not None:
+                data = (EXT_MEMORY_STORAGE, _to_ext_memory(f"file-{i}", data, ext_mem_workspace))
             # Max pickle obj size is 2 GByte
-            if size > SHARED_MEM_OBJECT_THRESHOLD:
+            elif size > SHARED_MEM_OBJECT_THRESHOLD:
                 # Use torch shared memory as a workaround
                 # This will consume shared memory and cause an additional
                 # data copy, i.e., general memory to torch shared memory.
@@ -210,7 +263,7 @@ def update_two_phase_feat_ops(phase_one_info, ops):
         if op.feat_name in feat_info:
             op.update_info(feat_info[op.feat_name])
 
-def multiprocessing_data_read(in_files, num_processes, user_parser):
+def multiprocessing_data_read(in_files, num_processes, user_parser, ext_mem_workspace=None):
     """ Read data from multiple files with multiprocessing.
 
     It creates a set of worker processes, each of which runs a worker function.
@@ -230,6 +283,8 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
         The number of processes that run in parallel.
     user_parser : callable
         The user-defined function to read and process the data files.
+    ext_mem_workspace : str
+        The path of the external-memory work space.
 
     Returns
     -------
@@ -244,7 +299,8 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
         for i, in_file in enumerate(in_files):
             task_queue.put((i, in_file))
         for i in range(num_processes):
-            proc = Process(target=worker_fn, args=(i, task_queue, res_queue, user_parser))
+            proc = Process(target=worker_fn, args=(i, task_queue, res_queue, user_parser,
+                                                   ext_mem_workspace))
             proc.start()
             processes.append(proc)
 
@@ -274,7 +330,69 @@ def multiprocessing_data_read(in_files, num_processes, user_parser):
         return_dict = {}
         for i, in_file in enumerate(in_files):
             return_dict[i] = user_parser(in_file)
+            if ext_mem_workspace is not None:
+                return_dict[i] = _to_ext_memory(f"file-{i}", return_dict[i], ext_mem_workspace)
         return return_dict
+
+def worker_fn_no_return(worker_id, task_queue, func):
+    """ Process tasks in the task_queue with multiprocessing
+        without returning any value.
+
+        Parameters
+        ----------
+        worker_id: int
+            Worker id.
+        task_queue: Queue
+            Task queue.
+        func: function
+            Function to be executed.
+    """
+    try:
+        while True:
+            # If the queue is empty, it will raise the Empty exception.
+            idx, task_args = task_queue.get_nowait()
+            logging.debug("worker %d Processing %s task", worker_id, idx)
+            func(**task_args)
+    except queue.Empty:
+        pass
+
+def multiprocessing_exec_no_return(tasks, num_proc, exec_func):
+    """ Do multi-processing execution without
+        returning any value.
+
+        Each worker process will call exec_func
+        independently.
+
+        Parameters
+        ----------
+        task: list
+            List of remap tasks.
+        num_proc: int
+            Number of workers to spin up.
+        exec_func: func
+            function to execute.
+    """
+    if num_proc > 1 and len(tasks) > 1:
+        if num_proc > len(tasks):
+            num_proc = len(tasks)
+        processes = []
+        manager = multiprocessing.Manager()
+        task_queue = manager.Queue()
+        for i, task in enumerate(tasks):
+            task_queue.put((i, task))
+
+        for i in range(num_proc):
+            proc = Process(target=worker_fn_no_return, args=(i, task_queue, exec_func))
+            proc.start()
+            processes.append(proc)
+
+        for proc in processes:
+            proc.join()
+    else:
+        for i, task_args in enumerate(tasks):
+            logging.debug("worker 0 Processing %s task", i)
+            exec_func(**task_args)
+
 
 def _get_tot_shape(arrs):
     """ Get the shape after merging the arrays.
@@ -511,7 +629,8 @@ class ExtNumpyWrapper(ExtMemArrayWrapper):
     def cleanup(self):
         """ Clean up the array.
         """
-        self._arr.flush()
+        if self._arr is not None:
+            self._arr.flush()
         self._arr = None
 
     def to_numpy(self):
@@ -529,6 +648,105 @@ class ExtNumpyWrapper(ExtMemArrayWrapper):
         """ Return Pytorch tensor.
         """
         return th.tensor(self.to_numpy())
+
+class ExtFeatureWrapper(ExtNumpyWrapper):
+    """ The wrapper to memory-mapped Numpy array when combining features
+
+    Parameters
+    ----------
+    arr_path : str
+        A path to the directory of different feature files.
+    shape : tuple
+        The shape of the array.
+    dtype : numpy dtype
+        The data type.
+    merged_file: str
+        The merged file name
+    """
+    def __init__(self, arr_path, shape=None, dtype=None, merged_file="merged_feature.npy"):
+        super().__init__(arr_path, shape, dtype)
+        self._directory_path = arr_path
+        self._merged_file = merged_file
+        self._wrapper = []
+        self._arr_path = os.path.join(self._directory_path, self._merged_file)
+
+    def __getitem__(self, idx):
+        if not self._shape:
+            raise RuntimeError("Call ExtFeatureWrapper.merge() first before calling __getitem__")
+        if self._arr is None:
+            self._arr = np.memmap(self._arr_path, self._dtype, mode="r",
+                                  shape=self._shape)
+        return self._arr[idx].astype(self.dtype)
+
+    def __del__(self):
+        self.cleanup()
+
+    def cleanup(self):
+        """ Clean up the array.
+        """
+        # Expected file structure:
+        # merged_file file_feature1 file_feature2
+        # rmtree will clean up all single feature files as ExtNumpyWrapper does not clean them up
+        if self._arr is not None:
+            self._arr.flush()
+        self._arr = None
+        shutil.rmtree(self._directory_path)
+
+    def to_numpy(self):
+        """ Convert the data to Numpy array.
+        """
+        if not self._shape:
+            raise RuntimeError("Call ExtFeatureWrapper.merge() first before calling to_numpy()")
+        if self._arr is None:
+            arr = np.memmap(self._arr_path, self._orig_dtype, mode="r", shape=self._shape)
+            if self._dtype != self._orig_dtype:
+                arr = arr.astype(self._dtype)
+            return arr
+        else:
+            return self._arr.astype(self._dtype)
+
+    def append(self, feature):
+        """Add an external memory wrapper or numpy array,
+        it will convert the numpy array to a memory wrapper
+        Parameters
+        ----------
+        feature : numpy.ndarray or ExtMemArrayWrapper
+            The value needs to be packed.
+        """
+        if not self._shape:
+            self._shape = (feature.shape[0], 0)
+        if self._shape and self._shape[0] != feature.shape[0]:
+            raise RuntimeError(f"Expect that ExtFeatureWrapper has a "
+                               f"first dimension that is the same but get "
+                               f"{self.shape[0]} and {feature.shape[0]}")
+        # Convert the numpy array into an ExtNumpyWrapper
+        # By converting it into an ExtNumpyWrapper, it will avoid loading
+        # all the numpy arrays into the memory at the same time.
+        if isinstance(feature, np.ndarray):
+            hash_hex = generate_hash()
+            path = self._directory_path + '/{}.npy'.format(hash_hex)
+            feature = convert_to_ext_mem_numpy(path, feature)
+        self._wrapper.append(feature)
+
+    def merge(self):
+        """ Merge feature col-wised.
+        """
+        assert self._wrapper, "Cannot merge an empty list, " \
+                             "need to append external memory wrapper first"
+        feat_dim = sum(wrap.shape[1] for wrap in self._wrapper)
+        self._shape = (self._shape[0], feat_dim)
+        self._orig_dtype = self._dtype = self._wrapper[0].dtype
+
+        out_arr = np.memmap(self._arr_path, self._orig_dtype,
+                            mode="w+", shape=self._shape)
+        col_start = 0
+        for wrap in self._wrapper:
+            col_end = col_start + wrap.shape[1]
+            # load the numpy array from the disk one by one
+            out_arr[:, col_start:col_end] = wrap.to_numpy()
+            col_start = col_end
+        out_arr.flush()
+        return self
 
 def _merge_arrs(arrs, tensor_path):
     """ Merge the arrays.
@@ -619,13 +837,27 @@ class ExtMemArrayMerger:
         if len(arrs) > 1:
             return _merge_arrs(arrs, tensor_path)
         else:
-            # To get the output dtype or arrs
-            dtype = _get_arrs_out_dtype(arrs)
-            arr = arrs[0]
-            em_arr = np.memmap(tensor_path, dtype, mode="w+", shape=shape)
-            em_arr[:] = arr[:]
-            em_arr.flush()
-            return ExtNumpyWrapper(tensor_path, em_arr.shape, em_arr.dtype)
+            return convert_to_ext_mem_numpy(tensor_path, arrs[0])
+
+def convert_to_ext_mem_numpy(tensor_path, arr):
+    """ Convert a numpy array to memory mapped array.
+
+    Parameters
+    ----------
+    tensor_path : str
+        The path of the file to store the Numpy array.
+    arr : Numpy array
+        The Numpy array
+
+    Returns
+    -------
+    ExtNumpyWrapper : the wrapper of the memory mapped array.
+    """
+    os.makedirs(os.path.dirname(tensor_path), exist_ok=True)
+    em_arr = np.memmap(tensor_path, arr.dtype, mode="w+", shape=arr.shape)
+    em_arr[:] = arr[:]
+    em_arr.flush()
+    return ExtNumpyWrapper(tensor_path, em_arr.shape, em_arr.dtype)
 
 def save_maps(output_dir, fname, map_data):
     """ Save node id mapping or edge id mapping

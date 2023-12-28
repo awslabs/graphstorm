@@ -28,6 +28,7 @@ from pyspark.sql.types import (
     StructField,
     StringType,
     IntegerType,
+    LongType,
     ArrayType,
     ByteType,
 )
@@ -41,7 +42,7 @@ from graphstorm_processing.constants import (
     SPECIAL_CHARACTERS,
 )
 from ..config.config_parser import EdgeConfig, NodeConfig, StructureConfig
-from ..config.label_config_base import LabelConfig, EdgeLabelConfig
+from ..config.label_config_base import LabelConfig
 from ..config.feature_config_base import FeatureConfig
 from ..data_transformations.dist_feature_transformer import DistFeatureTransformer
 from ..data_transformations.dist_label_loader import DistLabelLoader, SplitRates
@@ -122,6 +123,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             if num_output_files and num_output_files > 0
             else int(spark.sparkContext.defaultParallelism)
         )
+        assert self.num_output_files > 0
         # Mapping from node type to filepath, each file is a node-str to node-int-id mapping
         self.node_mapping_paths = {}  # type: Dict[str, Sequence[str]]
         # Mapping from label name to value counts
@@ -134,6 +136,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         self.column_substitutions = {}  # type: Dict[str, str]
         self.graph_info = {}  # type: Dict[str, Any]
         self.graph_name = graph_name
+        self.skip_train_masks = False
 
     def process_and_write_graph_data(
         self, data_configs: Mapping[str, Sequence[StructureConfig]]
@@ -158,7 +161,11 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         process_start_time = perf_counter()
 
         if not self._at_least_one_label_exists(data_configs):
-            self._insert_link_prediction_labels(data_configs["edges"])
+            logging.warning(
+                "No labels exist in the dataset, will not produce any masks, "
+                "and set task to 'link_prediction'."
+            )
+            self.skip_train_masks = True
 
         metadata_dict = self._initialize_metadata_dict(data_configs)
 
@@ -258,25 +265,6 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
         return False
 
-    @staticmethod
-    def _insert_link_prediction_labels(edge_configs: Sequence[StructureConfig]) -> None:
-        """
-        Inserts a link prediction label entry into the `edges` top-level keys.
-        Modifies the data_configs object in-place.
-
-        Parameters
-        ----------
-        edge_configs
-            A sequence of edge structure configurations
-        """
-        for edge_config in edge_configs:
-            config_dict = {
-                "column": "",
-                "type": "link_prediction",
-                "split_rate": {"train": 0.9, "val": 0.1, "test": 0.0},
-            }
-            edge_config.set_labels([EdgeLabelConfig(config_dict)])
-
     def _initialize_metadata_dict(
         self, data_configs: Mapping[str, Sequence[StructureConfig]]
     ) -> Dict:
@@ -323,6 +311,8 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         return metadata_dict
 
     def _finalize_graphinfo_dict(self, metadata_dict: Dict) -> Dict:
+        if self.skip_train_masks:
+            self.graph_info["task_type"] = "link_prediction"
         self.graph_info["graph_type"] = "heterogeneous"
 
         self.graph_info["num_nodes"] = sum(metadata_dict["num_nodes_per_type"])
@@ -703,7 +693,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             map_schema = StructType(
                 [
                     StructField(join_col, StringType(), True),
-                    StructField(index_col, IntegerType(), True),
+                    StructField(index_col, LongType(), True),
                 ]
             )
 
@@ -742,7 +732,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         node_rdd_with_ids = node_df.rdd.zipWithIndex()
 
         node_id_col = f"{node_col}-int_id"
-        new_schema = original_schema.add(StructField(node_id_col, IntegerType(), False))
+        new_schema = original_schema.add(StructField(node_id_col, LongType(), False))
 
         node_rdd_with_ids = node_rdd_with_ids.map(
             lambda rdd_row: (list(rdd_row[0]) + [rdd_row[1]])  # type: ignore
@@ -1064,6 +1054,11 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             The first list contains the original edge files, the second is the reversed
             edge files, will be empty if `self.add_reverse_edges` is False.
         """
+        # TODO: An option for dealing with skewed data:
+        # Find the heavy hitter, collect, do broadcast join with just them,
+        # (for both sides of the edge and filter the rows?) then do the join with
+        # the rest, then concat the two (or write to storage separately, concat at read-time)
+
         src_col = edge_config.src_col
         src_ntype = edge_config.src_ntype
         dst_col = edge_config.dst_col
@@ -1084,8 +1079,10 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             )
             .withColumnRenamed(NODE_MAPPING_INT, "src_int_id")
             .withColumnRenamed(NODE_MAPPING_STR, "src_str_id")
+            .repartition(self.num_output_files, F.col("src_str_id"))
         )
         # Join incoming edge df with mapping df to transform source str-ids to int ids
+        edge_df = edge_df.repartition(self.num_output_files, F.col(src_col))
         edge_df_with_int_src = src_node_id_mapping.join(
             edge_df,
             src_node_id_mapping["src_str_id"] == edge_df[src_col],
@@ -1115,9 +1112,13 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             )
             .withColumnRenamed(NODE_MAPPING_INT, "dst_int_id")
             .withColumnRenamed(NODE_MAPPING_STR, "dst_str_id")
+            .repartition(self.num_output_files, F.col("dst_str_id"))
         )
         # Join the newly created src-int-id edge df with mapping
         # df to transform destination str-ids to int ids
+        edge_df_with_int_src = edge_df_with_int_src.repartition(
+            self.num_output_files, F.col(dst_col)
+        )
         edge_df_with_int_ids = dst_node_id_mapping.join(
             edge_df_with_int_src,
             dst_node_id_mapping["dst_str_id"] == edge_df_with_int_src[dst_col],
@@ -1129,7 +1130,9 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         # TODO: We need to repartition to ensure same file count for
         # all downstream DataFrames, but it causes a full shuffle.
         # Can it be avoided?
-        edge_df_with_int_ids = edge_df_with_int_ids.repartition(self.num_output_files)
+        edge_df_with_int_ids = edge_df_with_int_ids.drop(src_col, dst_col).repartition(
+            self.num_output_files
+        )
         edge_df_with_int_ids_and_all_features = edge_df_with_int_ids
         edge_df_with_only_int_ids = edge_df_with_int_ids.select(["src_int_id", "dst_int_id"])
 
@@ -1434,7 +1437,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
                 self._update_label_properties(edge_type, edges_df, label_conf)
             else:
-                self.graph_info["task_type"] = "link_predict"
+                self.graph_info["task_type"] = "link_prediction"
                 logging.info(
                     "Skipping processing label for '%s' because task is link prediction",
                     rel_type_prefix,
@@ -1606,15 +1609,15 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             )
             return out_path_list
 
-        train_mask_df = int_group_df.withColumn("train_mask", F.col(group_col_name)[0])
+        train_mask_df = int_group_df.select(F.col(group_col_name)[0].alias("train_mask"))
         out_path_list = write_mask("train", train_mask_df)
         split_metadata["train_mask"] = create_metadata_entry(out_path_list)
 
-        val_mask_df = int_group_df.withColumn("val_mask", F.col(group_col_name)[1])
+        val_mask_df = int_group_df.select(F.col(group_col_name)[1].alias("val_mask"))
         out_path_list = write_mask("val", val_mask_df)
         split_metadata["val_mask"] = create_metadata_entry(out_path_list)
 
-        test_mask_df = int_group_df.withColumn("test_mask", F.col(group_col_name)[2])
+        test_mask_df = int_group_df.select(F.col(group_col_name)[2].alias("test_mask"))
         out_path_list = write_mask("test", test_mask_df)
         split_metadata["test_mask"] = create_metadata_entry(out_path_list)
 

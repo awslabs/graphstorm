@@ -5,12 +5,26 @@ from typing import Any, Dict
 from ast import literal_eval
 import argparse
 
+# Note: Keep SUPPORTED_TASKS and SUPPORTED_INFER_TASKS
+# synced with graphstorm.config SUPPORTED_TASKS.
+# We do not import graphstorm.config.SUPPORTED_TASKS here
+# as we do not want the launch script to rely on graphstorm
+# package.
 SUPPORTED_TASKS = {
     "node_classification",
     "node_regression",
     "edge_classification",
     "edge_regression",
     "link_prediction"
+}
+
+SUPPORTED_INFER_TASKS = {
+    "node_classification",
+    "node_regression",
+    "edge_classification",
+    "edge_regression",
+    "link_prediction",
+    "comput_emb"
 }
 
 def get_common_parser() -> argparse.ArgumentParser:

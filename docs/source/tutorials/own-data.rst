@@ -1,8 +1,8 @@
 .. _use-own-data:
 
-Use Your Own Data Tutorial
-============================
-It is easy for users to prepare their own graph data and leverage GraphStorm's built-in GNN models, e.g., RGCN and RGAT, to perform GML tasks.  It takes three steps to use your own graph data in GraphStorm:
+Use Your Own Data
+==================
+It is easy for users to prepare their own graph data and leverage GraphStorm's built-in GNN models, e.g., RGCN, RGAT and HGT, to perform GML tasks. It takes three steps to use your own graph data in GraphStorm:
 
 * Step 1: Prepare your own graph data in the required format.
 * Step 2: Modify the GraphStorm configuration YAML file.
@@ -12,30 +12,30 @@ It is easy for users to prepare their own graph data and leverage GraphStorm's b
 
     - All commands below are designed to run in a GraphStorm Docker container. Please refer to the :ref:`GraphStorm Docker environment setup<setup>` to prepare the Docker container environment.
 
-    - If you set up the :ref:`GraphStorm environment with pip Packages<setup_pip>`, please replace all occurrences of "2222" in the argument ``--ssh-port`` with **22**, and clone GraphStorm toolkits.
-
-    - If use this method to setup GraphStorm environment, you may need to replace the ``python3`` command with ``python``, depending on your Python versions.
+    - If you set up the :ref:`GraphStorm environment with pip Packages<setup_pip>`, please replace all occurrences of "2222" in the argument ``--ssh-port`` with **22**, and clone GraphStorm toolkits. If use this method to setup GraphStorm environment, you may need to replace the ``python3`` command with ``python``, depending on your Python versions.
 
 Step 1: Prepare Your Own Graph Data
 -------------------------------------
 There are two options to prepare your own graph data for using GraphStorm:
 
-- Prepare your graph in the required raw data format, and use GraphStorm's construction tools to automatically generate the input files. **This is the preferred method**.
-- Prepare your data as a DGL heterogeneous graph following the required format, and then use GraphStorm's partition tools to generate the input files. This option is for experienced DGL users.
+- Option 1: prepare your graph in the raw table data format that GraphStorm' construction tools required, and use these construction tools to automatically generate the input files. **This is the preferred method**, as GraphStorm provides :ref:`distributed data processing and construciton tools<gs-processing>` to handle extreme large graph data.
+- Option 2: prepare your data as a DGL heterogeneous graph following the specific format described below, and then use GraphStorm's partition tools to generate the input files. This option is for experienced DGL users and relatively small graph data.
 
 .. _option-1:
 
 Option 1: Required raw data format
 .......................................
-GraphStorm provides a graph construction tool to generate input files for using the training/inference commands. The detailed information about the raw data format can be found in the :ref:`Graph Construction Configurations<configurations-gconstruction>`.
+GraphStorm provides a set of graph construction tools to generate input files for using the training/inference commands. To use these tools, users would need to prepare their graph data into the raw data format required.
 
-In general, the graph construction tool needs three sets of files as inputs.
+In general, the graph construction tool needs three sets of files as inputs. The detailed information about the raw data format can be found in the :ref:`Graph Construction Configurations<configurations-gconstruction>`.
 
-* A configuration JSON file, which describes the graph structure, i.e. nodes and edges, the tasks to perform, the node features, and data file paths.
-* A set of raw node data files. Each type of nodes must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.
-* A set of raw edge data files. Each type of edges must have one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.
+* A configuration JSON file (**required**). It describes the graph structure, i.e. nodes and edges information, the tasks to perform, the node features, label information, and raw data file paths.
+* A set of raw node data files (**optional**). Each type of nodes must have at least one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.
+* A set of raw edge data files (**required**). Each type of edges must have at least  one file associated. If the file is too big, users can split this one file into multiple files that have the same columns and different rows.
 
-This tutorial uses the `ACM publication graph <https://data.dgl.ai/dataset/ACM.mat>`_ as a demonstration to show how to prepare your own graph data, and what these files and their contents are like.
+This tutorial uses the `ACM publication graph <https://data.dgl.ai/dataset/ACM.mat>`_ as a demonstration to show how to prepare users' own graph data, and what these files and their contents are like.
+
+.. note:: The following commands assume users have installed GraphStorm and cloned the GraphStorm source code in the ``/graphstorm/`` folder.
 
 First go the ``/graphstorm/examples/`` folder.
 
@@ -49,7 +49,7 @@ Then run the command to create the ACM data with the required raw format.
 
     python3 /graphstorm/examples/acm_data.py --output-path /tmp/acm_raw
 
-Once succeeded, the command will create a set of folders and files under the ``/tmp/acm_raw/`` folder, as shown below:
+Once succeeded, the command will create the three sets of files under the ``/tmp/acm_raw/`` folder, as shown below. The next sections will explain each of them in details.
 
 .. _acm-raw-data-output:
 
@@ -73,29 +73,16 @@ Once succeeded, the command will create a set of folders and files under the ``/
 
 The input configuration JSON
 ```````````````````````````````
-GraphStorm's graph construction tool relies on the configuration JSON to provide graph information. Explanations of the format of the configuration JSON contents could be found in the :ref:`GraphStorm Graph Configuration JSON <gconstruction-json>`. Below show the contents of the examplary ACM `config.json` file.
+The above command automatically creates the examplary ACM `config.json` file, some of which are listed below.
 
-.. code-block:: json
+.. code-block:: yaml
 
     {
         "version": "gconstruct-v0.1",
         "nodes": [
-            {
-                "node_type": "author",
-                "format": {
-                    "name": "parquet"
-                },
-                "files": [
-                    "/tmp/acm_raw/nodes/author.parquet"
-                ],
-                "node_id_col": "node_id",
-                "features": [
-                    {
-                        "feature_col": "feat",
-                        "feature_name": "feat"
-                    }
-                ]
-            },
+
+            ......
+
             {
                 "node_type": "paper",
                 "format": {
@@ -123,54 +110,14 @@ GraphStorm's graph construction tool relies on the configuration JSON to provide
                     }
                 ]
             },
-            {
-                "node_type": "subject",
-                "format": {
-                    "name": "parquet"
-                },
-                "files": [
-                    "/tmp/acm_raw/nodes/subject.parquet"
-                ],
-                "node_id_col": "node_id",
-                "features": [
-                    {
-                        "feature_col": "feat",
-                        "feature_name": "feat"
-                    }
-                ]
-            }
+
+            ......
+
         ],
         "edges": [
-            {
-                "relation": [
-                    "author",
-                    "writing",
-                    "paper"
-                ],
-                "format": {
-                    "name": "parquet"
-                },
-                "files": [
-                    "/tmp/acm_raw/edges/author_writing_paper.parquet"
-                ],
-                "source_id_col": "source_id",
-                "dest_id_col": "dest_id"
-            },
-            {
-                "relation": [
-                    "paper",
-                    "cited",
-                    "paper"
-                ],
-                "format": {
-                    "name": "parquet"
-                },
-                "files": [
-                    "/tmp/acm_raw/edges/paper_cited_paper.parquet"
-                ],
-                "source_id_col": "source_id",
-                "dest_id_col": "dest_id"
-            },
+
+            ......
+
             {
                 "relation": [
                     "paper",
@@ -184,53 +131,21 @@ GraphStorm's graph construction tool relies on the configuration JSON to provide
                     "/tmp/acm_raw/edges/paper_citing_paper.parquet"
                 ],
                 "source_id_col": "source_id",
-                "dest_id_col": "dest_id"
+                "dest_id_col": "dest_id",
+                "labels": [
+                    {
+                        "task_type": "link_prediction",
+                        "split_pct": [
+                            0.8,
+                            0.1,
+                            0.1
+                        ]
+                    }
+                ]
             },
-            {
-                "relation": [
-                    "paper",
-                    "is-about",
-                    "subject"
-                ],
-                "format": {
-                    "name": "parquet"
-                },
-                "files": [
-                    "/tmp/acm_raw/edges/paper_is-about_subject.parquet"
-                ],
-                "source_id_col": "source_id",
-                "dest_id_col": "dest_id"
-            },
-            {
-                "relation": [
-                    "paper",
-                    "written-by",
-                    "author"
-                ],
-                "format": {
-                    "name": "parquet"
-                },
-                "files": [
-                    "/tmp/acm_raw/edges/paper_written-by_author.parquet"
-                ],
-                "source_id_col": "source_id",
-                "dest_id_col": "dest_id"
-            },
-            {
-                "relation": [
-                    "subject",
-                    "has",
-                    "paper"
-                ],
-                "format": {
-                    "name": "parquet"
-                },
-                "files": [
-                    "/tmp/acm_raw/edges/subject_has_paper.parquet"
-                ],
-                "source_id_col": "source_id",
-                "dest_id_col": "dest_id"
-            }
+
+        ......
+
         ]
     }
 
@@ -238,6 +153,8 @@ Based on the original ACM dataset, this example builds a simple heterogenous gra
 
 .. figure:: ../../../tutorial/ACM_schema.png
     :align: center
+
+The examplary ACM graph also predifines two sets of labels. One set of labels are associated to the ``paper`` type nodes for a node classification demonstration, and another set is associated to the ``paper,citing,paper`` type edges for a link prediction demonstration. The above JSON contents specify how to split these labels, i.e., asking GraphStorm graph construction tools to randomly split labels into three groups, and 80% for training, 10% for validation, and the rest 10% for testing.
 
 Customized label split
 `````````````````````````
@@ -259,7 +176,7 @@ Instead of using the ``split_pct``, users can specify the ``custom_split_filenam
 
 These JSON files only need to list the IDs on its own set. For example, in a node classification task, there are 100 nodes and node ID starts from 0, and assume the last 50 nodes (ID from 49 to 99) have labels associated. For some business logic, users want to have the first 10 of the 50 labeled nodes as training set, the last 30 as the test set, and the middle 10 as the validation set. Then the `train_idx.json` file should contain the integer from 50 to 59, and one integer per line. Similarly, the `val_idx.json` file should contain the integer from 60 to 69, and the `test_idx.json` file should contain the integer from 70 to 99. Contents of the `train_idx.json` file are like the followings.
 
-.. code-block:: json
+.. code-block:: yaml
 
     50
     51
@@ -276,15 +193,17 @@ The raw node and edge data files are both in a parquet format, whose contents ar
 .. figure:: ../../../tutorial/ACM_raw_parquet.png
     :align: center
 
-In this example, only the ``paper`` nodes have labels and the task is node classification. So, in the JSON file, the ``paper`` node has the ``labels`` field, and the ``task_type`` is specified as ``classification``. Correspondingly, in the paper node parquet file, there is a column, ``label``, stores the label values. All edge types do not have features associated. Therefore, we only have two columns in these parquet files for edges, the ``source_id`` and the ``dest_id``.
+In this example, only the ``paper`` nodes have labels and the task is node classification. So, in the JSON file, the ``paper`` node has the ``labels`` field, and the ``task_type`` is specified as ``classification``. Correspondingly, in the paper node parquet file, there is a column, ``label``, stores the label values. All edge types do not have features associated. Therefore, we only have two columns in these parquet files for edges, the ``source_id`` and the ``dest_id``. For the link prediction task, there is no actual labels. Users just need to specify the ``labels`` field in one or more ``edge`` objects of the JSON config file.
 
-The configuration JSON file along with these node and edge parquet files are the required inputs of the GraphStorm's construction tool. Then we can use the tool to create the partition graph data with the following command.
+Run graph construction
+```````````````````````
+The configuration JSON file along with these node and edge parquet files are the required inputs of the GraphStorm's construction tools. Then we can use the tool to create the partition graph data with the following command.
 
 .. code-block:: bash
 
     python3 -m graphstorm.gconstruct.construct_graph \
                --conf-file /tmp/acm_raw/config.json \
-               --output-dir /tmp/acm_nc \
+               --output-dir /tmp/acm_gs \
                --num-parts 1 \
                --graph-name acm
 
@@ -292,14 +211,16 @@ The configuration JSON file along with these node and edge parquet files are the
 
 Outputs of graph construction
 ```````````````````````````````
-The above command reads in the JSON file, and matchs its contents with the node and edge parquet files. It will then read all parquet files, construct the graph, check file correctness, pre-process features, and eventually split the graph into partitions. Outputs of the command will be saved under the ``/tmp/acm_nc/`` folder as followings:
+The above command reads in the JSON file, and matchs its contents with the node and edge parquet files. It will then read all parquet files, construct the graph, check file correctness, pre-process features, and eventually split the graph into partitions. Outputs of the command will be saved under the ``/tmp/acm_gs/`` folder as followings:
 
 .. code-block:: bash
 
-    /tmp/acm_nc
+    /tmp/acm_gs
     acm.json
-    node_mapping.pt
+    edge_label_stats.json
     edge_mapping.pt
+    node_label_stats.json
+    node_mapping.pt
     |- part0
         edge_feat.dgl
         graph.dgl
@@ -309,8 +230,8 @@ Because the above command specifies the ``--num-parts`` to be ``1``, there is on
 
 .. note::
 
-    - Because the parquet format has some limitations, such as only supporting 2 billion elements in a column, etc, we suggest users to use HDF5 format for very large dataset.
-    - The two mapping files, ``node_mapping.pt`` and ``edge_mapping.pt``, are used to record the mapping between the ogriginal node and edge ids in the raw data files and the ids of nodes and edges in the constructed graph. They are important for mapping the training and inference outputs. Therefore, DO NOT move or delete them.
+    - Because the parquet format has some limitations, such as only supporting 2 billion elements in a column, etc, we suggest users to use HDF5 format for very large datasets.
+    - The two mapping files, ``node_mapping.pt`` and ``edge_mapping.pt``, are used to record the mapping between the ogriginal node and edge ids in the raw data files and the ids of nodes and edges in the Graph Node ID space. They are important for mapping the training and inference outputs back to the Raw Node ID space in the original input data. Therefore, **DO NOT** move or delete them.
 
 .. _option-2:
 
@@ -355,23 +276,34 @@ The below image show how the built DGL ACM data looks like.
 .. figure:: ../../../tutorial/ACM_LabelAndMask.png
     :align: center
 
-Partition the DGL ACM graph for node classification
-```````````````````````````````````````````````````````
+Partition the DGL ACM graph
+```````````````````````````
 GraphStorm provides two graph partition tools, the `partition_graph.py <https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph.py>`_ for node/edge prediction graph partition, and the `partition_graph_lp.py <https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph_lp.py>`_ for the link prediction graph partition.
 
-The below command partition the DGL ACM graph, the ``acm.dgl`` in the ``/tmp/acm_dgl`` folder, into one partition, and save the partitioned data to ``/tmp/acm_nc/`` folder.
+The below command partition the DGL ACM graph, the ``acm.dgl`` in the ``/tmp/acm_dgl`` folder, into one partition, and save the partitioned data to ``/tmp/acm_nc/`` folder for node classification task.
 
 .. code-block:: bash
 
     python3 /graphstorm/tools/partition_graph.py \
-            --dataset acm\
+            --dataset acm \
             --filepath /tmp/acm_dgl \
             --num-parts 1 \
             --target-ntype paper \
             --nlabel-field paper:label \
             --output /tmp/acm_nc
 
-Outputs of the command are under the ``/tmp/acm_nc/`` folder with the same contents as the :ref:`Option 1 <option-1>`.
+Outputs of the command are under the ``/tmp/acm_nc/`` folder with the similar contents as the :ref:`Option 1 <option-1>`.
+
+In terms of link prediction task, run the following command to partition the data and save to the ``/tmp/acm_lp/`` folder.
+
+.. code-block:: bash
+
+    python3 /graphstorm/tools/partition_graph_lp.py \
+            --dataset acm \
+            --filepath /tmp/acm_dgl \
+            --num-parts 1 \
+            --target-etype paper,citing,paper \
+            --output /tmp/acm_lp
 
 Please refer to :ref:`Graph Partition Configurations <configurations-partition>` to find more details of the arguments of the two partition tools.
 
@@ -399,12 +331,13 @@ For `Link Prediction` tasks:
 - **train_etype**: please specify values of this field for the edge type that you want to do link prediction for the downstream task, e.g. recommendation or search. Although if not specified, i.e. put ``None`` as the value, all edge types will be used for training, this might not commonly used in practice for most `Link Prediction` related tasks.
 - **eval_etype**: it is highly recommended that you set this value to be the same as the value of ``train_etype``, so that the evaluation metric can truly demonstrate the performance of models.
 
-Besides these parameters, it is also important for you to use the correct format to configure node/edge types in the YAML files. For example, in an edge-related task, you should provide a canonical edge type, e.g. **user,write,paper** (no white spaces in this string), for edge types, rather than the edge name only, e.g. the **write**.
+Besides these parameters, it is also important for you to use the correct format to configure node/edge types in the YAML files. For example, in an edge-related task, you should provide a canonical edge type, e.g. **author,write,paper** (no white spaces in this string), for edge types, rather than the edge name only, e.g. the **write** only.
 
 For more detailed information of these parameters, please refer to the :ref:`GraphStorm Training and Inference Configurations <configurations-run>` page.
 
-An example ACM  YAML file for node classification
-..................................................
+Example ACM  YAML files
+.......................
+
 Below is an example YAML configuration file for the ACM data, which sets to use GraphStorm's built-in RGCN model for node classification on the ``paper`` nodes. The YAML file can also be found at the `/graphstorm/examples/use_your_own_data/acm_nc.yaml <https://github.com/awslabs/graphstorm/blob/main/examples/use_your_own_data/acm_nc.yaml>`_.
 
 .. code-block:: yaml
@@ -445,16 +378,18 @@ Below is an example YAML configuration file for the ACM data, which sets to use 
         multilabel: false
         num_classes: 14
 
-You can copy this file to the ``/tmp`` folder within the GraphStorm container for the next step.
+For the link prediction task, the examplary YAML file can be found at the `/graphstorm/examples/use_your_own_data/acm_lp.yaml <https://github.com/awslabs/graphstorm/blob/main/examples/use_your_own_data/acm_lp.yaml>`_.
+
+Users can copy these YAML files to the ``/tmp`` folder within the GraphStorm container for the next step.
 
 .. _launch_training_oyog:
 
-Step 3: Launch training script on your own graphs
----------------------------------------------------
+Step 3: Launch training and inference scripts on your own graphs
+-----------------------------------------------------------------
 
-With the partitioned data and configuration YAML file available, it is easy to use GraphStorm's training scripts to launch the training job.
+With the partitioned data and configuration YAML file available, it is easy to use GraphStorm's training and infernece scripts to launch the job.
 
-.. Note:: We assume an `ip_list.txt` file has been created in the ``/tmp/`` folder. Users can use the following commands to create this file.
+.. Note:: We assume an `ip_list.txt` file has been created in the ``/tmp/`` folder. Users can use the following commands to create this file used in GraphStorm Standalone mode.
 
     .. code-block:: bash
 
@@ -467,7 +402,7 @@ Below is a launch script example that trains a GraphStorm built-in RGCN model on
 
     python3 -m graphstorm.run.gs_node_classification \
             --workspace /tmp \
-            --part-config /tmp/acm_nc/acm.json \
+            --part-config /tmp/acm_gs/acm.json \
             --ip-config /tmp/ip_list.txt \
             --num-trainers 1 \
             --num-servers 1 \
@@ -477,20 +412,55 @@ Below is a launch script example that trains a GraphStorm built-in RGCN model on
             --save-model-path /tmp/acm_nc/models \
             --node-feat-name paper:feat author:feat subject:feat
 
-Similar to the :ref:`Quick-Start <quick-start-standalone>` tutorial, users can launch the inference script on their own data. Below is the customized scripts for predicting the classes of nodes in the test set of the ACM graph.
+Link prediction training can be performed using the following command.
 
 .. code-block:: bash
 
+    python3 -m graphstorm.run.gs_link_prediction \
+            --workspace /tmp \
+            --part-config /tmp/acm_gs/acm.json \
+            --ip-config /tmp/ip_list.txt \
+            --num-trainers 1 \
+            --num-servers 1 \
+            --num-samplers 0 \
+            --ssh-port 2222 \
+            --cf /tmp/acm_lp.yaml \
+            --save-model-path /tmp/acm_lp/models \
+            --node-feat-name paper:feat author:feat subject:feat
+
+Similar to the :ref:`Quick-Start <quick-start-standalone>` tutorial, users can launch the inference script on their own data. Below is the customized scripts for inference in the ACM graph.
+
+.. code-block:: bash
+
+    # Node Classification
     python3 -m graphstorm.run.gs_node_classification \
-               --inference \
-               --workspace /tmp \
-               --part-config /tmp/acm_nc/acm.json \
-               --ip-config /tmp/ip_list.txt \
-               --num-trainers 4 \
-               --num-servers 1 \
-               --num-samplers 0 \
-               --ssh-port 2222 \
-               --cf /tmp/acm_nc.yaml \
-               --node-feat-name paper:feat author:feat subject:feat \
-               --restore-model-path /tmp/acm_nc/models/epoch-0 \
-               --save-prediction-path  /tmp/acm_nc/predictions
+            --inference \
+            --workspace /tmp \
+            --part-config /tmp/acm_gs/acm.json \
+            --ip-config /tmp/ip_list.txt \
+            --num-trainers 1 \
+            --num-servers 1 \
+            --num-samplers 0 \
+            --ssh-port 2222 \
+            --cf /tmp/acm_nc.yaml \
+            --node-feat-name paper:feat author:feat subject:feat \
+            --restore-model-path /tmp/acm_nc/models/epoch-0 \
+            --save-prediction-path  /tmp/acm_nc/predictions
+    
+    # Link Prediction
+    python3 -m graphstorm.run.gs_link_prediction \
+            --inference \
+            --workspace /tmp \
+            --part-config /tmp/acm_gs/acm.json \
+            --ip-config /tmp/ip_list.txt \
+            --num-trainers 1 \
+            --num-servers 1 \
+            --num-samplers 0 \
+            --ssh-port 2222 \
+            --cf /tmp/acm_lp.yaml \
+            --save-model-path /tmp/acm_lp/models \
+            --node-feat-name paper:feat author:feat subject:feat \
+            --restore-model-path /tmp/acm_lp/models/epoch-0 \
+            --save-embed-path  /tmp/acm_lp/embeds
+
+Once users get familiar with the three steps of using your own graph data, the next step would be look through :ref:`GraphStorm's Configurations<configurations>` that control the three steps for your specific requirements.

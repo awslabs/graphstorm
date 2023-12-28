@@ -52,12 +52,11 @@ def test_try_read_file_with_wildcard(
 
 
 def test_try_read_unsupported_feature(converter: GConstructConfigConverter, node_dict: dict):
-    """We currently only support no-op features, so should error out otherwise."""
+    """We currently only support no-op and numerical features, so should error out otherwise."""
     node_dict["nodes"][0]["features"] = [
         {
-            "feature_col": ["citation_time"],
-            "feature_name": "feat",
-            "transform": {"name": "max_min_norm"},
+            "feature_col": ["paper_title"],
+            "transform": {"name": "tokenize_hf"},
         }
     ]
 
@@ -101,7 +100,7 @@ def test_read_node_gconstruct(converter: GConstructConfigConverter, node_dict: d
     assert node_config.separator is None
     assert node_config.column == "node_id"
     assert node_config.features == [
-        {"column": "citation_time", "transform": {"name": "no-op"}, "name": "feat"}
+        {"column": "citation_time", "transformation": {"name": "no-op"}, "name": "feat"}
     ]
     assert node_config.labels == [
         {
@@ -174,7 +173,7 @@ def test_read_edge_gconstruct(converter: GConstructConfigConverter):
     assert edge_config.separator is None
     assert edge_config.relation == "writing"
     assert edge_config.features == [
-        {"column": "author", "transform": {"name": "no-op"}, "name": "feat"}
+        {"column": "author", "transformation": {"name": "no-op"}, "name": "feat"}
     ]
     assert edge_config.labels == [
         {
@@ -206,7 +205,37 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "files": ["/tmp/acm_raw/nodes/paper.parquet"],
             "separator": ",",
             "node_id_col": "node_id",
-            "features": [{"feature_col": ["citation_time"], "feature_name": "feat"}],
+            "features": [
+                {"feature_col": ["citation_time"], "feature_name": "feat"},
+                {"feature_col": ["num_citations"], "transform": {"name": "max_min_norm"}},
+                {
+                    "feature_col": ["num_citations"],
+                    "transform": {
+                        "name": "bucket_numerical",
+                        "bucket_cnt": 9,
+                        "range": [10, 100],
+                        "slide_window_size": 5,
+                    },
+                },
+                {
+                    "feature_col": ["num_citations"],
+                    "feature_name": "rank_gauss1",
+                    "transform": {"name": "rank_gauss"},
+                },
+                {
+                    "feature_col": ["num_citations"],
+                    "feature_name": "rank_gauss2",
+                    "transform": {"name": "rank_gauss", "epsilon": 0.1},
+                },
+                {
+                    "feature_col": ["num_citations"],
+                    "transform": {"name": "to_categorical", "mapping": {"1", "2", "3"}},
+                },
+                {
+                    "feature_col": ["num_citations"],
+                    "transform": {"name": "to_categorical", "separator": ","},
+                },
+            ],
             "labels": [
                 {"label_col": "label", "task_type": "classification", "split_pct": [0.8, 0.1, 0.1]}
             ],
@@ -242,7 +271,56 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
     assert nodes_output["type"] == "paper"
     assert nodes_output["column"] == "node_id"
     assert nodes_output["features"] == [
-        {"column": "citation_time", "transform": {"name": "no-op"}, "name": "feat"}
+        {"column": "citation_time", "transformation": {"name": "no-op"}, "name": "feat"},
+        {
+            "column": "num_citations",
+            "transformation": {
+                "name": "numerical",
+                "kwargs": {"normalizer": "min-max", "imputer": "none"},
+            },
+        },
+        {
+            "column": "num_citations",
+            "transformation": {
+                "name": "bucket-numerical",
+                "kwargs": {
+                    "bucket_cnt": 9,
+                    "range": [10, 100],
+                    "slide_window_size": 5,
+                    "imputer": "none",
+                },
+            },
+        },
+        {
+            "column": "num_citations",
+            "name": "rank_gauss1",
+            "transformation": {
+                "name": "numerical",
+                "kwargs": {"normalizer": "rank-gauss", "imputer": "none"},
+            },
+        },
+        {
+            "column": "num_citations",
+            "name": "rank_gauss2",
+            "transformation": {
+                "name": "numerical",
+                "kwargs": {"epsilon": 0.1, "normalizer": "rank-gauss", "imputer": "none"},
+            },
+        },
+        {
+            "column": "num_citations",
+            "transformation": {
+                "name": "categorical",
+                "kwargs": {},
+            },
+        },
+        {
+            "column": "num_citations",
+            "transformation": {
+                "name": "multi-categorical",
+                "kwargs": {"separator": ","},
+            },
+        },
     ]
     assert nodes_output["labels"] == [
         {
@@ -260,7 +338,7 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
     assert edges_output["dest"] == {"column": "~to", "type": "paper"}
     assert edges_output["relation"] == {"type": "writing"}
     assert edges_output["features"] == [
-        {"column": "author", "transform": {"name": "no-op"}, "name": "feat"}
+        {"column": "author", "transformation": {"name": "no-op"}, "name": "feat"}
     ]
     assert edges_output["labels"] == [
         {
