@@ -1874,11 +1874,11 @@ class GSConfig:
 
         return None
 
-    def _get_predefined_negatives_per_etype(negatives):
+    def _get_predefined_negatives_per_etype(self, negatives):
         if len(negatives) == 1 and \
             ":" not in negatives[0]:
             # global feat_name
-            return int(negatives[0])
+            return negatives[0]
 
         # per edge type feature
         negative_dict = {}
