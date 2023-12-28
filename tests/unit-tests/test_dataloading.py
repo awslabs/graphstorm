@@ -666,6 +666,7 @@ def test_GSgnnLinkPredictionTestDataLoader(batch_size, num_negative_edges):
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
+@pytest.mark.parametrize("batch_size", [1, 10, 128])
 def test_GSgnnLinkPredictionPredefinedTestDataLoader(batch_size):
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
