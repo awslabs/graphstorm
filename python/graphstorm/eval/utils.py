@@ -304,7 +304,7 @@ def broadcast_data(rank, world_size, data_tensor):
     if get_backend() == "gloo":
         device = "cpu"
     elif get_backend() == "nccl":
-        assert data_tensor.is_cuda
+        data_tensor = data_tensor.cuda()
         device = data_tensor.device
     else:
         assert False, f"backend {get_backend()} not supported."

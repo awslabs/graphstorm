@@ -182,9 +182,10 @@ def test_ext_mem_array():
         data2 = np.random.uniform(size=(1000,)).astype(np.float32)
         data3 = np.random.uniform(size=(1000, 10)).astype(np.float32)
         data4 = np.random.uniform(size=(1000,)).astype(np.float32)
+        data5 = np.random.uniform(size=(1000,)).astype(str)
         arr_dict = {
                 "test1": (data1, data2),
-                "test2": [data3, data4],
+                "test2": [data3, data4, data5],
         }
         arr_dict1 = _to_ext_memory(None, arr_dict, tmpdirname)
         assert isinstance(arr_dict1, dict)
@@ -196,6 +197,7 @@ def test_ext_mem_array():
         assert isinstance(arr_dict1["test1"][1], ExtNumpyWrapper)
         assert isinstance(arr_dict1["test2"][0], ExtNumpyWrapper)
         assert isinstance(arr_dict1["test2"][1], ExtNumpyWrapper)
+        assert isinstance(arr_dict1["test2"][2], np.ndarray)
         assert np.all(arr_dict1["test1"][0].to_numpy() == data1)
         assert np.all(arr_dict1["test1"][1].to_numpy() == data2)
         assert np.all(arr_dict1["test2"][0].to_numpy() == data3)
