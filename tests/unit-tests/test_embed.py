@@ -239,7 +239,7 @@ def test_lm_cache():
         assert ret == False     # It uses the loaded embeddings.
         lm_cache2.clear_cache()
         ret = lm_cache2.update_cache(100)
-        assert ret == True
+        assert ret == False     # Load LM embeddings from the disk.
 
         # If the model is changed, the model name should also be changed.
         model_name = lm_cache._get_model_name("n0")
