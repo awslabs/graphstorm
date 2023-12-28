@@ -268,9 +268,10 @@ class LMCache:
         return model_name + "-" + model_hash[0:10]
 
     def _load_embeddings(self):
-        """ Load LM embeddings from files.
+        """ Load the cached LM embeddings from files.
         """
         embed_ndata_names = self.embed_ndata_name
+        self._lm_emb_cache = {}
         for ntype in self._lm_models.ntypes:
             embed_path = os.path.join(os.path.join(
                     os.path.join(self._embed_path, "lm_cache"), ntype),
@@ -282,9 +283,23 @@ class LMCache:
                 embed_name = embed_ndata_names[ntype]
                 self._lm_emb_cache[ntype] = load_pytorch_embedding(embed_path,
                         self._g.get_node_partition_policy(ntype), embed_name)
+        if set(self._lm_emb_cache.keys()) == set(self._lm_models.ntypes):
+            logging.debug("Successfully load all embeddings from the cache.")
+            # The model name contains the hash code. If we can load the embeddings
+            # correctly, we should have loaded the cached embeddings of the LM models.
+            # We can save the hash code of all LM models.
+            self._lm_hash = self._lm_models.get_all_lm_hashes()
+        elif len(self._lm_emb_cache) > 0:
+            # In this case, some of the cached LM embeddings have been loaded.
+            # We need to clear up the cache.
+            if get_rank() == 0:
+                logging.warning("Fail to load all embeddings from the cache.")
+                logging.warning("Not use the cached data.")
+            self._lm_emb_cache = {}
+            self._lm_hash = ''
 
     def _save_embeddings(self):
-        """ Save LM embeddings.
+        """ Save LM embeddings to files.
         """
         for ntype in self._lm_models.ntypes:
             embed_path = os.path.join(os.path.join(
@@ -328,25 +343,28 @@ class LMCache:
         lm_infer_batch_size: int
             Language model inference batch size
         use_fp16 : bool
-            Use float16 to store BERT embeddings.
+            Use float16 to store LM embeddings.
+
+        Returns
+        -------
+        bool : return True if new LM embeddings are computed else return False.
         """
-        # If the embeddings have been cached, we just load them instead of
+        # If the embeddings have been cached in files, we should load them instead of
         # computing them from scratch.
-        if self._embed_path is not None:
+        if self._embed_path is not None and len(self._lm_emb_cache) == 0:
             self._load_embeddings()
 
-        # If all embeddings are cached:
+        # If all cached embeddings has been loaded to memory:
         if np.all([ntype in self._lm_emb_cache for ntype in self._lm_models.ntypes]):
-            # check if lm is updated, if lm is updated, clear the current cache
+            # check if lm is updated. if it is updated, clear the current cache
             if self._lm_hash != self._lm_models.get_all_lm_hashes():
                 self._clear_cache()
             else:
                 # if lm models was not updated, don't compute the embeddings again
-                return
+                return False
 
+        # We need to compute the LM embeddings from scratch.
         embed_ndata_names = self.embed_ndata_name
-        # store/update the lm model hash used for the cache
-        self._lm_hash = self._lm_models.get_all_lm_hashes()
         for ntype in self._lm_models.ntypes:
             if get_rank() == 0:
                 logging.debug("compute embedding for node type %s", ntype)
@@ -398,9 +416,12 @@ class LMCache:
                 logging.info('Computing bert embedding on node %s takes %.3f seconds',
                              ntype, time.time() - start)
             lm_model.train()
+        # store/update the lm model hash used for the cache
+        self._lm_hash = self._lm_models.get_all_lm_hashes()
 
         if self._embed_path is not None:
             self._save_embeddings()
+        return True
 
     def _clear_cache(self):
         """ Delete the current LM embed cache.
