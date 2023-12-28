@@ -288,7 +288,9 @@ class LMCache:
             # correctly, we should have loaded the cached embeddings of the LM models.
             # We can save the hash code of all LM models.
             self._lm_hash = self._lm_models.get_all_lm_hashes()
-        else:
+        elif len(self._lm_emb_cache) > 0:
+            # In this case, some of the cached LM embeddings have been loaded.
+            # We need to clear up the cache.
             if get_rank() == 0:
                 logging.warning("Fail to load all embeddings from the cache.")
                 logging.warning("Not use the cached data.")
