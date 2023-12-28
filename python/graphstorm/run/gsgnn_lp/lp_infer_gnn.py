@@ -60,26 +60,26 @@ def main(config_args):
     infer.setup_task_tracker(tracker)
     # We only support full-graph inference for now.
     if config.eval_etypes_negative_dstnode is not None:
-        test_dataloader_cls = GSgnnLinkPredictionPredefinedTestDataLoader
-    elif config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
-        test_dataloader_cls = GSgnnLinkPredictionTestDataLoader
-    elif config.eval_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
-        test_dataloader_cls = GSgnnLinkPredictionJointTestDataLoader
+        # The negatives used in evaluation is fixed.
+        dataloader = GSgnnLinkPredictionPredefinedTestDataLoader(
+            infer_data, infer_data.test_idxs,
+            batch_size=config.eval_batch_size,
+            fixed_edge_dst_negative_field=config.eval_etypes_negative_dstnode,
+            fanout=config.eval_fanout)
     else:
-        raise ValueError('Unknown test negative sampler.'
-            'Supported test negative samplers include '
-            f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
+        if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+            test_dataloader_cls = GSgnnLinkPredictionTestDataLoader
+        elif config.eval_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
+            test_dataloader_cls = GSgnnLinkPredictionJointTestDataLoader
+        else:
+            raise ValueError('Unknown test negative sampler.'
+                'Supported test negative samplers include '
+                f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
 
-    if config.eval_etypes_negative_dstnode is not None:
         dataloader = test_dataloader_cls(infer_data, infer_data.test_idxs,
-                                        batch_size=config.eval_batch_size,
-                                        fixed_edge_dst_negative_field=config.eval_etypes_negative_dstnode,
-                                        fanout=config.eval_fanout)
-    else:
-        dataloader = test_dataloader_cls(infer_data, infer_data.test_idxs,
-                                        batch_size=config.eval_batch_size,
-                                        num_negative_edges=config.num_negative_edges_eval,
-                                        fanout=config.eval_fanout)
+            batch_size=config.eval_batch_size,
+            num_negative_edges=config.num_negative_edges_eval,
+            fanout=config.eval_fanout)
     infer.infer(infer_data, dataloader,
                 save_embed_path=config.save_embed_path,
                 edge_mask_for_gnn_embeddings=None if config.no_validation else \
