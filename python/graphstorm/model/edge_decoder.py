@@ -886,7 +886,7 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
 
             if neg_src is not None:
                 neg_src_emb = emb[utype][neg_src.reshape(-1,)]
-                if neg_sample_type == [BUILTIN_LP_UNIFORM_NEG_SAMPLER,
+                if neg_sample_type in [BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                                        BUILTIN_LP_FIXED_NEG_SAMPLER]:
                     # fixed negative sample is similar to uniform negative sample
                     neg_src_emb = neg_src_emb.reshape(neg_src.shape[0], neg_src.shape[1], -1)
@@ -919,7 +919,7 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
                 neg_scores.append(neg_score)
 
             if neg_dst is not None:
-                if neg_sample_type == [BUILTIN_LP_UNIFORM_NEG_SAMPLER,
+                if neg_sample_type in [BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                                        BUILTIN_LP_FIXED_NEG_SAMPLER]:
                     # fixed negative sample is similar to uniform negative sample
                     neg_dst_emb = emb[vtype][neg_dst.reshape(-1,)]
