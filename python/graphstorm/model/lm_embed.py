@@ -32,7 +32,8 @@ from .embed import GSNodeEncoderInputLayer
 from .lm_model import init_lm_model
 from .lm_model import get_lm_node_feats
 from .utils import load_pytorch_embedding, save_pytorch_embedding
-from ..utils import get_rank, get_world_size, barrier, create_dist_tensor
+from ..utils import get_rank, get_world_size, create_dist_tensor
+from ..distributed import flush_data
 
 class LMModels(nn.Module):
     """ LM model collection
@@ -381,17 +382,20 @@ class LMCache:
                         part_policy=self._g.get_node_partition_policy(ntype),
                         persistent=True)
             emb = self._lm_emb_cache[ntype]
+            # LM computations are very computationally expensive. It's better to force
+            # an even split to ensure all processes have roughly the same number of nodes
+            # for LM inference.
             infer_nodes = dgl.distributed.node_split(
                     th.ones((self._g.number_of_nodes(ntype),), dtype=th.bool),
                     partition_book=self._g.get_partition_book(),
-                    ntype=ntype, force_even=False)
-            logging.debug("node %s, local infer set: %d, batch size: %d",
-                          ntype, len(infer_nodes), lm_infer_batch_size)
+                    ntype=ntype, force_even=True)
+            logging.debug("Rank %d: node %s, local infer set: %d, batch size: %d",
+                          get_rank(), ntype, len(infer_nodes), lm_infer_batch_size)
 
             node_list = th.split(infer_nodes, lm_infer_batch_size)
             input_ntypes = [ntype]
             with th.no_grad():
-                for input_nodes in node_list:
+                for i, input_nodes in enumerate(node_list):
                     input_lm_feats = {}
                     input_lm_feats[ntype] = {
                             fname: feat[input_nodes] for fname, feat in lm_node_feat.items()
@@ -401,7 +405,13 @@ class LMCache:
                         emb[input_nodes] = text_embs[ntype].half().to('cpu')
                     else:
                         emb[input_nodes] = text_embs[ntype].to('cpu')
-            barrier()
+                    if i % 1000 == 0 and get_rank() == 0:
+                        logging.debug("Compute LM embeddings on %d batches out of %d",
+                                      i, len(node_list))
+            # Because we split the nodes evenly, we need to write data to remote machines.
+            # Therefore, we need to flush data here to ensure that we can load data
+            # correctly afterwards.
+            flush_data()
             if get_rank() == 0:
                 logging.info('Computing bert embedding on node %s takes %.3f seconds',
                              ntype, time.time() - start)
