@@ -22,7 +22,6 @@ import numpy as np
 import dgl
 import torch as th
 import torch.nn.functional as F
-from dataclasses import dataclass
 from dgl.distributed import role
 from dgl.distributed.constants import DEFAULT_NTYPE
 from dgl.distributed.constants import DEFAULT_ETYPE
@@ -65,29 +64,6 @@ from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictWeightedDistMultDecoder)
 from .tracker import get_task_tracker_class
 
-def init_wholegraph():
-    """ Initialize Wholegraph"""
-    import pylibwholegraph.torch as wgth
-    import pylibwholegraph.binding.wholememory_binding as wmb
-
-    @dataclass
-    class Options: # pylint: disable=missing-class-docstring
-        pass
-    Options.launch_agent = 'pytorch'
-    Options.launch_env_name_world_rank = 'RANK'
-    Options.launch_env_name_world_size = 'WORLD_SIZE'
-    Options.launch_env_name_local_rank = 'LOCAL_RANK'
-    Options.launch_env_name_local_size = 'LOCAL_WORLD_SIZE'
-    Options.launch_env_name_master_addr = 'MASTER_ADDR'
-    Options.launch_env_name_master_port = 'MASTER_PORT'
-    Options.local_rank = get_rank() % role.get_num_trainers()
-    Options.local_size = role.get_num_trainers()
-
-    wgth.distributed_launch(Options, lambda: None)
-    wmb.init(0)
-    wgth.comm.set_world_info(get_rank(), get_world_size(), Options.local_rank,
-                             Options.local_size)
-
 def initialize(ip_config, backend, use_wholegraph=False):
     """ Initialize distributed training and inference context.
 
@@ -108,6 +84,7 @@ def initialize(ip_config, backend, use_wholegraph=False):
         th.distributed.init_process_group(backend=backend)
         # Use wholegraph for feature and label fetching
         if use_wholegraph:
+            from .wholegraph import init_wholegraph
             init_wholegraph()
     sys_tracker.check("load DistDGL")
 
