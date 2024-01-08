@@ -74,7 +74,6 @@ def run_job(input_args, image, unknownargs):
         "graph-name": graph_name,
         "infer-yaml-s3": infer_yaml_s3,
         "model-artifact-s3": model_artifact_s3,
-        "raw-node-mappings-s3": input_args.raw_node_mappings_s3,
         "output-chunk-size": output_chunk_size,
         "output-emb-s3": output_emb_s3_path,
         "task-type": task_type,
@@ -83,6 +82,9 @@ def run_job(input_args, image, unknownargs):
     # In Link Prediction, no prediction outputs
     if task_type not in ["link_prediction", "compute_emb"]:
         params["output-prediction-s3"] = output_predict_s3_path
+    # If no raw mapping files are provided, remapping is skipped
+    if input_args.raw_node_mappings_s3 is not None:
+        params["raw-node-mappings-s3"] = input_args.raw_node_mappings_s3
     # We must handle cases like
     # --target-etype query,clicks,asin query,search,asin
     # --feat-name ntype0:feat0 ntype1:feat1
@@ -153,6 +155,7 @@ def get_inference_parser():
         required=True)
     inference_args.add_argument("--raw-node-mappings-s3", type=str,
         help="S3 location to load the node id mappings from",
+        default=None,
         required=False)
     inference_args.add_argument("--output-emb-s3", type=str,
         help="S3 location to store GraphStorm generated node embeddings.",
