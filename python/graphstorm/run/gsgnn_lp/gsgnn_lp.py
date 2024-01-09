@@ -97,7 +97,7 @@ def main(config_args):
     config = GSConfig(config_args)
     config.verify_arguments(True)
 
-    use_wg_sparse_emb = use_wholegraph_sparse_emb()
+    use_wg_sparse_emb = use_wholegraph_sparse_emb(config.use_wholegraph_sparse_emb)
     use_wg_feats = use_wholegraph(config.part_config)
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
                   use_wholegraph=use_wg_sparse_emb or use_wg_feats)

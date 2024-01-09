@@ -288,6 +288,7 @@ class GSConfig:
             _ = self.grad_norm_type
             _ = self.gnn_norm
             _ = self.sparse_optimizer_lr
+            _ = self.use_wholegraph_sparse_emb
             _ = self.num_epochs
             _ = self.save_model_path
             _ = self.save_model_frequency
@@ -1175,6 +1176,17 @@ class GSConfig:
             return sparse_optimizer_lr
 
         return self.lr
+
+    @property
+    def use_wholegraph_sparse_emb(self):
+        """ Whether to use wholegraph for updating learnable node embeddings
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_use_wholegraph_sparse_emb"):
+            assert self._use_wholegraph_sparse_emb in [True, False]
+            return self._use_wholegraph_sparse_emb
+        # By default do not use wholegraph for learnable node embeddings
+        return False
 
     @property
     def use_node_embeddings(self):

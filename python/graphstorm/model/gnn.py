@@ -40,9 +40,9 @@ from ..utils import (
     barrier,
     is_distributed,
     is_wholegraph_sparse_emb,
-    is_wholegraph_embedding_module,
-    is_wholegraph_optimizer,
 )
+from ..wholegraph import WholeGraphSparseEmbedding
+from ..wholegraph_utils import is_wholegraph_optimizer
 from ..dataloading.dataset import prepare_batch_input
 
 from ..config import (GRAPHSTORM_MODEL_ALL_LAYERS,
@@ -747,18 +747,16 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         if len(sparse_params) > 0:
             if is_distributed() and is_wholegraph_sparse_emb():
                 # To use wholegraph sparse optimizer, optimizer needs to be created
-                # before sparse embeddings. So, here we just get the created optimizer
-                # and ensure they all identical.
+                # before sparse embeddings. So, here we just get the optimizer from
+                # WholeGraphSparseEmbedding and ensure the identity of the optimizer
                 for params in sparse_params:
-                    assert is_wholegraph_embedding_module(
-                        params
-                    ), "Sparse params should be WholeMemoryEmbeddingModule if enable WholeGraph."
-                    emb_optimizer = params.wm_embedding.wmb_optimizer
+                    assert isinstance(params, WholeGraphSparseEmbedding), \
+                        "Sparse params should be WholeGraphSparseEmbedding if enabled WholeGraph."
+                    emb_optimizer = params.optimizer
                     break
                 for params in sparse_params:
-                    assert (
-                        emb_optimizer is params.wm_embedding.wmb_optimizer
-                    ), "We only need one wholegraph optimizer for all wm_embeddings."
+                    assert emb_optimizer is params.optimizer, \
+                        "We only need one wholegraph optimizer for all wm_embeddings."
                 emb_optimizer.lr = sparse_optimizer_lr
             else:
                 emb_optimizer = dgl.distributed.optim.SparseAdam(

@@ -18,30 +18,15 @@
 import os
 import dgl
 import pytest
-import tempfile
-
-import numpy as np
 
 import torch as th
 import torch.nn.functional as F
 import torch.distributed as dist
 from torch import nn
 
-from numpy.testing import assert_equal, assert_almost_equal
-
-from unittest.mock import patch
-
-from graphstorm.gsf import init_wholegraph
+from graphstorm.wholegraph import init_wholegraph
 from graphstorm.utils import use_wholegraph_sparse_emb, is_wholegraph_sparse_emb
-from graphstorm.model import GSNodeEncoderInputLayer
-from graphstorm.model.embed import compute_node_input_embeddings
-from graphstorm.model.utils import save_sparse_embeds
-from graphstorm.model.utils import load_sparse_embeds
-from graphstorm.model.utils import _get_sparse_emb_range
-from graphstorm.model.utils import pad_file_index
-from graphstorm import get_feat_size
 
-from data_utils import generate_dummy_dist_graph
 
 def initialize(use_wholegraph=True):
 
