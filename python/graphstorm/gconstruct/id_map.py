@@ -88,8 +88,8 @@ class IdReverseMap:
             data = read_data_parquet(id_map_prefix, ["node_str_id", "node_int_id"])
             data["new"] = data["node_int_id"]
             data["orig"] = data["node_str_id"]
-            data.pop("node_str_id")
             data.pop("node_int_id")
+            data.pop("node_str_id")
 
         sort_idx = np.argsort(data['new'])
         self._ids = data['orig'][sort_idx]
@@ -219,7 +219,7 @@ class IdMap:
                                      names=["orig", "new"])
         bytes_per_row = table.nbytes // table.num_rows
         # Split table in parts, such that the max expected file size is ~1GB
-        max_rows_per_file = GIB_BYTES// bytes_per_row
+        max_rows_per_file = GIB_BYTES // bytes_per_row
         rows_written = 0
         file_idx = 0
         while rows_written < table.num_rows:
@@ -228,6 +228,7 @@ class IdMap:
             filename = f"part-{str(file_idx).zfill(5)}.parquet"
             pq.write_table(table.slice(start, end), os.path.join(file_prefix, filename))
             rows_written = end
+            file_idx += 1
 
 def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
     """ Map node IDs of source and destination nodes of edges.
