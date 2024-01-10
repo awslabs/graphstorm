@@ -1759,59 +1759,6 @@ def test_homogeneous():
     conf["nodes"][1]["node_type"] = "movie_fake"
     assert not is_homogeneous(conf)
 
-
-def test_homogeneous():
-    # single node type and edge type input
-    conf = {
-        "version": "gconstruct-v0.1", "nodes": [
-            {"node_id_col": "id", "node_type": "movie", "format": {"name": "parquet"},
-             "files": "/data/ml-100k/movie.parquet", "features": [
-                {"feature_col": "title", "transform": {
-                    "name": "bert_hf", "bert_model": "bert-base-uncased", "max_seq_length": 16}}],
-             "labels": [{"label_col": "label", "task_type": "classification", "split_pct": [0.8, 0.1, 0.1]}]}],
-        "edges": [
-            {"source_id_col": "src_id", "dest_id_col": "dst_id", "relation": ["movie", "rating", "movie"],
-             "format": {"name": "parquet"}, "files": "/data/ml-100k/edges_homo.parquet", "labels": [
-                {"label_col": "rate", "task_type": "classification", "split_pct": [0.1, 0.1, 0.1]}]}]
-    }
-    assert is_homogeneous(conf)
-    verify_confs(conf)
-    assert conf['nodes'][0]["node_type"] == "_N"
-    assert conf['edges'][0]['relation'] == ["_N", "_E", "_N"]
-    conf["edges"][0]["relation"] = ["movie_fake", "rating", "movie"]
-    conf["nodes"].append(copy.deepcopy(conf["nodes"][0]))
-    conf["nodes"][0]["node_type"] = "movie"
-    conf["nodes"][1]["node_type"] = "movie_fake"
-    assert not is_homogeneous(conf)
-
-
-    # multiple node types and edge types input
-    conf = {
-        "version": "gconstruct-v0.1", "nodes": [
-            {"node_id_col": "id", "node_type": "movie", "format": {"name": "parquet"},
-             "files": "/data/ml-100k/movie.parquet", "features": [
-                {"feature_col": "title", "transform": {
-                    "name": "bert_hf", "bert_model": "bert-base-uncased", "max_seq_length": 16}}],
-             "labels": [{"label_col": "label", "task_type": "classification", "split_pct": [0.8, 0.1, 0.1]}]},
-            {"node_type": "movie", "format": {"name": "parquet"}, "files": "/data/ml-100k/movie.parquet",
-             "features": [{"feature_col": "id"}]}],
-        "edges": [
-            {"source_id_col": "src_id", "dest_id_col": "dst_id", "relation": ["movie", "rating", "movie"],
-             "format": {"name": "parquet"}, "files": "/data/ml-100k/edges_homo.parquet", "labels": [
-                {"label_col": "rate", "task_type": "classification", "split_pct": [0.1, 0.1, 0.1]}]},
-            {"relation": ["movie", "rating", "movie"], "format": {"name": "parquet"},
-             "files": "/data/ml-100k/edges_homo.parquet"}]
-    }
-    assert is_homogeneous(conf)
-    verify_confs(conf)
-    assert conf['nodes'][0]["node_type"] == "_N"
-    assert conf['edges'][0]['relation'] == ["_N", "_E", "_N"]
-    conf["edges"][0]["relation"] = ["movie_fake", "rating", "movie"]
-    conf["nodes"].append(copy.deepcopy(conf["nodes"][0]))
-    conf["nodes"][0]["node_type"] = "movie"
-    conf["nodes"][1]["node_type"] = "movie_fake"
-    assert not is_homogeneous(conf)
-
 if __name__ == '__main__':
     test_parse_edge_data()
     test_multiprocessing_checks()
@@ -1831,4 +1778,3 @@ if __name__ == '__main__':
     test_multicolumn(None)
     test_multicolumn("/tmp/")
     test_feature_wrapper()
-    test_homogeneous()

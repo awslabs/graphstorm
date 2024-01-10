@@ -25,6 +25,8 @@ import numpy as np
 from .file_io import read_data_parquet
 from .utils import ExtMemArrayWrapper
 
+GIB_BYTES = 1024**3
+
 class NoopMap:
     """ It doesn't map IDs.
 
@@ -82,9 +84,12 @@ class IdReverseMap:
         try:
             data = read_data_parquet(id_map_prefix, ["orig", "new"])
         except AssertionError:
+            # To maintain backwards compatibility with GraphStorm v0.2.1
             data = read_data_parquet(id_map_prefix, ["node_str_id", "node_int_id"])
             data["new"] = data["node_int_id"]
             data["orig"] = data["node_str_id"]
+            data.pop("node_str_id")
+            data.pop("node_int_id")
 
         sort_idx = np.argsort(data['new'])
         self._ids = data['orig'][sort_idx]
@@ -214,7 +219,7 @@ class IdMap:
                                      names=["orig", "new"])
         bytes_per_row = table.nbytes // table.num_rows
         # Split table in parts, such that the max expected file size is ~1GB
-        max_rows_per_file = (1024**3) // bytes_per_row
+        max_rows_per_file = GIB_BYTES// bytes_per_row
         rows_written = 0
         file_idx = 0
         while rows_written < table.num_rows:
