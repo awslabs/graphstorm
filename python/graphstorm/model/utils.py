@@ -21,8 +21,6 @@ import json
 import shutil
 import logging
 
-import numpy as np
-
 import torch as th
 from torch import nn
 import torch.nn.functional as F
@@ -1655,7 +1653,7 @@ class TopKList():
             insert_success = False
             return_val = val
         else:
-            if len(self.toplist) == self.top_k: # list is full
+            if len(self.toplist) == self.top_k:  # list is full
                 insert_success = True
                 return_val = self.toplist[-1]
 

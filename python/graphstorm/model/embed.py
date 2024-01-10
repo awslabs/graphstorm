@@ -38,6 +38,7 @@ from ..utils import (
 from .ngnn_mlp import NGNNMLP
 from ..wholegraph import create_wholememory_optimizer, WholeGraphSparseEmbedding
 
+
 def init_emb(shape, dtype):
     """Create a tensor with the given shape and date type.
 
@@ -59,7 +60,8 @@ def init_emb(shape, dtype):
     nn.init.uniform_(arr, -1.0, 1.0)
     return arr
 
-class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
+
+class GSNodeInputLayer(GSLayer):  # pylint: disable=abstract-method
     """The input layer for all nodes in a heterogeneous graph.
 
     Parameters
@@ -148,6 +150,7 @@ class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
         The input dimension can be different for different node types.
         """
         return None
+
 
 class GSNodeEncoderInputLayer(GSNodeInputLayer):
     """The input encoder layer for all nodes in a heterogeneous graph.
@@ -288,7 +291,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain("relu"))
                     # nn.ParameterDict support this assignment operation if not None,
                     # so disable the pylint error
-                    self.proj_matrix[ntype] = proj_matrix # pylint: disable=unsupported-assignment-operation
+                    self.proj_matrix[ntype] = proj_matrix
 
             elif ntype not in force_no_embeddings:
                 if is_distributed() and is_wholegraph_sparse_emb():
@@ -307,7 +310,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 else:
                     if get_rank() == 0:
                         logging.debug('Use sparse embeddings on node %s:%d',
-                                       ntype, g.number_of_nodes(ntype))
+                                    ntype, g.number_of_nodes(ntype))
                     part_policy = g.get_node_partition_policy(ntype)
                     self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
                                     self.embed_size,
@@ -345,22 +348,23 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         embs = {}
         for ntype in input_nodes:
             if isinstance(input_nodes[ntype], np.ndarray):
-                # WholeGraphSparseEmbedding requires the input nodes (indexing tensor) to be a th.Tensor
+                # WholeGraphSparseEmbedding requires the input nodes (indexing tensor)
+                # to be a th.Tensor
                 input_nodes[ntype] = th.from_numpy(input_nodes[ntype])
             emb = None
             if ntype in input_feats:
                 assert ntype in self.input_projs, \
-                        f"We need a projection for node type {ntype}"
+                    f"We need a projection for node type {ntype}"
                 # If the input data is not float, we need to convert it t float first.
                 emb = input_feats[ntype].float() @ self.input_projs[ntype]
                 if self.use_node_embeddings:
                     assert ntype in self.sparse_embeds, \
-                            f"We need sparse embedding for node type {ntype}"
+                        f"We need sparse embedding for node type {ntype}"
                     # emb.device: target device to put the gathered results
                     node_emb = self.sparse_embeds[ntype](input_nodes[ntype], emb.device)
-                    concat_emb=th.cat((emb, node_emb),dim=1)
+                    concat_emb = th.cat((emb, node_emb), dim=1)
                     emb = concat_emb @ self.proj_matrix[ntype]
-            elif ntype in self.sparse_embeds: # nodes do not have input features
+            elif ntype in self.sparse_embeds:  # nodes do not have input features
                 # If the number of the input node of a node type is 0,
                 # return an empty tensor with shape (0, emb_size)
                 device = self.proj_matrix[ntype].device
@@ -371,13 +375,13 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     if len(input_nodes[ntype]) == 0:
                         dtype = self.sparse_embeds[ntype].weight.dtype
                         embs[ntype] = th.zeros((0, self.sparse_embeds[ntype].embedding_dim),
-                                                device=device, dtype=dtype)
+                                        device=device, dtype=dtype)
                         continue
                 else:
                     if len(input_nodes[ntype]) == 0:
                         dtype = self.sparse_embeds[ntype].weight.dtype
                         embs[ntype] = th.zeros((0, self.sparse_embeds[ntype].embedding_dim),
-                                                device=device, dtype=dtype)
+                                        device=device, dtype=dtype)
                         continue
                     emb = self.sparse_embeds[ntype](input_nodes[ntype], device)
 
@@ -434,6 +438,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         """
         return self.embed_size
 
+
 def _gen_emb(g, feat_field, embed_layer, ntype):
     """ Test if the embed layer can generate embeddings on the node type.
 
@@ -463,6 +468,7 @@ def _gen_emb(g, feat_field, embed_layer, ntype):
     feat = prepare_batch_input(g, {ntype: input_nodes}, dev=dev, feat_field=feat_field)
     emb = embed_layer(feat, {ntype: input_nodes})
     return ntype in emb
+
 
 def compute_node_input_embeddings(g, batch_size, embed_layer,
                                   task_tracker=None, feat_field='feat',
@@ -512,10 +518,10 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
             # a lot of memory.
             if 'input_emb' not in g.nodes[ntype].data:
                 g.nodes[ntype].data['input_emb'] = create_dist_tensor(
-                        (g.number_of_nodes(ntype), embed_size),
-                        dtype=th.float32, name=f'{ntype}_input_emb',
-                        part_policy=g.get_node_partition_policy(ntype),
-                        persistent=True)
+                    (g.number_of_nodes(ntype), embed_size),
+                    dtype=th.float32, name=f'{ntype}_input_emb',
+                    part_policy=g.get_node_partition_policy(ntype),
+                    persistent=True)
             else:
                 assert g.nodes[ntype].data['input_emb'].shape[1] == embed_size
             input_emb = g.nodes[ntype].data['input_emb']

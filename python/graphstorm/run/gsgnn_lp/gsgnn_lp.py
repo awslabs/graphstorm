@@ -229,7 +229,7 @@ def generate_parser():
     return parser
 
 if __name__ == '__main__':
-    arg_parser=generate_parser()
+    arg_parser = generate_parser()
 
     args = arg_parser.parse_args()
     main(args)

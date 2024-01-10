@@ -1,12 +1,10 @@
 """This module provides functionality for working with the WholeGraph"""
 import os
-import numpy as np
-import math
 import json
 from typing import Optional
+from dataclasses import dataclass
 
 import torch as th
-from dataclasses import dataclass
 from .utils import get_rank, get_world_size
 
 try:
@@ -76,7 +74,7 @@ def load_wg_feat(part_config_path, num_parts, type_name, name):
         embedding_wholememory_type,
         embedding_wholememory_location,
         getattr(th, wg_metadata[type_name + '/' + name]['dtype'].split('.')[1]),
-        [data_shape[0],1] if len(data_shape) == 1 else data_shape,
+        [data_shape[0], 1] if len(data_shape) == 1 else data_shape,
         optimizer=None,
         cache_policy=cache_policy,
     )
