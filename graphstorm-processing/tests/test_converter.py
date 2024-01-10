@@ -56,7 +56,7 @@ def test_try_read_unsupported_feature(converter: GConstructConfigConverter, node
     node_dict["nodes"][0]["features"] = [
         {
             "feature_col": ["paper_title"],
-            "transform": {"name": "tokenize_hf"},
+            "transform": {"name": "bert_hf"},
         }
     ]
 
@@ -235,6 +235,10 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
                     "feature_col": ["num_citations"],
                     "transform": {"name": "to_categorical", "separator": ","},
                 },
+                {
+                    "feature_col": ["citation_name"],
+                    "transform": {"name": "tokenize_hf", "bert_model": "bert", "max_seq_length": 64},
+                },
             ],
             "labels": [
                 {"label_col": "label", "task_type": "classification", "split_pct": [0.8, 0.1, 0.1]}
@@ -319,6 +323,13 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "transformation": {
                 "name": "multi-categorical",
                 "kwargs": {"separator": ","},
+            },
+        },
+        {
+            "column": "citation_name",
+            "transformation": {
+                "name": "bert",
+                "kwargs": {"normalizer": "tokenize", "bert_model": "bert", "max_seq_length": 64},
             },
         },
     ]

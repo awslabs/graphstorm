@@ -134,6 +134,13 @@ class GConstructConfigConverter(ConfigConverter):
                     else:
                         gsp_transformation_dict["name"] = "categorical"
                         gsp_transformation_dict["kwargs"] = {}
+                elif gconstruct_transform_dict["name"] == "tokenize_hf":
+                    gsp_transformation_dict["name"] = "bert"
+                    gsp_transformation_dict["kwargs"] = {
+                        "normalizer": "tokenize",
+                        "bert_model": gconstruct_transform_dict["bert_model"],
+                        "max_seq_length": gconstruct_transform_dict["max_seq_length"]
+                    }
                 # TODO: Add support for other common transformations here
                 else:
                     raise ValueError(
