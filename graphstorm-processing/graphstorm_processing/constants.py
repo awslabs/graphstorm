@@ -43,3 +43,5 @@ EXECUTOR_MEM_OVERHEAD_RATIO = 0.1
 ################# Numerical transformations  ################
 VALID_IMPUTERS = ["none", "mean", "median", "most_frequent"]
 VALID_NORMALIZERS = ["none", "min-max", "standard", "rank-gauss"]
+VALID_BERT_MODEL = ["bert-base-uncased", "bert", "roberta", "albert", "camembert", "ernie", "ibert",
+                    "luke", "mega", "mpnet", "nezha", "qdqbert","roc_bert"]
