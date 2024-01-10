@@ -827,7 +827,8 @@ def main(args, gs_config_args):
     if len(ntypes) == 0:
         # Nothing to remap
         logging.warning("No nodes to remap, skipping remapping edge/node "
-                        "predictions and node embeddings")
+                        "predictions and node embeddings. "
+                        "Embeddings will remain in PyTorch format.")
         sys.exit(0)
 
     for ntype in set(ntypes):
@@ -838,7 +839,9 @@ def main(args, gs_config_args):
             id_maps[ntype] = \
                 IdReverseMap(mapping_prefix)
         else:
-            logging.warning("ID mapping prefix %s does not exist, skipping remapping",
+            logging.warning(
+                ("ID mapping prefix %s does not exist, skipping remapping. "
+                 "Embeddings will remain in PyTorch format."),
                 mapping_prefix)
             sys.exit(0)
 
