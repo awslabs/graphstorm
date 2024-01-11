@@ -126,11 +126,6 @@ GraphStorm provides a set of parameters to control how and where to save and res
     - Yaml: ``task_tracker: sagemaker_task_tracker``
     - Argument: ``--task_tracker sagemaker_task_tracker``
     - Default value: ``sagemaker_task_tracker``
-- **log_report_frequency**: The frequency of reporting model performance metrics through task_tracker. The frequency is defined by using number of iterations, i.e., every N iterations the evaluation metrics will be reported. (Please note the evaluation metrics should be generated at the reporting iteration. See "eval_frequency" for how evaluation frequency is controlled.)
-
-    - Yaml: ``log_report_frequency: 1000``
-    - Argument: ``--log-report-frequency 1000``
-    - Default value: ``1000``
 - **restore_model_path**: A path where GraphStorm model parameters were saved. For training, if restore_model_path is set, GraphStom will retrieve the model parameters from restore_model_path instead of initializing the parameters. For inference, restore_model_path must be provided.
 
     - Yaml: ``restore_model_path: /model/checkpoint/``
@@ -278,7 +273,7 @@ GraphStorm provides a set of parameters to control model evaluation.
     - Yaml: ``use_mini_batch_infer: false``
     - Argument: ``--use-mini-batch-infer false``
     - Default value: ``true``
-- **eval_frequency**: The frequency of doing evaluation. GraphStorm trainers do evaluation at the end of each epoch. However, for large-scale graphs, training one epoch may take hundreds of thousands of iterations. One may want to do evaluations in the middle of an epoch. When eval_frequency is set, every **eval_frequency** iterations, the trainer will do evaluation once. The evaluation results can be printed and reported. See **log_report_frequency** for more details.
+- **eval_frequency**: The frequency of doing evaluation. GraphStorm trainers do evaluation at the end of each epoch. However, for large-scale graphs, training one epoch may take hundreds of thousands of iterations. One may want to do evaluations in the middle of an epoch. When eval_frequency is set, every **eval_frequency** iterations, the trainer will do evaluation once. The evaluation results can be printed and reported.
 
     - Yaml: ``eval_frequency: 10000``
     - Argument: ``--eval-frequency 10000``
