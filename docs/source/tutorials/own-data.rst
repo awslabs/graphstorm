@@ -217,14 +217,18 @@ The above command reads in the JSON file, and matchs its contents with the node 
 
     /tmp/acm_gs
     acm.json
+    author_id_remap.parquet
+    edge_label_stats.json
     edge_label_stats.json
     edge_mapping.pt
     node_label_stats.json
     node_mapping.pt
+    paper_id_remap.parquet
     |- part0
         edge_feat.dgl
         graph.dgl
         node_feat.dgl
+    subject_id_remap.parquet
 
 Because the above command specifies the ``--num-parts`` to be ``1``, there is only one partition created, which is saved in the ``part0`` folder. These files become the inputs of GraphStorm's launch scripts.
 

@@ -26,6 +26,7 @@ from dgl.distributed import node_split
 from .gs_layer import GSLayer
 
 from ..utils import get_rank, barrier, is_distributed, create_dist_tensor, is_wholegraph
+from ..distributed import flush_data
 
 class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
     r"""General encoder for graph data.
@@ -226,6 +227,12 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
 
             for ntype, out_nodes in output_nodes.items():
                 out_embs[ntype][out_nodes] = output[ntype].cpu()
+        # The nodes are split in such a way that all processes only need to compute
+        # the embeddings of the nodes in the local partition. Therefore, a barrier
+        # is enough to ensure that all data have been written to memory for distributed
+        # read after this function is returned.
+        # Note: there is a risk here. If the nodes for inference on each partition
+        # are very skewed, some of the processes may timeout in the barrier.
         barrier()
     return out_embs
 
@@ -336,6 +343,7 @@ def dist_inference_one_layer(layer_id, g, dataloader, target_ntypes, layer, get_
             if k in output_nodes:
                 assert k in y, "All mini-batch outputs should have the same tensor names."
                 y[k][output_nodes[k]] = h[k].cpu()
+    flush_data()
     return y
 
 def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
@@ -390,5 +398,4 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                                                         list(infer_nodes.keys()),
                                                         layer, get_input_embeds, device,
                                                         task_tracker)
-            barrier()
     return next_layer_input

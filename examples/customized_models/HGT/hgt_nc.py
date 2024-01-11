@@ -335,7 +335,7 @@ def main(args):
                                   config.early_stop_strategy)
     trainer.setup_evaluator(evaluator)
     # Optional: set up a task tracker to show the progress of training.
-    tracker = GSSageMakerTaskTracker(config)
+    tracker = GSSageMakerTaskTracker(config.eval_frequency)
     trainer.setup_task_tracker(tracker)
 
     # Start the training process.
@@ -393,7 +393,8 @@ if __name__ == '__main__':
     argparser.add_argument("--local_rank", type=int,
                            help="The rank of the trainer. \
                                  For customized models, MUST have this argument!!")
-    args = argparser.parse_args()
 
+    # Ignore unknown args to make script more robust to input arguments
+    args, _ = argparser.parse_known_args()
     print(args)
     main(args)

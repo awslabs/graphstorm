@@ -272,7 +272,7 @@ The GraphStorm trainers can have evaluators and task trackers associated. The fo
                                   config.early_stop_strategy)
     trainer.setup_evaluator(evaluator)
     # Optional: set up a task tracker to show the progress of training.
-    tracker = GSSageMakerTaskTracker(config)
+    tracker = GSSageMakerTaskTracker(config.eval_frequency)
     trainer.setup_task_tracker(tracker)
 
 GraphStorm's `evaluators <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/eval/evaluator.py>`_ could help to compute the required evaluation metrics, such as ``accuracy``, ``f1``, ``mrr``, and etc. Users can select the proper evaluator and use the trainer's ``setup_evaluator()`` method to attach them. GraphStorm's `task trackers <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/tracker/graphstorm_tracker.py>`_ serve as log collectors, which are used to show the process information.
