@@ -25,6 +25,7 @@ import logging
 
 from graphstorm import model as gsmodel
 from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX
+from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
 
 from peft import LoraConfig, get_peft_model
 from transformers import (
@@ -115,32 +116,56 @@ class LLMGraphModel(gsmodel.GSgnnNodeModelBase):
                 self._lm_node_feats[ntype] = feats
         self.out = nn.Linear(self.config.hidden_size, out_dim)
         self._loss_fn = gsmodel.ClassifyLossFunc(multilabel=False)
-        #TODO (@qzhuamzn): add initialization for gnn encoding
+        self.gnn_encoder = RelationalGCNEncoder(g,
+                                           h_dim, self.config.hidden_size,
+                                           num_bases=-1,
+                                           num_hidden_layers=num_layers -1)
 
     def forward(self, blocks, node_feats, edge_feats, labels, input_nodes):
-        # TODO (qzhuamzn): use GNNs to generate graph tokens
-        h = {}
         output_nodes = blocks[-1].dstdata[dgl.NID]
-
         input_ids = self._lm_node_feats[self.target_ntype][TOKEN_IDX][output_nodes].to(self.llm.device)
         attention_mask = self._lm_node_feats[self.target_ntype][ATT_MASK_IDX][output_nodes].to(self.llm.device)
-        # TODO (qzhuamzn): modify input_ids into input_embeds=[graph_tokens, input_embeds] to support GPEFT
-        model_output = self.llm(input_ids=input_ids, attention_mask=attention_mask)
+        graph_tokens = self.gnn_encoder(blocks, node_feats)[self.target_ntype]
+
+        input_shape = input_ids.size()
+        input_ids = input_ids.view(-1, input_shape[-1])
+        word_embeddings = self.llm.get_input_embeddings()
+        # Tentatively leave the zero prompting line for debugging and testing
+        #inputs_embeds = torch.cat([torch.zeros_like(graph_tokens.unsqueeze(1)), word_embeddings(input_ids)], dim=1)
+        inputs_embeds = torch.cat([graph_tokens.unsqueeze(1), word_embeddings(input_ids)], dim=1)
+        attention_mask = torch.cat([torch.ones((input_shape[0],1), device=self.llm.device), attention_mask], dim=1)
+        model_output = self.llm(inputs_embeds=inputs_embeds, attention_mask=attention_mask)
         # We use the last token in order to do the classification, as other causal models
-        h = self.out(model_output.last_hidden_state[:,-1,:])
+        masked_hidden_states = model_output.last_hidden_state * attention_mask.unsqueeze(-1)
+        last_token_indexes = (attention_mask.sum(dim=1, dtype=torch.int64) - 1)
+        last_token_embeddings = masked_hidden_states[torch.arange(last_token_indexes.size(0)),last_token_indexes,:]
+        h = self.out(last_token_embeddings)
+        
         loss = self._loss_fn(h, labels[self.target_ntype])
         
         return loss
 
         
     def predict(self, blocks, node_feats, _, input_nodes, return_proba):
-        # TODO (qzhuamzn): use h as gnn token embeddings
-        h = {}
         output_nodes = blocks[-1].dstdata[dgl.NID]
+        
         input_ids = self._lm_node_feats[self.target_ntype][TOKEN_IDX][output_nodes].to(self.llm.device)
         attention_mask = self._lm_node_feats[self.target_ntype][ATT_MASK_IDX][output_nodes].to(self.llm.device)
-        model_output = self.llm(input_ids=input_ids, attention_mask=attention_mask)
-        logits = self.out(model_output.last_hidden_state[:,-1,:])
+        graph_tokens = self.gnn_encoder(blocks, node_feats)[self.target_ntype]
+
+        input_shape = input_ids.size()
+        input_ids = input_ids.view(-1, input_shape[-1])
+        word_embeddings = self.llm.get_input_embeddings()
+        # Tentatively leave the zero prompting line for debugging and testing
+        #inputs_embeds = torch.cat([torch.zeros_like(graph_tokens.unsqueeze(1)), word_embeddings(input_ids)], dim=1)
+        inputs_embeds = torch.cat([graph_tokens.unsqueeze(1), word_embeddings(input_ids)], dim=1)
+        attention_mask = torch.cat([torch.ones((input_shape[0],1), device=self.llm.device), attention_mask], dim=1)
+        model_output = self.llm(inputs_embeds=inputs_embeds, attention_mask=attention_mask)
+        masked_hidden_states = model_output.last_hidden_state * attention_mask.unsqueeze(-1)
+        last_token_indexes = (attention_mask.sum(dim=1, dtype=torch.int64) - 1)
+        last_token_embeddings = masked_hidden_states[torch.arange(last_token_indexes.size(0)),last_token_indexes,:]
+        logits = self.out(last_token_embeddings)
+
         if return_proba:
             return logits.argmax(dim=-1), torch.softmax(logits, 1)
         else:
