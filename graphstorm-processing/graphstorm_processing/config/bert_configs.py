@@ -41,5 +41,5 @@ class BertConfig(FeatureConfig):
             self.bert_model in VALID_BERT_MODEL
         ), f"Unknown imputer requested, expected one of {VALID_BERT_MODEL}, got {self.bert_model}"
         assert isinstance(self.max_seq_length, int) and self.max_seq_length > 0, \
-            f"Expect bucket_cnt {self.bucket_cnt} be an integer and larger than zero."
+            f"Expect max_seq_length {self.max_seq_length} be an integer and larger than zero."
 

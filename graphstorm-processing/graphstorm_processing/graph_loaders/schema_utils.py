@@ -97,12 +97,11 @@ def determine_spark_feature_type(feature_type: str) -> Type[DataType]:
         "multi-numerical",
         "categorical",
         "multi-categorical",
+        "bert"
     ] or feature_type.startswith("text"):
         return StringType
     if feature_type in ["numerical", "bucket-numerical", "none"]:
         return FloatType
-    if feature_type in ["bert"]:
-        return StringType
     else:
         raise NotImplementedError(f"Unknown feature type: {feature_type}")
 
