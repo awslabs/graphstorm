@@ -90,6 +90,27 @@ edges = pandas.read_csv('/data/ml-100k/u.data', delimiter='\t', header=None)
 edge_data = {'src_id': edges[0], 'dst_id': edges[1], 'rate': edges[2]}
 write_data_parquet(edge_data, '/data/ml-100k/edges.parquet')
 
+# generate hard negatives
+num_movies = len(ids)
+neg_movie_idx = np.random.randint(0, num_movies, (edges.shape[0], 5))
+neg_movie_0 = ids[neg_movie_idx]
+neg_movie_1 = []
+for idx, neg_movie in enumerate(neg_movie_0):
+    if idx < 10:
+        neg_movie_1.append(list(neg_movie.astype(str))[0])
+    else:
+        neg_movie_1.append(",".join(list(neg_movie.astype(str))))
+neg_movie_1 = np.array(neg_movie_1)
+neg_movie_idx = np.random.randint(0, num_movies, (edges.shape[0], 10))
+neg_movie_2 = ids[neg_movie_idx]
+
+neg_edge_data = {
+    "hard_0": neg_movie_0,
+    "hard_1": neg_movie_1,
+    "fixed_eval": neg_movie_2
+}
+write_data_parquet(neg_edge_data, '/data/ml-100k/hard_neg.parquet')
+
 # generate synthetic user data with label
 user_labels = np.random.randint(11, size=feat.shape[0])
 user_data = {'id': user['id'].values, 'feat': feat, 'occupation': user['occupation'], 'label': user_labels}

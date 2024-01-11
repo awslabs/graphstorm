@@ -1075,7 +1075,7 @@ class HardEdgeDstNegativeTransform(HardEdgeNegativeTransform):
     """
 
     def set_target_etype(self, etype):
-        self._target_etype = etype
+        self._target_etype = tuple(etype)
         # target node type is destination node type.
         self._target_ntype = etype[2]
 
