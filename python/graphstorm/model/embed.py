@@ -450,6 +450,10 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
                 assert g.nodes[ntype].data['input_emb'].shape[1] == embed_size
             input_emb = g.nodes[ntype].data['input_emb']
             # TODO(zhengda) this is not a memory efficient way of implementing this.
+            # Here `force_even` is set to False, this means that we compute the input node
+            # embeddings for the nodes in the local partition and save the embeddings to
+            # the local partition with shared memory. Therefore, we don't need to call
+            # flush at the end of inference.
             infer_nodes = node_split(th.ones((g.number_of_nodes(ntype),), dtype=th.bool),
                                      partition_book=g.get_partition_book(),
                                      ntype=ntype, force_even=False)

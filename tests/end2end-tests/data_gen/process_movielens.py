@@ -90,6 +90,11 @@ edges = pandas.read_csv('/data/ml-100k/u.data', delimiter='\t', header=None)
 edge_data = {'src_id': edges[0], 'dst_id': edges[1], 'rate': edges[2]}
 write_data_parquet(edge_data, '/data/ml-100k/edges.parquet')
 
+# generate data for homogeneous optimization test
+edges = pandas.read_csv('/data/ml-100k/u.data', delimiter='\t', header=None)
+edge_data = {'src_id': edges[1], 'dst_id': edges[1], 'rate': edges[2]}
+write_data_parquet(edge_data, '/data/ml-100k/edges_homogeneous.parquet')
+
 # generate hard negatives
 num_movies = len(ids)
 neg_movie_idx = np.random.randint(0, num_movies, (edges.shape[0], 5))

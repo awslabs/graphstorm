@@ -343,6 +343,92 @@ def generate_dummy_homo_graph(size='tiny', gen_mask=True):
 
     return hetero_graph
 
+def generate_dummy_homogeneous_failure_graph(size='tiny', gen_mask=True, type='node'):
+    """
+    generate a dummy homogeneous graph for failure case.
+
+    In a homogeneous graph, the correct node type is defined as ["_N"], and the correct edge type is [("_N", "_E", "_N")].
+    Any deviation from this specification implies an invalid input for a homogeneous graph. This function is designed
+    to create test cases that intentionally fail for homogeneous graph inputs. For type="node", it will produce a graph
+    with the correct node type ["_N"] but with an altered edge type set as [("_N", "_E", "_N"), ("_N", "fake_E", "_N")].
+    Conversely, for type="edge", the function generates a graph with an incorrect node type ["_N", "fake_N"] while
+    maintaining the correct edge type [("_N", "_E", "_N")]. The unit test is expected to identify and flag errors
+    in both these scenarios.
+
+    Parameters
+    ----------
+    size: the size of dummy graph data, could be one of tiny, small, medium, large, and largest
+    type: task type to generate failure case
+
+    :return:
+    hg: a homogeneous graph in one node type and one edge type.
+    """
+    size_dict = {
+        'tiny': 1e+2,
+        'small': 1e+4,
+        'medium': 1e+6,
+        'large': 1e+8,
+        'largest': 1e+10
+    }
+
+    data_size = int(size_dict[size])
+
+    if type == 'node':
+        ntype = "_N"
+        etype = ("_N", "fake_E", "_N")
+
+        num_nodes_dict = {
+            ntype: data_size,
+        }
+    else:
+        ntype = "_N"
+        etype = ("_N", "_E", "_N")
+        num_nodes_dict = {
+            ntype: data_size,
+            "fake_N": data_size
+        }
+
+    edges = {
+        etype: (th.randint(data_size, (2 * data_size,)),
+                             th.randint(data_size, (2 * data_size,)))
+    }
+
+    hetero_graph = dgl.heterograph(edges, num_nodes_dict=num_nodes_dict)
+
+    # set node and edge features
+    node_feat = {ntype: th.randn(data_size, 2)}
+
+    edge_feat = {etype: th.randn(2 * data_size, 2)}
+
+    hetero_graph.nodes[ntype].data['feat'] = node_feat[ntype]
+    hetero_graph.nodes[ntype].data['label'] = th.randint(10, (hetero_graph.number_of_nodes(ntype), ))
+
+    hetero_graph.edges[etype].data['feat'] = edge_feat[etype]
+    hetero_graph.edges[etype].data['label'] = th.randint(10, (hetero_graph.number_of_edges(etype), ))
+
+    # set train/val/test masks for nodes and edges
+    if gen_mask:
+        target_ntype = [ntype]
+        target_etype = [etype]
+
+        node_train_mask = generate_mask([0,1], data_size)
+        node_val_mask = generate_mask([2,3], data_size)
+        node_test_mask = generate_mask([4,5], data_size)
+
+        edge_train_mask = generate_mask([0,1], 2 * data_size)
+        edge_val_mask = generate_mask([2,3], 2 * data_size)
+        edge_test_mask = generate_mask([4,5], 2 * data_size)
+
+        hetero_graph.nodes[target_ntype[0]].data['train_mask'] = node_train_mask
+        hetero_graph.nodes[target_ntype[0]].data['val_mask'] = node_val_mask
+        hetero_graph.nodes[target_ntype[0]].data['test_mask'] = node_test_mask
+
+        hetero_graph.edges[target_etype[0]].data['train_mask'] = edge_train_mask
+        hetero_graph.edges[target_etype[0]].data['val_mask'] = edge_val_mask
+        hetero_graph.edges[target_etype[0]].data['test_mask'] = edge_test_mask
+
+    return hetero_graph
+
 
 def partion_and_load_distributed_graph(hetero_graph, dirname, graph_name='dummy'):
     """
@@ -428,6 +514,28 @@ def generate_dummy_dist_graph_multi_target_ntypes(dirname, size='tiny', graph_na
     part_config : the path of the partition configuration file.
     """
     hetero_graph = generate_dummy_hetero_graph_multi_target_ntypes(size=size, gen_mask=gen_mask)
+    return partion_and_load_distributed_graph(hetero_graph=hetero_graph, dirname=dirname,
+                                              graph_name=graph_name)
+
+
+def generate_dummy_dist_graph_homogeneous_failure_graph(dirname, size='tiny', graph_name='dummy',
+                                                 gen_mask=True, type='node'):
+    """
+    Generate a dummy DGL distributed graph with the given size
+    Parameters
+    ----------
+    dirname : the directory where the graph will be partitioned and stored.
+    size: the size of dummy graph data, could be one of tiny, small, medium, large, and largest
+    graph_name: string as a name
+    type: task type to generate failure case
+
+    Returns
+    -------
+    dist_graph: a DGL distributed graph
+    part_config : the path of the partition configuration file.
+    type:
+    """
+    hetero_graph = generate_dummy_homogeneous_failure_graph(size=size, gen_mask=gen_mask, type=type)
     return partion_and_load_distributed_graph(hetero_graph=hetero_graph, dirname=dirname,
                                               graph_name=graph_name)
 
