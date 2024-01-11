@@ -37,6 +37,14 @@ Welcome to the GraphStorm Documentation and Tutorials
 
 .. toctree::
    :maxdepth: 1
+   :caption: Programming User Guide
+   :hidden:
+   :glob:
+
+   notebooks/Notebook_0_Data_Prepare
+
+.. toctree::
+   :maxdepth: 1
    :caption: Advanced Topics
    :hidden:
    :glob:
