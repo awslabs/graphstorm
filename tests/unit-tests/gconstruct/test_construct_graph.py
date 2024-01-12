@@ -22,11 +22,8 @@ import pyarrow.parquet as pq
 import numpy as np
 import dgl
 import torch as th
-<<<<<<< HEAD
 import pandas as pd
-=======
 import copy
->>>>>>> master
 
 from functools import partial
 from numpy.testing import assert_equal, assert_almost_equal
