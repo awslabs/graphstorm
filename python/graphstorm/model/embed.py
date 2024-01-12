@@ -33,10 +33,10 @@ from ..utils import (
     is_distributed,
     get_backend,
     create_dist_tensor,
-    is_wholegraph_sparse_emb,
 )
 from .ngnn_mlp import NGNNMLP
 from ..wholegraph import create_wholememory_optimizer, WholeGraphSparseEmbedding
+from ..wholegraph import is_wholegraph_init
 
 
 def init_emb(shape, dtype):
@@ -184,6 +184,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         The activation function for the feedforward neural networks.
     cache_embed : bool
         Whether or not to cache the embeddings.
+    use_wholegraph_sparse_emb : bool
+        Whether or not to use WholeGraph to host embeddings for sparse updates.
 
     Examples:
     ----------
@@ -213,11 +215,13 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  force_no_embeddings=None,
                  num_ffn_layers_in_input=0,
                  ffn_activation=F.relu,
-                 cache_embed=False):
+                 cache_embed=False,
+                 use_wholegraph_sparse_emb=False):
         super(GSNodeEncoderInputLayer, self).__init__(g)
         self.embed_size = embed_size
         self.dropout = nn.Dropout(dropout)
         self.use_node_embeddings = use_node_embeddings
+        self.use_wholegraph_sparse_emb = use_wholegraph_sparse_emb
         self.feat_size = feat_size
         if force_no_embeddings is None:
             force_no_embeddings = []
@@ -229,7 +233,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
             dgl.__version__ <= "1.1.2"
             and is_distributed()
             and get_backend() == "nccl"
-            and not is_wholegraph_sparse_emb()
+            and not self.use_wholegraph_sparse_emb
         ):
             if self.use_node_embeddings:
                 raise NotImplementedError(
@@ -243,12 +247,19 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                         + "learnable embeddings on featureless nodes. Please use DGL version "
                         + ">=1.1.2 or gloo backend."
                     )
+        if self.use_wholegraph_sparse_emb:
+            if get_backend() != "nccl":
+                raise AssertionError(
+                    "WholeGraph sparse embedding is only supported on NCCL backend."
+                )
+            if not is_wholegraph_init():
+                raise AssertionError("WholeGraph is not initialized yet.")
 
         # create weight embeddings for each node for each relation
         self.proj_matrix = nn.ParameterDict()
         self.input_projs = nn.ParameterDict()
         embed_name = "embed"
-        if is_distributed() and is_wholegraph_sparse_emb():
+        if self.use_wholegraph_sparse_emb:
             # WG sparse optimizer has to be created at first like below
             # This is because WG embedding depends on WG sparse optimizer to track/trace
             # the gradients for embeddings.
@@ -264,7 +275,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 nn.init.xavier_uniform_(input_projs, gain=nn.init.calculate_gain("relu"))
                 self.input_projs[ntype] = input_projs
                 if self.use_node_embeddings:
-                    if is_distributed() and is_wholegraph_sparse_emb():
+                    if self.use_wholegraph_sparse_emb:
                         if get_rank() == 0:
                             logging.debug(
                                 "Use WholeGraph to host additional sparse embeddings on node %s",
@@ -294,7 +305,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     self.proj_matrix[ntype] = proj_matrix
 
             elif ntype not in force_no_embeddings:
-                if is_distributed() and is_wholegraph_sparse_emb():
+                if self.use_wholegraph_sparse_emb:
                     if get_rank() == 0:
                         logging.debug(
                             "Use WholeGraph to host sparse embeddings on node %s:%d",

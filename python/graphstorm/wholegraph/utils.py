@@ -1,5 +1,21 @@
-"""This module provides utility functions for working with WholeGraph"""
-from .utils import is_wholegraph, is_wholegraph_sparse_emb
+"""
+    Copyright 2023 Contributors
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+    Utils for integrating WholeGraph into GraphStorm
+"""
+
 
 def is_wholegraph_embedding(data):
     """ Check if the data is in WholeMemory emedding format which
@@ -10,6 +26,7 @@ def is_wholegraph_embedding(data):
         return isinstance(data, pylibwholegraph.torch.WholeMemoryEmbedding)
     except ImportError:
         return False
+
 
 def is_wholegraph_embedding_module(data):
     """Check if the data is in WholeMemory emedding format which
@@ -31,4 +48,3 @@ def is_wholegraph_optimizer(data):
         return isinstance(data, pylibwholegraph.torch.WholeMemoryOptimizer)
     except:  # pylint: disable=bare-except
         return False
-

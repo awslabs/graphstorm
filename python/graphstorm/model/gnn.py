@@ -37,12 +37,10 @@ from .gnn_encoder_base import dist_minibatch_inference
 from ..utils import (
     get_rank,
     get_world_size,
-    barrier,
-    is_distributed,
-    is_wholegraph_sparse_emb,
+    barrier
 )
-from ..wholegraph import WholeGraphSparseEmbedding
-from ..wholegraph_utils import is_wholegraph_optimizer
+from ..wholegraph import is_wholegraph_optimizer
+
 from ..dataloading.dataset import prepare_batch_input
 
 from ..config import (GRAPHSTORM_MODEL_ALL_LAYERS,
@@ -557,6 +555,20 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             params += self.node_input_encoder.get_sparse_params()
         return params
 
+    def use_wholegraph_sparse_emb(self):
+        """ Whether or not to use WholeGraph to host embeddings for sparse optimizer updates.
+        """
+        if self.node_input_encoder is not None:
+            return self.node_input_encoder.use_wholegraph_sparse_emb
+        return False
+
+    def get_wholegraph_optimizer(self):
+        """ Get the WholeGraph optimizer for updating WholeGraph hosted embeddings .
+        """
+        if self.node_input_encoder is not None:
+            return self.node_input_encoder.wg_sparse_embs_optimizer
+        return None
+
     def set_node_input_encoder(self, encoder):
         """set the input encoder for nodes.
 
@@ -745,18 +757,15 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """
         sparse_params = self.get_sparse_params()
         if len(sparse_params) > 0:
-            if is_distributed() and is_wholegraph_sparse_emb():
+            if self.use_wholegraph_sparse_emb():
                 # To use wholegraph sparse optimizer, optimizer needs to be created
                 # before sparse embeddings. So, here we just get the optimizer from
                 # WholeGraphSparseEmbedding and ensure the identity of the optimizer
-                for params in sparse_params:
-                    assert isinstance(params, WholeGraphSparseEmbedding), \
-                        "Sparse params should be WholeGraphSparseEmbedding if enabled WholeGraph."
-                    emb_optimizer = params.optimizer
-                    break
-                for params in sparse_params:
-                    assert emb_optimizer is params.optimizer, \
-                        "We only need one wholegraph optimizer for all wm_embeddings."
+                emb_optimizer = self.get_wholegraph_optimizer()
+                assert all(params.optimizer is emb_optimizer for params in sparse_params), \
+                    "We only need one wholegraph optimizer for all wm_embeddings."
+                # TODO(@chang-l): Wrap the wholegraph optimizer in a class to
+                # take an extra input argument: lr
                 emb_optimizer.lr = sparse_optimizer_lr
             else:
                 emb_optimizer = dgl.distributed.optim.SparseAdam(

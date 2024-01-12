@@ -92,17 +92,6 @@ def use_wholegraph(part_config):
         os.path.dirname(part_config), 'wholegraph')))
     return USE_WHOLEGRAPH
 
-def use_wholegraph_sparse_emb(use_wholegraph=True):
-    """ Use wholegraph for feature fetching directly
-    """
-    global USE_WHOLEGRAPH_SPARSEEMB
-    try:
-        import pylibwholegraph
-        USE_WHOLEGRAPH_SPARSEEMB = use_wholegraph
-    except ImportError:
-        USE_WHOLEGRAPH_SPARSEEMB = False
-    return USE_WHOLEGRAPH_SPARSEEMB
-
 def is_wholegraph():
     """ Check whether global USE_WHOLEGRAPH is true
     """

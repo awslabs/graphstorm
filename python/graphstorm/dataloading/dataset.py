@@ -29,7 +29,7 @@ from ..utils import get_rank, get_world_size, is_distributed, barrier, is_wholeg
 from ..utils import sys_tracker
 from .utils import dist_sum, flip_node_mask
 
-from ..wholegraph_utils import is_wholegraph_embedding
+from ..wholegraph import is_wholegraph_embedding
 
 def split_full_edge_list(g, etype, rank):
     ''' Split the full edge list of a graph.
