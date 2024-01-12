@@ -46,7 +46,7 @@ ENV PYTHONPATH="/opt/ml/code/graphstorm/python/:${PYTHONPATH}"
 RUN cp /opt/ml/code/graphstorm/sagemaker/run/* /opt/ml/code/
 
 # Download DGL source code
-RUN cd /root; git clone https://github.com/dmlc/dgl.git; cd dgl; git checkout -b 1.1.0 1.1.0
+RUN cd /root; git clone https://github.com/dmlc/dgl.git
 # Un-comment if we prefer a local DGL distribution
 # COPY dgl /root/dgl
 ENV PYTHONPATH="/root/dgl/tools/:${PYTHONPATH}"
