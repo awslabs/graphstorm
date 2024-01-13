@@ -29,7 +29,6 @@ import numpy as np
 
 TORCH_MAJOR_VER = int(th.__version__.split('.', maxsplit=1)[0])
 USE_WHOLEGRAPH = False
-USE_WHOLEGRAPH_SPARSEEMB = False
 
 def setup_device(local_rank):
     r"""Setup computation device.
@@ -96,12 +95,6 @@ def is_wholegraph():
     """ Check whether global USE_WHOLEGRAPH is true
     """
     return USE_WHOLEGRAPH
-
-
-def is_wholegraph_sparse_emb():
-    """Check whether global USE_WHOLEGRAPH_SPARSEEMB is true"""
-    return USE_WHOLEGRAPH_SPARSEEMB
-
 
 def estimate_mem_train(root, task):
     ''' Estimate the memory consumption per machine during training.
