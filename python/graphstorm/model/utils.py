@@ -38,6 +38,7 @@ from ..utils import (
 )
 from ..wholegraph import WholeGraphSparseEmbedding
 from ..data.utils import alltoallv_cpu, alltoallv_nccl
+from ..distributed import flush_data
 
 # placeholder of the ntype for homogeneous graphs
 NTYPE = dgl.NTYPE
@@ -1057,7 +1058,7 @@ class NodeIDShuffler():
                 f"Expect {id_mapping.shape[0]}, but get {num_nodes}"
             # Save ID mapping into dist tensor
             id_mapping_info[th.arange(num_nodes)] = id_mapping
-        barrier()
+        flush_data()
         return id_mapping_info
 
     def shuffle_nids(self, ntype, nids):

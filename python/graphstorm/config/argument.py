@@ -25,6 +25,7 @@ import logging
 import yaml
 import torch as th
 import torch.nn.functional as F
+from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 
 from .config import BUILTIN_GNN_ENCODER
 from .config import BUILTIN_ENCODER
@@ -1585,9 +1586,12 @@ class GSConfig:
         """ The node type for prediction
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_target_ntype"), \
-            "Must provide the target ntype through target_ntype"
-        return self._target_ntype
+        if hasattr(self, "_target_ntype"):
+            return self._target_ntype
+        else:
+            logging.warning("There is not target ntype provided, "
+                            "will treat the input graph as a homogeneous graph")
+            return DEFAULT_NTYPE
 
     @property
     def eval_target_ntype(self):
@@ -1660,8 +1664,10 @@ class GSConfig:
             classification/regression. Support multiple tasks when needed.
         """
         # pylint: disable=no-member
-        assert hasattr(self, "_target_etype"), \
-            "Edge classification task needs a target etype"
+        if not hasattr(self, "_target_etype"):
+            logging.warning("There is not target etype provided, "
+                            "will treat the input graph as a homogeneous graph")
+            return [DEFAULT_ETYPE]
         assert isinstance(self._target_etype, list), \
             "target_etype must be a list in format: " \
             "[\"query,clicks,asin\", \"query,search,asin\"]."

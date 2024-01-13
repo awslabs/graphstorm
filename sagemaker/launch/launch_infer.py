@@ -92,6 +92,7 @@ def run_job(input_args, image, unknownargs):
     # We must handle cases like
     # --target-etype query,clicks,asin query,search,asin
     # --feat-name ntype0:feat0 ntype1:feat1
+    # --column-names nid,~id emb,embedding
     unknow_idx = 0
     while unknow_idx < len(unknownargs):
         print(unknownargs[unknow_idx])

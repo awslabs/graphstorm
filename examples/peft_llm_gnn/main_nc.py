@@ -6,16 +6,17 @@ from graphstorm.dataloading import GSgnnNodeDataLoader
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.dataloading import GSgnnNodeTrainData
 from graphstorm.utils import setup_device
+from graphstorm.inference import GSgnnNodePredictionInferrer
 from graphstorm.trainer import GSgnnNodePredictionTrainer
-
-from model_nc import create_rgcn_model_for_nc
+from graphstorm.tracker import GSSageMakerTaskTracker
+from llm_gnn_model import LLMGraphModel
 
 def main(config_args):
     """ main function
     """
     config = GSConfig(config_args)
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
-
+    device = setup_device(config.local_rank)
     # Define the training dataset
     train_data = GSgnnNodeTrainData(
         config.graph_name,
@@ -26,13 +27,20 @@ def main(config_args):
         node_feat_field=config.node_feat_name,
     )
 
-    # Define TGAT model
-    model = create_rgcn_model_for_nc(train_data.g, config)
-    print(model)
+    model = LLMGraphModel(
+            g=train_data.g,
+            node_lm_configs=config.node_lm_configs,
+            h_dim=config.hidden_size,
+            out_dim=config.num_classes,
+            num_layers=config.num_layers,
+            target_ntype=config.target_ntype,
+            use_norm=True,
+            alpha_l2norm=config.alpha_l2norm,
+            lr=config.lr)
 
     # Create a trainer for NC tasks.
     trainer = GSgnnNodePredictionTrainer(
-        model, gs.get_rank(), topk_model_to_save=config.topk_model_to_save
+        model,
     )
 
     if config.restore_model_path is not None:
@@ -41,7 +49,6 @@ def main(config_args):
             model_layer_to_load=["gnn", "embed"],
         )
 
-    device = setup_device(config.local_rank)
     trainer.setup_device(device=device)
 
     # set evaluator
@@ -55,6 +62,8 @@ def main(config_args):
         config.early_stop_strategy,
     )
     trainer.setup_evaluator(evaluator)
+    tracker = GSSageMakerTaskTracker(config.eval_frequency)
+    trainer.setup_task_tracker(tracker)
 
     # create train loader
     dataloader = GSgnnNodeDataLoader(
@@ -76,7 +85,29 @@ def main(config_args):
         train_task=False,
     )
 
-    # create test loader
+    # Start the training process.
+    model.prepare_input_encoder(train_data)
+    trainer.fit(
+        train_loader=dataloader,
+        num_epochs=config.num_epochs,
+        val_loader=val_dataloader,
+        # disable testing during training
+        test_loader=None,
+        save_model_path=config.save_model_path,
+        save_model_frequency=config.save_model_frequency,
+        use_mini_batch_infer=True
+    )
+    
+    # Load the best checkpoint
+    best_model_path = trainer.get_best_model_path()
+    model.restore_model(best_model_path)
+
+    # Create an inference for a node task.
+    infer = GSgnnNodePredictionInferrer(model)
+    infer.setup_device(device=device)
+    infer.setup_evaluator(evaluator)
+    infer.setup_task_tracker(tracker)
+    # Create test loader
     test_dataloader = GSgnnNodeDataLoader(
         train_data,
         train_data.test_idxs,
@@ -85,17 +116,10 @@ def main(config_args):
         device=device,
         train_task=False,
     )
-
-    # Start the training process.
-    model.prepare_input_encoder(train_data)
-    trainer.fit(
-        train_loader=dataloader,
-        val_loader=val_dataloader,
-        test_loader=test_dataloader,
-        num_epochs=config.num_epochs,
-        save_model_path=config.save_model_path,
-        save_model_frequency=config.save_model_frequency,
-    )
+    # Run inference on the inference dataset and save the GNN embeddings in the specified path.
+    infer.infer(test_dataloader, save_embed_path=None,
+                save_prediction_path=config.save_prediction_path,
+                use_mini_batch_infer=True)
 
 
 def generate_parser():
@@ -106,8 +130,7 @@ def generate_parser():
 if __name__ == "__main__":
     arg_parser = generate_parser()
 
-    # Ignore unknown args to make script more robust to input arguments
-    args, _ = arg_parser.parse_known_args()
+    args = arg_parser.parse_args()
+    print(args)
     main(args)
-
 

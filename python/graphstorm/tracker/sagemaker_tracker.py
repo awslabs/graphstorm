@@ -25,8 +25,11 @@ class GSSageMakerTaskTracker(GSTaskTrackerAbc):
 
         Parameters
         ----------
-        config: GSConfig
-            Configurations. Users can add their own configures in the yaml config file.
+        log_report_frequency: int
+            The frequency of reporting model performance metrics through task_tracker. 
+            The frequency is defined by using number of iterations, i.e., every N iterations
+            the evaluation metrics will be reported.
+
     """
 
     def _do_report(self, step):

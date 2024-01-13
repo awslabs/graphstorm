@@ -48,3 +48,4 @@ def is_wholegraph_optimizer(data):
         return isinstance(data, pylibwholegraph.torch.WholeMemoryOptimizer)
     except:  # pylint: disable=bare-except
         return False
+

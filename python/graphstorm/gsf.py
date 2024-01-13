@@ -634,4 +634,4 @@ def check_homo(g):
 
 def create_builtin_task_tracker(config):
     tracker_class = get_task_tracker_class(config.task_tracker)
-    return tracker_class(config)
+    return tracker_class(config.eval_frequency)
