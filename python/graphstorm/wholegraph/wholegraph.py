@@ -25,7 +25,6 @@ import re
 
 import torch as th
 import dgl
-from typing import Optional
 from dataclasses import dataclass
 
 from ..utils import get_rank, get_world_size
@@ -293,7 +292,7 @@ def load_wg_feat(part_config_path, num_parts, type_name, name):
 
 def create_wholememory_optimizer(
     optimizer_type: str, param_dict: dict
-) -> wgth.WholeMemoryOptimizer:
+):
     """Create a wholegraph sparse optimizer.
 
     If we use wholegraph to store sparse embeddings, for future update, a joint
@@ -319,9 +318,9 @@ def create_wholememory_optimizer(
 def create_wg_sparse_params(
     nnodes: int,
     embedding_dim: int,
-    optimizer: Optional[wgth.WholeMemoryOptimizer] = None,
+    optimizer,  # Optional[wgth.WholeMemoryOptimizer, None]
     location: str = "cpu",
-) -> wgth.WholeMemoryEmbeddingModule:
+):
     """Create a wholegraph sparse embedding module.
 
     This is to use wholegraph distributed host/device memory to store sparse embs.
@@ -390,7 +389,7 @@ class WholeGraphSparseEmbedding:
         nnodes: int,
         embedding_dim: int,
         name: str,
-        optimizer: Optional[wgth.WholeMemoryOptimizer] = None,
+        optimizer,  # Optional[wgth.WholeMemoryOptimizer, None]
         location: str = "cpu",
     ):
         self._module = create_wg_sparse_params(nnodes, embedding_dim, optimizer, location)
