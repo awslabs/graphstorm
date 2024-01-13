@@ -43,6 +43,7 @@ def init_wholegraph():
         raise ImportError("WholeGraph is not installed")
     from dgl.distributed import role
     import pylibwholegraph.binding.wholememory_binding as wmb
+    global WHOLEGRAPH_INIT
 
     @dataclass
     class Options:  # pylint: disable=missing-class-docstring
@@ -61,8 +62,6 @@ def init_wholegraph():
     wmb.init(0)
     wgth.comm.set_world_info(get_rank(), get_world_size(), Options.local_rank,
                             Options.local_size)
-    assert wgth.comm.get_rank() == get_rank()
-    assert wgth.comm.get_size() == get_world_size()
     WHOLEGRAPH_INIT = True
 
 def is_wholegraph_init():

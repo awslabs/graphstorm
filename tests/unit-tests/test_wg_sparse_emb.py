@@ -37,8 +37,7 @@ from dgl.distributed import (
     partition_graph,
 )
 
-from graphstorm.wholegraph import init_wholegraph
-from graphstorm.utils import use_wholegraph_sparse_emb, is_wholegraph_sparse_emb
+from graphstorm.wholegraph import init_wholegraph, is_wholegraph_init
 
 from graphstorm.model import GSNodeEncoderInputLayer
 from graphstorm.model.embed import compute_node_input_embeddings
@@ -111,7 +110,7 @@ def _initialize(proc_id, nprocs, use_wholegraph=True):
     init_wholegraph()
 
 def _finalize():
-    if is_wholegraph_sparse_emb():
+    if is_wholegraph_init():
         import pylibwholegraph.torch as wgth
         wgth.finalize()
         # below patch fix (manually reset wg comm) will not be needed
@@ -148,40 +147,30 @@ def _start_trainer(
     num_server,
     model_path,
 ):
-    use_wholegraph_sparse_emb(True)
     os.environ["DGL_GROUP_ID"] = str(0)
     dgl.distributed.initialize(ip_config)
     dist_graph = DistGraph("test_wholegraph_sparseemb", part_config=part_config)
 
-    enable_wg = is_wholegraph_sparse_emb()
-    _initialize(rank, world_size, True)
+    _initialize(rank, world_size, use_wholegraph=True)
     feat_size = {"n0":0, "n1":0}
-    embed_layer = GSNodeEncoderInputLayer(dist_graph, feat_size, 32)
+    print("wholegraph start? ", is_wholegraph_init())
+    embed_layer = GSNodeEncoderInputLayer(
+        dist_graph, feat_size, 32, use_wholegraph_sparse_emb=True
+    )
 
     def get_wholegraph_sparse_emb(sparse_emb):
         (local_tensor, _) = sparse_emb.weight.get_local_tensor(host_view=True)
         return local_tensor
 
-    if is_wholegraph_sparse_emb():
-        saved_embs = \
-            {ntype: get_wholegraph_sparse_emb(sparse_emb) \
-                for ntype, sparse_emb in embed_layer.sparse_embeds.items()}
-    else:
-        saved_embs = \
-            {ntype: sparse_emb._tensor[th.arange(embed_layer.g.number_of_nodes(ntype))] \
-                for ntype, sparse_emb in embed_layer.sparse_embeds.items()}
-
+    saved_embs = \
+        {ntype: get_wholegraph_sparse_emb(sparse_emb) \
+            for ntype, sparse_emb in embed_layer.sparse_embeds.items()}
     save_sparse_embeds(model_path, embed_layer)
     load_sparse_embeds(model_path, embed_layer)
+    load_sparse_embs = \
+        {ntype: get_wholegraph_sparse_emb(sparse_emb) \
+            for ntype, sparse_emb in embed_layer.sparse_embeds.items()}
 
-    if is_wholegraph_sparse_emb():
-        load_sparse_embs = \
-            {ntype: get_wholegraph_sparse_emb(sparse_emb) \
-                for ntype, sparse_emb in embed_layer.sparse_embeds.items()}
-    else:
-        load_sparse_embs = \
-            {ntype: sparse_emb._tensor[th.arange(embed_layer.g.number_of_nodes(ntype))] \
-                for ntype, sparse_emb in embed_layer.sparse_embeds.items()}
     for ntype in embed_layer.sparse_embeds.keys():
         assert_equal(saved_embs[ntype].numpy(), load_sparse_embs[ntype].numpy())
     dgl.distributed.exit_client()
@@ -290,8 +279,7 @@ def _standalone_initialize(use_wholegraph=True):
 def test_wg_input_layer3(dev):
     # initialize the torch and wholegraph distributed environment
     pytest.importorskip("pylibwholegraph.torch")
-    use_wholegraph_sparse_emb()
-    _standalone_initialize(use_wholegraph=is_wholegraph_sparse_emb())
+    _standalone_initialize(use_wholegraph=True)
     th.backends.cuda.matmul.allow_tf32 = False
     th.backends.cudnn.allow_tf32 = False
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -299,7 +287,7 @@ def test_wg_input_layer3(dev):
         g, _ = generate_dummy_dist_graph(tmpdirname)
 
     feat_size = get_feat_size(g, {'n0' : ['feat']})
-    layer = GSNodeEncoderInputLayer(g, feat_size, 2)
+    layer = GSNodeEncoderInputLayer(g, feat_size, 2, use_wholegraph_sparse_emb=True)
     assert len(layer.input_projs) == 1
     assert list(layer.input_projs.keys())[0] == 'n0'
     assert len(layer.sparse_embeds) == 1
@@ -355,8 +343,7 @@ def test_wg_input_layer3(dev):
 def test_wg_input_layer2():
     # initialize the torch and wholegraph distributed environment
     pytest.importorskip("pylibwholegraph.torch")
-    use_wholegraph_sparse_emb()
-    _standalone_initialize(use_wholegraph=is_wholegraph_sparse_emb())
+    _standalone_initialize(use_wholegraph=True)
     th.backends.cuda.matmul.allow_tf32 = False
     th.backends.cudnn.allow_tf32 = False
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -364,7 +351,9 @@ def test_wg_input_layer2():
         g, _ = generate_dummy_dist_graph(tmpdirname)
 
     feat_size = get_feat_size(g, 'feat')
-    layer = GSNodeEncoderInputLayer(g, feat_size, 2, use_node_embeddings=True)
+    layer = GSNodeEncoderInputLayer(
+        g, feat_size, 2, use_node_embeddings=True, use_wholegraph_sparse_emb=True
+    )
     assert set(layer.input_projs.keys()) == set(g.ntypes)
     assert set(layer.sparse_embeds.keys()) == set(g.ntypes)
     assert set(layer.proj_matrix.keys()) == set(g.ntypes)
@@ -397,8 +386,7 @@ def test_wg_input_layer2():
 def test_wg_compute_embed(dev):
     # initialize the torch and wholegraph distributed environment
     pytest.importorskip("pylibwholegraph.torch")
-    use_wholegraph_sparse_emb(True)
-    _standalone_initialize(use_wholegraph=is_wholegraph_sparse_emb())
+    _standalone_initialize(use_wholegraph=True)
     th.backends.cuda.matmul.allow_tf32 = False
     th.backends.cudnn.allow_tf32 = False
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -408,7 +396,7 @@ def test_wg_compute_embed(dev):
         g.number_of_nodes('n0'), g.number_of_nodes('n1')))
 
     feat_size = get_feat_size(g, {'n0' : ['feat']})
-    layer = GSNodeEncoderInputLayer(g, feat_size, 2)
+    layer = GSNodeEncoderInputLayer(g, feat_size, 2, use_wholegraph_sparse_emb=True)
     nn.init.eye_(layer.input_projs['n0'])
     nn.init.eye_(layer.proj_matrix['n1'])
     layer.to(dev)
