@@ -254,9 +254,6 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
         raw_node_mapping_prefix_s3 = (
             raw_node_mapping_prefix_s3[:-1] if raw_node_mapping_prefix_s3.endswith('/')
             else raw_node_mapping_prefix_s3)
-        assert raw_node_mapping_prefix_s3.endswith("raw_id_mappings"), \
-            "node_mapping_prefix_s3 must end with 'raw_id_mappings'"
-
 
     # We split on '/' to get the bucket, as it's always the third split element in an S3 URI
     s3_input_bucket = graph_data_s3.split("/")[2]
