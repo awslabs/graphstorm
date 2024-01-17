@@ -652,7 +652,7 @@ def _parse_gs_config(config):
         list of str: etypes that have prediction results
     """
     part_config = config.part_config
-    node_id_mapping = os.path.dirname(part_config)
+    node_id_mapping = os.path.join(os.path.dirname(part_config), "raw_id_mappings")
     predict_dir = config.save_prediction_path
     emb_dir = config.save_embed_path
     task_type = config.task_type
@@ -692,7 +692,7 @@ def main(args, gs_config_args):
             _parse_gs_config(config)
     else:
         # Case 2: remap_result is called alone.
-        # GraphStorm train/inference configs are not avaliable.
+        # GraphStorm train/inference configs are not available.
         # We collect information from input arguments.
         logging.basicConfig(level=get_log_level(args.logging_level), force=True)
         id_mapping_path = args.node_id_mapping
@@ -714,7 +714,7 @@ def main(args, gs_config_args):
             pred_ntypes = []
 
         if not with_shared_fs:
-            # When shared file system is not avaliable and the world_size is
+            # When shared file system is not available and the world_size is
             # larger than 1, it means it is a distributed remap task.
             # If remapping prediction result is required, i.e., predict_dir
             # is not None, either pred_etypes or pred_ntypes must be
@@ -826,19 +826,24 @@ def main(args, gs_config_args):
 
     if len(ntypes) == 0:
         # Nothing to remap
-        logging.warning("Skip remapping edge/node predictions and node embeddings")
-        return
+        logging.warning("No nodes to remap, skipping remapping edge/node "
+                        "predictions and node embeddings. "
+                        "Embeddings will remain in PyTorch format.")
+        sys.exit(0)
 
     for ntype in set(ntypes):
-        mapping_file = os.path.join(id_mapping_path, ntype + "_id_remap.parquet")
+        mapping_prefix = os.path.join(id_mapping_path, ntype)
         logging.debug("loading mapping file %s",
-                      mapping_file)
-        if os.path.exists(mapping_file):
+                      mapping_prefix)
+        if os.path.exists(mapping_prefix):
             id_maps[ntype] = \
-                IdReverseMap(mapping_file)
+                IdReverseMap(mapping_prefix)
         else:
-            logging.warning("ID mapping file %s does not exists, skip remapping", mapping_file)
-            return
+            logging.warning(
+                ("ID mapping prefix %s does not exist, skipping remapping. "
+                 "Embeddings will remain in PyTorch format."),
+                mapping_prefix)
+            sys.exit(0)
 
     num_proc = args.num_processes if args.num_processes > 0 else 1
     col_name_map = None
@@ -940,7 +945,7 @@ def add_distributed_remap_args(parser):
     group.add_argument("--rank", type=int, default=0,
                        help="The rank of current worker.")
     group.add_argument("--world-size", type=int, default=1,
-                       help="Totoal number of workers in the cluster.")
+                       help="Total number of workers in the cluster.")
     return parser
 
 def generate_parser():

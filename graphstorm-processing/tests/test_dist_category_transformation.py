@@ -238,7 +238,9 @@ def test_parquet_input_multi_categorical(spark: SparkSession, check_df_schema):
         df_parquet = spark.read.parquet(parquet_path)
 
         # Show the DataFrame loaded from the Parquet file
-        dist_categorical_transormation = DistMultiCategoryTransformation(cols=["names"], separator=None)
+        dist_categorical_transormation = DistMultiCategoryTransformation(
+            cols=["names"], separator=None
+        )
 
         transformed_df = dist_categorical_transormation.apply(df_parquet)
         check_df_schema(transformed_df)

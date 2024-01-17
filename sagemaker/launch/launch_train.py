@@ -63,12 +63,14 @@ def run_job(input_args, image, unknowargs):
 
     prefix = f"gs-train-{graph_name}"
 
-    params = {"task-type": task_type,
-              "graph-name": graph_name,
-              "graph-data-s3": graph_data_s3,
-              "train-yaml-s3": train_yaml_s3,
-              "model-artifact-s3": model_artifact_s3,
-              "log-level": log_level}
+    params = {
+        "graph-data-s3": graph_data_s3,
+        "graph-name": graph_name,
+        "log-level": log_level,
+        "model-artifact-s3": model_artifact_s3,
+        "task-type": task_type,
+        "train-yaml-s3": train_yaml_s3,
+    }
     if custom_script is not None:
         params["custom-script"] = custom_script
     if model_checkpoint_to_load is not None:
@@ -130,8 +132,6 @@ def get_train_parser():
     # task specific
     training_args.add_argument("--graph-name", type=str, help="Graph name",
         required=True)
-    training_args.add_argument("--graph-data-s3", type=str,
-        help="S3 location of input training graph", required=True)
     training_args.add_argument("--task-type", type=str,
         help=f"Task type in {SUPPORTED_TASKS}", required=True)
     training_args.add_argument("--yaml-s3", type=str,
