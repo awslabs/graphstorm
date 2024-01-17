@@ -63,10 +63,11 @@ def apply_norm(
 
             # Tokenize the text
             t = tokenizer(text, max_length=max_seq_length, truncation=True, padding='max_length', return_tensors='np')
+            token_type_ids = t.get('token_type_ids', np.zeros_like(t['input_ids'], dtype=np.int8))
             result = {
                 'input_ids': t['input_ids'][0].tolist(),  # Convert tensor to list
-                'attention_mask': t['attention_mask'][0].to(th.int8).tolist(),
-                'token_type_ids': t.get('token_type_ids', th.zeros_like(t['input_ids'])).to(th.int8)[0].tolist()
+                'attention_mask': t['attention_mask'][0].astype(np.int8).tolist(),
+                'token_type_ids': token_type_ids[0].astype(np.int8).tolist()
             }
             return result
 
