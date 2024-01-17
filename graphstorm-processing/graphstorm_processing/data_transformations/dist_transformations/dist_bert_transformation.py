@@ -28,7 +28,6 @@ from pyspark.sql.functions import udf
 
 import numpy as np
 import pandas as pd
-import torch as th
 from transformers import AutoTokenizer
 
 from .base_dist_transformation import DistributedTransformation
@@ -47,13 +46,13 @@ def apply_norm(
         List of column names to apply normalization to.
     bert_norm : str
         The type of normalization to use. Valid values is "tokenize"
+    max_seq_length : int
+        The maximal length of the tokenization results.
     input_df : DataFrame
         The input DataFrame to apply normalization to.
     """
 
     if bert_norm == "tokenize":
-        scaled_df = input_df
-
         # Initialize the tokenizer
         tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
 
@@ -63,7 +62,7 @@ def apply_norm(
                 raise ValueError("The input of the tokenizer has to be a string.")
 
             # Tokenize the text
-            t = tokenizer(text, max_length=max_seq_length, truncation=True, padding='max_length', return_tensors='pt')
+            t = tokenizer(text, max_length=max_seq_length, truncation=True, padding='max_length', return_tensors='np')
             result = {
                 'input_ids': t['input_ids'][0].tolist(),  # Convert tensor to list
                 'attention_mask': t['attention_mask'][0].to(th.int8).tolist(),
@@ -76,6 +75,7 @@ def apply_norm(
 
         # Apply the UDF to the DataFrame
         scaled_df = input_df.withColumn(cols[0], tokenize_udf(input_df[cols[0]]))
+
     return scaled_df
 
 
