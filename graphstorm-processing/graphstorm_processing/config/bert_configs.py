@@ -16,7 +16,6 @@ limitations under the License.
 from typing import Mapping
 import numbers
 
-from graphstorm_processing.constants import VALID_BERT_MODEL
 from .feature_config_base import FeatureConfig
 
 
@@ -25,7 +24,10 @@ class BertConfig(FeatureConfig):
 
     Supported kwargs
     ----------------
-
+    bert_model: str, required
+        The name of the lm model.
+    max_seq_length: int, required
+        The maximal length of the tokenization results.
     """
 
     def __init__(self, config: Mapping):
@@ -37,9 +39,8 @@ class BertConfig(FeatureConfig):
 
     def _sanity_check(self) -> None:
         super()._sanity_check()
-        assert (
-            self.bert_model in VALID_BERT_MODEL
-        ), f"Unknown imputer requested, expected one of {VALID_BERT_MODEL}, got {self.bert_model}"
+        assert isinstance(self.bert_model, str),\
+            f"Expect bert_model to be a string, but got {self.bert_model}"
         assert isinstance(self.max_seq_length, int) and self.max_seq_length > 0, \
             f"Expect max_seq_length {self.max_seq_length} be an integer and larger than zero."
 

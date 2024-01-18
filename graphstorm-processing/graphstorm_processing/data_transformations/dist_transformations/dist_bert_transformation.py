@@ -45,7 +45,7 @@ def apply_norm(
     cols : Sequence[str]
         List of column names to apply normalization to.
     bert_norm : str
-        The type of normalization to use. Valid values is "tokenize"
+        The type of normalization to use. Valid value is "tokenize"
     max_seq_length : int
         The maximal length of the tokenization results.
     input_df : DataFrame
@@ -62,6 +62,9 @@ def apply_norm(
                 raise ValueError("The input of the tokenizer has to be a string.")
 
             # Tokenize the text
+            # Instead of doing the similar thing as what we do in the GConstruct, it is suggested
+            # to use numpy here to refactor the data type. So it is not necessary to introduce the
+            # torch dependency here
             t = tokenizer(text, max_length=max_seq_length, truncation=True, padding='max_length', return_tensors='np')
             token_type_ids = t.get('token_type_ids', np.zeros_like(t['input_ids'], dtype=np.int8))
             result = {
@@ -89,6 +92,10 @@ class DistBertTransformation(DistributedTransformation):
         List of column names to apply normalization to.
     bert_norm : str
         The type of normalization to use. Valid values is "tokenize"
+    bert_model: str
+        The name of the lm model.
+    max_seq_length: int
+        The maximal length of the tokenization results.
     """
 
     def __init__(
