@@ -49,7 +49,7 @@ if __name__ == '__main__':
                            help='split links for inductive settings: no overlapping nodes across '
                            + 'splits.')
     argparser.add_argument('--seed', type=int, default=42,
-                           help='random seed for splitting links')    
+                           help='random seed for splitting links')
     # graph modification arguments
     argparser.add_argument('--add-reverse-edges', action='store_true',
                            help='turn the graph into an undirected graph.')

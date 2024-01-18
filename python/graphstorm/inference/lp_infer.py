@@ -19,7 +19,7 @@ import time
 
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
-from ..model.utils import save_relation_embeddings
+from ..model.utils import save_relation_embeddings, load_gsgnn_embeddings
 from ..model.edge_decoder import LinkPredictDistMultDecoder
 from ..model import do_full_graph_inference, do_mini_batch_inference
 from ..model.lp_gnn import lp_mini_batch_predict
@@ -43,7 +43,9 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
             edge_mask_for_gnn_embeddings='train_mask',
             use_mini_batch_infer=False,
             node_id_mapping_file=None,
-            save_embed_format="pytorch"):
+            save_embed_format="pytorch",
+            load_embed_path=None
+            ):
         """ Do inference
 
         The inference can do two things:
@@ -70,20 +72,25 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
             graph partition algorithm.
         save_embed_format : str
             Specify the format of saved embeddings.
+        load_embed_path : str
+            If provided, load the embedding from disk instead of computing them.
         """
         sys_tracker.check('start inferencing')
         self._model.eval()
-        if use_mini_batch_infer:
-            embs = do_mini_batch_inference(self._model, data, fanout=loader.fanout,
-                                           edge_mask=edge_mask_for_gnn_embeddings,
-                                           task_tracker=self.task_tracker)
-        else:
-            embs = do_full_graph_inference(self._model, data, fanout=loader.fanout,
-                                           edge_mask=edge_mask_for_gnn_embeddings,
-                                           task_tracker=self.task_tracker)
-        sys_tracker.check('compute embeddings')
-        device = self.device
         g = data.g
+        if load_embed_path is None:
+            if use_mini_batch_infer:
+                embs = do_mini_batch_inference(self._model, data, fanout=loader.fanout,
+                                            edge_mask=edge_mask_for_gnn_embeddings,
+                                            task_tracker=self.task_tracker)
+            else:
+                embs = do_full_graph_inference(self._model, data, fanout=loader.fanout,
+                                            edge_mask=edge_mask_for_gnn_embeddings,
+                                            task_tracker=self.task_tracker)
+            sys_tracker.check('compute embeddings')
+        else:
+            embs = load_gsgnn_embeddings(load_embed_path, g)
+        device = self.device
         if save_embed_path is not None:
             save_gsgnn_embeddings(g,
                                   save_embed_path,

@@ -694,6 +694,48 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
         scores[canonical_etype] = (pos_scores, neg_scores)
         return scores
 
+    def calc_retrieval_scores(self, emb, pos_pairs, device):
+        """ Compute scores for positive edges among all possible edges for retrieval setting
+
+        Parameters
+        ----------
+        emb: dict of Tensor
+            Node embeddings.
+        pos_pairs: dict of tuple
+            Positive edges stored in a tuple:
+            tuple(positive source, postive destination).
+        device: th.device
+            Device used to compute scores
+
+        Return
+        ------
+        Dict of (Tensor, Tensor)
+            Return a dictionary of edge type to
+            (positive scores, negative scores)
+        """
+        assert isinstance(pos_pairs, dict) and len(pos_pairs) == 1, \
+            "DotDecoder is only applicable to link prediction task with " \
+            "single target training edge type"
+        canonical_etype = list(pos_pairs.keys())[0]
+        pos_src, pos_dst = pos_pairs[canonical_etype]
+        utype, _, vtype = canonical_etype
+        pos_src_emb = emb[utype][pos_src].to(device)
+        pos_dst_emb = emb[vtype][pos_dst].to(device)
+        scores = {}
+        pos_scores = calc_dot_pos_score(pos_src_emb, pos_dst_emb)
+        neg_dst_emb = emb[vtype][np.arange(emb[vtype].shape[0])].to(device)
+        neg_scores = th.mm(pos_src_emb, neg_dst_emb.transpose(0, 1)) # [n_pos, n_embs]
+        # gloo with cpu will consume less GPU memory
+        neg_scores = neg_scores.cpu() \
+            if is_distributed() and get_backend() == "gloo" \
+            else neg_scores
+        pos_scores = pos_scores.detach()
+        pos_scores = pos_scores.cpu() \
+            if is_distributed() and get_backend() == "gloo" \
+            else pos_scores
+        scores[canonical_etype] = (pos_scores, neg_scores)
+        return scores
+
     @property
     def in_dims(self):
         """ The number of input dimensions.

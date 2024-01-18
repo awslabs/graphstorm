@@ -157,9 +157,14 @@ def lp_mini_batch_predict(model, emb, loader, device):
     with th.no_grad():
         ranking = {}
         for pos_neg_tuple, neg_sample_type in loader:
-            score = \
-                decoder.calc_test_scores(
-                    emb, pos_neg_tuple, neg_sample_type, device)
+            if neg_sample_type == 'full':
+                score = \
+                    decoder.calc_retrieval_scores(emb, pos_neg_tuple, device)
+            else:
+                score = \
+                    decoder.calc_test_scores(
+                        emb, pos_neg_tuple, neg_sample_type, device)
+
             for canonical_etype, s in score.items():
                 # We do not concatenate rankings into a single
                 # ranking tensor to avoid unnecessary data copy.
