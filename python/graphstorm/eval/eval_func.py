@@ -192,17 +192,45 @@ def eval_roc_auc(logits,labels):
     predicted_labels=logits
     predicted_labels=predicted_labels.detach().cpu().numpy()
     labels=labels.detach().cpu().numpy()
+
+    # check if the two inputs have the same number of rows.
+    try:
+        assert predicted_labels.shape[0] == labels.shape[0]
+    except AssertionError:
+        logging.error('Predictions and labes should have ' + \
+                f'the same number of records, but got, {predicted_labels.shape[0]} and ' + \
+                f'{labels.shape[0]}.')
+        raise
+
+    # check if the predictions >=2D.
+    try:
+        assert len(predicted_labels.shape) > 1
+    except AssertionError:
+        logging.error('GraphStorm assumes the predicted logit is 2D tesnor,' + \
+                f'but got a 1D tensor.')
+        raise
+
     # The roc_auc_score function computes the area under the receiver operating characteristic
     # (ROC) curve, which is also denoted by AUC or AUROC. The following returns the average AUC.
-    rocauc_list = []
-    labels=labels_to_one_hot(labels, predicted_labels.shape[1])
-    for i in range(labels.shape[1]):
-        # AUC is only defined when there is at least one positive data.
-        if np.sum(labels[:, i] == 1) > 0 and np.sum(labels[:, i] == 0) > 0:
-            is_labeled = labels[:, i] == labels[:, i]
-            rocauc_list.append(roc_auc_score(labels[is_labeled, i],
-                                             predicted_labels[is_labeled, i]))
-
+    rocauc_list = []   
+    # For binary results, the sklearn roc_auc_score function asks 1D inputs of predictions.
+    # And the label is a 1D tensor. For other cases, the sklearn roc_auc_score function asks
+    # nD inputs of predictions. So here we need to check the predictions' 2nd dim for the binary
+    # conditions.
+    if len(predicted_labels.shape)>1 and predicted_labels.shape[1] == 2 \
+        and len(labels.shape) == 1:
+        # Here use the 2nd dim, assuming it is the probability of 1s.
+        rocauc_list.append(roc_auc_score(labels, predicted_labels[:, 1]))
+    else:
+        # mutiple class and multiple labels cases
+        labels=labels_to_one_hot(labels, predicted_labels.shape[1])
+        for i in range(labels.shape[1]):
+            # AUC is only defined when there is at least one positive data.
+            if np.sum(labels[:, i] == 1) > 0 and np.sum(labels[:, i] == 0) > 0:
+                is_labeled = labels[:, i] == labels[:, i]
+                rocauc_list.append(roc_auc_score(labels[is_labeled, i],
+                                                predicted_labels[is_labeled, i]))
+    
     if len(rocauc_list) == 0:
         logging.error('No positively labeled data available. Cannot compute ROC-AUC.')
         return 0
@@ -224,12 +252,18 @@ def eval_acc(pred, labels):
 
 
 def compute_f1_score(y_preds, y_targets):
-    """ compute macro_average f1 score
+    """ compute macro_average f1 score.
+        If any errors occur, log error and return -1, but not interrupt running.
     """
     y_true = y_targets.cpu().numpy()
     y_pred = y_preds.cpu().numpy()
-    report = classification_report(y_pred=y_pred, y_true=y_true, output_dict=True)
-    return report['macro avg']['f1-score']
+    try:
+        report = classification_report(y_pred=y_pred, y_true=y_true, output_dict=True)
+        f1_score = report['macro avg']['f1-score']
+    except ValueError as e:
+        logging.error("Failure found during evaluation of the auc metric returning -1: %s", str(e))
+        f1_score = -1
+    return f1_score
 
 
 def compute_per_class_f1_score(y_preds, y_targets):
@@ -281,6 +315,11 @@ def compute_roc_auc(y_preds, y_targets, weights=None):
     """
     y_true = y_targets.cpu().numpy()
     y_pred = y_preds.cpu().numpy()
+
+    # check for binary cases, input 2D and label 1D
+    if len(y_pred.shape) > 1 and y_pred.shape[1] == 2 and len(y_true.shape) == 1:
+            y_pred = y_pred[:, 1]
+
     if weights is not None:
         weights = weights.cpu().numpy()
     auc_score = -1
@@ -326,6 +365,11 @@ def compute_precision_recall_auc(y_preds, y_targets, weights=None):
     """
     y_true = y_targets.cpu().numpy()
     y_pred = y_preds.cpu().numpy()
+
+    # same check for binary cases
+    if len(y_pred.shape) > 1 and y_pred.shape[1] == 2 and len(y_true.shape) == 1:
+        y_pred = y_pred[:, 1]
+
     keys = [key.value for key in PRKeys]
     auc_score = -1
     # adding checks since in certain cases the auc might not be defined we do not want to fail
