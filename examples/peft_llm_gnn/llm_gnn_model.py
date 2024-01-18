@@ -25,9 +25,9 @@ import logging
 
 from graphstorm import model as gsmodel
 from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX
-from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
+from dgl.nn import GraphConv, HeteroGraphConv
 
-from peft import LoraConfig, get_peft_model
+from peft import LoraConfig, get_peft_model, AutoPeftModel
 from transformers import (
     AutoConfig,
     AutoModel,
@@ -116,23 +116,33 @@ class LLMGraphModel(gsmodel.GSgnnNodeModelBase):
                 self._lm_node_feats[ntype] = feats
         self.out = nn.Linear(self.config.hidden_size, out_dim)
         self._loss_fn = gsmodel.ClassifyLossFunc(multilabel=False)
-        self.gnn_encoder = RelationalGCNEncoder(g,
-                                           h_dim, self.config.hidden_size,
-                                           num_bases=-1,
-                                           num_hidden_layers=num_layers -1)
+        self.gnn = nn.ModuleList()
+        for _ in range(num_layers):
+            self.gnn.append(HeteroGraphConv({
+                _etype: GraphConv(h_dim, h_dim) for _etype in g.etypes
+            }))
+        self.projection = nn.Linear(h_dim, self.config.hidden_size)
+
+    def encode_graph(self, blocks, h):
+        for layer, block in zip(self.gnn, blocks):
+            h = layer(block, h)
+            h = {k: F.relu(v) for k, v in h.items()}
+        src_type, dst_type = blocks[0].ntypes
+        graph_tokens = self.projection(h[dst_type])
+        return graph_tokens
 
     def forward(self, blocks, node_feats, edge_feats, labels, input_nodes):
         output_nodes = blocks[-1].dstdata[dgl.NID]
         input_ids = self._lm_node_feats[self.target_ntype][TOKEN_IDX][output_nodes].to(self.llm.device)
         attention_mask = self._lm_node_feats[self.target_ntype][ATT_MASK_IDX][output_nodes].to(self.llm.device)
-        graph_tokens = self.gnn_encoder(blocks, node_feats)[self.target_ntype]
+
+        graph_tokens = self.encode_graph(blocks, node_feats)
 
         input_shape = input_ids.size()
         input_ids = input_ids.view(-1, input_shape[-1])
         word_embeddings = self.llm.get_input_embeddings()
-        # Tentatively leave the zero prompting line for debugging and testing
-        #inputs_embeds = torch.cat([torch.zeros_like(graph_tokens.unsqueeze(1)), word_embeddings(input_ids)], dim=1)
         inputs_embeds = torch.cat([graph_tokens.unsqueeze(1), word_embeddings(input_ids)], dim=1)
+        
         attention_mask = torch.cat([torch.ones((input_shape[0],1), device=self.llm.device), attention_mask], dim=1)
         model_output = self.llm(inputs_embeds=inputs_embeds, attention_mask=attention_mask)
         # We use the last token in order to do the classification, as other causal models
@@ -151,13 +161,11 @@ class LLMGraphModel(gsmodel.GSgnnNodeModelBase):
         
         input_ids = self._lm_node_feats[self.target_ntype][TOKEN_IDX][output_nodes].to(self.llm.device)
         attention_mask = self._lm_node_feats[self.target_ntype][ATT_MASK_IDX][output_nodes].to(self.llm.device)
-        graph_tokens = self.gnn_encoder(blocks, node_feats)[self.target_ntype]
+        graph_tokens = self.encode_graph(blocks, node_feats)
 
         input_shape = input_ids.size()
         input_ids = input_ids.view(-1, input_shape[-1])
         word_embeddings = self.llm.get_input_embeddings()
-        # Tentatively leave the zero prompting line for debugging and testing
-        #inputs_embeds = torch.cat([torch.zeros_like(graph_tokens.unsqueeze(1)), word_embeddings(input_ids)], dim=1)
         inputs_embeds = torch.cat([graph_tokens.unsqueeze(1), word_embeddings(input_ids)], dim=1)
         attention_mask = torch.cat([torch.ones((input_shape[0],1), device=self.llm.device), attention_mask], dim=1)
         model_output = self.llm(inputs_embeds=inputs_embeds, attention_mask=attention_mask)
@@ -179,7 +187,7 @@ class LLMGraphModel(gsmodel.GSgnnNodeModelBase):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
     
     def restore_model(self, restore_model_path):
-        self.llm = AutoModel.from_pretrained(restore_model_path, config=self.config)
+        self.llm = AutoPeftModel.from_pretrained(restore_model_path)
 
     def save_model(self, model_path):
         os.makedirs(model_path, exist_ok=True)

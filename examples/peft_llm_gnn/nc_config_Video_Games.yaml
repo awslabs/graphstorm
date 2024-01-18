@@ -11,19 +11,16 @@ gsf:
     verbose: false
   gnn:
     model_encoder_type: rgcn
-    fanout: 10, 5
+    fanout: "5,5"
     hidden_size: 768
     num_layers: 2
     use_mini_batch_infer: true
   hyperparam:
     batch_size: 4
-    dropout: 0.1
+    dropout: 0.0
     eval_batch_size: 4
-    # eval_frequency: 100
-    #log_report_frequency: 50
     lr: 0.0001
     num_epochs: 10
-    # save_model_frequency: 300
     wd_l2norm: 1.0e-06
   input:
     restore_model_path: null
@@ -34,7 +31,7 @@ gsf:
   node_classification:
     eval_metric:
     - accuracy
-    label_field: label
+    label_field: pt_lvl3
     multilabel: false
     node_feat_name:
     - item:h
