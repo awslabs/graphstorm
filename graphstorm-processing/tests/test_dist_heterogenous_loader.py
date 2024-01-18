@@ -31,13 +31,21 @@ from graphstorm_processing.graph_loaders.dist_heterogeneous_loader import (
     NODE_MAPPING_STR,
 )
 from graphstorm_processing.data_transformations.dist_label_loader import SplitRates
-from graphstorm_processing.config.label_config_base import NodeLabelConfig, EdgeLabelConfig
+from graphstorm_processing.config.label_config_base import (
+    NodeLabelConfig,
+    EdgeLabelConfig,
+)
 from graphstorm_processing.config.config_parser import (
     create_config_objects,
     EdgeConfig,
 )
 from graphstorm_processing.config.config_conversion import GConstructConfigConverter
-from graphstorm_processing.constants import COLUMN_NAME, MIN_VALUE, MAX_VALUE, VALUE_COUNTS
+from graphstorm_processing.constants import (
+    COLUMN_NAME,
+    MIN_VALUE,
+    MAX_VALUE,
+    VALUE_COUNTS,
+)
 
 pytestmark = pytest.mark.usefixtures("spark")
 _ROOT = os.path.abspath(os.path.dirname(__file__))
@@ -176,7 +184,7 @@ def verify_integ_test_output(
     # TODO: The following Parquet reads assume there's only one file in the output
     for node_type in metadata["node_type"]:
         nrows = pq.ParquetFile(
-            os.path.join(loader.output_path, metadata["node_id_mappings"][node_type]["data"][0])
+            os.path.join(loader.output_path, metadata["raw_id_mappings"][node_type]["data"][0])
         ).metadata.num_rows
         assert nrows == expected_node_counts[node_type]
 
@@ -238,7 +246,10 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
         "task_type": "node_class",
         "label_map": {"male": 0, "female": 1},
         "label_properties": {
-            "user": {"COLUMN_NAME": "gender", "VALUE_COUNTS": {"male": 3, "female": 1, "null": 1}}
+            "user": {
+                "COLUMN_NAME": "gender",
+                "VALUE_COUNTS": {"male": 3, "female": 1, "null": 1},
+            }
         },
     }
 
@@ -252,12 +263,16 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
         assert metadata["node_data"][node_type].keys() == expected_node_data[node_type]
 
 
-def test_load_dist_hgl_without_labels(dghl_loader_no_label: DistHeterogeneousGraphLoader):
+def test_load_dist_hgl_without_labels(
+    dghl_loader_no_label: DistHeterogeneousGraphLoader,
+):
     """End 2 end test when no labels are provided"""
     dghl_loader_no_label.load()
 
     with open(
-        os.path.join(dghl_loader_no_label.output_path, "metadata.json"), "r", encoding="utf-8"
+        os.path.join(dghl_loader_no_label.output_path, "metadata.json"),
+        "r",
+        encoding="utf-8",
     ) as mfile:
         metadata = json.load(mfile)
 
@@ -292,7 +307,11 @@ def test_write_edge_structure_no_reverse_edges(
     dghl_loader_no_reverse_edges.create_node_id_maps_from_edges(edge_configs, missing_node_types)
 
     edge_dict: Dict[str, Dict] = {
-        "data": {"format": "csv", "files": ["edges/user-rated-movie.csv"], "separator": ","},
+        "data": {
+            "format": "csv",
+            "files": ["edges/user-rated-movie.csv"],
+            "separator": ",",
+        },
         "source": {"column": "~from", "type": "user"},
         "relation": {"type": "rated"},
         "dest": {"column": "~to", "type": "movie"},
@@ -307,7 +326,9 @@ def test_write_edge_structure_no_reverse_edges(
 
 
 def test_create_all_mapppings_from_edges(
-    spark: SparkSession, data_configs_with_label, dghl_loader: DistHeterogeneousGraphLoader
+    spark: SparkSession,
+    data_configs_with_label,
+    dghl_loader: DistHeterogeneousGraphLoader,
 ):
     """Test creating all node mappings only from edge files"""
     edge_configs = data_configs_with_label["edges"]
@@ -495,7 +516,11 @@ def test_create_split_files_from_rates(
     )
 
     ensure_masks_are_correct(
-        train_mask_df, test_mask_df, val_mask_df, non_missing_data_points, split_rates.tolist()
+        train_mask_df,
+        test_mask_df,
+        val_mask_df,
+        non_missing_data_points,
+        split_rates.tolist(),
     )
 
 
