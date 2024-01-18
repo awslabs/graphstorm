@@ -62,7 +62,7 @@ def main(config_args):
         config.early_stop_strategy,
     )
     trainer.setup_evaluator(evaluator)
-    tracker = GSSageMakerTaskTracker(config)
+    tracker = GSSageMakerTaskTracker(config.eval_frequency)
     trainer.setup_task_tracker(tracker)
 
     # create train loader

@@ -40,9 +40,10 @@ def main(args):
     nid0_map = IdMap(nid0_str)
     nid1_map = IdMap(nid1_str)
 
-    os.makedirs(os.path.join(output_path, "id_mapping"), exist_ok=True)
-    nid0_map.save(os.path.join(os.path.join(output_path, "id_mapping"), ntype0+"_id_remap.parquet"))
-    nid1_map.save(os.path.join(os.path.join(output_path, "id_mapping"), ntype1+"_id_remap.parquet"))
+    mapping_subpath = "id_mapping"
+    os.makedirs(os.path.join(output_path, mapping_subpath), exist_ok=True)
+    nid0_map.save(os.path.join(output_path, mapping_subpath, ntype0, "part-00000.parquet"))
+    nid1_map.save(os.path.join(output_path, mapping_subpath, ntype1, "part-00000.parquet"))
 
     # Only part of nodes have node embeddings
     # generate faked node embeddings

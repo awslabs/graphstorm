@@ -335,7 +335,7 @@ def main(args):
                                   config.early_stop_strategy)
     trainer.setup_evaluator(evaluator)
     # Optional: set up a task tracker to show the progress of training.
-    tracker = GSSageMakerTaskTracker(config)
+    tracker = GSSageMakerTaskTracker(config.eval_frequency)
     trainer.setup_task_tracker(tracker)
 
     # Start the training process.

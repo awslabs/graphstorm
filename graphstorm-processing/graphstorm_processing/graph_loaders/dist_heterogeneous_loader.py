@@ -55,8 +55,8 @@ from .row_count_utils import ParquetRowCounter  # pylint: disable=no-name-in-mod
 
 FORMAT_NAME = "parquet"
 DELIMITER = "" if FORMAT_NAME == "parquet" else ","
-NODE_MAPPING_STR = "node_str_id"
-NODE_MAPPING_INT = "node_int_id"
+NODE_MAPPING_STR = "orig"
+NODE_MAPPING_INT = "new"
 
 
 class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
@@ -489,13 +489,13 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         """
         Adds node mappings to the metadata dict that is eventually written to disk.
         """
-        metadata_dict["node_id_mappings"] = {}
+        metadata_dict["raw_id_mappings"] = {}
         for node_type in metadata_dict["node_type"]:
             node_mapping_metadata_dict = {
                 "format": {"name": "parquet", "delimiter": ""},
                 "data": self.node_mapping_paths[node_type],
             }
-            metadata_dict["node_id_mappings"][node_type] = node_mapping_metadata_dict
+            metadata_dict["raw_id_mappings"][node_type] = node_mapping_metadata_dict
 
         return metadata_dict
 
@@ -761,7 +761,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         Also modifies the loader's state to add the mapping path to
         the node_mapping_paths member variable.
         """
-        mapping_output_path = f"{self.output_prefix}/node_id_mappings/{node_type}"
+        mapping_output_path = f"{self.output_prefix}/raw_id_mappings/{node_type}"
 
         # TODO: For node-file-exists path: Test to see if it's better to keep these in memory
         # until needed instead of writing out now i.e. we can maintain a dict of DFs instead
