@@ -33,7 +33,7 @@ import time
 import copy
 from functools import partial
 from threading import Thread
-from typing import Optional
+from typing import List, Optional
 from argparse import REMAINDER
 
 
@@ -325,7 +325,7 @@ def construct_torch_dist_launcher_cmd(
     )
 
 def wrap_dist_remap_command(
-        udf_command: list,
+        udf_command: List[str],
         rank: int,
         world_size: int,
         with_shared_fs: bool,
@@ -350,6 +350,11 @@ def wrap_dist_remap_command(
             Number of rows per output file.
         preserve_input:
             Whether we preserve the input data.
+
+        Returns
+        -------
+        A string of remap_result launch command that combines the original arguments list
+        with remap specific arguments.
     """
     # Get the python interpreter used right now.
     # If we can not get it we go with the default `python3`
