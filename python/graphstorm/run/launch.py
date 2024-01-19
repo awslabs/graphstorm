@@ -331,7 +331,7 @@ def wrap_dist_remap_command(
         with_shared_fs: bool,
         num_trainers: int,
         output_chunk_size: int = 100000,
-        preserve_input: bool = False):
+        preserve_input: bool = False) -> str:
     """ Wrap distributed remap command
 
         Parameters
