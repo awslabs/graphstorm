@@ -76,16 +76,16 @@ python3 /graphstorm/tools/gen_ogb_dataset.py --savepath /tmp/ogbn-arxiv-nc/  \
                           --dataset ogbn-arxiv \
                           --retain-original-features true \
                           --is-homo
-                           
+
 python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
                                              --filepath /tmp/ogbn-arxiv-nc/ \
                                              --num-parts 1 \
                                              --output /tmp/ogbn_arxiv_nc_train_val_1p_4t  \
-                                             --is-homo     
+                                             --is-homo
 ```
 
 ## Use WholeGraph to accelerate training and inferencing
-Graphstorm leverages NVIDIA’s [Wholegraph](https://github.com/rapidsai/wholegraph) framework to efficiently transfer node and edge features between machines. This capability can substantially enhance the speed of both training and inferencing pipelines. To take advantage of this feature, users are required to have EFA network support on their cluster. For a step-by-step setup guide, please refer to the [tutorial](https://graphstorm.readthedocs.io/en/latest/advanced/advanced-wholegraph.html). Converting node and edge features to the WholeGraph format is the only manual step; the rest of the process is seamless. 
+Graphstorm leverages NVIDIA’s [Wholegraph](https://github.com/rapidsai/wholegraph) framework to efficiently transfer node and edge features between machines. This capability can substantially enhance the speed of both training and inferencing pipelines. To take advantage of this feature, users are required to have EFA network support on their cluster. For a step-by-step setup guide, please refer to the [tutorial](https://graphstorm.readthedocs.io/en/latest/advanced/advanced-wholegraph.html). Converting node and edge features to the WholeGraph format is the only manual step; the rest of the process is seamless.
 
 Please note, we do not support conversion of `train_mask`, `test_mask`, `val_mask` or `labels` to WholeGraph format. Make sure to convert all the node and edge features to WholeGraph format using `convert_feat_to_wholegraph.py` toolkit to utilize the framework.
 
@@ -116,4 +116,20 @@ when `--edge-feat-names` is used, the  '`wholegraph`' folder will contain the ed
 The conversion script has a minimum memory requirement of 2X of the size of the input nodes and edge features in a graph. We offer a low-memory option that significantly reduces memory usage, requiring only 2X of the size of the largest node or edge feature in the graph, with the trade-off of longer conversion time. Users can enable this option by using the `--low-mem` argument.
 ```
 python3 convert_feat_to_wholegraph.py --dataset-path ogbn-mag240m-2p --node-feat-names paper:feat --low-mem
+```
+
+## Do graph data sanity check
+GraphStorm provides a tool to do graph feature and mask sanity check. Use `graph_sanity_check.py` script with `--dataset-path` pointing to the distDGL folder of partitions to check a partitioned graph data. By default, it will check whether any node feature or edge feature has `NaN` (Not a Number) or `Inf` (Infinite number) data. It will also check whether the features are normalized into the range of [-1, 1]. If not, it will print a warning. Use the argument `--node-masks` to specify the node masks to check and `--edge-masks` to specify the edge masks to check. The script will check whether GraphStorm can parse the mask without any error.
+
+For example
+
+```
+>>> python3 graph_sanity_check.py --dataset-path /data/movie_lens_2p_example/ --node-masks user:train_mask,test_mask movie:val_mask --edge-masks  user,rating,movie:val_mask,train_mask
+
+ERROR: [Node type: user][Feature Name: test2][Part part0]: There are NaN values in the feature, please check.
+ERROR: [Node type: user][Feature Name: test2][Part part1]: There are NaN values in the feature, please check.
+ERROR: [Node type: user][Feature Name: test][Part part0]: There are NaN values in the feature, please check.
+ERROR: [Node type: user][Feature Name: test][Part part1]: There are NaN values in the feature, please check.
+WARNING: [Node type: movie][Feature Name: label][Part part0]: There are some value out of the range of [-1, 1].It won't cause any error, but it is recommended to normalize the feature.
+WARNING: [Node type: movie][Feature Name: label][Part part1]: There are some value out of the range of [-1, 1].It won't cause any error, but it is recommended to normalize the feature.
 ```
