@@ -30,6 +30,7 @@ import signal
 import subprocess
 import sys
 import time
+import copy
 from functools import partial
 from threading import Thread
 from typing import Optional
@@ -324,7 +325,7 @@ def construct_torch_dist_launcher_cmd(
     )
 
 def wrap_dist_remap_command(
-        udf_command: str,
+        udf_command: list,
         rank: int,
         world_size: int,
         with_shared_fs: bool,
@@ -356,22 +357,23 @@ def wrap_dist_remap_command(
         if sys.executable is not None and sys.executable != "" \
         else "python3 "
 
-    udf_command[0] = "graphstorm.gconstruct.remap_result"
+    new_udf_command = copy.deepcopy(udf_command)
+    new_udf_command[0] = "graphstorm.gconstruct.remap_result"
 
     # Add remap related arguments
-    udf_command += ["--rank", str(rank)]
-    udf_command += ["--world-size", str(world_size)]
-    udf_command += ["--with-shared-fs", "True" if with_shared_fs else "False"]
-    udf_command += ["--num-processes", str(num_trainers)]
-    udf_command += ["--output-chunk-size", str(output_chunk_size)]
-    udf_command += ["--preserve-input", "True" if preserve_input else "False"]
+    new_udf_command += ["--rank", str(rank)]
+    new_udf_command += ["--world-size", str(world_size)]
+    new_udf_command += ["--with-shared-fs", "True" if with_shared_fs else "False"]
+    new_udf_command += ["--num-processes", str(num_trainers)]
+    new_udf_command += ["--output-chunk-size", str(output_chunk_size)]
+    new_udf_command += ["--preserve-input", "True" if preserve_input else "False"]
 
     # transforms the udf_command from:
     #     path/to/dist_trainer.py arg0 arg1
     # to:
     #     python -m torch.distributed.launch [DIST TORCH ARGS] path/to/dist_trainer.py arg0 arg1
-    udf_command = " ".join(udf_command)
-    new_udf_command = f"{python_bin} -m {udf_command}"
+    new_udf_command = " ".join(new_udf_command)
+    new_udf_command = f"{python_bin} -m {new_udf_command}"
 
     return new_udf_command
 
