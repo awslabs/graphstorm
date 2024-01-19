@@ -221,7 +221,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         self.embed_size = embed_size
         self.dropout = nn.Dropout(dropout)
         self.use_node_embeddings = use_node_embeddings
-        self.use_wholegraph_sparse_emb = use_wholegraph_sparse_emb
+        self._use_wholegraph_sparse_emb = use_wholegraph_sparse_emb
         self.feat_size = feat_size
         if force_no_embeddings is None:
             force_no_embeddings = []
@@ -229,11 +229,19 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         self.activation = activation
         self.cache_embed = cache_embed
 
+        if self._use_wholegraph_sparse_emb:
+            if get_backend() != "nccl":
+                raise AssertionError(
+                    "WholeGraph sparse embedding is only supported on NCCL backend."
+                )
+            if not is_wholegraph_init():
+                raise AssertionError("WholeGraph is not initialized yet.")
+
         if (
             dgl.__version__ <= "1.1.2"
             and is_distributed()
             and get_backend() == "nccl"
-            and not self.use_wholegraph_sparse_emb
+            and not self._use_wholegraph_sparse_emb
         ):
             if self.use_node_embeddings:
                 raise NotImplementedError(
@@ -247,19 +255,12 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                         + "learnable embeddings on featureless nodes. Please use DGL version "
                         + ">=1.1.2 or gloo backend."
                     )
-        if self.use_wholegraph_sparse_emb:
-            if get_backend() != "nccl":
-                raise AssertionError(
-                    "WholeGraph sparse embedding is only supported on NCCL backend."
-                )
-            if not is_wholegraph_init():
-                raise AssertionError("WholeGraph is not initialized yet.")
 
         # create weight embeddings for each node for each relation
         self.proj_matrix = nn.ParameterDict()
         self.input_projs = nn.ParameterDict()
         embed_name = "embed"
-        if self.use_wholegraph_sparse_emb:
+        if self._use_wholegraph_sparse_emb:
             # WG sparse optimizer has to be created at first like below
             # This is because WG embedding depends on WG sparse optimizer to track/trace
             # the gradients for embeddings.
@@ -275,7 +276,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 nn.init.xavier_uniform_(input_projs, gain=nn.init.calculate_gain("relu"))
                 self.input_projs[ntype] = input_projs
                 if self.use_node_embeddings:
-                    if self.use_wholegraph_sparse_emb:
+                    if self._use_wholegraph_sparse_emb:
                         if get_rank() == 0:
                             logging.debug(
                                 "Use WholeGraph to host additional sparse embeddings on node %s",
@@ -305,7 +306,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     self.proj_matrix[ntype] = proj_matrix
 
             elif ntype not in force_no_embeddings:
-                if self.use_wholegraph_sparse_emb:
+                if self._use_wholegraph_sparse_emb:
                     if get_rank() == 0:
                         logging.debug(
                             "Use WholeGraph to host sparse embeddings on node %s:%d",
@@ -383,11 +384,6 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 if isinstance(self.sparse_embeds[ntype], WholeGraphSparseEmbedding):
                     # Need all procs pass the following due to nccl all2lallv in wholegraph
                     emb = self.sparse_embeds[ntype](input_nodes[ntype], device)
-                    if len(input_nodes[ntype]) == 0:
-                        dtype = self.sparse_embeds[ntype].weight.dtype
-                        embs[ntype] = th.zeros((0, self.sparse_embeds[ntype].embedding_dim),
-                                        device=device, dtype=dtype)
-                        continue
                 else:
                     if len(input_nodes[ntype]) == 0:
                         dtype = self.sparse_embeds[ntype].weight.dtype
@@ -448,6 +444,12 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         """ The number of output dimensions.
         """
         return self.embed_size
+
+    @property
+    def use_wholegraph_sparse_emb(self):
+        """ Whether or not to use WholeGraph to host embeddings for sparse updates.
+        """
+        return self._use_wholegraph_sparse_emb
 
 
 def _gen_emb(g, feat_field, embed_layer, ntype):

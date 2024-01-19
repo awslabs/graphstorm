@@ -65,6 +65,7 @@ def init_wholegraph():
 
 def is_wholegraph_init():
     """ Query if WholeGraph is initialized """
+    global WHOLEGRAPH_INIT
     return WHOLEGRAPH_INIT
 
 def wholegraph_processing(
@@ -258,6 +259,8 @@ def load_wg_feat(part_config_path, num_parts, type_name, name):
     name: str
         The name of the features to load
     """
+    if not is_wholegraph_init():
+        raise ImportError("WholeGraph is not initialized yet.")
     global_comm = wgth.comm.get_global_communicator()
     feature_comm = global_comm
     embedding_wholememory_type = 'distributed'
@@ -310,13 +313,13 @@ def create_wholememory_optimizer(
     -------
     WholeMemoryOptimizer : WholeGraph native optimizer (wgth.WholeMemoryOptimizer)
     """
-    if wgth is None:
-        raise ImportError("WholeGraph is not installed")
+    if not is_wholegraph_init():
+        raise ImportError("WholeGraph is not initialized yet.")
     return wgth.create_wholememory_optimizer(optimizer_type, param_dict)
 
 
 def create_wg_sparse_params(
-    nnodes: int,
+    num_nodes: int,
     embedding_dim: int,
     optimizer,  # Optional[wgth.WholeMemoryOptimizer, None]
     location: str = "cpu",
@@ -329,7 +332,7 @@ def create_wg_sparse_params(
 
     Parameters
     ----------
-    nnodes : int
+    num_nodes : int
         Number of nodes of the embedding, i.e., embedding_tensor.shape[0]
     embedding_dim: int
         The dimension of each embedding entry, i.e., embedding_tensor.shape[1]
@@ -343,8 +346,8 @@ def create_wg_sparse_params(
     WholeMemoryEmbeddingModule : The wrapped nn module including
     the embedding table as its parameters.
     """
-    if wgth is None:
-        raise ImportError("WholeGraph is not installed")
+    if not is_wholegraph_init():
+        raise ImportError("WholeGraph is not initialized yet.")
     global_comm = wgth.comm.get_global_communicator()
     embedding_wholememory_type = "distributed"
     embedding_wholememory_location = location
@@ -357,7 +360,7 @@ def create_wg_sparse_params(
         # to consistent with distDGL:
         # github:dgl/blob/master/python/dgl/distributed/nn/pytorch/sparse_emb.py#L79
         th.float32,
-        [nnodes, embedding_dim],
+        [num_nodes, embedding_dim],
         optimizer=optimizer,
         cache_policy=None,  # disable cache for now
         random_init=True,
@@ -372,7 +375,7 @@ class WholeGraphSparseEmbedding:
 
     Parameters
     ----------
-    nnodes : int
+    num_nodes : int
         Number of nodes in the graph.
     embedding_dim : int
         Dimension of the node embeddings.
@@ -386,16 +389,16 @@ class WholeGraphSparseEmbedding:
     """
     def __init__(
         self,
-        nnodes: int,
+        num_nodes: int,
         embedding_dim: int,
         name: str,
         optimizer,  # Optional[wgth.WholeMemoryOptimizer, None]
         location: str = "cpu",
     ):
-        self._module = create_wg_sparse_params(nnodes, embedding_dim, optimizer, location)
+        self._module = create_wg_sparse_params(num_nodes, embedding_dim, optimizer, location)
         self._optimizer = optimizer
         self._name = name
-        self._num_embeddings = nnodes
+        self._num_embeddings = num_nodes
         self._embedding_dim = embedding_dim
 
     def __call__(self, idx: th.Tensor, device: th.device = th.device("cpu")) -> th.Tensor:

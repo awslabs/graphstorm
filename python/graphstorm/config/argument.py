@@ -1184,7 +1184,8 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_use_wholegraph_sparse_emb"):
-            assert self._use_wholegraph_sparse_emb in [True, False]
+            assert self._use_wholegraph_sparse_emb in [True, False], \
+                "Invalid value for _use_wholegraph_sparse_emb. Must be either True or False."
             return self._use_wholegraph_sparse_emb
         # By default do not use wholegraph for learnable node embeddings
         return False
