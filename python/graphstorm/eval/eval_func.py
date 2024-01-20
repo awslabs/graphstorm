@@ -208,13 +208,13 @@ def eval_roc_auc(logits,labels):
     try:
         assert len(predicted_labels.shape) > 1
     except AssertionError:
-        logging.error('GraphStorm assumes the predicted logit is 2D tesnor,' + \
-                f'but got a 1D tensor.')
+        logging.error('GraphStorm assumes the predicted logit is a 2D tesnor, ' + \
+                      'but got a 1D tensor.')
         raise
 
     # The roc_auc_score function computes the area under the receiver operating characteristic
     # (ROC) curve, which is also denoted by AUC or AUROC. The following returns the average AUC.
-    rocauc_list = []   
+    rocauc_list = []
     # For binary results, the sklearn roc_auc_score function asks 1D inputs of predictions.
     # And the label is a 1D tensor. For other cases, the sklearn roc_auc_score function asks
     # nD inputs of predictions. So here we need to check the predictions' 2nd dim for the binary
@@ -232,7 +232,7 @@ def eval_roc_auc(logits,labels):
                 is_labeled = labels[:, i] == labels[:, i]
                 rocauc_list.append(roc_auc_score(labels[is_labeled, i],
                                                 predicted_labels[is_labeled, i]))
-    
+
     if len(rocauc_list) == 0:
         logging.error('No positively labeled data available. Cannot compute ROC-AUC.')
         return 0
@@ -245,11 +245,12 @@ def eval_acc(pred, labels):
     try:
         if pred.dim() > 1:
             # if pred has dimension > 1, it has full logits instead of final prediction
-            assert th.is_floating_point(pred), "Multiple dimension logits are expected to be float type."
+            assert th.is_floating_point(pred), "Multiple dimension logits are expected to be" + \
+                " float type."
             pred = pred.argmax(dim=1)
         # Check if pred is integer tensor
-        assert (not th.is_floating_point(pred) and not th.is_complex(pred)), "1D predictions are " \
-            "expected to be integer type."
+        assert (not th.is_floating_point(pred) and not th.is_complex(pred)), "1D predictions " + \
+            "are expected to be integer type."
     except (AssertionError, ValueError):
         logging.error("Multiple dimension logits are expected to be float type or " + \
                       "1D predictions are expected to be integer type.")
@@ -267,7 +268,8 @@ def compute_f1_score(y_preds, y_targets):
         report = classification_report(y_pred=y_pred, y_true=y_true, output_dict=True)
         f1_score = report['macro avg']['f1-score']
     except ValueError as e:
-        logging.error("Failure found during evaluation of the f1 score metric due to reason: %s", str(e))
+        logging.error("Failure found during evaluation of the f1 score metric due to" + \
+                      " reason: %s", str(e))
         raise
 
     return f1_score
@@ -280,7 +282,8 @@ def compute_per_class_f1_score(y_preds, y_targets):
     try:
         report = classification_report(y_pred=y_pred, y_true=y_true, output_dict=True)
     except ValueError as e:
-        logging.error("Failure found during evaluation of the per class f1 score metric due to reason: %s", str(e))
+        logging.error("Failure found during evaluation of the per class f1 score metric due to" + \
+                      "reason: %s", str(e))
         raise
 
     return report
@@ -336,7 +339,8 @@ def compute_roc_auc(y_preds, y_targets, weights=None):
     try:
         auc_score = roc_auc_score(y_true, y_pred, sample_weight=weights, multi_class='ovr')
     except ValueError as e:
-        logging.error("Failure found during evaluation of the roc_auc metric due to the reason: %s", str(e))
+        logging.error("Failure found during evaluation of the roc_auc metric due to the" + \
+                      " reason: %s", str(e))
         raise
 
     return auc_score
@@ -360,7 +364,8 @@ def compute_per_class_roc_auc(y_preds, y_targets):
             roc_auc_report[class_id] = roc_auc_score(y_true[:,class_id],
                                                     y_pred[:,class_id])
         except ValueError as e:
-            logging.error("Failure found during evaluation of the roc_auc_score metric due to the reason: %s", str(e))
+            logging.error("Failure found during evaluation of the roc_auc_score metric due to " + \
+                          "the reason: %s", str(e))
             raise
     roc_auc_report["overall avg"] = avg_roc_auc
 
@@ -394,7 +399,8 @@ def compute_precision_recall_auc(y_preds, y_targets, weights=None):
         precision, recall = pr_curve[PRKeys.PRECISION], pr_curve[PRKeys.RECALL]
         auc_score = auc(recall, precision)
     except ValueError as e:
-        logging.error("Failure found during evaluation of the precision_recall_auc metric due to reason: %s", str(e))
+        logging.error("Failure found during evaluation of the precision_recall_auc metric due " + \
+                      "to reason: %s", str(e))
         raise
 
     return auc_score
