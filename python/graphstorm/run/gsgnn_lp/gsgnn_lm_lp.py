@@ -30,8 +30,9 @@ from graphstorm.dataloading import (GSgnnLPJointNegDataLoader,
                                     GSgnnLPInBatchJointNegDataLoader)
 from graphstorm.dataloading import GSgnnAllEtypeLPJointNegDataLoader
 from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
-from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
-from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
+from graphstorm.dataloading import (GSgnnLinkPredictionTestDataLoader,
+                                    GSgnnLinkPredictionJointTestDataLoader,
+                                    GSgnnLinkPredictionPredefinedTestDataLoader)
 from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                                     BUILTIN_LP_JOINT_NEG_SAMPLER,
                                     BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER,
@@ -129,10 +130,14 @@ def main(config_args):
         raise ValueError('Unknown negative sampler')
     dataloader = dataloader_cls(train_data, train_data.train_idxs, [],
                                 config.batch_size, config.num_negative_edges, device,
-                                train_task=True)
+                                train_task=True,
+                                edge_dst_negative_field=config.train_etypes_negative_dstnode,
+                                num_hard_negs=config.num_train_hard_negatives)
 
     # TODO(zhengda) let's use full-graph inference for now.
-    if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+    if config.eval_etypes_negative_dstnode is not None:
+        test_dataloader_cls = GSgnnLinkPredictionPredefinedTestDataLoader
+    elif config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
         test_dataloader_cls = GSgnnLinkPredictionTestDataLoader
     elif config.eval_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
         test_dataloader_cls = GSgnnLinkPredictionJointTestDataLoader
@@ -143,11 +148,19 @@ def main(config_args):
     val_dataloader = None
     test_dataloader = None
     if len(train_data.val_idxs) > 0:
-        val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
-            config.eval_batch_size, config.num_negative_edges_eval)
+        if config.eval_etypes_negative_dstnode is not None:
+            val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
+                config.eval_batch_size, config.eval_etypes_negative_dstnode)
+        else:
+            val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
+                config.eval_batch_size, config.num_negative_edges_eval)
     if len(train_data.test_idxs) > 0:
-        test_dataloader = test_dataloader_cls(train_data, train_data.test_idxs,
-            config.eval_batch_size, config.num_negative_edges_eval)
+        if config.eval_etypes_negative_dstnode is not None:
+            test_dataloader = test_dataloader_cls(train_data, train_data.test_idxs,
+                config.eval_batch_size, config.eval_etypes_negative_dstnode)
+        else:
+            test_dataloader = test_dataloader_cls(train_data, train_data.test_idxs,
+                config.eval_batch_size, config.num_negative_edges_eval)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.

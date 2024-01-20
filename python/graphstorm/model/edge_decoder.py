@@ -24,7 +24,8 @@ from ..utils import get_backend, is_distributed
 from .ngnn_mlp import NGNNMLP
 from .gs_layer import GSLayer, GSLayerNoParam
 from ..dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
-                           BUILTIN_LP_JOINT_NEG_SAMPLER)
+                           BUILTIN_LP_JOINT_NEG_SAMPLER,
+                           BUILTIN_LP_FIXED_NEG_SAMPLER)
 
 from ..eval.utils import calc_distmult_pos_score, calc_dot_pos_score
 from ..eval.utils import calc_distmult_neg_head_score, calc_distmult_neg_tail_score
@@ -628,7 +629,9 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
         neg_scores = []
         if neg_src is not None:
             neg_src_emb = emb[utype][neg_src.reshape(-1,)].to(device)
-            if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+            if neg_sample_type in [BUILTIN_LP_UNIFORM_NEG_SAMPLER,
+                                   BUILTIN_LP_FIXED_NEG_SAMPLER]:
+                # fixed negative sample is similar to uniform negative sample
                 neg_src_emb = neg_src_emb.reshape(
                     neg_src.shape[0], neg_src.shape[1], -1)
                 pos_dst_emb = pos_dst_emb.reshape(
@@ -654,7 +657,9 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
             neg_scores.append(neg_score)
 
         if neg_dst is not None:
-            if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+            if neg_sample_type in [BUILTIN_LP_UNIFORM_NEG_SAMPLER, \
+                                   BUILTIN_LP_FIXED_NEG_SAMPLER]:
+                # fixed negative sample is similar to uniform negative sample
                 neg_dst_emb = emb[vtype][neg_dst.reshape(-1,)].to(device)
                 neg_dst_emb = neg_dst_emb.reshape(
                     neg_dst.shape[0], neg_dst.shape[1], -1)
@@ -881,7 +886,9 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
 
             if neg_src is not None:
                 neg_src_emb = emb[utype][neg_src.reshape(-1,)]
-                if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+                if neg_sample_type in [BUILTIN_LP_UNIFORM_NEG_SAMPLER,
+                                       BUILTIN_LP_FIXED_NEG_SAMPLER]:
+                    # fixed negative sample is similar to uniform negative sample
                     neg_src_emb = neg_src_emb.reshape(neg_src.shape[0], neg_src.shape[1], -1)
                     # uniform sampled negative samples
                     pos_dst_emb = pos_dst_emb.reshape(
@@ -912,7 +919,9 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
                 neg_scores.append(neg_score)
 
             if neg_dst is not None:
-                if neg_sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+                if neg_sample_type in [BUILTIN_LP_UNIFORM_NEG_SAMPLER,
+                                       BUILTIN_LP_FIXED_NEG_SAMPLER]:
+                    # fixed negative sample is similar to uniform negative sample
                     neg_dst_emb = emb[vtype][neg_dst.reshape(-1,)]
                     neg_dst_emb = neg_dst_emb.reshape(neg_dst.shape[0], neg_dst.shape[1], -1)
                     # uniform sampled negative samples
