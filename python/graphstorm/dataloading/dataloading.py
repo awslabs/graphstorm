@@ -1022,6 +1022,8 @@ class GSgnnLinkPredictionTestDataLoader():
                                 "is %d, which is smaller than the expected"
                                 "test size %d, force it to %d",
                                 etype, len(t_idx), self._fixed_test_size[etype], len(t_idx))
+                self._fixed_test_size[etype] = len(t_idx)
+
         self._negative_sampler = self._prepare_negative_sampler(num_negative_edges)
         self._reinit_dataset()
 

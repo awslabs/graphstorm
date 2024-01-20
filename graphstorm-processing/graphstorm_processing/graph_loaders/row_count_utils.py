@@ -52,7 +52,8 @@ class ParquetRowCounter:
             # Increase default retries because we are likely to run into
             # throttling errors
             self.pyarrow_fs = fs.S3FileSystem(
-                region=bucket_region, retry_strategy=fs.AwsStandardS3RetryStrategy(max_attempts=10)
+                region=bucket_region,
+                retry_strategy=fs.AwsStandardS3RetryStrategy(max_attempts=10),
             )
         else:
             self.pyarrow_fs = fs.LocalFileSystem()
@@ -79,7 +80,7 @@ class ParquetRowCounter:
         self._add_counts_for_features(top_level_key="edge_data", edge_or_node_type_key="edge_type")
 
         all_node_mapping_counts = self._add_counts_for_graph_structure(
-            top_level_key="node_id_mappings", edge_or_node_type_key="node_type"
+            top_level_key="raw_id_mappings", edge_or_node_type_key="node_type"
         )
         self._add_counts_for_features(top_level_key="node_data", edge_or_node_type_key="node_type")
 
@@ -179,7 +180,7 @@ class ParquetRowCounter:
         top_level_key : str
             The top level key that refers to the structure we'll be getting
             counts for, can be "edges" to get counts for edges structure,
-            or "node_id_mappings" to get counts for node mappings.
+            or "raw_id_mappings" to get counts for node mappings.
         edge_or_node_type_key : str
             The secondary key we use to iterate over structure types,
             can be 'edge_type' or 'node_type'.
@@ -191,8 +192,8 @@ class ParquetRowCounter:
             inner list is a row count.
         """
         # We use the order of types in edge_type and node_type to create the counts
-        assert top_level_key in {"edges", "node_id_mappings"}, (
-            "top_level_key needs to be one of 'edges', 'node_id_mappings' " f"got {top_level_key}"
+        assert top_level_key in {"edges", "raw_id_mappings"}, (
+            "top_level_key needs to be one of 'edges', 'raw_id_mappings' " f"got {top_level_key}"
         )
         assert edge_or_node_type_key in {"edge_type", "node_type"}, (
             "edge_or_node_type_key needs to be one of 'edge_type', 'node_type' "

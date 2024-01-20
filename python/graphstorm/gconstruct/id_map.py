@@ -18,13 +18,14 @@
 """
 import os
 import logging
-import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import numpy as np
 
 from .file_io import read_data_parquet
 from .utils import ExtMemArrayWrapper
+
+GIB_BYTES = 1024**3
 
 class NoopMap:
     """ It doesn't map IDs.
@@ -74,13 +75,22 @@ class IdReverseMap:
 
         Parameters
         ----------
-        id_map_path : str
-            Id mapping file path
+        id_map_prefix : str
+            Id mapping file prefix
     """
-    def __init__(self, id_map_path):
-        assert os.path.exists(id_map_path), \
-            f"{id_map_path} does not exits."
-        data = read_data_parquet(id_map_path, ["new", "orig"])
+    def __init__(self, id_map_prefix):
+        assert os.path.exists(id_map_prefix), \
+            f"{id_map_prefix} does not exist."
+        try:
+            data = read_data_parquet(id_map_prefix, ["orig", "new"])
+        except AssertionError:
+            # To maintain backwards compatibility with GraphStorm v0.2.1
+            data = read_data_parquet(id_map_prefix, ["node_str_id", "node_int_id"])
+            data["new"] = data["node_int_id"]
+            data["orig"] = data["node_str_id"]
+            data.pop("node_int_id")
+            data.pop("node_str_id")
+
         sort_idx = np.argsort(data['new'])
         self._ids = data['orig'][sort_idx]
 
@@ -202,23 +212,33 @@ class IdMap:
                 idx.append(i)
         return np.array(new_ids), np.array(idx)
 
-    def save(self, file_path):
-        """ Save the ID map to a parquet file.
+    def save(self, file_prefix):
+        """ Save the ID map to a set of parquet files.
+
+        Files are split such that they are not significantly larger
+        than 1GB per file.
 
         Parameters
         ----------
-        file_path : str
-            The file where the ID map will be saved to.
+        file_prefix : str
+            The file prefix under which the ID map will be saved to.
 
-        Returns
-        -------
-        bool : whether the ID map is saved to a file.
         """
-        keys = list(self._ids.keys())
-        vals = list(self._ids.values())
-        table = pa.Table.from_pandas(pd.DataFrame({'orig': keys, 'new': vals}))
-        pq.write_table(table, file_path)
-        return True
+        os.makedirs(file_prefix, exist_ok=True)
+        table = pa.Table.from_arrays([pa.array(self._ids.keys()), self._ids.values()],
+                                     names=["orig", "new"])
+        bytes_per_row = table.nbytes // table.num_rows
+        # Split table in parts, such that the max expected file size is ~1GB
+        max_rows_per_file = GIB_BYTES // bytes_per_row
+        rows_written = 0
+        file_idx = 0
+        while rows_written < table.num_rows:
+            start = rows_written
+            end = min(rows_written + max_rows_per_file, table.num_rows)
+            filename = f"part-{str(file_idx).zfill(5)}.parquet"
+            pq.write_table(table.slice(start, end), os.path.join(file_prefix, filename))
+            rows_written = end
+            file_idx += 1
 
 def map_node_ids(src_ids, dst_ids, edge_type, node_id_map, skip_nonexist_edges):
     """ Map node IDs of source and destination nodes of edges.

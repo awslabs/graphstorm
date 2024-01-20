@@ -31,7 +31,7 @@ def run_job(input_args, image):
     instance_type = input_args.instance_type # SageMaker instance type
     instance_count = input_args.instance_count # Number of partition instances
     region = input_args.region # AWS region
-    entry_point = input_args.entry_point # GraphStorm training entry_point
+    entry_point = input_args.entry_point # GraphStorm partition entry_point
     num_parts = input_args.num_parts # Number of partitions
     graph_data_s3 = input_args.graph_data_s3 # S3 location storing input graph data (unpartitioned)
     graph_data_s3 = graph_data_s3[:-1] if graph_data_s3[-1] == '/' \
@@ -90,9 +90,6 @@ def get_partition_parser():
 
     partition_args = parser.add_argument_group("GraphStorm Partition Arguments")
 
-    partition_args.add_argument("--graph-data-s3", type=str,
-        required=True,
-        help="S3 location of input training graph in chunked format")
     partition_args.add_argument("--output-data-s3", type=str,
         required=True,
         help="Output S3 location to store the partitioned graph")

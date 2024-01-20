@@ -647,6 +647,8 @@ def test_GSgnnLinkPredictionTestDataLoader(batch_size, num_negative_edges):
                 assert neg_src.shape[1] == num_negative_edges
                 assert th.all(neg_src < g.number_of_nodes(canonical_etype[0]))
 
+        # The target idx size for ("n0", "r1", "n1") is 2
+        # The target idx size for ("n0", "r0", "n1") is 50
         fixed_test_size = 10
         dataloader = GSgnnLinkPredictionTestDataLoader(
             lp_data,
@@ -654,15 +656,26 @@ def test_GSgnnLinkPredictionTestDataLoader(batch_size, num_negative_edges):
             batch_size=batch_size,
             num_negative_edges=num_negative_edges,fixed_test_size=fixed_test_size)
         num_samples = 0
+        num_pos_pairs = 0
         for pos_neg_tuple, sample_type in dataloader:
             num_samples += 1
             assert isinstance(pos_neg_tuple, dict)
+            assert len(pos_src) > 0
             assert len(pos_neg_tuple) == 1
             for _, pos_neg in pos_neg_tuple.items():
                 pos_src, _, pos_dst, _ = pos_neg
                 assert len(pos_src) <= batch_size
+                num_pos_pairs += len(pos_src)
 
-        assert num_samples ==  -(-fixed_test_size // batch_size) * 2
+        expected_samples = 0
+        expected_pos_pairs = 0
+        for _, t_idx in lp_data.train_idxs.items():
+            expected_idx_len = fixed_test_size if fixed_test_size < len(t_idx) else len(t_idx)
+            expected_samples += -(-expected_idx_len // batch_size)
+            expected_pos_pairs += expected_idx_len
+
+        assert num_samples == expected_samples
+        assert num_pos_pairs == expected_pos_pairs
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()

@@ -53,12 +53,13 @@ if __name__ == '__main__':
 
     for d in os.listdir(args.path):
         part_dir = os.path.join(args.path, d)
-        if not os.path.isfile(part_dir):
-            if args.node_class:
-                data = dgl.data.load_tensors(os.path.join(part_dir, 'node_feat.dgl'))
-                data = generate_graph_data(data, args.field)
-                dgl.data.save_tensors(os.path.join(part_dir, 'node_feat.dgl'), data)
-            else:
-                data = dgl.data.load_tensors(os.path.join(part_dir, 'edge_feat.dgl'))
-                data = generate_graph_data(data, args.field)
-                dgl.data.save_tensors(os.path.join(part_dir, 'edge_feat.dgl'), data)
+        if not d.startswith('part') or os.path.isfile(part_dir):
+            continue
+        if args.node_class:
+            data = dgl.data.load_tensors(os.path.join(part_dir, 'node_feat.dgl'))
+            data = generate_graph_data(data, args.field)
+            dgl.data.save_tensors(os.path.join(part_dir, 'node_feat.dgl'), data)
+        else:
+            data = dgl.data.load_tensors(os.path.join(part_dir, 'edge_feat.dgl'))
+            data = generate_graph_data(data, args.field)
+            dgl.data.save_tensors(os.path.join(part_dir, 'edge_feat.dgl'), data)
