@@ -204,6 +204,46 @@ def execute_remote(
     time.sleep(0.2)
     return thread
 
+def execute_local(
+    cmd: str,
+    state_q: queue.Queue,
+) -> Thread:
+    """Execute command line on the local machine.
+
+        Parameters
+        ----------
+        cmd:
+            User-defined command (udf) to execute on the remote host.
+        state_q:
+            A queue collecting Thread exit states.
+
+    Returns:
+        thread: The Thread whose run() is to run the `cmd` on the remote host.
+        Returns when the cmd completes on the remote host.
+    """
+    # thread func to run the job
+    def run(cmd, state_q):
+        try:
+            subprocess.check_call(cmd, shell=True)
+            state_q.put(0)
+        except subprocess.CalledProcessError as err:
+            logging.error("Called process error %s", err)
+            state_q.put(err.returncode)
+        except Exception: # pylint: disable=broad-exception-caught
+            state_q.put(-1)
+
+    thread = Thread(
+        target=run,
+        args=(
+            cmd,
+            state_q,
+        ),
+    )
+    thread.setDaemon(True)
+    thread.start()
+    # sleep for a while in case of ssh is rejected by peer due to busy connection
+    time.sleep(0.2)
+    return thread
 
 def get_remote_pids(ip, port, cmd_regex):
     """Get the process IDs that run the command in the remote machine.
@@ -733,8 +773,61 @@ def submit_remap_jobs(args, udf_command, hosts):
         logging.error("Remapping task failed")
         sys.exit(-1)
 
+def get_ip_config(ip_config, workspace):
+    """ Get IP configurations
+
+    Parameters
+    ----------
+    ip_config : str
+        The path to the IP config file.
+    workspace : str
+        The path of the workspace
+
+    Returns
+    -------
+    str : the absolute path of IP configuration file.
+    list of tuple : the IP address and ports of the hosts.
+    """
+    # Get the IP addresses of the cluster.
+    # The path to the ip config file can be a absolute path or
+    # a relative path to the workspace
+    hosts = []
+    if ip_config is not None:
+        ip_config = ip_config if os.path.isabs(ip_config) else \
+                os.path.join(workspace, ip_config)
+        assert os.path.isfile(ip_config), \
+                f"IP config file must be provided but got {ip_config}"
+        with open(ip_config, encoding='utf-8') as f:
+            for line in f:
+                result = line.strip().split()
+                if len(result) == 2:
+                    ip = result[0]
+                    port = int(result[1])
+                    hosts.append((ip, port))
+                elif len(result) == 1:
+                    ip = result[0]
+                    port = get_available_port(ip)
+                    hosts.append((ip, port))
+                else:
+                    raise RuntimeError("Format error of ip_config.")
+    else:
+        ip_config = None
+    return ip_config, hosts
+
+def run_remote_servers():
+    pass
+
+def run_local_servers():
+    pass
+
+def run_remote_clients():
+    pass
+
+def run_local_clients():
+    pass
+
 def submit_jobs(args, udf_command):
-    """Submit distributed jobs (server and client processes) via ssh
+    """Submit distributed jobs (server and client processes).
 
         Parameters
         ----------
@@ -749,29 +842,13 @@ def submit_jobs(args, udf_command):
     thread_list = []
     server_count_per_machine = 0
 
-    # Get the IP addresses of the cluster.
-    # The path to the ip config file can be a absolute path or
-    # a relative path to the workspace
-    ip_config = args.ip_config if os.path.isabs(args.ip_config) else \
-        os.path.join(args.workspace, args.ip_config)
-    args.ip_config = ip_config
-    assert os.path.isfile(ip_config), \
-        f"IP config file must be provided but got {ip_config}"
-
-    with open(ip_config, encoding='utf-8') as f:
-        for line in f:
-            result = line.strip().split()
-            if len(result) == 2:
-                ip = result[0]
-                port = int(result[1])
-                hosts.append((ip, port))
-            elif len(result) == 1:
-                ip = result[0]
-                port = get_available_port(ip)
-                hosts.append((ip, port))
-            else:
-                raise RuntimeError("Format error of ip_config.")
+    ip_config, hosts = get_ip_config(args.ip_config, args.workspace):
     server_count_per_machine = args.num_servers
+    if len(hosts) == 0:
+        hosts = [("127.0.0.1", None)]
+        run_local = True
+    else:
+        run_local = False
 
     # Get partition info of the graph data
     # The path to the partition config file can be a absolute path or
@@ -802,13 +879,12 @@ def submit_jobs(args, udf_command):
         num_server_threads=args.num_server_threads,
         tot_num_clients=tot_num_clients,
         part_config=args.part_config,
-        ip_config=args.ip_config,
+        ip_config=ip_config,
         num_servers=args.num_servers,
         graph_format=args.graph_format,
         pythonpath=os.environ.get("PYTHONPATH", ""),
     )
     for i in range(len(hosts) * server_count_per_machine):
-        ip, _ = hosts[int(i / server_count_per_machine)]
         server_env_vars_cur = f"{server_env_vars} DGL_SERVER_ID={i}"
         cmd = wrap_cmd_with_local_envvars(server_cmd, server_env_vars_cur)
         cmd = (
@@ -819,22 +895,19 @@ def submit_jobs(args, udf_command):
         cmd = "cd " + str(args.workspace) + "; " + cmd
         servers_cmd.append(cmd)
 
-        thread_list.append(
-            execute_remote(
-                cmd,
-                state_q,
-                ip,
-                args.ssh_port,
-                username=args.ssh_username,
-            )
-        )
+        if not run_local:
+            ip, _ = hosts[int(i / server_count_per_machine)]
+            thread_list.append(
+                    execute_remote(cmd, state_q, ip, args.ssh_port, username=args.ssh_username))
+        else:
+            thread_list.append(execute_local(cmd, state_q))
 
     # launch client tasks
     client_env_vars = construct_dgl_client_env_vars(
         num_samplers=args.num_samplers,
         tot_num_clients=tot_num_clients,
         part_config=args.part_config,
-        ip_config=args.ip_config,
+        ip_config=ip_config,
         num_servers=args.num_servers,
         graph_format=args.graph_format,
         num_omp_threads=os.environ.get(
@@ -847,7 +920,6 @@ def submit_jobs(args, udf_command):
     master_addr = hosts[0][0]
     master_port = get_available_port(master_addr)
     for node_id, host in enumerate(hosts):
-        ip, _ = host
         # Transform udf_command to follow torch's dist launcher format:
         # `PYTHON_BIN -m torch.distributed.launch ... UDF`
         torch_dist_udf_command = wrap_udf_in_torch_dist_launcher(
@@ -868,11 +940,13 @@ def submit_jobs(args, udf_command):
         )
         cmd = "cd " + str(args.workspace) + "; " + cmd
         clients_cmd.append(cmd)
-        thread_list.append(
-            execute_remote(
-                cmd, state_q, ip, args.ssh_port, username=args.ssh_username
+        if not run_local:
+            ip, _ = host
+            thread_list.append(
+                    execute_remote(cmd, state_q, ip, args.ssh_port, username=args.ssh_username)
             )
-        )
+        else:
+            thread_list.append(execute_local(cmd, state_q))
         logging.debug(torch_dist_udf_command)
 
     # Start a cleanup process dedicated for cleaning up remote training jobs.
