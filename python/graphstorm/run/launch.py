@@ -321,6 +321,56 @@ def get_all_remote_pids(hosts, ssh_port, udf_command):
         remote_pids[(ip, ssh_port)] = pids
     return remote_pids
 
+def get_local_pids(cmd_regex):
+    """Get the process IDs that run the command in the local machine.
+
+        Parameters
+        ----------
+        cmd_regex:
+            command pattern
+    """
+    pids = []
+    curr_pid = os.getpid()
+    # Here we want to get the python processes.
+    ps_cmd = (
+        "ps -aux | grep python"
+    )
+    res = subprocess.run(ps_cmd, shell=True, stdout=subprocess.PIPE, check=False)
+    for process in res.stdout.decode("utf-8").split("\n"):
+        process_list = process.split()
+        if len(process_list) < 2:
+            continue
+        # We only get the processes that run the specified command.
+        res = re.search(cmd_regex, process)
+        if res is not None and int(process_list[1]) != curr_pid:
+            pids.append(process_list[1])
+
+    pid_str = ",".join([str(pid) for pid in pids])
+    ps_cmd = (
+        "pgrep -P {}".format(pid_str)
+    )
+    res = subprocess.run(ps_cmd, shell=True, stdout=subprocess.PIPE, check=False)
+    pids1 = res.stdout.decode("utf-8").split("\n")
+    all_pids = []
+    for pid in set(pids + pids1):
+        if pid == "" or int(pid) == curr_pid:
+            continue
+        all_pids.append(int(pid))
+    all_pids.sort()
+    return all_pids
+
+def get_all_local_pids(udf_command):
+    """Get all processes in the local machine.
+
+        Parameters
+        ----------
+        udf_command:
+            command
+    """
+    # When creating training processes in remote machines, we may insert some arguments
+    # in the commands. We need to use regular expressions to match the modified command.
+    new_udf_command = " .*".join(udf_command)
+    return get_local_pids(new_udf_command)
 
 def construct_torch_dist_launcher_cmd(
     num_trainers: int,
@@ -949,7 +999,10 @@ def submit_jobs(args, udf_command):
 
     # Start a cleanup process dedicated for cleaning up remote training jobs.
     conn1, conn2 = multiprocessing.Pipe()
-    func = partial(get_all_remote_pids, hosts, args.ssh_port, udf_command)
+    if run_local:
+        func = partial(get_all_local_pids, udf_command)
+    else:
+        func = partial(get_all_remote_pids, hosts, args.ssh_port, udf_command)
     process = multiprocessing.Process(target=cleanup_proc, args=(func, conn1))
     process.start()
 
