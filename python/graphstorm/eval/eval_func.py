@@ -124,6 +124,7 @@ class RegressionMetrics:
         self.assert_supported_metric(metric)
         return np.finfo(np.float32).max
 
+
 class LinkPredictionMetrics:
     """ object that compute metrics for LP tasks.
     """
@@ -154,6 +155,7 @@ class LinkPredictionMetrics:
         # Need to check if the given metric is supported first
         self.assert_supported_metric(metric)
         return 0
+
 
 def labels_to_one_hot(labels, total_labels):
     '''
@@ -237,19 +239,23 @@ def eval_roc_auc(logits,labels):
 
     return sum(rocauc_list) / len(rocauc_list)
 
-
 def eval_acc(pred, labels):
     """compute evaluation accuracy.
     """
-    if pred.dim() > 1:
-        # if pred has dimension > 1, it has full logits instead of final prediction
-        assert th.is_floating_point(pred), "Logits are expected to be float type"
-        pred = pred.argmax(dim=1)
-    # Check if pred is integer tensor
-    assert(not th.is_floating_point(pred) and not th.is_complex(pred)), "Predictions are " \
-        "expected to be integer type"
-    return th.sum(pred.cpu() == labels.cpu()).item() / len(labels)
+    try:
+        if pred.dim() > 1:
+            # if pred has dimension > 1, it has full logits instead of final prediction
+            assert th.is_floating_point(pred), "Multiple dimension logits are expected to be float type."
+            pred = pred.argmax(dim=1)
+        # Check if pred is integer tensor
+        assert (not th.is_floating_point(pred) and not th.is_complex(pred)), "1D predictions are " \
+            "expected to be integer type."
+    except (AssertionError, ValueError):
+        logging.error("Multiple dimension logits are expected to be float type or " + \
+                      "1D predictions are expected to be integer type.")
+        raise
 
+    return th.sum(pred.cpu() == labels.cpu()).item() / len(labels)
 
 def compute_f1_score(y_preds, y_targets):
     """ compute macro_average f1 score.
@@ -261,26 +267,29 @@ def compute_f1_score(y_preds, y_targets):
         report = classification_report(y_pred=y_pred, y_true=y_true, output_dict=True)
         f1_score = report['macro avg']['f1-score']
     except ValueError as e:
-        logging.error("Failure found during evaluation of the auc metric returning -1: %s", str(e))
-        f1_score = -1
-    return f1_score
+        logging.error("Failure found during evaluation of the f1 score metric due to reason: %s", str(e))
+        raise
 
+    return f1_score
 
 def compute_per_class_f1_score(y_preds, y_targets):
     """ compute f1 score per class
     """
     y_true = y_targets.cpu().numpy()
     y_pred = y_preds.cpu().numpy()
-    report = classification_report(y_pred=y_pred, y_true=y_true, output_dict=True)
-    return report
+    try:
+        report = classification_report(y_pred=y_pred, y_true=y_true, output_dict=True)
+    except ValueError as e:
+        logging.error("Failure found during evaluation of the per class f1 score metric due to reason: %s", str(e))
+        raise
 
+    return report
 
 def comparator_per_class_f1_score(best_report, current_report):
     """ compare method for f1 score per class
     """
     return best_report['macro avg']['f1-score'] < current_report['macro avg']['f1-score']\
         if best_report != 0 else 0 < current_report['macro avg']['f1-score']
-
 
 def compute_acc_lp(pos_score, neg_score):
     """
@@ -309,7 +318,6 @@ def compute_acc_lp(pos_score, neg_score):
 
     return {"lp_fast_score": lp_score}
 
-
 def compute_roc_auc(y_preds, y_targets, weights=None):
     """ compute ROC's auc score
     """
@@ -328,7 +336,9 @@ def compute_roc_auc(y_preds, y_targets, weights=None):
     try:
         auc_score = roc_auc_score(y_true, y_pred, sample_weight=weights, multi_class='ovr')
     except ValueError as e:
-        logging.error("Failure found during evaluation of the auc metric returning -1: %s", str(e))
+        logging.error("Failure found during evaluation of the roc_auc metric due to the reason: %s", str(e))
+        raise
+
     return auc_score
 
 def comparator_per_class_roc_auc(best_report, current_report):
@@ -346,11 +356,16 @@ def compute_per_class_roc_auc(y_preds, y_targets):
 
     avg_roc_auc = compute_roc_auc(y_preds, y_targets)
     for class_id in range(y_true.shape[1]):
-        roc_auc_report[class_id] = roc_auc_score(y_true[:,class_id],
-                                                 y_pred[:,class_id])
+        try:
+            roc_auc_report[class_id] = roc_auc_score(y_true[:,class_id],
+                                                    y_pred[:,class_id])
+        except ValueError as e:
+            logging.error("Failure found during evaluation of the roc_auc_score metric due to the reason: %s", str(e))
+            raise
     roc_auc_report["overall avg"] = avg_roc_auc
 
     return roc_auc_report
+
 
 class PRKeys(str, Enum):
     """ Enums support iteration in definition order--order matters here
@@ -379,7 +394,9 @@ def compute_precision_recall_auc(y_preds, y_targets, weights=None):
         precision, recall = pr_curve[PRKeys.PRECISION], pr_curve[PRKeys.RECALL]
         auc_score = auc(recall, precision)
     except ValueError as e:
-        logging.error("Failure found during evaluation of the auc metric returning -1: %s", str(e))
+        logging.error("Failure found during evaluation of the precision_recall_auc metric due to reason: %s", str(e))
+        raise
+
     return auc_score
 
 def compute_acc(pred, labels, multilabel):
