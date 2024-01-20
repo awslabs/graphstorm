@@ -30,6 +30,8 @@ import signal
 import subprocess
 import sys
 import time
+import tempfile
+
 from functools import partial
 from threading import Thread
 from typing import Optional
@@ -811,20 +813,15 @@ def get_ip_config(ip_config, workspace):
                 else:
                     raise RuntimeError("Format error of ip_config.")
     else:
-        ip_config = None
+        # The user doesn't provide an IP config file. This means we are going to
+        # run the training job in the local machine. We should create a temporary
+        # IP config file.
+        fp = tempfile.NamedTemporaryFile(delete=False)
+        fp.write(b'127.0.0.1')
+        ip_config = fp.name
+        logging.debug('create a temporary ip config file: %s', ip_config)
+        fp.close()
     return ip_config, hosts
-
-def run_remote_servers():
-    pass
-
-def run_local_servers():
-    pass
-
-def run_remote_clients():
-    pass
-
-def run_local_clients():
-    pass
 
 def submit_jobs(args, udf_command):
     """Submit distributed jobs (server and client processes).
@@ -842,7 +839,8 @@ def submit_jobs(args, udf_command):
     thread_list = []
     server_count_per_machine = 0
 
-    ip_config, hosts = get_ip_config(args.ip_config, args.workspace):
+    ip_config, hosts = get_ip_config(args.ip_config, args.workspace)
+    args.ip_config = ip_config
     server_count_per_machine = args.num_servers
     if len(hosts) == 0:
         hosts = [("127.0.0.1", None)]
@@ -1147,9 +1145,6 @@ def check_input_arguments(args):
     assert (
         args.part_config is not None
     ), "A user has to specify a partition configuration file with --part-config."
-    assert (
-        args.ip_config is not None
-    ), "A user has to specify an IP configuration file with --ip-config."
 
     if args.workspace is None:
         # Get PWD
