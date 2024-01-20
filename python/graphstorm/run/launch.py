@@ -38,7 +38,7 @@ from typing import Optional
 from argparse import REMAINDER
 
 
-def cleanup_proc(get_all_remote_pids_func, conn):
+def remote_cleanup_proc(get_all_remote_pids_func, conn):
     """This process tries to clean up the remote training tasks.
 
         Parameters
@@ -60,11 +60,11 @@ def cleanup_proc(get_all_remote_pids_func, conn):
         remote_pids = get_all_remote_pids_func()
         # Otherwise, we need to ssh to each machine and kill the training jobs.
         for (ip, port), pids in remote_pids.items():
-            kill_process(ip, port, pids)
+            kill_remote_process(ip, port, pids)
     logging.debug("cleanup process exits")
 
 
-def kill_process(ip, port, pids):
+def kill_remote_process(ip, port, pids):
     """ssh to a remote machine and kill the specified processes.
 
         Parameters
@@ -95,7 +95,7 @@ def kill_process(ip, port, pids):
         killed_pids.append(pid)
     # It's possible that some of the processes are not killed. Let's try again.
     for _ in range(3):
-        killed_pids = get_killed_pids(ip, port, killed_pids)
+        killed_pids = get_remote_killed_pids(ip, port, killed_pids)
         if len(killed_pids) == 0:
             break
 
@@ -112,7 +112,7 @@ def kill_process(ip, port, pids):
             subprocess.run(kill_cmd, shell=True, check=False)
 
 
-def get_killed_pids(ip, port, killed_pids):
+def get_remote_killed_pids(ip, port, killed_pids):
     """Get the process IDs that we want to kill but are still alive.
 
         Parameters
@@ -133,6 +133,84 @@ def get_killed_pids(ip, port, killed_pids):
         + ip
         + " 'ps -p {} -h'".format(killed_pids)
     )
+    res = subprocess.run(ps_cmd, shell=True, stdout=subprocess.PIPE, check=False)
+    pids = []
+    for process in res.stdout.decode("utf-8").split("\n"):
+        process_list = process.split()
+        if len(process_list) > 0:
+            pids.append(int(process_list[0]))
+    return pids
+
+
+def local_cleanup_proc(get_all_pids_func, conn):
+    """This process tries to clean up the local training tasks.
+
+        Parameters
+        ----------
+        get_all_pids: func
+            Function to get all pids
+        conn:
+            connection
+    """
+    logging.debug("cleanupu process runs")
+    # This process should not handle SIGINT.
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+    data = conn.recv()
+    # If the launch process exits normally, this process doesn't need to do anything.
+    if data == "exit":
+        sys.exit(0)
+    else:
+        pids = get_all_pids_func()
+        # Otherwise, we need to ssh to each machine and kill the training jobs.
+        for pids in pids.items():
+            kill_local_process(pids)
+    logging.debug("cleanup process exits")
+
+
+def kill_local_process(pids):
+    """kill the specified processes on the local machine.
+
+        Parameters
+        ----------
+        pids: list
+            Pid list
+    """
+    curr_pid = os.getpid()
+    killed_pids = []
+    # If we kill child processes first, the parent process may create more again. This happens
+    # to Python's process pool. After sorting, we always kill parent processes first.
+    pids.sort()
+    for pid in pids:
+        assert curr_pid != pid
+        logging.debug("kill process %d", pid)
+        kill_cmd = ("'kill {}'".format(pid))
+        subprocess.run(kill_cmd, shell=True, check=False)
+        killed_pids.append(pid)
+    # It's possible that some of the processes are not killed. Let's try again.
+    for _ in range(3):
+        killed_pids = get_local_killed_pids(killed_pids)
+        if len(killed_pids) == 0:
+            break
+
+        killed_pids.sort()
+        for pid in killed_pids:
+            logging.debug("kill process %d", pid)
+            kill_cmd = ("'kill -9 {}'".format(pid))
+            subprocess.run(kill_cmd, shell=True, check=False)
+
+
+def get_local_killed_pids(killed_pids):
+    """Get the process IDs that we want to kill but are still alive.
+
+        Parameters
+        ----------
+        killed_pids: list
+            Pid list
+    """
+    killed_pids = [str(pid) for pid in killed_pids]
+    killed_pids = ",".join(killed_pids)
+    ps_cmd = ("'ps -p {} -h'".format(killed_pids))
     res = subprocess.run(ps_cmd, shell=True, stdout=subprocess.PIPE, check=False)
     pids = []
     for process in res.stdout.decode("utf-8").split("\n"):
@@ -755,7 +833,7 @@ def get_available_port(ip):
             return port
     raise RuntimeError("Failed to get available port for ip~{}".format(ip))
 
-def submit_remap_jobs(args, udf_command, hosts):
+def submit_remap_jobs(args, udf_command, hosts, run_local):
     """Submit distributed remap jobs via ssh
 
         Parameters
@@ -764,6 +842,10 @@ def submit_remap_jobs(args, udf_command, hosts):
             Launch arguments
         udf_command: list
             Execution arguments to update
+        hosts : list
+            The machines where to run the distributed job.
+        run_local : bool
+            Whether it runs on the local machine.
     """
     clients_cmd = []
     thread_list = []
@@ -786,19 +868,25 @@ def submit_remap_jobs(args, udf_command, hosts):
 
         cmd = "cd " + str(args.workspace) + "; " + cmd
         clients_cmd.append(cmd)
-        thread_list.append(
-            execute_remote(
-                cmd, state_q, ip, args.ssh_port, username=args.ssh_username
+        if run_local:
+            thread_list.append(execute_local(cmd, state_q))
+        else:
+            thread_list.append(
+                    execute_remote(
+                        cmd, state_q, ip, args.ssh_port, username=args.ssh_username
+                    )
             )
-        )
-
         logging.debug(cmd)
         logging.info(cmd)
 
     # Start a cleanup process dedicated for cleaning up remote jobs.
     conn1, conn2 = multiprocessing.Pipe()
-    func = partial(get_all_remote_pids, hosts, args.ssh_port, udf_command)
-    process = multiprocessing.Process(target=cleanup_proc, args=(func, conn1))
+    if run_local:
+        func = partial(get_all_local_pids, udf_command)
+        process = multiprocessing.Process(target=local_cleanup_proc, args=(func, conn1))
+    else:
+        func = partial(get_all_remote_pids, hosts, args.ssh_port, udf_command)
+        process = multiprocessing.Process(target=remote_cleanup_proc, args=(func, conn1))
     process.start()
 
     def signal_handler(sig, frame): # pylint: disable=unused-argument
@@ -1001,9 +1089,10 @@ def submit_jobs(args, udf_command):
     conn1, conn2 = multiprocessing.Pipe()
     if run_local:
         func = partial(get_all_local_pids, udf_command)
+        process = multiprocessing.Process(target=local_cleanup_proc, args=(func, conn1))
     else:
         func = partial(get_all_remote_pids, hosts, args.ssh_port, udf_command)
-    process = multiprocessing.Process(target=cleanup_proc, args=(func, conn1))
+        process = multiprocessing.Process(target=remote_cleanup_proc, args=(func, conn1))
     process.start()
 
     def signal_handler(sig, frame): # pylint: disable=unused-argument
@@ -1032,7 +1121,7 @@ def submit_jobs(args, udf_command):
 
     logging.info("Start doing node id remapping")
     if args.do_nid_remap:
-        submit_remap_jobs(args, udf_command, hosts)
+        submit_remap_jobs(args, udf_command, hosts, run_local)
     logging.info("Finish doing node id remapping")
 
 def get_argument_parser():
