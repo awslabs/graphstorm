@@ -329,7 +329,7 @@ def compute_roc_auc(y_preds, y_targets, weights=None):
 
     # check for binary cases, input 2D and label 1D
     if len(y_pred.shape) > 1 and y_pred.shape[1] == 2 and len(y_true.shape) == 1:
-            y_pred = y_pred[:, 1]
+        y_pred = y_pred[:, 1]
 
     if weights is not None:
         weights = weights.cpu().numpy()
