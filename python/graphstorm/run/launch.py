@@ -184,7 +184,7 @@ def kill_local_process(pids):
     for pid in pids:
         assert curr_pid != pid
         logging.debug("kill process %d", pid)
-        kill_cmd = ("'kill {}'".format(pid))
+        kill_cmd = "'kill {}'".format(pid)
         subprocess.run(kill_cmd, shell=True, check=False)
         killed_pids.append(pid)
     # It's possible that some of the processes are not killed. Let's try again.
@@ -196,7 +196,7 @@ def kill_local_process(pids):
         killed_pids.sort()
         for pid in killed_pids:
             logging.debug("kill process %d", pid)
-            kill_cmd = ("'kill -9 {}'".format(pid))
+            kill_cmd = "'kill -9 {}'".format(pid)
             subprocess.run(kill_cmd, shell=True, check=False)
 
 
@@ -210,7 +210,7 @@ def get_local_killed_pids(killed_pids):
     """
     killed_pids = [str(pid) for pid in killed_pids]
     killed_pids = ",".join(killed_pids)
-    ps_cmd = ("'ps -p {} -h'".format(killed_pids))
+    ps_cmd = "'ps -p {} -h'".format(killed_pids)
     res = subprocess.run(ps_cmd, shell=True, stdout=subprocess.PIPE, check=False)
     pids = []
     for process in res.stdout.decode("utf-8").split("\n"):
@@ -954,11 +954,11 @@ def get_ip_config(ip_config, workspace):
         # The user doesn't provide an IP config file. This means we are going to
         # run the training job in the local machine. We should create a temporary
         # IP config file.
-        fp = tempfile.NamedTemporaryFile(delete=False)
-        fp.write(b'127.0.0.1')
-        ip_config = fp.name
+        with tempfile.NamedTemporaryFile(delete=False) as fp:
+            fp.write(b'127.0.0.1')
+            ip_config = fp.name
+            fp.close()
         logging.debug('create a temporary ip config file: %s', ip_config)
-        fp.close()
     return ip_config, hosts
 
 def submit_jobs(args, udf_command):
