@@ -34,9 +34,12 @@ error_and_exit $?
 
 # TODO(zhengda) Failure found during evaluation of the auc metric returning -1 multiclass format is not supported
 # 01/20/2024: (James) change all behavior of evaluation errors as broken, rather than returning -1. So change this
-# test's eval_metric from "precision_recall" to "roc_auc"
-echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, eval_metric: precision_recall"
+# test's eval_metric from "precision_recall" to "roc_auc". The movielens edge classification is a mutltiple class
+# task, which sklearn's precision_recall is not designed for.
+echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, eval_metric: roc_auc"
 python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222  --cf ml_ec.yaml --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --eval-metric roc_auc --num-epochs 1
+
+python -m graphstorm.run.gs_edge_classification --workspace /data/graphstorm/training_scripts/gsgnn_ep/ --num-trainers 1 --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config /data/ip_list.txt --ssh-port 22  --cf ml_ec.yaml --eval-metric roc_auc --num-epochs 1
 
 error_and_exit $?
 

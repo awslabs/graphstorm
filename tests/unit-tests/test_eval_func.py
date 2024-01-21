@@ -68,12 +68,26 @@ def test_eval_roc_auc():
     except (AssertionError, ValueError):
         error_score_2 = -1
 
+    # Invalid case 3: preds in 3D, labels in 1D, but with 4 classes
+    preds = th.concat([th.tensor([0.75, 0.15, 0.1]).repeat(25),
+                       th.tensor([0.1, 0.75, 0.15]).repeat(25),
+                       th.tensor([0.1, 0.1, 0.75]).repeat(25),
+                       th.tensor([0.15, 0.1, 0.1]).repeat(25)], dim=0).reshape(100, 3)
+    labels = th.concat([th.zeros(25),
+                        th.ones(25),
+                        th.ones(25) + 1,
+                        th.ones(25) + 2]).long()
+    try:
+        error_score_3 = eval_roc_auc(preds, labels)
+    except (AssertionError, ValueError):
+        error_score_3 = -1
+
     # Binary classification case 1: preds 2D and label 1D
     preds = th.concat([th.ones(100,1)*0.25, th.ones(100,1)*0.75], dim=1)
     labels = th.concat([th.zeros(20), th.ones(80)]).long()
     bin_score = eval_roc_auc(preds, labels)    
 
-    # Multiple classification case: preds 2D and label 2D.
+    # Multiple classification case: preds 4D and label 2D.
     preds = th.concat([th.tensor([0.75, 0.15, 0.1, 0.1]).repeat(25),
                        th.tensor([0.1, 0.75, 0.15, 0.1]).repeat(25),
                        th.tensor([0.1, 0.1, 0.75, 0.15]).repeat(25),
@@ -97,6 +111,7 @@ def test_eval_roc_auc():
 
     assert error_score_1 == -1
     assert error_score_2 == -1
+    assert error_score_3 == -1
     assert bin_score == 0.5
     assert multi_class_score == 1.0
     assert multi_label_score == 0.3125
@@ -111,6 +126,34 @@ def test_compute_roc_auc():
         error_score_1 = compute_roc_auc(preds, labels)
     except (AssertionError, ValueError):
         error_score_1 = -1
+
+    # Invalid case 2: sum of probablities in one row not equal to 1.0
+    preds = th.concat([th.tensor([0.75, 0.15, 0.1, 0.1]).repeat(25),
+                       th.tensor([0.1, 0.75, 0.1, 0.05]).repeat(25),
+                       th.tensor([0.1, 0.1, 0.75, 0.15]).repeat(25),
+                       th.tensor([0.15, 0.1, 0.1, 0.75]).repeat(25)], dim=0).reshape(100, 4)
+    labels = th.concat([th.zeros(25),
+                        th.ones(25),
+                        th.ones(25) + 1,
+                        th.ones(25) + 2]).long()
+    try:
+        error_score_2 = compute_roc_auc(preds, labels)
+    except (AssertionError, ValueError):
+        error_score_2 = -1
+
+    # Invalid case 3: preds in 3D, labels in 1D, but with 4 classes
+    preds = th.concat([th.tensor([0.75, 0.15, 0.1]).repeat(25),
+                       th.tensor([0.1, 0.75, 0.15]).repeat(25),
+                       th.tensor([0.15, 0.1, 0.75]).repeat(25),
+                       th.tensor([0.15, 0.1, 0.75]).repeat(25)], dim=0).reshape(100, 3)
+    labels = th.concat([th.zeros(25),
+                        th.ones(25),
+                        th.ones(25) + 1,
+                        th.ones(25) + 2]).long()
+    try:
+        error_score_3 = compute_roc_auc(preds, labels)
+    except (AssertionError, ValueError):
+        error_score_3 = -1
 
     # Binary classification case 1: preds 2D and label 1D
     preds = th.concat([th.ones(100,1)*0.25, th.ones(100,1)*0.75], dim=1)
@@ -127,20 +170,6 @@ def test_compute_roc_auc():
                         th.ones(25) + 1,
                         th.ones(25) + 2]).long()
     multi_class_score = compute_roc_auc(preds, labels)
-
-    # Invalid case 2: sum of probablities in one row not equal to 1.0
-    preds = th.concat([th.tensor([0.75, 0.15, 0.1, 0.1]).repeat(25),
-                       th.tensor([0.1, 0.75, 0.1, 0.05]).repeat(25),
-                       th.tensor([0.1, 0.1, 0.75, 0.15]).repeat(25),
-                       th.tensor([0.15, 0.1, 0.1, 0.75]).repeat(25)], dim=0).reshape(100, 4)
-    labels = th.concat([th.zeros(25),
-                        th.ones(25),
-                        th.ones(25) + 1,
-                        th.ones(25) + 2]).long()
-    try:
-        error_score_2 = compute_roc_auc(preds, labels)
-    except (AssertionError, ValueError):
-        error_score_2 = -1
 
     # Multip label classification case: pred 2D, label 2D
     preds = th.concat([th.tensor([0.75, 0.15]).repeat(25),
@@ -269,14 +298,14 @@ def test_compute_precision_recall_auc():
     assert bin_pr_auc == 0.9
 
 if __name__ == '__main__':
-    test_compute_mse()
-    test_compute_rmse()
+    # test_compute_mse()
+    # test_compute_rmse()
 
-    test_eval_roc_auc()
+    # test_eval_roc_auc()
     test_compute_roc_auc()
 
-    test_compute_f1_score()
+    # test_compute_f1_score()
 
-    test_eval_acc()
+    # test_eval_acc()
 
-    test_compute_precision_recall_auc()
+    # test_compute_precision_recall_auc()
