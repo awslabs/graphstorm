@@ -30,6 +30,7 @@ from dataclasses import dataclass
 from ..utils import get_rank, get_world_size
 
 try:
+    import pylibwholegraph
     import pylibwholegraph.torch as wgth
 except ImportError:
     wgth = None
@@ -368,58 +369,68 @@ def create_wg_sparse_params(
     # wrap over emb into wg nn module to trace grad/update embed
     return wgth.WholeMemoryEmbeddingModule(dist_embedding)
 
-
-class WholeGraphSparseEmbedding:
+class WholeGraphDistTensor:
     """
-    (Distributed) WholeGraph Embedding Interface for Sparse Update
-
+    WholeGraph Embedding Interface for using distribute tensor in GraphStorm
     Parameters
     ----------
-    num_nodes : int
-        Number of nodes in the graph.
-    embedding_dim : int
-        Dimension of the node embeddings.
-    name : str
-        Name of the wholegraph embeddings.
-    optimizer : Optional[wgth.WholeMemoryOptimizer], optional
-        Optimizer for the embeddings, by default None.
+    shape : tuple
+        The shape of the tensor. It has to be a two-dimensional tensor for now.
+        The first dimension typically is the number of nodes.
+        The second dimension is the feature/embedding dimension.
+    dtype : th.dtype
+        The dtype of the tensor. The data type has to be the one in the deep learning framework.
     location : str, optional
-        Location of the embeddings (e.g., "cpu" or "cuda"), by default "cpu".
-
+        The desired location to store the embedding [ "cpu" | "cuda" ]
+    use_wg_optimizer : bool, optional
+        Whether to use WholeGraph sparse optimizer to track/trace the gradients for WG embeddings.
     """
     def __init__(
         self,
-        num_nodes: int,
-        embedding_dim: int,
+        shape: tuple,
+        dtype: th.dtype,
         name: str,
-        optimizer,  # Optional[wgth.WholeMemoryOptimizer, None]
         location: str = "cpu",
+        use_wg_optimizer: bool = False,
     ):
-        self._module = create_wg_sparse_params(num_nodes, embedding_dim, optimizer, location)
-        self._optimizer = optimizer
+        self._nnodes = shape[0]
+        self._embedding_dim = shape[1]
         self._name = name
-        self._num_embeddings = num_nodes
-        self._embedding_dim = embedding_dim
+        self._dtype = dtype
+        self._location = location
+        self._use_wg_optimizer = use_wg_optimizer
+        # Need the pylibwholegraph be at least 23.12.00 to support _tensor.scatter API.
+        assert pylibwholegraph.__version__ >= "23.12.00", \
+            "Please upgrade to the latest version of WholeGraph."
 
-    def __call__(self, idx: th.Tensor, device: th.device = th.device("cpu")) -> th.Tensor:
-        """
-        Get the embeddings for the specified node indices.
+        # When _optimizer is not None, _module -> _tensor -> optimizer (-> means "depends on")
+        # When _optimizer is not needed, both _module and _optimizer must be None
+        if self._use_wg_optimizer:
+            self._tensor = None
+            self._module = None
+            self._optimizer = None
+        else:
+            self._module = None
+            self._optimizer = None
+            self._tensor = create_wg_dist_tensor(shape, dtype, location)
 
-        Parameters
-        ----------
-        idx : torch.Tensor
-            Index of the embeddings to collect.
-        device : torch.device, optional
-            Target device to put the collected embeddings, by default torch.device("cpu").
 
-        Returns
-        -------
-        torch.Tensor
-            The requested node embeddings.
-        """
-        idx = idx.cuda()
-        emb = self._module(idx).to(device, non_blocking=True)
-        return emb
+    def attach_wg_optimizer(self, wg_optimizer):
+        assert self._use_wg_optimizer, \
+            "Please create WholeGraphDistTensor tensor with attach_optimizer=True."
+        if self._optimizer is None:
+            # WG sparse optimizer has to be created before WG distTensor.
+            # This is because WG embedding depends on WG sparse optimizer to track/trace
+            # the gradients for embeddings.
+            assert self._tensor is None, \
+                "Please create optimizer before creating WholeGraph tensor."
+            assert self._module is None, \
+                "Please create optimizer before creating WholeGraph embedding module."
+            self._optimizer = wg_optimizer
+            self._tensor = create_wg_dist_tensor(shape, dtype, location, optimizer = wg_optimizer)
+            self._module = wgth.WholeMemoryEmbeddingModule(self._tensor)
+        else:
+            raise RuntimeError("WholeGraph optimizer already exists.")
 
     def save_to_file(
         self,
@@ -440,8 +451,9 @@ class WholeGraphSparseEmbedding:
         -------
         None
         """
+        assert self._tensor is not None, "Please create WholeGraph tensor first."
         file_prefix = os.path.join(path, file_prefix)
-        self._module.wm_embedding.get_embedding_tensor().to_file_prefix(file_prefix)
+        self._tensor.get_embedding_tensor().to_file_prefix(file_prefix)
 
     def load_from_file(
         self,
@@ -465,10 +477,53 @@ class WholeGraphSparseEmbedding:
         -------
         None
         """
+
+        if self._tensor is None:
+            make sure optimzer is not there otherwise warning!!!!!!
+            create _tensor and optimzer is none
         file_prefix = os.path.join(path, file_prefix)
-        self._module.wm_embedding.get_embedding_tensor().from_file_prefix(
+        self._tensor.get_embedding_tensor().from_file_prefix(
             file_prefix, part_count=num_files
         )
+
+    def __setitem__(self, idx: th.Tensor, val: th.Tensor):
+        """
+        Set the embeddings for the specified node indices.
+        This call must be called by all processes.
+
+        Parameters
+        ----------
+        idx : torch.Tensor
+            Index of the embeddings to collect.
+        val : torch.Tensor
+            The requested node embeddings.
+        """
+        assert self._tensor is not None, "Please create WholeGraph tensor first."
+        idx = idx.cuda()
+        val = val.cuda()
+
+        if val.dtype != self.dtype:
+            val = val.to(self.dtype)
+        self._tensor.get_embedding_tensor().scatter(val, idx)
+
+    def __getitem__(self, idx: th.Tensor) -> th.Tensor:
+        """
+        Get the embeddings for the specified node indices (remotely).
+        This call must be called by all processes.
+
+        Parameters
+        ----------
+        idx : torch.Tensor
+            Index of the embeddings to collect.
+        Returns
+        -------
+        torch.Tensor
+            The requested node embeddings.
+        """
+        assert self._tensor is not None, "Please create WholeGraph tensor first."
+        idx = idx.cuda()
+        output_tensor = self._tensor.gather(idx)  # output_tensor is on cuda by default
+        return output_tensor
 
     @property
     def name(self):
@@ -483,6 +538,18 @@ class WholeGraphSparseEmbedding:
         return self._name
 
     @property
+    def module(self):
+        """
+        Return nn module wrapper for underlaying wholegraph embedding.
+
+        Returns
+        -------
+        str
+            The name of the embeddings.
+        """
+        return self._module
+
+    @property
     def num_embeddings(self):
         """
         Return the number of embeddings.
@@ -492,7 +559,7 @@ class WholeGraphSparseEmbedding:
         int
             The number of embeddings.
         """
-        return self._num_embeddings
+        return self._nnodes
 
     @property
     def embedding_dim(self):
@@ -507,16 +574,16 @@ class WholeGraphSparseEmbedding:
         return self._embedding_dim
 
     @property
-    def weight(self):
+    def dtype(self):
         """
-        Return the weight tensor in distributed WholeMemoryTensor.
+        Return the data type of embeddings.
 
         Returns
         -------
-        wgth.WholeMemoryTensor
-            The weight tensor of the embeddings.
+        th.dtype
+            The data type of embeddings.
         """
-        return self._module.wm_embedding.get_embedding_tensor()
+        return self._dtype
 
     @property
     def optimizer(self):
