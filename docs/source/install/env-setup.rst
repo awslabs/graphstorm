@@ -47,7 +47,9 @@ For CPU environment:
 
 Configure SSH No-password login
 ................................
-Use the following commands to configure a local SSH no-password login that GraphStorm relies on.
+To perform distributed training in a cluster of machines, please use the following commands
+to configure a local SSH no-password login that GraphStorm relies on.
+*Note*: this is not needed for the standalone mode.
 
 .. code-block:: bash
 
