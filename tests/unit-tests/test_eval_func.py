@@ -79,7 +79,7 @@ def test_eval_roc_auc():
                         th.ones(25) + 2]).long()
     try:
         error_score_3 = eval_roc_auc(preds, labels)
-    except (AssertionError, ValueError):
+    except (AssertionError, ValueError, IndexError):
         error_score_3 = -1
 
     # Binary classification case 1: preds 2D and label 1D
@@ -184,6 +184,7 @@ def test_compute_roc_auc():
 
     assert error_score_1 == -1
     assert error_score_2 == -1
+    assert error_score_3 == -1
     assert bin_score ==  0.5
     assert multi_class_score == 1.0
     assert multi_label_score == 0.3125
@@ -298,14 +299,14 @@ def test_compute_precision_recall_auc():
     assert bin_pr_auc == 0.9
 
 if __name__ == '__main__':
-    # test_compute_mse()
-    # test_compute_rmse()
+    test_compute_mse()
+    test_compute_rmse()
 
-    # test_eval_roc_auc()
+    test_eval_roc_auc()
     test_compute_roc_auc()
 
-    # test_compute_f1_score()
+    test_compute_f1_score()
 
-    # test_eval_acc()
+    test_eval_acc()
 
-    # test_compute_precision_recall_auc()
+    test_compute_precision_recall_auc()

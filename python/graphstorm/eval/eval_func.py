@@ -225,7 +225,13 @@ def eval_roc_auc(logits,labels):
         rocauc_list.append(roc_auc_score(labels, predicted_labels[:, 1]))
     else:
         # mutiple class and multiple labels cases
-        labels=labels_to_one_hot(labels, predicted_labels.shape[1])
+        try:
+            labels=labels_to_one_hot(labels, predicted_labels.shape[1])
+        except IndexError as e:
+            logging.error("Failure found during evaluation of the f1 score metric due to" + \
+                      " reason: %s", str(e))
+            raise
+
         for i in range(labels.shape[1]):
             # AUC is only defined when there is at least one positive data.
             if np.sum(labels[:, i] == 1) > 0 and np.sum(labels[:, i] == 0) > 0:
