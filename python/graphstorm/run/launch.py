@@ -82,7 +82,8 @@ def kill_remote_process(ip, port, pids):
     # to Python's process pool. After sorting, we always kill parent processes first.
     pids.sort()
     for pid in pids:
-        assert curr_pid != pid
+        if curr_pid == pid:
+            continue
         logging.debug("kill process %d on %s:%d", pid, ip, port)
         kill_cmd = (
             "ssh -o StrictHostKeyChecking=no -p "
@@ -152,7 +153,7 @@ def local_cleanup_proc(get_all_pids_func, conn):
         conn:
             connection
     """
-    logging.debug("cleanupu process runs")
+    logging.debug("cleanup process runs")
     # This process should not handle SIGINT.
     signal.signal(signal.SIGINT, signal.SIG_IGN)
 
@@ -162,7 +163,6 @@ def local_cleanup_proc(get_all_pids_func, conn):
         sys.exit(0)
     else:
         pids = get_all_pids_func()
-        # Otherwise, we need to ssh to each machine and kill the training jobs.
         for pids in pids.items():
             kill_local_process(pids)
     logging.debug("cleanup process exits")
@@ -182,7 +182,8 @@ def kill_local_process(pids):
     # to Python's process pool. After sorting, we always kill parent processes first.
     pids.sort()
     for pid in pids:
-        assert curr_pid != pid
+        if curr_pid == pid:
+            continue
         logging.debug("kill process %d", pid)
         kill_cmd = "'kill {}'".format(pid)
         subprocess.run(kill_cmd, shell=True, check=False)
@@ -293,13 +294,13 @@ def execute_local(
         Parameters
         ----------
         cmd:
-            User-defined command (udf) to execute on the remote host.
+            User-defined command (udf) to execute on the local host.
         state_q:
             A queue collecting Thread exit states.
 
     Returns:
-        thread: The Thread whose run() is to run the `cmd` on the remote host.
-        Returns when the cmd completes on the remote host.
+        thread: The Thread whose run() is to run the `cmd` on the local host.
+        Returns when the cmd completes.
     """
     # thread func to run the job
     def run(cmd, state_q):
