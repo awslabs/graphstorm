@@ -35,7 +35,8 @@ def generate_graph_data(data, field):
     new_data = {}
     for name in data:
         if field in name:
-            new_data[name] = gen_multi_label(6, data[name].shape[0])
+            # 01/21/2024 James: correct the number of classes to 5
+            new_data[name] = gen_multi_label(5, data[name].shape[0])
         else:
             new_data[name] = data[name]
     return new_data
