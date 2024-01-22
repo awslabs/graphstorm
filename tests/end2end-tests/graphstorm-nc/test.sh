@@ -189,7 +189,7 @@ python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_s
 error_and_exit $?
 
 echo "**************dataset: multilabel MovieLens with weight, RGCN layer: 1, node feat: generated feature, inference: full graph, save emb"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_nc/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --save-embed-path ./model/ml-emb/ --num-epochs 3 --multilabel true --num-classes 5 --node-feat-name movie:title user:feat --use-mini-batch-infer false --multilabel-weights 0.2,0.2,0.1,0.1,0.2,0.2
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_nc/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --save-embed-path ./model/ml-emb/ --num-epochs 3 --multilabel true --num-classes 5 --node-feat-name movie:title user:feat --use-mini-batch-infer false --multilabel-weights 0.3,0.3,0.1,0.1,0.2
 
 error_and_exit $?
 
