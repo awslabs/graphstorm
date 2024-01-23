@@ -39,7 +39,7 @@ from ..utils import (
     get_world_size,
     barrier
 )
-from ..wholegraph import is_wholegraph_optimizer
+from ..wholegraph import is_wholegraph_optimizer, create_wholememory_optimizer, WholeGraphDistTensor
 
 from ..dataloading.dataset import prepare_batch_input
 
@@ -562,13 +562,6 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             return self.node_input_encoder.use_wholegraph_sparse_emb
         return False
 
-    def get_wholegraph_optimizer(self):
-        """ Get the WholeGraph optimizer for updating WholeGraph hosted embeddings .
-        """
-        if self.node_input_encoder is not None:
-            return self.node_input_encoder.wg_sparse_embs_optimizer
-        return None
-
     def set_node_input_encoder(self, encoder):
         """set the input encoder for nodes.
 
@@ -759,11 +752,14 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         if len(sparse_params) > 0:
             if self.use_wholegraph_sparse_emb():
                 # To use wholegraph sparse optimizer, optimizer needs to be created
-                # before sparse embeddings. So, here we just get the optimizer from
-                # WholeGraphSparseEmbedding and ensure the identity of the optimizer
-                emb_optimizer = self.get_wholegraph_optimizer()
-                assert all(params.optimizer is emb_optimizer for params in sparse_params), \
-                    "We only need one wholegraph optimizer for all wm_embeddings."
+                # before sparse embeddings. Within attach_wg_optimizer, we materialize
+                # the WG distributed tensor and then attach the optimizer.
+                emb_optimizer = create_wholememory_optimizer("adam", {})
+                for params in sparse_params:
+                    for param in params:
+                        assert isinstance(param, WholeGraphDistTensor) and param.use_wg_optimizer, \
+                            "Please create params (WG tensor) with use_wg_optimizer=True."
+                        param.attach_wg_optimizer(emb_optimizer)
                 # TODO(@chang-l): Wrap the wholegraph optimizer in a class to
                 # take an extra input argument: lr
                 emb_optimizer.lr = sparse_optimizer_lr

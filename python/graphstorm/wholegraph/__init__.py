@@ -22,8 +22,8 @@ from .wholegraph import (
     load_wg_feat
 )
 
-from .wholegraph import (create_wholememory_optimizer, create_wg_sparse_params)
-from .wholegraph import WholeGraphSparseEmbedding
+from .wholegraph import create_wholememory_optimizer
+from .wholegraph import WholeGraphDistTensor
 
 from .utils import (
     is_wholegraph_embedding,

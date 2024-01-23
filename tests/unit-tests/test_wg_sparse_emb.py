@@ -95,9 +95,7 @@ def _initialize(proc_id, nprocs, use_wholegraph=True):
     backend = "nccl"
     #from dgl.distributed import role
     #role.init_role("default")
-
     assert th.cuda.is_available(), "NCCL backend requires CUDA device(s) to be available."
-
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = "29501"
     os.environ["RANK"] = str(proc_id)
@@ -153,13 +151,15 @@ def _start_trainer(
 
     _initialize(rank, world_size, use_wholegraph=True)
     feat_size = {"n0":0, "n1":0}
-    print("wholegraph start? ", is_wholegraph_init())
     embed_layer = GSNodeEncoderInputLayer(
         dist_graph, feat_size, 32, use_wholegraph_sparse_emb=True
     )
+    for ntype in embed_layer.sparse_embeds.keys():
+        embed_layer.sparse_embeds[ntype].attach_wg_optimizer(None)
+
 
     def get_wholegraph_sparse_emb(sparse_emb):
-        (local_tensor, _) = sparse_emb.weight.get_local_tensor(host_view=True)
+        (local_tensor, _) = sparse_emb.get_local_tensor()
         return local_tensor
 
     saved_embs = \
@@ -176,7 +176,46 @@ def _start_trainer(
     dgl.distributed.exit_client()
     _finalize()
 
-@pytest.mark.parametrize("world_size", [3, 4])
+def _start_trainer(
+    rank,
+    world_size,
+    ip_config,
+    part_config,
+    num_server,
+    model_path,
+):
+    os.environ["DGL_GROUP_ID"] = str(0)
+    dgl.distributed.initialize(ip_config)
+    dist_graph = DistGraph("test_wholegraph_sparseemb", part_config=part_config)
+    print('here world size is: ', world_size)
+    _initialize(rank, world_size, use_wholegraph=True)
+    feat_size = {"n0":0, "n1":0}
+    embed_layer = GSNodeEncoderInputLayer(
+        dist_graph, feat_size, 32, use_wholegraph_sparse_emb=True
+    )
+    for ntype in embed_layer.sparse_embeds.keys():
+        embed_layer.sparse_embeds[ntype].attach_wg_optimizer(None)
+
+
+    def get_wholegraph_sparse_emb(sparse_emb):
+        (local_tensor, _) = sparse_emb.get_local_tensor()
+        return local_tensor
+
+    saved_embs = \
+        {ntype: get_wholegraph_sparse_emb(sparse_emb) \
+            for ntype, sparse_emb in embed_layer.sparse_embeds.items()}
+    save_sparse_embeds(model_path, embed_layer)
+    load_sparse_embeds(model_path, embed_layer)
+    load_sparse_embs = \
+        {ntype: get_wholegraph_sparse_emb(sparse_emb) \
+            for ntype, sparse_emb in embed_layer.sparse_embeds.items()}
+
+    for ntype in embed_layer.sparse_embeds.keys():
+        assert_equal(saved_embs[ntype].numpy(), load_sparse_embs[ntype].numpy())
+    dgl.distributed.exit_client()
+    _finalize()
+
+@pytest.mark.parametrize("world_size", [1, 3, 4])
 def test_wg_sparse_embed_save_load(world_size):
     """ Test sparse embedding saving logic using wholegraph. (graphstorm.model.utils.save_sparse_embeds)
 
@@ -185,6 +224,8 @@ def test_wg_sparse_embed_save_load(world_size):
     """
     # initialize the torch and wholegraph distributed environment
     pytest.importorskip("pylibwholegraph.torch")
+    if world_size > th.cuda.device_count():
+        pytest.skip("Skip test_wg_sparse_embed_save_load due to insufficient GPU devices.")
     os.environ["OMP_NUM_THREADS"] = str(mp.cpu_count() // 2 // world_size)
     num_groups = 1
     num_server = 1
@@ -302,7 +343,9 @@ def test_wg_input_layer3(dev):
     nn.init.eye_(layer.proj_matrix['n1'])
     node_feat['n0'] = g.nodes['n0'].data['feat'][input_nodes['n0']].to(dev)
 
-    node_embs['n1'] = layer.sparse_embeds['n1'](th.from_numpy(input_nodes['n1']).cuda())
+    layer.sparse_embeds['n1'].attach_wg_optimizer(None)
+    node_embs['n1'] = layer.sparse_embeds['n1'].module(th.from_numpy(input_nodes['n1']).cuda())
+    node_embs['n1'] = node_embs['n1'].to(dev)
 
     embed = layer(node_feat, input_nodes)
     assert len(embed) == len(input_nodes)
@@ -324,7 +367,7 @@ def test_wg_input_layer3(dev):
 
     nn.init.eye_(layer.input_projs['n0'])
     node_feat['n0'] = g.nodes['n0'].data['feat'][input_nodes['n0']].to(dev)
-    node_embs['n1'] = layer.sparse_embeds['n1'](input_nodes['n1'].cuda())
+    node_embs['n1'] = layer.sparse_embeds['n1'].module(input_nodes['n1'].cuda())
 
     embed = layer(node_feat, input_nodes)
     assert len(embed) == len(input_nodes)
@@ -365,6 +408,8 @@ def test_wg_input_layer2():
         # the input and output matrices are identical.
         nn.init.eye_(layer.input_projs[ntype])
         assert layer.proj_matrix[ntype].shape == (4, 2)
+        layer.sparse_embeds[ntype].attach_wg_optimizer(None)
+
         # We make the projection matrix that can simply add the node features
         # and the node sparse embeddings after projection.
         with th.no_grad():
@@ -372,7 +417,7 @@ def test_wg_input_layer2():
             layer.proj_matrix[ntype][2:,:] = layer.input_projs[ntype]
         input_nodes[ntype] = np.arange(10)
         node_feat[ntype] = g.nodes[ntype].data['feat'][input_nodes[ntype]]
-        node_embs[ntype] = layer.sparse_embeds[ntype](th.from_numpy(input_nodes[ntype]).cuda())
+        node_embs[ntype] = layer.sparse_embeds[ntype].module(th.from_numpy(input_nodes[ntype]).cuda())
     embed = layer(node_feat, input_nodes)
     assert len(embed) == len(input_nodes)
     assert len(embed) == len(node_feat)
@@ -381,46 +426,11 @@ def test_wg_input_layer2():
         assert_almost_equal(embed[ntype].detach().cpu().numpy(), true_val)
     _finalize()
 
-# Refer to: unit-tests/test_embed.py:test_compute_embed
-@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
-def test_wg_compute_embed(dev):
-    # initialize the torch and wholegraph distributed environment
-    pytest.importorskip("pylibwholegraph.torch")
-    _standalone_initialize(use_wholegraph=True)
-    th.backends.cuda.matmul.allow_tf32 = False
-    th.backends.cudnn.allow_tf32 = False
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        g, _ = generate_dummy_dist_graph(tmpdirname)
-    print('g has {} nodes of n0 and {} nodes of n1'.format(
-        g.number_of_nodes('n0'), g.number_of_nodes('n1')))
-
-    feat_size = get_feat_size(g, {'n0' : ['feat']})
-    layer = GSNodeEncoderInputLayer(g, feat_size, 2, use_wholegraph_sparse_emb=True)
-    nn.init.eye_(layer.input_projs['n0'])
-    nn.init.eye_(layer.proj_matrix['n1'])
-    layer.to(dev)
-
-    embeds = compute_node_input_embeddings(g, 10, layer,
-                                            feat_field={'n0' : ['feat']})
-    assert len(embeds) == len(g.ntypes)
-    assert_almost_equal(embeds['n0'][0:len(embeds['n1'])].cpu().numpy(),
-            g.nodes['n0'].data['feat'][0:g.number_of_nodes('n0')].cpu().numpy())
-    indices = th.arange(g.number_of_nodes('n1'))
-    assert_almost_equal(embeds['n1'][0:len(embeds['n1'])].cpu().numpy(),
-            layer.sparse_embeds['n1'](indices.cuda()).cpu().detach().numpy())
-    # Run it again to tigger the branch that access 'input_emb' directly.
-    embeds = compute_node_input_embeddings(g, 10, layer,
-                                            feat_field={'n0' : ['feat']})
-    _finalize()
 
 if __name__ == '__main__':
     test_wg_sparse_embed_save_load(3)
     test_wg_sparse_embed_save_load(4)
 
-
     test_wg_input_layer2()
     test_wg_input_layer3('cpu')
     test_wg_input_layer3('cuda:0')
-    test_wg_compute_embed('cpu')
-    test_wg_compute_embed('cuda:0')

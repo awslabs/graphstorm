@@ -35,7 +35,7 @@ from ..utils import (
     create_dist_tensor,
 )
 from .ngnn_mlp import NGNNMLP
-from ..wholegraph import create_wholememory_optimizer, WholeGraphSparseEmbedding
+from ..wholegraph import WholeGraphDistTensor
 from ..wholegraph import is_wholegraph_init
 
 
@@ -260,11 +260,6 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         self.proj_matrix = nn.ParameterDict()
         self.input_projs = nn.ParameterDict()
         embed_name = "embed"
-        if self._use_wholegraph_sparse_emb:
-            # WG sparse optimizer has to be created at first like below
-            # This is because WG embedding depends on WG sparse optimizer to track/trace
-            # the gradients for embeddings.
-            self.wg_sparse_embs_optimizer = create_wholememory_optimizer("adam", {})
         for ntype in g.ntypes:
             feat_dim = 0
             if feat_size[ntype] > 0:
@@ -282,11 +277,11 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                                 "Use WholeGraph to host additional sparse embeddings on node %s",
                                 ntype,
                             )
-                        self._sparse_embeds[ntype] = WholeGraphSparseEmbedding(
-                            g.number_of_nodes(ntype),
-                            self.embed_size,
+                        self._sparse_embeds[ntype] = WholeGraphDistTensor(
+                            (g.number_of_nodes(ntype), self.embed_size),
+                            th.float32,  # to consistent with distDGL's DistEmbedding dtype
                             embed_name + "_" + ntype,
-                            self.wg_sparse_embs_optimizer
+                            use_wg_optimizer=True,  # no memory allocation before opt available
                         )
                     else:
                         if get_rank() == 0:
@@ -313,11 +308,11 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                             ntype,
                             g.number_of_nodes(ntype),
                         )
-                    self._sparse_embeds[ntype] = WholeGraphSparseEmbedding(
-                        g.number_of_nodes(ntype),
-                        self.embed_size,
-                        embed_name + '_' + ntype,
-                        self.wg_sparse_embs_optimizer
+                    self._sparse_embeds[ntype] = WholeGraphDistTensor(
+                        (g.number_of_nodes(ntype), self.embed_size),
+                        th.float32,  # to consistent with distDGL's DistEmbedding dtype
+                        embed_name + "_" + ntype,
+                        use_wg_optimizer=True,  # no memory allocation before opt available
                     )
                 else:
                     if get_rank() == 0:
@@ -373,7 +368,11 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                     assert ntype in self.sparse_embeds, \
                         f"We need sparse embedding for node type {ntype}"
                     # emb.device: target device to put the gathered results
-                    node_emb = self.sparse_embeds[ntype](input_nodes[ntype], emb.device)
+                    if self._use_wholegraph_sparse_emb:
+                        node_emb = self.sparse_embeds[ntype].module(input_nodes[ntype].cuda())
+                        node_emb = node_emb.to(emb.device, non_blocking=True)
+                    else:
+                        node_emb = self.sparse_embeds[ntype](input_nodes[ntype], emb.device)
                     concat_emb = th.cat((emb, node_emb), dim=1)
                     emb = concat_emb @ self.proj_matrix[ntype]
             elif ntype in self.sparse_embeds:  # nodes do not have input features
@@ -381,9 +380,10 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                 # return an empty tensor with shape (0, emb_size)
                 device = self.proj_matrix[ntype].device
                 # If DistEmbedding supports 0-size input, we can remove this if statement.
-                if isinstance(self.sparse_embeds[ntype], WholeGraphSparseEmbedding):
+                if isinstance(self.sparse_embeds[ntype], WholeGraphDistTensor):
                     # Need all procs pass the following due to nccl all2lallv in wholegraph
-                    emb = self.sparse_embeds[ntype](input_nodes[ntype], device)
+                    emb = self.sparse_embeds[ntype].module(input_nodes[ntype].cuda())
+                    emb = emb.to(device, non_blocking=True)
                 else:
                     if len(input_nodes[ntype]) == 0:
                         dtype = self.sparse_embeds[ntype].weight.dtype

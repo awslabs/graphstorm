@@ -36,7 +36,7 @@ from ..utils import (
     get_world_size,
     create_dist_tensor,
 )
-from ..wholegraph import WholeGraphSparseEmbedding
+from ..wholegraph import WholeGraphDistTensor
 from ..data.utils import alltoallv_cpu, alltoallv_nccl
 from ..distributed import flush_data
 
@@ -186,7 +186,7 @@ def save_sparse_emb(model_path, sparse_emb, ntype):
         ----------
         model_path: str
             The path of the model is saved.
-        sparse_emb: dgl.distributed.DistEmbedding or wholegraph.WholeGraphSparseEmbedding
+        sparse_emb: dgl.distributed.DistEmbedding or wholegraph.WholeGraphDistTensor
             A Distributed node embedding.
         ntype: str
             The node type the embedding belongs to.
@@ -204,8 +204,8 @@ def save_sparse_emb(model_path, sparse_emb, ntype):
     emb_path = os.path.join(model_path, ntype)
     os.makedirs(emb_path, exist_ok=True)
 
-    if isinstance(sparse_emb, WholeGraphSparseEmbedding):
-        (local_tensor, _) = sparse_emb.weight.get_local_tensor(host_view=True)
+    if isinstance(sparse_emb, WholeGraphDistTensor):
+        (local_tensor, _) = sparse_emb.get_local_tensor()
         # Using WholeGraph will save sparse emb in binary format (evenly distributed)
         # Example: wg_sparse_emb_part_1_of_2, wg_sparse_emb_part_2_of_2
         assert (
@@ -1380,9 +1380,9 @@ def load_sparse_emb(target_sparse_emb, ntype_emb_path):
     num_files = len(os.listdir(ntype_emb_path))
     num_embs = target_sparse_emb.num_embeddings
 
-    if isinstance(target_sparse_emb, WholeGraphSparseEmbedding):
+    if isinstance(target_sparse_emb, WholeGraphDistTensor):
         # Using WholeGraph will load sparse emb in binary format, let's assume
-        # the sparse emb is saved by WholeGraphSparseEmbedding.save_to_file(), i.e.,
+        # the sparse emb is saved by WholeGraphDistTensor.save_to_file(), i.e.,
         # the meta info remains the same.
         # Example: wg_sparse_emb_part_1_of_2, wg_sparse_emb_part_2_of_2
         target_sparse_emb.load_from_file(ntype_emb_path, "wg_sparse_emb", num_files)

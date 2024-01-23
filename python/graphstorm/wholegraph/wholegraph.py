@@ -319,55 +319,43 @@ def create_wholememory_optimizer(
     return wgth.create_wholememory_optimizer(optimizer_type, param_dict)
 
 
-def create_wg_sparse_params(
-    num_nodes: int,
-    embedding_dim: int,
-    optimizer,  # Optional[wgth.WholeMemoryOptimizer, None]
+def create_wg_dist_tensor(
+    shape: tuple,
+    dtype: th.dtype,
     location: str = "cpu",
+    optimizer = None,
 ):
-    """Create a wholegraph sparse embedding module.
-
-    This is to use wholegraph distributed host/device memory to store sparse embs.
-    To enable trainable embeddings, the created wholegraph embedding has to be wrapped
-    in a WholeMemoryEmbeddingModule to attach gradients during each pass.
+    """Create a WholeGraph-managed distributed tensor.
 
     Parameters
     ----------
-    num_nodes : int
-        Number of nodes of the embedding, i.e., embedding_tensor.shape[0]
-    embedding_dim: int
-        The dimension of each embedding entry, i.e., embedding_tensor.shape[1]
-    optimizer : WholeMemoryOptimizer, optional
-        The attached wholegraph sparse optimizer
-    location : str
+    shape : tuple
+        The shape of the tensor. It has to be a two-dimensional tensor for now.
+        The first dimension typically is the number of nodes.
+        The second dimension is the feature/embedding dimension.
+    dtype : th.dtype
+        The dtype of the tensor. The data type has to be the one in the deep learning framework.
+    location : str, optional
         The desired location to store the embedding [ "cpu" | "cuda" ]
-
-    Returns
-    -------
-    WholeMemoryEmbeddingModule : The wrapped nn module including
-    the embedding table as its parameters.
+    optimizer : WholeMemoryOptimizer, optional
+        The attached wholegraph sparse optimizer. If None, the tensor is not trainable.
     """
-    if not is_wholegraph_init():
-        raise ImportError("WholeGraph is not initialized yet.")
     global_comm = wgth.comm.get_global_communicator()
-    embedding_wholememory_type = "distributed"
+    embedding_wholememory_type = 'distributed'
     embedding_wholememory_location = location
-    # Here the  initializer is different. DistDGL uses init_emb (uniform_),
-    # while wg uses torch.nn.init.xavier_uniform_(local_tensor) to initialize
-    dist_embedding = wgth.create_embedding(
+    assert len(shape) == 2, "The shape of the tensor must be 2D."
+    wm_embedding = wgth.create_embedding(
         global_comm,
         embedding_wholememory_type,
         embedding_wholememory_location,
-        # to consistent with distDGL:
-        # github:dgl/blob/master/python/dgl/distributed/nn/pytorch/sparse_emb.py#L79
-        th.float32,
-        [num_nodes, embedding_dim],
+        dtype,
+        [shape[0], shape[1]],
         optimizer=optimizer,
-        cache_policy=None,  # disable cache for now
-        random_init=True,
+        cache_policy=None, # disable cache for now
+        random_init=False if optimizer is None else True,
     )
-    # wrap over emb into wg nn module to trace grad/update embed
-    return wgth.WholeMemoryEmbeddingModule(dist_embedding)
+    return wm_embedding
+
 
 class WholeGraphDistTensor:
     """
@@ -384,6 +372,7 @@ class WholeGraphDistTensor:
         The desired location to store the embedding [ "cpu" | "cuda" ]
     use_wg_optimizer : bool, optional
         Whether to use WholeGraph sparse optimizer to track/trace the gradients for WG embeddings.
+        If so, defer the creation of WG tensor until the WG optimizer is created/attached.
     """
     def __init__(
         self,
@@ -402,35 +391,45 @@ class WholeGraphDistTensor:
         # Need the pylibwholegraph be at least 23.12.00 to support _tensor.scatter API.
         assert pylibwholegraph.__version__ >= "23.12.00", \
             "Please upgrade to the latest version of WholeGraph."
-
-        # When _optimizer is not None, _module -> _tensor -> optimizer (-> means "depends on")
-        # When _optimizer is not needed, both _module and _optimizer must be None
-        if self._use_wg_optimizer:
-            self._tensor = None
-            self._module = None
-            self._optimizer = None
-        else:
-            self._module = None
-            self._optimizer = None
+        self._tensor = None
+        self._module = None
+        self._optimizer = None
+        # When _use_wg_optimizer, we have _module -> _tensor -> optimizer (-> means "depends on")
+        # So, optimizer has to be created first, then tensor, then module.
+        if not self._use_wg_optimizer:
+            # Otherwise, we can initialize _tensor here
             self._tensor = create_wg_dist_tensor(shape, dtype, location)
 
+    def attach_wg_optimizer(self, wg_optimizer=None):
+        """
+        Attach a WholeGraph sparse optimizer to the WholeGraph embedding.
+        This is needed for trainable embeddings
 
-    def attach_wg_optimizer(self, wg_optimizer):
+        Parameters
+        ----------
+        wg_optimizer : WholeMemoryOptimizer
+            The WholeGraph sparse optimizer to be attached to the WholeGraph embedding.
+
+        Returns
+        -------
+        None
+
+        """
         assert self._use_wg_optimizer, \
-            "Please create WholeGraphDistTensor tensor with attach_optimizer=True."
-        if self._optimizer is None:
-            # WG sparse optimizer has to be created before WG distTensor.
-            # This is because WG embedding depends on WG sparse optimizer to track/trace
-            # the gradients for embeddings.
-            assert self._tensor is None, \
-                "Please create optimizer before creating WholeGraph tensor."
-            assert self._module is None, \
-                "Please create optimizer before creating WholeGraph embedding module."
-            self._optimizer = wg_optimizer
-            self._tensor = create_wg_dist_tensor(shape, dtype, location, optimizer = wg_optimizer)
-            self._module = wgth.WholeMemoryEmbeddingModule(self._tensor)
-        else:
-            raise RuntimeError("WholeGraph optimizer already exists.")
+            "Please create WholeGraphDistTensor tensor with use_wg_optimizer=True."
+        if self.optimizer == wg_optimizer and self._module is not None:
+            # no-op if the optimizer is the same
+            return
+        # When attach a new optimizer, we have to purge the old _tensor/_module/_optimizer.
+        self._reset_storage()
+        # WG sparse optimizer has to be created before WG distTensor.
+        # This is because WG embedding depends on WG sparse optimizer to track/trace
+        # the gradients for embeddings.
+        self._optimizer = wg_optimizer
+        shape = (self._nnodes, self._embedding_dim)
+        self._tensor = create_wg_dist_tensor(shape, self.dtype,
+                                            self._location, optimizer=wg_optimizer)
+        self._module = wgth.WholeMemoryEmbeddingModule(self._tensor)
 
     def save_to_file(
         self,
@@ -460,9 +459,10 @@ class WholeGraphDistTensor:
         path: str,
         file_prefix: str,
         num_files: int,
+        wg_optimizer = None
     ) -> None:
         """
-        Load the embedding tensor from files.
+        Load the embedding tensor from files and attach to a wg_optimizer if presented.
 
         Parameters
         ----------
@@ -472,15 +472,16 @@ class WholeGraphDistTensor:
             The prefix of the file.
         num_files : int
             The number of files to load.
-
+        wg_optimizer : WholeMemoryOptimizer or None
+            The WholeGraph sparse optimizer to be attached to the WholeGraph embedding.
         Returns
         -------
         None
         """
 
-        if self._tensor is None:
-            make sure optimzer is not there otherwise warning!!!!!!
-            create _tensor and optimzer is none
+        if self._tensor is None and self._use_wg_optimizer:
+            self.attach_wg_optimizer(wg_optimizer)
+        assert self._tensor is not None, "Please create WholeGraph tensor first."
         file_prefix = os.path.join(path, file_prefix)
         self._tensor.get_embedding_tensor().from_file_prefix(
             file_prefix, part_count=num_files
@@ -524,6 +525,34 @@ class WholeGraphDistTensor:
         idx = idx.cuda()
         output_tensor = self._tensor.gather(idx)  # output_tensor is on cuda by default
         return output_tensor
+
+    def get_local_tensor(self):
+        """ Get the local tensor and offset of the embedding tensor. """
+        if self._location == "cuda":
+            local_tensor, offset = self._tensor.get_embedding_tensor().get_local_tensor()
+        else:
+            local_tensor, offset = self._tensor.get_embedding_tensor().get_local_tensor(
+                host_view=True
+            )
+        return local_tensor, offset
+
+    def _reset_storage(self):
+        """Reset the storage of the WholeGraph embedding."""
+        self._tensor = None
+        self._module = None
+        self._optimizer = None
+
+    @property
+    def use_wg_optimizer(self):
+        """
+        Return whether the WholeGraph embedding is trainable.
+
+        Returns:
+        --------
+        bool
+            True if the WholeGraph embedding is trainable.
+        """
+        return self._use_wg_optimizer
 
     @property
     def name(self):
