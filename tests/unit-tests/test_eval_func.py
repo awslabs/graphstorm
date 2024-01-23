@@ -19,7 +19,7 @@ import torch as th
 from numpy.testing import assert_almost_equal
 from graphstorm.eval.eval_func import compute_mse, compute_rmse, compute_roc_auc, eval_roc_auc
 from graphstorm.eval.eval_func import compute_f1_score, eval_acc
-from graphstorm.eval.eval_func import compute_precision_recall_auc
+from graphstorm.eval.eval_func import compute_precision_recall_auc, compute_per_class_roc_auc
 
 def test_compute_mse():
     pred64 = th.rand((100,1), dtype=th.float64)
@@ -57,7 +57,8 @@ def test_eval_roc_auc():
     labels = th.concat([th.zeros(25), th.ones(25)]).long()
     try:
         error_score_1 = eval_roc_auc(preds, labels)
-    except (AssertionError, ValueError):
+    except (AssertionError, ValueError) as e1:
+        print(f'Test eval_roc_auc error1, {e1}')
         error_score_1 = -1
 
     # Invalid case 2: preds is 1D, return -1 and throws an exception
@@ -65,7 +66,8 @@ def test_eval_roc_auc():
     labels = th.concat([th.zeros(50), th.ones(50)]).long()
     try:
         error_score_2 = eval_roc_auc(preds, labels)
-    except (AssertionError, ValueError):
+    except (AssertionError, ValueError) as e2:
+        print(f'Test eval_roc_auc error2, {e2}')
         error_score_2 = -1
 
     # Invalid case 3: preds in 3D, labels in 1D, but with 4 classes
@@ -79,13 +81,14 @@ def test_eval_roc_auc():
                         th.ones(25) + 2]).long()
     try:
         error_score_3 = eval_roc_auc(preds, labels)
-    except (AssertionError, ValueError, IndexError):
+    except (AssertionError, ValueError, IndexError) as e3:
+        print(f'Test eval_roc_auc error3, {e3}')
         error_score_3 = -1
 
     # Binary classification case 1: preds 2D and label 1D
     preds = th.concat([th.ones(100,1)*0.25, th.ones(100,1)*0.75], dim=1)
     labels = th.concat([th.zeros(20), th.ones(80)]).long()
-    bin_score = eval_roc_auc(preds, labels)    
+    bin_score = eval_roc_auc(preds, labels)
 
     # Multiple classification case: preds 4D and label 2D.
     preds = th.concat([th.tensor([0.75, 0.15, 0.1, 0.1]).repeat(25),
@@ -124,7 +127,8 @@ def test_compute_roc_auc():
     labels = th.concat([th.zeros(25), th.ones(25)]).long()
     try:
         error_score_1 = compute_roc_auc(preds, labels)
-    except (AssertionError, ValueError):
+    except (AssertionError, ValueError) as e1:
+        print(f'Test compute_roc_auc error 1, {e1}')
         error_score_1 = -1
 
     # Invalid case 2: sum of probablities in one row not equal to 1.0
@@ -138,7 +142,8 @@ def test_compute_roc_auc():
                         th.ones(25) + 2]).long()
     try:
         error_score_2 = compute_roc_auc(preds, labels)
-    except (AssertionError, ValueError):
+    except (AssertionError, ValueError) as e2:
+        print(f'Test compute_roc_auc error 2, {e2}')
         error_score_2 = -1
 
     # Invalid case 3: preds in 3D, labels in 1D, but with 4 classes
@@ -152,7 +157,8 @@ def test_compute_roc_auc():
                         th.ones(25) + 2]).long()
     try:
         error_score_3 = compute_roc_auc(preds, labels)
-    except (AssertionError, ValueError):
+    except (AssertionError, ValueError) as e3:
+        print(f'Test compute_roc_auc error 3, {e3}')
         error_score_3 = -1
 
     # Binary classification case 1: preds 2D and label 1D
@@ -235,7 +241,8 @@ def test_eval_acc():
     labels = th.concat([th.zeros(25), th.ones(25)]).long()
     try:
         error_acc_1 = eval_acc(preds, labels)
-    except (AssertionError, ValueError):
+    except (AssertionError, ValueError) as e1:
+        print(f'Test eval_acc error 1, {e1}')
         error_acc_1 = -1
         
     # Invalid case 2: 1D input in logits format.
@@ -243,7 +250,8 @@ def test_eval_acc():
     labels = th.concat([th.zeros(50), th.ones(50)]).long()
     try:
         error_acc_2 = eval_acc(preds, labels)
-    except (AssertionError, ValueError):
+    except (AssertionError, ValueError) as e2:
+        print(f'Test eval_acc error 2, {e2}')
         error_acc_2 = -1
     
     # Normal case 1: preds 1D in 0s and 1s.
@@ -298,12 +306,78 @@ def test_compute_precision_recall_auc():
     assert pr_auc_2 == 0.9
     assert bin_pr_auc == 0.9
 
+def test_compute_per_class_roc_auc():
+    # GraphStorm inputs: preds are 1D or 2D, and labels are all 1D list.
+
+    # Invalid case 1: preds 1D
+    preds = th.concat([th.ones(50)*0.25, th.ones(50)*0.75])
+    targets = th.concat([th.zeros(25), th.ones(25)]).long()
+    try:
+        error_score_1 = compute_per_class_roc_auc(preds, targets)
+    except (AssertionError, ValueError) as e1:
+        print(f'Test compute_per_class_roc_auc error 1, {e1}')
+        error_score_1 = -1
+    
+    # Invalid case 2: preds 2D, but shape[1] == 1
+    preds = th.concat([th.ones(50)*0.25, th.ones(50)*0.75]).reshape(-1, 1)
+    targets = th.concat([th.zeros(25), th.ones(25)]).long()
+    try:
+        error_score_2 = compute_per_class_roc_auc(preds, targets)
+    except (AssertionError, ValueError) as e2:
+        print(f'Test compute_per_class_roc_auc error 2, {e2}')
+        error_score_2 = -1
+
+    # Invalid case 3: targets 1D
+    preds = th.concat([th.ones(50)*0.25, th.ones(50)*0.75]).reshape(-1, 2)
+    targets = th.concat([th.zeros(25), th.ones(25)]).long()
+    try:
+        error_score_3 = compute_per_class_roc_auc(preds, targets)
+    except (AssertionError, ValueError) as e3:
+        print(f'Test compute_per_class_roc_auc error 3, {e3}')
+        error_score_3 = -1
+    
+    # Invalid case 4: targets 2D, but shape[1] == 1
+    preds = th.concat([th.ones(50)*0.25, th.ones(50)*0.75]).reshape(-1, 2)
+    targets = th.concat([th.zeros(25), th.ones(25)]).long().reshape(-1, 1)
+    try:
+        error_score_4 = compute_per_class_roc_auc(preds, targets)
+    except (AssertionError, ValueError) as e4:
+        print(f'Test compute_per_class_roc_auc error 4, {e4}')
+        error_score_4 = -1
+
+    # Invalid case 5: preds and targets 2D, but have different shape[1]
+    preds = th.concat([th.ones(50)*0.25, th.ones(50)*0.75]).reshape(-1, 4)
+    targets = th.concat([th.zeros(25), th.ones(25)]).long().reshape(-1, 2)
+    try:
+        error_score_5 = compute_per_class_roc_auc(preds, targets)
+    except (AssertionError, ValueError) as e5:
+        print(f'Test compute_per_class_roc_auc error 5, {e5}')
+        error_score_5 = -1
+        
+    # Normal case: preds and targets 2D, both shape[1] = 4
+    preds = th.concat([th.tensor([0.75, 0.05, 0.1, 0.1]).repeat(25),
+                       th.tensor([0.1, 0.75, 0.05, 0.1]).repeat(25),
+                       th.tensor([0.1, 0.1, 0.75, 0.05]).repeat(25),
+                       th.tensor([0.05, 0.1, 0.1, 0.75]).repeat(25)], dim=0).reshape(100, 4)
+    targets = th.concat([th.zeros(200), th.ones(200)]).long().reshape(-1, 4)
+    per_class_scores = compute_per_class_roc_auc(preds, targets)
+
+    assert error_score_1 == -1
+    assert error_score_2 == -1
+    assert error_score_3 == -1
+    assert error_score_4 == -1
+    assert error_score_5 == -1
+    assert per_class_scores['overall avg'] == 0.5
+    assert per_class_scores[0] == 0.125
+    assert per_class_scores[3] == 0.5
+
 if __name__ == '__main__':
     test_compute_mse()
     test_compute_rmse()
 
     test_eval_roc_auc()
     test_compute_roc_auc()
+    test_compute_per_class_roc_auc()
 
     test_compute_f1_score()
 

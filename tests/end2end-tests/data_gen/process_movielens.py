@@ -59,7 +59,8 @@ for i in range(5, 24):
     labels.append(np.array(movie[i]))
 labels = np.stack(labels, axis=1)
 
-# Get the first non zero value and consider it as primary genre as there are multiple genre labels from column 5 to 23
+# Get the first non zero value and consider it as primary genre as there are multiple genre labels
+# from column 5 to 23
 label_list = []
 for i in range(labels.shape[0]):
     label_list.append(np.nonzero(labels[i])[0][0])
@@ -93,7 +94,7 @@ write_data_parquet(edge_data, '/data/ml-100k/edges.parquet')
 
 # generate data for homogeneous optimization test
 edges = pandas.read_csv('/data/ml-100k/u.data', delimiter='\t', header=None)
-# 01/21/2024: James change rate to start from 0 to fit evaluation metrics, e.g., roc_auc or p_r
+# Set rate to start from 0 to fit evaluation metrics, e.g., roc_auc or p_r
 edge_data = {'src_id': edges[1], 'dst_id': edges[1], 'rate': edges[2]-1}
 write_data_parquet(edge_data, '/data/ml-100k/edges_homogeneous.parquet')
 
