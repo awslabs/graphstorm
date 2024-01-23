@@ -87,7 +87,7 @@ write_data_parquet(movie_data, '/data/ml-100k/movie.parquet')
 
 # process edges
 edges = pandas.read_csv('/data/ml-100k/u.data', delimiter='\t', header=None)
-# 01/21/2024: James change rate to start from 0 to fit evaluation metrics, e.g., roc_auc or p_r
+# Set the rate to start from 0 to fit evaluation metrics, e.g., roc_auc or p_r
 edge_data = {'src_id': edges[0], 'dst_id': edges[1], 'rate': edges[2]-1}
 write_data_parquet(edge_data, '/data/ml-100k/edges.parquet')
 
