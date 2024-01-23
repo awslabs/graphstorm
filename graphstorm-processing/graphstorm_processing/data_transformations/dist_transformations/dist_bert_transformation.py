@@ -82,28 +82,7 @@ def apply_norm(
 
         # Apply the UDF to the DataFrame
         scaled_df = input_df.withColumn(cols[0], tokenize(input_df[cols[0]]))
-
-        # @udf(returnType=schema, useArrow=True)
-        # def tokenize(text):
-        #     # Check if text is a string
-        #     if not isinstance(text, str):
-        #         raise ValueError("The input of the tokenizer has to be a string.")
-        #
-        #     # Tokenize the text
-        #     t = tokenizer(text, max_length=max_seq_length, truncation=True, padding='max_length', return_tensors='np')
-        #     token_type_ids = t.get('token_type_ids', np.zeros_like(t['input_ids'], dtype=np.int8))
-        #     result = {
-        #         'input_ids': t['input_ids'][0].tolist(),  # Convert tensor to list
-        #         'attention_mask': t['attention_mask'][0].astype(np.int8).tolist(),
-        #         'token_type_ids': token_type_ids[0].astype(np.int8).tolist()
-        #     }
-        #     return result
-        #
-        # # Define the UDF with the appropriate return type
-        # tokenize_udf = udf(tokenize, MapType(StringType(), ArrayType(IntegerType())))
-        #
-        # # Apply the UDF to the DataFrame
-        # scaled_df = input_df.withColumn(cols[0], tokenize_udf(input_df[cols[0]]))
+        
     return scaled_df
 
 
