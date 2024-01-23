@@ -384,7 +384,7 @@ def compute_roc_auc(y_preds, y_targets, weights=None):
 
     # check for binary cases, input (n, 2) and label 1D or (n, 1)
     if len(y_pred.shape) > 1 and y_pred.shape[1] == 2:
-        if len(y_true.shape) == 1: 
+        if len(y_true.shape) == 1:
             y_pred = y_pred[:, 1]
         elif len(y_true.shape) == 2 and y_true.shape[1] == 1:
             y_pred = y_pred[:, 1]
@@ -486,7 +486,7 @@ def compute_precision_recall_auc(y_preds, y_targets, weights=None):
 
     # same check for binary cases, input in (n, 2) and label in 1D or (n, 1)
     if len(y_pred.shape) > 1 and y_pred.shape[1] == 2:
-        if len(y_true.shape) == 1: 
+        if len(y_true.shape) == 1:
             y_pred = y_pred[:, 1]
         elif len(y_true.shape) == 2 and y_true.shape[1] == 1:
             y_pred = y_pred[:, 1]
