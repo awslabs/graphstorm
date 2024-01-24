@@ -49,7 +49,10 @@ Configure SSH No-password login
 ................................
 To perform distributed training in a cluster of machines, please use the following commands
 to configure a local SSH no-password login that GraphStorm relies on.
-*Note*: this is not needed for the standalone mode.
+
+.. note::
+
+    This is not needed for the standalone mode.
 
 .. code-block:: bash
 
