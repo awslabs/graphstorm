@@ -22,6 +22,7 @@ import pyarrow.parquet as pq
 import numpy as np
 import dgl
 import torch as th
+import pandas as pd
 import copy
 
 from functools import partial
@@ -72,6 +73,23 @@ def test_parquet():
         assert False, "This shouldn't happen."
     except:
         pass
+    os.remove(tmpfile)
+
+    # create a parquet with variable length of data
+    data = {
+        "data": [[95, 85], [88], [76, 89, 92]]
+    }
+    df = pd.DataFrame(data)
+    df.to_parquet(tmpfile)
+
+    data1 = read_data_parquet(tmpfile, data_fields=['data'])
+    assert len(data1) == 1
+    assert "data" in data1
+    data1 = data1["data"]
+    assert len(data1) == 3
+    np.testing.assert_equal(data1[0], np.array(data["data"][0]))
+    np.testing.assert_equal(data1[1], np.array(data["data"][1]))
+    np.testing.assert_equal(data1[2], np.array(data["data"][2]))
 
     os.remove(tmpfile)
 
@@ -183,7 +201,7 @@ def check_feat_ops_noop():
         "feature_col": "test1",
         "feature_name": "test2",
     }]
-    (res, _, _) = parse_feat_ops(feat_op1)
+    (res, _, _, _) = parse_feat_ops(feat_op1)
     assert len(res) == 1
     assert res[0].col_name == feat_op1[0]["feature_col"]
     assert res[0].feat_name == feat_op1[0]["feature_name"]
@@ -201,7 +219,7 @@ def check_feat_ops_noop():
     feat_op1 = [{
         "feature_col": "test1",
     }]
-    (res, _, _) = parse_feat_ops(feat_op1)
+    (res, _, _, _) = parse_feat_ops(feat_op1)
     assert len(res) == 1
     assert res[0].col_name == feat_op1[0]["feature_col"]
     assert res[0].feat_name == feat_op1[0]["feature_col"]
@@ -222,7 +240,7 @@ def check_feat_ops_tokenize():
             },
         },
     ]
-    (res, _, _)  = parse_feat_ops(feat_op2)
+    (res, _, _, _) = parse_feat_ops(feat_op2)
     assert len(res) == 2
     assert res[1].col_name == feat_op2[1]["feature_col"]
     assert res[1].feat_name == feat_op2[1]["feature_name"]
@@ -260,7 +278,7 @@ def check_feat_ops_bert():
             },
         },
     ]
-    (res, _, _)  = parse_feat_ops(feat_op3)
+    (res, _, _, _) = parse_feat_ops(feat_op3)
     assert len(res) == 1
     assert res[0].col_name == feat_op3[0]["feature_col"]
     assert res[0].feat_name == feat_op3[0]["feature_name"]
@@ -286,7 +304,7 @@ def check_feat_ops_bert():
             },
         },
     ]
-    (res2, _, _)  = parse_feat_ops(feat_op4)
+    (res2, _, _, _)  = parse_feat_ops(feat_op4)
     assert len(res2) == 1
     assert res2[0].col_name == feat_op4[0]["feature_col"]
     assert res2[0].feat_name == feat_op4[0]["feature_name"]
@@ -310,7 +328,7 @@ def check_feat_ops_maxmin():
             },
         },
     ]
-    (res, _, _)  = parse_feat_ops(feat_op5)
+    (res, _, _, _) = parse_feat_ops(feat_op5)
     assert len(res) == 1
     assert res[0].col_name == feat_op5[0]["feature_col"]
     assert res[0].feat_name == feat_op5[0]["feature_name"]
@@ -353,7 +371,7 @@ def check_feat_ops_maxmin():
             },
         },
     ]
-    (res2, _, _)  = parse_feat_ops(feat_op6)
+    (res2, _, _, _)  = parse_feat_ops(feat_op6)
     assert len(res2) == 1
     assert res2[0].col_name == feat_op6[0]["feature_col"]
     assert res2[0].feat_name == feat_op6[0]["feature_name"]
@@ -407,7 +425,7 @@ def check_feat_ops_rank_gauss():
             },
         },
     ]
-    (res, _, _)  = parse_feat_ops(feat_op7)
+    (res, _, _, _) = parse_feat_ops(feat_op7)
     assert len(res) == 1
     assert res[0].col_name == feat_op7[0]["feature_col"]
     assert res[0].feat_name == feat_op7[0]["feature_name"]
@@ -429,7 +447,7 @@ def check_feat_ops_categorical():
             "transform": {"name": 'to_categorical'},
         },
     ]
-    (res, _, _)  = parse_feat_ops(feat_op7)
+    (res, _, _, _) = parse_feat_ops(feat_op7)
     data0 = {
         "test1": np.array([str(i) for i in np.random.randint(0, 10, size=10)]
             + [str(i) for i in range(10)]),
@@ -460,7 +478,7 @@ def check_feat_ops_categorical():
             "transform": {"name": 'to_categorical', "separator": ","},
         },
     ]
-    (res2, _, _)  = parse_feat_ops(feat_op8)
+    (res2, _, _, _)  = parse_feat_ops(feat_op8)
     data0 = {
         "test1": np.array([f"{i},{i+1}" for i in np.random.randint(0, 9, size=10)]
             + [str(i) for i in range(9)]),
@@ -517,7 +535,7 @@ def test_process_features_fp16():
         "feature_name": "test3",
         "out_dtype": "int8",
     }]
-    (ops_rst, _, _) = parse_feat_ops(feat_op1)
+    (ops_rst, _, _, _) = parse_feat_ops(feat_op1)
     rst = process_features(data, ops_rst)
     assert len(rst) == 3
     assert 'test1' in rst
@@ -566,7 +584,7 @@ def test_process_features():
         "feature_col": "test2",
         "feature_name": "test2",
     }]
-    (ops_rst, _, _) = parse_feat_ops(feat_op1)
+    (ops_rst, _, _, _) = parse_feat_ops(feat_op1)
     rst = process_features(data, ops_rst)
     assert len(rst) == 2
     assert 'test1' in rst
@@ -991,8 +1009,8 @@ def check_map_node_ids_dst_not_exist(str_src_ids, str_dst_ids, id_map):
     assert len(new_src_ids) == num_valid
     assert len(new_dst_ids) == num_valid
     assert src_exist_locs is None
-    assert_equal(src_ids[dst_exist_locs].astype(np.int64), new_src_ids)
-    assert_equal(dst_ids[dst_exist_locs].astype(np.int64), new_dst_ids)
+    assert_equal(src_ids[dst_exist_locs].astype(np.int64).reshape((-1,)), new_src_ids)
+    assert_equal(dst_ids[dst_exist_locs].astype(np.int64).reshape((-1,)), new_dst_ids)
     assert dst_exist_locs is not None
 
     # Test the case that none of the destination node IDs exists and we skip non exist edges.
@@ -1163,7 +1181,7 @@ def test_multiprocessing_checks():
         ],
     }
     in_files = ["/tmp/test1", "/tmp/test2"]
-    (feat_ops, _, _) = parse_feat_ops(conf['features'])
+    (feat_ops, _, _, _) = parse_feat_ops(conf['features'])
     label_ops = parse_label_ops(conf, is_node=True)
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
@@ -1200,7 +1218,7 @@ def test_multiprocessing_checks():
         ],
     }
     in_files = ["/tmp/test1", "/tmp/test2"]
-    (feat_ops, _, _) = parse_feat_ops(conf['features'])
+    (feat_ops, _, _, _) = parse_feat_ops(conf['features'])
     label_ops = None
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
@@ -1208,7 +1226,7 @@ def test_multiprocessing_checks():
     # If the data are stored in a single HDF5 file and there are
     # features for processing.
     in_files = ["/tmp/test1"]
-    (feat_ops, _, _) = parse_feat_ops(conf['features'])
+    (feat_ops, _, _, _) = parse_feat_ops(conf['features'])
     label_ops = None
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == False
@@ -1224,7 +1242,7 @@ def test_multiprocessing_checks():
         ],
     }
     in_files = ["/tmp/test1", "/tmp/test2"]
-    (feat_ops, _, _) = parse_feat_ops(conf['features'])
+    (feat_ops, _, _, _) = parse_feat_ops(conf['features'])
     label_ops = None
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == False
@@ -1240,7 +1258,7 @@ def test_multiprocessing_checks():
         ],
     }
     in_files = ["/tmp/test1", "/tmp/test2"]
-    (feat_ops, _, _) = parse_feat_ops(conf['features'])
+    (feat_ops, _, _, _) = parse_feat_ops(conf['features'])
     label_ops = None
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
@@ -1248,7 +1266,7 @@ def test_multiprocessing_checks():
     # If the data are stored in a single parquet file and there are
     # features that don't require processing.
     in_files = ["/tmp/test1"]
-    (feat_ops, _, _) = parse_feat_ops(conf['features'])
+    (feat_ops, _, _, _) = parse_feat_ops(conf['features'])
     label_ops = None
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == False
@@ -1301,7 +1319,7 @@ def test_multicolumn(ext_mem_path):
         "feature_col": ["test1", "test2"],
         "feature_name": "test3",
     }]
-    (res, _, _) = parse_feat_ops(feat_op1)
+    (res, _, _, _) = parse_feat_ops(feat_op1)
     assert len(res) == 1
     assert res[0].col_name == feat_op1[0]["feature_col"]
     assert res[0].feat_name == feat_op1[0]["feature_name"]
@@ -1333,7 +1351,7 @@ def test_multicolumn(ext_mem_path):
         "test1": np.random.randint(0, 100, 3),
         "test2": np.random.randint(0, 100, 3)
     }
-    (res, _, _) = parse_feat_ops(feat_op2)
+    (res, _, _, _) = parse_feat_ops(feat_op2)
     assert len(res) == 1
     assert res[0].col_name == feat_op2[0]["feature_col"]
     assert res[0].feat_name == feat_op2[0]["feature_name"]
@@ -1354,7 +1372,7 @@ def test_multicolumn(ext_mem_path):
             "bucket_cnt": 10
         }
     }]
-    (res, _, _) = parse_feat_ops(feat_bucket_single1)
+    (res, _, _, _) = parse_feat_ops(feat_bucket_single1)
     bucket_feat_single1 = process_features(data_bucket1, res)
 
     data_bucket2 = {
@@ -1369,7 +1387,7 @@ def test_multicolumn(ext_mem_path):
             "bucket_cnt": 10
         }
     }]
-    (res, _, _) = parse_feat_ops(feat_bucket_single2)
+    (res, _, _, _) = parse_feat_ops(feat_bucket_single2)
     bucket_feat_single2 = process_features(data_bucket2, res)
     bucket_expec = np.column_stack((bucket_feat_single1["test3"],
                                     bucket_feat_single2["test3"]))
@@ -1389,7 +1407,7 @@ def test_multicolumn(ext_mem_path):
         "test1": np.random.randint(0, 100, 3),
         "test2": np.random.randint(0, 100, 3)
     }
-    (res, _, _) = parse_feat_ops(feat_op3)
+    (res, _, _, _) = parse_feat_ops(feat_op3)
     assert len(res) == 1
     assert res[0].col_name == feat_op3[0]["feature_col"]
     assert res[0].feat_name == feat_op3[0]["feature_name"]
@@ -1408,7 +1426,7 @@ def test_multicolumn(ext_mem_path):
             "name": "rank_gauss"
         }
     }]
-    (res, _, _) = parse_feat_ops(feat_rg_single1)
+    (res, _, _, _) = parse_feat_ops(feat_rg_single1)
     rg_feat_single1 = process_features(data_rg1, res)
 
     data_rg2 = {
@@ -1421,7 +1439,7 @@ def test_multicolumn(ext_mem_path):
             "name": "rank_gauss",
         }
     }]
-    (res, _, _) = parse_feat_ops(feat_rg_single2)
+    (res, _, _, _) = parse_feat_ops(feat_rg_single2)
     rg_feat_single2 = process_features(data_rg2, res)
     rg_expec = np.column_stack((rg_feat_single1["test3"],
                                 rg_feat_single2["test3"]))
@@ -1443,7 +1461,7 @@ def test_multicolumn(ext_mem_path):
         "test1": ["test", "haha", "failure"],
         "test2": ["never", "pass", "lint"]
     }
-    (res, _, _) = parse_feat_ops(feat_op4)
+    (res, _, _, _) = parse_feat_ops(feat_op4)
     assert len(res) == 1
     assert res[0].col_name == feat_op4[0]["feature_col"]
     assert res[0].feat_name == feat_op4[0]["feature_name"]
@@ -1462,7 +1480,7 @@ def test_multicolumn(ext_mem_path):
                       'max_seq_length': 16
                       },
     }]
-    (res, _, _) = parse_feat_ops(feat_bert_single1)
+    (res, _, _, _) = parse_feat_ops(feat_bert_single1)
     bert_feat_single1 = process_features(data_bert1, res)
 
     data_bert2 = {
@@ -1476,7 +1494,7 @@ def test_multicolumn(ext_mem_path):
                       'max_seq_length': 16
                       },
     }]
-    (res, _, _) = parse_feat_ops(feat_bert_single2)
+    (res, _, _, _) = parse_feat_ops(feat_bert_single2)
     bert_feat_single2 = process_features(data_bert2, res)
     bert_expec = np.column_stack((bert_feat_single1["test3"],
                                 bert_feat_single2["test3"]))
@@ -1498,7 +1516,7 @@ def test_multicolumn(ext_mem_path):
         "test1": np.random.randint(0, 100, 3),
         "test2": np.random.randint(0, 100, 3)
     }
-    (res, _, _) = parse_feat_ops(feat_op5)
+    (res, _, _, _) = parse_feat_ops(feat_op5)
     assert len(res) == 1
     assert res[0].col_name == feat_op5[0]["feature_col"]
     assert res[0].feat_name == feat_op5[0]["feature_name"]
@@ -1519,7 +1537,7 @@ def test_multicolumn(ext_mem_path):
             "min_val": 0
         }
     }]
-    (res, _, _) = parse_feat_ops(feat_maxmin_single1)
+    (res, _, _, _) = parse_feat_ops(feat_maxmin_single1)
     maxmin_feat_single1 = process_features(data_maxmin1, res)
 
     data_maxmin2 = {
@@ -1534,7 +1552,7 @@ def test_multicolumn(ext_mem_path):
             "min_val": 0
         }
     }]
-    (res, _, _) = parse_feat_ops(feat_maxmin_single2)
+    (res, _, _, _) = parse_feat_ops(feat_maxmin_single2)
     maxmin_feat_single2 = process_features(data_maxmin2, res)
     maxmin_expec = np.column_stack((maxmin_feat_single1["test3"],
                                 maxmin_feat_single2["test3"]))
@@ -1552,7 +1570,7 @@ def test_multicolumn(ext_mem_path):
         }
     }]
     try:
-        (res, _, _) = parse_feat_ops(feat_op6)
+        (res, _, _, _) = parse_feat_ops(feat_op6)
         assert False, "expected Error raised for not " \
                       "specifying max_val and min_val"
     except AssertionError as e:
@@ -1568,7 +1586,7 @@ def test_multicolumn(ext_mem_path):
         }
     }]
     try:
-        (res, _, _) = parse_feat_ops(feat_op7)
+        (res, _, _, _) = parse_feat_ops(feat_op7)
         assert False, "expected Error raised for multi column on" \
                       " categorical feature transformation"
     except RuntimeError as e:
@@ -1581,7 +1599,7 @@ def test_multicolumn(ext_mem_path):
         "feature_name": "test3"
     }]
     try:
-        (res, _, _) = parse_feat_ops(feat_op8)
+        (res, _, _, _) = parse_feat_ops(feat_op8)
         assert False, "expected Error raised for invalid feature column []"
     except AssertionError as e:
         assert str(e) == "feature column should not be empty"
@@ -1592,7 +1610,7 @@ def test_multicolumn(ext_mem_path):
         "feature_name": "test3"
     }]
     try:
-        (res, _, _) = parse_feat_ops(feat_op9)
+        (res, _, _, _) = parse_feat_ops(feat_op9)
         assert False, "expected Error not raised for invalid feature column """
     except AssertionError as e:
         assert str(e) == "feature column should not be empty"
@@ -1608,7 +1626,7 @@ def test_multicolumn(ext_mem_path):
             },
     }]
     try:
-        (res, _, _) = parse_feat_ops(feat_op10)
+        (res, _, _, _) = parse_feat_ops(feat_op10)
         assert False, "expected Error raised for multi column on" \
                       " tokenize_hf feature transformation"
     except RuntimeError as e:
@@ -1618,7 +1636,7 @@ def test_multicolumn(ext_mem_path):
         "feature_col": ["test1", "test2", "test3"],
         "feature_name": "test4",
     }]
-    (res, _, _) = parse_feat_ops(feat_op11)
+    (res, _, _, _) = parse_feat_ops(feat_op11)
     assert len(res) == 1
     assert res[0].col_name == feat_op11[0]["feature_col"]
     assert res[0].feat_name == feat_op11[0]["feature_name"]
@@ -1706,6 +1724,47 @@ def test_gc():
     assert not os.path.isdir("/tmp/featurewrapper2"), \
         "Directory /tmp/featurewrapper2 should not exist after gc"
 
+def test_parse_feat_ops_data_format():
+    conf = {
+        "format": {"name": "hdf5"},
+        "features":     [
+            {
+                "feature_col":  "feat",
+                "transform": {"name": 'edge_dst_hard_negative'},
+            },
+            {
+                "feature_col":  "feat2",
+                "transform": {"name": 'max_min_norm'},
+            },
+            {
+                "feature_col":  "feat3",
+                "transform": {"name": 'rank_gauss'},
+            },
+        ],
+    }
+    try:
+        (feat_ops, _, _, _) = parse_feat_ops(conf['features'], conf['format']['name'])
+        assert False, "edge_dst_hard_negative can not work with hdf5."
+    except AssertionError as e:
+        assert str(e) == "Edge_dst_hard_negative transformation does not work with hdf5 inputs."
+
+    conf['format']['name'] = "parquet"
+    (feat_ops, two_phase_feat_ops, after_merge_feat_ops, hard_edge_neg_ops) = \
+        parse_feat_ops(conf['features'], conf['format']['name'])
+    assert len(feat_ops) == 3
+    assert len(two_phase_feat_ops) == 2 # max_min_norm and edge_dst_hard_negative
+    assert len(after_merge_feat_ops) == 1 # rank_gauss
+    assert len(hard_edge_neg_ops) == 1 # edge_dst_hard_negative
+
+    conf['format']['name'] = "csv"
+    (feat_ops, two_phase_feat_ops, after_merge_feat_ops, hard_edge_neg_ops) = \
+        parse_feat_ops(conf['features'], conf['format']['name'])
+    assert len(feat_ops) == 3
+    assert len(two_phase_feat_ops) == 2 # max_min_norm and edge_dst_hard_negative
+    assert len(after_merge_feat_ops) == 1 # rank_gauss
+    assert len(hard_edge_neg_ops) == 1 # edge_dst_hard_negative
+
+
 
 def test_homogeneous():
     # single node type and edge type input
@@ -1760,6 +1819,7 @@ def test_homogeneous():
     assert not is_homogeneous(conf)
 
 if __name__ == '__main__':
+    test_parse_feat_ops_data_format()
     test_parse_edge_data()
     test_multiprocessing_checks()
     test_csv(None)

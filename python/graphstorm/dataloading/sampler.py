@@ -24,9 +24,12 @@ import numpy as np
 from dgl import backend as F
 from dgl import EID, NID
 from dgl.distributed import node_split
-from dgl.dataloading.negative_sampler import Uniform
+from dgl.dataloading.negative_sampler import (Uniform,
+                                              _BaseNegativeSampler)
 from dgl.dataloading import NeighborSampler
 from dgl.transforms import to_block
+
+from ..utils import is_wholegraph
 
 class LocalUniform(Uniform):
     """Negative sampler that randomly chooses negative destination nodes
@@ -69,6 +72,180 @@ class LocalUniform(Uniform):
 
         dst = F.randint(shape, dtype, ctx, 0, self._local_neg_nids[vtype].shape[0])
         return src, self._local_neg_nids[vtype][dst]
+
+class GSHardEdgeDstNegativeSampler(_BaseNegativeSampler):
+    """ GraphStorm negative sampler that chooses negative destination nodes
+        from a fixed set to create negative edges.
+
+        Parameters
+        ----------
+        k: int
+            Number of negatives to sample.
+        dst_negative_field: str or dict of str
+            The field storing the hard negatives.
+        negative_sampler: sampler
+            The negative sampler to generate negatives
+            if there is not enough hard negatives.
+        num_hard_negs: int or dict of int
+            Number of hard negatives.
+    """
+    def __init__(self, k, dst_negative_field, negative_sampler, num_hard_negs=None):
+        assert is_wholegraph() is False, \
+                "Hard negative is not supported for WholeGraph."
+        self._dst_negative_field = dst_negative_field
+        self._k = k
+        self._negative_sampler = negative_sampler
+        self._num_hard_negs = num_hard_negs
+
+    def _generate(self, g, eids, canonical_etype):
+        """ _generate() is called by DGL BaseNegativeSampler to generate negative pairs.
+
+        See https://github.com/dmlc/dgl/blob/1.1.x/python/dgl/dataloading/negative_sampler.py#L7
+        For more detials
+        """
+        if isinstance(self._dst_negative_field, str):
+            dst_negative_field = self._dst_negative_field
+        elif canonical_etype in self._dst_negative_field:
+            dst_negative_field = self._dst_negative_field[canonical_etype]
+        else:
+            dst_negative_field = None
+
+        if isinstance(self._num_hard_negs, int):
+            required_num_hard_neg = self._num_hard_negs
+        elif canonical_etype in self._num_hard_negs:
+            required_num_hard_neg = self._num_hard_negs[canonical_etype]
+        else:
+            required_num_hard_neg = 0
+
+        if dst_negative_field is None or required_num_hard_neg == 0:
+            # no hard negative, fallback to random negative
+            return self._negative_sampler._generate(g, eids, canonical_etype)
+
+        hard_negatives = g.edges[canonical_etype].data[dst_negative_field][eids]
+        # It is possible that different edges may have different number of
+        # pre-defined negatives. For pre-defined negatives, the corresponding
+        # value in `hard_negatives` will be integers representing the node ids.
+        # For others, they will be -1s meaning there are missing fixed negatives.
+        if th.sum(hard_negatives == -1) == 0:
+            # Fast track, there is no -1 in hard_negatives
+            max_num_hard_neg = hard_negatives.shape[1]
+            neg_idx = th.randperm(max_num_hard_neg)
+            # shuffle the hard negatives
+            hard_negatives = hard_negatives[:,neg_idx]
+
+            if required_num_hard_neg >= self._k and max_num_hard_neg >= self._k:
+                # All negative should be hard negative and
+                # there are enough hard negatives.
+                hard_negatives = hard_negatives[:,:self._k]
+                src, _ = g.find_edges(eids, etype=canonical_etype)
+                src = F.repeat(src, self._k, 0)
+                return src, hard_negatives.reshape((-1,))
+            else:
+                if required_num_hard_neg < max_num_hard_neg:
+                    # Only need required_num_hard_neg hard negatives.
+                    hard_negatives = hard_negatives[:,:required_num_hard_neg]
+                    num_hard_neg = required_num_hard_neg
+                else:
+                    # There is not enough hard negative to fill required_num_hard_neg
+                    num_hard_neg = max_num_hard_neg
+
+                # There is not enough negatives
+                src, neg = self._negative_sampler._generate(g, eids, canonical_etype)
+                # replace random negatives with fixed negatives
+                neg = neg.reshape(-1, self._k)
+                neg[:,:num_hard_neg] = hard_negatives[:,:num_hard_neg]
+                return src, neg.reshape((-1,))
+        else:
+            # slow track, we need to handle cases when there are -1s
+            hard_negatives, _ = th.sort(hard_negatives, dim=1, descending=True)
+
+            src, neg = self._negative_sampler._generate(g, eids, canonical_etype)
+            for i in range(len(eids)):
+                hard_negative = hard_negatives[i]
+                # ignore -1s
+                hard_negative = hard_negative[hard_negative > -1]
+                max_num_hard_neg = hard_negative.shape[0]
+                hard_negative = hard_negative[th.randperm(max_num_hard_neg)]
+
+                if required_num_hard_neg < max_num_hard_neg:
+                    # Only need required_num_hard_neg hard negatives.
+                    hard_negative = hard_negative[:required_num_hard_neg]
+                    num_hard_neg = required_num_hard_neg
+                else:
+                    num_hard_neg = max_num_hard_neg
+
+                # replace random negatives with fixed negatives
+                neg[i*self._k:i*self._k + (num_hard_neg \
+                              if num_hard_neg < self._k else self._k)] = \
+                    hard_negative[:num_hard_neg if num_hard_neg < self._k else self._k]
+            return src, neg
+
+class GSFixedEdgeDstNegativeSampler(object):
+    """ GraphStorm negative sampler that uses fixed negative destination nodes
+        to create negative edges.
+
+        GSFixedEdgeDstNegativeSampler only works with test dataloader.
+
+        Parameters
+        ----------
+        dst_negative_field: str or dict of str
+            The field storing the hard negatives.
+    """
+    def __init__(self, dst_negative_field):
+        assert is_wholegraph() is False, \
+                "Hard negative is not supported for WholeGraph."
+        self._dst_negative_field = dst_negative_field
+
+    def gen_etype_neg_pairs(self, g, etype, pos_eids):
+        """ Returns negative examples associated with positive examples.
+            It only return dst negatives.
+
+            This function is called by GSgnnLinkPredictionTestDataLoader._next_data()
+            to generate testing edges.
+
+        Parameters
+        ----------
+        g : DGLGraph
+            The graph.
+        pos_eids : (Tensor, Tensor) or dict[etype, (Tensor, Tensor)]
+            The positive edge ids.
+
+        Returns
+        -------
+        dict[etype, tuple(Tensor, Tensor Tensor, Tensor)
+            The returned [positive source, negative source,
+            postive destination, negatve destination]
+            tuples as pos-neg examples.
+        """
+        def _gen_neg_pair(eids, canonical_etype):
+            src, pos_dst = g.find_edges(eids, etype=canonical_etype)
+
+            if isinstance(self._dst_negative_field, str):
+                dst_negative_field = self._dst_negative_field
+            elif canonical_etype in self._dst_negative_field:
+                dst_negative_field = self._dst_negative_field[canonical_etype]
+            else:
+                raise RuntimeError(f"{etype} does not have pre-defined negatives")
+
+            fixed_negatives = g.edges[canonical_etype].data[dst_negative_field][eids]
+
+            # Users may use HardEdgeDstNegativeTransform
+            # to prepare the fixed negatives.
+            assert th.sum(fixed_negatives == -1) == 0, \
+                "When using fixed negative destination nodes to construct testing edges," \
+                "it is required that for each positive edge there are enough negative " \
+                f"destination nodes. Please check the {dst_negative_field} feature " \
+                f"of edge type {canonical_etype}"
+
+            num_fixed_neg = fixed_negatives.shape[1]
+            logging.debug("The number of fixed negative is %d", num_fixed_neg)
+            return (src, None, pos_dst, fixed_negatives)
+
+        assert etype in g.canonical_etypes, \
+            f"Edge type {etype} does not exist in graph. Expecting an edge type in " \
+            f"{g.canonical_etypes}, but get {etype}"
+
+        return {etype: _gen_neg_pair(pos_eids, etype)}
 
 class GlobalUniform(Uniform):
     """Negative sampler that randomly chooses negative destination nodes

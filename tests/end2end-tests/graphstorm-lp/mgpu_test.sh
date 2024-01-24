@@ -525,4 +525,28 @@ python3 -m graphstorm.run.launch --workspace $GS_HOME/training_scripts/gsgnn_lp 
 
 error_and_exit $?
 
+echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT, BERT nodes: movie, inference: full-graph, negative_sampler: joint, exclude_training_targets: true, save model, enough hard neg"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_hard_neg_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false  --eval-batch-size 1024 --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie  --save-model-path /data/gsgnn_lp_ml_hard_dot/  --save-model-frequency 1000 --train-etypes-negative-dstnode hard_0 --num-train-hard-negatives 4 --num-negative-edges 10 --target-etype user,rating,movie
+
+error_and_exit $?
+
+echo "**************dataset: Movielens, do inference on saved model, decoder: dot with fixed negative"
+python3 -m graphstorm.run.gs_link_prediction --inference --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_hard_neg_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp_infer.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --eval-batch-size 1024 --restore-model-path /data/gsgnn_lp_ml_hard_dot/epoch-2/ --eval-etypes-negative-dstnode fixed_eval --eval-etype user,rating,movie
+
+error_and_exit $?
+
+rm -fr /data/gsgnn_lp_ml_hard_dot/*
+
+echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT, BERT nodes: movie, inference: full-graph, negative_sampler: joint, exclude_training_targets: true, save model, hard neg + random neg"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_hard_neg_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false  --eval-batch-size 1024 --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie  --save-model-path /data/gsgnn_lp_ml_hard_dot/  --save-model-frequency 1000 --train-etypes-negative-dstnode user,rating,movie:hard_1 --num-train-hard-negatives 5 --num-negative-edges 10 --target-etype user,rating,movie
+
+error_and_exit $?
+
+echo "**************dataset: Movielens, do inference on saved model, decoder: dot with fixed negative"
+python3 -m graphstorm.run.gs_link_prediction --inference --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_hard_neg_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp_infer.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --eval-batch-size 1024 --restore-model-path /data/gsgnn_lp_ml_hard_dot/epoch-2/ --eval-etypes-negative-dstnode user,rating,movie:fixed_eval --eval-etype user,rating,movie
+
+error_and_exit $?
+
+rm -fr /data/gsgnn_lp_ml_hard_dot/*
+
 rm -fr /tmp/*
