@@ -146,6 +146,8 @@ def run_infer(args, unknownargs):
             The name of the graph.
         graph_data_s3: str
             S3 location of input training graph.
+        raw_node_mappings_s3: str
+            S3 location of node id mapping files.
         infer_yaml_s3: str
             S3 location of inference yaml file.
         output_emb_s3: str
@@ -251,7 +253,7 @@ def run_infer(args, unknownargs):
     yaml_path = download_yaml_config(infer_yaml_s3,
         data_path, sagemaker_session)
     graph_config_path = download_graph(graph_data_s3, graph_name,
-        host_rank, world_size, data_path, sagemaker_session)
+        host_rank, world_size, data_path, sagemaker_session, args.raw_node_mappings_s3)
 
     # Download Saved model
     download_model(model_artifact_s3, model_path, sagemaker_session)
