@@ -12,12 +12,6 @@ GraphStorm is designed for easy-to-use GML models, particularly the graph neural
 
 This tutorial will use GraphStorm's built-in OGB-arxiv dataset for a node classification task to demonstrate these three steps.
 
-.. warning::
-
-    - All commands below are designed to run in a GraphStorm Docker container. Please refer to the :ref:`GraphStorm Docker environment setup<setup>` to prepare the Docker container environment.
-
-    - If you set up the :ref:`GraphStorm environment with pip Packages<setup_pip>`, please replace all occurrences of "2222" in the argument ``--ssh-port`` with **22**, and clone GraphStorm toolkits. And if use this method to setup GraphStorm environment, you may need to replace the ``python3`` command with ``python``, depending on your Python versions.
-
 Download and Partition OGB-arxiv Data
 --------------------------------------
 First run the below command.
@@ -57,14 +51,8 @@ Running the following command can download the ogbn-arxiv graph data and split t
 
 Launch Training
 -----------------
-GraphStorm currently relies on **ssh** to launch its scripts. Therefore before launch any scripts, users need to create an IP address file, which contains all private IP addresses in a cluster. If run GraphStorm in the Standalone mode, which run only in a **single machine**, as this tutorial does, users only need to run the following command to create an ``ip_list.txt`` file that has one row '**127.0.0.1**' as its content.
 
-.. code-block:: bash
-
-    touch /tmp/ip_list.txt
-    echo 127.0.0.1 > /tmp/ip_list.txt
-
-Then run the below command to start a training job that trains an built-in RGCN model to perform node classification on the OGB-arxiv.
+Run the below command to start a training job that trains an built-in RGCN model to perform node classification on the OGB-arxiv.
 
 .. code-block:: bash
 
@@ -74,8 +62,6 @@ Then run the below command to start a training job that trains an built-in RGCN 
             --num-servers 1 \
             --num-samplers 0 \
             --part-config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
-            --ip-config  /tmp/ip_list.txt \
-            --ssh-port 2222 \
             --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
             --save-model-path /tmp/ogbn-arxiv-nc/models
 
@@ -134,8 +120,6 @@ The inference command is:
                --num-servers 1 \
                --num-samplers 0 \
                --part-config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
-               --ip-config  /tmp/ip_list.txt \
-               --ssh-port 2222 \
                --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
                --save-prediction-path /tmp/ogbn-arxiv-nc/predictions/ \
                --restore-model-path /tmp/ogbn-arxiv-nc/models/epoch-7/
@@ -153,8 +137,6 @@ Inference on link prediction is similar as shown in the command below.
             --num-servers 1 \
             --num-samplers 0 \
             --part-config /tmp/ogbn_arxiv_lp_1p/ogbn-arxiv.json \
-            --ip-config  /tmp/ip_list.txt \
-            --ssh-port 2222 \
             --cf /graphstorm/training_scripts/gsgnn_lp/arxiv_lp.yaml \
             --save-embed-path /tmp/ogbn-arxiv-lp/predictions/ \
             --restore-model-path /tmp/ogbn-arxiv-lp/models/epoch-2/
@@ -171,8 +153,6 @@ If users only need to generate node embeddings instead of doing predictions on t
             --workspace /tmp/ogbn-arxiv-nc \
             --num-trainers 1 \
             --part-config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
-            --ip-config /tmp/ip_list.txt \
-            --ssh-port 2222 \
             --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
             --save-embed-path /tmp/ogbn-arxiv-nc/saved_embed \
             --restore-model-path /tmp/ogbn-arxiv-nc/models/epoch-7/ \
