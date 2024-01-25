@@ -1089,26 +1089,41 @@ def test_partition_graph(num_parts):
     num_nodes = {'node1': 100,
                  'node2': 200,
                  'node3': 300}
-    edges = {('node1', 'rel1', 'node2'): (np.random.randint(num_nodes['node1'], size=100),
-                                          np.random.randint(num_nodes['node2'], size=100)),
-             ('node1', 'rel2', 'node3'): (np.random.randint(num_nodes['node1'], size=200),
-                                          np.random.randint(num_nodes['node3'], size=200))}
-    node_data = {'node1': {'feat': np.random.uniform(size=(num_nodes['node1'], 10))},
-                 'node2': {'feat': np.random.uniform(size=(num_nodes['node2'],))}}
-    edge_data = {('node1', 'rel1', 'node2'): {'feat': np.random.uniform(size=(100, 10))}}
+    edges = {('node1', 'rel1', 'node2'): (np.random.randint(num_nodes['node1'], size=500),
+                                          np.random.randint(num_nodes['node2'], size=500)),
+             ('node1', 'rel2', 'node3'): (np.random.randint(num_nodes['node1'], size=1000),
+                                          np.random.randint(num_nodes['node3'], size=1000))}
+    g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
+
+    train_mask1 = (g.out_degrees(etype=('node1', 'rel1', 'node2')) > 2).numpy()
+    train_mask2 = (g.in_degrees(etype=('node1', 'rel1', 'node2')) > 2).numpy()
+    node_data = {
+            'node1': {
+                'feat': np.random.uniform(size=(num_nodes['node1'], 10)),
+                'train_mask': train_mask1
+            },
+            'node2': {
+                'feat': np.random.uniform(size=(num_nodes['node2'],)),
+                'train_mask': train_mask2
+            }
+    }
+    edge_data = {('node1', 'rel1', 'node2'): {'feat': np.random.uniform(size=(500, 10))}}
 
     # Partition the graph with our own partition_graph.
-    g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
     dgl.random.seed(0)
     node_data1 = []
     edge_data1 = []
     with tempfile.TemporaryDirectory() as tmpdirname:
         partition_graph(g, node_data, edge_data, 'test', num_parts, tmpdirname,
                         part_method="random", save_mapping=True)
+        train_mask1 = []
+        train_mask2 = []
         for i in range(num_parts):
             part_dir = os.path.join(tmpdirname, "part" + str(i))
             node_data1.append(dgl.data.utils.load_tensors(os.path.join(part_dir,
                                                                        'node_feat.dgl')))
+            train_mask1.append(node_data1[-1]['node1/train_mask'])
+            train_mask2.append(node_data1[-1]['node2/train_mask'])
             edge_data1.append(dgl.data.utils.load_tensors(os.path.join(part_dir,
                                                                        'edge_feat.dgl')))
 
@@ -1819,13 +1834,13 @@ def test_homogeneous():
     assert not is_homogeneous(conf)
 
 if __name__ == '__main__':
+    test_partition_graph(2)
     test_parse_feat_ops_data_format()
     test_parse_edge_data()
     test_multiprocessing_checks()
     test_csv(None)
     test_hdf5()
     test_json()
-    test_partition_graph(1)
     test_merge_arrays()
     test_map_node_ids()
     test_id_map()
