@@ -937,11 +937,14 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
     if part_method is None:
         part_method = "None" if num_partitions == 1 else "metis"
 
+    balance_ntypes = {}
+    for ntype in g.ntypes:
+        if "train_mask" in g.nodes[ntype].data:
+            balance_ntypes[ntype] = g.nodes[ntype].data["train_mask"]
     mapping = \
         dgl.distributed.partition_graph(g, graph_name, num_partitions, output_dir,
                                         part_method=part_method,
-                                        # TODO(zhengda) we need to enable balancing node types.
-                                        balance_ntypes=None,
+                                        balance_ntypes=balance_ntypes,
                                         balance_edges=True,
                                         return_mapping=save_mapping)
     sys_tracker.check('Graph partitioning')
