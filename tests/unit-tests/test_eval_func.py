@@ -85,10 +85,15 @@ def test_eval_roc_auc():
         print(f'Test eval_roc_auc error3, {e3}')
         error_score_3 = -1
 
-    # Binary classification case 1: preds 2D and label 1D
+    # Binary classification case 1: preds 2D, and label 1D
     preds = th.concat([th.ones(100,1)*0.25, th.ones(100,1)*0.75], dim=1)
     labels = th.concat([th.zeros(20), th.ones(80)]).long()
-    bin_score = eval_roc_auc(preds, labels)
+    bin_score_1 = eval_roc_auc(preds, labels)
+    
+    # Binary classification case 2: preds 2D, and label 2D but shape[1]==1
+    preds = th.concat([th.ones(100,1)*0.25, th.ones(100,1)*0.75], dim=1)
+    labels = th.concat([th.zeros(20), th.ones(80)]).long().reshape(-1, 1)
+    bin_score_2 = eval_roc_auc(preds, labels)
 
     # Multiple classification case: preds 4D and label 2D.
     preds = th.concat([th.tensor([0.75, 0.15, 0.1, 0.1]).repeat(25),
@@ -115,7 +120,8 @@ def test_eval_roc_auc():
     assert error_score_1 == -1
     assert error_score_2 == -1
     assert error_score_3 == -1
-    assert bin_score == 0.5
+    assert bin_score_1 == 0.5
+    assert bin_score_2 == 0.5
     assert multi_class_score == 1.0
     assert multi_label_score == 0.3125
 
