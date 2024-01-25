@@ -61,7 +61,8 @@ def _parse_features_schema(features_objects: Sequence[FeatureConfig]) -> Sequenc
         feature_type = feature_config.feat_type
         for feature_col, _ in zip(feature_config.cols, feature_config.feat_name):
             spark_feature_type = determine_spark_feature_type(feature_type)
-
+            if StructField(feature_col, spark_feature_type(), True) in field_list:
+                continue
             field_list.append(StructField(feature_col, spark_feature_type(), True))
 
     return field_list

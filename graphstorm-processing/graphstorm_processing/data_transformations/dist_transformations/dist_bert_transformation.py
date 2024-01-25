@@ -62,9 +62,10 @@ def apply_norm(
             StructField("attention_mask", ArrayType(IntegerType())),
             StructField("token_type_ids", ArrayType(IntegerType()))
         ])
+        schema = ArrayType(IntegerType())
 
         # Define UDF
-        @udf(returnType=schema, useArrow=True)
+        @udf(returnType=schema)
         def tokenize(text):
             # Check if text is a string
             if not isinstance(text, str):
@@ -78,7 +79,7 @@ def apply_norm(
                 'attention_mask': t['attention_mask'][0].astype(np.int8).tolist(),
                 'token_type_ids': token_type_ids[0].astype(np.int8).tolist()
             }
-            return result
+            return result['input_ids']
 
         # Apply the UDF to the DataFrame
         scaled_df = input_df.withColumn(cols[0], tokenize(input_df[cols[0]]))
@@ -106,7 +107,6 @@ class DistBertTransformation(DistributedTransformation):
         self.bert_norm = normalizer
         self.bert_model = bert_model
         self.max_seq_length = max_seq_length
-        self.spark = spark
 
     def apply(self, input_df: DataFrame) -> DataFrame:
         scaled_df = apply_norm(self.cols, self.bert_norm, self.max_seq_length, input_df)
