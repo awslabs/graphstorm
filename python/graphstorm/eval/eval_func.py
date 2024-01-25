@@ -479,7 +479,7 @@ def compute_precision_recall_auc(y_preds, y_targets, weights=None):
         weights: List of weights with the same number of classes in labels.
         Returns
         -------
-        The precision_recall_auc score.   
+        float: The precision_recall_auc score.   
     """
     y_true = y_targets.cpu().numpy()
     y_pred = y_preds.cpu().numpy()
