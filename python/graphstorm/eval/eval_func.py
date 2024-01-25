@@ -262,7 +262,7 @@ def eval_acc(pred, labels):
             Labels in 1D tensor of 0s and 1s.
         Returns
         -------
-        The accuracy score.
+        float: The accuracy score.
     """
     if pred.dim() > 1:
         # if pred has dimension > 1, it has full logits instead of final prediction
