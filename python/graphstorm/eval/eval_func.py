@@ -196,7 +196,7 @@ def eval_roc_auc(logits,labels):
 
         Returns
         -------
-        The roc_auc score.
+        float: The roc_auc score.
     '''
     predicted_labels=logits
     predicted_labels=predicted_labels.detach().cpu().numpy()
