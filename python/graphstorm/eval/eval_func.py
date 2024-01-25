@@ -267,7 +267,7 @@ def eval_acc(pred, labels):
     if pred.dim() > 1:
         # if pred has dimension > 1, it has full logits instead of final prediction
         assert th.is_floating_point(pred), "ERROR: Multiple dimension logits are expected to " + \
-                                           "be float type."
+                                           f"be float type. But get {pred.dtype}"
         pred = pred.argmax(dim=1)
     # Check if pred is integer tensor
     assert (not th.is_floating_point(pred) and not th.is_complex(pred)), "ERROR: 1D " + \
