@@ -115,7 +115,7 @@ def estimate_mem_train(root, task):
     parts = []
     # Find the partition IDs from the folder.
     for f in os.listdir(root):
-        if os.path.isdir(os.path.join(root, f)):
+        if os.path.isdir(os.path.join(root, f)) and f.startswith("part"):
             parts.append(int(f[4:]))
     parts.sort()
     for i in parts:
@@ -180,7 +180,7 @@ def estimate_mem_infer(root, graph_name, hidden_size, num_layers):
     parts = []
     # Find the partition IDs from the folder.
     for f in os.listdir(root):
-        if os.path.isdir(os.path.join(root, f)):
+        if os.path.isdir(os.path.join(root, f)) and f.startswith("part"):
             parts.append(int(f[4:]))
     with open(os.path.join(root, graph_name + '.json'), 'r', encoding='utf-8') as f:
         schema = json.load(f)

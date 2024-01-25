@@ -24,8 +24,9 @@ from .dataloading import GSgnnAllEtypeLPJointNegDataLoader
 from .dataloading import GSgnnAllEtypeLinkPredictionDataLoader
 from .dataloading import GSgnnEdgeDataLoader
 from .dataloading import GSgnnNodeDataLoader, GSgnnNodeSemiSupDataLoader
-from .dataloading import GSgnnLinkPredictionTestDataLoader
-from .dataloading import GSgnnLinkPredictionJointTestDataLoader
+from .dataloading import (GSgnnLinkPredictionTestDataLoader,
+                          GSgnnLinkPredictionJointTestDataLoader,
+                          GSgnnLinkPredictionPredefinedTestDataLoader)
 from .dataloading import (FastGSgnnLinkPredictionDataLoader,
                           FastGSgnnLPLocalJointNegDataLoader,
                           FastGSgnnLPJointNegDataLoader,
@@ -43,7 +44,8 @@ from .dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                           BUILTIN_LP_JOINT_NEG_SAMPLER,
                           BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER,
                           BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER,
-                          BUILTIN_LP_LOCALJOINT_NEG_SAMPLER)
+                          BUILTIN_LP_LOCALJOINT_NEG_SAMPLER,
+                          BUILTIN_LP_FIXED_NEG_SAMPLER)
 from .dataloading import BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER
 from .dataloading import BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER
 from .dataloading import (BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER,

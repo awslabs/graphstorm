@@ -17,7 +17,6 @@
 """
 import os
 import abc
-import json
 import logging
 import re
 
@@ -27,9 +26,11 @@ from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 from torch.utils.data import Dataset
 import pandas as pd
 
-from ..utils import get_rank, get_world_size, is_distributed, barrier
-from ..utils import sys_tracker, is_wholegraph
-from .utils import dist_sum, flip_node_mask, is_wholegraph_embedding
+from ..utils import get_rank, get_world_size, is_distributed, barrier, is_wholegraph
+from ..utils import sys_tracker
+from .utils import dist_sum, flip_node_mask
+
+from ..wholegraph import is_wholegraph_embedding
 
 def split_full_edge_list(g, etype, rank):
     ''' Split the full edge list of a graph.
@@ -168,6 +169,7 @@ class GSgnnData():
 
         # Use wholegraph for feature transfer
         if is_distributed() and is_wholegraph():
+            from ..wholegraph import load_wg_feat
             logging.info("Allocate features with Wholegraph")
             num_parts = self._g.get_partition_book().num_partitions()
 
@@ -184,7 +186,7 @@ class GSgnnData():
                             f"Feature '{name}' of '{ntype}' is not in WholeGraph format. " \
                             f"Please convert all the available features to WholeGraph " \
                             f"format to utilize WholeGraph."
-                        data[name] = self.load_wg_feat(part_config, num_parts, ntype, name)
+                        data[name] = load_wg_feat(part_config, num_parts, ntype, name)
                     if len(self._g.ntypes) == 1:
                         self._g._ndata_store.update(data)
                     else:
@@ -206,7 +208,7 @@ class GSgnnData():
                             f"Feature '{name}' of '{etype}' is not in WholeGraph format. " \
                             f"Please convert all the available features to WholeGraph " \
                             f"format to utilize WholeGraph."
-                        data[name] = self.load_wg_feat(part_config, num_parts, etype_wg, name)
+                        data[name] = load_wg_feat(part_config, num_parts, etype_wg, name)
                     if len(self._g.canonical_etypes) == 1:
                         self._g._edata_store.update(data)
                     else:
@@ -240,53 +242,6 @@ class GSgnnData():
     def edge_feat_field(self):
         """the field of edge feature"""
         return self._edge_feat_field
-
-    def load_wg_feat(self, part_config_path, num_parts, type_name, name):
-        """Load features from wholegraph memory
-
-        Parameters
-        ----------
-        part_config_path : str
-            The path of the partition configuration file.
-        num_parts : int
-            The number of partitions of the dataset
-        type_name: str
-            The type of node or edge for which to fetch features or labels for.
-        name: str
-            The name of the features to load
-        """
-        import pylibwholegraph.torch as wgth
-
-        global_comm = wgth.comm.get_global_communicator()
-        feature_comm = global_comm
-        embedding_wholememory_type = 'distributed'
-        embedding_wholememory_location = 'cpu'
-        cache_policy = wgth.create_builtin_cache_policy(
-            "none", # cache type
-            embedding_wholememory_type,
-            embedding_wholememory_location,
-            "readonly", # access type
-            0.0, # cache ratio
-        )
-        metadata_file = os.path.join(os.path.dirname(part_config_path),
-                                     'wholegraph/metadata.json')
-        with open(metadata_file, encoding="utf8") as f:
-            wg_metadata = json.load(f)
-        data_shape = wg_metadata[type_name + '/' + name]['shape']
-        feat_wm_embedding = wgth.create_embedding(
-            feature_comm,
-            embedding_wholememory_type,
-            embedding_wholememory_location,
-            getattr(th, wg_metadata[type_name + '/' + name]['dtype'].split('.')[1]),
-            [data_shape[0],1] if len(data_shape) == 1 else data_shape,
-            optimizer=None,
-            cache_policy=cache_policy,
-        )
-        feat_path = os.path.join(os.path.dirname(part_config_path), 'wholegraph', \
-                                                 type_name + '~' + name)
-        feat_wm_embedding.get_embedding_tensor().from_file_prefix(feat_path,
-                                                                       part_count=num_parts)
-        return feat_wm_embedding
 
     def has_node_feats(self, ntype):
         """ Test if the specified node type has features.
@@ -514,7 +469,7 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
         different feature names.
     decoder_edge_feat: str or dict of list of str
         Edge features used by decoder
-    
+
     Examples
     ----------
 
@@ -525,7 +480,7 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
         ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
                                         train_etypes=[('n1', 'e1', 'n2')], label_field='label',
                                         node_feat_field='node_feat', edge_feat_field='edge_feat')
-        ep_dataloader = GSgnnEdgeDataLoader(ep_data, target_idx={"e1":[0]}, 
+        ep_dataloader = GSgnnEdgeDataLoader(ep_data, target_idx={"e1":[0]},
                                             fanout=[15, 10], batch_size=128)
     """
     def __init__(self, graph_name, part_config, train_etypes, eval_etypes=None,
@@ -710,7 +665,7 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
         The node types that contains text features.
     lm_feat_etypes : list of tuples
         The edge types that contains text features.
-        
+
     Examples
     ----------
 
@@ -721,7 +676,7 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
         ep_data = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
                                         eval_etypes=[('n1', 'e1', 'n2')], label_field='label',
                                         node_feat_field='node_feat', edge_feat_field='edge_feat')
-        ep_dataloader = GSgnnEdgeDataLoader(ep_data, target_idx={"e1":[0]}, 
+        ep_dataloader = GSgnnEdgeDataLoader(ep_data, target_idx={"e1":[0]},
                                             fanout=[15, 10], batch_size=128)
     """
     def __init__(self, graph_name, part_config, eval_etypes,
@@ -911,7 +866,7 @@ class GSgnnNodeTrainData(GSgnnNodeData):
         The node types that contains text features.
     lm_feat_etypes : list of tuples
         The edge types that contains text features.
-    
+
     Examples
     ----------
 
@@ -923,7 +878,7 @@ class GSgnnNodeTrainData(GSgnnNodeData):
         np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
                                         train_ntypes=['n1'], label_field='label',
                                         node_feat_field='feat')
-        np_dataloader = GSgnnNodeDataLoader(np_data, target_idx={'n1':[0]}, 
+        np_dataloader = GSgnnNodeDataLoader(np_data, target_idx={'n1':[0]},
                                             fanout=[15, 10], batch_size=128)
     """
     def __init__(self, graph_name, part_config, train_ntypes, eval_ntypes=None,
@@ -1066,19 +1021,19 @@ class GSgnnNodeInferData(GSgnnNodeData):
         The node types that contains text features.
     lm_feat_etypes : list of tuples
         The edge types that contains text features.
-    
+
     Examples
     ----------
-    
+
     .. code:: python
 
         from graphstorm.dataloading import GSgnnNodeInferData
-        from graphstorm.dataloading import 
+        from graphstorm.dataloading import
 
         np_data = GSgnnNodeInferData(graph_name='dummy', part_config=part_config,
                                         eval_ntypes=['n1'], label_field='label',
                                         node_feat_field='feat')
-        np_dataloader = GSgnnNodeDataLoader(np_data, target_idx={'n1':[0]}, 
+        np_dataloader = GSgnnNodeDataLoader(np_data, target_idx={'n1':[0]},
                                             fanout=[15, 10], batch_size=128)
     """
     def __init__(self, graph_name, part_config, eval_ntypes,

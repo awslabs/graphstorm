@@ -69,26 +69,22 @@ def run_job(input_args, image, unknownargs):
 
     prefix = f"gs-infer-{graph_name}"
 
+    params = {
+        "graph-data-s3": graph_data_s3,
+        "graph-name": graph_name,
+        "infer-yaml-s3": infer_yaml_s3,
+        "model-artifact-s3": model_artifact_s3,
+        "output-chunk-size": output_chunk_size,
+        "output-emb-s3": output_emb_s3_path,
+        "task-type": task_type,
+        "log-level": log_level
+    }
     # In Link Prediction, no prediction outputs
-    if task_type == "link_prediction" or task_type == "compute_emb":
-        params = {"task-type": task_type,
-                  "graph-name": graph_name,
-                  "graph-data-s3": graph_data_s3,
-                  "infer-yaml-s3": infer_yaml_s3,
-                  "output-emb-s3": output_emb_s3_path,
-                  "model-artifact-s3": model_artifact_s3,
-                  "output-chunk-size": output_chunk_size,
-                  "log-level": log_level}
-    else:
-        params = {"task-type": task_type,
-                  "graph-name": graph_name,
-                  "graph-data-s3": graph_data_s3,
-                  "infer-yaml-s3": infer_yaml_s3,
-                  "output-emb-s3": output_emb_s3_path,
-                  "output-prediction-s3": output_predict_s3_path,
-                  "model-artifact-s3": model_artifact_s3,
-                  "output-chunk-size": output_chunk_size,
-                  "log-level": log_level}
+    if task_type not in ["link_prediction", "compute_emb"]:
+        params["output-prediction-s3"] = output_predict_s3_path
+    # If no raw mapping files are provided, remapping is skipped
+    if input_args.raw_node_mappings_s3 is not None:
+        params["raw-node-mappings-s3"] = input_args.raw_node_mappings_s3
     # We must handle cases like
     # --target-etype query,clicks,asin query,search,asin
     # --feat-name ntype0:feat0 ntype1:feat1
@@ -147,9 +143,6 @@ def get_inference_parser():
         help="PATH-TO graphstorm/sagemaker/run/infer_entry.py")
     inference_args.add_argument("--graph-name", type=str, help="Graph name",
         required=True)
-    inference_args.add_argument("--graph-data-s3", type=str,
-        help="S3 location of input inference graph",
-        required=True)
     inference_args.add_argument("--task-type", type=str,
         help=f"Task type in {SUPPORTED_INFER_TASKS}",
         required=True)
@@ -158,8 +151,12 @@ def get_inference_parser():
              "Do not store it with partitioned graph",
              required=True)
     inference_args.add_argument("--model-artifact-s3", type=str,
-        help="S3 bucket to load the saved model artifacts",
+        help="S3 location to load the saved model artifacts from",
         required=True)
+    inference_args.add_argument("--raw-node-mappings-s3", type=str,
+        help="S3 location to load the node id mappings from",
+        default=None,
+        required=False)
     inference_args.add_argument("--output-emb-s3", type=str,
         help="S3 location to store GraphStorm generated node embeddings.",
         default=None)
