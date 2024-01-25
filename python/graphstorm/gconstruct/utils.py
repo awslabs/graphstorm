@@ -938,9 +938,10 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
         part_method = "None" if num_partitions == 1 else "metis"
 
     balance_ntypes = {}
-    for ntype in g.ntypes:
-        if "train_mask" in g.nodes[ntype].data:
-            balance_ntypes[ntype] = g.nodes[ntype].data["train_mask"]
+    for ntype in node_data:
+        if "train_mask" in node_data[ntype]:
+            balance_ntypes[ntype] = th.tensor(node_data[ntype]["train_mask"])
+            logging.debug("Balance training nodes on node %s.", ntype)
     mapping = \
         dgl.distributed.partition_graph(g, graph_name, num_partitions, output_dir,
                                         part_method=part_method,
