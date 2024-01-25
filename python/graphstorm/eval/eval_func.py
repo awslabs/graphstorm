@@ -171,7 +171,7 @@ def labels_to_one_hot(labels, total_labels):
 
     Returns
     -------
-    One-hot encoding of the labels in the format of N * total_labels.
+    np.array: One-hot encoding of the labels in the format of N * total_labels.
     '''
 
     if len(labels.shape)>1:
