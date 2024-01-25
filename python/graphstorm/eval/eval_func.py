@@ -316,7 +316,7 @@ def compute_per_class_f1_score(y_preds, y_targets):
 
         Returns
         -------
-        The f1 score.
+        float: The f1 score.
     """
     y_true = y_targets.cpu().numpy()
     y_pred = y_preds.cpu().numpy()
