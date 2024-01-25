@@ -377,7 +377,7 @@ def compute_roc_auc(y_preds, y_targets, weights=None):
         weights: List of weights with the same number of classes in labels.
         Returns
         -------
-        The roc_auc score.
+        float: The roc_auc score.
     """
     y_true = y_targets.cpu().numpy()
     y_pred = y_preds.cpu().numpy()
