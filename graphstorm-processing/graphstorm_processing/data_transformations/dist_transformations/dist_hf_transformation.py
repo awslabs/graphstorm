@@ -14,26 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import logging
-from typing import Optional, Sequence
-import uuid
-
-from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql import functions as F
-from pyspark.sql.types import MapType, ArrayType, IntegerType, StringType, StructType, StructField
-from pyspark.ml.stat import Summarizer
-from pyspark.ml import Pipeline
-from pyspark.ml.functions import array_to_vector, vector_to_array
-from pyspark.sql.functions import pandas_udf, PandasUDFType
+from pyspark.sql import DataFrame
+from pyspark.sql.types import ArrayType, IntegerType, StructType, StructField
 from pyspark.sql.functions import udf
 
 import numpy as np
-import pandas as pd
 from transformers import AutoTokenizer
 
-from .base_dist_transformation import DistributedTransformation
-from ..spark_utils import rename_multiple_cols
 from graphstorm_processing.constants import HUGGINGFACE_TOKENIZE
+from .base_dist_transformation import DistributedTransformation
 
 
 def apply_norm(
@@ -56,7 +45,7 @@ def apply_norm(
 
     if bert_norm == HUGGINGFACE_TOKENIZE:
         # Initialize the tokenizer
-        tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+        tokenizer = AutoTokenizer.from_pretrained(bert_model)
 
         # Define the schema of your return type
         schema = StructType(

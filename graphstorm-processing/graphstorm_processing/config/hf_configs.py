@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 from typing import Mapping
-import numbers
 
 from .feature_config_base import FeatureConfig
 

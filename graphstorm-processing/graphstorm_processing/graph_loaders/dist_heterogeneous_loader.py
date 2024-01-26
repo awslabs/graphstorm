@@ -961,6 +961,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 nfeat_size = 1 if isinstance(feat_val, (int, float)) else len(feat_val)
                 ntype_feat_sizes.update({feat_name: nfeat_size})
 
+                # pylint: disable=cell-var-from-loop
                 self.timers[f"{transformer.get_transformation_name()}-{node_type}-{feat_name}"] = (
                     perf_counter() - node_transformation_start
                 )
@@ -1364,9 +1365,10 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 edge_feature_metadata_dicts[feat_name] = edge_feature_metadata_dict
 
                 feat_val = single_feature_df.take(1)[0].asDict().get(feat_name, None)
-                efeat_size = 1 if isinstance(feat_val, (int, float)) else len(feat_val)
+                efeat_size = 1 if isinstance(feat_val, numbers.Number) else len(feat_val)
                 etype_feat_sizes.update({feat_name: efeat_size})
 
+                # pylint: disable=cell-var-from-loop
                 self.timers[f"{transformer.get_transformation_name()}-{edge_type}-{feat_name}"] = (
                     perf_counter() - edge_feature_start
                 )
