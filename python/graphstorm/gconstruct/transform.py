@@ -184,10 +184,13 @@ def _get_output_dtype(dtype_str):
         return np.float16
     elif dtype_str == 'float32':
         return np.float32
+    elif dtype_str == 'float64':
+        return np.float64
     elif dtype_str == 'int8':
         return np.int8 # for train, val, test mask
     else:
-        assert False, f"Unknown dtype {dtype_str}, only support int8, float16 and float32"
+        assert False, f"Unknown dtype {dtype_str}, only support int8, float16, float32, " + \
+                       "and float64."
 
 class FeatTransform:
     """ The base class for feature transformation.
