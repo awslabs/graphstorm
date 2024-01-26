@@ -42,10 +42,10 @@ gsf:
       movie: true
       user: true
     num_classes:
-      movie: 6
-      user: 6
+      movie: 5
+      user: 5
     multilabel_weights:
-      user: 0.1,0.2,0.3,0.4,0.5,0.0
+      user: 0.1,0.2,0.3,0.4,0.5
     imbalance_class_weights:
-      movie: 0.1,0.2,0.3,0.4,0.5,0.6
+      movie: 0.1,0.2,0.3,0.4,0.5
     eval_target_ntype: movie

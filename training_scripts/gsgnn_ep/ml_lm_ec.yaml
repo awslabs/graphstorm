@@ -48,6 +48,6 @@ gsf:
       - "user,rating,movie"
     label_field: "rate"
     multilabel: false
-    num_classes: 6
+    num_classes: 5
     num_decoder_basis: 32
     exclude_training_targets: false
