@@ -422,7 +422,7 @@ class WholeGraphDistTensor:
             return
         assert self.optimizer is None and self._module is None, \
             "Make sure WholeGraphDistTensor attaches to only one/unique optimizer."
-        # When attach a new optimizer, we have to purge the old _tensor/_module/_optimizer.
+        # When attach an optimizer, we need to reset _tensor/_module/_optimizer.
         self._reset_storage()
         # WG sparse optimizer has to be created before WG distTensor.
         # This is because WG embedding depends on WG sparse optimizer to track/trace
@@ -487,7 +487,7 @@ class WholeGraphDistTensor:
         if wg_optimizer is not None:
             assert self._use_wg_optimizer, \
                 "Please create WholeGraphDistTensor tensor with use_wg_optimizer=True."
-            # attach to a new optimizer
+            # attach to an optimizer
             self.attach_wg_optimizer(wg_optimizer)
         else:
             if self.use_wg_optimizer:
