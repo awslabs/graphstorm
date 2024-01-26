@@ -1106,17 +1106,25 @@ def test_partition_graph(num_parts):
     assert np.all(dst[src >= 50].numpy() >= 50)
 
     train_mask1 = np.zeros((num_nodes['node1'],), dtype=np.int8)
-    train_mask1[0:num_nodes['node1']//2] = 1
+    train_mask1[0:num_nodes['node1']//3] = 1
+    test_mask1 = np.zeros((num_nodes['node1'],), dtype=np.int8)
+    test_mask1[num_nodes['node1']//3:num_nodes['node1']//2] = 1
+
     train_mask2 = np.zeros((num_nodes['node2'],), dtype=np.int8)
-    train_mask2[0:num_nodes['node2']//2] = 1
+    train_mask2[0:num_nodes['node2']//3] = 1
+    test_mask2 = np.zeros((num_nodes['node2'],), dtype=np.int8)
+    test_mask2[num_nodes['node2']//3:num_nodes['node2']//2] = 1
+
     node_data = {
             'node1': {
                 'feat': np.random.uniform(size=(num_nodes['node1'], 10)),
-                'train_mask': train_mask1
+                'train_mask': train_mask1,
+                'test_mask': test_mask1,
             },
             'node2': {
                 'feat': np.random.uniform(size=(num_nodes['node2'],)),
-                'train_mask': train_mask2
+                'train_mask': train_mask2,
+                'test_mask': test_mask2,
             }
     }
     edge_data = {('node1', 'rel1', 'node2'): {'feat': np.random.uniform(size=(g.number_of_edges('rel1'), 10))}}
@@ -1128,10 +1136,11 @@ def test_partition_graph(num_parts):
         for i in range(num_parts):
             part_dir = os.path.join(tmpdirname, "part" + str(i))
             node_data1 = dgl.data.utils.load_tensors(os.path.join(part_dir, 'node_feat.dgl'))
-            train_mask1 = node_data1['node1/train_mask']
-            train_mask2 = node_data1['node2/train_mask']
-            assert th.sum(train_mask1) > 0
-            assert th.sum(train_mask2) > 0
+            assert th.sum(node_data1['node1/train_mask']) > 0
+            assert th.sum(node_data1['node2/train_mask']) > 0
+            print(th.sum(node_data1['node1/test_mask']), th.sum(node_data1['node2/test_mask']))
+            assert th.sum(node_data1['node1/test_mask']) > 0
+            assert th.sum(node_data1['node2/test_mask']) > 0
 
     # Partition the graph with our own partition_graph.
     dgl.random.seed(0)
