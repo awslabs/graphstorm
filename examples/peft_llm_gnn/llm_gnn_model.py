@@ -139,10 +139,15 @@ class LLMGraphModel(gsmodel.GSgnnNodeModelBase):
         graph_tokens = self.encode_graph(blocks, node_feats)
 
         input_shape = input_ids.size()
+        # make sure input_ids are batch_size X seq_len
         input_ids = input_ids.view(-1, input_shape[-1])
         word_embeddings = self.llm.get_input_embeddings()
+        # assuming graph_tokens has a shape of [batch_size, embedding_dim],
+        # input_ids has a shape of [batch_size, seq_len, embedding_dim]
+        # only one graph token is inserted ahead of input words 
         inputs_embeds = torch.cat([graph_tokens.unsqueeze(1), word_embeddings(input_ids)], dim=1)
         
+        # enable attention computation on the inserted graph token
         attention_mask = torch.cat([torch.ones((input_shape[0],1), device=self.llm.device), attention_mask], dim=1)
         model_output = self.llm(inputs_embeds=inputs_embeds, attention_mask=attention_mask)
         # We use the last token in order to do the classification, as other causal models
