@@ -92,7 +92,7 @@ def apply_norm(
     return scaled_df
 
 
-class DistBertTransformation(DistributedTransformation):
+class DistHFTransformation(DistributedTransformation):
     """Transformation to apply various forms of bert normalization to a text input.
 
     Parameters
@@ -120,4 +120,4 @@ class DistBertTransformation(DistributedTransformation):
 
     @staticmethod
     def get_transformation_name() -> str:
-        return "DistBertTransformation"
+        return "DistHFTransformation"

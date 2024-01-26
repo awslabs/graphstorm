@@ -19,7 +19,7 @@ import numbers
 from .feature_config_base import FeatureConfig
 
 
-class BertConfig(FeatureConfig):
+class HFConfig(FeatureConfig):
     """Feature configuration for single-column numerical features.
 
     Supported kwargs

@@ -26,7 +26,7 @@ from .dist_transformations import (
     DistBucketNumericalTransformation,
     DistCategoryTransformation,
     DistMultiCategoryTransformation,
-    DistBertTransformation,
+    DistHFTransformation,
 )
 
 
@@ -59,7 +59,7 @@ class DistFeatureTransformer(object):
         elif feat_type == "multi-categorical":
             self.transformation = DistMultiCategoryTransformation(**default_kwargs, **args_dict)
         elif feat_type == "huggingface":
-            self.transformation = DistBertTransformation(**default_kwargs, **args_dict)
+            self.transformation = DistHFTransformation(**default_kwargs, **args_dict)
         else:
             raise NotImplementedError(
                 f"Feature {feat_name} has type: {feat_type} that is not supported"

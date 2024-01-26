@@ -27,7 +27,7 @@ from .numerical_configs import (
     NumericalFeatureConfig,
 )
 from .categorical_configs import MultiCategoricalFeatureConfig
-from .bert_configs import BertConfig
+from .hf_configs import HFConfig
 from .data_config_base import DataStorageConfig
 
 
@@ -69,7 +69,7 @@ def parse_feat_config(feature_dict: Dict) -> FeatureConfig:
     elif transformation_name == "multi-categorical":
         return MultiCategoricalFeatureConfig(feature_dict)
     elif transformation_name == "huggingface":
-        return BertConfig(feature_dict)
+        return HFConfig(feature_dict)
     else:
         raise RuntimeError(f"Unknown transformation name: '{transformation_name}'")
 
