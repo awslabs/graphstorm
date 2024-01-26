@@ -200,6 +200,24 @@ with open(os.path.join(out_dir, "node_label_stats.json"), 'r') as f:
     assert "label" in node_label_stats["node1"]
 
 with open(os.path.join(out_dir, "edge_label_stats.json"), 'r') as f:
-    edge_label_stats = json.load(f)
-    assert ("node1,relation1,node2") in edge_label_stats
-    assert "label" in edge_label_stats[("node1,relation1,node2")]
+  edge_label_stats = json.load(f)
+  assert ("node1,relation1,node2") in edge_label_stats
+  assert "label" in edge_label_stats[("node1,relation1,node2")]
+
+# Test hard negatives
+hard_neg = g.edges[('node1', 'relation2', 'node1')].data["hard_neg"]
+src_ids, dst_ids = g.edges(etype=("node1", "relation2", "node1"))
+ground_truth = th.cat((src_ids.reshape(-1,1), dst_ids.reshape(-1,1)), dim=1)
+assert th.sum(hard_neg-ground_truth) == 0
+
+hard_neg = g.edges[("node2", "relation3", "node3")].data["hard_neg"]
+_, dst_ids = g.edges(etype=("node2", "relation3", "node3"))
+ground_truth = th.cat((dst_ids.reshape(-1,1), dst_ids.reshape(-1,1)), dim=1)
+assert th.sum(hard_neg-ground_truth) == 0
+
+hard_neg = g.edges[("node2", "relation3", "node3")].data["hard_neg2"]
+_, dst_ids = g.edges(etype=("node2", "relation3", "node3"))
+ground_truth = th.cat([dst_ids.reshape(-1,1), dst_ids.reshape(-1,1), th.full((dst_ids.shape[0], 2), -1, dtype=dst_ids.dtype)], dim=1)
+ground_truth[0][2] = dst_ids[0]
+ground_truth[0][3] = dst_ids[0]
+assert th.sum(hard_neg-ground_truth) == 0

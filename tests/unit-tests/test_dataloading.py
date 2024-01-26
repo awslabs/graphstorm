@@ -50,14 +50,19 @@ from graphstorm.dataloading import (GSgnnLinkPredictionDataLoader,
                                     FastGSgnnLPJointNegDataLoader,
                                     FastGSgnnLPLocalUniformNegDataLoader,
                                     FastGSgnnLPLocalJointNegDataLoader)
-from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
-from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
+from graphstorm.dataloading import (GSgnnLinkPredictionTestDataLoader,
+                                    GSgnnLinkPredictionJointTestDataLoader,
+                                    GSgnnLinkPredictionPredefinedTestDataLoader)
 from graphstorm.dataloading import DistillDataloaderGenerator, DistillDataManager
 from graphstorm.dataloading import DistributedFileSampler
-from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
-from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
+from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
+                                    BUILTIN_LP_JOINT_NEG_SAMPLER,
+                                    BUILTIN_LP_FIXED_NEG_SAMPLER)
 
 from graphstorm.dataloading.sampler import InbatchJointUniform
+from graphstorm.dataloading.sampler import GlobalUniform
+from graphstorm.dataloading.sampler import (GSHardEdgeDstNegativeSampler,
+                                             GSFixedEdgeDstNegativeSampler)
 
 from graphstorm.dataloading.dataset import (prepare_batch_input,
                                             prepare_batch_edge_input)
@@ -642,6 +647,8 @@ def test_GSgnnLinkPredictionTestDataLoader(batch_size, num_negative_edges):
                 assert neg_src.shape[1] == num_negative_edges
                 assert th.all(neg_src < g.number_of_nodes(canonical_etype[0]))
 
+        # The target idx size for ("n0", "r1", "n1") is 2
+        # The target idx size for ("n0", "r0", "n1") is 50
         fixed_test_size = 10
         dataloader = GSgnnLinkPredictionTestDataLoader(
             lp_data,
@@ -649,16 +656,80 @@ def test_GSgnnLinkPredictionTestDataLoader(batch_size, num_negative_edges):
             batch_size=batch_size,
             num_negative_edges=num_negative_edges,fixed_test_size=fixed_test_size)
         num_samples = 0
+        num_pos_pairs = 0
         for pos_neg_tuple, sample_type in dataloader:
             num_samples += 1
             assert isinstance(pos_neg_tuple, dict)
+            assert len(pos_src) > 0
             assert len(pos_neg_tuple) == 1
             for _, pos_neg in pos_neg_tuple.items():
                 pos_src, _, pos_dst, _ = pos_neg
                 assert len(pos_src) <= batch_size
+                num_pos_pairs += len(pos_src)
 
-        assert num_samples ==  -(-fixed_test_size // batch_size) * 2
+        expected_samples = 0
+        expected_pos_pairs = 0
+        for _, t_idx in lp_data.train_idxs.items():
+            expected_idx_len = fixed_test_size if fixed_test_size < len(t_idx) else len(t_idx)
+            expected_samples += -(-expected_idx_len // batch_size)
+            expected_pos_pairs += expected_idx_len
 
+        assert num_samples == expected_samples
+        assert num_pos_pairs == expected_pos_pairs
+
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()
+
+@pytest.mark.parametrize("batch_size", [1, 10, 128])
+def test_GSgnnLinkPredictionPredefinedTestDataLoader(batch_size):
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    test_etypes = [("n0", "r1", "n1"), ("n0", "r0", "n1")]
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        lp_data = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
+                                     eval_etypes=test_etypes)
+        g = lp_data.g
+        g.edges[("n0", "r1", "n1")].data["neg"] = th.randint(g.num_nodes("n1"),
+                                                             (g.num_edges(("n0", "r1", "n1")), 10))
+        g.edges[("n0", "r0", "n1")].data["neg"] = th.randint(g.num_nodes("n1"),
+                                                             (g.num_edges(("n0", "r0", "n1")), 10))
+
+        dataloader = GSgnnLinkPredictionPredefinedTestDataLoader(
+            lp_data,
+            target_idx=lp_data.infer_idxs, # use train edges as val or test edges
+            batch_size=batch_size,
+            fixed_edge_dst_negative_field="neg")
+
+        total_edges = {etype: len(lp_data.infer_idxs[etype]) for etype in test_etypes}
+        num_pos_edges = {etype: 0 for etype in test_etypes}
+        for pos_neg_tuple, sample_type in dataloader:
+            assert sample_type == BUILTIN_LP_FIXED_NEG_SAMPLER
+            assert isinstance(pos_neg_tuple, dict)
+            assert len(pos_neg_tuple) == 1
+            for canonical_etype, pos_neg in pos_neg_tuple.items():
+                assert len(pos_neg) == 4
+                pos_src, _, pos_dst, neg_dst = pos_neg
+                assert pos_src.shape == pos_dst.shape
+                assert pos_src.shape[0] == batch_size \
+                    if num_pos_edges[canonical_etype] + batch_size < total_edges[canonical_etype] \
+                    else total_edges[canonical_etype] - num_pos_edges[canonical_etype]
+                eid = lp_data.infer_idxs[canonical_etype][num_pos_edges[canonical_etype]: \
+                    num_pos_edges[canonical_etype]+batch_size] \
+                    if num_pos_edges[canonical_etype]+batch_size < total_edges[canonical_etype] \
+                    else lp_data.infer_idxs[canonical_etype] \
+                        [num_pos_edges[canonical_etype]:]
+                src, dst = g.find_edges(eid, etype=canonical_etype)
+                assert_equal(pos_src.numpy(), src.numpy())
+                assert_equal(pos_dst.numpy(), dst.numpy())
+                assert len(neg_dst.shape) == 2
+                assert neg_dst.shape[1] == 10
+                assert_equal(neg_dst.numpy(), g.edges[canonical_etype].data["neg"][eid].numpy())
+
+                num_pos_edges[canonical_etype] += batch_size
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
@@ -1331,6 +1402,441 @@ def test_lp_dataloader_len(batch_size):
                                                device='cuda:0', train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
+def _create_hard_neg_graph(num_nodes, num_negs):
+    etype0 = ("n0", "r0", "n1")
+    etype1 = ("n0", "r0", "n2")
+    etype2 = ("n0", "r0", "n3")
+    src = th.arange(num_nodes)
+    dst = th.arange(num_nodes)
+    # each edge has 4 pre-defined hard negatives
+    hard0 = th.randint(num_nodes, (num_nodes, 4))
+    # each edge has 10 pre-defined hard negatives
+    hard1 = th.randint(num_nodes, (num_nodes, num_negs))
+    # each edge has 20 pre-defined hard negatives
+    hard2 = th.randint(num_nodes, (num_nodes, num_negs*2)) # more hard negatives than num neg
+    g = dgl.heterograph({
+        etype0: (src, dst),
+        etype1: (src, dst),
+        etype2: (src, dst),
+    })
+    g.edges[etype0].data["hard_negative"] = hard0
+    g.edges[etype1].data["hard_negative"] = hard1
+    g.edges[etype2].data["hard_negative"] = hard2
+
+    return etype0, etype1, etype2, hard0, hard1, hard2, src, dst, g
+
+def test_hard_edge_dst_negative_sample_generate_complex_case():
+    # test GSHardEdgeDstNegativeSampler._generate with slow track when not all the pos edges have enough hard negatives defined
+    num_nodes = 1000
+    # test GSHardEdgeDstNegativeSampler._generate when all some pos edges do not have enough hard negatives defined
+    num_negs = 10
+    etype0, etype1, etype2, hard0, hard1, hard2, src, _, g = _create_hard_neg_graph(num_nodes, num_negs)
+
+    # not enough predefined hard negatives
+    # for hard0[0] and hard0[1]
+    hard0[0] = th.randperm(num_nodes)[:4]
+    hard0[0][-1] = -1
+    hard0[0][-2] = -1
+    hard0[1][-1] = -1
+
+    # not enough predefined hard negatives
+    # for hard0[0] and hard0[1]
+    hard1[0] = th.randperm(num_nodes)[:num_negs]
+    hard1[1] = th.randperm(num_nodes)[:num_negs]
+    hard1[0][-1] = -1
+    hard1[0][-2] = -1
+    hard1[1][-1] = -1
+
+    # not enough predefined hard negatives
+    # for hard0[0] and hard0[1]
+    hard2[0] = th.randperm(num_nodes)[:num_negs*2]
+    hard2[1] = th.randperm(num_nodes)[:num_negs*2]
+    hard2[0][-1] = -1
+    hard2[0][-2] = -1
+    hard2[1][-1] = -1
+
+    num_edges = 10
+    eids = th.arange(num_edges)
+    def test_missing_hard_negs(neg_dst, num_hard_neg, hard_neg_data):
+        # hardx[0][-1] and hardx[0][-2] is -1,
+        # which means hardx[0] does not enough predefined negatives
+        # Random sample will be applied to -1s.
+        hard_neg_dst = neg_dst[0][:num_hard_neg]
+        hard_neg_rand_0 = hard_neg_dst[-1]
+        hard_neg_rand_1 = hard_neg_dst[-2]
+        hard_neg_dst = set(hard_neg_dst[:-2].tolist())
+        rand_neg_dst = neg_dst[0][num_hard_neg:]
+        rand_neg_dst = set(rand_neg_dst.tolist())
+        hard_neg_set = set(hard_neg_data[0].tolist())
+        assert hard_neg_dst.issubset(hard_neg_set)
+        assert len(rand_neg_dst) == 0  or \
+            rand_neg_dst.issubset(hard_neg_set) is False
+
+        rand_0_check = hard_neg_rand_0 not in hard_neg_set
+        rand_1_check = hard_neg_rand_1 not in hard_neg_set
+
+        # hardx[1][-1] is -1,
+        # which means hardx[0] does not enough predefined negatives
+        # Random sample will be applied to -1s.
+        hard_neg_dst = neg_dst[1][:num_hard_neg]
+        hard_neg_rand_2 = hard_neg_dst[-1]
+        hard_neg_dst = set(hard_neg_dst[:-1].tolist())
+        rand_neg_dst = neg_dst[1][num_hard_neg:]
+        rand_neg_dst = set(rand_neg_dst.tolist())
+        hard_neg_set = set(hard_neg_data[1].tolist())
+        assert hard_neg_dst.issubset(hard_neg_set)
+        assert len(rand_neg_dst) == 0  or \
+            rand_neg_dst.issubset(hard_neg_set) is False
+
+        rand_2_check = hard_neg_rand_2 not in hard_neg_set
+        # The chance is very to to have rand_0_check,
+        # rand_1_check and rand_2_check be true at the same time
+        # The change is (4/1000)^3
+        assert rand_0_check or rand_1_check or rand_2_check
+
+    def check_less_hard_negs(hard_neg_sampler, target_etype, hard_neg_data,
+                             num_hard_neg, check_missing_hard_neg):
+        neg_src, neg_dst = hard_neg_sampler._generate(g, eids, target_etype)
+        assert len(neg_src) == num_edges * num_negs
+        assert len(neg_dst) == num_edges * num_negs
+        assert_equal(th.repeat_interleave(src[:10], num_negs, 0).numpy(), neg_src.numpy())
+        neg_dst = neg_dst.reshape(num_edges, num_negs)
+
+        if check_missing_hard_neg:
+            test_missing_hard_negs(neg_dst, num_hard_neg, hard_neg_data)
+
+        start = 2 if check_missing_hard_neg else 0
+        for i in range(start, num_edges):
+            hard_neg_dst = neg_dst[i][:num_hard_neg]
+            hard_neg_dst = set(hard_neg_dst.tolist())
+            rand_neg_dst = neg_dst[i][num_hard_neg:]
+            rand_neg_dst = set(rand_neg_dst.tolist())
+            hard_neg_set = set(hard_neg_data[i].tolist())
+            assert hard_neg_dst.issubset(hard_neg_set)
+            assert rand_neg_dst.issubset(hard_neg_set) is False
+
+    # case 1:
+    # 1. hard_negative field is string
+    # 2. num_hard_neg is int
+    # 3. num_negs > number of hard negatives required (2)
+    # 4. num_negs > total number of hard negatives
+    # provided (hard0 has 4 negatives for each node)
+    # 5. Each edge has enough hard negative even though some edges do not have enough (10) predefined negatives
+    # 6. slow track (-1 exists in hard neg feature)
+    #
+    # expected behavior:
+    #   1. Only 2 hard negatives are returned
+    #   2. Others will be random negatives
+    sampler = GlobalUniform(num_negs)
+    hard_sampler = GSHardEdgeDstNegativeSampler(num_negs, "hard_negative", sampler, num_hard_negs=2)
+    check_less_hard_negs(hard_sampler, etype0, hard0, 2, check_missing_hard_neg=False)
+
+    # Case 2:
+    # 1. hard_negative field is string
+    # 2. num_hard_neg is int
+    # 3. num_negs > number of hard negatives required (2)
+    # 4. num_negs == total number of hard negatives
+    #    provided (hard1 has 10 negatives for each node)
+    # 5. Each edge has enough hard negative even though some edges do not have enough (8) predefined negatives
+    # 6. slow track (-1 exists in hard neg feature)
+    #
+    # expected behavior:
+    #   1. Only 2 hard negatives are returned
+    #   2. Others will be random negatives
+    check_less_hard_negs(hard_sampler, etype1, hard1, 2, check_missing_hard_neg=False)
+
+    # Case 3:
+    # 1. hard_negative field is string
+    # 2. num_hard_neg is int
+    # 3. num_negs > number of hard negatives required (8)
+    # 4. number of hard negatives required (8) > number of hard negatives
+    #    provided (hard0 has only 4 negatives for each node)
+    # 5.slow track (-1 exists in hard neg feature)
+    #
+    # expected behavior:
+    #   1. Only 4 hard negatives are returned
+    #   2. Others will be random negatives
+    #   3. eid 0 will have 2 more random negatives
+    #      and eid 1 will have 1 more random negatives
+    hard_sampler = GSHardEdgeDstNegativeSampler(num_negs, "hard_negative", sampler, num_hard_negs=8)
+    check_less_hard_negs(hard_sampler, etype0, hard0, 4, check_missing_hard_neg=True)
+
+    # Case 4:
+    # 1. hard_negative field is string
+    # 2. num_hard_neg is int
+    # 3. num_negs == number of hard negatives required (10)
+    # 4. number of hard negatives required (8) == number of hard negatives
+    #    provided (hard1 has 10 negatives for each node)
+    # 5.slow track (-1 exists in hard neg feature)
+    #
+    # expected behavior:
+    #   1. Equal negatives
+    def check_enough_hard_negs(hard_neg_sampler, target_etype, hard_neg_data):
+        neg_src, neg_dst = hard_neg_sampler._generate(g, eids, target_etype)
+        assert len(neg_src) == num_edges * num_negs
+        assert len(neg_dst) == num_edges * num_negs
+        assert_equal(th.repeat_interleave(src[:10], num_negs, 0).numpy(), neg_src.numpy())
+        neg_dst = neg_dst.reshape(num_edges, num_negs)
+
+        test_missing_hard_negs(neg_dst, num_negs, hard_neg_data)
+
+        for i in range(2, num_edges):
+            hard_neg_dst = set(neg_dst[i].tolist())
+            hard_neg_set = set(hard_neg_data[i].tolist())
+            assert hard_neg_dst == hard_neg_set
+
+    hard_sampler = GSHardEdgeDstNegativeSampler(num_negs, "hard_negative", sampler, num_hard_negs=num_negs)
+    check_enough_hard_negs(hard_sampler, etype1, hard1)
+
+    # Case 5:
+    # 1. hard_negative field is string
+    # 2. num_hard_neg is int
+    # 3. num_negs == number of hard negatives required (10)
+    # 4. number of hard negatives required (8) < number of hard negatives
+    #    provided (hard2 has 20 negatives for each node)
+    # 5.slow track (-1 exists in hard neg feature)
+    #
+    # expected behavior:
+    #   1. hard negatives will be a subset of hard2
+    def check_more_hard_negs(hard_neg_sampler, target_etype, hard_neg_data):
+        neg_src, neg_dst = hard_neg_sampler._generate(g, eids, target_etype)
+        assert len(neg_src) == num_edges * num_negs
+        assert len(neg_dst) == num_edges * num_negs
+        assert_equal(th.repeat_interleave(src[:10], num_negs, 0).numpy(), neg_src.numpy())
+        neg_dst = neg_dst.reshape(num_edges, num_negs)
+        for i in range(num_edges):
+            hard_neg_dst = set(neg_dst[i].tolist())
+            hard_neg_set = set(hard_neg_data[i].tolist())
+            assert hard_neg_dst.issubset(hard_neg_set)
+    check_more_hard_negs(hard_sampler, etype2, hard2)
+
+def test_hard_edge_dst_negative_sample_generate():
+    # test GSHardEdgeDstNegativeSampler._generate with fast track when all pos edges have enough hard negatives defined
+    num_nodes = 100
+    num_negs = 10
+    etype0, etype1, etype2, hard0, hard1, hard2, src, _, g = _create_hard_neg_graph(num_nodes, num_negs)
+
+    num_edges = 10
+    eids = th.arange(num_edges)
+    def check_less_hard_negs(hard_neg_sampler, target_etype, hard_neg_data, num_hard_neg):
+        neg_src, neg_dst = hard_neg_sampler._generate(g, eids, target_etype)
+        assert len(neg_src) == num_edges * num_negs
+        assert len(neg_dst) == num_edges * num_negs
+        assert_equal(th.repeat_interleave(src[:10], num_negs, 0).numpy(), neg_src.numpy())
+        neg_dst = neg_dst.reshape(num_edges, num_negs)
+        for i in range(num_edges):
+            hard_neg_dst = neg_dst[i][:num_hard_neg]
+            hard_neg_dst = set(hard_neg_dst.tolist())
+            rand_neg_dst = neg_dst[i][num_hard_neg:]
+            rand_neg_dst = set(rand_neg_dst.tolist())
+            hard_neg_set = set(hard_neg_data[i].tolist())
+            assert hard_neg_dst.issubset(hard_neg_set)
+            assert rand_neg_dst.issubset(hard_neg_set) is False
+
+    # case 1:
+    # 1. hard_negative field is string
+    # 2. num_hard_neg is int
+    # 3. num_negs > number of hard negatives required (2)
+    # 4. num_negs > total number of hard negatives
+    # provided (hard0 has 4 negatives for each node)
+    # 5. fast track
+    #
+    # expected behavior:
+    #   1. Only 2 hard negatives are returned
+    #   2. Others will be random negatives
+    sampler = GlobalUniform(num_negs)
+    hard_sampler = GSHardEdgeDstNegativeSampler(num_negs, "hard_negative", sampler, num_hard_negs=2)
+    check_less_hard_negs(hard_sampler, etype0, hard0, 2)
+
+    # Case 2:
+    # 1. hard_negative field is string
+    # 2. num_hard_neg is int
+    # 3. num_negs > number of hard negatives required (2)
+    # 4. num_negs == total number of hard negatives
+    #    provided (hard1 has 10 negatives for each node)
+    # 5. fast track
+    #
+    # expected behavior:
+    #   1. Only 2 hard negatives are returned
+    #   2. Others will be random negatives
+    check_less_hard_negs(hard_sampler, etype1, hard1, 2)
+
+    # Case 3:
+    # 1. hard_negative field is string
+    # 2. num_hard_neg is int
+    # 3. num_negs > number of hard negatives required (8)
+    # 4. number of hard negatives required (8) > number of hard negatives
+    #    provided (hard0 has only 4 negatives for each node)
+    # 5.fast track
+    #
+    # expected behavior:
+    #   1. Only 4 hard negatives are returned
+    #   2. Others will be random negatives
+    hard_sampler = GSHardEdgeDstNegativeSampler(num_negs, "hard_negative", sampler, num_hard_negs=8)
+    check_less_hard_negs(hard_sampler, etype0, hard0, 4)
+
+    # Case 4:
+    # 1. hard_negative field is string
+    # 2. num_hard_neg is int
+    # 3. num_negs == number of hard negatives required (10)
+    # 4. number of hard negatives required (10) == number of hard negatives
+    #    provided (hard1 has 10 negatives for each node)
+    # 5.fast track
+    #
+    # expected behavior:
+    #   1. Equal negatives
+    def check_enough_hard_negs(hard_neg_sampler, target_etype, hard_neg_data):
+        neg_src, neg_dst = hard_neg_sampler._generate(g, eids, target_etype)
+        assert len(neg_src) == num_edges * num_negs
+        assert len(neg_dst) == num_edges * num_negs
+        assert_equal(th.repeat_interleave(src[:10], num_negs, 0).numpy(), neg_src.numpy())
+        neg_dst = neg_dst.reshape(num_edges, num_negs)
+        for i in range(num_edges):
+            hard_neg_dst = set(neg_dst[i].tolist())
+            hard_neg_set = set(hard_neg_data[i].tolist())
+            assert hard_neg_dst == hard_neg_set
+    hard_sampler = GSHardEdgeDstNegativeSampler(num_negs, "hard_negative", sampler, num_hard_negs=num_negs)
+    check_enough_hard_negs(hard_sampler, etype1, hard1)
+
+    # Case 5:
+    # 1. hard_negative field is string
+    # 2. num_hard_neg is int
+    # 3. num_negs == number of hard negatives required (10)
+    # 4. number of hard negatives required (8) < number of hard negatives
+    #    provided (hard2 has 20 negatives for each node)
+    # 5.fast track
+    #
+    # expected behavior:
+    #   1. hard negatives will be a subset of hard2
+    def check_more_hard_negs(hard_neg_sampler, target_etype, hard_neg_data):
+        neg_src, neg_dst = hard_neg_sampler._generate(g, eids, target_etype)
+        assert len(neg_src) == num_edges * num_negs
+        assert len(neg_dst) == num_edges * num_negs
+        assert_equal(th.repeat_interleave(src[:10], num_negs, 0).numpy(), neg_src.numpy())
+        neg_dst = neg_dst.reshape(num_edges, num_negs)
+        for i in range(num_edges):
+            hard_neg_dst = set(neg_dst[i].tolist())
+            hard_neg_set = set(hard_neg_data[i].tolist())
+            assert hard_neg_dst.issubset(hard_neg_set)
+    check_more_hard_negs(hard_sampler, etype2, hard2)
+
+    # Case 6:
+    # hard_negative field is dict
+    # num_hard_neg is dict
+    # 3. num_negs > number of hard negatives required (2)
+    # 4. num_negs > total number of hard negatives
+    # provided (hard0 has 4 negatives for each node)
+    # 5. fast track
+    #
+    # expected behavior:
+    #   1. Only 2 hard negatives are returned
+    #   2. Others will be random negatives
+    hard_sampler = GSHardEdgeDstNegativeSampler(
+        num_negs,
+        {etype0: "hard_negative",
+         etype1: "hard_negative",
+         etype2: "hard_negative"},
+        sampler,
+        {etype0: 2,
+         etype1: 2,
+         etype2: 10})
+    check_less_hard_negs(hard_sampler, etype0, hard0, 2)
+
+    # Case 7:
+    # hard_negative field is dict
+    # num_hard_neg is dict
+    # 3. num_negs > number of hard negatives required (2)
+    # 4. num_negs == total number of hard negatives
+    #    provided (hard1 has 10 negatives for each node)
+    # 5. fast track
+    #
+    # expected behavior:
+    #   1. Only 2 hard negatives are returned
+    #   2. Others will be random negatives
+    check_less_hard_negs(hard_sampler, etype1, hard1, 2)
+
+    # Case 8:
+    # 1. hard_negative field is string
+    # 2. num_hard_neg is int
+    # 3. num_negs == number of hard negatives required (10)
+    # 4. number of hard negatives required (8) < number of hard negatives
+    #    provided (hard2 has 20 negatives for each node)
+    # 5.fast track
+    #
+    # expected behavior:
+    #   1. hard negatives will be a subset of hard2
+    check_more_hard_negs(hard_sampler, etype2, hard2)
+
+    def check_none_hard_negs(hard_neg_sampler, target_etype, hard_neg_data):
+        neg_src, neg_dst = hard_neg_sampler._generate(g, eids, target_etype)
+        assert len(neg_src) == num_edges * num_negs
+        assert len(neg_dst) == num_edges * num_negs
+        assert_equal(th.repeat_interleave(src[:10], num_negs, 0).numpy(), neg_src.numpy())
+        neg_dst = neg_dst.reshape(num_edges, num_negs)
+        for i in range(num_edges):
+            hard_neg_dst = set(neg_dst[i].tolist())
+            hard_neg_set = set(hard_neg_data[i].tolist())
+            assert hard_neg_dst.issubset(hard_neg_set) is False
+    # Case 9:
+    # dst_negative_field is not provided
+    hard_sampler = GSHardEdgeDstNegativeSampler(
+        num_negs, {}, sampler, 2)
+    check_none_hard_negs(hard_sampler, etype2, hard2)
+
+    # Case 10:
+    # num_hard_negs is not provided
+    hard_sampler = GSHardEdgeDstNegativeSampler(
+        num_negs, "hard_negative", sampler, {})
+    check_none_hard_negs(hard_sampler, etype2, hard2)
+
+def test_edge_fixed_dst_negative_sample_gen_neg_pairs():
+    # test GSHardEdgeDstNegativeSampler.gen_neg_pairs with fast track when all edges have enough predefined negatives
+    num_nodes = 1000
+    # test GSHardEdgeDstNegativeSampler._generate when all some pos edges do not have enough hard negatives defined
+    num_negs = 10
+    etype0, etype1, etype2, hard0, hard1, hard2, src, dst, g = _create_hard_neg_graph(num_nodes, num_negs)
+
+    num_edges = 10
+
+    def check_fixed_negs(pos_neg_tuple, etype, hard_neg_data):
+        neg_src, _, pos_dst, neg_dst = pos_neg_tuple[etype]
+
+        assert len(neg_src) == num_edges
+        assert len(pos_dst) == num_edges
+        assert neg_dst.shape[0] == num_edges
+        assert_equal(src[:10].numpy(), neg_src.numpy())
+        assert_equal(dst[:10].numpy(), pos_dst.numpy())
+
+        assert_equal(hard_neg_data[:10].numpy(), neg_dst.numpy())
+
+    hard_sampler = GSFixedEdgeDstNegativeSampler("hard_negative")
+    pos_neg_tuple = hard_sampler.gen_etype_neg_pairs(g, etype0, th.arange(10))
+    check_fixed_negs(pos_neg_tuple, etype0, hard0)
+    pos_neg_tuple = hard_sampler.gen_etype_neg_pairs(g, etype1, th.arange(10))
+    check_fixed_negs(pos_neg_tuple, etype1, hard1)
+    pos_neg_tuple = hard_sampler.gen_etype_neg_pairs(g, etype2, th.arange(10))
+    check_fixed_negs(pos_neg_tuple, etype2, hard2)
+
+    hard_sampler = GSFixedEdgeDstNegativeSampler({etype0: "hard_negative",
+                                          etype1: "hard_negative",
+                                          etype2: "hard_negative"})
+    pos_neg_tuple = hard_sampler.gen_etype_neg_pairs(g, etype0, th.arange(10))
+    check_fixed_negs(pos_neg_tuple, etype0, hard0)
+    pos_neg_tuple = hard_sampler.gen_etype_neg_pairs(g, etype1, th.arange(10))
+    check_fixed_negs(pos_neg_tuple, etype1, hard1)
+    pos_neg_tuple = hard_sampler.gen_etype_neg_pairs(g, etype2, th.arange(10))
+    check_fixed_negs(pos_neg_tuple, etype2, hard2)
+
+    # each positive edge should have enough fixed negatives
+    hard0[0][-1] = -1
+    fail = False
+    try:
+        pos_neg_tuple = hard_sampler.gen_neg_pairs(g, etype0, th.arange(10))
+    except:
+        fail = True
+    assert fail
+
+
 @pytest.mark.parametrize("num_pos", [2, 10])
 @pytest.mark.parametrize("num_neg", [5, 20])
 def test_inbatch_joint_neg_sampler(num_pos, num_neg):
@@ -1457,6 +1963,11 @@ def test_GSgnnTrainData_homogeneous():
     th.distributed.destroy_process_group()
 
 if __name__ == '__main__':
+    test_GSgnnLinkPredictionPredefinedTestDataLoader(1)
+    test_GSgnnLinkPredictionPredefinedTestDataLoader(10)
+    test_edge_fixed_dst_negative_sample_gen_neg_pairs()
+    test_hard_edge_dst_negative_sample_generate_complex_case()
+    test_hard_edge_dst_negative_sample_generate()
     test_inbatch_joint_neg_sampler(10, 20)
 
     test_np_dataloader_len(11)

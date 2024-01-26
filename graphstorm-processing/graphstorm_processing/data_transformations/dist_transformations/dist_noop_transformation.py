@@ -17,18 +17,18 @@ from typing import List, Optional
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
-from pyspark.sql.types import ArrayType, FloatType, NumericType
+from pyspark.sql.types import ArrayType, DoubleType, NumericType
 
 from graphstorm_processing.constants import SPECIAL_CHARACTERS
 from .base_dist_transformation import DistributedTransformation
 
 
 class NoopTransformation(DistributedTransformation):
-    """A no-op transformation that parses data as floats or lists of floats
-    and forwards the result withouth any processing.
+    """A no-op transformation that parses data as numerical values
+    and forwards the result without any processing.
 
     For CSV input that contains numerical array rows that use a separator character,
-    this transformation splits the values into a vector of floats, e.g. "1|2|3"
+    this transformation splits the values into a vector of doubles, e.g. "1|2|3"
     becomes a vector [1.0, 2.0, 3.0].
 
     Parameters
@@ -56,7 +56,7 @@ class NoopTransformation(DistributedTransformation):
         initialization of the transformation.
         """
 
-        # If the incoming DataFrame has numerical array rows, just return it.
+        # If the incoming DataFrame has numerical [array] rows, just return it.
         col_datatype = input_df.schema[self.cols[0]].dataType
         if col_datatype.typeName() == "array":
             assert isinstance(col_datatype, ArrayType)
@@ -66,6 +66,10 @@ class NoopTransformation(DistributedTransformation):
                     f"for column {self.cols[0]}"
                 )
             return input_df
+        elif isinstance(col_datatype, NumericType):
+            return input_df
+
+        # Otherwise we'll try to convert the values from list of strings to list of Doubles
 
         def str_list_to_float_vec(string_list: Optional[List[str]]) -> Optional[List[float]]:
             if string_list:
@@ -73,7 +77,7 @@ class NoopTransformation(DistributedTransformation):
             return None
 
         strvec_to_float_vec_udf = F.udf(
-            str_list_to_float_vec, ArrayType(FloatType(), containsNull=False)
+            str_list_to_float_vec, ArrayType(DoubleType(), containsNull=False)
         )
 
         if self.separator:
@@ -87,7 +91,7 @@ class NoopTransformation(DistributedTransformation):
             return input_df
         else:
             return input_df.select(
-                [F.col(column).cast(FloatType()).alias(column) for column in self.cols]
+                [F.col(column).cast(DoubleType()).alias(column) for column in self.cols]
             )
 
     @staticmethod
