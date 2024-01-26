@@ -447,6 +447,15 @@ arguments.
         will be considered as an array. For Parquet files, if the input type is ArrayType(StringType()), then the
         separator is ignored; if it is StringType(), it will apply same logic as in CSV.
 
+-  ``huggingface``
+
+   -  Transforms a text feature column to tokens or embeddings with different Hugging Face models, enabling nuanced understanding and processing of natural language data.
+   -  ``kwargs``:
+
+      - ``normalizer`` (String, required): It should be "tokenize_hf".
+      - ``bert_model`` (String, required): It should be the identifier of a pre-trained model available in the Hugging Face Model Hub.
+      - ``max_seq_length`` (Integer, required): It specifies the maximum number of tokens of the input.
+
 --------------
 
 Creating a graph for inference
