@@ -68,7 +68,7 @@ def parse_feat_config(feature_dict: Dict) -> FeatureConfig:
         return FeatureConfig(feature_dict)
     elif transformation_name == "multi-categorical":
         return MultiCategoricalFeatureConfig(feature_dict)
-    elif transformation_name == "bert":
+    elif transformation_name == "huggingface":
         return BertConfig(feature_dict)
     else:
         raise RuntimeError(f"Unknown transformation name: '{transformation_name}'")

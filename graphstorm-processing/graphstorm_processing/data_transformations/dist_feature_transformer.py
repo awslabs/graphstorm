@@ -58,7 +58,7 @@ class DistFeatureTransformer(object):
             self.transformation = DistCategoryTransformation(**default_kwargs, **args_dict)
         elif feat_type == "multi-categorical":
             self.transformation = DistMultiCategoryTransformation(**default_kwargs, **args_dict)
-        elif feat_type == "bert":
+        elif feat_type == "huggingface":
             self.transformation = DistBertTransformation(**default_kwargs, **args_dict)
         else:
             raise NotImplementedError(

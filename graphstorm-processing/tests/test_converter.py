@@ -56,7 +56,7 @@ def test_try_read_unsupported_feature(converter: GConstructConfigConverter, node
     node_dict["nodes"][0]["features"] = [
         {
             "feature_col": ["paper_title"],
-            "transform": {"name": "bert_hf"},
+            "transform": {"name": "tokenize_hf"},
         }
     ]
 
@@ -328,8 +328,8 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
         {
             "column": "citation_name",
             "transformation": {
-                "name": "bert",
-                "kwargs": {"normalizer": "tokenize", "bert_model": "bert", "max_seq_length": 64},
+                "name": "huggingface",
+                "kwargs": {"normalizer": "tokenize_hf", "bert_model": "bert", "max_seq_length": 64},
             },
         },
     ]
