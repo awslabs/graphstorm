@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import logging
 from typing import Optional, Sequence
 import uuid
@@ -58,11 +59,13 @@ def apply_norm(
         tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
 
         # Define the schema of your return type
-        schema = StructType([
-            StructField("input_ids", ArrayType(IntegerType())),
-            StructField("attention_mask", ArrayType(IntegerType())),
-            StructField("token_type_ids", ArrayType(IntegerType()))
-        ])
+        schema = StructType(
+            [
+                StructField("input_ids", ArrayType(IntegerType())),
+                StructField("attention_mask", ArrayType(IntegerType())),
+                StructField("token_type_ids", ArrayType(IntegerType())),
+            ]
+        )
 
         # Define UDF
         @udf(returnType=schema)
@@ -72,12 +75,18 @@ def apply_norm(
                 raise ValueError("The input of the tokenizer has to be a string.")
 
             # Tokenize the text
-            t = tokenizer(text, max_length=max_seq_length, truncation=True, padding='max_length', return_tensors='np')
-            token_type_ids = t.get('token_type_ids', np.zeros_like(t['input_ids'], dtype=np.int8))
+            t = tokenizer(
+                text,
+                max_length=max_seq_length,
+                truncation=True,
+                padding="max_length",
+                return_tensors="np",
+            )
+            token_type_ids = t.get("token_type_ids", np.zeros_like(t["input_ids"], dtype=np.int8))
             result = (
-                t['input_ids'][0].tolist(),  # Convert tensor to list
-                t['attention_mask'][0].astype(np.int8).tolist(),
-                token_type_ids[0].astype(np.int8).tolist()
+                t["input_ids"][0].tolist(),  # Convert tensor to list
+                t["attention_mask"][0].astype(np.int8).tolist(),
+                token_type_ids[0].astype(np.int8).tolist(),
             )
 
             return result
@@ -114,7 +123,9 @@ class DistHFTransformation(DistributedTransformation):
         self.max_seq_length = max_seq_length
 
     def apply(self, input_df: DataFrame) -> DataFrame:
-        scaled_df = apply_norm(self.cols, self.bert_norm, self.bert_model, self.max_seq_length, input_df)
+        scaled_df = apply_norm(
+            self.cols, self.bert_norm, self.bert_model, self.max_seq_length, input_df
+        )
 
         return scaled_df
 

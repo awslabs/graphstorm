@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import json
 import logging
 import numbers
@@ -940,9 +941,15 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
             # TODO: Remove hack with [feat_conf.feat_name]
             def process_feature(self, feat_name, single_feature_df, node_type):
-                feature_output_path = os.path.join(self.output_prefix, f"node_data/{node_type}-{feat_name}")
-                logging.info("Writing output for feat_name: '%s' to %s", feat_name, feature_output_path)
-                path_list = self._write_df(single_feature_df, feature_output_path, out_format="parquet")
+                feature_output_path = os.path.join(
+                    self.output_prefix, f"node_data/{node_type}-{feat_name}"
+                )
+                logging.info(
+                    "Writing output for feat_name: '%s' to %s", feat_name, feature_output_path
+                )
+                path_list = self._write_df(
+                    single_feature_df, feature_output_path, out_format=FORMAT_NAME
+                )
 
                 node_feature_metadata_dict = {
                     "format": {"name": FORMAT_NAME, "delimiter": DELIMITER},
@@ -954,19 +961,24 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 nfeat_size = 1 if isinstance(feat_val, (int, float)) else len(feat_val)
                 ntype_feat_sizes.update({feat_name: nfeat_size})
 
-                self.timers[
-                    f"{transformer.get_transformation_name()}-{node_type}-{feat_name}"] = perf_counter() - node_transformation_start
+                self.timers[f"{transformer.get_transformation_name()}-{node_type}-{feat_name}"] = (
+                    perf_counter() - node_transformation_start
+                )
 
             for feat_name, feat_col in zip([feat_conf.feat_name], feat_conf.cols):
                 node_transformation_start = perf_counter()
 
-                print(feat_conf.feat_type, feat_conf.transformation_kwargs["normalizer"])
-                if feat_conf.feat_type == HUGGINGFACE_TRANFORM and feat_conf.transformation_kwargs["normalizer"] == HUGGINGFACE_TOKENIZE:
+                if (
+                    feat_conf.feat_type == HUGGINGFACE_TRANFORM
+                    and feat_conf.transformation_kwargs["normalizer"] == HUGGINGFACE_TOKENIZE
+                ):
                     for bert_feat_name in ["input_ids", "attention_mask", "token_type_ids"]:
                         single_feature_df = transformed_feature_df.select(bert_feat_name)
                         process_feature(self, bert_feat_name, single_feature_df, node_type)
                 else:
-                    single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(feat_col, feat_name)
+                    single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(
+                        feat_col, feat_name
+                    )
                     process_feature(self, feat_name, single_feature_df, node_type)
         return node_type_feature_metadata, ntype_feat_sizes
 
@@ -1206,6 +1218,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         edge_data_dict = {}
         edges_dict = {}
         logging.info("Processing edge data...")
+        self.graph_info["efeat_size"] = {}
         self.graph_info["etype_label"] = []
         self.graph_info["etype_label_property"] = []
         for edge_config in edge_configs:
@@ -1334,33 +1347,44 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
             # TODO: Remove hack with [feat_conf.feat_name]
             def process_feature(self, feat_name, single_feature_df, edge_type):
-                feature_output_path = os.path.join(self.output_prefix, f"edge_data/{edge_type}-{feat_name}")
-                logging.info("Writing output for feat_name: '%s' to %s", feat_name, feature_output_path)
-                path_list = self._write_df(single_feature_df, feature_output_path, out_format='parquet')
+                feature_output_path = os.path.join(
+                    self.output_prefix, f"edge_data/{edge_type}-{feat_name}"
+                )
+                logging.info(
+                    "Writing output for feat_name: '%s' to %s", feat_name, feature_output_path
+                )
+                path_list = self._write_df(
+                    single_feature_df, feature_output_path, out_format="parquet"
+                )
 
                 edge_feature_metadata_dict = {
                     "format": {"name": FORMAT_NAME, "delimiter": DELIMITER},
                     "data": path_list,
                 }
-                edge_type_feature_metadata[feat_name] = edge_feature_metadata_dict
+                edge_feature_metadata_dicts[feat_name] = edge_feature_metadata_dict
 
                 feat_val = single_feature_df.take(1)[0].asDict().get(feat_name, None)
-                nfeat_size = 1 if isinstance(feat_val, (int, float)) else len(feat_val)
+                efeat_size = 1 if isinstance(feat_val, (int, float)) else len(feat_val)
                 etype_feat_sizes.update({feat_name: efeat_size})
 
-                self.timers[
-                    f"{transformer.get_transformation_name()}-{edge_type}-{feat_name}"] = perf_counter() - edge_feature_start
+                self.timers[f"{transformer.get_transformation_name()}-{edge_type}-{feat_name}"] = (
+                    perf_counter() - edge_feature_start
+                )
 
             for feat_name, feat_col in zip([feat_conf.feat_name], feat_conf.cols):
                 edge_feature_start = perf_counter()
 
-                if feat_conf.feat_type == HUGGINGFACE_TRANFORM and feat_conf.transformation_kwargs[
-                    "normalizer"] == HUGGINGFACE_TOKENIZE:
+                if (
+                    feat_conf.feat_type == HUGGINGFACE_TRANFORM
+                    and feat_conf.transformation_kwargs["normalizer"] == HUGGINGFACE_TOKENIZE
+                ):
                     for bert_feat_name in ["input_ids", "attention_mask", "token_type_ids"]:
                         single_feature_df = transformed_feature_df.select(bert_feat_name)
                         process_feature(self, bert_feat_name, single_feature_df, edge_type)
                 else:
-                    single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(feat_col, feat_name)
+                    single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(
+                        feat_col, feat_name
+                    )
                     process_feature(self, feat_name, single_feature_df, edge_type)
 
         return edge_feature_metadata_dicts, etype_feat_sizes

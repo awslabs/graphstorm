@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 from typing import Mapping
 import numbers
 
@@ -39,8 +40,9 @@ class HFConfig(FeatureConfig):
 
     def _sanity_check(self) -> None:
         super()._sanity_check()
-        assert isinstance(self.bert_model, str),\
-            f"Expect bert_model to be a string, but got {self.bert_model}"
-        assert isinstance(self.max_seq_length, int) and self.max_seq_length > 0, \
-            f"Expect max_seq_length {self.max_seq_length} be an integer and larger than zero."
-
+        assert isinstance(
+            self.bert_model, str
+        ), f"Expect bert_model to be a string, but got {self.bert_model}"
+        assert (
+            isinstance(self.max_seq_length, int) and self.max_seq_length > 0
+        ), f"Expect max_seq_length {self.max_seq_length} be an integer and larger than zero."

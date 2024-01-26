@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 ################### Categorical Limits #######################
 MAX_CATEGORIES_PER_FEATURE = 100
 RARE_CATEGORY = "GSP_CONSTANT_OTHER"

@@ -16,6 +16,7 @@ limitations under the License.
 This module is used to parse the schema of CSV input files, inferring
 the type of the columns from the type mentioned in the configuration.
 """
+
 import logging
 from typing import Sequence, List, Type
 
@@ -92,7 +93,7 @@ def determine_spark_feature_type(feature_type: str) -> Type[DataType]:
         "multi-numerical",
         "categorical",
         "multi-categorical",
-        "huggingface"
+        "huggingface",
     ] or feature_type.startswith("text"):
         return StringType
     if feature_type in ["numerical", "bucket-numerical"]:
