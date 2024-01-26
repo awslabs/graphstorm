@@ -1087,16 +1087,28 @@ def test_partition_graph(num_parts):
     # This is to verify the correctness of partition_graph.
     # This function does some manual node/edge feature constructions for each partition.
     num_nodes = {'node1': 100,
-                 'node2': 200,
-                 'node3': 300}
-    edges = {('node1', 'rel1', 'node2'): (np.random.randint(num_nodes['node1'], size=500),
-                                          np.random.randint(num_nodes['node2'], size=500)),
-             ('node1', 'rel2', 'node3'): (np.random.randint(num_nodes['node1'], size=1000),
-                                          np.random.randint(num_nodes['node3'], size=1000))}
+                 'node2': 100,
+                 'node3': 100}
+    rel1_src = [np.random.randint(0, num_nodes['node1']//2, size=2500),
+                np.random.randint(num_nodes['node1']//2, num_nodes['node1'], size=2500)]
+    rel1_dst = [np.random.randint(0, num_nodes['node2']//2, size=2500),
+                np.random.randint(num_nodes['node2']//2, num_nodes['node2'], size=2500)]
+    rel2_src = [np.random.randint(0, num_nodes['node1']//2, size=2500),
+                np.random.randint(num_nodes['node1']//2, num_nodes['node1'], size=2500)]
+    rel2_dst = [np.random.randint(0, num_nodes['node3']//2, size=2500),
+                np.random.randint(num_nodes['node3']//2, num_nodes['node3'], size=2500)]
+    edges = {('node1', 'rel1', 'node2'): (np.concatenate(rel1_src), np.concatenate(rel1_dst)),
+             ('node1', 'rel2', 'node3'): (np.concatenate(rel2_src), np.concatenate(rel2_dst))}
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
+    src, dst = g.edges(etype=('node1', 'rel1', 'node2'), order='srcdst')
+    assert np.all(dst[src < 50].numpy() < 50)
+    print(np.sum(dst[src > 50].numpy() >= 50), len(dst[src > 50]))
+    assert np.all(dst[src >= 50].numpy() >= 50)
 
-    train_mask1 = (g.out_degrees(etype=('node1', 'rel1', 'node2')) > 2).numpy()
-    train_mask2 = (g.in_degrees(etype=('node1', 'rel1', 'node2')) > 2).numpy()
+    train_mask1 = np.zeros((num_nodes['node1'],), dtype=np.int8)
+    train_mask1[0:num_nodes['node1']//2] = 1
+    train_mask2 = np.zeros((num_nodes['node2'],), dtype=np.int8)
+    train_mask2[0:num_nodes['node2']//2] = 1
     node_data = {
             'node1': {
                 'feat': np.random.uniform(size=(num_nodes['node1'], 10)),
@@ -1107,7 +1119,19 @@ def test_partition_graph(num_parts):
                 'train_mask': train_mask2
             }
     }
-    edge_data = {('node1', 'rel1', 'node2'): {'feat': np.random.uniform(size=(500, 10))}}
+    edge_data = {('node1', 'rel1', 'node2'): {'feat': np.random.uniform(size=(g.number_of_edges('rel1'), 10))}}
+
+    # verify that the graph partitioning can balance the training set.
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        partition_graph(g, node_data, edge_data, 'test', num_parts, tmpdirname,
+                        part_method="metis", save_mapping=True)
+        for i in range(num_parts):
+            part_dir = os.path.join(tmpdirname, "part" + str(i))
+            node_data1 = dgl.data.utils.load_tensors(os.path.join(part_dir, 'node_feat.dgl'))
+            train_mask1 = node_data1['node1/train_mask']
+            train_mask2 = node_data1['node2/train_mask']
+            assert th.sum(train_mask1) > 0
+            assert th.sum(train_mask2) > 0
 
     # Partition the graph with our own partition_graph.
     dgl.random.seed(0)
@@ -1116,14 +1140,10 @@ def test_partition_graph(num_parts):
     with tempfile.TemporaryDirectory() as tmpdirname:
         partition_graph(g, node_data, edge_data, 'test', num_parts, tmpdirname,
                         part_method="random", save_mapping=True)
-        train_mask1 = []
-        train_mask2 = []
         for i in range(num_parts):
             part_dir = os.path.join(tmpdirname, "part" + str(i))
             node_data1.append(dgl.data.utils.load_tensors(os.path.join(part_dir,
                                                                        'node_feat.dgl')))
-            train_mask1.append(node_data1[-1]['node1/train_mask'])
-            train_mask2.append(node_data1[-1]['node2/train_mask'])
             edge_data1.append(dgl.data.utils.load_tensors(os.path.join(part_dir,
                                                                        'edge_feat.dgl')))
 
