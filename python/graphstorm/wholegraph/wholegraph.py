@@ -390,7 +390,7 @@ class WholeGraphDistTensor:
         self._use_wg_optimizer = use_wg_optimizer
         # Need the pylibwholegraph be at least 23.12.00 to support _tensor.scatter API.
         assert pylibwholegraph.__version__ >= "23.12.00", \
-            "Please upgrade to the latest version of WholeGraph."
+            "Please upgrade to WholeGraph 23.12.00 or higher."
         self._tensor = None
         self._module = None
         self._optimizer = None
@@ -420,6 +420,8 @@ class WholeGraphDistTensor:
         if self.optimizer == wg_optimizer and self._module is not None:
             # no-op if the optimizer is the same
             return
+        assert self.optimizer is None and self._module is None, \
+            "Make sure WholeGraphDistTensor attaches to only one/unique optimizer."
         # When attach a new optimizer, we have to purge the old _tensor/_module/_optimizer.
         self._reset_storage()
         # WG sparse optimizer has to be created before WG distTensor.
@@ -450,7 +452,10 @@ class WholeGraphDistTensor:
         -------
         None
         """
-        assert self._tensor is not None, "Please create WholeGraph tensor first."
+        assert self._tensor is not None, \
+            "Please create WholeGraph tensor by either initializing WholeGraphDistTensor" \
+            "with use_wg_optimizer=False or "\
+            "with use_wg_optimizer=True followed by attach_wg_optimizer()."
         file_prefix = os.path.join(path, file_prefix)
         self._tensor.get_embedding_tensor().to_file_prefix(file_prefix)
 
@@ -479,9 +484,21 @@ class WholeGraphDistTensor:
         None
         """
 
-        if self._tensor is None and self._use_wg_optimizer:
+        if wg_optimizer is not None:
+            assert self._use_wg_optimizer, \
+                "Please create WholeGraphDistTensor tensor with use_wg_optimizer=True."
+            # attach to a new optimizer
             self.attach_wg_optimizer(wg_optimizer)
-        assert self._tensor is not None, "Please create WholeGraph tensor first."
+        else:
+            if self.use_wg_optimizer:
+                assert self.optimizer is not None, \
+                    "Need either self.optimizer or wg_optimizer to be available."
+                assert self._module is not None and self._tensor is not None, \
+                    "Please create WholeGraphDistTensor tensor with attach_wg_optimizer()."
+            else:
+                assert self.optimizer is None and self._module is None, \
+                    "For regular embeddings (not trainable), self.optimizer should be None."
+        # replace the existing _tensor by loading from file
         file_prefix = os.path.join(path, file_prefix)
         self._tensor.get_embedding_tensor().from_file_prefix(
             file_prefix, part_count=num_files

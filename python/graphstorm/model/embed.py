@@ -230,13 +230,10 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         self.cache_embed = cache_embed
 
         if self._use_wholegraph_sparse_emb:
-            if get_backend() != "nccl":
-                raise AssertionError(
-                    "WholeGraph sparse embedding is only supported on NCCL backend."
-                )
-            if not is_wholegraph_init():
-                raise AssertionError("WholeGraph is not initialized yet.")
-
+            assert get_backend() == "nccl",  \
+                "WholeGraph sparse embedding is only supported on NCCL backend."
+            assert is_wholegraph_init(), \
+                "WholeGraph is not initialized yet."
         if (
             dgl.__version__ <= "1.1.2"
             and is_distributed()

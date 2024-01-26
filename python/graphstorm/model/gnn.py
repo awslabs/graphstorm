@@ -758,7 +758,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
                 for params in sparse_params:
                     for param in params:
                         assert isinstance(param, WholeGraphDistTensor) and param.use_wg_optimizer, \
-                            "Please create params (WG tensor) with use_wg_optimizer=True."
+                            "Please create params (WholeGraph tensor) with use_wg_optimizer=True."
                         param.attach_wg_optimizer(emb_optimizer)
                 # TODO(@chang-l): Wrap the wholegraph optimizer in a class to
                 # take an extra input argument: lr
