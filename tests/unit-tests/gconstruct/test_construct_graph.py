@@ -1087,18 +1087,60 @@ def test_partition_graph(num_parts):
     # This is to verify the correctness of partition_graph.
     # This function does some manual node/edge feature constructions for each partition.
     num_nodes = {'node1': 100,
-                 'node2': 200,
-                 'node3': 300}
-    edges = {('node1', 'rel1', 'node2'): (np.random.randint(num_nodes['node1'], size=100),
-                                          np.random.randint(num_nodes['node2'], size=100)),
-             ('node1', 'rel2', 'node3'): (np.random.randint(num_nodes['node1'], size=200),
-                                          np.random.randint(num_nodes['node3'], size=200))}
-    node_data = {'node1': {'feat': np.random.uniform(size=(num_nodes['node1'], 10))},
-                 'node2': {'feat': np.random.uniform(size=(num_nodes['node2'],))}}
-    edge_data = {('node1', 'rel1', 'node2'): {'feat': np.random.uniform(size=(100, 10))}}
+                 'node2': 100,
+                 'node3': 100}
+    rel1_src = [np.random.randint(0, num_nodes['node1']//2, size=2500),
+                np.random.randint(num_nodes['node1']//2, num_nodes['node1'], size=2500)]
+    rel1_dst = [np.random.randint(0, num_nodes['node2']//2, size=2500),
+                np.random.randint(num_nodes['node2']//2, num_nodes['node2'], size=2500)]
+    rel2_src = [np.random.randint(0, num_nodes['node1']//2, size=2500),
+                np.random.randint(num_nodes['node1']//2, num_nodes['node1'], size=2500)]
+    rel2_dst = [np.random.randint(0, num_nodes['node3']//2, size=2500),
+                np.random.randint(num_nodes['node3']//2, num_nodes['node3'], size=2500)]
+    edges = {('node1', 'rel1', 'node2'): (np.concatenate(rel1_src), np.concatenate(rel1_dst)),
+             ('node1', 'rel2', 'node3'): (np.concatenate(rel2_src), np.concatenate(rel2_dst))}
+    g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
+    src, dst = g.edges(etype=('node1', 'rel1', 'node2'), order='srcdst')
+    assert np.all(dst[src < 50].numpy() < 50)
+    assert np.all(dst[src >= 50].numpy() >= 50)
+
+    train_mask1 = np.zeros((num_nodes['node1'],), dtype=np.int8)
+    train_mask1[0:num_nodes['node1']//3] = 1
+    test_mask1 = np.zeros((num_nodes['node1'],), dtype=np.int8)
+    test_mask1[num_nodes['node1']//3:num_nodes['node1']//2] = 1
+
+    train_mask2 = np.zeros((num_nodes['node2'],), dtype=np.int8)
+    train_mask2[0:num_nodes['node2']//3] = 1
+    test_mask2 = np.zeros((num_nodes['node2'],), dtype=np.int8)
+    test_mask2[num_nodes['node2']//3:num_nodes['node2']//2] = 1
+
+    node_data = {
+            'node1': {
+                'feat': np.random.uniform(size=(num_nodes['node1'], 10)),
+                'train_mask': train_mask1,
+                'test_mask': test_mask1,
+            },
+            'node2': {
+                'feat': np.random.uniform(size=(num_nodes['node2'],)),
+                'train_mask': train_mask2,
+                'test_mask': test_mask2,
+            }
+    }
+    edge_data = {('node1', 'rel1', 'node2'): {'feat': np.random.uniform(size=(g.number_of_edges('rel1'), 10))}}
+
+    # verify that the graph partitioning can balance the training set.
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        partition_graph(g, node_data, edge_data, 'test', num_parts, tmpdirname,
+                        part_method="metis", save_mapping=True)
+        for i in range(num_parts):
+            part_dir = os.path.join(tmpdirname, "part" + str(i))
+            node_data1 = dgl.data.utils.load_tensors(os.path.join(part_dir, 'node_feat.dgl'))
+            assert th.sum(node_data1['node1/train_mask']) > 0
+            assert th.sum(node_data1['node2/train_mask']) > 0
+            assert th.sum(node_data1['node1/test_mask']) > 0
+            assert th.sum(node_data1['node2/test_mask']) > 0
 
     # Partition the graph with our own partition_graph.
-    g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
     dgl.random.seed(0)
     node_data1 = []
     edge_data1 = []
@@ -1819,13 +1861,13 @@ def test_homogeneous():
     assert not is_homogeneous(conf)
 
 if __name__ == '__main__':
+    test_partition_graph(2)
     test_parse_feat_ops_data_format()
     test_parse_edge_data()
     test_multiprocessing_checks()
     test_csv(None)
     test_hdf5()
     test_json()
-    test_partition_graph(1)
     test_merge_arrays()
     test_map_node_ids()
     test_id_map()
