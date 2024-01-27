@@ -239,6 +239,7 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
 
     graphinfo_updates = {
         "nfeat_size": {"user": {"age": 1, "multi": 2}},
+        "efeat_size": {},
         "etype_label": [],
         "etype_label_property": [],
         "ntype_label": ["user"],
@@ -278,6 +279,7 @@ def test_load_dist_hgl_without_labels(
 
     graphinfo_updates = {
         "nfeat_size": {},
+        "efeat_size": {},
         "task_type": "link_prediction",
         "etype_label": [],
         "etype_label_property": [],

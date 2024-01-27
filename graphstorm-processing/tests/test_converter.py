@@ -56,7 +56,7 @@ def test_try_read_unsupported_feature(converter: GConstructConfigConverter, node
     node_dict["nodes"][0]["features"] = [
         {
             "feature_col": ["paper_title"],
-            "transform": {"name": "tokenize_hf"},
+            "transform": {"name": "bert_hf"},
         }
     ]
 

@@ -43,7 +43,7 @@ def test_hf_tokenizer_example(spark: SparkSession, check_df_schema):
     # Initialize and apply the distributed Hugging Face tokenization transformation
     hf_tokenize = DistHFTransformation(["occupation"], "tokenize_hf", bert_model, max_seq_length)
     output_df = hf_tokenize.apply(input_df)
-    assert len(output_df) == 3, "the output for huggingface tokenize should have three columns"
+    assert len(output_df.columns) == 3, "the output for huggingface tokenize should have three columns"
 
     # Validate the schema of the transformed DataFrame
     for feature in ["input_ids", "attention_mask", "token_type_ids"]:
