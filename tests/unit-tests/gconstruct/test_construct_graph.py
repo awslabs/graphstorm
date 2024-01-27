@@ -1102,7 +1102,6 @@ def test_partition_graph(num_parts):
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
     src, dst = g.edges(etype=('node1', 'rel1', 'node2'), order='srcdst')
     assert np.all(dst[src < 50].numpy() < 50)
-    print(np.sum(dst[src > 50].numpy() >= 50), len(dst[src > 50]))
     assert np.all(dst[src >= 50].numpy() >= 50)
 
     train_mask1 = np.zeros((num_nodes['node1'],), dtype=np.int8)
@@ -1138,7 +1137,6 @@ def test_partition_graph(num_parts):
             node_data1 = dgl.data.utils.load_tensors(os.path.join(part_dir, 'node_feat.dgl'))
             assert th.sum(node_data1['node1/train_mask']) > 0
             assert th.sum(node_data1['node2/train_mask']) > 0
-            print(th.sum(node_data1['node1/test_mask']), th.sum(node_data1['node2/test_mask']))
             assert th.sum(node_data1['node1/test_mask']) > 0
             assert th.sum(node_data1['node2/test_mask']) > 0
 
