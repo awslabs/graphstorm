@@ -1355,7 +1355,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     "Writing output for feat_name: '%s' to %s", feat_name, feature_output_path
                 )
                 path_list = self._write_df(
-                    single_feature_df, feature_output_path, out_format="parquet"
+                    single_feature_df, feature_output_path, out_format=FORMAT_NAME
                 )
 
                 edge_feature_metadata_dict = {
