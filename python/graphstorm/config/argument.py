@@ -1818,6 +1818,11 @@ class GSConfig:
             assert normalizer in GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS, \
                 f"Link prediction embedding normalizer {normalizer} not supported. " \
                 f"GraphStorm only support {GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS}"
+
+            # TODO: Check the compatibility between the loss function
+            # and the normalizer. Right now only l2 norm is supported
+            # and it is compatible with both cross entropy loss and
+            # contrastive loss.
             return normalizer
 
         if self.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS:
