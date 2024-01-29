@@ -29,6 +29,7 @@ from functools import partial
 
 import pandas as pd
 import torch as th
+
 from ..model.utils import pad_file_index
 from .file_io import write_data_parquet
 from .id_map import IdReverseMap
@@ -171,17 +172,20 @@ def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
     """
     node_data = th.load(data_file_path).numpy()
     nids = th.load(nid_path).numpy()
-    nid_map = id_maps[ntype]
+    nid_map = id_maps[ntype] # type: IdReverseMap
     num_chunks = math.ceil(len(node_data) / chunk_size)
 
     for i in range(num_chunks):
         start = i * chunk_size
         end = (i + 1) * chunk_size if i + 1 < num_chunks else len(node_data)
-        data = node_data[start:end]
+        data = node_data[start:end] # type: np.ndarray
         nid = nid_map.map_id(nids[start:end])
-        data = {data_col_key: data,
-                GS_REMAP_NID_COL: nid}
-        output_func(data, f"{output_fname_prefix}_{pad_file_index(i)}")
+        data = {
+            GS_REMAP_NID_COL: nid.tolist(),
+            data_col_key: data.tolist(),
+            }
+        filename = f"{output_fname_prefix}_{pad_file_index(i)}.parquet"
+        pd.DataFrame.from_dict(data).to_parquet(filename)
 
 def worker_remap_edge_pred(pred_file_path, src_nid_path,
     dst_nid_path, src_type, dst_type,

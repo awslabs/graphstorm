@@ -20,6 +20,7 @@
     python3 -m graphstorm.run.launch <Launch args> YOUR_SCRIPT.py <Train/Infer args>
 """
 import argparse
+import copy
 import json
 import logging
 import multiprocessing
@@ -37,6 +38,7 @@ from functools import partial
 from threading import Thread
 from typing import List, Optional
 from argparse import REMAINDER
+from typing import List
 
 
 def remote_cleanup_proc(get_all_remote_pids_func, conn):
@@ -500,10 +502,9 @@ def wrap_dist_remap_command(
         rank: int,
         world_size: int,
         with_shared_fs: bool,
-        num_trainers: int,
         output_chunk_size: int = 100000,
         preserve_input: bool = False) -> str:
-    """ Wrap distributed remap command
+    """ Wrap distributed remap command.
 
         Parameters
         ----------
@@ -515,8 +516,6 @@ def wrap_dist_remap_command(
             Total number of workers
         with_shared_fs:
             Whether all files are stored in a shared fs.
-        num_trainers:
-            Number of trainers on each machine.
         output_chunk_size:
             Number of rows per output file.
         preserve_input:
@@ -537,6 +536,14 @@ def wrap_dist_remap_command(
     new_udf_command[0] = "graphstorm.gconstruct.remap_result"
 
     # Add remap related arguments
+    udf_command.extend([
+        "--rank", str(rank),
+        "--world-size", str(world_size),
+        "--with-shared-fs", "True" if with_shared_fs else "False",
+        "--num-processes", str(os.cpu_count()),
+        "--output-chunk-size", str(output_chunk_size),
+        "--preserve-input", "True" if preserve_input else "False"]
+    )
     new_udf_command += ["--rank", str(rank)]
     new_udf_command += ["--world-size", str(world_size)]
     new_udf_command += ["--with-shared-fs", "True" if with_shared_fs else "False"]
@@ -544,7 +551,7 @@ def wrap_dist_remap_command(
     new_udf_command += ["--output-chunk-size", str(output_chunk_size)]
     new_udf_command += ["--preserve-input", "True" if preserve_input else "False"]
 
-    # transforms the udf_command from:
+    # transforms the new_udf_command from:
     #     path/to/dist_trainer.py arg0 arg1
     # to:
     #     python -m torch.distributed.launch [DIST TORCH ARGS] path/to/dist_trainer.py arg0 arg1
@@ -863,11 +870,10 @@ def submit_remap_jobs(args, udf_command, hosts, run_local):
 
     for node_id, host in enumerate(hosts):
         ip, _ = host
-        remap_dist_command = wrap_dist_remap_command(udf_command,
+        remap_dist_command = wrap_dist_remap_command(copy.deepcopy(udf_command),
                                                      node_id,
                                                      len(hosts),
                                                      args.with_shared_fs,
-                                                     args.num_trainers,
                                                      args.output_chunk_size,
                                                      args.preserve_input)
 
@@ -895,11 +901,11 @@ def submit_remap_jobs(args, udf_command, hosts, run_local):
     conn1, conn2 = multiprocessing.Pipe()
     if run_local:
         func = partial(get_all_local_pids, udf_command)
-        process = multiprocessing.Process(target=local_cleanup_proc, args=(func, conn1))
+        cleanup_process = multiprocessing.Process(target=local_cleanup_proc, args=(func, conn1))
     else:
         func = partial(get_all_remote_pids, hosts, args.ssh_port, udf_command)
-        process = multiprocessing.Process(target=remote_cleanup_proc, args=(func, conn1))
-    process.start()
+        cleanup_process = multiprocessing.Process(target=remote_cleanup_proc, args=(func, conn1))
+    cleanup_process.start()
 
     def signal_handler(sig, frame): # pylint: disable=unused-argument
         logging.info("Stop launcher")
@@ -920,7 +926,7 @@ def submit_remap_jobs(args, udf_command, hosts, run_local):
 
     # The remap processes complete. We should tell the cleanup process to exit.
     conn2.send("exit")
-    process.join()
+    cleanup_process.join()
     if err != 0:
         logging.error("Remapping task failed")
         sys.exit(-1)
@@ -1131,10 +1137,12 @@ def submit_jobs(args, udf_command):
         logging.error("Task failed")
         sys.exit(-1)
 
-    logging.info("Start doing node id remapping")
     if args.do_nid_remap:
+        remap_start = time.perf_counter()
+        logging.info("Start doing node id remapping")
         submit_remap_jobs(args, udf_command, hosts, run_local)
-    logging.info("Finish doing node id remapping")
+        logging.info("Finish doing node id remapping")
+        logging.info("Time to run node id remapping: %f", time.perf_counter() - remap_start)
 
 def get_argument_parser():
     """ Arguments listed here are those used by the launch script to launch
