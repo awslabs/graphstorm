@@ -183,21 +183,25 @@ def verify_feats(feat, error_prefix):
     """
     # check whether feat has Nan
     has_nan = th.isnan(feat).any().item()
+    err_msg = None
+    warn_msg = None
     if has_nan:
-        return f"ERROR: {error_prefix} There are NaN values in the feature, please check.", None
+        err_msg = f"ERROR: {error_prefix} There are NaN values in the feature, please check."
 
     # check whether feat has inf
     has_inf = th.isinf(feat).any().item()
     if has_inf:
-        return f"ERROR: {error_prefix} There are infinite values in the feature, please check.", None
+        inf_err_msg = f"ERROR: {error_prefix} There are infinite values in the feature, please check."
+
+        err_msg = f"{err_msg}\n{inf_err_msg}" if err_msg is not None else inf_err_msg
 
     # check whether the value is normalized between -1 to 1
     larger_1 = (feat > 1.0).any().item()
     small_minus_1 = (feat < -1.0).any().item()
     if larger_1 or small_minus_1:
-        return None, f"WARNING: {error_prefix} There are some value out of the range of [-1, 1]. " \
+        warn_msg = f"WARNING: {error_prefix} There are some value out of the range of [-1, 1]. " \
                 "It won't cause any error, but it is recommended to normalize the feature."
-    return None, None
+    return err_msg, warn_msg
 
 def report_errors(error_messages):
     for message in sorted(error_messages):
