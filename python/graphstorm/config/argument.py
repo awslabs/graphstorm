@@ -50,7 +50,8 @@ from .config import SUPPORTED_TASKS
 
 from .config import BUILTIN_LP_DISTMULT_DECODER
 from .config import SUPPORTED_LP_DECODER
-from .config import GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS
+from .config import (GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS,
+                     GRAPHSTORM_LP_EMB_L2_NORMALIZATION)
 
 from .config import (GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_EMBED_LAYER,
                      GRAPHSTORM_MODEL_DECODER_LAYER, GRAPHSTORM_MODEL_LAYER_OPTIONS)
@@ -1818,6 +1819,11 @@ class GSConfig:
                 f"Link prediction embedding normalizer {normalizer} not supported. " \
                 f"GraphStorm only support {GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS}"
             return normalizer
+
+        if self.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS:
+            # By default, normalize the emb with l2 normalization
+            # when the loss function is contrastive loss
+            return GRAPHSTORM_LP_EMB_L2_NORMALIZATION
         return None
 
     @property

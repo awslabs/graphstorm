@@ -27,8 +27,10 @@ import dgl
 import torch as th
 
 from graphstorm.config import GSConfig
-from graphstorm.config.config import BUILTIN_LP_LOSS_CROSS_ENTROPY
-from graphstorm.config.config import BUILTIN_LP_LOSS_LOGSIGMOID_RANKING
+from graphstorm.config.config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
+                                      BUILTIN_LP_LOSS_LOGSIGMOID_RANKING,
+                                      BUILTIN_LP_LOSS_CONTRASTIVELOSS)
+from graphstorm.config.config import GRAPHSTORM_LP_EMB_L2_NORMALIZATION
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.config.config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
@@ -915,6 +917,7 @@ def create_lp_config(tmp_path, file_name):
         "reverse_edge_types_map": ["query,exactmatch,rev-exactmatch,asin"],
         "gamma": 2.0,
         "lp_loss_func": BUILTIN_LP_LOSS_LOGSIGMOID_RANKING,
+        "lp_embed_normalizer": GRAPHSTORM_LP_EMB_L2_NORMALIZATION,
         "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
         "eval_metric": "MRR",
         "lp_decoder_type": "dot_product",
@@ -933,6 +936,7 @@ def create_lp_config(tmp_path, file_name):
         "reverse_edge_types_map": None,
         "eval_metric": ["mrr"],
         "gamma": 1.0,
+        "lp_loss_func": BUILTIN_LP_LOSS_CONTRASTIVELOSS,
         "lp_edge_weight_for_loss": ["query,exactmatch,asin:weight0", "query,click,asin:weight1"]
     }
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
@@ -996,6 +1000,7 @@ def test_lp_info():
         assert len(config.reverse_edge_types_map) == 0
         assert config.gamma == 12.0
         assert config.lp_loss_func == BUILTIN_LP_LOSS_CROSS_ENTROPY
+        assert config.lp_embed_normalizer == None
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
         assert config.gamma == 12.0
@@ -1017,6 +1022,7 @@ def test_lp_info():
         assert config.reverse_edge_types_map[("query", "exactmatch","asin")] == \
             ("asin", "rev-exactmatch","query")
         assert config.lp_loss_func == BUILTIN_LP_LOSS_LOGSIGMOID_RANKING
+        assert config.lp_embed_normalizer == GRAPHSTORM_LP_EMB_L2_NORMALIZATION
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
         assert config.lp_edge_weight_for_loss == "weight"
@@ -1033,6 +1039,8 @@ def test_lp_info():
         assert config.eval_etype[1] == ("query", "click", "asin")
         assert config.exclude_training_targets == False
         assert len(config.reverse_edge_types_map) == 0
+        assert config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS
+        assert config.lp_embed_normalizer == GRAPHSTORM_LP_EMB_L2_NORMALIZATION
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
         assert config.gamma == 1.0
