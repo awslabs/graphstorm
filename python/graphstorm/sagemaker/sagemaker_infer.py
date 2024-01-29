@@ -50,10 +50,10 @@ from .utils import (download_yaml_config,
                     upload_embs,
                     remove_embs)
 
-def launch_infer_task(task_type, num_gpus, graph_config,
+def launch_infer_task(task_type, num_trainers, graph_config,
     load_model_path, save_emb_path, ip_list,
     yaml_path, extra_args, state_q, custom_script,
-    output_chunk_size=100000):
+    output_chunk_size=10**6):
     """ Launch SageMaker training task
 
     Parameters
@@ -62,8 +62,8 @@ def launch_infer_task(task_type, num_gpus, graph_config,
         Task type. It can be node classification/regression,
         edge classification/regression, link prediction, etc.
         Refer to graphstorm.config.config.SUPPORTED_TASKS for more details.
-    num_gpus: int
-        Number of gpus per instance
+    num_trainers: int
+        Number of trainers to use per instance
     graph_config: str
         Where does the graph partition config reside.
     load_model_path: str
@@ -82,7 +82,7 @@ def launch_infer_task(task_type, num_gpus, graph_config,
         Custom inference script provided by a customer to run customer inference logic.
     output_chunk_size: int
         Number of rows per chunked prediction result or node embedding file.
-        Default: 100000
+        Default: 10^6
 
     Return
     ------
@@ -108,7 +108,7 @@ def launch_infer_task(task_type, num_gpus, graph_config,
         raise RuntimeError(f"Unsupported task type {task_type}")
 
     launch_cmd = ["python3", "-u",  "-m", cmd,
-        "--num-trainers", f"{num_gpus if int(num_gpus) > 0 else 1}",
+        "--num-trainers", f"{num_trainers if int(num_trainers) > 0 else 1}",
         "--num-servers", "1",
         "--num-samplers", "0",
         "--part-config", f"{graph_config}",
@@ -164,19 +164,34 @@ def run_infer(args, unknownargs):
             customer training logic. Can be None.
         data_path: str
             Local working path.
-        num_gpus: int
-            Number of gpus.
+        num_trainers: int
+            Number of trainer processes to use during inference.
         sm_dist_env: json str
             SageMaker distributed env.
         region: str
             AWS Region.
     """
-    num_gpus = args.num_gpus
+    try:
+        with open("/opt/ml/config/resourceconfig.json", "r", encoding="utf-8") as f:
+            train_env = json.load(f)
+    except FileNotFoundError:
+        train_env = json.loads(os.environ['SM_TRAINING_ENV'])
+    hosts = train_env['hosts']
+    current_host = train_env['current_host']
+
+    num_trainers = args.num_trainers
     data_path = args.data_path
     model_path = '/tmp/gsgnn_model'
     output_path = '/tmp/infer_output'
     os.makedirs(model_path, exist_ok=True)
     os.makedirs(output_path, exist_ok=True)
+
+    # NOTE: Ensure no logging has been done before setting logging configuration
+    logging.basicConfig(
+        level=getattr(logging, args.log_level.upper(), None),
+        format=f'{current_host}: %(asctime)s - %(levelname)s - %(message)s',
+        force=True)
+
 
     # start the ssh server
     subprocess.run(["service", "ssh", "start"], check=True)
@@ -184,18 +199,9 @@ def run_infer(args, unknownargs):
     logging.info("Known args %s", args)
     logging.info("Unknown args %s", unknownargs)
 
-    train_env = json.loads(args.sm_dist_env)
-    hosts = train_env['hosts']
-    current_host = train_env['current_host']
     world_size = len(hosts)
     os.environ['WORLD_SIZE'] = str(world_size)
     host_rank = hosts.index(current_host)
-
-    # NOTE: Ensure no logging has been done before setting logging configuration
-    logging.basicConfig(
-        level=getattr(logging, args.log_level.upper(), None),
-        format=f'{current_host}: %(asctime)s - %(levelname)s - %(message)s',
-        force=True)
 
     try:
         for host in hosts:
@@ -228,6 +234,7 @@ def run_infer(args, unknownargs):
         logging.info("Connected")
 
     # write ip list info into disk
+    os.makedirs(data_path, exist_ok=True)
     ip_list_path = os.path.join(data_path, 'ip_list.txt')
     with open(ip_list_path, 'w', encoding='utf-8') as f:
         for host in hosts:
@@ -278,7 +285,7 @@ def run_infer(args, unknownargs):
             # launch distributed training here
             state_q = queue.Queue()
             train_task = launch_infer_task(task_type,
-                                           num_gpus,
+                                           num_trainers,
                                            graph_config_path,
                                            model_path,
                                            emb_path,
