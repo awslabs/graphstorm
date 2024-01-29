@@ -162,7 +162,7 @@ def verify_masks(mask, error_prefix):
         # so we check the mask using dgl.backend.nonzero_1d
         mask = F.nonzero_1d(mask)
     except:
-        return f"ERROR: {error_prefix} The mask is not loadable for loadable. " \
+        return f"ERROR: {error_prefix} The mask is not loadable for loading. " \
                  "Ideally, the mask should be a 1D bool tensor."
     return None
 
