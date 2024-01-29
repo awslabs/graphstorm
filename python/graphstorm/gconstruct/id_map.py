@@ -12,15 +12,15 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-
-    Generate example graph data using built-in datasets for node classification,
-    node regression, edge classification and edge regression.
 """
-import os
 import logging
+import os
+import time
+
+import numpy as np
+import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
-import numpy as np
 
 from graphstorm.data.constants import (
     GSP_MAPPING_INPUT_ID,
@@ -85,10 +85,23 @@ class IdReverseMap:
             Id mapping file prefix
     """
     def __init__(self, id_map_prefix):
+        load_data_start = time.perf_counter()
         assert os.path.exists(id_map_prefix), \
             f"{id_map_prefix} does not exist."
         try:
-            data = read_data_parquet(id_map_prefix, [MAPPING_INPUT_ID, MAPPING_OUTPUT_ID])
+            # data = read_data_parquet(id_map_prefix, [MAPPING_INPUT_ID, MAPPING_OUTPUT_ID])
+            data = pq.read_table(id_map_prefix, memory_map=True)  # type: pa.Table
+            if "node_str_id" in data.column_names:
+                data = data.rename_columns([GSP_MAPPING_INPUT_ID, GSP_MAPPING_OUTPUT_ID])
+
+            logging.info("Time to load id data: %f", time.perf_counter() - load_data_start)
+
+            sort_data_start = time.perf_counter()
+            sort_idx = np.argsort(data[MAPPING_OUTPUT_ID])
+            self._ids = data[MAPPING_INPUT_ID].to_numpy()[sort_idx]
+            # Below causes 'pyarrow.lib.ArrowInvalid: offset overflow while concatenating arrays'
+            # self._ids = mapping_table.sort_by("new")['orig'].to_numpy()
+            logging.info("Time to sort id data: %f", time.perf_counter() - sort_data_start)
         except AssertionError:
             # To maintain backwards compatibility with GraphStorm v0.2.1
             data = read_data_parquet(id_map_prefix, [GSP_MAPPING_INPUT_ID, GSP_MAPPING_OUTPUT_ID])
@@ -119,7 +132,7 @@ class IdReverseMap:
         """
         return self._ids[start:end]
 
-    def map_id(self, ids):
+    def map_id(self, ids: np.ndarray) -> np.ndarray:
         """ Map the GraphStorm IDs to the raw IDs.
 
         Parameters
@@ -135,6 +148,11 @@ class IdReverseMap:
             return np.array([], dtype=np.str)
 
         return self._ids[ids]
+        # return self.mapping_table.join(
+        #     pa.Table.from_pydict({"new": ids}),
+        #     keys='new',
+        #     join_type="inner")['orig']
+        # return self.mapping_df.join(pd.Series(ids, copy=False, name='new'), how='inner')['orig']
 
 class IdMap:
     """ Map an ID to a new ID.
