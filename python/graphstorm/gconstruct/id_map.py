@@ -88,30 +88,11 @@ class IdReverseMap:
         load_data_start = time.perf_counter()
         assert os.path.exists(id_map_prefix), \
             f"{id_map_prefix} does not exist."
-        try:
-            # data = read_data_parquet(id_map_prefix, [MAPPING_INPUT_ID, MAPPING_OUTPUT_ID])
-            data = pq.read_table(id_map_prefix, memory_map=True)  # type: pa.Table
-            if "node_str_id" in data.column_names:
-                data = data.rename_columns([GSP_MAPPING_INPUT_ID, GSP_MAPPING_OUTPUT_ID])
+        self.mapping_table = pq.read_table(id_map_prefix, memory_map=True)  # type: pa.Table
+        if "node_str_id" in self.mapping_table.column_names:
+            self.mapping_table = self.mapping_table.rename_columns(["orig", "new"])
 
             logging.info("Time to load id data: %f", time.perf_counter() - load_data_start)
-
-            sort_data_start = time.perf_counter()
-            sort_idx = np.argsort(data[MAPPING_OUTPUT_ID])
-            self._ids = data[MAPPING_INPUT_ID].to_numpy()[sort_idx]
-            # Below causes 'pyarrow.lib.ArrowInvalid: offset overflow while concatenating arrays'
-            # self._ids = mapping_table.sort_by("new")['orig'].to_numpy()
-            logging.info("Time to sort id data: %f", time.perf_counter() - sort_data_start)
-        except AssertionError:
-            # To maintain backwards compatibility with GraphStorm v0.2.1
-            data = read_data_parquet(id_map_prefix, [GSP_MAPPING_INPUT_ID, GSP_MAPPING_OUTPUT_ID])
-            data[MAPPING_OUTPUT_ID] = data[GSP_MAPPING_OUTPUT_ID]
-            data[MAPPING_INPUT_ID] = data[GSP_MAPPING_INPUT_ID]
-            data.pop(GSP_MAPPING_INPUT_ID)
-            data.pop(GSP_MAPPING_OUTPUT_ID)
-
-        sort_idx = np.argsort(data[MAPPING_OUTPUT_ID])
-        self._ids = data[MAPPING_INPUT_ID][sort_idx]
 
     def __len__(self):
         return len(self._ids)
@@ -132,27 +113,26 @@ class IdReverseMap:
         """
         return self._ids[start:end]
 
-    def map_id(self, ids: np.ndarray) -> np.ndarray:
-        """ Map the GraphStorm IDs to the raw IDs.
+    def map_id(self, ids: np.ndarray) -> pa.Table:
+        """Map sthe GraphStorm IDs to the raw IDs.
 
         Parameters
         ----------
-        ids : numpy array
-            The input IDs
+        ids : np.ndarray
+            The input Graphstorm/DGL IDs
 
         Returns
         -------
-        tensor: A numpy array of raw IDs.
+        np.ndarray
+            A numpy array of raw IDs.
         """
         if len(ids) == 0:
             return np.array([], dtype=np.str)
 
-        return self._ids[ids]
-        # return self.mapping_table.join(
-        #     pa.Table.from_pydict({"new": ids}),
-        #     keys='new',
-        #     join_type="inner")['orig']
-        # return self.mapping_df.join(pd.Series(ids, copy=False, name='new'), how='inner')['orig']
+        return self.mapping_table.join(
+            pa.Table.from_pydict({"new": ids}),
+            keys='new',
+            join_type="inner")['orig'].to_numpy()
 
 class IdMap:
     """ Map an ID to a new ID.

@@ -249,7 +249,7 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
     """
     # Download partitioned graph data.
     # Each training instance only download 1 partition.
-    DOWNLOAD_THREADS = 64
+    DOWNLOAD_THREADS = os.cpu_count()
     rank = get_rank()
     graph_part = f"part{part_id}"
 
@@ -513,16 +513,16 @@ def upload_directory_parallel(local_prefix: str, s3_prefix: str, s3_client=None)
     def upload_file(local_path: str, s3_uri: str):
         bucket = s3_uri.split("/")[2]
         key = s3_uri.split("/", maxsplit=3)[3]
-        s3_client.upload_file(local_path, bucket, key)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            s3_client.upload_file(local_path, bucket, key)
 
     verbosity = 10 if rank == 0 else 0
     # We know we'll get many 'WARNING - Connection pool is full' warnings here so we suppress them
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        Parallel(n_jobs=min(UPLOAD_THREADS, os.cpu_count()), prefer="threads", verbose=verbosity)(
-                delayed(upload_file)(local_path, s3_path)
-                    for (local_path, s3_path) in local_src_s3_dst_tuples
-            )
+    Parallel(n_jobs=min(UPLOAD_THREADS, os.cpu_count()), prefer="threads", verbose=verbosity)(
+            delayed(upload_file)(local_path, s3_path)
+                for (local_path, s3_path) in local_src_s3_dst_tuples
+        )
 
 def update_gs_params(gs_params, param_name, param_value):
     """ Update the graphstorm parameter `param_name` with a new

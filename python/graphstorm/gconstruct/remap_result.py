@@ -168,26 +168,29 @@ def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
         output_fname_prefix: str
             Output file name prefix.
         chunk_size: int
-            Max number of raws per output file.
-        output_func: func
-            Function used to write data to disk.
+            Max number of node ids per output file.
+        output_func: Callable[[Dict, str], None]
+            Function used to write data dictionary to disk.
+            The function must accept two arguments, its first argument a dict from
+            column name(s) to an array-like, the second argument must be
+            filepath string.
     """
     node_data = th.load(data_file_path).numpy()
     nids = th.load(nid_path).numpy()
     nid_map = id_maps[ntype] # type: IdReverseMap
     num_chunks = math.ceil(len(node_data) / chunk_size)
 
-    for i in range(num_chunks):
-        start = i * chunk_size
-        end = (i + 1) * chunk_size if i + 1 < num_chunks else len(node_data)
-        data = node_data[start:end] # type: np.ndarray
-        nid = nid_map.map_id(nids[start:end])
+    data_chunks = np.array_split(node_data, num_chunks)
+    nid_chunks = np.array_split(nids, num_chunks)
+
+    for idx, (data_chunk, nid_chunk) in enumerate(zip(data_chunks, nid_chunks)):
+        raw_ids = nid_map.map_id(nid_chunk)
         data = {
-            GS_REMAP_NID_COL: nid.tolist(),
-            data_col_key: data.tolist(),
+            GS_REMAP_NID_COL: raw_ids.tolist(),
+            data_col_key: data_chunk.tolist(),
             }
-        filename = f"{output_fname_prefix}_{pad_file_index(i)}.parquet"
-        pd.DataFrame.from_dict(data).to_parquet(filename)
+        filename = f"{output_fname_prefix}_{pad_file_index(idx)}.parquet"
+        output_func(data, filename)
 
 def worker_remap_edge_pred(pred_file_path, src_nid_path,
     dst_nid_path, src_type, dst_type,
@@ -726,6 +729,7 @@ def main(args, gs_config_args):
     rank = args.rank
     world_size = args.world_size
     with_shared_fs = args.with_shared_fs
+    remap_program_start = time.perf_counter()
 
     if args.yaml_config_file is not None:
         # Case 1: remap_result is called right after the
@@ -1087,6 +1091,9 @@ def main(args, gs_config_args):
         # predict_dir is not None.
         _remove_inputs(with_shared_fs, files_to_remove, rank, world_size,
                        node_emb_dir if node_emb_dir is not None else predict_dir)
+
+    logging.info("Rank %d: Remapping program finished in %.4f seconds",
+                 rank, time.perf_counter() - remap_program_start)
 
 def add_distributed_remap_args(parser):
     """ Distributed remapping only
