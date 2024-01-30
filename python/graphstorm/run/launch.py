@@ -503,7 +503,8 @@ def wrap_dist_remap_command(
         world_size: int,
         with_shared_fs: bool,
         output_chunk_size: int = 100000,
-        preserve_input: bool = False) -> str:
+        preserve_input: bool = False,
+        num_trainers: int = 1) -> str:
     """ Wrap distributed remap command.
 
         Parameters
@@ -540,7 +541,7 @@ def wrap_dist_remap_command(
         "--rank", str(rank),
         "--world-size", str(world_size),
         "--with-shared-fs", "True" if with_shared_fs else "False",
-        "--num-processes", str(os.cpu_count()),
+        "--num-processes", str(num_trainers),
         "--output-chunk-size", str(output_chunk_size),
         "--preserve-input", "True" if preserve_input else "False"]
     )
@@ -875,7 +876,8 @@ def submit_remap_jobs(args, udf_command, hosts, run_local):
                                                      len(hosts),
                                                      args.with_shared_fs,
                                                      args.output_chunk_size,
-                                                     args.preserve_input)
+                                                     args.preserve_input,
+                                                     args.num_trainers)
 
         cmd = wrap_cmd_with_local_envvars(remap_dist_command, env_vars)
         cmd = (

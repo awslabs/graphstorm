@@ -26,12 +26,13 @@ import time
 import sys
 import math
 from functools import partial
+from typing import Callable, Dict
 
+import numpy as np
 import pandas as pd
 import torch as th
 
 from ..model.utils import pad_file_index
-from .file_io import write_data_parquet
 from .id_map import IdReverseMap
 from ..utils import get_log_level
 from .utils import multiprocessing_exec_no_return as multiprocessing_remap
@@ -91,7 +92,7 @@ def write_data_parquet_file(data, file_prefix, col_name_map=None):
         data = updated_data
 
     output_fname = f"{file_prefix}.parquet"
-    write_data_parquet(data, output_fname)
+    pd.DataFrame.from_dict(data).to_parquet(output_fname)
 
 def write_data_csv_file(data, file_prefix, delimiter=",", col_name_map=None):
     """ Write data into disk using csv format.
@@ -151,7 +152,7 @@ def write_data_csv_file(data, file_prefix, delimiter=",", col_name_map=None):
     data_frame.to_csv(output_fname, index=False, sep=delimiter)
 
 def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
-    output_fname_prefix, chunk_size, output_func):
+    output_fname_prefix, chunk_size, output_func: Callable[[Dict, str], None]):
     """ Do one node prediction remapping task
 
         Parameters
@@ -159,7 +160,7 @@ def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
         data_file_path: str
             The path to the node data.
         nid_path: str
-            The path to the file storing node ids
+            The path to the file storing DGL/GraphStorm node ids
         ntype: str
             Node type.
         data_col_key: str
