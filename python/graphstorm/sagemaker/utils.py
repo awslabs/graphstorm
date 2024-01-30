@@ -15,21 +15,25 @@
 
     sagemaker script utilities
 """
-
 import hashlib
+import math
 import logging
 import os
 import shutil
 import socket
 import subprocess
 import time
-from typing import Optional
+from typing import List, Tuple, Optional
 from urllib.parse import urlparse
 
 import boto3
+import botocore
 from botocore.errorfactory import ClientError
+from joblib import delayed, Parallel
 from sagemaker.s3 import S3Downloader
 from sagemaker.s3 import S3Uploader
+
+from graphstorm import get_rank
 
 PORT_MIN = 10000  # Avoid privileged ports
 PORT_MAX = 65535  # Maximum TCP port number
@@ -216,7 +220,8 @@ def download_model(model_artifact_s3, model_path, sagemaker_session):
 
 def download_graph(graph_data_s3, graph_name, part_id, world_size,
                    local_path, sagemaker_session,
-                   raw_node_mapping_prefix_s3=None):
+                   raw_node_mapping_prefix_s3=None,
+                   s3_client=None):
     """ download graph data
 
     Parameters
@@ -243,6 +248,8 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
     """
     # Download partitioned graph data.
     # Each training instance only download 1 partition.
+    DOWNLOAD_THREADS = 64
+    rank = get_rank()
     graph_part = f"part{part_id}"
 
     graph_path = os.path.join(local_path, graph_name)
@@ -252,21 +259,12 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
 
     graph_data_s3 = graph_data_s3[:-1] if graph_data_s3.endswith('/') else graph_data_s3
 
-    # By default we assume the node mappings exist
-    # under the same path as the rest of the graph data
-    if not raw_node_mapping_prefix_s3:
-        raw_node_mapping_prefix_s3 = f"{graph_data_s3}/raw_id_mappings"
-    else:
-        raw_node_mapping_prefix_s3 = (
-            raw_node_mapping_prefix_s3[:-1] if raw_node_mapping_prefix_s3.endswith('/')
-            else raw_node_mapping_prefix_s3)
-
     # We split on '/' to get the bucket, as it's always the third split element in an S3 URI
     s3_input_bucket = graph_data_s3.split("/")[2]
     # Similarly, by having maxsplit=3 we get the S3 key value as the fourth element
     s3_input_key = graph_data_s3.split("/", maxsplit=3)[3]
 
-    s3_client = boto3.client('s3')
+    s3_client = boto3.client('s3') if s3_client is None else s3_client
     graph_config = None
     for config_name  in [f"{graph_name}.json", "metadata.json"]:
         try:
@@ -289,19 +287,69 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
     assert graph_config, \
         (f"Could not find a graph config file named {graph_name}.json or metadata.json "
          f"under {graph_data_s3}")
+    graph_part_start = time.perf_counter()
+    # Download partition metadata file
     S3Downloader.download(os.path.join(graph_data_s3, graph_config),
             graph_path, sagemaker_session=sagemaker_session)
-    try:
-        logging.info("Download graph from %s to %s",
-                     os.path.join(os.path.join(graph_data_s3, graph_part), ""),
-                     graph_part_path)
-        # add tailing / to s3:/xxxx/partN
-        S3Downloader.download(os.path.join(os.path.join(graph_data_s3, graph_part), ""),
-            graph_part_path, sagemaker_session=sagemaker_session)
-    except Exception as err: # pylint: disable=broad-except
-        logging.error("Can not download graph_data from %s, %s.",
-                      graph_data_s3, str(err))
-        raise RuntimeError(f"Can not download graph_data from {graph_data_s3}, {err}.")
+
+    def s3_get_meta_data(client, bucket, key):
+        meta_data = client.head_object(
+            Bucket=bucket,
+            Key=key
+        )
+        return meta_data
+
+    def convert_size(size_bytes):
+        if size_bytes == 0:
+            return "0B"
+        size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+        i = int(math.floor(math.log(size_bytes, 1024)))
+        p = math.pow(1024, i)
+        s = round(size_bytes / p, 2)
+        return "%s %s" % (s, size_name[i])
+
+
+    def get_cunks(size_bytes, desired_sections):
+        return size_bytes / desired_sections
+
+    def download_large_file(client, bucket, key, local_filepath, parallel_threads):
+        start = time.time()
+        md = s3_get_meta_data(client, bucket, key)
+        chunk = get_cunks(md["ContentLength"], parallel_threads)
+        logging.debug("Making %s parallel s3 calls with a chunk size of %s each..." % (
+            parallel_threads, convert_size(chunk))
+        )
+        client.download_file(
+            Bucket=bucket,
+            Filename=local_filepath,
+            Key=key,
+            Config=boto3.s3.transfer.TransferConfig(
+                max_concurrency=parallel_threads
+            )
+        )
+        end = time.time() - start
+        logging.debug("Finished downloading %s in %s seconds" % (key, end))
+
+
+    graph_part_s3_prefix = os.path.join(os.path.join(graph_data_s3, graph_part), "")
+    s3_graph_part_files = S3Downloader.list(
+        graph_part_s3_prefix,
+        sagemaker_session=sagemaker_session)
+
+    # Download graph structure, features and DGL mapping files
+    for s3_graph_part_file in s3_graph_part_files:
+        graph_part_key = s3_graph_part_file.split("/", maxsplit=3)[3]
+        local_part_path = os.path.join(graph_part_path, os.path.basename(graph_part_key))
+        download_large_file(
+            s3_client,
+            s3_input_bucket,
+            graph_part_key,
+            local_part_path,
+            min(DOWNLOAD_THREADS, os.cpu_count())
+        )
+
+    logging.info("Rank %d: Time to download graph part %s: %.2f seconds",
+                 rank, graph_part, time.perf_counter() - graph_part_start)
 
     node_id_mapping = "node_mapping.pt"
     # Try to download node id mapping file if any
@@ -318,28 +366,51 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
                         "the node id mapping file created by gconstruct or gsprocessing.")
 
     if part_id == 0:
+        # The leader needs to download the DGL intermediate mapping files
+        lead_mapping_start = time.perf_counter()
         # It is possible that id mappings are generated by
         # dgl tools/distpartitioning/convert_partition.py
         for i in range(1, world_size):
             local_graph_part = f"part{i}"
-            graph_part_path = os.path.join(graph_path, local_graph_part)
-            os.makedirs(graph_part_path, exist_ok=True)
+            local_graph_part_path = os.path.join(graph_path, local_graph_part)
+            os.makedirs(local_graph_part_path, exist_ok=True)
 
             # Try to download node id mapping file if any
-            s3_path = os.path.join(graph_data_s3, local_graph_part, "orig_nids.dgl")
+            filename = "orig_nids.dgl"
+            s3_path = os.path.join(graph_data_s3, local_graph_part, filename)
             try:
-                logging.info("Try to download %s to %s", s3_path, graph_part_path)
-                S3Downloader.download(s3_path,
-                    graph_part_path, sagemaker_session=sagemaker_session)
+                logging.debug("Try to download %s to %s", s3_path, local_graph_part_path)
+                dgl_mapping_key = s3_path.split("/", maxsplit=3)[3]
+                download_large_file(
+                    s3_client,
+                    s3_input_bucket,
+                    dgl_mapping_key,
+                    os.path.join(local_graph_part_path, filename),
+                    min(DOWNLOAD_THREADS, os.cpu_count())
+                )
             except Exception: # pylint: disable=broad-except
-                logging.info("node id mapping file %s does not exist", s3_path)
+                logging.info("Could not download DGL node id mapping file %s", s3_path)
+        logging.info("Time to download DGL node ID mappings on leader: %f seconds",
+                     time.perf_counter() - lead_mapping_start)
 
     # Try to get GraphStorm ID to Original ID remapping files if any
     # The S3 path can be empty, which means no Raw ID mapping is needed.
     # For exampling during SageMaker training.
-    id_map_files = S3Downloader.list(
+    raw_id_mappings_start = time.perf_counter()
+
+    # By default we assume the node mappings exist
+    # under the same path as the rest of the graph data
+    if not raw_node_mapping_prefix_s3:
+        raw_node_mapping_prefix_s3 = f"{graph_data_s3}/raw_id_mappings"
+    else:
+        raw_node_mapping_prefix_s3 = (
+            raw_node_mapping_prefix_s3[:-1] if raw_node_mapping_prefix_s3.endswith('/')
+            else raw_node_mapping_prefix_s3)
+
+    # If no mappings exist this list will be empty
+    s3_id_map_files = S3Downloader.list(
         raw_node_mapping_prefix_s3, sagemaker_session=sagemaker_session)
-    for mapping_file in id_map_files:
+    for mapping_file in s3_id_map_files:
         # The expected layout for GConstruct mapping files on S3 is:
         # raw_id_mappings/node_type/part-xxxxx.parquet
         ntype = mapping_file.split("/")[-2]
@@ -348,14 +419,24 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
             # Then we have raw_id_mappings/node_type/parquet/part-xxxxx.parquet
             ntype = mapping_file.split("/")[-3]
         os.makedirs(os.path.join(graph_path, "raw_id_mappings", ntype), exist_ok=True)
-        try:
-            S3Downloader.download(
-                mapping_file,
-                os.path.join(graph_path, "raw_id_mappings", ntype),
-                sagemaker_session=sagemaker_session)
-        except Exception: # pylint: disable=broad-except
-            logging.warning("Could not download node id remap file %s",
-                            mapping_file)
+
+    def download_raw_mapping_file(s3_mapping_file):
+        ntype = s3_mapping_file.split("/")[-2]
+        # This is the case where the output was generated by GSProcessing
+        if ntype == "parquet":
+            # Then we have raw_id_mappings/node_type/parquet/part-xxxxx.parquet
+            ntype = s3_mapping_file.split("/")[-3]
+        mapping_key = s3_mapping_file.split("/", maxsplit=3)[3]
+        filename = os.path.basename(mapping_key)
+        local_dl_path = os.path.join(graph_path, "raw_id_mappings", ntype, filename)
+        s3_client.download_file(
+            s3_input_bucket, mapping_key, local_dl_path)
+
+    # We expect the raw id mapping files to be many small files, so we download in parallel
+    Parallel(n_jobs=min(DOWNLOAD_THREADS, os.cpu_count()), prefer="threads")(
+        delayed(download_raw_mapping_file)(mapping_file) for mapping_file in s3_id_map_files)
+    logging.info("Rank %d: Time to download %d raw id mapping files: %f seconds",
+                 rank, len(s3_id_map_files), time.perf_counter() - raw_id_mappings_start)
 
     logging.info("Finished downloading graph data from %s", graph_data_s3)
     return os.path.join(graph_path, graph_config)
@@ -402,23 +483,42 @@ def upload_model_artifacts(model_s3_path, model_path, sagemaker_session):
     # Other ranks will only upload learnable embeddings owned by themselves.
     return upload_data_to_s3(model_s3_path, model_path, sagemaker_session)
 
-def upload_embs(emb_s3_path, emb_path, sagemaker_session):
-    """ Upload generated node embeddings into S3
-
-    As embeddding table is huge and each trainer/inferrer only
-    stores part of the embedding, we need to upload them
-    into S3.
+def upload_directory_parallel(local_prefix: str, s3_prefix: str, s3_client=None):
+    """Upload all files under a local prefix to an S3 prefix
 
     Parameters
     ----------
-    emb_s3_path: str
-        S3 uri to upload node embeddings
-    emb_path: str
-        Local embedding path
-    sagemaker_session: sagemaker.session.Session
-        sagemaker_session to run download
+    local_prefix : str
+        Local directory prefix
+    s3_prefix : str
+        S3 prefix under which files will be uploaded
+    s3_client : boto3.client, optional
+        S3 boto client, by default None
     """
-    return upload_data_to_s3(emb_s3_path, emb_path, sagemaker_session)
+    if not s3_client:
+        s3_client = boto3.client(
+            "s3",
+            config=botocore.config.Config(max_pool_connections=150),
+            region_name=os.environ.get("AWS_REGION", None)
+        )
+    rank = get_rank()
+    UPLOAD_THREADS=min(64, os.cpu_count()*2)
+
+    local_src_s3_dst_tuples = get_upload_tuples(local_prefix, s3_prefix, include_filename=True)
+
+    logging.info("Rank %d: Uploading %d embeddings files to %s",
+                rank, len(local_src_s3_dst_tuples), s3_prefix)
+
+    def upload_file(local_path: str, s3_uri: str):
+        bucket = s3_uri.split("/")[2]
+        key = s3_uri.split("/", maxsplit=3)[3]
+        s3_client.upload_file(local_path, bucket, key)
+
+    verbosity = 10 if rank == 0 else 0
+    Parallel(n_jobs=min(UPLOAD_THREADS, os.cpu_count()), prefer="threads", verbose=verbosity)(
+            delayed(upload_file)(local_path, s3_path)
+                for (local_path, s3_path) in local_src_s3_dst_tuples
+        )
 
 def update_gs_params(gs_params, param_name, param_value):
     """ Update the graphstorm parameter `param_name` with a new
@@ -461,6 +561,46 @@ def remove_embs(emb_path):
         Local embedding path
     """
     remove_data(emb_path)
+
+# From https://github.com/aws/sagemaker-python-sdk/blob/fb16a269daf4db6a717ef26c1a6bf7631c0c8d2d/src/sagemaker/session.py#L390-L406
+def get_upload_tuples(local_path: str, key_prefix: str, include_filename: bool = False) -> List[Tuple[str]]:
+    """Walks a directory to create a list of (local_src, s3_dst) paths for upload.
+
+    Parameters
+    ----------
+    local_path : str
+        A local path, can be a directory or single file.
+    key_prefix : str
+        An S3 key prefix under we want all local files uploaded.
+    include_filename: bool (default: False)
+        When True, will include the filename in the returned S3 URIs, otherwise
+        will just return the prefix
+    Returns
+    -------
+    List[Tuple[str]]
+        A list of (local_src_path, s3_dist_path) tuples, one for each file
+        under the input local_path.
+    """
+    # Generate a tuple for each file that we want to upload of the form (local_path, s3_key).
+    files = []
+    if os.path.isdir(local_path):
+        for dirpath, _, filenames in os.walk(local_path):
+            for name in filenames:
+                file_path = os.path.join(dirpath, name)
+                s3_relative_prefix = (
+                    "" if local_path == dirpath else os.path.relpath(dirpath, start=local_path) + "/"
+                )
+                if include_filename:
+                    s3_key = "{}/{}{}".format(key_prefix, s3_relative_prefix, name)
+                else:
+                    s3_key = "{}/{}".format(key_prefix, s3_relative_prefix)
+                files.append((file_path, s3_key))
+    else:
+        _, name = os.path.split(local_path)
+        s3_key = "{}/{}".format(key_prefix, name)
+        files.append((local_path, s3_key))
+
+    return files
 
 def is_port_available(port):
     """Check if a port is available."""

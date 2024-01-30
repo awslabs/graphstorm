@@ -59,6 +59,7 @@ GS_REMAP_BUILTIN_COLS = [GS_REMAP_NID_COL,
                          GS_REMAP_DST_NID_COL,
                          GS_REMAP_EMBED_COL]
 
+
 # Id_maps is a global variable.
 # When using multi-processing to do id remap,
 # we do not want to pass id_maps to each worker process
@@ -66,7 +67,7 @@ GS_REMAP_BUILTIN_COLS = [GS_REMAP_NID_COL,
 # data. By making id_maps as a global variable, we
 # can rely on Linux copy-on-write to provide a zero-copy
 # id_maps to each worker process.
-id_maps = {}
+id_maps = {} # type: Dict[str, IdReverseMap]
 
 def write_data_parquet_file(data, file_prefix, col_name_map=None):
     """ Write data into disk using parquet format.
@@ -290,7 +291,7 @@ def _remove_inputs(with_shared_fs, files_to_remove,
 def remap_node_emb(emb_ntypes, node_emb_dir,
                    output_dir, out_chunk_size,
                    num_proc, rank, world_size,
-                   with_shared_fs, output_func):
+                   with_shared_fs, output_func, id_mapping_path=None):
     """ Remap node embeddings.
 
         The function will iterate all the node types that
@@ -301,7 +302,7 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
 
         Example
         --------
-        # embedddings:
+        # embeddings:
         #   ntype0:
         #     embed_nids-00000.pt
         #     embed_nids-00001.pt
@@ -321,7 +322,7 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
 
         Example
         --------
-        # embedddings:
+        # embeddings:
         #   ntype0:
         #     embed-00000_00000.parquet
         #     embed-00000_00001.parquet
@@ -348,7 +349,7 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         world_size: int
             The total number of processes in the cluster.
         with_shared_fs: bool
-            Whether shared file system is avaliable.
+            Whether shared file system is available.
         output_func: func
             Function used to write data to disk.
 
@@ -357,11 +358,13 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
         list of str
             The list of files to be removed.
     """
+    embedding_remap_start = time.perf_counter()
     task_list = []
     files_to_remove = []
     for ntype in emb_ntypes:
         input_emb_dir = os.path.join(node_emb_dir, ntype)
         out_embdir = os.path.join(output_dir, ntype)
+        os.makedirs(out_embdir, exist_ok=True)
         ntype_emb_files = os.listdir(input_emb_dir)
         # please note nid_files can be empty.
         nid_files = [fname for fname in ntype_emb_files \
@@ -408,7 +411,10 @@ def remap_node_emb(emb_ntypes, node_emb_dir,
                 "output_func": output_func,
             })
 
+    logging.info("Rank %d: Length of task list: %d", rank, len(task_list))
     multiprocessing_remap(task_list, num_proc, worker_remap_node_data)
+    logging.info("Rank %d: Remap node embeddings done. Time elapsed: %f",
+                 rank, time.perf_counter() - embedding_remap_start)
     return files_to_remove
 
 def remap_node_pred(pred_ntypes, pred_dir,
@@ -953,6 +959,8 @@ def main(args, gs_config_args):
                         "Embeddings will remain in PyTorch format.")
         sys.exit(0)
 
+    logging.info("Retrieving id_maps from %s", id_mapping_path)
+    id_map_start = time.perf_counter()
     for ntype in set(ntypes):
         mapping_prefix = os.path.join(id_mapping_path, ntype)
         logging.debug("loading mapping file %s",
@@ -966,8 +974,10 @@ def main(args, gs_config_args):
                  "Embeddings will remain in PyTorch format."),
                 mapping_prefix)
             sys.exit(0)
+    logging.info("Rank %d: Retrieving id_maps took %f seconds", rank, time.perf_counter() - id_map_start)
 
     num_proc = args.num_processes if args.num_processes > 0 else 1
+    logging.info("Number of processes %d", num_proc)
     col_name_map = None
     if args.column_names is not None:
         col_name_map = {}
