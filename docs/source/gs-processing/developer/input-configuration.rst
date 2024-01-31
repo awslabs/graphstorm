@@ -452,7 +452,7 @@ arguments.
    -  Transforms a text feature column to tokens or embeddings with different Hugging Face models, enabling nuanced understanding and processing of natural language data.
    -  ``kwargs``:
 
-      - ``normalizer`` (String, required): It should be "tokenize_hf".
+      - ``action`` (String, required): The action to perform on the text data. Currently we only support text tokenization through HuggingFace models, so the only accepted value here is "tokenize_hf".
       - ``bert_model`` (String, required): It should be the identifier of a pre-trained model available in the Hugging Face Model Hub.
       - ``max_seq_length`` (Integer, required): It specifies the maximum number of tokens of the input.
 
