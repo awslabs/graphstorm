@@ -363,3 +363,4 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "split_rate": {"train": 0.9, "val": 0.1, "test": 0.0},
         },
     ]
+    
