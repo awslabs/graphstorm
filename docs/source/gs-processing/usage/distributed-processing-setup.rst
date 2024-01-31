@@ -111,12 +111,12 @@ The script also supports other arguments to customize the image name,
 tag and other aspects of the build. See ``bash docker/build_gsprocessing_image.sh --help``
 for more information.
 
-Building the GraphStorm Processing image using Docker
------------------------------------------------------
-For EMR Serverless images, it is required to setup VPC and NAT route `Create a VPC on emr-serverless
-<https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/vpc-access.html>`_ or adding huggingface
-model cache inside the docker image. The ``build_gsprocessing_image.sh`` script can also offer a choice to
-pack the model cache inside the docker image with the bert model name.
+For EMR Serverless images, setting up a VPC and NAT route is a necessary step when using text data feature transformation.
+You can find detailed instructions on creating a VPC for EMR Serverless in the AWS documentation: `Create a VPC on emr-serverless
+<https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/vpc-access.html>`_.
+Alternatively, there is one easier way to do that, you can opt to include the huggingface model cache directly in your Docker image.
+The build_gsprocessing_image.sh script provides an option to embed the huggingface bert model cache within the Docker image.
+
 .. code-block:: bash
 
     bash docker/build_gsprocessing_image.sh --environment emr-serverless --model-name bert-base-uncased
