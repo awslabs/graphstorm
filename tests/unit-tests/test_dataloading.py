@@ -326,6 +326,24 @@ def test_GSgnnNodeData():
         no_label = True
     assert no_label
 
+    # test get feature size when node_feat_field is None
+    feat_size = tr_data.get_node_feat_size()
+    assert feat_size['n0'] == 0
+    assert feat_size['n1'] == 0
+
+    # test get feature size when node_feat_field is given in construction
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
+                                                            dirname=tmpdirname)
+        data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                  node_feat_field={'n0': ['feat','feat1'], 'n1': ['feat1']},
+                                  train_ntypes=tr_ntypes, eval_ntypes=va_ntypes,
+                                  label_field='label')
+    feat_size = data.get_node_feat_size()
+    assert feat_size['n0'] == 6
+    assert feat_size['n1'] == 4
+
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
@@ -428,7 +446,7 @@ def test_node_dataloader_reconstruct():
                                      train_ntypes=['n0'], label_field='label',
                                      node_feat_field={'n0': ['feat'], 'n4': ['feat']})
 
-    feat_sizes = gs.gsf.get_feat_size(np_data.g, {'n0': 'feat', 'n4': 'feat'})
+    feat_sizes = gs.get_node_feat_size(np_data.g, {'n0': 'feat', 'n4': 'feat'})
     target_idx = {'n0': th.arange(np_data.g.number_of_nodes('n0'))}
     # Test the case that we cannot construct all node features.
     try:
@@ -1963,41 +1981,41 @@ def test_GSgnnTrainData_homogeneous():
     th.distributed.destroy_process_group()
 
 if __name__ == '__main__':
-    test_GSgnnLinkPredictionPredefinedTestDataLoader(1)
-    test_GSgnnLinkPredictionPredefinedTestDataLoader(10)
-    test_edge_fixed_dst_negative_sample_gen_neg_pairs()
-    test_hard_edge_dst_negative_sample_generate_complex_case()
-    test_hard_edge_dst_negative_sample_generate()
-    test_inbatch_joint_neg_sampler(10, 20)
+    # test_GSgnnLinkPredictionPredefinedTestDataLoader(1)
+    # test_GSgnnLinkPredictionPredefinedTestDataLoader(10)
+    # test_edge_fixed_dst_negative_sample_gen_neg_pairs()
+    # test_hard_edge_dst_negative_sample_generate_complex_case()
+    # test_hard_edge_dst_negative_sample_generate()
+    # test_inbatch_joint_neg_sampler(10, 20)
 
-    test_np_dataloader_len(11)
-    test_ep_dataloader_len(11)
-    test_lp_dataloader_len(11)
+    # test_np_dataloader_len(11)
+    # test_ep_dataloader_len(11)
+    # test_lp_dataloader_len(11)
 
-    test_np_dataloader_trim_data(GSgnnNodeDataLoader)
-    test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
-    test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
-    test_GSgnnEdgeData_wo_test_mask()
-    test_GSgnnNodeData_wo_test_mask()
-    test_GSgnnEdgeData()
+    # test_np_dataloader_trim_data(GSgnnNodeDataLoader)
+    # test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
+    # test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
+    # test_GSgnnEdgeData_wo_test_mask()
+    # test_GSgnnNodeData_wo_test_mask()
+    # test_GSgnnEdgeData()
     test_GSgnnNodeData()
-    test_lp_dataloader()
-    test_edge_dataloader()
-    test_node_dataloader()
-    test_node_dataloader_reconstruct()
-    test_GSgnnAllEtypeLinkPredictionDataLoader(10)
-    test_GSgnnAllEtypeLinkPredictionDataLoader(1)
-    test_GSgnnLinkPredictionTestDataLoader(1, 1)
-    test_GSgnnLinkPredictionTestDataLoader(10, 20)
-    test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
-    test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
+    # test_lp_dataloader()
+    # test_edge_dataloader()
+    # test_node_dataloader()
+    # test_node_dataloader_reconstruct()
+    # test_GSgnnAllEtypeLinkPredictionDataLoader(10)
+    # test_GSgnnAllEtypeLinkPredictionDataLoader(1)
+    # test_GSgnnLinkPredictionTestDataLoader(1, 1)
+    # test_GSgnnLinkPredictionTestDataLoader(10, 20)
+    # test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
+    # test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
 
-    test_prepare_input()
-    test_modify_fanout_for_target_etype()
+    # test_prepare_input()
+    # test_modify_fanout_for_target_etype()
 
-    test_distill_sampler_get_file(num_files=7)
-    test_DistillDistributedFileSampler(num_files=7, is_train=True, \
-        infinite=False, shuffle=True)
-    test_DistillDataloaderGenerator("gloo", 7, True)
+    # test_distill_sampler_get_file(num_files=7)
+    # test_DistillDistributedFileSampler(num_files=7, is_train=True, \
+    #     infinite=False, shuffle=True)
+    # test_DistillDataloaderGenerator("gloo", 7, True)
 
-    test_GSgnnTrainData_homogeneous()
+    # test_GSgnnTrainData_homogeneous()

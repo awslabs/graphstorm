@@ -36,7 +36,7 @@ from graphstorm.model.utils import (save_node_prediction_results,
                                     save_full_node_embeddings)
 from graphstorm.model.utils import normalize_node_embs
 from graphstorm.gconstruct.utils import save_maps
-from graphstorm import get_feat_size
+from graphstorm import get_node_feat_size
 from graphstorm.model.gnn_encoder_base import prepare_for_wholegraph
 
 from data_utils import generate_dummy_dist_graph
@@ -737,30 +737,30 @@ def test_topklist():
         assert insert_success_list[epoch] == insert_success
         assert return_val_list[epoch] == return_val
 
-def test_get_feat_size():
+def test_get_node_feat_size():
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         g, _ = generate_dummy_dist_graph(tmpdirname)
 
-    feat_size = get_feat_size(g, 'feat')
+    feat_size = get_node_feat_size(g, 'feat')
     assert len(feat_size) == len(g.ntypes)
     for ntype in feat_size:
         assert ntype in g.ntypes
         assert feat_size[ntype] == g.nodes[ntype].data['feat'].shape[1]
 
-    feat_size = get_feat_size(g, {'n0': ['feat'], 'n1': ['feat']})
+    feat_size = get_node_feat_size(g, {'n0': ['feat'], 'n1': ['feat']})
     assert len(feat_size) == len(g.ntypes)
     for ntype in feat_size:
         assert ntype in g.ntypes
         assert feat_size[ntype] == g.nodes[ntype].data['feat'].shape[1]
 
-    feat_size = get_feat_size(g, {'n0' : ['feat']})
+    feat_size = get_node_feat_size(g, {'n0' : ['feat']})
     assert len(feat_size) == len(g.ntypes)
     assert feat_size['n0'] == g.nodes['n0'].data['feat'].shape[1]
     assert feat_size['n1'] == 0
 
     try:
-        feat_size = get_feat_size(g, {'n0': ['feat'], 'n1': ['feat1']})
+        feat_size = get_node_feat_size(g, {'n0': ['feat'], 'n1': ['feat1']})
     except:
         feat_size = None
     assert feat_size is None
@@ -1162,7 +1162,7 @@ if __name__ == '__main__':
     test_save_embeddings_with_id_mapping(num_embs=16, backend='gloo')
     test_save_embeddings_with_id_mapping(num_embs=17, backend='nccl')
 
-    test_get_feat_size()
+    test_get_node_feat_size()
     test_save_embeddings()
     test_remove_saved_models()
     test_topklist()

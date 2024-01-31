@@ -310,7 +310,7 @@ class HGTEncoder(GraphConvEncoder):
     .. code:: python
 
         # Build model and do full-graph inference on HGTEncoder
-        from graphstorm import get_feat_size
+        from graphstorm import get_node_feat_size
         from graphstorm.model.hgt_encoder import HGTEncoder
         from graphstorm.model.edge_decoder import MLPEdgeDecoder
         from graphstorm.model import GSgnnEdgeModel, GSNodeEncoderInputLayer
@@ -320,7 +320,7 @@ class HGTEncoder(GraphConvEncoder):
         np_data = GSgnnNodeTrainData(...)
 
         model = GSgnnEdgeModel(alpha_l2norm=0)
-        feat_size = get_feat_size(np_data.g, 'feat')
+        feat_size = get_node_feat_size(np_data.g, 'feat')
         encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                           dropout=0,
                                           use_node_embeddings=True)
