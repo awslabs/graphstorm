@@ -61,7 +61,7 @@
                         "transformation": {
                             "name": "huggingface",
                             "kwargs": {
-                                "normalizer": "tokenize_hf",
+                                "action": "tokenize_hf",
                                 "bert_model": "bert-base-uncased",
                                 "max_seq_length":16
                             }

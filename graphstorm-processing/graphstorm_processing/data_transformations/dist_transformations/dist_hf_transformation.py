@@ -25,7 +25,7 @@ from .base_dist_transformation import DistributedTransformation
 
 
 def apply_transform(
-    cols: Sequence[str], bert_norm: str, bert_model: str, max_seq_length: int, input_df: DataFrame
+    cols: Sequence[str], action: str, bert_model: str, max_seq_length: int, input_df: DataFrame
 ) -> DataFrame:
     """Applies a single normalizer to the imputed dataframe, individually to each of the columns
     provided in the cols argument.
@@ -34,7 +34,7 @@ def apply_transform(
     ----------
     cols : Sequence[str]
         List of column names to apply normalization to.
-    bert_norm : str
+    action : str
         The type of normalization to use. Valid values is "tokenize"
     bert_model : str
         The name of huggingface model.
@@ -44,7 +44,7 @@ def apply_transform(
         The input DataFrame to apply normalization to.
     """
 
-    if bert_norm == HUGGINGFACE_TOKENIZE:
+    if action == HUGGINGFACE_TOKENIZE:
         # Initialize the tokenizer
         tokenizer = AutoTokenizer.from_pretrained(bert_model)
 
@@ -88,6 +88,9 @@ def apply_transform(
             transformed_df[cols[0]].getItem("attention_mask").alias("attention_mask"),
             transformed_df[cols[0]].getItem("token_type_ids").alias("token_type_ids"),
         )
+    else:
+        raise ValueError(f"The input action needs to be {HUGGINGFACE_TOKENIZE}")
+
     return transformed_df
 
 
@@ -98,23 +101,27 @@ class DistHFTransformation(DistributedTransformation):
     ----------
     cols : Sequence[str]
         List of column names to apply normalization to.
-    bert_norm : str
-        The type of normalization to use. Valid values is "tokenize"
+    action : str
+        The type of huggingface action to use. Valid values is "tokenize"
+    bert_model: str, required
+        The name of the lm model.
+    max_seq_length: int, required
+        The maximal length of the tokenization results.
     """
 
     def __init__(
-        self, cols: Sequence[str], normalizer: str, bert_model: str, max_seq_length: int
+        self, cols: Sequence[str], action: str, bert_model: str, max_seq_length: int
     ) -> None:
         super().__init__(cols)
         self.cols = cols
         assert len(self.cols) == 1, "Huggingface transformation only supports single column"
-        self.bert_norm = normalizer
+        self.action = action
         self.bert_model = bert_model
         self.max_seq_length = max_seq_length
 
     def apply(self, input_df: DataFrame) -> DataFrame:
         transformed_df = apply_transform(
-            self.cols, self.bert_norm, self.bert_model, self.max_seq_length, input_df
+            self.cols, self.action, self.bert_model, self.max_seq_length, input_df
         )
 
         return transformed_df

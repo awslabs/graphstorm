@@ -138,7 +138,7 @@ class GConstructConfigConverter(ConfigConverter):
                 elif gconstruct_transform_dict["name"] == "tokenize_hf":
                     gsp_transformation_dict["name"] = "huggingface"
                     gsp_transformation_dict["kwargs"] = {
-                        "normalizer": "tokenize_hf",
+                        "action": "tokenize_hf",
                         "bert_model": gconstruct_transform_dict["bert_model"],
                         "max_seq_length": gconstruct_transform_dict["max_seq_length"],
                     }

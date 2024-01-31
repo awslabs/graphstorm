@@ -970,7 +970,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
                 if (
                     feat_conf.feat_type == HUGGINGFACE_TRANFORM
-                    and feat_conf.transformation_kwargs["normalizer"] == HUGGINGFACE_TOKENIZE
+                    and feat_conf.transformation_kwargs["action"] == HUGGINGFACE_TOKENIZE
                 ):
                     for bert_feat_name in ["input_ids", "attention_mask", "token_type_ids"]:
                         single_feature_df = transformed_feature_df.select(bert_feat_name)
@@ -1379,7 +1379,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
                 if (
                     feat_conf.feat_type == HUGGINGFACE_TRANFORM
-                    and feat_conf.transformation_kwargs["normalizer"] == HUGGINGFACE_TOKENIZE
+                    and feat_conf.transformation_kwargs["action"] == HUGGINGFACE_TOKENIZE
                 ):
                     for bert_feat_name in ["input_ids", "attention_mask", "token_type_ids"]:
                         single_feature_df = transformed_feature_df.select(bert_feat_name)

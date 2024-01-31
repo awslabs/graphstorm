@@ -25,6 +25,8 @@ class HFConfig(FeatureConfig):
 
     Supported kwargs
     ----------------
+    action: str, required
+        The type of huggingface action to use. Valid values is "tokenize_hf"
     bert_model: str, required
         The name of the lm model.
     max_seq_length: int, required
@@ -33,7 +35,7 @@ class HFConfig(FeatureConfig):
 
     def __init__(self, config: Mapping):
         super().__init__(config)
-        self.bert_norm = self._transformation_kwargs.get("normalizer")
+        self.action = self._transformation_kwargs.get("action")
         self.bert_model = self._transformation_kwargs.get("bert_model")
         self.max_seq_length = self._transformation_kwargs.get("max_seq_length")
 
@@ -41,7 +43,8 @@ class HFConfig(FeatureConfig):
 
     def _sanity_check(self) -> None:
         super()._sanity_check()
-        assert self.bert_norm in [HUGGINGFACE_TOKENIZE], "bert normalizer needs to be tokenize_hf"
+        assert self.action in [HUGGINGFACE_TOKENIZE], \
+            f"huggingface action needs to be {HUGGINGFACE_TOKENIZE}"
         assert isinstance(
             self.bert_model, str
         ), f"Expect bert_model to be a string, but got {self.bert_model}"
