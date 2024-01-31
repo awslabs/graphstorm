@@ -119,7 +119,7 @@ model cache inside the docker image. The ``build_gsprocessing_image.sh`` script 
 pack the model cache inside the docker image with the bert model name.
 .. code-block:: bash
 
-    bash docker/build_gsprocessing_image.sh --environment emr-serverless --model-name bert
+    bash docker/build_gsprocessing_image.sh --environment emr-serverless --model-name bert-base-uncased
 
 Support for arm64 architecture
 ------------------------------
