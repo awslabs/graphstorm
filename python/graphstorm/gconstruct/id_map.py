@@ -88,11 +88,34 @@ class IdReverseMap:
         load_data_start = time.perf_counter()
         assert os.path.exists(id_map_prefix), \
             f"{id_map_prefix} does not exist."
-        self.mapping_table = pq.read_table(id_map_prefix, memory_map=True)  # type: pa.Table
-        if "node_str_id" in self.mapping_table.column_names:
-            self.mapping_table = self.mapping_table.rename_columns(["orig", "new"])
+
+        mapping_files = os.listdir(id_map_prefix)
+
+        col_names = None
+        for filename in mapping_files:
+            if filename.endswith(".parquet"):
+                col_names = pq.read_metadata(os.path.join(id_map_prefix, filename)).schema.names
+                break
+        assert col_names is not None, \
+            f"No parquet file found in id map directory {id_map_prefix}"
+
+        if "node_str_id" in col_names:
+            map_schema = pa.schema([("node_str_id", pa.large_string()), ("node_int_id", pa.int64())])
+        else:
+            map_schema = pa.schema([("orig", pa.large_string()), ("new", pa.int64())])
+
+        mapping_table = pq.read_table(
+            id_map_prefix,
+            memory_map=True,
+            schema=map_schema)  # type: pa.Table
+        if "node_str_id" in mapping_table.column_names:
+            mapping_table = mapping_table.rename_columns(["orig", "new"])
 
             logging.info("Time to load id data: %f", time.perf_counter() - load_data_start)
+
+        sort_ids_start = time.perf_counter()
+        self._ids = mapping_table.sort_by("new")['orig'].to_numpy()
+        logging.info("Time to sort id data: %f", time.perf_counter() - sort_ids_start)
 
     def __len__(self):
         return len(self._ids)
@@ -113,8 +136,8 @@ class IdReverseMap:
         """
         return self._ids[start:end]
 
-    def map_id(self, ids: np.ndarray) -> pa.Table:
-        """Map sthe GraphStorm IDs to the raw IDs.
+    def map_id(self, ids: np.ndarray) -> np.ndarray:
+        """Maps GraphStorm IDs to raw IDs.
 
         Parameters
         ----------
@@ -129,10 +152,7 @@ class IdReverseMap:
         if len(ids) == 0:
             return np.array([], dtype=np.str)
 
-        return self.mapping_table.join(
-            pa.Table.from_pydict({"new": ids}),
-            keys='new',
-            join_type="inner")['orig'].to_numpy()
+        return self._ids[ids]
 
 class IdMap:
     """ Map an ID to a new ID.

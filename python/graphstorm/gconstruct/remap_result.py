@@ -32,6 +32,7 @@ import numpy as np
 import pandas as pd
 import torch as th
 
+from graphstorm import get_rank
 from ..model.utils import pad_file_index
 from .id_map import IdReverseMap
 from ..utils import get_log_level
@@ -175,22 +176,26 @@ def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
             column name(s) to an array-like, the second argument must be
             filepath string.
     """
+    rank = get_rank()
     node_data = th.load(data_file_path).numpy()
     nids = th.load(nid_path).numpy()
     nid_map = id_maps[ntype] # type: IdReverseMap
     num_chunks = math.ceil(len(node_data) / chunk_size)
 
-    data_chunks = np.array_split(node_data, num_chunks)
-    nid_chunks = np.array_split(nids, num_chunks)
+    for i in range(num_chunks):
+        chunk_start = time.perf_counter()
+        start = i * chunk_size
+        end = (i + 1) * chunk_size if i + 1 < num_chunks else len(node_data)
 
-    for idx, (data_chunk, nid_chunk) in enumerate(zip(data_chunks, nid_chunks)):
-        raw_ids = nid_map.map_id(nid_chunk)
-        data = {
-            GS_REMAP_NID_COL: raw_ids.tolist(),
-            data_col_key: data_chunk.tolist(),
-            }
-        filename = f"{output_fname_prefix}_{pad_file_index(idx)}.parquet"
-        output_func(data, filename)
+        output_func(
+            {
+                data_col_key: node_data[start:end].tolist(),
+                GS_REMAP_NID_COL: nid_map.map_id(nids[start:end]).tolist()
+            },
+            f"{output_fname_prefix}_{pad_file_index(i)}"
+        )
+        logging.info("Rank %d: Finished remapping chunk %d/%d in %.2f seconds.",
+                     rank, i, num_chunks, time.perf_counter() - chunk_start)
 
 def worker_remap_edge_pred(pred_file_path, src_nid_path,
     dst_nid_path, src_type, dst_type,
