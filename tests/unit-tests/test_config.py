@@ -296,7 +296,6 @@ def create_train_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"_fail1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
-
 def test_train_info():
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_train_config(Path(tmpdirname), 'train_test')
@@ -402,8 +401,6 @@ def create_rgcn_config(tmp_path, file_name):
     }
     with open(os.path.join(tmp_path, file_name+"_fail2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
-
-
 
 def test_rgcn_info():
     with tempfile.TemporaryDirectory() as tmpdirname:
