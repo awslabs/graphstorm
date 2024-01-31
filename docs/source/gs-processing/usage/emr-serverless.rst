@@ -98,6 +98,9 @@ Here you will need to replace ``<aws-account-id>``, ``<arch>`` (``x86_64`` or ``
 from the image you just created. GSProcessing version ``0.2.1`` uses ``emr-6.13.0`` as its
 base image, so we need to ensure our application uses the same release.
 
+Additionally, if it is required to use text feature transformation, it is suggested to setup VPC and NAT route for the emr cluster:
+`Create a VPC on emr-serverless
+<https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/vpc-access.html>`_
 
 Allow EMR Serverless to access the custom image repository
 ----------------------------------------------------------

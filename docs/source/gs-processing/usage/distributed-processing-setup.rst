@@ -111,6 +111,16 @@ The script also supports other arguments to customize the image name,
 tag and other aspects of the build. See ``bash docker/build_gsprocessing_image.sh --help``
 for more information.
 
+Building the GraphStorm Processing image using Docker
+-----------------------------------------------------
+For EMR Serverless images, it is required to setup VPC and NAT route `Create a VPC on emr-serverless
+<https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/vpc-access.html>`_ or adding huggingface
+model cache inside the docker image. The ``build_gsprocessing_image.sh`` script can also offer a choice to
+pack the model cache inside the docker image with the bert model name.
+.. code-block:: bash
+
+    bash docker/build_gsprocessing_image.sh --environment emr-serverless --model-name bert
+
 Support for arm64 architecture
 ------------------------------
 
@@ -157,7 +167,7 @@ To build an EMR Serverless GSProcessing image for the ``arm64`` architecture you
 
 .. code-block:: bash
 
-    bash docker/build_gsprocessing_image.sh --environment sagemaker --architecture arm64
+    bash docker/build_gsprocessing_image.sh --environment emr-serverless --architecture arm64
 
 .. note::
 
