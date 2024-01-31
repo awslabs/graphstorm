@@ -940,7 +940,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             transformed_feature_df = transformer.apply_transformation(nodes_df)
 
             # TODO: Remove hack with [feat_conf.feat_name]
-            def process_feature(self, feat_name, single_feature_df, node_type):
+            def process_feature(self, feat_name, single_feature_df, node_type, transformer_name):
                 feature_output_path = os.path.join(
                     self.output_prefix, f"node_data/{node_type}-{feat_name}"
                 )
@@ -961,8 +961,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 nfeat_size = 1 if isinstance(feat_val, (int, float)) else len(feat_val)
                 ntype_feat_sizes.update({feat_name: nfeat_size})
 
-                # pylint: disable=cell-var-from-loop
-                self.timers[f"{transformer.get_transformation_name()}-{node_type}-{feat_name}"] = (
+                self.timers[f"{transformer_name}-{node_type}-{feat_name}"] = (
                     perf_counter() - node_transformation_start
                 )
 
@@ -975,12 +974,14 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 ):
                     for bert_feat_name in ["input_ids", "attention_mask", "token_type_ids"]:
                         single_feature_df = transformed_feature_df.select(bert_feat_name)
-                        process_feature(self, bert_feat_name, single_feature_df, node_type)
+                        process_feature(self, bert_feat_name, single_feature_df, node_type,
+                                        transformer.get_transformation_name())
                 else:
                     single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(
                         feat_col, feat_name
                     )
-                    process_feature(self, feat_name, single_feature_df, node_type)
+                    process_feature(self, feat_name, single_feature_df, node_type,
+                                    transformer.get_transformation_name())
         return node_type_feature_metadata, ntype_feat_sizes
 
     def _process_node_labels(
@@ -1347,7 +1348,8 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             transformed_feature_df = transformer.apply_transformation(edges_df)
 
             # TODO: Remove hack with [feat_conf.feat_name]
-            def process_feature(self, feat_name, single_feature_df, edge_type):
+            def process_feature(self, feat_name, single_feature_df, edge_type,
+                                transformer_name):
                 feature_output_path = os.path.join(
                     self.output_prefix, f"edge_data/{edge_type}-{feat_name}"
                 )
@@ -1368,8 +1370,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 efeat_size = 1 if isinstance(feat_val, numbers.Number) else len(feat_val)
                 etype_feat_sizes.update({feat_name: efeat_size})
 
-                # pylint: disable=cell-var-from-loop
-                self.timers[f"{transformer.get_transformation_name()}-{edge_type}-{feat_name}"] = (
+                self.timers[f"{transformer_name}-{edge_type}-{feat_name}"] = (
                     perf_counter() - edge_feature_start
                 )
 
@@ -1382,12 +1383,14 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 ):
                     for bert_feat_name in ["input_ids", "attention_mask", "token_type_ids"]:
                         single_feature_df = transformed_feature_df.select(bert_feat_name)
-                        process_feature(self, bert_feat_name, single_feature_df, edge_type)
+                        process_feature(self, bert_feat_name, single_feature_df, edge_type,
+                                        transformer.get_transformation_name())
                 else:
                     single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(
                         feat_col, feat_name
                     )
-                    process_feature(self, feat_name, single_feature_df, edge_type)
+                    process_feature(self, feat_name, single_feature_df, edge_type,
+                                    transformer.get_transformation_name())
 
         return edge_feature_metadata_dicts, etype_feat_sizes
 
