@@ -16,8 +16,8 @@ limitations under the License.
 
 from typing import Mapping
 
-from .feature_config_base import FeatureConfig
 from graphstorm_processing.constants import HUGGINGFACE_TOKENIZE
+from .feature_config_base import FeatureConfig
 
 
 class HFConfig(FeatureConfig):
