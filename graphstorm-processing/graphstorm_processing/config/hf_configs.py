@@ -17,10 +17,11 @@ limitations under the License.
 from typing import Mapping
 
 from .feature_config_base import FeatureConfig
+from graphstorm_processing.constants import HUGGINGFACE_TOKENIZE
 
 
 class HFConfig(FeatureConfig):
-    """Feature configuration for single-column numerical features.
+    """Feature configuration for huggingface text features.
 
     Supported kwargs
     ----------------
@@ -32,13 +33,15 @@ class HFConfig(FeatureConfig):
 
     def __init__(self, config: Mapping):
         super().__init__(config)
-        self.bert_model = self._transformation_kwargs.get("bert_model", "none")
-        self.max_seq_length = self._transformation_kwargs.get("max_seq_length", "none")
+        self.bert_norm = self._transformation_kwargs.get("normalizer")
+        self.bert_model = self._transformation_kwargs.get("bert_model")
+        self.max_seq_length = self._transformation_kwargs.get("max_seq_length")
 
         self._sanity_check()
 
     def _sanity_check(self) -> None:
         super()._sanity_check()
+        assert self.bert_norm in [HUGGINGFACE_TOKENIZE], "bert normalizer needs to be tokenize_hf"
         assert isinstance(
             self.bert_model, str
         ), f"Expect bert_model to be a string, but got {self.bert_model}"

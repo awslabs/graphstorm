@@ -13,19 +13,18 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-from typing import Sequence
+import numpy as np
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, IntegerType, StructType, StructField
 from pyspark.sql.functions import udf
-
-import numpy as np
 from transformers import AutoTokenizer
+from typing import Sequence
 
 from graphstorm_processing.constants import HUGGINGFACE_TOKENIZE
 from .base_dist_transformation import DistributedTransformation
 
 
-def apply_norm(
+def apply_transform(
     cols: Sequence[str], bert_norm: str, bert_model: str, max_seq_length: int, input_df: DataFrame
 ) -> DataFrame:
     """Applies a single normalizer to the imputed dataframe, individually to each of the columns
@@ -39,6 +38,8 @@ def apply_norm(
         The type of normalization to use. Valid values is "tokenize"
     bert_model : str
         The name of huggingface model.
+    max_seq_length: int
+        The maximal length of the tokenization results.
     input_df : DataFrame
         The input DataFrame to apply normalization to.
     """
@@ -81,13 +82,13 @@ def apply_norm(
             return result
 
         # Apply the UDF to the DataFrame
-        scaled_df = input_df.withColumn(cols[0], tokenize(input_df[cols[0]]))
-        scaled_df = scaled_df.select(
-            scaled_df[cols[0]].getItem("input_ids").alias("input_ids"),
-            scaled_df[cols[0]].getItem("attention_mask").alias("attention_mask"),
-            scaled_df[cols[0]].getItem("token_type_ids").alias("token_type_ids"),
+        transformed_df = input_df.withColumn(cols[0], tokenize(input_df[cols[0]]))
+        transformed_df = transformed_df.select(
+            transformed_df[cols[0]].getItem("input_ids").alias("input_ids"),
+            transformed_df[cols[0]].getItem("attention_mask").alias("attention_mask"),
+            transformed_df[cols[0]].getItem("token_type_ids").alias("token_type_ids"),
         )
-    return scaled_df
+    return transformed_df
 
 
 class DistHFTransformation(DistributedTransformation):
@@ -106,17 +107,17 @@ class DistHFTransformation(DistributedTransformation):
     ) -> None:
         super().__init__(cols)
         self.cols = cols
-        assert len(self.cols) == 1, "Bert transformation only supports single column"
+        assert len(self.cols) == 1, "Huggingface transformation only supports single column"
         self.bert_norm = normalizer
         self.bert_model = bert_model
         self.max_seq_length = max_seq_length
 
     def apply(self, input_df: DataFrame) -> DataFrame:
-        scaled_df = apply_norm(
+        transformed_df = apply_transform(
             self.cols, self.bert_norm, self.bert_model, self.max_seq_length, input_df
         )
 
-        return scaled_df
+        return transformed_df
 
     @staticmethod
     def get_transformation_name() -> str:
