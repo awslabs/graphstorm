@@ -43,8 +43,9 @@ class HFConfig(FeatureConfig):
 
     def _sanity_check(self) -> None:
         super()._sanity_check()
-        assert self.action in [HUGGINGFACE_TOKENIZE], \
-            f"huggingface action needs to be {HUGGINGFACE_TOKENIZE}"
+        assert self.action in [
+            HUGGINGFACE_TOKENIZE
+        ], f"huggingface action needs to be {HUGGINGFACE_TOKENIZE}"
         assert isinstance(
             self.bert_model, str
         ), f"Expect bert_model to be a string, but got {self.bert_model}"

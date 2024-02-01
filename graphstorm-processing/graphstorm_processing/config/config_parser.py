@@ -15,6 +15,7 @@ limitations under the License.
 
 Configuration parsing for edges and nodes
 """
+
 from abc import ABC
 from typing import Any, Dict, List, Optional, Sequence
 

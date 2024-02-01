@@ -974,14 +974,24 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 ):
                     for bert_feat_name in ["input_ids", "attention_mask", "token_type_ids"]:
                         single_feature_df = transformed_feature_df.select(bert_feat_name)
-                        process_feature(self, bert_feat_name, single_feature_df, node_type,
-                                        transformer.get_transformation_name())
+                        process_feature(
+                            self,
+                            bert_feat_name,
+                            single_feature_df,
+                            node_type,
+                            transformer.get_transformation_name(),
+                        )
                 else:
                     single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(
                         feat_col, feat_name
                     )
-                    process_feature(self, feat_name, single_feature_df, node_type,
-                                    transformer.get_transformation_name())
+                    process_feature(
+                        self,
+                        feat_name,
+                        single_feature_df,
+                        node_type,
+                        transformer.get_transformation_name(),
+                    )
         return node_type_feature_metadata, ntype_feat_sizes
 
     def _process_node_labels(
@@ -1347,8 +1357,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
             transformed_feature_df = transformer.apply_transformation(edges_df)
 
-            def process_feature(self, feat_name, single_feature_df, edge_type,
-                                transformer_name):
+            def process_feature(self, feat_name, single_feature_df, edge_type, transformer_name):
                 feature_output_path = os.path.join(
                     self.output_prefix, f"edge_data/{edge_type}-{feat_name}"
                 )
@@ -1383,14 +1392,24 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 ):
                     for bert_feat_name in ["input_ids", "attention_mask", "token_type_ids"]:
                         single_feature_df = transformed_feature_df.select(bert_feat_name)
-                        process_feature(self, bert_feat_name, single_feature_df, edge_type,
-                                        transformer.get_transformation_name())
+                        process_feature(
+                            self,
+                            bert_feat_name,
+                            single_feature_df,
+                            edge_type,
+                            transformer.get_transformation_name(),
+                        )
                 else:
                     single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(
                         feat_col, feat_name
                     )
-                    process_feature(self, feat_name, single_feature_df, edge_type,
-                                    transformer.get_transformation_name())
+                    process_feature(
+                        self,
+                        feat_name,
+                        single_feature_df,
+                        edge_type,
+                        transformer.get_transformation_name(),
+                    )
 
         return edge_feature_metadata_dicts, etype_feat_sizes
 
