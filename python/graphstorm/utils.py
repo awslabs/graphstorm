@@ -30,7 +30,7 @@ import numpy as np
 TORCH_MAJOR_VER = int(th.__version__.split('.', maxsplit=1)[0])
 USE_WHOLEGRAPH = False
 
-def get_graph_name(part_cnfig):
+def get_graph_name(part_config):
     """ Get graph name from graph partition config file
 
     Parameter
@@ -42,7 +42,7 @@ def get_graph_name(part_cnfig):
     ------
         graph_name
     """
-    with open(part_cnfig, "r", encoding='utf-8') as f:
+    with open(part_config, "r", encoding='utf-8') as f:
         config = json.load(f)
     return config["graph_name"]
 
