@@ -56,8 +56,7 @@ from .config import (GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS,
 from .config import (GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_EMBED_LAYER,
                      GRAPHSTORM_MODEL_DECODER_LAYER, GRAPHSTORM_MODEL_LAYER_OPTIONS)
 
-from .utils import get_graph_name
-from ..utils import TORCH_MAJOR_VER, get_log_level
+from ..utils import TORCH_MAJOR_VER, get_log_level, get_graph_name
 
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
 from ..eval import SUPPORTED_REGRESSION_METRICS
