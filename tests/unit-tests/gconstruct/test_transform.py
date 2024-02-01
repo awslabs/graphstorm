@@ -38,6 +38,7 @@ from graphstorm.gconstruct.id_map import IdMap
 def test_get_output_dtype():
     assert _get_output_dtype("float16") == np.float16
     assert _get_output_dtype("float32") == np.float32
+    assert _get_output_dtype("float64") == np.float64
     assert_raises(Exception, _get_output_dtype, "int32")
 
 @pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32, np.float16])
@@ -518,13 +519,15 @@ def test_categorize_transform():
         feat[int(str_i)] = 0
         assert np.all(feat == 0)
 
-@pytest.mark.parametrize("out_dtype", [None, np.float16])
+@pytest.mark.parametrize("out_dtype", [None, np.float16, np.float64])
 def test_noop_transform(out_dtype):
     transform = Noop("test", "test", out_dtype=out_dtype)
     feats = np.random.randn(100).astype(np.float32)
     norm_feats = transform(feats)
     if out_dtype is not None:
         assert norm_feats["test"].dtype == out_dtype
+    elif out_dtype == np.float64:
+        assert norm_feats["test"].dtype == np.float64
     else:
         assert norm_feats["test"].dtype == np.float32
 
@@ -937,6 +940,7 @@ if __name__ == '__main__':
     test_fp_min_max_transform(np.float32, np.float16)
     test_noop_transform(None)
     test_noop_transform(np.float16)
+    test_noop_transform(np.float64)
     test_bucket_transform(None)
     test_bucket_transform(np.float16)
 
