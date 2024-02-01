@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import pytest
 
 from graphstorm_processing.config.config_conversion import (
@@ -237,7 +238,11 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
                 },
                 {
                     "feature_col": ["citation_name"],
-                    "transform": {"name": "tokenize_hf", "bert_model": "bert", "max_seq_length": 64},
+                    "transform": {
+                        "name": "tokenize_hf",
+                        "bert_model": "bert",
+                        "max_seq_length": 64,
+                    },
                 },
             ],
             "labels": [
@@ -363,4 +368,3 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "split_rate": {"train": 0.9, "val": 0.1, "test": 0.0},
         },
     ]
-    
