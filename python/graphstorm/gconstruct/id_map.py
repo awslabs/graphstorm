@@ -17,6 +17,7 @@ import logging
 import os
 import time
 
+from numba import njit
 import numpy as np
 import pandas as pd
 import pyarrow as pa
@@ -114,11 +115,11 @@ class IdReverseMap:
             logging.info("Time to load id data: %f", time.perf_counter() - load_data_start)
 
         sort_ids_start = time.perf_counter()
-        self._ids = mapping_table.sort_by("new")['orig'].to_numpy()
+        self._ordered_raw_ids = mapping_table.sort_by("new")['orig'].to_numpy()
         logging.info("Time to sort id data: %f", time.perf_counter() - sort_ids_start)
 
     def __len__(self):
-        return len(self._ids)
+        return len(self._ordered_raw_ids)
 
     def map_range(self, start, end):
         """ Map a range of GraphStorm IDs to the raw IDs.
@@ -134,9 +135,9 @@ class IdReverseMap:
         -------
         tensor: A numpy array of raw IDs.
         """
-        return self._ids[start:end]
+        return self._ordered_raw_ids[start:end]
 
-    def map_id(self, ids: np.ndarray) -> np.ndarray:
+    def map_id(self, dgl_ids: np.ndarray) -> np.ndarray:
         """Maps GraphStorm IDs to raw IDs.
 
         Parameters
@@ -149,10 +150,10 @@ class IdReverseMap:
         np.ndarray
             A numpy array of raw IDs.
         """
-        if len(ids) == 0:
+        if len(dgl_ids) == 0:
             return np.array([], dtype=np.str)
 
-        return self._ids[ids]
+        return self._ordered_raw_ids[dgl_ids]
 
 class IdMap:
     """ Map an ID to a new ID.

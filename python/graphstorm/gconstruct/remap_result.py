@@ -28,6 +28,7 @@ import math
 from functools import partial
 from typing import Callable, Dict
 
+from joblib import Parallel, delayed, dump, load
 import numpy as np
 import pandas as pd
 import torch as th
@@ -152,6 +153,27 @@ def write_data_csv_file(data, file_prefix, delimiter=",", col_name_map=None):
     data_frame = pd.DataFrame(csv_data)
     data_frame.to_csv(output_fname, index=False, sep=delimiter)
 
+def thread_remap_node_data(rank, i, node_data, dgl_ids, ntype, data_col_key,
+    output_fname_prefix, chunk_size, output_func: Callable[[Dict, str], None]):
+
+    nid_map = id_maps[ntype] # type: IdReverseMap
+    num_chunks = math.ceil(len(node_data) / chunk_size)
+
+    chunk_start = time.perf_counter()
+    start = i * chunk_size
+    end = (i + 1) * chunk_size if i + 1 < num_chunks else len(node_data)
+
+    output_func(
+        {
+            data_col_key: node_data[start:end].tolist(),
+            GS_REMAP_NID_COL: nid_map.map_id(dgl_ids[start:end]).tolist()
+        },
+        f"{output_fname_prefix}_{pad_file_index(i)}"
+    )
+    logging.info("Rank %d: Finished remapping chunk %d/%d in %.2f seconds.",
+                    rank, i, num_chunks, time.perf_counter() - chunk_start)
+
+
 def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
     output_fname_prefix, chunk_size, output_func: Callable[[Dict, str], None]):
     """ Do one node prediction remapping task
@@ -176,26 +198,48 @@ def worker_remap_node_data(data_file_path, nid_path, ntype, data_col_key,
             column name(s) to an array-like, the second argument must be
             filepath string.
     """
-    rank = get_rank()
+    # rank = get_rank()
     node_data = th.load(data_file_path).numpy()
-    nids = th.load(nid_path).numpy()
-    nid_map = id_maps[ntype] # type: IdReverseMap
+    dgl_ids = th.load(nid_path).numpy()
+    # nid_map = id_maps[ntype] # type: IdReverseMap
     num_chunks = math.ceil(len(node_data) / chunk_size)
 
-    for i in range(num_chunks):
-        chunk_start = time.perf_counter()
-        start = i * chunk_size
-        end = (i + 1) * chunk_size if i + 1 < num_chunks else len(node_data)
+    data_chunks = np.array_split(node_data, num_chunks)
+    dgl_ids_chunks = np.array_split(dgl_ids, num_chunks)
+
+    def thread_remap_node_data(i, node_data_chunk, dgl_ids_chunk):
+        # chunk_start = time.perf_counter()
+        nid_map = id_maps[ntype] # type: IdReverseMap
 
         output_func(
             {
-                data_col_key: node_data[start:end].tolist(),
-                GS_REMAP_NID_COL: nid_map.map_id(nids[start:end]).tolist()
+                data_col_key: node_data_chunk.tolist(),
+                GS_REMAP_NID_COL: nid_map.map_id(dgl_ids_chunk).tolist()
             },
             f"{output_fname_prefix}_{pad_file_index(i)}"
         )
-        logging.info("Rank %d: Finished remapping chunk %d/%d in %.2f seconds.",
-                     rank, i, num_chunks, time.perf_counter() - chunk_start)
+        # logging.info("Rank %d: Finished remapping chunk %d/%d in %.2f seconds.",
+        #                 rank, i+1, num_chunks, time.perf_counter() - chunk_start)
+
+    Parallel(n_jobs=int(os.cpu_count()/4), backend="threading", verbose=1)(
+        delayed(thread_remap_node_data)(i, data_chunks[i], dgl_ids_chunks[i]) for i in range(num_chunks)
+    )
+
+    # for i in range(num_chunks):
+    #     chunk_start = time.perf_counter()
+    #     start = i * chunk_size
+    #     end = (i + 1) * chunk_size if i + 1 < num_chunks else len(node_data)
+
+    #     output_func(
+    #         {
+    #             data_col_key: node_data[start:end].tolist(),
+    #             GS_REMAP_NID_COL: nid_map.map_id(dgl_ids[start:end]).tolist()
+    #         },
+    #         f"{output_fname_prefix}_{pad_file_index(i)}"
+    #     )
+    #     logging.info("Rank %d: Finished remapping chunk %d/%d in %.2f seconds.",
+    #                  rank, i, num_chunks, time.perf_counter() - chunk_start)
+
 
 def worker_remap_edge_pred(pred_file_path, src_nid_path,
     dst_nid_path, src_type, dst_type,
