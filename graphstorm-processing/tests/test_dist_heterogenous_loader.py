@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 from typing import Any, Dict, List, Tuple
 import json
 import os
@@ -238,7 +239,16 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
         metadata = json.load(mfile)
 
     graphinfo_updates = {
-        "nfeat_size": {"user": {"age": 1, "multi": 2}},
+        "nfeat_size": {
+            "user": {
+                "age": 1,
+                "attention_mask": 16,
+                "input_ids": 16,
+                "token_type_ids": 16,
+                "multi": 2,
+            }
+        },
+        "efeat_size": {},
         "etype_label": [],
         "etype_label_property": [],
         "ntype_label": ["user"],
@@ -256,7 +266,17 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
     verify_integ_test_output(metadata, dghl_loader, graphinfo_updates)
 
     expected_node_data = {
-        "user": {"gender", "train_mask", "val_mask", "test_mask", "age", "multi"},
+        "user": {
+            "gender",
+            "train_mask",
+            "val_mask",
+            "test_mask",
+            "age",
+            "multi",
+            "input_ids",
+            "attention_mask",
+            "token_type_ids",
+        },
     }
 
     for node_type in metadata["node_data"]:
@@ -278,6 +298,7 @@ def test_load_dist_hgl_without_labels(
 
     graphinfo_updates = {
         "nfeat_size": {},
+        "efeat_size": {},
         "task_type": "link_prediction",
         "etype_label": [],
         "etype_label_property": [],

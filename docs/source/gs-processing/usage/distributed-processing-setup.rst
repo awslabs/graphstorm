@@ -111,6 +111,19 @@ The script also supports other arguments to customize the image name,
 tag and other aspects of the build. See ``bash docker/build_gsprocessing_image.sh --help``
 for more information.
 
+If you plan to use text transformations that utilize Huggingface model, you can opt to include the Huggingface model cache directly in your Docker image.
+The build_gsprocessing_image.sh script provides an option to embed the huggingface bert model cache within the Docker image, using the `--hf-model` argument.
+You can do this for both the SageMaker docker image and EMR Serverless docker image. It is a good way to save cost as it avoids downloading models after launching the job.
+If you'd rather download the Huggingface models at runtime, for EMR Serverless images, setting up a VPC and NAT route is a necessary.
+You can find detailed instructions on creating a VPC for EMR Serverless in the AWS documentation: `Create a VPC on emr-serverless
+<https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/vpc-access.html>`_.
+
+
+.. code-block:: bash
+
+    bash docker/build_gsprocessing_image.sh --environment sagemaker --model-name bert-base-uncased
+    bash docker/build_gsprocessing_image.sh --environment emr-serverless --model-name bert-base-uncased
+
 Support for arm64 architecture
 ------------------------------
 
@@ -157,7 +170,7 @@ To build an EMR Serverless GSProcessing image for the ``arm64`` architecture you
 
 .. code-block:: bash
 
-    bash docker/build_gsprocessing_image.sh --environment sagemaker --architecture arm64
+    bash docker/build_gsprocessing_image.sh --environment emr-serverless --architecture arm64
 
 .. note::
 
