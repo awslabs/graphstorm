@@ -35,7 +35,7 @@ def apply_transform(
     cols : Sequence[str]
         List of column names to apply normalization to.
     action : str
-        The type of normalization to use. Valid values is "tokenize"
+        The type of normalization to use. Currently we only accept the `tokenize_hf` action.
     bert_model : str
         The name of huggingface model.
     max_seq_length: int

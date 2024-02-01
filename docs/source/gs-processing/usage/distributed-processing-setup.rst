@@ -111,12 +111,13 @@ The script also supports other arguments to customize the image name,
 tag and other aspects of the build. See ``bash docker/build_gsprocessing_image.sh --help``
 for more information.
 
-For EMR Serverless images, setting up a VPC and NAT route is a necessary step when using text data feature transformation.
+If you plan to use text transformations that utilize Huggingface model, you can opt to include the Huggingface model cache directly in your Docker image.
+The build_gsprocessing_image.sh script provides an option to embed the huggingface bert model cache within the Docker image, using the `--hf-model` argument.
+You can do this for both the SageMaker docker image and EMR Serverless docker image. It is a good way to save cost as it avoids downloading models after launching the job.
+If you'd rather download the Huggingface models at runtime, for EMR Serverless images, setting up a VPC and NAT route is a necessary.
 You can find detailed instructions on creating a VPC for EMR Serverless in the AWS documentation: `Create a VPC on emr-serverless
 <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/vpc-access.html>`_.
-Alternatively, there is one easier way to do that, you can opt to include the huggingface model cache directly in your Docker image.
-It is available for both SageMaker docker image and EMR-serverless docker image. It is a good way to save cost as it avoids downloading when launching the clusters.
-The build_gsprocessing_image.sh script provides an option to embed the huggingface bert model cache within the Docker image.
+
 
 .. code-block:: bash
 
