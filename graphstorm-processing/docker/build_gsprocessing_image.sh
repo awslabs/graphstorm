@@ -24,7 +24,7 @@ Available options:
 -v, --version       Docker version tag, default is the library's current version (`poetry version --short`)
 -s, --suffix        Suffix for the image tag, can be used to push custom image tags. Default is "".
 -b, --build         Docker build directory, default is '/tmp/'.
--m, --model         Huggingface Model name that needs to be packed into the docker image. Default is "".
+-m, --hf-model      Huggingface Model name that needs to be packed into the docker image. Default is "".
 
 EOF
   exit
@@ -89,7 +89,7 @@ parse_params() {
       SUFFIX="${2-}"
       shift
       ;;
-    -m | --MODEL)
+    -m | --hf-model)
       MODEL="${2-}"
       shift
       ;;

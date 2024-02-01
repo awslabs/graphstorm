@@ -25,6 +25,7 @@ RUN pipenv install \
     pyspark==3.4.1 \
     scipy==1.11.3 \
     setuptools \
+    transformers==4.37.1 \
     spacy==3.6.0 \
     wheel \
     && rm -rf /root/.cache

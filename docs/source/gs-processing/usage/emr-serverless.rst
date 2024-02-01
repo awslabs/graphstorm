@@ -98,10 +98,12 @@ Here you will need to replace ``<aws-account-id>``, ``<arch>`` (``x86_64`` or ``
 from the image you just created. GSProcessing version ``0.2.1`` uses ``emr-6.13.0`` as its
 base image, so we need to ensure our application uses the same release.
 
-Additionally, if it is required to use text feature transformation, it is suggested to setup VPC and NAT route for the emr cluster:
-`Create a VPC on emr-serverless
-<https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/vpc-access.html>`_. If it is preferred to save model cache
-inside the docker image, check out how we do that in: :doc:`distributed-processing-setup`.
+Additionally, if it is required to use text feature transformation, it is suggested to download the model cache inside the emr-serverless
+docker image: :doc:`distributed-processing-setup` to save cost and time. Please note that the maximum size for docker images in EMR Serverless is limited to 5GB:
+`EMR Serverless Considerations and Limitations
+<https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/application-custom-image.html#considerations>`_.
+
+
 
 Allow EMR Serverless to access the custom image repository
 ----------------------------------------------------------

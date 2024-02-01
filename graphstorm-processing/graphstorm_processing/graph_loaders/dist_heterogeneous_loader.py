@@ -939,7 +939,6 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
             transformed_feature_df = transformer.apply_transformation(nodes_df)
 
-            # TODO: Remove hack with [feat_conf.feat_name]
             def process_feature(self, feat_name, single_feature_df, node_type, transformer_name):
                 feature_output_path = os.path.join(
                     self.output_prefix, f"node_data/{node_type}-{feat_name}"
@@ -965,6 +964,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     perf_counter() - node_transformation_start
                 )
 
+            # TODO: Remove hack with [feat_conf.feat_name]
             for feat_name, feat_col in zip([feat_conf.feat_name], feat_conf.cols):
                 node_transformation_start = perf_counter()
 
@@ -1347,7 +1347,6 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
             transformed_feature_df = transformer.apply_transformation(edges_df)
 
-            # TODO: Remove hack with [feat_conf.feat_name]
             def process_feature(self, feat_name, single_feature_df, edge_type,
                                 transformer_name):
                 feature_output_path = os.path.join(
@@ -1374,6 +1373,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     perf_counter() - edge_feature_start
                 )
 
+            # TODO: Remove hack with [feat_conf.feat_name]
             for feat_name, feat_col in zip([feat_conf.feat_name], feat_conf.cols):
                 edge_feature_start = perf_counter()
 
