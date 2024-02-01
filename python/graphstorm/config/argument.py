@@ -50,13 +50,13 @@ from .config import SUPPORTED_TASKS
 
 from .config import BUILTIN_LP_DISTMULT_DECODER
 from .config import SUPPORTED_LP_DECODER
-from .config import GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS
+from .config import (GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS,
+                     GRAPHSTORM_LP_EMB_L2_NORMALIZATION)
 
 from .config import (GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_EMBED_LAYER,
                      GRAPHSTORM_MODEL_DECODER_LAYER, GRAPHSTORM_MODEL_LAYER_OPTIONS)
 
-from .utils import get_graph_name
-from ..utils import TORCH_MAJOR_VER, get_log_level
+from ..utils import TORCH_MAJOR_VER, get_log_level, get_graph_name
 
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
 from ..eval import SUPPORTED_REGRESSION_METRICS
@@ -1817,7 +1817,17 @@ class GSConfig:
             assert normalizer in GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS, \
                 f"Link prediction embedding normalizer {normalizer} not supported. " \
                 f"GraphStorm only support {GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS}"
+
+            # TODO: Check the compatibility between the loss function
+            # and the normalizer. Right now only l2 norm is supported
+            # and it is compatible with both cross entropy loss and
+            # contrastive loss.
             return normalizer
+
+        if self.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS:
+            # By default, normalize the emb with l2 normalization
+            # when the loss function is contrastive loss
+            return GRAPHSTORM_LP_EMB_L2_NORMALIZATION
         return None
 
     @property
