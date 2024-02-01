@@ -100,7 +100,8 @@ base image, so we need to ensure our application uses the same release.
 
 Additionally, if it is required to use text feature transformation, it is suggested to setup VPC and NAT route for the emr cluster:
 `Create a VPC on emr-serverless
-<https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/vpc-access.html>`_
+<https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/vpc-access.html>`_. If it is preferred to save model cache
+inside the docker image, check out how we do that in: :doc:`distributed-processing-setup`.
 
 Allow EMR Serverless to access the custom image repository
 ----------------------------------------------------------

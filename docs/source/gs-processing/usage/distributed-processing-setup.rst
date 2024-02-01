@@ -115,10 +115,12 @@ For EMR Serverless images, setting up a VPC and NAT route is a necessary step wh
 You can find detailed instructions on creating a VPC for EMR Serverless in the AWS documentation: `Create a VPC on emr-serverless
 <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/vpc-access.html>`_.
 Alternatively, there is one easier way to do that, you can opt to include the huggingface model cache directly in your Docker image.
+It is available for both SageMaker docker image and EMR-serverless docker image. It is a good way to save cost to avoid downloading when launching the clusters.
 The build_gsprocessing_image.sh script provides an option to embed the huggingface bert model cache within the Docker image.
 
 .. code-block:: bash
 
+    bash docker/build_gsprocessing_image.sh --environment sagemaker --model-name bert-base-uncased
     bash docker/build_gsprocessing_image.sh --environment emr-serverless --model-name bert-base-uncased
 
 Support for arm64 architecture

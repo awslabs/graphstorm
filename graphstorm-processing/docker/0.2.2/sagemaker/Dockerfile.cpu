@@ -43,6 +43,16 @@ WORKDIR $SPARK_HOME
 # Ensure our python3 installation is the one used
 RUN echo 'alias python3=python3.9' >> ~/.bashrc
 
+# Install Huggingface model cache if it is necessary
+ARG MODEL=""
+ENV TRANSFORMERS_CACHE=/root/.cache/huggingface/hub
+RUN if [ $MODEL == "" ]; then \
+        echo "Skip installing model cache"; \
+else \
+        echo "Installing model cache for $MODEL" && \
+        python3 -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('${MODEL}')"; \
+fi
+
 # Starts framework
 ENTRYPOINT ["bash", "/usr/lib/spark/code/docker-entry.sh"]
 

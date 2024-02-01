@@ -47,7 +47,7 @@ RUN pip install -r /usr/lib/spark/code/requirements.txt \
 # GSProcessing codebase
 COPY code/ /usr/lib/spark/code/
 
-# Install Hugging Face model cache if it is necessary
+# Install Huggingface model cache if it is necessary
 ARG MODEL=""
 ENV TRANSFORMERS_CACHE=/home/hadoop/.cache/huggingface/hub
 RUN if [ $MODEL == "" ]; then \
