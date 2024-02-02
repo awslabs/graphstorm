@@ -17,11 +17,11 @@ limitations under the License.
 from typing import Sequence
 import numpy as np
 from pyspark.sql import DataFrame
-from pyspark.sql.types import ArrayType, IntegerType, StructType, StructField
+from pyspark.sql.types import ArrayType, IntegerType, FloatType, StructType, StructField
 from pyspark.sql.functions import udf
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModel, AutoConfig
 
-from graphstorm_processing.constants import HUGGINGFACE_TOKENIZE
+from graphstorm_processing.constants import HUGGINGFACE_TOKENIZE, HUGGINGFACE_EMB
 from .base_dist_transformation import DistributedTransformation
 
 
@@ -89,6 +89,37 @@ def apply_transform(
             transformed_df[cols[0]].getItem("attention_mask").alias("attention_mask"),
             transformed_df[cols[0]].getItem("token_type_ids").alias("token_type_ids"),
         )
+    elif action == HUGGINGFACE_EMB:
+        import torch as th
+        # Define the schema of your return type
+        schema = ArrayType(FloatType())
+
+        # Define UDF
+        @udf(returnType=schema)
+        def lm_emb(text):
+            # Check if text is a string
+            if not isinstance(text, str):
+                raise ValueError("The input of the tokenizer has to be a string.")
+            tokenizer = AutoTokenizer.from_pretrained(bert_model)
+            config = AutoConfig.from_pretrained(bert_model)
+            lm_model = AutoModel.from_pretrained(bert_model, config)
+            lm_model.eval()
+            lm_model = lm_model.to('cpu')
+
+            outputs = tokenizer(text, return_tensors="pt")
+            tokens = outputs['input_ids']
+            att_masks = outputs['attention_mask']
+            token_types = outputs.get('token_type_ids')
+            with th.no_grad():
+                if token_types is not None:
+                    outputs = lm_model(tokens.to('cpu'), attention_mask=att_masks.to('cpu'),
+                                       token_type_ids=token_types.to('cpu'))
+                else:
+                    outputs = lm_model(tokens.to('cpu'), attention_mask=att_masks.to('cpu'))
+                embeddings = outputs.pooler_output.cpu().squeeze().numpy()
+            return embeddings.tolist()
+        # Apply the UDF to the DataFrame
+        transformed_df = input_df.withColumn(cols[0], lm_emb(input_df[cols[0]]))
     else:
         raise ValueError(f"The input action needs to be {HUGGINGFACE_TOKENIZE}")
 

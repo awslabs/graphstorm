@@ -16,7 +16,7 @@ limitations under the License.
 
 from typing import Mapping
 
-from graphstorm_processing.constants import HUGGINGFACE_TOKENIZE
+from graphstorm_processing.constants import HUGGINGFACE_TOKENIZE, HUGGINGFACE_EMB
 from .feature_config_base import FeatureConfig
 
 
@@ -44,8 +44,8 @@ class HFConfig(FeatureConfig):
     def _sanity_check(self) -> None:
         super()._sanity_check()
         assert self.action in [
-            HUGGINGFACE_TOKENIZE
-        ], f"huggingface action needs to be {HUGGINGFACE_TOKENIZE}"
+            HUGGINGFACE_TOKENIZE, HUGGINGFACE_EMB
+        ], f"huggingface action needs to be one of {HUGGINGFACE_TOKENIZE, HUGGINGFACE_EMB}"
         assert isinstance(
             self.bert_model, str
         ), f"Expect bert_model to be a string, but got {self.bert_model}"
