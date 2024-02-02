@@ -91,6 +91,7 @@ def apply_transform(
         )
     elif action == HUGGINGFACE_EMB:
         import torch as th
+
         # Define the schema of your return type
         schema = ArrayType(FloatType())
 
@@ -104,20 +105,24 @@ def apply_transform(
             config = AutoConfig.from_pretrained(bert_model)
             lm_model = AutoModel.from_pretrained(bert_model, config)
             lm_model.eval()
-            lm_model = lm_model.to('cpu')
+            lm_model = lm_model.to("cpu")
 
             outputs = tokenizer(text, return_tensors="pt")
-            tokens = outputs['input_ids']
-            att_masks = outputs['attention_mask']
-            token_types = outputs.get('token_type_ids')
+            tokens = outputs["input_ids"]
+            att_masks = outputs["attention_mask"]
+            token_types = outputs.get("token_type_ids")
             with th.no_grad():
                 if token_types is not None:
-                    outputs = lm_model(tokens.to('cpu'), attention_mask=att_masks.to('cpu'),
-                                       token_type_ids=token_types.to('cpu'))
+                    outputs = lm_model(
+                        tokens.to("cpu"),
+                        attention_mask=att_masks.to("cpu"),
+                        token_type_ids=token_types.to("cpu"),
+                    )
                 else:
-                    outputs = lm_model(tokens.to('cpu'), attention_mask=att_masks.to('cpu'))
+                    outputs = lm_model(tokens.to("cpu"), attention_mask=att_masks.to("cpu"))
                 embeddings = outputs.pooler_output.cpu().squeeze().numpy()
             return embeddings.tolist()
+
         # Apply the UDF to the DataFrame
         transformed_df = input_df.withColumn(cols[0], lm_emb(input_df[cols[0]]))
     else:
