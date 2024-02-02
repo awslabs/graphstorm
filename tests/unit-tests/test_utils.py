@@ -41,7 +41,7 @@ from graphstorm.model.gnn_encoder_base import prepare_for_wholegraph
 
 from data_utils import generate_dummy_dist_graph
 from graphstorm.eval.utils import gen_mrr_score
-from graphstorm.utils import setup_device
+from graphstorm.utils import setup_device, get_graph_name
 
 from graphstorm.gconstruct.file_io import stream_dist_tensors_to_hdf5
 
@@ -1138,6 +1138,13 @@ def test_normalize_node_embs(num_embs):
         raise_error = True
     assert raise_error
 
+def test_get_graph_name():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        _, part_config = generate_dummy_dist_graph(tmpdirname, size="tiny")
+        graph_name = get_graph_name(part_config)
+        
+        assert graph_name == 'dummy'
+
 
 if __name__ == '__main__':
     # test_shuffle_nids_dist_part()
@@ -1168,5 +1175,7 @@ if __name__ == '__main__':
     # test_topklist()
     # test_gen_mrr_score()
 
-    # test_stream_dist_tensors_to_hdf5()
-    # test_prepare_for_wholegraph()
+    test_stream_dist_tensors_to_hdf5()
+    test_prepare_for_wholegraph()
+
+    test_get_graph_name()

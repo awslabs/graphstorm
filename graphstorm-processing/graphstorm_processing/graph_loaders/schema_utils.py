@@ -16,6 +16,7 @@ limitations under the License.
 This module is used to parse the schema of CSV input files, inferring
 the type of the columns from the type mentioned in the configuration.
 """
+
 import logging
 from typing import Sequence, List, Type
 
@@ -61,7 +62,8 @@ def _parse_features_schema(features_objects: Sequence[FeatureConfig]) -> Sequenc
         feature_type = feature_config.feat_type
         for feature_col, _ in zip(feature_config.cols, feature_config.feat_name):
             spark_feature_type = determine_spark_feature_type(feature_type)
-
+            if StructField(feature_col, spark_feature_type(), True) in field_list:
+                continue
             field_list.append(StructField(feature_col, spark_feature_type(), True))
 
     return field_list
@@ -91,6 +93,7 @@ def determine_spark_feature_type(feature_type: str) -> Type[DataType]:
         "multi-numerical",
         "categorical",
         "multi-categorical",
+        "huggingface",
     ] or feature_type.startswith("text"):
         return StringType
     if feature_type in ["numerical", "bucket-numerical"]:
