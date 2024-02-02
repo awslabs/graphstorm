@@ -27,6 +27,8 @@ from ..config.config import (EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
                              LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL)
 from ..utils import get_rank, get_world_size, barrier
 from .utils import gen_mrr_score
+from ..tracker import GSSageMakerTaskTracker
+
 
 def early_stop_avg_increase_judge(val_score, val_perf_list, comparator):
     """
@@ -136,7 +138,6 @@ class GSgnnInstanceEvaluator():
         # nodes whose embeddings are used during evaluation
         # if None all nodes are used.
         self._history = []
-        self.tracker = None
         self._best_val_score = None
         self._best_test_score = None
         self._best_iter = None
@@ -155,14 +156,16 @@ class GSgnnInstanceEvaluator():
             self._val_perf_list = []
         # add this list to store
         self._val_perf_rank_list = []
+        # add a default task tracker using eval_frequency as input
+        self.tracker = GSSageMakerTaskTracker(eval_frequency)
 
     def setup_task_tracker(self, task_tracker):
         """ Setup evaluation tracker
 
             Parameters
             ----------
-            client:
-                tracker client
+            task_tracker:
+                a task tracker
         """
         self.tracker = task_tracker
 
@@ -598,7 +601,6 @@ class GSgnnLPEvaluator():
         # nodes whose embeddings are used during evaluation
         # if None all nodes are used.
         self._target_nidx = None
-        self.tracker = None
         self._best_val_score = None
         self._best_test_score = None
         self._best_iter = None
@@ -616,16 +618,18 @@ class GSgnnLPEvaluator():
             self._val_perf_list = []
         # add this list to store all of the performance rank of validation scores for pick top k
         self._val_perf_rank_list = []
+        # add a default task tracker using eval_frequency as input
+        self.tracker = GSSageMakerTaskTracker(eval_frequency)
 
-    def setup_task_tracker(self, client):
+    def setup_task_tracker(self, task_tracker):
         """ Setup evaluation tracker
 
             Parameters
             ----------
-            client:
-                tracker client
+            task_tracker:
+                a task tracker
         """
-        self.tracker = client
+        self.tracker = task_tracker
 
     @abc.abstractmethod
     def evaluate(self, val_scores, test_scores, total_iters):
