@@ -85,7 +85,7 @@ def main(args):
                                     label_field=args.label)
     for ntype in train_data.g.ntypes:
         print(ntype, train_data.g.nodes[ntype].data.keys())
-    feat_size = gs.get_feat_size(train_data.g, args.node_feat)
+    feat_size = gs.get_node_feat_size(train_data.g, args.node_feat)
     model = MyGNNModel(train_data.g, feat_size, 16, args.num_classes)
     trainer = GSgnnNodePredictionTrainer(model, topk_model_to_save=1)
     trainer.setup_device(device=device)
