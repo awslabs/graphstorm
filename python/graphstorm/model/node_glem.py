@@ -156,7 +156,7 @@ class GLEM(GSgnnNodeModelBase):
         # GLEM is being trained: use gnn route if not training lm
         return not self.training_lm
 
-    def init_optimizer(self, lr, sparse_optimizer_lr, weight_decay, lm_lr=None):
+    def init_optimizer(self, lr, sparse_optimizer_lr=0.01, weight_decay=0, lm_lr=None):
         """Initialize optimzer, which will be stored in self.lm._optimizer, self.gnn._optimizer
         """
         sparse_params = self.lm.get_sparse_params()

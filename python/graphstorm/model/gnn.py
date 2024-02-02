@@ -711,7 +711,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         # restore sparse embeddings for node_input_encoder.
         load_sparse_embeds(restore_model_path, self.node_input_encoder)
 
-    def init_optimizer(self, lr, sparse_optimizer_lr, weight_decay, lm_lr=None):
+    def init_optimizer(self, lr, sparse_optimizer_lr=0.01, weight_decay=0, lm_lr=None):
         """initialize the model's optimizers
 
         Parameters
@@ -720,9 +720,9 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             The learning rate for dense parameters
             The learning rate for general dense parameters
         sparse_optimizer_lr : float
-            The learning rate for sparse parameters
+            The learning rate for sparse parameters. Default is 0.01.
         weight_decay : float
-            The weight decay for the optimizer.
+            The weight decay for the optimizer. Default is 0.0.
         lm_lr: float
             Language model fine-tuning learning rate for
             langauge model dense parameters.

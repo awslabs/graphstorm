@@ -1175,7 +1175,7 @@ class GSConfig:
                 "Sparse optimizer learning rate must be larger than 0"
             return sparse_optimizer_lr
 
-        return self.lr
+        return 0.01
 
     @property
     def use_node_embeddings(self):
