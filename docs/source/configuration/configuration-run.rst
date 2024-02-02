@@ -185,7 +185,7 @@ GraphStorm provides a set of parameters to control training hyper-parameters.
 
     - Yaml: ``sparse_optimizer_lr: 0.5``
     - Argument: ``--sparse-optimizer-lr 0.5``
-    - Default value: ``0.01``.
+    - Default value: same as ``lr``.
 - **use_node_embeddings**: Set true to use extra learnable node embedding for each node.
 
     - Yaml: ``use_node_embeddings: true``

@@ -711,7 +711,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         # restore sparse embeddings for node_input_encoder.
         load_sparse_embeds(restore_model_path, self.node_input_encoder)
 
-    def init_optimizer(self, lr, sparse_optimizer_lr=0.01, weight_decay=0, lm_lr=None):
+    def init_optimizer(self, lr, sparse_optimizer_lr=None, weight_decay=0, lm_lr=None):
         """initialize the model's optimizers
 
         Parameters
@@ -720,7 +720,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             The learning rate for dense parameters
             The learning rate for general dense parameters
         sparse_optimizer_lr : float
-            The learning rate for sparse parameters. Default is 0.01.
+            The learning rate for sparse parameters. Default is None and will use the lr value.
         weight_decay : float
             The weight decay for the optimizer. Default is 0.0.
         lm_lr: float
@@ -728,6 +728,9 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             langauge model dense parameters.
         """
         sparse_params = self.get_sparse_params()
+        # check and set the sparse optimizer learning rate
+        if sparse_optimizer_lr is None:
+            sparse_optimizer_lr = lr
         if len(sparse_params) > 0:
             emb_optimizer = dgl.distributed.optim.SparseAdam(sparse_params, lr=sparse_optimizer_lr)
             sparse_opts = [emb_optimizer]
