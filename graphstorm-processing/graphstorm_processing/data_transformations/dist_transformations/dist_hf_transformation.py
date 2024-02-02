@@ -16,6 +16,7 @@ limitations under the License.
 
 from typing import Sequence
 import numpy as np
+import torch as th
 from pyspark.sql import DataFrame
 from pyspark.sql.types import ArrayType, IntegerType, FloatType, StructType, StructField
 from pyspark.sql.functions import udf
@@ -90,8 +91,6 @@ def apply_transform(
             transformed_df[cols[0]].getItem("token_type_ids").alias("token_type_ids"),
         )
     elif action == HUGGINGFACE_EMB:
-        import torch as th
-
         # Define the schema of your return type
         schema = ArrayType(FloatType())
 
