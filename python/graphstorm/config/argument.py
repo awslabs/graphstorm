@@ -2281,6 +2281,11 @@ def _add_hyperparam_args(parser):
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS,
             help="Whether to use extra learnable node embeddings")
+    group.add_argument(
+            "--use-wholegraph-sparse-emb",
+            type=lambda x: (str(x).lower() in ['true', '1']),
+            default=argparse.SUPPRESS,
+            help="Whether to use WholeGraph library to update learnable node embeddings")
     group.add_argument("--construct-feat-ntype", type=str, nargs="+",
             help="The node types whose features are constructed from neighbors' features.")
     group.add_argument("--construct-feat-encoder", type=str, default=argparse.SUPPRESS,
