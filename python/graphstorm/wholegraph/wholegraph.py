@@ -544,7 +544,14 @@ class WholeGraphDistTensor:
         return output_tensor
 
     def get_local_tensor(self):
-        """ Get the local tensor and offset of the embedding tensor. """
+        """
+        Get the local embedding tensor and its element offset at current rank.
+
+        Returns
+        -------
+        (torch.Tensor, int)
+            Tuple of local torch Tensor (converted from DLPack) and its offset.
+        """
         if self._location == "cuda":
             local_tensor, offset = self._tensor.get_embedding_tensor().get_local_tensor()
         else:

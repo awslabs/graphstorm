@@ -93,9 +93,6 @@ def reset_envs():
 
 def _initialize(proc_id, nprocs, use_wholegraph=True):
     backend = "nccl"
-    #from dgl.distributed import role
-    #role.init_role("default")
-
     assert th.cuda.is_available(), "NCCL backend requires CUDA device(s) to be available."
 
     os.environ["MASTER_ADDR"] = "localhost"
