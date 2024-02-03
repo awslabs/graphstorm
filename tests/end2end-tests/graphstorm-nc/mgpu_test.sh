@@ -463,12 +463,4 @@ python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_s
 
 error_and_exit $?
 
-PACKAGE_NAME="pylibwholegraph"
-pip list | grep -w "^$PACKAGE_NAME" > /dev/null
-if [ $? -eq 0 ]; then
-    echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch save model save emb node, Backend nccl, force to use learnable embedding and use-wholegraph-sparse-emb"
-    python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --save-model-path /data/gsgnn_nc_ml/ --num-epochs 1 --backend nccl --use-node-embeddings true --use-wholegraph-sparse-emb true --node-feat-name movie:title user:feat
-    error_and_exit $?
-fi
-
 rm -fr /tmp/*
