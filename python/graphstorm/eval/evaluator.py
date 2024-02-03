@@ -145,7 +145,7 @@ class GSgnnInstanceEvaluator():
         self._metric = eval_metric
         assert len(self.metric) > 0, \
             "At least one metric must be defined"
-        self.eval_frequency = eval_frequency
+        self._eval_frequency = eval_frequency
         self._do_early_stop = use_early_stop
         if self._do_early_stop:
             self._early_stop_burnin_rounds = early_stop_burnin_rounds
@@ -208,7 +208,7 @@ class GSgnnInstanceEvaluator():
         """
         if epoch_end:
             return True
-        elif self.eval_frequency != 0 and total_iters % self.eval_frequency == 0:
+        elif self._eval_frequency != 0 and total_iters % self._eval_frequency == 0:
             return True
         return False
 
@@ -337,6 +337,18 @@ class GSgnnInstanceEvaluator():
             ``GSgnnAccEvaluator`` add a tuple of validation and testing score as one list element.
         """
         return self._history
+
+    @property
+    def eval_frequency(self):
+        """ Evaluation frequency
+        """
+        return self._eval_frequency
+
+    @property
+    def task_tracker(self):
+        """ Task tracker of this evaluator
+        """
+        return self.tracker
 
 class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
     """ The class for user defined evaluator.
@@ -606,7 +618,7 @@ class GSgnnLPEvaluator():
 
         self._metric = eval_metric
         assert len(self.metric) > 0, "At least one metric must be defined"
-        self.eval_frequency = eval_frequency
+        self._eval_frequency = eval_frequency
         self._do_early_stop = use_early_stop
         if self._do_early_stop:
             self._early_stop_burnin_rounds = early_stop_burnin_rounds
@@ -670,8 +682,8 @@ class GSgnnLPEvaluator():
         """
         if epoch_end:
             return True
-        elif self.eval_frequency != 0 and \
-            total_iters % self.eval_frequency == 0:
+        elif self._eval_frequency != 0 and \
+            total_iters % self._eval_frequency == 0:
             return True
         return False
 
@@ -779,6 +791,17 @@ class GSgnnLPEvaluator():
         """
         return self._val_perf_rank_list
 
+    @property
+    def eval_frequency(self):
+        """ Evaluation frequency.
+        """
+        return self._eval_frequency
+
+    @property
+    def task_tracker(self):
+        """ Task tracker of this evaluator
+        """
+        return self.tracker
 
 class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
     """ The class for link prediction evaluation using Mrr metric.
