@@ -487,10 +487,13 @@ python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scrip
 
 error_and_exit $?
 
-echo "**************dataset: Movielens, RGCN layer 1, node feat: fixed feature, inference: full-graph, negative_sampler: joint, exclude_training_targets: true, save model, Backend nccl, force to use learnable embedding and use-wholegraph-sparse-emb"
-python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10' --num-layers 1 --use-mini-batch-infer false --eval-batch-size 128 --reverse-edge-types-map user,rating,rating-rev,movie --node-feat-name movie:title user:feat --backend nccl --use-node-embeddings true --use-wholegraph-sparse-emb true --save-model-path /data/gsgnn_lp_ml_dot/
-
-error_and_exit $?
+PACKAGE_NAME="pylibwholegraph"
+pip list | grep -w "^$PACKAGE_NAME" > /dev/null
+if [ $? -eq 0 ]; then
+    echo "**************dataset: Movielens, RGCN layer 1, node feat: fixed feature, inference: full-graph, negative_sampler: joint, exclude_training_targets: true, save model, Backend nccl, force to use learnable embedding and use-wholegraph-sparse-emb"
+    python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10' --num-layers 1 --use-mini-batch-infer false --eval-batch-size 128 --reverse-edge-types-map user,rating,rating-rev,movie --node-feat-name movie:title user:feat --backend nccl --use-node-embeddings true --use-wholegraph-sparse-emb true --save-model-path /data/gsgnn_lp_ml_dot/
+    error_and_exit $?
+fi
 
 echo "**************dataset: Movielens, two training edges with per etype evaluation result***********"
 python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_2etype_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10' --num-layers 1 --use-mini-batch-infer false --eval-batch-size 1024 --exclude-training-targets false --train-etype user,rating,movie user,rating2,movie --eval-etype user,rating,movie user,rating2,movie --report-eval-per-type True --node-feat-name movie:title user:feat --logging-file /tmp/train_log.txt
