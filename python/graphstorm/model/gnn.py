@@ -755,11 +755,10 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
                 # before sparse embeddings. Within attach_wg_optimizer, we materialize
                 # the WG distributed tensor and then attach the optimizer.
                 emb_optimizer = create_wholememory_optimizer("adam", {})
-                for params in sparse_params:
-                    for param in params:
-                        assert isinstance(param, WholeGraphDistTensor) and param.use_wg_optimizer, \
-                            "Please create params (WholeGraph tensor) with use_wg_optimizer=True."
-                        param.attach_wg_optimizer(emb_optimizer)
+                for param in sparse_params:
+                    assert isinstance(param, WholeGraphDistTensor) and param.use_wg_optimizer, \
+                        "Please create params (WholeGraph tensor) with use_wg_optimizer=True."
+                    param.attach_wg_optimizer(emb_optimizer)
                 # TODO(@chang-l): Wrap the wholegraph optimizer in a class to
                 # take an extra input argument: lr
                 emb_optimizer.lr = sparse_optimizer_lr
