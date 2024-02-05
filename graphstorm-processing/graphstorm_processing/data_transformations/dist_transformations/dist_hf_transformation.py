@@ -124,6 +124,7 @@ def apply_transform(
 
         # Apply the UDF to the DataFrame
         transformed_df = input_df.withColumn(cols[0], lm_emb(input_df[cols[0]]))
+        transformed_df = transformed_df.select(cols[0])
     else:
         raise ValueError(f"The input action needs to be {HUGGINGFACE_TOKENIZE}")
 
