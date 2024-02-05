@@ -29,7 +29,7 @@ from graphstorm.model.utils import save_sparse_embeds
 from graphstorm.model.utils import load_sparse_embeds
 from graphstorm.model.utils import _get_sparse_emb_range
 from graphstorm.model.utils import pad_file_index
-from graphstorm import get_feat_size
+from graphstorm import get_node_feat_size
 
 from data_utils import generate_dummy_dist_graph
 
@@ -180,7 +180,7 @@ def test_sparse_embed_load_corner_cases():
 
         # embed_layer.sparse_embeds is empty.
         g, _ = generate_dummy_dist_graph(tmpdirname)
-        feat_size = get_feat_size(g, 'feat')
+        feat_size = get_node_feat_size(g, 'feat')
         embed_layer = GSNodeEncoderInputLayer(g, feat_size, 4)
         assert len(embed_layer.sparse_embeds) == 0
         try:

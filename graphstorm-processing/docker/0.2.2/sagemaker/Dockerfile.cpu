@@ -47,7 +47,7 @@ RUN echo 'alias python3=python3.9' >> ~/.bashrc
 # Install Huggingface model cache if it is necessary
 ARG MODEL=""
 ENV TRANSFORMERS_CACHE=/root/.cache/huggingface/hub
-RUN if [ $MODEL == "" ]; then \
+RUN if [ -z "${MODEL}" ]; then \
         echo "Skip installing model cache"; \
 else \
         echo "Installing model cache for $MODEL" && \
