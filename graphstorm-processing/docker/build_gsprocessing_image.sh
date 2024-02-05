@@ -23,7 +23,9 @@ Available options:
 -i, --image         Docker image name, default is 'graphstorm-processing'.
 -v, --version       Docker version tag, default is the library's current version (`poetry version --short`)
 -s, --suffix        Suffix for the image tag, can be used to push custom image tags. Default is "".
--b, --build         Docker build directory, default is '/tmp/`
+-b, --build         Docker build directory, default is '/tmp/'.
+-m, --hf-model      Huggingface Model name that needs to be packed into the docker image. Default is "".
+
 EOF
   exit
 }
@@ -48,6 +50,7 @@ parse_params() {
   TARGET='test'
   ARCH='x86_64'
   SUFFIX=""
+  MODEL=""
 
   while :; do
     case "${1-}" in
@@ -84,6 +87,10 @@ parse_params() {
       ;;
     -s | --suffix)
       SUFFIX="${2-}"
+      shift
+      ;;
+    -m | --hf-model)
+      MODEL="${2-}"
       shift
       ;;
     -?*) die "Unknown option: $1" ;;
@@ -135,6 +142,7 @@ msg "- GSP_HOME: ${GSP_HOME}"
 msg "- IMAGE_NAME: ${IMAGE_NAME}"
 msg "- VERSION: ${VERSION}"
 msg "- SUFFIX: ${SUFFIX}"
+msg "- MODEL: ${MODEL}"
 
 # Prepare Docker build directory
 rm -rf "${BUILD_DIR}/docker/code"
@@ -170,4 +178,4 @@ fi
 
 echo "Build a Docker image ${DOCKER_FULLNAME}"
 DOCKER_BUILDKIT=1 docker build --platform "linux/${ARCH}" -f "${GSP_HOME}/docker/${VERSION}/${EXEC_ENV}/Dockerfile.cpu" \
-    "${BUILD_DIR}/docker/" -t $DOCKER_FULLNAME --target ${TARGET} --build-arg ARCH=${ARCH}
+    "${BUILD_DIR}/docker/" -t $DOCKER_FULLNAME --target ${TARGET} --build-arg ARCH=${ARCH} --build-arg MODEL=${MODEL}

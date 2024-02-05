@@ -15,6 +15,7 @@ limitations under the License.
 
 Configuration parsing for edges and nodes
 """
+
 from abc import ABC
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -27,6 +28,7 @@ from .numerical_configs import (
     NumericalFeatureConfig,
 )
 from .categorical_configs import MultiCategoricalFeatureConfig
+from .hf_configs import HFConfig
 from .data_config_base import DataStorageConfig
 
 
@@ -67,6 +69,8 @@ def parse_feat_config(feature_dict: Dict) -> FeatureConfig:
         return FeatureConfig(feature_dict)
     elif transformation_name == "multi-categorical":
         return MultiCategoricalFeatureConfig(feature_dict)
+    elif transformation_name == "huggingface":
+        return HFConfig(feature_dict)
     else:
         raise RuntimeError(f"Unknown transformation name: '{transformation_name}'")
 

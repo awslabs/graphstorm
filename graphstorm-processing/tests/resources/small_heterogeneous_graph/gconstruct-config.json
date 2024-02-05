@@ -58,7 +58,12 @@
         ],
         "features": [
             {
-                "feature_col": ["age"]
+                "feature_col": ["occupation"],
+                "transform": {
+                        "name": "tokenize_hf",
+                        "bert_model": "bert-base-uncased",
+                        "max_seq_length": 16
+                }
             }
         ]
       }

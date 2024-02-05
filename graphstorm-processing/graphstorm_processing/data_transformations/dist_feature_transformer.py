@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import logging
 
 from pyspark.sql import DataFrame
@@ -26,6 +27,7 @@ from .dist_transformations import (
     DistBucketNumericalTransformation,
     DistCategoryTransformation,
     DistMultiCategoryTransformation,
+    DistHFTransformation,
 )
 
 
@@ -57,6 +59,8 @@ class DistFeatureTransformer(object):
             self.transformation = DistCategoryTransformation(**default_kwargs, **args_dict)
         elif feat_type == "multi-categorical":
             self.transformation = DistMultiCategoryTransformation(**default_kwargs, **args_dict)
+        elif feat_type == "huggingface":
+            self.transformation = DistHFTransformation(**default_kwargs, **args_dict)
         else:
             raise NotImplementedError(
                 f"Feature {feat_name} has type: {feat_type} that is not supported"
