@@ -44,7 +44,8 @@ class HFConfig(FeatureConfig):
     def _sanity_check(self) -> None:
         super()._sanity_check()
         assert self.action in [
-            HUGGINGFACE_TOKENIZE, HUGGINGFACE_EMB
+            HUGGINGFACE_TOKENIZE,
+            HUGGINGFACE_EMB,
         ], f"huggingface action needs to be one of {HUGGINGFACE_TOKENIZE, HUGGINGFACE_EMB}"
         assert isinstance(
             self.bert_model, str
