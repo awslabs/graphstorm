@@ -460,7 +460,8 @@ arguments.
                             The output here is compatible for graphstorm language model training and inference pipelines.
          - ``bert_hf``: It encodes text strings with a HuggingFace model hosted on huggingface.co. The bert_hf can use any HuggingFace LM models available in the huggingface repo.
                             Check more information on: `huggingface bert model <https://huggingface.co/docs/transformers/main/en/main_classes/model>`_
-                            The expected input can any length of text strings, and the expected output will be the embeddings for the text strings.
+                            The expected input can any length of text strings, and the expected output will be the embeddings for the text strings. If it is possible, it is more recommended
+                            to use ``tokenize_hf`` as the cpu version of torch can consume too much time.
       - ``bert_model`` (String, required): It should be the identifier of a pre-trained model available in the Hugging Face Model Hub.
       - ``max_seq_length`` (Integer, required): It specifies the maximum number of tokens of the input.
 
