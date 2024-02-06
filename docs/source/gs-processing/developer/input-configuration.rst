@@ -459,6 +459,7 @@ arguments.
                             The expected input can any length of text strings, and the expected output will include ``input_ids`` for token IDs on the input text,
                             ``attention_mask`` for a mask to avoid performing attention on padding token indices, and ``token_type_ids`` for segmenting two sentences in models.
                             The output here is compatible for graphstorm language model training and inference pipelines.
+
          - ``bert_hf``: It encodes text strings with a HuggingFace model hosted on huggingface.co. The bert_hf can use any HuggingFace LM models available in the huggingface repo.
                             Check more information on: `huggingface bert model <https://huggingface.co/docs/transformers/main/en/main_classes/model>`_
                             The expected input can any length of text strings, and the expected output will be the embeddings for the text strings. If it is possible, it is more recommended
