@@ -326,6 +326,24 @@ def test_GSgnnNodeData():
         no_label = True
     assert no_label
 
+    # test get feature size when node_feat_field is None
+    feat_size = tr_data.get_node_feat_size()
+    assert feat_size['n0'] == 0
+    assert feat_size['n1'] == 0
+
+    # test get feature size when node_feat_field is given in construction
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
+                                                            dirname=tmpdirname)
+        data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                  node_feat_field={'n0': ['feat','feat1'], 'n1': ['feat1']},
+                                  train_ntypes=tr_ntypes, eval_ntypes=va_ntypes,
+                                  label_field='label')
+    feat_size = data.get_node_feat_size()
+    assert feat_size['n0'] == 6
+    assert feat_size['n1'] == 4
+
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
@@ -428,7 +446,7 @@ def test_node_dataloader_reconstruct():
                                      train_ntypes=['n0'], label_field='label',
                                      node_feat_field={'n0': ['feat'], 'n4': ['feat']})
 
-    feat_sizes = gs.gsf.get_feat_size(np_data.g, {'n0': 'feat', 'n4': 'feat'})
+    feat_sizes = gs.get_node_feat_size(np_data.g, {'n0': 'feat', 'n4': 'feat'})
     target_idx = {'n0': th.arange(np_data.g.number_of_nodes('n0'))}
     # Test the case that we cannot construct all node features.
     try:

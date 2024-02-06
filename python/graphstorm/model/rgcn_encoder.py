@@ -289,7 +289,7 @@ class RelationalGCNEncoder(GraphConvEncoder):
     .. code:: python
 
         # Build model and do full-graph inference on RelationalGCNEncoder
-        from graphstorm import get_feat_size
+        from graphstorm import get_node_feat_size
         from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
         from graphstorm.model.node_decoder import EntityClassifier
         from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
@@ -299,7 +299,7 @@ class RelationalGCNEncoder(GraphConvEncoder):
         np_data = GSgnnNodeTrainData(...)
 
         model = GSgnnNodeModel(alpha_l2norm=0)
-        feat_size = get_feat_size(np_data.g, 'feat')
+        feat_size = get_node_feat_size(np_data.g, 'feat')
         encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                           dropout=0,
                                           use_node_embeddings=True)

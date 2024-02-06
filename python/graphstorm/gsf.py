@@ -88,7 +88,7 @@ def initialize(ip_config, backend, use_wholegraph=False):
             init_wholegraph()
     sys_tracker.check("load DistDGL")
 
-def get_feat_size(g, node_feat_names):
+def get_node_feat_size(g, node_feat_names):
     """ Get the feature's size on each node type in the input graph.
 
     Parameters
@@ -103,7 +103,7 @@ def get_feat_size(g, node_feat_names):
     dict of int : the feature size for each node type.
 
     """
-    feat_size = {}
+    node_feat_size = {}
     for ntype in g.ntypes:
         # user can specify the name of the field
         if node_feat_names is None:
@@ -116,16 +116,16 @@ def get_feat_size(g, node_feat_names):
             feat_name = None
 
         if feat_name is None:
-            feat_size[ntype] = 0
+            node_feat_size[ntype] = 0
         elif isinstance(feat_name, str): # global feat_name
             # We force users to know which node type has node feature
             # This helps avoid unexpected training behavior.
             assert feat_name in g.nodes[ntype].data, \
                     f"Warning. The feature \"{feat_name}\" " \
                     f"does not exists for the node type \"{ntype}\"."
-            feat_size[ntype] = np.prod(g.nodes[ntype].data[feat_name].shape[1:])
+            node_feat_size[ntype] = np.prod(g.nodes[ntype].data[feat_name].shape[1:])
         else:
-            feat_size[ntype] = 0
+            node_feat_size[ntype] = 0
             for fname in feat_name:
                 # We force users to know which node type has node feature
                 # This helps avoid unexpected training behavior.
@@ -137,8 +137,8 @@ def get_feat_size(g, node_feat_names):
                 assert len(g.nodes[ntype].data[fname].shape) == 2, \
                     "Input node features should be 2D tensors"
                 fsize = np.prod(g.nodes[ntype].data[fname].shape[1:])
-                feat_size[ntype] += fsize
-    return feat_size
+                node_feat_size[ntype] += fsize
+    return node_feat_size
 
 def get_rel_names_for_reconstruct(g, reconstructed_embed_ntype, feat_size):
     """ Get the relation types for reconstructing node features.
@@ -506,7 +506,7 @@ def set_encoder(model, g, config, train_task):
         Whether this model is used for training.
     """
     # Set input layer
-    feat_size = get_feat_size(g, config.node_feat_name)
+    feat_size = get_node_feat_size(g, config.node_feat_name)
     reconstruct_feats = len(config.construct_feat_ntype) > 0
     model_encoder_type = config.model_encoder_type
     if config.node_lm_configs is not None:

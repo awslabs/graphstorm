@@ -56,7 +56,7 @@ from graphstorm.dataloading import GSgnnNodeDataLoader, GSgnnEdgeDataLoader
 from graphstorm.dataloading.dataset import prepare_batch_input
 from graphstorm import create_builtin_edge_gnn_model, create_builtin_node_gnn_model
 from graphstorm import create_builtin_lp_gnn_model
-from graphstorm import get_feat_size
+from graphstorm import get_node_feat_size
 from graphstorm.gsf import get_rel_names_for_reconstruct
 from graphstorm.model import do_full_graph_inference, do_mini_batch_inference
 from graphstorm.model.node_gnn import node_mini_batch_predict, node_mini_batch_gnn_predict
@@ -77,7 +77,7 @@ def is_int(a):
 def create_rgcn_node_model(g, norm=None):
     model = GSgnnNodeModel(alpha_l2norm=0)
 
-    feat_size = get_feat_size(g, 'feat')
+    feat_size = get_node_feat_size(g, 'feat')
     encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                       dropout=0,
                                       use_node_embeddings=True)
@@ -99,7 +99,7 @@ def create_rgcn_node_model_with_reconstruct(data, reconstructed_embed_ntype,
 
     g = data.g
     node_feats = data.node_feat_field
-    feat_size = get_feat_size(g, node_feats)
+    feat_size = get_node_feat_size(g, node_feats)
     if lm_configs is None:
         encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                           dropout=0,
@@ -136,7 +136,7 @@ def create_rgcn_node_model_with_reconstruct(data, reconstructed_embed_ntype,
 def create_rgat_node_model(g, norm=None):
     model = GSgnnNodeModel(alpha_l2norm=0)
 
-    feat_size = get_feat_size(g, 'feat')
+    feat_size = get_node_feat_size(g, 'feat')
     encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                       dropout=0,
                                       use_node_embeddings=True)
@@ -155,7 +155,7 @@ def create_rgat_node_model(g, norm=None):
 def create_hgt_node_model(g):
     model = GSgnnNodeModel(alpha_l2norm=0)
 
-    feat_size = get_feat_size(g, 'feat')
+    feat_size = get_node_feat_size(g, 'feat')
     encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                       dropout=0,
                                       use_node_embeddings=True)
@@ -176,7 +176,7 @@ def create_hgt_node_model(g):
 def create_sage_node_model(g, norm=None):
     model = GSgnnNodeModel(alpha_l2norm=0)
 
-    feat_size = get_feat_size(g, 'feat')
+    feat_size = get_node_feat_size(g, 'feat')
     encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                       dropout=0,
                                       use_node_embeddings=True)
@@ -195,7 +195,7 @@ def create_sage_node_model(g, norm=None):
 def create_gat_node_model(g):
     model = GSgnnNodeModel(alpha_l2norm=0)
 
-    feat_size = get_feat_size(g, 'feat')
+    feat_size = get_node_feat_size(g, 'feat')
     encoder = GSNodeEncoderInputLayer(g, feat_size, 8,
                                       dropout=0,
                                       use_node_embeddings=True)
@@ -631,7 +631,7 @@ def test_gat_node_prediction(device):
 def create_rgcn_edge_model(g, num_ffn_layers):
     model = GSgnnEdgeModel(alpha_l2norm=0)
 
-    feat_size = get_feat_size(g, 'feat')
+    feat_size = get_node_feat_size(g, 'feat')
     encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                       dropout=0,
                                       use_node_embeddings=True)
@@ -651,7 +651,7 @@ def create_rgcn_edge_model(g, num_ffn_layers):
 def create_hgt_edge_model(g, num_ffn_layers):
     model = GSgnnEdgeModel(alpha_l2norm=0)
 
-    feat_size = get_feat_size(g, 'feat')
+    feat_size = get_node_feat_size(g, 'feat')
     encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                       dropout=0,
                                       use_node_embeddings=True)
@@ -805,7 +805,7 @@ def create_mlp_edge_model(g, lm_config, num_ffn_layers):
     """
     model = GSgnnEdgeModel(alpha_l2norm=0)
 
-    feat_size = get_feat_size(g, 'feat')
+    feat_size = get_node_feat_size(g, 'feat')
 
     encoder = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 2, num_train=0)
     model.set_node_input_encoder(encoder)
@@ -857,7 +857,7 @@ def create_mlp_node_model(g, lm_config):
     """
     model = GSgnnNodeModel(alpha_l2norm=0)
 
-    feat_size = get_feat_size(g, 'feat')
+    feat_size = get_node_feat_size(g, 'feat')
 
     encoder = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 2, num_train=0)
     model.set_node_input_encoder(encoder)
@@ -881,7 +881,7 @@ def create_lm_model(g, lm_config):
     """
     model = GSgnnNodeModel(alpha_l2norm=0)
 
-    feat_size = get_feat_size(g, 'feat')
+    feat_size = get_node_feat_size(g, 'feat')
 
     encoder = GSPureLMNodeInputLayer(g, lm_config, num_train=0)
     model.set_node_input_encoder(encoder)
@@ -1021,7 +1021,7 @@ def create_mlp_lp_model(g, lm_config):
     """
     model = GSgnnLinkPredictionModel(alpha_l2norm=0)
 
-    feat_size = get_feat_size(g, 'feat')
+    feat_size = get_node_feat_size(g, 'feat')
     encoder = GSLMNodeEncoderInputLayer(g, lm_config, feat_size, 2, num_train=0)
     model.set_node_input_encoder(encoder)
 
