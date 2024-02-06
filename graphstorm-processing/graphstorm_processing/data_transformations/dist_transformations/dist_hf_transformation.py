@@ -37,7 +37,7 @@ def apply_transform(
     cols : Sequence[str]
         List of column names to apply normalization to.
     action : str
-        The type of normalization to use. Currently we only accept the `tokenize_hf` action.
+        The type of normalization to use. Valid values are ["tokenize_hf", "bert_hf"].
     bert_model : str
         The name of huggingface model.
     max_seq_length: int
@@ -143,7 +143,7 @@ class DistHFTransformation(DistributedTransformation):
     cols : Sequence[str]
         List of column names to apply normalization to.
     action : str
-        The type of huggingface action to use. Valid values is "tokenize"
+        The type of huggingface action to use. Valid values are ["tokenize_hf", "bert_hf"].
     bert_model: str, required
         The name of the lm model.
     max_seq_length: int, required
