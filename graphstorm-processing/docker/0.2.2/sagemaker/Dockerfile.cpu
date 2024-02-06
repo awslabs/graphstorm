@@ -52,6 +52,7 @@ RUN if [ -z "${MODEL}" ]; then \
 else \
         echo "Installing model cache for $MODEL" && \
         python3 -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('${MODEL}')"; \
+        python3 -c "from transformers import AutoModel; AutoModel.from_pretrained('${MODEL}')"; \
 fi
 
 # Starts framework
