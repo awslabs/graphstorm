@@ -43,6 +43,7 @@ Welcome to the GraphStorm Documentation and Tutorials
 
    notebooks/Notebook_0_Data_Prepare
    notebooks/Notebook_1_RGCN_Reproduction
+   notebooks/Notebook_1_RGCN_Reproduction-new
 
 .. toctree::
    :maxdepth: 1
