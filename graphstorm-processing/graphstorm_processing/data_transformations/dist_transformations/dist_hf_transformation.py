@@ -106,20 +106,24 @@ def apply_transform(
             lm_model.eval()
             lm_model = lm_model.to("cpu")
 
-            outputs = tokenizer(text, return_tensors="pt")
-            tokens = outputs["input_ids"]
-            att_masks = outputs["attention_mask"]
-            token_types = outputs.get("token_type_ids")
+            # Tokenize the text
+            outputs = tokenizer(
+                text,
+                max_length=max_seq_length,
+                truncation=True,
+                padding="max_length",
+                return_tensors="pt",
+            )
+            token_type_ids = outputs.get("token_type_ids")
+            if token_type_ids is None:
+                token_type_ids = torch.zeros_like(outputs["input_ids"], dtype=torch.int8)
             with th.no_grad():
-                if token_types is not None:
-                    outputs = lm_model(
-                        tokens.to("cpu"),
-                        attention_mask=att_masks.to("cpu"),
-                        token_type_ids=token_types.to("cpu"),
-                    )
-                else:
-                    outputs = lm_model(tokens.to("cpu"), attention_mask=att_masks.to("cpu"))
-                embeddings = outputs.pooler_output.cpu().squeeze().numpy()
+                lm_outputs = lm_model(
+                    input_ids=outputs["input_ids"].to("cpu"),
+                    attention_mask=outputs["attention_mask"].to("cpu").long(),
+                    token_type_ids=token_type_ids.to("cpu").long(),
+                )
+                embeddings = lm_outputs.pooler_output.cpu().squeeze().numpy()
             return embeddings.tolist()
 
         # Apply the UDF to the DataFrame
