@@ -26,7 +26,7 @@ class HFConfig(FeatureConfig):
     Supported kwargs
     ----------------
     action: str, required
-        The type of huggingface action to use. Valid values is "tokenize_hf"
+        The type of huggingface action to use. Valid values are ["tokenize_hf", "bert_hf"].
     bert_model: str, required
         The name of the lm model.
     max_seq_length: int, required
