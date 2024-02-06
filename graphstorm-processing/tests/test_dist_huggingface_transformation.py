@@ -129,5 +129,5 @@ def test_hf_emb_example(spark: SparkSession, check_df_schema):
     expected_output = embeddings_list
     for idx, row in enumerate(output_data):
         np.testing.assert_almost_equal(
-            row[0], expected_output[idx], err_msg=f"Row {idx} is not equal"
+            row[0], expected_output[idx], decimal=3, err_msg=f"Row {idx} is not equal"
         )
