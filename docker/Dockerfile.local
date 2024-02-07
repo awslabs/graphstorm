@@ -9,6 +9,7 @@ RUN apt-get install -y python3-pip git wget psmisc
 RUN apt-get install -y cmake
 
 # Install Pytorch
+RUN pip3 install networkx==3.1
 RUN pip3 install torch==2.1.0+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
 
 # Install DGL
