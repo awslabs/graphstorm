@@ -402,6 +402,15 @@ class GSConfig:
                 self._turn_off_gradient_checkpoint("GLEM model")
         # TODO(xiangsx): Add more check
 
+    def handle_homogeneous_config(self, ntypes, etypes):
+        if ntypes != [DEFAULT_NTYPE] or etypes != [DEFAULT_ETYPE[1]]:
+            return
+        if self.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
+            self.target_ntype = input_type
+            self.eval_target_ntype = input_type
+        if self.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
+            self.target_etype = [','.join(DEFAULT_ETYPE)]
+
     ###################### Environment Info ######################
     @property
     def save_perf_results_path(self):
@@ -1581,6 +1590,10 @@ class GSConfig:
                             "will treat the input graph as a homogeneous graph")
             return DEFAULT_NTYPE
 
+    @target_ntype.setter
+    def target_ntype(self, ntype):
+        self._target_ntype = ntype
+
     @property
     def eval_target_ntype(self):
         """ The node type for evaluation prediction
@@ -1599,6 +1612,10 @@ class GSConfig:
                 return self.target_ntype[0]
             else:
                 return None
+
+    @eval_target_ntype.setter
+    def eval_target_ntype(self, ntype):
+        self._eval_target_ntype = ntype
 
     #### edge related task variables ####
     @property
@@ -1668,6 +1685,10 @@ class GSConfig:
                 "dev team to support multi-task.", str(self._target_etype[0]))
 
         return [tuple(target_etype.split(',')) for target_etype in self._target_etype]
+
+    @target_etype.setter
+    def target_etype(self, etype):
+        self._target_etype = etype
 
     @property
     def remove_target_edge_type(self):

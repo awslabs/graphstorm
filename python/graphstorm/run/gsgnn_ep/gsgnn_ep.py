@@ -15,9 +15,10 @@
 
     GSgnn edge prediction.
 """
-
+import logging
 import os
 
+from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig

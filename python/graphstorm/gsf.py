@@ -206,6 +206,7 @@ def create_builtin_node_model(g, config, train_task):
         model = GLEM(config.alpha_l2norm, config.target_ntype, **config.training_method["kwargs"])
     elif config.training_method["name"] == "default":
         model = GSgnnNodeModel(config.alpha_l2norm)
+    config.handle_homogeneous_config(g.ntypes, g.etypes)
     set_encoder(model, g, config, train_task)
 
     if config.task_type == BUILTIN_TASK_NODE_CLASSIFICATION:
@@ -282,6 +283,7 @@ def create_builtin_edge_model(g, config, train_task):
     GSgnnModel : The GNN model.
     """
     model = GSgnnEdgeModel(config.alpha_l2norm)
+    config.handle_homogeneous_config(g.ntypes, g.etypes)
     set_encoder(model, g, config, train_task)
     if config.task_type == BUILTIN_TASK_EDGE_CLASSIFICATION:
         num_classes = config.num_classes
@@ -435,6 +437,7 @@ def create_builtin_lp_model(g, config, train_task):
     """
     model = GSgnnLinkPredictionModel(config.alpha_l2norm,
                                      config.lp_embed_normalizer)
+    config.handle_homogeneous_config(g.ntypes, g.etypes)
     set_encoder(model, g, config, train_task)
     num_train_etype = len(config.train_etype) \
         if config.train_etype is not None \

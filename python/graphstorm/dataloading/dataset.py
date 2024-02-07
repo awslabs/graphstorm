@@ -550,9 +550,12 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
         test_idxs = {}
         num_train = num_val = num_test = 0
         pb = g.get_partition_book()
-        if self.train_etypes is None:
+        if g.ntypes == [DEFAULT_NTYPE] and g.etypes == [DEFAULT_ETYPE[1]]:
+            self._train_etypes = [DEFAULT_ETYPE]
+            self._eval_etypes = [DEFAULT_ETYPE]
+        if self._train_etypes is None:
             self._train_etypes = g.canonical_etypes
-        for canonical_etype in self.train_etypes:
+        for canonical_etype in self._train_etypes:
             if 'train_mask' in g.edges[canonical_etype].data:
                 train_idx = dgl.distributed.edge_split(
                     g.edges[canonical_etype].data['train_mask'],
@@ -732,6 +735,8 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
         test_idxs = {}
         infer_idxs = {}
         # If eval_etypes is None, we use all edge types.
+        if g.ntypes == [DEFAULT_NTYPE] and g.etypes == [DEFAULT_ETYPE[1]]:
+            self._eval_etypes = [DEFAULT_ETYPE]
         if self.eval_etypes is None:
             self._eval_etypes = g.canonical_etypes
         for canonical_etype in self.eval_etypes:
@@ -932,6 +937,9 @@ class GSgnnNodeTrainData(GSgnnNodeData):
         val_idxs = {}
         test_idxs = {}
         num_train = num_val = num_test = 0
+        if g.ntypes == [DEFAULT_NTYPE] and g.etypes == [DEFAULT_ETYPE[1]]:
+            self._train_ntypes = [DEFAULT_NTYPE]
+            self._eval_ntypes = [DEFAULT_NTYPE]
         for ntype in self.train_ntypes:
             assert 'train_mask' in g.nodes[ntype].data, \
                     f"For training dataset, train_mask must be provided on nodes of {ntype}."
@@ -1089,6 +1097,8 @@ class GSgnnNodeInferData(GSgnnNodeData):
         pb = g.get_partition_book()
         test_idxs = {}
         infer_idxs = {}
+        if g.ntypes == [DEFAULT_NTYPE] and g.etypes == [DEFAULT_ETYPE[1]]:
+            self._eval_ntypes = [DEFAULT_NTYPE]
         for ntype in self.eval_ntypes:
             node_trainer_ids = g.nodes[ntype].data['trainer_id'] \
                 if 'trainer_id' in g.nodes[ntype].data else None
