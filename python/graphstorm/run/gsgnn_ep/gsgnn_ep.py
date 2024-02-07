@@ -15,6 +15,7 @@
 
     GSgnn edge prediction.
 """
+
 import os
 
 import graphstorm as gs
