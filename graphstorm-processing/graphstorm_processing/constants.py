@@ -48,4 +48,4 @@ VALID_NORMALIZERS = ["none", "min-max", "standard", "rank-gauss"]
 ################# Bert transformations  ################
 HUGGINGFACE_TRANFORM = "huggingface"
 HUGGINGFACE_TOKENIZE = "tokenize_hf"
-HUGGINGFACE_EMB = "bert_hf"
+HUGGINGFACE_EMB = "embedding_hf"

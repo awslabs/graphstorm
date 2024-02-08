@@ -145,7 +145,7 @@ class GConstructConfigConverter(ConfigConverter):
                 elif gconstruct_transform_dict["name"] == "bert_hf":
                     gsp_transformation_dict["name"] = "huggingface"
                     gsp_transformation_dict["kwargs"] = {
-                        "action": "bert_hf",
+                        "action": "embedding_hf",
                         "bert_model": gconstruct_transform_dict["bert_model"],
                         "max_seq_length": gconstruct_transform_dict["max_seq_length"],
                     }

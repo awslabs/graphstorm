@@ -91,7 +91,7 @@ def test_hf_emb_example(spark: SparkSession, check_df_schema):
     max_seq_length = 8
 
     # Initialize and apply the distributed Hugging Face tokenization transformation
-    hf_emb = DistHFTransformation(["occupation"], "bert_hf", bert_model, max_seq_length)
+    hf_emb = DistHFTransformation(["occupation"], "embedding_hf", bert_model, max_seq_length)
     output_df = hf_emb.apply(input_df)
 
     check_df_schema(output_df)

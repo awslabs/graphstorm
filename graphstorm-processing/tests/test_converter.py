@@ -349,7 +349,7 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "column": "citation_name",
             "transformation": {
                 "name": "huggingface",
-                "kwargs": {"action": "bert_hf", "bert_model": "bert", "max_seq_length": 64},
+                "kwargs": {"action": "embedding_hf", "bert_model": "bert", "max_seq_length": 64},
             },
         },
     ]
