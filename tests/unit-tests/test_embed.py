@@ -28,7 +28,7 @@ import tempfile
 import dgl
 from transformers import AutoTokenizer
 import graphstorm as gs
-from graphstorm import get_feat_size
+from graphstorm import get_node_feat_size
 from graphstorm.model import GSNodeEncoderInputLayer, GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from graphstorm.model.embed import compute_node_input_embeddings
 from graphstorm.dataloading.dataset import prepare_batch_input
@@ -54,7 +54,7 @@ def test_input_layer1(input_activate):
         # get the test dummy distributed graph
         g, _ = generate_dummy_dist_graph(tmpdirname)
 
-    feat_size = get_feat_size(g, 'feat')
+    feat_size = get_node_feat_size(g, 'feat')
     layer = GSNodeEncoderInputLayer(g, feat_size, 2, activation=input_activate)
     ntypes = list(layer.input_projs.keys())
     assert set(ntypes) == set(g.ntypes)
@@ -88,7 +88,7 @@ def test_input_layer2():
         # get the test dummy distributed graph
         g, _ = generate_dummy_dist_graph(tmpdirname)
 
-    feat_size = get_feat_size(g, 'feat')
+    feat_size = get_node_feat_size(g, 'feat')
     layer = GSNodeEncoderInputLayer(g, feat_size, 2, use_node_embeddings=True)
     assert set(layer.input_projs.keys()) == set(g.ntypes)
     assert set(layer.sparse_embeds.keys()) == set(g.ntypes)
@@ -131,7 +131,7 @@ def test_input_layer3(dev):
         # get the test dummy distributed graph
         g, _ = generate_dummy_dist_graph(tmpdirname)
 
-    feat_size = get_feat_size(g, {'n0' : ['feat']})
+    feat_size = get_node_feat_size(g, {'n0' : ['feat']})
     layer = GSNodeEncoderInputLayer(g, feat_size, 2)
     assert len(layer.input_projs) == 1
     assert list(layer.input_projs.keys())[0] == 'n0'
@@ -189,7 +189,7 @@ def test_compute_embed(dev):
     print('g has {} nodes of n0 and {} nodes of n1'.format(
         g.number_of_nodes('n0'), g.number_of_nodes('n1')))
 
-    feat_size = get_feat_size(g, {'n0' : ['feat']})
+    feat_size = get_node_feat_size(g, {'n0' : ['feat']})
     layer = GSNodeEncoderInputLayer(g, feat_size, 2)
     nn.init.eye_(layer.input_projs['n0'])
     nn.init.eye_(layer.proj_matrix['n1'])
@@ -470,7 +470,7 @@ def test_lm_embed_warmup(dev):
         # get the test dummy distributed graph
         g, _ = generate_dummy_dist_graph(tmpdirname)
 
-    feat_size = get_feat_size(g, {'n0' : ['feat']})
+    feat_size = get_node_feat_size(g, {'n0' : ['feat']})
     input_text = ["Hello world!"]
     tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
     input_ids, valid_len, attention_mask, _ = \

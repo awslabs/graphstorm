@@ -876,6 +876,26 @@ def save_maps(output_dir, fname, map_data):
     # Use torch save as tensors are torch tensors
     th.save(map_data, map_file)
 
+def load_maps(output_dir, fname):
+    """ Load saved node id mapping or edge id mapping
+
+    Parameters
+    ----------
+    output_dir : str
+        The directory where we will save the partitioned results.
+    fname: str
+        Mapping file name
+
+    Return
+    ------
+    dict of tensors
+        ID mappings
+    """
+    map_file = f"{fname}.pt"
+    map_file = os.path.join(output_dir, map_file)
+
+    return th.load(map_file)
+
 def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_dir,
                     part_method=None, save_mapping=True):
     """ Partition a graph
@@ -917,11 +937,26 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
     if part_method is None:
         part_method = "None" if num_partitions == 1 else "metis"
 
+    balance_ntypes = {}
+    for ntype in node_data:
+        balance_arr = th.zeros(g.number_of_nodes(ntype), dtype=th.int8)
+        balance_tag = 1
+        if "train_mask" in node_data[ntype]:
+            balance_arr += node_data[ntype]["train_mask"] * balance_tag
+            balance_tag += 1
+            logging.debug("Balance training nodes on node %s.", ntype)
+        if "val_mask" in node_data[ntype]:
+            balance_arr += node_data[ntype]["val_mask"] * balance_tag
+            balance_tag += 1
+            logging.debug("Balance validation nodes on node %s.", ntype)
+        if "test_mask" in node_data[ntype]:
+            balance_arr += node_data[ntype]["test_mask"] * balance_tag
+            logging.debug("Balance test nodes on node %s.", ntype)
+        balance_ntypes[ntype] = balance_arr
     mapping = \
         dgl.distributed.partition_graph(g, graph_name, num_partitions, output_dir,
                                         part_method=part_method,
-                                        # TODO(zhengda) we need to enable balancing node types.
-                                        balance_ntypes=None,
+                                        balance_ntypes=balance_ntypes,
                                         balance_edges=True,
                                         return_mapping=save_mapping)
     sys_tracker.check('Graph partitioning')
@@ -987,3 +1022,77 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
         # the new_edge_mapping contains per edge type on the ith row
         # the original edge id for the ith edge.
         save_maps(output_dir, "edge_mapping", new_edge_mapping)
+
+def get_hard_edge_negs_feats(hard_edge_neg_ops):
+    """ Get feature names of hard negatives for each edge type.
+
+        Parameters
+        ----------
+        hard_edge_neg_ops: HardEdgeNegativeTransform
+            A list of edge hard negative transformations.
+    """
+    hard_edge_neg_feats = {}
+    for hard_edge_neg_op in hard_edge_neg_ops:
+        edge_type = hard_edge_neg_op.target_etype
+        neg_ntype = hard_edge_neg_op.neg_ntype
+
+        if edge_type not in hard_edge_neg_feats:
+            hard_edge_neg_feats[edge_type] = {neg_ntype: [hard_edge_neg_op.feat_name]}
+        else:
+            if neg_ntype in hard_edge_neg_feats[edge_type]:
+                hard_edge_neg_feats[edge_type][neg_ntype].append(hard_edge_neg_op.feat_name)
+            else:
+                hard_edge_neg_feats[edge_type][neg_ntype] = [hard_edge_neg_op.feat_name]
+
+    return hard_edge_neg_feats
+
+def shuffle_hard_nids(data_path, num_parts, hard_edge_neg_feats):
+    """ Shuffle node ids of hard negatives from Graph node id space to
+        Partition Node id space.
+
+        Parameters
+        ----------
+        data_path: str
+            Path to the directory storing the partitioned graph.
+        num_parts: int
+            Number of partitions.
+        hard_edge_neg_feats: dict of lists
+            A directory storing hard negative features for each edge type.
+    """
+    # Load node id remapping
+    # The node mapping stores the mapping from Partition Node IDs to Graph Node IDs
+    node_mapping = load_maps(data_path, "node_mapping")
+    gnid2pnid_mapping = {}
+
+    def get_gnid2pnid_map(ntype):
+        if ntype in gnid2pnid_mapping:
+            return gnid2pnid_mapping[ntype]
+        else:
+            pnid2gnid_map = node_mapping[ntype]
+            gnid2pnid_map = th.argsort(pnid2gnid_map)
+            gnid2pnid_mapping[ntype] = gnid2pnid_map
+            # del ntype in node_mapping to save memory
+            del node_mapping[ntype]
+            return gnid2pnid_mapping[ntype]
+
+    # iterate all the partitions to convert hard negative node ids.
+    for i in range(num_parts):
+        part_path = os.path.join(data_path, f"part{i}")
+        edge_feat_path = os.path.join(part_path, "edge_feat.dgl")
+
+        # load edge features first
+        edge_feats = dgl.data.utils.load_tensors(edge_feat_path)
+
+        for etype, hard_neg_feats in hard_edge_neg_feats.items():
+            etype = ":".join(etype)
+            for neg_ntype, neg_feats in hard_neg_feats.items():
+                for neg_feat in neg_feats:
+                    efeat_name = f"{etype}/{neg_feat}"
+                    hard_nids = edge_feats[efeat_name]
+                    hard_nid_idx = hard_nids > -1
+                    gnid2pnid_map = get_gnid2pnid_map(neg_ntype)
+                    hard_nids[hard_nid_idx] = gnid2pnid_map[hard_nids[hard_nid_idx]]
+
+        # replace the edge_feat.dgl with the updated one.
+        os.remove(edge_feat_path)
+        dgl.data.utils.save_tensors(edge_feat_path, edge_feats)

@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import json
 import logging
 import numbers
@@ -40,6 +41,8 @@ from graphstorm_processing.constants import (
     VALUE_COUNTS,
     COLUMN_NAME,
     SPECIAL_CHARACTERS,
+    HUGGINGFACE_TRANFORM,
+    HUGGINGFACE_TOKENIZE,
 )
 from ..config.config_parser import EdgeConfig, NodeConfig, StructureConfig
 from ..config.label_config_base import LabelConfig
@@ -55,8 +58,8 @@ from .row_count_utils import ParquetRowCounter  # pylint: disable=no-name-in-mod
 
 FORMAT_NAME = "parquet"
 DELIMITER = "" if FORMAT_NAME == "parquet" else ","
-NODE_MAPPING_STR = "node_str_id"
-NODE_MAPPING_INT = "node_int_id"
+NODE_MAPPING_STR = "orig"
+NODE_MAPPING_INT = "new"
 
 
 class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
@@ -489,13 +492,13 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         """
         Adds node mappings to the metadata dict that is eventually written to disk.
         """
-        metadata_dict["node_id_mappings"] = {}
+        metadata_dict["raw_id_mappings"] = {}
         for node_type in metadata_dict["node_type"]:
             node_mapping_metadata_dict = {
                 "format": {"name": "parquet", "delimiter": ""},
                 "data": self.node_mapping_paths[node_type],
             }
-            metadata_dict["node_id_mappings"][node_type] = node_mapping_metadata_dict
+            metadata_dict["raw_id_mappings"][node_type] = node_mapping_metadata_dict
 
         return metadata_dict
 
@@ -761,7 +764,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         Also modifies the loader's state to add the mapping path to
         the node_mapping_paths member variable.
         """
-        mapping_output_path = f"{self.output_prefix}/node_id_mappings/{node_type}"
+        mapping_output_path = f"{self.output_prefix}/raw_id_mappings/{node_type}"
 
         # TODO: For node-file-exists path: Test to see if it's better to keep these in memory
         # until needed instead of writing out now i.e. we can maintain a dict of DFs instead
@@ -936,22 +939,15 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
             transformed_feature_df = transformer.apply_transformation(nodes_df)
 
-            # TODO: Remove hack with [feat_conf.feat_name]
-            for feat_name, feat_col in zip([feat_conf.feat_name], feat_conf.cols):
-                node_transformation_start = perf_counter()
-                single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(
-                    feat_col, feat_name
-                )
-
+            def process_feature(self, feat_name, single_feature_df, node_type, transformer_name):
                 feature_output_path = os.path.join(
                     self.output_prefix, f"node_data/{node_type}-{feat_name}"
                 )
-
                 logging.info(
                     "Writing output for feat_name: '%s' to %s", feat_name, feature_output_path
                 )
                 path_list = self._write_df(
-                    single_feature_df, feature_output_path, out_format="parquet"
+                    single_feature_df, feature_output_path, out_format=FORMAT_NAME
                 )
 
                 node_feature_metadata_dict = {
@@ -960,19 +956,42 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 }
                 node_type_feature_metadata[feat_name] = node_feature_metadata_dict
 
-                self.timers[f"{transformer.get_transformation_name()}-{node_type}-{feat_name}"] = (
+                feat_val = single_feature_df.take(1)[0].asDict().get(feat_name, None)
+                nfeat_size = 1 if isinstance(feat_val, (int, float)) else len(feat_val)
+                ntype_feat_sizes.update({feat_name: nfeat_size})
+
+                self.timers[f"{transformer_name}-{node_type}-{feat_name}"] = (
                     perf_counter() - node_transformation_start
                 )
 
-                feat_val = single_feature_df.take(1)[0].asDict()[feat_name]
+            # TODO: Remove hack with [feat_conf.feat_name]
+            for feat_name, feat_col in zip([feat_conf.feat_name], feat_conf.cols):
+                node_transformation_start = perf_counter()
 
-                if isinstance(feat_val, (int, float)):
-                    nfeat_size = 1
+                if (
+                    feat_conf.feat_type == HUGGINGFACE_TRANFORM
+                    and feat_conf.transformation_kwargs["action"] == HUGGINGFACE_TOKENIZE
+                ):
+                    for bert_feat_name in ["input_ids", "attention_mask", "token_type_ids"]:
+                        single_feature_df = transformed_feature_df.select(bert_feat_name)
+                        process_feature(
+                            self,
+                            bert_feat_name,
+                            single_feature_df,
+                            node_type,
+                            transformer.get_transformation_name(),
+                        )
                 else:
-                    nfeat_size = len(feat_val)
-
-                ntype_feat_sizes.update({feat_name: nfeat_size})
-
+                    single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(
+                        feat_col, feat_name
+                    )
+                    process_feature(
+                        self,
+                        feat_name,
+                        single_feature_df,
+                        node_type,
+                        transformer.get_transformation_name(),
+                    )
         return node_type_feature_metadata, ntype_feat_sizes
 
     def _process_node_labels(
@@ -1211,6 +1230,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         edge_data_dict = {}
         edges_dict = {}
         logging.info("Processing edge data...")
+        self.graph_info["efeat_size"] = {}
         self.graph_info["etype_label"] = []
         self.graph_info["etype_label_property"] = []
         for edge_config in edge_configs:
@@ -1337,15 +1357,13 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
             transformed_feature_df = transformer.apply_transformation(edges_df)
 
-            for feat_name, feat_col in zip(feat_conf.feat_name, feat_conf.cols):
-                edge_feature_start = perf_counter()
-                single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(
-                    feat_col, feat_name
-                )
+            def process_feature(self, feat_name, single_feature_df, edge_type, transformer_name):
                 feature_output_path = os.path.join(
                     self.output_prefix, f"edge_data/{edge_type}-{feat_name}"
                 )
-
+                logging.info(
+                    "Writing output for feat_name: '%s' to %s", feat_name, feature_output_path
+                )
                 path_list = self._write_df(
                     single_feature_df, feature_output_path, out_format=FORMAT_NAME
                 )
@@ -1356,18 +1374,42 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 }
                 edge_feature_metadata_dicts[feat_name] = edge_feature_metadata_dict
 
-                self.timers[f"{transformer.get_transformation_name()}-{edge_type}-{feat_name}"] = (
+                feat_val = single_feature_df.take(1)[0].asDict().get(feat_name, None)
+                efeat_size = 1 if isinstance(feat_val, numbers.Number) else len(feat_val)
+                etype_feat_sizes.update({feat_name: efeat_size})
+
+                self.timers[f"{transformer_name}-{edge_type}-{feat_name}"] = (
                     perf_counter() - edge_feature_start
                 )
 
-                feat_val = single_feature_df.take(1)[0].asDict()[feat_name]
+            # TODO: Remove hack with [feat_conf.feat_name]
+            for feat_name, feat_col in zip([feat_conf.feat_name], feat_conf.cols):
+                edge_feature_start = perf_counter()
 
-                if isinstance(feat_val, numbers.Number):
-                    efeat_size = 1
+                if (
+                    feat_conf.feat_type == HUGGINGFACE_TRANFORM
+                    and feat_conf.transformation_kwargs["action"] == HUGGINGFACE_TOKENIZE
+                ):
+                    for bert_feat_name in ["input_ids", "attention_mask", "token_type_ids"]:
+                        single_feature_df = transformed_feature_df.select(bert_feat_name)
+                        process_feature(
+                            self,
+                            bert_feat_name,
+                            single_feature_df,
+                            edge_type,
+                            transformer.get_transformation_name(),
+                        )
                 else:
-                    efeat_size = len(feat_val)
-
-                etype_feat_sizes.update({feat_name: efeat_size})
+                    single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(
+                        feat_col, feat_name
+                    )
+                    process_feature(
+                        self,
+                        feat_name,
+                        single_feature_df,
+                        edge_type,
+                        transformer.get_transformation_name(),
+                    )
 
         return edge_feature_metadata_dicts, etype_feat_sizes
 

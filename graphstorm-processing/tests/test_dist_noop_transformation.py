@@ -16,7 +16,7 @@ limitations under the License.
 from numpy.testing import assert_array_equal
 from pyspark.sql import functions as F, DataFrame, SparkSession
 
-from pyspark.sql.types import ArrayType, IntegerType, StructField, StructType
+from pyspark.sql.types import ArrayType, IntegerType, LongType, StructField, StructType
 
 from graphstorm_processing.data_transformations.dist_transformations import NoopTransformation
 
@@ -74,3 +74,29 @@ def test_noop_floatvector_transformation(spark: SparkSession, check_df_schema):
     transformed_values = [row[col_name] for row in transformed_df.collect()]
 
     assert_array_equal(expected_values, transformed_values)
+
+
+def test_noop_largegint_transformation(spark: SparkSession, check_df_schema):
+    """No-op transformation for long numerical columns"""
+    large_int = 4 * 10**18
+    data = [
+        ([[large_int, large_int + 1]]),
+        ([[large_int + 2, large_int + 3]]),
+        ([[large_int + 4, large_int + 5]]),
+        ([[large_int + 6, large_int + 7]]),
+        ([[large_int + 8, large_int + 9]]),
+    ]
+
+    col_name = "feat"
+    schema = StructType([StructField("feat", ArrayType(LongType(), True), True)])
+    vec_df = spark.createDataFrame(data, schema=schema)
+
+    noop_transfomer = NoopTransformation([col_name])
+
+    transformed_df = noop_transfomer.apply(vec_df)
+
+    check_df_schema(transformed_df)
+
+    transformed_values = [row[col_name] for row in transformed_df.collect()]
+
+    assert_array_equal([val[0] for val in data], transformed_values)

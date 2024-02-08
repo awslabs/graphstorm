@@ -43,15 +43,16 @@ if __name__ == '__main__':
 
     for d in os.listdir(args.dataset):
         part_dir = os.path.join(args.dataset, d)
-        if not os.path.isfile(part_dir):
-            if args.remove_node_mask:
-                data = dgl.data.load_tensors(os.path.join(part_dir, 'node_feat.dgl'))
-                data = remove_test_mask(data)
-                dgl.data.save_tensors(os.path.join(part_dir, 'node_feat.dgl'), data)
-            else:
-                data = dgl.data.load_tensors(os.path.join(part_dir, 'edge_feat.dgl'))
-                data = remove_test_mask(data)
-                dgl.data.save_tensors(os.path.join(part_dir, 'edge_feat.dgl'), data)
+        if not d.startswith('part') or os.path.isfile(part_dir):
+            continue
+        if args.remove_node_mask:
+            data = dgl.data.load_tensors(os.path.join(part_dir, 'node_feat.dgl'))
+            data = remove_test_mask(data)
+            dgl.data.save_tensors(os.path.join(part_dir, 'node_feat.dgl'), data)
+        else:
+            data = dgl.data.load_tensors(os.path.join(part_dir, 'edge_feat.dgl'))
+            data = remove_test_mask(data)
+            dgl.data.save_tensors(os.path.join(part_dir, 'edge_feat.dgl'), data)
 
     print('after removing {} test_masks'.format('node' if args.remove_node_mask else 'edge'))
     print_feat_names(args.dataset)

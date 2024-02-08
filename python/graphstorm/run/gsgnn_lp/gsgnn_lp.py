@@ -30,8 +30,9 @@ from graphstorm.dataloading import (GSgnnLPJointNegDataLoader,
                                     GSgnnLPInBatchJointNegDataLoader)
 from graphstorm.dataloading import GSgnnAllEtypeLPJointNegDataLoader
 from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
-from graphstorm.dataloading import GSgnnLinkPredictionTestDataLoader
-from graphstorm.dataloading import GSgnnLinkPredictionJointTestDataLoader
+from graphstorm.dataloading import (GSgnnLinkPredictionTestDataLoader,
+                                    GSgnnLinkPredictionJointTestDataLoader,
+                                    GSgnnLinkPredictionPredefinedTestDataLoader)
 from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                                     BUILTIN_LP_JOINT_NEG_SAMPLER,
                                     BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER,
@@ -158,10 +159,14 @@ def main(config_args):
                                 reverse_edge_types_map=config.reverse_edge_types_map,
                                 exclude_training_targets=config.exclude_training_targets,
                                 construct_feat_ntype=config.construct_feat_ntype,
-                                construct_feat_fanout=config.construct_feat_fanout)
+                                construct_feat_fanout=config.construct_feat_fanout,
+                                edge_dst_negative_field=config.train_etypes_negative_dstnode,
+                                num_hard_negs=config.num_train_hard_negatives)
 
     # TODO(zhengda) let's use full-graph inference for now.
-    if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+    if config.eval_etypes_negative_dstnode is not None:
+        test_dataloader_cls = GSgnnLinkPredictionPredefinedTestDataLoader
+    elif config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
         test_dataloader_cls = GSgnnLinkPredictionTestDataLoader
     elif config.eval_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
         test_dataloader_cls = GSgnnLinkPredictionJointTestDataLoader
@@ -172,13 +177,27 @@ def main(config_args):
     val_dataloader = None
     test_dataloader = None
     if len(train_data.val_idxs) > 0:
-        val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
-            config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout,
-            fixed_test_size=config.fixed_test_size)
+        if config.eval_etypes_negative_dstnode is not None:
+            val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
+                config.eval_batch_size,
+                fixed_edge_dst_negative_field=config.eval_etypes_negative_dstnode,
+                fanout=config.eval_fanout,
+                fixed_test_size=config.fixed_test_size)
+        else:
+            val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
+                config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout,
+                fixed_test_size=config.fixed_test_size)
     if len(train_data.test_idxs) > 0:
-        test_dataloader = test_dataloader_cls(train_data, train_data.test_idxs,
-            config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout,
-            fixed_test_size=config.fixed_test_size)
+        if config.eval_etypes_negative_dstnode is not None:
+            test_dataloader = test_dataloader_cls(train_data, train_data.test_idxs,
+                config.eval_batch_size,
+                fixed_edge_dst_negative_field=config.eval_etypes_negative_dstnode,
+                fanout=config.eval_fanout,
+                fixed_test_size=config.fixed_test_size)
+        else:
+            test_dataloader = test_dataloader_cls(train_data, train_data.test_idxs,
+                config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout,
+                fixed_test_size=config.fixed_test_size)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.

@@ -447,6 +447,20 @@ arguments.
         will be considered as an array. For Parquet files, if the input type is ArrayType(StringType()), then the
         separator is ignored; if it is StringType(), it will apply same logic as in CSV.
 
+-  ``huggingface``
+
+   -  Transforms a text feature column to tokens or embeddings with different Hugging Face models, enabling nuanced understanding and processing of natural language data.
+   -  ``kwargs``:
+
+      - ``action`` (String, required): The action to perform on the text data. Currently we only support text tokenization through HuggingFace models, so the only accepted value here is "tokenize_hf".
+        - ``tokenize_hf``: It tokenizes text strings with a HuggingFace tokenizer with a predefined tokenizer hosted on huggingface.co. The tokenizer_hf can use any HuggingFace LM models available in the huggingface repo.
+                            Check more information on: `huggingface autotokenizer <https://huggingface.co/docs/transformers/main/en/model_doc/auto#transformers.AutoTokenizer>`_
+                            The expected input can any length of text strings, and the expected output will include ``input_ids`` for token IDs on the input text,
+                            ``attention_mask`` for a mask to avoid performing attention on padding token indices, and ``token_type_ids`` for segmenting two sentences in models.
+                            The output here is compatible for graphstorm language model training and inference pipelines.
+      - ``bert_model`` (String, required): It should be the identifier of a pre-trained model available in the Hugging Face Model Hub.
+      - ``max_seq_length`` (Integer, required): It specifies the maximum number of tokens of the input.
+
 --------------
 
 Creating a graph for inference

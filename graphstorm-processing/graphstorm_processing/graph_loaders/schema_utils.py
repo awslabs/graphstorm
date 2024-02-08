@@ -16,16 +16,11 @@ limitations under the License.
 This module is used to parse the schema of CSV input files, inferring
 the type of the columns from the type mentioned in the configuration.
 """
+
 import logging
 from typing import Sequence, List, Type
 
-from pyspark.sql.types import (
-    StructType,
-    StructField,
-    StringType,
-    DataType,
-    FloatType,
-)
+from pyspark.sql.types import StructType, StructField, StringType, DataType, DoubleType
 
 from ..config.config_parser import EdgeConfig, NodeConfig
 from ..config.label_config_base import LabelConfig
@@ -67,7 +62,8 @@ def _parse_features_schema(features_objects: Sequence[FeatureConfig]) -> Sequenc
         feature_type = feature_config.feat_type
         for feature_col, _ in zip(feature_config.cols, feature_config.feat_name):
             spark_feature_type = determine_spark_feature_type(feature_type)
-
+            if StructField(feature_col, spark_feature_type(), True) in field_list:
+                continue
             field_list.append(StructField(feature_col, spark_feature_type(), True))
 
     return field_list
@@ -97,10 +93,11 @@ def determine_spark_feature_type(feature_type: str) -> Type[DataType]:
         "multi-numerical",
         "categorical",
         "multi-categorical",
+        "huggingface",
     ] or feature_type.startswith("text"):
         return StringType
-    if feature_type in ["numerical", "bucket-numerical", "none"]:
-        return FloatType
+    if feature_type in ["numerical", "bucket-numerical"]:
+        return DoubleType
     else:
         raise NotImplementedError(f"Unknown feature type: {feature_type}")
 
@@ -115,7 +112,7 @@ def _parse_edge_labels_schema(edge_labels_objects: Sequence[LabelConfig]) -> Seq
         if target_task_type == "classification":
             field_list.append(StructField(label_col, StringType(), True))
         elif target_task_type == "regression":
-            field_list.append(StructField(label_col, FloatType(), True))
+            field_list.append(StructField(label_col, DoubleType(), True))
         elif target_task_type == "link_prediction" and label_col:
             logging.info(
                 "Bypassing edge label %s, as it is only used for link prediction", label_col
@@ -163,6 +160,6 @@ def _parse_node_labels_schema(node_labels_objects: List[LabelConfig]) -> Sequenc
             # Could be ints, would that be an issue?
             field_list.append(StructField(label_col, StringType(), True))
         elif target_task_type == "regression":
-            field_list.append(StructField(label_col, FloatType(), True))
+            field_list.append(StructField(label_col, DoubleType(), True))
 
     return field_list

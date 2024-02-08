@@ -28,7 +28,7 @@ from dgl.distributed.constants import (DEFAULT_NTYPE,
                                        DEFAULT_ETYPE)
 
 from transformers import AutoTokenizer
-from graphstorm import get_feat_size
+from graphstorm import get_node_feat_size
 from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
 from util import create_tokens
 
@@ -79,12 +79,16 @@ def generate_dummy_hetero_graph(size='tiny', gen_mask=True, add_reverse=False):
     # set node and edge features
     node_feat = {'n0': th.randn(data_size, 2),
                  'n1': th.randn(data_size, 2)}
+    node_feat1 = {'n0': th.randn(data_size, 4),
+                 'n1': th.randn(data_size, 4)}
 
     edge_feat = {'r0': th.randn(data_size, 2),
                  'r1': th.randn(2 * data_size, 2)}
 
     hetero_graph.nodes['n0'].data['feat'] = node_feat['n0']
     hetero_graph.nodes['n1'].data['feat'] = node_feat['n1']
+    hetero_graph.nodes['n0'].data['feat1'] = node_feat1['n0']
+    hetero_graph.nodes['n1'].data['feat1'] = node_feat1['n1']
     hetero_graph.nodes['n1'].data['label'] = th.randint(10, (hetero_graph.number_of_nodes('n1'), ))
 
     hetero_graph.edges['r0'].data['feat'] = edge_feat['r0']
@@ -551,7 +555,7 @@ def load_lm_graph(part_config):
                   "model_name": bert_model_name,
                   "gradient_checkpoint": True,
                   "node_types": ["n0"]}]
-    feat_size = get_feat_size(g, {'n0' : ['feat']})
+    feat_size = get_node_feat_size(g, {'n0' : ['feat']})
     input_text = ["Hello world!"]
     tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
     input_ids, valid_len, attention_mask, _ = \
@@ -578,7 +582,7 @@ def create_lm_graph(tmpdirname, text_ntype='n0'):
     # get the test dummy distributed graph
     g, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
 
-    feat_size = get_feat_size(g, {'n0' : ['feat']})
+    feat_size = get_node_feat_size(g, {'n0' : ['feat']})
     input_text = ["Hello world!"]
     tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
     input_ids, valid_len, attention_mask, _ = \
@@ -608,7 +612,7 @@ def create_lm_graph2(tmpdirname):
     # get the test dummy distributed graph
     g, create_lm_graph = generate_dummy_dist_graph(tmpdirname)
 
-    feat_size = get_feat_size(g, {'n0' : ['feat']})
+    feat_size = get_node_feat_size(g, {'n0' : ['feat']})
     input_text = ["Hello world!"]
     tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
     input_ids0, valid_len0, attention_mask0, _ = \

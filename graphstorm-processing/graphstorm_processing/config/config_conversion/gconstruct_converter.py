@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 from typing import Any
 
 from .converter_base import ConfigConverter
@@ -134,6 +135,13 @@ class GConstructConfigConverter(ConfigConverter):
                     else:
                         gsp_transformation_dict["name"] = "categorical"
                         gsp_transformation_dict["kwargs"] = {}
+                elif gconstruct_transform_dict["name"] == "tokenize_hf":
+                    gsp_transformation_dict["name"] = "huggingface"
+                    gsp_transformation_dict["kwargs"] = {
+                        "action": "tokenize_hf",
+                        "bert_model": gconstruct_transform_dict["bert_model"],
+                        "max_seq_length": gconstruct_transform_dict["max_seq_length"],
+                    }
                 # TODO: Add support for other common transformations here
                 else:
                     raise ValueError(

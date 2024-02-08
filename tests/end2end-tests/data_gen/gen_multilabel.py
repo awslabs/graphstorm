@@ -35,7 +35,8 @@ def generate_graph_data(data, field):
     new_data = {}
     for name in data:
         if field in name:
-            new_data[name] = gen_multi_label(6, data[name].shape[0])
+            # 01/21/2024 James: correct the number of classes to 5
+            new_data[name] = gen_multi_label(5, data[name].shape[0])
         else:
             new_data[name] = data[name]
     return new_data
@@ -53,12 +54,13 @@ if __name__ == '__main__':
 
     for d in os.listdir(args.path):
         part_dir = os.path.join(args.path, d)
-        if not os.path.isfile(part_dir):
-            if args.node_class:
-                data = dgl.data.load_tensors(os.path.join(part_dir, 'node_feat.dgl'))
-                data = generate_graph_data(data, args.field)
-                dgl.data.save_tensors(os.path.join(part_dir, 'node_feat.dgl'), data)
-            else:
-                data = dgl.data.load_tensors(os.path.join(part_dir, 'edge_feat.dgl'))
-                data = generate_graph_data(data, args.field)
-                dgl.data.save_tensors(os.path.join(part_dir, 'edge_feat.dgl'), data)
+        if not d.startswith('part') or os.path.isfile(part_dir):
+            continue
+        if args.node_class:
+            data = dgl.data.load_tensors(os.path.join(part_dir, 'node_feat.dgl'))
+            data = generate_graph_data(data, args.field)
+            dgl.data.save_tensors(os.path.join(part_dir, 'node_feat.dgl'), data)
+        else:
+            data = dgl.data.load_tensors(os.path.join(part_dir, 'edge_feat.dgl'))
+            data = generate_graph_data(data, args.field)
+            dgl.data.save_tensors(os.path.join(part_dir, 'edge_feat.dgl'), data)

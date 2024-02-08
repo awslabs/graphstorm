@@ -184,10 +184,13 @@ def _get_output_dtype(dtype_str):
         return np.float16
     elif dtype_str == 'float32':
         return np.float32
+    elif dtype_str == 'float64':
+        return np.float64
     elif dtype_str == 'int8':
         return np.int8 # for train, val, test mask
     else:
-        assert False, f"Unknown dtype {dtype_str}, only support int8, float16 and float32"
+        assert False, f"Unknown dtype {dtype_str}, only support int8, float16, float32, " + \
+                       "and float64."
 
 class FeatTransform:
     """ The base class for feature transformation.
@@ -319,15 +322,18 @@ class TwoPhaseFeatTransform(FeatTransform):
         ----------
         feats:
             feats to be processed
+
+        Return:
+            dict: {feature_name: feats_statistics}
         """
 
-    def collect_info(self, info):
+    def update_info(self, info):
         """ Store global information for the second phase data processing
 
         Parameters
         ----------
-        info:
-            Information to be collected
+        info: list
+            Information to be collected. A list of feats_statistics returned by pre_process
         """
 
     def call(self, feats):
@@ -441,13 +447,6 @@ class CategoricalTransform(TwoPhaseFeatTransform):
         super(CategoricalTransform, self).__init__(col_name, feat_name)
 
     def pre_process(self, feats):
-        """ Pre-process data
-
-        Parameters
-        ----------
-        feats: np.array
-            Data to be processed
-        """
         # If the mapping already exists, we don't need to do anything.
         if len(self._val_dict) > 0:
             return {}
@@ -472,13 +471,6 @@ class CategoricalTransform(TwoPhaseFeatTransform):
 
 
     def update_info(self, info):
-        """ Store global information for the second phase data processing
-
-        Parameters
-        ----------
-        info: list
-            Information to be collected
-        """
         # We already have the mapping.
         if len(self._val_dict) > 0:
             assert len(info) == 0
@@ -564,13 +556,6 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         super(NumericalMinMaxTransform, self).__init__(col_name, feat_name, out_dtype)
 
     def pre_process(self, feats):
-        """ Pre-process data
-
-        Parameters
-        ----------
-        feats: np.array
-            Data to be processed
-        """
         assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
             "Feature of NumericalMinMaxTransform must be numpy array or ExtMemArray"
 
@@ -614,13 +599,6 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         return {self.feat_name: (max_val, min_val)}
 
     def update_info(self, info):
-        """ Store global information for the second phase data processing
-
-        Parameters
-        ----------
-        info: list
-            Information to be collected
-        """
         max_vals = []
         min_vals = []
         for (max_val, min_val) in info:
@@ -935,7 +913,176 @@ class Noop(FeatTransform):
                 f"The feature {self.feat_name} has to be integers or floats."
         return {self.feat_name: feats}
 
-def parse_feat_ops(confs):
+class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
+    """ Translate input data into node ids for hard negative stored as edge features
+
+    Parameters
+    ----------
+    col_name : str
+        The name of the column that contains the feature.
+    feat_name : str
+        The feature name used in the constructed graph.
+    separator : str
+        The separator to split data into multiple node ids.
+    """
+    def __init__(self, col_name, feat_name, separator=None):
+        self._target_ntype = None
+        self._target_etype = None
+        self._nid_map = None
+        self._separator = separator
+        super().__init__(col_name, feat_name, out_dtype=np.int64)
+
+    def set_target_etype(self, etype):
+        """ Set the etype of this hard edge negative transformation ops
+            and associated hard negative information. For example,
+            self._target_ntype.
+
+        Parameters
+        ----------
+        etype : tuple of str
+            The edge type the hard negatives belonging to.
+        """
+        raise NotImplementedError
+
+    @property
+    def target_etype(self):
+        """ The the edge type of this hard negative transformation.
+        """
+        return self._target_etype
+
+    @property
+    def neg_ntype(self):
+        """ Return the node type of hard negatives
+        """
+        return self._target_ntype
+
+    def set_id_maps(self, id_maps):
+        """ Set ID mapping for converting raw string ID to Graph ID
+        """
+        assert self._target_ntype is not None, \
+            "The target node type should be set, it can be the source node type " \
+            "or the destination node type depending on the hard negative case."
+        assert self._target_ntype in id_maps, \
+            f"The nid mapping should have the mapping for {self._target_ntype}. " \
+            f"But only has {id_maps.keys()}"
+        self._nid_map = id_maps
+
+    def pre_process(self, feats):
+        """ Pre-process input feats
+
+            Not all the edges have the same number of hard negatives.
+            Thus we need to know the maxmun number of hard negatives first.
+
+        Parameters
+        ----------
+        feats:
+            feats to be processed
+
+        Return:
+            dict: {feature_name: feats_statistics}
+        """
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+            "Feature of HardEdgeNegativeTransform must be numpy array or ExtMemArray"
+
+        if self._separator is None:
+            # It is possible that the input is a
+            # np.array(np.array(), np.array(), ...)
+            # when the input is a array of variable length list.
+            if len(feats.shape) == 1:
+                max_dim = max(len(feat) for feat in feats)
+            else:
+                max_dim = feats.shape[1]
+        else:
+            assert len(feats.shape) == 1 or feats.shape[1] == 1, \
+                "When a separator is given, the input feats must be a list of strings."
+
+            feats = feats.astype(str)
+            max_dim = 0
+            for feat in feats:
+                dim_size = len(feat.split(self._separator))
+                max_dim = dim_size if dim_size > max_dim else max_dim
+        return {self.feat_name: max_dim}
+
+    def update_info(self, info):
+        max_dim = max(info)
+        self._max_dim = max_dim
+
+    def call(self, feats):
+        """ Parse hard negatives as features
+
+        Hard negatives can be stored as string arrays where
+        each string is a node id. For example:
+
+        .. code::
+
+            src | dst | hard_negs
+            s_0 | d_0 | ["h_0", "h_1"]
+            s_1 | d_1 | ["h_2", "h_3"]
+            s_2 | d_2 | ["h_4", ""]
+            s_3 | d_3 | ["h_5", "h_3"]
+            ...
+
+        Or strings with a delimeter to separate node ids.
+        For example:
+
+        .. code::
+
+            src | dst | hard_negs
+            s_0 | d_0 | "h_0;h_1"
+            s_1 | d_1 | "h_2;h_3"
+            s_2 | d_2 | "h_4"
+            s_3 | d_3 | "h_5;h_3"
+            ...
+
+        Parameters
+        ----------
+        feats : np array
+            Data with hard negatives.
+
+        Returns
+        -------
+        np.array
+        """
+        assert self._target_ntype is not None, \
+            "The target node type should be set, it can be the source node type " \
+            "or the destination node type depending on the hard negative case."
+        nid_map = self._nid_map[self._target_ntype]
+
+        # It is possible that some edges do not
+        # have enough pre-defined hard negatives.
+        # In certain cases, GraphStorm will fill the
+        # un-provided hard negatives with -1s.
+        neg_ids = np.full((len(feats), self._max_dim), -1, dtype=np.int64)
+        for i, feat in enumerate(feats):
+            if feat is None:
+                continue
+
+            if self._separator is None:
+                raw_ids = feat
+            else:
+                raw_ids = np.array(feat.split(self._separator))
+            nids, _ = nid_map.map_id(raw_ids.astype(
+                nid_map.map_key_dtype))
+
+            # Write hard negative node ids into the hard
+            # negative features.
+            # When len(raw_ids) < self._max_dim (max negatives
+            # per edge), GraphStorm fills the rest with -1.
+            neg_ids[i][:nids.shape[0]] = nids
+
+        return {self.feat_name: neg_ids}
+
+class HardEdgeDstNegativeTransform(HardEdgeNegativeTransform):
+    """ Translate input data (destination node raw id) into GraphStorm node ids
+        for hard negative stored as edge features.
+    """
+
+    def set_target_etype(self, etype):
+        self._target_etype = tuple(etype)
+        # target node type is destination node type.
+        self._target_ntype = etype[2]
+
+def parse_feat_ops(confs, input_data_format=None):
     """ Parse the configurations for processing the features
 
     The feature transformation:
@@ -949,6 +1096,8 @@ def parse_feat_ops(confs):
     ----------
     confs : list
         A list of feature transformations.
+    input_data_format: str
+        Input data format, it can be parquet, csv, hdf5.
 
     Returns
     -------
@@ -1048,19 +1197,29 @@ def parse_feat_ops(confs):
                                                bucket_range=bucket_range,
                                                slide_window_size=slide_window_size,
                                                out_dtype=out_dtype)
+            elif conf['name'] == 'edge_dst_hard_negative':
+                assert input_data_format not in ["hdf5"], \
+                    "Edge_dst_hard_negative transformation does not work with hdf5 inputs."
+                separator = conf['separator'] if 'separator' in conf else None
+                transform = HardEdgeDstNegativeTransform(feat['feature_col'],
+                                                         feat_name,
+                                                         separator=separator)
             else:
                 raise ValueError('Unknown operation: {}'.format(conf['name']))
         ops.append(transform)
 
     two_phase_feat_ops = []
     after_merge_feat_ops = {}
+    hard_edge_neg_ops = []
     for op in ops:
         if isinstance(op, TwoPhaseFeatTransform):
             two_phase_feat_ops.append(op)
         if isinstance(op, GlobalProcessFeatTransform):
             after_merge_feat_ops[op.feat_name] = op
+        if isinstance(op, HardEdgeNegativeTransform):
+            hard_edge_neg_ops.append(op)
 
-    return ops, two_phase_feat_ops, after_merge_feat_ops
+    return ops, two_phase_feat_ops, after_merge_feat_ops, hard_edge_neg_ops
 
 def preprocess_features(data, ops):
     """ Pre-process the data with the specified operations.

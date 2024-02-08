@@ -27,7 +27,7 @@ def create_rgcn_model_for_nc(g, config):
     model = gs.model.GSgnnNodeModel(config.alpha_l2norm)
 
     # Set input layer (project input feats to hidden dims)
-    feat_size = gs.get_feat_size(g, config.node_feat_name)
+    feat_size = gs.get_node_feat_size(g, config.node_feat_name)
     encoder = NodeEncoderInputLayer(
         g,
         config.hidden_size,

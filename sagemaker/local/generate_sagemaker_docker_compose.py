@@ -118,6 +118,9 @@ def get_parser():
     inference_parser.add_argument("--output-emb-s3", type=str,
         help="S3 location to store GraphStorm generated node embeddings.",
         default=None)
+    inference_parser.add_argument("--raw-node-mappings-s3", type=str,
+        required=True,
+        help="S3 prefix for original node mappings (str to int)")
     inference_parser.add_argument("--output-prediction-s3", type=str,
         help="S3 location to store prediction results. "
              "(Only works with node classification/regression "
@@ -174,6 +177,7 @@ def generate_command(
             [
                 'python3', '-u', 'infer_entry.py',
                 '--model-artifact-s3', known_args.model_artifact_s3,
+                '--raw-node-mappings-s3', known_args.raw_node_mappings_s3,
                 '--task-type', known_args.task_type,
                 '--graph-name', known_args.graph_name,
                 '--graph-data-s3', known_args.graph_data_s3,
@@ -218,7 +222,7 @@ if __name__ == "__main__":
 
     compose_dict['version'] = '3.7'
     compose_dict['networks'] = {'gsf': {'name': 'gsf-network'}}
-    action_needs_gpu = args.action != 'partition'
+    action_needs_gpu = args.action != 'partitioning'
 
     # Check that all AWS credentials are provided.
     one_cred_exists = False

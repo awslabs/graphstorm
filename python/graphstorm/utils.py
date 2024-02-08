@@ -30,6 +30,22 @@ import numpy as np
 TORCH_MAJOR_VER = int(th.__version__.split('.', maxsplit=1)[0])
 USE_WHOLEGRAPH = False
 
+def get_graph_name(part_config):
+    """ Get graph name from graph partition config file
+
+    Parameter
+    ---------
+    part_config: str
+        Path to graph partition config file
+
+    Return
+    ------
+        graph_name
+    """
+    with open(part_config, "r", encoding='utf-8') as f:
+        config = json.load(f)
+    return config["graph_name"]
+
 def setup_device(local_rank):
     r"""Setup computation device.
 
@@ -115,7 +131,7 @@ def estimate_mem_train(root, task):
     parts = []
     # Find the partition IDs from the folder.
     for f in os.listdir(root):
-        if os.path.isdir(os.path.join(root, f)):
+        if os.path.isdir(os.path.join(root, f)) and f.startswith("part"):
             parts.append(int(f[4:]))
     parts.sort()
     for i in parts:
@@ -180,7 +196,7 @@ def estimate_mem_infer(root, graph_name, hidden_size, num_layers):
     parts = []
     # Find the partition IDs from the folder.
     for f in os.listdir(root):
-        if os.path.isdir(os.path.join(root, f)):
+        if os.path.isdir(os.path.join(root, f)) and f.startswith("part"):
             parts.append(int(f[4:]))
     with open(os.path.join(root, graph_name + '.json'), 'r', encoding='utf-8') as f:
         schema = json.load(f)

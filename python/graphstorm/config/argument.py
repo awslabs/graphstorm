@@ -50,13 +50,13 @@ from .config import SUPPORTED_TASKS
 
 from .config import BUILTIN_LP_DISTMULT_DECODER
 from .config import SUPPORTED_LP_DECODER
-from .config import GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS
+from .config import (GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS,
+                     GRAPHSTORM_LP_EMB_L2_NORMALIZATION)
 
 from .config import (GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_EMBED_LAYER,
                      GRAPHSTORM_MODEL_DECODER_LAYER, GRAPHSTORM_MODEL_LAYER_OPTIONS)
 
-from .utils import get_graph_name
-from ..utils import TORCH_MAJOR_VER, get_log_level
+from ..utils import TORCH_MAJOR_VER, get_log_level, get_graph_name
 
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
 from ..eval import SUPPORTED_REGRESSION_METRICS
@@ -1830,7 +1830,17 @@ class GSConfig:
             assert normalizer in GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS, \
                 f"Link prediction embedding normalizer {normalizer} not supported. " \
                 f"GraphStorm only support {GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS}"
+
+            # TODO: Check the compatibility between the loss function
+            # and the normalizer. Right now only l2 norm is supported
+            # and it is compatible with both cross entropy loss and
+            # contrastive loss.
             return normalizer
+
+        if self.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS:
+            # By default, normalize the emb with l2 normalization
+            # when the loss function is contrastive loss
+            return GRAPHSTORM_LP_EMB_L2_NORMALIZATION
         return None
 
     @property
@@ -1893,9 +1903,129 @@ class GSConfig:
 
         return None
 
+    def _get_predefined_negatives_per_etype(self, negatives):
+        if len(negatives) == 1 and \
+            ":" not in negatives[0]:
+            # global feat_name
+            return negatives[0]
+
+        # per edge type feature
+        negative_dict = {}
+        for negative in negatives:
+            negative_info = negative.split(":")
+            assert len(negative_info) == 2, \
+                "negative dstnode information must be provided in format of " \
+                f"src,relation,dst:feature_name, but get {negative}"
+
+            etype = tuple(negative_info[0].split(","))
+            assert len(etype) == 3, \
+                f"Edge type must in format of (src,relation,dst), but get {etype}"
+            assert etype not in negative_dict, \
+                f"You already specify the fixed negative of {etype} " \
+                f"as {negative_dict[etype]}"
+
+            negative_dict[etype] = negative_info[1]
+        return negative_dict
+
+    @property
+    def train_etypes_negative_dstnode(self):
+        """ The list of canonical etypes that have hard negative edges
+        constructed by corrupting destination nodes.
+
+            The format of the arguement should be:
+            train_etypes_negative_dstnode:
+              - src_type,rel_type0,dst_type:negative_nid_field
+              - src_type,rel_type1,dst_type:negative_nid_field
+            Each edge type can have different fields storing the hard negatives.
+
+            or
+            train_etypes_negative_dstnode:
+              - negative_nid_field
+            All the edge types use the same filed storing the hard negatives.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_train_etypes_negative_dstnode"):
+            assert self.task_type == BUILTIN_TASK_LINK_PREDICTION, \
+                "Hard negative only works with link prediction"
+            hard_negatives = self._train_etypes_negative_dstnode
+            return self._get_predefined_negatives_per_etype(hard_negatives)
+
+        # By default fixed negative is not used
+        return None
+
+    @property
+    def num_train_hard_negatives(self):
+        """ Number of hard negatives per edge type
+
+            The format of the arguement should be:
+            num_train_hard_negatives:
+              - src_type,rel_type0,dst_type:num_negatives
+              - src_type,rel_type1,dst_type:num_negatives
+            Each edge type can have different number of hard negatives.
+
+            or
+            num_train_hard_negatives:
+              - num_negatives
+            All the edge types use the same number of hard negatives.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_num_train_hard_negatives"):
+            assert self.task_type == BUILTIN_TASK_LINK_PREDICTION, \
+                "Hard negative only works with link prediction"
+            num_negatives = self._num_train_hard_negatives
+            if len(num_negatives) == 1 and \
+                ":" not in num_negatives[0]:
+                # global feat_name
+                return int(num_negatives[0])
+
+            # per edge type feature
+            num_hard_negative_dict = {}
+            for num_negative in num_negatives:
+                negative_info = num_negative.split(":")
+                assert len(negative_info) == 2, \
+                    "Number of train hard negative information must be provided in format of " \
+                    f"src,relation,dst:10, but get {num_negative}"
+                etype = tuple(negative_info[0].split(","))
+                assert len(etype) == 3, \
+                    f"Edge type must in format of (src,relation,dst), but get {etype}"
+                assert etype not in num_hard_negative_dict, \
+                    f"You already specify the fixed negative of {etype} " \
+                    f"as {num_hard_negative_dict[etype]}"
+
+                num_hard_negative_dict[etype] = int(negative_info[1])
+            return num_hard_negative_dict
+
+        return None
+
+    @property
+    def eval_etypes_negative_dstnode(self):
+        """ The list of canonical etypes that have predefined negative edges
+        constructed by corrupting destination nodes.
+
+            The format of the arguement should be:
+            eval_etypes_negative_dstnode:
+              - src_type,rel_type0,dst_type:negative_nid_field
+              - src_type,rel_type1,dst_type:negative_nid_field
+            Each edge type can have different fields storing the fixed negatives.
+
+            or
+            eval_etypes_negative_dstnode:
+              - negative_nid_field
+            All the edge types use the same filed storing the fixed negatives.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_eval_etypes_negative_dstnode"):
+            assert self.task_type == BUILTIN_TASK_LINK_PREDICTION, \
+                "Fixed negative only works with link prediction"
+            fixed_negatives = self._eval_etypes_negative_dstnode
+            return self._get_predefined_negatives_per_etype(fixed_negatives)
+
+        # By default fixed negative is not used
+        return None
+
     @property
     def train_etype(self):
-        """ The list of canonical etype that will be added as
+        """ The list of canonical etypes that will be added as
             training target with the target e type(s)
 
             If not provided, all edge types will be used as training target.
@@ -2504,6 +2634,36 @@ def _add_link_prediction_args(parser):
                 "metrics of each edge type to select the best model"
                 "2) '--model-select-etype query,adds,item': Use the evaluation "
                 "metric of the edge type (query,adds,item) to select the best model")
+    group.add_argument("--train-etypes-negative-dstnode", nargs='+',
+            type=str, default=argparse.SUPPRESS,
+            help="Edge feature field name for user defined negative destination ndoes "
+            "for training. The negative nodes are used to construct hard negative edges "
+            "by corrupting positive edges' destination nodes."
+            "It can be in following format: "
+            "1) '--train-etypes-negative-dstnode negative_nid_field', "
+            "if all edge types use the same negative destination node filed."
+            "2) '--train-etypes-negative-dstnode query,adds,asin:neg0 query,clicks,asin:neg1 ...'"
+            "Different edge types have different negative destination node fields."
+            )
+    group.add_argument("--eval-etypes-negative-dstnode", nargs='+',
+            type=str, default=argparse.SUPPRESS,
+            help="Edge feature field name for user defined negative destination ndoes "
+            "for evaluation. The negative nodes are used to construct negative edges "
+            "by corrupting test edges' destination nodes."
+            "It can be in following format: "
+            "1) '--eval-etypes-negative-dstnode negative_nid_field', "
+            "if all edge types use the same negative destination node filed."
+            "2) '--eval-etypes-negative-dstnode query,adds,asin:neg0 query,clicks,asin:neg1 ...'"
+            "Different edge types have different negative destination node fields."
+            )
+    group.add_argument("--num-train-hard-negatives", nargs='+',
+            type=str, default=argparse.SUPPRESS,
+            help="Number of hard negatives for each edge type during training."
+            "It can be in following format: "
+            "1) '--num-train-hard-negatives 10', "
+            "if all edge types use the same number of hard negatives."
+            "2) '--num-train-hard-negatives query,adds,asin:5 query,clicks,asin:10 ...'"
+            "Different edge types have different number of hard negatives.")
 
     return parser
 

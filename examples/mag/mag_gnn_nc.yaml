@@ -23,7 +23,7 @@ gsf:
     cache_lm_embed: true
   gnn:
     model_encoder_type: rgcn
-    num_layers: 2
+    num_layers: 1
     hidden_size: 128
     use_mini_batch_infer: true
   input:
@@ -38,9 +38,9 @@ gsf:
     sparse_optimizer_lr: 0.01
     num_epochs: 100
     batch_size: 1024
-    fanout: "5,5"
-    eval_fanout: "20,20"
-    eval_batch_size: 1024
+    fanout: "5"
+    eval_fanout: "20"
+    eval_batch_size: 128
     lm_infer_batch_size: 1024
     wd_l2norm: 0
     no_validation: false

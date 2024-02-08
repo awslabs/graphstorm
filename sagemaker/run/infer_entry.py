@@ -22,10 +22,10 @@ import subprocess
 from graphstorm.config import SUPPORTED_TASKS
 from graphstorm.sagemaker.sagemaker_infer import run_infer
 
-def parse_train_args():
-    """  Add arguments for model training
+def parse_inference_args():
+    """  Add arguments for model inference
     """
-    parser = argparse.ArgumentParser(description='gs sagemaker train pipeline')
+    parser = argparse.ArgumentParser(description='gs sagemaker inference pipeline')
 
     parser.add_argument("--task-type", type=str,
         help=f"task type, builtin task type includes: {SUPPORTED_TASKS}")
@@ -47,6 +47,8 @@ def parse_train_args():
         default=None)
     parser.add_argument("--model-artifact-s3", type=str,
         help="S3 bucket to load the saved model artifacts")
+    parser.add_argument("--raw-node-mappings-s3", type=str, required=False,
+        default=None, help="S3 location where the original (str to int) node mappings exist.")
     parser.add_argument("--custom-script", type=str, default=None,
         help="Custom training script provided by a customer to run customer training logic. \
             Please provide the path of the script within the docker image")
@@ -67,7 +69,7 @@ def parse_train_args():
     return parser
 
 if __name__ =='__main__':
-    parser = parse_train_args()
+    parser = parse_inference_args()
     args, unknownargs = parser.parse_known_args()
 
     subprocess.run(["df", "-h"], check=True)

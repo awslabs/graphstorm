@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 ################### Categorical Limits #######################
 MAX_CATEGORIES_PER_FEATURE = 100
 RARE_CATEGORY = "GSP_CONSTANT_OTHER"
@@ -43,3 +44,7 @@ EXECUTOR_MEM_OVERHEAD_RATIO = 0.1
 ################# Numerical transformations  ################
 VALID_IMPUTERS = ["none", "mean", "median", "most_frequent"]
 VALID_NORMALIZERS = ["none", "min-max", "standard", "rank-gauss"]
+
+################# Bert transformations  ################
+HUGGINGFACE_TRANFORM = "huggingface"
+HUGGINGFACE_TOKENIZE = "tokenize_hf"

@@ -41,6 +41,15 @@ python3 -m graphstorm.gconstruct.construct_graph \
 	--graph-name movie-lens-100k \
 	--add-reverse-edges
 
+# movielens link prediction - hard negative and fixed negative for inference
+rm -Rf /data/movielen_100k_lp_train_val_hard_neg_1p_4t
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_lp_hard.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_lp_train_val_hard_neg_1p_4t \
+	--graph-name movie-lens-100k \
+	--add-reverse-edges
+
 # movielens link prediction removing test mask
 rm -Rf /data/movielen_100k_lp_train_no_test_1p_4t
 cp -R /data/movielen_100k_lp_train_val_1p_4t /data/movielen_100k_lp_train_no_test_1p_4t

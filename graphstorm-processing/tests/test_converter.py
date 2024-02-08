@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import pytest
 
 from graphstorm_processing.config.config_conversion import (
@@ -56,7 +57,7 @@ def test_try_read_unsupported_feature(converter: GConstructConfigConverter, node
     node_dict["nodes"][0]["features"] = [
         {
             "feature_col": ["paper_title"],
-            "transform": {"name": "tokenize_hf"},
+            "transform": {"name": "bert_hf"},
         }
     ]
 
@@ -235,6 +236,14 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
                     "feature_col": ["num_citations"],
                     "transform": {"name": "to_categorical", "separator": ","},
                 },
+                {
+                    "feature_col": ["citation_name"],
+                    "transform": {
+                        "name": "tokenize_hf",
+                        "bert_model": "bert",
+                        "max_seq_length": 64,
+                    },
+                },
             ],
             "labels": [
                 {"label_col": "label", "task_type": "classification", "split_pct": [0.8, 0.1, 0.1]}
@@ -319,6 +328,13 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "transformation": {
                 "name": "multi-categorical",
                 "kwargs": {"separator": ","},
+            },
+        },
+        {
+            "column": "citation_name",
+            "transformation": {
+                "name": "huggingface",
+                "kwargs": {"action": "tokenize_hf", "bert_model": "bert", "max_seq_length": 64},
             },
         },
     ]

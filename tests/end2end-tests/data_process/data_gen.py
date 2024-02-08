@@ -20,7 +20,7 @@ import copy
 import json
 import os
 import pyarrow.parquet as pq
-import pyarrow as pa
+import pandas as pd
 import numpy as np
 
 from graphstorm.gconstruct.file_io import write_data_parquet, write_data_json, write_data_csv
@@ -90,9 +90,12 @@ edge_data1 = {
     'dst': dst1,
     'label': (src1 + dst1) % 100,
 }
+src2 = node_data1['id'][np.random.randint(0, 9999, 50000)]
+dst2 = node_data1['id'][np.random.randint(0, 9999, 50000)]
 edge_data2 = {
-    'src': node_data1['id'][np.random.randint(0, 9999, 50000)],
-    'dst': node_data1['id'][np.random.randint(0, 9999, 50000)],
+    'src': src2,
+    'dst': dst2,
+    "hard_neg" : np.concatenate((src2.reshape(-1,1), dst2.reshape(-1,1)), axis=1).astype(str)
 }
 
 edge_data1_2_float = np.random.rand(src1.shape[0], 10) * 2
@@ -107,15 +110,21 @@ edge_data1_2 = {
 
 src3 = node_data2['id'][np.random.randint(0, 20000, 100000)]
 dst_idx = np.random.randint(0, 5000, 100000)
+dst3 = node_data3['id'][dst_idx]
 edge_data3 = {
     'src': src3,
-    'dst': node_data3['id'][dst_idx],
+    'dst': dst3,
     'data': src3 + node_id3[dst_idx],
     'data1': np.repeat(src3 + node_id3[dst_idx], 5).reshape(len(src3), 5),
+    "neg" : np.array([f"{str(nid)},{str(nid)}" for nid in dst3]).astype(str)
 }
 edge_data3_2 = {
     'data': src3 + node_id3[dst_idx],
 }
+edge_data3_3 = {
+    'data': [[nid, nid] for nid in dst3]
+}
+edge_data3_3['data'][0] = edge_data3_3['data'][0] + edge_data3_3['data'][0]
 
 in_dir = '/tmp/test_data/'
 out_dir = '/tmp/test_out/'
@@ -148,7 +157,12 @@ for i, edge_data in enumerate(split_data(edge_data2, 10)):
 write_data_hdf5(edge_data1_2, os.path.join(in_dir, f'edge_data1_2.hdf5'))
 for i, edge_data in enumerate(split_data(edge_data3, 10)):
     write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data3_{i}.parquet'))
+df = pd.DataFrame(edge_data3_3)
+df.to_parquet(os.path.join(in_dir,
+                           f'ng_edge_data3.parquet'))
+
 write_data_hdf5(edge_data3_2, os.path.join(in_dir, f'edge_data3_2.hdf5'))
+
 
 node_conf = [
     {
@@ -347,8 +361,15 @@ edge_conf = [
         "labels":       [
             {
                 "task_type":    "link_prediction",
-                "split_pct":   [0.8, 0.2, 0.0],
+                "split_pct":   [0.8, 0.2, 0.0]
             },
+        ],
+        "features": [
+            {
+                "feature_col": "hard_neg",
+                "feature_name": "hard_neg",
+                "transform": {"name": "edge_dst_hard_negative"}
+            }
         ],
     },
     {
@@ -362,6 +383,24 @@ edge_conf = [
                 "feature_col": "data",
                 "feature_name": "feat",
             },
+            {
+                "feature_col": "neg",
+                "feature_name": "hard_neg",
+                "transform": {"name": "edge_dst_hard_negative",
+                              "separator": ","}
+            }
+        ],
+    },
+    {
+        "relation":         ("node2", "relation3", "node3"),
+        "format":           {"name": "parquet"},
+        "files":            os.path.join(in_dir, "ng_edge_data3.parquet"),
+        "features": [
+            {
+                "feature_col": "data",
+                "feature_name": "hard_neg2",
+                "transform": {"name": "edge_dst_hard_negative"}
+            },
         ],
     },
     {
@@ -374,7 +413,7 @@ edge_conf = [
                 "feature_name": "feat2",
             },
         ],
-    },
+    }
 ]
 transform_conf = {
     "nodes": node_conf,
