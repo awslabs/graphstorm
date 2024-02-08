@@ -403,6 +403,8 @@ class GSConfig:
         # TODO(xiangsx): Add more check
 
     def handle_homogeneous_config(self, ntypes, etypes):
+        """Resolve target type conflict for homogeneous graph
+        """
         if ntypes != [DEFAULT_NTYPE] or etypes != [DEFAULT_ETYPE[1]]:
             return
         if self.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
@@ -1592,6 +1594,8 @@ class GSConfig:
 
     @target_ntype.setter
     def target_ntype(self, ntype):
+        """ Setter for node type for prediction
+        """
         self._target_ntype = ntype
 
     @property
@@ -1615,6 +1619,8 @@ class GSConfig:
 
     @eval_target_ntype.setter
     def eval_target_ntype(self, ntype):
+        """ Setter for node type for evaluation prediction
+        """
         self._eval_target_ntype = ntype
 
     #### edge related task variables ####
@@ -1688,6 +1694,8 @@ class GSConfig:
 
     @target_etype.setter
     def target_etype(self, etype):
+        """ Setter for the target etype
+        """
         self._target_etype = etype
 
     @property
