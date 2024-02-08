@@ -452,9 +452,8 @@ arguments.
    -  Transforms a text feature column to tokens or embeddings with different Hugging Face models, enabling nuanced understanding and processing of natural language data.
    -  ``kwargs``:
 
-      - ``action`` (String, required): The action to perform on the text data. Currently we only support text tokenization through HuggingFace models, so the accepted values here are "tokenize_hf" and "bert_hf".
-        Currently we support tokens or embedding creation using HuggingFace models, where the input text is transformed to a vector representation, or tokenization of text the using using HuggingFace tokenizers,
-        where the output is a tokenized version of the text to be used downstream as input to a Huggingface model during training or inference.
+      - ``action`` (String, required): Currently we support embedding creation using HuggingFace models, where the input text is transformed to a vector representation,
+        or tokenization of text the using using HuggingFace tokenizers, where the output is a tokenized version of the text to be used downstream as input to a Huggingface model during training.
 
         - ``tokenize_hf``: It tokenizes text strings with a HuggingFace tokenizer with a predefined tokenizer hosted on huggingface.co. The tokenizer_hf can use any HuggingFace LM models available in the huggingface repo.
                             Check more information on: `huggingface autotokenizer <https://huggingface.co/docs/transformers/main/en/model_doc/auto#transformers.AutoTokenizer>`_
