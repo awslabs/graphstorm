@@ -408,8 +408,8 @@ class GSConfig:
         if ntypes != [DEFAULT_NTYPE] or etypes != [DEFAULT_ETYPE[1]]:
             return
         if self.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
-            self.target_ntype = input_type
-            self.eval_target_ntype = input_type
+            self.target_ntype = DEFAULT_NTYPE
+            self.eval_target_ntype = DEFAULT_NTYPE
         if self.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
             self.target_etype = [','.join(DEFAULT_ETYPE)]
 
