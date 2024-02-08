@@ -27,6 +27,7 @@ RUN pipenv install \
     setuptools \
     transformers==4.37.1 \
     spacy==3.6.0 \
+    torch==2.1.0 \
     wheel \
     && rm -rf /root/.cache
 # Do a pipenv sync so our base libs are independent from our editable code, making them cacheable
