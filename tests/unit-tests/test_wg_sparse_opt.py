@@ -40,14 +40,9 @@ from dgl.distributed import (
 from graphstorm.wholegraph import init_wholegraph, is_wholegraph_init, create_wholememory_optimizer
 
 from graphstorm.model import GSNodeEncoderInputLayer
-from graphstorm.model.embed import compute_node_input_embeddings
-from graphstorm.model.utils import save_sparse_embeds
-from graphstorm.model.utils import load_sparse_embeds
-from graphstorm.model.utils import _get_sparse_emb_range
-from graphstorm.model.utils import pad_file_index
-from graphstorm import get_feat_size
+from graphstorm import get_node_feat_size
 
-from data_utils import generate_dummy_dist_graph, generate_dummy_hetero_graph
+from data_utils import generate_dummy_hetero_graph
 
 
 def generate_ip_config(file_name, num_machines, num_servers):
@@ -154,7 +149,7 @@ def _start_trainer(
     lr = 0.01
 
     dev = th.device('cuda:{}'.format(rank))
-    feat_size = get_feat_size(dist_graph, {'n0': ['feat']})
+    feat_size = get_node_feat_size(dist_graph, {'n0': ['feat']})
     layer_wg = GSNodeEncoderInputLayer(
         dist_graph, feat_size, embed_dim, use_wholegraph_sparse_emb=True
     ).to(dev)
