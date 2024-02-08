@@ -27,7 +27,7 @@ from .base_dist_transformation import DistributedTransformation
 
 
 def apply_transform(
-    cols: Sequence[str], action: str, bert_model: str, max_seq_length: int, input_df: DataFrame
+    cols: Sequence[str], action: str, hf_model: str, max_seq_length: int, input_df: DataFrame
 ) -> DataFrame:
     """Applies a single normalizer to the imputed dataframe, individually to each of the columns
     provided in the cols argument.
@@ -38,7 +38,7 @@ def apply_transform(
         List of column names to apply normalization to.
     action : str
         The type of normalization to use. Valid values are ["tokenize_hf", "embedding_hf"].
-    bert_model : str
+    hf_model : str
         The name of huggingface model.
     max_seq_length: int
         The maximal length of the tokenization results.
@@ -48,7 +48,7 @@ def apply_transform(
 
     if action == HUGGINGFACE_TOKENIZE:
         # Initialize the tokenizer
-        tokenizer = AutoTokenizer.from_pretrained(bert_model)
+        tokenizer = AutoTokenizer.from_pretrained(hf_model)
 
         # Define the schema of your return type
         schema = StructType(
@@ -94,17 +94,18 @@ def apply_transform(
         # Define the schema of your return type
         schema = ArrayType(FloatType())
 
+        tokenizer = AutoTokenizer.from_pretrained(hf_model)
+        config = AutoConfig.from_pretrained(hf_model)
+        lm_model = AutoModel.from_pretrained(hf_model, config)
+        lm_model.eval()
+        lm_model = lm_model.to("cpu")
+
         # Define UDF
         @udf(returnType=schema)
         def lm_emb(text):
             # Check if text is a string
             if not isinstance(text, str):
                 raise ValueError("The input of the tokenizer has to be a string.")
-            tokenizer = AutoTokenizer.from_pretrained(bert_model)
-            config = AutoConfig.from_pretrained(bert_model)
-            lm_model = AutoModel.from_pretrained(bert_model, config)
-            lm_model.eval()
-            lm_model = lm_model.to("cpu")
 
             # Tokenize the text
             outputs = tokenizer(
@@ -143,25 +144,25 @@ class DistHFTransformation(DistributedTransformation):
         List of column names to apply normalization to.
     action : str
         The type of huggingface action to use. Valid values are ["tokenize_hf", "embedding_hf"].
-    bert_model: str, required
+    hf_model: str, required
         The name of the lm model.
     max_seq_length: int, required
         The maximal length of the tokenization results.
     """
 
     def __init__(
-        self, cols: Sequence[str], action: str, bert_model: str, max_seq_length: int
+        self, cols: Sequence[str], action: str, hf_model: str, max_seq_length: int
     ) -> None:
         super().__init__(cols)
         self.cols = cols
         assert len(self.cols) == 1, "Huggingface transformation only supports single column"
         self.action = action
-        self.bert_model = bert_model
+        self.hf_model = hf_model
         self.max_seq_length = max_seq_length
 
     def apply(self, input_df: DataFrame) -> DataFrame:
         transformed_df = apply_transform(
-            self.cols, self.action, self.bert_model, self.max_seq_length, input_df
+            self.cols, self.action, self.hf_model, self.max_seq_length, input_df
         )
 
         return transformed_df

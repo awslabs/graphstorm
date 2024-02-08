@@ -464,7 +464,7 @@ arguments.
         - ``embedding_hf``: It encodes text strings with a HuggingFace model hosted on huggingface.co. The value can be any HuggingFace language model available in the
                         `Huggingface model repository <https://huggingface.co/docs/transformers/main/en/main_classes/model>`_, e.g. `bert-base-uncased`.
                         The expected input can any length of text strings, and the expected output will be the embeddings for the text strings.
-      - ``bert_model`` (String, required): It should be the identifier of a pre-trained model available in the Hugging Face Model Hub.
+      - ``hf_model`` (String, required): It should be the identifier of a pre-trained model available in the Hugging Face Model Hub.
       - ``max_seq_length`` (Integer, required): It specifies the maximum number of tokens of the input.
 
 --------------

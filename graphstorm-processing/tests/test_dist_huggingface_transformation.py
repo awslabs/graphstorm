@@ -38,11 +38,11 @@ def test_hf_tokenizer_example(spark: SparkSession, check_df_schema):
     input_df = spark.createDataFrame(data, schema=columns)
 
     # Configuration for Hugging Face tokenizer transformation
-    bert_model = "bert-base-uncased"
+    hf_model = "bert-base-uncased"
     max_seq_length = 8
 
     # Initialize and apply the distributed Hugging Face tokenization transformation
-    hf_tokenize = DistHFTransformation(["occupation"], "tokenize_hf", bert_model, max_seq_length)
+    hf_tokenize = DistHFTransformation(["occupation"], "tokenize_hf", hf_model, max_seq_length)
     output_df = hf_tokenize.apply(input_df)
     assert (
         len(output_df.columns) == 3
@@ -58,7 +58,7 @@ def test_hf_tokenizer_example(spark: SparkSession, check_df_schema):
 
         # Tokenize the original text data for validation
         original_text = [row[1] for row in data]
-        tokenizer = AutoTokenizer.from_pretrained(bert_model)
+        tokenizer = AutoTokenizer.from_pretrained(hf_model)
         tokenized_data = tokenizer(
             original_text,
             max_length=max_seq_length,
@@ -87,11 +87,11 @@ def test_hf_emb_example(spark: SparkSession, check_df_schema):
     input_df = spark.createDataFrame(data, schema=columns)
 
     # Configuration for Hugging Face tokenizer transformation
-    bert_model = "bert-base-uncased"
+    hf_model = "bert-base-uncased"
     max_seq_length = 8
 
     # Initialize and apply the distributed Hugging Face tokenization transformation
-    hf_emb = DistHFTransformation(["occupation"], "embedding_hf", bert_model, max_seq_length)
+    hf_emb = DistHFTransformation(["occupation"], "embedding_hf", hf_model, max_seq_length)
     output_df = hf_emb.apply(input_df)
 
     check_df_schema(output_df)
@@ -101,9 +101,9 @@ def test_hf_emb_example(spark: SparkSession, check_df_schema):
 
     # Tokenize the original text data for validation
     original_text = [row[1] for row in data]
-    tokenizer = AutoTokenizer.from_pretrained(bert_model)
-    config = AutoConfig.from_pretrained(bert_model)
-    lm_model = AutoModel.from_pretrained(bert_model, config)
+    tokenizer = AutoTokenizer.from_pretrained(hf_model)
+    config = AutoConfig.from_pretrained(hf_model)
+    lm_model = AutoModel.from_pretrained(hf_model, config)
     lm_model.eval()
     lm_model = lm_model.to("cpu")
 
