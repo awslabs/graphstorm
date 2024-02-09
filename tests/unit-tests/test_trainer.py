@@ -18,6 +18,7 @@ from pathlib import Path
 import os
 import yaml
 import tempfile
+import dgl
 from argparse import Namespace
 import torch as th
 
@@ -110,6 +111,9 @@ def test_trainer_setup_evaluator():
     assert evaluator.task_tracker != trainer.task_tracker
     assert evaluator.task_tracker.log_report_frequency == 100
     assert trainer.task_tracker.log_report_frequency != 100
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
 
 
 if __name__ == '__main__':
