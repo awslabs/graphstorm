@@ -64,11 +64,10 @@ class GSInferrer():
         frequency.
         """
         if evaluator.task_tracker is None:
-            if self.task_tracker is not None:
-                task_tracker = GSSageMakerTaskTracker(evaluator.eval_frequency)
-                evaluator.setup_task_tracker(task_tracker)
-            else:
-                evaluator.setup_task_tracker(self.task_tracker)
+            if self.task_tracker is None:
+                self.setup_task_tracker(GSSageMakerTaskTracker(evaluator.eval_frequency))
+
+            evaluator.setup_task_tracker(self.task_tracker)
 
         self._evaluator = evaluator
 

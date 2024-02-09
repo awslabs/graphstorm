@@ -65,6 +65,7 @@ class GSgnnTrainer():
         self._topklist = TopKList(topk_model_to_save)    # A list to store the top k best
                                                         # perf epoch+iteration for
                                                         # saving/removing models.
+        self._task_tracker = None
 
     def setup_device(self, device):
         """ Set up the device of this trainer.
@@ -99,11 +100,10 @@ class GSgnnTrainer():
         frequency.
         """
         if evaluator.task_tracker is None:
-            if self.task_tracker is not None:
-                task_tracker = GSSageMakerTaskTracker(evaluator.eval_frequency)
-                evaluator.setup_task_tracker(task_tracker)
-            else:
-                evaluator.setup_task_tracker(self.task_tracker)
+            if self.task_tracker is None:
+                self.setup_task_tracker(GSSageMakerTaskTracker(evaluator.eval_frequency))
+
+            evaluator.setup_task_tracker(self.task_tracker)
 
         self._evaluator = evaluator
 

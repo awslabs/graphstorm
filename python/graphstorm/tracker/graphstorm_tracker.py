@@ -146,3 +146,9 @@ class GSTaskTrackerAbc():
             Total validation time
         """
         # By default do nothing
+
+    @property
+    def log_report_frequency(self):
+        """ Log output report frequency
+        """
+        return self._report_frequency
