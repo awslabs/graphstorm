@@ -16,7 +16,7 @@ limitations under the License.
 
 from typing import Mapping
 
-from graphstorm_processing.constants import HUGGINGFACE_TOKENIZE
+from graphstorm_processing.constants import HUGGINGFACE_TOKENIZE, HUGGINGFACE_EMB
 from .feature_config_base import FeatureConfig
 
 
@@ -26,9 +26,9 @@ class HFConfig(FeatureConfig):
     Supported kwargs
     ----------------
     action: str, required
-        The type of huggingface action to use. Valid values is "tokenize_hf"
-    bert_model: str, required
-        The name of the lm model.
+        The type of huggingface action to use. Valid values are ["tokenize_hf", "embedding_hf"].
+    hf_model: str, required
+        The name of the huggingface lm model.
     max_seq_length: int, required
         The maximal length of the tokenization results.
     """
@@ -36,7 +36,7 @@ class HFConfig(FeatureConfig):
     def __init__(self, config: Mapping):
         super().__init__(config)
         self.action = self._transformation_kwargs.get("action")
-        self.bert_model = self._transformation_kwargs.get("bert_model")
+        self.hf_model = self._transformation_kwargs.get("hf_model")
         self.max_seq_length = self._transformation_kwargs.get("max_seq_length")
 
         self._sanity_check()
@@ -44,11 +44,12 @@ class HFConfig(FeatureConfig):
     def _sanity_check(self) -> None:
         super()._sanity_check()
         assert self.action in [
-            HUGGINGFACE_TOKENIZE
-        ], f"huggingface action needs to be {HUGGINGFACE_TOKENIZE}"
+            HUGGINGFACE_TOKENIZE,
+            HUGGINGFACE_EMB,
+        ], f"huggingface action needs to be one of {HUGGINGFACE_TOKENIZE, HUGGINGFACE_EMB}"
         assert isinstance(
-            self.bert_model, str
-        ), f"Expect bert_model to be a string, but got {self.bert_model}"
+            self.hf_model, str
+        ), f"Expect hf_model to be a string, but got {self.hf_model}"
         assert (
             isinstance(self.max_seq_length, int) and self.max_seq_length > 0
         ), f"Expect max_seq_length {self.max_seq_length} be an integer and larger than zero."

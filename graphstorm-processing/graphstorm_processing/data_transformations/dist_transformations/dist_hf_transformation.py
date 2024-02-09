@@ -14,19 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import logging
+import os
 from typing import Sequence
 import numpy as np
+import torch as th
 from pyspark.sql import DataFrame
-from pyspark.sql.types import ArrayType, IntegerType, StructType, StructField
+from pyspark.sql.types import ArrayType, IntegerType, FloatType, StructType, StructField
 from pyspark.sql.functions import udf
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoModel, AutoConfig
 
-from graphstorm_processing.constants import HUGGINGFACE_TOKENIZE
+from graphstorm_processing.constants import HUGGINGFACE_TOKENIZE, HUGGINGFACE_EMB
 from .base_dist_transformation import DistributedTransformation
 
 
 def apply_transform(
-    cols: Sequence[str], action: str, bert_model: str, max_seq_length: int, input_df: DataFrame
+    cols: Sequence[str], action: str, hf_model: str, max_seq_length: int, input_df: DataFrame
 ) -> DataFrame:
     """Applies a single normalizer to the imputed dataframe, individually to each of the columns
     provided in the cols argument.
@@ -36,8 +39,8 @@ def apply_transform(
     cols : Sequence[str]
         List of column names to apply normalization to.
     action : str
-        The type of normalization to use. Currently we only accept the `tokenize_hf` action.
-    bert_model : str
+        The type of normalization to use. Valid values are ["tokenize_hf", "embedding_hf"].
+    hf_model : str
         The name of huggingface model.
     max_seq_length: int
         The maximal length of the tokenization results.
@@ -47,8 +50,12 @@ def apply_transform(
 
     if action == HUGGINGFACE_TOKENIZE:
         # Initialize the tokenizer
-        tokenizer = AutoTokenizer.from_pretrained(bert_model)
-
+        tokenizer = AutoTokenizer.from_pretrained(hf_model)
+        if max_seq_length > tokenizer.model_max_length:
+            raise RuntimeError(
+                f"max_seq_length {max_seq_length} is larger "
+                f"than expected {tokenizer.model_max_length}"
+            )
         # Define the schema of your return type
         schema = StructType(
             [
@@ -89,6 +96,60 @@ def apply_transform(
             transformed_df[cols[0]].getItem("attention_mask").alias("attention_mask"),
             transformed_df[cols[0]].getItem("token_type_ids").alias("token_type_ids"),
         )
+    elif action == HUGGINGFACE_EMB:
+        # Define the schema of your return type
+        schema = ArrayType(FloatType())
+
+        if th.cuda.is_available():
+            gpu = (
+                int(os.environ["CUDA_VISIBLE_DEVICES"])
+                if "CUDA_VISIBLE_DEVICES" in os.environ
+                else 0
+            )
+            device = f"cuda:{gpu}"
+        else:
+            device = "cpu"
+        logging.warning("The device to run huggingface transformation is %s", device)
+        tokenizer = AutoTokenizer.from_pretrained(hf_model)
+        if max_seq_length > tokenizer.model_max_length:
+            raise RuntimeError(
+                f"max_seq_length {max_seq_length} is larger "
+                f"than expected {tokenizer.model_max_length}"
+            )
+        config = AutoConfig.from_pretrained(hf_model)
+        lm_model = AutoModel.from_pretrained(hf_model, config)
+        lm_model.eval()
+        lm_model = lm_model.to(device)
+
+        # Define UDF
+        @udf(returnType=schema)
+        def lm_emb(text):
+            # Check if text is a string
+            if not isinstance(text, str):
+                raise ValueError("The input of the tokenizer has to be a string.")
+
+            # Tokenize the text
+            outputs = tokenizer(
+                text,
+                max_length=max_seq_length,
+                truncation=True,
+                padding="max_length",
+                return_tensors="pt",
+            )
+            token_type_ids = outputs.get("token_type_ids")
+            if token_type_ids is None:
+                token_type_ids = torch.zeros_like(outputs["input_ids"], dtype=torch.int8)
+            with th.no_grad():
+                lm_outputs = lm_model(
+                    input_ids=outputs["input_ids"].to(device),
+                    attention_mask=outputs["attention_mask"].to(device).long(),
+                    token_type_ids=token_type_ids.to(device).long(),
+                )
+                embeddings = lm_outputs.pooler_output.cpu().squeeze().numpy()
+            return embeddings.tolist()
+
+        # Apply the UDF to the DataFrame
+        transformed_df = input_df.select(lm_emb(input_df[cols[0]]).alias(cols[0]))
     else:
         raise ValueError(f"The input action needs to be {HUGGINGFACE_TOKENIZE}")
 
@@ -103,26 +164,26 @@ class DistHFTransformation(DistributedTransformation):
     cols : Sequence[str]
         List of column names to apply normalization to.
     action : str
-        The type of huggingface action to use. Valid values is "tokenize"
-    bert_model: str, required
+        The type of huggingface action to use. Valid values are ["tokenize_hf", "embedding_hf"].
+    hf_model: str, required
         The name of the lm model.
     max_seq_length: int, required
         The maximal length of the tokenization results.
     """
 
     def __init__(
-        self, cols: Sequence[str], action: str, bert_model: str, max_seq_length: int
+        self, cols: Sequence[str], action: str, hf_model: str, max_seq_length: int
     ) -> None:
         super().__init__(cols)
         self.cols = cols
         assert len(self.cols) == 1, "Huggingface transformation only supports single column"
         self.action = action
-        self.bert_model = bert_model
+        self.hf_model = hf_model
         self.max_seq_length = max_seq_length
 
     def apply(self, input_df: DataFrame) -> DataFrame:
         transformed_df = apply_transform(
-            self.cols, self.action, self.bert_model, self.max_seq_length, input_df
+            self.cols, self.action, self.hf_model, self.max_seq_length, input_df
         )
 
         return transformed_df
