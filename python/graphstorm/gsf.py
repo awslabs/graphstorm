@@ -437,7 +437,6 @@ def create_builtin_lp_model(g, config, train_task):
     """
     model = GSgnnLinkPredictionModel(config.alpha_l2norm,
                                      config.lp_embed_normalizer)
-    config.handle_homogeneous_config(g.ntypes, g.etypes)
     set_encoder(model, g, config, train_task)
     num_train_etype = len(config.train_etype) \
         if config.train_etype is not None \
