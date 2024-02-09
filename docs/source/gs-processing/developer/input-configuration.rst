@@ -452,14 +452,21 @@ arguments.
    -  Transforms a text feature column to tokens or embeddings with different Hugging Face models, enabling nuanced understanding and processing of natural language data.
    -  ``kwargs``:
 
-      - ``action`` (String, required): The action to perform on the text data. Currently we only support text tokenization through HuggingFace models, so the only accepted value here is "tokenize_hf".
+      - ``action`` (String, required): Currently we support embedding creation using HuggingFace models, where the input text is transformed to a vector representation,
+        or tokenization of text the using using HuggingFace tokenizers, where the output is a tokenized version of the text to be used downstream as input to a Huggingface model during training.
+
         - ``tokenize_hf``: It tokenizes text strings with a HuggingFace tokenizer with a predefined tokenizer hosted on huggingface.co. The tokenizer_hf can use any HuggingFace LM models available in the huggingface repo.
                             Check more information on: `huggingface autotokenizer <https://huggingface.co/docs/transformers/main/en/model_doc/auto#transformers.AutoTokenizer>`_
                             The expected input can any length of text strings, and the expected output will include ``input_ids`` for token IDs on the input text,
                             ``attention_mask`` for a mask to avoid performing attention on padding token indices, and ``token_type_ids`` for segmenting two sentences in models.
                             The output here is compatible for graphstorm language model training and inference pipelines.
-      - ``bert_model`` (String, required): It should be the identifier of a pre-trained model available in the Hugging Face Model Hub.
-      - ``max_seq_length`` (Integer, required): It specifies the maximum number of tokens of the input.
+
+        - ``embedding_hf``: It encodes text strings with a HuggingFace model hosted on huggingface.co. The value can be any HuggingFace language model available in the
+                        `Huggingface model repository <https://huggingface.co/docs/transformers/main/en/main_classes/model>`_, e.g. `bert-base-uncased`.
+                        The expected input can any length of text strings, and the expected output will be the embeddings for the text strings.
+      - ``hf_model`` (String, required): It should be the identifier of a pre-trained model available in the Hugging Face Model Hub.
+        Check the model list on `Huggingface model repository <https://huggingface.co/models>`_.
+      - ``max_seq_length`` (Integer, required): It specifies the maximum number of tokens of the input. Use a length greater than the dataset's longest sentence; if not, choose 128.
 
 --------------
 

@@ -18,6 +18,7 @@
 
 import time
 import logging
+import numpy as np
 import torch as th
 from torch import nn
 import torch.nn.functional as F
@@ -26,8 +27,17 @@ from dgl.distributed import DistEmbedding, node_split
 
 from .gs_layer import GSLayer
 from ..dataloading.dataset import prepare_batch_input
-from ..utils import get_rank, barrier, is_distributed, get_backend, create_dist_tensor
+from ..utils import (
+    get_rank,
+    barrier,
+    is_distributed,
+    get_backend,
+    create_dist_tensor,
+)
 from .ngnn_mlp import NGNNMLP
+from ..wholegraph import WholeGraphDistTensor
+from ..wholegraph import is_wholegraph_init
+
 
 def init_emb(shape, dtype):
     """Create a tensor with the given shape and date type.
@@ -50,7 +60,8 @@ def init_emb(shape, dtype):
     nn.init.uniform_(arr, -1.0, 1.0)
     return arr
 
-class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
+
+class GSNodeInputLayer(GSLayer):  # pylint: disable=abstract-method
     """The input layer for all nodes in a heterogeneous graph.
 
     Parameters
@@ -140,6 +151,7 @@ class GSNodeInputLayer(GSLayer): # pylint: disable=abstract-method
         """
         return None
 
+
 class GSNodeEncoderInputLayer(GSNodeInputLayer):
     """The input encoder layer for all nodes in a heterogeneous graph.
 
@@ -172,10 +184,12 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         The activation function for the feedforward neural networks.
     cache_embed : bool
         Whether or not to cache the embeddings.
+    use_wholegraph_sparse_emb : bool
+        Whether or not to use WholeGraph to host embeddings for sparse updates.
 
     Examples:
     ----------
-    
+
     .. code:: python
 
         from graphstorm import get_node_feat_size
@@ -201,11 +215,13 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  force_no_embeddings=None,
                  num_ffn_layers_in_input=0,
                  ffn_activation=F.relu,
-                 cache_embed=False):
+                 cache_embed=False,
+                 use_wholegraph_sparse_emb=False):
         super(GSNodeEncoderInputLayer, self).__init__(g)
         self.embed_size = embed_size
         self.dropout = nn.Dropout(dropout)
         self.use_node_embeddings = use_node_embeddings
+        self._use_wholegraph_sparse_emb = use_wholegraph_sparse_emb
         self.feat_size = feat_size
         if force_no_embeddings is None:
             force_no_embeddings = []
@@ -213,57 +229,102 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         self.activation = activation
         self.cache_embed = cache_embed
 
-        if dgl.__version__ <= "1.1.2" and is_distributed() and get_backend() == "nccl":
+        if self._use_wholegraph_sparse_emb:
+            assert get_backend() == "nccl",  \
+                "WholeGraph sparse embedding is only supported on NCCL backend."
+            assert is_wholegraph_init(), \
+                "WholeGraph is not initialized yet."
+        if (
+            dgl.__version__ <= "1.1.2"
+            and is_distributed()
+            and get_backend() == "nccl"
+            and not self._use_wholegraph_sparse_emb
+        ):
             if self.use_node_embeddings:
-                raise NotImplementedError('NCCL backend is not supported for utilizing ' +
-                    'node embeddings. Please use DGL version >=1.1.2 or gloo backend.')
+                raise NotImplementedError(
+                    "NCCL backend is not supported for utilizing "
+                    + "node embeddings. Please use DGL version >=1.1.2 or gloo backend."
+                )
             for ntype in g.ntypes:
                 if not feat_size[ntype]:
-                    raise NotImplementedError('NCCL backend is not supported for utilizing ' +
-                        'learnable embeddings on featureless nodes. Please use DGL version ' + 
-                        '>=1.1.2 or gloo backend.')
+                    raise NotImplementedError(
+                        "NCCL backend is not supported for utilizing "
+                        + "learnable embeddings on featureless nodes. Please use DGL version "
+                        + ">=1.1.2 or gloo backend."
+                    )
 
         # create weight embeddings for each node for each relation
         self.proj_matrix = nn.ParameterDict()
         self.input_projs = nn.ParameterDict()
-        embed_name = 'embed'
+        embed_name = "embed"
         for ntype in g.ntypes:
             feat_dim = 0
             if feat_size[ntype] > 0:
                 feat_dim += feat_size[ntype]
             if feat_dim > 0:
                 if get_rank() == 0:
-                    logging.debug('Node %s has %d features.', ntype, feat_dim)
+                    logging.debug("Node %s has %d features.", ntype, feat_dim)
                 input_projs = nn.Parameter(th.Tensor(feat_dim, self.embed_size))
-                nn.init.xavier_uniform_(input_projs, gain=nn.init.calculate_gain('relu'))
+                nn.init.xavier_uniform_(input_projs, gain=nn.init.calculate_gain("relu"))
                 self.input_projs[ntype] = input_projs
                 if self.use_node_embeddings:
-                    if get_rank() == 0:
-                        logging.debug('Use additional sparse embeddings on node %s', ntype)
-                    part_policy = g.get_node_partition_policy(ntype)
-                    self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
-                                                               self.embed_size,
-                                                               embed_name + '_' + ntype,
-                                                               init_emb,
-                                                               part_policy)
+                    if self._use_wholegraph_sparse_emb:
+                        if get_rank() == 0:
+                            logging.debug(
+                                "Use WholeGraph to host additional sparse embeddings on node %s",
+                                ntype,
+                            )
+                        self._sparse_embeds[ntype] = WholeGraphDistTensor(
+                            (g.number_of_nodes(ntype), self.embed_size),
+                            th.float32,  # to consistent with distDGL's DistEmbedding dtype
+                            embed_name + "_" + ntype,
+                            use_wg_optimizer=True,  # no memory allocation before opt available
+                        )
+                    else:
+                        if get_rank() == 0:
+                            logging.debug("Use additional sparse embeddings on node %s", ntype)
+                        part_policy = g.get_node_partition_policy(ntype)
+                        self._sparse_embeds[ntype] = DistEmbedding(
+                            g.number_of_nodes(ntype),
+                            self.embed_size,
+                            embed_name + "_" + ntype,
+                            init_emb,
+                            part_policy,
+                        )
                     proj_matrix = nn.Parameter(th.Tensor(2 * self.embed_size, self.embed_size))
-                    nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain('relu'))
+                    nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain("relu"))
                     # nn.ParameterDict support this assignment operation if not None,
                     # so disable the pylint error
-                    self.proj_matrix[ntype] = proj_matrix   # pylint: disable=unsupported-assignment-operation
+                    self.proj_matrix[ntype] = proj_matrix
+
             elif ntype not in force_no_embeddings:
-                part_policy = g.get_node_partition_policy(ntype)
-                if get_rank() == 0:
-                    logging.debug('Use sparse embeddings on node %s:%d',
-                                  ntype, g.number_of_nodes(ntype))
+                if self._use_wholegraph_sparse_emb:
+                    if get_rank() == 0:
+                        logging.debug(
+                            "Use WholeGraph to host sparse embeddings on node %s:%d",
+                            ntype,
+                            g.number_of_nodes(ntype),
+                        )
+                    self._sparse_embeds[ntype] = WholeGraphDistTensor(
+                        (g.number_of_nodes(ntype), self.embed_size),
+                        th.float32,  # to consistent with distDGL's DistEmbedding dtype
+                        embed_name + "_" + ntype,
+                        use_wg_optimizer=True,  # no memory allocation before opt available
+                    )
+                else:
+                    if get_rank() == 0:
+                        logging.debug('Use sparse embeddings on node %s:%d',
+                                    ntype, g.number_of_nodes(ntype))
+                    part_policy = g.get_node_partition_policy(ntype)
+                    self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
+                                    self.embed_size,
+                                    embed_name + '_' + ntype,
+                                    init_emb,
+                                    part_policy=part_policy)
+
                 proj_matrix = nn.Parameter(th.Tensor(self.embed_size, self.embed_size))
                 nn.init.xavier_uniform_(proj_matrix, gain=nn.init.calculate_gain('relu'))
                 self.proj_matrix[ntype] = proj_matrix
-                self._sparse_embeds[ntype] = DistEmbedding(g.number_of_nodes(ntype),
-                                self.embed_size,
-                                embed_name + '_' + ntype,
-                                init_emb,
-                                part_policy=part_policy)
 
         # ngnn
         self.num_ffn_layers_in_input = num_ffn_layers_in_input
@@ -290,29 +351,46 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
         embs = {}
         for ntype in input_nodes:
+            if isinstance(input_nodes[ntype], np.ndarray):
+                # WholeGraphSparseEmbedding requires the input nodes (indexing tensor)
+                # to be a th.Tensor
+                input_nodes[ntype] = th.from_numpy(input_nodes[ntype])
             emb = None
             if ntype in input_feats:
                 assert ntype in self.input_projs, \
-                        f"We need a projection for node type {ntype}"
+                    f"We need a projection for node type {ntype}"
                 # If the input data is not float, we need to convert it t float first.
                 emb = input_feats[ntype].float() @ self.input_projs[ntype]
                 if self.use_node_embeddings:
                     assert ntype in self.sparse_embeds, \
-                            f"We need sparse embedding for node type {ntype}"
-                    node_emb = self.sparse_embeds[ntype](input_nodes[ntype], emb.device)
-                    concat_emb=th.cat((emb, node_emb),dim=1)
+                        f"We need sparse embedding for node type {ntype}"
+                    # emb.device: target device to put the gathered results
+                    if self._use_wholegraph_sparse_emb:
+                        node_emb = self.sparse_embeds[ntype].module(input_nodes[ntype].cuda())
+                        node_emb = node_emb.to(emb.device, non_blocking=True)
+                    else:
+                        node_emb = self.sparse_embeds[ntype](input_nodes[ntype], emb.device)
+                    concat_emb = th.cat((emb, node_emb), dim=1)
                     emb = concat_emb @ self.proj_matrix[ntype]
-            elif ntype in self.sparse_embeds: # nodes do not have input features
+            elif ntype in self.sparse_embeds:  # nodes do not have input features
                 # If the number of the input node of a node type is 0,
                 # return an empty tensor with shape (0, emb_size)
                 device = self.proj_matrix[ntype].device
-                if len(input_nodes[ntype]) == 0:
-                    dtype = self.sparse_embeds[ntype].weight.dtype
-                    embs[ntype] = th.zeros((0, self.sparse_embeds[ntype].embedding_dim),
-                                           device=device, dtype=dtype)
-                    continue
-                emb = self.sparse_embeds[ntype](input_nodes[ntype], device)
+                # If DistEmbedding supports 0-size input, we can remove this if statement.
+                if isinstance(self.sparse_embeds[ntype], WholeGraphDistTensor):
+                    # Need all procs pass the following due to nccl all2lallv in wholegraph
+                    emb = self.sparse_embeds[ntype].module(input_nodes[ntype].cuda())
+                    emb = emb.to(device, non_blocking=True)
+                else:
+                    if len(input_nodes[ntype]) == 0:
+                        dtype = self.sparse_embeds[ntype].weight.dtype
+                        embs[ntype] = th.zeros((0, self.sparse_embeds[ntype].embedding_dim),
+                                        device=device, dtype=dtype)
+                        continue
+                    emb = self.sparse_embeds[ntype](input_nodes[ntype], device)
+
                 emb = emb @ self.proj_matrix[ntype]
+
             if emb is not None:
                 if self.activation is not None:
                     emb = self.activation(emb)
@@ -364,6 +442,13 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         """
         return self.embed_size
 
+    @property
+    def use_wholegraph_sparse_emb(self):
+        """ Whether or not to use WholeGraph to host embeddings for sparse updates.
+        """
+        return self._use_wholegraph_sparse_emb
+
+
 def _gen_emb(g, feat_field, embed_layer, ntype):
     """ Test if the embed layer can generate embeddings on the node type.
 
@@ -393,6 +478,7 @@ def _gen_emb(g, feat_field, embed_layer, ntype):
     feat = prepare_batch_input(g, {ntype: input_nodes}, dev=dev, feat_field=feat_field)
     emb = embed_layer(feat, {ntype: input_nodes})
     return ntype in emb
+
 
 def compute_node_input_embeddings(g, batch_size, embed_layer,
                                   task_tracker=None, feat_field='feat',
@@ -442,10 +528,10 @@ def compute_node_input_embeddings(g, batch_size, embed_layer,
             # a lot of memory.
             if 'input_emb' not in g.nodes[ntype].data:
                 g.nodes[ntype].data['input_emb'] = create_dist_tensor(
-                        (g.number_of_nodes(ntype), embed_size),
-                        dtype=th.float32, name=f'{ntype}_input_emb',
-                        part_policy=g.get_node_partition_policy(ntype),
-                        persistent=True)
+                    (g.number_of_nodes(ntype), embed_size),
+                    dtype=th.float32, name=f'{ntype}_input_emb',
+                    part_policy=g.get_node_partition_policy(ntype),
+                    persistent=True)
             else:
                 assert g.nodes[ntype].data['input_emb'].shape[1] == embed_size
             input_emb = g.nodes[ntype].data['input_emb']

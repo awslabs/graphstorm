@@ -16,6 +16,7 @@
     Inference framework.
 """
 import torch as th
+from ..tracker import GSSageMakerTaskTracker
 
 class GSInferrer():
     """ Generic GSgnn Inferrer.
@@ -52,15 +53,22 @@ class GSInferrer():
         task_tracker : GSTaskTracker
             The task tracker
         """
-        if self.evaluator is not None:
-            self.evaluator.setup_task_tracker(task_tracker)
         self._task_tracker = task_tracker
 
     def setup_evaluator(self, evaluator):
-        """ Set the evaluator
+        """ Setup the evaluator
+
+        If the evaluator has its own task tracker, just setup the evaluator. But if the evaluator
+        has no task tracker, will use this Trainer's task tracker to setup the evaluator. When there
+        is no self task tracker, will create a new one by using the given evaluator's evaluation
+        frequency.
         """
-        if self.task_tracker is not None:
+        if evaluator.task_tracker is None:
+            if self.task_tracker is None:
+                self.setup_task_tracker(GSSageMakerTaskTracker(evaluator.eval_frequency))
+
             evaluator.setup_task_tracker(self.task_tracker)
+
         self._evaluator = evaluator
 
     def log_print_metrics(self, val_score, test_score, dur_eval, total_steps, train_score=None):

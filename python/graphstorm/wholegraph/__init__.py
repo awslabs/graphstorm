@@ -15,5 +15,18 @@
 
     Initial to import WholeGraph-related function and classes
 """
-from .wholegraph import (init_wholegraph, convert_feat_to_wholegraph, load_wg_feat)
-from .utils import is_wholegraph_embedding
+from .wholegraph import (
+    init_wholegraph,
+    is_wholegraph_init,
+    convert_feat_to_wholegraph,
+    load_wg_feat
+)
+
+from .wholegraph import create_wholememory_optimizer
+from .wholegraph import WholeGraphDistTensor
+
+from .utils import (
+    is_wholegraph_embedding,
+    is_wholegraph_embedding_module,
+    is_wholegraph_optimizer
+)

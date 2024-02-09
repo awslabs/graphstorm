@@ -533,7 +533,8 @@ def set_encoder(model, g, config, train_task):
                                           activation=config.input_activate,
                                           use_node_embeddings=config.use_node_embeddings,
                                           force_no_embeddings=config.construct_feat_ntype,
-                                          num_ffn_layers_in_input=config.num_ffn_layers_in_input)
+                                          num_ffn_layers_in_input=config.num_ffn_layers_in_input,
+                                          use_wholegraph_sparse_emb=config.use_wholegraph_sparse_emb)
     # The number of feature dimensions can change. For example, the feature dimensions
     # of BERT embeddings are determined when the input encoder is created.
     feat_size = encoder.in_dims
