@@ -13,7 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
+import logging
+import os
 from typing import Sequence
 import numpy as np
 import torch as th
@@ -49,7 +50,9 @@ def apply_transform(
     if action == HUGGINGFACE_TOKENIZE:
         # Initialize the tokenizer
         tokenizer = AutoTokenizer.from_pretrained(hf_model)
-
+        if max_seq_length > tokenizer.model_max_length:
+            raise RuntimeError(f"max_seq_length {max_seq_length} is larger "
+                               f"than expected {tokenizer.model_max_length}")
         # Define the schema of your return type
         schema = StructType(
             [
@@ -94,11 +97,21 @@ def apply_transform(
         # Define the schema of your return type
         schema = ArrayType(FloatType())
 
+        if th.cuda.is_available():
+            gpu = int(os.environ['CUDA_VISIBLE_DEVICES']) \
+                    if 'CUDA_VISIBLE_DEVICES' in os.environ else 0
+            device = f"cuda:{gpu}"
+        else:
+            device = "cpu"
+        logging.warning(f"The device to run huggingface transformation is {device}")
         tokenizer = AutoTokenizer.from_pretrained(hf_model)
+        if max_seq_length > tokenizer.model_max_length:
+            raise RuntimeError(f"max_seq_length {max_seq_length} is larger "
+                               f"than expected {tokenizer.model_max_length}")
         config = AutoConfig.from_pretrained(hf_model)
         lm_model = AutoModel.from_pretrained(hf_model, config)
         lm_model.eval()
-        lm_model = lm_model.to("cpu")
+        lm_model = lm_model.to(device)
 
         # Define UDF
         @udf(returnType=schema)
@@ -120,9 +133,9 @@ def apply_transform(
                 token_type_ids = torch.zeros_like(outputs["input_ids"], dtype=torch.int8)
             with th.no_grad():
                 lm_outputs = lm_model(
-                    input_ids=outputs["input_ids"].to("cpu"),
-                    attention_mask=outputs["attention_mask"].to("cpu").long(),
-                    token_type_ids=token_type_ids.to("cpu").long(),
+                    input_ids=outputs["input_ids"].to(device),
+                    attention_mask=outputs["attention_mask"].to(device).long(),
+                    token_type_ids=token_type_ids.to(device).long(),
                 )
                 embeddings = lm_outputs.pooler_output.cpu().squeeze().numpy()
             return embeddings.tolist()
