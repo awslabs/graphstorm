@@ -466,7 +466,7 @@ arguments.
                         The expected input can any length of text strings, and the expected output will be the embeddings for the text strings.
       - ``hf_model`` (String, required): It should be the identifier of a pre-trained model available in the Hugging Face Model Hub.
         Check the model list on `Huggingface model repository <https://huggingface.co/models>`_.
-      - ``max_seq_length`` (Integer, required): It specifies the maximum number of tokens of the input.
+      - ``max_seq_length`` (Integer, required): It specifies the maximum number of tokens of the input. Use a length greater than the dataset's longest sentence; if not, choose 128.
 
 --------------
 
