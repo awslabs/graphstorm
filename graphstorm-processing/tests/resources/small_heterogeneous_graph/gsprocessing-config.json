@@ -62,7 +62,7 @@
                             "name": "huggingface",
                             "kwargs": {
                                 "action": "tokenize_hf",
-                                "bert_model": "bert-base-uncased",
+                                "hf_model": "bert-base-uncased",
                                 "max_seq_length":16
                             }
                         }

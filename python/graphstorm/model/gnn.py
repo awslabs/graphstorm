@@ -34,7 +34,13 @@ from .embed import compute_node_input_embeddings
 from .embed import GSNodeInputLayer
 from .gs_layer import GSLayerBase
 from .gnn_encoder_base import dist_minibatch_inference
-from ..utils import get_rank, get_world_size, barrier
+from ..utils import (
+    get_rank,
+    get_world_size,
+    barrier
+)
+from ..wholegraph import is_wholegraph_optimizer, create_wholememory_optimizer, WholeGraphDistTensor
+
 from ..dataloading.dataset import prepare_batch_input
 
 from ..config import (GRAPHSTORM_MODEL_ALL_LAYERS,
@@ -95,14 +101,22 @@ class GSOptimizer():
         """
         all_opts = self.dense_opts + self.lm_opts + self.sparse_opts
         for optimizer in all_opts:
-            optimizer.zero_grad()
+            # WholeGraph optimizer does not have/need to zero_grad
+            # the backward pass does not accum. grad
+            if not is_wholegraph_optimizer(optimizer):
+                optimizer.zero_grad()
 
     def step(self):
         """ Moving the optimizer
         """
         all_opts = self.dense_opts + self.lm_opts + self.sparse_opts
         for optimizer in all_opts:
-            optimizer.step()
+            if is_wholegraph_optimizer(optimizer):
+                #TODO(@chang-l): request wholegraph to update
+                # their optimizer to align with pytorch conventions
+                optimizer.step(optimizer.lr)
+            else:
+                optimizer.step()
 
     def load_opt_state(self, path, device=None):
         """ Load the optimizer states
@@ -541,6 +555,13 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             params += self.node_input_encoder.get_sparse_params()
         return params
 
+    def use_wholegraph_sparse_emb(self):
+        """ Whether or not to use WholeGraph to host embeddings for sparse optimizer updates.
+        """
+        if self.node_input_encoder is not None:
+            return self.node_input_encoder.use_wholegraph_sparse_emb
+        return False
+
     def set_node_input_encoder(self, encoder):
         """set the input encoder for nodes.
 
@@ -691,7 +712,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         if self._edge_input_encoder is not None:
             self._edge_input_encoder.unfreeze()
 
-    #pylint: disable=signature-differs
+    # pylint: disable=signature-differs
     def restore_dense_model(self, restore_model_path,
                             model_layer_to_load=None):
         # TODO(zhengda) we need to load edge_input_encoder.
@@ -711,7 +732,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         # restore sparse embeddings for node_input_encoder.
         load_sparse_embeds(restore_model_path, self.node_input_encoder)
 
-    def init_optimizer(self, lr, sparse_optimizer_lr, weight_decay, lm_lr=None):
+    def init_optimizer(self, lr, sparse_optimizer_lr=None, weight_decay=0, lm_lr=None):
         """initialize the model's optimizers
 
         Parameters
@@ -720,16 +741,34 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             The learning rate for dense parameters
             The learning rate for general dense parameters
         sparse_optimizer_lr : float
-            The learning rate for sparse parameters
+            The learning rate for sparse parameters. Default is None and will use the lr value.
         weight_decay : float
-            The weight decay for the optimizer.
+            The weight decay for the optimizer. Default is 0.0.
         lm_lr: float
             Language model fine-tuning learning rate for
             langauge model dense parameters.
         """
         sparse_params = self.get_sparse_params()
+        # check and set the sparse optimizer learning rate
+        if sparse_optimizer_lr is None:
+            sparse_optimizer_lr = lr
         if len(sparse_params) > 0:
-            emb_optimizer = dgl.distributed.optim.SparseAdam(sparse_params, lr=sparse_optimizer_lr)
+            if self.use_wholegraph_sparse_emb():
+                # To use wholegraph sparse optimizer, optimizer needs to be created
+                # before sparse embeddings. Within attach_wg_optimizer, we materialize
+                # the WG distributed tensor and then attach the optimizer.
+                emb_optimizer = create_wholememory_optimizer("adam", {})
+                for param in sparse_params:
+                    assert isinstance(param, WholeGraphDistTensor) and param.use_wg_optimizer, \
+                        "Please create params (WholeGraph tensor) with use_wg_optimizer=True."
+                    param.attach_wg_optimizer(emb_optimizer)
+                # TODO(@chang-l): Wrap the wholegraph optimizer in a class to
+                # take an extra input argument: lr
+                emb_optimizer.lr = sparse_optimizer_lr
+            else:
+                emb_optimizer = dgl.distributed.optim.SparseAdam(
+                    sparse_params, lr=sparse_optimizer_lr
+                )
             sparse_opts = [emb_optimizer]
         else:
             sparse_opts = []

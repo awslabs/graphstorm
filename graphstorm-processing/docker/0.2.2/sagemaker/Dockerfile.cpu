@@ -27,6 +27,7 @@ RUN pipenv install \
     setuptools \
     transformers==4.37.1 \
     spacy==3.6.0 \
+    torch==2.1.0 \
     wheel \
     && rm -rf /root/.cache
 # Do a pipenv sync so our base libs are independent from our editable code, making them cacheable
@@ -52,6 +53,7 @@ RUN if [ -z "${MODEL}" ]; then \
 else \
         echo "Installing model cache for $MODEL" && \
         python3 -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('${MODEL}')"; \
+        python3 -c "from transformers import AutoModel; AutoModel.from_pretrained('${MODEL}')"; \
 fi
 
 # Starts framework
