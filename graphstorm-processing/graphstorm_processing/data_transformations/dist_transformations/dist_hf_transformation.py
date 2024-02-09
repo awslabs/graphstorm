@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import logging
 import os
 from typing import Sequence
@@ -51,8 +52,10 @@ def apply_transform(
         # Initialize the tokenizer
         tokenizer = AutoTokenizer.from_pretrained(hf_model)
         if max_seq_length > tokenizer.model_max_length:
-            raise RuntimeError(f"max_seq_length {max_seq_length} is larger "
-                               f"than expected {tokenizer.model_max_length}")
+            raise RuntimeError(
+                f"max_seq_length {max_seq_length} is larger "
+                f"than expected {tokenizer.model_max_length}"
+            )
         # Define the schema of your return type
         schema = StructType(
             [
@@ -98,16 +101,21 @@ def apply_transform(
         schema = ArrayType(FloatType())
 
         if th.cuda.is_available():
-            gpu = int(os.environ['CUDA_VISIBLE_DEVICES']) \
-                    if 'CUDA_VISIBLE_DEVICES' in os.environ else 0
+            gpu = (
+                int(os.environ["CUDA_VISIBLE_DEVICES"])
+                if "CUDA_VISIBLE_DEVICES" in os.environ
+                else 0
+            )
             device = f"cuda:{gpu}"
         else:
             device = "cpu"
         logging.warning("The device to run huggingface transformation is %s", device)
         tokenizer = AutoTokenizer.from_pretrained(hf_model)
         if max_seq_length > tokenizer.model_max_length:
-            raise RuntimeError(f"max_seq_length {max_seq_length} is larger "
-                               f"than expected {tokenizer.model_max_length}")
+            raise RuntimeError(
+                f"max_seq_length {max_seq_length} is larger "
+                f"than expected {tokenizer.model_max_length}"
+            )
         config = AutoConfig.from_pretrained(hf_model)
         lm_model = AutoModel.from_pretrained(hf_model, config)
         lm_model.eval()
