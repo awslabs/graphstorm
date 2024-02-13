@@ -216,7 +216,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                  num_ffn_layers_in_input=0,
                  ffn_activation=F.relu,
                  cache_embed=False,
-                 use_wholegraph_sparse_emb=False):
+                 use_wholegraph_sparse_emb=False,
+                 train_task=True):
         super(GSNodeEncoderInputLayer, self).__init__(g)
         self.embed_size = embed_size
         self.dropout = nn.Dropout(dropout)
@@ -278,7 +279,9 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                             (g.number_of_nodes(ntype), self.embed_size),
                             th.float32,  # to consistent with distDGL's DistEmbedding dtype
                             embed_name + "_" + ntype,
-                            use_wg_optimizer=True,  # no memory allocation before opt available
+                            # if train_task=True, no memory allocation, instead, the wg memory
+                            # allocated when init_optimizer via attach_wg_optimizer()
+                            use_wg_optimizer=train_task,
                         )
                     else:
                         if get_rank() == 0:
@@ -309,7 +312,9 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                         (g.number_of_nodes(ntype), self.embed_size),
                         th.float32,  # to consistent with distDGL's DistEmbedding dtype
                         embed_name + "_" + ntype,
-                        use_wg_optimizer=True,  # no memory allocation before opt available
+                        # if train_task=True, no memory allocation, instead, the wg memory
+                        # allocated when init_optimizer via attach_wg_optimizer()
+                        use_wg_optimizer=train_task,
                     )
                 else:
                     if get_rank() == 0:
