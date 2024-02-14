@@ -197,8 +197,8 @@ Users can use the following command to launch a GraphStorm Link Prediction infer
 
 .. note::
 
-    *Different from the training command's argument, in the inference command, the value of the ``--model-artifact-s3`` argument needs to be path to a saved model. By default, it is stored under an S3 path with specific training epoch or epoch plus iteration number, e.g., ``s3://models/epoch-0-iter-999``, where the trained model artifacts were saved.
-    *If ``--raw-node-mappings-s3`` is not provided, it will be default to the ``raw_id_mappings`` folder under ``{graph-data-s3}``.
+    * Different from the training command's argument, in the inference command, the value of the ``--model-artifact-s3`` argument needs to be path to a saved model. By default, it is stored under an S3 path with specific training epoch or epoch plus iteration number, e.g., ``s3://models/epoch-0-iter-999``, where the trained model artifacts were saved.
+    * If ``--raw-node-mappings-s3`` is not provided, it will be default to the ``{graph-data-s3}/raw_id_mappings``. The expected graph mappings files should be ``node_mapping.pt``, ``edge_mapping.pt`` and parquet files under ``raw_id_mappings``. They record the mapping between original node and edge ids in the raw data files and the ids of nodes and edges in the Graph Node ID space.
 
 As the outcomes of the inference command, the generated node embeddings will be uploaded to ``s3://<PATH_TO_SAVE_GENERATED_NODE_EMBEDDING>/``. For node classification/regression or edge classification/regression tasks, users can use ``--output-prediction-s3`` to specify the saving locations of prediction results.
 
