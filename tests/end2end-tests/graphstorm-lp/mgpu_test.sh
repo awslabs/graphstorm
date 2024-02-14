@@ -27,7 +27,7 @@ error_and_exit () {
 df /dev/shm -h
 
 echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, exclude_training_targets: true, save model"
-python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false  --use-node-embeddings true --eval-batch-size 1024 --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie  --save-model-path /data/gsgnn_lp_ml_dot/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_dot/emb/ --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --backend nccl
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false  --use-node-embeddings true --eval-batch-size 1024 --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie  --save-model-path /data/gsgnn_lp_ml_dot/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_dot/emb/ --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True
 
 error_and_exit $?
 
@@ -415,7 +415,7 @@ error_and_exit $?
 rm -fr /data/gsgnn_lp_ml_distmult_all_etype/*
 
 echo "**************dataset: Movielens, Bert only, inference: full-graph, negative_sampler: joint, decoder: Dot, save model"
-python3 -m graphstorm.run.gs_link_prediction --lm-encoder-only --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_lp_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lm_lp.yaml --save-model-path /data/gsgnn_lp_ml_lm_dot_all_etype/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_lm_dot_all_etype/emb/ --lp-decoder-type dot_product --logging-file /tmp/train_log.txt --preserve-input True
+python3 -m graphstorm.run.gs_link_prediction --lm-encoder-only --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_lp_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lm_lp.yaml --save-model-path /data/gsgnn_lp_ml_lm_dot_all_etype/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_lm_dot_all_etype/emb/ --lp-decoder-type dot_product --logging-file /tmp/train_log.txt --preserve-input True --backend nccl
 
 error_and_exit $?
 
@@ -432,7 +432,7 @@ echo "The best model is saved in epoch $best_epoch_dot"
 rm /tmp/train_log.txt
 
 echo "**************dataset: Movielens, Bert only, do inference on saved model, decoder: Dot, eval_etype: None"
-python3 -m graphstorm.run.gs_link_prediction --lm-encoder-only --inference --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_lp_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lm_lp_infer.yaml   --save-embed-path /data/gsgnn_lp_ml_lm_dot_all_etype/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_lm_dot_all_etype/epoch-$best_epoch_dot/ --lp-decoder-type dot_product --no-validation True --preserve-input True
+python3 -m graphstorm.run.gs_link_prediction --lm-encoder-only --inference --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_lp_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lm_lp_infer.yaml   --save-embed-path /data/gsgnn_lp_ml_lm_dot_all_etype/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_lm_dot_all_etype/epoch-$best_epoch_dot/ --lp-decoder-type dot_product --no-validation True --preserve-input True  --backend nccl
 
 error_and_exit $?
 
