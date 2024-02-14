@@ -134,7 +134,7 @@ Node files are optional (but recommended)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 GSProcessing does not require node files to be provided for
-every node type. Any node types  that appears as source or destination in one of the edges,
+every node type. Any node types that appears as source or destination in one of the edges,
 its unique node identifiers will be determined by the edge files.
 
 However, this is an expensive operation, so if you know your node ID

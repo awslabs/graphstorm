@@ -33,7 +33,7 @@ You can get the other parameters of the script using
                         `graphstorm-processing-${ENVIRONMENT}:${VERSION}-${ARCH}-test`.
 * `-t, --target`        Target of the image. Use `test` if you intend to use the image for testing
                         new library functionality, otherwise `prod`. Default: `prod`
-* `-m, --hf-model`      When provided with a valid Huggingface model name, will include it in the image.
+* `-m, --hf-model`      When provided with a valid Huggingface model name, will include it in the image. Default is "", no model included.
 
 ## Pushing the image
 
