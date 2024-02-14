@@ -38,6 +38,7 @@ from .utils import (
     save_wholegraph_embedding
 )
 from ..utils import get_rank, get_world_size, create_dist_tensor
+from ..wholegraph import WholeGraphDistTensor
 from ..distributed import flush_data
 
 class LMModels(nn.Module):
@@ -397,12 +398,18 @@ class LMCache:
             hidden_size = lm_model.feat_size
             if ntype not in self._lm_emb_cache:
                 embed_name = embed_ndata_names[ntype]
-                self._lm_emb_cache[ntype] = create_dist_tensor(
+                if self.use_wg:
+                    self._lm_emb_cache[ntype] = WholeGraphDistTensor(
                         (self._g.number_of_nodes(ntype), hidden_size),
-                        name=embed_name,
                         dtype=th.float16 if use_fp16 else th.float32,
-                        part_policy=self._g.get_node_partition_policy(ntype),
-                        persistent=True)
+                        name=embed_name)
+                else:
+                    self._lm_emb_cache[ntype] = create_dist_tensor(
+                            (self._g.number_of_nodes(ntype), hidden_size),
+                            name=embed_name,
+                            dtype=th.float16 if use_fp16 else th.float32,
+                            part_policy=self._g.get_node_partition_policy(ntype),
+                            persistent=True)
             emb = self._lm_emb_cache[ntype]
             # LM computations are very computationally expensive. It's better to force
             # an even split to ensure all processes have roughly the same number of nodes
@@ -423,10 +430,11 @@ class LMCache:
                             fname: feat[input_nodes] for fname, feat in lm_node_feat.items()
                     }
                     text_embs = lm_model(input_ntypes, input_lm_feats)
+                    device = 'cuda' if self.use_wg else 'cpu'
                     if use_fp16:
-                        emb[input_nodes] = text_embs[ntype].half().to('cpu')
+                        emb[input_nodes] = text_embs[ntype].half().to(device)
                     else:
-                        emb[input_nodes] = text_embs[ntype].to('cpu')
+                        emb[input_nodes] = text_embs[ntype].to(device)
                     if i % 1000 == 0 and get_rank() == 0:
                         logging.debug("Compute LM embeddings on %d batches out of %d",
                                       i, len(node_list))
