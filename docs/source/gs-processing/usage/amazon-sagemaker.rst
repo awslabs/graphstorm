@@ -84,10 +84,11 @@ You can see that we provided a parameter named
 ``--num-output-files`` to ``run_distributed_processing.py``. This is an
 important parameter, as it provides a hint to set the parallelism for Spark.
 
-It can safely be skipped (or set to `-1`) to let Spark decide the proper value based on the cluster's
-instance type and count. If setting it yourself a good value to use is
+We recommend setting this to `-1` to let Spark decide the proper value based on the cluster's
+vCPU count. If setting it yourself a good value to use is
 ``num_instances * num_cores_per_instance * 2``, which will ensure good
-utilization of the cluster resources.
+utilization of the cluster resources. For EMR serverless, equivalently set
+to ``num_executors * num_cores_per_executor * 2``
 
 
 Examine the output
