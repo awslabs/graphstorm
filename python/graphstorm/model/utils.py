@@ -565,6 +565,97 @@ def save_pytorch_embedding(emb_path, embedding, rank, world_size):
     embedding = embedding[start:end]
     th.save(embedding, os.path.join(emb_path, f'embed-{pad_file_index(rank)}.pt'))
 
+def save_wholegraph_embedding(emb_path, embedding, rank, world_size):
+    """ Save Dist embedding tensor in binary format for WholeGraph.
+
+        Parameters
+        ----------
+        emb_path : str
+            The path of the save embedding files.
+        embedding : WholeGraphDistTensor
+            The WholeGraph dist tensor to save.
+        rank : int
+            Rank of the current process in a distributed environment.
+        world_size : int
+            World size in a distributed env.
+    """
+    os.makedirs(emb_path, exist_ok=True)
+    # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
+    if rank == 0:
+        # mode 767 means rwx-rw-rwx:
+        #     - owner of the folder can read, write, and execute;
+        #     - owner' group can read, write;
+        #     - others can read, write, and execute.
+        os.chmod(emb_path, 0o767)
+
+    # make sure the emb_path permission is changed before other process start to save
+    barrier()
+
+    assert rank < world_size, \
+        f"Process rank {rank} must be smaller than the distributed cluster size {world_size}"
+
+    assert isinstance(embedding, WholeGraphDistTensor), \
+        "Input embedding must be a WholeGraphDistTensor."
+
+    emb_num = embedding.num_embeddings
+    emb_dim = embedding.embedding_dim
+    emb_dtype = embedding.dtype
+    emb_name = embedding.name
+    emb_info = {
+        "format": "binary",
+        "emb_num": str(emb_num),
+        "emb_dim": str(emb_dim),
+        "emb_dtype": str(emb_dtype),
+        "emb_name": emb_name,
+        "world_size": world_size
+    }
+
+    embedding.save_to_file(emb_path, file_prefix="wg-embed")
+    if rank == 0:
+        with open(os.path.join(emb_path, "emb_info.json"), 'w', encoding='utf-8') as f:
+            json.dump(emb_info, f, indent=4)
+
+def load_wholegraph_embedding(emb_path, name):
+    """ Load embedding tensor in binary format for WholeGraph.
+
+    Parameters
+    ----------
+    emb_path : str
+        The path of the save embedding files.
+    part_policy : dgl.distributed.PartitionPolicy
+        The partitioning policy
+    name : str
+        The name of the created distributed tensor.
+
+    Returns
+    -------
+    WholeGraphDistTensor : the loaded embeddings in WholeGraph.
+    """
+    with open(os.path.join(emb_path, "emb_info.json"), 'r', encoding='utf-8') as f:
+        emb_info = json.load(f)
+
+    emb_num = int(emb_info['emb_num'])
+    emb_dim = int(emb_info['emb_dim'])
+    world_size_in_save = int(emb_info['world_size'])
+    supported_dtypes = {
+        'torch.float32': th.float32,
+        'torch.float': th.float,
+        'torch.int64': th.int64,
+        'torch.int32': th.int32,
+    }
+    emb_dtype = supported_dtypes[emb_info['emb_dtype'])]
+    dist_emb = WholeGraphDistTensor((emb_num, emb_dim), emb_dtype, name=name)
+    files = os.listdir(emb_path)
+    filtered_files = [file for file in files if file.startswith("wg-embed")]
+    num_files = len(filtered_files)
+    assert num_files > 0, "No WholeGraph embedding files found."
+    assert world_size_in_save == num_files, \
+        f"World_size when save the embedding  {world_size_in_save} \
+        doesn't match the number of files {num_files}."
+    dist_emb.load_from_file(emb_path, "wg-embed", num_files)
+    barrier()
+    return dist_emb
+
 def load_pytorch_embedding(emb_path, part_policy, name):
     """ Load embedding tensor in Pytorch format.
 
