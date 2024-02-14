@@ -105,15 +105,19 @@ the following to build the SageMaker image:
 
 The above will use the SageMaker-specific Dockerfile of the latest available GSProcessing version,
 build an image and tag it as ``graphstorm-processing-sagemaker:${VERSION}-x86_64`` where
-``${VERSION}`` will take be the latest available GSProcessing version (e.g. ``0.2.1``).
+``${VERSION}`` will take be the latest available GSProcessing version.
 
 The script also supports other arguments to customize the image name,
 tag and other aspects of the build. See ``bash docker/build_gsprocessing_image.sh --help``
 for more information.
 
-If you plan to use text transformations that utilize Huggingface model, you can opt to include the Huggingface model cache directly in your Docker image.
-The build_gsprocessing_image.sh script provides an option to embed the huggingface bert model cache within the Docker image, using the `--hf-model` argument.
-You can do this for both the SageMaker docker image and EMR Serverless docker image. It is a good way to save cost as it avoids downloading models after launching the job.
+Packaging Huggingface models into the image
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+If you plan to use text transformations (see :ref:`gsp-supported-transformations-ref`)
+that utilize Huggingface models, you can opt to include the Huggingface model cache directly in your Docker image.
+The ``build_gsprocessing_image.sh`` script provides an option to embed the Huggingface model cache within the Docker image, using the ``--hf-model`` argument.
+You can do this for both the SageMaker and EMR Serverless images. It is a good way to save cost as it avoids downloading models after launching the job.
 If you'd rather download the Huggingface models at runtime, for EMR Serverless images, setting up a VPC and NAT route is a necessary.
 You can find detailed instructions on creating a VPC for EMR Serverless in the AWS documentation: `Create a VPC on emr-serverless
 <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/vpc-access.html>`_.
@@ -127,8 +131,12 @@ You can find detailed instructions on creating a VPC for EMR Serverless in the A
 Support for arm64 architecture
 ------------------------------
 
-For EMR Serverless images, it is possible to build images that support ``arm64`` instances,
-which can lead to improved runtime and cost compared to ``x86_64``. You can build an ``arm64``
+For EMR Serverless images, it is possible to build images for the ``arm64`` architecture,
+which can lead to improved runtime and cost compared to ``x86_64``. For more details
+on EMR Serverless architecture options see the
+`official docs <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/architecture.html>`_.
+
+You can build an ``arm64``
 image natively by installing Docker and following the above process on an ARM instance such
 as ``M6G`` or ``M7G``. See the `AWS documentation <https://aws.amazon.com/ec2/graviton/>`_
 for instances powered by the Graviton processor.
@@ -166,7 +174,7 @@ To verify your Docker installation is ready for multi-platform builds you can ru
     default *   docker
     default     default         running v0.8+unknown linux/amd64, linux/arm64
 
-To build an EMR Serverless GSProcessing image for the ``arm64`` architecture you can run:
+Finally, to build an EMR Serverless GSProcessing image for the ``arm64`` architecture you can run:
 
 .. code-block:: bash
 

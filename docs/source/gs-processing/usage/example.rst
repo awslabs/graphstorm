@@ -205,7 +205,7 @@ and can be used downstream to create a partitioned graph.
     $ ls
 
     edges/  launch_arguments.json  metadata.json  node_data/
-    node_id_mappings/  perf_counters.json  updated_row_counts_metadata.json
+    raw_id_mappings/  perf_counters.json  updated_row_counts_metadata.json
 
 We have a few JSON files and the data directories containing
 the graph structure, features, and labels. In more detail:
@@ -215,10 +215,10 @@ the graph structure, features, and labels. In more detail:
   job finishes.
 * ``updated_row_counts_metadata.json``:
   This file is meant to be used as the input configuration for the
-  distributed partitioning pipeline. ``repartition_files.py`` produces
+  distributed partitioning pipeline. ``gs-repartition`` produces
   this file using the original ``metadata.json`` file as input.
 * ``metadata.json``: Created by ``gs-processing`` and used as input
-  for ``repartition_files.py``, can be removed once that script has run.
+  for ``gs-repartition``, can be removed the ``gs-repartition`` step.
 * ``perf_counters.json``: A JSON file that contains runtime measurements
   for the various components of GSProcessing. Can be used to profile the
   application and discover bottlenecks.
@@ -231,11 +231,14 @@ The directories created contain:
 * ``node_data``: Contains the features for the nodes, one sub-directory
   per node type. Each file will contain one column named after the original
   feature name that contains the value of the feature (could be a scalar or a vector).
-* ``node_id_mappings``: Contains mappings from the original node ids to the
+* ``raw_id_mappings``: Contains mappings from the original node ids to the
   ones created by the processing job. This mapping would allow you to trace
   back predictions to the original nodes/edges. The files will have two columns,
-  ``node_str_id`` that contains the original string ID of the node, and ``node_int_id``
-  that contains the numerical id that the string id was mapped to.
+  ``orig`` that contains the original string ID of the node, and ``new``
+  that contains the numerical id that the string id was mapped to. This
+  can be used downstream to retrieve the original node ids after training.
+  You will use the S3 path these mappings are created under in your call to
+  `GraphStorm inference <https://graphstorm.readthedocs.io/en/latest/scale/sagemaker.html#launch-inference>`_.
 
 If the graph had included edge features they would appear
 in an ``edge_data`` directory.

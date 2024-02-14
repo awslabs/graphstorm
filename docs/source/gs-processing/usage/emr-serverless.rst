@@ -23,7 +23,7 @@ and use it to create the required roles and policies for EMR-S.
 To do so follow the EMR-S `Setting up guide
 <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/setting-up.html>`_.
 
-Create an job runtime role for EMR Serverless
+Create a job runtime role for EMR Serverless
 ---------------------------------------------
 
 To be able to run EMR-S jobs we will need access to a role that
@@ -269,7 +269,7 @@ in :ref:`gsp-examining-output`.
 
                                PRE edges/
                                PRE node_data/
-                               PRE node_id_mappings/
+                               PRE raw_id_mappings/
     2023-08-05 00:47:36        804 launch_arguments.json
     2023-08-05 00:47:36      11914 metadata.json
     2023-08-05 00:47:37        545 perf_counters.json

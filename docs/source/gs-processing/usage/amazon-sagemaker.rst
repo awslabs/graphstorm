@@ -104,7 +104,7 @@ in :ref:`gsp-examining-output`.
 
                                PRE edges/
                                PRE node_data/
-                               PRE node_id_mappings/
+                               PRE raw_id_mappings/
     2023-08-05 00:47:36        804 launch_arguments.json
     2023-08-05 00:47:36      11914 metadata.json
     2023-08-05 00:47:37        545 perf_counters.json
