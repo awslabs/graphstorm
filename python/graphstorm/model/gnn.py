@@ -760,7 +760,10 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         if len(sparse_params) > 0:
             if self.use_wholegraph_sparse_emb():
                 if sparse_params[0].optimizer is not None:
-                    # Wholegraph sparse optimizer is created before (e.g., in restore_model)
+                    # When sparse embeddings are loaded from files in load_wg_sparse_emb(),
+                    # wg_optimizer is required to be created before loading sparse embeddings.
+                    # This workaround bypasses the wg_optimizer creation here for the scenarios
+                    # where the sparse embedding loading happens before init_optimizer().
                     for param in sparse_params:
                         assert isinstance(param, WholeGraphDistTensor) and param.use_wg_optimizer, \
                             "Please create params (WholeGraph tensor) with use_wg_optimizer=True."
