@@ -179,7 +179,7 @@ To build an EMR Serverless GSProcessing image for the ``arm64`` architecture you
     (more than 20 minutes to build the GSProcessing ``arm64`` image).
     After the first build, follow up builds that only change the GSProcessing code
     will be less than a minute thanks to Docker's caching.
-    To speed up the build process you can build on an ARM instances,
+    To speed up the build process you can build on an ARM-native instance,
     look into using ``buildx`` with multiple native nodes, or use cross-compilation.
     See `the official Docker documentation <https://docs.docker.com/build/building/multi-platform/>`_
     for details.
@@ -199,7 +199,7 @@ and push the image tagged with the latest version of GSProcessing.
 The script supports 4 optional arguments:
 
 1. Image name/repository. (``-i/--image``) Default: ``graphstorm-processing-<environment>``
-2. Image tag. (``-v/--version``) Default: ``<latest_library_version>`` e.g. ``0.2.1``.
+2. Image tag. (``-v/--version``) Default: ``<latest_library_version>`` e.g. ``0.2.2``.
 3. ECR region. (``-r/--region``) Default: ``us-west-2``.
 4. AWS Account ID. (``-a/--account``) Default: Uses the account ID detected by the ``aws-cli``.
 
@@ -207,14 +207,14 @@ Example:
 
 .. code-block:: bash
 
-    bash docker/push_gsprocessing_image.sh -e sagemaker -i "graphstorm-processing" -v "0.2.1" -r "us-west-2" -a "1234567890"
+    bash docker/push_gsprocessing_image.sh -e sagemaker -r "us-west-2" -a "1234567890"
 
 To push an EMR Serverless ``arm64`` image you'd similarly run:
 
 .. code-block:: bash
 
     bash docker/push_gsprocessing_image.sh -e emr-serverless --architecture arm64 \
-        -i "graphstorm-processing" -v "0.2.1" -r "us-west-2" -a "1234567890"
+        -r "us-west-2" -a "1234567890"
 
 .. _gsp-upload-data-ref:
 

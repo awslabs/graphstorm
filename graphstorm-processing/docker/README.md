@@ -7,7 +7,7 @@ To build the image you will use `build_gsprocessing_image.sh` and to
 push it to ECR you will use `push_gsprocessing_image.sh`.
 
 For a tutorial on building and pushing the images to ECR to use
-with Amazon SageMaker see docs/source/usage/distributed-processing-setup.rst.
+with Amazon SageMaker see https://graphstorm.readthedocs.io/en/latest/gs-processing/usage/distributed-processing-setup.html.
 
 ## Building the image
 
@@ -33,6 +33,7 @@ You can get the other parameters of the script using
                         `graphstorm-processing-${ENVIRONMENT}:${VERSION}-${ARCH}-test`.
 * `-t, --target`        Target of the image. Use `test` if you intend to use the image for testing
                         new library functionality, otherwise `prod`. Default: `prod`
+* `-m, --hf-model`      When provided with a valid Huggingface model name, will include it in the image.
 
 ## Pushing the image
 
