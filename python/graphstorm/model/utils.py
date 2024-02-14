@@ -638,12 +638,14 @@ def load_wholegraph_embedding(emb_path, name):
     emb_dim = int(emb_info['emb_dim'])
     world_size_in_save = int(emb_info['world_size'])
     supported_dtypes = {
+        'torch.half': th.half,
+        'torch.float16': th.float16,
         'torch.float32': th.float32,
         'torch.float': th.float,
         'torch.int64': th.int64,
-        'torch.int32': th.int32,
+        'torch.int32': th.int32
     }
-    emb_dtype = supported_dtypes[emb_info['emb_dtype'])]
+    emb_dtype = supported_dtypes[emb_info['emb_dtype']]
     dist_emb = WholeGraphDistTensor((emb_num, emb_dim), emb_dtype, name=name)
     files = os.listdir(emb_path)
     filtered_files = [file for file in files if file.startswith("wg-embed")]

@@ -37,6 +37,7 @@ from graphstorm.model.lm_embed import LMModels, LMCache
 from graphstorm.model.utils import (LazyDistTensor,
                                     load_pytorch_embedding,
                                     save_pytorch_embedding)
+from graphstorm.wholegraph import init_wholegraph
 
 from data_utils import generate_dummy_dist_graph
 from data_utils import create_lm_graph, create_lm_graph2, load_lm_graph
@@ -251,6 +252,9 @@ def test_lm_cache():
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
+
+
+
 
 def run_dist_cache(part_config, tmpdirname):
     gs.initialize(ip_config=None, backend="gloo")
@@ -543,6 +547,130 @@ def test_pytroch_emb_load_save(num_embs):
         load_tensor()
         assert_almost_equal(emb.numpy(), out_emb.numpy())
 
+
+def _wg_finalize():
+    import pylibwholegraph.torch as wgth
+    wgth.finalize()
+    # below patch fix (manually reset wg comm) will not be needed
+    # once PR: https://github.com/rapidsai/wholegraph/pull/111 is merged.
+    import pylibwholegraph.torch.comm as wgth_comm
+    wgth_comm.global_communicators = {}
+    wgth_comm.local_node_communicator = None
+    wgth_comm.local_device_communicator = None
+
+
+def _wg_initialize(proc_id=0, nprocs=1):
+    from dgl.distributed import role
+    # Need to fix the wholegraph initializer
+    # Options.local_rank = get_rank() % role.get_num_trainers() reqiures role to be initialized
+    role.init_role("default")
+    backend = "nccl"
+    assert th.cuda.is_available(), "NCCL backend requires CUDA device(s) to be available."
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "29501"
+    os.environ["RANK"] = str(proc_id)
+    os.environ["WORLD_SIZE"] = str(nprocs)
+    os.environ["LOCAL_RANK"] = str(proc_id)
+    os.environ["LOCAL_WORLD_SIZE"] = str(nprocs)
+
+    th.cuda.set_device(proc_id) # necessary for this example
+    th.distributed.init_process_group(backend=backend, world_size=nprocs, rank=proc_id)
+    init_wholegraph()
+
+
+def test_wg_lm_cache():
+    # initialize the torch distributed environment
+    pytest.importorskip("pylibwholegraph.torch")
+    if not th.cuda.is_available():
+        pytest.skip("Skip test_wholegraph_lm_cache due to no GPU devices.")
+
+    _wg_initialize()
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, feat_size, input_ids, attention_mask, g, _ = \
+            create_lm_graph(tmpdirname)
+
+        lm_models = LMModels(g, lm_config, 0, 10)
+        lm_cache = LMCache(g, lm_models, tmpdirname, use_wg=True)
+        ret = lm_cache.update_cache(100)
+        assert ret == True      # This is the first time we need to compute the BERT embeddings.
+        assert len(lm_cache) == 1
+        assert len(lm_cache.ntypes) == 1
+        assert lm_cache.ntypes[0] == 'n0'
+
+        lm_models._lm_models["n0"].lm_model.init_weights()
+        # Create the second cache. It should loads the embeddings from
+        # the first cache.
+        lm_cache2 = LMCache(g, lm_models, tmpdirname, use_wg=True)
+        ret = lm_cache2.update_cache(100)
+        assert ret == False     # It loads LM embeddings directly.
+        assert len(lm_cache2) == 1
+        emb1 = lm_cache["n0"]
+        emb2 = lm_cache2["n0"]
+        emb1, _ = emb1.get_local_tensor()
+        emb2, _ = emb2.get_local_tensor()
+        assert np.all(emb1.numpy() == emb2.numpy())
+        ret = lm_cache2.update_cache(100)
+        assert ret == False     # It uses the loaded embeddings.
+        lm_cache2.clear_cache()
+        ret = lm_cache2.update_cache(100)
+        assert ret == False     # Load LM embeddings from the disk.
+
+        # If the model is changed, the model name should also be changed.
+        model_name = lm_cache._get_model_name("n0")
+        for param in lm_models.get_lm_model("n0").parameters():
+            param.data += 1
+        model_name1 = lm_cache._get_model_name("n0")
+        assert model_name != model_name1
+    _wg_finalize()
+    th.distributed.destroy_process_group() if th.distributed.is_initialized() else None
+
+
+def run_wg_dist_cache(proc_id, nprocs, part_config, tmpdirname):
+    gs.initialize(ip_config=None, backend="nccl")
+    _wg_initialize(proc_id, nprocs)
+    g, lm_config = load_lm_graph(part_config)
+    lm_models = LMModels(g, lm_config, 0, 10)
+    lm_cache = LMCache(g, lm_models, tmpdirname, use_wg=True)
+    lm_cache.update_cache(100)
+    assert len(lm_cache) == 1
+    assert len(lm_cache.ntypes) == 1
+    assert lm_cache.ntypes[0] == 'n0'
+
+    # Create the second cache. It should loads the embeddings from
+    # the first cache.
+    lm_cache2 = LMCache(g, lm_models, tmpdirname, use_wg=True)
+    lm_cache2.update_cache(100)
+    assert len(lm_cache2) == 1
+    emb1 = lm_cache["n0"]
+    emb2 = lm_cache2["n0"]
+    emb1, _ = emb1.get_local_tensor()
+    emb2, _ = emb2.get_local_tensor()
+    assert np.all(emb1.numpy() == emb2.numpy())
+    _wg_finalize()
+    th.distributed.destroy_process_group() if th.distributed.is_initialized() else None
+
+
+@pytest.mark.parametrize("world_size", [1, 3, 4])
+def test_mp_wg_lm_cache(world_size):
+    pytest.importorskip("pylibwholegraph.torch")
+    if world_size > th.cuda.device_count():
+        pytest.skip("Skip test_wg_sparse_embed_save_load due to insufficient GPU devices.")
+    os.environ["OMP_NUM_THREADS"] = str(mp.cpu_count() // 2 // world_size)
+    ctx = mp.get_context("spawn")
+    ptrainer_list = []
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        lm_config, feat_size, input_ids, attention_mask, _, part_config = \
+            create_lm_graph(tmpdirname)
+        for rank in range(world_size):
+            p = ctx.Process(target=run_wg_dist_cache, args=(rank, world_size, part_config, tmpdirname))
+            p.start()
+            ptrainer_list.append(p)
+
+        for p in ptrainer_list:
+            p.join()
+            assert p.exitcode == 0
+
+
 if __name__ == '__main__':
     test_pytroch_emb_load_save(11)
     test_lm_cache()
@@ -564,3 +692,6 @@ if __name__ == '__main__':
     test_lm_embed_warmup('cpu')
     test_lm_embed_warmup('cuda:0')
     test_lm_infer()
+
+    test_wg_lm_cache()
+    test_mp_wg_lm_cache(1)
