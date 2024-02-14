@@ -253,9 +253,6 @@ def test_lm_cache():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
-
-
-
 def run_dist_cache(part_config, tmpdirname):
     gs.initialize(ip_config=None, backend="gloo")
     g, lm_config = load_lm_graph(part_config)
