@@ -142,6 +142,7 @@ def main(config_args):
         best_model_path = trainer.get_best_model_path()
         # TODO(zhengda) the model path has to be in a shared filesystem.
         model.restore_model(best_model_path)
+        model = model.to(device)
         # Preparing input layer for training or inference.
         # The input layer can pre-compute node features in the preparing step if needed.
         # For example pre-compute all BERT embeddings
