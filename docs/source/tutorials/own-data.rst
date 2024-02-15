@@ -211,25 +211,28 @@ The above command reads in the JSON file, and matchs its contents with the node 
 
     /tmp/acm_gs
     acm.json
-    author_id_remap.parquet
-    edge_label_stats.json
     edge_label_stats.json
     edge_mapping.pt
     node_label_stats.json
     node_mapping.pt
-    paper_id_remap.parquet
     |- part0
         edge_feat.dgl
         graph.dgl
         node_feat.dgl
-    subject_id_remap.parquet
+    |- raw_id_mappings
+        |- author
+            part-00000.parquet
+        |- paper
+            part-00000.parquet
+        |- subject
+            part-00000.parquet
 
 Because the above command specifies the ``--num-parts`` to be ``1``, there is only one partition created, which is saved in the ``part0`` folder. These files become the inputs of GraphStorm's launch scripts.
 
 .. note::
 
     - Because the parquet format has some limitations, such as only supporting 2 billion elements in a column, etc, we suggest users to use HDF5 format for very large datasets.
-    - The two mapping files, ``node_mapping.pt`` and ``edge_mapping.pt``, are used to record the mapping between the ogriginal node and edge ids in the raw data files and the ids of nodes and edges in the Graph Node ID space. They are important for mapping the training and inference outputs back to the Raw Node ID space in the original input data. Therefore, **DO NOT** move or delete them.
+    - The mapping files, ``node_mapping.pt``, ``edge_mapping.pt`` and the files under ``raw_id_mappings``, are used to record the mapping between the original node and edge ids in the raw data files and the ids of nodes and edges in the Graph Node ID space. They are important for mapping the training and inference outputs back to the Raw Node ID space in the original input data. Therefore, **DO NOT** move or delete them.
 
 .. _option-2:
 
