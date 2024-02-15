@@ -26,91 +26,6 @@ error_and_exit () {
 
 df /dev/shm -h
 
-# wholegraph sparse embedding
-echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, exclude_training_targets: true, save model"
-python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false  --use-node-embeddings true --eval-batch-size 1024 --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie  --save-model-path /data/gsgnn_lp_ml_wg_dot/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_wg_dot/emb/ --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --use-wholegraph-sparse-emb True  --backend nccl
-
-# check prints
-cnt=$(grep "save_embed_path: /data/gsgnn_lp_ml_wg_dot/emb/" /tmp/train_log.txt | wc -l)
-if test $cnt -lt 1
-then
-    echo "We use SageMaker task tracker, we should have save_embed_path"
-    exit -1
-fi
-
-cnt=$(grep "save_model_path: /data/gsgnn_lp_ml_wg_dot/" /tmp/train_log.txt | wc -l)
-if test $cnt -lt 1
-then
-    echo "We use SageMaker task tracker, we should have save_model_path"
-    exit -1
-fi
-
-bst_cnt=$(grep "Best Test mrr" /tmp/train_log.txt | wc -l)
-if test $bst_cnt -lt 1
-then
-    echo "We use SageMaker task tracker, we should have Best Test mrr"
-    exit -1
-fi
-
-cnt=$(grep "Best Iteration" /tmp/train_log.txt | wc -l)
-if test $cnt -lt 1
-then
-    echo "We use SageMaker task tracker, we should have Best Iteration"
-    exit -1
-fi
-
-cnt=$(ls -l /data/gsgnn_lp_ml_wg_dot/ | grep epoch | wc -l)
-if test $cnt != 1
-then
-    echo "The number of save models $cnt is not equal to the specified topk 1"
-    exit -1
-fi
-
-best_epoch_dot=$(grep "successfully save the model to" /tmp/train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
-echo "The best model is saved in epoch $best_epoch_dot"
-
-cnt=$(ls /data/gsgnn_lp_ml_wg_dot/epoch-$best_epoch_dot/user/ | wc -l)
-if test $cnt != 4
-then
-    echo "The number of sparse emb files $cnt is not equal to the number of gpus 4"
-    exit -1
-fi
-
-cnt=$(ls /data/gsgnn_lp_ml_wg_dot/epoch-$best_epoch_dot/movie/ | wc -l)
-if test $cnt != 4
-then
-    echo "The number of sparse emb files $cnt is not equal to the number of gpus 4"
-    exit -1
-fi
-
-echo "**************dataset: Movielens, do inference on saved model, decoder: dot"
-python3 -m graphstorm.run.gs_link_prediction --inference --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp_infer.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --use-node-embeddings true --eval-batch-size 1024 --save-embed-path /data/gsgnn_lp_ml_wg_dot/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_wg_dot/epoch-$best_epoch_dot/ --logging-file /tmp/log.txt --preserve-input True --use-wholegraph-sparse-emb True  --backend nccl
-
-error_and_exit $?
-
-bst_cnt=$(grep "Best Test mrr" /tmp/log.txt | wc -l)
-if test $bst_cnt -lt 1
-then
-    echo "We use SageMaker task tracker, we should have Best Test mrr"
-    exit -1
-fi
-
-rm /tmp/log.txt
-
-python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_lp_ml_wg_dot/emb/ --infer-embout /data/gsgnn_lp_ml_wg_dot/infer-emb/ --link-prediction
-
-error_and_exit $?
-
-cnt=$(ls /data/gsgnn_lp_ml_wg_dot/infer-emb/ | grep rel_emb.pt | wc -l)
-if test $cnt -ne 0
-then
-    echo "Dot product inference does not output edge embedding"
-    exit -1
-fi
-rm -fr /data/gsgnn_lp_ml_wg_dot/infer-emb/
-rm /tmp/log.txt
-rm /tmp/train_log.txt
-
 echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, exclude_training_targets: true, save model"
 python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false  --use-node-embeddings true --eval-batch-size 1024 --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie  --save-model-path /data/gsgnn_lp_ml_dot/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_dot/emb/ --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True
 
@@ -634,4 +549,66 @@ error_and_exit $?
 
 rm -fr /data/gsgnn_lp_ml_hard_dot/*
 
+# wholegraph sparse embedding
+echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, exclude_training_targets: true, save model, wholegraph learnable emb"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false  --use-node-embeddings true --eval-batch-size 1024 --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie  --save-model-path /data/gsgnn_lp_ml_wg_dot/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_wg_dot/emb/ --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --use-wholegraph-sparse-emb True  --backend nccl
+
+error_and_exit $?
+
+# check prints
+cnt=$(grep "save_embed_path: /data/gsgnn_lp_ml_wg_dot/emb/" /tmp/train_log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have save_embed_path"
+    exit -1
+fi
+
+cnt=$(grep "save_model_path: /data/gsgnn_lp_ml_wg_dot/" /tmp/train_log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have save_model_path"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Test mrr" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Test mrr"
+    exit -1
+fi
+
+best_epoch_dot=$(grep "successfully save the model to" /tmp/train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
+echo "The best model is saved in epoch $best_epoch_dot"
+
+cnt=$(ls /data/gsgnn_lp_ml_wg_dot/epoch-$best_epoch_dot/user/ | wc -l)
+if test $cnt != 4
+then
+    echo "The number of sparse emb files $cnt is not equal to the number of gpus 4"
+    exit -1
+fi
+
+cnt=$(ls /data/gsgnn_lp_ml_wg_dot/epoch-$best_epoch_dot/movie/ | wc -l)
+if test $cnt != 4
+then
+    echo "The number of sparse emb files $cnt is not equal to the number of gpus 4"
+    exit -1
+fi
+
+echo "**************dataset: Movielens, do inference on saved model, decoder: dot, wholegraph learnable emb"
+python3 -m graphstorm.run.gs_link_prediction --inference --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp_infer.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --use-node-embeddings true --eval-batch-size 1024 --save-embed-path /data/gsgnn_lp_ml_wg_dot/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_wg_dot/epoch-$best_epoch_dot/ --logging-file /tmp/log.txt --preserve-input True --use-wholegraph-sparse-emb True  --backend nccl
+
+error_and_exit $?
+
+bst_cnt=$(grep "Best Test mrr" /tmp/log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Test mrr"
+    exit -1
+fi
+
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_lp_ml_wg_dot/emb/ --infer-embout /data/gsgnn_lp_ml_wg_dot/infer-emb/ --link-prediction
+
+error_and_exit $?
+
+rm -fr /data/gsgnn_lp_ml_wg_dot/
 rm -fr /tmp/*
