@@ -12,7 +12,7 @@ Graph Construction
 * **-\-num-processes-for-edges**: the number of processes to process edge data simulteneously. Increase this number can speed up edge data processing.
 * **-\-output-dir**: (**Required**) the path of the output data files.
 * **-\-graph-name**: (**Required**) the name assigned for the graph.
-* **-\-remap-node_id**: boolean value to decide whether to rename node IDs or not. Default is true.
+* **-\-remap-node-id**: boolean value to decide whether to rename node IDs or not. Default is true.
 * **-\-add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Default is true.
 * **-\-output-format**: the format of constructed graph, options are ``DGL``,  ``DistDGL``.  Default is ``DistDGL``. It also accepts multiple graph formats at the same time separated by an space, for example ``--output-format "DGL DistDGL"``. The output format is explained in the :ref:`Output <output-format>` section below.
 * **-\-num-parts**: the number of partitions of the constructed graph. This is only valid if the output format is ``DistDGL``.
