@@ -20,7 +20,7 @@ import pandas as pd
 import numpy as np
 from numpy.testing import assert_array_equal, assert_array_almost_equal, assert_almost_equal
 from pyspark.sql import SparkSession, DataFrame, functions as F
-from pyspark.sql.types import ArrayType, FloatType, StructField, StructType, StringType
+from pyspark.sql.types import ArrayType, FloatType, DoubleType, StructField, StructType, StringType
 from scipy.special import erfinv
 
 from graphstorm_processing.data_transformations.dist_transformations import (
@@ -314,17 +314,23 @@ def rank_gauss(feat, eps):
     return erfinv(feat)
 
 
+@pytest.mark.parametrize("out_dtype", ["float32", "float64"])
 @pytest.mark.parametrize("epsilon", [0.0, 1e-6])
-def test_rank_gauss(spark: SparkSession, check_df_schema, epsilon):
+def test_rank_gauss(spark: SparkSession, check_df_schema, epsilon, out_dtype):
     data = [(0.0,), (15.0,), (26.0,), (40.0,)]
 
     input_df = spark.createDataFrame(data, schema=["age"])
     rg_transformation = DistNumericalTransformation(
-        ["age"], imputer="none", normalizer="rank-gauss", epsilon=epsilon
+        ["age"], imputer="none", normalizer="rank-gauss", out_dtype=out_dtype, epsilon=epsilon
     )
 
     output_df = rg_transformation.apply(input_df)
     check_df_schema(output_df)
+    column_data_type = [field.dataType for field in output_df.schema.fields if field.name == "age"][0]
+    if out_dtype == "float32":
+        assert isinstance(column_data_type, FloatType), f"The column 'age' is not of type FloatType."
+    elif out_dtype == "float64":
+        assert isinstance(column_data_type, DoubleType), f"The column 'age' is not of type DoubleType."
 
     out_rows = output_df.collect()
 
