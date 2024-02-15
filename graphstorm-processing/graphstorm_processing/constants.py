@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+from pyspark.sql.types import FloatType, DoubleType
 
 ################### Categorical Limits #######################
 MAX_CATEGORIES_PER_FEATURE = 100
@@ -45,6 +46,7 @@ EXECUTOR_MEM_OVERHEAD_RATIO = 0.1
 VALID_IMPUTERS = ["none", "mean", "median", "most_frequent"]
 VALID_NORMALIZERS = ["none", "min-max", "standard", "rank-gauss"]
 VALID_OUTDTYPE = ["float32", "float64"]
+DTYPE_MAP = {"float32": FloatType(), "float64": DoubleType()}
 
 ################# Bert transformations  ################
 HUGGINGFACE_TRANFORM = "huggingface"

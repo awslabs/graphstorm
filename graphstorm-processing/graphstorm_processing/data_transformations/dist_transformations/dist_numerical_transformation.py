@@ -32,7 +32,7 @@ import pandas as pd
 # pylint: disable = no-name-in-module
 from scipy.special import erfinv
 
-from graphstorm_processing.constants import SPECIAL_CHARACTERS, VALID_IMPUTERS, VALID_NORMALIZERS
+from graphstorm_processing.constants import SPECIAL_CHARACTERS, VALID_IMPUTERS, VALID_NORMALIZERS, DTYPE_MAP
 from .base_dist_transformation import DistributedTransformation
 from ..spark_utils import rename_multiple_cols
 
@@ -119,15 +119,9 @@ def apply_norm(
     def single_vec_to_float(vec):
         return float(vec[0])
 
-    # Define a mapping from dtype strings to Spark SQL data types
-    dtype_map = {
-        "float32": FloatType(),
-        "float64": DoubleType(),
-    }
-
     # Use the map to get the corresponding data type object, or raise an error if not found
-    if out_dtype in dtype_map:
-        vec_udf = F.udf(single_vec_to_float, dtype_map[out_dtype])
+    if out_dtype in DTYPE_MAP:
+        vec_udf = F.udf(single_vec_to_float, DTYPE_MAP[out_dtype])
     else:
         raise ValueError("Unsupported feature output dtype")
 
@@ -196,7 +190,7 @@ def apply_norm(
             return pd.Series(erfinv(clipped_rank))
 
         num_rows = value_rank_df.count()
-        gauss_udf = F.pandas_udf(gauss_transform, dtype_map[out_dtype])
+        gauss_udf = F.pandas_udf(gauss_transform, DTYPE_MAP[out_dtype])
         normalized_df = value_rank_df.withColumn(column_name, gauss_udf(value_rank_col))
         scaled_df = normalized_df.orderBy(original_order_col).drop(
             value_rank_col, original_order_col
@@ -360,7 +354,7 @@ class DistMultiNumericalTransformation(DistNumericalTransformation):
                     ),  # Split along the separator
                     replace_empty_with_nan,
                 )
-                .cast(ArrayType(FloatType(), True))
+                .cast(ArrayType(DTYPE_MAP[self.out_dtype], True))
                 .alias(self.multi_column)
             )
 
@@ -422,7 +416,7 @@ class DistMultiNumericalTransformation(DistNumericalTransformation):
                 else:
                     split_array_df = input_df.select(
                         F.col(self.multi_column)
-                        .cast(ArrayType(FloatType(), True))
+                        .cast(ArrayType(DTYPE_MAP[self.out_dtype], True))
                         .alias(self.multi_column)
                     )
 
