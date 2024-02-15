@@ -19,7 +19,7 @@ import uuid
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
-from pyspark.sql.types import ArrayType, FloatType
+from pyspark.sql.types import ArrayType, FloatType, DoubleType
 from pyspark.ml.feature import MinMaxScaler, Imputer, VectorAssembler, ElementwiseProduct
 from pyspark.ml.linalg import DenseVector
 from pyspark.ml.stat import Summarizer
@@ -80,7 +80,7 @@ def apply_imputation(cols: Sequence[str], shared_imputation: str, input_df: Data
 
 
 def apply_norm(
-    cols: Sequence[str], shared_norm: str, imputed_df: DataFrame, epsilon: float = 1e-6
+    cols: Sequence[str], shared_norm: str, imputed_df: DataFrame, out_dtype: str = "float32", epsilon: float = 1e-6
 ) -> DataFrame:
     """Applies a single normalizer to the imputed dataframe, individually to each of the columns
     provided in the cols argument.
@@ -95,6 +95,8 @@ def apply_norm(
     imputed_df : DataFrame
         The input DataFrame to apply normalization to. It should not contain
         missing values.
+    out_dtype: str
+        The output feature dtype.
     epsilon: float
         Epsilon for normalization used to avoid INF float during computation
         on "rank-gauss".
@@ -108,13 +110,26 @@ def apply_norm(
     ------
     RuntimeError
         If missing values exist in the data when the "standard" normalizer is used.
+
+    ValueError
+        If unsupported feature output dtype is provided.
     """
     other_cols = list(set(imputed_df.columns).difference(cols))
 
     def single_vec_to_float(vec):
         return float(vec[0])
 
-    vec_udf = F.udf(single_vec_to_float, FloatType())
+    # Define a mapping from dtype strings to Spark SQL data types
+    dtype_map = {
+        "float32": FloatType(),
+        "float64": DoubleType(),
+    }
+
+    # Use the map to get the corresponding data type object, or raise an error if not found
+    if out_dtype in dtype_map:
+        vec_udf = F.udf(single_vec_to_float, dtype_map[out_dtype])
+    else:
+        raise ValueError("Unsupported feature output dtype")
 
     assert shared_norm in VALID_NORMALIZERS, (
         f"Unsupported normalization requested: {shared_norm}, the supported "
@@ -181,7 +196,7 @@ def apply_norm(
             return pd.Series(erfinv(clipped_rank))
 
         num_rows = value_rank_df.count()
-        gauss_udf = F.pandas_udf(gauss_transform, FloatType())
+        gauss_udf = F.pandas_udf(gauss_transform, dtype_map[out_dtype])
         normalized_df = value_rank_df.withColumn(column_name, gauss_udf(value_rank_col))
         scaled_df = normalized_df.orderBy(original_order_col).drop(
             value_rank_col, original_order_col
@@ -204,17 +219,20 @@ class DistNumericalTransformation(DistributedTransformation):
     imputer : str
         The type of missing value imputation to apply to the column.
         Valid values are "mean", "median" and "most_frequent".
+    out_dtype: str
+        Output feature dtype
     epsilon: float
         Epsilon for normalization used to avoid INF float during computation.
     """
 
     def __init__(
-        self, cols: Sequence[str], normalizer: str, imputer: str, epsilon: float = 1e-6
+        self, cols: Sequence[str], normalizer: str, imputer: str, out_dtype: str = "float32", epsilon: float = 1e-6
     ) -> None:
         super().__init__(cols)
         self.cols = cols
         self.shared_norm = normalizer
         self.epsilon = epsilon
+        self.out_dtype = out_dtype
         # Spark uses 'mode' for the most frequent element
         self.shared_imputation = "mode" if imputer == "most_frequent" else imputer
 
@@ -224,7 +242,7 @@ class DistNumericalTransformation(DistributedTransformation):
         )
 
         imputed_df = apply_imputation(self.cols, self.shared_imputation, input_df)
-        scaled_df = apply_norm(self.cols, self.shared_norm, imputed_df, self.epsilon)
+        scaled_df = apply_norm(self.cols, self.shared_norm, imputed_df, self.out_dtype, self.epsilon)
 
         # TODO: Figure out why the transformation is producing Double values, and switch to float
         return scaled_df

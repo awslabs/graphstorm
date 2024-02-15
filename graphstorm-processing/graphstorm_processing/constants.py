@@ -44,6 +44,7 @@ EXECUTOR_MEM_OVERHEAD_RATIO = 0.1
 ################# Numerical transformations  ################
 VALID_IMPUTERS = ["none", "mean", "median", "most_frequent"]
 VALID_NORMALIZERS = ["none", "min-max", "standard", "rank-gauss"]
+VALID_OUTDTYPE = ["float32", "float64"]
 
 ################# Bert transformations  ################
 HUGGINGFACE_TRANFORM = "huggingface"
