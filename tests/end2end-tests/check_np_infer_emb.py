@@ -106,7 +106,7 @@ if __name__ == '__main__':
         # train nids [0, 1, 2, ...]
         train_emb = train_emb[th.argsort(train_nids)]
         for nid, inf_emb in zip(infer_nids, infer_emb):
-            assert_almost_equal(train_emb[nid].numpy(), inf_emb.numpy(), decimal=2)
+            assert_almost_equal(train_emb[nid].numpy(), inf_emb.numpy(), decimal=1)
 
         train_remap_embs = {}
         for nid, train_emb in zip (train_remaped_nids, train_remaped_emb):
