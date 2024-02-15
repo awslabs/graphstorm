@@ -1,4 +1,4 @@
-fD.. _distributed-sagemaker:
+.. _distributed-sagemaker:
 
 Use GraphStorm on SageMaker
 ===================================
