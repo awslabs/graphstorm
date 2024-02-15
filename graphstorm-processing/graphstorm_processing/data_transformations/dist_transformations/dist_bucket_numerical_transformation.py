@@ -23,8 +23,6 @@ import numpy as np
 from .base_dist_transformation import DistributedTransformation
 from .dist_numerical_transformation import apply_imputation
 
-from graphstorm_processing.constants import DTYPE_MAP
-
 
 class DistBucketNumericalTransformation(DistributedTransformation):
     """Transformation to apply missing value imputation and bucket normalization
@@ -43,8 +41,6 @@ class DistBucketNumericalTransformation(DistributedTransformation):
     imputer : str
         The type of missing value imputation to apply to the column.
         Valid values are "mean", "median" and "most_frequent".
-    out_dtype: str
-        Output feature dtype
     """
 
     # pylint: disable=redefined-builtin
@@ -55,7 +51,6 @@ class DistBucketNumericalTransformation(DistributedTransformation):
         bucket_cnt: int,
         slide_window_size: float = 0.0,
         imputer: str = "none",
-        out_dtype: str = "float32"
     ) -> None:
         super().__init__(cols)
         self.cols = cols
@@ -63,7 +58,6 @@ class DistBucketNumericalTransformation(DistributedTransformation):
         self.range = range
         self.bucket_count = bucket_cnt
         self.slide_window_size = slide_window_size
-        self.out_dtype = out_dtype
         # Spark uses 'mode' for the most frequent element
         self.shared_imputation = "mode" if imputer == "most_frequent" else imputer
 
@@ -117,7 +111,7 @@ class DistBucketNumericalTransformation(DistributedTransformation):
             return membership_array.tolist()
 
         # TODO: Try using a Pandas/Arrow UDF here and compare performance.
-        bucket_udf = F.udf(determine_bucket_membership, ArrayType(DTYPE_MAP[self.out_dtype]))
+        bucket_udf = F.udf(determine_bucket_membership, ArrayType(FloatType()))
 
         bucketized_df = imputed_df.select(bucket_udf(F.col(self.cols[0])).alias(self.cols[0]))
 

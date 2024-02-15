@@ -124,9 +124,6 @@ class BucketNumericalFeatureConfig(FeatureConfig):
     slide_window_size: float or none
         Interval or range within which numeric values are grouped into buckets. Slide window
         size will let one value possibly fall into multiple buckets.
-
-    out_dtype: str
-        Output feature dtype
     """
 
     def __init__(self, config: Mapping):
@@ -135,7 +132,6 @@ class BucketNumericalFeatureConfig(FeatureConfig):
         self.bucket_cnt = self._transformation_kwargs.get("bucket_cnt", "none")
         self.range = self._transformation_kwargs.get("range", "none")
         self.slide_window_size = self._transformation_kwargs.get("slide_window_size", "none")
-        self.out_dtype = self._transformation_kwargs.get("out_dtype", "float32")
         self._sanity_check()
 
     def _sanity_check(self) -> None:
@@ -154,5 +150,3 @@ class BucketNumericalFeatureConfig(FeatureConfig):
         assert (
             isinstance(self.slide_window_size, numbers.Number) or self.slide_window_size == "none"
         ), f"Expect no slide window size or expect {self.slide_window_size} is a number"
-        assert (self.out_dtype in VALID_OUTDTYPE), \
-            f"Unsupported output dtype, expected one of {VALID_OUTDTYPE}, got {self.out_dtype}"
