@@ -64,34 +64,31 @@ def test_try_read_unsupported_feature(converter: GConstructConfigConverter, node
     with pytest.raises(ValueError):
         _ = converter.convert_nodes(node_dict["nodes"])
 
-def test_try_convert_out_dtype(converter: GConstructConfigConverter, node_dict: dict):
+
+@pytest.mark.parametrize("out_dtype", ["float16", "float32", "float64"])
+def test_try_convert_out_dtype(converter: GConstructConfigConverter, node_dict: dict, out_dtype: str):
     node_dict["nodes"][0]["features"] = [
         {
             "feature_col": ["paper_title"],
-            "transform": {"name": "max_min_norm", "out_dtype": "float32"},
+            "transform": {"name": "max_min_norm", "out_dtype": out_dtype},
         }
     ]
 
     res = converter.convert_nodes(node_dict["nodes"])[0]
-    assert res.features == [{'column': 'paper_title', 'transformation': {'kwargs': {'imputer': 'none',
+    if out_dtype == "float32":
+        assert res.features == [{'column': 'paper_title', 'transformation': {'kwargs': {'imputer': 'none',
                                                                                     'normalizer': 'min-max',
                                                                                     'out_dtype': 'float32'},
                                                                          'name': 'numerical'}}]
-
-    node_dict["nodes"][0]["features"][0]["transform"]["out_dtype"] = "float64"
-
-    res = converter.convert_nodes(node_dict["nodes"])[0]
-    assert res.features == [{'column': 'paper_title', 'transformation': {'kwargs': {'imputer': 'none',
-                                                                                    'normalizer': 'min-max',
-                                                                                    'out_dtype': 'float64'},
-                                                                         'name': 'numerical'}}]
-
-    node_dict["nodes"][0]["features"][0]["transform"]["out_dtype"] = "float16"
-
-    res = converter.convert_nodes(node_dict["nodes"])[0]
-    assert res.features == [{'column': 'paper_title', 'transformation': {'kwargs': {'imputer': 'none',
-                                                                                    'normalizer': 'min-max'},
-                                                                         'name': 'numerical'}}]
+    elif out_dtype == "float64":
+        assert res.features == [{'column': 'paper_title', 'transformation': {'kwargs': {'imputer': 'none',
+                                                                                        'normalizer': 'min-max',
+                                                                                        'out_dtype': 'float64'},
+                                                                             'name': 'numerical'}}]
+    elif out_dtype == "float16":
+        assert res.features == [{'column': 'paper_title', 'transformation': {'kwargs': {'imputer': 'none',
+                                                                                        'normalizer': 'min-max'},
+                                                                             'name': 'numerical'}}]
 
 
 def test_read_node_gconstruct(converter: GConstructConfigConverter, node_dict: dict):
