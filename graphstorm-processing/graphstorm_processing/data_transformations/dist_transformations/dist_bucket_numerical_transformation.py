@@ -23,7 +23,7 @@ import numpy as np
 from .base_dist_transformation import DistributedTransformation
 from .dist_numerical_transformation import apply_imputation
 
-from graphstorm_processing.constants import VALID_OUTDTYPE
+from graphstorm_processing.constants import DTYPE_MAP
 
 
 class DistBucketNumericalTransformation(DistributedTransformation):
@@ -117,7 +117,7 @@ class DistBucketNumericalTransformation(DistributedTransformation):
             return membership_array.tolist()
 
         # TODO: Try using a Pandas/Arrow UDF here and compare performance.
-        bucket_udf = F.udf(determine_bucket_membership, ArrayType(VALID_OUTDTYPE[self.out_dtype]))
+        bucket_udf = F.udf(determine_bucket_membership, ArrayType(DTYPE_MAP[self.out_dtype]))
 
         bucketized_df = imputed_df.select(bucket_udf(F.col(self.cols[0])).alias(self.cols[0]))
 

@@ -135,7 +135,7 @@ class BucketNumericalFeatureConfig(FeatureConfig):
         self.bucket_cnt = self._transformation_kwargs.get("bucket_cnt", "none")
         self.range = self._transformation_kwargs.get("range", "none")
         self.slide_window_size = self._transformation_kwargs.get("slide_window_size", "none")
-        self.out_dtype = self._transformation_kwargs.get("out_dtype", "none")
+        self.out_dtype = self._transformation_kwargs.get("out_dtype", "float32")
         self._sanity_check()
 
     def _sanity_check(self) -> None:
