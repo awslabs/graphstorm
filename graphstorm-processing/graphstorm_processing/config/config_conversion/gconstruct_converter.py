@@ -98,7 +98,13 @@ class GConstructConfigConverter(ConfigConverter):
 
                 if gconstruct_transform_dict["name"] == "max_min_norm":
                     gsp_transformation_dict["name"] = "numerical"
-                    gsp_transformation_dict["kwargs"] = {"normalizer": "min-max", "imputer": "none"}
+                    gsp_transformation_dict["kwargs"] = {
+                        "normalizer": "min-max",
+                        "imputer": "none",
+                    }
+
+                    if gconstruct_transform_dict.get("out_dtype") in ["float32", "float64"]:
+                        gsp_transformation_dict["kwargs"]["out_dtype"] = gconstruct_transform_dict["out_dtype"]
                 elif gconstruct_transform_dict["name"] == "bucket_numerical":
                     gsp_transformation_dict["name"] = "bucket-numerical"
                     assert (
@@ -115,17 +121,13 @@ class GConstructConfigConverter(ConfigConverter):
                     }
                 elif gconstruct_transform_dict["name"] == "rank_gauss":
                     gsp_transformation_dict["name"] = "numerical"
+                    gsp_transformation_dict["kwargs"] = {
+                        "normalizer": "rank-gauss",
+                        "imputer": "none",
+                    }
+
                     if "epsilon" in gconstruct_transform_dict:
-                        gsp_transformation_dict["kwargs"] = {
-                            "epsilon": gconstruct_transform_dict["epsilon"],
-                            "normalizer": "rank-gauss",
-                            "imputer": "none",
-                        }
-                    else:
-                        gsp_transformation_dict["kwargs"] = {
-                            "normalizer": "rank-gauss",
-                            "imputer": "none",
-                        }
+                        gsp_transformation_dict["kwargs"]["epsilon"] = gconstruct_transform_dict["epsilon"]
                 elif gconstruct_transform_dict["name"] == "to_categorical":
                     if "separator" in gconstruct_transform_dict:
                         gsp_transformation_dict["name"] = "multi-categorical"

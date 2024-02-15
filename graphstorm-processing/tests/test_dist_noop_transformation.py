@@ -76,7 +76,7 @@ def test_noop_floatvector_transformation(spark: SparkSession, check_df_schema):
     assert_array_equal(expected_values, transformed_values)
 
 
-def test_noop_largegint_transformation(spark: SparkSession, check_df_schema):
+def test_noop_largeint_transformation(spark: SparkSession, check_df_schema):
     """No-op transformation for long numerical columns"""
     large_int = 4 * 10**18
     data = [
@@ -99,4 +99,6 @@ def test_noop_largegint_transformation(spark: SparkSession, check_df_schema):
 
     transformed_values = [row[col_name] for row in transformed_df.collect()]
 
+    print(data[0])
+    print(vec_df[0])
     assert_array_equal([val[0] for val in data], transformed_values)
