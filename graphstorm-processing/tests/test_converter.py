@@ -65,29 +65,31 @@ def test_try_read_unsupported_feature(converter: GConstructConfigConverter, node
         _ = converter.convert_nodes(node_dict["nodes"])
 
 
+@pytest.mark.parametrize("transform", ["max_min_norm", "rank_gauss"])
 @pytest.mark.parametrize("out_dtype", ["float16", "float32", "float64"])
-def test_try_convert_out_dtype(converter: GConstructConfigConverter, node_dict: dict, out_dtype: str):
+def test_try_convert_out_dtype(converter: GConstructConfigConverter, node_dict: dict, transform: str, out_dtype: str):
     node_dict["nodes"][0]["features"] = [
         {
             "feature_col": ["paper_title"],
-            "transform": {"name": "max_min_norm", "out_dtype": out_dtype},
+            "transform": {"name": transform, "out_dtype": out_dtype},
         }
     ]
 
+    normalizer_dict = {"max_min_norm": "min-max", "rank_gauss": "rank-gauss"}
     res = converter.convert_nodes(node_dict["nodes"])[0]
     if out_dtype == "float32":
         assert res.features == [{'column': 'paper_title', 'transformation': {'kwargs': {'imputer': 'none',
-                                                                                    'normalizer': 'min-max',
-                                                                                    'out_dtype': 'float32'},
+                                                                            'normalizer': normalizer_dict[transform],
+                                                                            'out_dtype': 'float32'},
                                                                          'name': 'numerical'}}]
     elif out_dtype == "float64":
         assert res.features == [{'column': 'paper_title', 'transformation': {'kwargs': {'imputer': 'none',
-                                                                                        'normalizer': 'min-max',
-                                                                                        'out_dtype': 'float64'},
+                                                                            'normalizer': normalizer_dict[transform],
+                                                                            'out_dtype': 'float64'},
                                                                              'name': 'numerical'}}]
     elif out_dtype == "float16":
         assert res.features == [{'column': 'paper_title', 'transformation': {'kwargs': {'imputer': 'none',
-                                                                                        'normalizer': 'min-max'},
+                                                                            'normalizer': normalizer_dict[transform]},
                                                                              'name': 'numerical'}}]
 
 

@@ -128,6 +128,8 @@ class GConstructConfigConverter(ConfigConverter):
 
                     if "epsilon" in gconstruct_transform_dict:
                         gsp_transformation_dict["kwargs"]["epsilon"] = gconstruct_transform_dict["epsilon"]
+                    if gconstruct_transform_dict.get("out_dtype") in ["float32", "float64"]:
+                        gsp_transformation_dict["kwargs"]["out_dtype"] = gconstruct_transform_dict["out_dtype"]
                 elif gconstruct_transform_dict["name"] == "to_categorical":
                     if "separator" in gconstruct_transform_dict:
                         gsp_transformation_dict["name"] = "multi-categorical"
