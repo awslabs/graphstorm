@@ -37,6 +37,7 @@
                 "features": [
                     {
                         "column": "age",
+                        "output_dtype": "float64",
                         "transformation": {
                             "name": "numerical",
                             "kwargs": {
