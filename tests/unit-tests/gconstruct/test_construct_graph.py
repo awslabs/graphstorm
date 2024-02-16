@@ -1204,7 +1204,7 @@ def test_partition_graph(num_parts):
     test_mask1 = np.ones((num_nodes['node1'],), dtype=np.int8)
     node_data['node1']['train_mask'] = train_mask1
     node_data['node1']['test_mask'] = test_mask1
-    # verify that the graph partitioning can balance the training set.
+    # verify that the graph partitioning will fail.
     with tempfile.TemporaryDirectory() as tmpdirname:
         try:
             partition_graph(g, node_data, edge_data, 'test', num_parts, tmpdirname,
