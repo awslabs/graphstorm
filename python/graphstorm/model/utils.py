@@ -36,7 +36,7 @@ from ..utils import (
     get_world_size,
     create_dist_tensor,
 )
-from ..wholegraph import WholeGraphDistTensor
+from ..wholegraph import WholeGraphDistTensor, create_wholememory_optimizer
 from ..data.utils import alltoallv_cpu, alltoallv_nccl
 from ..distributed import flush_data
 
@@ -1477,7 +1477,7 @@ def load_sparse_emb(target_sparse_emb, ntype_emb_path):
         # Using WholeGraph will load sparse emb in binary format, let's assume
         # the sparse emb is saved by WholeGraphDistTensor.save_to_file(), i.e.,
         # the meta info remains the same.
-        # Example: wg_sparse_emb_part_1_of_2, wg_sparse_emb_part_2_of_2
+        # Example: wg_sparse_emb_part_0_of_2, wg_sparse_emb_part_1_of_2
         target_sparse_emb.load_from_file(ntype_emb_path, "wg_sparse_emb", num_files)
     else:
         # Suppose a sparse embedding is trained and saved using N trainers (e.g., GPUs).
@@ -1538,6 +1538,71 @@ def load_sparse_embeds(model_path, embed_layer):
             emb_path = os.path.join(model_path, ntype)
             assert os.path.exists(emb_path), f"The sparse embedding file {emb_path} doesn't exist."
             load_sparse_emb(sparse_emb, emb_path)
+
+def load_wg_sparse_embeds(model_path, embed_layer):
+    """load wholegraph sparse embeddings if any
+
+        Sparse embeddings are stored as:
+        $model_path/ntype0/wg_sparse_emb_part_0_of_N
+                           ...
+                           wg_sparse_emb_part_N-1_of_N
+        $model_path/ntype1/wg_sparse_emb_part_0_of_N
+                           ...
+                           wg_sparse_emb_part_N-1_of_N
+        ...
+
+        Parameters
+        ----------
+        model_path: str
+            The path of the model to be saved.
+        embed_layer: model
+            A (distributed) model of embedding layers.
+    """
+    if embed_layer is None:
+        return
+    embed_layer = embed_layer.module \
+        if isinstance(embed_layer, DistributedDataParallel) else embed_layer
+
+    if len(embed_layer.sparse_embeds) > 0:
+        emb_optimizer = create_wholememory_optimizer("adam", {})
+        for ntype, sparse_emb in embed_layer.sparse_embeds.items():
+            emb_path = os.path.join(model_path, ntype)
+            assert os.path.exists(emb_path), f"The sparse embedding file {emb_path} doesn't exist."
+            load_wg_sparse_emb(sparse_emb, emb_path, emb_optimizer)
+
+def load_wg_sparse_emb(target_sparse_emb, ntype_emb_path, optimizer):
+    """load wg sparse embeddings from ntype_emb_path
+
+        Sparse embeddings are stored in binary format:
+        $model_path/ntype0/wg_sparse_emb_part_0_of_N
+                           ...
+                           wg_sparse_emb_part_N-1_of_N
+        $model_path/ntype1/wg_sparse_emb_part_0_of_N
+                           ...
+                           wg_sparse_emb_part_N-1_of_N
+        ...
+        Let's assume the sparse emb is saved by WholeGraphDistTensor.save_to_file(), i.e.,
+        the meta info remains the same.
+
+        Example:
+        --------
+        Load sparse embeddings of an input embed_layer by calling ``load_sparse_emb``
+        iterating all the sparse embeddings of the embed_layer
+
+        Parameters
+        ----------
+        target_sparse_emb: dgl.distributed.DistEmbedding
+            A Distributed node embedding object where the loaded spare embeddings are stored.
+        ntype_emb_path: str
+            The path where the node embedding are stored (To be loaded).
+        optimizer: WholeMemoryOptimizer
+            The WholeGraph sparse optimizer to be attached to the WholeGraph embedding.
+    """
+    num_files = len(os.listdir(ntype_emb_path))
+    assert isinstance(target_sparse_emb, WholeGraphDistTensor), \
+        "The target_sparse_emb must be a WholeGraphDistTensor when loading WholeGraph sparse emb."
+    target_sparse_emb.load_from_file(ntype_emb_path, "wg_sparse_emb", num_files, optimizer)
+
 
 def load_opt_state(model_path, dense_opts, lm_opts, sparse_opts):
     """ Load the optimizer states and resotre the optimizers.
