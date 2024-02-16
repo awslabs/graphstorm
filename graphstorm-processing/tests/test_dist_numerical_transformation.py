@@ -113,8 +113,9 @@ def test_numerical_transformation_without_transformation(input_df: DataFrame, ch
         assert row["salary"] == expected_salary
 
 
+@pytest.mark.parametrize("norm", ["min-max", "standard", "rank-gauss"])
 @pytest.mark.parametrize("out_dtype", ["float32", "float64"])
-def test_numerical_min_max_transformation_precision(spark: SparkSession, out_dtype):
+def test_numerical_min_max_transformation_precision(spark: SparkSession, check_df_schema, out_dtype, norm):
     """Test numerical transformation without any transformation applied"""
     # Adjust the number to be an integer
     high_precision_integer = 1.2345678901234562
@@ -127,6 +128,7 @@ def test_numerical_min_max_transformation_precision(spark: SparkSession, out_dty
     )
 
     transformed_df = dist_numerical_transformation.apply(input_df)
+    check_df_schema(transformed_df)
     column_data_type = [field.dataType for field in transformed_df.schema.fields if field.name == "age"][0]
     if out_dtype == "float32":
         assert isinstance(column_data_type, FloatType), f"The column 'age' is not of type FloatType."
@@ -335,23 +337,17 @@ def rank_gauss(feat, eps):
     return erfinv(feat)
 
 
-@pytest.mark.parametrize("out_dtype", ["float32", "float64"])
 @pytest.mark.parametrize("epsilon", [0.0, 1e-6])
-def test_rank_gauss(spark: SparkSession, check_df_schema, epsilon, out_dtype):
+def test_rank_gauss(spark: SparkSession, check_df_schema, epsilon):
     data = [(0.0,), (15.0,), (26.0,), (40.0,)]
 
     input_df = spark.createDataFrame(data, schema=["age"])
     rg_transformation = DistNumericalTransformation(
-        ["age"], imputer="none", normalizer="rank-gauss", out_dtype=out_dtype, epsilon=epsilon
+        ["age"], imputer="none", normalizer="rank-gauss", epsilon=epsilon
     )
 
     output_df = rg_transformation.apply(input_df)
     check_df_schema(output_df)
-    column_data_type = [field.dataType for field in output_df.schema.fields if field.name == "age"][0]
-    if out_dtype == "float32":
-        assert isinstance(column_data_type, FloatType), f"The column 'age' is not of type FloatType."
-    elif out_dtype == "float64":
-        assert isinstance(column_data_type, DoubleType), f"The column 'age' is not of type DoubleType."
 
     out_rows = output_df.collect()
 

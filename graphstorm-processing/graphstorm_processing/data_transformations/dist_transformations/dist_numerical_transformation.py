@@ -16,6 +16,7 @@ limitations under the License.
 import logging
 from typing import Optional, Sequence
 import uuid
+import numpy
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
@@ -131,6 +132,8 @@ def apply_norm(
     )
 
     if shared_norm == "none":
+        # Save the time and efficiency for not casting the type
+        # when not doing any normalization
         scaled_df = imputed_df
     elif shared_norm == "min-max":
         # Because the scalers expect Vector input, we need to use VectorAssembler on each,
@@ -163,7 +166,7 @@ def apply_norm(
                     "normalization. Use an imputer in the transformation."
                 )
         scaled_df = imputed_df.select(
-            [(F.col(c) / col_sums[f"sum({c})"]).alias(c) for c in cols] + other_cols
+            [(F.col(c) / col_sums[f"sum({c})"]).cast(DTYPE_MAP[out_dtype]).alias(c) for c in cols] + other_cols
         )
     elif shared_norm == "rank-gauss":
         assert len(cols) == 1, "Rank-Guass numerical transformation only supports single column"
