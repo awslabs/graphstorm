@@ -23,7 +23,7 @@ and use it to create the required roles and policies for EMR-S.
 To do so follow the EMR-S `Setting up guide
 <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/setting-up.html>`_.
 
-Create an job runtime role for EMR Serverless
+Create a job runtime role for EMR Serverless
 ---------------------------------------------
 
 To be able to run EMR-S jobs we will need access to a role that
@@ -87,15 +87,15 @@ Here we will just show the custom image application creation using the AWS CLI:
 .. code-block:: bash
 
     aws emr-serverless create-application \
-        --name gsprocessing-0.2.1 \
+        --name gsprocessing-0.2.2 \
         --release-label emr-6.13.0 \
         --type SPARK \
         --image-configuration '{
-            "imageUri": "<aws-account-id>.dkr.ecr.<region>.amazonaws.com/graphstorm-processing-emr-serverless:0.2.1-<arch>"
+            "imageUri": "<aws-account-id>.dkr.ecr.<region>.amazonaws.com/graphstorm-processing-emr-serverless:0.2.2-<arch>"
         }'
 
 Here you will need to replace ``<aws-account-id>``, ``<arch>`` (``x86_64`` or ``arm64``), and ``<region>`` with the correct values
-from the image you just created. GSProcessing version ``0.2.1`` uses ``emr-6.13.0`` as its
+from the image you just created. GSProcessing version ``0.2.2`` uses ``emr-6.13.0`` as its
 base image, so we need to ensure our application uses the same release.
 
 Additionally, if it is required to use text feature transformation with Huggingface model, it is suggested to download the model cache inside the emr-serverless
@@ -179,7 +179,7 @@ as described in :ref:`gsp-upload-data-ref`.
     OUTPUT_BUCKET=${MY_BUCKET}
     GRAPH_NAME="small-graph"
     CONFIG_FILE="gconstruct-config.json"
-    NUM_FILES="4"
+    NUM_FILES="-1"
     GSP_HOME="enter/path/to/graphstorm/graphstorm-processing/"
 
     LOCAL_ENTRY_POINT=$GSP_HOME/graphstorm_processing/distributed_executor.py
@@ -240,7 +240,7 @@ and building the GSProcessing SageMaker ECR image:
     bash docker/push_gsprocessing_image.sh --environment sagemaker --region ${REGION}
 
     SAGEMAKER_ROLE_NAME="enter-your-sagemaker-execution-role-name-here"
-    IMAGE_URI="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/graphstorm-processing-sagemaker:0.2.1-x86_64"
+    IMAGE_URI="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/graphstorm-processing-sagemaker:latest-x86_64"
     ROLE="arn:aws:iam::${ACCOUNT}:role/service-role/${SAGEMAKER_ROLE_NAME}"
     INSTANCE_TYPE="ml.t3.xlarge"
 
@@ -253,7 +253,7 @@ Note that ``${OUTPUT_PREFIX}`` here will need to match the value assigned when l
 the EMR-S job, i.e. ``"s3://${OUTPUT_BUCKET}/gsprocessing/emr-s/small-graph/4files/"``
 
 For more details on the re-partitioning step see
-::doc:`row-count-alignment`.
+:doc:`row-count-alignment`.
 
 Examine the output
 ------------------
@@ -269,7 +269,7 @@ in :ref:`gsp-examining-output`.
 
                                PRE edges/
                                PRE node_data/
-                               PRE node_id_mappings/
+                               PRE raw_id_mappings/
     2023-08-05 00:47:36        804 launch_arguments.json
     2023-08-05 00:47:36      11914 metadata.json
     2023-08-05 00:47:37        545 perf_counters.json
