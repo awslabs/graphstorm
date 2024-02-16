@@ -320,7 +320,8 @@ class LMCache:
                 save_wholegraph_embedding(embed_path,
                                         self._lm_emb_cache[ntype],
                                         get_rank(),
-                                        get_world_size())
+                                        get_world_size(),
+                                        fmt="pytorch")
             else:
                 save_pytorch_embedding(embed_path,
                                         self._lm_emb_cache[ntype],

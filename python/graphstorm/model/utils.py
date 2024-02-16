@@ -565,7 +565,7 @@ def save_pytorch_embedding(emb_path, embedding, rank, world_size):
     embedding = embedding[start:end]
     th.save(embedding, os.path.join(emb_path, f'embed-{pad_file_index(rank)}.pt'))
 
-def save_wholegraph_embedding(emb_path, embedding, rank, world_size):
+def save_wholegraph_embedding(emb_path, embedding, rank, world_size, fmt="binary"):
     """ Save Dist embedding tensor in binary format for WholeGraph.
 
         Parameters
@@ -578,7 +578,11 @@ def save_wholegraph_embedding(emb_path, embedding, rank, world_size):
             Rank of the current process in a distributed environment.
         world_size : int
             World size in a distributed env.
+        fmt : str
+            The format of the saved embeddings. Currently only support "binary" and "pytorch".
     """
+    assert fmt in ["binary", "pytorch"], \
+        "Using WholeGraph, the supported formats of the saved embeddings are 'binary' and 'pytorch'."
     os.makedirs(emb_path, exist_ok=True)
     # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
     if rank == 0:
@@ -601,16 +605,30 @@ def save_wholegraph_embedding(emb_path, embedding, rank, world_size):
     emb_dim = embedding.embedding_dim
     emb_dtype = embedding.dtype
     emb_name = embedding.name
+    emb_fmt = "wholegraph-" + fmt
     emb_info = {
-        "format": "binary",
+        "format": emb_fmt,
         "emb_num": str(emb_num),
         "emb_dim": str(emb_dim),
         "emb_dtype": str(emb_dtype),
         "emb_name": emb_name,
         "world_size": world_size
     }
+    if fmt == "binary":
+        # use binary format to save the embedding (supported by native WholeGraph APIs)
+        # Example: wg-embed_part_0_of_2, wg-embed_part_1_of_2
+        # Pros: WholeGraph's natvie API to load the embedding directly.
+        #       no RAM duplication; support save/load with different world_size.
+        embedding.save_to_file(emb_path, file_prefix="wg-embed")
+    elif fmt == "pytorch":
+        # use pytorch format to save the embedding (dump local tensor to pt file)
+        # Example: embed-00000.pt, embed-00001.pt
+        # Pros: Compatible with the format when WholeGraph is not enabled,
+        #       but still follows wholegraph's even partition policy and duplicate RAM when load.
+        emb = embedding.get_local_tensor()[0]
+        wg_rank = embedding.get_comm().get_rank()
+        th.save(emb, os.path.join(emb_path, f'embed-{pad_file_index(wg_rank)}.pt'))
 
-    embedding.save_to_file(emb_path, file_prefix="wg-embed")
     if rank == 0:
         with open(os.path.join(emb_path, "emb_info.json"), 'w', encoding='utf-8') as f:
             json.dump(emb_info, f, indent=4)
@@ -634,6 +652,10 @@ def load_wholegraph_embedding(emb_path, name):
     with open(os.path.join(emb_path, "emb_info.json"), 'r', encoding='utf-8') as f:
         emb_info = json.load(f)
 
+    emb_fmt = emb_info['format']
+    assert emb_fmt.startswith("wholegraph-"), \
+        "The format of the saved embeddings should be started with 'wholegraph-'."
+    emb_fmt = emb_fmt.split("-")[1]
     emb_num = int(emb_info['emb_num'])
     emb_dim = int(emb_info['emb_dim'])
     world_size_in_save = int(emb_info['world_size'])
@@ -647,14 +669,30 @@ def load_wholegraph_embedding(emb_path, name):
     }
     emb_dtype = supported_dtypes[emb_info['emb_dtype']]
     dist_emb = WholeGraphDistTensor((emb_num, emb_dim), emb_dtype, name=name)
-    files = os.listdir(emb_path)
-    filtered_files = [file for file in files if file.startswith("wg-embed")]
-    num_files = len(filtered_files)
-    assert num_files > 0, "No WholeGraph embedding files found."
-    assert world_size_in_save == num_files, \
-        f"World_size when save the embedding  {world_size_in_save} \
-        doesn't match the number of files {num_files}."
-    dist_emb.load_from_file(emb_path, "wg-embed", num_files)
+    if emb_fmt == "pytorch":
+        assert dist_emb.get_comm().get_size() == world_size_in_save, \
+            "World_size when save the embedding is different than the current world_size. " \
+            "Please switch to the binary format."
+        wg_rank = dist_emb.get_comm().get_rank()
+        file_path = os.path.join(emb_path, f'embed-{pad_file_index(wg_rank)}.pt')
+        assert os.path.exists(file_path), f"Embedding file {file_path} of \
+            my rank {wg_rank} doesn't exist."
+        emb = th.load(file_path)
+        local_emb = dist_emb.get_local_tensor()[0]
+        assert emb.shape[0] == local_emb.shape[0] and emb.shape[1] == local_emb.shape[1], \
+            "Embedding shape does not match!"
+        assert emb.dtype == local_emb.dtype, "Embedding datatype do not match!"
+        local_emb.copy_(emb)
+    elif emb_fmt == "binary":
+        files = os.listdir(emb_path)
+        filtered_files = [file for file in files if file.startswith("wg-embed")]
+        num_files = len(filtered_files)
+        assert num_files > 0, "No WholeGraph embedding files found."
+        assert world_size_in_save == num_files, \
+            f"World_size when save the embedding  {world_size_in_save} \
+            doesn't match the number of files {num_files}."
+        dist_emb.load_from_file(emb_path, "wg-embed", num_files)
+
     barrier()
     return dist_emb
 

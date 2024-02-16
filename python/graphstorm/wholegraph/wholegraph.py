@@ -560,6 +560,17 @@ class WholeGraphDistTensor:
             )
         return local_tensor, offset
 
+    def get_comm(self):
+        """
+        Get the communicator of the WholeGraph embedding.
+
+        Returns
+        -------
+        WholeMemoryCommunicator
+            The WholeGraph global communicator of the WholeGraph embedding.
+        """
+        return self._tensor.get_embedding_tensor().get_comm()
+
     def _reset_storage(self):
         """Reset the storage of the WholeGraph embedding."""
         self._tensor = None
