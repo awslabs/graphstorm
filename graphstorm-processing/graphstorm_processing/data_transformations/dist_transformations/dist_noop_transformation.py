@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 from typing import List, Optional
 
 from pyspark.sql import DataFrame
@@ -41,7 +42,9 @@ class NoopTransformation(DistributedTransformation):
         The output feature dtype
     """
 
-    def __init__(self, cols: List[str], out_dtype: str = "float32", separator: Optional[str] = None) -> None:
+    def __init__(
+        self, cols: List[str], out_dtype: str = "float32", separator: Optional[str] = None
+    ) -> None:
         super().__init__(cols)
         # TODO: Support multiple cols?
 
@@ -94,7 +97,10 @@ class NoopTransformation(DistributedTransformation):
             return input_df
         else:
             return input_df.select(
-                [F.col(column).cast(DTYPE_MAP[self.out_dtype]).alias(column) for column in self.cols]
+                [
+                    F.col(column).cast(DTYPE_MAP[self.out_dtype]).alias(column)
+                    for column in self.cols
+                ]
             )
 
     @staticmethod

@@ -13,14 +13,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import logging
 from typing import Optional, Sequence
 import uuid
-import numpy
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
-from pyspark.sql.types import ArrayType, FloatType, DoubleType
+from pyspark.sql.types import ArrayType
 from pyspark.ml.feature import MinMaxScaler, Imputer, VectorAssembler, ElementwiseProduct
 from pyspark.ml.linalg import DenseVector
 from pyspark.ml.stat import Summarizer
@@ -33,7 +33,12 @@ import pandas as pd
 # pylint: disable = no-name-in-module
 from scipy.special import erfinv
 
-from graphstorm_processing.constants import SPECIAL_CHARACTERS, VALID_IMPUTERS, VALID_NORMALIZERS, DTYPE_MAP
+from graphstorm_processing.constants import (
+    SPECIAL_CHARACTERS,
+    VALID_IMPUTERS,
+    VALID_NORMALIZERS,
+    DTYPE_MAP,
+)
 from .base_dist_transformation import DistributedTransformation
 from ..spark_utils import rename_multiple_cols
 
@@ -81,7 +86,11 @@ def apply_imputation(cols: Sequence[str], shared_imputation: str, input_df: Data
 
 
 def apply_norm(
-    cols: Sequence[str], shared_norm: str, imputed_df: DataFrame, out_dtype: str = "float32", epsilon: float = 1e-6
+    cols: Sequence[str],
+    shared_norm: str,
+    imputed_df: DataFrame,
+    out_dtype: str = "float32",
+    epsilon: float = 1e-6,
 ) -> DataFrame:
     """Applies a single normalizer to the imputed dataframe, individually to each of the columns
     provided in the cols argument.
@@ -166,7 +175,8 @@ def apply_norm(
                     "normalization. Use an imputer in the transformation."
                 )
         scaled_df = imputed_df.select(
-            [(F.col(c) / col_sums[f"sum({c})"]).cast(DTYPE_MAP[out_dtype]).alias(c) for c in cols] + other_cols
+            [(F.col(c) / col_sums[f"sum({c})"]).cast(DTYPE_MAP[out_dtype]).alias(c) for c in cols]
+            + other_cols
         )
     elif shared_norm == "rank-gauss":
         assert len(cols) == 1, "Rank-Guass numerical transformation only supports single column"
@@ -223,7 +233,12 @@ class DistNumericalTransformation(DistributedTransformation):
     """
 
     def __init__(
-        self, cols: Sequence[str], normalizer: str, imputer: str, out_dtype: str = "float32", epsilon: float = 1e-6
+        self,
+        cols: Sequence[str],
+        normalizer: str,
+        imputer: str,
+        out_dtype: str = "float32",
+        epsilon: float = 1e-6,
     ) -> None:
         super().__init__(cols)
         self.cols = cols
@@ -239,7 +254,9 @@ class DistNumericalTransformation(DistributedTransformation):
         )
 
         imputed_df = apply_imputation(self.cols, self.shared_imputation, input_df)
-        scaled_df = apply_norm(self.cols, self.shared_norm, imputed_df, self.out_dtype, self.epsilon)
+        scaled_df = apply_norm(
+            self.cols, self.shared_norm, imputed_df, self.out_dtype, self.epsilon
+        )
 
         # TODO: Figure out why the transformation is producing Double values, and switch to float
         return scaled_df
