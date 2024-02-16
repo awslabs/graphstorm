@@ -1182,7 +1182,24 @@ def test_partition_graph(num_parts):
             assert th.sum(node_data1['node1/train_mask']) == 0
             assert th.sum(node_data1['node1/test_mask']) > 0
 
-    # case 5: all nodes are training nodes and test nodes.
+    # case 5: all nodes are either training nodes or test nodes.
+    train_mask1 = np.zeros((num_nodes['node1'],), dtype=np.int8)
+    test_mask1 = np.zeros((num_nodes['node1'],), dtype=np.int8)
+    train_mask1[0:num_nodes['node1']//2] = 1
+    test_mask1[num_nodes['node1']//2:] = 1
+    node_data['node1']['train_mask'] = train_mask1
+    node_data['node1']['test_mask'] = test_mask1
+    # verify that the graph partitioning can balance the training set.
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        partition_graph(g, node_data, edge_data, 'test', num_parts, tmpdirname,
+                        part_method="metis", save_mapping=True)
+        for i in range(num_parts):
+            part_dir = os.path.join(tmpdirname, "part" + str(i))
+            node_data1 = dgl.data.utils.load_tensors(os.path.join(part_dir, 'node_feat.dgl'))
+            assert th.sum(node_data1['node1/train_mask']) > 0
+            assert th.sum(node_data1['node1/test_mask']) > 0
+
+    # case 6: all nodes are training nodes and test nodes.
     train_mask1 = np.ones((num_nodes['node1'],), dtype=np.int8)
     test_mask1 = np.ones((num_nodes['node1'],), dtype=np.int8)
     node_data['node1']['train_mask'] = train_mask1

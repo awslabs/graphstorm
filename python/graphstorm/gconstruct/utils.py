@@ -941,7 +941,7 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
     for ntype in node_data:
         balance_arr = th.zeros(g.number_of_nodes(ntype), dtype=th.int8)
         balance_tag = 1
-        num_train_eval = 0
+        num_train_eval = num_train = num_valid = num_test = 0
         if "train_mask" in node_data[ntype]:
             num_train = np.sum(node_data[ntype]["train_mask"])
             num_train_eval += num_train
@@ -967,6 +967,15 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
         assert num_train_eval <= g.number_of_nodes(ntype), \
                 f"There are {g.number_of_nodes(ntype)} nodes, ' \
                 + 'we get {num_train_eval} nodes for train/valid/test."
+        # If all nodes are in training/valid/test sets and none of the sets contain
+        # all nodes, we assign 1, 2, 3, etc to training/validation/test nodes.
+        # However, DistDGL requires the values start from 0. We need to subtract
+        # the values by 1.
+        if num_train_eval == g.number_of_nodes(ntype) and \
+                (num_train != g.number_of_nodes(ntype) and \
+                 num_valid != g.number_of_nodes(ntype) and \
+                 num_test != g.number_of_nodes(ntype)):
+            balance_arr -= 1
         balance_ntypes[ntype] = balance_arr
     mapping = \
         dgl.distributed.partition_graph(g, graph_name, num_partitions, output_dir,
