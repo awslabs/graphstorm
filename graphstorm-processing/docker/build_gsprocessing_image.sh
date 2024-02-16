@@ -7,9 +7,9 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
 
 usage() {
   cat <<EOF
-Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-x] -t prod
+Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-x] -e sagemaker
 
-Script description here.
+Builds the GraphStorm Processing Docker image.
 
 Available options:
 
@@ -18,13 +18,13 @@ Available options:
 -e, --environment   Image execution environment. Must be one of 'emr-serverless' or 'sagemaker'. Required.
 -a, --architecture  Image architecture. Must be one of 'x86_64' or 'arm64'. Default is 'x86_64'.
                     Note that only x86_64 architecture is supported for SageMaker.
--t, --target        Docker image target, must be one of 'prod' or 'test'. Default is 'test'.
--p, --path          Path to graphstorm-processing directory, default is the current directory.
--i, --image         Docker image name, default is 'graphstorm-processing'.
+-t, --target        Docker image target, must be one of 'prod' or 'test'. Default is 'prod'.
+-p, --path          Path to graphstorm-processing root directory, default is one level above this script's location.
+-i, --image         Docker image name, default is 'graphstorm-processing-\${environment}'.
 -v, --version       Docker version tag, default is the library's current version (`poetry version --short`)
 -s, --suffix        Suffix for the image tag, can be used to push custom image tags. Default is "".
--b, --build         Docker build directory, default is '/tmp/'.
--m, --hf-model      Huggingface Model name that needs to be packed into the docker image. Default is "".
+-b, --build         Docker build directory prefix, default is '/tmp/'.
+-m, --hf-model      Provide a Huggingface Model name to be packed into the docker image. Default is "".
 
 EOF
   exit
@@ -47,7 +47,7 @@ parse_params() {
   IMAGE_NAME='graphstorm-processing'
   VERSION=`poetry version --short`
   BUILD_DIR='/tmp'
-  TARGET='test'
+  TARGET='prod'
   ARCH='x86_64'
   SUFFIX=""
   MODEL=""
@@ -133,6 +133,8 @@ if [[ ${EXEC_ENV} == "sagemaker" && ${ARCH} == "arm64" ]]; then
     die "arm64 architecture is not supported for SageMaker"
 fi
 
+# TODO: Ensure that the version requested has a corresponding directory
+
 # script logic here
 msg "Execution parameters:"
 msg "- ENVIRONMENT: ${EXEC_ENV}"
@@ -155,7 +157,8 @@ if [[ ${TARGET} == "prod" ]]; then
         "${BUILD_DIR}/docker/code"
 else
     # Copy library source code along with test files
-    rsync -r ${GSP_HOME} "${BUILD_DIR}/docker/code/graphstorm-processing/" --exclude .venv --exclude dist
+    rsync -r ${GSP_HOME} "${BUILD_DIR}/docker/code/graphstorm-processing/" --exclude .venv --exclude dist \
+        --exclude "*__pycache__" --exclude "*.pytest_cache" --exclude "*.mypy_cache"
     cp ${GSP_HOME}/../graphstorm_job.sh "${BUILD_DIR}/docker/code/"
 fi
 

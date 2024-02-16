@@ -457,6 +457,7 @@ class WholeGraphDistTensor:
             "with use_wg_optimizer=False or "\
             "with use_wg_optimizer=True followed by attach_wg_optimizer()."
         file_prefix = os.path.join(path, file_prefix)
+        # save optimizer stats is not supported yet
         self._tensor.get_embedding_tensor().to_file_prefix(file_prefix)
 
     def load_from_file(
@@ -483,7 +484,6 @@ class WholeGraphDistTensor:
         -------
         None
         """
-
         if wg_optimizer is not None:
             assert self._use_wg_optimizer, \
                 "Please create WholeGraphDistTensor tensor with use_wg_optimizer=True."

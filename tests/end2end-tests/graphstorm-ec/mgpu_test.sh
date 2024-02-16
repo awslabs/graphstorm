@@ -24,7 +24,7 @@ error_and_exit () {
 }
 
 echo "**************dataset: Generated multilabel MovieLens EC, RGCN layer: 1, node feat: generated feature, inference: full graph, exclude-training-targets: True"
-python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 5 --node-feat-name movie:title user:feat --use-mini-batch-infer false --topk-model-to-save 1  --save-embed-path /data/gsgnn_ec/emb/ --save-model-path /data/gsgnn_ec/ --save-model-frequency 1000 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 5 --node-feat-name movie:title user:feat --use-mini-batch-infer false --topk-model-to-save 1  --save-embed-path /data/gsgnn_ec/emb/ --save-model-path /data/gsgnn_ec/ --save-model-frequency 1000 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --backend nccl
 
 error_and_exit $?
 
@@ -89,7 +89,7 @@ then
 fi
 
 echo "**************dataset: Generated multilabel MovieLens EC, do inference on saved model"
-python3 -m graphstorm.run.gs_edge_classification --inference --workspace $GS_HOME/inference_scripts/ep_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec_infer.yaml  --multilabel true --num-classes 5 --node-feat-name movie:title user:feat --use-mini-batch-infer false --save-embed-path /data/gsgnn_ec/infer-emb/ --restore-model-path /data/gsgnn_ec/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_ec/prediction/ --logging-file /tmp/log.txt  --logging-level debug --preserve-input True
+python3 -m graphstorm.run.gs_edge_classification --inference --workspace $GS_HOME/inference_scripts/ep_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec_infer.yaml  --multilabel true --num-classes 5 --node-feat-name movie:title user:feat --use-mini-batch-infer false --save-embed-path /data/gsgnn_ec/infer-emb/ --restore-model-path /data/gsgnn_ec/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_ec/prediction/ --logging-file /tmp/log.txt  --logging-level debug --preserve-input True --backend nccl
 
 error_and_exit $?
 
@@ -225,4 +225,57 @@ python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_s
 error_and_exit $?
 rm -fr /data/gsgnn_ec/*
 
+echo "**************dataset: Generated multilabel MovieLens EC, RGCN layer: 1, node feat: generated feature, inference: full graph, exclude-training-targets: True, wholegraph learnable emb"
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --use-node-embeddings true --multilabel true --num-classes 5  --use-mini-batch-infer false --topk-model-to-save 1  --save-embed-path /data/gsgnn_wg_ec/emb/ --save-model-path /data/gsgnn_wg_ec/ --save-model-frequency 1000 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --backend nccl --use-wholegraph-sparse-emb True
+
+error_and_exit $?
+
+# check prints
+cnt=$(grep "save_embed_path: /data/gsgnn_wg_ec/emb/" /tmp/train_log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have save_embed_path"
+    exit -1
+fi
+
+cnt=$(grep "save_model_path: /data/gsgnn_wg_ec/" /tmp/train_log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have save_model_path"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Test accuracy" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Test accuracy"
+    exit -1
+fi
+
+
+best_epoch=$(grep "successfully save the model to" /tmp/train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
+echo "The best model is saved in epoch $best_epoch"
+
+rm /tmp/train_log.txt
+
+echo "**************dataset: Generated multilabel MovieLens EC, do inference on saved model, wholegraph learnable emb"
+python3 -m graphstorm.run.gs_edge_classification --inference --workspace $GS_HOME/inference_scripts/ep_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec_infer.yaml  --multilabel true --num-classes 5 --use-node-embeddings true --use-mini-batch-infer false --save-embed-path /data/gsgnn_wg_ec/infer-emb/ --restore-model-path /data/gsgnn_wg_ec/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_wg_ec/prediction/ --logging-file /tmp/log.txt  --logging-level debug --preserve-input True --backend nccl --use-wholegraph-sparse-emb True
+
+error_and_exit $?
+
+bst_cnt=$(grep "Best Test accuracy" /tmp/log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Test accuracy"
+    exit -1
+fi
+
+rm /tmp/log.txt
+
+cd $GS_HOME/tests/end2end-tests/
+python3 check_infer.py --train-embout /data/gsgnn_wg_ec/emb/ --infer-embout /data/gsgnn_wg_ec/infer-emb/
+
+error_and_exit $?
+
+rm -fr /data/gsgnn_wg_ec/
 rm -fr /tmp/*

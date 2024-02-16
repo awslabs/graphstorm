@@ -25,7 +25,7 @@ error_and_exit () {
 }
 
 echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch save model save emb node"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --save-model-path /data/gsgnn_nc_ml/ --topk-model-to-save 1 --save-embed-path /data/gsgnn_nc_ml/emb/ --num-epochs 3 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --save-model-path /data/gsgnn_nc_ml/ --topk-model-to-save 1 --save-embed-path /data/gsgnn_nc_ml/emb/ --num-epochs 3 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --backend nccl --node-feat-name movie:title user:feat
 
 error_and_exit $?
 
@@ -92,7 +92,7 @@ echo "The best model is saved in epoch $best_epoch"
 rm /tmp/train_log.txt
 
 echo "**************dataset: Movielens, do inference on saved model"
-python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer false  --save-embed-path /data/gsgnn_nc_ml/infer-emb/ --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml/prediction/ --logging-file /tmp/log.txt --preserve-input True
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer false  --save-embed-path /data/gsgnn_nc_ml/infer-emb/ --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml/prediction/ --logging-file /tmp/log.txt --preserve-input True --backend nccl --node-feat-name movie:title user:feat
 
 error_and_exit $?
 
@@ -152,7 +152,7 @@ python3 $GS_HOME/tests/end2end-tests/check_np_infer_emb.py --train-embout /data/
 error_and_exit $?
 
 echo "**************dataset: Movielens, do inference on saved model, remap without shared file system"
-python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 2 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer false  --save-embed-path /data/gsgnn_nc_ml/infer-emb-nosfs/ --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml/prediction-nosfs/ --logging-file /tmp/log.txt --preserve-input True --with-shared-fs False
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 2 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer false  --save-embed-path /data/gsgnn_nc_ml/infer-emb-nosfs/ --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml/prediction-nosfs/ --logging-file /tmp/log.txt --preserve-input True --with-shared-fs False --node-feat-name movie:title user:feat
 
 error_and_exit $?
 rm /tmp/log.txt
@@ -160,7 +160,7 @@ rm /tmp/log.txt
 python3 $GS_HOME/tests/end2end-tests/check_np_infer_emb.py --train-embout /data/gsgnn_nc_ml/emb/ --infer-embout /data/gsgnn_nc_ml/infer-emb-nosfs/
 
 echo "**************dataset: Movielens, use gen_embeddings to generate embeddings on node classification"
-python3 -m graphstorm.run.gs_gen_node_embedding --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 2 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-embed-path /data/gsgnn_nc_ml/save-emb/ --use-mini-batch-infer false --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True
+python3 -m graphstorm.run.gs_gen_node_embedding --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 2 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-embed-path /data/gsgnn_nc_ml/save-emb/ --use-mini-batch-infer false --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --node-feat-name movie:title user:feat
 
 error_and_exit $?
 
@@ -169,7 +169,7 @@ python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_n
 error_and_exit $?
 
 echo "**************dataset: Movielens, do inference on saved model with mini-batch-infer without test mask"
-python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_notest_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer true  --save-embed-path /data/gsgnn_nc_ml/mini-infer-emb/ --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml/mini-prediction/ --no-validation true --preserve-input True
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_notest_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer true  --save-embed-path /data/gsgnn_nc_ml/mini-infer-emb/ --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml/mini-prediction/ --no-validation true --preserve-input True --node-feat-name movie:title user:feat
 
 error_and_exit $?
 
@@ -463,4 +463,54 @@ python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_s
 
 error_and_exit $?
 
+
+echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch save model save emb node, wholegraph learnable emb"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --save-model-path /data/gsgnn_wg_nc_ml/ --topk-model-to-save 1 --save-embed-path /data/gsgnn_wg_nc_ml/emb/ --num-epochs 3 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --backend nccl --use-node-embeddings true --use-wholegraph-sparse-emb True
+
+error_and_exit $?
+
+# check prints
+cnt=$(grep "save_embed_path: /data/gsgnn_wg_nc_ml/emb/" /tmp/train_log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have save_embed_path"
+    exit -1
+fi
+
+cnt=$(grep "save_model_path: /data/gsgnn_wg_nc_ml/" /tmp/train_log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have save_model_path"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Test accuracy" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Test accuracy"
+    exit -1
+fi
+
+best_epoch=$(grep "successfully save the model to" /tmp/train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
+echo "The best model is saved in epoch $best_epoch"
+
+rm /tmp/train_log.txt
+
+echo "**************dataset: Movielens, do inference on saved model, wholegraph learnable emb"
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer false  --save-embed-path /data/gsgnn_wg_nc_ml/infer-emb/ --restore-model-path /data/gsgnn_wg_nc_ml/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_wg_nc_ml/prediction/ --logging-file /tmp/log.txt --preserve-input True --backend nccl --use-node-embeddings true --use-wholegraph-sparse-emb True
+
+error_and_exit $?
+
+bst_cnt=$(grep "Best Test accuracy" /tmp/log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Test accuracy"
+    exit -1
+fi
+
+python3 $GS_HOME/tests/end2end-tests/check_np_infer_emb.py --train-embout /data/gsgnn_wg_nc_ml/emb/ --infer-embout /data/gsgnn_wg_nc_ml/infer-emb/
+
+error_and_exit $?
+
+rm -fr /data/gsgnn_wg_nc_ml/
 rm -fr /tmp/*
