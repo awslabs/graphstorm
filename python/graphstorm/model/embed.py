@@ -151,6 +151,17 @@ class GSNodeInputLayer(GSLayer):  # pylint: disable=abstract-method
         """
         return None
 
+    @property
+    def use_wholegraph_sparse_emb(self):
+        """ Whether or not to use WholeGraph to host embeddings for sparse updates.
+
+            Note: By default, a GSNodeInputLayer does not support WholeGraph
+            sparse embedding, unless implemented specifically.
+
+            Note: GSNodeEncoderInputLayer supports WholeGraph sparse embedding.
+        """
+        return False
+
 
 class GSNodeEncoderInputLayer(GSNodeInputLayer):
     """The input encoder layer for all nodes in a heterogeneous graph.
