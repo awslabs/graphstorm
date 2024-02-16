@@ -947,21 +947,21 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
             num_train_eval += num_train
             # If there are no training nodes or if all nodes are training nodes,
             # we don't need to do anything.
-            if num_train > 0 and num_train < g.number_of_nodes(ntype):
+            if 0 < num_train < g.number_of_nodes(ntype):
                 balance_arr += node_data[ntype]["train_mask"] * balance_tag
                 balance_tag += 1
             logging.debug("Balance %d training nodes on node %s.", num_train, ntype)
         if "val_mask" in node_data[ntype] and num_train_eval < g.number_of_nodes(ntype):
             num_valid = np.sum(node_data[ntype]["val_mask"])
             num_train_eval += num_valid
-            if num_valid > 0 and num_valid < g.number_of_nodes(ntype):
+            if 0 < num_valid < g.number_of_nodes(ntype):
                 balance_arr += node_data[ntype]["val_mask"] * balance_tag
                 balance_tag += 1
             logging.debug("Balance %d validation nodes on node %s.", num_valid, ntype)
         if "test_mask" in node_data[ntype] and num_train_eval < g.number_of_nodes(ntype):
             num_test = np.sum(node_data[ntype]["test_mask"])
             num_train_eval += num_test
-            if num_test > 0 and num_test < g.number_of_nodes(ntype):
+            if 0 < num_test < g.number_of_nodes(ntype):
                 balance_arr += node_data[ntype]["test_mask"] * balance_tag
             logging.debug("Balance %d test nodes on node %s.", num_test, ntype)
         assert num_train_eval <= g.number_of_nodes(ntype), \
