@@ -1166,7 +1166,7 @@ def test_partition_graph(num_parts):
             assert th.sum(node_data1['node1/train_mask']) > 0
             assert th.sum(node_data1['node1/test_mask']) == 0
 
-    # case 4: subset are training nodes but not test nodes.
+    # case 4: subset are test nodes but not training nodes.
     train_mask1 = np.zeros((num_nodes['node1'],), dtype=np.int8)
     test_mask1 = np.zeros((num_nodes['node1'],), dtype=np.int8)
     test_mask1[0:num_nodes['node1']//3] = 1
