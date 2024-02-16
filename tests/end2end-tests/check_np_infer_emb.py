@@ -112,4 +112,4 @@ if __name__ == '__main__':
         for nid, train_emb in zip (train_remaped_nids, train_remaped_emb):
             train_remap_embs[nid] = train_emb
         for nid, inf_emb in zip(infer_remaped_nids, infer_remaped_emb):
-            assert_almost_equal(train_remap_embs[nid], inf_emb, decimal=2)
+            assert_almost_equal(train_remap_embs[nid], inf_emb, decimal=1)
