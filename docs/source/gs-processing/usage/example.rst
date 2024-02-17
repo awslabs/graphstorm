@@ -95,7 +95,7 @@ The contents of the ``gconstruct-config.json`` can be:
         "edges" : [
             {
                 # Note that the file is a relative path
-                "files": ["edges/movie-included_in-genre.csv"],
+                "files": ["edge_data/movie-included_in-genre.csv"],
                 "format": {
                     "name": "csv",
                     "separator" : ","
@@ -130,22 +130,24 @@ file:
     > python run_distributed_processing.py --input-data s3://my-bucket/data \
         --config-filename gconstruct-config.json
 
-Node files are optional
-^^^^^^^^^^^^^^^^^^^^^^^
+Node files are optional (but recommended)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 GSProcessing does not require node files to be provided for
-every node type. If a node type appears in one of the edges,
+every node type. Any node types that appears as source or destination in one of the edges,
 its unique node identifiers will be determined by the edge files.
 
-In the example GConstruct file above (`gconstruct-config.json`), the node ids for the node types
-``movie`` and ``genre`` will be extracted from the edge list provided.
+However, this is an expensive operation, so if you know your node ID
+space from the start we recommend providing node input files for each
+node type. You can also have a mix of some node types being provided
+and others inferred by the edges.
 
 Example data and configuration
 ------------------------------
 
 For this example we use a small heterogeneous graph inspired by the Movielens dataset.
 You can see the configuration file under
-``graphstorm-processing/tests/resources/small_heterogeneous_graph/gconstruct-config.json``
+``graphstorm/graphstorm-processing/tests/resources/small_heterogeneous_graph/gconstruct-config.json``
 
 We have 4 node types, ``movie``, ``genre``, ``director``, and ``user``. The graph has 3
 edge types, ``movie:included_in:genre``, ``user:rated:movie``, and ``director:directed:movie``.
@@ -166,9 +168,6 @@ to process the data and create the output on our local storage.
 We will provide an input and output prefix for our data, passing
 local paths to the script.
 
-We also provide the argument ``--num-output-files`` that instructs PySpark
-to try and create output with 4 partitions [#f1]_.
-
 Assuming our working directory is ``graphstorm/graphstorm-processing/``
 we can use the following command to run the processing job locally:
 
@@ -176,8 +175,7 @@ we can use the following command to run the processing job locally:
 
     gs-processing --config-filename gconstruct-config.json \
         --input-prefix ./tests/resources/small_heterogeneous_graph \
-        --output-prefix /tmp/gsprocessing-example/ \
-        --num-output-files 4
+        --output-prefix /tmp/gsprocessing-example/
 
 
 To finalize processing and to wrangle the data into the structure that
@@ -207,7 +205,7 @@ and can be used downstream to create a partitioned graph.
     $ ls
 
     edges/  launch_arguments.json  metadata.json  node_data/
-    node_id_mappings/  perf_counters.json  updated_row_counts_metadata.json
+    raw_id_mappings/  perf_counters.json  updated_row_counts_metadata.json
 
 We have a few JSON files and the data directories containing
 the graph structure, features, and labels. In more detail:
@@ -217,10 +215,10 @@ the graph structure, features, and labels. In more detail:
   job finishes.
 * ``updated_row_counts_metadata.json``:
   This file is meant to be used as the input configuration for the
-  distributed partitioning pipeline. ``repartition_files.py`` produces
+  distributed partitioning pipeline. ``gs-repartition`` produces
   this file using the original ``metadata.json`` file as input.
 * ``metadata.json``: Created by ``gs-processing`` and used as input
-  for ``repartition_files.py``, can be removed once that script has run.
+  for ``gs-repartition``, can be removed the ``gs-repartition`` step.
 * ``perf_counters.json``: A JSON file that contains runtime measurements
   for the various components of GSProcessing. Can be used to profile the
   application and discover bottlenecks.
@@ -233,11 +231,14 @@ The directories created contain:
 * ``node_data``: Contains the features for the nodes, one sub-directory
   per node type. Each file will contain one column named after the original
   feature name that contains the value of the feature (could be a scalar or a vector).
-* ``node_id_mappings``: Contains mappings from the original node ids to the
+* ``raw_id_mappings``: Contains mappings from the original node ids to the
   ones created by the processing job. This mapping would allow you to trace
   back predictions to the original nodes/edges. The files will have two columns,
-  ``node_str_id`` that contains the original string ID of the node, and ``node_int_id``
-  that contains the numerical id that the string id was mapped to.
+  ``orig`` that contains the original string ID of the node, and ``new``
+  that contains the numerical id that the string id was mapped to. This
+  can be used downstream to retrieve the original node ids after training.
+  You will use the S3 path these mappings are created under in your call to
+  `GraphStorm inference <https://graphstorm.readthedocs.io/en/latest/scale/sagemaker.html#launch-inference>`_.
 
 If the graph had included edge features they would appear
 in an ``edge_data`` directory.
