@@ -261,6 +261,7 @@ class GSConfig:
         _ = self.node_id_mapping_file
         _ = self.edge_id_mapping_file
         _ = self.verbose
+        _ = self.use_wholegraph
 
         # Data
         _ = self.node_feat_name
@@ -307,7 +308,6 @@ class GSConfig:
         if self.node_lm_configs:
             _ = self.lm_infer_batch_size
             _ = self.freeze_lm_encoder_epochs
-        _ = self.use_wholegraph_cache_lm_embed
 
         if self.distill_lm_configs:
             _ = self.textual_data_path
@@ -538,6 +538,18 @@ class GSConfig:
 
         return False
 
+    @property
+    def use_wholegrap(self):
+        """ Whether to use WholeGraph to store intermediate embeddings/tensors generated
+            during training or inference, e.g., cache_lm_emb, sparse_emb, etc.
+        """
+        if hasattr(self, "_use_wholegraph"):
+            assert self._use_wholegraph in [True, False], \
+                "Invalid value for _use_wholegraph. Must be either True or False."
+            return self._use_wholegraph
+        else:
+            return None
+
     ###################### language model support #########################
     # Bert related
     @property
@@ -688,18 +700,6 @@ class GSConfig:
         """
         if hasattr(self, "_cache_lm_embed"):
             return self._cache_lm_embed
-        else:
-            return None
-
-    @property
-    def use_wholegraph_cache_lm_embed(self):
-        """ Whether to cache the LM embeddings on files by using WholeGraph.
-        """
-        if hasattr(self, "_use_wholegraph_cache_lm_embed"):
-            if self._use_wholegraph_cache_lm_embed:
-                assert self.cache_lm_embed, "You must turn on cache_lm_embed " \
-                    "to use wholegraph cache lm embeddings."
-            return self._use_wholegraph_cache_lm_embed
         else:
             return None
 
@@ -2298,6 +2298,13 @@ def _add_initialization_args(parser):
         default=argparse.SUPPRESS,
         help="Print more information.",
     )
+    group.add_argument(
+        "--use-wholegraph",
+        type=lambda x: (str(x).lower() in ['true', '1']),
+        default=argparse.SUPPRESS,
+        help="Whether to use WholeGraph to store intermediate embeddings/tensors generated \
+            during training or inference, e.g., cache_lm_emb, sparse_emb, etc."
+    )
     return parser
 
 def _add_gsgnn_basic_args(parser):
@@ -2492,12 +2499,6 @@ def _add_lm_model_args(parser):
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS,
             help="Whether to cache the LM embeddings in files. " + \
-                    "If the LM embeddings have been saved before, load the saved embeddings " + \
-                    "instead of computing the LM embeddings again.")
-    group.add_argument("--use-wholegraph-cache-lm-embed",
-            type=lambda x: (str(x).lower() in ['true', '1']),
-            default=argparse.SUPPRESS,
-            help="Whether to use WholeGraph to cache the LM embeddings in files. " + \
                     "If the LM embeddings have been saved before, load the saved embeddings " + \
                     "instead of computing the LM embeddings again.")
     return parser
