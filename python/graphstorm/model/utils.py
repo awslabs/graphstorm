@@ -680,7 +680,9 @@ def load_wholegraph_embedding(emb_path, name):
         emb = th.load(file_path)
         local_emb = dist_emb.get_local_tensor()[0]
         assert emb.shape[0] == local_emb.shape[0] and emb.shape[1] == local_emb.shape[1], \
-            "Embedding shape does not match!"
+            f"Embedding shape of {name} does not match! " + \
+            f"Expect {emb.shape}, but get {local_emb.shape}"
+
         assert emb.dtype == local_emb.dtype, "Embedding datatype do not match!"
         local_emb.copy_(emb)
     elif emb_fmt == "binary":

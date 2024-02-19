@@ -261,7 +261,7 @@ class GSConfig:
         _ = self.node_id_mapping_file
         _ = self.edge_id_mapping_file
         _ = self.verbose
-        _ = self.use_wholegraph
+        _ = self.use_wholegraph_embed
 
         # Data
         _ = self.node_feat_name
@@ -539,14 +539,14 @@ class GSConfig:
         return False
 
     @property
-    def use_wholegrap(self):
+    def use_wholegraph_embed(self):
         """ Whether to use WholeGraph to store intermediate embeddings/tensors generated
             during training or inference, e.g., cache_lm_emb, sparse_emb, etc.
         """
-        if hasattr(self, "_use_wholegraph"):
-            assert self._use_wholegraph in [True, False], \
-                "Invalid value for _use_wholegraph. Must be either True or False."
-            return self._use_wholegraph
+        if hasattr(self, "_use_wholegraph_embed"):
+            assert self._use_wholegraph_embed in [True, False], \
+                "Invalid value for _use_wholegraph_embed. Must be either True or False."
+            return self._use_wholegraph_embed
         else:
             return None
 
@@ -2299,7 +2299,7 @@ def _add_initialization_args(parser):
         help="Print more information.",
     )
     group.add_argument(
-        "--use-wholegraph",
+        "--use-wholegraph-embed",
         type=lambda x: (str(x).lower() in ['true', '1']),
         default=argparse.SUPPRESS,
         help="Whether to use WholeGraph to store intermediate embeddings/tensors generated \
