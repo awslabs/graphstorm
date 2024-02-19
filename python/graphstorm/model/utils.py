@@ -582,7 +582,8 @@ def save_wholegraph_embedding(emb_path, embedding, rank, world_size, fmt="binary
             The format of the saved embeddings. Currently only support "binary" and "pytorch".
     """
     assert fmt in ["binary", "pytorch"], \
-        "Using WholeGraph, the supported formats of the saved embeddings are 'binary' and 'pytorch'."
+        "Using WholeGraph, the supported formats of the saved embeddings " + \
+        "are 'binary' and 'pytorch'."
     os.makedirs(emb_path, exist_ok=True)
     # [04/16]: Only rank 0 can chmod to let all other ranks to write files.
     if rank == 0:
