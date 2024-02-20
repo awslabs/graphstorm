@@ -515,9 +515,10 @@ def set_encoder(model, g, config, train_task):
         if model_encoder_type == "lm":
             # only use language model(s) as input layer encoder(s)
             encoder = GSPureLMNodeInputLayer(g, config.node_lm_configs,
-                                             num_train=config.lm_train_nodes,
-                                             lm_infer_batch_size=config.lm_infer_batch_size,
-                                             cached_embed_path=emb_path)
+                                            num_train=config.lm_train_nodes,
+                                            lm_infer_batch_size=config.lm_infer_batch_size,
+                                            cached_embed_path=emb_path,
+                                            wg_cached_embed=config.use_wholegraph_embed)
         else:
             encoder = GSLMNodeEncoderInputLayer(g, config.node_lm_configs,
                                                 feat_size, config.hidden_size,
@@ -526,6 +527,7 @@ def set_encoder(model, g, config, train_task):
                                                 dropout=config.dropout,
                                                 use_node_embeddings=config.use_node_embeddings,
                                                 cached_embed_path=emb_path,
+                                                wg_cached_embed=config.use_wholegraph_embed,
                                                 force_no_embeddings=config.construct_feat_ntype)
     else:
         encoder = GSNodeEncoderInputLayer(g, feat_size, config.hidden_size,
