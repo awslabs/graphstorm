@@ -15,7 +15,7 @@
 
     Graphstorm package.
 """
-__version__ = "0.3"
+__version__ = "0.2.2"
 
 from . import gsf
 from . import utils
