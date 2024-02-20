@@ -515,7 +515,7 @@ error_and_exit $?
 rm -fr /data/gsgnn_wg_nc_ml/
 
 echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: BERT nodes: movie, user inference: mini-batch save model save emb node, use wholegraph for cache_lm_embed"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext.yaml  --save-model-path /data/gsgnn_wg_nc_ml_text/ --topk-model-to-save 1 --save-embed-path /data/gsgnn_wg_nc_ml_text/emb/ --num-epochs 3 --logging-file /tmp/train_log.txt --cache-lm-embed true --preserve-input True --use-wholegraph-embed true --lm-train-nodes 0
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext.yaml  --save-model-path /data/gsgnn_wg_nc_ml_text/ --topk-model-to-save 1 --save-embed-path /data/gsgnn_wg_nc_ml_text/emb/ --num-epochs 3 --logging-file /tmp/train_log.txt --cache-lm-embed true --preserve-input True --use-wholegraph-embed true --lm-train-nodes 0 --backend nccl
 
 error_and_exit $?
 
@@ -553,7 +553,7 @@ rm /tmp/train_log.txt
 echo "*************use wholegraph cached LM embeddings"
 # Run the model training again and this time it should load the BERT embeddings saved
 # in the previous run.
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext.yaml --num-epochs 3 --logging-file /tmp/train_log.txt --cache-lm-embed true --use-wholegraph-embed true --lm-train-nodes 0
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext.yaml --num-epochs 3 --logging-file /tmp/train_log.txt --cache-lm-embed true --use-wholegraph-embed true --lm-train-nodes 0 --backend nccl
 
 error_and_exit $?
 
