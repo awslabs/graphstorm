@@ -529,8 +529,7 @@ fi
 
 file_path=$(find /data/movielen_100k_lm_encoder_train_val_1p_4t/ -type f -name "emb_info.json" -print -quit)
 if [ -n "$file_path" ]; then
-    if grep -q "wholegraph" "$file_path"; then
-    else
+    if ! grep -q "wholegraph" "$file_path"; then
         echo "The emb_info.json file at $file_path does not contain wholegraph as its format name."
         exit -1
     fi
