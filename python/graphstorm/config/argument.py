@@ -290,7 +290,6 @@ class GSConfig:
             _ = self.grad_norm_type
             _ = self.gnn_norm
             _ = self.sparse_optimizer_lr
-            _ = self.use_wholegraph_sparse_emb
             _ = self.num_epochs
             _ = self.save_model_path
             _ = self.save_model_frequency
@@ -1190,18 +1189,6 @@ class GSConfig:
             return sparse_optimizer_lr
 
         return self.lr
-
-    @property
-    def use_wholegraph_sparse_emb(self):
-        """ Whether to use wholegraph for updating learnable node embeddings
-        """
-        # pylint: disable=no-member
-        if hasattr(self, "_use_wholegraph_sparse_emb"):
-            assert self._use_wholegraph_sparse_emb in [True, False], \
-                "Invalid value for _use_wholegraph_sparse_emb. Must be either True or False."
-            return self._use_wholegraph_sparse_emb
-        # By default do not use wholegraph for learnable node embeddings
-        return False
 
     @property
     def use_node_embeddings(self):
@@ -2431,11 +2418,6 @@ def _add_hyperparam_args(parser):
             type=lambda x: (str(x).lower() in ['true', '1']),
             default=argparse.SUPPRESS,
             help="Whether to use extra learnable node embeddings")
-    group.add_argument(
-            "--use-wholegraph-sparse-emb",
-            type=lambda x: (str(x).lower() in ['true', '1']),
-            default=argparse.SUPPRESS,
-            help="Whether to use WholeGraph library to update learnable node embeddings")
     group.add_argument("--construct-feat-ntype", type=str, nargs="+",
             help="The node types whose features are constructed from neighbors' features.")
     group.add_argument("--construct-feat-encoder", type=str, default=argparse.SUPPRESS,

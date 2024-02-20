@@ -465,7 +465,7 @@ error_and_exit $?
 
 
 echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch save model save emb node, wholegraph learnable emb"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --save-model-path /data/gsgnn_wg_nc_ml/ --topk-model-to-save 1 --save-embed-path /data/gsgnn_wg_nc_ml/emb/ --num-epochs 3 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --backend nccl --use-node-embeddings true --use-wholegraph-sparse-emb True
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --save-model-path /data/gsgnn_wg_nc_ml/ --topk-model-to-save 1 --save-embed-path /data/gsgnn_wg_nc_ml/emb/ --num-epochs 3 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --backend nccl --use-node-embeddings true --use-wholegraph-emb True
 
 error_and_exit $?
 
@@ -497,7 +497,7 @@ echo "The best model is saved in epoch $best_epoch"
 rm /tmp/train_log.txt
 
 echo "**************dataset: Movielens, do inference on saved model, wholegraph learnable emb"
-python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer false  --save-embed-path /data/gsgnn_wg_nc_ml/infer-emb/ --restore-model-path /data/gsgnn_wg_nc_ml/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_wg_nc_ml/prediction/ --logging-file /tmp/log.txt --preserve-input True --backend nccl --use-node-embeddings true --use-wholegraph-sparse-emb True
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer false  --save-embed-path /data/gsgnn_wg_nc_ml/infer-emb/ --restore-model-path /data/gsgnn_wg_nc_ml/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_wg_nc_ml/prediction/ --logging-file /tmp/log.txt --preserve-input True --backend nccl --use-node-embeddings true --use-wholegraph-emb True
 
 error_and_exit $?
 
