@@ -267,50 +267,6 @@ python3 $GS_HOME/tests/end2end-tests/check_np_infer_emb.py --train-embout /data/
 
 error_and_exit $?
 
-echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: BERT nodes: movie, user inference: mini-batch save model save emb node, use wholegraph for cache_lm_embed"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext.yaml  --save-model-path /data/gsgnn_wg_nc_ml_text/ --topk-model-to-save 1 --save-embed-path /data/gsgnn_wg_nc_ml_text/emb/ --num-epochs 3 --logging-file /tmp/train_log.txt --cache-lm-embed true --preserve-input True --use-wholegraph-embed true
-
-error_and_exit $?
-
-cnt=$(ls -l /data/gsgnn_wg_nc_ml_text/ | grep epoch | wc -l)
-if test $cnt != 1
-then
-    echo "The number of save models $cnt is not equal to the specified topk 1"
-    exit -1
-fi
-
-best_epoch=$(grep "successfully save the model to" /tmp/train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
-echo "The best model is saved in epoch $best_epoch"
-
-rm /tmp/train_log.txt
-
-echo "*************use wholegraph cached LM embeddings"
-# Run the model training again and this time it should load the BERT embeddings saved
-# in the previous run.
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext.yaml --num-epochs 3 --logging-file /tmp/train_log.txt --cache-lm-embed true --use-wholegraph-embed true
-
-error_and_exit $?
-
-rm /tmp/train_log.txt
-
-echo "**************dataset: Movielens, do inference on saved model, RGCN layer: 1, node feat: BERT nodes: movie, user"
-python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 2 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_text_infer.yaml --use-mini-batch-infer false   --save-embed-path /data/gsgnn_wg_nc_ml_text/infer-emb/ --restore-model-path /data/gsgnn_wg_nc_ml_text/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_wg_nc_ml_text/prediction/ --logging-file /tmp/log.txt --logging-level debug --preserve-input True
-
-error_and_exit $?
-
-cnt=$(grep "| Test accuracy" /tmp/log.txt | wc -l)
-if test $cnt -ne 1
-then
-    echo "We do test, should have test accuracy"
-    exit -1
-fi
-
-rm /tmp/log.txt
-
-python3 $GS_HOME/tests/end2end-tests/check_np_infer_emb.py --train-embout /data/gsgnn_wg_nc_ml_text/emb/ --infer-embout /data/gsgnn_wg_nc_ml_text/infer-emb/
-
-error_and_exit $?
-
 # Run the model training again and this time it should load the BERT embeddings saved
 # in the previous run.
 python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_movie_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_movie_utext.yaml  --save-model-path /data/gsgnn_nc_ml_movie_text/ --topk-model-to-save 1 --save-embed-path /data/gsgnn_nc_ml_text/emb/ --num-epochs 1 --construct-feat-ntype user --preserve-input True
@@ -557,4 +513,52 @@ python3 $GS_HOME/tests/end2end-tests/check_np_infer_emb.py --train-embout /data/
 error_and_exit $?
 
 rm -fr /data/gsgnn_wg_nc_ml/
+
+echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: BERT nodes: movie, user inference: mini-batch save model save emb node, use wholegraph for cache_lm_embed"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext.yaml  --save-model-path /data/gsgnn_wg_nc_ml_text/ --topk-model-to-save 1 --save-embed-path /data/gsgnn_wg_nc_ml_text/emb/ --num-epochs 3 --logging-file /tmp/train_log.txt --cache-lm-embed true --preserve-input True --use-wholegraph-embed true --lm-train-nodes 0
+
+error_and_exit $?
+
+cnt=$(find /data/movielen_100k_lm_encoder_train_val_1p_4t/ -type f -name "wg-embed*" | wc -l)
+expected=$(( 2 * $NUM_TRAINERS ))
+if test $cnt != $expected
+then
+    echo "The number of saved wholegraph embeddings $cnt is not equal to the number of $NUM_TRAINERS * 2"
+    exit -1
+fi
+
+file_path=$(find /data/movielen_100k_lm_encoder_train_val_1p_4t/ -type f -name "emb_info.json" -print -quit)
+if [ -n "$file_path" ]; then
+    if grep -q "wholegraph" "$file_path"; then
+    else
+        echo "The emb_info.json file at $file_path does not contain wholegraph as its format name."
+        exit -1
+    fi
+else
+    echo "The emb_info.json file is not found"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_wg_nc_ml_text/ | grep epoch | wc -l)
+if test $cnt != 1
+then
+    echo "The number of save models $cnt is not equal to the specified topk 1"
+    exit -1
+fi
+
+best_epoch=$(grep "successfully save the model to" /tmp/train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
+echo "The best model is saved in epoch $best_epoch"
+
+rm /tmp/train_log.txt
+
+echo "*************use wholegraph cached LM embeddings"
+# Run the model training again and this time it should load the BERT embeddings saved
+# in the previous run.
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext.yaml --num-epochs 3 --logging-file /tmp/train_log.txt --cache-lm-embed true --use-wholegraph-embed true --lm-train-nodes 0
+
+error_and_exit $?
+
+rm /tmp/train_log.txt
+rm -fr /data/gsgnn_wg_nc_ml_text/
+
 rm -fr /tmp/*

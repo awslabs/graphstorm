@@ -650,7 +650,12 @@ def load_wholegraph_embedding(emb_path, name):
     -------
     WholeGraphDistTensor : the loaded embeddings in WholeGraph.
     """
-    with open(os.path.join(emb_path, "emb_info.json"), 'r', encoding='utf-8') as f:
+    file_path = os.path.join(emb_path, "emb_info.json")
+    assert os.path.exists(file_path), \
+        f"Embedding JSON file: {file_path} not found. " + \
+        "This file is needed for storing embedding with WholeGraph. It's generated when " + \
+        "you save embeddings with '--use-wholegraph-embed' flag."
+    with open(file_path, 'r', encoding='utf-8') as f:
         emb_info = json.load(f)
 
     emb_fmt = emb_info['format']
