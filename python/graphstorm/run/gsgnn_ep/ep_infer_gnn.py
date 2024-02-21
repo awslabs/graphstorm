@@ -44,9 +44,8 @@ def main(config_args):
     config.verify_arguments(False)
 
     use_wg_feats = use_wholegraph(config.part_config)
-    use_wg_embed = config.use_wholegraph_sparse_emb or config.use_wholegraph_embed
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
-                  use_wholegraph=use_wg_embed or use_wg_feats)
+                  use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
     device = setup_device(config.local_rank)
 
     infer_data = GSgnnEdgeInferData(config.graph_name,
