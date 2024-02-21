@@ -154,7 +154,9 @@ def test_numerical_transformation_with_median_imputer_and_std_norm(
     expected_imputed_std_ages = [0.2, 0.2, 0.1, 0.3, 0.2]
 
     for row, expected_val in zip(transformed_rows, expected_imputed_std_ages):
-        assert row["age"] == expected_val
+        assert_almost_equal(
+            row["age"], expected_val, decimal=7
+        )
 
 
 def test_multi_numerical_transformation_without_norm_and_imputer(input_df: DataFrame):
