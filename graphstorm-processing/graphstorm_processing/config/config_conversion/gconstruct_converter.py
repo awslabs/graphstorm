@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
+import logging
 from typing import Any
 
 from .converter_base import ConfigConverter
@@ -88,6 +88,8 @@ class GConstructConfigConverter(ConfigConverter):
             return []
         for gconstruct_feat_dict in feats:
             gsp_feat_dict = {}
+            if isinstance(gconstruct_feat_dict["feature_col"], str):
+                gconstruct_feat_dict["feature_col"] = [gconstruct_feat_dict["feature_col"]]
             gsp_feat_dict["column"] = gconstruct_feat_dict["feature_col"][0]
             if "feature_name" in gconstruct_feat_dict:
                 gsp_feat_dict["name"] = gconstruct_feat_dict["feature_name"]
