@@ -113,7 +113,8 @@ def test_read_node_gconstruct(converter: GConstructConfigConverter, node_dict: d
     ]
 
 
-def test_read_edge_gconstruct(converter: GConstructConfigConverter):
+@pytest.mark.parametrize("col_name", ["author", ["author"]])
+def test_read_edge_gconstruct(converter: GConstructConfigConverter, col_name):
     """Multiple test cases for GConstruct edges conversion"""
     text_input: dict[str, list[dict]] = {"edges": [{}]}
     # nodes only with required elements
@@ -148,7 +149,7 @@ def test_read_edge_gconstruct(converter: GConstructConfigConverter):
             "files": ["/tmp/acm_raw/edges/author_writing_paper.parquet"],
             "source_id_col": "~from",
             "dest_id_col": "~to",
-            "features": [{"feature_col": ["author"], "feature_name": "feat"}],
+            "features": [{"feature_col": col_name, "feature_name": "feat"}],
             "labels": [
                 {
                     "label_col": "edge_col",
