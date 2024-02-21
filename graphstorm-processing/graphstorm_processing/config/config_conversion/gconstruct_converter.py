@@ -76,7 +76,7 @@ class GConstructConfigConverter(ConfigConverter):
         """Convert the feature config
         Parameters
         ----------
-        feats: list[dict]
+        feats: list[Mapping[str, Any]]
             The feature information in the GConstruct format
 
         Returns
