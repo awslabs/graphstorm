@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from .converter_base import ConfigConverter
 from .meta_configuration import NodeConfig, EdgeConfig
@@ -71,7 +72,7 @@ class GConstructConfigConverter(ConfigConverter):
         return labels_list
 
     @staticmethod
-    def _convert_feature(feats: list[Mapping]) -> list[dict]:
+    def _convert_feature(feats: list[Mapping[str, Any]]) -> list[dict]:
         """Convert the feature config
         Parameters
         ----------
