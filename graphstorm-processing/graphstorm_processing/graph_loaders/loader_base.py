@@ -15,6 +15,7 @@ limitations under the License.
 
 Base class for graph data processing.
 """
+
 from abc import ABC
 from typing import Dict, List
 import os

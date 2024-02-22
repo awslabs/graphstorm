@@ -24,6 +24,7 @@ non-conforming files so that all corresponding part-* features of
 the same edge/node type have the same number of rows per corresponding part-file.
 The output is written to storage and a new metadata JSON file is generated.
 """
+
 import argparse
 import json
 import logging
@@ -931,10 +932,10 @@ def main():
                         "Repartitioning structure files for reverse edge type '%s'",
                         reverse_edge_type_name,
                     )
-                    edge_structure_meta[
-                        reverse_edge_type_name
-                    ] = repartitioner.repartition_parquet_files(
-                        edge_structure_meta[reverse_edge_type_name], most_frequent_counts
+                    edge_structure_meta[reverse_edge_type_name] = (
+                        repartitioner.repartition_parquet_files(
+                            edge_structure_meta[reverse_edge_type_name], most_frequent_counts
+                        )
                     )
 
             # Repartition edge feature files if the row counts don't match the most frequent
