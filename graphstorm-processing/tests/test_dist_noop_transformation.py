@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 from numpy.testing import assert_array_equal
 from pyspark.sql import functions as F, DataFrame, SparkSession
 
