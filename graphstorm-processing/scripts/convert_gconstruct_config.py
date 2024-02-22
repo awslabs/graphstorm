@@ -20,6 +20,7 @@ Usage:
 Entry point for graph spec conversion. Allows us to convert a graph
 data specification from GConstruct to the format used by GSProcessing.
 """
+
 import argparse
 import json
 

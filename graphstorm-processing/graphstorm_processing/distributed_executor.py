@@ -45,6 +45,7 @@ Script Parameters
     When set to true (default), we add reverse edges for each edge type.
 
 """
+
 import dataclasses
 import argparse
 import json
