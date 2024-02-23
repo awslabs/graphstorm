@@ -32,7 +32,7 @@ that contains the relevant data:
 Expected file inputs and configuration
 --------------------------------------
 
-GSProcessing expects the input files to be in specific format that will allow
+GSProcessing expects the input files to be in a specific format that will allow
 us to perform the processing and prepare the data for partitioning and training.
 
 The data files are expected to be:
@@ -40,9 +40,9 @@ The data files are expected to be:
 * Tabular data files. We support CSV-with-header format, or in Parquet format.
   The files can be split (multiple parts), or a single file.
 * Available on a local file system or on S3.
-* One tabular file source per edge and node type. For example, for a particular edge
+* One prefix per edge and node type. For example, for a particular edge
   type, all node identifiers (source, destination), features, and labels should
-  exist as columns in a single file source.
+  exist as columns in one or more files under a common prefix (local or on S3).
 
 Apart from the data, GSProcessing also requires a configuration file that describes the
 data and the transformations we will need to apply to the features and any encoding needed for

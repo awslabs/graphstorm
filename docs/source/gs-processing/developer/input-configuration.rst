@@ -286,7 +286,7 @@ can contain the following top-level keys:
    feature values in the data.
 -  ``transformation`` (JSON object, optional): The type of
    transformation that will be applied to the feature. For details on
-   the individual transformations supported see :ref:`supported-transformations`.
+   the individual transformations supported see :ref:`gsp-supported-transformations-ref`.
    If this key is missing, the feature is treated as
    a **no-op** feature without ``kwargs``.
 
@@ -294,7 +294,7 @@ can contain the following top-level keys:
       applied.
    -  ``kwargs`` (JSON object, optional): A dictionary of parameter
       names and values. Each individual transformation will have its own
-      supported parameters, described in :ref:`supported-transformations`.
+      supported parameters, described in :ref:`gsp-supported-transformations-ref`.
 
 -  ``name`` (String, optional): The name that will be given to the
    encoded feature. If not given, **column** is used as the output name.
@@ -470,7 +470,7 @@ arguments.
         You can find all models in the `Huggingface model repository <https://huggingface.co/models>`_.
       - ``max_seq_length`` (Integer, required): Specifies the maximum number of tokens of the input.
         You can use a length greater than the dataset's longest sentence; or for a safe value choose 128. Make sure to check
-        the model's max suported length when setting this value, 
+        the model's max suported length when setting this value,
 
 --------------
 
