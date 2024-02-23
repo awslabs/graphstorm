@@ -2,14 +2,14 @@ import torch as th
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
-from graphstorm.dataloading import GSgnnNodeDataLoader
-from graphstorm.eval import GSgnnAccEvaluator
-from graphstorm.dataloading import GSgnnNodeTrainData
+from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
+from graphstorm.eval import GSgnnMrrLPEvaluator
+from graphstorm.dataloading import GSgnnLPTrainData
 from graphstorm.utils import setup_device
-from graphstorm.inference import GSgnnNodePredictionInferrer
-from graphstorm.trainer import GSgnnNodePredictionTrainer
+from graphstorm.inference import GSgnnLinkPredictionInferrer
+from graphstorm.trainer import GSgnnLinkPredictionTrainer
 from graphstorm.tracker import GSSageMakerTaskTracker
-from llm_gnn_model import GNNLLM_NC
+from llm_gnn_model import GNNLLM_LP
 
 def main(config_args):
     """ main function
@@ -18,29 +18,30 @@ def main(config_args):
     gs.initialize(ip_config=config.ip_config, backend=config.backend)
     device = setup_device(config.local_rank)
     # Define the training dataset
-    train_data = GSgnnNodeTrainData(
+    train_data = GSgnnLPTrainData(
         config.graph_name,
         config.part_config,
-        train_ntypes=config.target_ntype,
-        eval_ntypes=config.eval_target_ntype,
-        label_field=config.label_field,
+        train_etypes=config.train_etype,
+        eval_etypes=config.eval_etype,
+        label_field=None,
         node_feat_field=config.node_feat_name,
     )
 
-    model = GNNLLM_NC(
+    model = GNNLLM_LP(
             g=train_data.g,
             node_lm_configs=config.node_lm_configs,
             h_dim=config.hidden_size,
-            out_dim=config.num_classes,
+            out_dim=config.hidden_size,
             num_layers=config.num_layers,
             target_ntype=config.target_ntype,
+            target_etype=config.train_etype,
             use_norm=True,
             alpha_l2norm=config.alpha_l2norm,
             lr=config.lr)
 
     # Create a trainer for NC tasks.
-    trainer = GSgnnNodePredictionTrainer(
-        model,
+    trainer = GSgnnLinkPredictionTrainer(
+        model, topk_model_to_save=1
     )
 
     if config.restore_model_path is not None:
@@ -52,35 +53,38 @@ def main(config_args):
     trainer.setup_device(device=device)
 
     # set evaluator
-    evaluator = GSgnnAccEvaluator(
-        config.eval_frequency,
-        config.eval_metric,
-        config.multilabel,
+    evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
+        train_data,
+        config.num_negative_edges_eval,
+        config.lp_decoder_type,
         config.use_early_stop,
         config.early_stop_burnin_rounds,
         config.early_stop_rounds,
-        config.early_stop_strategy,
+        config.early_stop_strategy
     )
     trainer.setup_evaluator(evaluator)
     tracker = GSSageMakerTaskTracker(config.eval_frequency)
     trainer.setup_task_tracker(tracker)
 
     # create train loader
-    dataloader = GSgnnNodeDataLoader(
+    # TODO: add reverse_map
+    dataloader = GSgnnLinkPredictionDataLoader(
         train_data,
         train_data.train_idxs,
         fanout=config.fanout,
         batch_size=config.batch_size,
+        num_negative_edges=config.num_negative_edges,
         device=device,
         train_task=True,
     )
 
     # create val loader
-    val_dataloader = GSgnnNodeDataLoader(
+    val_dataloader = GSgnnLinkPredictionDataLoader(
         train_data,
         train_data.val_idxs,
         fanout=config.fanout,
         batch_size=config.eval_batch_size,
+        num_negative_edges=config.num_negative_edges,
         device=device,
         train_task=False,
     )
@@ -103,16 +107,17 @@ def main(config_args):
     model.restore_model(best_model_path)
 
     # Create an inference for a node task.
-    infer = GSgnnNodePredictionInferrer(model)
+    infer = GSgnnLinkPredictionInferrer(model)
     infer.setup_device(device=device)
     infer.setup_evaluator(evaluator)
     infer.setup_task_tracker(tracker)
     # Create test loader
-    test_dataloader = GSgnnNodeDataLoader(
+    test_dataloader = GSgnnLinkPredictionDataLoader(
         train_data,
         train_data.test_idxs,
         fanout=config.fanout,
         batch_size=config.eval_batch_size,
+        num_negative_edges=config.num_negative_edges,
         device=device,
         train_task=False,
     )

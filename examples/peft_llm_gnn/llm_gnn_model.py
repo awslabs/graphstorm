@@ -59,9 +59,20 @@ def get_lm_node_feats(g, lm_feat_names, lm_ntypes):
 
     return lm_feats
 
+class CosineRandomNegative(nn.Module):
+    def __init__(self):
+        super(CosineRandomNegative, self).__init__()
+        self.margin = 0.5
 
-class LLMGraphModel(gsmodel.GSgnnNodeModelBase):
-    """ LLMGNN Model Class
+    def forward(self, anchor, pos, neg):
+        pos_distance = 1 - F.cosine_similarity(anchor, pos)
+        neg_distance = 1 - F.cosine_similarity(anchor, neg)
+
+        loss = F.relu(self.margin - neg_distance).pow(2) + pos_distance.pow(2)
+        return loss.mean()
+
+class GNNLLM_NC(gsmodel.GSgnnNodeModelBase):
+    """ GNNLLM_NC Model Class
 
     Parameters
     ----------
@@ -89,7 +100,7 @@ class LLMGraphModel(gsmodel.GSgnnNodeModelBase):
                  use_norm = True,   # use normalization or not, default is True
                  alpha_l2norm = 0,
                  lr = 0.001):
-        super(LLMGraphModel, self).__init__()
+        super(GNNLLM_NC, self).__init__()
         self.num_layers = num_layers
         self.target_ntype=target_ntype
         self.alpha_l2norm = alpha_l2norm
@@ -135,9 +146,7 @@ class LLMGraphModel(gsmodel.GSgnnNodeModelBase):
         output_nodes = blocks[-1].dstdata[dgl.NID]
         input_ids = self._lm_node_feats[self.target_ntype][TOKEN_IDX][output_nodes].to(self.llm.device)
         attention_mask = self._lm_node_feats[self.target_ntype][ATT_MASK_IDX][output_nodes].to(self.llm.device)
-
         graph_tokens = self.encode_graph(blocks, node_feats)
-
         input_shape = input_ids.size()
         # make sure input_ids are batch_size X seq_len
         input_ids = input_ids.view(-1, input_shape[-1])
@@ -157,9 +166,183 @@ class LLMGraphModel(gsmodel.GSgnnNodeModelBase):
         h = self.out(last_token_embeddings)
         
         loss = self._loss_fn(h, labels[self.target_ntype])
+        # L2 regularization of dense parameters
+        reg_loss = torch.tensor(0.).to(loss.device)
+        for name, d_para in self.named_parameters():
+            if 'gnn' in name:
+                reg_loss += d_para.square().sum()
+        reg_loss = self.alpha_l2norm * reg_loss
+        return loss + reg_loss
         
-        return loss
+    def predict(self, blocks, node_feats, _, input_nodes, return_proba):
+        output_nodes = blocks[-1].dstdata[dgl.NID]
+        
+        input_ids = self._lm_node_feats[self.target_ntype][TOKEN_IDX][output_nodes].to(self.llm.device)
+        attention_mask = self._lm_node_feats[self.target_ntype][ATT_MASK_IDX][output_nodes].to(self.llm.device)
+        graph_tokens = self.encode_graph(blocks, node_feats)
 
+        input_shape = input_ids.size()
+        input_ids = input_ids.view(-1, input_shape[-1])
+        word_embeddings = self.llm.get_input_embeddings()
+        inputs_embeds = torch.cat([graph_tokens.unsqueeze(1), word_embeddings(input_ids)], dim=1)
+        attention_mask = torch.cat([torch.ones((input_shape[0],1), device=self.llm.device), attention_mask], dim=1)
+        model_output = self.llm(inputs_embeds=inputs_embeds, attention_mask=attention_mask)
+        masked_hidden_states = model_output.last_hidden_state * attention_mask.unsqueeze(-1)
+        last_token_indexes = (attention_mask.sum(dim=1, dtype=torch.int64) - 1)
+        last_token_embeddings = masked_hidden_states[torch.arange(last_token_indexes.size(0)),last_token_indexes,:]
+        logits = self.out(last_token_embeddings)
+
+        if return_proba:
+            return logits.argmax(dim=-1), torch.softmax(logits, 1)
+        else:
+            return logits.argmax(dim=-1), logits
+        
+    def create_optimizer(self):
+        # Here we assume there are no sparse embeddings.
+        pytorch_total_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        logging.debug(f"Num of trainable params: {pytorch_total_params}")
+
+        return torch.optim.Adam(self.parameters(), lr=self.lr)
+    
+    def restore_model(self, restore_model_path):
+        self.llm = AutoPeftModel.from_pretrained(restore_model_path)
+
+    def save_model(self, model_path):
+        os.makedirs(model_path, exist_ok=True)
+        os.chmod(model_path, 0o767)
+        if gs.get_rank() == 0:
+            self.llm.save_pretrained(model_path) 
+
+class GNNLLM_LP(gsmodel.GSgnnLinkPredictionModelBase):
+    """ GNNLLM_LP Model Class
+
+    Parameters
+    ----------
+    g : dgl DistGraph
+        Input DistDGL graph
+    node_lm_configs : list
+        language model config for each node type
+    h_dim : int
+        hidden dimension of GNN encoder
+    out_dim : int
+        Output dimension of the model, e.g. number of classes.
+    num_layers : int
+        Number of GNN encoder layers.
+    target_ntype : str
+        The node type for prediction.
+    use_norm: boolean, optional
+        If use layer normalization or not. Default: True
+    alpha_l2norm: float, optional
+        The alpha for L2 normalization. Default: 0
+    lr : float, optional
+        Normalization Method. Default: 0.001
+    """
+    def __init__(self, g, node_lm_configs, h_dim, out_dim, num_layers,
+                 target_ntype,     # the node type to be predict
+                 target_etype,     # the node type to be predict
+                 use_norm = True,   # use normalization or not, default is True
+                 alpha_l2norm = 0,
+                 lr = 0.001):
+        super(GNNLLM_LP, self).__init__()
+        self.num_layers = num_layers
+        self.target_ntype=target_ntype
+        self.target_etype=target_etype
+        self.alpha_l2norm = alpha_l2norm
+        self.lr = lr
+        # assume only one LLM is used
+        model_id = node_lm_configs[0]["model_name"]
+        self.config = AutoConfig.from_pretrained(model_id)
+        base_model = AutoModel.from_pretrained(
+            model_id,config=self.config
+        )
+        peft_config = LoraConfig(inference_mode=False, r=8, lora_alpha=16, lora_dropout=0.1)
+        self.llm = get_peft_model(base_model, peft_config)
+        lm_feat_names = [TOKEN_IDX, ATT_MASK_IDX]
+        self._lm_node_feats = {}
+        for lm_config in node_lm_configs:
+            # A list of node types sharing the same lm model
+            lm_ntypes = lm_config["node_types"]
+            if lm_config["model_name"] != model_id:
+                logging.warning("Multiple LLM model names are found in the config. However, the example only supports one LLM.")
+            lm_node_feats = get_lm_node_feats(g, lm_feat_names, lm_ntypes)
+            for ntype, feats in lm_node_feats.items():
+                assert ntype not in self._lm_node_feats, \
+                        f"More than one BERT model runs on Node {ntype}."
+                self._lm_node_feats[ntype] = feats
+        self.out = nn.Linear(self.config.hidden_size, out_dim)
+        self._loss_fn = gsmodel.ClassifyLossFunc(multilabel=False)
+        self.gnn = nn.ModuleList()
+        for _ in range(num_layers):
+            self.gnn.append(HeteroGraphConv({
+                _etype: GraphConv(h_dim, h_dim) for _etype in g.etypes
+            }))
+        self.projection = nn.Linear(h_dim, self.config.hidden_size)
+
+    def encode_graph(self, blocks, h):
+        for layer, block in zip(self.gnn, blocks):
+            h = layer(block, h)
+            h = {k: F.relu(v) for k, v in h.items()}
+        src_type, dst_type = blocks[0].ntypes
+        graph_tokens = self.projection(h[dst_type])
+        return graph_tokens
+
+    def __get_embedding__(self, input_ids, attention_mask, prompt=None):
+        if prompt is None:
+            model_output = self.llm(input_ids, attention_mask)
+            masked_hidden_states = model_output.last_hidden_state * attention_mask.unsqueeze(-1)
+            last_token_indexes = (attention_mask.sum(dim=1, dtype=torch.int64) - 1)
+            last_token_embeddings = masked_hidden_states[torch.arange(last_token_indexes.size(0)),last_token_indexes,:]
+        else:
+            word_embeddings = self.llm.get_input_embeddings()
+            # assuming graph_tokens has a shape of [batch_size, embedding_dim],
+            # input_ids has a shape of [batch_size, seq_len, embedding_dim]
+            # only one graph token is inserted ahead of input words 
+            inputs_embeds = torch.cat([prompt.unsqueeze(1), word_embeddings(input_ids)], dim=1)
+            attention_mask = torch.cat([torch.ones((input_ids.shape[0],1), device=self.llm.device), attention_mask], dim=1)
+            model_output = self.llm(inputs_embeds=inputs_embeds, attention_mask=attention_mask)
+            
+            masked_hidden_states = model_output.last_hidden_state * attention_mask.unsqueeze(-1)
+            last_token_indexes = (attention_mask.sum(dim=1, dtype=torch.int64) - 1)
+            last_token_embeddings = masked_hidden_states[torch.arange(last_token_indexes.size(0)),last_token_indexes,:]
+        return last_token_embeddings
+    
+    def forward(self, blocks, pos_graph, neg_graph, node_feats, edge_feats, pos_edge_feats, input_nodes):
+        #print(len(blocks))
+        #print(pos_graph, neg_graph)
+        
+        output_nodes = blocks[-1].dstdata[dgl.NID]
+        input_ids = self._lm_node_feats[self.target_ntype][TOKEN_IDX][output_nodes].to(self.llm.device)
+        attention_mask = self._lm_node_feats[self.target_ntype][ATT_MASK_IDX][output_nodes].to(self.llm.device)
+
+        
+        
+        if blocks is None or len(blocks) == 0:
+            # no GNN message passing
+            encode_embs = self.__get_embedding__(input_ids, attention_mask)
+        else:
+            # GNN message passing
+            graph_tokens = self.encode_graph(blocks, node_feats)
+            encode_embs = self.__get_embedding__(input_ids, attention_mask, graph_tokens)
+            print(graph_tokens.shape, encode_embs.shape)
+            breakpoint()
+        # Call emb normalization.
+        encode_embs = self.normalize_node_embs(encode_embs)
+
+        # TODO add w_relation in calculating the score. The current is only valid for
+        # homogenous graph.
+        pos_score = self.decoder(pos_graph, encode_embs, pos_edge_feats)
+        neg_score = self.decoder(neg_graph, encode_embs, pos_edge_feats)
+        assert pos_score.keys() == neg_score.keys(), \
+            "Positive scores and Negative scores must have edges of same" \
+            f"edge types, but get {pos_score.keys()} and {neg_score.keys()}"
+        loss = self.loss_func(pos_score, neg_score)
+        # L2 regularization of dense parameters
+        reg_loss = torch.tensor(0.).to(loss.device)
+        for name, d_para in self.named_parameters():
+            if 'gnn' in name:
+                reg_loss += d_para.square().sum()
+        reg_loss = self.alpha_l2norm * reg_loss
+        return loss + reg_loss
         
     def predict(self, blocks, node_feats, _, input_nodes, return_proba):
         output_nodes = blocks[-1].dstdata[dgl.NID]
