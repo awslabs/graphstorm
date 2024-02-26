@@ -180,7 +180,7 @@ class DistributedExecutor:
                     "graph"
                 ]
             else:
-                logging.warning("Unrecognized version name: %s", config_version)
+                logging.warning("Unrecognized configuration file version name: %s", config_version)
                 try:
                     converter = GConstructConfigConverter()
                     self.graph_config_dict = converter.convert_to_gsprocessing(dataset_config_dict)[
@@ -192,8 +192,10 @@ class DistributedExecutor:
                         "graph" in dataset_config_dict
                     ), "Top-level element 'graph' needs to exist in a GSProcessing config"
                     self.graph_config_dict = dataset_config_dict["graph"]
+                    logging.info("Parsed config file as GSProcessing config")
         else:
             # Older versions of GConstruct configs might be missing a version entry
+            logging.warning("No configuration file version name, trying to parse as GConstruct...")
             converter = GConstructConfigConverter()
             self.graph_config_dict = converter.convert_to_gsprocessing(dataset_config_dict)["graph"]
 
@@ -263,7 +265,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--config-filename",
         type=str,
-        help="GSProcessing data configuration filename.",
+        help="GConstruct or GSProcessing data configuration filename.",
         required=True,
     )
     parser.add_argument(
@@ -309,9 +311,12 @@ def main():
     is_sagemaker_execution = os.path.exists("/opt/ml/config/processingjobconfig.json")
 
     if gsprocessing_args.input_prefix.startswith("s3://"):
-        assert gsprocessing_args.output_prefix.startswith(
-            "s3://"
-        ), "When providing S3 input and output prefixes, they must both be S3."
+        assert gsprocessing_args.output_prefix.startswith("s3://"), (
+            "When providing S3 input and output prefixes, they must both be S3 URIs, got: "
+            f"input: '{gsprocessing_args.input_prefix}' "
+            f"and output: '{gsprocessing_args.output_prefix}'."
+        )
+
         filesystem_type = "s3"
     else:
         # Ensure input and output prefixes exist and convert to absolute paths
