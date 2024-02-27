@@ -57,6 +57,7 @@ Optional:
     security_group_ids=['sg-1234','sg-3456']\"``
 
 """
+
 import argparse
 import logging
 from time import strftime, gmtime
