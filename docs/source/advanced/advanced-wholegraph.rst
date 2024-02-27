@@ -208,7 +208,7 @@ For example link prediction task can be initiated using the following command:
             --graph-format csc,coo \
             --cf /graphstorm/training_scripts/gsgnn_lp/mag_lp.yaml \
             --node-feat-name paper:feat \
-            --use-wholegraph-embed
+            --use-wholegraph-embed true
 
 The output should include the following messages confirming the use of WholeGraph.
 
