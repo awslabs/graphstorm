@@ -1,4 +1,5 @@
 import torch as th
+import time
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
@@ -10,6 +11,7 @@ from graphstorm.inference import GSgnnLinkPredictionInferrer
 from graphstorm.trainer import GSgnnLinkPredictionTrainer
 from graphstorm.tracker import GSSageMakerTaskTracker
 from llm_gnn_model import GNNLLM_LP
+
 
 def main(config_args):
     """ main function
@@ -31,7 +33,6 @@ def main(config_args):
             g=train_data.g,
             node_lm_configs=config.node_lm_configs,
             h_dim=config.hidden_size,
-            out_dim=config.hidden_size,
             num_layers=config.num_layers,
             target_ntype=config.target_ntype,
             target_etype=config.train_etype,
@@ -39,7 +40,7 @@ def main(config_args):
             alpha_l2norm=config.alpha_l2norm,
             lr=config.lr)
 
-    # Create a trainer for NC tasks.
+    # Create a trainer for LP tasks.
     trainer = GSgnnLinkPredictionTrainer(
         model, topk_model_to_save=1
     )
@@ -62,7 +63,7 @@ def main(config_args):
         config.early_stop_rounds,
         config.early_stop_strategy
     )
-    trainer.setup_evaluator(evaluator)
+    # trainer.setup_evaluator(evaluator)
     tracker = GSSageMakerTaskTracker(config.eval_frequency)
     trainer.setup_task_tracker(tracker)
 
@@ -91,20 +92,21 @@ def main(config_args):
 
     # Start the training process.
     model.prepare_input_encoder(train_data)
-    trainer.fit(
-        train_loader=dataloader,
-        num_epochs=config.num_epochs,
-        val_loader=val_dataloader,
-        # disable testing during training
-        test_loader=None,
-        save_model_path=config.save_model_path,
-        save_model_frequency=config.save_model_frequency,
-        use_mini_batch_infer=True
-    )
-    
-    # Load the best checkpoint
-    best_model_path = trainer.get_best_model_path()
-    model.restore_model(best_model_path)
+    if False:
+        trainer.fit(
+            train_loader=dataloader,
+            num_epochs=config.num_epochs,
+            val_loader=val_dataloader,
+            # disable testing during training
+            test_loader=None,
+            save_model_path=config.save_model_path,
+            save_model_frequency=config.save_model_frequency,
+            use_mini_batch_infer=True
+        )
+        
+        # Load the best checkpoint
+        best_model_path = trainer.get_best_model_path()
+        model.restore_model(best_model_path)
 
     # Create an inference for a node task.
     infer = GSgnnLinkPredictionInferrer(model)
@@ -122,10 +124,9 @@ def main(config_args):
         train_task=False,
     )
     # Run inference on the inference dataset and save the GNN embeddings in the specified path.
-    infer.infer(test_dataloader, save_embed_path=None,
-                save_prediction_path=config.save_prediction_path,
-                use_mini_batch_infer=True)
-
+    infer.infer(train_data, test_dataloader, save_embed_path=None,
+                edge_mask_for_gnn_embeddings='train_mask',
+                use_mini_batch_infer=True, infer_batch_size=config.eval_batch_size)
 
 def generate_parser():
     """Generate an argument parser"""
