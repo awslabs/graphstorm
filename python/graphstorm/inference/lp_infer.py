@@ -42,6 +42,7 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
     def infer(self, data, loader, save_embed_path,
             edge_mask_for_gnn_embeddings='train_mask',
             use_mini_batch_infer=False,
+            infer_batch_size=1024,
             node_id_mapping_file=None,
             save_embed_format="pytorch"):
         """ Do inference
@@ -74,7 +75,8 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
         sys_tracker.check('start inferencing')
         self._model.eval()
         if use_mini_batch_infer:
-            embs = do_mini_batch_inference(self._model, data, fanout=loader.fanout,
+            embs = do_mini_batch_inference(self._model, data, batch_size=infer_batch_size, 
+                                           fanout=loader.fanout, 
                                            edge_mask=edge_mask_for_gnn_embeddings,
                                            task_tracker=self.task_tracker)
         else:

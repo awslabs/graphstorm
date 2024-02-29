@@ -40,6 +40,7 @@ class GSgnnEmbGenInferer(GSInferrer):
     """
     def infer(self, data, task_type, save_embed_path, eval_fanout,
             use_mini_batch_infer=False,
+            infer_batch_size=1024,
             node_id_mapping_file=None,
             save_embed_format="pytorch"):
         """ Do Embedding Generating
@@ -85,8 +86,8 @@ class GSgnnEmbGenInferer(GSInferrer):
             raise TypeError("Not supported for task type: ", task_type)
 
         if use_mini_batch_infer:
-            embs = do_mini_batch_inference(self._model, data, fanout=eval_fanout,
-                                           edge_mask=None,
+            embs = do_mini_batch_inference(self._model, data, batch_size=infer_batch_size,
+                                           fanout=eval_fanout, edge_mask=None,
                                            task_tracker=self.task_tracker,
                                            infer_ntypes=infer_ntypes)
         else:
