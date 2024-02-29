@@ -195,11 +195,11 @@ The configuration JSON file along with these node and edge parquet files are the
 
 .. code-block:: bash
 
-    python3 -m graphstorm.gconstruct.construct_graph \
-               --conf-file /tmp/acm_raw/config.json \
-               --output-dir /tmp/acm_gs \
-               --num-parts 1 \
-               --graph-name acm
+    python -m graphstorm.gconstruct.construct_graph \
+              --conf-file /tmp/acm_raw/config.json \
+              --output-dir /tmp/acm_gs \
+              --num-parts 1 \
+              --graph-name acm
 
 .. _output-graph-construction:
 
@@ -277,6 +277,10 @@ The below image show how the built DGL ACM data looks like.
 .. figure:: ../../../tutorial/ACM_LabelAndMask.png
     :align: center
 
+.. note::
+
+    - Because the Option 2 method will not be supported after the 0.2 version, some new graph construction features such as label statistics generation and node ID mapping. To use the latest construction features, please refer to the :ref:`Option 1 <option-1>`.
+
 Partition the DGL ACM graph
 ```````````````````````````
 GraphStorm provides two graph partition tools, the `partition_graph.py <https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph.py>`_ for node/edge prediction graph partition, and the `partition_graph_lp.py <https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph_lp.py>`_ for the link prediction graph partition.
@@ -285,13 +289,13 @@ The below command partition the DGL ACM graph, the ``acm.dgl`` in the ``/tmp/acm
 
 .. code-block:: bash
 
-    python3 /graphstorm/tools/partition_graph.py \
-            --dataset acm \
-            --filepath /tmp/acm_dgl \
-            --num-parts 1 \
-            --target-ntype paper \
-            --nlabel-field paper:label \
-            --output /tmp/acm_nc
+    python /graphstorm/tools/partition_graph.py \
+           --dataset acm \
+           --filepath /tmp/acm_dgl \
+           --num-parts 1 \
+           --target-ntype paper \
+           --nlabel-field paper:label \
+           --output /tmp/acm_nc
 
 Outputs of the command are under the ``/tmp/acm_nc/`` folder with the similar contents as the :ref:`Option 1 <option-1>`.
 
@@ -299,12 +303,12 @@ In terms of link prediction task, run the following command to partition the dat
 
 .. code-block:: bash
 
-    python3 /graphstorm/tools/partition_graph_lp.py \
-            --dataset acm \
-            --filepath /tmp/acm_dgl \
-            --num-parts 1 \
-            --target-etype paper,citing,paper \
-            --output /tmp/acm_lp
+    python /graphstorm/tools/partition_graph_lp.py \
+           --dataset acm \
+           --filepath /tmp/acm_dgl \
+           --num-parts 1 \
+           --target-etype paper,citing,paper \
+           --output /tmp/acm_lp
 
 Please refer to :ref:`Graph Partition Configurations <configurations-partition>` to find more details of the arguments of the two partition tools.
 
@@ -314,20 +318,20 @@ It is common that users will copy and reuse GraphStorm's built-in scripts and ya
 
 - **node_feat_name**: if some types of nodes have features, please make sure to specify these feature names in either the YAML file or use an argument in the launch command. Otherwise, GraphStorm will ignore any features the nodes might have, hence only using learnable embeddings as their features.
 
-For `Classification/Regression` tasks:
+For **`Classification/Regression`** tasks:
 
 - **label_field**: please change values of this field to specify the field name of labeled data in your graph data.
 - **num_classes**: please change values of this filed to specify the number of classes to be predicted in your graph data if doing a `Classification`` task.
 
-For `Node Classification/Regression` tasks:
+For **`Node Classification/Regression`** tasks:
 
 - **target_ntype**: please change values of this field to the node type that the label is associated, which should be the same node type for prediction.
 
-For `Edge Classification/Regression` tasks:
+For **`Edge Classification/Regression`** tasks:
 
 - **target_etype**: please change values of this field to the edge type that the label is associated, which should be the same edge type for prediction.
 
-For `Link Prediction` tasks:
+For **`Link Prediction`** tasks:
 
 - **train_etype**: please specify values of this field for the edge type that you want to do link prediction for the downstream task, e.g. recommendation or search. Although if not specified, i.e. put ``None`` as the value, all edge types will be used for training, this might not commonly used in practice for most `Link Prediction` related tasks.
 - **eval_etype**: it is highly recommended that you set this value to be the same as the value of ``train_etype``, so that the evaluation metric can truly demonstrate the performance of models.
@@ -390,78 +394,59 @@ Step 3: Launch training and inference scripts on your own graphs
 
 With the partitioned data and configuration YAML file available, it is easy to use GraphStorm's training and infernece scripts to launch the job.
 
-.. Note:: We assume an `ip_list.txt` file has been created in the ``/tmp/`` folder. Users can use the following commands to create this file used in GraphStorm Standalone mode.
-
-    .. code-block:: bash
-
-        touch /tmp/ip_list.txt
-        echo 127.0.0.1 > /tmp/ip_list.txt
-
 Below is a launch script example that trains a GraphStorm built-in RGCN model on the ACM data for node classification.
 
 .. code-block:: bash
 
-    python3 -m graphstorm.run.gs_node_classification \
-            --workspace /tmp \
-            --part-config /tmp/acm_gs/acm.json \
-            --ip-config /tmp/ip_list.txt \
-            --num-trainers 1 \
-            --num-servers 1 \
-            --num-samplers 0 \
-            --ssh-port 2222 \
-            --cf /tmp/acm_nc.yaml \
-            --save-model-path /tmp/acm_nc/models \
-            --node-feat-name paper:feat author:feat subject:feat
+    python -m graphstorm.run.gs_node_classification \
+              --workspace /tmp \
+              --part-config /tmp/acm_gs/acm.json \
+              --num-trainers 1 \
+              --num-servers 1 \
+              --cf /tmp/acm_nc.yaml \
+              --save-model-path /tmp/acm_nc/models \
+              --node-feat-name paper:feat author:feat subject:feat
 
 Link prediction training can be performed using the following command.
 
 .. code-block:: bash
 
-    python3 -m graphstorm.run.gs_link_prediction \
-            --workspace /tmp \
-            --part-config /tmp/acm_gs/acm.json \
-            --ip-config /tmp/ip_list.txt \
-            --num-trainers 1 \
-            --num-servers 1 \
-            --num-samplers 0 \
-            --ssh-port 2222 \
-            --cf /tmp/acm_lp.yaml \
-            --save-model-path /tmp/acm_lp/models \
-            --node-feat-name paper:feat author:feat subject:feat
+    python -m graphstorm.run.gs_link_prediction \
+              --workspace /tmp \
+              --part-config /tmp/acm_gs/acm.json \
+              --num-trainers 1 \
+              --num-servers 1 \
+              --cf /tmp/acm_lp.yaml \
+              --save-model-path /tmp/acm_lp/models \
+              --node-feat-name paper:feat author:feat subject:feat
 
 Similar to the :ref:`Quick-Start <quick-start-standalone>` tutorial, users can launch the inference script on their own data. Below is the customized scripts for inference in the ACM graph.
 
 .. code-block:: bash
 
     # Node Classification
-    python3 -m graphstorm.run.gs_node_classification \
-            --inference \
-            --workspace /tmp \
-            --part-config /tmp/acm_gs/acm.json \
-            --ip-config /tmp/ip_list.txt \
-            --num-trainers 1 \
-            --num-servers 1 \
-            --num-samplers 0 \
-            --ssh-port 2222 \
-            --cf /tmp/acm_nc.yaml \
-            --node-feat-name paper:feat author:feat subject:feat \
-            --restore-model-path /tmp/acm_nc/models/epoch-0 \
-            --save-prediction-path  /tmp/acm_nc/predictions
+    python -m graphstorm.run.gs_node_classification \
+              --inference \
+              --workspace /tmp \
+              --part-config /tmp/acm_gs/acm.json \
+              --num-trainers 1 \
+              --num-servers 1 \
+              --cf /tmp/acm_nc.yaml \
+              --node-feat-name paper:feat author:feat subject:feat \
+              --restore-model-path /tmp/acm_nc/models/epoch-0 \
+              --save-prediction-path  /tmp/acm_nc/predictions
     
     # Link Prediction
-    python3 -m graphstorm.run.gs_link_prediction \
-            --inference \
-            --workspace /tmp \
-            --part-config /tmp/acm_gs/acm.json \
-            --ip-config /tmp/ip_list.txt \
-            --num-trainers 1 \
-            --num-servers 1 \
-            --num-samplers 0 \
-            --ssh-port 2222 \
-            --cf /tmp/acm_lp.yaml \
-            --save-model-path /tmp/acm_lp/models \
-            --node-feat-name paper:feat author:feat subject:feat \
-            --restore-model-path /tmp/acm_lp/models/epoch-0 \
-            --save-embed-path  /tmp/acm_lp/embeds
+    python -m graphstorm.run.gs_link_prediction \
+              --inference \
+              --workspace /tmp \
+              --part-config /tmp/acm_gs/acm.json \
+              --num-trainers 1 \
+              --num-servers 1 \
+              --cf /tmp/acm_lp.yaml \
+              --save-model-path /tmp/acm_lp/models \
+              --node-feat-name paper:feat author:feat subject:feat \
+              --restore-model-path /tmp/acm_lp/models/epoch-0 \
+              --save-embed-path  /tmp/acm_lp/embeds
 
 Once users get familiar with the three steps of using your own graph data, the next step would be look through :ref:`GraphStorm's Configurations<configurations>` that control the three steps for your specific requirements.

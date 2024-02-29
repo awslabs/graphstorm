@@ -57,7 +57,7 @@ to configure a local SSH no-password login that GraphStorm relies on.
 
 .. note::
 
-    This is **NOT** needed for GraphStorm's Standalone mode, i.e., running GraphStorm in one machine only.
+    The "SSH No-password login" is **NOT** needed for GraphStorm's Standalone mode, i.e., running GraphStorm in one machine only.
 
 .. code-block:: bash
 
