@@ -230,14 +230,14 @@ class GNNLLM_NC(gsmodel.GSgnnNodeModelBase):
         if gs.get_rank() == 0:
             self.llm.save_pretrained(model_path) 
 
-# This is a gnn_encoder in GSF
+# It acts like a gnn_encoder in GSF built-in model
 class GPEFT(nn.Module):
     def __init__(self,
                  g,
-                 h_dim,            # input dimension
-                 num_layers,           # output dimension
-                 target_ntype,
-                 node_lm_configs,         # node type and id in order, e.g., {'author': 0, 'paper': 1, 'subject': 2}
+                 h_dim,            # hiddem dimension of LLM
+                 num_layers,           # number of GNN layers
+                 target_ntype,          # target node type, assuming same type for src and dst nodes
+                 node_lm_configs,
                  ):
         super(GPEFT, self).__init__()
         self.num_layers = num_layers
@@ -285,7 +285,6 @@ class GPEFT(nn.Module):
             graph_tokens = self.projection(h[dst_type])
             return graph_tokens
 
-    #def __get_embedding__(self, input_ids, attention_mask, prompt=None):
     def forward(self, blocks, h):
         output_nodes = blocks[-1].dstdata[dgl.NID]
         input_ids = self._lm_node_feats[self.target_ntype][TOKEN_IDX][output_nodes].to(self.llm.device)
@@ -351,20 +350,16 @@ class GNNLLM_LP(gsmodel.GSgnnLinkPredictionModelBase):
         self._loss_fn = CosineRandomNegative()
         self.decoder = LinkPredictDotDecoder(self.gnn_encoder.out_dims)
 
-    #def normalize_node_embs(self, embs):
-    #    return {key: F.normalize(emb, p=2) for key, emb in embs.items()}
-    
+    # Required by lp_infer 
     def inplace_normalize_node_embs(self, embs):
         return embs
     
     def forward(self, blocks, pos_graph, neg_graph, node_feats, edge_feats, pos_edge_feats, input_nodes):
         encode_embs = self.gnn_encoder(blocks, node_feats)
-        # Call emb normalization.
-        #encode_embs = self.normalize_node_embs(encode_embs)
 
         pos_score = self.decoder(pos_graph, encode_embs)
         neg_score = self.decoder(neg_graph, encode_embs)
-        #print(pos_score.keys(), neg_score.shape)
+
         assert pos_score.keys() == neg_score.keys(), \
             "Positive scores and Negative scores must have edges of same" \
             f"edge types, but get {pos_score.keys()} and {neg_score.keys()}"
