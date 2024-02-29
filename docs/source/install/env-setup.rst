@@ -144,10 +144,6 @@ Create a GraphStorm Container
 
 First, you need to create a GraphStorm container based on the Docker image built in the previous step.
 
-.. note::
-
-    If you are preparing the environment to run GraphStorm in a distributed setting, specific instruction for running a Docker image with the NFS folder is given in :ref:`this section<distributed-cluster>`.
-
 Run the following command:
 
 .. code:: bash
@@ -167,3 +163,7 @@ If succeeds, the command prompt will change to the container's, like
 .. code-block:: console
 
     root@<ip-address>:/#
+
+.. note::
+
+    If you are preparing the environment to run GraphStorm in a distributed setting, specific instruction for running a Docker image with the NFS folder is given in the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>`.
