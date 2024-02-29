@@ -308,7 +308,7 @@ class GPEFT(nn.Module):
             masked_hidden_states = model_output.last_hidden_state * attention_mask.unsqueeze(-1)
             last_token_indexes = (attention_mask.sum(dim=1, dtype=torch.int64) - 1)
             last_token_embeddings = masked_hidden_states[torch.arange(last_token_indexes.size(0)),last_token_indexes,:]
-        return {self.target_ntype: last_token_embeddings}
+        return {self.target_ntype: F.normalize(last_token_embeddings, p=2)}
 
 class GNNLLM_LP(gsmodel.GSgnnLinkPredictionModelBase):
     """ GNNLLM_LP Model Class
@@ -351,14 +351,16 @@ class GNNLLM_LP(gsmodel.GSgnnLinkPredictionModelBase):
         self._loss_fn = CosineRandomNegative()
         self.decoder = LinkPredictDotDecoder(self.gnn_encoder.out_dims)
 
-    def normalize_node_embs(self, embs):
-        return {key: F.normalize(emb, p=2) for key, emb in embs.items()}
+    #def normalize_node_embs(self, embs):
+    #    return {key: F.normalize(emb, p=2) for key, emb in embs.items()}
     
+    def inplace_normalize_node_embs(self, embs):
+        return embs
     
     def forward(self, blocks, pos_graph, neg_graph, node_feats, edge_feats, pos_edge_feats, input_nodes):
         encode_embs = self.gnn_encoder(blocks, node_feats)
         # Call emb normalization.
-        encode_embs = self.normalize_node_embs(encode_embs)
+        #encode_embs = self.normalize_node_embs(encode_embs)
 
         pos_score = self.decoder(pos_graph, encode_embs)
         neg_score = self.decoder(neg_graph, encode_embs)
