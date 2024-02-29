@@ -40,9 +40,9 @@ class GSgnnEmbGenInferer(GSInferrer):
     """
     def infer(self, data, task_type, save_embed_path, eval_fanout,
             use_mini_batch_infer=False,
-            infer_batch_size=1024,
             node_id_mapping_file=None,
-            save_embed_format="pytorch"):
+            save_embed_format="pytorch",
+            infer_batch_size=1024):
         """ Do Embedding Generating
 
         Generate node embeddings and save into disk.
@@ -64,6 +64,8 @@ class GSgnnEmbGenInferer(GSInferrer):
             graph partition algorithm.
         save_embed_format : str
             Specify the format of saved embeddings.
+        infer_batch_size: int
+            Specify the inference batch size of embeddings.
         """
         assert save_embed_path is not None, \
             "It requires save embed path for gs_gen_node_embedding"
