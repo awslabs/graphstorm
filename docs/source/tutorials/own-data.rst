@@ -279,7 +279,7 @@ The below image show how the built DGL ACM data looks like.
 
 .. note::
 
-    - Because the Option 2 method will not be supported after the 0.2 version, some new graph construction features such as label statistics generation and node ID mapping. To use the latest construction features, please refer to the :ref:`Option 1 <option-1>`.
+    - Because the Option 2 method will not be supported after the 0.2 version, some new graph construction features, such as label statistics generation and node ID mapping, are not available in this option. To use the latest construction features, please refer to the :ref:`Option 1 <option-1>`.
 
 Partition the DGL ACM graph
 ```````````````````````````
