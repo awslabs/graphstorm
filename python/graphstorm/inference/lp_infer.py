@@ -72,7 +72,7 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
         save_embed_format : str
             Specify the format of saved embeddings.
         infer_batch_size: int
-            Specify the inference batch size of embeddings.
+            Specify the inference batch size of node embeddings.
         """
         sys_tracker.check('start inferencing')
         self._model.eval()

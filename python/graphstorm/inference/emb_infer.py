@@ -65,7 +65,7 @@ class GSgnnEmbGenInferer(GSInferrer):
         save_embed_format : str
             Specify the format of saved embeddings.
         infer_batch_size: int
-            Specify the inference batch size of embeddings.
+            Specify the inference batch size of node embeddings.
         """
         assert save_embed_path is not None, \
             "It requires save embed path for gs_gen_node_embedding"
