@@ -373,8 +373,7 @@ def multiprocessing_exec_no_return(tasks, num_proc, exec_func):
             function to execute.
     """
     if num_proc > 1 and len(tasks) > 1:
-        if num_proc > len(tasks):
-            num_proc = len(tasks)
+        num_proc = min(len(tasks), num_proc)
         processes = []
         manager = multiprocessing.Manager()
         task_queue = manager.Queue()
