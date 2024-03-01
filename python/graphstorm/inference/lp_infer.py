@@ -77,8 +77,8 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
         sys_tracker.check('start inferencing')
         self._model.eval()
         if use_mini_batch_infer:
-            embs = do_mini_batch_inference(self._model, data, batch_size=infer_batch_size, 
-                                           fanout=loader.fanout, 
+            embs = do_mini_batch_inference(self._model, data, batch_size=infer_batch_size,
+                                           fanout=loader.fanout,
                                            edge_mask=edge_mask_for_gnn_embeddings,
                                            task_tracker=self.task_tracker)
         else:
