@@ -15,20 +15,20 @@
 
     A module to gather partitioning algorithm implementations to be executed in SageMaker.
 """
-from typing import List, Tuple
 import abc
-from dataclasses import dataclass
 import json
 import logging
 import os
 import socket
+from dataclasses import dataclass
+from typing import Tuple
 
 from sagemaker import Session
 from graphstorm.gpartition import RandomPartitionAlgorithm
 
 from .s3_utils import upload_file_to_s3
 
-DGL_TOOL_PATH = "/root/dgl/tools"
+DGL_TOOL_PATH = "/root/dgl/tools" # TODO: Remove the hard-coded path
 
 @dataclass()
 class SageMakerPartitionerConfig:
@@ -51,9 +51,9 @@ class SageMakerPartitionerConfig:
     rank: int
     sagemaker_session: Session
 
-class SageMakerPartitioner():
+class SageMakerPartitioner(abc.ABC):
     """
-    Base class for partition algorithm implementations.
+    Base class for SageMaker partition algorithm implementations.
 
     Parameters
     ----------
@@ -184,11 +184,16 @@ class SageMakerRandomPartitioner(SageMakerPartitioner): # pylint: disable=too-fe
     Single-instance random partitioning algorithm running on SageMaker
     """
     def _run_partitioning(self, num_partitions: int) -> str:
-        random_part = RandomPartitionAlgorithm(self.local_output_path,
-                                               self.metadata,
-                                               self.rank)
-        partition_dir = random_part.run_partitioning(num_partitions)
-        return partition_dir
+        random_part = RandomPartitionAlgorithm(self.metadata)
+
+        part_assignment_dir = os.path.join(self.local_output_path, "partition_assignment")
+        os.makedirs(part_assignment_dir, exist_ok=True)
+
+        # Only the leader creates partition assignments
+        if self.rank == 0:
+            random_part.create_partitions(num_partitions, part_assignment_dir)
+
+        return part_assignment_dir
 
     def _upload_results_to_s3(self, local_partition_directory: str, output_s3_path: str) -> None:
         if self.rank == 0:

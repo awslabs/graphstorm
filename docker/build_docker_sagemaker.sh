@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eo pipefail
+set -Eeuo pipefail
 
 # process argument 1: graphstorm home folder
 if [ -z "$1" ]; then
@@ -10,26 +10,12 @@ else
     GSF_HOME="$1"
 fi
 
-# process argument 2: docker image type, default is GPU
-if [ -z "$2" ]; then
-    IMAGE_TYPE="gpu"
-else
-    IMAGE_TYPE="$2"
-fi
-
-# process argument 3: docker image name, default is graphstorm
-if [ -z "$3" ]; then
-    IMAGE_NAME="graphstorm"
-else
-    IMAGE_NAME="$3"
-fi
-
-# process argument 4: image's tag name, default is sm
-if [ -z "$4" ]; then
-    TAG="sm"
-else
-    TAG="$4"
-fi
+# # process argument 2: docker image type, default is GPU
+IMAGE_TYPE="${2:-"gpu"}"
+# # process argument 3: docker image name, default is graphstorm
+IMAGE_NAME="${3:-"graphstorm"}"
+# # process argument 4: image's tag name, default is sm
+TAG="${4:-"sm"}"
 
 # Copy scripts and tools codes to the docker folder
 # TODO: use pip install later

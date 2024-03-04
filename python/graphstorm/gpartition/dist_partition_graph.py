@@ -13,22 +13,24 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Do random partition for distributed data processing.
-    This script only works with graphstorm-processing (Distirbuted graph processing).
+    Run local partition for distributed data processing.
+    This script only works with data in DGL's chunked format,
+    for example, the output of graphstorm-processing.
 """
-import os
 import argparse
-import time
+import json
 import logging
-import sys
+import os
 import queue
+import time
 import subprocess
-from shutil import rmtree
-
+import sys
+from typing import Dict
 from threading import Thread
 
-from .random_partition import LocalRandomPartitioner
-from ..utils import get_log_level
+from graphstorm.gpartition import RandomPartitionAlgorithm
+from graphstorm.utils import get_log_level
+
 
 def run_build_dglgraph(
         input_data_path,
@@ -91,54 +93,65 @@ def run_build_dglgraph(
         thread.join()
         err_code = state_q.get()
         if err_code != 0:
-            raise RuntimeError("build dglgrah failed")
+            raise RuntimeError("Building DistDGL graph failed")
 
 
-def main(args):
+def main():
+    args = parse_args()
+    # Configure logging
     logging.basicConfig(level=get_log_level(args.logging_level))
-    output_path = args.output_path
-    metadata_file=args.meta_info_path
-    local_output_path = os.path.join(output_path, "tmp")
+
+    start = time.time()
+
+    output_path: str = args.output_path
+    metadata_file: str = args.metadata_filename
+
+    with open(os.path.join(args.input_path, metadata_file), "r", encoding="utf-8") as f:
+        metadata_dict: Dict = json.load(f)
 
     part_start = time.time()
-    if args.part_algorithm == "random":
-        partitioner = LocalRandomPartitioner(metadata_file, local_output_path)
-        local_partition_path = partitioner.create_partitions(args.num_parts)
+    if args.partition_algorithm == "random":
+        partitioner = RandomPartitionAlgorithm(metadata_dict)
     else:
-        raise RuntimeError(f"Unknow partition algorithm {args.part_algorighm}")
+        raise RuntimeError(f"Unknown partition algorithm {args.part_algorithm}")
+
+    part_assignment_dir = os.path.join(output_path, "partition_assignment")
+    os.makedirs(part_assignment_dir, exist_ok=True)
+
+    partitioner.create_partitions(
+        args.num_parts,
+        part_assignment_dir)
+
     part_end = time.time()
-    logging.info("Partition takes %f sec", part_end - part_start)
+    logging.info("Partition assignment took %f sec", part_end - part_start)
 
     if args.do_dispatch:
-        meta_info = args.meta_info_path.rsplit("/", 1)
-        input_data_path = meta_info[0]
-        metadata_filename = meta_info[1]
-        partitions_dir = local_partition_path
-        ip_list = args.ip_list
-        dgl_tool_path = args.dgl_tool_path
         run_build_dglgraph(
-            input_data_path,
-            partitions_dir,
-            ip_list,
-            output_path,
-            metadata_filename,
-            dgl_tool_path)
+            args.input_path,
+            part_assignment_dir,
+            args.ip_list,
+            os.path.join(output_path, "dist_graph"),
+            args.metadata_filename,
+            args.dgl_tool_path)
 
-        rmtree(local_partition_path)
-        logging.info("Dispatch takes %f sec", part_end - time.time())
+        logging.info("DGL graph building took %f sec", part_end - time.time())
 
-if __name__ == '__main__':
+    logging.info(f'Partition assignment and DGL graph creation took {time.time() - start:.3f} seconds')
+
+def parse_args() -> argparse.Namespace:
     argparser = argparse.ArgumentParser("Partition DGL graphs for node and edge classification "
                                         + "or regression tasks")
-    argparser.add_argument("--meta-info-path", type=str, required=True,
-                           help="Path to meta-info")
+    argparser.add_argument("--input-path", type=str, required=True,
+                           help="Path to input DGL chunked data.")
+    argparser.add_argument("--metadata-filename", type=str, default="metadata.json",
+                           help="Name for the chunked DGL data metadata file.")
     argparser.add_argument("--output-path", type=str, required=True,
                            help="Path to store the partitioned data")
     argparser.add_argument("--num-parts", type=int, required=True,
                            help="Number of partitions to generate")
     argparser.add_argument("--dgl-tool-path", type=str,
                            help="The path to dgl/tools")
-    argparser.add_argument("--part-algorithm", type=str, default="random",
+    argparser.add_argument("--partition-algorithm", type=str, default="random",
                            choices=["random"], help="Partition algorithm to use.")
     argparser.add_argument("--ip-list", type=str,
                            help="A file storing the ip list of instances of the partition cluster.")
@@ -147,8 +160,8 @@ if __name__ == '__main__':
                            help="The logging level. The possible values: debug, info, warning, \
                                    error. The default value is info.")
 
-    args = argparser.parse_args()
-    start = time.time()
+    return argparser.parse_args()
 
-    main(args)
-    print(f'Partition takes {time.time() - start:.3f} seconds')
+
+if __name__ == '__main__':
+    main()

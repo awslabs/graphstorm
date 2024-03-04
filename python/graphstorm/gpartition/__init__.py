@@ -15,5 +15,4 @@
 
     Modules for do graph partition
 """
-from .random_partition import (RandomPartitionAlgorithm,
-                               LocalRandomPartitioner)
+from .random_partition import (RandomPartitionAlgorithm)
