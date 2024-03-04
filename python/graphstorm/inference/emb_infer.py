@@ -41,7 +41,8 @@ class GSgnnEmbGenInferer(GSInferrer):
     def infer(self, data, task_type, save_embed_path, eval_fanout,
             use_mini_batch_infer=False,
             node_id_mapping_file=None,
-            save_embed_format="pytorch"):
+            save_embed_format="pytorch",
+            infer_batch_size=1024):
         """ Do Embedding Generating
 
         Generate node embeddings and save into disk.
@@ -63,6 +64,9 @@ class GSgnnEmbGenInferer(GSInferrer):
             graph partition algorithm.
         save_embed_format : str
             Specify the format of saved embeddings.
+        infer_batch_size: int
+            Specify the inference batch size when computing node embeddings 
+            with mini batch inference.
         """
         assert save_embed_path is not None, \
             "It requires save embed path for gs_gen_node_embedding"
@@ -85,8 +89,8 @@ class GSgnnEmbGenInferer(GSInferrer):
             raise TypeError("Not supported for task type: ", task_type)
 
         if use_mini_batch_infer:
-            embs = do_mini_batch_inference(self._model, data, fanout=eval_fanout,
-                                           edge_mask=None,
+            embs = do_mini_batch_inference(self._model, data, batch_size=infer_batch_size,
+                                           fanout=eval_fanout, edge_mask=None,
                                            task_tracker=self.task_tracker,
                                            infer_ntypes=infer_ntypes)
         else:
