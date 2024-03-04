@@ -57,9 +57,9 @@ class SageMakerPartitioner(abc.ABC):
 
     Parameters
     ----------
-    partition_config : PartitionConfig
+    partition_config : SageMakerPartitionerConfig
         The configuration for the partition algorithm.
-        See `PartitionConfig` for detailed argument list.
+        See `SageMakerPartitionerConfig` for detailed argument list.
     """
     def __init__(self,
         partition_config: SageMakerPartitionerConfig
