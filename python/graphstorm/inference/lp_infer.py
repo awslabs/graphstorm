@@ -43,7 +43,8 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
             edge_mask_for_gnn_embeddings='train_mask',
             use_mini_batch_infer=False,
             node_id_mapping_file=None,
-            save_embed_format="pytorch"):
+            save_embed_format="pytorch",
+            infer_batch_size=1024):
         """ Do inference
 
         The inference can do two things:
@@ -70,11 +71,15 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
             graph partition algorithm.
         save_embed_format : str
             Specify the format of saved embeddings.
+        infer_batch_size: int
+            Specify the inference batch size when computing node embeddings 
+            with mini batch inference.
         """
         sys_tracker.check('start inferencing')
         self._model.eval()
         if use_mini_batch_infer:
-            embs = do_mini_batch_inference(self._model, data, fanout=loader.fanout,
+            embs = do_mini_batch_inference(self._model, data, batch_size=infer_batch_size,
+                                           fanout=loader.fanout,
                                            edge_mask=edge_mask_for_gnn_embeddings,
                                            task_tracker=self.task_tracker)
         else:

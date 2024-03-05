@@ -8,9 +8,11 @@ GraphStorm is designed for easy-to-use GML models, particularly the graph neural
 
 - 1. Prepare Graph dataset in the required format as inputs of GraphStorm;
 - 2. Launch GraphStorm training scripts and save the best models;
-- 3. Launch GraphStorm inference scripts with saved models to predict.
+- 3. Launch GraphStorm inference scripts with saved models to predict the test set or generate node embeddings.
 
-This tutorial will use GraphStorm's built-in OGB-arxiv dataset for a node classification task to demonstrate these three steps.
+This tutorial will use GraphStorm's built-in OGB-arxiv dataset for a node classification task to demonstrate these three steps in GraphStorm's Standalone mode, i.e., running GraphStorm scripts in one instance with either CPUs or GPUs.
+
+In terms of the Standalone mode, users can use the :ref:`Setup GraphStorm with pip Packages<setup_pip>` method to install GraphStorm in an instance.
 
 Download and Partition OGB-arxiv Data
 --------------------------------------
@@ -18,10 +20,10 @@ First run the below command.
 
 .. code-block:: bash
 
-    python3 /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
-                                                 --filepath /tmp/ogbn-arxiv-nc/ \
-                                                 --num-parts 1 \
-                                                 --output /tmp/ogbn_arxiv_nc_1p
+    python /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
+                                                --filepath /tmp/ogbn-arxiv-nc/ \
+                                                --num-parts 1 \
+                                                --output /tmp/ogbn_arxiv_nc_1p
 
 This command will automatically download the ogbn-arxiv graph data and split the graph into one partition for node classification. Outcomes of the command are a set of files saved in the ``/tmp/ogbn_arxiv_nc_1p/`` folder, as shown below.
 
@@ -42,28 +44,27 @@ Running the following command can download the ogbn-arxiv graph data and split t
 
 .. code-block:: bash
 
-    python3 /graphstorm/tools/partition_graph_lp.py --dataset ogbn-arxiv \
-                                                    --filepath /tmp/ogbn-arxiv-lp/ \
-                                                    --num-parts 1 \
-                                                    --output /tmp/ogbn_arxiv_lp_1p/
+    python /graphstorm/tools/partition_graph_lp.py --dataset ogbn-arxiv \
+                                                   --filepath /tmp/ogbn-arxiv-lp/ \
+                                                   --num-parts 1 \
+                                                   --output /tmp/ogbn_arxiv_lp_1p/
 
 .. _launch-training:
 
 Launch Training
 -----------------
 
-Run the below command to start a training job that trains an built-in RGCN model to perform node classification on the OGB-arxiv.
+Run the below command to start a training job that trains a built-in RGCN model to perform node classification on the OGB-arxiv.
 
 .. code-block:: bash
 
-    python3 -m graphstorm.run.gs_node_classification \
-            --workspace /tmp/ogbn-arxiv-nc \
-            --num-trainers 1 \
-            --num-servers 1 \
-            --num-samplers 0 \
-            --part-config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
-            --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
-            --save-model-path /tmp/ogbn-arxiv-nc/models
+    python -m graphstorm.run.gs_node_classification \
+              --workspace /tmp/ogbn-arxiv-nc \
+              --num-trainers 1 \
+              --num-servers 1 \
+              --part-config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
+              --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
+              --save-model-path /tmp/ogbn-arxiv-nc/models
 
 This command uses GraphStorm's training scripts and default settings defined in the `/graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml <https://github.com/awslabs/graphstorm/blob/main/training_scripts/gsgnn_np/arxiv_nc.yaml>`_ file. It will train an RGCN model by 10 epochs and save the model files after each epoch at the ``/tmp/ogbn-arxiv-nc/models`` folder whose contents are like the below structure.
 
@@ -83,16 +84,13 @@ In terms of link prediciton, run the following command will train an RGCN model 
 
 .. code-block:: bash
 
-    python3 -m graphstorm.run.gs_link_prediction \
-            --workspace /tmp/ogbn-arxiv-lp \
-            --num-trainers 1 \
-            --num-servers 1 \
-            --num-samplers 0 \
-            --part-config /tmp/ogbn_arxiv_lp_1p/ogbn-arxiv.json \
-            --ip-config  /tmp/ip_list.txt \
-            --ssh-port 2222 \
-            --cf /graphstorm/training_scripts/gsgnn_lp/arxiv_lp.yaml \
-            --save-model-path /tmp/ogbn-arxiv-lp/models
+    python -m graphstorm.run.gs_link_prediction \
+              --workspace /tmp/ogbn-arxiv-lp \
+              --num-trainers 1 \
+              --num-servers 1 \
+              --part-config /tmp/ogbn_arxiv_lp_1p/ogbn-arxiv.json \
+              --cf /graphstorm/training_scripts/gsgnn_lp/arxiv_lp.yaml \
+              --save-model-path /tmp/ogbn-arxiv-lp/models
 
 Launch inference
 ----------------
@@ -113,16 +111,15 @@ The inference command is:
 
 .. code-block:: bash
 
-    python3 -m graphstorm.run.gs_node_classification \
-               --inference \
-               --workspace /tmp/ogbn-arxiv-nc \
-               --num-trainers 1 \
-               --num-servers 1 \
-               --num-samplers 0 \
-               --part-config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
-               --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
-               --save-prediction-path /tmp/ogbn-arxiv-nc/predictions/ \
-               --restore-model-path /tmp/ogbn-arxiv-nc/models/epoch-7/
+    python -m graphstorm.run.gs_node_classification \
+              --inference \
+              --workspace /tmp/ogbn-arxiv-nc \
+              --num-trainers 1 \
+              --num-servers 1 \
+              --part-config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
+              --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
+              --save-prediction-path /tmp/ogbn-arxiv-nc/predictions/ \
+              --restore-model-path /tmp/ogbn-arxiv-nc/models/epoch-7/
 
 This inference command predicts the classes of nodes in the testing set and saves the results, a list of parquet files named **predict-00000_00000.parquet**, **predict-00001_00000.parquet**, ..., into the ``/tmp/ogbn-arxiv-nc/predictions/node/`` folder. Each parquet file has two columns, `nid` column for storing node IDs and `pred` column for storing prediction results.
 
@@ -131,15 +128,14 @@ Inference on link prediction is similar as shown in the command below.
 .. code-block:: bash
 
     python3 -m graphstorm.run.gs_link_prediction \
-            --inference \
-            --workspace /tmp/ogbn-arxiv-lp \
-            --num-trainers 1 \
-            --num-servers 1 \
-            --num-samplers 0 \
-            --part-config /tmp/ogbn_arxiv_lp_1p/ogbn-arxiv.json \
-            --cf /graphstorm/training_scripts/gsgnn_lp/arxiv_lp.yaml \
-            --save-embed-path /tmp/ogbn-arxiv-lp/predictions/ \
-            --restore-model-path /tmp/ogbn-arxiv-lp/models/epoch-2/
+               --inference \
+               --workspace /tmp/ogbn-arxiv-lp \
+               --num-trainers 1 \
+               --num-servers 1 \
+               --part-config /tmp/ogbn_arxiv_lp_1p/ogbn-arxiv.json \
+               --cf /graphstorm/training_scripts/gsgnn_lp/arxiv_lp.yaml \
+               --save-embed-path /tmp/ogbn-arxiv-lp/predictions/ \
+               --restore-model-path /tmp/ogbn-arxiv-lp/models/epoch-2/
 
 The inference outputs the saved embeddings, a list of parquet files named **embed-00000_00000.parquet**, **embed-00001_00000.parquet**, ...,  in the ``/tmp/ogbn-arxiv-lp/predictions/node/`` folder. Each parquet file has two columns, `nid` column for storing node IDs and `emb` column for storing embeddings.
 
@@ -149,14 +145,14 @@ If users only need to generate node embeddings instead of doing predictions on t
 
 .. code-block:: bash
 
-    python3 -m graphstorm.run.gs_gen_node_embedding \
-            --workspace /tmp/ogbn-arxiv-nc \
-            --num-trainers 1 \
-            --part-config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
-            --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
-            --save-embed-path /tmp/ogbn-arxiv-nc/saved_embed \
-            --restore-model-path /tmp/ogbn-arxiv-nc/models/epoch-7/ \
-            --use-mini-batch-infer true
+    python -m graphstorm.run.gs_gen_node_embedding \
+              --workspace /tmp/ogbn-arxiv-nc \
+              --num-trainers 1 \
+              --part-config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
+              --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
+              --save-embed-path /tmp/ogbn-arxiv-nc/saved_embed \
+              --restore-model-path /tmp/ogbn-arxiv-nc/models/epoch-7/ \
+              --use-mini-batch-infer true
 
 Users need to specify ``--restore-model-path`` and ``--save-embed-path`` when using the command above to generate node embeddings, and the node embeddings will be saved into the folder specified by the ``--save-embed-path`` argument. Outputs of the above command is like:
 

@@ -29,21 +29,26 @@ Users can use ``pip`` or ``pip3`` to install GraphStorm.
 
 Install Dependencies
 .....................
-Users should install PyTorch v2.1.0 and DGL v1.0.4 that is the core dependency of GraphStorm using the following commands.
+Users should install PyTorch v2.1.0 and DGL v1.1.3 that is the core dependency of GraphStorm using the following commands.
 
 For Nvidia GPU environment:
 
 .. code-block:: bash
 
-    pip3 install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-    pip install dgl==1.0.4+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
+    # for CUDA 11
+    pip install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+    pip install dgl==1.1.3+cu118 -f https://data.dgl.ai/wheels/cu118/repo.html
+
+    # for CUDA 12
+    pip install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+    pip install dgl==1.1.3+cu121 -f https://data.dgl.ai/wheels/cu121/repo.html
 
 For CPU environment:
 
 .. code-block:: bash
 
-    pip3 install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-    pip install dgl==1.0.4 -f https://data.dgl.ai/wheels-internal/repo.html
+    pip install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+    pip install dgl==1.1.3 -f https://data.dgl.ai/wheels-internal/repo.html
 
 Configure SSH No-password login
 ................................
@@ -52,7 +57,7 @@ to configure a local SSH no-password login that GraphStorm relies on.
 
 .. note::
 
-    This is not needed for the standalone mode.
+    The "SSH No-password login" is **NOT** needed for GraphStorm's Standalone mode, i.e., running GraphStorm in one machine only.
 
 .. code-block:: bash
 
@@ -81,12 +86,6 @@ Users can clone GraphStorm source code to obtain these toolkits.
 .. code-block:: bash
 
     git clone https://github.com/awslabs/graphstorm.git
-
-.. warning:: 
-
-    - If use this method to setup GraphStorm environment, please replace the argument ``--ssh-port`` of in launch commands in GraphStorm's tutorials from 2222 with **22**.
-
-    - If use this method to setup GraphStorm environment, you may need to replace the ``python3`` command with ``python``, depending on your Python versions.
 
 .. _setup_docker:
 
@@ -145,10 +144,6 @@ Create a GraphStorm Container
 
 First, you need to create a GraphStorm container based on the Docker image built in the previous step.
 
-.. note::
-
-    If you are preparing the environment to run GraphStorm in a distributed setting, specific instruction for running a Docker image with the NFS folder is given in :ref:`this section<distributed-cluster>`.
-
 Run the following command:
 
 .. code:: bash
@@ -168,3 +163,7 @@ If succeeds, the command prompt will change to the container's, like
 .. code-block:: console
 
     root@<ip-address>:/#
+
+.. note::
+
+    If you are preparing the environment to run GraphStorm in a distributed setting, specific instruction for running a Docker image with the NFS folder is given in the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>`.
