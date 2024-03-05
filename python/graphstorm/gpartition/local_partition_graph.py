@@ -1,10 +1,36 @@
+"""
+    Copyright 2023 Contributors
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+    Base class for local (single-instance) partition algorithms
+"""
 from abc import ABC, abstractmethod
-from typing import Dict, List
+from typing import Dict
 import os
 
 
 class LocalPartitionAlgorithm(ABC):
-    def __init__(self, metadata_dict: Dict) -> None:
+    """Base class for local (single-instance) partition algorithms.
+
+    Parameters
+    ----------
+    metadata_dict : Dict
+        Dictionary containing the metadata for the graph, in DGL chunked graph
+        format. See https://docs.dgl.ai/guide/distributed-preprocessing.html#specification
+        for details
+    """
+    def __init__(self, metadata_dict: Dict):
         self.metadata_dict = metadata_dict
 
     def create_partitions(self, num_partitions: int, partition_assignment_dir: str):
@@ -13,7 +39,8 @@ class LocalPartitionAlgorithm(ABC):
         Each partition assignment file is a text file named <node_type>.txt where each row
         is the assigned partition for the node with ID equal to the row number.
 
-        The partition metadata file is a JSON file named partition_meta.json with the following format:
+        The partition metadata file is a JSON file named partition_meta.json with
+        the following format:
         {
             "algo_name": <algorithm_name>,
             "num_parts": <num_partitions>,
@@ -31,7 +58,7 @@ class LocalPartitionAlgorithm(ABC):
 
         # Creates one partition assignment file per node type
         self._assign_partitions(num_partitions, partition_assignment_dir)
-        ntypes = self.metadata_dict["node_type"]  # type: List[str]
+        ntypes = self.metadata_dict["node_type"]
         for ntype in ntypes:
             assert os.path.exists(os.path.join(partition_assignment_dir, f"{ntype}.txt")), \
                 f"Missing partition assignment for node type {ntype}"

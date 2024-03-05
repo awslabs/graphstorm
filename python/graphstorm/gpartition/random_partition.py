@@ -18,7 +18,6 @@
 import os
 import logging
 import json
-from typing import Dict, List
 
 import numpy as np
 import pyarrow as pa
@@ -43,12 +42,9 @@ class RandomPartitionAlgorithm(LocalPartitionAlgorithm):
         DGL "Chunked graph data" JSON, as defined in
         https://docs.dgl.ai/guide/distributed-preprocessing.html#specification
     """
-    def __init__(self, metadata_dict: Dict):
-        super().__init__(metadata_dict)
-
     def _assign_partitions(self, num_partitions: int, partition_dir: str):
-        num_nodes_per_type = self.metadata_dict["num_nodes_per_type"]  # type: List[int]
-        ntypes = self.metadata_dict["node_type"]  # type: List[str]
+        num_nodes_per_type = self.metadata_dict["num_nodes_per_type"]
+        ntypes = self.metadata_dict["node_type"]
         # Note: This assumes that the order of node_type is the same as the order num_nodes_per_type
         for ntype, num_nodes_for_type in zip(ntypes, num_nodes_per_type):
             logging.info("Generating random partition for node type %s", ntype)
