@@ -121,7 +121,7 @@ def main(config_args):
         fanout=config.fanout,
     )
     # Run inference on the inference dataset and save the GNN embeddings in the specified path.
-    infer.infer(train_data, test_dataloader, save_embed_path=None,
+    infer.infer(train_data, test_dataloader, save_embed_path=config.save_embed_path,
                 edge_mask_for_gnn_embeddings='train_mask',
                 use_mini_batch_infer=True, infer_batch_size=config.eval_batch_size)
 

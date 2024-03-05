@@ -290,7 +290,8 @@ class GPEFT(nn.Module):
         input_ids = self._lm_node_feats[self.target_ntype][TOKEN_IDX][output_nodes].to(self.llm.device)
         attention_mask = self._lm_node_feats[self.target_ntype][ATT_MASK_IDX][output_nodes].to(self.llm.device)
         prompt = self.encode_graph(blocks, h)
-        if prompt is None:
+        #if prompt is None:
+        if True:
             model_output = self.llm(input_ids, attention_mask)
             masked_hidden_states = model_output.last_hidden_state * attention_mask.unsqueeze(-1)
             last_token_indexes = (attention_mask.sum(dim=1, dtype=torch.int64) - 1)
@@ -347,7 +348,7 @@ class GNNLLM_LP(gsmodel.GSgnnLinkPredictionModelBase):
         self.gnn_encoder = GPEFT(g, h_dim, num_layers, target_ntype, node_lm_configs)
         # dummy node input encoder to enable LP Infer
         self.node_input_encoder = DummyNodeInputLayer()
-        self._loss_fn = CosineRandomNegative()
+        self.loss_fn = CosineRandomNegative()
         self.decoder = LinkPredictDotDecoder(self.gnn_encoder.out_dims)
 
     # Required by lp_infer 
@@ -363,7 +364,7 @@ class GNNLLM_LP(gsmodel.GSgnnLinkPredictionModelBase):
         assert pos_score.keys() == neg_score.keys(), \
             "Positive scores and Negative scores must have edges of same" \
             f"edge types, but get {pos_score.keys()} and {neg_score.keys()}"
-        loss = self._loss_fn(pos_score, neg_score)
+        loss = self.loss_fn(pos_score, neg_score)
         # L2 regularization of dense parameters
         reg_loss = torch.tensor(0.).to(loss.device)
         for name, d_para in self.named_parameters():
