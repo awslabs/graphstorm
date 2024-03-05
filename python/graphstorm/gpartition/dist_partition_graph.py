@@ -1,5 +1,5 @@
 """
-    Copyright 2023 Contributors
+    Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
     Run local partition for distributed data processing.
     This script only works with data in DGL's chunked format,
     for example, the output of graphstorm-processing.
+    See https://docs.dgl.ai/guide/distributed-preprocessing.html#specification
 """
 import argparse
 import json
