@@ -71,7 +71,7 @@ class LocalPartitionAlgorithm(ABC):
     @abstractmethod
     def _assign_partitions(self, num_partitions: int, partition_dir: str):
         """Assigns each node in the data to a partition from 0 to `num_partitions-1`,
-        and creates one "{ntype}".json partition assignment file per node type.
+        and creates one "{ntype}>.txt" partition assignment file per node type.
 
         Parameters
         ----------

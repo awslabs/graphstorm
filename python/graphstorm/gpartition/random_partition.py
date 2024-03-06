@@ -23,7 +23,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.csv as pa_csv
 
-from .local_partition_graph import LocalPartitionAlgorithm
+from .partition_algo_base import LocalPartitionAlgorithm
 
 class RandomPartitionAlgorithm(LocalPartitionAlgorithm):
     """

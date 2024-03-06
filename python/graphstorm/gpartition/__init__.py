@@ -13,6 +13,6 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Modules for do graph partition
+    Modules for local graph partitioning.
 """
 from .random_partition import (RandomPartitionAlgorithm)
