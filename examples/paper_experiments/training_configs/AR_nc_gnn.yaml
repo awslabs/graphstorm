@@ -1,0 +1,57 @@
+---
+version: 1.0
+lm_model:
+  node_lm_models:
+    -
+      lm_type: bert
+      model_name: "bert-base-uncased"
+      gradient_checkpoint: true
+      node_types:
+        - item
+    -
+      lm_type: bert
+      model_name: "bert-base-uncased"
+      gradient_checkpoint: true
+      node_types:
+        - review
+gsf:
+  basic:
+    backend: gloo
+    verbose: false
+    save_perf_results_path: null
+  lm:
+    cache_lm_embed: true
+  gnn:
+    model_encoder_type: rgcn
+    num_layers: 2
+    hidden_size: 128
+    use_mini_batch_infer: true
+  input:
+    restore_model_path: null
+  output:
+    save_model_path: null
+    save_embed_path: null
+  hyperparam:
+    dropout: 0.
+    lr: 0.001
+    max_grad_norm: 1.0
+    lm_tune_lr: 0.0001
+    sparse_optimizer_lr: 0.001
+    num_epochs: 100
+    batch_size: 1024
+    fanout: "10,5"
+    eval_fanout: "20,10"
+    eval_batch_size: 1024
+    lm_infer_batch_size: 1024
+    wd_l2norm: 0
+    no_validation: false
+    eval_frequency: 500
+  rgcn:
+    num_bases: -1
+    use_self_loop: true
+    use_node_embeddings: false
+  node_classification:
+    target_ntype: "item"
+    label_field: "brand"
+    multilabel: false
+    num_classes: 951
