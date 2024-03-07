@@ -21,7 +21,7 @@ construction, constructs the graph, and saves the parition to `amazon_review`.
 ```
 python -m graphstorm.gconstruct.construct_graph \
 			--conf-file AR_Video_Games.json \
-			--output-dir datasets/amazon_review_nc_Video_Games/ \
+			--output-dir datasets/amazon_review_Video_Games/ \
 			--graph-name amazon_review \
 			--num-processes 16 --num-parts 1 \ 
 			--skip-nonexist-edges --add-reverse-edges
@@ -30,12 +30,14 @@ python -m graphstorm.gconstruct.construct_graph \
 
 ## Train LLM-GNN model to predict product type of items
 The command below runs parameter-efficient fine-tuning of LLM-GNNs on node 
-classification via `main_nc.py`.
+classification and link prediction via `main_nc.py` and `main_lp.py`.
+
+
+### Node Classification
 ```
 WORKSPACE=$PWD
 dataset=amazon_review
 domain=Video_Games
-
 python3 -m graphstorm.run.launch \
     --workspace "$WORKSPACE" \
     --part-config datasets/amazon_review_nc_"$domain"/amazon_review.json \
@@ -48,4 +50,23 @@ python3 -m graphstorm.run.launch \
     --cf ./nc_config_"$domain".yaml \
     --save-model-path "$WORKSPACE"/model/nc/"$domain"/ \
     --save-prediction-path "$WORKSPACE"/results/nc/"$domain"/
+```
+
+### Link Prediction
+```
+WORKSPACE=$PWD
+dataset=amazon_review
+domain=Video_Games
+python -m graphstorm.run.launch \
+    --workspace "$WORKSPACE" \
+    --part-config "$WORKSPACE"/dataset/amazon_review_"$domain"/amazon_review.json \
+    --ip-config ./ip_list.txt \
+    --num-trainers 8 \
+    --num-servers 1 \
+    --num-samplers 0 \
+    --ssh-port 22 \
+    main_lp.py \
+    --cf ./lp_config_"$domain".yaml \
+    --save-model-path "$WORKSPACE"/model/lp/"$domain"/ \
+    --save-embed-path "$WORKSPACE"/results/lp/"$domain"/
 ```
