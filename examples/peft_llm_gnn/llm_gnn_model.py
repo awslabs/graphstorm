@@ -71,9 +71,9 @@ class DummyNodeInputLayer(nn.Module):
     def forward(self, input_feats, input_nodes):
         return input_feats
 
-class CosineRandomNegative(nn.Module):
+class MarginContrastiveLoss(nn.Module):
     def __init__(self):
-        super(CosineRandomNegative, self).__init__()
+        super(MarginContrastiveLoss, self).__init__()
         self.margin = 0.5
 
     def forward(self, pos_score, neg_score):
@@ -348,7 +348,7 @@ class GNNLLM_LP(gsmodel.GSgnnLinkPredictionModelBase):
         self.gnn_encoder = GPEFT(g, h_dim, num_layers, target_ntype, node_lm_configs)
         # dummy node input encoder to enable LP Infer
         self.node_input_encoder = DummyNodeInputLayer()
-        self.loss_fn = CosineRandomNegative()
+        self.loss_fn = MarginContrastiveLoss()
         self.decoder = LinkPredictDotDecoder(self.gnn_encoder.out_dims)
 
     # Required by lp_infer 

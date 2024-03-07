@@ -68,5 +68,5 @@ python -m graphstorm.run.launch \
     main_lp.py \
     --cf ./lp_config_"$domain".yaml \
     --save-model-path "$WORKSPACE"/model/lp/"$domain"/ \
-    --save-prediction-path "$WORKSPACE"/results/lp/"$domain"/
+    --save-embed-path "$WORKSPACE"/results/lp/"$domain"/
 ```
