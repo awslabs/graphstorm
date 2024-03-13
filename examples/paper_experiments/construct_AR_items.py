@@ -30,10 +30,13 @@ def text_process(text):
     return p_text
 
 def construct_one_domain(full_file_path, asin_dict, asin_data, edge_dict, dup_asin, brand_dict, category_dict_list, item_brand, item_category):
+    """ 
+    Process item-related edges and node labels. Filter out low-frequency product types and brand.
+    The results are saved into parquet files.
+    """
     # read raw data
     with open(full_file_path) as f:
         raw_data = {}
-        #readin = f.readlines()
         for line in tqdm(f, total=15023059):
             tmp = eval(line.strip())
             raw_data[tmp['asin']] = tmp
@@ -46,11 +49,9 @@ def construct_one_domain(full_file_path, asin_dict, asin_data, edge_dict, dup_as
             if idd not in asin_dict:
                 asin_dict[idd] = len(asin_dict)
             else:
-                # cross-domain same asins?
-                # breakpoint()
+                # cross-domain same asins
                 dup_asin.add(idd)
-            if 'brand' in data[idd] and data[idd]['brand'] != '': # and data[idd]['brand'] not in brand_dict:
-                #brand_dict[data[idd]['brand']] = len(brand_dict)
+            if 'brand' in data[idd] and data[idd]['brand'] != '':
                 brand_freq[data[idd]['brand']] += 1
             if 'category' in data[idd] and len(data[idd]['category']) > 0:
                 if type(data[idd]['category'][0]) is list:

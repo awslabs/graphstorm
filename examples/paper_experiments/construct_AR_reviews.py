@@ -1,17 +1,7 @@
-import os
 import random
 import json
-import pickle
-from copy import deepcopy
-from tqdm import tqdm
 from collections import defaultdict
-import gzip
-import sys
-import dgl
-from dgl.data.utils import save_graphs
 import pandas as pd
-import torch
-import math
 import pyarrow as pa
 import pyarrow.parquet as pq
 
@@ -29,17 +19,16 @@ def text_process(text):
     return p_text
 
 def construct_one_domain(full_file_path, asin_dict, asin_data, edge_dict, dup_asin, brand_dict, category_dict_list, item_brand, item_category):
+    """ 
+    Process review-related edges and node attributes and save them into parquet files.
+    """
     # read raw data
     with open(full_file_path) as f:
         raw_data = {}
-        #readin = f.readlines()
-        for line in tqdm(f, total=233055327):
-            #data.append(json.loads(line))
-            #data.append(eval(line.strip()))
+        for line in f:
             tmp = json.loads(line)
             raw_data[f"{tmp['reviewerID']}_{tmp['asin']}"] = tmp
-            #if len(raw_data) == 10000:
-            #    break
+
     review_id, review_text, summary = [], [], []
     write_review, receive_review = ([], []), ([], [])
     for idd, data in raw_data.items():
