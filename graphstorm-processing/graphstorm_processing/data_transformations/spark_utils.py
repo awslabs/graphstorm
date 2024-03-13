@@ -21,7 +21,7 @@ from graphstorm_processing import constants
 try:
     from smspark.bootstrapper import Bootstrapper
 except ImportError:
-    # smspark only exists on the Docker image
+    # smspark only exists on the SageMaker Docker image
     class Bootstrapper:  # type:ignore
         # pylint: disable=all
         def load_processing_job_config(self):
@@ -99,7 +99,7 @@ def create_spark_session(sm_execution: bool, filesystem_type: str) -> SparkSessi
     # Avoid timeout errors due to connection pool starving
     # Allow sending large results to driver
     spark_builder = (
-        SparkSession.builder.appName("GraphlyticsGraphPreloading")
+        SparkSession.builder.appName("GSProcessing")
         .config("spark.hadoop.validateOutputSpecs", "false")
         .config("spark.driver.memory", f"{driver_mem_mb}m")
         .config("spark.driver.memoryOverhead", f"{driver_mem_overhead_mb}m")
