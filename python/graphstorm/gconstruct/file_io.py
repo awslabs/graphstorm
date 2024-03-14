@@ -45,6 +45,7 @@ def read_index_json(data_file):
     Numpy array : the index array.
     """
     with open(data_file, 'r', encoding="utf8") as json_file:
+        indices = []
         for line in json_file.readlines():
             indices.append(json.loads(line))
     return np.array(indices)
