@@ -45,7 +45,6 @@ def read_index_json(data_file):
     Numpy array : the index array.
     """
     with open(data_file, 'r', encoding="utf8") as json_file:
-        indices = []
         for line in json_file.readlines():
             indices.append(json.loads(line))
     return np.array(indices)
@@ -62,7 +61,7 @@ def write_index_json(data, data_file):
     """
     with open(data_file, 'w', encoding="utf8") as json_file:
         for index in data:
-            json_file.write(json.dumps(int(index)) + "\n")
+            json_file.write(json.dumps(index) + "\n")
 
 def read_data_csv(data_file, data_fields=None, delimiter=','):
     """ Read data from a CSV file.

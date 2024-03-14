@@ -1668,10 +1668,14 @@ def parse_label_ops(confs, is_node):
         val_idx = read_index_json(custom_split['valid']) if 'valid' in custom_split else None
         test_idx = read_index_json(custom_split['test']) if 'test' in custom_split else None
         label_col = label_conf['label_col'] if 'label_col' in label_conf else None
-        assert "node_id_col" in confs, "Custom data split only works for nodes."
-        return [CustomLabelProcessor(label_col, label_col, confs["node_id_col"],
-                                     task_type, train_idx, val_idx, test_idx,
-                                     label_stats_type)]
+        if "node_id_col" in confs:
+            return [CustomLabelProcessor(label_col, label_col, confs["node_id_col"],
+                                         task_type, train_idx, val_idx, test_idx,
+                                         label_stats_type)]
+        else:
+            return [CustomLabelProcessor(label_col, label_col, confs["node_id_col"],
+                                         task_type, train_idx, val_idx, test_idx,
+                                         label_stats_type)]
 
     if 'split_pct' in label_conf:
         split_pct = label_conf['split_pct']
