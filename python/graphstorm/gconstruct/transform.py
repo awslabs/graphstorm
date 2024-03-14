@@ -1682,11 +1682,13 @@ def parse_label_ops(confs, is_node):
         test_idx = read_index_json(custom_split['test']) if 'test' in custom_split else None
         label_col = label_conf['label_col'] if 'label_col' in label_conf else None
         if "node_id_col" in confs:
-            return [CustomLabelProcessor(col_name=label_col, label_name=label_col, node_id_col=confs["node_id_col"],
+            return [CustomLabelProcessor(col_name=label_col, label_name=label_col,
+                                         node_id_col=confs["node_id_col"],
                                          task_type=task_type, train_idx=train_idx, val_idx=val_idx,
                                          test_idx=test_idx, stats_type=label_stats_type)]
         else:
-            return [CustomLabelProcessor(col_name=label_col, label_name=label_col, edge_src_id_col=confs["source_id_col"],
+            return [CustomLabelProcessor(col_name=label_col, label_name=label_col,
+                                         edge_src_id_col=confs["source_id_col"],
                                          edge_dst_id_col=confs["dest_id_col"],
                                          task_type=task_type, train_idx=train_idx, val_idx=val_idx,
                                          test_idx=test_idx, stats_type=label_stats_type)]
