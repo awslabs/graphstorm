@@ -1368,7 +1368,7 @@ class CustomLabelProcessor:
         The column name for labels.
     label_name : str
         The label name.
-    id_col : str
+    id_col : str or tuple
         The name of the ID column.
     task_type : str
         The task type.
@@ -1381,15 +1381,10 @@ class CustomLabelProcessor:
     stats_type: str
         Speicfy how to summarize label statistics
     """
-    def __init__(self, col_name, label_name, task_type, node_id_col=None,
-                 edge_src_id_col=None, edge_dst_id_col=None,
+    def __init__(self, col_name, label_name, id_col, task_type,
                  train_idx=None, val_idx=None, test_idx=None,
                  stats_type=None):
-        if not node_id_col and not edge_src_id_col and not edge_dst_id_col:
-            raise ValueError("One object cannot be a node and edge at the same time")
-        if (edge_src_id_col is None) != (edge_dst_id_col is None):
-            raise ValueError("One edge should have both source node and destination node")
-        self._id_col = (edge_src_id_col, edge_dst_id_col) if not node_id_col else node_id_col
+        self._id_col = id_col
         self._col_name = col_name
         self._label_name = label_name
         self._train_idx = set(train_idx) if train_idx is not None else None
@@ -1683,13 +1678,12 @@ def parse_label_ops(confs, is_node):
         label_col = label_conf['label_col'] if 'label_col' in label_conf else None
         if "node_id_col" in confs:
             return [CustomLabelProcessor(col_name=label_col, label_name=label_col,
-                                         node_id_col=confs["node_id_col"],
+                                         id_col=confs["node_id_col"],
                                          task_type=task_type, train_idx=train_idx, val_idx=val_idx,
                                          test_idx=test_idx, stats_type=label_stats_type)]
         else:
             return [CustomLabelProcessor(col_name=label_col, label_name=label_col,
-                                         edge_src_id_col=confs["source_id_col"],
-                                         edge_dst_id_col=confs["dest_id_col"],
+                                         id_col=(confs["source_id_col"], confs["dest_id_col"]),
                                          task_type=task_type, train_idx=train_idx, val_idx=val_idx,
                                          test_idx=test_idx, stats_type=label_stats_type)]
 
