@@ -1381,15 +1381,20 @@ class CustomLabelProcessor:
     stats_type: str
         Speicfy how to summarize label statistics
     """
-    def __init__(self, col_name, label_name, id_col, task_type,
+    def __init__(self, col_name, label_name, task_type, node_id_col=None,
+                 edge_src_id_col=None, edge_dst_id_col=None,
                  train_idx=None, val_idx=None, test_idx=None,
                  stats_type=None):
-        self._id_col = id_col
+        if not node_id_col and not edge_src_id_col and not edge_dst_id_col:
+            raise ValueError("One object cannot be a node and edge at the same time")
+        if (edge_src_id_col is None) != (edge_dst_id_col is None):
+            raise ValueError("One edge should have both source node and destination node")
+        self._id_col = (edge_src_id_col, edge_dst_id_col) if not node_id_col else node_id_col
         self._col_name = col_name
         self._label_name = label_name
-        self._train_idx = set(train_idx.tolist()) if train_idx is not None else None
-        self._val_idx = set(val_idx.tolist()) if val_idx is not None else None
-        self._test_idx = set(test_idx.tolist()) if test_idx is not None else None
+        self._train_idx = set(train_idx) if train_idx is not None else None
+        self._val_idx = set(val_idx) if val_idx is not None else None
+        self._test_idx = set(test_idx) if test_idx is not None else None
         self._task_type = task_type
         self._stats_type = stats_type
 
@@ -1451,9 +1456,17 @@ class CustomLabelProcessor:
         dict of Tensors : it contains the labels as well as training/val/test splits.
         """
         label = data[self.col_name] if self.col_name in data else None
-        assert self._id_col in data, \
-                f"The input data does not have ID column {self._id_col}."
-        res = self.data_split(data[self._id_col])
+        if isinstance(self._id_col, str):
+            assert self._id_col in data, \
+                    f"The input data does not have ID column {self._id_col}."
+        else:
+            assert self._id_col[0] and self._id_col[1] in data,\
+                f"The input data does not have ID column {self._id_col[0]} and {self._id_col[1]}"
+
+        if isinstance(self._id_col, str):
+            res = self.data_split(data[self._id_col])
+        else:
+            res = self.data_split(list(zip(data[self._id_col[0]], data[self._id_col[1]])))
         if label is not None and self._task_type == "classification":
             res[self.label_name] = np.int32(label)
             if self._stats_type is not None:
@@ -1669,13 +1682,14 @@ def parse_label_ops(confs, is_node):
         test_idx = read_index_json(custom_split['test']) if 'test' in custom_split else None
         label_col = label_conf['label_col'] if 'label_col' in label_conf else None
         if "node_id_col" in confs:
-            return [CustomLabelProcessor(label_col, label_col, confs["node_id_col"],
-                                         task_type, train_idx, val_idx, test_idx,
-                                         label_stats_type)]
+            return [CustomLabelProcessor(col_name=label_col, label_name=label_col, node_id_col=confs["node_id_col"],
+                                         task_type=task_type, train_idx=train_idx, val_idx=val_idx,
+                                         test_idx=test_idx, stats_type=label_stats_type)]
         else:
-            return [CustomLabelProcessor(label_col, label_col, confs["node_id_col"],
-                                         task_type, train_idx, val_idx, test_idx,
-                                         label_stats_type)]
+            return [CustomLabelProcessor(col_name=label_col, label_name=label_col, edge_src_id_col=confs["source_id_col"],
+                                         edge_dst_id_col=confs["dest_id_col"],
+                                         task_type=task_type, train_idx=train_idx, val_idx=val_idx,
+                                         test_idx=test_idx, stats_type=label_stats_type)]
 
     if 'split_pct' in label_conf:
         split_pct = label_conf['split_pct']

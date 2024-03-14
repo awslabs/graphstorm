@@ -59,8 +59,14 @@ def read_index_json(data_file):
     with open(data_file, 'r', encoding="utf8") as json_file:
         indices = []
         for line in json_file.readlines():
-            indices.append(json.loads(line))
-    return np.array(indices)
+            parsed_line = json.loads(line)
+            if isinstance(parsed_line, list):
+                processed_item = tuple(parsed_line)
+            else:
+                processed_item = parsed_line
+
+            indices.append(processed_item)
+    return indices
 
 def write_index_json(data, data_file):
     """ Write the index to a json file.
