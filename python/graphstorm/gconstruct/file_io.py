@@ -74,7 +74,7 @@ def write_index_json(data, data_file):
     """
     with open(data_file, 'w', encoding="utf8") as json_file:
         for index in data:
-            json_file.write(json.dumps(index, default=default_serializer()) + "\n")
+            json_file.write(json.dumps(index, default=default_serializer) + "\n")
 
 def read_data_csv(data_file, data_fields=None, delimiter=','):
     """ Read data from a CSV file.
