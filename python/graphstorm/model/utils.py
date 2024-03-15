@@ -27,6 +27,7 @@ import torch.nn.functional as F
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel
 import dgl
+import pandas as pd
 
 from ..config import GRAPHSTORM_LP_EMB_L2_NORMALIZATION
 from ..gconstruct.file_io import stream_dist_tensors_to_hdf5
@@ -1065,6 +1066,32 @@ def save_full_node_embeddings(g, save_embed_path,
 
     save_shuffled_node_embeddings(shuffled_embs, save_embed_path, save_embed_format)
 
+def load_gsgnn_embeddings(emb_path):
+    '''Load from `save_full_node_embeddings` to a dict of DistTensor's
+    '''
+    with open(os.path.join(emb_path, "emb_info.json"), 'r', encoding='utf-8') as f:
+        emb_info = json.load(f)
+    embs = {}
+    for ntype in emb_info["emb_name"]:
+        path = os.path.join(emb_path, ntype)
+        ntype_emb_files = os.listdir(path)
+        nid_files = [fname for fname in ntype_emb_files \
+                if fname.startswith("embed_nids-") and fname.endswith("pt")]
+        emb_files = [fname for fname in ntype_emb_files \
+                     if fname.startswith("embed-") and fname.endswith("pt")]
+        num_parts = len(emb_files)
+        embeddings_list = []
+        nid_list = []
+        for i in range(num_parts):
+            embeddings_list.append(th.load(os.path.join(path, emb_files[i])))
+            nid_list.append(th.load(os.path.join(path, nid_files[i])))
+            # Convert the list of embeddings to a PyTorch tensor
+        embeddings_tensor = th.cat(embeddings_list, dim=0)
+        nids_tensor = th.cat(nid_list, dim=0)
+        result_tensor = th.zeros_like(embeddings_tensor)
+        result_tensor[nids_tensor] = embeddings_tensor
+        embs[ntype] = result_tensor
+    return embs
 
 def save_embeddings(emb_path, embeddings, rank, world_size,
     device=th.device('cpu'), node_id_mapping_file=None,
