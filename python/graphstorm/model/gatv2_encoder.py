@@ -33,6 +33,10 @@ class GATv2Conv(nn.Module):
     -----
     * GATv2Conv is only effective on the homogeneous graph, not like other conv implementation.
 
+    The implementation follows dgl.nn.pytorch.conv.GATv2Conv:
+    `How Attentive are Graph Attention Networks?
+    <https://arxiv.org/pdf/2105.14491.pdf>`__
+
     Examples:
     ----------
 
