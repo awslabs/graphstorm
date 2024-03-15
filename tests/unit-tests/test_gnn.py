@@ -43,7 +43,7 @@ from graphstorm.model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLaye
 from graphstorm.model.rgat_encoder import RelationalGATEncoder
 from graphstorm.model.sage_encoder import SAGEEncoder
 from graphstorm.model.gat_encoder import GATEncoder
-from graphstorm.model.gat_encoder import GATv2Encoder
+from graphstorm.model.gatv2_encoder import GATv2Encoder
 from graphstorm.model.hgt_encoder import HGTEncoder
 from graphstorm.model.edge_decoder import (DenseBiDecoder,
                                            MLPEdgeDecoder,
