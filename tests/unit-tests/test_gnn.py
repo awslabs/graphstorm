@@ -43,6 +43,7 @@ from graphstorm.model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLaye
 from graphstorm.model.rgat_encoder import RelationalGATEncoder
 from graphstorm.model.sage_encoder import SAGEEncoder
 from graphstorm.model.gat_encoder import GATEncoder
+from graphstorm.model.gat_encoder import GATv2Encoder
 from graphstorm.model.hgt_encoder import HGTEncoder
 from graphstorm.model.edge_decoder import (DenseBiDecoder,
                                            MLPEdgeDecoder,
@@ -202,6 +203,23 @@ def create_gat_node_model(g):
     model.set_node_input_encoder(encoder)
 
     gnn_encoder = GATEncoder(8, 8, 4,
+                             num_hidden_layers=1,
+                             dropout=0)
+
+    model.set_gnn_encoder(gnn_encoder)
+    model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
+    return model
+
+def create_gatv2_node_model(g):
+    model = GSgnnNodeModel(alpha_l2norm=0)
+
+    feat_size = get_node_feat_size(g, 'feat')
+    encoder = GSNodeEncoderInputLayer(g, feat_size, 8,
+                                      dropout=0,
+                                      use_node_embeddings=True)
+    model.set_node_input_encoder(encoder)
+
+    gnn_encoder = GATv2Encoder(8, 8, 4,
                              num_hidden_layers=1,
                              dropout=0)
 
@@ -598,6 +616,32 @@ def test_sage_node_prediction(norm):
                                      label_field='label',
                                      node_feat_field='feat')
     model = create_sage_node_model(np_data.g, norm)
+    check_node_prediction(model, np_data, is_homo=True)
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+@pytest.mark.parametrize("device", ['cpu', 'cuda:0'])
+def test_gatv2_node_prediction(device):
+    """ Test edge prediction logic correctness with a node prediction model
+        composed of InputLayerEncoder + GATv2Conv + Decoder
+
+        The test will compare the prediction results from full graph inference
+        and mini-batch inference.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname, is_homo=True)
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_ntypes=[DEFAULT_NTYPE],
+                                     label_field='label',
+                                     node_feat_field='feat')
+    model = create_gatv2_node_model(np_data.g)
+    model = model.to(device)
     check_node_prediction(model, np_data, is_homo=True)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()

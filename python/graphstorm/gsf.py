@@ -43,6 +43,7 @@ from .model.hgt_encoder import HGTEncoder
 from .model.gnn_with_reconstruct import GNNEncoderWithReconstructedEmbed
 from .model.sage_encoder import SAGEEncoder
 from .model.gat_encoder import GATEncoder
+from .model.gatv2_encoder import GATv2Encoder
 from .model.node_gnn import GSgnnNodeModel
 from .model.node_glem import GLEM
 from .model.edge_gnn import GSgnnEdgeModel
@@ -599,6 +600,13 @@ def set_encoder(model, g, config, train_task):
                                  num_hidden_layers=config.num_layers -1,
                                  dropout=dropout,
                                  num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
+    elif model_encoder_type == "gatv2":
+        gnn_encoder = GATv2Encoder(h_dim=config.hidden_size,
+                                   out_dim=config.hidden_size,
+                                   num_heads=config.num_heads,
+                                   num_hidden_layers=config.num_layers -1,
+                                   dropout=dropout,
+                                   num_ffn_layers_in_gnn=config.  num_ffn_layers_in_gnn)
     else:
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
 
