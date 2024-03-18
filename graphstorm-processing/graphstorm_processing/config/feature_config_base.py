@@ -106,5 +106,6 @@ class NoopFeatureConfig(FeatureConfig):
         super()._sanity_check()
         if self._data_config and self.value_separator and self._data_config.format != "csv":
             raise RuntimeError("separator should only be provided for CSV data")
-        assert (self.out_dtype in VALID_OUTDTYPE), \
-            f"Unsupported output dtype, expected one of {VALID_OUTDTYPE}, got {self.out_dtype}"
+        assert (
+            self.out_dtype in VALID_OUTDTYPE
+        ), f"Unsupported output dtype, expected one of {VALID_OUTDTYPE}, got {self.out_dtype}"

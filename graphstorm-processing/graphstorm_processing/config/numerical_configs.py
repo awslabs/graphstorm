@@ -63,8 +63,9 @@ class NumericalFeatureConfig(FeatureConfig):
         assert (
             self.norm in VALID_NORMALIZERS
         ), f"Unknown normalizer requested, expected one of {VALID_NORMALIZERS}, got {self.norm}"
-        assert (self.out_dtype in VALID_OUTDTYPE), \
-            f"Unsupported output dtype, expected one of {VALID_OUTDTYPE}, got {self.out_dtype}"
+        assert (
+            self.out_dtype in VALID_OUTDTYPE
+        ), f"Unsupported output dtype, expected one of {VALID_OUTDTYPE}, got {self.out_dtype}"
 
 
 class MultiNumericalFeatureConfig(NumericalFeatureConfig):
