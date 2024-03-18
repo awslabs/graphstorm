@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 from typing import Any
+from collections.abc import Mapping
 
 from .converter_base import ConfigConverter
 from .meta_configuration import NodeConfig, EdgeConfig
@@ -71,11 +72,11 @@ class GConstructConfigConverter(ConfigConverter):
         return labels_list
 
     @staticmethod
-    def _convert_feature(feats: list[dict]) -> list[dict]:
+    def _convert_feature(feats: list[Mapping[str, Any]]) -> list[dict]:
         """Convert the feature config
         Parameters
         ----------
-        feats: list[dict]
+        feats: list[Mapping[str, Any]]
             The feature information in the GConstruct format
 
         Returns
@@ -88,7 +89,10 @@ class GConstructConfigConverter(ConfigConverter):
             return []
         for gconstruct_feat_dict in feats:
             gsp_feat_dict = {}
-            gsp_feat_dict["column"] = gconstruct_feat_dict["feature_col"][0]
+            if isinstance(gconstruct_feat_dict["feature_col"], str):
+                gsp_feat_dict["column"] = gconstruct_feat_dict["feature_col"]
+            elif isinstance(gconstruct_feat_dict["feature_col"], list):
+                gsp_feat_dict["column"] = gconstruct_feat_dict["feature_col"][0]
             if "feature_name" in gconstruct_feat_dict:
                 gsp_feat_dict["name"] = gconstruct_feat_dict["feature_name"]
 

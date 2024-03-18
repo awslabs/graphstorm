@@ -15,25 +15,23 @@
 
     A module to gather partitioning algorithm implementations to be executed in SageMaker.
 """
-from typing import List, Tuple
 import abc
-from dataclasses import dataclass
 import json
 import logging
 import os
 import socket
+from dataclasses import dataclass
+from typing import Tuple
 
-import numpy as np
-import pyarrow as pa
-import pyarrow.csv as pa_csv
 from sagemaker import Session
+from graphstorm.gpartition import RandomPartitionAlgorithm
 
 from .s3_utils import upload_file_to_s3
 
-DGL_TOOL_PATH = "/root/dgl/tools"
+DGL_TOOL_PATH = "/root/dgl/tools" # TODO: Remove the hard-coded path
 
 @dataclass()
-class PartitionerConfig:
+class SageMakerPartitionerConfig:
     """
     Dataclass for holding the configuration for a partitioning algorithm.
 
@@ -53,19 +51,18 @@ class PartitionerConfig:
     rank: int
     sagemaker_session: Session
 
-
-class PartitionAlgorithm(abc.ABC):
+class SageMakerPartitioner(abc.ABC):
     """
-    Base class for partition algorithm implementations.
+    Base class for SageMaker partition algorithm implementations.
 
     Parameters
     ----------
-    partition_config : PartitionConfig
+    partition_config : SageMakerPartitionerConfig
         The configuration for the partition algorithm.
-        See `PartitionConfig` for detailed argument list.
+        See `SageMakerPartitionerConfig` for detailed argument list.
     """
     def __init__(self,
-        partition_config: PartitionerConfig
+        partition_config: SageMakerPartitionerConfig
     ):
         self.metadata_file = partition_config.metadata_file
         self.local_output_path = partition_config.local_output_path
@@ -74,7 +71,6 @@ class PartitionAlgorithm(abc.ABC):
 
         with open(self.metadata_file, 'r', encoding='utf-8') as metafile:
             self.metadata = json.load(metafile)
-
         self.graph_name = self.metadata["graph_name"]
 
         os.makedirs(self.local_output_path, exist_ok=True)
@@ -183,55 +179,21 @@ class PartitionAlgorithm(abc.ABC):
             S3 prefix to upload the partitioning results to.
         """
 
-class RandomPartitioner(PartitionAlgorithm): # pylint: disable=too-few-public-methods
+class SageMakerRandomPartitioner(SageMakerPartitioner): # pylint: disable=too-few-public-methods
     """
-    Single-instance random partitioning algorithm.
+    Single-instance random partitioning algorithm running on SageMaker
     """
     def _run_partitioning(self, num_partitions: int) -> str:
-        partition_dir = os.path.join(self.local_output_path, "partition")
-        os.makedirs(partition_dir, exist_ok=True)
+        random_part = RandomPartitionAlgorithm(self.metadata)
 
-        # Random partitioning is done on the leader node only
-        if self.rank != 0:
-            return partition_dir
+        part_assignment_dir = os.path.join(self.local_output_path, "partition_assignment")
+        os.makedirs(part_assignment_dir, exist_ok=True)
 
-        num_nodes_per_type = self.metadata["num_nodes_per_type"]  # type: List[int]
-        ntypes = self.metadata["node_type"]  # type: List[str]
-        # Note: This assumes that the order of node_type is the same as the order num_nodes_per_type
-        for ntype, num_nodes_for_type in zip(ntypes, num_nodes_per_type):
-            logging.info("Generating random partition for node type %s", ntype)
-            ntype_output = os.path.join(partition_dir, f"{ntype}.txt")
+        # Only the leader creates partition assignments
+        if self.rank == 0:
+            random_part.create_partitions(num_partitions, part_assignment_dir)
 
-            partition_assignment = np.random.randint(0, num_partitions, (num_nodes_for_type,))
-
-            arrow_partitions = pa.Table.from_arrays(
-                [pa.array(partition_assignment, type=pa.int64())],
-                names=["partition_id"])
-            options = pa_csv.WriteOptions(include_header=False, delimiter=' ')
-            pa_csv.write_csv(arrow_partitions, ntype_output, write_options=options)
-
-        self._create_metadata(num_partitions, partition_dir)
-
-        return partition_dir
-
-    @staticmethod
-    def _create_metadata(num_partitions: int, partition_dir: str) -> None:
-        """
-        Creates the metadata file expected by the partitioning pipeline.
-
-        https://github.com/dmlc/dgl/blob/29e666152390c272e0115ce8455da1adb5fcacb1/tools/partition_algo/base.py#L8
-        defines the partition_meta.json format
-        """
-
-        partition_meta = {
-            "algo_name": "random",
-            "num_parts": num_partitions,
-            "version": "1.0.0"
-        }
-        partition_meta_filepath = os.path.join(partition_dir, "partition_meta.json")
-        with open(partition_meta_filepath, "w", encoding='utf-8') as metafile:
-            json.dump(partition_meta, metafile)
-
+        return part_assignment_dir
 
     def _upload_results_to_s3(self, local_partition_directory: str, output_s3_path: str) -> None:
         if self.rank == 0:

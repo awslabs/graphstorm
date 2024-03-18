@@ -31,7 +31,8 @@ import sagemaker
 
 from graphstorm.sagemaker import utils
 from .s3_utils import download_data_from_s3, upload_file_to_s3
-from .partition_algorithm import RandomPartitioner, PartitionerConfig
+from .sm_partition_algorithm import (SageMakerRandomPartitioner,
+                                  SageMakerPartitionerConfig)
 
 DGL_TOOL_PATH = "/root/dgl/tools"
 
@@ -298,16 +299,16 @@ def run_partition(job_config: PartitionJobConfig):
         tmp_data_path,
         sagemaker_session)
 
-    partition_config = PartitionerConfig(
+    partition_config = SageMakerPartitionerConfig(
         metadata_file=meta_info_file,
         local_output_path=tmp_data_path,
         rank=host_rank,
         sagemaker_session=sagemaker_session)
 
     if job_config.partition_algorithm == 'random':
-        partitioner = RandomPartitioner(partition_config)
+        sm_partitioner = SageMakerRandomPartitioner(partition_config)
     else:
-        raise RuntimeError(f"Unknown partition algorithm: '{job_config.partition_algorithm}'")
+        raise RuntimeError(f"Unknown partition algorithm: '{job_config.partition_algorithm}'", )
 
     # Conditionally skip partitioning
     if skip_partitioning:
@@ -320,10 +321,10 @@ def run_partition(job_config: PartitionJobConfig):
         download_data_from_s3(s3_partition_path, local_partition_path, sagemaker_session)
     else:
         # Perform the partitioning. Leader uploads partition assignments to S3.
-        local_partition_path, s3_partition_path = partitioner.create_partitions(
+        local_partition_path, s3_partition_path = sm_partitioner.create_partitions(
             output_s3, num_parts)
         if host_rank == 0:
-            partitioner.broadcast_partition_done(client_list, world_size, success=True)
+            sm_partitioner.broadcast_partition_done(client_list, world_size, success=True)
             # Wait for signal from all workers that they have downloaded partition assignments
             # before moving on
             utils.barrier_master(client_list, world_size)
@@ -331,7 +332,7 @@ def run_partition(job_config: PartitionJobConfig):
             # Workers need to download partition assignments from S3
             logging.debug("Worker %s is waiting for partition done...", host_rank)
             # wait for signal from leader that partition is finised and files are ready to download
-            partitioner.wait_for_partition_done(sock)
+            sm_partitioner.wait_for_partition_done(sock)
 
             logging.debug("Worker %s is downloading partition data from %s into %s",
                     host_rank,  s3_partition_path, local_partition_path)

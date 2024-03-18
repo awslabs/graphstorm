@@ -24,7 +24,7 @@ Available options:
 -v, --version       Docker version tag, default is the library's current version (`poetry version --short`)
 -s, --suffix        Suffix for the image tag, can be used to push custom image tags. Default is "".
 -b, --build         Docker build directory prefix, default is '/tmp/'.
--m, --hf-model      Provide a Huggingface Model name to be packed into the docker image. Default is "".
+-m, --hf-model      Provide a Huggingface Model name to be packed into the docker image. Default is "", no model included.
 
 EOF
   exit

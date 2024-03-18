@@ -8,6 +8,7 @@ We take some of the latest configuration code from the sagemaker-spark-container
 that only exists for the Python 3.9/Spark 3.2 container
 https://github.com/aws/sagemaker-spark-container/blob/4ef476fd535040f245def3d38c59fe43062e88a9/src/smspark/bootstrapper.py#L375
 """
+
 import logging
 import uuid
 from typing import Tuple, Sequence

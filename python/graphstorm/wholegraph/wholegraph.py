@@ -457,6 +457,7 @@ class WholeGraphDistTensor:
             "with use_wg_optimizer=False or "\
             "with use_wg_optimizer=True followed by attach_wg_optimizer()."
         file_prefix = os.path.join(path, file_prefix)
+        # save optimizer stats is not supported yet
         self._tensor.get_embedding_tensor().to_file_prefix(file_prefix)
 
     def load_from_file(
@@ -483,7 +484,6 @@ class WholeGraphDistTensor:
         -------
         None
         """
-
         if wg_optimizer is not None:
             assert self._use_wg_optimizer, \
                 "Please create WholeGraphDistTensor tensor with use_wg_optimizer=True."
@@ -559,6 +559,17 @@ class WholeGraphDistTensor:
                 host_view=True
             )
         return local_tensor, offset
+
+    def get_comm(self):
+        """
+        Get the communicator of the WholeGraph embedding.
+
+        Returns
+        -------
+        WholeMemoryCommunicator
+            The WholeGraph global communicator of the WholeGraph embedding.
+        """
+        return self._tensor.get_embedding_tensor().get_comm()
 
     def _reset_storage(self):
         """Reset the storage of the WholeGraph embedding."""
