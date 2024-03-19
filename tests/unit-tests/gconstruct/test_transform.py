@@ -687,12 +687,14 @@ def test_custom_edge_label_processor():
     assert "train_mask" in ret
     assert "val_mask" in ret
     assert "test_mask" in ret
+
     assert_equal(np.squeeze(np.nonzero(ret["train_mask"])), index_in_train_idx)
     assert_equal(np.squeeze(np.nonzero(ret["val_mask"])), index_in_val_idx)
     assert_equal(np.squeeze(np.nonzero(ret["test_mask"])), index_in_test_idx)
     assert_equal(ret["test"], input_data["test_label"])
-    stats_info_key = LABEL_STATS_FIELD+"test"
-    assert LABEL_STATS_FIELD+"test" in ret
+
+    stats_info_key = LABEL_STATS_FIELD + "test"
+    assert LABEL_STATS_FIELD + "test" in ret
     vals, counts = np.unique(input_data["test_label"][index_in_train_idx], return_counts=True)
     assert ret[stats_info_key][0] == LABEL_STATS_FREQUENCY_COUNT
     assert_equal(ret[stats_info_key][1], vals)
