@@ -1,4 +1,4 @@
-This folder contains the data processing and code to reproduce the graphstorm paper results.
+This folder contains the data processing and code to profile GraphStorm framework on Amazon Review dataset.
 
 # Data Processing 
 ## Amazon Review
@@ -11,14 +11,15 @@ wget https://datarepo.eng.ucsd.edu/mcauley_group/data/amazon_v2/metaFiles2/meta_
 -P raw_data/
 ```
 
-After you unzip the above two files, we generate the parquet files as input of graph construction step. 
+After you unzip the above two files, run the following two scripts to generate the input for the graph construction step.  
+
 ```
 python construct_AR_items.py
 python construct_AR_reviews.py
 ```
 
 ### Run gconstruct on process_data
-In the first step, the processed data are under processed_data/amazon_review/
+After the first step, the processed data are under processed_data/amazon_review/  
 Once the data are processed, run the following command to construct a graph
 for node classification and link prediction tasks. 
 Recommended machine: x1e.32xlarge (https://aws.amazon.com/ec2/instance-types/x1e/)

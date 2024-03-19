@@ -21,6 +21,24 @@ def text_process(text):
 def construct_one_domain(full_file_path, asin_dict, asin_data, edge_dict, dup_asin, brand_dict, category_dict_list, item_brand, item_category):
     """ 
     Process review-related edges and node attributes and save them into parquet files.
+    The results are saved into parquet files.
+    Input example: {"reviewTime": "12 11, 2015", "reviewerID": "A27BTSGLXK2C5K", "asin": "B017O9P72A", 
+                    "reviewerName": "Jacob M. Wessler", "reviewText": "Alexa is not able to control my
+                    lights. If I ask her to tell me what LIFX can do, she will give me an example with
+                    one of my group names. If I use that exact same group name in a new request, she'll
+                    await that she doesn't recognize the name. This skill is VERY buggy and has not yet
+                    worked for me. I even rest Alexa, uninstalled LIFX, and set everything up again.", 
+                    "summary": "VERY Buggy, doesn't work.", "unixReviewTime": 1449792000}
+    Output example:
+        review.parquet
+            format (review_id is consisited by reviewerID and asin): 
+                review_id review_text review_summary
+        write_review.parquet
+            format:
+                reviewerID review_id
+        receive_review.parquet
+            format:
+                asin review_id
     """
     # read raw data
     with open(full_file_path) as f:

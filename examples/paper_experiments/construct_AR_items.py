@@ -31,13 +31,29 @@ def text_process(text):
 
 def construct_one_domain(full_file_path, asin_dict, asin_data, edge_dict, dup_asin, brand_dict, category_dict_list, item_brand, item_category):
     """ 
-    Process item-related edges and node labels. Filter out low-frequency product types and brand.
+    Process item-related edges and node labels. Filter out low-frequency (i.e., less than 1000 times)
+      product types and brands. Long-tail 
     The results are saved into parquet files.
+    Input example: {"category": ["Clothing, Shoes & Jewelry", "Women", "Clothing"],  
+                    "title": "Women Blouse, Ninasill Hooded Sweatshirt Coat Winter 
+                    Warm Wool Zipper Pockets Cotton Coat Outwear", "also_buy": [],
+                    "also_view: [], "asin": "6305121869"}
+    Output example:
+        item.parquet
+            format: 
+                item_asin item_text item_brand item_product_type_level1  
+                item_product_type_level2 item_product_type_level3
+        also_view.parquet
+            format:
+                item1_asin item2_asin
+        also_buy.parquet
+            format:
+                item1_asin item2_asin
     """
     # read raw data
     with open(full_file_path) as f:
         raw_data = {}
-        for line in tqdm(f, total=15023059):
+        for line in tqdm(f):
             tmp = eval(line.strip())
             raw_data[tmp['asin']] = tmp
     data = {}
