@@ -223,7 +223,6 @@ class DistributedExecutor:
         data_configs = create_config_objects(self.graph_config_dict)
 
         t0 = time.time()
-        logging.info("Constructing DGLGraph for Heterogeneous Graph")
         # Prefer explicit arguments for clarity
         loader = DistHeterogeneousGraphLoader(
             spark=self.spark,
