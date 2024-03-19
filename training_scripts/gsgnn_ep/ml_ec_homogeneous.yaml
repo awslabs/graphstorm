@@ -6,7 +6,7 @@ gsf:
     verbose: false
     save_perf_results_path: null
   gnn:
-    model_encoder_type: rgcn
+    model_encoder_type: sage
     fanout: "4"
     num_layers: 1
     hidden_size: 128
