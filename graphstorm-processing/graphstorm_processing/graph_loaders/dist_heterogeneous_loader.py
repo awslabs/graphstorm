@@ -143,7 +143,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
     def process_and_write_graph_data(
         self, data_configs: Mapping[str, Sequence[StructureConfig]]
-    ) -> None:
+    ) -> Dict:
         """Process and encode all graph data.
 
         Extracts and encodes graph structure before writing to storage, then applies pre-processing
@@ -157,6 +157,22 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         ----------
         data_configs : Mapping[str, Sequence[StructureConfig]]
             Dictionary of configuration for nodes and edges
+
+        Returns
+        -------
+        metadata_dict : Dict
+            Dictionary of metadata for the graph, in "chunked-graph"
+            format, with additional keys.
+            For chunked graph format see
+            https://docs.dgl.ai/guide/distributed-preprocessing.html#specification
+
+            The dict also contains a "raw_id_mappings" key, which is a dict
+            of dicts, one for each node type. Each entry contains files information
+            about the raw-to-integet ID mapping for each node.
+
+            The returned value also contains an additional dict of dicts,
+            "graph_info" which contains additional information about the
+            graph in a more readable format.
         """
         # TODO: See if it's better to return some data structure
         # for the followup steps instead of just have side-effects
@@ -243,6 +259,8 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             json.dump(sorted_timers, f, indent=4)
 
         logging.info("Finished Distributed Graph Processing ...")
+
+        return metadata_dict
 
     @staticmethod
     def _at_least_one_label_exists(data_configs: Mapping[str, Sequence[StructureConfig]]) -> bool:
@@ -939,7 +957,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
             transformed_feature_df = transformer.apply_transformation(nodes_df)
 
-            def process_feature(self, feat_name, single_feature_df, node_type, transformer_name):
+            def write_processed_feature(feat_name, single_feature_df, node_type, transformer_name):
                 feature_output_path = os.path.join(
                     self.output_prefix, f"node_data/{node_type}-{feat_name}"
                 )
@@ -974,8 +992,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 ):
                     for bert_feat_name in ["input_ids", "attention_mask", "token_type_ids"]:
                         single_feature_df = transformed_feature_df.select(bert_feat_name)
-                        process_feature(
-                            self,
+                        write_processed_feature(
                             bert_feat_name,
                             single_feature_df,
                             node_type,
@@ -985,8 +1002,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(
                         feat_col, feat_name
                     )
-                    process_feature(
-                        self,
+                    write_processed_feature(
                         feat_name,
                         single_feature_df,
                         node_type,
@@ -1665,5 +1681,5 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
         return split_metadata
 
-    def load(self):
-        self.process_and_write_graph_data(self._data_configs)
+    def load(self) -> Dict:
+        return self.process_and_write_graph_data(self._data_configs)

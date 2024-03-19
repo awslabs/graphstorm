@@ -37,9 +37,11 @@ import tempfile
 import time
 import uuid
 from collections import Counter, defaultdict
+from collections.abc import Sequence
+from dataclasses import dataclass
 from itertools import accumulate
 from pathlib import Path
-from typing import Collection, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import boto3
 import pyarrow
@@ -51,6 +53,8 @@ from joblib import Parallel, delayed
 
 from graphstorm_processing.data_transformations import s3_utils
 from graphstorm_processing.graph_loaders.row_count_utils import ParquetRowCounter
+
+NUM_WRITE_THREADS = 16
 
 
 class ParquetRepartitioner:
@@ -90,11 +94,14 @@ class ParquetRepartitioner:
         self.filesystem_type = filesystem_type
         if self.filesystem_type == "s3":
             self.bucket = self.input_prefix.split("/")[1]
-            self.pyarrow_fs = fs.S3FileSystem(region=region)
+            self.pyarrow_fs = fs.S3FileSystem(
+                region=region, retry_strategy=fs.AwsDefaultS3RetryStrategy(max_attempts=10)
+            )
         else:
             self.pyarrow_fs = fs.LocalFileSystem()
         self.verify_outputs = verify_outputs
         self.streaming_repartitioning = streaming_repartitioning
+        self.verbosity = 1 if logging.getLogger().getEffectiveLevel() <= logging.INFO else 0
 
     def read_dataset_from_relative_path(self, relative_path: str) -> ds.Dataset:
         """
@@ -143,7 +150,7 @@ class ParquetRepartitioner:
 
     @staticmethod
     def create_new_relative_path_from_existing(
-        original_relative_path: str, repartitioned_file_index: int, suffix: str = None
+        original_relative_path: str, repartitioned_file_index: int, suffix: Optional[str] = None
     ) -> str:
         """Changes the index of the filename ``part-<index>`` in `original_relative_path`
         to the one given in `repartitioned_file_index`.
@@ -210,9 +217,7 @@ class ParquetRepartitioner:
 
         return new_relative_path
 
-    def repartition_parquet_files(
-        self, data_entry_dict: Dict, desired_counts: Collection[int]
-    ) -> Dict:
+    def repartition_parquet_files(self, data_entry_dict: Dict, desired_counts: list[int]) -> Dict:
         """
         Re-partitions the Parquet files in `data_entry_dict` so that their row count
         matches the one provided in `desired_counts`. We assume that the number of files between the
@@ -255,7 +260,7 @@ class ParquetRepartitioner:
             return self._repartition_parquet_files_in_memory(data_entry_dict, desired_counts)
 
     def _repartition_parquet_files_in_memory(
-        self, data_entry_dict: Dict, desired_counts: Collection[int]
+        self, data_entry_dict: Dict, desired_counts: list[int]
     ) -> Dict:
         """
         In-memory, thread-parallel implementation of Parquet file repartitioning.
@@ -323,7 +328,9 @@ class ParquetRepartitioner:
             self.create_new_relative_path_from_existing(datafile_list[0], idx, uid_for_entry)
             for idx in range(len(desired_counts))
         ]
-        with Parallel(n_jobs=min(16, os.cpu_count()), verbose=10, prefer="threads") as parallel:
+        with Parallel(
+            n_jobs=min(NUM_WRITE_THREADS, os.cpu_count()), verbose=self.verbosity, prefer="threads"
+        ) as parallel:
             parallel(
                 delayed(self.write_parquet_to_relative_path)(
                     relative_path,
@@ -338,7 +345,7 @@ class ParquetRepartitioner:
         return data_entry_dict
 
     def _repartition_parquet_files_streaming(
-        self, data_entry_dict: Dict, desired_counts: Collection[int]
+        self, data_entry_dict: Dict, desired_counts: Sequence[int]
     ) -> Dict:
         """Repartition parquet files using file streaming.
 
@@ -568,9 +575,7 @@ class ParquetRepartitioner:
             file_metadata = pq.read_metadata(full_path, filesystem=self.pyarrow_fs)
 
             if file_metadata.num_columns == 1:
-                table_schema = pq.read_schema(
-                    f"{self.input_prefix}/{file_relative_path}", filesystem=self.pyarrow_fs
-                )
+                table_schema = pq.read_schema(full_path, filesystem=self.pyarrow_fs)
                 data_types = table_schema.types
                 # If the column type is List, the file is a 2D array so we return
                 if isinstance(data_types[0], pyarrow.ListType):
@@ -584,18 +589,20 @@ class ParquetRepartitioner:
                     file_relative_path, table.replace_schema_metadata(updated_metadata)
                 )
 
-        # Execute modify_file in parallel, with up to 16 threads.
-        Parallel(n_jobs=16, prefer="threads")(
+        # Execute modify_file in parallel, with up to NUM_WRITE_THREADS threads.
+        Parallel(n_jobs=NUM_WRITE_THREADS, prefer="threads", verbose=self.verbosity)(
             delayed(modify_file)(relative_path) for relative_path in file_list
         )
 
 
-def collect_frequencies_for_data_counts(data_meta: Dict) -> Dict[str, Counter]:
+def collect_frequencies_for_data_counts(
+    data_meta: Dict[str, Dict[str, Dict]]
+) -> Dict[str, Counter]:
     """Gather the frequency of each row count list for each feature type in the provided data dict.
 
     Parameters
     ----------
-    data_meta : Dict
+    data_meta : Dict[str, Dict[str, Dict]]
         A dictionary describing the data sources for multiple edge/node types.
         See example for expected schema.
 
@@ -740,7 +747,7 @@ def parse_args(args):
         "Note that this option is much slower than the in-memory default.",
     )
     parser.add_argument(
-        "--metadata-file-name",
+        "--input-metadata-file-name",
         default="metadata.json",
         type=str,
         required=False,
@@ -764,95 +771,66 @@ def parse_args(args):
     return parser.parse_args(args)
 
 
-def main():
+@dataclass
+class RepartitionConfig:
     """
-    Re-partitions the output of the distributed processing pipeline
-    to ensure all files that belong to the same edge/node type have the same
-    number of rows per corresponding part-file.
+    Repartition configuration object.
 
-    This is done by reading the metadata file and partitioning the files
-    according to the row counts of the features in the metadata file.
+    See graphstorm_processing.repartition_files.RepartitionConfig for details.
 
-    The output is written to the same location as the input, with the
-    updated metadata file.
+    Example:
 
-    Parameters
-    ----------
-    input_prefix : str
-        Prefix path to where the output was generated
-        from the distributed processing pipeline.
-        Can be a local path or S3 prefix (starting with 's3://').
-    streaming_repartitioning: bool
-        When True will use low-memory file-streaming repartitioning.
-        Note that this option is much slower than the in-memory default.
-    metadata_file_name : str
-        Name of the original partitioning pipeline metadata file.
-    updated_metadata_file_name : str
-        Name of the updated (output) partitioning pipeline metadata file.
-    log_level : str
-        Log level.
+    RepartitionConfig(
+        input_prefix="/path/to/input",
+        input_metadata_file_name="metadata.json",
+        updated_metadata_file_name="updated_row_counts_metadata.json",
+        streaming_repartitioning=False,
+        log_level="INFO",
+    )
 
     Notes
     -----
-    This function is meant to be used as a command-line tool.
+        - input_prefix can be a local path (starting with '/') or S3 prefix (starting with 's3://')
+        - input_metadata_file_name is the name of the original partitioning pipeline metadata file
+        - updated_metadata_file_name is the name of the output partitioning pipeline metadata file
+        - streaming_repartitioning is a boolean flag to enable/disable file-streaming repartitioning
+        - log_level is the logging level to use (e.g. "DEBUG", "INFO", "WARNING", "ERROR")
+        - input_prefix is the only required field
     """
-    args = parse_args(sys.argv[1:])
-    logging.basicConfig(level=getattr(logging, args.log_level.upper(), None))
-    if args.input_prefix.startswith("s3://"):
-        filesystem_type = "s3"
-    else:
-        input_prefix = str(Path(args.input_prefix).resolve(strict=True))
-        filesystem_type = "local"
 
-    # Trim trailing '/' from S3 URI
-    if filesystem_type == "s3":
-        input_prefix = s3_utils.s3_path_remove_trailing(args.input_prefix)
+    input_prefix: str
+    input_metadata_file_name: str = "metadata.json"
+    updated_metadata_file_name: str = "updated_row_counts_metadata.json"
+    streaming_repartitioning: bool = False
+    log_level: str = "INFO"
 
-    logging.info(
-        "Re-partitioning files under %s to ensure all files that belong to the same "
-        "edge/node type have the same number of rows per part-file.",
-        input_prefix,
-    )
 
-    t0 = time.time()
+def modify_flat_array_metadata(
+    metadata_dict: dict,
+    repartitioner: ParquetRepartitioner,
+):
+    """Modifies the Parquet metadata for any flat arrays in the data in `metadata_dict`.
 
-    logging.info("Reading metadata from %s/%s", input_prefix, args.metadata_file_name)
+    We need labels and masks to be treated as flat arrays downstream, but
+    DistPartitioning treats all arrays that don't include a `shape` metadata parameter,
+    as 2D arrays. So we modify the Parquet file metadata here. See:
+    https://github.com/dmlc/dgl/blob/9dc361c6b959e0de7af4565bf649670786ff0f36/tools/distpartitioning/array_readwriter/parquet.py#L21-L26
 
-    # Get the metadata file
-    region = None
-    if filesystem_type == "s3":
-        bucket = input_prefix.split("/")[2]
-        s3_key_prefix = input_prefix.split("/", 3)[3]
-        region = s3_utils.get_bucket_region(bucket)
-        s3_client = boto3.client("s3", region_name=region)
-        s3_client.download_file(
-            bucket, f"{s3_key_prefix}/{args.metadata_file_name}", f"/tmp/{args.metadata_file_name}"
-        )
-        metadata_filepath = os.path.join("/tmp/", args.metadata_file_name)
-    else:
-        metadata_filepath = os.path.join(input_prefix, args.metadata_file_name)
+    Parameters
+    ----------
+    metadata_dict : dict
+        A chunked graph metadata dictionary, augmented with the "graph_info" dict
+        that contains "task_type", "etype_label", "etype_label_property",
+        "ntype_label", "ntype_label_property".
+    repartitioner : ParquetRepartitioner
+        The partitioner object that performs the metadata modification.
+    """
+    edge_data_meta: dict = metadata_dict.get("edge_data", {})
+    node_data_meta: dict = metadata_dict.get("node_data", {})
 
-    metadata_filepath = str(Path(metadata_filepath).resolve(strict=True))
-
-    with open(metadata_filepath, "r", encoding="utf-8") as metafile:
-        metadata_dict = json.load(metafile)  # type: Dict[str, Dict]
-
-    edge_structure_meta = metadata_dict["edges"]  # type: Dict[str, Dict[str, Dict]]
-
-    task_type = metadata_dict["graph_info"].get("task_type", "link_prediction")  # type: str
-
-    edge_data_exist = "edge_data" in metadata_dict.keys() and metadata_dict["edge_data"]
-    node_data_exist = "node_data" in metadata_dict.keys() and metadata_dict["node_data"]
-    edge_data_meta: Optional[Dict[str, Dict[str, Dict]]] = None
-    node_data_meta: Optional[Dict[str, Dict[str, Dict]]] = None
-
-    # We first collect the most frequent row counts, to minimize the number of
-    # repartitions we have to perform.
-    if edge_data_exist:
-        edge_data_meta = metadata_dict["edge_data"]
-        # TODO: Frequencies are important, but so is data size,
-        # we would like to avoid downloading large feature files if possible
-        edge_row_counts_frequencies = collect_frequencies_for_data_counts(edge_data_meta)
+    if edge_data_meta:
+        task_type = metadata_dict["graph_info"].get("task_type", "link_prediction")  # type: str
+        print(f"{task_type=}")
         edge_types_with_labels = metadata_dict["graph_info"]["etype_label"]  # type: List[str]
         # If there exist edge types with labels
         if edge_types_with_labels:
@@ -861,197 +839,280 @@ def main():
                 etype_label_property = metadata_dict["graph_info"]["etype_label_property"][
                     0
                 ]  #  type: str
-    if node_data_exist:
-        node_data_meta = metadata_dict["node_data"]
-        node_row_counts_frequencies = collect_frequencies_for_data_counts(node_data_meta)
-        node_types_with_labels = metadata_dict["graph_info"]["ntype_label"]  # type: List[str]
-        if node_types_with_labels:
-            ntype_label_property = metadata_dict["graph_info"]["ntype_label_property"][
-                0
-            ]  #  type: str
-
-    # Re-partition the edge files based on the most frequent row counts for each edge type
-    if edge_data_exist:
-        logging.info("Repartitioning edge files")
-        assert edge_data_meta
-        for type_idx, (type_name, type_data_dict) in enumerate(edge_data_meta.items()):
-            src, relation, dst = type_name.split(":")
-
-            if relation.endswith("-rev"):
-                # Reverse edge types do not have their own data,
-                # and if needed we re-partition their structure while
-                # handling the "regular" edge type.
-                logging.info(
-                    "Skipping repartitioning for reverse edge type %d/%d:, '%s' "
-                    "because it happens during handling regular edge type...",
-                    type_idx + 1,
-                    len(edge_data_meta),
-                    type_name,
-                )
-                continue
-            reverse_edge_type_name = f"{dst}:{relation}-rev:{src}"
-            most_frequent_counts = list(edge_row_counts_frequencies[type_name].most_common(1)[0][0])
-            repartitioner = ParquetRepartitioner(
-                input_prefix,
-                filesystem_type,
-                region,
-                verify_outputs=True,
-                streaming_repartitioning=args.streaming_repartitioning,
-            )
-
-            structure_counts = edge_structure_meta[type_name]["row_counts"]
-
-            # Repartition edge structure files if the row counts don't match the most frequent
-            if structure_counts != most_frequent_counts:
-                logging.info(
-                    "Repartitioning structure files for edge type %d/%d: '%s'",
-                    type_idx + 1,
-                    len(edge_data_meta),
-                    type_name,
-                )
-
-                edge_structure_meta[type_name] = repartitioner.repartition_parquet_files(
-                    edge_structure_meta[type_name], most_frequent_counts
-                )
-            else:
-                logging.info(
-                    "Structure files for edge type %d/%d: '%s' match, skipping repartitioning",
-                    type_idx + 1,
-                    len(edge_data_meta),
-                    type_name,
-                )
-
-            # If the reverse structure counts don't match we'll need to re-partition
-            # them because the feature files are shared between regular and reverse
-            if reverse_edge_type_name in edge_structure_meta:
-                if (
-                    edge_structure_meta[reverse_edge_type_name]["row_counts"]
-                    != most_frequent_counts
-                ):
-                    logging.info(
-                        "Repartitioning structure files for reverse edge type '%s'",
-                        reverse_edge_type_name,
-                    )
-                    edge_structure_meta[reverse_edge_type_name] = (
-                        repartitioner.repartition_parquet_files(
-                            edge_structure_meta[reverse_edge_type_name], most_frequent_counts
-                        )
-                    )
-
-            # Repartition edge feature files if the row counts don't match the most frequent
-            for feature_idx, (feature_name, feature_dict) in enumerate(type_data_dict.items()):
-                if feature_dict["row_counts"] != most_frequent_counts:
-                    logging.info(
-                        "Repartitioning feature files for edge type, '%s', feature %d/%d '%s'",
-                        type_name,
-                        feature_idx + 1,
-                        len(type_data_dict),
-                        feature_name,
-                    )
-                    feature_dict = repartitioner.repartition_parquet_files(
-                        feature_dict, most_frequent_counts
-                    )
-                    if (
-                        reverse_edge_type_name in edge_data_meta
-                        and feature_name in edge_data_meta[reverse_edge_type_name]
-                    ):
-                        logging.info(
-                            "Assigning re-partitioned feature files for '%s' to reverse "
-                            "edge type '%s'",
-                            feature_name,
-                            reverse_edge_type_name,
-                        )
-                        edge_data_meta[reverse_edge_type_name][feature_name] = feature_dict
-                    else:
-                        logging.debug(
-                            "Did not find reverse of edge type '%s', %s in %s",
-                            type_name,
-                            reverse_edge_type_name,
-                            edge_data_meta.keys(),
-                        )
-                else:
-                    logging.info(
-                        "Skipping repartitioning feature files for edge type, '%s',"
-                        " feature %d/%d '%s'",
-                        type_name,
-                        feature_idx + 1,
-                        len(type_data_dict),
-                        feature_name,
-                    )
-
-            # Indicate label and mask 1D arrays should be read in as flat arrays by dispatch_data.py
-            if type_name in edge_types_with_labels:
-                # If the task is not link_prediction, we need to modify the label file's metadata
                 if task_type not in {"link_predict", "link_prediction"}:
                     assert etype_label_property, (
                         "When task is not link prediction, providing an 'etype_label_property' "
                         f"is required. Got task {task_type}, but `metadata_dict['graph_info']"
                         "['etype_label_property']` was empty."
                     )
+
+        for type_idx, (type_name, type_data_dict) in enumerate(edge_data_meta.items()):
+            _, relation, _ = type_name.split(":")
+
+            if relation.endswith("-rev"):
+                # Reverse edge types do not have their own data,
+                # and if needed we re-partition their structure while
+                # handling the "regular" edge type.
+                logging.info(
+                    "Skipping modifying Parquet metadata for reverse edge type %d/%d:, '%s' "
+                    "because it happens during handling regular edge type...",
+                    type_idx + 1,
+                    len(edge_data_meta),
+                    type_name,
+                )
+                continue
+            logging.info(
+                "Modifying parquet metadata for edge type %d/%d:, '%s' ",
+                type_idx + 1,
+                len(edge_data_meta),
+                type_name,
+            )
+            if type_name in edge_types_with_labels:
+                # If the task is not link_prediction, we need to modify the label file's metadata
+                if task_type not in {"link_predict", "link_prediction"}:
+                    assert etype_label_property in type_data_dict, (
+                        "When task is not link prediction, providing an 'etype_label_property' "
+                        f"is required. Got task {task_type}, but {etype_label_property=}"
+                        f"was not in {type_data_dict=}"
+                    )
+                    label_files = type_data_dict[etype_label_property]["data"]  # type: List[str]
                     logging.info(
-                        "Modifying metadata for label '%s' of edge type '%s'",
+                        "Modifying Parquet metadata for %d files of label '%s' of edge type '%s'",
+                        len(label_files),
                         etype_label_property,
                         type_name,
                     )
-                    label_files = type_data_dict[etype_label_property]["data"]  # type: List[str]
-                    # TODO: These ops are probably safe to parallelize, since the tables are likely
-                    # easy to fit in memory (one float/bool per row)
                     repartitioner.modify_metadata_for_flat_arrays(label_files)
                 for mask in ["train_mask", "test_mask", "val_mask"]:
-                    logging.info("Modifying metadata for '%s' of edge type '%s'", mask, type_name)
                     if mask in type_data_dict:
-                        mask_files = type_data_dict[mask]["data"]  # type: List[str]
-                        repartitioner.modify_metadata_for_flat_arrays(mask_files)
+                        edge_mask_files = type_data_dict[mask]["data"]  # type: List[str]
+                        logging.info(
+                            "Modifying Parquet metadata for %d files of '%s' for edge type '%s'",
+                            len(edge_mask_files),
+                            mask,
+                            type_name,
+                        )
+                        repartitioner.modify_metadata_for_flat_arrays(edge_mask_files)
 
-    # Re-partition the node feature data files
-    if node_data_exist:
-        logging.info("Repartitioning node feature files")
-        assert node_data_meta
+    if node_data_meta:
+        node_types_with_labels = metadata_dict["graph_info"]["ntype_label"]  # type: List[str]
+        if node_types_with_labels:
+            ntype_label_property = metadata_dict["graph_info"]["ntype_label_property"][
+                0
+            ]  #  type: str
         for type_idx, (type_name, type_data_dict) in enumerate(node_data_meta.items()):
-            most_frequent_counts = list(node_row_counts_frequencies[type_name].most_common(1)[0][0])
-            repartitioner = ParquetRepartitioner(
-                input_prefix,
-                filesystem_type,
-                region,
-                verify_outputs=True,
-                streaming_repartitioning=args.streaming_repartitioning,
+            logging.info(
+                "Modifying Parquet metadata for node type '%s', %d/%d:",
+                type_name,
+                type_idx + 1,
+                len(node_data_meta),
             )
-
-            for feature_idx, (feature_name, feature_dict) in enumerate(type_data_dict.items()):
-                if feature_dict["row_counts"] != most_frequent_counts:
-                    logging.info(
-                        "Repartitioning feature files for node type '%s', feature '%s' (%d/%d)",
-                        type_name,
-                        feature_name,
-                        feature_idx + 1,
-                        len(type_data_dict),
-                    )
-                    repartitioner.repartition_parquet_files(feature_dict, most_frequent_counts)
-                else:
-                    logging.info(
-                        "Skipping repartitioning feature files for node type '%s',"
-                        " feature '%s' (%d/%d)",
-                        type_name,
-                        feature_name,
-                        feature_idx + 1,
-                        len(type_data_dict),
-                    )
-
             if type_name in node_types_with_labels:
+                node_label_files = type_data_dict[ntype_label_property]["data"]  # type: List[str]
                 logging.info(
-                    "Modifying metadata for label '%s' of node type '%s'",
+                    "Modifying Parquet metadata for %d files of label '%s' of node type '%s'",
+                    len(node_label_files),
                     ntype_label_property,
                     type_name,
                 )
-                node_label_files = type_data_dict[ntype_label_property]["data"]  # type: List[str]
                 repartitioner.modify_metadata_for_flat_arrays(node_label_files)
                 for mask in ["train_mask", "test_mask", "val_mask"]:
-                    logging.info("Modifying metadata for '%s' of node type '%s'", mask, type_name)
                     if mask in type_data_dict:
                         node_mask_files = type_data_dict[mask]["data"]  # type: List[str]
+                        logging.info(
+                            "Modifying Parquet metadata for %d files of '%s' for node type '%s'",
+                            len(node_mask_files),
+                            mask,
+                            type_name,
+                        )
                         repartitioner.modify_metadata_for_flat_arrays(node_mask_files)
 
-    # Ensure output dict has the correct order of keys
+
+def _repartition_edge_files(metadata_dict: dict[str, Any], repartitioner: ParquetRepartitioner):
+    edge_structure_meta = metadata_dict["edges"]  # type: Dict[str, Dict[str, Dict]]
+    # We first collect the most frequent row counts, to minimize the number of
+    # repartitions we have to perform.
+    edge_data_meta = metadata_dict["edge_data"]
+    assert edge_data_meta
+    # TODO: Frequencies are important, but so is data size,
+    # we would like to avoid downloading large feature files if possible
+    edge_row_counts_frequencies = collect_frequencies_for_data_counts(edge_data_meta)
+
+    # Re-partition the edge files based on the most frequent row counts for each edge type
+    for type_idx, (type_name, type_data_dict) in enumerate(edge_data_meta.items()):
+        src, relation, dst = type_name.split(":")
+
+        if relation.endswith("-rev"):
+            # Reverse edge types do not have their own data,
+            # and if needed we re-partition their structure while
+            # handling the "regular" edge type.
+            logging.info(
+                "Skipping repartitioning for reverse edge type %d/%d:, '%s' "
+                "because it happens during handling regular edge type...",
+                type_idx + 1,
+                len(edge_data_meta),
+                type_name,
+            )
+            continue
+
+        reverse_edge_type_name = f"{dst}:{relation}-rev:{src}"
+        most_frequent_counts = list(edge_row_counts_frequencies[type_name].most_common(1)[0][0])
+
+        structure_counts = edge_structure_meta[type_name]["row_counts"]
+
+        # Repartition edge structure files if the row counts don't match the most frequent
+        if structure_counts != most_frequent_counts:
+            logging.info(
+                "Repartitioning %d structure files for edge type %d/%d: '%s'",
+                len(edge_structure_meta[type_name]["data"]),
+                type_idx + 1,
+                len(edge_data_meta),
+                type_name,
+            )
+
+            edge_structure_meta[type_name] = repartitioner.repartition_parquet_files(
+                edge_structure_meta[type_name], most_frequent_counts
+            )
+        else:
+            logging.info(
+                "Structure files for edge type %d/%d: '%s' match, skipping repartitioning",
+                type_idx + 1,
+                len(edge_data_meta),
+                type_name,
+            )
+
+        # If the reverse structure counts don't match we'll need to re-partition
+        # them because the feature files are shared between regular and reverse
+        if reverse_edge_type_name in edge_structure_meta:
+            if edge_structure_meta[reverse_edge_type_name]["row_counts"] != most_frequent_counts:
+                logging.info(
+                    "Repartitioning %d structure files for reverse edge type '%s'",
+                    len(edge_structure_meta[reverse_edge_type_name]["data"]),
+                    reverse_edge_type_name,
+                )
+                edge_structure_meta[reverse_edge_type_name] = (
+                    repartitioner.repartition_parquet_files(
+                        edge_structure_meta[reverse_edge_type_name], most_frequent_counts
+                    )
+                )
+
+        # Repartition edge feature files if the row counts don't match the most frequent
+        for feature_idx, (feature_name, feature_dict) in enumerate(type_data_dict.items()):
+            if feature_dict["row_counts"] != most_frequent_counts:
+                logging.info(
+                    "Repartitioning %d feature files for edge type '%s', feature %d/%d '%s'",
+                    len(feature_dict["data"]),
+                    type_name,
+                    feature_idx + 1,
+                    len(type_data_dict),
+                    feature_name,
+                )
+                feature_dict = repartitioner.repartition_parquet_files(
+                    feature_dict, most_frequent_counts
+                )
+                if (
+                    reverse_edge_type_name in edge_data_meta
+                    and feature_name in edge_data_meta[reverse_edge_type_name]
+                ):
+                    logging.info(
+                        "Assigning re-partitioned feature files for '%s' to reverse "
+                        "edge type '%s'",
+                        feature_name,
+                        reverse_edge_type_name,
+                    )
+                    edge_data_meta[reverse_edge_type_name][feature_name] = feature_dict
+                else:
+                    logging.debug(
+                        "Did not find reverse of edge type '%s', %s in %s",
+                        type_name,
+                        reverse_edge_type_name,
+                        edge_data_meta.keys(),
+                    )
+            else:
+                logging.info(
+                    (
+                        "Feature '%s' (%d/%d) of edge type '%s', already has correct row counts, "
+                        "skipping repartitioning."
+                    ),
+                    feature_name,
+                    feature_idx + 1,
+                    len(type_data_dict),
+                    type_name,
+                )
+
+
+def _repartition_node_files(metadata_dict: dict[str, Any], repartitioner: ParquetRepartitioner):
+    node_data_meta = metadata_dict["node_data"]
+    assert node_data_meta
+    node_row_counts_frequencies = collect_frequencies_for_data_counts(node_data_meta)
+
+    logging.info("Repartitioning node feature files")
+    for type_idx, (type_name, type_data_dict) in enumerate(node_data_meta.items()):
+        logging.info(
+            "Repartitioning feature files for node type '%s', (%d/%d)",
+            type_name,
+            type_idx + 1,
+            len(node_data_meta),
+        )
+        most_frequent_counts = list(node_row_counts_frequencies[type_name].most_common(1)[0][0])
+
+        for feature_idx, (feature_name, feature_dict) in enumerate(type_data_dict.items()):
+            if feature_dict["row_counts"] != most_frequent_counts:
+                logging.info(
+                    "Repartitioning %d feature files for node type '%s', feature '%s' (%d/%d)",
+                    len(feature_dict["data"]),
+                    type_name,
+                    feature_name,
+                    feature_idx + 1,
+                    len(type_data_dict),
+                )
+                repartitioner.repartition_parquet_files(feature_dict, most_frequent_counts)
+            else:
+                logging.info(
+                    (
+                        "Feature '%s' (%d/%d) of node type '%s', already has correct row counts, "
+                        "skipping repartitioning."
+                    ),
+                    feature_name,
+                    feature_idx + 1,
+                    len(type_data_dict),
+                    type_name,
+                )
+
+
+def repartition_files(metadata_dict: Dict[str, Any], repartitioner: ParquetRepartitioner):
+    """Applies repartition of node and edge data files and modifies flat array Parquet metadata.
+
+    The `metadata_dict` argument is modified in-place.
+
+    Returns
+    -------
+    dict
+        The provided `metadata_dict`, modified in-place.
+    """
+    edge_data_exist = "edge_data" in metadata_dict.keys() and metadata_dict["edge_data"]
+    node_data_exist = "node_data" in metadata_dict.keys() and metadata_dict["node_data"]
+
+    if not edge_data_exist and not node_data_exist:
+        logging.info("No edge or node data found in metadata, skipping repartitioning")
+        return metadata_dict
+
+    edge_data_meta: Optional[Dict[str, Dict[str, Dict]]] = None
+    node_data_meta: Optional[Dict[str, Dict[str, Dict]]] = None
+
+    # Repartition edge structure and feature files
+    if edge_data_exist:
+        _repartition_edge_files(metadata_dict, repartitioner)
+
+    # Re-partition the node feature data files
+    if node_data_exist:
+        _repartition_node_files(metadata_dict, repartitioner)
+
+    # Modify label and mask 1D arrays metadata so they will be read in as flat arrays
+    # by dgl/tools/dispatch_data.py
+    modify_flat_array_metadata(metadata_dict, repartitioner)
+
+    # Ensure output dict has the correct order of keys, as expected by dispatch_data.py
     if edge_data_exist:
         for edge_type in metadata_dict["edge_type"]:
             metadata_dict["edges"][edge_type] = metadata_dict["edges"].pop(edge_type)
@@ -1062,28 +1123,122 @@ def main():
             if node_type in metadata_dict["node_data"].keys():
                 metadata_dict["node_data"][node_type] = metadata_dict["node_data"].pop(node_type)
 
+    edge_structure_meta = metadata_dict["edges"]
+    verify_metadata(edge_structure_meta, edge_data_meta, node_data_meta)
+
+    return metadata_dict
+
+
+def main():
+    """
+    Re-partitions the output of the distributed processing pipeline
+    to ensure all files that belong to the same edge/node type have the same
+    number of rows per corresponding part-file.
+
+    This is done by reading the metadata file and partitioning the files
+    according to the row counts of the features in the metadata file.
+
+    The output is written under the same prefix as the input, with the
+    updated metadata file name.
+
+    Parameters
+    ----------
+    input_prefix : str
+        Prefix path to where the output was generated
+        from the distributed processing pipeline.
+        Can be a local path or S3 prefix (starting with 's3://').
+    streaming_repartitioning: bool
+        When True will use low-memory file-streaming repartitioning.
+        Note that this option is much slower than the in-memory default.
+    input_metadata_file_name : str
+        Name of the original partitioning pipeline metadata file.
+    updated_metadata_file_name : str
+        Name of the updated (output) partitioning pipeline metadata file.
+    log_level : str
+        Log level.
+
+    Notes
+    -----
+    This function is meant to be used as a command-line tool.
+    """
+    repartition_config = RepartitionConfig(**vars(parse_args(sys.argv[1:])))
+    logging.basicConfig(level=getattr(logging, repartition_config.log_level.upper(), None))
+
+    if repartition_config.input_prefix.startswith("s3://"):
+        filesystem_type = "s3"
+    else:
+        input_prefix = str(Path(repartition_config.input_prefix).resolve(strict=True))
+        filesystem_type = "local"
+
+    # Trim trailing '/' from S3 URI
+    if filesystem_type == "s3":
+        input_prefix = s3_utils.s3_path_remove_trailing(repartition_config.input_prefix)
+
+    logging.info(
+        "Re-partitioning files under %s to ensure all files that belong to the same "
+        "edge/node type have the same number of rows per part-file.",
+        input_prefix,
+    )
+
+    t0 = time.time()
+
+    logging.info(
+        "Reading metadata from %s/%s", input_prefix, repartition_config.input_metadata_file_name
+    )
+
+    # Get the metadata file
+    region = None
+    if filesystem_type == "s3":
+        bucket = input_prefix.split("/")[2]
+        s3_key_prefix = input_prefix.split("/", 3)[3]
+        region = s3_utils.get_bucket_region(bucket)
+        s3_client = boto3.client("s3", region_name=region)
+        s3_client.download_file(
+            bucket,
+            f"{s3_key_prefix}/{repartition_config.input_metadata_file_name}",
+            f"/tmp/{repartition_config.input_metadata_file_name}",
+        )
+        metadata_filepath = os.path.join("/tmp/", repartition_config.input_metadata_file_name)
+    else:
+        metadata_filepath = os.path.join(input_prefix, repartition_config.input_metadata_file_name)
+
+    metadata_filepath = str(Path(metadata_filepath).resolve(strict=True))
+
+    with open(metadata_filepath, "r", encoding="utf-8") as metafile:
+        metadata_dict = json.load(metafile)  # type: Dict[str, Dict]
+
+    repartitioner = ParquetRepartitioner(
+        input_prefix,
+        filesystem_type,
+        region,
+        verify_outputs=True,
+        streaming_repartitioning=repartition_config.streaming_repartitioning,
+    )
+
+    metadata_dict = repartition_files(metadata_dict, repartitioner)
+
     with tempfile.NamedTemporaryFile(mode="w") as metafile:
         json.dump(metadata_dict, metafile, indent=4)
         metafile.flush()
-        verify_metadata(edge_structure_meta, edge_data_meta, node_data_meta)
+
         # Upload the updated metadata file to S3
-        if node_data_exist or edge_data_exist:
-            if filesystem_type == "s3":
-                s3_client.upload_file(
-                    metafile.name, bucket, f"{s3_key_prefix}/{args.updated_metadata_file_name}"
-                )
-                logging.info(
-                    "Uploaded updated metadata file to s3://%s/%s/%s",
-                    bucket,
-                    s3_key_prefix,
-                    args.updated_metadata_file_name,
-                )
-            else:
-                shutil.copyfile(
-                    metafile.name, os.path.join(input_prefix, args.updated_metadata_file_name)
-                )
+        if filesystem_type == "s3":
+            s3_client.upload_file(
+                metafile.name,
+                bucket,
+                f"{s3_key_prefix}/{repartition_config.updated_metadata_file_name}",
+            )
+            logging.info(
+                "Uploaded updated metadata file to s3://%s/%s/%s",
+                bucket,
+                s3_key_prefix,
+                repartition_config.updated_metadata_file_name,
+            )
         else:
-            logging.warning("No edge or node feature data to re-partition, exiting.")
+            shutil.copyfile(
+                metafile.name,
+                os.path.join(input_prefix, repartition_config.updated_metadata_file_name),
+            )
 
     t1 = time.time()
     logging.info("File repartitioning time: %s", t1 - t0)
