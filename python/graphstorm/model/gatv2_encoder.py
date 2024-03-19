@@ -166,7 +166,7 @@ class GATv2Encoder(GraphConvEncoder):
         Hidden dimension
     out_dim : int
         Output dimension
-    num_head : int
+    num_heads : int
         Number of multi-heads attention
     num_hidden_layers : int
         Number of hidden layers. Total GNN layers is equal to num_hidden_layers + 1. Default 1
@@ -174,6 +174,8 @@ class GATv2Encoder(GraphConvEncoder):
         Dropout. Default 0.
     activation : callable, optional
         Activation function. Default: None
+    last_layer_act: bool
+        Whether call activation function in the last GNN layer.
     num_ffn_layers_in_gnn: int
         Number of ngnn gnn layers between GNN layers
     """
