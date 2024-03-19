@@ -566,12 +566,13 @@ def test_rank_gauss_transform(input_dtype, out_dtype):
         assert trans_feat.dtype != np.float16
         assert_almost_equal(feat, trans_feat, decimal=4)
 
-def test_custom_label_processor():
+def test_custom_node_label_processor():
     train_idx = np.arange(0, 10)
     val_idx = np.arange(10, 15)
     test_idx = np.arange(15, 20)
-    clp = CustomLabelProcessor("test_label", "test", "id", "classification",
-                               train_idx, val_idx, test_idx, None)
+    clp = CustomLabelProcessor(col_name="test_label", label_name="test", id_col="id",
+                               task_type="classification",
+                               train_idx=train_idx, val_idx=val_idx, test_idx=test_idx, stats_type=None)
 
     split = clp.data_split(np.arange(20))
     assert "train_mask" in split
@@ -624,8 +625,10 @@ def test_custom_label_processor():
         "test_label": np.random.randint(0, 5, (24,)),
         "id": np.arange(24),
     }
-    clp = CustomLabelProcessor("test_label", "test", "id", "classification",
-                         train_idx, val_idx, test_idx, LABEL_STATS_FREQUENCY_COUNT)
+    clp = CustomLabelProcessor(col_name="test_label", label_name="test", id_col="id",
+                               task_type="classification",
+                               train_idx=train_idx, val_idx=val_idx, test_idx=test_idx,
+                               stats_type=LABEL_STATS_FREQUENCY_COUNT)
     ret = clp(input_data)
     assert "train_mask" in ret
     assert "val_mask" in ret
@@ -640,6 +643,32 @@ def test_custom_label_processor():
     assert ret[stats_info_key][0] == LABEL_STATS_FREQUENCY_COUNT
     assert_equal(ret[stats_info_key][1], vals)
     assert_equal(ret[stats_info_key][2], counts)
+
+
+def test_custom_edge_label_processor():
+    # test on link prediction
+    train_idx = tuple((i, j) for i in range(1, 10) for j in range(1, 10))
+    val_idx = tuple((i, j) for i in range(11, 14) for j in range(11, 14))
+    test_idx = tuple((i, j) for i in range(15, 20) for j in range(15, 20))
+    clp = CustomLabelProcessor(col_name="test_label", label_name="test", id_col="id",
+                               task_type="link_prediction",
+                               train_idx=train_idx, val_idx=val_idx, test_idx=test_idx,
+                               stats_type=None)
+
+    data = tuple((i, j) for i in range(1, 20) for j in range(1, 20))
+    split = clp.data_split(data)
+    assert "train_mask" in split
+    assert "val_mask" in split
+    assert "test_mask" in split
+    index_in_train_idx = np.array([np.where(np.all(np.array(data) == t, axis=1))[0][0] for t in train_idx])
+    index_in_val_idx = np.array([np.where(np.all(np.array(data) == t, axis=1))[0][0] for t in val_idx])
+    index_in_test_idx = np.array([np.where(np.all(np.array(data) == t, axis=1))[0][0] for t in test_idx])
+    assert_equal(np.squeeze(np.nonzero(split["train_mask"])), index_in_train_idx)
+    assert_equal(np.squeeze(np.nonzero(split["val_mask"])), index_in_val_idx)
+    assert_equal(np.squeeze(np.nonzero(split["test_mask"])), index_in_test_idx)
+    assert len(split["train_mask"]) == 361
+    assert len(split["val_mask"]) == 361
+    assert len(split["test_mask"]) == 361
 
 def test_check_label_stats_type():
     stats_type = _check_label_stats_type("regression", LABEL_STATS_FREQUENCY_COUNT)
