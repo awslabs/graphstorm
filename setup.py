@@ -38,6 +38,12 @@ requirements = [
 extensions = []
 cmdclass = {}
 
+extras_require = {
+    'lightning': [
+        'pytorch-lightning>=2.2.1',
+    ]
+}
+
 setup(
     # Metadata
     name='graphstorm',
@@ -53,6 +59,7 @@ setup(
     )),
     package_dir={"": "python"},
     package_data={'': [os.path.join('datasets', 'dataset_checksums', '*.txt')]},
+    extras_require=extras_require,
     zip_safe=True,
     include_package_data=True,
     install_requires=requirements,
