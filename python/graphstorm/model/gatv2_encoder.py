@@ -1,5 +1,5 @@
 """
-    Copyright 2023 Contributors
+    Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Sage layer implementation.
+    GAT V2 layer implementation.
 """
 import torch as th
 from torch import nn
@@ -26,12 +26,16 @@ from .ngnn_mlp import NGNNMLP
 from .gnn_encoder_base import GraphConvEncoder
 
 
-class GATConv(nn.Module):
-    r"""GAT Convolutional layer
+class GATv2Conv(nn.Module):
+    r"""GATv2 Convolutional layer
 
     Note:
     -----
-    * GATEConv is only effective on the homogeneous graph, not like other conv implementation.
+    * GATv2Conv is only effective on the homogeneous graph, not like other conv implementation.
+
+    The implementation follows dgl.nn.pytorch.conv.GATv2Conv:
+    `How Attentive are Graph Attention Networks?
+    <https://arxiv.org/pdf/2105.14491.pdf>`__
 
     Examples:
     ----------
@@ -39,9 +43,9 @@ class GATConv(nn.Module):
     .. code:: python
 
         # suppose graph and input_feature are ready
-        from graphstorm.model.gat_encoder import GATConv
+        from graphstorm.model.gat_encoder import GATv2Conv
 
-        layer = GATConv(h_dim, h_dim, num_heads, num_ffn_layers_in_gnn)
+        layer = GATv2Conv(h_dim, h_dim, num_heads, num_ffn_layers_in_gnn)
         h = layer(g, input_feature)
 
     Parameters
@@ -72,8 +76,8 @@ class GATConv(nn.Module):
                  bias=True,
                  num_ffn_layers_in_gnn=0,
                  ffn_activation=F.relu):
-        super(GATConv, self).__init__()
-        self.conv = dglnn.GATConv(in_feat, out_feat // num_heads, num_heads, dropout,
+        super(GATv2Conv, self).__init__()
+        self.conv = dglnn.conv.GATv2Conv(in_feat, out_feat // num_heads, num_heads, dropout,
                                   activation=activation, allow_zero_in_degree=True,
                                   bias=bias)
 
@@ -121,20 +125,20 @@ class GATConv(nn.Module):
 
         return {DEFAULT_NTYPE: h_conv}
 
-class GATEncoder(GraphConvEncoder):
-    r""" GAT Conv Encoder
+class GATv2Encoder(GraphConvEncoder):
+    r""" GATv2 Conv Encoder
 
-    The GATEncoder employs several GATConv Layers as its encoding mechanism.
-    The GATEncoder should be designated as the model's encoder within Graphstorm.
+    The GATv2Encoder employs several GATv2Conv Layers as its encoding mechanism.
+    The GATv2Encoder should be designated as the model's encoder within Graphstorm.
 
     Examples:
     ----------
 
     .. code:: python
 
-        # Build model and do full-graph inference on GATEncoder
+        # Build model and do full-graph inference on GATv2Encoder
         from graphstorm import get_node_feat_size
-        from graphstorm.model.gat_encoder import GATEncoder
+        from graphstorm.model.gat_encoder import GATv2Encoder
         from graphstorm.model.node_decoder import EntityClassifier
         from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
         from graphstorm.dataloading import GSgnnNodeTrainData
@@ -149,8 +153,8 @@ class GATEncoder(GraphConvEncoder):
                                           use_node_embeddings=True)
         model.set_node_input_encoder(encoder)
 
-        gnn_encoder = GATEncoder(4, 4, num_heads=2
-                                 num_hidden_layers=1)
+        gnn_encoder = GATv2Encoder(4, 4, num_heads=2
+                                   num_hidden_layers=1)
         model.set_gnn_encoder(gnn_encoder)
         model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
 
@@ -183,16 +187,16 @@ class GATEncoder(GraphConvEncoder):
                  activation=F.relu,
                  last_layer_act=False,
                  num_ffn_layers_in_gnn=0):
-        super(GATEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
+        super(GATv2Encoder, self).__init__(h_dim, out_dim, num_hidden_layers)
 
         self.layers = nn.ModuleList()
         for _ in range(num_hidden_layers):
-            self.layers.append(GATConv(h_dim, h_dim, num_heads,
+            self.layers.append(GATv2Conv(h_dim, h_dim, num_heads,
                                         activation=activation,
                                         dropout=dropout, bias=True,
                                         num_ffn_layers_in_gnn=num_ffn_layers_in_gnn))
 
-        self.layers.append(GATConv(h_dim, out_dim, num_heads,
+        self.layers.append(GATv2Conv(h_dim, out_dim, num_heads,
                                     activation=activation if last_layer_act else None,
                                     dropout=dropout, bias=True))
 
