@@ -1,0 +1,46 @@
+gsf:
+  basic:
+    backend: gloo
+    verbose: false
+    save_perf_results_path: null
+  gnn:
+    model_encoder_type: mlp
+    fanout: "5,5"
+    node_feat_name:
+      - item:bert_h
+    num_layers: 2
+    hidden_size: 768
+    use_mini_batch_infer: true
+  input:
+    restore_model_path: null
+  output:
+    save_model_path: null
+    save_embed_path: /shared_data/graphstorm/examples/peft_llm_gnn/results/lp/Video_Games
+  hyperparam:
+    dropout: 0.
+    lr: 0.001
+    num_epochs: 1
+    batch_size: 512
+    eval_batch_size: 512
+    wd_l2norm: 0.00001
+    no_validation: false
+  rgcn:
+    num_bases: -1
+    use_self_loop: true
+    lp_decoder_type: dot_product
+    sparse_optimizer_lr: 1e-2
+    use_node_embeddings: false
+  link_prediction:
+    num_negative_edges: 1
+    num_negative_edges_eval: 100
+    contrastive_loss_temperature: 0.1
+    lp_loss_func: contrastive
+    lp_embed_normalizer: l2_norm
+    train_negative_sampler: inbatch_joint
+    target_ntype: item
+    eval_etype:
+      - "item,also_buy,item"
+    train_etype:
+      - "item,also_buy,item"
+    exclude_training_targets: true
+    reverse_edge_types_map: ["item,also_buy,also_buy-rev,item"]

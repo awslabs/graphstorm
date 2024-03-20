@@ -30,18 +30,15 @@ def main(config_args):
     """
     config = GSConfig(config_args)
     embs = load_gsgnn_embeddings(config.save_embed_path)
-    if False:
-        index_dimension = embs[config.target_ntype].size(1)
-        # Number of clusters (higher values lead to better recall but slower search)
-        #nlist = 750
-        #quantizer = faiss.IndexFlatL2(index_dimension)  # Use Flat index for quantization
-        #index = faiss.IndexIVFFlat(quantizer, index_dimension, nlist, faiss.METRIC_INNER_PRODUCT)
-        #index.train(embs[config.target_ntype]) 
-        index = faiss.IndexFlatIP(index_dimension)
-        index.add(embs[config.target_ntype])
-    else:
-        scores = embs[config.target_ntype] @ embs[config.target_ntype].T
-        #scores.fill_diagonal_(-10)
+
+    index_dimension = embs[config.target_ntype].size(1)
+    # Number of clusters (higher values lead to better recall but slower search)
+    #nlist = 750
+    #quantizer = faiss.IndexFlatL2(index_dimension)  # Use Flat index for quantization
+    #index = faiss.IndexIVFFlat(quantizer, index_dimension, nlist, faiss.METRIC_INNER_PRODUCT)
+    #index.train(embs[config.target_ntype]) 
+    index = faiss.IndexFlatIP(index_dimension)
+    index.add(embs[config.target_ntype])
 
     #print(scores.abs().mean())
     
@@ -68,7 +65,7 @@ def main(config_args):
     # TODO: devise a dataloader that can exclude targets and add train_mask like LP Loader
     test_dataloader = GSgnnNodeDataLoader(
         train_data,
-        train_data.test_idxs,
+        train_data.train_idxs,
         fanout=[-1],
         batch_size=config.eval_batch_size,
         device=device,
@@ -106,27 +103,17 @@ def main(config_args):
         query_idx = list(ground_truth.keys())
         #print(ground_truth)
         #breakpoint()
-        #ddd,lll = index.search(embs[config.target_ntype][query_idx],100 + 1)
+        ddd,lll = index.search(embs[config.target_ntype][query_idx],100 + 1)
         #knn_result = lll.tolist()
         
         for idx,query in enumerate(query_idx):
-            #if len(ground_truth[query]) > 10:
-            rank_list = scores[query,:].argsort(descending=True).tolist()
-            #for ii in rank_list[:10]:
-                #print(ii, query, train_data.g.ndata['bert_h'][query] @train_data.g.ndata['bert_h'][ii].T)
-            #    print(ii, query, scores[query, ii])
-            #print(ground_truth[query])
-            #breakpoint()
-            #recall.append(calculate_recall(lll[idx, 1:], ground_truth[query]))
-            recall.append(calculate_recall(rank_list[:100], ground_truth[query]))
-            #print(ground_truth)
+            recall.append(calculate_recall(lll[idx, 1:], ground_truth[query]))
             max_.append(query)
         #print(recall)
     if gs.get_rank() == 0:
         #print(query_idx, lll)
-        print(max_num_batch, len(recall), np.mean(recall))
-        print(len(max_), len(set(max_)))
-        breakpoint()
+        #print(max_num_batch, len(recall), np.mean(recall))
+        print(f'recall@100: {np.mean(recall)}')
 
 def generate_parser():
     """Generate an argument parser"""
