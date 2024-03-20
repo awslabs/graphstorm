@@ -66,7 +66,7 @@ Similarly, ``edges`` contains a list of edge types and the information of an edg
 * ``task_type``: (**Required**) specifies the task defined on the nodes or edges. Currently, its value can be ``classification``, ``regression`` and ``link_prediction``.
 * ``label_col``: specifies the column name in the input file that contains the label. This has to be specified for ``classification`` and ``regression`` tasks. ``label_col`` is used as the label name.
 * ``split_pct``: (Optional) specifies how to split the data into training/validation/test. If it's not specified, the data is split into 80% for training 10% for validation and 10% for testing. The pipeline constructs three additional vectors indicating the training/validation/test masks. For ``classification`` and ``regression`` tasks, the names of the mask tensors are ``train_mask``, ``val_mask`` and ``test_mask``.
-* ``custom_split_filenames``: (Optional) specifies the customized training/validation/test mask. It has field named ``train``, ``valid``, and ``test`` to specify the path of the mask files. It is possible that one of the subfield here leaves empty and it will be seen as none. It will override the ``split_pct`` once provided. Refer to :ref:`Use Your Own Graphs Tutorial <use-own-data>` for an example.
+* ``custom_split_filenames``: (Optional) specifies the customized training/validation/test mask. It has field named ``train``, ``valid``, and ``test`` to specify the path of the mask files. It is possible that one of the subfield here leaves empty and it will be treated as none. It will override the ``split_pct`` once provided. Refer to :ref:`Use Your Own Graphs Tutorial <use-own-data>` for an example.
 
 .. _input-format:
 
