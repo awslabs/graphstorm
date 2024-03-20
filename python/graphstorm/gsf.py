@@ -43,6 +43,7 @@ from .model.hgt_encoder import HGTEncoder
 from .model.gnn_with_reconstruct import GNNEncoderWithReconstructedEmbed
 from .model.sage_encoder import SAGEEncoder
 from .model.gat_encoder import GATEncoder
+from .model.gatv2_encoder import GATv2Encoder
 from .model.node_gnn import GSgnnNodeModel
 from .model.node_glem import GLEM
 from .model.edge_gnn import GSgnnEdgeModel
@@ -583,7 +584,8 @@ def set_encoder(model, g, config, train_task):
                                  num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     elif model_encoder_type == "sage":
         # we need to check if the graph is homogeneous
-        assert check_homo(g) == True, 'The graph is not a homogeneous graph'
+        assert check_homo(g) == True, \
+            'The graph is not a homogeneous graph, can not use sage model encoder'
         # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = SAGEEncoder(h_dim=config.hidden_size,
                                   out_dim=config.hidden_size,
@@ -593,12 +595,25 @@ def set_encoder(model, g, config, train_task):
                                   num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn,
                                   norm=config.gnn_norm)
     elif model_encoder_type == "gat":
+        # we need to check if the graph is homogeneous
+        assert check_homo(g) == True, \
+            'The graph is not a homogeneous graph, can not use gat model encoder'
         gnn_encoder = GATEncoder(h_dim=config.hidden_size,
                                  out_dim=config.hidden_size,
                                  num_heads=config.num_heads,
                                  num_hidden_layers=config.num_layers -1,
                                  dropout=dropout,
                                  num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
+    elif model_encoder_type == "gatv2":
+        # we need to check if the graph is homogeneous
+        assert check_homo(g) == True, \
+            'The graph is not a homogeneous graph, can not use gatv2 model encoder'
+        gnn_encoder = GATv2Encoder(h_dim=config.hidden_size,
+                                   out_dim=config.hidden_size,
+                                   num_heads=config.num_heads,
+                                   num_hidden_layers=config.num_layers -1,
+                                   dropout=dropout,
+                                   num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     else:
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
 

@@ -16,7 +16,7 @@
     Builtin configs
 """
 
-BUILTIN_GNN_ENCODER = ["gat", "rgat", "rgcn", "sage", "hgt"]
+BUILTIN_GNN_ENCODER = ["gat", "rgat", "rgcn", "sage", "hgt", "gatv2"]
 BUILTIN_ENCODER = ["lm", "mlp"] + BUILTIN_GNN_ENCODER
 SUPPORTED_BACKEND = ["gloo", "nccl"]
 
