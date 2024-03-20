@@ -1055,12 +1055,12 @@ def save_full_node_embeddings(g, save_embed_path,
         # only save embeddings of target_nidx
         assert ntype in embeddings, \
             f"{ntype} is not in the set of evaluation ntypes {ntypes}"
-        emb_nids = \
-            dgl.distributed.node_split(th.full((g.num_nodes(ntype),), True, dtype=th.bool),
-                                       pb, ntype=ntype, force_even=True)
-        emb = embeddings[ntype][emb_nids]
+
+        start, end = get_data_range(get_rank(), get_world_size(), g.num_nodes(ntype))
+        emb = embeddings[ntype][start:end]
         if nid_shuffler is not None:
-            emb_nids = nid_shuffler.shuffle_nids(ntype, emb_nids)
+            emb_nids = nid_shuffler.shuffle_nids(ntype, \
+                th.arange(start=start, end=end, dtype=th.int64))
         shuffled_embs[ntype] = (emb, emb_nids)
 
     save_shuffled_node_embeddings(shuffled_embs, save_embed_path, save_embed_format)
