@@ -697,7 +697,7 @@ def test_label():
     assert np.sum(res['val_mask']) == 1
     assert np.sum(res['test_mask']) == 1
 
-    # Check custom data split for classification.
+    # Check custom data split for classification on node.
     data = {
             "id": np.arange(10),
             'label' : np.random.randint(3, size=10)
@@ -707,6 +707,31 @@ def test_label():
     write_index_json(np.arange(9, 10), "/tmp/test_idx.json")
     conf = {
             "node_id_col": "id",
+            "labels": [
+                {'task_type': 'classification',
+                 'label_col': 'label',
+                 'custom_split_filenames': {"train": "/tmp/train_idx.json",
+                                            "valid": "/tmp/val_idx.json",
+                                            "test": "/tmp/test_idx.json"}}
+            ]
+    }
+    ops = parse_label_ops(conf, True)
+    res = process_labels(data, ops)
+    check_classification(res)
+
+    # Check custom data split for classification on edge.
+    data = {
+            "src": [1, 1, 1, 2, 2, 2, 3, 3, 3, 4],
+            "dest": [1, 2, 3, 1, 2, 3, 1, 2, 3, 1],
+            'label': np.random.randint(3, size=10)
+    }
+    write_index_json([(1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (2, 3), (3, 1), (3, 2)],
+                     "/tmp/train_idx.json")
+    write_index_json([(3, 3)], "/tmp/val_idx.json")
+    write_index_json([(4, 1)], "/tmp/test_idx.json")
+    conf = {
+            "source_id_col": "src",
+            "dest_id_col": "dest",
             "labels": [
                 {'task_type': 'classification',
                  'label_col': 'label',
@@ -827,6 +852,37 @@ def test_label():
     }
     ops = parse_label_ops(conf, False)
     data = {'label' : np.random.uniform(size=10) * 10}
+    res = process_labels(data, ops)
+    assert len(res) == 3
+    assert 'train_mask' in res
+    assert 'val_mask' in res
+    assert 'test_mask' in res
+    assert np.sum(res['train_mask']) == 8
+    assert np.sum(res['val_mask']) == 1
+    assert np.sum(res['test_mask']) == 1
+
+    # Check link prediction on customed masks
+    data = {
+            "src": [1, 1, 1, 2, 2, 2, 3, 3, 3, 4],
+            "dest": [1, 2, 3, 1, 2, 3, 1, 2, 3, 1],
+            'label': np.random.randint(3, size=10)
+    }
+    write_index_json([(1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (2, 3), (3, 1), (3, 2)],
+                     "/tmp/train_idx.json")
+    write_index_json([(3, 3)], "/tmp/val_idx.json")
+    write_index_json([(4, 1)], "/tmp/test_idx.json")
+    conf = {
+            "source_id_col": "src",
+            "dest_id_col": "dest",
+            "labels": [
+                {'task_type': 'link_prediction',
+                 'custom_split_filenames': {"train": "/tmp/train_idx.json",
+                                            "valid": "/tmp/val_idx.json",
+                                            "test": "/tmp/test_idx.json"}
+                 }
+            ]
+    }
+    ops = parse_label_ops(conf, False)
     res = process_labels(data, ops)
     assert len(res) == 3
     assert 'train_mask' in res
