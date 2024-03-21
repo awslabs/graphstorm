@@ -829,7 +829,6 @@ def process_graph(args):
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Preprocess graphs")
-    print("test")
     argparser.add_argument("--conf-file", type=str, required=True,
                            help="The configuration file.")
     argparser.add_argument("--output-conf-file", type=str,
