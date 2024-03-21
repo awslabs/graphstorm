@@ -20,7 +20,7 @@ jobs:
     name: Scan
     runs-on: ubuntu-latest
     container:
-      image: returntocorp/semgrep
+      image: returntocorp/semgrep:pr-9986
       options: --user root
 
     # Skip any PR created by dependabot to avoid permission issues:
