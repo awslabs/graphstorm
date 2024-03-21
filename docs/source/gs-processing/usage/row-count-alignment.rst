@@ -96,7 +96,7 @@ on SageMaker:
     bash docker/push_gsprocessing_image.sh --environment sagemaker --region ${REGION}
 
     SAGEMAKER_ROLE_NAME="enter-your-sagemaker-execution-role-name-here"
-    IMAGE_URI="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/graphstorm-processing-sagemaker:0.2.1"
+    IMAGE_URI="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/graphstorm-processing-sagemaker:latest-x86_64"
     ROLE="arn:aws:iam::${ACCOUNT}:role/service-role/${SAGEMAKER_ROLE_NAME}"
     INSTANCE_TYPE="ml.t3.xlarge"
 
@@ -137,7 +137,7 @@ The file streaming implementation will hold at most 2 files worth of data
 in memory, so by choosing an appropriate file number when processing you should
 be able to process any data size.
 
-.. note:: text
+.. note::
 
     The file streaming implementation will be much slower than the in-memory
     one, so only use in case no instance size can handle your data.

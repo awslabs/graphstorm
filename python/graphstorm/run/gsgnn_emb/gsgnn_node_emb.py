@@ -36,7 +36,7 @@ def main(config_args):
 
     use_wg_feats = use_wholegraph(config.part_config)
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
-                  use_wholegraph=config.use_wholegraph_sparse_emb or use_wg_feats)
+                  use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
     device = setup_device(config.local_rank)

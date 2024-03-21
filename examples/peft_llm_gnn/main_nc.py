@@ -9,7 +9,7 @@ from graphstorm.utils import setup_device
 from graphstorm.inference import GSgnnNodePredictionInferrer
 from graphstorm.trainer import GSgnnNodePredictionTrainer
 from graphstorm.tracker import GSSageMakerTaskTracker
-from llm_gnn_model import LLMGraphModel
+from llm_gnn_model import GNNLLM_NC
 
 def main(config_args):
     """ main function
@@ -27,7 +27,7 @@ def main(config_args):
         node_feat_field=config.node_feat_name,
     )
 
-    model = LLMGraphModel(
+    model = GNNLLM_NC(
             g=train_data.g,
             node_lm_configs=config.node_lm_configs,
             h_dim=config.hidden_size,

@@ -1,0 +1,66 @@
+{
+    "edges" : [
+        {
+            "relation": ["item", "also_buy", "item"],
+            "format": {
+                "name": "parquet"
+            },
+            "files": [
+                "data/amazon_review/Video_Games/also_buy.parquet"
+            ],
+            "source_id_col": "src_item",
+            "dest_id_col": "dst_item",
+            "labels":       [
+                {
+                    "task_type":    "link_prediction",
+                    "split_pct":   [0.6, 0.2, 0.2]
+                }
+            ]
+        },
+        {
+            "relation": ["item", "also_view", "item"],
+            "format": {
+                "name": "parquet"
+            },
+            "files": [
+                "data/amazon_review/Video_Games/also_view.parquet"
+            ],
+            "source_id_col": "src_item",
+            "dest_id_col": "dst_item"
+        }
+    ],
+    "nodes" : [
+        {
+            "node_type": "item",
+            "format": {
+                "name": "parquet"
+            },
+            "files": "data/amazon_review/Video_Games/item.parquet",
+            "node_id_col": "item",
+            "features":     [
+                {
+                    "feature_col":  ["text"],
+                    "transform":    {"name": "tokenize_hf",
+                                     "bert_model": "facebook/opt-2.7b",
+				     "infer_batch_size": 128,
+                                     "max_seq_length": 32}
+                },
+                {
+                    "feature_col":  ["text"],
+                    "feature_name": "bert_h",
+                    "transform":    {"name": "bert_hf",
+                                     "bert_model": "bert-base-uncased",
+				     "infer_batch_size": 128,
+                                     "max_seq_length": 32}
+                }
+            ],
+            "labels":       [
+                {
+                    "label_col":    "pt_lvl3",
+                    "task_type":    "classification",
+                    "split_pct":   [0.8, 0.1, 0.1]
+                }
+            ]
+        }
+    ]
+}

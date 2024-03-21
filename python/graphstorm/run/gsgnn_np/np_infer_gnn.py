@@ -21,7 +21,7 @@ from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnNodePredictionInferrer
 from graphstorm.eval import GSgnnAccEvaluator, GSgnnRegressionEvaluator
 from graphstorm.dataloading import GSgnnNodeInferData, GSgnnNodeDataLoader
-from graphstorm.utils import setup_device, get_lm_ntypes
+from graphstorm.utils import setup_device, get_lm_ntypes, use_wholegraph
 
 def get_evaluator(config): # pylint: disable=unused-argument
     """ Get evaluator class
@@ -42,7 +42,9 @@ def main(config_args):
     config = GSConfig(config_args)
     config.verify_arguments(False)
 
-    gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    use_wg_feats = use_wholegraph(config.part_config)
+    gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
     device = setup_device(config.local_rank)
 
     infer_data = GSgnnNodeInferData(config.graph_name,

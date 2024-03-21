@@ -43,9 +43,9 @@ job, followed by the re-partitioning job, both on SageMaker:
     CONFIG_FILE="gconstruct-config.json"
     INSTANCE_COUNT="2"
     INSTANCE_TYPE="ml.t3.xlarge"
-    NUM_FILES="4"
+    NUM_FILES="-1"
 
-    IMAGE_URI="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/graphstorm-processing-sagemaker:0.2.1-x86_64"
+    IMAGE_URI="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/graphstorm-processing-sagemaker:latest-x86_64"
     ROLE="arn:aws:iam::${ACCOUNT}:role/service-role/${SAGEMAKER_ROLE_NAME}"
 
     OUTPUT_PREFIX="s3://${OUTPUT_BUCKET}/gsprocessing/sagemaker/${GRAPH_NAME}/${INSTANCE_COUNT}x-${INSTANCE_TYPE}-${NUM_FILES}files/"
@@ -84,10 +84,11 @@ You can see that we provided a parameter named
 ``--num-output-files`` to ``run_distributed_processing.py``. This is an
 important parameter, as it provides a hint to set the parallelism for Spark.
 
-It can safely be skipped and let Spark decide the proper value based on the cluster's
-instance type and count. If setting it yourself a good value to use is
+We recommend setting this to `-1` to let Spark decide the proper value based on the cluster's
+vCPU count. If setting it yourself a good value to use is
 ``num_instances * num_cores_per_instance * 2``, which will ensure good
-utilization of the cluster resources.
+utilization of the cluster resources. For EMR serverless, equivalently set
+to ``num_executors * num_cores_per_executor * 2``
 
 
 Examine the output
@@ -104,7 +105,7 @@ in :ref:`gsp-examining-output`.
 
                                PRE edges/
                                PRE node_data/
-                               PRE node_id_mappings/
+                               PRE raw_id_mappings/
     2023-08-05 00:47:36        804 launch_arguments.json
     2023-08-05 00:47:36      11914 metadata.json
     2023-08-05 00:47:37        545 perf_counters.json

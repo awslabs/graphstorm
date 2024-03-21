@@ -15,6 +15,7 @@ limitations under the License.
 
 This module is used to determine row counts for Parquet files.
 """
+
 import logging
 import os
 from typing import Dict, List, Sequence

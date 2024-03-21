@@ -26,7 +26,7 @@ from torch import nn
 from .utils import load_model as load_gsgnn_model
 from .utils import save_model as save_gsgnn_model
 from .utils import save_opt_state, load_opt_state
-from .utils import save_sparse_embeds, load_sparse_embeds
+from .utils import save_sparse_embeds, load_sparse_embeds, load_wg_sparse_embeds
 from .utils import create_sparse_embeds_path
 from .utils import LazyDistTensor
 from .utils import get_data_range
@@ -730,7 +730,12 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
 
     def restore_sparse_model(self, restore_model_path):
         # restore sparse embeddings for node_input_encoder.
-        load_sparse_embeds(restore_model_path, self.node_input_encoder)
+        if self.node_input_encoder.use_wholegraph_sparse_emb:
+            # restore sparse embeddings from the output of wholegraph sparse emb/opt
+            load_wg_sparse_embeds(restore_model_path, self.node_input_encoder)
+        else:
+            load_sparse_embeds(restore_model_path, self.node_input_encoder)
+
 
     def init_optimizer(self, lr, sparse_optimizer_lr=None, weight_decay=0, lm_lr=None):
         """initialize the model's optimizers
@@ -754,14 +759,28 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             sparse_optimizer_lr = lr
         if len(sparse_params) > 0:
             if self.use_wholegraph_sparse_emb():
-                # To use wholegraph sparse optimizer, optimizer needs to be created
-                # before sparse embeddings. Within attach_wg_optimizer, we materialize
-                # the WG distributed tensor and then attach the optimizer.
-                emb_optimizer = create_wholememory_optimizer("adam", {})
-                for param in sparse_params:
-                    assert isinstance(param, WholeGraphDistTensor) and param.use_wg_optimizer, \
-                        "Please create params (WholeGraph tensor) with use_wg_optimizer=True."
-                    param.attach_wg_optimizer(emb_optimizer)
+                if sparse_params[0].optimizer is not None:
+                    # When sparse embeddings are loaded from files in load_wg_sparse_emb(),
+                    # wg_optimizer is required to be created before loading sparse embeddings.
+                    # This workaround bypasses the wg_optimizer creation here for the scenarios
+                    # where the sparse embedding loading happens before init_optimizer().
+                    for param in sparse_params:
+                        assert isinstance(param, WholeGraphDistTensor) and param.use_wg_optimizer, \
+                            "Please create params (WholeGraph tensor) with use_wg_optimizer=True."
+                        assert param.optimizer == sparse_params[0].optimizer, \
+                            "Please create all WholeGraph sparse params with the same optimizer."
+                    emb_optimizer = sparse_params[0].optimizer
+                else:
+                    # To use wholegraph sparse optimizer, optimizer needs to be created
+                    # before sparse embeddings within attach_wg_optimizer.
+                    emb_optimizer = create_wholememory_optimizer("adam", {})
+                    for param in sparse_params:
+                        assert isinstance(param, WholeGraphDistTensor) and param.use_wg_optimizer, \
+                            "Please create params (WholeGraph tensor) with use_wg_optimizer=True."
+                        assert param.optimizer is None, \
+                            "Please create all WholeGraph sparse params with the same optimizer."
+                        param.attach_wg_optimizer(emb_optimizer)
+
                 # TODO(@chang-l): Wrap the wholegraph optimizer in a class to
                 # take an extra input argument: lr
                 emb_optimizer.lr = sparse_optimizer_lr
