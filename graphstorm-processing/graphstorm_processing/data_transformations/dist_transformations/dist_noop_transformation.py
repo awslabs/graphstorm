@@ -21,6 +21,7 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, NumericType
 
 from graphstorm_processing.constants import SPECIAL_CHARACTERS, DTYPE_MAP, TYPE_FLOAT32
+
 from .base_dist_transformation import DistributedTransformation
 
 

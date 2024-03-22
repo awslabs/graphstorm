@@ -23,6 +23,7 @@ from graphstorm_processing.constants import (
     VALID_OUTDTYPE,
     TYPE_FLOAT32,
 )
+
 from .feature_config_base import FeatureConfig
 
 

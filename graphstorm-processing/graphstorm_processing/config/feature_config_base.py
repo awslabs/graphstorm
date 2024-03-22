@@ -17,7 +17,7 @@ limitations under the License.
 import abc
 from typing import Any, Mapping, Sequence
 
-from graphstorm_processing.constants import TYPE_FLOAT32
+from graphstorm_processing.constants import VALID_OUTDTYPE, TYPE_FLOAT32
 
 from .data_config_base import DataStorageConfig
 
