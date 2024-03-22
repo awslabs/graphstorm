@@ -44,7 +44,7 @@ class NumericalFeatureConfig(FeatureConfig):
         * "rank-gauss": Normalize each value by rank gauss normalization.
 
     out_dtype: str
-        Output feature dtype
+        Output feature dtype. Currently we support ``float32`` and ``float64``. Default is ``float32``
     """
 
     def __init__(self, config: Mapping):
