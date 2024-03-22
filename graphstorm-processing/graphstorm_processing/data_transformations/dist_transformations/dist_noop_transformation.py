@@ -20,7 +20,7 @@ from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType, NumericType
 
-from graphstorm_processing.constants import SPECIAL_CHARACTERS, DTYPE_MAP
+from graphstorm_processing.constants import SPECIAL_CHARACTERS, DTYPE_MAP, TYPE_FLOAT32
 from .base_dist_transformation import DistributedTransformation
 
 
@@ -43,7 +43,7 @@ class NoopTransformation(DistributedTransformation):
     """
 
     def __init__(
-        self, cols: List[str], out_dtype: str = "float32", separator: Optional[str] = None
+        self, cols: List[str], out_dtype: str = TYPE_FLOAT32, separator: Optional[str] = None
     ) -> None:
         super().__init__(cols)
         # TODO: Support multiple cols?

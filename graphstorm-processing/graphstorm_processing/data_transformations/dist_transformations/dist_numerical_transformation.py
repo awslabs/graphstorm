@@ -38,6 +38,7 @@ from graphstorm_processing.constants import (
     VALID_IMPUTERS,
     VALID_NORMALIZERS,
     DTYPE_MAP,
+    TYPE_FLOAT32,
 )
 from .base_dist_transformation import DistributedTransformation
 from ..spark_utils import rename_multiple_cols
@@ -89,7 +90,7 @@ def apply_norm(
     cols: Sequence[str],
     shared_norm: str,
     imputed_df: DataFrame,
-    out_dtype: str = "float32",
+    out_dtype: str = TYPE_FLOAT32,
     epsilon: float = 1e-6,
 ) -> DataFrame:
     """Applies a single normalizer to the imputed dataframe, individually to each of the columns
@@ -237,7 +238,7 @@ class DistNumericalTransformation(DistributedTransformation):
         cols: Sequence[str],
         normalizer: str,
         imputer: str,
-        out_dtype: str = "float32",
+        out_dtype: str = TYPE_FLOAT32,
         epsilon: float = 1e-6,
     ) -> None:
         super().__init__(cols)
