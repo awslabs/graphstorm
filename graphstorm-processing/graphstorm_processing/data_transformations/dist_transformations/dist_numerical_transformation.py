@@ -283,10 +283,17 @@ class DistMultiNumericalTransformation(DistNumericalTransformation):
     imputer : str
         The type of missing value imputation to apply to the column.
         Valid values are "mean", "median" and "most_frequent".
+    out_dtype: str
+        Output feature dtype
     """
 
     def __init__(
-        self, cols: Sequence[str], separator: Optional[str], normalizer: str, imputer: str
+        self,
+        cols: Sequence[str],
+        separator: Optional[str],
+        normalizer: str,
+        imputer: str,
+        out_dtype: str = TYPE_FLOAT32,
     ) -> None:
         assert (
             len(cols) == 1
@@ -301,6 +308,7 @@ class DistMultiNumericalTransformation(DistNumericalTransformation):
         # special chars to be used as separators
         if self.separator in SPECIAL_CHARACTERS:
             self.separator = f"\\{self.separator}"
+        self.out_dtype = out_dtype
 
     @staticmethod
     def get_transformation_name() -> str:
