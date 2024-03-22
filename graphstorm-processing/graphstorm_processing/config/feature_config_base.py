@@ -17,6 +17,8 @@ limitations under the License.
 import abc
 from typing import Any, Mapping, Sequence
 
+from graphstorm_processing.constants import TYPE_FLOAT32
+
 from .data_config_base import DataStorageConfig
 
 
@@ -96,7 +98,7 @@ class NoopFeatureConfig(FeatureConfig):
         super().__init__(config)
 
         self.value_separator = None
-        self.out_dtype = self._transformation_kwargs.get("out_dtype", "float32")
+        self.out_dtype = self._transformation_kwargs.get("out_dtype", TYPE_FLOAT32)
         if self._transformation_kwargs:
             self.value_separator = self._transformation_kwargs.get("separator")
 

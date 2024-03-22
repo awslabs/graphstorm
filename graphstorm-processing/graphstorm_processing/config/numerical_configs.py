@@ -17,7 +17,12 @@ limitations under the License.
 from typing import Mapping
 import numbers
 
-from graphstorm_processing.constants import VALID_IMPUTERS, VALID_NORMALIZERS, VALID_OUTDTYPE
+from graphstorm_processing.constants import (
+    VALID_IMPUTERS,
+    VALID_NORMALIZERS,
+    VALID_OUTDTYPE,
+    TYPE_FLOAT32,
+)
 from .feature_config_base import FeatureConfig
 
 
@@ -52,7 +57,7 @@ class NumericalFeatureConfig(FeatureConfig):
         super().__init__(config)
         self.imputer = self._transformation_kwargs.get("imputer", "none")
         self.norm = self._transformation_kwargs.get("normalizer", "none")
-        self.out_dtype = self._transformation_kwargs.get("out_dtype", "float32")
+        self.out_dtype = self._transformation_kwargs.get("out_dtype", TYPE_FLOAT32)
 
         self._sanity_check()
 
