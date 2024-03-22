@@ -37,12 +37,12 @@
                 "features": [
                     {
                         "column": "age",
-                        "output_dtype": "float64",
                         "transformation": {
                             "name": "numerical",
                             "kwargs": {
                                 "normalizer": "none",
-                                "imputer": "mean"
+                                "imputer": "mean",
+                                "out_dtype": "float64"
                             }
                         }
                     },
