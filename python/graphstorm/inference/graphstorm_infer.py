@@ -15,7 +15,6 @@
 
     Inference framework.
 """
-import torch as th
 from ..tracker import GSSageMakerTaskTracker
 
 class GSInferrer():
