@@ -112,11 +112,14 @@ cluster.
 
 To use the library to process your data, you will need to have your data
 in a tabular format, and a corresponding JSON configuration file that describes the
-data. The input data can be in CSV (with header(s)) or Parquet format.
+data. **The input data need to be in CSV (with header(s)) or Parquet format.**
 
 The configuration file can be in GraphStorm's GConstruct format,
 **with the caveat that the file paths need to be relative to the
-location of the config file.** See :ref:`gsp-relative-paths` for more details.
+location of the config file.** Also note that you'll need to convert
+all your input data to CSV or Parquet files.
+
+See :ref:`gsp-relative-paths` for more details.
 
 After installing the library, executing a processing job locally can be done using:
 
@@ -125,20 +128,9 @@ After installing the library, executing a processing job locally can be done usi
     gs-processing \
         --config-filename gconstruct-config.json \
         --input-prefix /path/to/input/data \
-        --output-prefix /path/to/output/data
+        --output-prefix /path/to/output/data \
+        --repartition-on-leader True
 
-Once the processing engine has processed the data, we want to ensure
-they match the requirements of the DGL distributed partitioning
-pipeline, so we need to run an additional script that will
-make sure the produced data matches the assumptions of DGL [#f1]_.
-
-.. note::
-
-    Ensure you pass the output path of the previous step as the input path here.
-
-.. code-block:: bash
-
-    gs-repartition --input-prefix /path/to/output/data
 
 Once this script completes, the data are ready to be fed into DGL's distributed
 partitioning pipeline.

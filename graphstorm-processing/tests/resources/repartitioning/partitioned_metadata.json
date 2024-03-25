@@ -123,9 +123,63 @@
                 }
         }
     },
+    "node_type": [
+        "src",
+        "dst"
+    ],
+    "node_data": {
+        "src": {
+            "label": {
+                "data":[
+                    "node_data/src-label/parquet/part-00000.parquet",
+                    "node_data/src-label/parquet/part-00001.parquet",
+                    "node_data/src-label/parquet/part-00002.parquet",
+                    "node_data/src-label/parquet/part-00003.parquet",
+                    "node_data/src-label/parquet/part-00004.parquet"
+                ],
+                "row_counts": [10, 12, 10, 8, 10],
+                "format": {
+                    "name": "parquet",
+                    "delimiter": ""
+                }
+            },
+            "feature_one": {
+                "data":[
+                    "node_data/src-feature_one/parquet/part-00000.parquet",
+                    "node_data/src-feature_one/parquet/part-00001.parquet",
+                    "node_data/src-feature_one/parquet/part-00002.parquet",
+                    "node_data/src-feature_one/parquet/part-00003.parquet",
+                    "node_data/src-feature_one/parquet/part-00004.parquet"
+                ],
+                "row_counts": [10, 10, 10, 10, 10],
+                "format": {
+                    "name": "parquet",
+                    "delimiter": ""
+                }
+            },
+            "feature_two": {
+                "data":[
+                    "node_data/src-feature_two/parquet/part-00000.parquet",
+                    "node_data/src-feature_two/parquet/part-00001.parquet",
+                    "node_data/src-feature_two/parquet/part-00002.parquet",
+                    "node_data/src-feature_two/parquet/part-00003.parquet",
+                    "node_data/src-feature_two/parquet/part-00004.parquet"
+                ],
+                "row_counts": [10, 10, 10, 10, 10],
+                "format": {
+                    "name": "parquet",
+                    "delimiter": ""
+                }
+            }
+        }
+    },
     "graph_info": {
-        "ntype_label": [],
-        "ntype_label_property": [],
+        "ntype_label": [
+            "src"
+        ],
+        "ntype_label_property": [
+            "label"
+        ],
         "etype_label": [
             "src:dummy_type:dst"
         ],
