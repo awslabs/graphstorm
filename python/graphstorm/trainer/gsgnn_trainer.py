@@ -17,7 +17,6 @@
 """
 import os
 import logging
-import torch as th
 
 from ..model import GSOptimizer
 from ..model import GSgnnModel, GSgnnModelBase
