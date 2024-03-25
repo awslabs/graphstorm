@@ -54,7 +54,7 @@ from graphstorm.model import do_full_graph_inference
 from graphstorm.utils import (
     rt_profiler,
     sys_tracker,
-    setup_device,
+    get_device,
     use_wholegraph,
 )
 from graphstorm.utils import get_lm_ntypes
@@ -99,10 +99,11 @@ def main(config_args):
 
     use_wg_feats = use_wholegraph(config.part_config)
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  local_rank=config.local_rank,
                   use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
+    device = get_device() # for compatibility, will remove in the future
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
-    device = setup_device(config.local_rank)
     train_data = GSgnnLPTrainData(config.graph_name,
                                   config.part_config,
                                   train_etypes=config.train_etype,

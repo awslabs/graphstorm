@@ -5,7 +5,7 @@ from graphstorm.config import GSConfig
 from graphstorm.dataloading import GSgnnNodeDataLoader
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.dataloading import GSgnnNodeTrainData
-from graphstorm.utils import setup_device
+from graphstorm.utils import get_device
 from graphstorm.trainer import GSgnnNodePredictionTrainer
 
 from model_nc import create_rgcn_model_for_nc
@@ -14,7 +14,9 @@ def main(config_args):
     """ main function
     """
     config = GSConfig(config_args)
-    gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  local_rank=config.local_rank)
+    device = get_device() # for compatibility, will remove in the future
 
     # Define the training dataset
     train_data = GSgnnNodeTrainData(
@@ -41,7 +43,6 @@ def main(config_args):
             model_layer_to_load=["gnn", "embed"],
         )
 
-    device = setup_device(config.local_rank)
     trainer.setup_device(device=device)
 
     # set evaluator
