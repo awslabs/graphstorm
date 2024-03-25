@@ -45,7 +45,7 @@ def main(config_args):
     config.verify_arguments(False)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
-                  ocal_rank=config.local_rank)
+                  local_rank=config.local_rank)
     device = get_device() # for compatibility, will remove in the future
 
     infer_data = GSgnnEdgeInferData(config.graph_name,
