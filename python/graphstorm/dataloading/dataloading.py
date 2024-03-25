@@ -317,7 +317,7 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
             # so it can run trim_data on CPU
             # while nccl does not support it.
             device = get_device() \
-                if is_distributed() and get_backend == "nccl" else th.device('cpu')
+                if is_distributed() and get_backend() == "nccl" else th.device('cpu')
             if isinstance(target_idxs, dict):
                 for etype in target_idxs:
                     target_idxs[etype] = trim_data(target_idxs[etype], device)
@@ -585,7 +585,7 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
             # so it can run trim_data on CPU
             # while nccl does not support it.
             device = get_device() \
-                if is_distributed() and get_backend == "nccl" else th.device('cpu')
+                if is_distributed() and get_backend() == "nccl" else th.device('cpu')
             if isinstance(target_idxs, dict):
                 for etype in target_idxs:
                     target_idxs[etype] = trim_data(target_idxs[etype], device)
@@ -703,7 +703,7 @@ class FastGSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
             # so it can run trim_data on CPU
             # while nccl does not support it.
             device = get_device() \
-                if is_distributed() and get_backend == "nccl" else th.device('cpu')
+                if is_distributed() and get_backend() == "nccl" else th.device('cpu')
             if isinstance(target_idxs, dict):
                 for etype in target_idxs:
                     target_idxs[etype] = trim_data(target_idxs[etype], device)
@@ -946,7 +946,7 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
             # so it can run trim_data on CPU
             # while nccl does not support it.
             device = get_device() \
-                if is_distributed() and get_backend == "nccl" else th.device('cpu')
+                if is_distributed() and get_backend() == "nccl" else th.device('cpu')
             if isinstance(target_idxs, dict):
                 for etype in target_idxs:
                     target_idxs[etype] = trim_data(target_idxs[etype], device)
@@ -1301,7 +1301,7 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
             # so it can run trim_data on CPU
             # while nccl does not support it.
             device = get_device() \
-                if is_distributed() and get_backend == "nccl" else th.device('cpu')
+                if is_distributed() and get_backend() == "nccl" else th.device('cpu')
             for ntype in target_idx:
                 target_idx[ntype] = trim_data(target_idx[ntype], device)
         # for validation and test, there is no need to trim data
