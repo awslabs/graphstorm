@@ -1,0 +1,62 @@
+---
+version: 1.0
+lm_model:
+  node_lm_models:
+    -
+      lm_type: bert
+      model_name: "bert-base-uncased"
+      gradient_checkpoint: true
+      node_types:
+        - item
+    -
+      lm_type: bert
+      model_name: "bert-base-uncased"
+      gradient_checkpoint: true
+      node_types:
+        - review
+gsf:
+  basic:
+    backend: gloo
+    verbose: false
+    save_perf_results_path: null
+  lm:
+    cache_lm_embed: true
+  gnn:
+    model_encoder_type: rgcn
+    fanout: "5"
+    num_layers: 1
+    hidden_size: 128
+    use_mini_batch_infer: true
+  input:
+    restore_model_path: null
+  output:
+    save_model_path: null
+    save_embed_path: null
+  hyperparam:
+    dropout: 0.
+    lr: 0.001
+    lm_tune_lr: 0.0001
+    num_epochs: 20
+    batch_size: 1024
+    eval_batch_size: 1024
+    wd_l2norm: 0.00001
+    no_validation: false
+    eval_frequency: 100000
+  rgcn:
+    num_bases: -1
+    use_self_loop: true
+    lp_decoder_type: dot_product
+    sparse_optimizer_lr: 1e-2
+    use_node_embeddings: false
+  link_prediction:
+    num_negative_edges: 1
+    num_negative_edges_eval: 100
+    lp_loss_func: cross_entropy
+    lp_embed_normalizer: l2_norm
+    train_negative_sampler: inbatch_joint
+    eval_etype:
+      - "item,also_buy,item"
+    train_etype:
+      - "item,also_buy,item"
+    exclude_training_targets: true
+    reverse_edge_types_map: ["item,also_buy,also_buy-rev,item"]
