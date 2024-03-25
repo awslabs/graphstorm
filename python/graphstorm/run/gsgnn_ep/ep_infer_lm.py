@@ -23,7 +23,7 @@ from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnEdgePredictionInferrer
 from graphstorm.eval import GSgnnAccEvaluator, GSgnnRegressionEvaluator
 from graphstorm.dataloading import GSgnnEdgeInferData, GSgnnEdgeDataLoader
-from graphstorm.utils import setup_device
+from graphstorm.utils import get_device
 
 def get_evaluator(config): # pylint: disable=unused-argument
     """ Get evaluator class
@@ -44,8 +44,8 @@ def main(config_args):
     config = GSConfig(config_args)
     config.verify_arguments(False)
 
-    gs.initialize(ip_config=config.ip_config, backend=config.backend)
-    device = setup_device(config.local_rank)
+    gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  local_rank=config.local_rank)
 
     infer_data = GSgnnEdgeInferData(config.graph_name,
                                     config.part_config,
@@ -57,7 +57,7 @@ def main(config_args):
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
     infer = GSgnnEdgePredictionInferrer(model)
-    infer.setup_device(device=device)
+    infer.setup_device(device=get_device())
     if not config.no_validation:
         evaluator = get_evaluator(config)
         infer.setup_evaluator(evaluator)

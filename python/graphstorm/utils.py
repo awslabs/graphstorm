@@ -29,7 +29,11 @@ import numpy as np
 
 TORCH_MAJOR_VER = int(th.__version__.split('.', maxsplit=1)[0])
 USE_WHOLEGRAPH = False
+<<<<<<< HEAD
 EXEC_DEVICE = th.device('cpu')
+=======
+GS_DEVICE = th.device('cpu')
+>>>>>>> init-device
 
 def get_graph_name(part_config):
     """ Get graph name from graph partition config file
@@ -67,8 +71,13 @@ def setup_device(local_rank):
     else:
         device = 'cpu'
 
+<<<<<<< HEAD
     global EXEC_DEVICE
     EXEC_DEVICE = th.device(device)
+=======
+    global GS_DEVICE
+    GS_DEVICE = th.device(device)
+>>>>>>> init-device
     return device
 
 def get_device():
@@ -77,7 +86,11 @@ def get_device():
     Return
     th.device: device where the model runs
     """
+<<<<<<< HEAD
     return EXEC_DEVICE
+=======
+    return GS_DEVICE
+>>>>>>> init-device
 
 def is_distributed():
     """ Test whether the process runs in a distributed mode.

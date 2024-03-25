@@ -28,7 +28,7 @@ from graphstorm.dataloading import (GSgnnLinkPredictionTestDataLoader,
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.utils import (
-    setup_device,
+    get_device,
     get_lm_ntypes,
     use_wholegraph,
 )
@@ -41,8 +41,8 @@ def main(config_args):
 
     use_wg_feats = use_wholegraph(config.part_config)
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  local_rank=config.local_rank,
                   use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
-    device = setup_device(config.local_rank)
 
     infer_data = GSgnnEdgeInferData(config.graph_name,
                                     config.part_config,
@@ -54,7 +54,7 @@ def main(config_args):
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
     infer = GSgnnLinkPredictionInferrer(model)
-    infer.setup_device(device=device)
+    infer.setup_device(device=get_device())
     if not config.no_validation:
         infer.setup_evaluator(
             GSgnnMrrLPEvaluator(config.eval_frequency,

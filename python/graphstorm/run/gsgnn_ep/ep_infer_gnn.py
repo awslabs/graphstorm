@@ -22,7 +22,7 @@ from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnEdgePredictionInferrer
 from graphstorm.eval import GSgnnAccEvaluator, GSgnnRegressionEvaluator
 from graphstorm.dataloading import GSgnnEdgeInferData, GSgnnEdgeDataLoader
-from graphstorm.utils import setup_device, get_lm_ntypes, use_wholegraph
+from graphstorm.utils import get_device, get_lm_ntypes, use_wholegraph
 
 def get_evaluator(config): # pylint: disable=unused-argument
     """ Get evaluator class
@@ -45,8 +45,8 @@ def main(config_args):
 
     use_wg_feats = use_wholegraph(config.part_config)
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  local_rank=config.local_rank,
                   use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
-    device = setup_device(config.local_rank)
 
     infer_data = GSgnnEdgeInferData(config.graph_name,
                                     config.part_config,
@@ -60,7 +60,7 @@ def main(config_args):
                         model_layer_to_load=config.restore_model_layers)
     # TODO(zhengda) we should use a different way to get rank.
     infer = GSgnnEdgePredictionInferrer(model)
-    infer.setup_device(device=device)
+    infer.setup_device(device=get_device())
     if not config.no_validation:
         evaluator = get_evaluator(config)
         infer.setup_evaluator(evaluator)

@@ -34,7 +34,7 @@ from data_utils import (
 )
 
 import graphstorm as gs
-from graphstorm.utils import setup_device
+from graphstorm.utils import setup_device, get_device
 from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeInferData
 from graphstorm.dataloading import GSgnnEdgeTrainData, GSgnnEdgeInferData
 from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
@@ -1284,14 +1284,14 @@ def run_distill_dist_data(worker_rank, world_size,
                                       world_size=world_size,
                                       rank=worker_rank)
     th.cuda.set_device(worker_rank)
-    device = setup_device(worker_rank)
+    setup_device(worker_rank)
+    device = get_device()
 
     tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
 
     dataloader_generator = DistillDataloaderGenerator(
         tokenizer=tokenizer,
         max_seq_len=8,
-        device=device,
         batch_size=4,
     )
     data_mgr = DistillDataManager(
