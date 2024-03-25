@@ -93,12 +93,12 @@ def main(config_args):
     if len(train_data.val_idxs) > 0:
         val_dataloader = GSgnnEdgeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
-            device=device, train_task=False,
+            train_task=False,
             remove_target_edge_type=False)
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSgnnEdgeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
-            device=device, train_task=False,
+            train_task=False,
             remove_target_edge_type=False)
 
     # Preparing input layer for training or inference.

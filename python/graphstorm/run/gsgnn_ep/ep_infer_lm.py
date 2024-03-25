@@ -65,8 +65,7 @@ def main(config_args):
     tracker = gs.create_builtin_task_tracker(config)
     infer.setup_task_tracker(tracker)
     dataloader = GSgnnEdgeDataLoader(infer_data, infer_data.test_idxs, fanout=[],
-                                     batch_size=config.eval_batch_size,
-                                     device=device, train_task=False,
+                                     batch_size=config.eval_batch_size,train_task=False,
                                      remove_target_edge_type=False)
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.

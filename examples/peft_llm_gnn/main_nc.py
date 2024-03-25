@@ -71,7 +71,6 @@ def main(config_args):
         train_data.train_idxs,
         fanout=config.fanout,
         batch_size=config.batch_size,
-        device=device,
         train_task=True,
     )
 
@@ -81,7 +80,6 @@ def main(config_args):
         train_data.val_idxs,
         fanout=config.fanout,
         batch_size=config.eval_batch_size,
-        device=device,
         train_task=False,
     )
 
@@ -97,7 +95,7 @@ def main(config_args):
         save_model_frequency=config.save_model_frequency,
         use_mini_batch_infer=True
     )
-    
+
     # Load the best checkpoint
     best_model_path = trainer.get_best_model_path()
     model.restore_model(best_model_path)
@@ -113,7 +111,6 @@ def main(config_args):
         train_data.test_idxs,
         fanout=config.fanout,
         batch_size=config.eval_batch_size,
-        device=device,
         train_task=False,
     )
     # Run inference on the inference dataset and save the GNN embeddings in the specified path.

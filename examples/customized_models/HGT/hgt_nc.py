@@ -313,16 +313,16 @@ def main(args):
 
     # Define the GraphStorm train dataloader
     dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
-                                     batch_size=config.batch_size, device=device, train_task=True)
+                                     batch_size=config.batch_size, train_task=True)
 
     # Optional: Define the evaluation dataloader
     eval_dataloader = GSgnnNodeDataLoader(train_data, train_data.val_idxs,fanout=config.fanout,
-                                          batch_size=config.eval_batch_size, device=device,
+                                          batch_size=config.eval_batch_size,
                                           train_task=False)
 
     # Optional: Define the evaluation dataloader
     test_dataloader = GSgnnNodeDataLoader(train_data, train_data.test_idxs,fanout=config.fanout,
-                                          batch_size=config.eval_batch_size, device=device,
+                                          batch_size=config.eval_batch_size,
                                           train_task=False)
 
     # Optional: set up a evaluator
@@ -362,7 +362,7 @@ def main(args):
     infer.setup_evaluator(evaluator)
     infer.setup_task_tracker(tracker)
     dataloader = GSgnnNodeDataLoader(infer_data, infer_data.test_idxs,
-                                    fanout=config.fanout, batch_size=100, device=device,
+                                    fanout=config.fanout, batch_size=100,
                                     train_task=False)
 
     # Run inference on the inference dataset and save the GNN embeddings in the specified path.

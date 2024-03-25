@@ -101,14 +101,12 @@ def main(config_args):
         unlabeled_idxs = train_data.get_unlabeled_idxs()
         # semi-supervised loader
         dataloader = GSgnnNodeSemiSupDataLoader(train_data, train_data.train_idxs, unlabeled_idxs,
-                                                fanout=config.fanout, batch_size=config.batch_size,
-                                                device=device, train_task=True,
+                                                fanout=config.fanout, batch_size=config.batch_size,train_task=True,
                                                 construct_feat_ntype=config.construct_feat_ntype,
                                                 construct_feat_fanout=config.construct_feat_fanout)
     else:
         dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
-                                         batch_size=config.batch_size,
-                                         device=device, train_task=True,
+                                         batch_size=config.batch_size,train_task=True,
                                          construct_feat_ntype=config.construct_feat_ntype,
                                          construct_feat_fanout=config.construct_feat_fanout)
     # we don't need fanout for full-graph inference
@@ -117,14 +115,12 @@ def main(config_args):
     test_dataloader = None
     if len(train_data.val_idxs) > 0:
         val_dataloader = GSgnnNodeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
-                                             batch_size=config.eval_batch_size,
-                                             device=device, train_task=False,
+                                             batch_size=config.eval_batch_size,train_task=False,
                                              construct_feat_ntype=config.construct_feat_ntype,
                                              construct_feat_fanout=config.construct_feat_fanout)
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSgnnNodeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
-                                              batch_size=config.eval_batch_size,
-                                              device=device, train_task=False,
+                                              batch_size=config.eval_batch_size,train_task=False,
                                               construct_feat_ntype=config.construct_feat_ntype,
                                               construct_feat_fanout=config.construct_feat_fanout)
 

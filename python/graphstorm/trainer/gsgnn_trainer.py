@@ -57,7 +57,6 @@ class GSgnnTrainer():
                 logging.warning("the optimizer is not GSOptimizer. Convert it to GSOptimizer.")
             optimizer = GSOptimizer([optimizer])
         self._optimizer = optimizer
-        self._device = -1
         self._evaluator = None
         self._best_model_path = None
 
@@ -77,7 +76,7 @@ class GSgnnTrainer():
         device :
             The device for model training.
         """
-        self._device = th.device(device)
+        self._device = device
         self._model = self._model.to(self.device)
         self._optimizer.move_to_device(self._model.device)
 

@@ -67,7 +67,7 @@ def main(config_args):
     # trainer.setup_evaluator(evaluator)
     tracker = GSSageMakerTaskTracker(config.eval_frequency)
     trainer.setup_task_tracker(tracker)
-    
+
     # create train loader with uniform negative sampling
     dataloader = GSgnnLinkPredictionDataLoader(
         train_data,
@@ -75,7 +75,6 @@ def main(config_args):
         fanout=config.fanout,
         batch_size=config.batch_size,
         num_negative_edges=config.num_negative_edges,
-        device=device,
         train_task=True,
         reverse_edge_types_map=config.reverse_edge_types_map,
         exclude_training_targets=config.exclude_training_targets,
@@ -102,7 +101,7 @@ def main(config_args):
         save_model_frequency=config.save_model_frequency,
         use_mini_batch_infer=True
     )
-    
+
     # Load the best checkpoint
     best_model_path = trainer.get_best_model_path()
     model.restore_model(best_model_path)

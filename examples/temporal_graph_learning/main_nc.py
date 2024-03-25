@@ -62,7 +62,6 @@ def main(config_args):
         train_data.train_idxs,
         fanout=config.fanout,
         batch_size=config.batch_size,
-        device=device,
         train_task=True,
     )
 
@@ -72,7 +71,6 @@ def main(config_args):
         train_data.val_idxs,
         fanout=config.fanout,
         batch_size=config.eval_batch_size,
-        device=device,
         train_task=False,
     )
 
@@ -82,7 +80,6 @@ def main(config_args):
         train_data.test_idxs,
         fanout=config.fanout,
         batch_size=config.eval_batch_size,
-        device=device,
         train_task=False,
     )
 

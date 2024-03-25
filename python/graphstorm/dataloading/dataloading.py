@@ -27,6 +27,8 @@ from dgl.dataloading import DistDataLoader
 from dgl.dataloading import EdgeCollator
 from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
 
+from ..utils import get_device, is_distributed, get_backend
+
 from .sampler import (LocalUniform,
                       JointUniform,
                       GlobalUniform,
@@ -235,8 +237,6 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
         Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
     batch_size: int
         Batch size
-    device: torch.device
-        the device trainer is running on.
     train_task : bool
         Whether or not for training.
     reverse_edge_types_map: dict
@@ -267,14 +267,13 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
         ep_trainer = GSgnnEdgePredictionTrainer(...)
         ep_trainer.fit(ep_dataloader, num_epochs=10)
     """
-    def __init__(self, dataset, target_idx, fanout, batch_size, device='cpu',
+    def __init__(self, dataset, target_idx, fanout, batch_size,
                  train_task=True, reverse_edge_types_map=None,
                  remove_target_edge_type=True,
                  exclude_training_targets=False,
                  construct_feat_ntype=None,
                  construct_feat_fanout=5):
         super().__init__(dataset, target_idx, fanout)
-        self._device = device
         if remove_target_edge_type:
             assert reverse_edge_types_map is not None, \
                     "To remove target etype, the reversed etype should be provided."
@@ -313,6 +312,18 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
             sampler = MultiLayerNeighborSamplerForReconstruct(sampler,
                     dataset, construct_feat_ntype, construct_feat_fanout)
         # edge loader
+        if train_task:
+            # gloo support cpu all_reduce
+            # so it can run trim_data on CPU
+            # while nccl does not support it.
+            device = get_device() \
+                if is_distributed() and get_backend == "nccl" else th.device('cpu')
+            if isinstance(target_idxs, dict):
+                for etype in target_idxs:
+                    target_idxs[etype] = trim_data(target_idxs[etype], device)
+            else:
+                target_idxs = trim_data(target_idxs, device)
+
         exclude_val = 'reverse_types' if exclude_training_targets else None
         loader = dgl.dataloading.DistEdgeDataLoader(g,
                                                     target_idxs,
@@ -472,8 +483,6 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
         Batch size
     num_negative_edges: int
         The number of negative edges per positive edge
-    device: torch.device
-        the device trainer is running on.
     train_task : bool
         Whether or not for training.
     reverse_edge_types_map: dict
@@ -511,20 +520,19 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
         lp_trainer = GSgnnLinkPredictionTrainer(...)
         lp_trainer.fit(lp_dataloader, num_epochs=10)
     """
-    def __init__(self, dataset, target_idx, fanout, batch_size, num_negative_edges, device='cpu',
+    def __init__(self, dataset, target_idx, fanout, batch_size, num_negative_edges,
                  train_task=True, reverse_edge_types_map=None, exclude_training_targets=False,
                  edge_mask_for_gnn_embeddings='train_mask',
                  construct_feat_ntype=None, construct_feat_fanout=5,
                  edge_dst_negative_field=None,
                  num_hard_negs=None):
         super().__init__(dataset, target_idx, fanout)
-        self._device = device
         for etype in target_idx:
             assert etype in dataset.g.canonical_etypes, \
                     "edge type {} does not exist in the graph".format(etype)
 
         self.dataloader = self._prepare_dataloader(dataset, target_idx, fanout,
-                num_negative_edges, batch_size, device,
+                num_negative_edges, batch_size,
                 train_task=train_task,
                 exclude_training_targets=exclude_training_targets,
                 reverse_edge_types_map=reverse_edge_types_map,
@@ -540,7 +548,7 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
         return negative_sampler
 
     def _prepare_dataloader(self, dataset, target_idxs, fanout,
-                            num_negative_edges, batch_size, device, train_task=True,
+                            num_negative_edges, batch_size, train_task=True,
                             exclude_training_targets=False, reverse_edge_types_map=None,
                             edge_mask_for_gnn_embeddings=None, construct_feat_ntype=None,
                             construct_feat_fanout=5, edge_dst_negative_field=None,
@@ -573,6 +581,11 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
 
         # edge loader
         if train_task:
+            # gloo support cpu all_reduce
+            # so it can run trim_data on CPU
+            # while nccl does not support it.
+            device = get_device() \
+                if is_distributed() and get_backend == "nccl" else th.device('cpu')
             if isinstance(target_idxs, dict):
                 for etype in target_idxs:
                     target_idxs[etype] = trim_data(target_idxs[etype], device)
@@ -653,7 +666,7 @@ class FastGSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
     """
 
     def _prepare_dataloader(self, dataset, target_idxs, fanout,
-                            num_negative_edges, batch_size, device, train_task=True,
+                            num_negative_edges, batch_size, train_task=True,
                             exclude_training_targets=False, reverse_edge_types_map=None,
                             edge_mask_for_gnn_embeddings=None, construct_feat_ntype=None,
                             construct_feat_fanout=5, edge_dst_negative_field=None,
@@ -686,6 +699,11 @@ class FastGSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
 
         # edge loader
         if train_task:
+            # gloo support cpu all_reduce
+            # so it can run trim_data on CPU
+            # while nccl does not support it.
+            device = get_device() \
+                if is_distributed() and get_backend == "nccl" else th.device('cpu')
             if isinstance(target_idxs, dict):
                 for etype in target_idxs:
                     target_idxs[etype] = trim_data(target_idxs[etype], device)
@@ -750,12 +768,10 @@ class AllEtypeDistEdgeDataLoader(DistDataLoader):
             Target edge ids
         graph_sampler:
             Graph neighbor sampler
-        device: str:
-            Device
         kwargs: list
             Other arguments
     """
-    def __init__(self, g, eids, graph_sampler, device=None, **kwargs):
+    def __init__(self, g, eids, graph_sampler, **kwargs):
         collator_kwargs = {}
         dataloader_kwargs = {}
         _collator_arglist = inspect.getfullargspec(EdgeCollator).args
@@ -765,10 +781,6 @@ class AllEtypeDistEdgeDataLoader(DistDataLoader):
             else:
                 dataloader_kwargs[k] = v
 
-        if device is None:
-            # for the distributed case default to the CPU
-            device = 'cpu'
-        assert device == 'cpu', 'Only cpu is supported in the case of a DistGraph.'
         self.collator = EdgeCollator(g, eids, graph_sampler, **collator_kwargs)
         _remove_kwargs_dist(dataloader_kwargs)
         super().__init__(eids,
@@ -776,7 +788,6 @@ class AllEtypeDistEdgeDataLoader(DistDataLoader):
                          **dataloader_kwargs)
 
         self._reinit_dataset()
-        self.device = device
 
     def _reinit_dataset(self):
         """ Reinitialize the dataset
@@ -899,7 +910,7 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
     """
 
     def _prepare_dataloader(self, dataset, target_idxs, fanout, num_negative_edges,
-                            batch_size, device, train_task=True,
+                            batch_size, train_task=True,
                             exclude_training_targets=False,
                             reverse_edge_types_map=None,
                             edge_mask_for_gnn_embeddings=None,
@@ -931,6 +942,11 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
 
         # edge loader
         if train_task:
+            # gloo support cpu all_reduce
+            # so it can run trim_data on CPU
+            # while nccl does not support it.
+            device = get_device() \
+                if is_distributed() and get_backend == "nccl" else th.device('cpu')
             if isinstance(target_idxs, dict):
                 for etype in target_idxs:
                     target_idxs[etype] = trim_data(target_idxs[etype], device)
@@ -1235,8 +1251,6 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
         Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
     batch_size: int
         Batch size
-    device: torch.device
-        the device trainer is running on.
     train_task : bool
         Whether or not for training.
     construct_feat_ntype : list of str
@@ -1261,7 +1275,7 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
         np_trainer = GSgnnNodePredictionTrainer(...)
         np_trainer.fit(np_dataloader, num_epochs=10)
     """
-    def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True,
+    def __init__(self, dataset, target_idx, fanout, batch_size, train_task=True,
                  construct_feat_ntype=None, construct_feat_fanout=5):
         super().__init__(dataset, target_idx, fanout)
         assert isinstance(target_idx, dict)
@@ -1273,16 +1287,21 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
                                                    fanout,
                                                    batch_size,
                                                    train_task,
-                                                   device,
                                                    construct_feat_ntype=construct_feat_ntype,
                                                    construct_feat_fanout=construct_feat_fanout)
 
     def _prepare_dataloader(self, dataset, target_idx, fanout, batch_size,
-            train_task, device, construct_feat_ntype=None, construct_feat_fanout=5):
+            train_task, construct_feat_ntype=None, construct_feat_fanout=5):
         g = dataset.g
+
         if construct_feat_ntype is None:
             construct_feat_ntype = []
         if train_task:
+            # gloo support cpu all_reduce
+            # so it can run trim_data on CPU
+            # while nccl does not support it.
+            device = get_device() \
+                if is_distributed() and get_backend == "nccl" else th.device('cpu')
             for ntype in target_idx:
                 target_idx[ntype] = trim_data(target_idx[ntype], device)
         # for validation and test, there is no need to trim data
@@ -1325,14 +1344,12 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
         Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
     batch_size: int
         Batch size, the sum of labeled and unlabeled nodes
-    device: torch.device
-        the device trainer is running on.
     train_task : bool
         Whether or not for training.
     """
-    def __init__(self, dataset, target_idx, unlabeled_idx, fanout, batch_size, device,
+    def __init__(self, dataset, target_idx, unlabeled_idx, fanout, batch_size,
                  train_task=True, construct_feat_ntype=None, construct_feat_fanout=5):
-        super().__init__(dataset, target_idx, fanout, batch_size // 2, device,
+        super().__init__(dataset, target_idx, fanout, batch_size // 2,
                          train_task=train_task, construct_feat_ntype=construct_feat_ntype,
                          construct_feat_fanout=construct_feat_fanout)
         # loader for unlabeled nodes:
@@ -1341,7 +1358,6 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
                                                    fanout,
                                                    batch_size // 2,
                                                    train_task,
-                                                   device,
                                                    construct_feat_ntype=construct_feat_ntype,
                                                    construct_feat_fanout=construct_feat_fanout)
 
@@ -1469,8 +1485,6 @@ class DistillDataloaderGenerator:
         HuggingFace Tokenizer.
     max_seq_len : int
         Maximum sequence length.
-    device : str
-        Device name.
     batch_size : int
         How many samples per batch to load.
     collate_fn : func
@@ -1482,14 +1496,12 @@ class DistillDataloaderGenerator:
         self,
         tokenizer,
         max_seq_len,
-        device,
         batch_size=1,
         collate_fn=None,
     ):
         self.batch_size = batch_size
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len
-        self.device = device
         self.collate_fn = collate_fn
 
     def _data_len_sync(self, data):
@@ -1506,7 +1518,7 @@ class DistillDataloaderGenerator:
         -------
         GSDistillData : The pytorch dataset for a trainer after the sync.
         """
-        num_data = th.tensor(len(data), dtype=th.int64, device=self.device)
+        num_data = th.tensor(len(data), dtype=th.int64, device=get_device())
         dist.all_reduce(num_data, op=dist.ReduceOp.MIN)
         min_size = num_data.item()
         select_index = th.randperm(len(data))[:min_size].tolist()
@@ -1530,7 +1542,7 @@ class DistillDataloaderGenerator:
         if not isinstance(input_files, (list, tuple)):
             input_files = [input_files]
 
-        data = GSDistillData(input_files, self.tokenizer, self.max_seq_len, self.device)
+        data = GSDistillData(input_files, self.tokenizer, self.max_seq_len)
 
         # do all_reduce here:
         if is_train:

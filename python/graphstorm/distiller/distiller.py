@@ -83,9 +83,9 @@ class GSdistiller():
                 index+1, self.rank)
             distill_step = self.train_shard(
                 distill_step=distill_step,
-                model=model, 
-                optimizer=optimizer, 
-                train_data_mgr=train_data_mgr, 
+                model=model,
+                optimizer=optimizer,
+                train_data_mgr=train_data_mgr,
                 eval_data_mgr=eval_data_mgr,
                 saved_path=saved_path,
                 save_model_frequency=save_model_frequency,
@@ -181,7 +181,7 @@ class GSdistiller():
             Interval for evaluation.
         max_distill_step : int,
             Maximum steps for distillation training.
-    
+
         Returns
         -------
         int : Distill step of the model checkpoint.
@@ -244,7 +244,7 @@ class GSdistiller():
         device :
             The device for distillation.
         """
-        self._device = th.device(device)
+        self._device = device
 
     @property
     def device(self):

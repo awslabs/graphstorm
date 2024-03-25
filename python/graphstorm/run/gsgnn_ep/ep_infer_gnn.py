@@ -78,8 +78,7 @@ def main(config_args):
     infer.setup_task_tracker(tracker)
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
     dataloader = GSgnnEdgeDataLoader(infer_data, target_idxs, fanout=fanout,
-                                     batch_size=config.eval_batch_size,
-                                     device=device, train_task=False,
+                                     batch_size=config.eval_batch_size,train_task=False,
                                      reverse_edge_types_map=config.reverse_edge_types_map,
                                      remove_target_edge_type=config.remove_target_edge_type,
                                      construct_feat_ntype=config.construct_feat_ntype,

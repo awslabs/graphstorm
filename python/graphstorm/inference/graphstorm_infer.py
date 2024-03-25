@@ -42,7 +42,7 @@ class GSInferrer():
         device :
             The device for inferrer.
         """
-        self._device = th.device(device)
+        self._device = device
         self._model = self._model.to(self.device)
 
     def setup_task_tracker(self, task_tracker):

@@ -154,7 +154,7 @@ def main(config_args):
     else:
         raise ValueError('Unknown negative sampler')
     dataloader = dataloader_cls(train_data, train_data.train_idxs, config.fanout,
-                                config.batch_size, config.num_negative_edges, device,
+                                config.batch_size, config.num_negative_edges,
                                 train_task=True,
                                 reverse_edge_types_map=config.reverse_edge_types_map,
                                 exclude_training_targets=config.exclude_training_targets,
