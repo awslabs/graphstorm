@@ -9,7 +9,7 @@ RUN apt-get install -y python3-pip git wget psmisc
 RUN apt-get install -y cmake gfortran
 
 # Install DGL
-RUN pip3 install dgl==1.0.4
+RUN pip3 install dgl==1.0.4+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
 
 # Install other dependencies
 RUN apt-get install -y cython3 libicu-dev
@@ -31,7 +31,6 @@ COPY code/examples /graphstorm/examples
 COPY code/inference_scripts /graphstorm/inference_scripts
 COPY code/tools /graphstorm/tools
 COPY code/training_scripts /graphstorm/training_scripts
-COPY code/tests /graphstorm/tests
 
 # Install GKLib
 RUN cd /root
@@ -43,11 +42,13 @@ RUN git clone https://github.com/KarypisLab/METIS.git; cd METIS; \
     make config shared=1 cc=gcc prefix=/root/local i64=1; make install
 
 # Install MPI
-RUN cd ~ && wget https://www.mpich.org/static/downloads/4.0.2/mpich-4.0.2.tar.gz && \
-    tar xfz mpich-4.0.2.tar.gz && \
-    mkdir /tmp/mpich-4.0 && \
-    cd /tmp/mpich-4.0 /home/you/libraries/mpich-4.0.2/configure \ -prefix=/efs/mpich-install | tee c.txt && \
-    make 2>&1 | tee m.txt
+RUN wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.1.tar.gz && \
+    tar -xzvf openmpi-4.1.1.tar.gz && \
+    cd openmpi-4.1.1 && \
+    ./configure --prefix=/usr/local && \
+    make all && \
+    make install && \
+    ldconfig
 RUN rm -rf ~/mpich-4.0.2.tar.gz ~/mpich-4.0.2
 
 # Install Parmetis
