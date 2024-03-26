@@ -65,17 +65,32 @@ from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictWeightedDistMultDecoder)
 from .tracker import get_task_tracker_class
 
-def initialize(ip_config, backend, use_wholegraph=False):
+def initialize(ip_config=None, backend='gloo', use_wholegraph=False):
     """ Initialize distributed training and inference context.
+
+    .. code::
+
+        # Standalone mode
+        import graphstorm as gs
+        gs.initialize()
+
+    .. code::
+
+        # distributed mode
+        import graphstorm as gs
+        gs.initialize(ip_config="/tmp/ip_list.txt", backend="gloo")
 
     Parameters
     ----------
     ip_config: str
-        File path of ip_config file, e.g., `/tmp/ip_list.txt`.
+        File path of ip_config file, e.g., `/tmp/ip_list.txt`
+        Default: None
     backend: str
         Torch distributed backend, e.g., ``gloo`` or ``nccl``.
+        Default: 'gloo'
     use_wholegraph: bool
         Whether to use wholegraph for feature transfer.
+        Default: False
     """
     # We need to use socket for communication in DGL 0.8. The tensorpipe backend has a bug.
     # This problem will be fixed in the future.
