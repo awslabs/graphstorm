@@ -371,7 +371,6 @@ def test_GSgnnAllEtypeLinkPredictionDataLoader(batch_size):
         fanout=[],
         batch_size=batch_size,
         num_negative_edges=4,
-        device='cuda:0',
         exclude_training_targets=False)
 
     for input_nodes, pos_graph, neg_graph, blocks in dataloader:
