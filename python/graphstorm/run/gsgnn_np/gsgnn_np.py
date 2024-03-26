@@ -101,7 +101,9 @@ def main(config_args):
         unlabeled_idxs = train_data.get_unlabeled_idxs()
         # semi-supervised loader
         dataloader = GSgnnNodeSemiSupDataLoader(train_data, train_data.train_idxs, unlabeled_idxs,
-                                                fanout=config.fanout, batch_size=config.batch_size,train_task=True,
+                                                fanout=config.fanout,
+                                                batch_size=config.batch_size,
+                                                train_task=True,
                                                 construct_feat_ntype=config.construct_feat_ntype,
                                                 construct_feat_fanout=config.construct_feat_fanout)
     else:
