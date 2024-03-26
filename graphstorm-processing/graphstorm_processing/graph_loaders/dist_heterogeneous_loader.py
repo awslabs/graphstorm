@@ -16,6 +16,7 @@ limitations under the License.
 
 import json
 import logging
+import math
 import numbers
 import os
 from collections import Counter, defaultdict
@@ -1613,7 +1614,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             split_rates = SplitRates(train_rate=0.8, val_rate=0.1, test_rate=0.1)
         else:
             # TODO: add support for sums <= 1.0, useful for large-scale link prediction
-            if sum(split_rates.tolist()) != 1.0:
+            if math.fsum(split_rates.tolist()) != 1.0:
                 raise RuntimeError(f"Provided split rates  do not sum to 1: {split_rates}")
 
         split_list = split_rates.tolist()

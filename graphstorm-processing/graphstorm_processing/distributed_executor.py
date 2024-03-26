@@ -305,7 +305,10 @@ def main():
     """Main entry point for GSProcessing"""
     # Allows us to get typed arguments from the command line
     gsprocessing_args = GSProcessingArguments(**vars(parse_args()))
-    logging.basicConfig(level=gsprocessing_args.log_level)
+    logging.basicConfig(
+        level=gsprocessing_args.log_level,
+        format="[GSPROCESSING] %(asctime)s %(levelname)-8s %(message)s",
+    )
 
     # Determine if we're running within a SageMaker container
     is_sagemaker_execution = os.path.exists("/opt/ml/config/processingjobconfig.json")

@@ -33,7 +33,7 @@ VALUE_COUNTS = "VALUE_COUNTS"
 ############## Spark-specific constants #####################
 SPECIAL_CHARACTERS = {".", "+", "*", "?", "^", "$", "(", ")", "[", "]", "{", "}", "|", "\\"}
 
-"""Configuration to define driver and executor memory for distributed"""
+"""Configuration to define driver and executor memory for SageMaker PySpark"""
 # Percentage of instance memory to allocate to the driver process
 DRIVER_MEM_INSTANCE_MEM_RATIO = 0.9
 # Fraction of driver memory to be allocated as additional non-heap memory per process

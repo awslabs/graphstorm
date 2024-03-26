@@ -54,27 +54,84 @@ def create_spark_session(sm_execution: bool, filesystem_type: str) -> SparkSessi
     processing_job_config = bootstraper.load_processing_job_config()
     instance_type_info = bootstraper.load_instance_type_info()
 
+    spark_builder = (
+        SparkSession.builder.appName("GSProcessing")
+        .config("spark.hadoop.validateOutputSpecs", "false")
+        .config("spark.logConf", "true")
+    )
+
     if processing_job_config and instance_type_info:
-        instance_type = processing_job_config["ProcessingResources"]["ClusterConfig"][
-            "InstanceType"
-        ].replace("ml.", "")
-        instance_type_info = instance_type_info[instance_type]
-        instance_mem_mb = instance_type_info["MemoryInfo"]["SizeInMiB"]
-        instance_cores = instance_type_info["VCpuInfo"]["DefaultVCpus"]
-        logging.info(
-            "Detected instance type: %s with " f"total memory: %dM and total cores: %d",
-            instance_type,
-            instance_mem_mb,
-            instance_cores,
+        spark_builder = _create_sagemaker_spark_builder(
+            spark_builder, processing_job_config, instance_type_info
         )
     else:
         instance_mem_mb = int(psutil.virtual_memory().total / (1024 * 1024))
         instance_cores = psutil.cpu_count(logical=True)
         logging.warning(
-            "Failed to detect instance type config. " "Found total memory: %dM and total cores: %d",
+            "Failed to detect instance type config. Found total memory: %d MiB and total cores: %d",
             instance_mem_mb,
             instance_cores,
         )
+
+    # TODO: These settings shouldn't be necessary for container execution,
+    # can we create such a Spark context only for testing?
+    # if not sm_execution and filesystem_type == "s3":
+    #     spark_builder.config(
+    #         "spark.jars.packages",
+    #         "org.apache.hadoop:hadoop-aws:2.10.2," "org.apache.hadoop:hadoop-client:2.10.2",
+    #     ).config("spark.jars.excludes", "com.google.guava:guava").config(
+    #         "spark.executor.extraJavaOptions", "-Dcom.amazonaws.services.s3.enableV4=true"
+    #     ).config(
+    #         "spark.driver.extraJavaOptions", "-Dcom.amazonaws.services.s3.enableV4=true"
+    #     )
+
+    spark = spark_builder.getOrCreate()
+
+    spark.sparkContext.setLogLevel("ERROR")
+    logger = spark.sparkContext._jvm.org.apache.log4j
+    logger.LogManager.getLogger("org").setLevel(logger.Level.ERROR)
+    logger.LogManager.getLogger("py4j").setLevel(logger.Level.ERROR)
+    spark_logger = logging.getLogger("py4j.java_gateway")
+    spark_logger.setLevel(logging.ERROR)
+
+    hadoop_config = spark.sparkContext._jsc.hadoopConfiguration()
+    # This is needed to save RDDs which is the only way to write nested Dataframes into CSV format
+    # hadoop_config.set(
+    #     "mapred.output.committer.class", "org.apache.hadoop.mapred.FileOutputCommitter"
+    # )
+    # See https://aws.amazon.com/premiumsupport/knowledge-center/emr-timeout-connection-wait/
+    hadoop_config.set("fs.s3.maxConnections", "5000")
+    hadoop_config.set("fs.s3.maxRetries", "20")
+    hadoop_config.set("fs.s3a.connection.maximum", "150")
+    # Only used for local testing and container execution
+    # if not sm_execution and filesystem_type == "s3":
+    #     logging.info("Setting up local Spark instance for S3 access...")
+    #     hadoop_config.set(
+    #         "fs.s3a.aws.credentials.provider",
+    #         "com.amazonaws.auth.DefaultAWSCredentialsProviderChain",
+    #     )
+    #     hadoop_config.set("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+    #     hadoop_config.set("fs.AbstractFileSystem.s3a.imp", "org.apache.hadoop.fs.s3a.S3A")
+    #     spark.sparkContext.setSystemProperty("com.amazonaws.services.s3.enableV4", "true")
+
+    return spark
+
+
+def _create_sagemaker_spark_builder(
+    spark_builder: SparkSession.Builder, processing_job_config: dict, instance_type_info: dict
+) -> SparkSession.Builder:
+    instance_type = processing_job_config["ProcessingResources"]["ClusterConfig"][
+        "InstanceType"
+    ].replace("ml.", "")
+    instance_type_info = instance_type_info[instance_type]
+    instance_mem_mb = instance_type_info["MemoryInfo"]["SizeInMiB"]
+    instance_cores = instance_type_info["VCpuInfo"]["DefaultVCpus"]
+    logging.info(
+        "Detected instance type: %s with total memory: %d MiB and total cores: %d",
+        instance_type,
+        instance_mem_mb,
+        instance_cores,
+    )
 
     executor_cores = instance_cores
     executor_count_per_instance = int(instance_cores / executor_cores)
@@ -98,58 +155,16 @@ def create_spark_session(sm_execution: bool, filesystem_type: str) -> SparkSessi
     # Improve memory utilization
     # Avoid timeout errors due to connection pool starving
     # Allow sending large results to driver
+    # TODO: Only set config when running on SageMaker, allow EMR/EMR-S defaults
     spark_builder = (
-        SparkSession.builder.appName("GraphlyticsGraphPreloading")
-        .config("spark.hadoop.validateOutputSpecs", "false")
-        .config("spark.driver.memory", f"{driver_mem_mb}m")
+        spark_builder.config("spark.driver.memory", f"{driver_mem_mb}m")
         .config("spark.driver.memoryOverhead", f"{driver_mem_overhead_mb}m")
         .config("spark.driver.maxResultSize", f"{driver_max_result}m")
         .config("spark.executor.memory", f"{executor_mem_mb}m")
         .config("spark.executor.memoryOverhead", f"{executor_mem_overhead_mb}m")
-        .config("spark.logConf", "true")
     )
 
-    # TODO: These settings shouldn't be necessary for container execution,
-    # can we create such a Spark context only for testing?
-    if not sm_execution and filesystem_type == "s3":
-        spark_builder.config(
-            "spark.jars.packages",
-            "org.apache.hadoop:hadoop-aws:2.10.2," "org.apache.hadoop:hadoop-client:2.10.2",
-        ).config("spark.jars.excludes", "com.google.guava:guava").config(
-            "spark.executor.extraJavaOptions", "-Dcom.amazonaws.services.s3.enableV4=true"
-        ).config(
-            "spark.driver.extraJavaOptions", "-Dcom.amazonaws.services.s3.enableV4=true"
-        )
-
-    spark = spark_builder.getOrCreate()
-
-    spark.sparkContext.setLogLevel("ERROR")
-    logger = spark.sparkContext._jvm.org.apache.log4j
-    logger.LogManager.getLogger("org").setLevel(logger.Level.ERROR)
-    logger.LogManager.getLogger("py4j").setLevel(logger.Level.ERROR)
-    spark_logger = logging.getLogger("py4j.java_gateway")
-    spark_logger.setLevel(logging.ERROR)
-
-    hadoop_config = spark.sparkContext._jsc.hadoopConfiguration()
-    # This is needed to save RDDs which is the only way to write nested Dataframes into CSV format
-    hadoop_config.set(
-        "mapred.output.committer.class", "org.apache.hadoop.mapred.FileOutputCommitter"
-    )
-    # See https://aws.amazon.com/premiumsupport/knowledge-center/emr-timeout-connection-wait/
-    hadoop_config.set("fs.s3.maxConnections", "5000")
-    hadoop_config.set("fs.s3a.connection.maximum", "150")
-    # Only used for local testing and container execution
-    if not sm_execution and filesystem_type == "s3":
-        logging.info("Setting up local Spark instance for S3 access...")
-        hadoop_config.set(
-            "fs.s3a.aws.credentials.provider",
-            "com.amazonaws.auth.DefaultAWSCredentialsProviderChain",
-        )
-        hadoop_config.set("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-        hadoop_config.set("fs.AbstractFileSystem.s3a.imp", "org.apache.hadoop.fs.s3a.S3A")
-        spark.sparkContext.setSystemProperty("com.amazonaws.services.s3.enableV4", "true")
-
-    return spark
+    return spark_builder
 
 
 def safe_rename_column(
