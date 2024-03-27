@@ -166,7 +166,7 @@ If users want to split labels with your own logics, e.g., time sequence, you can
         }
     ]
 
-Instead of using the ``split_pct``, users can specify the ``custom_split_filenames`` configuration with a value, which is a dictionary, to use custom data split. Currently, custom data split only supports node tasks. The dictionary's keys could include ``train``, ``valid``, and ``test``, and values of the dictionary are JSON files that contains node IDs in each set.
+Instead of using the ``split_pct``, users can specify the ``custom_split_filenames`` configuration with a value, which is a dictionary, to use custom data split. The dictionary's keys could include ``train``, ``valid``, and ``test``, and values of the dictionary are JSON files that contains node IDs in each set.
 
 These JSON files only need to list the IDs on its own set. For example, in a node classification task, there are 100 nodes and node ID starts from 0, and assume the last 50 nodes (ID from 49 to 99) have labels associated. For some business logic, users want to have the first 10 of the 50 labeled nodes as training set, the last 30 as the test set, and the middle 10 as the validation set. Then the `train_idx.json` file should contain the integer from 50 to 59, and one integer per line. Similarly, the `val_idx.json` file should contain the integer from 60 to 69, and the `test_idx.json` file should contain the integer from 70 to 99. Contents of the `train_idx.json` file are like the followings.
 
@@ -177,6 +177,31 @@ These JSON files only need to list the IDs on its own set. For example, in a nod
     52
     ...
     59
+
+For edge data, users can do similar thing to define the customized edge labels. The configuration file should be the same:
+
+.. code-block:: json
+
+    "labels": [
+        {
+            "label_col": "label",
+            "task_type": "classification",
+            "custom_split_filenames": {"train": "/tmp/acm_raw/edges/train_idx.json",
+                                       "valid": "/tmp/acm_raw/edges/val_idx.json",
+                                       "test": "/tmp/acm_raw/edges/test_idx.json"}
+        }
+    ]
+
+The values of dictionary files should be json as well here. Each line of the json file should an array with the source node and destination node. For example, contents of `train_idx.json` should look like the following:
+
+.. code-block:: yaml
+
+    ["p0", "p1301"]
+    ["p0", "p9830"]
+    ["p1", "p1910"]
+    ["p1", "p2165"]
+    ["p1", "p6894"]
+    ["p12497", "p12498"]
 
 .. _raw-data-files:
 
