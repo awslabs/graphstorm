@@ -51,7 +51,7 @@
                     "transform":    {"name": "bert_hf",
                                      "bert_model": "bert-base-uncased",
 				     "infer_batch_size": 128,
-                                     "max_seq_length": 32}
+                                     "max_seq_length": 128}
                 }
             ],
             "labels":       [
