@@ -23,6 +23,7 @@ from graphstorm.inference import GSgnnEdgePredictionInferrer
 from graphstorm.eval import GSgnnAccEvaluator, GSgnnRegressionEvaluator
 from graphstorm.dataloading import GSgnnEdgeInferData, GSgnnEdgeDataLoader
 from graphstorm.utils import get_device, get_lm_ntypes, use_wholegraph
+from graphstorm.utils import get_device, get_lm_ntypes, use_wholegraph
 
 def get_evaluator(config): # pylint: disable=unused-argument
     """ Get evaluator class
