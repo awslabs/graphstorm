@@ -62,20 +62,31 @@ job, followed by the re-partitioning job, both on SageMaker:
         --instance-type ${INSTANCE_TYPE} \
         --job-name "${GRAPH_NAME}-${INSTANCE_COUNT}x-${INSTANCE_TYPE//./-}-${NUM_FILES}files" \
         --num-output-files ${NUM_FILES} \
+        --do-repartition True \
         --wait-for-job
 
-    # This will run the follow-up re-partitioning job
+Launch the gs-repartition job on Amazon SageMaker
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+In the above we have set `--do-repartition True` to perform the re-partition step on the Spark
+leader instance. The re-partitioning job runs on a single instance, so for large graphs you will
+want to launch that step as a separate job on an instance with more memory to avoid memory errors.
+`ml.r5` instances should allow you to re-partition graph data with billions of nodes and edges.
+For more details on the re-partitioning step see :doc:`row-count-alignment`.
+
+To run the re-partition job as a separate job use:
+
+.. code-block:: bash
+
+    # Ensure the bash variables are as set as above
+    # This will only run the follow-up re-partitioning job on a single instance
     python scripts/run_repartitioning.py --s3-input-prefix ${OUTPUT_PREFIX} \
         --role ${ROLE} --image ${IMAGE_URI}  --config-filename "metadata.json" \
         --instance-type ${INSTANCE_TYPE} --wait-for-job
 
 
-.. note::
 
-    The re-partitioning job runs on a single instance, so for large graphs you will
-    want to scale up to an instance with more memory to avoid memory errors. `ml.r5` instances
-    should allow you to re-partition graph data with billions of nodes and edges.
-    For more details on the re-partitioning step see ::doc:`row-count-alignment`.
 
 The ``--num-output-files`` parameter
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

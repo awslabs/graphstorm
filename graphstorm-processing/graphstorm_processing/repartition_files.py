@@ -830,7 +830,6 @@ def modify_flat_array_metadata(
 
     if edge_data_meta:
         task_type = metadata_dict["graph_info"].get("task_type", "link_prediction")  # type: str
-        print(f"{task_type=}")
         edge_types_with_labels = metadata_dict["graph_info"]["etype_label"]  # type: List[str]
         # If there exist edge types with labels
         if edge_types_with_labels:
@@ -868,6 +867,9 @@ def modify_flat_array_metadata(
                 type_name,
             )
             if type_name in edge_types_with_labels:
+                # TODO: To support multi-task training, we'll have to handle train_mask_a,
+                # train_mask_b, etc. and similarly for multiple label columns.
+
                 # If the task is not link_prediction, we need to modify the label file's metadata
                 if task_type not in {"link_predict", "link_prediction"}:
                     assert etype_label_property in type_data_dict, (

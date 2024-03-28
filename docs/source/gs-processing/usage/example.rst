@@ -187,7 +187,7 @@ guarantees the data conform to the expectations of DGL, after the
 Spark job is done.
 
 We have the option to run this additional step on the Spark leader
-as shown above by setting `--repartition-on-leader` to `"True"`
+as shown above by setting `--repartition-on-leader` to `"True"`.
 If our data are too large for the memory of our Spark leader
 we can run the step as a separate job:
 

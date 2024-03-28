@@ -107,9 +107,9 @@ def parse_args() -> argparse.Namespace:
         help="When set to True, will create reverse edges for every edge type.",
     )
     parser.add_argument(
-        "--repartition-on-leader",
+        "--do-repartition",
         type=lambda x: (str(x).lower() in ["true", "1"]),
-        default=True,
+        default=False,
         help="When set to True, will re-partition the graph data files on the Spark leader.",
     )
     parser.add_argument(
@@ -259,7 +259,7 @@ if __name__ == "__main__":
         "--add-reverse-edges",
         "True" if args.add_reverse_edges else "False",
         "--repartition-on-leader",
-        "True" if args.repartition_on_leader else "False",
+        "True" if args.do_repartition else "False",
         "--log-level",
         args.container_log_level,
     ]

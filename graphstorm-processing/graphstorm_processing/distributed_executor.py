@@ -271,7 +271,9 @@ class DistributedExecutor:
                     ) as f:
                         json.dump(updated_metadata, f, indent=4)
                         f.flush()
-                    logging.info("Data are now ready to be fed to DistPart pipeline")
+                    logging.info(
+                        "Data are now prepared for processing by the DistPart Partition pipeline."
+                    )
                 except Exception as e:  # pylint: disable=broad-exception-caught
                     logging.error(
                         "Failed to repartition data on Spark leader, "
