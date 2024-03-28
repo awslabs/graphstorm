@@ -101,7 +101,6 @@ def main(config_args):
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
                   local_rank=config.local_rank,
                   use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
-    device = get_device() # for compatibility, will remove in the future
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
     train_data = GSgnnLPTrainData(config.graph_name,
@@ -116,7 +115,7 @@ def main(config_args):
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)
-    trainer.setup_device(device=device)
+    trainer.setup_device(device=get_device())
     if not config.no_validation:
         # TODO(zhengda) we need to refactor the evaluator.
         # Currently, we only support mrr
@@ -155,7 +154,7 @@ def main(config_args):
     else:
         raise ValueError('Unknown negative sampler')
     dataloader = dataloader_cls(train_data, train_data.train_idxs, config.fanout,
-                                config.batch_size, config.num_negative_edges, device,
+                                config.batch_size, config.num_negative_edges,
                                 train_task=True,
                                 reverse_edge_types_map=config.reverse_edge_types_map,
                                 exclude_training_targets=config.exclude_training_targets,
@@ -226,7 +225,7 @@ def main(config_args):
         best_model_path = trainer.get_best_model_path()
         # TODO(zhengda) the model path has to be in a shared filesystem.
         model.restore_model(best_model_path)
-        model = model.to(device)
+        model = model.to(get_device())
         # Preparing input layer for training or inference.
         # The input layer can pre-compute node features in the preparing step if needed.
         # For example pre-compute all BERT embeddings

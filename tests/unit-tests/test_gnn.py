@@ -34,6 +34,7 @@ import dgl
 
 from graphstorm.config import GSConfig
 from graphstorm.config import BUILTIN_LP_DOT_DECODER
+from graphstorm.utils import setup_device
 from graphstorm.model import GSNodeEncoderInputLayer, RelationalGCNEncoder
 from graphstorm.model import GSgnnNodeModel, GSgnnEdgeModel
 from graphstorm.model import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
@@ -269,10 +270,10 @@ def check_node_prediction(model, data, is_homo=False):
     target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))} \
         if not is_homo else {DEFAULT_NTYPE: th.arange(g.number_of_nodes(DEFAULT_NTYPE))}
     dataloader1 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
-                                      batch_size=10, device="cuda:0", train_task=False)
+                                      batch_size=10, train_task=False)
     pred1, labels1 = node_mini_batch_predict(model, embs, dataloader1, return_label=True)
     dataloader2 = GSgnnNodeDataLoader(data, target_nidx, fanout=[-1, -1],
-                                      batch_size=10, device="cuda:0", train_task=False)
+                                      batch_size=10, train_task=False)
     pred2, _, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
     if isinstance(pred1,dict):
         assert len(pred1) == len(pred2) and len(labels1) == len(labels2)
@@ -356,7 +357,7 @@ def check_node_prediction_with_reconstruct(model, data, construct_feat_ntype):
     assert len(data.train_ntypes) == 1
     target_nidx = {target_ntype: th.arange(g.number_of_nodes(target_ntype))}
     dataloader = GSgnnNodeDataLoader(data, target_nidx, fanout=[-1],
-                                     batch_size=10, device=device, train_task=False,
+                                     batch_size=10, train_task=False,
                                      construct_feat_ntype=construct_feat_ntype)
     for input_nodes, seeds, blocks in dataloader:
         assert len(blocks) == 2
@@ -395,10 +396,10 @@ def check_mlp_node_prediction(model, data):
     embs = do_full_graph_inference(model, data)
     target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))}
     dataloader1 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
-                                      batch_size=10, device="cuda:0", train_task=False)
+                                      batch_size=10, train_task=False)
     pred1, labels1 = node_mini_batch_predict(model, embs, dataloader1, return_label=True)
     dataloader2 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
-                                      batch_size=10, device="cuda:0", train_task=False)
+                                      batch_size=10, train_task=False)
     pred2, _, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
     if isinstance(pred1, dict):
         assert len(pred1) == len(pred2) and len(labels1) == len(labels2)
@@ -730,11 +731,13 @@ def check_edge_prediction(model, data):
     embs = do_full_graph_inference(model, data)
     target_idx = {("n0", "r1", "n1"): th.arange(g.number_of_edges("r1"))}
     dataloader1 = GSgnnEdgeDataLoader(data, target_idx, fanout=[],
-                                      batch_size=10, device="cuda:0", train_task=False,
+                                      batch_size=10,
+                                      train_task=False,
                                       remove_target_edge_type=False)
     pred1, labels1 = edge_mini_batch_predict(model, embs, dataloader1, return_label=True)
     dataloader2 = GSgnnEdgeDataLoader(data, target_idx, fanout=[-1, -1],
-                                      batch_size=10, device="cuda:0", train_task=False,
+                                      batch_size=10,
+                                      train_task=False,
                                       remove_target_edge_type=False)
     pred2, labels2 = edge_mini_batch_gnn_predict(model, dataloader2, return_label=True)
     assert_almost_equal(pred1[("n0", "r1", "n1")][0:len(pred1[("n0", "r1", "n1")])].numpy(),
@@ -765,11 +768,13 @@ def check_mlp_edge_prediction(model, data):
     embs = do_full_graph_inference(model, data)
     target_idx = {("n0", "r1", "n1"): th.arange(g.number_of_edges("r1"))}
     dataloader1 = GSgnnEdgeDataLoader(data, target_idx, fanout=[],
-                                      batch_size=10, device="cuda:0", train_task=False,
+                                      batch_size=10,
+                                      train_task=False,
                                       remove_target_edge_type=False)
     pred1, labels1 = edge_mini_batch_predict(model, embs, dataloader1, return_label=True)
     dataloader2 = GSgnnEdgeDataLoader(data, target_idx, fanout=[],
-                                      batch_size=10, device="cuda:0", train_task=False,
+                                      batch_size=10,
+                                      train_task=False,
                                       remove_target_edge_type=False)
     pred2, labels2 = edge_mini_batch_gnn_predict(model, dataloader2, return_label=True)
     assert_almost_equal(pred1[("n0", "r1", "n1")][0:len(pred1[("n0", "r1", "n1")])].numpy(),
@@ -1547,7 +1552,8 @@ def test_edge_mini_batch_gnn_predict():
                 [{target_type: th.arange(10)}] * (ep_data.g.number_of_edges(target_type) // 10)
             model = Dummy_GSEdgeModel()
             dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, fanout=[],
-                                             batch_size=10, device="cuda:0", train_task=False,
+                                             batch_size=10,
+                                             train_task=False,
                                              remove_target_edge_type=False)
             pred, labels = edge_mini_batch_predict(model, embs, dataloader, return_label=True)
             assert isinstance(pred, dict)
@@ -1600,7 +1606,8 @@ def test_node_mini_batch_gnn_predict():
                                    node_feat_field='feat')
         target_nidx = {"n1": th.arange(data.g.number_of_nodes("n0"))}
         dataloader = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
-                                        batch_size=10, device="cuda:0", train_task=False)
+                                        batch_size=10,
+                                        train_task=False)
 
         @patch.object(GSgnnNodeTrainData, 'get_labels')
         def check_predict(mock_get_labels, return_dict):

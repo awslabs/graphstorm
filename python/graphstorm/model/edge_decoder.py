@@ -797,7 +797,7 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
         self.trained_rels = np.zeros(self.num_rels)
         emb_init = gamma / h_dim
         nn.init.uniform_(self._w_relation.weight, -emb_init, emb_init)
-        self.relids = th.arange(self.num_rels)#.to(self.device)
+        self.relids = th.arange(self.num_rels)
 
     def get_relemb(self, etype):
         """retrieve trained embedding of the given edge type

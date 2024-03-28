@@ -17,7 +17,6 @@ def main(config_args):
     config = GSConfig(config_args)
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
                   local_rank=config.local_rank)
-    device = get_device() # for compatibility, will remove in the future
     # Define the training dataset
     train_data = GSgnnNodeTrainData(
         config.graph_name,
@@ -50,7 +49,7 @@ def main(config_args):
             model_layer_to_load=["gnn", "embed"],
         )
 
-    trainer.setup_device(device=device)
+    trainer.setup_device(device=get_device())
 
     # set evaluator
     evaluator = GSgnnAccEvaluator(
@@ -72,7 +71,6 @@ def main(config_args):
         train_data.train_idxs,
         fanout=config.fanout,
         batch_size=config.batch_size,
-        device=device,
         train_task=True,
     )
 
@@ -82,7 +80,6 @@ def main(config_args):
         train_data.val_idxs,
         fanout=config.fanout,
         batch_size=config.eval_batch_size,
-        device=device,
         train_task=False,
     )
 
@@ -105,7 +102,7 @@ def main(config_args):
 
     # Create an inference for a node task.
     infer = GSgnnNodePredictionInferrer(model)
-    infer.setup_device(device=device)
+    infer.setup_device(device=get_device())
     infer.setup_evaluator(evaluator)
     infer.setup_task_tracker(tracker)
     # Create test loader
@@ -114,7 +111,6 @@ def main(config_args):
         train_data.test_idxs,
         fanout=config.fanout,
         batch_size=config.eval_batch_size,
-        device=device,
         train_task=False,
     )
     # Run inference on the inference dataset and save the GNN embeddings in the specified path.

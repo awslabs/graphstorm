@@ -358,9 +358,9 @@ class GSgnnData():
 
     def get_node_feat_size(self):
         """ Get node feat size using the given node_feat_field
-        
+
         All parameters are coming from this class's own attributes.
-        
+
         Note: If the self._node_feat_field is None, i.e., not given, the function will return a
               dictionary containing all node types in the self.g, and the feature sizes are all 0s.
               If given the node_feat_field, will return dictionary that only contains given node
@@ -1140,16 +1140,12 @@ class GSDistillData(Dataset):
         HuggingFace Tokenizer.
     max_seq_len : int
         Maximum sequence length.
-    device : str
-        Device name.
-
     """
-    def __init__(self, file_list, tokenizer, max_seq_len, device):
+    def __init__(self, file_list, tokenizer, max_seq_len):
         super().__init__()
         self.file_list = file_list
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len
-        self.device = device
         self.token_id_inputs, self.labels = self.get_inputs()
 
     def get_inputs(self):

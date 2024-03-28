@@ -451,7 +451,6 @@ def partion_and_load_distributed_graph(hetero_graph, dirname, graph_name='dummy'
 
     if not isinstance(hetero_graph, dgl.DGLGraph):
         raise Exception('Must have a valid DGL heterogeneous graph')
-
     print(f'Create a temporary folder \'{dirname}\' for output of distributed graph data')
     dist.partition_graph(hetero_graph, graph_name=graph_name, num_parts=1,
                          out_path=dirname, part_method='metis')

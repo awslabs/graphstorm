@@ -43,7 +43,6 @@ def main(config_args):
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
                   local_rank=config.local_rank,
                   use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
-    device = get_device() # for compatibility, will remove in the future
 
     infer_data = GSgnnEdgeInferData(config.graph_name,
                                     config.part_config,
@@ -55,7 +54,7 @@ def main(config_args):
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
     infer = GSgnnLinkPredictionInferrer(model)
-    infer.setup_device(device=device)
+    infer.setup_device(device=get_device())
     if not config.no_validation:
         infer.setup_evaluator(
             GSgnnMrrLPEvaluator(config.eval_frequency,

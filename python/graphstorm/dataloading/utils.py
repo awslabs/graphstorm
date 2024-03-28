@@ -21,7 +21,7 @@ import dgl
 import torch as th
 import torch.distributed as dist
 
-from ..utils import is_distributed
+from ..utils import is_distributed, get_device
 
 def trim_data(nids, device):
     """ In distributed traning scenario, we need to make sure that
@@ -74,8 +74,7 @@ def dist_sum(size):
         return size
 
     if th.cuda.is_available():
-        dev_id = th.cuda.current_device()
-        size = th.tensor([size], device=th.device(dev_id))
+        size = th.tensor([size], device=get_device())
     else:
         size = th.tensor([size], device=th.device("cpu"))
     dist.all_reduce(size, dist.ReduceOp.SUM)

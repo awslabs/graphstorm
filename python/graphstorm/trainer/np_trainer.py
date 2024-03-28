@@ -62,7 +62,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             "my_graph", "/path/to/part_config", "my_node_type")
         target_idx = {"my_node_type": target_nodes_tensor}
         my_data_loader = GSgnnNodeDataLoader(
-            my_dataset, target_idx, fanout=[10], batch_size=1024, device='cpu')
+            my_dataset, target_idx, fanout=[10], batch_size=1024)
         my_model = GSgnnNodeModel(alpha_l2norm=0.0)
 
         trainer =  GSgnnNodePredictionTrainer(my_model, topk_model_to_save=1)
