@@ -43,7 +43,7 @@ from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER
 from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
 from graphstorm.model.utils import save_full_node_embeddings
 from graphstorm.model import do_full_graph_inference
-from graphstorm.utils import rt_profiler, sys_tracker, setup_device
+from graphstorm.utils import rt_profiler, sys_tracker, get_device
 
 def get_evaluator(config, train_data):
     """ Get evaluator according to config
@@ -83,10 +83,11 @@ def main(config_args):
     config = GSConfig(config_args)
     config.verify_arguments(True)
 
-    gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  local_rank=config.local_rank)
+    device = get_device() # for compatibility, will remove in the future
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
-    device = setup_device(config.local_rank)
     train_data = GSgnnLPTrainData(config.graph_name,
                                   config.part_config,
                                   train_etypes=config.train_etype,

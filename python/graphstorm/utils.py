@@ -29,6 +29,7 @@ import numpy as np
 
 TORCH_MAJOR_VER = int(th.__version__.split('.', maxsplit=1)[0])
 USE_WHOLEGRAPH = False
+GS_DEVICE = th.device('cpu')
 
 def get_graph_name(part_config):
     """ Get graph name from graph partition config file
@@ -64,9 +65,19 @@ def setup_device(local_rank):
         device = 'cuda:%d' % local_rank
         th.cuda.set_device(device)
     else:
-        device='cpu'
+        device = 'cpu'
 
+    global GS_DEVICE
+    GS_DEVICE = th.device(device)
     return device
+
+def get_device():
+    """ Get the torch device to run model forward and backward
+
+    Return
+    th.device: device where the model runs
+    """
+    return GS_DEVICE
 
 def is_distributed():
     """ Test whether the process runs in a distributed mode.

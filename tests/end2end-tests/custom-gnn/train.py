@@ -24,7 +24,7 @@ import graphstorm as gs
 from graphstorm import model as gsmodel
 from graphstorm.trainer import GSgnnNodePredictionTrainer
 from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeDataLoader
-from graphstorm.utils import setup_device
+from graphstorm.utils import get_device
 
 class MyGNNModel(gsmodel.GSgnnNodeModelBase):
     def __init__(self, g, feat_size, hidden_size, num_classes):
@@ -76,8 +76,9 @@ class MyGNNModel(gsmodel.GSgnnNodeModelBase):
         return th.optim.Adam(self.parameters(), lr=0.001)
 
 def main(args):
-    gs.initialize(ip_config=args.ip_config, backend="gloo")
-    device = setup_device(args.local_rank)
+    gs.initialize(ip_config=args.ip_config, backend="gloo",
+                  local_rank=args.local_rank)
+    device = get_device() # for compatibility, will remove in the future
     train_data = GSgnnNodeTrainData(args.graph_name,
                                     args.part_config,
                                     train_ntypes=args.target_ntype,

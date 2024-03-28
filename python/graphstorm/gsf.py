@@ -26,7 +26,8 @@ from dgl.distributed import role
 from dgl.distributed.constants import DEFAULT_NTYPE
 from dgl.distributed.constants import DEFAULT_ETYPE
 
-from .utils import sys_tracker, get_rank, get_world_size
+from .utils import sys_tracker, get_rank
+from .utils import setup_device
 from .config import BUILTIN_TASK_NODE_CLASSIFICATION
 from .config import BUILTIN_TASK_NODE_REGRESSION
 from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
@@ -65,7 +66,7 @@ from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictWeightedDistMultDecoder)
 from .tracker import get_task_tracker_class
 
-def initialize(ip_config=None, backend='gloo', use_wholegraph=False):
+def initialize(ip_config=None, backend='gloo', local_rank=0, use_wholegraph=False):
     """ Initialize distributed training and inference context.
 
     .. code::
@@ -88,6 +89,9 @@ def initialize(ip_config=None, backend='gloo', use_wholegraph=False):
     backend: str
         Torch distributed backend, e.g., ``gloo`` or ``nccl``.
         Default: 'gloo'
+    local_rank: int
+        The local rank of the current process.
+        Default: 0
     use_wholegraph: bool
         Whether to use wholegraph for feature transfer.
         Default: False
@@ -102,7 +106,10 @@ def initialize(ip_config=None, backend='gloo', use_wholegraph=False):
         if use_wholegraph:
             from .wholegraph import init_wholegraph
             init_wholegraph()
+
     sys_tracker.check("load DistDGL")
+    device = setup_device(local_rank)
+    sys_tracker.check(f"setup device on {device}")
 
 def get_node_feat_size(g, node_feat_names):
     """ Get the feature's size on each node type in the input graph.

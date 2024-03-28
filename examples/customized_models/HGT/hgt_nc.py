@@ -16,7 +16,7 @@ from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeInferData
 from graphstorm.dataloading import GSgnnNodeDataLoader
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.tracker import GSSageMakerTaskTracker
-from graphstorm.utils import setup_device
+from graphstorm.utils import get_device
 
 from dgl.nn.functional import edge_softmax
 
@@ -260,9 +260,10 @@ class HGT(gsmodel.GSgnnNodeModelBase):
 
 
 def main(args):
-    gs.initialize(ip_config=args.ip_config, backend="gloo")
     config = GSConfig(args)
-    device = setup_device(config.local_rank)
+    gs.initialize(ip_config=args.ip_config, backend="gloo",
+                  local_rank=config.local_rank)
+    device = get_device() # for compatibility, will remove in the future
 
     # Process node_feat_field to define GraphStorm dataset
     node_feat_fields = {}

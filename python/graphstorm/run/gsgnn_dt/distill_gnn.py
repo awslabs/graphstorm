@@ -21,7 +21,7 @@ import torch as th
 import graphstorm as gs
 from graphstorm.config import GSConfig, get_argument_parser
 from graphstorm.distiller import GSdistiller
-from graphstorm.utils import setup_device, barrier
+from graphstorm.utils import get_device, barrier
 from graphstorm.model.gnn_distill import GSDistilledModel
 from graphstorm.dataloading import DistillDataloaderGenerator, DistillDataManager
 
@@ -31,8 +31,9 @@ def main(config_args):
     """
     config = GSConfig(config_args)
     config.verify_arguments(True)
-    gs.initialize(ip_config=config.ip_config, backend=config.backend)
-    device = setup_device(config.local_rank)
+    gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  local_rank=config.local_rank)
+    device = get_device() # for compatibility, will remove in the future
 
     # initiate model
     student_model = GSDistilledModel(lm_type=config.distill_lm_configs[0]["lm_type"],
