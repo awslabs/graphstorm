@@ -258,7 +258,7 @@ class DistributedExecutor:
                 "All file row counts match, applying Parquet metadata modification on leader..."
             )
             modify_flat_array_metadata(graph_meta_dict, repartitioner)
-            logging.info("Data are now ready to be fed to DistPart pipeline")
+            logging.info("Data are now prepared for processing by the DistPart Partition pipeline.")
         else:
             if self.repartition_on_leader:
                 logging.info("Attempting to repartition graph data on Spark leader...")
