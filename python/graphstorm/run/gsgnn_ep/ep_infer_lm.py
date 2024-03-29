@@ -46,7 +46,6 @@ def main(config_args):
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
                   local_rank=config.local_rank)
-    device = get_device() # for compatibility, will remove in the future
 
     infer_data = GSgnnEdgeInferData(config.graph_name,
                                     config.part_config,
@@ -58,7 +57,7 @@ def main(config_args):
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
     infer = GSgnnEdgePredictionInferrer(model)
-    infer.setup_device(device=device)
+    infer.setup_device(device=get_device())
     if not config.no_validation:
         evaluator = get_evaluator(config)
         infer.setup_evaluator(evaluator)
@@ -67,7 +66,7 @@ def main(config_args):
     infer.setup_task_tracker(tracker)
     dataloader = GSgnnEdgeDataLoader(infer_data, infer_data.test_idxs, fanout=[],
                                      batch_size=config.eval_batch_size,
-                                     device=device, train_task=False,
+                                     train_task=False,
                                      remove_target_edge_type=False)
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.

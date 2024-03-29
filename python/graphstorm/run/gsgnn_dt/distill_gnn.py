@@ -33,7 +33,6 @@ def main(config_args):
     config.verify_arguments(True)
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
                   local_rank=config.local_rank)
-    device = get_device() # for compatibility, will remove in the future
 
     # initiate model
     student_model = GSDistilledModel(lm_type=config.distill_lm_configs[0]["lm_type"],
@@ -42,7 +41,6 @@ def main(config_args):
     # initiate DataloaderGenerator and DataManager
     dataloader_generator = DistillDataloaderGenerator(tokenizer=student_model.tokenizer,
         max_seq_len=config.max_seq_len,
-        device=device,
         batch_size=config.batch_size,
     )
     train_data_mgr = DistillDataManager(
@@ -71,7 +69,7 @@ def main(config_args):
 
     # initiate distiller
     distiller = GSdistiller(model=student_model)
-    distiller.setup_device(device=device)
+    distiller.setup_device(device=get_device())
     barrier()
 
     distiller.fit(

@@ -46,7 +46,6 @@ def main(config_args):
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
                   local_rank=config.local_rank,
                   use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
-    device = get_device() # for compatibility, will remove in the future
 
     infer_data = GSgnnNodeInferData(config.graph_name,
                                     config.part_config,
@@ -59,7 +58,7 @@ def main(config_args):
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
     infer = GSgnnNodePredictionInferrer(model)
-    infer.setup_device(device=device)
+    infer.setup_device(device=get_device())
     if not config.no_validation:
         evaluator = get_evaluator(config)
         infer.setup_evaluator(evaluator)
@@ -77,7 +76,7 @@ def main(config_args):
     infer.setup_task_tracker(tracker)
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
     dataloader = GSgnnNodeDataLoader(infer_data, target_idxs, fanout=fanout,
-                                     batch_size=config.eval_batch_size, device=device,
+                                     batch_size=config.eval_batch_size,
                                      train_task=False,
                                      construct_feat_ntype=config.construct_feat_ntype,
                                      construct_feat_fanout=config.construct_feat_fanout)

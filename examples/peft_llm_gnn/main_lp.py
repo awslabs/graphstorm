@@ -19,7 +19,6 @@ def main(config_args):
     config = GSConfig(config_args)
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
                   local_rank=config.local_rank)
-    device = get_device() # for compatibility, will remove in the future
     # Define the training dataset
     train_data = GSgnnLPTrainData(
         config.graph_name,
@@ -52,7 +51,7 @@ def main(config_args):
             model_layer_to_load=["gnn", "embed"],
         )
 
-    trainer.setup_device(device=device)
+    trainer.setup_device(device=get_device())
 
     # set evaluator
     evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
@@ -76,7 +75,6 @@ def main(config_args):
         fanout=config.fanout,
         batch_size=config.batch_size,
         num_negative_edges=config.num_negative_edges,
-        device=device,
         train_task=True,
         reverse_edge_types_map=config.reverse_edge_types_map,
         exclude_training_targets=config.exclude_training_targets,
@@ -110,7 +108,7 @@ def main(config_args):
 
     # Create an inference for a node task.
     infer = GSgnnLinkPredictionInferrer(model)
-    infer.setup_device(device=device)
+    infer.setup_device(device=get_device())
     infer.setup_evaluator(evaluator)
     infer.setup_task_tracker(tracker)
     # Create test loader

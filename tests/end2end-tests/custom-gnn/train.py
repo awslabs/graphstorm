@@ -78,7 +78,6 @@ class MyGNNModel(gsmodel.GSgnnNodeModelBase):
 def main(args):
     gs.initialize(ip_config=args.ip_config, backend="gloo",
                   local_rank=args.local_rank)
-    device = get_device() # for compatibility, will remove in the future
     train_data = GSgnnNodeTrainData(args.graph_name,
                                     args.part_config,
                                     train_ntypes=args.target_ntype,
@@ -89,9 +88,9 @@ def main(args):
     feat_size = gs.get_node_feat_size(train_data.g, args.node_feat)
     model = MyGNNModel(train_data.g, feat_size, 16, args.num_classes)
     trainer = GSgnnNodePredictionTrainer(model, topk_model_to_save=1)
-    trainer.setup_device(device=device)
+    trainer.setup_device(device=get_device())
     dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=[10, 10],
-                                     batch_size=1000, device=device, train_task=True)
+                                     batch_size=1000, train_task=True)
     trainer.fit(train_loader=dataloader, num_epochs=2)
 
 if __name__ == '__main__':
