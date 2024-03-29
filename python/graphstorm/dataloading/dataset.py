@@ -351,18 +351,6 @@ class GSgnnData():
         return prepare_batch_edge_input(g, input_edges, dev=device,
                                         feat_field=efeat_fields)
 
-    def get_node_feat_size(self):
-        """ Get node feat size using the given node_feat_field
-
-        All parameters are coming from this class's own attributes.
-
-        Note: If the self._node_feat_field is None, i.e., not given, the function will return a
-              dictionary containing all node types in the self.g, and the feature sizes are all 0s.
-              If given the node_feat_field, will return dictionary that only contains given node
-              types.
-        """
-        return gs.get_node_feat_size(self.g, self._node_feat_field)
-
 class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
     """ Data for edge tasks
 
