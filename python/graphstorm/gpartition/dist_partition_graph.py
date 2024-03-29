@@ -71,7 +71,7 @@ def run_build_dglgraph(
         "--partitions-dir", partitions_dir,
         "--ip-config", ip_list,
         "--out-dir", output_path,
-        "--ssh-port", ssh_port,
+        "--ssh-port", f"{ssh_port}",
         "--python-path", f"{python_bin}",
         "--log-level", logging.getLevelName(logging.root.getEffectiveLevel()),
         "--save-orig-nids",
