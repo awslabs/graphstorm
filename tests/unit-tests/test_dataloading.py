@@ -34,14 +34,15 @@ from data_utils import (
 )
 
 import graphstorm as gs
-from graphstorm.utils import setup_device
+from graphstorm.utils import setup_device, get_device
 from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeInferData
 from graphstorm.dataloading import GSgnnEdgeTrainData, GSgnnEdgeInferData
 from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
                                     GSgnnNodeSemiSupDataLoader)
-from graphstorm.dataloading import (GSgnnLinkPredictionDataLoader,
+from graphstorm.dataloading import (GSgnnLinkPredictionDataLoaderBase,
+                                    GSgnnLinkPredictionDataLoader,
                                     GSgnnLPJointNegDataLoader,
                                     GSgnnLPInBatchJointNegDataLoader,
                                     GSgnnLPLocalUniformNegDataLoader,
@@ -370,7 +371,6 @@ def test_GSgnnAllEtypeLinkPredictionDataLoader(batch_size):
         fanout=[],
         batch_size=batch_size,
         num_negative_edges=4,
-        device='cuda:0',
         exclude_training_targets=False)
 
     for input_nodes, pos_graph, neg_graph, blocks in dataloader:
@@ -399,9 +399,10 @@ def test_node_dataloader():
         np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
                                      train_ntypes=['n1'], label_field='label')
 
+    setup_device(0)
     # Without shuffling, the seed nodes should have the same order as the target nodes.
     target_idx = {'n1': th.arange(np_data.g.number_of_nodes('n1'))}
-    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10, 'cuda:0',
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
                                      train_task=False)
     all_nodes = []
     for input_nodes, seeds, blocks in dataloader:
@@ -412,14 +413,14 @@ def test_node_dataloader():
 
     # With data shuffling, the seed nodes should have different orders
     # whenever the data loader is called.
-    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10, 'cuda:0',
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
                                      train_task=True)
     all_nodes1 = []
     for input_nodes, seeds, blocks in dataloader:
         assert 'n1' in seeds
         all_nodes1.append(seeds['n1'])
     all_nodes1 = th.cat(all_nodes1)
-    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10, 'cuda:0',
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
                                      train_task=True)
     all_nodes2 = []
     for input_nodes, seeds, blocks in dataloader:
@@ -445,19 +446,19 @@ def test_node_dataloader_reconstruct():
         np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
                                      train_ntypes=['n0'], label_field='label',
                                      node_feat_field={'n0': ['feat'], 'n4': ['feat']})
-
+    setup_device(0)
     feat_sizes = gs.get_node_feat_size(np_data.g, {'n0': 'feat', 'n4': 'feat'})
     target_idx = {'n0': th.arange(np_data.g.number_of_nodes('n0'))}
     # Test the case that we cannot construct all node features.
     try:
-        dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10, 'cuda:0',
+        dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
                                          train_task=False, construct_feat_ntype=['n1', 'n2'])
         assert False
     except:
         pass
 
     # Test the case that we construct node features for one-layer GNN.
-    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10, 'cuda:0',
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
                                      train_task=False, construct_feat_ntype=['n2'])
     all_nodes = []
     rel_names_for_reconstruct = gs.gsf.get_rel_names_for_reconstruct(np_data.g,
@@ -481,7 +482,7 @@ def test_node_dataloader_reconstruct():
     assert_equal(all_nodes.numpy(), target_idx['n0'])
 
     # Test the case that we construct node features for two-layer GNN.
-    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10, 10], 10, 'cuda:0',
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10, 10], 10,
                                      train_task=False, construct_feat_ntype=['n3'])
     all_nodes = []
     rel_names_for_reconstruct = gs.gsf.get_rel_names_for_reconstruct(np_data.g,
@@ -524,7 +525,7 @@ def test_edge_dataloader():
 
     # Without shuffling, the seed nodes should have the same order as the target nodes.
     target_idx = {('n0', 'r1', 'n1'): th.arange(ep_data.g.number_of_edges('r1'))}
-    dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], 10, 'cuda:0',
+    dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], 10,
                                      train_task=False, remove_target_edge_type=False)
     all_edges = []
     for input_nodes, batch_graph, blocks in dataloader:
@@ -536,7 +537,7 @@ def test_edge_dataloader():
 
     # With data shuffling, the seed edges should have different orders
     # whenever the data loader is called.
-    dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], 10, 'cuda:0',
+    dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], 10,
                                      train_task=True, remove_target_edge_type=False)
     all_edges1 = []
     for input_nodes, batch_graph, blocks in dataloader:
@@ -553,7 +554,7 @@ def test_edge_dataloader():
     assert not np.all(all_edges1.numpy() == all_edges2.numpy())
 
     ################### Test removing target edges #######################
-    dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], 10, 'cuda:0',
+    dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], 10,
                                      train_task=False, remove_target_edge_type=True,
                                      reverse_edge_types_map={('n0', 'r1', 'n1'): ('n0', 'r0', 'n1')})
     all_edges = []
@@ -581,8 +582,8 @@ def test_lp_dataloader():
 
     # Without shuffling, the seed nodes should have the same order as the target nodes.
     target_idx = {('n0', 'r1', 'n1'): th.arange(ep_data.g.number_of_edges('r1'))}
-    dataloader = GSgnnLinkPredictionDataLoader(ep_data, target_idx, [10], 10, num_negative_edges=2,
-                                               device='cuda:0', train_task=False)
+    dataloader = GSgnnLinkPredictionDataLoader(ep_data, target_idx, [10], 10,
+                                               num_negative_edges=2, train_task=False)
     all_edges = []
     for input_nodes, pos_graph, neg_graph, blocks in dataloader:
         assert len(pos_graph.etypes) == 1
@@ -594,7 +595,7 @@ def test_lp_dataloader():
     # With data shuffling, the seed edges should have different orders
     # whenever the data loader is called.
     dataloader = GSgnnLinkPredictionDataLoader(ep_data, target_idx, [10], 10, num_negative_edges=2,
-                                               device='cuda:0', train_task=True)
+                                               train_task=True)
     all_edges1 = []
     for input_nodes, pos_graph, neg_graph, blocks in dataloader:
         assert len(pos_graph.etypes) == 1
@@ -957,13 +958,13 @@ def test_np_dataloader_trim_data(dataloader):
             ]
 
             loader = dataloader(np_data, dict(target_idx),
-                                [10], 10, 'cpu',
+                                [10], 10,
                                 train_task=True)
             assert len(loader.dataloader.collator.nids) == 1
             assert len(loader.dataloader.collator.nids["n1"]) == np_data.g.number_of_nodes('n1') - 2
 
             loader = dataloader(np_data, dict(target_idx),
-                                [10], 10, 'cpu',
+                                [10], 10,
                                 train_task=False)
             assert len(loader.dataloader.collator.nids) == 1
             assert len(loader.dataloader.collator.nids["n1"]) == np_data.g.number_of_nodes('n1')
@@ -973,6 +974,38 @@ def test_np_dataloader_trim_data(dataloader):
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
+@pytest.mark.parametrize("dataloader", [GSgnnNodeDataLoader])
+@pytest.mark.parametrize("backend", ['gloo', 'nccl'])
+def test_np_dataloader_trim_data_device(dataloader, backend):
+     # initialize the torch distributed environment
+    th.distributed.init_process_group(backend=backend,
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    setup_device(0)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_ntypes=['n1'], label_field='label')
+
+        target_idx = {'n1': th.arange(np_data.g.number_of_nodes('n1'))}
+        @patch("graphstorm.dataloading.dataloading.trim_data")
+        def check_dataloader_trim(mock_trim_data):
+            mock_trim_data.side_effect = [
+                target_idx["n1"][:len(target_idx["n1"])-2],
+                target_idx["n1"][:len(target_idx["n1"])-2],
+            ]
+
+            dataloader(np_data, dict(target_idx), [10], 10, train_task=True)
+            dataloader(np_data, dict(target_idx), [10], 10, train_task=False)
+
+            args, _ = mock_trim_data.call_args
+            assert args[1] == th.device('cpu') if backend == 'gloo' else th.device(0)
+        check_dataloader_trim()
+
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()
 
 @pytest.mark.parametrize("dataloader", [GSgnnAllEtypeLinkPredictionDataLoader,
                                         GSgnnLinkPredictionDataLoader,
@@ -988,7 +1021,6 @@ def test_edge_dataloader_trim_data(dataloader):
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
         lp_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
                                      train_etypes=test_etypes, label_field='label')
-        g = lp_data.g
 
         @patch("graphstorm.dataloading.dataloading.trim_data")
         def check_dataloader_trim(mock_trim_data):
@@ -1023,6 +1055,58 @@ def test_edge_dataloader_trim_data(dataloader):
             assert len(loader.dataloader.collator.eids) == len(lp_data.train_idxs)
             for etype in lp_data.train_idxs.keys():
                 assert len(loader.dataloader.collator.eids[etype]) == len(lp_data.train_idxs[etype])
+
+        check_dataloader_trim()
+
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()
+
+@pytest.mark.parametrize("dataloader", [GSgnnAllEtypeLinkPredictionDataLoader,
+                                        GSgnnLinkPredictionDataLoader,
+                                        FastGSgnnLinkPredictionDataLoader,
+                                        GSgnnEdgeDataLoader])
+@pytest.mark.parametrize("backend", ['gloo', 'nccl'])
+def test_edge_dataloader_trim_data_device(dataloader, backend):
+     # initialize the torch distributed environment
+    th.distributed.init_process_group(backend=backend,
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    setup_device(0)
+    test_etypes = [("n0", "r1", "n1"), ("n0", "r0", "n1")]
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        edge_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
+                                     train_etypes=test_etypes, label_field='label')
+
+        @patch("graphstorm.dataloading.dataloading.trim_data")
+        def check_dataloader_trim(mock_trim_data):
+            mock_trim_data.side_effect = [
+                edge_data.train_idxs[("n0", "r1", "n1")][:len(edge_data.train_idxs[("n0", "r1", "n1")])-1],
+                edge_data.train_idxs[("n0", "r0", "n1")][:len(edge_data.train_idxs[("n0", "r0", "n1")])-1],
+
+                edge_data.train_idxs[("n0", "r1", "n1")][:len(edge_data.train_idxs[("n0", "r1", "n1")])-1],
+                edge_data.train_idxs[("n0", "r0", "n1")][:len(edge_data.train_idxs[("n0", "r0", "n1")])-1],
+            ]
+
+            if issubclass(dataloader, GSgnnLinkPredictionDataLoaderBase):
+                dataloader(
+                    edge_data,
+                    fanout=[],
+                    target_idx=dict(edge_data.train_idxs), # test train_idxs
+                    num_negative_edges=4,
+                    batch_size=16)
+            else:
+                dataloader(
+                    edge_data,
+                    fanout=[],
+                    target_idx=dict(edge_data.train_idxs), # test train_idxs
+                    batch_size=16,
+                    remove_target_edge_type=False)
+
+            args, _ = mock_trim_data.call_args
+            assert args[1] == th.device('cpu') if backend == 'gloo' else th.device(0)
 
         check_dataloader_trim()
 
@@ -1199,14 +1283,14 @@ def run_distill_dist_data(worker_rank, world_size,
                                       world_size=world_size,
                                       rank=worker_rank)
     th.cuda.set_device(worker_rank)
-    device = setup_device(worker_rank)
+    setup_device(worker_rank)
+    device = get_device()
 
     tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
 
     dataloader_generator = DistillDataloaderGenerator(
         tokenizer=tokenizer,
         max_seq_len=8,
-        device=device,
         batch_size=4,
     )
     data_mgr = DistillDataManager(
@@ -1291,32 +1375,33 @@ def test_np_dataloader_len(batch_size):
         np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
                                      train_ntypes=['n1'], label_field='label')
 
+    setup_device(0)
     # Without shuffling, the seed nodes should have the same order as the target nodes.
     target_idx = {'n1': th.arange(np_data.g.number_of_nodes('n1'))}
-    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], batch_size, 'cuda:0',
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], batch_size,
                                      train_task=False)
     assert len(dataloader) == len(list(dataloader))
 
-    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], batch_size, 'cuda:0',
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], batch_size,
                                      train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
     target_idx_2 = {'n1': th.arange(np_data.g.number_of_nodes('n1')//2)}
     # target_idx > unlabeled_idx
-    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx, target_idx_2, [10], batch_size, 'cuda:0',
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx, target_idx_2, [10], batch_size,
                                      train_task=False)
     assert len(dataloader) == len(list(dataloader))
 
-    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx, target_idx_2, [10], batch_size, 'cuda:0',
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx, target_idx_2, [10], batch_size,
                                      train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
     # target_idx < unlabeled_idx
-    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx_2, target_idx, [10], batch_size, 'cuda:0',
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx_2, target_idx, [10], batch_size,
                                      train_task=False)
     assert len(dataloader) == len(list(dataloader))
 
-    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx_2, target_idx, [10], batch_size, 'cuda:0',
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx_2, target_idx, [10], batch_size,
                                      train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
@@ -1332,11 +1417,11 @@ def test_ep_dataloader_len(batch_size):
 
     # Without shuffling, the seed nodes should have the same order as the target nodes.
     target_idx = {('n0', 'r1', 'n1'): th.arange(ep_data.g.number_of_edges('r1'))}
-    dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], batch_size, 'cuda:0',
+    dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], batch_size,
                                      train_task=False, remove_target_edge_type=False)
     assert len(dataloader) == len(list(dataloader))
 
-    dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], batch_size, 'cuda:0',
+    dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], batch_size,
                                      train_task=True, remove_target_edge_type=False)
     assert len(dataloader) == len(list(dataloader))
 
@@ -1353,71 +1438,71 @@ def test_lp_dataloader_len(batch_size):
     # Without shuffling, the seed nodes should have the same order as the target nodes.
     target_idx = {('n0', 'r1', 'n1'): th.arange(ep_data.g.number_of_edges('r1'))}
     dataloader = GSgnnLinkPredictionDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
-                                               device='cuda:0', train_task=False)
+                                               train_task=False)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = GSgnnLinkPredictionDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
-                                               device='cuda:0', train_task=True)
+                                               train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = GSgnnLPJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
-                                               device='cuda:0', train_task=False)
+                                           train_task=False)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = GSgnnLPJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
-                                               device='cuda:0', train_task=True)
+                                           train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = GSgnnLPLocalUniformNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
-                                               device='cuda:0', train_task=False)
+                                                  train_task=False)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = GSgnnLPLocalUniformNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
-                                               device='cuda:0', train_task=True)
+                                                  train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = GSgnnLPInBatchJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
-                                               device='cuda:0', train_task=True)
+                                                  train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = GSgnnLPLocalJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
-                                               device='cuda:0', train_task=False)
+                                                train_task=False)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = GSgnnLPLocalJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
-                                               device='cuda:0', train_task=True)
+                                                train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = FastGSgnnLinkPredictionDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
-                                               device='cuda:0', train_task=False)
+                                                   train_task=False)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = FastGSgnnLinkPredictionDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
-                                               device='cuda:0', train_task=True)
+                                                   train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = FastGSgnnLPJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
-                                               device='cuda:0', train_task=False)
+                                               train_task=False)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = FastGSgnnLPJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
-                                               device='cuda:0', train_task=True)
+                                               train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = FastGSgnnLPLocalUniformNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
-                                               device='cuda:0', train_task=False)
+                                                      train_task=False)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = FastGSgnnLPLocalUniformNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
-                                               device='cuda:0', train_task=True)
+                                                      train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = FastGSgnnLPLocalJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
-                                               device='cuda:0', train_task=False)
+                                                    train_task=False)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = FastGSgnnLPLocalJointNegDataLoader(ep_data, target_idx, [10], batch_size, num_negative_edges=2,
-                                               device='cuda:0', train_task=True)
+                                                    train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
 def _create_hard_neg_graph(num_nodes, num_negs):
@@ -2019,3 +2104,7 @@ if __name__ == '__main__':
     test_DistillDataloaderGenerator("gloo", 7, True)
 
     test_GSgnnTrainData_homogeneous()
+    test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'gloo')
+    test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'nccl')
+    test_edge_dataloader_trim_data_device(GSgnnLinkPredictionDataLoader, 'gloo')
+    test_edge_dataloader_trim_data_device(GSgnnEdgeDataLoader, 'nccl')

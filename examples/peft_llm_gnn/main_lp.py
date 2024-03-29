@@ -6,7 +6,7 @@ from graphstorm.config import GSConfig
 from graphstorm.dataloading import GSgnnLinkPredictionDataLoader, GSgnnLinkPredictionTestDataLoader
 from graphstorm.eval import GSgnnMrrLPEvaluator
 from graphstorm.dataloading import GSgnnLPTrainData
-from graphstorm.utils import setup_device
+from graphstorm.utils import get_device
 from graphstorm.inference import GSgnnLinkPredictionInferrer
 from graphstorm.trainer import GSgnnLinkPredictionTrainer
 from graphstorm.tracker import GSSageMakerTaskTracker
@@ -17,8 +17,8 @@ def main(config_args):
     """ main function
     """
     config = GSConfig(config_args)
-    gs.initialize(ip_config=config.ip_config, backend=config.backend)
-    device = setup_device(config.local_rank)
+    gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  local_rank=config.local_rank)
     # Define the training dataset
     train_data = GSgnnLPTrainData(
         config.graph_name,
@@ -51,7 +51,7 @@ def main(config_args):
             model_layer_to_load=["gnn", "embed"],
         )
 
-    trainer.setup_device(device=device)
+    trainer.setup_device(device=get_device())
 
     # set evaluator
     evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
@@ -67,7 +67,7 @@ def main(config_args):
     # trainer.setup_evaluator(evaluator)
     tracker = GSSageMakerTaskTracker(config.eval_frequency)
     trainer.setup_task_tracker(tracker)
-    
+
     # create train loader with uniform negative sampling
     dataloader = GSgnnLinkPredictionDataLoader(
         train_data,
@@ -75,7 +75,6 @@ def main(config_args):
         fanout=config.fanout,
         batch_size=config.batch_size,
         num_negative_edges=config.num_negative_edges,
-        device=device,
         train_task=True,
         reverse_edge_types_map=config.reverse_edge_types_map,
         exclude_training_targets=config.exclude_training_targets,
@@ -102,14 +101,14 @@ def main(config_args):
         save_model_frequency=config.save_model_frequency,
         use_mini_batch_infer=True
     )
-    
+
     # Load the best checkpoint
     best_model_path = trainer.get_best_model_path()
     model.restore_model(best_model_path)
 
     # Create an inference for a node task.
     infer = GSgnnLinkPredictionInferrer(model)
-    infer.setup_device(device=device)
+    infer.setup_device(device=get_device())
     infer.setup_evaluator(evaluator)
     infer.setup_task_tracker(tracker)
     # Create test loader
