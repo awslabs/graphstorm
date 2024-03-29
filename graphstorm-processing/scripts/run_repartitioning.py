@@ -108,7 +108,7 @@ def main():
         s3_input_prefix,
         "--streaming-repartitioning",
         "True" if args.streaming_repartitioning else "False",
-        "--metadata-file-name",
+        "--input-metadata-file-name",
         args.config_filename,
         "--log-level",
         args.container_log_level,

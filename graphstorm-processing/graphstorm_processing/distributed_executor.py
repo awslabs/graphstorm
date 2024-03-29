@@ -43,7 +43,9 @@ Script Parameters
     Log level for the script.
 --add-reverse-edges: str
     When set to true (default), we add reverse edges for each edge type.
-
+--do-repartition: str
+    When set to true, we try to perform the row count alignment step on
+    the Spark leader.
 """
 
 import dataclasses
@@ -113,7 +115,7 @@ class ExecutorConfig:
     filesystem_type: str
     add_reverse_edges: bool
     graph_name: str
-    repartition_on_leader: bool
+    do_repartition: bool
 
 
 @dataclasses.dataclass
@@ -127,7 +129,7 @@ class GSProcessingArguments:
     add_reverse_edges: bool
     log_level: str
     graph_name: str
-    repartition_on_leader: bool
+    do_repartition: bool
 
 
 class DistributedExecutor:
@@ -154,7 +156,7 @@ class DistributedExecutor:
         self.sm_execution = executor_config.sm_execution
         self.add_reverse_edges = executor_config.add_reverse_edges
         self.graph_name = executor_config.graph_name
-        self.repartition_on_leader = executor_config.repartition_on_leader
+        self.repartition_on_leader = executor_config.do_repartition
 
         # Ensure we have write access to the output path
         if self.filesystem_type == "local":
@@ -352,12 +354,12 @@ def parse_args() -> argparse.Namespace:
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
     )
     parser.add_argument(
-        "--repartition-on-leader",
+        "--do-repartition",
         type=lambda x: (str(x).lower() in ["true", "1"]),
         default=False,
         help=(
             "When set to 'True', will try to re-partition the output "
-            "data on the Spark leader if necessary"
+            "data on the Spark leader if necessary."
         ),
     )
 
@@ -448,7 +450,7 @@ def main():
         filesystem_type=filesystem_type,
         add_reverse_edges=gsprocessing_args.add_reverse_edges,
         graph_name=gsprocessing_args.graph_name,
-        repartition_on_leader=gsprocessing_args.repartition_on_leader,
+        do_repartition=gsprocessing_args.do_repartition,
     )
 
     dist_executor = DistributedExecutor(executor_configuration)
@@ -461,8 +463,8 @@ def main():
         f.flush()
 
     # In SageMaker execution, all files under `local_output_path` get automatically
-    # uploaded to S3 at the end of the job. For local execution with S3 data, we
-    # need to upload all output files manually.
+    # uploaded to S3 at the end of the job. Otherwise, we need to upload
+    # all output files manually.
     if not is_sagemaker_execution and filesystem_type == "s3":
         output_bucket, output_s3_prefix = s3_utils.extract_bucket_and_key(
             gsprocessing_args.output_prefix

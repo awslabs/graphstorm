@@ -86,8 +86,6 @@ To run the re-partition job as a separate job use:
         --instance-type ${INSTANCE_TYPE} --wait-for-job
 
 
-
-
 The ``--num-output-files`` parameter
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

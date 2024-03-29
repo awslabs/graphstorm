@@ -110,7 +110,7 @@ Given the above we can run a job with local input data as:
 .. code-block:: bash
 
     > gs-processing --input-data /home/path/to/data \
-        --config-filename gconstruct-config.json --repartition-on-leader True
+        --config-filename gconstruct-config.json --do-repartition True
 
 The benefit with using relative paths is that we can move the same files
 to any location, including S3, and run the same job without making changes to the config
@@ -176,7 +176,7 @@ we can use the following command to run the processing job locally:
     gs-processing --config-filename gconstruct-config.json \
         --input-prefix ./tests/resources/small_heterogeneous_graph \
         --output-prefix /tmp/gsprocessing-example/ \
-        --repartition-on-leader True
+        --do-repartition True
 
 About re-partitioning
 ~~~~~~~~~~~~~~~~~~~~~
@@ -187,7 +187,7 @@ guarantees the data conform to the expectations of DGL, after the
 Spark job is done.
 
 We have the option to run this additional step on the Spark leader
-as shown above by setting `--repartition-on-leader` to `"True"`.
+as shown above by setting `--do-repartition` to `"True"`.
 If our data are too large for the memory of our Spark leader
 we can run the step as a separate job:
 
@@ -196,7 +196,7 @@ we can run the step as a separate job:
     gs-repartition --input-prefix /tmp/gsprocessing-example/
 
 For more details on the re-partitioning step see
-::doc:`row-count-alignment`.
+:doc:`row-count-alignment`.
 
 .. _gsp-examining-output:
 

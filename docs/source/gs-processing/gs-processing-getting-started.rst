@@ -129,7 +129,7 @@ After installing the library, executing a processing job locally can be done usi
         --config-filename gconstruct-config.json \
         --input-prefix /path/to/input/data \
         --output-prefix /path/to/output/data \
-        --repartition-on-leader True
+        --do-repartition True
 
 
 Once this script completes, the data are ready to be fed into DGL's distributed

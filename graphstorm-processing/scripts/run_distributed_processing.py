@@ -258,7 +258,7 @@ if __name__ == "__main__":
         str(args.num_output_files),
         "--add-reverse-edges",
         "True" if args.add_reverse_edges else "False",
-        "--repartition-on-leader",
+        "--do-repartition",
         "True" if args.do_repartition else "False",
         "--log-level",
         args.container_log_level,

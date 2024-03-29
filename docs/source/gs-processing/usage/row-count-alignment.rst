@@ -67,7 +67,7 @@ Local repartitioning
 --------------------
 
 The simplest way to apply the re-partitioning step is to do so during the `gs-processing` step,
-by passing the additional `--repartition-on-leader True` argument to our launch script.
+by passing the additional `--do-repartition True` argument to our launch script.
 
 Alternatively, we can run a local re-partitioning job using a local
 installation of GSProcessing:
