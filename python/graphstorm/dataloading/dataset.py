@@ -30,6 +30,7 @@ import  graphstorm as gs
 from ..utils import get_rank, get_world_size, is_distributed, barrier, is_wholegraph
 from ..utils import sys_tracker
 from .utils import dist_sum, flip_node_mask
+from ..utils import get_graph_name
 
 from ..wholegraph import is_wholegraph_embedding
 
@@ -141,25 +142,21 @@ class GSgnnData():
     edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
-    decoder_edge_feat: str or dict of list of str
-        Edge features used by decoder
     lm_feat_ntypes : list of str
         The node types that contains text features.
     lm_feat_etypes : list of tuples
         The edge types that contains text features.
     """
 
-    def __init__(self, graph_name, part_config, node_feat_field, edge_feat_field,
-                 decoder_edge_feat=None, lm_feat_ntypes=None, lm_feat_etypes=None):
+    def __init__(self, part_config, node_feat_field, edge_feat_field,
+                 lm_feat_ntypes, lm_feat_etypes):
+        graph_name = get_graph_name(part_config)
         self._g = dgl.distributed.DistGraph(graph_name, part_config=part_config)
+        self._graph_name = graph_name
         self._node_feat_field = node_feat_field
         self._edge_feat_field = edge_feat_field
         self._lm_feat_ntypes = lm_feat_ntypes if lm_feat_ntypes is not None else []
         self._lm_feat_etypes = lm_feat_etypes if lm_feat_etypes is not None else []
-
-        self._train_idxs = {}
-        self._val_idxs = {}
-        self._test_idxs = {}
 
         if get_rank() == 0:
             g = self._g
@@ -195,11 +192,11 @@ class GSgnnData():
 
             # load edge feature from wholegraph memory
             # TODO(IN): Add support for edge_feat_field
-            if decoder_edge_feat:
-                if isinstance(decoder_edge_feat, str):
-                    decoder_edge_feat = {etype: [decoder_edge_feat] \
+            if edge_feat_field:
+                if isinstance(edge_feat_field, str):
+                    edge_feat_field = {etype: [edge_feat_field] \
                         for etype in self._g.canonical_etypes}
-                for etype, feat_names in decoder_edge_feat.items():
+                for etype, feat_names in edge_feat_field.items():
                     data = {}
                     etype_wg = ":".join(etype)
                     for name in feat_names:
@@ -216,23 +213,19 @@ class GSgnnData():
                         self._g._edata_store[etype].update(data)
 
             barrier()
-        self.prepare_data(self._g)
         sys_tracker.check('construct training data')
-
-    @abc.abstractmethod
-    def prepare_data(self, g):
-        """ Prepare the dataset.
-
-        Arguement
-        ---------
-        g: Dist DGLGraph
-        """
 
     @property
     def g(self):
         """ The distributed graph.
         """
         return self._g
+
+    @property
+    def graph_name(self):
+        """ The graph name
+        """
+        return self._graph_name
 
     @property
     def node_feat_field(self):
@@ -310,13 +303,15 @@ class GSgnnData():
         """
         return etype in self._lm_feat_etypes
 
-    def get_node_feats(self, input_nodes, device='cpu'):
+    def get_node_feats(self, input_nodes, nfeat_fields, device='cpu'):
         """ Get the node features
 
         Parameters
         ----------
         input_nodes : Tensor or dict of Tensors
             The input node IDs
+        nfeat_fields : str or dict of list
+            The node features to collect from graph
         device : Pytorch device
             The device where the returned node features are stored.
 
@@ -330,16 +325,16 @@ class GSgnnData():
                     "We don't know the input node type, but the graph has more than one node type."
             input_nodes = {g.ntypes[0]: input_nodes}
         return prepare_batch_input(g, input_nodes, dev=device,
-                                   feat_field=self._node_feat_field)
+                                   feat_field=nfeat_fields)
 
-    def get_edge_feats(self, input_edges, edge_feat_field, device='cpu'):
+    def get_edge_feats(self, input_edges, efeat_fields, device='cpu'):
         """ Get the edge features
 
         Parameters
         ----------
         input_edges : Tensor or dict of Tensors
             The input edge IDs
-        edge_feat_field: str or dict of [str ..]
+        efeat_fields: str or dict of [str ..]
             The edge data fields that stores the edge features to retrieve
         device : Pytorch device
             The device where the returned edge features are stored.
@@ -354,7 +349,7 @@ class GSgnnData():
                     "We don't know the input edge type, but the graph has more than one edge type."
             input_edges = {g.canonical_etypes[0]: input_edges}
         return prepare_batch_edge_input(g, input_edges, dev=device,
-                                        feat_field=edge_feat_field)
+                                        feat_field=efeat_fields)
 
     def get_node_feat_size(self):
         """ Get node feat size using the given node_feat_field
