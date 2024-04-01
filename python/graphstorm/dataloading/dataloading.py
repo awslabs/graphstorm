@@ -1174,11 +1174,49 @@ class GSgnnNodeDataLoaderBase():
         The target node IDs.
     fanout : list or dict of lists
         The fanout for each GNN layer.
+    label_field: str or dict of str
+        Label field of the node task.
+    node_feats: str, or dist of list of str
+        Node features.
+        str: All the nodes have the same feature name.
+        list of string: All the nodes have the same list of features.
+        dist of list of string: Each node type have different set of node features.
+        Default: None
+    edge_feats: str, or dist of list of str
+        Edge features.
+        str: All the edges have the same feature name.
+        list of string: All the edges have the same list of features.
+        dist of list of string: Each edge type have different set of edge features.
+        Default: None
     """
-    def __init__(self, dataset, target_idx, fanout):
+    def __init__(self, dataset, target_idx, fanout,
+                 label_field, node_feats=None, edge_feats=None):
         self._data = dataset
         self._target_idx = target_idx
         self._fanout = fanout
+        assert label_field is not None and \
+            (isinstance(label_field, str) or \
+            (isinstance(label_field, dict) and \
+                isinstance(list(label_field.values())[0], str))), \
+            "Label field must be provided as a string or dict of string, " \
+            f"but get {label_field}"
+        assert node_feats is None or \
+            isinstance(node_feats, str) or \
+            (isinstance(node_feats, dict) and \
+                isinstance(list(node_feats.values())[0], list) and \
+                isinstance(list(node_feats.values())[0][0], str)), \
+                "Node features must be a string, " \
+                f"or a dict of list of string, but get {node_feats}."
+        assert edge_feats is None or \
+            isinstance(edge_feats, str) or \
+            (isinstance(edge_feats, dict) and \
+                isinstance(list(edge_feats.values())[0], list) and \
+                isinstance(list(edge_feats.values())[0][0], str)), \
+                "Edge features must be a string, " \
+                f"or a dict of list of string, but get {node_feats}."
+        self._label_field = label_field
+        self._node_feats = node_feats
+        self._edge_feats = edge_feats
 
     def __iter__(self):
         """ Returns an iterator object
@@ -1234,6 +1272,36 @@ class GSgnnNodeDataLoaderBase():
         """
         return self._fanout
 
+    @property
+    def label_field(self):
+        """ The label field
+
+        Returns
+        -------
+        str: Label fields in the graph.
+        """
+        return self._label_field
+
+    @property
+    def node_feat_fields(self):
+        """ Node features
+
+        Returns
+        -------
+        str or dict of list of str: Node feature fields in the graph.
+        """
+        return self._node_feats
+
+    @property
+    def edge_feat_fields(self):
+        """ Edge features
+
+        Returns
+        -------
+        str or dict of list of str: Node feature fields in the graph.
+        """
+        return self._edge_feats
+
 class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     """ Minibatch dataloader for node tasks
 
@@ -1249,6 +1317,21 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
         The target nodes for prediction
     fanout: list of int or dict of list
         Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
+    label_field: str
+        Label field of the node task.
+        (TODO:xiangsx) Support list of str for single dataloader multiple node tasks.
+    node_feats: str, list of str or dist of list of str
+        Node features.
+        str: All the nodes have the same feature name.
+        list of string: All the nodes have the same list of features.
+        dist of list of string: Each node type have different set of node features.
+        Default: None
+    edge_feats: str, list of str or dist of list of str
+        Edge features.
+        str: All the edges have the same feature name.
+        list of string: All the edges have the same list of features.
+        dist of list of string: Each edge type have different set of edge features.
+        Default: None
     batch_size: int
         Batch size
     train_task : bool
@@ -1275,9 +1358,14 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
         np_trainer = GSgnnNodePredictionTrainer(...)
         np_trainer.fit(np_dataloader, num_epochs=10)
     """
-    def __init__(self, dataset, target_idx, fanout, batch_size, train_task=True,
+    def __init__(self, dataset, target_idx, fanout, batch_size,
+                 label_field, node_feats=None, edge_feats=None,
+                 train_task=True,
                  construct_feat_ntype=None, construct_feat_fanout=5):
-        super().__init__(dataset, target_idx, fanout)
+        super().__init__(dataset, target_idx, fanout,
+                         label_field=label_field,
+                         node_feats=node_feats,
+                         edge_feats=edge_feats)
         assert isinstance(target_idx, dict)
         for ntype in target_idx:
             assert ntype in dataset.g.ntypes, \
@@ -1344,12 +1432,36 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
         Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
     batch_size: int
         Batch size, the sum of labeled and unlabeled nodes
+    label_field: str
+        Label field of the node task.
+        (TODO:xiangsx) Support list of str for single dataloader multiple node tasks.
+    node_feats: str, list of str or dist of list of str
+        Node features.
+        str: All the nodes have the same feature name.
+        list of string: All the nodes have the same list of features.
+        dist of list of string: Each node type have different set of node features.
+        Default: None
+    edge_feats: str, list of str or dist of list of str
+        Edge features.
+        str: All the edges have the same feature name.
+        list of string: All the edges have the same list of features.
+        dist of list of string: Each edge type have different set of edge features.
+        Default: None
     train_task : bool
         Whether or not for training.
+    construct_feat_ntype : list of str
+        The node types that requires to construct node features.
+    construct_feat_fanout : int
+        The fanout required to construct node features.
     """
-    def __init__(self, dataset, target_idx, unlabeled_idx, fanout, batch_size,
-                 train_task=True, construct_feat_ntype=None, construct_feat_fanout=5):
+    def __init__(self, dataset, target_idx, unlabeled_idx, fanout,
+                 batch_size, label_field,
+                 node_feats=None, edge_feats=None, train_task=True,
+                 construct_feat_ntype=None, construct_feat_fanout=5):
         super().__init__(dataset, target_idx, fanout, batch_size // 2,
+                         label_field=label_field,
+                         node_feats=node_feats,
+                         edge_feats=edge_feats,
                          train_task=train_task, construct_feat_ntype=construct_feat_ntype,
                          construct_feat_fanout=construct_feat_fanout)
         # loader for unlabeled nodes:

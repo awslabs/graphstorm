@@ -139,17 +139,21 @@ class GSgnnData():
     node_feat_field: str or dict of list of str
         Fields to extract node features. It's a dict if different node types have
         different feature names.
+        Default: None
     edge_feat_field : str or dict of list of str
         The field of the edge features. It's a dict if different edge types have
         different feature names.
+        Default: None
     lm_feat_ntypes : list of str
         The node types that contains text features.
+        Default: None
     lm_feat_etypes : list of tuples
         The edge types that contains text features.
+        Default: None
     """
 
-    def __init__(self, part_config, node_feat_field, edge_feat_field,
-                 lm_feat_ntypes, lm_feat_etypes):
+    def __init__(self, part_config, node_feat_field=None, edge_feat_field=None,
+                 lm_feat_ntypes=None, lm_feat_etypes=None):
         graph_name = get_graph_name(part_config)
         self._g = dgl.distributed.DistGraph(graph_name, part_config=part_config)
         self._graph_name = graph_name
@@ -351,162 +355,271 @@ class GSgnnData():
         return prepare_batch_edge_input(g, input_edges, dev=device,
                                         feat_field=efeat_fields)
 
-class GSgnnEdgeData(GSgnnData):  # pylint: disable=abstract-method
-    """ Data for edge tasks
-
-    Parameters
-    ----------
-    graph_name : str
-        The graph name
-    part_config : str
-        The path of the partition configuration file.
-    label_field : str
-        The field for storing labels
-    node_feat_field: str or dict of list of str
-        Fields to extract node features. It's a dict if different node types have
-        different feature names.
-    edge_feat_field : str or dict of list of str
-        The field of the edge features. It's a dict if different edge types have
-        different feature names.
-    decoder_edge_feat: str or dict of list of str
-        Edge features used by decoder
-    lm_feat_ntypes : list of str
-        The node types that contains text features.
-    lm_feat_etypes : list of tuples
-        The edge types that contains text features.
-    """
-    def __init__(self, graph_name, part_config, label_field=None,
-                 node_feat_field=None, edge_feat_field=None,
-                 decoder_edge_feat=None, lm_feat_ntypes=None, lm_feat_etypes=None):
-        super(GSgnnEdgeData, self).__init__(graph_name, part_config,
-                                            node_feat_field, edge_feat_field,
-                                            decoder_edge_feat,
-                                            lm_feat_ntypes=lm_feat_ntypes,
-                                            lm_feat_etypes=lm_feat_etypes)
-        self._label_field = label_field
-        self._decoder_edge_feat = decoder_edge_feat
-        if label_field is not None:
-            self._labels = {}
-            for etype in self._g.canonical_etypes:
-                if label_field in self._g.edges[etype].data:
-                    self._labels[etype] = self._g.edges[etype].data[label_field]
-        else:
-            self._labels = None
-
-    def get_labels(self, eids, device='cpu'):
-        """ Get the edge labels
+    def _check_ntypes(self, ntypes):
+        """ Check the input ntype(s) and convert it into list of strs
 
         Parameters
-        ----------
-        eids : Tensor or dict of Tensors
-            The edge IDs
-        device : Pytorch device
-            The device where the returned edge labels are stored.
+        __________
+        ntypes: str or list of str
+            List of node types
+
+        Return
+        ------
+        list: list of node types
+        """
+        assert ntypes is not None, \
+            "Prediction ntype(s) must be provided."
+        if isinstance(ntypes, str):
+            ntypes = [ntypes]
+        assert isinstance(ntypes, list), \
+                "Prediction ntypes have to be a string or a list of strings."
+        return ntypes
+
+    def _check_node_mask(self, ntypes, mask):
+        """ Check the node mask(s) and convert it into list of strs
+
+        Parameters
+        __________
+        ntypes: str or list of str
+            List of node types
+        mask: str or list of str
+            The node feature field storing the mask.
+
+        Return
+        ------
+        list: list of mask fields
+        """
+        if isinstance(mask, str):
+            # Mask is a string
+            # All the masks are using the same name
+            masks = [mask] * len(ntypes)
+
+        assert len(ntypes) == len(masks), \
+            "Expecting the number of ntypes matches the number of mask fields, " \
+            f"But get {len(ntypes)} and {len(masks)}." \
+            f"The node types are {ntypes} and the mask fileds are {masks}"
+        return masks
+
+    def get_unlabeled_node_set(self, train_idxs, mask="train_mask"):
+        """ Collect nodes not used for training.
+
+        Parameters
+        __________
+        train_idxs: dict
+            The training set.
+        mask: str or list of str
+            The node feature field storing the training mask.
+            Default: "train_mask"
 
         Returns
         -------
-        dict of Tensors : the returned edge labels.
+        dict of Tensors : The returned nodes
         """
-        assert self._labels is not None, "The dataset does not have edge labels."
-        assert isinstance(eids, dict)
-        labels = {}
-        for etype, eid in eids.items():
-            assert etype in self._labels
-            labels[etype] = self._labels[etype][eid].to(device)
-        return labels
+        g = self.g
+        pb = g.get_partition_book()
+        unlabeled_idxs = {}
+        num_unlabeled = 0
+        ntypes = list(train_idxs.keys())
+        masks = self._check_node_mask(ntypes, mask)
 
-    @property
-    def labels(self):
-        """Labels"""
-        return self._labels
+        for ntype, mask in zip(ntypes, masks):
+            unlabeled_mask = flip_node_mask(g.nodes[ntype].data[mask],
+                                            train_idxs[ntype])
+            node_trainer_ids = g.nodes[ntype].data['trainer_id'] \
+                if 'trainer_id' in g.nodes[ntype].data else None
 
-    @property
-    def decoder_edge_feat(self):
-        """edge features used by decoder"""
-        return self._decoder_edge_feat
+            unlabeled_idx = dgl.distributed.node_split(unlabeled_mask,
+                                                       pb, ntype=ntype, force_even=True,
+                                                       node_trainer_ids=node_trainer_ids)
+            assert unlabeled_idx is not None, "There is no training data."
+            num_unlabeled += len(unlabeled_idx)
+            unlabeled_idxs[ntype] = unlabeled_idx
+        logging.info('part %d, unlabeled: %d', get_rank(), num_unlabeled)
+        return unlabeled_idxs
 
-    @property
-    def train_idxs(self):
-        """train set's indexes"""
-        return self._train_idxs
+    def get_node_train_set(self, ntypes, mask="train_mask"):
+        """ Get node training set for nodes of ntypes.
 
-    @property
-    def val_idxs(self):
-        """validation set's indexes"""
-        return self._val_idxs
+        Parameters
+        __________
+        ntypes: str or list of str
+            Node types to get the training set.
+        mask: str or list of str
+            The node feature field storing the training mask.
+            Default: "train_mask"
 
-    @property
-    def test_idxs(self):
-        """test set's indexes"""
-        return self._test_idxs
+        Returns
+        -------
+        dict of Tensors : The returned training masks
+        """
+        g = self._g
+        pb = g.get_partition_book()
+        train_idxs = {}
+        num_train = 0
+        ntypes = self._check_ntypes(ntypes)
+        masks = self._check_node_mask(ntypes, mask)
 
-class GSgnnEdgeTrainData(GSgnnEdgeData):
-    r""" Edge prediction training data
+        for ntype, mask in zip(ntypes, masks):
+            if mask in g.nodes[ntype].data:
+                node_trainer_ids = g.nodes[ntype].data['trainer_id'] \
+                    if 'trainer_id' in g.nodes[ntype].data else None
 
-    The GSgnnEdgeTrainData prepares the data for training edge prediction.
+                train_idx = dgl.distributed.node_split(g.nodes[ntype].data[mask],
+                                                       pb, ntype=ntype, force_even=True,
+                                                       node_trainer_ids=node_trainer_ids)
+                assert train_idx is not None, "There is no training data."
+                num_train += len(train_idx)
+                train_idxs[ntype] = train_idx
 
-    Parameters
-    ----------
-    graph_name : str
-        The graph name
-    part_config : str
-        The path of the partition configuration file.
-    train_etypes : tuple of str or list of tuples
-        Target edge types for training
-    eval_etypes : tuple of str or list of tuples
-        Target edge types for evaluation
-    label_field : str
-        The field for storing labels
-    node_feat_field: str or dict of list of str
-        Fields to extract node features. It's a dict if different node types have
-        different feature names.
-    edge_feat_field : str or dict of list of str
-        The field of the edge features. It's a dict if different edge types have
-        different feature names.
-    decoder_edge_feat: str or dict of list of str
-        Edge features used by decoder
+                logging.debug('part %d | ntype %s, mask %s | train: %d',
+                              get_rank(), ntype, mask, len(train_idx))
+            else:
+                # Train mask may not exist for certain node types
+                logging.debug('part %d | ntype %s, mask %s | train: 0',
+                            get_rank(), ntype, mask)
+        logging.info('part %d, train %d', get_rank(), num_train)
+        return train_idxs
 
-    Examples
-    ----------
+    def _get_node_set(self, ntypes, mask):
+        """ called by get_node_val_set and get_node_test_set
+        """
+        g = self._g
+        pb = g.get_partition_book()
+        idxs = {}
+        num_data = 0
+        ntypes = self._check_ntypes(ntypes)
+        masks = self._check_node_mask(ntypes, mask)
 
-    .. code:: python
+        if isinstance(mask, str):
+            # mask is a string
+            # validation/test masks are using the same name
+            masks = [mask] * len(ntypes)
 
-        from graphstorm.dataloading import GSgnnEdgeTrainData
-        from graphstorm.dataloading import GSgnnEdgeDataLoader
-        ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                        train_etypes=[('n1', 'e1', 'n2')], label_field='label',
-                                        node_feat_field='node_feat', edge_feat_field='edge_feat')
-        ep_dataloader = GSgnnEdgeDataLoader(ep_data, target_idx={"e1":[0]},
-                                            fanout=[15, 10], batch_size=128)
-    """
-    def __init__(self, graph_name, part_config, train_etypes, eval_etypes=None,
-                 label_field=None, node_feat_field=None, edge_feat_field=None,
-                 decoder_edge_feat=None, lm_feat_ntypes=None, lm_feat_etypes=None):
-        if train_etypes is not None:
-            assert isinstance(train_etypes, (tuple, list)), \
-                    "The prediction etypes for training has to be a tuple or a list of tuples."
-            if isinstance(train_etypes, tuple):
-                train_etypes = [train_etypes]
-            self._train_etypes = train_etypes
-        else:
-            self._train_etypes = None
+        assert len(ntypes) == len(masks), \
+            "Expecting the number of ntypes matches the number of mask fields, " \
+            f"But get {len(ntypes)} and {len(masks)}." \
+            f"The node types are {ntypes} and the mask fileds are {masks}"
+        for ntype, mask in zip(ntypes, masks):
+            if mask in g.nodes[ntype].data:
+                idx = dgl.distributed.node_split(g.nodes[ntype].data[mask],
+                                                     pb, ntype=ntype, force_even=True)
+                # If there is no validation/test data, idx is None.
+                idx = [] if idx is None else idx
+                num_data += len(idx)
+                # If there are validation/test data globally, we should add them to the dict.
+                if dist_sum(len(idx)) > 0:
+                    idxs[ntype] = idx
 
-        if eval_etypes is not None:
-            assert isinstance(eval_etypes, (tuple, list)), \
-                    "The prediction etypes for evaluation has to be a tuple or a list of tuples."
-            if isinstance(eval_etypes, tuple):
-                eval_etypes = [eval_etypes]
-            self._eval_etypes = eval_etypes
-        else:
-            self._eval_etypes = train_etypes
+                logging.debug('part %d | ntype %s, mask %s | num nodes: %d',
+                          get_rank(), ntype, mask, len(idx))
+        return idxs, num_data
 
-        super(GSgnnEdgeTrainData, self).__init__(graph_name, part_config, label_field,
-                                                 node_feat_field, edge_feat_field,
-                                                 decoder_edge_feat,
-                                                 lm_feat_ntypes=lm_feat_ntypes,
-                                                 lm_feat_etypes=lm_feat_etypes)
+    def get_node_val_set(self, ntypes, mask="val_mask"):
+        """ Get node validation set for nodes of ntypes.
 
-        if self._train_etypes == [DEFAULT_ETYPE]:
+        Parameters
+        __________
+        ntypes: str or list of str
+            Node types to get the validation set.
+        mask: str or list of str
+            The node feature field storing the validation mask.
+            Default: "val_mask"
+
+        Returns
+        -------
+        dict of Tensors : The returned validation masks
+        """
+        idxs, num_data = self._get_node_set(ntypes, mask)
+        logging.info('part %d, val %d', get_rank(), num_data)
+
+        return idxs
+
+    def get_node_test_set(self, ntypes, mask="test_mask"):
+        """ Get node test set for nodes of ntypes.
+
+        Parameters
+        __________
+        ntypes: str or list of str
+            Node types to get the test set.
+        mask: str or list of str
+            The node feature field storing the test mask.
+            Default: "test_mask"
+
+        Returns
+        -------
+        dict of Tensors : The returned test masks
+        """
+        idxs, num_data = self._get_node_set(ntypes, mask)
+        logging.info('part %d, test %d', get_rank(), num_data)
+
+        return idxs
+
+    def get_node_infer_set(self, ntypes, mask="test_mask"):
+        """ Get node set for inference.
+
+        If the mask exists in g.nodes[ntype].data, the inference set
+        is collected based on the mask.
+        If not, the entire node set are treated as the inference set.
+
+        Parameters
+        __________
+        ntypes: str or list of str
+            Node types to get the inference set.
+        mask: str or list of str
+            The node feature field storing the inference mask.
+            Default: "test_mask"
+
+        Returns
+        -------
+        dict of Tensors : The returned training masks
+        """
+        g = self._g
+        pb = g.get_partition_book()
+        infer_idxs = {}
+        ntypes = self._check_ntypes(ntypes)
+        masks = self._check_node_mask(ntypes, mask)
+
+        for ntype, mask in zip(ntypes, masks):
+            node_trainer_ids = g.nodes[ntype].data['trainer_id'] \
+                if 'trainer_id' in g.nodes[ntype].data else None
+            if mask in g.nodes[ntype].data:
+                # We only do inference on a subset of nodes
+                # according to the mask
+                infer_idx = dgl.distributed.node_split(g.nodes[ntype].data[mask],
+                                                       pb, ntype=ntype, force_even=True,
+                                                       node_trainer_ids=node_trainer_ids)
+                logging.info("%s contains %s, we will do inference based on the mask",
+                             ntype, mask)
+            else:
+                # We will do inference on the entire edge set
+                logging.info("%s does not contains %s" + \
+                        "We will do inference on the entire node set.", ntype, mask)
+                infer_idx = dgl.distributed.node_split(
+                    th.full((g.num_nodes(ntype),), True, dtype=th.bool),
+                    pb, ntype=ntype, force_even=True,
+                    node_trainer_ids=node_trainer_ids)
+            infer_idxs[ntype] = infer_idx
+
+        return infer_idxs
+
+    def _check_etypes(self, etypes):
+        """ Check the input etype(s) and convert it into list of tuples
+
+        Parameters
+        __________
+        etypes: tuples or list of tuples
+            Edge types
+
+        Return
+        list: list of edge types
+        ------
+        """
+        assert isinstance(etypes, (tuple, list)), \
+            "Prediction etypes have to be a tuple or a list of tuples."
+        if isinstance(etypes, tuple):
+            etypes = [etypes]
+
+        if etypes == [DEFAULT_ETYPE]:
             # DGL Graph edge type is not canonical. It is just list[str].
             assert self._g.ntypes == [DEFAULT_NTYPE] and \
                    self._g.etypes == [DEFAULT_ETYPE[1]], \
@@ -514,80 +627,197 @@ class GSgnnEdgeTrainData(GSgnnEdgeData):
                 f"or is set to {DEFAULT_ETYPE} on edge tasks, expect node type " \
                 f"to be {[DEFAULT_NTYPE]} and edge type to be {[DEFAULT_ETYPE[1]]}, " \
                 f"but get {self._g.ntypes} and {self._g.etypes}"
+        return etypes
 
-    def prepare_data(self, g):
+    def get_edge_train_set(self, etypes=None, mask="train_mask"):
+        """ Get edge training set for edges of etypes.
+
+        Parameters
+        __________
+        etypes: list of str
+            List of edge types to get the training set.
+            If set to None, all the edge types are included.
+            Default: None
+        mask: str or list of str
+            The edge feature field storing the training mask.
+            Default: "train_mask"
+
+        Returns
+        -------
+        dict of Tensors : The returned training masks
         """
-        Prepare the training, validation and testing edge set.
-
-        It will setup the following class fields:
-        self._train_idxs: the edge indices of the local training set.
-        self._val_idxs: the edge indices of the local validation set, can be empty.
-        self._test_idxs: the edge indices of the local test set, can be empty.
-
-        Arguement
-        ---------
-        g: Dist DGLGraph
-        """
-        train_idxs = {}
-        val_idxs = {}
-        test_idxs = {}
-        num_train = num_val = num_test = 0
+        g = self._g
         pb = g.get_partition_book()
-        if self.train_etypes is None:
-            self._train_etypes = g.canonical_etypes
-        for canonical_etype in self.train_etypes:
-            if 'train_mask' in g.edges[canonical_etype].data:
+        train_idxs = {}
+        num_train = 0
+        etypes = g.canonical_etypes \
+            if etypes is None else self._check_etypes(etypes)
+
+        if isinstance(mask, str):
+            # mask is a string
+            # train masks are using the same name
+            masks = [mask] * len(etypes)
+
+        assert len(etypes) == len(masks), \
+            "Expecting the number of etypes matches the number of mask fields, " \
+            f"But get {len(etypes)} and {len(masks)}." \
+            f"The edge types are {etypes} and the mask fileds are {masks}"
+        for canonical_etype, mask in zip(etypes, masks):
+            if mask in g.edges[canonical_etype].data:
                 train_idx = dgl.distributed.edge_split(
-                    g.edges[canonical_etype].data['train_mask'],
+                    g.edges[canonical_etype].data[mask],
                     pb, etype=canonical_etype, force_even=True)
             else:
                 # If there are no training masks, we assume all edges can be used for training.
                 # Therefore, we use a more memory efficient way to split the edge list.
                 # TODO(zhengda) we need to split the edges properly to increase the data locality.
                 train_idx = split_full_edge_list(g, canonical_etype, get_rank())
+
             assert train_idx is not None, "There is no training data."
             num_train += len(train_idx)
             train_idxs[canonical_etype] = train_idx
 
-        # If eval_etypes is None, we use all edge types.
-        if self.eval_etypes is None:
-            self._eval_etypes = g.canonical_etypes
-        for canonical_etype in self.eval_etypes:
-            # user must provide validation mask
-            if 'val_mask' in g.edges[canonical_etype].data:
-                val_idx = dgl.distributed.edge_split(
-                    g.edges[canonical_etype].data['val_mask'],
+            logging.debug('part %d | etype %s, mask %s | train: %d',
+                          get_rank(), canonical_etype, mask, len(train_idx))
+        logging.info('part %d, train %d', get_rank(), num_train)
+        return train_idxs
+
+    def _get_edge_set(self, etypes, mask):
+        """ called by get_edge_val_set and get_edge_test_set
+        """
+        g = self._g
+        pb = g.get_partition_book()
+        idxs = {}
+        num_data = 0
+        etypes = self._check_etypes(etypes)
+        if isinstance(mask, str):
+            # mask is a string
+            # every mask is using the same name
+            masks = [mask] * len(etypes)
+
+        assert len(etypes) == len(masks), \
+            "Expecting the number of etypes matches the number of mask fields, " \
+            f"But get {len(etypes)} and {len(masks)}." \
+            f"The edge types are {etypes} and the mask fileds are {masks}"
+        for canonical_etype, mask in zip(etypes, masks):
+            # user must provide validation/test mask
+            if mask in g.edges[canonical_etype].data:
+                idx = dgl.distributed.edge_split(
+                    g.edges[canonical_etype].data[mask],
                     pb, etype=canonical_etype, force_even=True)
-                val_idx = [] if val_idx is None else val_idx
-                num_val += len(val_idx)
+                idx = [] if idx is None else idx
+                num_val += len(idx)
                 # If there are validation data globally, we should add them to the dict.
-                if dist_sum(len(val_idx)) > 0:
-                    val_idxs[canonical_etype] = val_idx
-            if 'test_mask' in g.edges[canonical_etype].data:
+                if dist_sum(len(idx)) > 0:
+                    idx[canonical_etype] = idx
+
+                logging.debug('part %d | etype %s, mask %s | val/test: %d',
+                              get_rank(), canonical_etype, mask, len(idx))
+        return idxs, num_data
+
+    def get_edge_val_set(self, etypes, mask="val_mask"):
+        """ Get edge test set for edges of etypes.
+
+        Parameters
+        __________
+        etypes: list of str
+            List of edge types to get the val set.
+            If set to None, all the edge types are included.
+        mask: str or list of str
+            The edge feature field storing the val mask.
+            Default: "val_mask"
+
+        Returns
+        -------
+        dict of Tensors : The returned val masks
+        """
+        assert etypes is not None, \
+            "Validation edge types must be provided, but get None."
+        idxs, num_data = self._get_edge_set(etypes, mask)
+        logging.info('part %d, val %d', get_rank(), num_data)
+
+        return idxs
+
+    def get_edge_test_set(self, etypes, mask="test_mask"):
+        """ Get edge test set for edges of etypes.
+
+        Parameters
+        __________
+        etypes: list of str
+            List of edge types to get the test set.
+            If set to None, all the edge types are included.
+        mask: str or list of str
+            The edge feature field storing the test mask.
+            Default: "test_mask"
+
+        Returns
+        -------
+        dict of Tensors : The returned test masks
+        """
+        assert etypes is not None, \
+            "Testing edge types must be provided, but get None."
+        idxs, num_data = self._get_edge_set(etypes, mask)
+        logging.info('part %d, test %d', get_rank(), num_data)
+
+        return idxs
+
+    def get_edge_infer_set(self, etypes=None, mask="test_mask"):
+        """ Get edge set for inference.
+
+        If the mask exists in g.edges[etype].data, the inference set
+        is collected based on the mask.
+        If not, the entire edge set are treated as the inference set.
+
+        Parameters
+        __________
+        etypes: list of str
+            List of edge types to get the inference set.
+            If set to None, all the edge types are included.
+            Default: None
+        mask: str or list of str
+            The edge feature field storing the inference mask.
+            Default: "test_mask"
+
+        Returns
+        -------
+        dict of Tensors : The returned training masks
+        """
+        g = self._g
+        pb = g.get_partition_book()
+        infer_idxs = {}
+        # If etypes is None, we use all edge types.
+        etypes = g.canonical_etypes \
+            if etypes is None else self._check_etypes(etypes)
+
+        if isinstance(mask, str):
+            # mask is a string
+            # inference masks are using the same name
+            masks = [mask] * len(etypes)
+        assert len(etypes) == len(masks), \
+            "Expecting the number of etypes matches the number of mask fields, " \
+            f"But get {len(etypes)} and {len(masks)}." \
+            f"The edge types are {etypes} and the mask fileds are {masks}"
+        for canonical_etype, mask in zip(etypes, masks):
+            if mask in g.edges[canonical_etype].data:
+                # mask exists
                 test_idx = dgl.distributed.edge_split(
-                    g.edges[canonical_etype].data['test_mask'],
+                    g.edges[canonical_etype].data[mask],
                     pb, etype=canonical_etype, force_even=True)
-                test_idx = [] if test_idx is None else test_idx
-                num_test += len(test_idx)
                 # If there are test data globally, we should add them to the dict.
-                if dist_sum(len(test_idx)) > 0:
-                    test_idxs[canonical_etype] = test_idx
-        logging.info('part %d, train: %d, val: %d, test: %d',
-                     get_rank(), num_train, num_val, num_test)
+                if test_idx is not None and dist_sum(len(test_idx)) > 0:
+                    infer_idxs[canonical_etype] = test_idx
+            else:
+                # mask does not exist
+                # we will do inference on the entire edge set
+                if get_rank() == 0:
+                    logging.info("We will do inference on the entire edge set of %s.",
+                            str(canonical_etype))
+                infer_idx = dgl.distributed.edge_split(
+                    th.full((g.num_edges(canonical_etype),), True, dtype=th.bool),
+                    pb, etype=canonical_etype, force_even=True)
+            infer_idxs[canonical_etype] = infer_idx
 
-        self._train_idxs = train_idxs
-        self._val_idxs = val_idxs
-        self._test_idxs = test_idxs
-
-    @property
-    def train_etypes(self):
-        """edge type for training"""
-        return self._train_etypes
-
-    @property
-    def eval_etypes(self):
-        """edge type for evaluation"""
-        return self._eval_etypes
+        return infer_idxs
 
 class GSgnnLPTrainData(GSgnnEdgeTrainData):
     """ Link prediction training data
@@ -701,59 +931,6 @@ class GSgnnEdgeInferData(GSgnnEdgeData):
                 f"to be {[DEFAULT_NTYPE]} and edge type to be {[DEFAULT_ETYPE[1]]}, " \
                 f"but get {self._g.ntypes} and {self._g.etypes}"
 
-    def prepare_data(self, g):
-        """ Prepare the testing edge set if any
-
-        It will setup self._test_idxs, the edge indices of the local test set.
-        The test_idxs can be empty.
-
-        Arguement
-        ---------
-        g: Dist DGLGraph
-        """
-        pb = g.get_partition_book()
-        test_idxs = {}
-        infer_idxs = {}
-        # If eval_etypes is None, we use all edge types.
-        if self.eval_etypes is None:
-            self._eval_etypes = g.canonical_etypes
-        for canonical_etype in self.eval_etypes:
-            if 'test_mask' in g.edges[canonical_etype].data:
-                # test_mask exists
-                # we will do evaluation or inference on test data.
-                test_idx = dgl.distributed.edge_split(
-                    g.edges[canonical_etype].data['test_mask'],
-                    pb, etype=canonical_etype, force_even=True)
-                # If there are test data globally, we should add them to the dict.
-                if test_idx is not None and dist_sum(len(test_idx)) > 0:
-                    test_idxs[canonical_etype] = test_idx
-                    infer_idxs[canonical_etype] = test_idx
-            else:
-                # Inference only
-                # we will do inference on the entire edge set
-                if get_rank() == 0:
-                    logging.info("%s does not contains test_mask, skip testing %s. " + \
-                            "We will do inference on the entire edge set.",
-                            str(canonical_etype), str(canonical_etype))
-                infer_idx = dgl.distributed.edge_split(
-                    th.full((g.num_edges(canonical_etype),), True, dtype=th.bool),
-                    pb, etype=canonical_etype, force_even=True)
-                infer_idxs[canonical_etype] = infer_idx
-
-        self._test_idxs = test_idxs
-        self._infer_idxs = infer_idxs
-
-    @property
-    def eval_etypes(self):
-        """edge type for evaluation"""
-        return self._eval_etypes
-
-    @property
-    def infer_idxs(self):
-        """ Set of edges to do inference.
-        """
-        return self._infer_idxs
-
 #### Node classification/regression Task Data ####
 class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
     """ Data for node tasks
@@ -792,48 +969,6 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
                     self._labels[ntype] = self._g.nodes[ntype].data[label_field]
         else:
             self._labels = None
-
-    def get_labels(self, nids, device='cpu'):
-        """ Get the node labels
-
-        Parameters
-        ----------
-        nids : Tensor or dict of Tensors
-            The seed nodes
-        device : Pytorch device
-            The device where the returned node labels are stored.
-
-        Returns
-        -------
-        dict of Tensors : the returned node labels.
-        """
-        assert self._labels is not None, "The dataset does not have labels."
-        assert isinstance(nids, dict)
-        labels = {}
-        for ntype, nid in nids.items():
-            assert ntype in self._labels
-            labels[ntype] = self._labels[ntype][nid].to(device)
-        return labels
-
-    @property
-    def labels(self):
-        """Labels"""
-        return self._labels
-
-    @property
-    def train_idxs(self):
-        """train set's indexes"""
-        return self._train_idxs
-
-    @property
-    def val_idxs(self):
-        """validation set's indexes"""
-        return self._val_idxs
-
-    @property
-    def test_idxs(self):
-        """test set's indexes"""
-        return self._test_idxs
 
 class GSgnnNodeTrainData(GSgnnNodeData):
     r""" Training data for node tasks
@@ -909,88 +1044,6 @@ class GSgnnNodeTrainData(GSgnnNodeData):
                 f"to be {[DEFAULT_NTYPE]} and edge type to be {[DEFAULT_ETYPE[1]]}, " \
                 f"but get {self._g.ntypes} and {self._g.etypes}"
 
-    def prepare_data(self, g):
-        pb = g.get_partition_book()
-        train_idxs = {}
-        val_idxs = {}
-        test_idxs = {}
-        num_train = num_val = num_test = 0
-        for ntype in self.train_ntypes:
-            assert 'train_mask' in g.nodes[ntype].data, \
-                    f"For training dataset, train_mask must be provided on nodes of {ntype}."
-
-            if 'trainer_id' in g.nodes[ntype].data:
-                node_trainer_ids = g.nodes[ntype].data['trainer_id']
-                train_idx = dgl.distributed.node_split(g.nodes[ntype].data['train_mask'],
-                                                       pb, ntype=ntype, force_even=True,
-                                                       node_trainer_ids=node_trainer_ids)
-            else:
-                train_idx = dgl.distributed.node_split(g.nodes[ntype].data['train_mask'],
-                                                       pb, ntype=ntype, force_even=True)
-            assert train_idx is not None, "There is no training data."
-            num_train += len(train_idx)
-            train_idxs[ntype] = train_idx
-
-        for ntype in self.eval_ntypes:
-            if 'val_mask' in g.nodes[ntype].data:
-                val_idx = dgl.distributed.node_split(g.nodes[ntype].data['val_mask'],
-                                                     pb, ntype=ntype, force_even=True)
-                # If there is no validation data, val_idx is None.
-                val_idx = [] if val_idx is None else val_idx
-                num_val += len(val_idx)
-                # If there are validation data globally, we should add them to the dict.
-                if dist_sum(len(val_idx)) > 0:
-                    val_idxs[ntype] = val_idx
-            if 'test_mask' in g.nodes[ntype].data:
-                test_idx = dgl.distributed.node_split(g.nodes[ntype].data['test_mask'],
-                                                      pb, ntype=ntype, force_even=True)
-                # If there is no test data, test_idx is None.
-                test_idx = [] if test_idx is None else test_idx
-                num_test += len(test_idx)
-                # If there are test data globally, we should add them to the dict.
-                if dist_sum(len(test_idx)) > 0:
-                    test_idxs[ntype] = test_idx
-
-        logging.info('part %d, train: %d, val: %d, test: %d',
-                     get_rank(), num_train, num_val, num_test)
-
-        self._train_idxs = train_idxs
-        self._val_idxs = val_idxs
-        self._test_idxs = test_idxs
-
-    def get_unlabeled_idxs(self):
-        """ Collect indices of nodes not used for training.
-        """
-        g = self.g
-        pb = g.get_partition_book()
-        unlabeled_idxs = {}
-        num_unlabeled = 0
-        for ntype in self.train_ntypes:
-            unlabeled_mask = flip_node_mask(g.nodes[ntype].data['train_mask'],
-                                            self._train_idxs[ntype])
-            if 'trainer_id' in g.nodes[ntype].data:
-                node_trainer_ids = g.nodes[ntype].data['trainer_id']
-                unlabeled_idx = dgl.distributed.node_split(unlabeled_mask,
-                                                       pb, ntype=ntype, force_even=True,
-                                                       node_trainer_ids=node_trainer_ids)
-            else:
-                unlabeled_idx = dgl.distributed.node_split(unlabeled_mask,
-                                                       pb, ntype=ntype, force_even=True)
-            assert unlabeled_idx is not None, "There is no training data."
-            num_unlabeled += len(unlabeled_idx)
-            unlabeled_idxs[ntype] = unlabeled_idx
-        logging.info('part %d, unlabeled: %d', get_rank(), num_unlabeled)
-        return unlabeled_idxs
-
-    @property
-    def train_ntypes(self):
-        """node type for training"""
-        return self._train_ntypes
-
-    @property
-    def eval_ntypes(self):
-        """node type for evaluation"""
-        return self._eval_ntypes
 
 class GSgnnNodeInferData(GSgnnNodeData):
     r""" Inference data for node tasks
@@ -1056,50 +1109,6 @@ class GSgnnNodeInferData(GSgnnNodeData):
                 f"or is set to {DEFAULT_NTYPE} on node tasks, expect node type " \
                 f"to be {[DEFAULT_NTYPE]} and edge type to be {[DEFAULT_ETYPE[1]]}, " \
                 f"but get {self._g.ntypes} and {self._g.etypes}"
-
-    def prepare_data(self, g):
-        """
-        Prepare the testing node set if any
-
-        It will setup self._test_idxs, the node indices of the local test set.
-        The test_idxs can be empty.
-
-        Arguement
-        ---------
-        g: DistGraph
-            The distributed graph.
-        """
-        pb = g.get_partition_book()
-        test_idxs = {}
-        infer_idxs = {}
-        for ntype in self.eval_ntypes:
-            node_trainer_ids = g.nodes[ntype].data['trainer_id'] \
-                if 'trainer_id' in g.nodes[ntype].data else None
-            if 'test_mask' in g.nodes[ntype].data:
-                # test_mask exists
-                # we will do evaluation or inference on test data.
-                test_idx = dgl.distributed.node_split(g.nodes[ntype].data['test_mask'],
-                                                      pb, ntype=ntype, force_even=True,
-                                                      node_trainer_ids=node_trainer_ids)
-                # If there are test data globally, we should add them to the dict.
-                if test_idx is not None and dist_sum(len(test_idx)) > 0:
-                    test_idxs[ntype] = test_idx
-                    infer_idxs[ntype] = test_idx
-                elif test_idx is None:
-                    logging.warning("%s does not contains test data, skip testing %s",
-                                    ntype, ntype)
-            else:
-                # Inference only
-                # we will do inference on the entire edge set
-                logging.info("%s does not contains test_mask, skip testing %s. " + \
-                        "We will do inference on the entire node set.", ntype, ntype)
-                infer_idx = dgl.distributed.node_split(
-                    th.full((g.num_nodes(ntype),), True, dtype=th.bool),
-                    pb, ntype=ntype, force_even=True,
-                    node_trainer_ids=node_trainer_ids)
-                infer_idxs[ntype] = infer_idx
-        self._test_idxs = test_idxs
-        self._infer_idxs = infer_idxs
 
     @property
     def eval_ntypes(self):

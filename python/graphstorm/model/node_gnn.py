@@ -241,7 +241,8 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
             if is_wholegraph():
                 tmp_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
                 prepare_for_wholegraph(g, input_nodes)
-            input_feats = data.get_node_feats(input_nodes, device)
+            nfeat_fields = loader.node_feat_fields
+            input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
             if blocks is None:
                 continue
             # Remove additional keys (ntypes) added for WholeGraph compatibility
@@ -249,7 +250,8 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                 del input_nodes[ntype]
             blocks = [block.to(device) for block in blocks]
             pred, emb = model.predict(blocks, input_feats, None, input_nodes, return_proba)
-            label = data.get_labels(seeds)
+            label_field = loader.label_field
+            label = data.get_node_feats(seeds, label_field)
             if return_label:
                 append_to_dict(label, labels)
 
@@ -337,7 +339,8 @@ def node_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
                 else:
                     preds[ntype] = [pred.cpu()]
                 if return_label:
-                    lbl = data.get_labels(seeds)
+                    label_field = loader.label_field
+                    lbl = data.get_node_feats(seeds, label_field)
                     if ntype in labels:
                         labels[ntype].append(lbl[ntype])
                     else:
