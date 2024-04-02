@@ -22,7 +22,7 @@ from numpy.testing import assert_equal, assert_almost_equal
 import dgl
 
 from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
-from graphstorm.eval import GSgnnAccEvaluator
+from graphstorm.eval import GSgnnAccEvaluator, GSgnnClassificationEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.eval.evaluator import early_stop_avg_increase_judge
 from graphstorm.eval.evaluator import early_stop_cons_increase_judge
@@ -375,6 +375,145 @@ def test_mrr_lp_evaluator():
 
     th.distributed.destroy_process_group()
 
+def test_classification_evaluator():
+    # system heavily depends on th distributed
+    dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
+        master_ip='127.0.0.1', master_port='12346')
+    th.distributed.init_process_group(backend="gloo",
+                                      init_method=dist_init_method,
+                                      world_size=1,
+                                      rank=0)
+
+    # test default settings
+    cl_eval = GSgnnClassificationEvaluator(eval_frequency=100)
+    assert cl_eval.metric == ["accuracy"]
+    assert cl_eval.multilabel is False
+
+    # test given settings
+    config = Dummy({
+            "multilabel": False,
+            "eval_frequency": 100,
+            "eval_metric": ["accuracy"],
+            "use_early_stop": False,
+        })
+
+    # Test compute_score
+    cl_eval = GSgnnClassificationEvaluator(config.eval_frequency,
+                                          config.eval_metric,
+                                          config.multilabel,
+                                          config.use_early_stop)
+    pred = th.randint(10, (100,))
+    labels = th.randint(10, (100,))
+    result = cl_eval.compute_score(pred, labels, True)
+    assert_equal(result["accuracy"],
+                 th.sum(pred == labels).item() / len(labels))
+
+    result = cl_eval.compute_score(None, None, True)
+    assert result["accuracy"] == "N/A"
+
+    # Test the evaluate method
+    @patch.object(GSgnnClassificationEvaluator, 'compute_score')
+    def check_evaluate(mock_compute_score):
+        cl_eval = GSgnnClassificationEvaluator(config.eval_frequency,
+                                               config.eval_metric,
+                                               config.multilabel,
+                                               config.use_early_stop)
+        mock_compute_score.side_effect = [
+            {"accuracy": 0.7},
+            {"accuracy": 0.65},
+            {"accuracy": 0.8},
+            {"accuracy": 0.7},
+            {"accuracy": 0.76},
+            {"accuracy": 0.8},
+        ]
+        val_score, test_score = cl_eval.evaluate(th.rand((10,)), th.rand((10,)), th.rand((10,)), th.rand((10,)), 100)
+        mock_compute_score.assert_called()
+        assert val_score["accuracy"] == 0.7
+        assert test_score["accuracy"] == 0.65
+
+        val_score, test_score = cl_eval.evaluate(th.rand((10,)), th.rand((10,)), th.rand((10,)), th.rand((10,)), 200)
+        mock_compute_score.assert_called()
+        assert val_score["accuracy"] == 0.8
+        assert test_score["accuracy"] == 0.7
+
+        val_score, test_score = cl_eval.evaluate(th.rand((10,)), th.rand((10,)), th.rand((10,)), th.rand((10,)), 300)
+        mock_compute_score.assert_called()
+        assert val_score["accuracy"] == 0.76
+        assert test_score["accuracy"] == 0.8
+
+        assert cl_eval.best_val_score["accuracy"] == 0.8
+        assert cl_eval.best_test_score["accuracy"] == 0.7
+        assert cl_eval.best_iter_num["accuracy"] == 200
+
+    check_evaluate()
+
+    # Test evaluate without test score
+    @patch.object(GSgnnClassificationEvaluator, 'compute_score')
+    def check_evaluate_no_test(mock_compute_score):
+        cl_eval = GSgnnClassificationEvaluator(config.eval_frequency,
+                                               config.eval_metric,
+                                               config.multilabel,
+                                               config.use_early_stop)
+        mock_compute_score.side_effect = [
+            {"accuracy": 0.7},
+            {"accuracy": "N/A"},
+            {"accuracy": 0.8},
+            {"accuracy": "N/A"},
+            {"accuracy": 0.76},
+            {"accuracy": "N/A"},
+        ]
+        val_score, test_score = cl_eval.evaluate(th.rand((10,)), None, th.rand((10,)), None, 100)
+        mock_compute_score.assert_called()
+        assert val_score["accuracy"] == 0.7
+        assert test_score["accuracy"] == "N/A"
+
+        val_score, test_score = cl_eval.evaluate(th.rand((10,)), None, th.rand((10,)), None, 200)
+        mock_compute_score.assert_called()
+        assert val_score["accuracy"] == 0.8
+        assert test_score["accuracy"] == "N/A"
+
+        val_score, test_score = cl_eval.evaluate(th.rand((10,)), None, th.rand((10,)), None, 300)
+        mock_compute_score.assert_called()
+        assert val_score["accuracy"] == 0.76
+        assert test_score["accuracy"] == "N/A"
+
+        assert cl_eval.best_val_score["accuracy"] == 0.8
+        assert cl_eval.best_test_score["accuracy"] == "N/A"
+        assert cl_eval.best_iter_num["accuracy"] == 200
+
+    check_evaluate_no_test()
+
+    # check GSgnnClassificationEvaluator.do_eval()
+    # train_data.do_validation True
+    # config.no_validation False
+    cl_eval = GSgnnClassificationEvaluator(config.eval_frequency,
+                                           config.eval_metric,
+                                           config.multilabel,
+                                           config.use_early_stop)
+    assert cl_eval.do_eval(120, epoch_end=True) is True
+    assert cl_eval.do_eval(200) is True
+    assert cl_eval.do_eval(0) is True
+    assert cl_eval.do_eval(1) is False
+
+    config3 = Dummy({
+            "multilabel": False,
+            "eval_frequency": 0,
+            "eval_metric": ["accuracy"],
+            "use_early_stop": False,
+        })
+
+    # train_data.do_validation True
+    # config.no_validation False
+    # eval_frequency is 0
+    cl_eval = GSgnnClassificationEvaluator(config3.eval_frequency,
+                                      config3.eval_metric,
+                                      config3.multilabel,
+                                      config3.use_early_stop)
+    assert cl_eval.do_eval(120, epoch_end=True) is True
+    assert cl_eval.do_eval(200) is False
+    th.distributed.destroy_process_group()
+
+#TODO {James}, deprecated after v0.3 
 def test_acc_evaluator():
     # system heavily depends on th distributed
     dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
@@ -723,13 +862,14 @@ def test_early_stop_evaluator():
             "early_stop_strategy": EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
         })
 
-    evaluator = GSgnnAccEvaluator(config2.eval_frequency,
-                                  config2.eval_metric,
-                                  config2.multilabel,
-                                  config2.use_early_stop,
-                                  config2.early_stop_burnin_rounds,
-                                  config2.early_stop_rounds,
-                                  config2.early_stop_strategy)
+    evaluator = GSgnnClassificationEvaluator(config2.eval_frequency,
+                                             config2.eval_metric,
+                                             config2.multilabel,
+                                             config2.use_early_stop,
+                                             config2.early_stop_burnin_rounds,
+                                             config2.early_stop_rounds,
+                                             config2.early_stop_strategy)
+
     for _ in range(5):
         # always return false
         assert evaluator.do_early_stop({"accuracy": 0.5}) is False
@@ -835,10 +975,11 @@ def test_get_val_score_rank():
             "use_early_stop": False,
         })
 
-    evaluator = GSgnnAccEvaluator(config.eval_frequency,
-                                  config.eval_metric,
-                                  config.multilabel,
-                                  config.use_early_stop)
+    evaluator = GSgnnClassificationEvaluator(config.eval_frequency,
+                                             config.eval_metric,
+                                             config.multilabel,
+                                             config.use_early_stop)
+    
     # For accuracy, the bigger the better.
     val_score = {"accuracy": 0.47}
     assert evaluator.get_val_score_rank(val_score) == 1
@@ -936,3 +1077,5 @@ if __name__ == '__main__':
     test_early_stop_evaluator()
     test_early_stop_lp_evaluator()
     test_get_val_score_rank()
+
+    test_classification_evaluator()
