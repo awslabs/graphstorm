@@ -217,6 +217,28 @@ class DistributedExecutor:
         # Create the Spark session for execution
         self.spark = spark_utils.create_spark_session(self.sm_execution, self.filesystem_type)
 
+    def _upload_output_files(self, loader: DistHeterogeneousGraphLoader, force=False):
+        """Upload output files to S3
+
+        Parameters
+        ----------
+        loader : DistHeterogeneousGraphLoader
+            The graph loader instance that performed the processing
+        force : bool, optional
+            Enforce upload even in SageMaker, by default False
+        """
+        if (not self.sm_execution and self.filesystem_type == "s3") or force:
+            bucket, s3_prefix = s3_utils.extract_bucket_and_key(self.output_prefix)
+            s3 = boto3.resource("s3")
+
+            output_files = os.listdir(loader.output_path)
+            for output_file in output_files:
+                s3.meta.client.upload_file(
+                    f"{os.path.join(loader.output_path, output_file)}",
+                    bucket,
+                    f"{s3_prefix}/{output_file}",
+                )
+
     def run(self) -> None:
         """
         Executes the Spark processing job.
@@ -257,7 +279,7 @@ class DistributedExecutor:
 
         if all_match:
             logging.info(
-                "All file row counts match, applying Parquet metadata modification on leader..."
+                "All file row counts match, applying Parquet metadata modification on Spark leader."
             )
             modify_flat_array_metadata(graph_meta_dict, repartitioner)
             logging.info("Data are now prepared for processing by the DistPart Partition pipeline.")
@@ -265,6 +287,8 @@ class DistributedExecutor:
             if self.repartition_on_leader:
                 logging.info("Attempting to repartition graph data on Spark leader...")
                 try:
+                    # Upload existing output files before trying to re-partition
+                    self._upload_output_files(loader, force=True)
                     updated_metadata = repartition_files(graph_meta_dict, repartitioner)
                     with open(
                         os.path.join(loader.output_path, "updated_row_counts_metadata.json"),
@@ -277,6 +301,8 @@ class DistributedExecutor:
                         "Data are now prepared for processing by the DistPart Partition pipeline."
                     )
                 except Exception as e:  # pylint: disable=broad-exception-caught
+                    # If an error happens during re-partition, we don't want to fail the entire
+                    # gs-processing job, so we just post an error and continue
                     logging.error(
                         "Failed to repartition data on Spark leader, "
                         "will need to run follow-up re-partition job. "
@@ -288,17 +314,7 @@ class DistributedExecutor:
 
         # This is used to upload the output JSON files to S3 on non-SageMaker runs,
         # since we can't rely on SageMaker to do it
-        if not self.sm_execution and self.filesystem_type == "s3":
-            bucket, s3_prefix = s3_utils.extract_bucket_and_key(self.output_prefix)
-            s3 = boto3.resource("s3")
-
-            output_files = os.listdir(loader.output_path)
-            for output_file in output_files:
-                s3.meta.client.upload_file(
-                    f"{os.path.join(loader.output_path, output_file)}",
-                    bucket,
-                    f"{s3_prefix}/{output_file}",
-                )
+        self._upload_output_files(loader, force=False)
 
 
 def parse_args() -> argparse.Namespace:
