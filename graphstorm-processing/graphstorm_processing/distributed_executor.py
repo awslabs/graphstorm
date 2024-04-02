@@ -101,7 +101,7 @@ class ExecutorConfig:
         Whether to create reverse edges for each edge type.
     graph_name: str
         The name of the graph being processed
-    apply_repartition: bool
+    do_repartition: bool
         Whether to apply repartitioning to the graph on the Spark leader.
     """
 
@@ -247,7 +247,6 @@ class DistributedExecutor:
         data_configs = create_config_objects(self.graph_config_dict)
 
         t0 = time.time()
-        logging.info("Constructing DGLGraph for Heterogeneous Graph")
         # Prefer explicit arguments for clarity
         loader = DistHeterogeneousGraphLoader(
             spark=self.spark,
