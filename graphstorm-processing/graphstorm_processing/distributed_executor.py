@@ -43,7 +43,9 @@ Script Parameters
     Log level for the script.
 --add-reverse-edges: str
     When set to true (default), we add reverse edges for each edge type.
-
+--do-repartition: str
+    When set to true, we try to perform the row count alignment step on
+    the Spark leader.
 """
 
 import dataclasses
@@ -65,6 +67,12 @@ from graphstorm_processing.graph_loaders.dist_heterogeneous_loader import (
 from graphstorm_processing.config.config_parser import create_config_objects
 from graphstorm_processing.config.config_conversion import GConstructConfigConverter
 from graphstorm_processing.data_transformations import spark_utils, s3_utils
+from graphstorm_processing.repartition_files import (
+    repartition_files,
+    modify_flat_array_metadata,
+    ParquetRepartitioner,
+)
+from graphstorm_processing.graph_loaders.row_count_utils import verify_metadata_match
 
 
 @dataclasses.dataclass
@@ -91,6 +99,10 @@ class ExecutorConfig:
         The filesystem type, can be 'local' or 's3'.
     add_reverse_edges : bool
         Whether to create reverse edges for each edge type.
+    graph_name: str
+        The name of the graph being processed
+    apply_repartition: bool
+        Whether to apply repartitioning to the graph on the Spark leader.
     """
 
     local_config_path: str
@@ -103,6 +115,7 @@ class ExecutorConfig:
     filesystem_type: str
     add_reverse_edges: bool
     graph_name: str
+    do_repartition: bool
 
 
 @dataclasses.dataclass
@@ -116,6 +129,7 @@ class GSProcessingArguments:
     add_reverse_edges: bool
     log_level: str
     graph_name: str
+    do_repartition: bool
 
 
 class DistributedExecutor:
@@ -142,6 +156,7 @@ class DistributedExecutor:
         self.sm_execution = executor_config.sm_execution
         self.add_reverse_edges = executor_config.add_reverse_edges
         self.graph_name = executor_config.graph_name
+        self.repartition_on_leader = executor_config.do_repartition
 
         # Ensure we have write access to the output path
         if self.filesystem_type == "local":
@@ -202,6 +217,28 @@ class DistributedExecutor:
         # Create the Spark session for execution
         self.spark = spark_utils.create_spark_session(self.sm_execution, self.filesystem_type)
 
+    def _upload_output_files(self, loader: DistHeterogeneousGraphLoader, force=False):
+        """Upload output files to S3
+
+        Parameters
+        ----------
+        loader : DistHeterogeneousGraphLoader
+            The graph loader instance that performed the processing
+        force : bool, optional
+            Enforce upload even in SageMaker, by default False
+        """
+        if (not self.sm_execution and self.filesystem_type == "s3") or force:
+            bucket, s3_prefix = s3_utils.extract_bucket_and_key(self.output_prefix)
+            s3 = boto3.resource("s3")
+
+            output_files = os.listdir(loader.output_path)
+            for output_file in output_files:
+                s3.meta.client.upload_file(
+                    f"{os.path.join(loader.output_path, output_file)}",
+                    bucket,
+                    f"{s3_prefix}/{output_file}",
+                )
+
     def run(self) -> None:
         """
         Executes the Spark processing job.
@@ -224,25 +261,60 @@ class DistributedExecutor:
             enable_assertions=False,
             graph_name=self.graph_name,
         )
-        loader.load()
-
-        # This is used to upload the output JSON files to S3 on local runs,
-        # since we can't rely on SageMaker to do it
-        if not self.sm_execution and self.filesystem_type == "s3":
-            bucket, s3_prefix = s3_utils.extract_bucket_and_key(self.output_prefix)
-            s3 = boto3.resource("s3")
-
-            output_files = os.listdir(loader.output_path)
-            for output_file in output_files:
-                s3.meta.client.upload_file(
-                    f"{os.path.join(loader.output_path, output_file)}",
-                    bucket,
-                    f"{s3_prefix}/{output_file}",
-                )
+        graph_meta_dict = loader.load()
 
         t1 = time.time()
-        logging.info("[Prof-info] graph loading time %s", t1 - t0)
+        logging.info("Time to transform data for distributed partitioning: %s sec", t1 - t0)
+        # Stop the Spark context
         self.spark.stop()
+
+        all_match = verify_metadata_match(graph_meta_dict)
+        repartitioner = ParquetRepartitioner(
+            self.output_prefix,
+            self.filesystem_type,
+            region=None,
+            verify_outputs=True,
+            streaming_repartitioning=False,
+        )
+
+        if all_match:
+            logging.info(
+                "All file row counts match, applying Parquet metadata modification on Spark leader."
+            )
+            modify_flat_array_metadata(graph_meta_dict, repartitioner)
+            logging.info("Data are now prepared for processing by the DistPart Partition pipeline.")
+        else:
+            if self.repartition_on_leader:
+                logging.info("Attempting to repartition graph data on Spark leader...")
+                try:
+                    # Upload existing output files before trying to re-partition
+                    self._upload_output_files(loader, force=True)
+                    updated_metadata = repartition_files(graph_meta_dict, repartitioner)
+                    with open(
+                        os.path.join(loader.output_path, "updated_row_counts_metadata.json"),
+                        "w",
+                        encoding="utf-8",
+                    ) as f:
+                        json.dump(updated_metadata, f, indent=4)
+                        f.flush()
+                    logging.info(
+                        "Data are now prepared for processing by the DistPart Partition pipeline."
+                    )
+                except Exception as e:  # pylint: disable=broad-exception-caught
+                    # If an error happens during re-partition, we don't want to fail the entire
+                    # gs-processing job, so we just post an error and continue
+                    logging.error(
+                        "Failed to repartition data on Spark leader, "
+                        "will need to run follow-up re-partition job. "
+                        "Original error: %s",
+                        str(e),
+                    )
+            else:
+                logging.warning("gs-repartition will need to run as a follow-up job on the data!")
+
+        # This is used to upload the output JSON files to S3 on non-SageMaker runs,
+        # since we can't rely on SageMaker to do it
+        self._upload_output_files(loader, force=False)
 
 
 def parse_args() -> argparse.Namespace:
@@ -297,6 +369,15 @@ def parse_args() -> argparse.Namespace:
         help="Logging level, default is INFO",
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
     )
+    parser.add_argument(
+        "--do-repartition",
+        type=lambda x: (str(x).lower() in ["true", "1"]),
+        default=False,
+        help=(
+            "When set to 'True', will try to re-partition the output "
+            "data on the Spark leader if necessary."
+        ),
+    )
 
     return parser.parse_args()
 
@@ -305,7 +386,10 @@ def main():
     """Main entry point for GSProcessing"""
     # Allows us to get typed arguments from the command line
     gsprocessing_args = GSProcessingArguments(**vars(parse_args()))
-    logging.basicConfig(level=gsprocessing_args.log_level)
+    logging.basicConfig(
+        level=gsprocessing_args.log_level,
+        format="%(asctime)s %(levelname)-8s %(message)s",
+    )
 
     # Determine if we're running within a SageMaker container
     is_sagemaker_execution = os.path.exists("/opt/ml/config/processingjobconfig.json")
@@ -382,6 +466,7 @@ def main():
         filesystem_type=filesystem_type,
         add_reverse_edges=gsprocessing_args.add_reverse_edges,
         graph_name=gsprocessing_args.graph_name,
+        do_repartition=gsprocessing_args.do_repartition,
     )
 
     dist_executor = DistributedExecutor(executor_configuration)
@@ -391,10 +476,11 @@ def main():
     # Save arguments to file for posterity
     with open(os.path.join(local_output_path, "launch_arguments.json"), "w", encoding="utf-8") as f:
         json.dump(dataclasses.asdict(gsprocessing_args), f, indent=4)
+        f.flush()
 
     # In SageMaker execution, all files under `local_output_path` get automatically
-    # uploaded to S3 at the end of the job. For local execution with S3 data, we
-    # need to upload all output files manually.
+    # uploaded to S3 at the end of the job. Otherwise, we need to upload
+    # all output files manually.
     if not is_sagemaker_execution and filesystem_type == "s3":
         output_bucket, output_s3_prefix = s3_utils.extract_bucket_and_key(
             gsprocessing_args.output_prefix

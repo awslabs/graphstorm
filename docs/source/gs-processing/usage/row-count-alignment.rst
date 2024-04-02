@@ -66,7 +66,10 @@ after the processing step. This step performs two functions:
 Local repartitioning
 --------------------
 
-The simplest way to apply the re-partitioning step is to do so using a local
+The simplest way to apply the re-partitioning step is to do so during the `gs-processing` step,
+by passing the additional `--do-repartition True` argument to our launch script.
+
+Alternatively, we can run a local re-partitioning job using a local
 installation of GSProcessing:
 
 .. code-block:: bash
@@ -101,7 +104,7 @@ on SageMaker:
     INSTANCE_TYPE="ml.t3.xlarge"
 
     python scripts/run_repartitioning.py --s3-input-prefix ${PROCESSED_OUTPUT} \
-        --role ${ROLE} --image ${IMAGE_URI}  --config-filename "metadata.json" \
+        --role ${ROLE} --image ${IMAGE_URI} \
         --instance-type ${INSTANCE_TYPE} --wait-for-job
 
 File streaming repartitioning
