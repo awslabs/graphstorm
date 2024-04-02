@@ -111,12 +111,12 @@ def get_val_score_rank(val_score, val_perf_rank_list, comparator):
 class GSgnnBaseEvaluator():
     """ Base class for Evaluators.
     
-    New base class in V0.3 to replace ``GSgnnInstanceEvaluator`` and ``GSgnnLPEvaluator``. This class
-    serves as the base for the built-in ``GSgnnClassificationEvaluator``, ``GSgnnRegressionEvaluator``,
-    and ``GSgnnLinkPredictionEvaluator``.
-    
-    Users can also extend this class and implement the two abstract methods, i.e., ``evaluate()`` and
-    ``compute_score()``, to create your own customized evaluators.
+    New base class in V0.3 to replace ``GSgnnInstanceEvaluator`` and ``GSgnnLPEvaluator``. This
+    class serves as the base for the built-in ``GSgnnClassificationEvaluator``,
+    ``GSgnnRegressionEvaluator``, and ``GSgnnLinkPredictionEvaluator``.
+
+    Users can also extend this class and implement the two abstract methods, i.e., ``evaluate()``
+    and ``compute_score()``, to create your own customized evaluators.
 
     Parameters
     ----------
@@ -225,46 +225,6 @@ class GSgnnBaseEvaluator():
         elif self._eval_frequency != 0 and total_iters % self._eval_frequency == 0:
             return True
         return False
-
-    def do_early_stop(self, val_score):
-        """ Decide whether to stop the training
-
-            Parameters
-            ----------
-            val_score: float
-                Evaluation score
-        """
-        if self._do_early_stop is False:
-            return False
-
-        assert len(val_score) == 1, \
-            f"valudation score should be a signle key value pair but got {val_score}"
-        self._num_early_stop_calls += 1
-        # Not enough existing validation scores
-        if self._num_early_stop_calls <= self._early_stop_burnin_rounds:
-            return False
-
-        val_score = list(val_score.values())[0]
-        # Not enough validation scores to make early stop decision
-        if len(self._val_perf_list) < self._early_stop_rounds:
-            self._val_perf_list.append(val_score)
-            return False
-
-        # early stop criteria: if the average evaluation value
-        # does not improve in the last N evaluation iterations
-        if self._early_stop_strategy == EARLY_STOP_AVERAGE_INCREASE_STRATEGY:
-            early_stop = early_stop_avg_increase_judge(val_score,
-                self._val_perf_list, self.get_metric_comparator())
-        elif self._early_stop_strategy == EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY:
-            early_stop = early_stop_cons_increase_judge(val_score,
-                self._val_perf_list, self.get_metric_comparator())
-        else:
-            return False
-
-        self._val_perf_list.pop(0)
-        self._val_perf_list.append(val_score)
-
-        return early_stop
 
     def do_early_stop(self, val_score):
         """ Decide whether to stop the training
@@ -417,12 +377,15 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator):
         1) consecutive_increase and 2) average_increase.
     """
     def __init__(self, eval_frequency,
-                 eval_metric=["accuracy"],
+                 eval_metric=None,
                  multilabel=False,
                  use_early_stop=False,
                  early_stop_burnin_rounds=0,
                  early_stop_rounds=3,
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY): # pylint: disable=unused-argument
+        # set up default metric to be accuracy
+        if eval_metric is None:
+            eval_metric = ["accuracy"]
         super(GSgnnClassificationEvaluator, self).__init__(eval_frequency,
             eval_metric, use_early_stop, early_stop_burnin_rounds,
             early_stop_rounds, early_stop_strategy)
@@ -438,7 +401,7 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator):
             self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_iter[metric] = 0
 
-    def evaluate(self, val_pred, test_pred, val_labels, test_labels, total_iters):
+    def evaluate(self, val_pred, test_pred, val_labels, test_labels, total_iters): # pylint: disable=arguments-differ
         """ Compute scores on validation and test predictions.
 
             Parameters
@@ -485,7 +448,7 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator):
 
         return val_score, test_score
 
-    def compute_score(self, pred, labels, train=True):
+    def compute_score(self, pred, labels, train=True): # pylint: disable=arguments-differ
         """ Compute evaluation score
 
             Parameters
