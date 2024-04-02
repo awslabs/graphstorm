@@ -3,7 +3,7 @@ import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.dataloading import GSgnnNodeDataLoader
-from graphstorm.eval import GSgnnAccEvaluator
+from graphstorm.eval import GSgnnClassificationEvaluator
 from graphstorm.dataloading import GSgnnNodeTrainData
 from graphstorm.utils import get_device
 from graphstorm.inference import GSgnnNodePredictionInferrer
@@ -52,7 +52,7 @@ def main(config_args):
     trainer.setup_device(device=get_device())
 
     # set evaluator
-    evaluator = GSgnnAccEvaluator(
+    evaluator = GSgnnClassificationEvaluator(
         config.eval_frequency,
         config.eval_metric,
         config.multilabel,
