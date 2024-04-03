@@ -34,7 +34,6 @@ import dgl
 
 from graphstorm.config import GSConfig
 from graphstorm.config import BUILTIN_LP_DOT_DECODER
-from graphstorm.utils import setup_device
 from graphstorm.model import GSNodeEncoderInputLayer, RelationalGCNEncoder
 from graphstorm.model import GSgnnNodeModel, GSgnnEdgeModel
 from graphstorm.model import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
@@ -53,7 +52,7 @@ from graphstorm.model.edge_decoder import (DenseBiDecoder,
                                            LinkPredictWeightedDotDecoder,
                                            LinkPredictWeightedDistMultDecoder)
 from graphstorm.model.node_decoder import EntityRegression, EntityClassifier
-from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnEdgeTrainData
+from graphstorm.dataloading import GSgnnData, GSgnnEdgeTrainData
 from graphstorm.dataloading import GSgnnNodeDataLoader, GSgnnEdgeDataLoader
 from graphstorm.dataloading.dataset import prepare_batch_input
 from graphstorm import create_builtin_edge_gnn_model, create_builtin_node_gnn_model
@@ -270,10 +269,12 @@ def check_node_prediction(model, data, is_homo=False):
     target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))} \
         if not is_homo else {DEFAULT_NTYPE: th.arange(g.number_of_nodes(DEFAULT_NTYPE))}
     dataloader1 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
-                                      batch_size=10, train_task=False)
+                                      batch_size=10, label_field='label',
+                                      node_feats='feat', train_task=False)
     pred1, labels1 = node_mini_batch_predict(model, embs, dataloader1, return_label=True)
     dataloader2 = GSgnnNodeDataLoader(data, target_nidx, fanout=[-1, -1],
-                                      batch_size=10, train_task=False)
+                                      batch_size=10, label_field='label',
+                                      node_feats='feat', train_task=False)
     pred2, _, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
     if isinstance(pred1,dict):
         assert len(pred1) == len(pred2) and len(labels1) == len(labels2)
@@ -357,7 +358,8 @@ def check_node_prediction_with_reconstruct(model, data, construct_feat_ntype):
     assert len(data.train_ntypes) == 1
     target_nidx = {target_ntype: th.arange(g.number_of_nodes(target_ntype))}
     dataloader = GSgnnNodeDataLoader(data, target_nidx, fanout=[-1],
-                                     batch_size=10, train_task=False,
+                                     batch_size=10, label_field='label',
+                                     node_feats='feat', train_task=False,
                                      construct_feat_ntype=construct_feat_ntype)
     for input_nodes, seeds, blocks in dataloader:
         assert len(blocks) == 2
@@ -396,10 +398,12 @@ def check_mlp_node_prediction(model, data):
     embs = do_full_graph_inference(model, data)
     target_nidx = {"n1": th.arange(g.number_of_nodes("n0"))}
     dataloader1 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
-                                      batch_size=10, train_task=False)
+                                      batch_size=10, label_field='label',
+                                      node_feats='feat', train_task=False)
     pred1, labels1 = node_mini_batch_predict(model, embs, dataloader1, return_label=True)
     dataloader2 = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
-                                      batch_size=10, train_task=False)
+                                      batch_size=10, label_field='label',
+                                      node_feats='feat', train_task=False)
     pred2, _, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
     if isinstance(pred1, dict):
         assert len(pred1) == len(pred2) and len(labels1) == len(labels2)
@@ -444,9 +448,8 @@ def test_rgcn_node_prediction(norm):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(tmpdirname)
-        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_ntypes=['n1'], label_field='label',
-                                     node_feat_field='feat')
+        np_data = GSgnnData(part_config=part_config,
+                            node_feat_field='feat')
     model = create_rgcn_node_model(np_data.g, norm)
     check_node_prediction(model, np_data)
     th.distributed.destroy_process_group()
@@ -950,10 +953,8 @@ def test_mlp_node_prediction():
                                       world_size=1)
     with tempfile.TemporaryDirectory() as tmpdirname:
         lm_config, _, _, _, g, part_config = create_lm_graph(tmpdirname)
-        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                        train_ntypes=['n1'],
-                                        label_field='label',
-                                        node_feat_field='feat')
+        np_data = GSgnnData(part_config=part_config,
+                            node_feat_field='feat')
         g.nodes['n1'].data['label'] = np_data.g.nodes['n1'].data['label']
     model = create_mlp_node_model(g, lm_config)
     assert model.gnn_encoder is None
@@ -969,10 +970,8 @@ def test_gnn_model_load_save():
                                       world_size=1)
     with tempfile.TemporaryDirectory() as tmpdirname:
         lm_config, _, _, _, g, part_config = create_lm_graph(tmpdirname)
-        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                        train_ntypes=['n1'],
-                                        label_field='label',
-                                        node_feat_field='feat')
+        np_data = GSgnnData(part_config=part_config,
+                            node_feat_field='feat')
     model = create_mlp_node_model(g, lm_config)
     dense_params = {name: param.data[:] for name, param in model.node_input_encoder.named_parameters()}
     sparse_params = [param[0:len(param)] for param in model.node_input_encoder.get_sparse_params()]
@@ -1601,15 +1600,13 @@ def test_node_mini_batch_gnn_predict():
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(tmpdirname)
-        data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                   train_ntypes=['n1'], label_field='label',
-                                   node_feat_field='feat')
+        data = GSgnnData(part_config=part_config)
         target_nidx = {"n1": th.arange(data.g.number_of_nodes("n0"))}
         dataloader = GSgnnNodeDataLoader(data, target_nidx, fanout=[],
-                                        batch_size=10,
-                                        train_task=False)
+                                        batch_size=10, label_field='label',
+                                        node_feats=None, train_task=False)
 
-        @patch.object(GSgnnNodeTrainData, 'get_labels')
+        @patch.object(GSgnnData, 'get_node_feats')
         def check_predict(mock_get_labels, return_dict):
             model = Dummy_GSNodeModel(return_dict=return_dict)
             mock_get_labels.side_effect = [{"n1": th.arange(10)}] * 10

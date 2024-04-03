@@ -16,17 +16,15 @@
     Various datasets for the GSF
 """
 import os
-import abc
 import logging
 import re
 
 import torch as th
 import dgl
+import pandas as pd
 from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 from torch.utils.data import Dataset
-import pandas as pd
 
-import  graphstorm as gs
 from ..utils import get_rank, get_world_size, is_distributed, barrier, is_wholegraph
 from ..utils import sys_tracker
 from .utils import dist_sum, flip_node_mask

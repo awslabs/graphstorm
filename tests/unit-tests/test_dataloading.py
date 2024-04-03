@@ -379,13 +379,15 @@ def test_node_dataloader():
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_ntypes=['n1'], label_field='label')
+        np_data = GSgnnData(part_config=part_config)
 
     setup_device(0)
     # Without shuffling, the seed nodes should have the same order as the target nodes.
     target_idx = {'n1': th.arange(np_data.g.number_of_nodes('n1'))}
     dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
+                                     label_field='label',
+                                     node_feats='feat',
+                                     edge_feats='feat',
                                      train_task=False)
     all_nodes = []
     for input_nodes, seeds, blocks in dataloader:
@@ -393,10 +395,13 @@ def test_node_dataloader():
         all_nodes.append(seeds['n1'])
     all_nodes = th.cat(all_nodes)
     assert_equal(all_nodes.numpy(), target_idx['n1'])
+    assert dataloader.node_feat_fields == 'feat'
+    assert dataloader.edge_feat_fields == 'feat'
 
     # With data shuffling, the seed nodes should have different orders
     # whenever the data loader is called.
     dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
+                                     label_field='label',
                                      train_task=True)
     all_nodes1 = []
     for input_nodes, seeds, blocks in dataloader:
@@ -404,13 +409,27 @@ def test_node_dataloader():
         all_nodes1.append(seeds['n1'])
     all_nodes1 = th.cat(all_nodes1)
     dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
+                                     label_field='label',
                                      train_task=True)
+    assert dataloader.node_feat_fields == None
+    assert dataloader.edge_feat_fields == None
+
     all_nodes2 = []
     for input_nodes, seeds, blocks in dataloader:
         assert 'n1' in seeds
         all_nodes2.append(seeds['n1'])
     all_nodes2 = th.cat(all_nodes2)
     assert not np.all(all_nodes1.numpy() == all_nodes2.numpy())
+
+    # fail to create GSgnnNodeDataLoader when label field is set to None.
+    try:
+        dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
+                                         label_field=None,
+                                         train_task=True)
+        init_loader_fail = False
+    except:
+        init_loader_fail = True
+    assert init_loader_fail
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
@@ -426,22 +445,21 @@ def test_node_dataloader_reconstruct():
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph_reconstruct(graph_name='dummy',
                                                                dirname=tmpdirname)
-        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_ntypes=['n0'], label_field='label',
-                                     node_feat_field={'n0': ['feat'], 'n4': ['feat']})
+        np_data = GSgnnData(part_config=part_config,
+                            node_feat_field={'n0': ['feat'], 'n4': ['feat']})
     setup_device(0)
     feat_sizes = gs.get_node_feat_size(np_data.g, {'n0': 'feat', 'n4': 'feat'})
     target_idx = {'n0': th.arange(np_data.g.number_of_nodes('n0'))}
     # Test the case that we cannot construct all node features.
     try:
-        dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
+        dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10, label_field='label',
                                          train_task=False, construct_feat_ntype=['n1', 'n2'])
         assert False
     except:
         pass
 
     # Test the case that we construct node features for one-layer GNN.
-    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10, label_field='label',
                                      train_task=False, construct_feat_ntype=['n2'])
     all_nodes = []
     rel_names_for_reconstruct = gs.gsf.get_rel_names_for_reconstruct(np_data.g,
@@ -465,7 +483,7 @@ def test_node_dataloader_reconstruct():
     assert_equal(all_nodes.numpy(), target_idx['n0'])
 
     # Test the case that we construct node features for two-layer GNN.
-    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10, 10], 10,
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10, 10], 10, label_field='label',
                                      train_task=False, construct_feat_ntype=['n3'])
     all_nodes = []
     rel_names_for_reconstruct = gs.gsf.get_rel_names_for_reconstruct(np_data.g,
@@ -929,8 +947,7 @@ def test_np_dataloader_trim_data(dataloader):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_ntypes=['n1'], label_field='label')
+        np_data = GSgnnData(part_config=part_config)
 
         target_idx = {'n1': th.arange(np_data.g.number_of_nodes('n1'))}
         @patch("graphstorm.dataloading.dataloading.trim_data")
@@ -941,13 +958,13 @@ def test_np_dataloader_trim_data(dataloader):
             ]
 
             loader = dataloader(np_data, dict(target_idx),
-                                [10], 10,
+                                [10], 10, label_field='label',
                                 train_task=True)
             assert len(loader.dataloader.collator.nids) == 1
             assert len(loader.dataloader.collator.nids["n1"]) == np_data.g.number_of_nodes('n1') - 2
 
             loader = dataloader(np_data, dict(target_idx),
-                                [10], 10,
+                                [10], 10, label_field='label',
                                 train_task=False)
             assert len(loader.dataloader.collator.nids) == 1
             assert len(loader.dataloader.collator.nids["n1"]) == np_data.g.number_of_nodes('n1')
@@ -969,8 +986,7 @@ def test_np_dataloader_trim_data_device(dataloader, backend):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_ntypes=['n1'], label_field='label')
+        np_data = GSgnnData(part_config=part_config)
 
         target_idx = {'n1': th.arange(np_data.g.number_of_nodes('n1'))}
         @patch("graphstorm.dataloading.dataloading.trim_data")
@@ -980,8 +996,10 @@ def test_np_dataloader_trim_data_device(dataloader, backend):
                 target_idx["n1"][:len(target_idx["n1"])-2],
             ]
 
-            dataloader(np_data, dict(target_idx), [10], 10, train_task=True)
-            dataloader(np_data, dict(target_idx), [10], 10, train_task=False)
+            dataloader(np_data, dict(target_idx), [10], 10,
+                       label_field='label', train_task=True)
+            dataloader(np_data, dict(target_idx), [10], 10,
+                       label_field='label', train_task=False)
 
             args, _ = mock_trim_data.call_args
             assert args[1] == th.device('cpu') if backend == 'gloo' else th.device(0)
@@ -1355,37 +1373,42 @@ def test_np_dataloader_len(batch_size):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_ntypes=['n1'], label_field='label')
+        np_data = GSgnnData(part_config=part_config)
 
     setup_device(0)
     # Without shuffling, the seed nodes should have the same order as the target nodes.
     target_idx = {'n1': th.arange(np_data.g.number_of_nodes('n1'))}
     dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], batch_size,
+                                     label_field='label',
                                      train_task=False)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], batch_size,
+                                     label_field='label',
                                      train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
     target_idx_2 = {'n1': th.arange(np_data.g.number_of_nodes('n1')//2)}
     # target_idx > unlabeled_idx
-    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx, target_idx_2, [10], batch_size,
-                                     train_task=False)
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx, target_idx_2, [10],
+                                            batch_size, label_field='label',
+                                            train_task=False)
     assert len(dataloader) == len(list(dataloader))
 
-    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx, target_idx_2, [10], batch_size,
-                                     train_task=True)
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx, target_idx_2, [10],
+                                            batch_size, label_field='label',
+                                            train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
     # target_idx < unlabeled_idx
-    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx_2, target_idx, [10], batch_size,
-                                     train_task=False)
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx_2, target_idx, [10],
+                                            batch_size, label_field='label',
+                                            train_task=False)
     assert len(dataloader) == len(list(dataloader))
 
-    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx_2, target_idx, [10], batch_size,
-                                     train_task=True)
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx_2, target_idx, [10],
+                                            batch_size, label_field='label',
+                                            train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
 @pytest.mark.parametrize("batch_size", [10, 11])
