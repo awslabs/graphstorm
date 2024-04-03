@@ -818,12 +818,16 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         self.graph_info["ntype_label"] = []
         self.graph_info["ntype_label_property"] = []
         for node_config in node_configs:
-            logging.info("node_config: %s", node_config)
             files = node_config.files
             file_paths = [f"{self.input_prefix}/{f}" for f in files]
 
             node_type = node_config.ntype
             node_col = node_config.node_col
+            logging.info(
+                "Processing data for node type %s with config: %s",
+                node_type,
+                node_config,
+            )
 
             read_nodefile_start = perf_counter()
             # TODO: Maybe we use same enforced type for Parquet and CSV
@@ -879,6 +883,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     NODE_MAPPING_INT
                 )
             else:
+                logging.info("Creating node str-to-int mapping for node type: %s", node_type)
                 nodes_df = self.create_node_id_map_from_nodes_df(nodes_df, node_col)
                 self._write_nodeid_mapping_and_update_state(nodes_df, node_type)
 
@@ -949,10 +954,6 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         node_type_feature_metadata = {}
         ntype_feat_sizes = {}  # type: Dict[str, int]
         for feat_conf in feature_configs:
-            logging.info(
-                "Processing feat_name: '%s' feat_cols: %s", feat_conf.feat_name, feat_conf.cols
-            )
-
             transformer = DistFeatureTransformer(feat_conf)
 
             transformed_feature_df = transformer.apply_transformation(nodes_df)
@@ -1025,6 +1026,11 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             )
             self.graph_info["is_multilabel"] = label_conf.multilabel
             node_label_loader = DistLabelLoader(label_conf, self.spark)
+            logging.info(
+                "Processing label data for node type %s, label col: %s...",
+                node_type,
+                label_conf.label_column,
+            )
             transformed_label = node_label_loader.process_label(nodes_df)
             self.graph_info["label_map"] = node_label_loader.label_map
 
@@ -1044,7 +1050,11 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
             split_masks_output_prefix = f"{self.output_prefix}/node_data/{node_type}"
 
-            logging.info("Creating train/test/val split for node type %s...", node_type)
+            logging.info(
+                "Creating train/test/val split for node type %s, label col: %s...",
+                node_type,
+                label_conf.label_column,
+            )
             if label_conf.split_rate:
                 split_rates = SplitRates(
                     train_rate=label_conf.split_rate["train"],
@@ -1089,11 +1099,6 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             The first list contains the original edge files, the second is the reversed
             edge files, will be empty if `self.add_reverse_edges` is False.
         """
-        # TODO: An option for dealing with skewed data:
-        # Find the heavy hitter, collect, do broadcast join with just them,
-        # (for both sides of the edge and filter the rows?) then do the join with
-        # the rest, then concat the two (or write to storage separately, concat at read-time)
-
         src_col = edge_config.src_col
         src_ntype = edge_config.src_ntype
         dst_col = edge_config.dst_col
@@ -1114,10 +1119,13 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             )
             .withColumnRenamed(NODE_MAPPING_INT, "src_int_id")
             .withColumnRenamed(NODE_MAPPING_STR, "src_str_id")
-            .repartition(self.num_output_files, F.col("src_str_id"))
         )
+
+        # If edge is homogeneous, we'll re-use the same mapping for both src and dst
+        if src_ntype == dst_ntype:
+            src_node_id_mapping.cache()
+
         # Join incoming edge df with mapping df to transform source str-ids to int ids
-        edge_df = edge_df.repartition(self.num_output_files, F.col(src_col))
         edge_df_with_int_src = src_node_id_mapping.join(
             edge_df,
             src_node_id_mapping["src_str_id"] == edge_df[src_col],
@@ -1138,22 +1146,24 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     intermediate_edge_count,
                 )
 
-        dst_node_id_mapping = (
-            self.spark.read.parquet(
-                *[
-                    f"{self.output_prefix}/{dst_path}"
-                    for dst_path in self.node_mapping_paths[dst_ntype]
-                ]
+        if src_ntype == dst_ntype:
+            # Re-use mapping for homogeneous edges
+            dst_node_id_mapping = src_node_id_mapping.withColumnRenamed(
+                "src_int_id", "dst_int_id"
+            ).withColumnRenamed("src_str_id", "dst_str_id")
+        else:
+            dst_node_id_mapping = (
+                self.spark.read.parquet(
+                    *[
+                        f"{self.output_prefix}/{dst_path}"
+                        for dst_path in self.node_mapping_paths[dst_ntype]
+                    ]
+                )
+                .withColumnRenamed(NODE_MAPPING_INT, "dst_int_id")
+                .withColumnRenamed(NODE_MAPPING_STR, "dst_str_id")
             )
-            .withColumnRenamed(NODE_MAPPING_INT, "dst_int_id")
-            .withColumnRenamed(NODE_MAPPING_STR, "dst_str_id")
-            .repartition(self.num_output_files, F.col("dst_str_id"))
-        )
         # Join the newly created src-int-id edge df with mapping
         # df to transform destination str-ids to int ids
-        edge_df_with_int_src = edge_df_with_int_src.repartition(
-            self.num_output_files, F.col(dst_col)
-        )
         edge_df_with_int_ids = dst_node_id_mapping.join(
             edge_df_with_int_src,
             dst_node_id_mapping["dst_str_id"] == edge_df_with_int_src[dst_col],
@@ -1173,6 +1183,8 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
         edge_structure_path = os.path.join(self.output_prefix, f"edges/{edge_type}")
         logging.info("Writing edge structure for edge type %s...", edge_type)
+        if self.add_reverse_edges:
+            edge_df_with_only_int_ids.cache()
         path_list = self._write_df(edge_df_with_only_int_ids, edge_structure_path)
 
         if self.add_reverse_edges:

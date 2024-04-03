@@ -47,7 +47,7 @@ Optional:
     EC2 instance type for the processing job. (Default: 'ml.r5.4xlarge')
 --add-reverse-edges: str
     When set to "True", will create reverse edges for every edge type. (Default: "True")
---repartition-on-leader: str
+--do-repartition: str
     When set to "True", will repartition the graph files on the leader node if needed.
     (Default: "True")
 --num-output-files: int

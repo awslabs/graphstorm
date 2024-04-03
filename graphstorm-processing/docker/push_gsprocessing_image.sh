@@ -98,7 +98,7 @@ cleanup() {
   # script cleanup here
 }
 
-parse_params "$@"
+parse_params "${@}"
 
 if [[ ${EXEC_ENV} == "sagemaker" || ${EXEC_ENV} == "emr-serverless" ]]; then
     :  # Do nothing
