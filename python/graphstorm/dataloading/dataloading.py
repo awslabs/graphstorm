@@ -1354,7 +1354,9 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
         from graphstorm.trainer import GSgnnNodePredictionTrainer
 
         np_data = GSgnnNodeTrainData(...)
-        np_dataloader = GSgnnNodeDataLoader(np_data, target_idx, fanout=[15, 10], batch_size=128)
+        np_dataloader = GSgnnNodeDataLoader(np_data, target_idx, fanout=[15, 10],
+                                            batch_size=128,
+                                            label_field="label", node_feats="feat")
         np_trainer = GSgnnNodePredictionTrainer(...)
         np_trainer.fit(np_dataloader, num_epochs=10)
     """

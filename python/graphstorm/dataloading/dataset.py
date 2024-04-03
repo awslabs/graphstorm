@@ -77,6 +77,8 @@ def prepare_batch_input(g, input_nodes,
             # concatenate multiple features together
             feats = []
             for fname in feat_name:
+                assert fname in g.nodes[ntype].data, \
+                    f"{fname} does not exist as a node feature of {ntype}"
                 data = g.nodes[ntype].data[fname]
                 if is_wholegraph_embedding(data):
                     data = data.gather(nid.to(dev))
@@ -118,6 +120,8 @@ def prepare_batch_edge_input(g, input_edges,
             # concatenate multiple features together
             feats = []
             for fname in feat_name:
+                assert fname in g.edges[etypes].data, \
+                    f"{fname} does not exist as an edge feature of {etypes}"
                 data = g.edges[etypes].data[fname]
                 if is_wholegraph_embedding(data):
                     data = data.gather(eid.to(dev))
@@ -157,6 +161,12 @@ class GSgnnData():
         graph_name = get_graph_name(part_config)
         self._g = dgl.distributed.DistGraph(graph_name, part_config=part_config)
         self._graph_name = graph_name
+        # Note: node_feat_field and edge_feat_field are useful in two cases:
+        # 1. WholeGraph: As the feature information is not stored in g,
+        #    node_feat_field and edge_feat_field are used to tell GraphStorm
+        #    what features should be loaded by WholeGraph
+        # 2. Used by _ReconstructedNeighborSampler to decide whether a node
+        #    or an edge has feature.
         self._node_feat_field = node_feat_field
         self._edge_feat_field = edge_feat_field
         self._lm_feat_ntypes = lm_feat_ntypes if lm_feat_ntypes is not None else []
@@ -328,6 +338,7 @@ class GSgnnData():
             assert len(g.ntypes) == 1, \
                     "We don't know the input node type, but the graph has more than one node type."
             input_nodes = {g.ntypes[0]: input_nodes}
+
         return prepare_batch_input(g, input_nodes, dev=device,
                                    feat_field=nfeat_fields)
 
@@ -383,12 +394,16 @@ class GSgnnData():
         ntypes: str or list of str
             List of node types
         mask: str or list of str
-            The node feature field storing the mask.
+            The node features field storing the masks.
 
         Return
         ------
         list: list of mask fields
         """
+        if isinstance(ntypes, str):
+            # ntypes is a string, convert it into list
+            ntypes = [ntypes]
+
         if isinstance(mask, str):
             # Mask is a string
             # All the masks are using the same name
@@ -629,6 +644,35 @@ class GSgnnData():
                 f"but get {self._g.ntypes} and {self._g.etypes}"
         return etypes
 
+    def _check_edge_mask(self, etypes, mask):
+        """ Check the edge mask(s) and convert it into list of strs
+
+        Parameters
+        __________
+        etypes: tuple or list of tuple
+            List of edge types
+        mask: str or list of str
+            The edge feature fields storing the masks.
+
+        Return
+        ------
+        list: list of mask fields
+        """
+        if isinstance(etypes, tuple):
+            # etypes is a string, convert it into list
+            etypes = [etypes]
+
+        if isinstance(mask, str):
+            # Mask is a string
+            # All the masks are using the same name
+            masks = [mask] * len(etypes)
+
+        assert len(etypes) == len(masks), \
+            "Expecting the number of etypes matches the number of mask fields, " \
+            f"But get {len(etypes)} and {len(masks)}." \
+            f"The edge types are {etypes} and the mask fileds are {masks}"
+        return masks
+
     def get_edge_train_set(self, etypes=None, mask="train_mask"):
         """ Get edge training set for edges of etypes.
 
@@ -652,16 +696,8 @@ class GSgnnData():
         num_train = 0
         etypes = g.canonical_etypes \
             if etypes is None else self._check_etypes(etypes)
+        masks = self._check_edge_mask(etypes, mask)
 
-        if isinstance(mask, str):
-            # mask is a string
-            # train masks are using the same name
-            masks = [mask] * len(etypes)
-
-        assert len(etypes) == len(masks), \
-            "Expecting the number of etypes matches the number of mask fields, " \
-            f"But get {len(etypes)} and {len(masks)}." \
-            f"The edge types are {etypes} and the mask fileds are {masks}"
         for canonical_etype, mask in zip(etypes, masks):
             if mask in g.edges[canonical_etype].data:
                 train_idx = dgl.distributed.edge_split(
@@ -690,15 +726,8 @@ class GSgnnData():
         idxs = {}
         num_data = 0
         etypes = self._check_etypes(etypes)
-        if isinstance(mask, str):
-            # mask is a string
-            # every mask is using the same name
-            masks = [mask] * len(etypes)
+        masks = self._check_edge_mask(etypes, mask)
 
-        assert len(etypes) == len(masks), \
-            "Expecting the number of etypes matches the number of mask fields, " \
-            f"But get {len(etypes)} and {len(masks)}." \
-            f"The edge types are {etypes} and the mask fileds are {masks}"
         for canonical_etype, mask in zip(etypes, masks):
             # user must provide validation/test mask
             if mask in g.edges[canonical_etype].data:
@@ -788,15 +817,8 @@ class GSgnnData():
         # If etypes is None, we use all edge types.
         etypes = g.canonical_etypes \
             if etypes is None else self._check_etypes(etypes)
+        masks = self._check_edge_mask(etypes, mask)
 
-        if isinstance(mask, str):
-            # mask is a string
-            # inference masks are using the same name
-            masks = [mask] * len(etypes)
-        assert len(etypes) == len(masks), \
-            "Expecting the number of etypes matches the number of mask fields, " \
-            f"But get {len(etypes)} and {len(masks)}." \
-            f"The edge types are {etypes} and the mask fileds are {masks}"
         for canonical_etype, mask in zip(etypes, masks):
             if mask in g.edges[canonical_etype].data:
                 # mask exists
@@ -969,157 +991,6 @@ class GSgnnNodeData(GSgnnData):  # pylint: disable=abstract-method
                     self._labels[ntype] = self._g.nodes[ntype].data[label_field]
         else:
             self._labels = None
-
-class GSgnnNodeTrainData(GSgnnNodeData):
-    r""" Training data for node tasks
-
-    GSgnnNodeTrainData prepares the data for training node prediction.
-
-    Parameters
-    ----------
-    graph_name : str
-        The graph name
-    part_config : str
-        The path of the partition configuration file.
-    train_ntypes : str or list of str
-        Target node types for training
-    eval_ntypes : str or list of str
-        Target node types for evaluation
-    label_field : str
-        The field for storing labels
-    node_feat_field: str or dict of list of str
-        Fields to extract node features. It's a dict if different node types have
-        different feature names.
-    edge_feat_field : str or dict of list of str
-        The field of the edge features. It's a dict if different edge types have
-        different feature names.
-    lm_feat_ntypes : list of str
-        The node types that contains text features.
-    lm_feat_etypes : list of tuples
-        The edge types that contains text features.
-
-    Examples
-    ----------
-
-    .. code:: python
-
-        from graphstorm.dataloading import GSgnnNodeTrainData
-        from graphstorm.dataloading import GSgnnNodeDataLoader
-
-        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                        train_ntypes=['n1'], label_field='label',
-                                        node_feat_field='feat')
-        np_dataloader = GSgnnNodeDataLoader(np_data, target_idx={'n1':[0]},
-                                            fanout=[15, 10], batch_size=128)
-    """
-    def __init__(self, graph_name, part_config, train_ntypes, eval_ntypes=None,
-                 label_field=None, node_feat_field=None, edge_feat_field=None,
-                 lm_feat_ntypes=None, lm_feat_etypes=None):
-        if isinstance(train_ntypes, str):
-            train_ntypes = [train_ntypes]
-        assert isinstance(train_ntypes, list), \
-                "prediction ntypes for training has to be a string or a list of strings."
-        self._train_ntypes = train_ntypes
-        if eval_ntypes is not None:
-            if isinstance(eval_ntypes, str):
-                eval_ntypes = [eval_ntypes]
-            assert isinstance(eval_ntypes, list), \
-                "prediction ntypes for evaluation has to be a string or a list of strings."
-            self._eval_ntypes = eval_ntypes
-        else:
-            self._eval_ntypes = train_ntypes
-
-        super(GSgnnNodeTrainData, self).__init__(graph_name, part_config,
-                                                 label_field=label_field,
-                                                 node_feat_field=node_feat_field,
-                                                 edge_feat_field=edge_feat_field,
-                                                 lm_feat_ntypes=lm_feat_ntypes,
-                                                 lm_feat_etypes=lm_feat_etypes)
-        if self._train_ntypes == [DEFAULT_NTYPE]:
-            # DGL Graph edge type is not canonical. It is just list[str].
-            assert self._g.ntypes == [DEFAULT_NTYPE] and \
-                   self._g.etypes == [DEFAULT_ETYPE[1]], \
-                f"It is required to be a homogeneous graph when target_ntype is not provided " \
-                f"or is set to {DEFAULT_NTYPE} on node tasks, expect node type " \
-                f"to be {[DEFAULT_NTYPE]} and edge type to be {[DEFAULT_ETYPE[1]]}, " \
-                f"but get {self._g.ntypes} and {self._g.etypes}"
-
-
-class GSgnnNodeInferData(GSgnnNodeData):
-    r""" Inference data for node tasks
-
-    GSgnnNodeInferData prepares the data for node prediction inference.
-
-    Parameters
-    ----------
-    graph_name : str
-        The graph name
-    part_config : str
-        The path of the partition configuration file.
-    eval_ntypes : str or list of str
-        Target node types
-    label_field : str
-        The field for storing labels
-    node_feat_field: str or dict of list of str
-        Fields to extract node features. It's a dict if different node types have
-        different feature names.
-    edge_feat_field : str or dict of list of str
-        The field of the edge features. It's a dict if different edge types have
-        different feature names.
-    lm_feat_ntypes : list of str
-        The node types that contains text features.
-    lm_feat_etypes : list of tuples
-        The edge types that contains text features.
-
-    Examples
-    ----------
-
-    .. code:: python
-
-        from graphstorm.dataloading import GSgnnNodeInferData
-        from graphstorm.dataloading import
-
-        np_data = GSgnnNodeInferData(graph_name='dummy', part_config=part_config,
-                                        eval_ntypes=['n1'], label_field='label',
-                                        node_feat_field='feat')
-        np_dataloader = GSgnnNodeDataLoader(np_data, target_idx={'n1':[0]},
-                                            fanout=[15, 10], batch_size=128)
-    """
-    def __init__(self, graph_name, part_config, eval_ntypes,
-                 label_field=None, node_feat_field=None, edge_feat_field=None,
-                 lm_feat_ntypes=None, lm_feat_etypes=None):
-        if isinstance(eval_ntypes, str):
-            eval_ntypes = [eval_ntypes]
-        assert isinstance(eval_ntypes, list), \
-                "prediction ntypes for evaluation has to be a string or a list of strings."
-        self._eval_ntypes = eval_ntypes
-
-        super(GSgnnNodeInferData, self).__init__(graph_name, part_config,
-                                                 label_field=label_field,
-                                                 node_feat_field=node_feat_field,
-                                                 edge_feat_field=edge_feat_field,
-                                                 lm_feat_ntypes=lm_feat_ntypes,
-                                                 lm_feat_etypes=lm_feat_etypes)
-
-        if self._eval_ntypes == [DEFAULT_NTYPE]:
-            # DGL Graph edge type is not canonical. It is just list[str].
-            assert self._g.ntypes == [DEFAULT_NTYPE] and \
-                   self._g.etypes == [DEFAULT_ETYPE[1]], \
-                f"It is required to be a homogeneous graph when target_ntype is not provided " \
-                f"or is set to {DEFAULT_NTYPE} on node tasks, expect node type " \
-                f"to be {[DEFAULT_NTYPE]} and edge type to be {[DEFAULT_ETYPE[1]]}, " \
-                f"but get {self._g.ntypes} and {self._g.etypes}"
-
-    @property
-    def eval_ntypes(self):
-        """node type for evaluation"""
-        return self._eval_ntypes
-
-    @property
-    def infer_idxs(self):
-        """ Set of nodes to do inference.
-        """
-        return self._infer_idxs
 
 class GSDistillData(Dataset):
     """ Dataset for distillation

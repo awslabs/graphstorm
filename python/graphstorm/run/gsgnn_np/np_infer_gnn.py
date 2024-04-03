@@ -20,7 +20,7 @@ from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnNodePredictionInferrer
 from graphstorm.eval import GSgnnAccEvaluator, GSgnnRegressionEvaluator
-from graphstorm.dataloading import GSgnnNodeInferData, GSgnnNodeDataLoader
+from graphstorm.dataloading import GSgnnData, GSgnnNodeDataLoader
 from graphstorm.utils import get_device, get_lm_ntypes, use_wholegraph
 
 def get_evaluator(config): # pylint: disable=unused-argument
@@ -47,12 +47,9 @@ def main(config_args):
                   local_rank=config.local_rank,
                   use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
 
-    infer_data = GSgnnNodeInferData(config.graph_name,
-                                    config.part_config,
-                                    eval_ntypes=config.target_ntype,
-                                    node_feat_field=config.node_feat_name,
-                                    label_field=config.label_field,
-                                    lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
+    infer_data = GSgnnData(config.part_config,
+                           node_feat_field=config.node_feat_name,
+                           lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
 
     model = gs.create_builtin_node_gnn_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path,
@@ -78,6 +75,8 @@ def main(config_args):
     dataloader = GSgnnNodeDataLoader(infer_data, target_idxs, fanout=fanout,
                                      batch_size=config.eval_batch_size,
                                      train_task=False,
+                                     node_feats=config.node_feat_name,
+                                     label_field=config.label_field,
                                      construct_feat_ntype=config.construct_feat_ntype,
                                      construct_feat_fanout=config.construct_feat_fanout)
     infer.infer(dataloader, save_embed_path=config.save_embed_path,

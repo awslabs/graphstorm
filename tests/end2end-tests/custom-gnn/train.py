@@ -23,7 +23,7 @@ import torch as th
 import graphstorm as gs
 from graphstorm import model as gsmodel
 from graphstorm.trainer import GSgnnNodePredictionTrainer
-from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeDataLoader
+from graphstorm.dataloading import GSgnnData, GSgnnNodeDataLoader
 from graphstorm.utils import get_device
 
 class MyGNNModel(gsmodel.GSgnnNodeModelBase):
@@ -78,19 +78,18 @@ class MyGNNModel(gsmodel.GSgnnNodeModelBase):
 def main(args):
     gs.initialize(ip_config=args.ip_config, backend="gloo",
                   local_rank=args.local_rank)
-    train_data = GSgnnNodeTrainData(args.graph_name,
-                                    args.part_config,
-                                    train_ntypes=args.target_ntype,
-                                    node_feat_field=args.node_feat,
-                                    label_field=args.label)
+    train_data = GSgnnData(args.part_config,
+                           node_feat_field=args.node_feat)
     for ntype in train_data.g.ntypes:
         print(ntype, train_data.g.nodes[ntype].data.keys())
     feat_size = gs.get_node_feat_size(train_data.g, args.node_feat)
     model = MyGNNModel(train_data.g, feat_size, 16, args.num_classes)
     trainer = GSgnnNodePredictionTrainer(model, topk_model_to_save=1)
     trainer.setup_device(device=get_device())
-    dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=[10, 10],
-                                     batch_size=1000, train_task=True)
+    train_idxs = train_data.get_node_train_set(args.target_ntype, mask="train_mask")
+    dataloader = GSgnnNodeDataLoader(train_data, train_idxs, fanout=[10, 10],
+                                     batch_size=1000, node_feats=args.node_feat,
+                                     label_field=args.label, train_task=True)
     trainer.fit(train_loader=dataloader, num_epochs=2)
 
 if __name__ == '__main__':
