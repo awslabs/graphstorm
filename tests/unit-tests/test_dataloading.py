@@ -519,17 +519,17 @@ def test_edge_dataloader():
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=[('n0', 'r1', 'n1')], label_field='label')
+        ep_data = GSgnnData(part_config=part_config)
 
     ################### Test train_task #######################
 
     # Without shuffling, the seed nodes should have the same order as the target nodes.
     target_idx = {('n0', 'r1', 'n1'): th.arange(ep_data.g.number_of_edges('r1'))}
     dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], 10,
+                                     label_field='label',
                                      train_task=False, remove_target_edge_type=False)
     all_edges = []
-    for input_nodes, batch_graph, blocks in dataloader:
+    for _, batch_graph, blocks in dataloader:
         assert len(batch_graph.etypes) == 1
         assert 'r1' in batch_graph.etypes
         all_edges.append(batch_graph.edata[dgl.EID])
@@ -539,15 +539,16 @@ def test_edge_dataloader():
     # With data shuffling, the seed edges should have different orders
     # whenever the data loader is called.
     dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], 10,
+                                     label_field='label',
                                      train_task=True, remove_target_edge_type=False)
     all_edges1 = []
-    for input_nodes, batch_graph, blocks in dataloader:
+    for _, batch_graph, blocks in dataloader:
         assert len(batch_graph.etypes) == 1
         assert 'r1' in batch_graph.etypes
         all_edges1.append(batch_graph.edata[dgl.EID])
     all_edges1 = th.cat(all_edges1)
     all_edges2 = []
-    for input_nodes, batch_graph, blocks in dataloader:
+    for _, batch_graph, blocks in dataloader:
         assert len(batch_graph.etypes) == 1
         assert 'r1' in batch_graph.etypes
         all_edges2.append(batch_graph.edata[dgl.EID])
@@ -556,6 +557,7 @@ def test_edge_dataloader():
 
     ################### Test removing target edges #######################
     dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], 10,
+                                     label_field='label',
                                      train_task=False, remove_target_edge_type=True,
                                      reverse_edge_types_map={('n0', 'r1', 'n1'): ('n0', 'r0', 'n1')})
     all_edges = []
@@ -1078,8 +1080,7 @@ def test_edge_dataloader_trim_data_device(dataloader, backend):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        edge_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=test_etypes, label_field='label')
+        edge_data = GSgnnData(part_config=part_config)
 
         @patch("graphstorm.dataloading.dataloading.trim_data")
         def check_dataloader_trim(mock_trim_data):
@@ -1104,6 +1105,7 @@ def test_edge_dataloader_trim_data_device(dataloader, backend):
                     fanout=[],
                     target_idx=dict(edge_data.train_idxs), # test train_idxs
                     batch_size=16,
+                    label_field='label',
                     remove_target_edge_type=False)
 
             args, _ = mock_trim_data.call_args
@@ -1416,18 +1418,19 @@ def test_ep_dataloader_len(batch_size):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=[('n0', 'r1', 'n1')], label_field='label')
+        ep_data = GSgnnData(part_config=part_config)
 
     ################### Test train_task #######################
 
     # Without shuffling, the seed nodes should have the same order as the target nodes.
     target_idx = {('n0', 'r1', 'n1'): th.arange(ep_data.g.number_of_edges('r1'))}
     dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], batch_size,
+                                     label_field='label',
                                      train_task=False, remove_target_edge_type=False)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], batch_size,
+                                     label_field='label',
                                      train_task=True, remove_target_edge_type=False)
     assert len(dataloader) == len(list(dataloader))
 

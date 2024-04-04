@@ -735,11 +735,15 @@ def check_edge_prediction(model, data):
     target_idx = {("n0", "r1", "n1"): th.arange(g.number_of_edges("r1"))}
     dataloader1 = GSgnnEdgeDataLoader(data, target_idx, fanout=[],
                                       batch_size=10,
+                                      label_field='label',
+                                      node_feats='feat',
                                       train_task=False,
                                       remove_target_edge_type=False)
     pred1, labels1 = edge_mini_batch_predict(model, embs, dataloader1, return_label=True)
     dataloader2 = GSgnnEdgeDataLoader(data, target_idx, fanout=[-1, -1],
                                       batch_size=10,
+                                      label_field='label',
+                                      node_feats='feat',
                                       train_task=False,
                                       remove_target_edge_type=False)
     pred2, labels2 = edge_mini_batch_gnn_predict(model, dataloader2, return_label=True)
@@ -772,11 +776,15 @@ def check_mlp_edge_prediction(model, data):
     target_idx = {("n0", "r1", "n1"): th.arange(g.number_of_edges("r1"))}
     dataloader1 = GSgnnEdgeDataLoader(data, target_idx, fanout=[],
                                       batch_size=10,
+                                      label_field='label',
+                                      node_feats='feat',
                                       train_task=False,
                                       remove_target_edge_type=False)
     pred1, labels1 = edge_mini_batch_predict(model, embs, dataloader1, return_label=True)
     dataloader2 = GSgnnEdgeDataLoader(data, target_idx, fanout=[],
                                       batch_size=10,
+                                      label_field='label',
+                                      node_feats='feat',
                                       train_task=False,
                                       remove_target_edge_type=False)
     pred2, labels2 = edge_mini_batch_gnn_predict(model, dataloader2, return_label=True)
@@ -809,9 +817,7 @@ def test_rgcn_edge_prediction(num_ffn_layers):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(tmpdirname)
-        ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=[('n0', 'r1', 'n1')], label_field='label',
-                                     node_feat_field='feat')
+        ep_data = GSgnnData(part_config=part_config)
     model = create_rgcn_edge_model(ep_data.g, num_ffn_layers=num_ffn_layers)
     check_edge_prediction(model, ep_data)
     th.distributed.destroy_process_group()
@@ -833,9 +839,7 @@ def test_hgt_edge_prediction(num_ffn_layers):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(tmpdirname)
-        ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=[('n0', 'r1', 'n1')], label_field='label',
-                                     node_feat_field='feat')
+        ep_data = GSgnnData(part_config=part_config)
     model = create_hgt_edge_model(ep_data.g, num_ffn_layers=num_ffn_layers)
     check_edge_prediction(model, ep_data)
     th.distributed.destroy_process_group()
@@ -883,9 +887,7 @@ def test_mlp_edge_prediction(num_ffn_layers):
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         lm_config, _, _, _, g, part_config = create_lm_graph(tmpdirname)
-        ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                        train_etypes=[('n0', 'r1', 'n1')], label_field='label',
-                                        node_feat_field='feat')
+        ep_data = GSgnnData(part_config=part_config)
         g.edges['r1'].data['label']= ep_data.g.edges['r1'].data['label']
     model = create_mlp_edge_model(g, lm_config, num_ffn_layers=num_ffn_layers)
     assert model.gnn_encoder is None
