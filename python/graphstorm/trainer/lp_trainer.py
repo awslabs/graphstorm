@@ -172,11 +172,11 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                     assert len(pos_graph.ntypes) == 1
                     input_nodes = {pos_graph.ntypes[0]: input_nodes}
                 input_feats = data.get_node_feats(input_nodes, device)
-                if data.pos_graph_feat_field is not None:
+                if train_loader.pos_graph_feat_fields is not None:
                     input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
                         for etype in pos_graph.canonical_etypes}
                     pos_graph_feats = data.get_edge_feats(input_edges,
-                                                          data.pos_graph_feat_field,
+                                                          train_loader.pos_graph_feat_fields,
                                                           device)
                 else:
                     pos_graph_feats = None
