@@ -215,25 +215,27 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                 if not isinstance(input_nodes, dict):
                     assert len(g.ntypes) == 1
                     input_nodes = {g.ntypes[0]: input_nodes}
-                if data.decoder_edge_feat is not None:
+                if loader.decoder_edge_feat_fields is not None:
                     input_edges = {etype: target_edge_graph.edges[etype].data[dgl.EID] \
                         for etype in target_edge_graph.canonical_etypes}
             if is_wholegraph():
                 tmp_node_keys = [ntype for ntype in g.ntypes if ntype not in input_nodes]
-                if data.decoder_edge_feat is not None:
+                if loader.decoder_edge_feat_fields is not None:
                     tmp_edge_keys = [etype for etype in g.canonical_etypes \
                         if etype not in input_edges]
                 prepare_for_wholegraph(g, input_nodes, input_edges)
-            input_feats = data.get_node_feats(input_nodes, device)
+            nfeat_fields = loader.node_feat_fields
+            input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
             if blocks is None:
                 continue
             # Remove additional keys (ntypes) added for WholeGraph compatibility
             for ntype in tmp_node_keys:
                 del input_nodes[ntype]
-            if data.decoder_edge_feat is not None:
-                edge_decoder_feats = data.get_edge_feats(input_edges,
-                                                         data.decoder_edge_feat,
-                                                         device)
+            if loader.decoder_edge_feat_fields is not None:
+                edge_decoder_feats = \
+                    data.get_edge_feats(input_edges,
+                                        loader.decoder_edge_feat_fields,
+                                        device)
                 # Remove additional keys (etypes) added for WholeGraph compatibility
                 for etype in tmp_edge_keys:
                     del input_edges[etype]
@@ -257,7 +259,8 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                 # retrieving seed edge id from the graph to find labels
                 # TODO(zhengda) the data loader should return labels directly.
                 seeds = target_edge_graph.edges[target_etype].data[dgl.EID]
-                lbl = data.get_labels({target_etype: seeds})
+                label_field = loader.label_field
+                lbl = data.get_node_feats({target_etype: seeds}, label_field)
                 assert len(lbl) == 1
                 append_to_dict(lbl, labels)
             if isinstance(pred, dict):
@@ -330,14 +333,14 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
         # the order when gather tensors from other trainers
         for iter_l in range(max_num_batch):
             tmp_edge_keys = []
-            input_edges = {} if data.decoder_edge_feat is not None else None
+            input_edges = {} if loader.decoder_edge_feat_fields is not None else None
             # TODO suppport multiple target edge types
             if iter_l < len_dataloader:
                 input_nodes, target_edge_graph, _ = next(dataloader_iter)
-                if data.decoder_edge_feat is not None:
+                if loader.decoder_edge_feat_fields is not None:
                     input_edges = {etype: target_edge_graph.edges[etype].data[dgl.EID] \
                         for etype in target_edge_graph.canonical_etypes}
-            if is_wholegraph() and data.decoder_edge_feat is not None:
+            if is_wholegraph() and loader.decoder_edge_feat_fields is not None:
                 tmp_edge_keys = [etype for etype in g.canonical_etypes \
                     if etype not in input_edges]
                 prepare_for_wholegraph(g, None, input_edges)
@@ -347,9 +350,9 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
             for ntype, in_nodes in input_nodes.items():
                 batch_embs[ntype] = emb[ntype][in_nodes].to(device)
             target_edge_graph = target_edge_graph.to(device)
-            if data.decoder_edge_feat is not None:
+            if loader.decoder_edge_feat_fields is not None:
                 edge_decoder_feats = data.get_edge_feats(input_edges,
-                                                         data.decoder_edge_feat,
+                                                         loader.decoder_edge_feat_fields,
                                                          target_edge_graph.device)
                 # Remove additional keys (etypes) added for WholeGraph compatibility
                 for etype in tmp_edge_keys:
@@ -368,8 +371,10 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
             # TODO(zhengda) we need to have the data loader reads everything,
             # instead of reading labels here.
             if return_label:
-                lbl = data.get_labels(
-                    {target_etype: target_edge_graph.edges[target_etype].data[dgl.EID]})
+                label_field = loader.label_field
+                lbl = data.get_node_feats(
+                    {target_etype: target_edge_graph.edges[target_etype].data[dgl.EID]},
+                    label_field)
                 append_to_dict(lbl, labels)
     barrier()
 

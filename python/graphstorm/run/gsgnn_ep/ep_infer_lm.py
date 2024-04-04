@@ -22,7 +22,7 @@ from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnEdgePredictionInferrer
 from graphstorm.eval import GSgnnAccEvaluator, GSgnnRegressionEvaluator
-from graphstorm.dataloading import GSgnnEdgeInferData, GSgnnEdgeDataLoader
+from graphstorm.dataloading import GSgnnData, GSgnnEdgeDataLoader
 from graphstorm.utils import get_device
 
 def get_evaluator(config): # pylint: disable=unused-argument
@@ -47,12 +47,8 @@ def main(config_args):
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
                   local_rank=config.local_rank)
 
-    infer_data = GSgnnEdgeInferData(config.graph_name,
-                                    config.part_config,
-                                    eval_etypes=config.target_etype,
-                                    node_feat_field=config.node_feat_name,
-                                    label_field=config.label_field,
-                                    decoder_edge_feat=config.decoder_edge_feat)
+    infer_data = GSgnnData(config.part_config,
+                           node_feat_field=config.node_feat_name)
     model = gs.create_builtin_edge_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
@@ -66,6 +62,9 @@ def main(config_args):
     infer.setup_task_tracker(tracker)
     dataloader = GSgnnEdgeDataLoader(infer_data, infer_data.test_idxs, fanout=[],
                                      batch_size=config.eval_batch_size,
+                                     node_feats=config.node_feat_name,
+                                     label_field=config.label_field,
+                                     decoder_edge_feats=config.decoder_edge_feat,
                                      train_task=False,
                                      remove_target_edge_type=False)
     # Preparing input layer for training or inference.

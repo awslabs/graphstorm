@@ -21,7 +21,7 @@ from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnEdgePredictionInferrer
 from graphstorm.eval import GSgnnAccEvaluator, GSgnnRegressionEvaluator
-from graphstorm.dataloading import GSgnnEdgeInferData, GSgnnEdgeDataLoader
+from graphstorm.dataloading import GSgnnData, GSgnnEdgeDataLoader
 from graphstorm.utils import get_device, get_lm_ntypes, use_wholegraph
 
 def get_evaluator(config): # pylint: disable=unused-argument
@@ -48,13 +48,9 @@ def main(config_args):
                   local_rank=config.local_rank,
                   use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
 
-    infer_data = GSgnnEdgeInferData(config.graph_name,
-                                    config.part_config,
-                                    eval_etypes=config.target_etype,
-                                    node_feat_field=config.node_feat_name,
-                                    label_field=config.label_field,
-                                    decoder_edge_feat=config.decoder_edge_feat,
-                                    lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
+    infer_data = GSgnnData(config.part_config,
+                           node_feat_field=config.node_feat_name,
+                           lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     model = gs.create_builtin_edge_gnn_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
@@ -79,6 +75,9 @@ def main(config_args):
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
     dataloader = GSgnnEdgeDataLoader(infer_data, target_idxs, fanout=fanout,
                                      batch_size=config.eval_batch_size,
+                                     node_feats=config.node_feat_name,
+                                     label_field=config.label_field,
+                                     decoder_edge_feats=config.decoder_edge_feat,
                                      train_task=False,
                                      reverse_edge_types_map=config.reverse_edge_types_map,
                                      remove_target_edge_type=config.remove_target_edge_type,

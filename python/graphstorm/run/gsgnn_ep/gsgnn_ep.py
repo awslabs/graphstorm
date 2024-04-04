@@ -22,7 +22,7 @@ import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.trainer import GSgnnEdgePredictionTrainer
-from graphstorm.dataloading import GSgnnEdgeTrainData, GSgnnEdgeDataLoader
+from graphstorm.dataloading import GSgnnData, GSgnnEdgeDataLoader
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.model.utils import save_full_node_embeddings
@@ -64,13 +64,9 @@ def main(config_args):
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
     # edge predict only handle edge feature in decoder
-    train_data = GSgnnEdgeTrainData(config.graph_name,
-                                    config.part_config,
-                                    train_etypes=config.target_etype,
-                                    node_feat_field=config.node_feat_name,
-                                    label_field=config.label_field,
-                                    decoder_edge_feat=config.decoder_edge_feat,
-                                    lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
+    train_data = GSgnnData(config.part_config,
+                           node_feat_field=config.node_feat_name,
+                           lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     model = gs.create_builtin_edge_gnn_model(train_data.g, config, train_task=True)
     trainer = GSgnnEdgePredictionTrainer(model, topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
@@ -90,6 +86,9 @@ def main(config_args):
     trainer.setup_task_tracker(tracker)
     dataloader = GSgnnEdgeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
                                      batch_size=config.batch_size,
+                                     node_feats=config.node_feat_name,
+                                     label_field=config.label_field,
+                                     decoder_edge_feats=config.decoder_edge_feat,
                                      train_task=True,
                                      reverse_edge_types_map=config.reverse_edge_types_map,
                                      remove_target_edge_type=config.remove_target_edge_type,
@@ -103,6 +102,9 @@ def main(config_args):
     if len(train_data.val_idxs) > 0:
         val_dataloader = GSgnnEdgeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
+            node_feats=config.node_feat_name,
+            label_field=config.label_field,
+            decoder_edge_feats=config.decoder_edge_feat,
             train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
             remove_target_edge_type=config.remove_target_edge_type,
@@ -111,6 +113,9 @@ def main(config_args):
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSgnnEdgeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
+            node_feats=config.node_feat_name,
+            label_field=config.label_field,
+            decoder_edge_feats=config.decoder_edge_feat,
             train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
             remove_target_edge_type=config.remove_target_edge_type,
