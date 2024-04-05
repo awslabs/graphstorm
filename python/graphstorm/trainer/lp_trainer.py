@@ -58,12 +58,11 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     .. code:: python
 
         from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
-        from graphstorm.dataset import GSgnnEdgeTrainData
+        from graphstorm.dataset import GSgnnData
         from graphstorm.model import GSgnnLinkPredictionModel
         from graphstorm.trainer import GSgnnLinkPredictionTrainer
 
-        my_dataset = GSgnnEdgeTrainData(
-            "my_graph", "/path/to/part_config", train_etypes="edge_type")
+        my_dataset = GSgnnData("/path/to/part_config")
         target_idx = {"edge_type": target_edges_tensor}
         my_data_loader = GSgnnLinkPredictionDataLoader(
             my_dataset, target_idx, fanout=[10], batch_size=1024)
@@ -293,7 +292,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         ----------
         model : Pytorch model
             The GNN model.
-        data : GSgnnEdgeTrainData
+        data : GSgnnData
             The training dataset
         val_loader: GSNodeDataLoader
             The dataloader for validation data

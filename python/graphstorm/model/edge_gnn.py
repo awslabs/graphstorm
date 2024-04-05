@@ -372,7 +372,7 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
             # instead of reading labels here.
             if return_label:
                 label_field = loader.label_field
-                lbl = data.get_node_feats(
+                lbl = data.get_edge_feats(
                     {target_etype: target_edge_graph.edges[target_etype].data[dgl.EID]},
                     label_field)
                 append_to_dict(lbl, labels)

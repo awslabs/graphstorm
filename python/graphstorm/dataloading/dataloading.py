@@ -157,7 +157,7 @@ class GSgnnEdgeDataLoaderBase():
 
     Parameters
     ----------
-    dataset : GSgnnEdgeData
+    dataset : GSgnnData
         The dataset for the edge task.
     target_idx : dict of Tensors
         The target edge IDs.
@@ -228,7 +228,7 @@ class GSgnnEdgeDataLoaderBase():
 
         Returns
         -------
-        GSgnnEdgeData : The dataset of the dataloader.
+        GSgnnData : The dataset of the dataloader.
         """
         return self._data
 
@@ -301,7 +301,7 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
 
     Parameters
     ------------
-    dataset: GSgnnEdgeData
+    dataset: GSgnnData
         The GraphStorm edge dataset
     target_idx : dict of Tensors
         The target edges for prediction
@@ -350,11 +350,11 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
 
     .. code:: python
 
-        from graphstorm.dataloading import GSgnnEdgeTrainData
+        from graphstorm.dataloading import GSgnnData
         from graphstorm.dataloading import GSgnnEdgeDataLoader
         from graphstorm.trainer import GSgnnEdgePredictionTrainer
 
-        ep_data = GSgnnEdgeTrainData(...)
+        ep_data = GSgnnData(...)
         ep_dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, fanout=[15, 10], batch_size=128)
         ep_trainer = GSgnnEdgePredictionTrainer(...)
         ep_trainer.fit(ep_dataloader, num_epochs=10)
@@ -487,7 +487,7 @@ class GSgnnLinkPredictionDataLoaderBase():
 
     Parameters
     ----------
-    dataset: GSgnnEdgeData
+    dataset: GSgnnData
         The GraphStorm edge dataset
     target_idx : dict of Tensors
         The target edges for prediction
@@ -556,7 +556,7 @@ class GSgnnLinkPredictionDataLoaderBase():
 
         Returns
         -------
-        GSgnnEdgeData : The dataset of the dataloader.
+        GSgnnData : The dataset of the dataloader.
         """
         return self._dataset
 
@@ -621,7 +621,7 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
 
     Argument
     --------
-    dataset: GSgnnEdgeData
+    dataset: GSgnnData
         The GraphStorm edge dataset
     target_idx : dict of Tensors
         The target edges for prediction
@@ -674,11 +674,11 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
 
     .. code:: python
 
-        from graphstorm.dataloading import GSgnnEdgeTrainData
+        from graphstorm.dataloading import GSgnnData
         from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
         from graphstorm.trainer import GSgnnLinkPredictionTrainer
 
-        lp_data = GSgnnEdgeTrainData(...)
+        lp_data = GSgnnData(...)
         lp_dataloader = GSgnnLinkPredictionDataLoader(lp_data, target_idx, fanout=[15, 10],
                                                     num_negative_edges=10, batch_size=128)
         lp_trainer = GSgnnLinkPredictionTrainer(...)
@@ -1169,7 +1169,7 @@ class GSgnnLinkPredictionTestDataLoader(GSgnnLinkPredictionDataLoaderBase):
 
     Parameters
     -----------
-    dataset: GSgnnEdgeData
+    dataset: GSgnnData
         The GraphStorm edge dataset
     target_idx : dict of Tensors
         The target edges for prediction
@@ -1297,7 +1297,7 @@ class GSgnnLinkPredictionPredefinedTestDataLoader(GSgnnLinkPredictionTestDataLoa
 
     Parameters
     -----------
-    dataset: GSgnnEdgeData
+    dataset: GSgnnData
         The GraphStorm edge dataset
     target_idx : dict of Tensors
         The target edges for prediction
@@ -1373,7 +1373,7 @@ class GSgnnNodeDataLoaderBase():
 
     Parameters
     ----------
-    dataset : GSgnnNodeData
+    dataset : GSgnnData
         The dataset for the node task.
     target_idx : dict of Tensors
         The target node IDs.
@@ -1436,7 +1436,7 @@ class GSgnnNodeDataLoaderBase():
 
         Returns
         -------
-        GSgnnNodeData : The dataset of the dataloader.
+        GSgnnData : The dataset of the dataloader.
         """
         return self._data
 
@@ -1499,7 +1499,7 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
 
     Parameters
     ----------
-    dataset: GSgnnNodeData
+    dataset: GSgnnData
         The GraphStorm dataset
     target_idx : dict of Tensors
         The target nodes for prediction
@@ -1612,7 +1612,7 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
 
     Parameters
     ----------
-    dataset: GSgnnNodeData
+    dataset: GSgnnData
         The GraphStorm dataset
     target_idx : dict of Tensors
         The target nodes for prediction

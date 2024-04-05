@@ -383,6 +383,16 @@ class GSgnnData():
             ntypes = [ntypes]
         assert isinstance(ntypes, list), \
                 "Prediction ntypes have to be a string or a list of strings."
+
+        if ntypes == [DEFAULT_NTYPE]:
+            # DGL Graph edge type is not canonical. It is just list[str].
+            assert self._g.ntypes == [DEFAULT_NTYPE] and \
+                   self._g.etypes == [DEFAULT_ETYPE[1]], \
+                f"It is required to be a homogeneous graph when target_ntype is not provided " \
+                f"or is set to {DEFAULT_NTYPE} on node tasks, expect node type " \
+                f"to be {[DEFAULT_NTYPE]} and edge type to be {[DEFAULT_ETYPE[1]]}, " \
+                f"but get {self._g.ntypes} and {self._g.etypes}"
+
         return ntypes
 
     def _check_node_mask(self, ntypes, mask):
@@ -670,6 +680,7 @@ class GSgnnData():
             "Expecting the number of etypes matches the number of mask fields, " \
             f"But get {len(etypes)} and {len(masks)}." \
             f"The edge types are {etypes} and the mask fileds are {masks}"
+
         return masks
 
     def _exclude_reverse_etype(self, etypes, reverse_edge_types_map=None):

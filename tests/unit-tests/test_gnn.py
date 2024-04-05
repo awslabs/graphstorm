@@ -52,7 +52,7 @@ from graphstorm.model.edge_decoder import (DenseBiDecoder,
                                            LinkPredictWeightedDotDecoder,
                                            LinkPredictWeightedDistMultDecoder)
 from graphstorm.model.node_decoder import EntityRegression, EntityClassifier
-from graphstorm.dataloading import GSgnnData, GSgnnEdgeTrainData
+from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import GSgnnNodeDataLoader, GSgnnEdgeDataLoader
 from graphstorm.dataloading.dataset import prepare_batch_input
 from graphstorm import create_builtin_edge_gnn_model, create_builtin_node_gnn_model
@@ -727,7 +727,7 @@ def check_edge_prediction(model, data):
     ----------
     model: GSgnnEdgeModel
         Node model
-    data: GSgnnEdgeTrainData
+    data: GSgnnData
         Train data
     """
     g = data.g
@@ -768,7 +768,7 @@ def check_mlp_edge_prediction(model, data):
     ----------
     model: GSgnnEdgeModel
         Node model
-    data: GSgnnEdgeTrainData
+    data: GSgnnData
         Train data
     """
     g = data.g
@@ -1090,10 +1090,8 @@ def test_mlp_link_prediction():
                                       world_size=1)
     with tempfile.TemporaryDirectory() as tmpdirname:
         lm_config, _, _, _, g, part_config = create_lm_graph(tmpdirname)
-        np_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                        train_etypes=[('n0', 'r1', 'n1')],
-                                        eval_etypes=[('n0', 'r1', 'n1')],
-                                        node_feat_field='feat')
+        np_data = GSgnnData(part_config=part_config,
+                            node_feat_field='feat')
     model = create_mlp_lp_model(g, lm_config)
     assert model.gnn_encoder is None
     embs = do_full_graph_inference(model, np_data)
@@ -1476,9 +1474,8 @@ def test_mini_batch_full_graph_inference(num_ffn_layers):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(tmpdirname)
-        data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                  train_etypes=[('n0', 'r1', 'n1')], label_field='label',
-                                  node_feat_field='feat')
+        data = GSgnnData(part_config=part_config,
+                         node_feat_field='feat')
     model = create_rgcn_edge_model(data.g, num_ffn_layers=num_ffn_layers)
 
     embs_layer = do_full_graph_inference(model, data, fanout=[-1, -1])
@@ -1536,24 +1533,23 @@ def test_edge_mini_batch_gnn_predict():
     with tempfile.TemporaryDirectory() as tmpdirname:
         target_type = ("n0", "r1", "n1")
         _, part_config = generate_dummy_dist_graph(tmpdirname)
-        ep_data = GSgnnEdgeTrainData(graph_name='dummy',
-                                     part_config=part_config,
-                                     train_etypes=[target_type], label_field='label',
-                                     node_feat_field='feat')
-        g = ep_data.g
-        embs = {
-            "n0": th.rand((g.number_of_nodes("n0"), 10)),
-            "n1": th.rand((g.number_of_nodes("n1"), 10))
-        }
-        target_idx = {target_type: th.arange(g.number_of_edges("r1"))}
 
-        @patch.object(GSgnnEdgeTrainData, 'get_labels')
-        def check_predict(mock_get_labels):
-            mock_get_labels.side_effect = \
+        @patch.object(GSgnnData, 'get_edge_feats')
+        def check_predict(mock_get_edge_feats):
+            ep_data = GSgnnData(part_config=part_config)
+            g = ep_data.g
+            embs = {
+                "n0": th.rand((g.number_of_nodes("n0"), 10)),
+                "n1": th.rand((g.number_of_nodes("n1"), 10))
+            }
+            target_idx = {target_type: th.arange(g.number_of_edges("r1"))}
+            mock_get_edge_feats.side_effect = \
                 [{target_type: th.arange(10)}] * (ep_data.g.number_of_edges(target_type) // 10)
             model = Dummy_GSEdgeModel()
             dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, fanout=[],
                                              batch_size=10,
+                                             node_feats='feat',
+                                             label_field='label',
                                              train_task=False,
                                              remove_target_edge_type=False)
             pred, labels = edge_mini_batch_predict(model, embs, dataloader, return_label=True)
