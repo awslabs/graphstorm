@@ -1203,8 +1203,9 @@ class GSgnnLinkPredictionTestDataLoader(GSgnnLinkPredictionDataLoaderBase):
         Default: None
     """
     def __init__(self, dataset, target_idx, batch_size, num_negative_edges,
-                 fanout=None, fixed_test_size=None, node_feats=None,
-                 edge_feats=None, pos_graph_edge_feats=None):
+                 fanout=None, fixed_test_size=None,
+                 node_feats=None, edge_feats=None,
+                 pos_graph_edge_feats=None):
         super().__init__(dataset, target_idx, fanout, node_feats,
                          edge_feats, pos_graph_edge_feats)
         for etype in target_idx:
@@ -1312,13 +1313,35 @@ class GSgnnLinkPredictionPredefinedTestDataLoader(GSgnnLinkPredictionTestDataLoa
         Default: None.
     fixed_edge_dst_negative_field: str or list of str
         The feature field(s) that store the fixed negative set for each edge.
+    node_feats: str, or dist of list of str
+        Node features.
+        str: All the nodes have the same feature name.
+        list of string: All the nodes have the same list of features.
+        dist of list of string: Each node type have different set of node features.
+        Default: None
+    edge_feats: str, or dist of list of str
+        Edge features.
+        str: All the edges have the same feature name.
+        list of string: All the edges have the same list of features.
+        dist of list of string: Each edge type have different set of edge features.
+        Default: None
+    pos_graph_edge_feats: str or dist of list of str
+        The field of the edge features used by positive graph in link prediction.
+        For example edge weight.
+        Default: None
     """
     def __init__(self, dataset, target_idx, batch_size, fixed_edge_dst_negative_field,
-                 fanout=None, fixed_test_size=None):
+                 fanout=None, fixed_test_size=None,
+                 node_feats=None, edge_feats=None,
+                 pos_graph_edge_feats=None):
         self._fixed_edge_dst_negative_field = fixed_edge_dst_negative_field
         super().__init__(dataset, target_idx, batch_size,
                         num_negative_edges=0, # num_negative_edges is not used
-                        fanout=fanout, fixed_test_size=fixed_test_size)
+                        fanout=fanout,
+                        fixed_test_size=fixed_test_size,
+                        node_feats=node_feats,
+                        edge_feats=edge_feats,
+                        pos_graph_edge_feats=pos_graph_edge_feats)
 
     def _prepare_negative_sampler(self, _):
         negative_sampler = GSFixedEdgeDstNegativeSampler(self._fixed_edge_dst_negative_field)

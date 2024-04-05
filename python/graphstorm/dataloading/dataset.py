@@ -672,7 +672,17 @@ class GSgnnData():
             f"The edge types are {etypes} and the mask fileds are {masks}"
         return masks
 
-    def get_edge_train_set(self, etypes=None, mask="train_mask"):
+    def _exclude_reverse_etype(self, etypes, reverse_edge_types_map=None):
+        if reverse_edge_types_map is None:
+            return etypes
+
+        etypes = set(etypes)
+        for rev_etype in set(reverse_edge_types_map.values()):
+            etypes.remove(rev_etype)
+        return list(etypes)
+
+    def get_edge_train_set(self, etypes=None, mask="train_mask",
+                           reverse_edge_types_map=None):
         """ Get edge training set for edges of etypes.
 
         Parameters
@@ -684,6 +694,10 @@ class GSgnnData():
         mask: str or list of str
             The edge feature field storing the training mask.
             Default: "train_mask"
+        reverse_edge_types_map: dict
+            A map for reverse edge type.
+
+            Default: None
 
         Returns
         -------
@@ -693,7 +707,7 @@ class GSgnnData():
         pb = g.get_partition_book()
         train_idxs = {}
         num_train = 0
-        etypes = g.canonical_etypes \
+        etypes = self._exclude_reverse_etype(g.canonical_etypes, reverse_edge_types_map) \
             if etypes is None else self._check_etypes(etypes)
         masks = self._check_edge_mask(etypes, mask)
 
@@ -717,14 +731,15 @@ class GSgnnData():
         logging.info('part %d, train %d', get_rank(), num_train)
         return train_idxs
 
-    def _get_edge_set(self, etypes, mask):
+    def _get_edge_set(self, etypes, mask, reverse_edge_types_map):
         """ called by get_edge_val_set and get_edge_test_set
         """
         g = self._g
         pb = g.get_partition_book()
         idxs = {}
         num_data = 0
-        etypes = self._check_etypes(etypes)
+        etypes = self._exclude_reverse_etype(g.canonical_etypes, reverse_edge_types_map) \
+            if etypes is None else self._check_etypes(etypes)
         masks = self._check_edge_mask(etypes, mask)
 
         for canonical_etype, mask in zip(etypes, masks):
@@ -743,7 +758,8 @@ class GSgnnData():
                               get_rank(), canonical_etype, mask, len(idx))
         return idxs, num_data
 
-    def get_edge_val_set(self, etypes, mask="val_mask"):
+    def get_edge_val_set(self, etypes=None, mask="val_mask",
+                         reverse_edge_types_map=None):
         """ Get edge test set for edges of etypes.
 
         Parameters
@@ -754,19 +770,20 @@ class GSgnnData():
         mask: str or list of str
             The edge feature field storing the val mask.
             Default: "val_mask"
+        reverse_edge_types_map: dict
+            A map for reverse edge type.
 
         Returns
         -------
         dict of Tensors : The returned val masks
         """
-        assert etypes is not None, \
-            "Validation edge types must be provided, but get None."
-        idxs, num_data = self._get_edge_set(etypes, mask)
+        idxs, num_data = self._get_edge_set(etypes, mask, reverse_edge_types_map)
         logging.info('part %d, val %d', get_rank(), num_data)
 
         return idxs
 
-    def get_edge_test_set(self, etypes, mask="test_mask"):
+    def get_edge_test_set(self, etypes=None, mask="test_mask",
+                          reverse_edge_types_map=None):
         """ Get edge test set for edges of etypes.
 
         Parameters
@@ -777,19 +794,19 @@ class GSgnnData():
         mask: str or list of str
             The edge feature field storing the test mask.
             Default: "test_mask"
+        reverse_edge_types_map: dict
+            A map for reverse edge type.
 
         Returns
         -------
         dict of Tensors : The returned test masks
         """
-        assert etypes is not None, \
-            "Testing edge types must be provided, but get None."
-        idxs, num_data = self._get_edge_set(etypes, mask)
+        idxs, num_data = self._get_edge_set(etypes, mask, reverse_edge_types_map)
         logging.info('part %d, test %d', get_rank(), num_data)
 
         return idxs
 
-    def get_edge_infer_set(self, etypes=None, mask="test_mask"):
+    def get_edge_infer_set(self, etypes=None, mask="test_mask", reverse_edge_types_map=None):
         """ Get edge set for inference.
 
         If the mask exists in g.edges[etype].data, the inference set
@@ -805,6 +822,8 @@ class GSgnnData():
         mask: str or list of str
             The edge feature field storing the inference mask.
             Default: "test_mask"
+        reverse_edge_types_map: dict
+            A map for reverse edge type.
 
         Returns
         -------
@@ -814,7 +833,7 @@ class GSgnnData():
         pb = g.get_partition_book()
         infer_idxs = {}
         # If etypes is None, we use all edge types.
-        etypes = g.canonical_etypes \
+        etypes = self._exclude_reverse_etype(g.canonical_etypes, reverse_edge_types_map) \
             if etypes is None else self._check_etypes(etypes)
         masks = self._check_edge_mask(etypes, mask)
 
@@ -839,51 +858,6 @@ class GSgnnData():
             infer_idxs[canonical_etype] = infer_idx
 
         return infer_idxs
-
-class GSgnnLPTrainData(GSgnnEdgeTrainData):
-    """ Link prediction training data
-
-    Parameters
-    ----------
-    graph_name : str
-        The graph name
-    part_config : str
-        The path of the partition configuration file.
-    train_etypes : tuple of str or list of tuples
-        Target edge types for training
-    eval_etypes : tuple of str or list of tuples
-        Target edge types for evaluation
-    label_field : str
-        The field for storing labels
-    node_feat_field: str or dict of list of str
-        Fields to extract node features. It's a dict if different node types have
-        different feature names.
-    edge_feat_field : str or dict of list of str
-        The field of the edge features. It's a dict if different edge types have
-        different feature names.
-    pos_graph_feat_field: str or dist of str
-        The field of the edge features used by positive graph in link prediction.
-    lm_feat_ntypes : list of str
-        The node types that contains text features.
-    lm_feat_etypes : list of tuples
-        The edge types that contains text features.
-    """
-    def __init__(self, graph_name, part_config, train_etypes, eval_etypes=None,
-                 label_field=None, node_feat_field=None,
-                 edge_feat_field=None, pos_graph_feat_field=None,
-                 lm_feat_ntypes=None, lm_feat_etypes=None):
-        super(GSgnnLPTrainData, self).__init__(graph_name, part_config,
-                                               train_etypes, eval_etypes, label_field,
-                                               node_feat_field, edge_feat_field,
-                                               lm_feat_ntypes=lm_feat_ntypes,
-                                               lm_feat_etypes=lm_feat_etypes)
-        self._pos_graph_feat_field = pos_graph_feat_field
-
-    @property
-    def pos_graph_feat_field(self):
-        """ Get edge feature fields of positive graphs
-        """
-        return self._pos_graph_feat_field
 
 class GSDistillData(Dataset):
     """ Dataset for distillation

@@ -92,7 +92,7 @@ def test_GSgnnData():
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
-                                                            dirname=tmpdirname)
+                                                            dirname=tmpdirname, add_reverse=False)
         gdata = GSgnnData(part_config=part_config)
 
         assert gdata.graph_name == 'dummy'
@@ -105,14 +105,16 @@ def test_GSgnnData():
 
         # test node train/val/test idxs
         for ntype in tr_ntypes:
-            assert th.all(gdata.get_node_train_set[ntype] == get_nonzero(dist_graph.nodes[ntype].data['train_mask']))
+            assert th.all(gdata.get_node_train_set(ntype) == get_nonzero(dist_graph.nodes[ntype].data['train_mask']))
         for ntype in va_ntypes:
-            assert th.all(gdata.get_node_val_set[ntype] == get_nonzero(dist_graph.nodes[ntype].data['val_mask']))
+            assert th.all(gdata.get_node_val_set(ntype) == get_nonzero(dist_graph.nodes[ntype].data['val_mask']))
         for ntype in ts_ntypes:
-            assert th.all(gdata.get_node_test_set[ntype] == get_nonzero(dist_graph.nodes[ntype].data['test_mask']))
+            assert th.all(gdata.get_node_test_set(ntype) == get_nonzero(dist_graph.nodes[ntype].data['test_mask']))
         for ntype in in_ntypes:
-            assert th.all(gdata.get_node_infer_set[ntype] == get_nonzero(dist_graph.nodes[ntype].data['test_mask']))
-
+            # with test mask
+            assert th.all(gdata.get_node_infer_set(ntype) == get_nonzero(dist_graph.nodes[ntype].data['test_mask']))
+        # without test mask
+        assert th.all(gdata.get_node_infer_set('n0') == 1)
 
         # check node label
         labels = gdata.get_node_feats({'n1': th.tensor([0, 1])}, 'label')
@@ -126,39 +128,32 @@ def test_GSgnnData():
         assert no_label
 
         tr_etypes = [('n0', 'r1', 'n1'), ('n0', 'r0', 'n1')]
-        va_etypes = [('n0', 'r1', 'n1')]
-        ts_etypes = [('n0', 'r1', 'n1')]
+        va_etypes = [('n0', 'r1', 'n1'), ('n0', 'r0', 'n1')]
+        ts_etypes = [('n0', 'r1', 'n1'), ('n0', 'r0', 'n1')]
+        if_etypes = [('n0', 'r1', 'n1'), ('n0', 'r0', 'n1')]
         # test edge train/val/test idxs
         train_idxs = gdata.get_edge_train_set()
         assert len(train_idxs) == 2
         for etype in tr_etypes:
-            assert th.all(gdata.get_edge_train_set[etype] == get_nonzero(dist_graph.edges[etype[1]].data['train_mask']))
+            assert th.all(gdata.get_edge_train_set(etype) == get_nonzero(dist_graph.edges[etype[1]].data['train_mask']))
             assert th.all(train_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['train_mask']))
 
-        try:
-            gdata.get_edge_val_set()
-            get_val_fail = False
-        except:
-            get_val_fail = True
-        assert get_val_fail
+        val_idxs = gdata.get_edge_val_set()
+        assert len(val_idxs) == 2
         for etype in va_etypes:
-            assert th.all(gdata.get_edge_val_set[etype] == get_nonzero(dist_graph.edges[etype[1]].data['val_mask']))
+            assert th.all(gdata.get_edge_val_set(etype) == get_nonzero(dist_graph.edges[etype[1]].data['val_mask']))
+            assert th.all(val_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['val_mask']))
 
-        try:
-            gdata.get_edge_test_set()
-            get_test_fail = False
-        except:
-            get_test_fail = True
-        assert get_test_fail
+        test_idxs = gdata.get_edge_test_set()
         for etype in ts_etypes:
-            assert th.all(gdata.get_edge_test_set[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
+            assert th.all(gdata.get_edge_test_set(etype) == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
+            assert th.all(test_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
 
         infer_idxs = gdata.get_edge_infer_set()
         assert len(infer_idxs) == 2
-        etype = ('n0', 'r1', 'n1')
-        assert th.all(gdata.get_edge_infer_set[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
-        assert th.all(infer_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
-        assert th.all(infer_idxs[('n0', 'r0', 'n1')] == 1)
+        for etype in if_etypes:
+            assert th.all(gdata.get_edge_infer_set(etype) == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
+            assert th.all(infer_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
 
         # check edge label
         labels = gdata.get_edge_feats({('n0', 'r1', 'n1'): th.tensor([0, 1])}, 'label')
@@ -236,6 +231,7 @@ def test_GSgnnData():
 
         ########################
         # Test internal functions
+        # test _check_ntypes
         ntypes = None
         try:
             ntypes = gdata._check_ntypes(ntypes)
@@ -260,6 +256,7 @@ def test_GSgnnData():
             err_check = True
         assert err_check
 
+        # test _check_node_mask
         ntypes = 'n0'
         masks = gdata._check_node_mask(ntypes, 'train_m')
         assert len(masks) == 1
@@ -282,6 +279,7 @@ def test_GSgnnData():
             err_mask = True
         assert err_mask
 
+        # test _check_etypes
         etypes = None
         try:
             etypes = gdata._check_etypes(etypes)
@@ -306,6 +304,7 @@ def test_GSgnnData():
             err_check = True
         assert err_check
 
+        # test _check_edge_mask
         etypes = ('n0', 'r0', 'n1')
         masks = gdata._check_edge_mask(etypes, 'train_m')
         assert len(masks) == 1
@@ -327,6 +326,104 @@ def test_GSgnnData():
         except:
             err_mask = True
         assert err_mask
+
+        # test _exclude_reverse_etype
+        etypes = [('n0', 'r0', 'n1'), ('n0', 'r0', 'n2'), ('n1', 'r2', 'n0'), ('n2', 'r3', 'n0')]
+        new_etypes = gdata._exclude_reverse_etype(etypes)
+        assert len(new_etypes) == 4
+        assert set(etypes) == set(new_etypes)
+
+        new_etypes = gdata._exclude_reverse_etype(etypes, reverse_edge_types_map={('n0', 'r0', 'n2'): ('n2', 'r3', 'n0')})
+        assert len(new_etypes) == 3
+        assert set(etypes[:3]) == set(new_etypes)
+
+        new_etypes = gdata._exclude_reverse_etype(etypes, reverse_edge_types_map={('n2', 'r3', 'n0'): ('n0', 'r0', 'n2'),
+            ('n1', 'r2', 'n0'):('n0', 'r0', 'n1')})
+        assert len(new_etypes) == 3
+        assert set(etypes[2:]) == set(new_etypes)
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
+                                                            dirname=tmpdirname, add_reverse=True)
+        # there will be three etypes:
+        # ('n0', 'r1', 'n1'), ('n0', 'r0', 'n1'), ("n1", "r2", "n0")
+        gdata = GSgnnData(part_config=part_config)
+
+        # There are reverse edges
+        tr_etypes = [('n0', 'r1', 'n1'), ('n0', 'r0', 'n1')]
+        va_etypes = [('n0', 'r1', 'n1'), ('n0', 'r0', 'n1')]
+        ts_etypes = [('n0', 'r1', 'n1'), ('n0', 'r0', 'n1')]
+        if_etypes = [('n0', 'r1', 'n1'), ('n0', 'r0', 'n1')]
+        extra_etype = ("n1", "r2", "n0")
+        # test edge train/val/test idxs
+        train_idxs = gdata.get_edge_train_set()
+        assert len(train_idxs) == 3
+        for etype in tr_etypes:
+            assert th.all(gdata.get_edge_train_set(etype) == get_nonzero(dist_graph.edges[etype[1]].data['train_mask']))
+            assert th.all(train_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['train_mask']))
+        # extra_etype does not have train_mask
+        assert th.all(gdata.get_edge_train_set(extra_etype) == 1)
+        assert th.all(train_idxs[extra_etype] == 1)
+
+        # extra_etype does not have val_mask
+        # will skip it.
+        val_idxs = gdata.get_edge_val_set()
+        assert len(val_idxs) == 2
+        for etype in va_etypes:
+            assert th.all(gdata.get_edge_val_set(etype) == get_nonzero(dist_graph.edges[etype[1]].data['val_mask']))
+            assert th.all(val_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['val_mask']))
+
+        # extra_etype does not have test_mask
+        # will skip it.
+        test_idxs = gdata.get_edge_test_set()
+        for etype in ts_etypes:
+            assert th.all(gdata.get_edge_test_set(etype) == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
+            assert th.all(test_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
+
+        infer_idxs = gdata.get_edge_infer_set()
+        assert len(infer_idxs) == 3
+        for etype in if_etypes:
+            assert th.all(gdata.get_edge_infer_set(etype) == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
+            assert th.all(infer_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
+        # extra_etype does not have test_mask
+        assert th.all(gdata.get_edge_infer_set(extra_etype) == 1)
+        assert th.all(infer_idxs[extra_etype] == 1)
+
+        # with reverse edges
+        train_idxs = gdata.get_edge_train_set(reverse_edge_types_map={
+            ('n0', 'r1', 'n1'): ("n1", "r2", "n0")
+        })
+        assert len(train_idxs) == 2
+        for etype in tr_etypes:
+            assert th.all(train_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['train_mask']))
+        infer_idxs = gdata.get_edge_infer_set(reverse_edge_types_map={
+            ('n0', 'r1', 'n1'): ("n1", "r2", "n0")
+        })
+        assert len(infer_idxs) == 2
+        for etype in if_etypes:
+            assert th.all(infer_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
+
+        train_idxs = gdata.get_edge_train_set(reverse_edge_types_map={
+            ('n0', 'r1', 'n1'): ("n1", "r2", "n0"),
+            ('n0', 'r1', 'n1'): ('n0', 'r0', 'n1') # fake reverse etype
+        })
+        assert len(train_idxs) == 1
+        val_idxs = gdata.get_edge_val_set(reverse_edge_types_map={
+            ('n0', 'r1', 'n1'): ("n1", "r2", "n0"),
+            ('n0', 'r1', 'n1'): ('n0', 'r0', 'n1') # fake reverse etype
+        })
+        assert len(val_idxs) == 1
+        test_idxs = gdata.get_edge_test_set(reverse_edge_types_map={
+            ('n0', 'r1', 'n1'): ("n1", "r2", "n0"),
+            ('n0', 'r1', 'n1'): ('n0', 'r0', 'n1') # fake reverse etype
+        })
+        assert len(test_idxs) == 1
+        infer_idxs = gdata.get_edge_infer_set(reverse_edge_types_map={
+            ('n0', 'r1', 'n1'): ("n1", "r2", "n0"),
+            ('n0', 'r1', 'n1'): ('n0', 'r0', 'n1') # fake reverse etype
+        })
+        assert len(infer_idxs) == 1
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()

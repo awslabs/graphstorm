@@ -57,22 +57,22 @@ def main(config_args):
     infer = GSgnnNodePredictionInferrer(model)
     infer.setup_device(device=get_device())
     if not config.no_validation:
+        infer_idxs = infer_data.get_node_test_set(config.target_ntype)
         evaluator = get_evaluator(config)
         infer.setup_evaluator(evaluator)
-        assert len(infer_data.test_idxs) > 0, \
+        assert len(infer_idxs) > 0, \
             "There is not test data for evaluation. " \
             "You can use --no-validation true to avoid do testing"
-        target_idxs = infer_data.test_idxs
     else:
-        assert len(infer_data.infer_idxs) > 0, \
+        infer_idxs = infer_data.get_node_infer_set(config.target_ntype)
+        assert len(infer_idxs) > 0, \
             f"To do inference on {config.target_ntype} without doing evaluation, " \
             "you should not define test_mask as its node feature. " \
             "GraphStorm will do inference on the whole node set. "
-        target_idxs = infer_data.infer_idxs
     tracker = gs.create_builtin_task_tracker(config)
     infer.setup_task_tracker(tracker)
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
-    dataloader = GSgnnNodeDataLoader(infer_data, target_idxs, fanout=fanout,
+    dataloader = GSgnnNodeDataLoader(infer_data, infer_idxs, fanout=fanout,
                                      batch_size=config.eval_batch_size,
                                      train_task=False,
                                      node_feats=config.node_feat_name,

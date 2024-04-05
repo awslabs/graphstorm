@@ -79,7 +79,8 @@ def main(config_args):
     if gs.get_rank() == 0:
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
-    dataloader = GSgnnEdgeDataLoader(train_data, train_data.train_idxs, fanout=[],
+    train_idxs = train_data.get_edge_train_set(config.target_etype)
+    dataloader = GSgnnEdgeDataLoader(train_data, train_idxs, fanout=[],
                                      batch_size=config.batch_size,
                                      node_feats=config.node_feat_name,
                                      label_field=config.label_field,
@@ -90,16 +91,18 @@ def main(config_args):
     test_dataloader = None
     # we don't need fanout for full-graph inference
     fanout = []
-    if len(train_data.val_idxs) > 0:
-        val_dataloader = GSgnnEdgeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
+    val_idxs = train_data.get_edge_val_set(config.target_etype)
+    test_idxs = train_data.get_edge_test_set(config.target_etype)
+    if len(val_idxs) > 0:
+        val_dataloader = GSgnnEdgeDataLoader(train_data, val_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
             node_feats=config.node_feat_name,
             label_field=config.label_field,
             decoder_edge_feats=config.decoder_edge_feat,
             train_task=False,
             remove_target_edge_type=False)
-    if len(train_data.test_idxs) > 0:
-        test_dataloader = GSgnnEdgeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
+    if len(test_idxs) > 0:
+        test_dataloader = GSgnnEdgeDataLoader(train_data, test_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
             node_feats=config.node_feat_name,
             label_field=config.label_field,

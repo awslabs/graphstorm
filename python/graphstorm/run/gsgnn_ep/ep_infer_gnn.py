@@ -58,18 +58,18 @@ def main(config_args):
     infer = GSgnnEdgePredictionInferrer(model)
     infer.setup_device(device=get_device())
     if not config.no_validation:
+        target_idxs = infer_data.get_edge_test_set(config.target_etype)
         evaluator = get_evaluator(config)
         infer.setup_evaluator(evaluator)
-        assert len(infer_data.test_idxs) > 0, \
+        assert len(target_idxs) > 0, \
             "There is not test data for evaluation. " \
             "You can use --no-validation true to avoid do testing"
-        target_idxs = infer_data.test_idxs
     else:
-        assert len(infer_data.infer_idxs) > 0, \
+        target_idxs = infer_data.get_edge_infer_set(config.target_etype)
+        assert len(target_idxs) > 0, \
             f"To do inference on {config.target_etype} without doing evaluation, " \
             "you should not define test_mask as its edge feature. " \
             "GraphStorm will do inference on the whole edge set. "
-        target_idxs = infer_data.infer_idxs
     tracker = gs.create_builtin_task_tracker(config)
     infer.setup_task_tracker(tracker)
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
