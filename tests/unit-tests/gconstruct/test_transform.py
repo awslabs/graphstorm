@@ -669,6 +669,7 @@ def test_custom_edge_label_processor():
     assert_equal(np.squeeze(np.nonzero(split["train_mask"])), index_in_train_idx)
     assert_equal(np.squeeze(np.nonzero(split["val_mask"])), index_in_val_idx)
     assert_equal(np.squeeze(np.nonzero(split["test_mask"])), index_in_test_idx)
+    # the total mask length should be 19 * 19
     assert len(split["train_mask"]) == 361
     assert len(split["val_mask"]) == 361
     assert len(split["test_mask"]) == 361
