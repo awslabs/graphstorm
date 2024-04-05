@@ -47,8 +47,14 @@ def read_index_json(data_file):
     with open(data_file, 'r', encoding="utf8") as json_file:
         indices = []
         for line in json_file.readlines():
-            indices.append(json.loads(line))
-    return np.array(indices)
+            parsed_line = json.loads(line)
+            if isinstance(parsed_line, list):
+                processed_item = tuple(parsed_line)
+            else:
+                processed_item = parsed_line
+
+            indices.append(processed_item)
+    return indices
 
 def write_index_json(data, data_file):
     """ Write the index to a json file.
@@ -60,9 +66,11 @@ def write_index_json(data, data_file):
     data_file : str
         The data file where the indices are written to.
     """
+    if isinstance(data, np.ndarray):
+        data = data.tolist()
     with open(data_file, 'w', encoding="utf8") as json_file:
         for index in data:
-            json_file.write(json.dumps(int(index)) + "\n")
+            json_file.write(json.dumps(index) + "\n")
 
 def read_data_csv(data_file, data_fields=None, delimiter=','):
     """ Read data from a CSV file.
