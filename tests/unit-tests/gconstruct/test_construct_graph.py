@@ -861,10 +861,27 @@ def test_label():
     assert np.sum(res['val_mask']) == 1
     assert np.sum(res['test_mask']) == 1
 
-    # Check link prediction on customed masks
+    # Check custom data split without providing split
+    conf = {
+            "labels": [
+                {'task_type': 'link_prediction',
+                 'split_pct': [0, 0, 0]}
+            ]
+    }
+    ops = parse_label_ops(conf, False)
+    data = {'label' : np.random.uniform(size=10) * 10}
+    res = process_labels(data, ops)
+    assert len(res) == 0
+    assert 'train_mask' not in res
+    assert 'val_mask' not in res
+    assert 'test_mask' not in res
+
+def check_link_prediction_custom_label():
+    # Check link prediction on customized masks
     data = {
             "src": [1, 1, 1, 2, 2, 2, 3, 3, 3, 4],
             "dest": [1, 2, 3, 1, 2, 3, 1, 2, 3, 1],
+            "dest_2": [4, 5, 6, 6, 5, 4, 5, 6, 4, 6],
             'label': np.random.randint(3, size=10)
     }
     write_index_json([(1, 1), (1, 2), (1, 3), (2, 1), (2, 2), (2, 3), (3, 1), (3, 2)],
@@ -891,21 +908,6 @@ def test_label():
     assert np.sum(res['train_mask']) == 8
     assert np.sum(res['val_mask']) == 1
     assert np.sum(res['test_mask']) == 1
-
-    # Check custom data split without providing split
-    conf = {
-            "labels": [
-                {'task_type': 'link_prediction',
-                 'split_pct': [0, 0, 0]}
-            ]
-    }
-    ops = parse_label_ops(conf, False)
-    data = {'label' : np.random.uniform(size=10) * 10}
-    res = process_labels(data, ops)
-    assert len(res) == 0
-    assert 'train_mask' not in res
-    assert 'val_mask' not in res
-    assert 'test_mask' not in res
 
 def check_id_map_exist(id_map, input_ids):
     # Test the case that all Ids exist in the map.

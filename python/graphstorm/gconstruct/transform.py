@@ -1452,9 +1452,11 @@ class CustomLabelProcessor:
         """
         label = data[self.col_name] if self.col_name in data else None
         if isinstance(self._id_col, str):
+            # For node label, the id_col is expected to be one single column
             assert self._id_col in data, \
                     f"The input data does not have ID column {self._id_col}."
         else:
+            # For edge label, the id_col is expected a be a pair of (src_id_col, dest_id_col)
             assert self._id_col[0] and self._id_col[1] in data,\
                 f"The input data does not have ID column {self._id_col[0]} and {self._id_col[1]}"
 
@@ -1681,11 +1683,14 @@ def parse_label_ops(confs, is_node):
                                          id_col=confs["node_id_col"],
                                          task_type=task_type, train_idx=train_idx, val_idx=val_idx,
                                          test_idx=test_idx, stats_type=label_stats_type)]
-        else:
+        elif "source_id_col" in confs and "dest_id_col" in confs:
             return [CustomLabelProcessor(col_name=label_col, label_name=label_col,
                                          id_col=(confs["source_id_col"], confs["dest_id_col"]),
                                          task_type=task_type, train_idx=train_idx, val_idx=val_idx,
                                          test_idx=test_idx, stats_type=label_stats_type)]
+        else:
+            raise AttributeError("Custom data segmentation should be "
+                                 "applied to either node or edge tasks.")
 
     if 'split_pct' in label_conf:
         split_pct = label_conf['split_pct']

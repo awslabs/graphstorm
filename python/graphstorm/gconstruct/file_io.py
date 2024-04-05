@@ -30,18 +30,6 @@ import pandas as pd
 
 from .utils import HDF5Handle, HDF5Array
 
-
-def default_serializer(obj):
-    """Custom serialization for objects not supported by the default json encoder."""
-    if isinstance(obj, np.integer):
-        return int(obj)
-    elif isinstance(obj, np.floating):
-        return float(obj)
-    elif isinstance(obj, np.ndarray):
-        return obj.tolist()
-    else:
-        raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
-
 def read_index_json(data_file):
     """ Read the index from a JSON file.
 
@@ -78,9 +66,11 @@ def write_index_json(data, data_file):
     data_file : str
         The data file where the indices are written to.
     """
+    if isinstance(data, np.ndarray):
+        data = data.tolist()
     with open(data_file, 'w', encoding="utf8") as json_file:
         for index in data:
-            json_file.write(json.dumps(index, default=default_serializer) + "\n")
+            json_file.write(json.dumps(index) + "\n")
 
 def read_data_csv(data_file, data_fields=None, delimiter=','):
     """ Read data from a CSV file.
