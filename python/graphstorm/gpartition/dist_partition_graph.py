@@ -30,6 +30,7 @@ from typing import Dict
 from threading import Thread
 
 from graphstorm.gpartition import RandomPartitionAlgorithm
+from graphstorm.gpartition import ParMetisPartitionAlgorithm
 from graphstorm.utils import get_log_level
 
 
@@ -114,6 +115,8 @@ def main():
     part_start = time.time()
     if args.partition_algorithm == "random":
         partitioner = RandomPartitionAlgorithm(metadata_dict)
+    elif args.partition_algorithm == "parmetis":
+        partitioner =
     else:
         raise RuntimeError(f"Unknown partition algorithm {args.part_algorithm}")
 
