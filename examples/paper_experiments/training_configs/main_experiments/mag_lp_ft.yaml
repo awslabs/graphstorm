@@ -1,0 +1,54 @@
+---
+version: 1.0
+lm_model:
+  node_lm_models:
+    -
+      lm_type: bert
+      model_name: "bert-base-uncased"
+      gradient_checkpoint: true
+      node_types:
+        - paper
+gsf:
+  basic:
+    backend: gloo
+    verbose: false
+    save_perf_results_path: null
+  lm:
+    cache_lm_embed: true
+  gnn:
+    model_encoder_type: mlp
+    num_layers: 1
+    hidden_size: 128
+    use_mini_batch_infer: true
+  input:
+    restore_model_path: null
+  output:
+    save_model_path: null
+    save_embed_path: null
+  hyperparam:
+    dropout: 0.
+    lr: 0.003
+    lm_tune_lr: 0.0001
+    lm_train_nodes: 8
+    sparse_optimizer_lr: 0.01
+    num_epochs: 1
+    batch_size: 1024
+    eval_batch_size: 1024
+    lm_infer_batch_size: 1024
+    wd_l2norm: 0
+    no_validation: true
+  rgcn:
+    num_bases: -1
+    use_self_loop: true
+    use_node_embeddings: false
+  link_prediction:
+    num_negative_edges: 4
+    num_negative_edges_eval: 100
+    lp_decoder_type: dot_product
+    train_negative_sampler: joint
+    eval_etype:
+      - "paper,cite,paper"
+    train_etype:
+      - "paper,cite,paper"
+    exclude_training_targets: false
+    reverse_edge_types_map: []

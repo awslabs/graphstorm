@@ -1,0 +1,117 @@
+{
+    "edges" : [
+        {
+            "relation": ["item", "also_buy", "item"],
+            "format": {
+                "name": "parquet"
+            },
+            "files": [
+                "processed_data/amazon_review/also_buy.parquet"
+            ],
+            "source_id_col": "src_item",
+            "dest_id_col": "dst_item",
+            "labels":       [
+                {
+                    "task_type":    "link_prediction",
+                    "split_pct":   [0.6, 0.2, 0.2]
+                }
+            ]
+        },
+        {
+            "relation": ["item", "also_view", "item"],
+            "format": {
+                "name": "parquet"
+            },
+            "files": [
+                "processed_data/amazon_review/also_view.parquet"
+            ],
+            "source_id_col": "src_item",
+            "dest_id_col": "dst_item",
+            "labels":       [
+                {
+                    "task_type":    "link_prediction",
+                    "split_pct":   [0.6, 0.2, 0.2]
+                }
+            ]
+        },
+        {
+            "relation": ["customer", "writes", "review"],
+            "format": {
+                "name": "parquet"
+            },
+            "files": [
+                "processed_data/amazon_review/write_review.parquet"
+            ],
+            "source_id_col": "customer",
+            "dest_id_col": "review",
+            "labels":       [
+                {
+                    "task_type":    "link_prediction",
+                    "split_pct":   [0.6, 0.2, 0.2]
+                }
+            ]
+        },
+        {
+            "relation": ["item", "receives", "review"],
+            "format": {
+                "name": "parquet"
+            },
+            "files": [
+                "processed_data/amazon_review/receive_review.parquet"
+            ],
+            "source_id_col": "item",
+            "dest_id_col": "review"
+        }
+    ],
+    "nodes" : [
+        {
+            "node_type": "review",
+            "format": {
+                "name": "parquet"
+            },
+            "files": "processed_data/amazon_review/review/review*.parquet",
+            "node_id_col": "review_id",
+            "features":     [
+                {
+                    "feature_col":  ["text"],
+                    "transform":    {"name": "tokenize_hf",
+                                     "bert_model": "bert-base-uncased",
+				     "infer_batch_size": 128,
+                                     "max_seq_length": 256}
+                }
+            ]
+        },
+        {
+            "node_type": "item",
+            "format": {
+                "name": "parquet"
+            },
+            "files": "processed_data/amazon_review/item/item*.parquet",
+            "node_id_col": "item",
+            "features":     [
+                {
+                    "feature_col":  ["text"],
+                    "transform":    {"name": "tokenize_hf",
+                                     "bert_model": "bert-base-uncased",
+				     "infer_batch_size": 128,
+                                     "max_seq_length": 256}
+                }
+            ],
+            "labels":       [
+                {
+                    "label_col":    "brand",
+                    "task_type":    "classification",
+                    "split_pct":   [0.6, 0.2, 0.2]
+                }
+            ]
+        },
+        {
+            "node_type": "customer",
+            "format": {
+                "name": "parquet"
+            },
+            "files": "processed_data/amazon_review/customer.parquet",
+            "node_id_col": "customer_id"
+        }
+    ]
+}

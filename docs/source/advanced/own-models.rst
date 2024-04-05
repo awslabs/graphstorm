@@ -90,7 +90,7 @@ As the :ref:`Prerequisites <use-own-models-prerequisites-2>` required, we first 
 
             return self.out(h[out_ntype])
 
-The new ``HGT_mb`` model's ``forward()`` function takes mini-batch blocks, ``blocks``, and their corresponding node feature dictionary, ``n_feats_dict``, as inputs to replace the original full graph data, ``G``. 
+The new ``HGT_mb`` model's ``forward()`` function takes mini-batch blocks, ``blocks``, and their corresponding node feature dictionary, ``n_feats_dict``, as inputs to replace the original full graph data, ``G``.
 
 Then to further make this ``HGT_mb`` model work in GraphStorm, we need replace the PyTorch ``nn.Module`` with GraphStorm's ``GSgnnNodeModelBase`` and implement required functions.
 
@@ -99,7 +99,7 @@ The ``GSgnnNodeModelBase`` class, which is also a PyTorch Module extension, has 
 The ``GSgnnNodeModelBase`` class' ``forward()`` function is similar to the PyTorch Module's ``forward()`` function except that its input arguments **MUST** include:
 
 * **blocks**, which are DGL blocks sampled for a mini-batch.
-* **labels**, which is a dictionary, whose key is the to-be predicted node type, and value is the labels of the to-be predicted nodes in a mini-batch. 
+* **labels**, which is a dictionary, whose key is the to-be predicted node type, and value is the labels of the to-be predicted nodes in a mini-batch.
 * **node_feats**, which is a dictionary, whose keys are node types in the graph, and values are the node features associated to.
 * **edge_feats**. Currently GraphStorm does **NOT** support edge features. So, leave as it is.
 * **input_nodes**, optional only if your GNN model needs them.
@@ -192,9 +192,9 @@ Any GraphStorm training process **MUST** start with a proper initialization. You
     ......
 
     def main(args):
-        gs.initialize(ip_config=args.ip_config, backend="gloo")
+        gs.initialize(ip_config=args.ip_config, backend="gloo", local_rank=args.local_rank)
 
-the ``ip_config`` argument specifies a ip configuration file, which contains the IP addresses of machines in a GraphStorm distributed cluster. You can find its description at the :ref:`Launch Training<launch-training>` section of the :ref:`Quick Start Tutorial <quick-start-standalone>`.
+the ``ip_config`` argument specifies a ip configuration file, which contains the IP addresses of machines in a GraphStorm distributed cluster. You can find its description at the :ref:`Launch Training<launch-training>` section of the :ref:`Quick Start Tutorial <quick-start-standalone>`. The ``local_rank`` argument specifies the PyTorch local rank of the current process. It is used by GraphStorm to setup the GPU device.
 
 Replace DGL DataLoader with the GraphStorm's dataset and dataloader
 `````````````````````````````````````````````````````````````````````
@@ -232,9 +232,9 @@ GraphStorm provides a set of dataloaders for different GML tasks. Here we deal w
 
 Use GraphStorm's model trainer to wrap your model and attach evaluator and task tracker to it
 ````````````````````````````````````````````````````````````````````````````````````````````````
-Unlike the common flow, GraphStorm wraps GNN models with different trainers just like other frameworks, e.g. scikit-learn. GraphStorm provides node prediction, edge prediction, and link prediction trainers. Creation of them is easy. 
+Unlike the common flow, GraphStorm wraps GNN models with different trainers just like other frameworks, e.g. scikit-learn. GraphStorm provides node prediction, edge prediction, and link prediction trainers. Creation of them is easy.
 
-First we create the modified HGT model like the following code. 
+First we create the modified HGT model like the following code.
 
 .. code-block:: python
 
@@ -284,7 +284,7 @@ Once all trainers, evaluators, and task trackers are set, the last step is to us
 .. code-block:: python
 
     # Start the training process.
-    trainer.fit(train_loader=dataloader, 
+    trainer.fit(train_loader=dataloader,
                 num_epochs=config.num_epochs,
                 val_loader=eval_dataloader,
                 test_loader=test_dataloader,
@@ -300,7 +300,7 @@ Uncommonly seen in the full-graph training or mini-batch training on a single GP
 .. code-block:: python
 
         pred_loss = self._loss_fn(h[self.target_ntype], labels[self.target_ntype])
-        
+
         reg_loss = torch.tensor(0.).to(pred_loss.device)
         # L2 regularization of dense parameters
         for d_para in self.parameters():

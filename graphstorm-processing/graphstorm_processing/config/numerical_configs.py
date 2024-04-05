@@ -17,7 +17,13 @@ limitations under the License.
 from typing import Mapping
 import numbers
 
-from graphstorm_processing.constants import VALID_IMPUTERS, VALID_NORMALIZERS
+from graphstorm_processing.constants import (
+    VALID_IMPUTERS,
+    VALID_NORMALIZERS,
+    VALID_OUTDTYPE,
+    TYPE_FLOAT32,
+)
+
 from .feature_config_base import FeatureConfig
 
 
@@ -42,12 +48,17 @@ class NumericalFeatureConfig(FeatureConfig):
         and then dividing it by the difference between the maximum value and the minimum.
         * "standard": Normalize each value by dividing it by the sum of all the values.
         * "rank-gauss": Normalize each value by rank gauss normalization.
+
+    out_dtype: str
+        Output feature dtype. Currently, we support ``float32`` and ``float64``.
+        Default is ``float32``
     """
 
     def __init__(self, config: Mapping):
         super().__init__(config)
         self.imputer = self._transformation_kwargs.get("imputer", "none")
         self.norm = self._transformation_kwargs.get("normalizer", "none")
+        self.out_dtype = self._transformation_kwargs.get("out_dtype", TYPE_FLOAT32)
 
         self._sanity_check()
 
@@ -59,6 +70,9 @@ class NumericalFeatureConfig(FeatureConfig):
         assert (
             self.norm in VALID_NORMALIZERS
         ), f"Unknown normalizer requested, expected one of {VALID_NORMALIZERS}, got {self.norm}"
+        assert (
+            self.out_dtype in VALID_OUTDTYPE
+        ), f"Unsupported output dtype, expected one of {VALID_OUTDTYPE}, got {self.out_dtype}"
 
 
 class MultiNumericalFeatureConfig(NumericalFeatureConfig):

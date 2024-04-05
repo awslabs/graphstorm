@@ -53,15 +53,15 @@ class GATConv(nn.Module):
     num_heads : int
         Number of heads in Multi-head attention.
     activation : callable, optional
-        Activation function. Default: None
+        Activation function. Default: relu
     dropout : float, optional
         Dropout rate. Default: 0.0
     bias : bool, optional
         True if bias is added. Default: True
     num_ffn_layers_in_gnn: int, optional
-        Number of layers of ngnn between gnn layers
-    ffn_actication: torch.nn.functional
-        Activation Method for ngnn
+        Number of layers of ngnn between gnn layers. Default: 0
+    ffn_actication: torch.nn.functional, optional
+        Activation Method for ngnn. Default: relu
     """
     def __init__(self,
                  in_feat,
@@ -162,7 +162,7 @@ class GATEncoder(GraphConvEncoder):
         Hidden dimension
     out_dim : int
         Output dimension
-    num_head : int
+    num_heads : int
         Number of multi-heads attention
     num_hidden_layers : int
         Number of hidden layers. Total GNN layers is equal to num_hidden_layers + 1. Default 1
@@ -170,8 +170,10 @@ class GATEncoder(GraphConvEncoder):
         Dropout. Default 0.
     activation : callable, optional
         Activation function. Default: None
-    num_ffn_layers_in_gnn: int
-        Number of ngnn gnn layers between GNN layers
+    last_layer_act: bool, optional
+        Whether call activation function in the last GNN layer. Default: False
+    num_ffn_layers_in_gnn: int, optional
+        Number of ngnn gnn layers between GNN layers. Default: 0
     """
     def __init__(self,
                  h_dim, out_dim,
