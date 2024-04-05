@@ -178,7 +178,7 @@ These JSON files only need to list the IDs on its own set. For example, in a nod
     ...
     59
 
-For edge data, users can do similar thing to define the customized edge labels. The configuration file should be the same:
+For edge data, users can do the similar thing as defining customized node labels to define the customized edge labels. The configuration looks the same:
 
 .. code-block:: json
 
