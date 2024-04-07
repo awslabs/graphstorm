@@ -83,7 +83,19 @@ def prepare_batch_input(g, input_nodes,
                 else:
                     data = data[nid].to(dev)
                 feats.append(data)
-            feat[ntype] = th.cat(feats, dim=1)
+            assert len(feats) > 0, \
+                "No feature exists in the graph. " \
+                f"Expecting the graph have following node features {feat_name}."
+
+            if len(feats[0].shape) == 1:
+                # The feature is 1D. It will be features for label
+                assert len(feats) == 1, \
+                    "For 1D features, we assume they are label features." \
+                    f"Please access them 1 by 1, but get {feat_name}"
+                feat[ntype] = feats
+            else:
+                # The feature is 2D
+                feat[ntype] = th.cat(feats, dim=1)
     return feat
 
 def prepare_batch_edge_input(g, input_edges,
@@ -109,24 +121,37 @@ def prepare_batch_edge_input(g, input_edges,
         If a node type has features, it will get node features.
     """
     feat = {}
-    for etypes, eid in input_edges.items():
+    for etype, eid in input_edges.items():
         feat_name = None if feat_field is None else \
             [feat_field] if isinstance(feat_field, str) \
-            else feat_field[etypes] if etypes in feat_field else None
+            else feat_field[etype] if etype in feat_field else None
 
         if feat_name is not None:
             # concatenate multiple features together
             feats = []
             for fname in feat_name:
-                assert fname in g.edges[etypes].data, \
-                    f"{fname} does not exist as an edge feature of {etypes}"
-                data = g.edges[etypes].data[fname]
+                assert fname in g.edges[etype].data, \
+                    f"{fname} does not exist as an edge feature of {etype}"
+                data = g.edges[etype].data[fname]
                 if is_wholegraph_embedding(data):
                     data = data.gather(eid.to(dev))
                 else:
                     data = data[eid].to(dev)
                 feats.append(data)
-            feat[etypes] = th.cat(feats, dim=1)
+
+            assert len(feats) > 0, \
+                "No feature exists in the graph. " \
+                f"Expecting the graph have following edge features {feat_name}."
+
+            if len(feats[0].shape) == 1:
+                # The feature is 1D. It will be features for label
+                assert len(feats) == 1, \
+                    "For 1D features, we assume they are label features." \
+                    f"Please access them 1 by 1, but get {feat_name}"
+                feat[etype] = feats
+            else:
+                # The feature is 2D
+                feat[etype] = th.cat(feats, dim=1)
     return feat
 
 class GSgnnData():
@@ -395,14 +420,14 @@ class GSgnnData():
 
         return ntypes
 
-    def _check_node_mask(self, ntypes, mask):
+    def _check_node_mask(self, ntypes, masks):
         """ Check the node mask(s) and convert it into list of strs
 
         Parameters
         __________
         ntypes: str or list of str
             List of node types
-        mask: str or list of str
+        masks: str or list of str
             The node features field storing the masks.
 
         Return
@@ -413,10 +438,10 @@ class GSgnnData():
             # ntypes is a string, convert it into list
             ntypes = [ntypes]
 
-        if isinstance(mask, str):
+        if isinstance(masks, str):
             # Mask is a string
             # All the masks are using the same name
-            masks = [mask] * len(ntypes)
+            masks = [masks] * len(ntypes)
 
         assert len(ntypes) == len(masks), \
             "Expecting the number of ntypes matches the number of mask fields, " \
@@ -653,14 +678,14 @@ class GSgnnData():
                 f"but get {self._g.ntypes} and {self._g.etypes}"
         return etypes
 
-    def _check_edge_mask(self, etypes, mask):
+    def _check_edge_mask(self, etypes, masks):
         """ Check the edge mask(s) and convert it into list of strs
 
         Parameters
         __________
         etypes: tuple or list of tuple
             List of edge types
-        mask: str or list of str
+        masks: str or list of str
             The edge feature fields storing the masks.
 
         Return
@@ -671,10 +696,10 @@ class GSgnnData():
             # etypes is a string, convert it into list
             etypes = [etypes]
 
-        if isinstance(mask, str):
+        if isinstance(masks, str):
             # Mask is a string
             # All the masks are using the same name
-            masks = [mask] * len(etypes)
+            masks = [masks] * len(etypes)
 
         assert len(etypes) == len(masks), \
             "Expecting the number of etypes matches the number of mask fields, " \
@@ -686,9 +711,8 @@ class GSgnnData():
     def _exclude_reverse_etype(self, etypes, reverse_edge_types_map=None):
         if reverse_edge_types_map is None:
             return etypes
-
         etypes = set(etypes)
-        for rev_etype in set(reverse_edge_types_map.values()):
+        for rev_etype in list(reverse_edge_types_map.values()):
             etypes.remove(rev_etype)
         return list(etypes)
 
@@ -760,10 +784,10 @@ class GSgnnData():
                     g.edges[canonical_etype].data[mask],
                     pb, etype=canonical_etype, force_even=True)
                 idx = [] if idx is None else idx
-                num_val += len(idx)
+                num_data += len(idx)
                 # If there are validation data globally, we should add them to the dict.
                 if dist_sum(len(idx)) > 0:
-                    idx[canonical_etype] = idx
+                    idxs[canonical_etype] = idx
 
                 logging.debug('part %d | etype %s, mask %s | val/test: %d',
                               get_rank(), canonical_etype, mask, len(idx))
@@ -866,7 +890,7 @@ class GSgnnData():
                 infer_idx = dgl.distributed.edge_split(
                     th.full((g.num_edges(canonical_etype),), True, dtype=th.bool),
                     pb, etype=canonical_etype, force_even=True)
-            infer_idxs[canonical_etype] = infer_idx
+                infer_idxs[canonical_etype] = infer_idx
 
         return infer_idxs
 
