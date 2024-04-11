@@ -271,6 +271,7 @@ def print_mem(device):
 def get_log_level(log_level):
     """ Map the logging level.
     """
+    log_level = log_level.lower()
     if log_level == "debug":
         return logging.DEBUG
     elif log_level == "info":

@@ -26,7 +26,7 @@ RUN pip3 install h5py psutil
 RUN apt-get install -y unzip
 
 # Download DGL source code
-RUN cd /root; git clone --recursive https://github.com/dmlc/dgl.git
+RUN cd /root; git clone --single-branch https://github.com/dmlc/dgl.git
 
 # Install GraphStorm from source code
 RUN mkdir -p /graphstorm
