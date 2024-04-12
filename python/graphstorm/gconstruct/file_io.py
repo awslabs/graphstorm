@@ -30,6 +30,65 @@ import pandas as pd
 
 from .utils import HDF5Handle, HDF5Array
 
+
+def read_index(data_file, column):
+    """ Read the index from a JSON/parquet file.
+
+    Each row is a JSON object that contains an index.
+
+    Parameters
+    ----------
+    data_file : str
+        The file that contains the index.
+    column : str
+        Column name on parquet which contains the index
+
+    Returns
+    -------
+    Numpy array : the index array.
+    """
+    # Extract the extension from the filename
+    _, extension = os.path.splitext(data_file)
+
+    # Normalize the extension to ensure case insensitivity
+    extension = extension.lower()
+
+    if extension == '.json':
+        read_index_json(data_file)
+    elif extension == '.parquet':
+        read_index_parquet(data_file, column)
+    else:
+        raise ValueError(f"Expect mask data format be one of parquet "
+                         f"and json, but get {extension}")
+
+
+def read_index_parquet(data_file, column):
+    """ Read the index from a parquet file.
+
+        Each row is a parquet object that contains an index.
+
+        Parameters
+        ----------
+        data_file : str
+            The parquet file that contains the index.
+        column: str
+            Column name on parquet which contains the index
+
+        Returns
+        -------
+        Numpy array : the index array.
+    """
+    df = pd.read_parquet(data_file)
+    if len(column) == 1:
+        res_array = df[column[0]].to_numpy()
+    elif len(df.columns) == 2:
+        res_array = list(zip(df[column[0]].to_numpy(), df[column[1]].to_numpy()))
+    else:
+        raise ValueError("The Parquet file on node mask must contain exactly one column, "
+                         "and on edge mask must contain exactly two columns")
+
+    return res_array
+
 def read_index_json(data_file):
     """ Read the index from a JSON file.
 
