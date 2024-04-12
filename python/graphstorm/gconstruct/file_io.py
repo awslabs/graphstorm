@@ -54,13 +54,12 @@ def read_index(data_file, column):
     extension = extension.lower()
 
     if extension == '.json':
-        read_index_json(data_file)
+        return read_index_json(data_file)
     elif extension == '.parquet':
-        read_index_parquet(data_file, column)
+        return read_index_parquet(data_file, column)
     else:
         raise ValueError(f"Expect mask data format be one of parquet "
                          f"and json, but get {extension}")
-
 
 def read_index_parquet(data_file, column):
     """ Read the index from a parquet file.
