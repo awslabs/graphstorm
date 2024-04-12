@@ -1674,6 +1674,8 @@ def parse_label_ops(confs, is_node):
         custom_split = label_conf['custom_split_filenames']
         assert isinstance(custom_split, dict), \
                 "Custom data split needs to provide train/val/test index."
+        if "column" not in custom_split:
+            custom_split["column"] = []
         train_idx = read_index(custom_split['train'], custom_split["column"]) \
             if 'train' in custom_split else None
         val_idx = read_index(custom_split['valid'], custom_split["column"]) \
