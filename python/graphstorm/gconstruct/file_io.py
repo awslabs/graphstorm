@@ -31,7 +31,7 @@ import pandas as pd
 from .utils import HDF5Handle, HDF5Array
 
 
-def read_index(data_file, column):
+def read_index(data_file, column=None):
     """ Read the index from a JSON/parquet file.
 
     Each row is a JSON object that contains an index.
