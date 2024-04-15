@@ -747,10 +747,10 @@ class GSgnnData():
             if etypes is None else self._check_etypes(etypes)
         masks = self._check_edge_mask(etypes, mask)
 
-        for canonical_etype, mask in zip(etypes, masks):
-            if mask in g.edges[canonical_etype].data:
+        for canonical_etype, msk in zip(etypes, masks):
+            if msk in g.edges[canonical_etype].data:
                 train_idx = dgl.distributed.edge_split(
-                    g.edges[canonical_etype].data[mask],
+                    g.edges[canonical_etype].data[msk],
                     pb, etype=canonical_etype, force_even=True)
             else:
                 # If there are no training masks, we assume all edges can be used for training.
@@ -778,11 +778,11 @@ class GSgnnData():
             if etypes is None else self._check_etypes(etypes)
         masks = self._check_edge_mask(etypes, mask)
 
-        for canonical_etype, mask in zip(etypes, masks):
+        for canonical_etype, msk in zip(etypes, masks):
             # user must provide validation/test mask
-            if mask in g.edges[canonical_etype].data:
+            if msk in g.edges[canonical_etype].data:
                 idx = dgl.distributed.edge_split(
-                    g.edges[canonical_etype].data[mask],
+                    g.edges[canonical_etype].data[msk],
                     pb, etype=canonical_etype, force_even=True)
                 idx = [] if idx is None else idx
                 num_data += len(idx)
@@ -791,7 +791,7 @@ class GSgnnData():
                     idxs[canonical_etype] = idx
 
                 logging.debug('part %d | etype %s, mask %s | val/test: %d',
-                              get_rank(), canonical_etype, mask, len(idx))
+                              get_rank(), canonical_etype, msk, len(idx))
         return idxs, num_data
 
     def get_edge_val_set(self, etypes=None, mask="val_mask",
@@ -873,11 +873,11 @@ class GSgnnData():
             if etypes is None else self._check_etypes(etypes)
         masks = self._check_edge_mask(etypes, mask)
 
-        for canonical_etype, mask in zip(etypes, masks):
-            if mask in g.edges[canonical_etype].data:
+        for canonical_etype, msk in zip(etypes, masks):
+            if msk in g.edges[canonical_etype].data:
                 # mask exists
                 test_idx = dgl.distributed.edge_split(
-                    g.edges[canonical_etype].data[mask],
+                    g.edges[canonical_etype].data[msk],
                     pb, etype=canonical_etype, force_even=True)
                 # If there are test data globally, we should add them to the dict.
                 if test_idx is not None and dist_sum(len(test_idx)) > 0:
