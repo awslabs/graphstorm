@@ -290,7 +290,7 @@ class GSgnnEdgeDataLoaderBase():
         -------
         str or dict of list of str: Node feature fields in the graph.
         """
-        self._decoder_edge_feats
+        return self._decoder_edge_feats
 
 class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
     """ The minibatch dataloader for edge prediction

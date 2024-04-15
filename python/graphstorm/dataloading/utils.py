@@ -170,6 +170,15 @@ def verify_node_feat_fields(node_feats):
                 f"or a dict of list of string, but get {node_feats}."
 
 def verify_edge_feat_fields(edge_feats):
+    """ Verify the format of edge feature fields
+
+        Parameters
+        ----------
+        edge_feats: str, or dist of list of str
+            str: All the edges have the same feature name.
+            list of string: All the edges have the same list of features.
+            dist of list of string: Each edge type have different set of edge features.
+    """
     assert edge_feats is None or \
             isinstance(edge_feats, str) or \
             (isinstance(edge_feats, dict) and \
