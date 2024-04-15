@@ -92,7 +92,7 @@ def prepare_batch_input(g, input_nodes,
                 assert len(feats) == 1, \
                     "For 1D features, we assume they are label features." \
                     f"Please access them 1 by 1, but get {feat_name}"
-                feat[ntype] = feats
+                feat[ntype] = feats[0]
             else:
                 # The feature is 2D
                 feat[ntype] = th.cat(feats, dim=1)
@@ -148,7 +148,7 @@ def prepare_batch_edge_input(g, input_edges,
                 assert len(feats) == 1, \
                     "For 1D features, we assume they are label features." \
                     f"Please access them 1 by 1, but get {feat_name}"
-                feat[etype] = feats
+                feat[etype] = feats[0]
             else:
                 # The feature is 2D
                 feat[etype] = th.cat(feats, dim=1)
@@ -190,7 +190,8 @@ class GSgnnData():
         #    what features should be loaded by WholeGraph
         # 2. Used by _ReconstructedNeighborSampler to decide whether a node
         #    or an edge has feature.
-        # 3. Used by do_full_graph_inference and do_mini_batch_inference.
+        # 3. Used by do_full_graph_inference and do_mini_batch_inference when
+        #    computing input embeddings.
         self._node_feat_field = node_feat_field
         self._edge_feat_field = edge_feat_field
         self._lm_feat_ntypes = lm_feat_ntypes if lm_feat_ntypes is not None else []

@@ -260,7 +260,7 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                 # TODO(zhengda) the data loader should return labels directly.
                 seeds = target_edge_graph.edges[target_etype].data[dgl.EID]
                 label_field = loader.label_field
-                lbl = data.get_node_feats({target_etype: seeds}, label_field)
+                lbl = data.get_edge_feats({target_etype: seeds}, label_field)
                 assert len(lbl) == 1
                 append_to_dict(lbl, labels)
             if isinstance(pred, dict):
@@ -317,7 +317,7 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
     labels = {}
 
     if return_label:
-        assert data.labels is not None, \
+        assert loader.label_field is not None, \
             "Return label is required, but the label field is not provided whem" \
             "initlaizing the inference dataset."
 
@@ -375,6 +375,7 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
                 lbl = data.get_edge_feats(
                     {target_etype: target_edge_graph.edges[target_etype].data[dgl.EID]},
                     label_field)
+
                 append_to_dict(lbl, labels)
     barrier()
 

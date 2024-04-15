@@ -210,9 +210,9 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     preds = {}
 
     if return_label:
-        assert data.labels is not None, \
+        assert loader.label_field is not None, \
             "Return label is required, but the label field is not provided whem" \
-            "initlaizing the inference dataset."
+            "initlaizing the loader."
 
     embs = {}
     labels = {}
@@ -314,7 +314,7 @@ def node_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
     data = loader.data
 
     if return_label:
-        assert data.labels is not None, \
+        assert loader.label_field is not None, \
             "Return label is required, but the label field is not provided whem" \
             "initlaizing the inference dataset."
 
