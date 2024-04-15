@@ -472,8 +472,8 @@ class GSgnnData():
         ntypes = list(train_idxs.keys())
         masks = self._check_node_mask(ntypes, mask)
 
-        for ntype, mask in zip(ntypes, masks):
-            unlabeled_mask = flip_node_mask(g.nodes[ntype].data[mask],
+        for ntype, msk in zip(ntypes, masks):
+            unlabeled_mask = flip_node_mask(g.nodes[ntype].data[msk],
                                             train_idxs[ntype])
             node_trainer_ids = g.nodes[ntype].data['trainer_id'] \
                 if 'trainer_id' in g.nodes[ntype].data else None
@@ -509,12 +509,12 @@ class GSgnnData():
         ntypes = self._check_ntypes(ntypes)
         masks = self._check_node_mask(ntypes, mask)
 
-        for ntype, mask in zip(ntypes, masks):
-            if mask in g.nodes[ntype].data:
+        for ntype, msk in zip(ntypes, masks):
+            if msk in g.nodes[ntype].data:
                 node_trainer_ids = g.nodes[ntype].data['trainer_id'] \
                     if 'trainer_id' in g.nodes[ntype].data else None
 
-                train_idx = dgl.distributed.node_split(g.nodes[ntype].data[mask],
+                train_idx = dgl.distributed.node_split(g.nodes[ntype].data[msk],
                                                        pb, ntype=ntype, force_even=True,
                                                        node_trainer_ids=node_trainer_ids)
                 assert train_idx is not None, "There is no training data."
@@ -522,11 +522,11 @@ class GSgnnData():
                 train_idxs[ntype] = train_idx
 
                 logging.debug('part %d | ntype %s, mask %s | train: %d',
-                              get_rank(), ntype, mask, len(train_idx))
+                              get_rank(), ntype, msk, len(train_idx))
             else:
                 # Train mask may not exist for certain node types
                 logging.debug('part %d | ntype %s, mask %s | train: 0',
-                            get_rank(), ntype, mask)
+                            get_rank(), ntype, msk)
         logging.info('part %d, train %d', get_rank(), num_train)
         return train_idxs
 
@@ -549,9 +549,9 @@ class GSgnnData():
             "Expecting the number of ntypes matches the number of mask fields, " \
             f"But get {len(ntypes)} and {len(masks)}." \
             f"The node types are {ntypes} and the mask fileds are {masks}"
-        for ntype, mask in zip(ntypes, masks):
-            if mask in g.nodes[ntype].data:
-                idx = dgl.distributed.node_split(g.nodes[ntype].data[mask],
+        for ntype, msk in zip(ntypes, masks):
+            if msk in g.nodes[ntype].data:
+                idx = dgl.distributed.node_split(g.nodes[ntype].data[msk],
                                                      pb, ntype=ntype, force_even=True)
                 # If there is no validation/test data, idx is None.
                 idx = [] if idx is None else idx
@@ -561,7 +561,7 @@ class GSgnnData():
                     idxs[ntype] = idx
 
                 logging.debug('part %d | ntype %s, mask %s | num nodes: %d',
-                          get_rank(), ntype, mask, len(idx))
+                          get_rank(), ntype, msk, len(idx))
         return idxs, num_data
 
     def get_node_val_set(self, ntypes, mask="val_mask"):
@@ -629,21 +629,21 @@ class GSgnnData():
         ntypes = self._check_ntypes(ntypes)
         masks = self._check_node_mask(ntypes, mask)
 
-        for ntype, mask in zip(ntypes, masks):
+        for ntype, msk in zip(ntypes, masks):
             node_trainer_ids = g.nodes[ntype].data['trainer_id'] \
                 if 'trainer_id' in g.nodes[ntype].data else None
-            if mask in g.nodes[ntype].data:
+            if msk in g.nodes[ntype].data:
                 # We only do inference on a subset of nodes
                 # according to the mask
-                infer_idx = dgl.distributed.node_split(g.nodes[ntype].data[mask],
+                infer_idx = dgl.distributed.node_split(g.nodes[ntype].data[msk],
                                                        pb, ntype=ntype, force_even=True,
                                                        node_trainer_ids=node_trainer_ids)
                 logging.info("%s contains %s, we will do inference based on the mask",
-                             ntype, mask)
+                             ntype, msk)
             else:
                 # We will do inference on the entire edge set
                 logging.info("%s does not contains %s" + \
-                        "We will do inference on the entire node set.", ntype, mask)
+                        "We will do inference on the entire node set.", ntype, msk)
                 infer_idx = dgl.distributed.node_split(
                     th.full((g.num_nodes(ntype),), True, dtype=th.bool),
                     pb, ntype=ntype, force_even=True,
