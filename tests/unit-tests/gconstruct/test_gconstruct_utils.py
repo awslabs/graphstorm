@@ -38,6 +38,7 @@ from graphstorm.gconstruct.file_io import (write_data_hdf5,
                                            read_data_hdf5,
                                            get_in_files,
                                            write_data_parquet)
+from graphstorm.gconstruct.file_io import read_index, write_index_json
 from graphstorm.gconstruct.file_io import (read_data_csv,
                                            read_data_json,
                                            read_data_parquet)
@@ -450,6 +451,29 @@ def test_shuffle_hard_nids():
                             p1_etype1_neg0_shuffled)
 
 
+def test_read_index():
+    write_index_json([(3, 3)], "/tmp/test_idx.json")
+    json_content = read_index("/tmp/test_idx.json")
+    assert json_content == [(3, 3)]
+
+    write_index_json(np.arange(3), "/tmp/test_idx.json")
+    json_content = read_index("/tmp/test_idx.json")
+    assert json_content == [0, 1, 2]
+
+    data = ["p70", "p71", "p72", "p73", "p74", "p75"]
+    df = pd.DataFrame(data, columns=['ID'])
+    df.to_parquet('/tmp/test_idx.parquet')
+    parquet_content = read_index("/tmp/test_idx.parquet", column=["ID"])
+    np.array_equal(parquet_content, data)
+
+    data, data2 = ["p1", "p2"], ["p3", "p4"]
+    df = pd.DataFrame({'src': data, 'dst': data2})
+    df.to_parquet('/tmp/test_idx.parquet')
+    parquet_content = read_index("/tmp/test_idx.parquet", column=["src", "dst"])
+    assert parquet_content == [("p1", "p3"), ("p2", "p4")]
+
+
+
 if __name__ == '__main__':
     test_shuffle_hard_nids()
     test_save_load_maps()
@@ -462,3 +486,4 @@ if __name__ == '__main__':
     test_object_conversion()
     test_ext_mem_array()
     test_multiprocessing_read()
+    test_read_index()
