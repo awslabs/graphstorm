@@ -463,7 +463,7 @@ class GSgnnData():
 
         Returns
         -------
-        dict of Tensors : The returned nodes
+        dict of Tensors : The returned node indexes
         """
         g = self.g
         pb = g.get_partition_book()
@@ -481,7 +481,7 @@ class GSgnnData():
             unlabeled_idx = dgl.distributed.node_split(unlabeled_mask,
                                                        pb, ntype=ntype, force_even=True,
                                                        node_trainer_ids=node_trainer_ids)
-            assert unlabeled_idx is not None, "There is no training data."
+            assert unlabeled_idx is not None, "There is no unlabeled data."
             num_unlabeled += len(unlabeled_idx)
             unlabeled_idxs[ntype] = unlabeled_idx
         logging.info('part %d, unlabeled: %d', get_rank(), num_unlabeled)
@@ -500,7 +500,7 @@ class GSgnnData():
 
         Returns
         -------
-        dict of Tensors : The returned training masks
+        dict of Tensors : The returned training node indexes
         """
         g = self._g
         pb = g.get_partition_book()
@@ -540,15 +540,6 @@ class GSgnnData():
         ntypes = self._check_ntypes(ntypes)
         masks = self._check_node_mask(ntypes, mask)
 
-        if isinstance(mask, str):
-            # mask is a string
-            # validation/test masks are using the same name
-            masks = [mask] * len(ntypes)
-
-        assert len(ntypes) == len(masks), \
-            "Expecting the number of ntypes matches the number of mask fields, " \
-            f"But get {len(ntypes)} and {len(masks)}." \
-            f"The node types are {ntypes} and the mask fileds are {masks}"
         for ntype, msk in zip(ntypes, masks):
             if msk in g.nodes[ntype].data:
                 idx = dgl.distributed.node_split(g.nodes[ntype].data[msk],
@@ -577,7 +568,7 @@ class GSgnnData():
 
         Returns
         -------
-        dict of Tensors : The returned validation masks
+        dict of Tensors : The returned validation node indexes
         """
         idxs, num_data = self._get_node_set(ntypes, mask)
         logging.info('part %d, val %d', get_rank(), num_data)
@@ -597,7 +588,7 @@ class GSgnnData():
 
         Returns
         -------
-        dict of Tensors : The returned test masks
+        dict of Tensors : The returned test node indexes
         """
         idxs, num_data = self._get_node_set(ntypes, mask)
         logging.info('part %d, test %d', get_rank(), num_data)
