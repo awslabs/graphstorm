@@ -99,7 +99,8 @@ def main(config_args):
         # Currently, we only support mrr
         evaluator = get_evaluator(config, train_data)
         trainer.setup_evaluator(evaluator)
-        assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
+        val_idxs = train_data.get_edge_val_set(config.eval_etype)
+        assert len(val_idxs) > 0, "The training data do not have validation set."
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
         # we have validation data.
     tracker = gs.create_builtin_task_tracker(config)

@@ -45,7 +45,8 @@ def main(config_args):
                   use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
 
     infer_data = GSgnnData(config.part_config,
-                           node_feat_field=config.node_feat_name,lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
+                           node_feat_field=config.node_feat_name,
+                           lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     model = gs.create_builtin_lp_gnn_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)

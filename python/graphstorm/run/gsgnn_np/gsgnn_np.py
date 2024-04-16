@@ -125,7 +125,7 @@ def main(config_args):
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
     val_dataloader = None
     test_dataloader = None
-    if len(train_data.val_idxs) > 0:
+    if len(val_idxs) > 0:
         val_dataloader = GSgnnNodeDataLoader(train_data, val_idxs, fanout=fanout,
                                              batch_size=config.eval_batch_size,
                                              train_task=False,
@@ -133,7 +133,7 @@ def main(config_args):
                                              label_field=config.label_field,
                                              construct_feat_ntype=config.construct_feat_ntype,
                                              construct_feat_fanout=config.construct_feat_fanout)
-    if len(train_data.test_idxs) > 0:
+    if len(test_idxs) > 0:
         test_dataloader = GSgnnNodeDataLoader(train_data, test_idxs, fanout=fanout,
                                               batch_size=config.eval_batch_size,
                                               train_task=False,
@@ -181,7 +181,7 @@ def main(config_args):
         # of the weight matrics of the edge types of the last layer GNN
         # targetting these ntype(s) will not receive any gradient from
         # the training loss.
-        embeddings = {ntype: embeddings[ntype] for ntype in train_data.train_ntypes}
+        embeddings = {ntype: embeddings[ntype] for ntype in config.target_ntype}
         save_full_node_embeddings(
             train_data.g,
             config.save_embed_path,
