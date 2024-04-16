@@ -453,23 +453,27 @@ def test_shuffle_hard_nids():
 
 def test_read_index():
     write_index_json([(3, 3)], "/tmp/test_idx.json")
-    json_content = read_index("/tmp/test_idx.json")
+    split_info = {"valid": "/tmp/test_idx.json"}
+    _, json_content, _ = read_index(split_info)
     assert json_content == [(3, 3)]
 
     write_index_json(np.arange(3), "/tmp/test_idx.json")
-    json_content = read_index("/tmp/test_idx.json")
+    split_info = {"train": "/tmp/test_idx.json"}
+    json_content, _, _ = read_index(split_info)
     assert json_content == [0, 1, 2]
 
     data = ["p70", "p71", "p72", "p73", "p74", "p75"]
     df = pd.DataFrame(data, columns=['ID'])
     df.to_parquet('/tmp/test_idx.parquet')
-    parquet_content = read_index("/tmp/test_idx.parquet", column=["ID"])
+    split_info = {"train": "/tmp/test_idx.parquet", "column": ["ID"]}
+    parquet_content, _, _ = read_index(split_info)
     np.array_equal(parquet_content, data)
 
     data, data2 = ["p1", "p2"], ["p3", "p4"]
     df = pd.DataFrame({'src': data, 'dst': data2})
     df.to_parquet('/tmp/test_idx.parquet')
-    parquet_content = read_index("/tmp/test_idx.parquet", column=["src", "dst"])
+    split_info = {"train": "/tmp/test_idx.parquet", "column": ["src", "dst"]}
+    parquet_content, _, _ = read_index(split_info)
     assert parquet_content == [("p1", "p3"), ("p2", "p4")]
 
 

@@ -31,51 +31,50 @@ import pandas as pd
 from .utils import HDF5Handle, HDF5Array
 
 
-def read_index(data_file, column=None):
+def read_index(split_info):
     """ Read the index from a JSON/parquet file.
 
-    Each row is a JSON object that contains an index.
+    Parameters
+    ----------
+    split_info : dict
+        All the split information
+
+    """
+    res = []
+    for idx in ['train', 'valid', 'test']:
+        if idx not in split_info:
+            res.append([])
+            continue
+        _, extension = os.path.splitext(split_info[idx])
+
+        # Normalize the extension to ensure case insensitivity
+        extension = extension.lower()
+
+        # json files should be ended with .json and parquet files should be ended with parquet
+        if extension == '.json':
+            res.append(read_index_json(split_info[idx]))
+        elif extension == '.parquet':
+            # We should make sure there are multiple parquet files instead of one
+            res.append(read_index_parquet(split_info[idx], split_info['column']))
+        else:
+            raise ValueError(f"Expect mask data format be one of parquet "
+                             f"and json, but get {extension}")
+    return res[0], res[1], res[2]
+
+
+def read_index_parquet(data_file, column):
+    """
+    Read the index from a parquet file.
+
+    Each row is a parquet object that contains an index.
 
     Parameters
     ----------
     data_file : str
-        The file that contains the index.
-    column : str
+        The parquet file that contains the index.
+    column: list[str]
         Column name on parquet which contains the index
 
-    Returns
-    -------
-    Numpy array : the index array.
-    """
-    # Extract the extension from the filename
-    _, extension = os.path.splitext(data_file)
-
-    # Normalize the extension to ensure case insensitivity
-    extension = extension.lower()
-
-    if extension == '.json':
-        return read_index_json(data_file)
-    elif extension == '.parquet':
-        return read_index_parquet(data_file, column)
-    else:
-        raise ValueError(f"Expect mask data format be one of parquet "
-                         f"and json, but get {extension}")
-
-def read_index_parquet(data_file, column):
-    """ Read the index from a parquet file.
-
-        Each row is a parquet object that contains an index.
-
-        Parameters
-        ----------
-        data_file : str
-            The parquet file that contains the index.
-        column: str
-            Column name on parquet which contains the index
-
-        Returns
-        -------
-        Numpy array : the index array.
     """
     df = pd.read_parquet(data_file)
     if len(column) == 1:

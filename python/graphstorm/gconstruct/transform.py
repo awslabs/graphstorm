@@ -1676,12 +1676,7 @@ def parse_label_ops(confs, is_node):
                 "Custom data split needs to provide train/val/test index."
         if "column" not in custom_split:
             custom_split["column"] = []
-        train_idx = read_index(custom_split['train'], custom_split["column"]) \
-            if 'train' in custom_split else None
-        val_idx = read_index(custom_split['valid'], custom_split["column"]) \
-            if 'valid' in custom_split else None
-        test_idx = read_index(custom_split['test'], custom_split["column"]) \
-            if 'test' in custom_split else None
+        train_idx, val_idx, test_idx = read_index(custom_split)
         label_col = label_conf['label_col'] if 'label_col' in label_conf else None
         if "node_id_col" in confs:
             return [CustomLabelProcessor(col_name=label_col, label_name=label_col,
