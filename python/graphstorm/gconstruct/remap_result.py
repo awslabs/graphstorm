@@ -509,7 +509,7 @@ def remap_node_pred(pred_ntypes, pred_dir,
     multiprocessing_remap(task_list, num_proc, worker_remap_node_data)
 
     dur = time.time() - start_time
-    logging.info("{%d} Remapping edge predictions takes {%f} secs", rank, dur)
+    logging.info("{%d} Remapping node predictions takes {%f} secs", rank, dur)
     return files_to_remove
 
 def remap_edge_pred(pred_etypes, pred_dir,
@@ -750,6 +750,9 @@ def main(args, gs_config_args):
             emb_names = [e_name for e_name in emb_names if e_name != "emb_info.json"]
 
             emb_ntypes = emb_names
+    else:
+        logging.info("Node embedding directory is not provided. "
+                     "Skip remaping node embeddings.")
 
     ################## remap prediction #############
     if predict_dir is not None:
@@ -816,6 +819,8 @@ def main(args, gs_config_args):
     else:
         pred_etypes = []
         pred_ntypes = []
+        logging.info("Prediction result directory is not provided. "
+                     "Skip remaping prediction result.")
 
 
     ntypes = []
