@@ -152,7 +152,7 @@ The examplary ACM graph also predifines two sets of labels. One set of labels ar
 
 Customized label split
 `````````````````````````
-If users want to split labels with your own logics, e.g., time sequence, you can split labels first, and then provide the split information in the configuration JSON file or parquet file like the below example.
+If users want to split labels with your own logics, e.g., time sequence, you can split labels first, and then provide the split information in the configuration JSON file or parquet file like the example below.
 When using parquet file as input, please specify the column object you want to use for your labels.
 
 JSON:
