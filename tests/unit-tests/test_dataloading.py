@@ -78,6 +78,7 @@ def get_nonzero(mask):
     return th.nonzero(mask, as_tuple=True)[0]
 
 def test_GSgnnData():
+    # Create dist graph without reverse edges
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -342,6 +343,17 @@ def test_GSgnnData():
             ('n1', 'r2', 'n0'):('n0', 'r0', 'n1')})
         assert len(new_etypes) == 2
         assert set(etypes[2:]) == set(new_etypes)
+
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()
+
+def test_GSgnnData2():
+    # Create dist graph with reverse edges
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
@@ -2179,6 +2191,7 @@ if __name__ == '__main__':
     test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
     test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
     test_GSgnnData()
+    test_GSgnnData2()
     test_lp_dataloader()
     test_edge_dataloader()
     test_node_dataloader()
