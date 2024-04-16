@@ -1676,6 +1676,9 @@ def parse_label_ops(confs, is_node):
                 "Custom data split needs to provide train/val/test index."
         if "column" not in custom_split:
             custom_split["column"] = []
+        # Treat all input as an input of list[str]
+        if isinstance(custom_split['column'], str):
+            custom_split["column"] = [custom_split["column"]]
         train_idx, val_idx, test_idx = read_index(custom_split)
         label_col = label_conf['label_col'] if 'label_col' in label_conf else None
         if "node_id_col" in confs:
