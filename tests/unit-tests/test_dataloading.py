@@ -453,7 +453,7 @@ def test_GSgnnAllEtypeLinkPredictionDataLoader(batch_size):
                                       rank=0,
                                       world_size=1)
 
-    tr_etypes = [("n0", "r1", 'n1'), ("n0", "r0", "n1")]
+    tr_etypes = [("n0", "r1", "n1"), ("n0", "r0", "n1")]
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
@@ -566,14 +566,18 @@ def test_node_dataloader_reconstruct():
     # Test the case that we cannot construct all node features.
     try:
         dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10, label_field='label',
-                                         train_task=False, construct_feat_ntype=['n1', 'n2'])
+                                         train_task=False,
+                                         node_feats={'n0': ['feat'], 'n4': ['feat']},
+                                         construct_feat_ntype=['n1', 'n2'])
         assert False
     except:
         pass
 
     # Test the case that we construct node features for one-layer GNN.
     dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10, label_field='label',
-                                     train_task=False, construct_feat_ntype=['n2'])
+                                     train_task=False,
+                                     node_feats={'n0': ['feat'], 'n4': ['feat']},
+                                     construct_feat_ntype=['n2'])
     all_nodes = []
     rel_names_for_reconstruct = gs.gsf.get_rel_names_for_reconstruct(np_data.g,
                                                                      ['n1', 'n2'], feat_sizes)
@@ -597,7 +601,9 @@ def test_node_dataloader_reconstruct():
 
     # Test the case that we construct node features for two-layer GNN.
     dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10, 10], 10, label_field='label',
-                                     train_task=False, construct_feat_ntype=['n3'])
+                                     train_task=False,
+                                     node_feats={'n0': ['feat'], 'n4': ['feat']},
+                                     construct_feat_ntype=['n3'])
     all_nodes = []
     rel_names_for_reconstruct = gs.gsf.get_rel_names_for_reconstruct(np_data.g,
                                                                      ['n3'], feat_sizes)
