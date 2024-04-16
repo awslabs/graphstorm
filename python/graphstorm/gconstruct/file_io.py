@@ -37,7 +37,7 @@ def read_index(split_info):
     Parameters
     ----------
     split_info : dict
-        All the split information
+        Customized split information
 
     """
     res = []
@@ -66,14 +66,12 @@ def read_index_parquet(data_file, column):
     """
     Read the index from a parquet file.
 
-    Each row is a parquet object that contains an index.
-
     Parameters
     ----------
     data_file : str
         The parquet file that contains the index.
     column: list[str]
-        Column name on parquet which contains the index
+        Column names on parquet which contain the index
 
     """
     df = pd.read_parquet(data_file)
