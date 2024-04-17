@@ -39,6 +39,14 @@ def read_index(split_info):
     split_info : dict
         Customized split information
 
+    Returns
+    -------
+    tuple of numpy.ndarray
+        Returns a tuple containing three numpy arrays:
+        - First element: Data from the training split, if available and format is correct, otherwise [].
+        - Second element: Data from the validation split, if available and format is correct, otherwise [].
+        - Third element: Data from the test split, if available and format is correct, otherwise [].
+        If the file extension is not '.json' or '.parquet', a ValueError is raised.
     """
     res = []
     for idx in ['train', 'valid', 'test']:

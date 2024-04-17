@@ -471,10 +471,16 @@ def test_read_index():
 
     data, data2 = ["p1", "p2"], ["p3", "p4"]
     df = pd.DataFrame({'src': data, 'dst': data2})
-    df.to_parquet('/tmp/test_idx.parquet')
-    split_info = {"train": "/tmp/test_idx.parquet", "column": ["src", "dst"]}
+    df.to_parquet('/tmp/train_idx.parquet')
+    split_info = {"train": "/tmp/train_idx.parquet", "column": ["src", "dst"]}
     parquet_content, _, _ = read_index(split_info)
     assert parquet_content == [("p1", "p3"), ("p2", "p4")]
+
+    split_info = {"train": "/tmp/test_idx.parquet",
+                  "test": "/tmp/test_idx.parquet", "column": ["src", "dst"]}
+    train_content, _, test_content = read_index(split_info)
+    assert train_content == [("p1", "p3"), ("p2", "p4")]
+    assert test_content == ["p70", "p71", "p72", "p73", "p74", "p75"]
 
 
 
