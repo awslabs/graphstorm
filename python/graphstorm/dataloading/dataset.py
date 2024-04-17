@@ -293,8 +293,8 @@ class GSgnnData():
                     if ntype in node_feat_field else []
             else:
                 raise TypeError("Node feature field must be a string " \
-                                "or a dictionary of list of strings, but get %s",
-                                node_feat_field)
+                                "or a dictionary of list of strings, " \
+                                f"but get {node_feat_field}")
             for feat_name in feat_names:
                 assert feat_name in g.nodes[ntype].data, \
                     f"Warning. The feature \"{feat_name}\" " \
