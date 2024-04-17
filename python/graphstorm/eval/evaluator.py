@@ -826,7 +826,7 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         The early stop strategy. GraphStorm supports two strategies:
         1) consecutive_increase and 2) average_increase.
     """
-    def __init__(self, eval_frequency, data,
+    def __init__(self, eval_frequency, data, # pylint: disable=unused-argument
                  num_negative_edges_eval, lp_decoder_type,
                  use_early_stop=False,
                  early_stop_burnin_rounds=0,
