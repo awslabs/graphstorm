@@ -153,7 +153,7 @@ The examplary ACM graph also predifines two sets of labels. One set of labels ar
 Customized label split
 `````````````````````````
 If users want to split labels with your own logics, e.g., time sequence, you can split labels first, and then provide the split information in the configuration JSON file or parquet file like the example below.
-When using parquet file as input, please specify the column object you want to use for your labels. The column object here can be either a string or a list with a single string.
+When using parquet files as input, please specify the column object you want to use for your labels. The column object here can be either a string or a list with a single string.
 
 JSON:
 
@@ -196,7 +196,7 @@ These JSON files only need to list the IDs on its own set. For example, in a nod
     ...
     59
 
-For edge data, users can do the similar thing as defining customized node labels to define the customized edge labels. The configuration looks same for JSON file, for parquet file, users need to specify both the source id column and destination id column in a list of string:
+For edge data, users can do the similar thing as defining customized node labels to define the customized edge labels. The configuration looks same for JSON files, for parquet files, users need to specify both the source id column and destination id column in a list of strings:
 
 JSON:
 
