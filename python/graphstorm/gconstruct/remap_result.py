@@ -820,7 +820,7 @@ def main(args, gs_config_args):
         pred_etypes = []
         pred_ntypes = []
         logging.info("Prediction result directory is not provided. "
-                     "Skip remaping prediction result.")
+                     "Skip remapping prediction result.")
 
 
     ntypes = []
