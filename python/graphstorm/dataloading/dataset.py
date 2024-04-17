@@ -164,12 +164,15 @@ class GSgnnData():
     part_config : str
         The path of the partition configuration file.
     node_feat_field: str or dict of list of str
-        Fields to extract node features. It's a dict if different node types have
+        The fields of the node features that will be encoded by GSNodeInputLayer.
+        It's a dict if different node types have
         different feature names.
         Default: None
     edge_feat_field : str or dict of list of str
-        The field of the edge features. It's a dict if different edge types have
+        The fields of the edge features.
+        It's a dict if different edge types have
         different feature names.
+        This argument is reserved by future usage.
         Default: None
     lm_feat_ntypes : list of str
         The node types that contains text features.
@@ -192,6 +195,7 @@ class GSgnnData():
         #    or an edge has feature.
         # 3. Used by do_full_graph_inference and do_mini_batch_inference when
         #    computing input embeddings.
+        self._check_node_feats(node_feat_field)
         self._node_feat_field = node_feat_field
         self._edge_feat_field = edge_feat_field
         self._lm_feat_ntypes = lm_feat_ntypes if lm_feat_ntypes is not None else []
@@ -268,13 +272,33 @@ class GSgnnData():
 
     @property
     def node_feat_field(self):
-        """the field of node feature"""
+        """The field of node feature"""
         return self._node_feat_field
 
     @property
     def edge_feat_field(self):
         """the field of edge feature"""
         return self._edge_feat_field
+
+    def _check_node_feats(self, node_feat_field):
+        g = self._g
+        if node_feat_field is None:
+            return
+
+        for ntype in g.ntypes:
+            if isinstance(node_feat_field, str):
+                feat_names = [node_feat_field]
+            elif isinstance(node_feat_field, dict):
+                feat_names = node_feat_field[ntype] \
+                    if ntype in node_feat_field else []
+            else:
+                raise TypeError("Node feature field must be a string " \
+                                "or a dictionary of list of strings, but get %s",
+                                node_feat_field)
+            for feat_name in feat_names:
+                assert feat_name in g.nodes[ntype].data, \
+                    f"Warning. The feature \"{feat_name}\" " \
+                    f"does not exists for the node type \"{ntype}\"."
 
     def has_node_feats(self, ntype):
         """ Test if the specified node type has features.
