@@ -78,7 +78,22 @@ def main(config_args):
     emb_generator = GSgnnEmbGenInferer(model)
     emb_generator.setup_device(device=get_device())
 
-    emb_generator.infer(input_data, config.task_type,
+    task_type = config.task_type
+    # infer ntypes must be sorted for node embedding saving
+    if task_type == BUILTIN_TASK_LINK_PREDICTION:
+        infer_ntypes = None
+    elif task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
+        infer_ntypes = sorted(config.target_ntype)
+    elif task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
+        infer_ntypes = set()
+        for etype in config.target_etype:
+            infer_ntypes.add(etype[0])
+            infer_ntypes.add(etype[2])
+        infer_ntypes = sorted(infer_ntypes)
+    else:
+        raise TypeError("Not supported for task type: ", task_type)
+
+    emb_generator.infer(input_data, infer_ntypes,
                 save_embed_path=config.save_embed_path,
                 eval_fanout=config.eval_fanout,
                 use_mini_batch_infer=config.use_mini_batch_infer,
