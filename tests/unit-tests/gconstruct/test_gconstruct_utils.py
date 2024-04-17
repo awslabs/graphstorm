@@ -476,11 +476,14 @@ def test_read_index():
     parquet_content, _, _ = read_index(split_info)
     assert parquet_content == [("p1", "p3"), ("p2", "p4")]
 
+    data3, data4 = ["p5", "p6"], ["p7", "p8"]
+    df = pd.DataFrame({'src': data3, 'dst': data4})
+    df.to_parquet('/tmp/test_idx.parquet')
     split_info = {"train": "/tmp/test_idx.parquet",
                   "test": "/tmp/test_idx.parquet", "column": ["src", "dst"]}
     train_content, _, test_content = read_index(split_info)
     assert train_content == [("p1", "p3"), ("p2", "p4")]
-    assert test_content == ["p70", "p71", "p72", "p73", "p74", "p75"]
+    assert test_content == [("p5", "p7"), ("p6", "p8")]
 
 
 
