@@ -479,7 +479,7 @@ def test_read_index():
     data3, data4 = ["p5", "p6"], ["p7", "p8"]
     df = pd.DataFrame({'src': data3, 'dst': data4})
     df.to_parquet('/tmp/test_idx.parquet')
-    split_info = {"train": "/tmp/test_idx.parquet",
+    split_info = {"train": "/tmp/train_idx.parquet",
                   "test": "/tmp/test_idx.parquet", "column": ["src", "dst"]}
     train_content, _, test_content = read_index(split_info)
     assert train_content == [("p1", "p3"), ("p2", "p4")]
