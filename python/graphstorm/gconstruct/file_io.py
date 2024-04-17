@@ -43,9 +43,9 @@ def read_index(split_info):
     -------
     tuple of numpy.ndarray
         Returns a tuple containing three numpy arrays:
-        - First element: Data from the training split, if available and format is correct, otherwise [].
-        - Second element: Data from the validation split, if available and format is correct, otherwise [].
-        - Third element: Data from the test split, if available and format is correct, otherwise [].
+        - First element: Data from the training split, if not available, [].
+        - Second element: Data from the validation split, if not available, [].
+        - Third element: Data from the test split, if not available, [].
         If the file extension is not '.json' or '.parquet', a ValueError is raised.
     """
     res = []
