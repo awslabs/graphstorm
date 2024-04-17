@@ -752,7 +752,7 @@ def main(args, gs_config_args):
             emb_ntypes = emb_names
     else:
         logging.info("Node embedding directory is not provided. "
-                     "Skip remaping node embeddings.")
+                     "Skip remapping node embeddings.")
 
     ################## remap prediction #############
     if predict_dir is not None:
