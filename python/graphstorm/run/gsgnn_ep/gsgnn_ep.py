@@ -66,6 +66,7 @@ def main(config_args):
     # edge predict only handle edge feature in decoder
     train_data = GSgnnData(config.part_config,
                            node_feat_field=config.node_feat_name,
+                           edge_feat_field=config.edge_feat_name,
                            lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     model = gs.create_builtin_edge_gnn_model(train_data.g, config, train_task=True)
     trainer = GSgnnEdgePredictionTrainer(model, topk_model_to_save=config.topk_model_to_save)

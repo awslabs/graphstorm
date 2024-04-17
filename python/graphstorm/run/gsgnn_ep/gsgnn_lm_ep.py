@@ -60,8 +60,9 @@ def main(config_args):
                   local_rank=config.local_rank)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
-    train_data = GSgnnData(config.part_config,
-                           node_feat_field=config.node_feat_name)
+    # language model only encoder does not allow node and edge features
+    # except LM related features.
+    train_data = GSgnnData(config.part_config)
     model = gs.create_builtin_edge_model(train_data.g, config, train_task=True)
     trainer = GSgnnEdgePredictionTrainer(model, topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:

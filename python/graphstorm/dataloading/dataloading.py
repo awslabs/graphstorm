@@ -1537,11 +1537,11 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
 
     .. code:: python
 
-        from graphstorm.dataloading import GSgnnNodeTrainData
+        from graphstorm.dataloading import GSgnnData
         from graphstorm.dataloading import GSgnnNodeDataLoader
         from graphstorm.trainer import GSgnnNodePredictionTrainer
 
-        np_data = GSgnnNodeTrainData(...)
+        np_data = GSgnnData(...)
         np_dataloader = GSgnnNodeDataLoader(np_data, target_idx, fanout=[15, 10],
                                             batch_size=128,
                                             label_field="label", node_feats="feat")

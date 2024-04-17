@@ -53,6 +53,7 @@ def main(config_args):
 
     input_data = GSgnnData(config.part_config,
                            node_feat_field=config.node_feat_name,
+                           edge_feat_field=config.edge_feat_name,
                            lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
 
     # assert the setting for the graphstorm embedding generation.

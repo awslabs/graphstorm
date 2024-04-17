@@ -612,7 +612,7 @@ class GSgnnData():
 
         Returns
         -------
-        dict of Tensors : The returned training masks
+        dict of Tensors : The returned inference node indexes.
         """
         g = self._g
         pb = g.get_partition_book()
@@ -685,7 +685,7 @@ class GSgnnData():
         list: list of mask fields
         """
         if isinstance(etypes, tuple):
-            # etypes is a string, convert it into list
+            # etypes is a tuple of strings, convert it into list
             etypes = [etypes]
 
         if isinstance(masks, str):
@@ -723,12 +723,11 @@ class GSgnnData():
             Default: "train_mask"
         reverse_edge_types_map: dict
             A map for reverse edge type.
-
             Default: None
 
         Returns
         -------
-        dict of Tensors : The returned training masks
+        dict of Tensors : The returned training edge indexes.
         """
         g = self._g
         pb = g.get_partition_book()
@@ -787,7 +786,7 @@ class GSgnnData():
 
     def get_edge_val_set(self, etypes=None, mask="val_mask",
                          reverse_edge_types_map=None):
-        """ Get edge test set for edges of etypes.
+        """ Get edge validation set for edges of etypes.
 
         Parameters
         __________
@@ -802,7 +801,7 @@ class GSgnnData():
 
         Returns
         -------
-        dict of Tensors : The returned val masks
+        dict of Tensors : The returned validation edge indexes
         """
         idxs, num_data = self._get_edge_set(etypes, mask, reverse_edge_types_map)
         logging.info('part %d, val %d', get_rank(), num_data)
@@ -826,7 +825,7 @@ class GSgnnData():
 
         Returns
         -------
-        dict of Tensors : The returned test masks
+        dict of Tensors : The returned test edge indexes.
         """
         idxs, num_data = self._get_edge_set(etypes, mask, reverse_edge_types_map)
         logging.info('part %d, test %d', get_rank(), num_data)
@@ -854,7 +853,7 @@ class GSgnnData():
 
         Returns
         -------
-        dict of Tensors : The returned training masks
+        dict of Tensors : The returned inference edge indexes
         """
         g = self._g
         pb = g.get_partition_book()

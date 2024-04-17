@@ -73,7 +73,7 @@ class GSgnnNodePredictionInferrer(GSInferrer):
         """
         do_eval = self.evaluator is not None
         if do_eval:
-            assert loader.data.labels is not None, \
+            assert loader.label_field is not None, \
                 "A label field must be provided for node classification " \
                 "or regression inference when evaluation is required."
 

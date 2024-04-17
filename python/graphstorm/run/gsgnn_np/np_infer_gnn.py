@@ -49,6 +49,7 @@ def main(config_args):
 
     infer_data = GSgnnData(config.part_config,
                            node_feat_field=config.node_feat_name,
+                           edge_feat_field=config.edge_feat_name,
                            lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
 
     model = gs.create_builtin_node_gnn_model(infer_data.g, config, train_task=False)

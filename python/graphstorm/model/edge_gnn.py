@@ -318,8 +318,8 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
 
     if return_label:
         assert loader.label_field is not None, \
-            "Return label is required, but the label field is not provided whem" \
-            "initlaizing the inference dataset."
+            "Return label is required, but the label field is not provided when" \
+            "initlaizing the inference dataloader."
 
     len_dataloader = max_num_batch = len(loader)
     num_batch = th.tensor([len_dataloader], device=device)

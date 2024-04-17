@@ -69,6 +69,7 @@ def main(config_args):
     sys_tracker.init(config.verbose, rank=gs.get_rank())
     train_data = GSgnnData(config.part_config,
                            node_feat_field=config.node_feat_name,
+                           edge_feat_field=config.edge_feat_name,
                            lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
 
@@ -81,12 +82,12 @@ def main(config_args):
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)
     trainer.setup_device(device=get_device())
-    train_idxs = train_data.get_node_train_set(config.target_ntype, mask="train_mask")
+    train_idxs = train_data.get_node_train_set(config.target_ntype)
 
     eval_ntype = config.eval_target_ntype \
         if config.eval_target_ntype is not None else config.target_ntype
-    val_idxs = train_data.get_node_val_set(eval_ntype, mask="val_mask")
-    test_idxs = train_data.get_node_test_set(eval_ntype, mask="test_mask")
+    val_idxs = train_data.get_node_val_set(eval_ntype)
+    test_idxs = train_data.get_node_test_set(eval_ntype)
 
     if not config.no_validation:
         evaluator = get_evaluator(config)
@@ -101,7 +102,7 @@ def main(config_args):
 
     if config.use_pseudolabel:
         # Use nodes not in train_idxs as unlabeled node sets
-        unlabeled_idxs = train_data.get_unlabeled_node_set(train_idxs, mask="train_mask")
+        unlabeled_idxs = train_data.get_unlabeled_node_set(train_idxs)
         # semi-supervised loader
         dataloader = GSgnnNodeSemiSupDataLoader(train_data, train_idxs,
                                                 unlabeled_idxs,

@@ -105,6 +105,7 @@ def main(config_args):
     sys_tracker.init(config.verbose, rank=gs.get_rank())
     train_data = GSgnnData(config.part_config,
                            node_feat_field=config.node_feat_name,
+                           edge_feat_field=config.edge_feat_name,
                            lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=True)
     trainer = GSgnnLinkPredictionTrainer(model, topk_model_to_save=config.topk_model_to_save)

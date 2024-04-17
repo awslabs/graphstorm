@@ -38,9 +38,9 @@ def main(config_args):
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
                   local_rank=config.local_rank)
-
-    infer_data = GSgnnData(config.part_config,
-                           node_feat_field=config.node_feat_name)
+    # language model only encoder does not allow node and edge features
+    # except LM related features.
+    infer_data = GSgnnData(config.part_config)
     model = gs.create_builtin_lp_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)

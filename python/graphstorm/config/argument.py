@@ -755,6 +755,14 @@ class GSConfig:
         return None
 
     @property
+    def edge_feat_name(self):
+        """ User defined edge feature name
+
+        Not used by GraphStorm, reserved for future usage.
+        """
+        return None
+
+    @property
     def node_feat_name(self):
         """ User defined node feature name
 

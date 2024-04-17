@@ -46,9 +46,9 @@ def main(config_args):
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
                   local_rank=config.local_rank)
-
-    infer_data = GSgnnData(config.part_config,
-                           node_feat_field=config.node_feat_name)
+    # language model only encoder does not allow node and edge features
+    # except LM related features.
+    infer_data = GSgnnData(config.part_config)
     model = gs.create_builtin_edge_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
@@ -58,7 +58,7 @@ def main(config_args):
         target_idxs = infer_data.get_edge_test_set(config.target_etype)
         evaluator = get_evaluator(config)
         infer.setup_evaluator(evaluator)
-        assert len(target_idxs) > 0, "There is not test data for evaluation."
+        assert len(target_idxs) > 0, "There is no test data for evaluation."
     else:
         target_idxs = infer_data.get_edge_infer_set(config.target_etype)
         assert len(target_idxs) > 0, \
