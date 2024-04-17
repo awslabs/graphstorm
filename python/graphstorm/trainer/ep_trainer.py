@@ -172,7 +172,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 nfeat_fields = train_loader.node_feat_fields
                 input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
 
-                if train_loader.decoder_edge_feat is not None:
+                if train_loader.decoder_edge_feat_fields is not None:
                     input_edges = {etype: batch_graph.edges[etype].data[dgl.EID] \
                             for etype in batch_graph.canonical_etypes}
                     edge_decoder_feats = \

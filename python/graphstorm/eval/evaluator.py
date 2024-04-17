@@ -329,7 +329,7 @@ class GSgnnInstanceEvaluator():
     @property
     def history(self):
         """ Evaluation history
-        
+
             Returns
             -------
             A list of evaluation history in training. The detailed contents of the list rely
@@ -836,9 +836,6 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         super(GSgnnMrrLPEvaluator, self).__init__(eval_frequency,
             eval_metric, use_early_stop, early_stop_burnin_rounds,
             early_stop_rounds, early_stop_strategy)
-        self.train_idxs = data.train_idxs
-        self.val_idxs = data.val_idxs
-        self.test_idxs = data.test_idxs
         self.num_negative_edges_eval = num_negative_edges_eval
         self.lp_decoder_type = lp_decoder_type
 
