@@ -54,15 +54,15 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
     .. code:: python
 
         from graphstorm.dataloading import GSgnnNodeDataLoader
-        from graphstorm.dataset import GSgnnNodeTrainData
+        from graphstorm.dataset import GSgnnData
         from graphstorm.model.node_gnn import GSgnnNodeModel
         from graphstorm.trainer import GSgnnNodePredictionTrainer
 
-        my_dataset = GSgnnNodeTrainData(
-            "my_graph", "/path/to/part_config", "my_node_type")
+        my_dataset = GSgnnData("/path/to/part_config")
         target_idx = {"my_node_type": target_nodes_tensor}
         my_data_loader = GSgnnNodeDataLoader(
-            my_dataset, target_idx, fanout=[10], batch_size=1024)
+            my_dataset, target_idx, fanout=[10], batch_size=1024,
+            label_field="label", node_feats="feat")
         my_model = GSgnnNodeModel(alpha_l2norm=0.0)
 
         trainer =  GSgnnNodePredictionTrainer(my_model, topk_model_to_save=1)
@@ -172,8 +172,10 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 if not isinstance(input_nodes, dict):
                     assert len(g.ntypes) == 1
                     input_nodes = {g.ntypes[0]: input_nodes}
-                input_feats = data.get_node_feats(input_nodes, device)
-                lbl = data.get_labels(seeds, device)
+                nfeat_fields = train_loader.node_feat_fields
+                label_field = train_loader.label_field
+                input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
+                lbl = data.get_node_feats(seeds, label_field, device)
                 rt_profiler.record('train_node_feats')
 
                 blocks = [block.to(device) for block in blocks]

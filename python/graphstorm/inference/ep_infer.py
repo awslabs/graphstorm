@@ -73,7 +73,7 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
         """
         do_eval = self.evaluator is not None
         if do_eval:
-            assert loader.data.labels is not None, \
+            assert loader.label_field is not None, \
                 "A label field must be provided for edge classification " \
                 "or regression inference when evaluation is required."
 
@@ -100,16 +100,16 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
         sys_tracker.check('compute prediction')
 
         # Only save the embeddings related to target edge types.
-        infer_data = loader.data
+        infer_etypes = list(loader.target_eidx.keys())
         # TODO support multiple etypes
-        assert len(infer_data.eval_etypes) == 1, \
+        assert len(infer_etypes) == 1, \
             "GraphStorm only support single target edge type for training and inference"
 
         # do evaluation first
         if do_eval:
             test_start = time.time()
-            pred = preds[infer_data.eval_etypes[0]]
-            label = labels[infer_data.eval_etypes[0]] if labels is not None else None
+            pred = preds[infer_etypes[0]]
+            label = labels[infer_etypes[0]] if labels is not None else None
             val_score, test_score = self.evaluator.evaluate(pred, pred, label, label, 0)
             sys_tracker.check('run evaluation')
             if get_rank() == 0:
@@ -120,7 +120,7 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
         g = loader.data.g
         if save_embed_path is not None:
             target_ntypes = set()
-            for etype in infer_data.eval_etypes:
+            for etype in infer_etypes:
                 target_ntypes.add(etype[0])
                 target_ntypes.add(etype[2])
 
@@ -144,8 +144,8 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
                 if node_id_mapping_file else None
             shuffled_preds = {}
             for etype, pred in preds.items():
-                assert etype in infer_data.eval_etypes, \
-                    f"{etype} is not in the set of evaluation etypes {infer_data.eval_etypes}"
+                assert etype in infer_etypes, \
+                    f"{etype} is not in the set of evaluation etypes {infer_etypes}"
                 pred_src_nids, pred_dst_nids = \
                     g.find_edges(loader.target_eidx[etype], etype=etype)
 

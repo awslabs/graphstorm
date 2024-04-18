@@ -329,7 +329,7 @@ class GSgnnInstanceEvaluator():
     @property
     def history(self):
         """ Evaluation history
-        
+
             Returns
             -------
             A list of evaluation history in training. The detailed contents of the list rely
@@ -826,7 +826,7 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         The early stop strategy. GraphStorm supports two strategies:
         1) consecutive_increase and 2) average_increase.
     """
-    def __init__(self, eval_frequency, data,
+    def __init__(self, eval_frequency, data, # pylint: disable=unused-argument
                  num_negative_edges_eval, lp_decoder_type,
                  use_early_stop=False,
                  early_stop_burnin_rounds=0,
@@ -836,9 +836,6 @@ class GSgnnMrrLPEvaluator(GSgnnLPEvaluator):
         super(GSgnnMrrLPEvaluator, self).__init__(eval_frequency,
             eval_metric, use_early_stop, early_stop_burnin_rounds,
             early_stop_rounds, early_stop_strategy)
-        self.train_idxs = data.train_idxs
-        self.val_idxs = data.val_idxs
-        self.test_idxs = data.test_idxs
         self.num_negative_edges_eval = num_negative_edges_eval
         self.lp_decoder_type = lp_decoder_type
 

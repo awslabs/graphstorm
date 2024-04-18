@@ -55,12 +55,11 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     .. code:: python
 
         from graphstorm.dataloading import GSgnnEdgeDataLoader
-        from graphstorm.dataset import GSgnnEdgeData
+        from graphstorm.dataset import GSgnnData
         from graphstorm.model import GSgnnEdgeModel
         from graphstorm.trainer import GSgnnEdgePredictionTrainer
 
-        my_dataset = GSgnnEdgeTrainData(
-            "my_graph", "/path/to/part_config", train_etypes="edge_type")
+        my_dataset = GSgnnData("/path/to/part_config")
         target_idx = {"edge_type": target_edges_tensor}
         my_data_loader = GSgnnEdgeDataLoader(
             my_dataset, target_idx, fanout=[10], batch_size=1024)
@@ -170,14 +169,16 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 if not isinstance(input_nodes, dict):
                     assert len(batch_graph.ntypes) == 1
                     input_nodes = {batch_graph.ntypes[0]: input_nodes}
-                input_feats = data.get_node_feats(input_nodes, device)
+                nfeat_fields = train_loader.node_feat_fields
+                input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
 
-                if data.decoder_edge_feat is not None:
+                if train_loader.decoder_edge_feat_fields is not None:
                     input_edges = {etype: batch_graph.edges[etype].data[dgl.EID] \
                             for etype in batch_graph.canonical_etypes}
-                    edge_decoder_feats = data.get_edge_feats(input_edges,
-                                                             data.decoder_edge_feat,
-                                                             device)
+                    edge_decoder_feats = \
+                        data.get_edge_feats(input_edges,
+                                            train_loader.decoder_edge_feat_fields,
+                                            device)
                     edge_decoder_feats = {etype: feat.to(th.float32) \
                         for etype, feat in edge_decoder_feats.items()}
                 else:
@@ -190,7 +191,9 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 target_etype = batch_graph.canonical_etypes[0]
                 # TODO(zhengda) the data loader should return labels directly.
                 seeds = batch_graph.edges[target_etype[1]].data[dgl.EID]
-                lbl = data.get_labels({target_etype: seeds}, device)
+
+                label_field = train_loader.label_field
+                lbl = data.get_edge_feats({target_etype: seeds}, label_field, device)
                 blocks = [block.to(device) for block in blocks]
                 batch_graph = batch_graph.to(device)
                 rt_profiler.record('train_graph2GPU')
