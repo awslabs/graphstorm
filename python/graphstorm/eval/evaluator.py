@@ -108,15 +108,120 @@ def get_val_score_rank(val_score, val_perf_rank_list, comparator):
     return rank
 
 
+class GSgnnPredictionEvalInterface():
+    """ Interface for prediction evaluation functions
+
+    The interface set the two abstract methods for prediction classes, i.e., Classification
+    and Regression, which share the same input arguments.
+    """
+
+    @abc.abstractmethod
+    def evaluate(self, val_pred, test_pred, val_labels, test_labels, total_iters):
+        """Evaluate validation and test sets for Prediciton tasks
+
+        GSgnnTrainers will call this function to do evalution in their eval() fuction.
+
+        Classification and regression evaluators should provide both predictions and labels in
+        validation and test sets.
+
+        Parameters
+        ----------
+        val_pred : tensor
+            The tensor stores the prediction results on the validation nodes.
+        test_pred : tensor
+            The tensor stores the prediction results on the test nodes.
+        val_labels : tensor
+            The tensor stores the labels of the validation nodes.
+        test_labels : tensor
+            The tensor stores the labels of the test nodes.
+        total_iters: int
+            The current interation number.
+
+        Returns
+        -----------
+        eval_score: float
+            Validation score
+        test_score: float
+            Test score
+        """
+
+    @abc.abstractmethod
+    def compute_score(self, pred, labels, train=True):
+        """ Compute evaluation score for Prediciton tasks
+
+        Classification and regression evaluators should provide both predictions and labels.
+
+        Parameters
+        ----------
+        pred:
+            Rediction result
+        labels:
+            Label
+
+        Returns
+        -------
+        Evaluation metric values: dict
+        """
+
+
+class GSgnnLPEvalInterface():
+    """ Interface for Link Prediction evaluation functions
+
+    The interface set the two abstract methods for link prediction classes.
+    """
+
+    @abc.abstractmethod
+    def evaluate(self, val_scores, test_scores, total_iters):
+        """Evaluate validation and test sets for Link Prediciton tasks
+
+        GSgnnTrainers will call this function to do evalution in their eval() fuction.
+
+        Link Prediction evaluators should provide the LP scores for validation and test sets.
+
+        Parameters
+        ----------
+        val_scores: dict of tensors
+            The rankings of validation edges for each edge type.
+        test_scores: dict of tensors
+            The rankings of testing edges for each edge type.
+        total_iters: int
+            The current interation number.
+
+        Returns
+        -----------
+        eval_score: float
+            Validation score
+        test_score: float
+            Test score
+        """
+
+    @abc.abstractmethod
+    def compute_score(self, rankings, train=False):
+        """ Compute evaluation score for Prediciton tasks
+
+        Classification and regression evaluators should provide both predictions and labels.
+
+        Parameters
+        ----------
+        rankings: dict of tensors
+            Rankings of positive scores in format of {etype: ranking}
+
+        Returns
+        -------
+        Evaluation metric values: dict
+        """
+
+
 class GSgnnBaseEvaluator():
     """ Base class for Evaluators.
-    
+
     New base class in V0.3 to replace ``GSgnnInstanceEvaluator`` and ``GSgnnLPEvaluator``. This
     class serves as the base for the built-in ``GSgnnClassificationEvaluator``,
     ``GSgnnRegressionEvaluator``, and ``GSgnnLinkPredictionEvaluator``.
 
-    Users can also extend this class and implement the two abstract methods, i.e., ``evaluate()``
-    and ``compute_score()``, to create your own customized evaluators.
+    In order to create customized Evaluators, users can inherite this class and the corresponding
+    EvalInteface class, and then implement the two abstract methods, i.e., ``evaluate()``
+    and ``compute_score()`` accordingly.
 
     Parameters
     ----------
@@ -171,41 +276,6 @@ class GSgnnBaseEvaluator():
         """
         self.tracker = task_tracker
 
-    @abc.abstractmethod
-    def evaluate(self):
-        """Evaluate validation and test sets
-
-        GSgnnTrainers will call this function to do evalution in their eval() fuction.
-
-        Input parameter definition depends on the type of evaluators.
-
-        - Classification and regression evaluators could provide both predictions and labels in
-        validation and test sets.
-        - Link prediction evaluators could provide scores in validataion and test sets.
-
-        Returns
-        -----------
-        eval_score: float
-            Validation score
-        test_score: float
-            Test score
-        """
-
-    @abc.abstractmethod
-    def compute_score(self):
-        """ Compute evaluation score
-
-        Input parameter definition depends on the type of evaluators.
-
-        - Classification and regression evaluators could provide predictions and labels.
-        - Link prediction evaluators could provide rankings of positive scores in format of
-        {etype: ranking}.
-
-        Returns
-        -------
-        Evaluation metric values: dict
-        """
-
     def do_eval(self, total_iters, epoch_end=False):
         """ Decide whether to do the evaluation in current iteration or epoch
 
@@ -254,10 +324,12 @@ class GSgnnBaseEvaluator():
         # does not improve in the last N evaluation iterations
         if self._early_stop_strategy == EARLY_STOP_AVERAGE_INCREASE_STRATEGY:
             early_stop = early_stop_avg_increase_judge(val_score,
-                self._val_perf_list, self.get_metric_comparator())
+                                                       self._val_perf_list,
+                                                       self.get_metric_comparator())
         elif self._early_stop_strategy == EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY:
             early_stop = early_stop_cons_increase_judge(val_score,
-                self._val_perf_list, self.get_metric_comparator())
+                                                        self._val_perf_list,
+                                                        self.get_metric_comparator())
         else:
             return False
 
@@ -322,13 +394,13 @@ class GSgnnBaseEvaluator():
     @property
     def history(self):
         """ Evaluation history
-        
+
             Returns
             -------
             A list of evaluation history in training. The detailed contents of the list rely
             on specific Evaluators. For example, ``GSgnnRegressionEvaluator`` and
             ``GSgnnClassificationEvaluator`` add a tuple of validation and testing score as one
-            list element. ``GSgnn``
+            list element.
         """
         return self._history
 
@@ -350,9 +422,9 @@ class GSgnnBaseEvaluator():
         """
         return self._val_perf_rank_list
 
-class GSgnnClassificationEvaluator(GSgnnBaseEvaluator):
+class GSgnnClassificationEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface):
     """Classification evaluator
-    
+
     GS built-in evaluator for classificatioin task. It uses "accuracy" as the default eval metric,
     and sets the multilabel to be False.
 
@@ -387,8 +459,11 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator):
         if eval_metric is None:
             eval_metric = ["accuracy"]
         super(GSgnnClassificationEvaluator, self).__init__(eval_frequency,
-            eval_metric, use_early_stop, early_stop_burnin_rounds,
-            early_stop_rounds, early_stop_strategy)
+                                                           eval_metric,
+                                                           use_early_stop,
+                                                           early_stop_burnin_rounds,
+                                                           early_stop_rounds,
+                                                           early_stop_strategy)
         self._multilabel = multilabel
         self._best_val_score = {}
         self._best_test_score = {}
@@ -401,7 +476,7 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator):
             self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_iter[metric] = 0
 
-    def evaluate(self, val_pred, test_pred, val_labels, test_labels, total_iters): # pylint: disable=arguments-differ
+    def evaluate(self, val_pred, test_pred, val_labels, test_labels, total_iters):
         """ Compute scores on validation and test predictions.
 
             Parameters
@@ -440,7 +515,7 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator):
         for metric in self.metric:
             # be careful whether > or < it might change per metric.
             if self.metrics_obj.metric_comparator[metric](
-                self._best_val_score[metric], val_score[metric]):
+                    self._best_val_score[metric], val_score[metric]):
                 self._best_val_score[metric] = val_score[metric]
                 self._best_test_score[metric] = test_score[metric]
                 self._best_iter[metric] = total_iters
@@ -448,7 +523,7 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator):
 
         return val_score, test_score
 
-    def compute_score(self, pred, labels, train=True): # pylint: disable=arguments-differ
+    def compute_score(self, pred, labels, train=True):
         """ Compute evaluation score
 
             Parameters
@@ -637,10 +712,12 @@ class GSgnnInstanceEvaluator():
         # does not improve in the last N evaluation iterations
         if self._early_stop_strategy == EARLY_STOP_AVERAGE_INCREASE_STRATEGY:
             early_stop = early_stop_avg_increase_judge(val_score,
-                self._val_perf_list, self.get_metric_comparator())
+                                                       self._val_perf_list,
+                                                       self.get_metric_comparator())
         elif self._early_stop_strategy == EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY:
             early_stop = early_stop_cons_increase_judge(val_score,
-                self._val_perf_list, self.get_metric_comparator())
+                                                        self._val_perf_list,
+                                                        self.get_metric_comparator())
         else:
             return False
 
