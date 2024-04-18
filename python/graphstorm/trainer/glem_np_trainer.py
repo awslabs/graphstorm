@@ -213,7 +213,8 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
             profiler.record('train_node_feats')
             lbl = None
             if is_labeled:
-                lbl = data.get_labels(seeds, device)
+                label_field = train_loader.label_field
+                lbl = data.get_node_feats(seeds, label_field, device)
             blocks = [block.to(device) for block in blocks]
             profiler.record('train_graph2GPU')
             return input_nodes, input_feats, blocks, lbl

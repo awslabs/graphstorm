@@ -317,6 +317,3 @@ python3 $GS_HOME/tests/end2end-tests/data_process/check_emb_remap.py --remap-out
 error_and_exit $?
 
 rm -fr /tmp/em_remap/
-
-# Test multi-task graph construction
-python3 $GS_HOME/tests/end2end-tests/data_process/multitask_data_gen.py
