@@ -208,7 +208,8 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                 assert len(g.ntypes) == 1
                 input_nodes = {g.ntypes[0]: input_nodes}
 
-            input_feats = data.get_node_feats(input_nodes, device)
+            nfeat_fields = train_loader.node_feat_fields
+            input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
             profiler.record('train_node_feats')
             lbl = None
             if is_labeled:
