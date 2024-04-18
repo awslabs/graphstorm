@@ -53,7 +53,14 @@ def read_index(split_info):
         if idx not in split_info:
             res.append([])
             continue
-        _, extension = os.path.splitext(split_info[idx])
+        if isinstance(split_info[idx], str):
+            _, extension = os.path.splitext(split_info[idx])
+        else:
+            extensions = [os.path.splitext(path)[1] for path in split_info[idx]]
+            same_extension = len(set(extensions)) == 1
+            assert same_extension, f"each file should be in the same format, " \
+                                   f"but get {extensions}"
+            extension = os.path.splitext(split_info[idx][0])[1]
 
         # Normalize the extension to ensure case insensitivity
         extension = extension.lower()
@@ -70,19 +77,45 @@ def read_index(split_info):
     return res[0], res[1], res[2]
 
 
+def expand_wildcard(data_file):
+    """
+    Expand the wildcard to the actual file lists.
+
+    Parameters
+    ----------
+    data_file : list[str]
+        The parquet file that contains the index.
+
+    """
+    expanded_files = []
+    for item in data_file:
+        if '*' in item:
+            matched_files = glob.glob(item)
+            assert len(matched_files) > 0, \
+                f"There is no file matching {item} pattern"
+            expanded_files.extend(matched_files)
+        else:
+            expanded_files.append(item)
+    return expanded_files
+
 def read_index_parquet(data_file, column):
     """
     Read the index from a parquet file.
 
     Parameters
     ----------
-    data_file : str
+    data_file : str or list[str]
         The parquet file that contains the index.
     column: list[str]
         Column names on parquet which contain the index
 
     """
-    df = pd.read_parquet(data_file)
+    if isinstance(data_file, str):
+        data_file = [data_file]
+    data_file = expand_wildcard(data_file)
+    df_list = [pd.read_parquet(file) for file in data_file]
+    df = pd.concat(df_list, ignore_index=True)
+
     if len(column) == 1:
         res_array = df[column[0]].to_numpy()
     elif len(df.columns) == 2:

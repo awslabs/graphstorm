@@ -467,7 +467,20 @@ def test_read_index():
     df.to_parquet('/tmp/test_idx.parquet')
     split_info = {"train": "/tmp/test_idx.parquet", "column": ["ID"]}
     parquet_content, _, _ = read_index(split_info)
-    np.array_equal(parquet_content, data)
+    assert np.array_equal(parquet_content, data)
+
+    data_multi = ["p702", "p712", "p722", "p732", "p742", "p752"]
+    df = pd.DataFrame(data_multi, columns=['ID'])
+    # test with wildcard
+    df.to_parquet('/tmp/test_idx_multi.parquet')
+    split_info = {"train": "/tmp/test_idx*.parquet", "column": ["ID"]}
+    parquet_content, _, _ = read_index(split_info)
+    assert np.array_equal(parquet_content, data + data_multi)
+    # test with list input
+    split_info = {"train": ["/tmp/test_idx.parquet", "/tmp/test_idx_multi.parquet"],
+                  "column": ["ID"]}
+    parquet_content, _, _ = read_index(split_info)
+    assert np.array_equal(parquet_content, data + data_multi)
 
     data, data2 = ["p1", "p2"], ["p3", "p4"]
     df = pd.DataFrame({'src': data, 'dst': data2})
