@@ -83,13 +83,14 @@ def main(config_args):
     if task_type == BUILTIN_TASK_LINK_PREDICTION:
         infer_ntypes = None
     elif task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
-        infer_ntypes = sorted(config.target_ntype)
+        # TODO(xiangsx): Support multi-task on multiple node types.
+        infer_ntypes = [config.target_ntype]
     elif task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
         infer_ntypes = set()
         for etype in config.target_etype:
             infer_ntypes.add(etype[0])
             infer_ntypes.add(etype[2])
-        infer_ntypes = sorted(infer_ntypes)
+        infer_ntypes = sorted(list(infer_ntypes))
     else:
         raise TypeError("Not supported for task type: ", task_type)
 
