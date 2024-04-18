@@ -937,6 +937,9 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
         part_method = "None" if num_partitions == 1 else "metis"
 
     balance_ntypes = {}
+    # TODO: Support balance training set for multi-task learning.
+    # Only handle the single task case with the default mask names as
+    # train_mask, val_mask and test_mask.
     for ntype in node_data:
         balance_arr = th.zeros(g.number_of_nodes(ntype), dtype=th.int8)
         balance_tag = 1
