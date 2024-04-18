@@ -182,7 +182,7 @@ def main(config_args):
         # of the weight matrics of the edge types of the last layer GNN
         # targetting these ntype(s) will not receive any gradient from
         # the training loss.
-        embeddings = {ntype: embeddings[ntype] for ntype in config.target_ntype}
+        embeddings = {config.target_ntype: embeddings[config.target_ntype]}
         save_full_node_embeddings(
             train_data.g,
             config.save_embed_path,

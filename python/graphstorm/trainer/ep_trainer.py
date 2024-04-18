@@ -193,7 +193,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 seeds = batch_graph.edges[target_etype[1]].data[dgl.EID]
 
                 label_field = train_loader.label_field
-                lbl = data.get_node_feats({target_etype: seeds}, label_field, device)
+                lbl = data.get_edge_feats({target_etype: seeds}, label_field, device)
                 blocks = [block.to(device) for block in blocks]
                 batch_graph = batch_graph.to(device)
                 rt_profiler.record('train_graph2GPU')
