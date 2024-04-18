@@ -167,7 +167,7 @@ class GSgnnPredictionEvalInterface():
 class GSgnnLPEvalInterface():
     """ Interface for Link Prediction evaluation functions
 
-    The interface set the two abstract methods for link prediction classes.
+    The interface set the two abstract methods for Link Prediction classes.
     """
 
     @abc.abstractmethod
