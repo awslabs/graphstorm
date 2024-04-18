@@ -783,7 +783,7 @@ class GSgnnInstanceEvaluator():
     @property
     def history(self):
         """ Evaluation history
-        
+
             Returns
             -------
             A list of evaluation history in training. The detailed contents of the list rely

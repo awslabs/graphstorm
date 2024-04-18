@@ -937,7 +937,6 @@ if __name__ == '__main__':
     # test evaluators
     test_mrr_per_etype_lp_evaluation()
     test_mrr_lp_evaluator()
-    test_acc_evaluator()
     test_regression_evaluator()
     test_early_stop_avg_increase_judge()
     test_early_stop_cons_increase_judge()
