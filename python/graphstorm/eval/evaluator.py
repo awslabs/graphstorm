@@ -82,7 +82,7 @@ def get_val_score_rank(val_score, val_perf_rank_list, comparator):
 
     Here use the most naive method, i.e., scan the entire list once to get the rank.
     For the same value, will treat the given validation score as the next rank. For example, in a
-    list [1., 1., 2., 2., 3., 4.], the given value 2. will be ranked to the 5th highest score.
+    list [1., 1., 2., 2., 3., 4.], the given value 2 will be ranked to the 5th highest score.
 
     Later on if need to increase the speed, could use more complex data structure, e.g. LinkedList
 
@@ -108,9 +108,461 @@ def get_val_score_rank(val_score, val_perf_rank_list, comparator):
     return rank
 
 
+class GSgnnPredictionEvalInterface():
+    """ Interface for prediction evaluation functions
+
+    The interface set the two abstract methods for prediction classes, i.e., Classification
+    and Regression, which share the same input arguments.
+    """
+
+    @abc.abstractmethod
+    def evaluate(self, val_pred, test_pred, val_labels, test_labels, total_iters):
+        """Evaluate validation and test sets for Prediciton tasks
+
+        GSgnnTrainers will call this function to do evalution in their eval() fuction.
+
+        Classification and regression evaluators should provide both predictions and labels in
+        validation and test sets.
+
+        Parameters
+        ----------
+        val_pred : tensor
+            The tensor stores the prediction results on the validation nodes.
+        test_pred : tensor
+            The tensor stores the prediction results on the test nodes.
+        val_labels : tensor
+            The tensor stores the labels of the validation nodes.
+        test_labels : tensor
+            The tensor stores the labels of the test nodes.
+        total_iters: int
+            The current interation number.
+
+        Returns
+        -----------
+        eval_score: float
+            Validation score
+        test_score: float
+            Test score
+        """
+
+    @abc.abstractmethod
+    def compute_score(self, pred, labels, train=True):
+        """ Compute evaluation score for Prediciton tasks
+
+        Classification and regression evaluators should provide both predictions and labels.
+
+        Parameters
+        ----------
+        pred:
+            Rediction result
+        labels:
+            Label
+
+        Returns
+        -------
+        Evaluation metric values: dict
+        """
+
+
+class GSgnnLPEvalInterface():
+    """ Interface for Link Prediction evaluation functions
+
+    The interface set the two abstract methods for Link Prediction classes.
+    """
+
+    @abc.abstractmethod
+    def evaluate(self, val_scores, test_scores, total_iters):
+        """Evaluate validation and test sets for Link Prediciton tasks
+
+        GSgnnTrainers will call this function to do evalution in their eval() fuction.
+
+        Link Prediction evaluators should provide the LP scores for validation and test sets.
+
+        Parameters
+        ----------
+        val_scores: dict of tensors
+            The rankings of validation edges for each edge type.
+        test_scores: dict of tensors
+            The rankings of testing edges for each edge type.
+        total_iters: int
+            The current interation number.
+
+        Returns
+        -----------
+        eval_score: float
+            Validation score
+        test_score: float
+            Test score
+        """
+
+    @abc.abstractmethod
+    def compute_score(self, rankings, train=False):
+        """ Compute evaluation score for Prediciton tasks
+
+        Classification and regression evaluators should provide both predictions and labels.
+
+        Parameters
+        ----------
+        rankings: dict of tensors
+            Rankings of positive scores in format of {etype: ranking}
+
+        Returns
+        -------
+        Evaluation metric values: dict
+        """
+
+
+class GSgnnBaseEvaluator():
+    """ Base class for Evaluators.
+
+    New base class in V0.3 to replace ``GSgnnInstanceEvaluator`` and ``GSgnnLPEvaluator``. This
+    class serves as the base for the built-in ``GSgnnClassificationEvaluator``,
+    ``GSgnnRegressionEvaluator``, and ``GSgnnLinkPredictionEvaluator``.
+
+    In order to create customized Evaluators, users can inherite this class and the corresponding
+    EvalInteface class, and then implement the two abstract methods, i.e., ``evaluate()``
+    and ``compute_score()`` accordingly.
+
+    Parameters
+    ----------
+    eval_frequency: int
+        The frequency (# of iterations) of doing evaluation.
+    eval_metric: list of string
+        Evaluation metric used during evaluation.
+    use_early_stop: bool
+        Set true to use early stop.
+    early_stop_burnin_rounds: int
+        Burn-in rounds before start checking for the early stop condition.
+    early_stop_rounds: int
+        The number of rounds for validation scores used to decide early stop.
+    early_stop_strategy: str
+        The early stop strategy. GraphStorm supports two strategies:
+        1) consecutive_increase and 2) average_increase.
+    """
+    def __init__(self, eval_frequency, eval_metric,
+                 use_early_stop=False,
+                 early_stop_burnin_rounds=0,
+                 early_stop_rounds=3,
+                 early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
+        # nodes whose embeddings are used during evaluation
+        # if None all nodes are used.
+        self._history = []
+        self.tracker = None
+        self._best_val_score = None
+        self._best_test_score = None
+        self._best_iter = None
+        self.metrics_obj = None # Evaluation metrics obj
+
+        self._metric = eval_metric
+        assert len(self.metric) > 0, "At least one metric must be defined, but got 0."
+        self._eval_frequency = eval_frequency
+        self._do_early_stop = use_early_stop
+        if self._do_early_stop:
+            self._early_stop_burnin_rounds = early_stop_burnin_rounds
+            self._num_early_stop_calls = 0
+            self._early_stop_rounds = early_stop_rounds
+            self._early_stop_strategy = early_stop_strategy
+            self._val_perf_list = []
+        # add this list to store all of the performance rank of validation scores for pick top k
+        self._val_perf_rank_list = []
+
+    def setup_task_tracker(self, task_tracker):
+        """ Setup evaluation tracker
+
+            Parameters
+            ----------
+            task_tracker:
+                a task tracker
+        """
+        self.tracker = task_tracker
+
+    def do_eval(self, total_iters, epoch_end=False):
+        """ Decide whether to do the evaluation in current iteration or epoch
+
+            Parameters
+            ----------
+            total_iters: int
+                The total number of iterations has been taken.
+            epoch_end: bool
+                Whether it is the end of an epoch
+
+            Returns
+            -------
+            Whether do evaluation: bool
+        """
+        if epoch_end:
+            return True
+        elif self._eval_frequency != 0 and total_iters % self._eval_frequency == 0:
+            return True
+        return False
+
+    def do_early_stop(self, val_score):
+        """ Decide whether to stop the training
+
+            Parameters
+            ----------
+            val_score: float
+                Evaluation score
+        """
+        if self._do_early_stop is False:
+            return False
+
+        assert len(val_score) == 1, \
+            f"valudation score should be a signle key value pair but got {val_score}"
+        self._num_early_stop_calls += 1
+        # Not enough existing validation scores
+        if self._num_early_stop_calls <= self._early_stop_burnin_rounds:
+            return False
+
+        val_score = list(val_score.values())[0]
+        # Not enough validation scores to make early stop decision
+        if len(self._val_perf_list) < self._early_stop_rounds:
+            self._val_perf_list.append(val_score)
+            return False
+
+        # early stop criteria: if the average evaluation value
+        # does not improve in the last N evaluation iterations
+        if self._early_stop_strategy == EARLY_STOP_AVERAGE_INCREASE_STRATEGY:
+            early_stop = early_stop_avg_increase_judge(val_score,
+                                                       self._val_perf_list,
+                                                       self.get_metric_comparator())
+        elif self._early_stop_strategy == EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY:
+            early_stop = early_stop_cons_increase_judge(val_score,
+                                                        self._val_perf_list,
+                                                        self.get_metric_comparator())
+        else:
+            return False
+
+        self._val_perf_list.pop(0)
+        self._val_perf_list.append(val_score)
+
+        return early_stop
+
+    def get_metric_comparator(self):
+        """ Return the comparator of the major eval metric.
+
+            We treat the first metric in all evaluation metrics as the major metric.
+        """
+        assert self.metrics_obj is not None, "Evaluation metrics object should not be None."
+        metric = self.metric[0]
+        return self.metrics_obj.metric_comparator[metric]
+
+    def get_val_score_rank(self, val_score):
+        """
+        Get the rank of the given validation score by comparing its values to the existing value
+        list.
+
+        Parameters
+        ----------
+        val_score: dict
+            A dictionary whose key is the metric and the value is a score from evaluator's
+            validation computation.
+        """
+        val_score = list(val_score.values())[0]
+
+        rank = get_val_score_rank(val_score,
+                                  self._val_perf_rank_list,
+                                  self.get_metric_comparator())
+        # after compare, append the score into existing list
+        self._val_perf_rank_list.append(val_score)
+        return rank
+
+    @property
+    def metric(self):
+        """ evaluation metrics
+        """
+        return self._metric
+
+    @property
+    def best_val_score(self):
+        """ Best validation score
+        """
+        return self._best_val_score
+
+    @property
+    def best_test_score(self):
+        """ Best test score
+        """
+        return self._best_test_score
+
+    @property
+    def best_iter_num(self):
+        """ Best iteration number
+        """
+        return self._best_iter
+
+    @property
+    def history(self):
+        """ Evaluation history
+
+            Returns
+            -------
+            A list of evaluation history in training. The detailed contents of the list rely
+            on specific Evaluators. For example, ``GSgnnRegressionEvaluator`` and
+            ``GSgnnClassificationEvaluator`` add a tuple of validation and testing score as one
+            list element.
+        """
+        return self._history
+
+    @property
+    def eval_frequency(self):
+        """ Evaluation frequency
+        """
+        return self._eval_frequency
+
+    @property
+    def task_tracker(self):
+        """ Task tracker of this evaluator
+        """
+        return self.tracker
+
+    @property
+    def val_perf_rank_list(self):
+        """ validation performance rank list
+        """
+        return self._val_perf_rank_list
+
+class GSgnnClassificationEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface):
+    """Classification evaluator
+
+    GS built-in evaluator for classificatioin task. It uses "accuracy" as the default eval metric,
+    and sets the multilabel to be False.
+
+    It replacees the ``GSgnnAccEvaluator`` since v0.3.
+
+    Parameters
+    ----------
+    eval_frequency: int
+        The frequency (number of iterations) of doing evaluation.
+    eval_metric: list of string
+        Evaluation metrics used during evaluation. Default: ["accuracy"].
+    multilabel: bool
+        If set to true, the task is a multi-label classification task. Default: False.
+    use_early_stop: bool
+        Set true to use early stop.
+    early_stop_burnin_rounds: int
+        Burn-in rounds before start checking for the early stop condition.
+    early_stop_rounds: int
+        The number of rounds for validation scores used to decide early stop.
+    early_stop_strategy: str
+        The early stop strategy. GraphStorm supports two strategies:
+        1) consecutive_increase and 2) average_increase.
+    """
+    def __init__(self, eval_frequency,
+                 eval_metric=None,
+                 multilabel=False,
+                 use_early_stop=False,
+                 early_stop_burnin_rounds=0,
+                 early_stop_rounds=3,
+                 early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY): # pylint: disable=unused-argument
+        # set up default metric to be accuracy
+        if eval_metric is None:
+            eval_metric = ["accuracy"]
+        super(GSgnnClassificationEvaluator, self).__init__(eval_frequency,
+                                                           eval_metric,
+                                                           use_early_stop,
+                                                           early_stop_burnin_rounds,
+                                                           early_stop_rounds,
+                                                           early_stop_strategy)
+        self._multilabel = multilabel
+        self._best_val_score = {}
+        self._best_test_score = {}
+        self._best_iter = {}
+        self.metrics_obj = ClassificationMetrics(multilabel=self._multilabel)
+
+        for metric in self.metric:
+            self.metrics_obj.assert_supported_metric(metric=metric)
+            self._best_val_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
+            self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
+            self._best_iter[metric] = 0
+
+    def evaluate(self, val_pred, test_pred, val_labels, test_labels, total_iters):
+        """ Compute scores on validation and test predictions.
+
+            Parameters
+            ----------
+            val_pred : tensor
+                The tensor stores the prediction results on the validation nodes.
+            test_pred : tensor
+                The tensor stores the prediction results on the test nodes.
+            val_labels : tensor
+                The tensor stores the labels of the validation nodes.
+            test_labels : tensor
+                The tensor stores the labels of the test nodes.
+            total_iters: int
+                The current interation number.
+            Returns
+            -----------
+            float
+                Validation Score
+            float
+                Test Score
+        """
+        # exchange preds and labels between runners
+        local_rank = get_rank()
+        world_size = get_world_size()
+        val_pred = broadcast_data(local_rank, world_size, val_pred)
+        val_labels = broadcast_data(local_rank, world_size, val_labels)
+        test_pred = broadcast_data(local_rank, world_size, test_pred) \
+            if test_pred is not None else None
+        test_labels = broadcast_data(local_rank, world_size, test_labels) \
+            if test_labels is not None else None
+
+        with th.no_grad():
+            val_score = self.compute_score(val_pred, val_labels, train=False)
+            test_score = self.compute_score(test_pred, test_labels, train=False)
+
+        for metric in self.metric:
+            # be careful whether > or < it might change per metric.
+            if self.metrics_obj.metric_comparator[metric](
+                    self._best_val_score[metric], val_score[metric]):
+                self._best_val_score[metric] = val_score[metric]
+                self._best_test_score[metric] = test_score[metric]
+                self._best_iter[metric] = total_iters
+        self._history.append((val_score, test_score))
+
+        return val_score, test_score
+
+    def compute_score(self, pred, labels, train=True):
+        """ Compute evaluation score
+
+            Parameters
+            ----------
+            pred:
+                Rediction result
+            labels:
+                Label
+
+            Returns
+            -------
+            Evaluation metric values: dict
+        """
+        results = {}
+        for metric in self.metric:
+            if pred is not None and labels is not None:
+                if train:
+                    # training expects always a single number to be
+                    # returned and has a different (potentially) function
+                    results[metric] = self.metrics_obj.metric_function[metric](pred, labels)
+                else:
+                    # validation or testing may have a different
+                    # evaluation function, in our case the evaluation code
+                    # may return a dictionary with the metric values for each label
+                    results[metric] = self.metrics_obj.metric_eval_function[metric](pred, labels)
+            else:
+                # if the pred is None or the labels is None the metric can not me computed
+                results[metric] = "N/A"
+        return results
+
+    @property
+    def multilabel(self):
+        """ Indicator of if using mutliple labels
+        """
+        return self._multilabel
+
 # TODO(xiangsx): combine GSgnnInstanceEvaluator and GSgnnLPEvaluator
 class GSgnnInstanceEvaluator():
-    """ Template class for user defined evaluator.
+    """ Base class for user defined Classification/Regression evaluators.
 
     Parameters
     ----------
@@ -260,10 +712,12 @@ class GSgnnInstanceEvaluator():
         # does not improve in the last N evaluation iterations
         if self._early_stop_strategy == EARLY_STOP_AVERAGE_INCREASE_STRATEGY:
             early_stop = early_stop_avg_increase_judge(val_score,
-                self._val_perf_list, self.get_metric_comparator())
+                                                       self._val_perf_list,
+                                                       self.get_metric_comparator())
         elif self._early_stop_strategy == EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY:
             early_stop = early_stop_cons_increase_judge(val_score,
-                self._val_perf_list, self.get_metric_comparator())
+                                                        self._val_perf_list,
+                                                        self.get_metric_comparator())
         else:
             return False
 
@@ -329,7 +783,7 @@ class GSgnnInstanceEvaluator():
     @property
     def history(self):
         """ Evaluation history
-        
+
             Returns
             -------
             A list of evaluation history in training. The detailed contents of the list rely
@@ -463,128 +917,8 @@ class GSgnnRegressionEvaluator(GSgnnInstanceEvaluator):
                 scores[metric] = self.metrics_obj.metric_function[metric](pred, labels)
         return scores
 
-class GSgnnAccEvaluator(GSgnnInstanceEvaluator):
-    """ The class for user defined evaluator.
-
-    Parameters
-    ----------
-    eval_frequency: int
-        The frequency (number of iterations) of doing evaluation.
-    eval_metric: list of string
-        Evaluation metric used during evaluation.
-    multilabel: bool
-        If set to true, the task is a multi-label classification task.
-    use_early_stop: bool
-        Set true to use early stop.
-    early_stop_burnin_rounds: int
-        Burn-in rounds before start checking for the early stop condition.
-    early_stop_rounds: int
-        The number of rounds for validation scores used to decide early stop.
-    early_stop_strategy: str
-        The early stop strategy. GraphStorm supports two strategies:
-        1) consecutive_increase and 2) average_increase.
-    """
-    def __init__(self, eval_frequency,
-                 eval_metric, multilabel,
-                 use_early_stop=False,
-                 early_stop_burnin_rounds=0,
-                 early_stop_rounds=3,
-                 early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY): # pylint: disable=unused-argument
-        super(GSgnnAccEvaluator, self).__init__(eval_frequency,
-            eval_metric, use_early_stop, early_stop_burnin_rounds,
-            early_stop_rounds, early_stop_strategy)
-        self.multilabel = multilabel
-        self._best_val_score = {}
-        self._best_test_score = {}
-        self._best_iter = {}
-        self.metrics_obj = ClassificationMetrics(multilabel=self.multilabel)
-
-        for metric in self.metric:
-            self.metrics_obj.assert_supported_metric(metric=metric)
-            self._best_val_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
-            self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
-            self._best_iter[metric] = 0
-
-    def evaluate(self, val_pred, test_pred, val_labels, test_labels, total_iters):
-        """ Compute scores on validation and test predictions.
-
-            Parameters
-            ----------
-            val_pred : tensor
-                The tensor stores the prediction results on the validation nodes.
-            test_pred : tensor
-                The tensor stores the prediction results on the test nodes.
-            val_labels : tensor
-                The tensor stores the labels of the validation nodes.
-            test_labels : tensor
-                The tensor stores the labels of the test nodes.
-            total_iters: int
-                The current interation number.
-            Returns
-            -----------
-            float
-                Validation Score
-            float
-                Test Score
-        """
-        # exchange preds and labels between runners
-        local_rank = get_rank()
-        world_size = get_world_size()
-        val_pred = broadcast_data(local_rank, world_size, val_pred)
-        val_labels = broadcast_data(local_rank, world_size, val_labels)
-        test_pred = broadcast_data(local_rank, world_size, test_pred) \
-            if test_pred is not None else None
-        test_labels = broadcast_data(local_rank, world_size, test_labels) \
-            if test_labels is not None else None
-
-        with th.no_grad():
-            val_score = self.compute_score(val_pred, val_labels, train=False)
-            test_score = self.compute_score(test_pred, test_labels, train=False)
-
-        for metric in self.metric:
-            # be careful whether > or < it might change per metric.
-            if self.metrics_obj.metric_comparator[metric](
-                self._best_val_score[metric],val_score[metric]):
-                self._best_val_score[metric] = val_score[metric]
-                self._best_test_score[metric] = test_score[metric]
-                self._best_iter[metric] = total_iters
-        self._history.append((val_score, test_score))
-
-        return val_score, test_score
-
-    def compute_score(self, pred, labels, train=True):
-        """ Compute evaluation score
-
-            Parameters
-            ----------
-            pred:
-                Rediction result
-            labels:
-                Label
-
-            Returns
-            -------
-            Evaluation metric values: dict
-        """
-        results = {}
-        for metric in self.metric:
-            if pred is not None and labels is not None:
-                if train:
-                    # training expects always a single number to be
-                    # returned and has a different (potentially) function
-                    results[metric] = self.metrics_obj.metric_function[metric](pred, labels)
-                else:
-                    # validation or testing may have a different
-                    # evaluation function, in our case the evaluation code
-                    # may return a dictionary with the metric values for each label
-                    results[metric] = self.metrics_obj.metric_eval_function[metric](pred, labels)
-            else:
-                # if the pred is None or the labels is None the metric can not me computed
-                results[metric] = "N/A"
-        return results
-
 class GSgnnLPEvaluator():
-    """ Template class for user defined evaluator.
+    """ Base class for user defined Link Prediction evaluator.
 
     Parameters
     ----------

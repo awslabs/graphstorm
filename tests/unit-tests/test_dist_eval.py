@@ -18,7 +18,7 @@
     and when called by two workers (distributed evaluation).
 
     For classification tasks. it compares the output of
-    `GSgnnAccEvaluator.evaluate' when called by a single worker
+    `GSgnnClassificationEvaluator.evaluate' when called by a single worker
     (single process evaluation) and when called by two workers
     (distributed evaluation).
 """
@@ -30,7 +30,7 @@ import torch as th
 from numpy.testing import assert_almost_equal
 import numpy as np
 
-from graphstorm.eval import GSgnnAccEvaluator
+from graphstorm.eval import GSgnnClassificationEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.eval import GSgnnMrrLPEvaluator
 from graphstorm.utils import setup_device
@@ -198,10 +198,10 @@ def run_dist_nc_eval_worker(eval_config, worker_rank, metric, val_pred, test_pre
                                              config.eval_metric,
                                              config.use_early_stop)
     else:
-        evaluator = GSgnnAccEvaluator(config.eval_frequency,
-                                      config.eval_metric,
-                                      config.multilabel,
-                                      config.use_early_stop)
+        evaluator = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                 config.eval_metric,
+                                                 config.multilabel,
+                                                 config.use_early_stop)
 
     val_score0, test_score0 = evaluator.evaluate(
         val_pred.to(device),
@@ -291,10 +291,11 @@ def run_local_nc_eval_worker(eval_config, metric, val_pred, test_pred,
                                              config.eval_metric,
                                              config.use_early_stop)
     else:
-        evaluator = GSgnnAccEvaluator(config.eval_frequency,
-                                      config.eval_metric,
-                                      config.multilabel,
-                                      config.use_early_stop)
+        evaluator = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                 config.eval_metric,
+                                                 config.multilabel,
+                                                 config.use_early_stop)
+
     val_score0, test_score0 = evaluator.evaluate(val_pred, test_pred, val_labels0, test_labels, 100)
     val_score1, test_score1 = evaluator.evaluate(val_pred, test_pred, val_labels1, test_labels, 200)
     val_score2, _ = evaluator.evaluate(val_pred, test_pred, val_labels2, test_labels, 300)

@@ -20,7 +20,7 @@ import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnEdgePredictionInferrer
-from graphstorm.eval import GSgnnAccEvaluator, GSgnnRegressionEvaluator
+from graphstorm.eval import GSgnnClassificationEvaluator, GSgnnRegressionEvaluator
 from graphstorm.dataloading import GSgnnEdgeInferData, GSgnnEdgeDataLoader
 from graphstorm.utils import get_device, get_lm_ntypes, use_wholegraph
 
@@ -31,9 +31,9 @@ def get_evaluator(config): # pylint: disable=unused-argument
         return GSgnnRegressionEvaluator(config.eval_frequency,
                                         config.eval_metric)
     elif config.task_type == 'edge_classification':
-        return GSgnnAccEvaluator(config.eval_frequency,
-                                 config.eval_metric,
-                                 config.multilabel)
+        return GSgnnClassificationEvaluator(config.eval_frequency,
+                                            config.eval_metric,
+                                            config.multilabel)
     else:
         raise AttributeError(config.task_type + ' is not supported.')
 

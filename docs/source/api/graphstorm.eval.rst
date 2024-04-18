@@ -34,5 +34,5 @@ Evaluators
     GSgnnLPEvaluator
     GSgnnMrrLPEvaluator
     GSgnnPerEtypeMrrLPEvaluator
-    GSgnnAccEvaluator
+    GSgnnClassificationEvaluator
     GSgnnRegressionEvaluator
