@@ -31,7 +31,7 @@ from scipy.special import erfinv # pylint: disable=no-name-in-module
 from transformers import AutoTokenizer
 from transformers import AutoModel, AutoConfig
 
-from .file_io import read_index_json
+from .file_io import read_index
 from .utils import ExtMemArrayWrapper, ExtFeatureWrapper, generate_hash
 
 LABEL_STATS_FIELD = "training_label_stats"
@@ -1674,9 +1674,12 @@ def parse_label_ops(confs, is_node):
         custom_split = label_conf['custom_split_filenames']
         assert isinstance(custom_split, dict), \
                 "Custom data split needs to provide train/val/test index."
-        train_idx = read_index_json(custom_split['train']) if 'train' in custom_split else None
-        val_idx = read_index_json(custom_split['valid']) if 'valid' in custom_split else None
-        test_idx = read_index_json(custom_split['test']) if 'test' in custom_split else None
+        if "column" not in custom_split:
+            custom_split["column"] = []
+        # Treat all input as an input of list[str]
+        if isinstance(custom_split['column'], str):
+            custom_split["column"] = [custom_split["column"]]
+        train_idx, val_idx, test_idx = read_index(custom_split)
         label_col = label_conf['label_col'] if 'label_col' in label_conf else None
         if "node_id_col" in confs:
             return [CustomLabelProcessor(col_name=label_col, label_name=label_col,
