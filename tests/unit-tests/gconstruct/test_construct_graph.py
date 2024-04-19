@@ -625,13 +625,13 @@ def test_label():
         assert np.all(np.logical_and(label[test_idx] >= 0, label[test_idx] <= 10))
 
     # Check classification
-    def check_classification(res, mask_field_names=("train_mask", "val_mask", "test_mask")):
+    def check_classification(res, mask_field_names=[("train_mask", "val_mask", "test_mask")]):
         # default masks are train_mask, val_mask and test_mask
         check_split(res, mask_field_names[0][0], mask_field_names[0][1], mask_field_names[0][2])
         assert np.issubdtype(res['label'].dtype, np.integer)
         check_integer(res['label'], res, mask_field_names[0][0], mask_field_names[0][1], mask_field_names[0][2])
 
-    def check_classification_no_split(res, mask_field_names=("train_mask", "val_mask", "test_mask")):
+    def check_classification_no_split(res, mask_field_names=[("train_mask", "val_mask", "test_mask")]):
         # default masks are train_mask, val_mask and test_mask
         check_no_split(res, mask_field_names[0][0], mask_field_names[0][1], mask_field_names[0][2])
         assert np.issubdtype(res['label'].dtype, np.integer)
