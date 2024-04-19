@@ -205,9 +205,9 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
 
         from graphstorm import get_node_feat_size
         from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
-        from graphstorm.dataloading import GSgnnNodeTrainData
+        from graphstorm.dataloading import GSgnnData
 
-        np_data = GSgnnNodeTrainData(...)
+        np_data = GSgnnData(...)
 
         model = GSgnnEdgeModel(alpha_l2norm=0)
         feat_size = get_node_feat_size(np_data.g, 'feat')

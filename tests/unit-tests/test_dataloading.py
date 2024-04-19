@@ -2099,7 +2099,7 @@ def test_GSgnnTrainData_homogeneous():
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # generate the test dummy homogeneous distributed graph and
-        # test if it is possible to create GSgnnNodeTrainData on homogeneous graph
+        # test if it is possible to create GSgnnData on homogeneous graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy',
                                                             dirname=tmpdirname,
                                                             is_homo=True)

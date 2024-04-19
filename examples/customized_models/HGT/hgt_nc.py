@@ -12,7 +12,7 @@ from graphstorm.config import GSConfig
 from graphstorm import model as gsmodel
 from graphstorm.trainer import GSgnnNodePredictionTrainer
 from graphstorm.inference import GSgnnNodePredictionInferrer
-from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeInferData
+from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import GSgnnNodeDataLoader
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.tracker import GSSageMakerTaskTracker
@@ -272,11 +272,8 @@ def main(args):
         node_feat_fields[node_type] = feat_names.split(',')
 
     # Define the GraphStorm training dataset
-    train_data = GSgnnNodeTrainData(config.graph_name,
-                                    config.part_config,
-                                    train_ntypes=config.target_ntype,
-                                    node_feat_field=node_feat_fields,
-                                    label_field=config.label_field)
+    train_data = GSgnnData(config.part_config,
+                           node_feat_field=node_feat_fields)
 
     # Create input arguments for the HGT model
     node_dict = {}
@@ -311,18 +308,29 @@ def main(args):
     trainer = GSgnnNodePredictionTrainer(model, topk_model_to_save=config.topk_model_to_save)
     trainer.setup_device(device=get_device())
 
+    train_idxs = train_data.get_node_train_set(config.target_ntype)
     # Define the GraphStorm train dataloader
-    dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
-                                     batch_size=config.batch_size, train_task=True)
+    dataloader = GSgnnNodeDataLoader(train_data, train_idxs, fanout=config.fanout,
+                                     batch_size=config.batch_size,
+                                     node_feats=node_feat_fields,
+                                     label_field=config.label_field,
+                                     train_task=True)
 
+    eval_ntype = config.eval_target_ntype
+    val_idxs = train_data.get_node_val_set(eval_ntype)
+    test_idxs = train_data.get_node_test_set(eval_ntype)
     # Optional: Define the evaluation dataloader
-    eval_dataloader = GSgnnNodeDataLoader(train_data, train_data.val_idxs,fanout=config.fanout,
+    eval_dataloader = GSgnnNodeDataLoader(train_data, val_idxs,fanout=config.fanout,
                                           batch_size=config.eval_batch_size,
+                                          node_feats=node_feat_fields,
+                                          label_field=config.label_field,
                                           train_task=False)
 
     # Optional: Define the evaluation dataloader
-    test_dataloader = GSgnnNodeDataLoader(train_data, train_data.test_idxs,fanout=config.fanout,
+    test_dataloader = GSgnnNodeDataLoader(train_data, test_idxs,fanout=config.fanout,
                                           batch_size=config.eval_batch_size,
+                                          node_feats=node_feat_fields,
+                                          label_field=config.label_field,
                                           train_task=False)
 
     # Optional: set up a evaluator
@@ -351,10 +359,8 @@ def main(args):
     model.restore_model(best_model_path)
 
     # Create a dataset for inference.
-    infer_data = GSgnnNodeInferData(config.graph_name, config.part_config,
-                                    eval_ntypes=config.target_ntype,
-                                    node_feat_field=node_feat_fields,
-                                    label_field=config.label_field)
+    infer_data = GSgnnData(config.part_config,
+                           node_feat_field=node_feat_fields)
 
     # Create an inference for a node task.
     infer = GSgnnNodePredictionInferrer(model)
@@ -363,6 +369,8 @@ def main(args):
     infer.setup_task_tracker(tracker)
     dataloader = GSgnnNodeDataLoader(infer_data, infer_data.test_idxs,
                                     fanout=config.fanout, batch_size=100,
+                                    node_feats=node_feat_fields,
+                                    label_field=config.label_field,
                                     train_task=False)
 
     # Run inference on the inference dataset and save the GNN embeddings in the specified path.
