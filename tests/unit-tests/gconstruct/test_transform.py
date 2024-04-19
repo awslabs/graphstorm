@@ -593,6 +593,46 @@ def test_custom_node_label_processor():
     assert len(split["val_mask"]) == 24
     assert len(split["test_mask"]) == 24
 
+    # Test with customized mask names.
+    try:
+        clp = CustomLabelProcessor(col_name="test_label", label_name="test", id_col="id",
+                               task_type="classification",
+                               train_idx=train_idx,
+                               val_idx=val_idx,
+                               test_idx=test_idx,
+                               stats_type=None,
+                               mask_field_names="train_mask")
+        assert False, \
+                "Should raise an exception as mask_field_names is in the wrong format."
+    except:
+        pass
+    try:
+        clp = CustomLabelProcessor(col_name="test_label", label_name="test", id_col="id",
+                               task_type="classification",
+                               train_idx=train_idx,
+                               val_idx=val_idx,
+                               test_idx=test_idx,
+                               stats_type=None,
+                               mask_field_names=("tm", "vm"))
+        assert False, \
+                "Should raise an exception as mask_field_names is in the wrong format."
+    except:
+        pass
+    clp = CustomLabelProcessor(col_name="test_label", label_name="test", id_col="id",
+                            task_type="classification",
+                            train_idx=train_idx,
+                            val_idx=val_idx,
+                            test_idx=test_idx,
+                            stats_type=None,
+                            mask_field_names=("tm", "vm", "tsm"))
+    split = clp.data_split(np.arange(20))
+    assert "tm" in split
+    assert "vm" in split
+    assert "tsm" in split
+    assert_equal(np.squeeze(np.nonzero(split["tm"])), train_idx)
+    assert_equal(np.squeeze(np.nonzero(split["vm"])), val_idx)
+    assert_equal(np.squeeze(np.nonzero(split["tsm"])), test_idx)
+
     # there is no label
     input_data = {
         "feat": np.random.rand(24),
@@ -644,6 +684,26 @@ def test_custom_node_label_processor():
     assert_equal(ret[stats_info_key][1], vals)
     assert_equal(ret[stats_info_key][2], counts)
 
+    # Test with customized mask names, label status still works
+    clp = CustomLabelProcessor(col_name="test_label", label_name="test", id_col="id",
+                               task_type="classification",
+                               train_idx=train_idx, val_idx=val_idx, test_idx=test_idx,
+                               stats_type=LABEL_STATS_FREQUENCY_COUNT,
+                               mask_field_names=("tm", "vm", "tsm"))
+    ret = clp(input_data)
+    assert "tm" in ret
+    assert "vm" in ret
+    assert "tsm" in ret
+    assert_equal(np.squeeze(np.nonzero(ret["tm"])), train_idx)
+    assert_equal(np.squeeze(np.nonzero(ret["vm"])), val_idx)
+    assert_equal(np.squeeze(np.nonzero(ret["tsm"])), test_idx)
+    assert_equal(ret["test"], input_data["test_label"])
+    stats_info_key = LABEL_STATS_FIELD+"test"
+    assert LABEL_STATS_FIELD+"test" in ret
+    vals, counts = np.unique(input_data["test_label"][train_idx], return_counts=True)
+    assert ret[stats_info_key][0] == LABEL_STATS_FREQUENCY_COUNT
+    assert_equal(ret[stats_info_key][1], vals)
+    assert_equal(ret[stats_info_key][2], counts)
 
 def test_custom_edge_label_processor():
     # test generating labels on link prediction
@@ -673,6 +733,27 @@ def test_custom_edge_label_processor():
     assert len(split["train_mask"]) == 361
     assert len(split["val_mask"]) == 361
     assert len(split["test_mask"]) == 361
+
+    # Test with customized mask names.
+    clp = CustomLabelProcessor(col_name="test_label", label_name="test", id_col="id",
+                                task_type="link_prediction",
+                                train_idx=train_idx,
+                                val_idx=val_idx,
+                                test_idx=test_idx,
+                                stats_type=None,
+                                mask_field_names=("tm", "vm", "tsm"))
+    split = clp.data_split(np.arange(20))
+    assert "tm" in split
+    assert "vm" in split
+    assert "tsm" in split
+    assert_equal(np.squeeze(np.nonzero(split["tm"])), index_in_train_idx)
+    assert_equal(np.squeeze(np.nonzero(split["vm"])), index_in_val_idx)
+    assert_equal(np.squeeze(np.nonzero(split["tsm"])), index_in_test_idx)
+    # the total mask length should be 19 * 19
+    assert len(split["tm"]) == 361
+    assert len(split["vm"]) == 361
+    assert len(split["tsm"]) == 361
+
 
     # test generating labels on classification
     # there labels and _stats_type is frequency count
@@ -756,6 +837,38 @@ def test_classification_processor():
     assert_equal(ret[stats_info_key][1], vals)
     assert_equal(ret[stats_info_key][2], counts)
 
+    # Test with customized mask name.
+    try:
+        clp = ClassificationProcessor("test_label", "test", [0.8,0.1,0.1],
+                                      LABEL_STATS_FREQUENCY_COUNT,
+                                      mask_field_names="train_mask")
+        assert False, \
+            "Should raise an exception as mask_field_names is in the wrong format."
+    except:
+        pass
+
+    try:
+        clp = ClassificationProcessor("test_label", "test", [0.8,0.1,0.1],
+                                      LABEL_STATS_FREQUENCY_COUNT,
+                                      mask_field_names=("tm", "vm"))
+        assert False, \
+            "Should raise an exception as mask_field_names is in the wrong format."
+    except:
+        pass
+
+    clp = ClassificationProcessor("test_label", "test", [0.8,0.1,0.1],
+                                      LABEL_STATS_FREQUENCY_COUNT,
+                                      mask_field_names=("tm", "vm", "tsm"))
+    ret = clp(input_data)
+    assert "test" in ret
+    assert "tm" in ret
+    assert "vm" in ret
+    assert "tsm" in ret
+    assert stats_info_key in ret
+    vals, counts = np.unique(input_data["test_label"][ret["tm"].astype(np.bool_)],
+                             return_counts=True)
+    assert_equal(ret[stats_info_key][1], vals)
+    assert_equal(ret[stats_info_key][2], counts)
 
 @pytest.mark.parametrize("out_dtype", [None, np.float16])
 def test_bucket_transform(out_dtype):

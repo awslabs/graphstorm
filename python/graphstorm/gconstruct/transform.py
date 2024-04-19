@@ -1395,6 +1395,9 @@ class CustomLabelProcessor:
         self._test_idx = set(test_idx) if test_idx is not None else None
         self._task_type = task_type
         self._stats_type = stats_type
+
+        assert isinstance(mask_field_names, tuple) and len(mask_field_names) == 3, \
+            "mask_field_names must be a tuple with three strings."
         self._mask_field_names = mask_field_names
 
     @property
@@ -1524,6 +1527,8 @@ class LabelProcessor:
         self._label_name = label_name
         self._split_pct = split_pct
         self._stats_type = stats_type
+        assert isinstance(mask_field_names, tuple) and len(mask_field_names) == 3, \
+            "mask_field_names must be a tuple with three strings."
         self._mask_field_names = mask_field_names
 
     @property

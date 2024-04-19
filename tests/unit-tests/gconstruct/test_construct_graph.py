@@ -1727,6 +1727,48 @@ def test_parse_edge_data():
         assert "val_mask" in feat_data
         assert "test_mask" in feat_data
 
+        # Test with customized mask names.
+        try:
+            label_ops = [
+            LinkPredictionProcessor(None, None, [0.7,0.1,0.2], None,
+                                    mask_field_names="train_mask")]
+            assert False, \
+                "Should raise an exception as mask_field_names is in the wrong format."
+        except:
+            pass
+
+        try:
+            label_ops = [
+            LinkPredictionProcessor(None, None, [0.7,0.1,0.2], None,
+                                    mask_field_names=("tm", "vm"))]
+            assert False, \
+                "Should raise an exception as mask_field_names is in the wrong format."
+        except:
+            pass
+
+        label_ops = [
+            LinkPredictionProcessor(None, None, [0.7,0.1,0.2], None,
+                                    mask_field_names=("tm", "vm", "tsm"))]
+
+        conf = {
+            "source_id_col": "src_id",
+            "dest_id_col": "dst_id",
+            "relation": ("src", "rel", "dst")
+        }
+        keys = ["src_id", "dst_id", "feat"]
+        src_ids, dst_ids, feat_data = \
+            parse_edge_data(data_file, feat_ops, label_ops, node_id_map,
+                            partial(read_data_parquet, data_fields=keys),
+                            conf, skip_nonexist_edges=True)
+        for _, val in feat_data.items():
+            assert len(src_ids) == len(val)
+            assert len(dst_ids) == len(val)
+
+        assert "feat" in feat_data
+        assert "tm" in feat_data
+        assert "vm" in feat_data
+        assert "tsm" in feat_data
+
 @pytest.mark.parametrize("ext_mem_path", [None, "/tmp/"])
 def test_multicolumn(ext_mem_path):
     # Just get the features without transformation.
