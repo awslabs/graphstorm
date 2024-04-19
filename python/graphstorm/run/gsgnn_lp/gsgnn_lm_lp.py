@@ -45,15 +45,13 @@ from graphstorm.model.utils import save_full_node_embeddings
 from graphstorm.model import do_full_graph_inference
 from graphstorm.utils import rt_profiler, sys_tracker, get_device
 
-def get_evaluator(config, train_data):
+def get_evaluator(config):
     """ Get evaluator according to config
 
         Parameters
         ----------
         config: GSConfig
             Configuration
-        train_data: GSgnnEdgeData
-            Training data
     """
     assert len(config.eval_metric) == 1, \
         "GraphStorm doees not support computing multiple metrics at the same time."

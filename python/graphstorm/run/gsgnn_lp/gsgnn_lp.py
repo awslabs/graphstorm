@@ -59,15 +59,13 @@ from graphstorm.utils import (
 )
 from graphstorm.utils import get_lm_ntypes
 
-def get_evaluator(config, train_data):
+def get_evaluator(config):
     """ Get evaluator according to config
 
         Parameters
         ----------
         config: GSConfig
             Configuration
-        train_data: GSgnnEdgeData
-            Training data
     """
     assert len(config.eval_metric) == 1, \
         "GraphStorm doees not support computing multiple metrics at the same time."
