@@ -923,10 +923,10 @@ def test_label():
     check_classification_no_split(res, mask_field_names)
 
     # Check regression
-    def check_regression(res):
-        check_split(res)
-    def check_regression_no_split(res):
-        check_no_split(res)
+    def check_regression(res, mask_field_names=[("train_mask", "val_mask", "test_mask")]):
+        check_split(res, mask_field_names[0][0], mask_field_names[0][1], mask_field_names[0][2])
+    def check_regression_no_split(res, mask_field_names=[("train_mask", "val_mask", "test_mask")]):
+        check_no_split(res, mask_field_names[0][0], mask_field_names[0][1], mask_field_names[0][2])
 
     conf = {
             "labels": [
@@ -940,19 +940,19 @@ def test_label():
     }
     ops, mask_field_names = parse_label_ops(conf, True)
     assert len(mask_field_names) == 1
-    assert mask_field_names[0][0] == "train_mask"
-    assert mask_field_names[0][1] == "val_mask"
-    assert mask_field_names[0][2] == "test_mask"
+    assert mask_field_names[0][0] == "train_mask_l"
+    assert mask_field_names[0][1] == "val_mask_l"
+    assert mask_field_names[0][2] == "test_mask_l"
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
-    check_regression(res)
+    check_regression(res, mask_field_names)
     ops, mask_field_names = parse_label_ops(conf, False)
     assert len(mask_field_names) == 1
-    assert mask_field_names[0][0] == "train_mask"
-    assert mask_field_names[0][1] == "val_mask"
-    assert mask_field_names[0][2] == "test_mask"
+    assert mask_field_names[0][0] == "train_mask_l"
+    assert mask_field_names[0][1] == "val_mask_l"
+    assert mask_field_names[0][2] == "test_mask_l"
     res = process_labels(data, ops)
-    check_regression(res)
+    check_regression(res, mask_field_names)
 
     # Check regression with customized mask names
     conf = {
@@ -981,6 +981,26 @@ def test_label():
     res = process_labels(data, ops)
     check_regression(res, mask_field_names)
 
+    conf = {
+            "labels": [
+                {'task_type': 'regression',
+                 'label_col': 'label',
+                 'split_pct': [0.8, 0.1, 0.1]
+                }
+            ]
+    }
+    ops, mask_field_names = parse_label_ops(conf, True)
+    assert len(mask_field_names) == 1
+    assert mask_field_names[0][0] == "train_mask"
+    assert mask_field_names[0][1] == "val_mask"
+    assert mask_field_names[0][2] == "test_mask"
+    data = {'label' : np.random.uniform(size=10) * 10}
+    res = process_labels(data, ops)
+    check_regression(res, mask_field_names)
+    ops, _ = parse_label_ops(conf, False)
+    res = process_labels(data, ops)
+    check_regression(res)
+
     # Check regression with invalid labels.
     data = {'label' : np.random.uniform(size=13) * 10}
     data['label'][[0, 3, 4]] = np.NAN
@@ -989,7 +1009,7 @@ def test_label():
     check_regression(res)
 
     # Check custom data split for regression.
-    data, _ = {
+    data = {
             "id": np.arange(10),
             'label' : np.random.uniform(size=10) * 10
     }
