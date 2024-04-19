@@ -57,10 +57,9 @@ def read_index(split_info):
             _, extension = os.path.splitext(split_info[idx])
         else:
             extensions = [os.path.splitext(path)[1] for path in split_info[idx]]
-            same_extension = len(set(extensions)) == 1
-            assert same_extension, f"each file should be in the same format, " \
+            assert len(set(extensions)) == 1, f"each file should be in the same format, " \
                                    f"but get {extensions}"
-            extension = os.path.splitext(split_info[idx][0])[1]
+            extension = extensions[0]
 
         # Normalize the extension to ensure case insensitivity
         extension = extension.lower()
@@ -77,18 +76,18 @@ def read_index(split_info):
     return res[0], res[1], res[2]
 
 
-def expand_wildcard(data_file):
+def expand_wildcard(data_files):
     """
     Expand the wildcard to the actual file lists.
 
     Parameters
     ----------
-    data_file : list[str]
-        The parquet file that contains the index.
+    data_files : list[str]
+        The parquet files that contain the index.
 
     """
     expanded_files = []
-    for item in data_file:
+    for item in data_files:
         if '*' in item:
             matched_files = glob.glob(item)
             assert len(matched_files) > 0, \
