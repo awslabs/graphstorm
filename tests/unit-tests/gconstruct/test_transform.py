@@ -634,6 +634,12 @@ def test_custom_node_label_processor():
     assert_equal(np.squeeze(np.nonzero(split["tsm"])), test_idx)
 
     # there is no label
+    clp = CustomLabelProcessor(col_name="test_label", label_name="test", id_col="id",
+                            task_type="classification",
+                            train_idx=train_idx,
+                            val_idx=val_idx,
+                            test_idx=test_idx,
+                            stats_type=None)
     input_data = {
         "feat": np.random.rand(24),
         "id": np.arange(24),
@@ -742,7 +748,7 @@ def test_custom_edge_label_processor():
                                 test_idx=test_idx,
                                 stats_type=None,
                                 mask_field_names=("tm", "vm", "tsm"))
-    split = clp.data_split(np.arange(20))
+    split = clp.data_split(data)
     assert "tm" in split
     assert "vm" in split
     assert "tsm" in split
@@ -757,6 +763,10 @@ def test_custom_edge_label_processor():
 
     # test generating labels on classification
     # there labels and _stats_type is frequency count
+    clp = CustomLabelProcessor(col_name="test_label", label_name="test", id_col="id",
+                               task_type="link_prediction",
+                               train_idx=train_idx, val_idx=val_idx, test_idx=test_idx,
+                               stats_type=None)
     input_data = {
         "test_label": np.random.randint(0, 5, (361,)),
         "id": data,
