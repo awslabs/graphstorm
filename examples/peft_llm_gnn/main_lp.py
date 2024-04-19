@@ -4,7 +4,7 @@ import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.dataloading import GSgnnLinkPredictionDataLoader, GSgnnLinkPredictionTestDataLoader
-from graphstorm.eval import GSgnnMrrLPEvaluator
+from graphstorm.eval import GSgnnLPEvaluator
 from graphstorm.dataloading import GSgnnLPTrainData
 from graphstorm.utils import get_device
 from graphstorm.inference import GSgnnLinkPredictionInferrer
@@ -54,14 +54,12 @@ def main(config_args):
     trainer.setup_device(device=get_device())
 
     # set evaluator
-    evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
-        train_data,
-        config.num_negative_edges_eval,
-        config.lp_decoder_type,
-        config.use_early_stop,
-        config.early_stop_burnin_rounds,
-        config.early_stop_rounds,
-        config.early_stop_strategy
+    evaluator = GSgnnLPEvaluator(
+        eval_frequency=config.eval_frequency,
+        use_early_stop=config.use_early_stop,
+        early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+        early_stop_rounds=config.early_stop_rounds,
+        early_stop_strategy=config.early_stop_strategy
     )
     # disbale validation for efficiency
     # trainer.setup_evaluator(evaluator)

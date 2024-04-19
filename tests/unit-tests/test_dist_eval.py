@@ -32,7 +32,7 @@ import numpy as np
 
 from graphstorm.eval import GSgnnClassificationEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
-from graphstorm.eval import GSgnnMrrLPEvaluator
+from graphstorm.eval import GSgnnLPEvaluator
 from graphstorm.utils import setup_device
 
 from graphstorm.config import BUILTIN_LP_DOT_DECODER
@@ -49,11 +49,8 @@ def run_dist_lp_eval_worker(worker_rank, train_data, config, val_scores, test_sc
                                       world_size=2,
                                       rank=worker_rank)
 
-    lp_eval = GSgnnMrrLPEvaluator(config.eval_frequency,
-                                  train_data,
-                                  num_negative_edges_eval=config.num_negative_edges_eval,
-                                  lp_decoder_type=config.lp_decoder_type,
-                                  use_early_stop=config.use_early_stop)
+    lp_eval = GSgnnLPEvaluator(config.eval_frequency,
+                               use_early_stop=config.use_early_stop)
     val_sc, test_sc = lp_eval.evaluate(val_scores, test_scores, 0)
 
     if worker_rank == 0:
@@ -104,11 +101,8 @@ def run_local_lp_eval_worker(train_data, config, val_scores, test_scores, conn):
                                       world_size=1,
                                       rank=0)
 
-    lp_eval = GSgnnMrrLPEvaluator(config.eval_frequency,
-                                  train_data,
-                                  num_negative_edges_eval=config.num_negative_edges_eval,
-                                  lp_decoder_type=config.lp_decoder_type,
-                                  use_early_stop=config.use_early_stop)
+    lp_eval = GSgnnLPEvaluator(config.eval_frequency,
+                               use_early_stop=config.use_early_stop)
     val_sc, test_sc = lp_eval.evaluate(val_scores, test_scores, 0)
     conn.send((val_sc, test_sc))
     th.distributed.destroy_process_group()
@@ -195,11 +189,11 @@ def run_dist_nc_eval_worker(eval_config, worker_rank, metric, val_pred, test_pre
 
     if config.eval_metric[0] in ["rmse", "mse"]:
         evaluator = GSgnnRegressionEvaluator(config.eval_frequency,
-                                             config.eval_metric,
+                                             config.eval_metric_list,
                                              config.use_early_stop)
     else:
         evaluator = GSgnnClassificationEvaluator(config.eval_frequency,
-                                                 config.eval_metric,
+                                                 config.eval_metric_list,
                                                  config.multilabel,
                                                  config.use_early_stop)
 
@@ -284,15 +278,15 @@ def run_local_nc_eval_worker(eval_config, metric, val_pred, test_pred,
                                       init_method=dist_init_method,
                                       world_size=1,
                                       rank=0)
-    config, train_data = eval_config
+    config, _ = eval_config
 
     if config.eval_metric[0] in ["rmse", "mse"]:
         evaluator = GSgnnRegressionEvaluator(config.eval_frequency,
-                                             config.eval_metric,
+                                             config.eval_metric_list,
                                              config.use_early_stop)
     else:
         evaluator = GSgnnClassificationEvaluator(config.eval_frequency,
-                                                 config.eval_metric,
+                                                 config.eval_metric_list,
                                                  config.multilabel,
                                                  config.use_early_stop)
 

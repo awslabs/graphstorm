@@ -40,7 +40,7 @@ from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                                     BUILTIN_LP_LOCALJOINT_NEG_SAMPLER)
 from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER
-from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
+from graphstorm.eval import GSgnnLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
 from graphstorm.model.utils import save_full_node_embeddings
 from graphstorm.model import do_full_graph_inference
 from graphstorm.utils import rt_profiler, sys_tracker, get_device
@@ -58,24 +58,18 @@ def get_evaluator(config, train_data):
     assert len(config.eval_metric) == 1, \
         "GraphStorm doees not support computing multiple metrics at the same time."
     if config.report_eval_per_type:
-        return GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency,
-                                           train_data,
-                                           config.num_negative_edges_eval,
-                                           config.lp_decoder_type,
-                                           config.model_select_etype,
-                                           config.use_early_stop,
-                                           config.early_stop_burnin_rounds,
-                                           config.early_stop_rounds,
-                                           config.early_stop_strategy)
+        return GSgnnPerEtypeMrrLPEvaluator(eval_frequency=config.eval_frequency,
+                                           major_etype=config.model_select_etype,
+                                           use_early_stop=config.use_early_stop,
+                                           early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                           early_stop_rounds=config.early_stop_rounds,
+                                           early_stop_strategy=config.early_stop_strategy)
     else:
-        return GSgnnMrrLPEvaluator(config.eval_frequency,
-                                   train_data,
-                                   config.num_negative_edges_eval,
-                                   config.lp_decoder_type,
-                                   config.use_early_stop,
-                                   config.early_stop_burnin_rounds,
-                                   config.early_stop_rounds,
-                                   config.early_stop_strategy)
+        return GSgnnLPEvaluator(eval_frequency=config.eval_frequency,
+                                use_early_stop=config.use_early_stop,
+                                early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                early_stop_rounds=config.early_stop_rounds,
+                                early_stop_strategy=config.early_stop_strategy)
 
 def main(config_args):
     """ main function

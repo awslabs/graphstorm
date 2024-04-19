@@ -103,6 +103,12 @@ class RegressionMetrics:
         self.metric_function["mse"] = compute_mse
         self.metric_function["mae"] = compute_mae
 
+        # This is the operator used to measure each metric performance in evaluation
+        self.metric_eval_function = {}
+        self.metric_eval_function["rmse"] = compute_rmse
+        self.metric_eval_function["mse"] = compute_mse
+        self.metric_eval_function["mae"] = compute_mae
+
     def assert_supported_metric(self, metric):
         """ check if the given metric is supported.
         """
