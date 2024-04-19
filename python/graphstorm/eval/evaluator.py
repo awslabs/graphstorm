@@ -15,7 +15,7 @@
 
     Evaluator for different tasks.
 """
-import logging
+
 import abc
 from statistics import mean
 import torch as th
