@@ -595,42 +595,45 @@ def test_process_features():
     np.testing.assert_array_equal(rst['test2'], data['test2'].reshape(-1, 1))
 
 def test_label():
-    def check_split(res):
+    def check_split(res, train_mask, val_mask, test_mask):
         assert len(res) == 4
         assert 'label' in res
-        assert 'train_mask' in res
-        assert 'val_mask' in res
-        assert 'test_mask' in res
-        assert res['train_mask'].shape == (len(data['label']),)
-        assert res['val_mask'].shape == (len(data['label']),)
-        assert res['test_mask'].shape == (len(data['label']),)
-        assert np.sum(res['train_mask']) == 8
-        assert np.sum(res['val_mask']) == 1
-        assert np.sum(res['test_mask']) == 1
-        assert np.sum(res['train_mask'] + res['val_mask'] + res['test_mask']) == 10
+        assert train_mask in res
+        assert val_mask in res
+        assert test_mask in res
+        assert res[train_mask].shape == (len(data['label']),)
+        assert res[val_mask].shape == (len(data['label']),)
+        assert res[test_mask].shape == (len(data['label']),)
+        assert np.sum(res[train_mask]) == 8
+        assert np.sum(res[val_mask]) == 1
+        assert np.sum(res[test_mask]) == 1
+        assert np.sum(res[train_mask] + res[val_mask] + res[test_mask]) == 10
 
-    def check_no_split(res):
+    def check_no_split(res, train_mask, val_mask, test_mask):
         assert len(res) == 1
         assert 'label' in res
-        assert 'train_mask' not in res
-        assert 'val_mask' not in res
-        assert 'test_mask' not in res
+        assert train_mask not in res
+        assert val_mask not in res
+        assert test_mask not in res
 
-    def check_integer(label, res):
-        train_mask = res['train_mask'] == 1
-        val_mask = res['val_mask'] == 1
-        test_mask = res['test_mask'] == 1
-        assert np.all(np.logical_and(label[train_mask] >= 0, label[train_mask] <= 10))
-        assert np.all(np.logical_and(label[val_mask] >= 0, label[val_mask] <= 10))
-        assert np.all(np.logical_and(label[test_mask] >= 0, label[test_mask] <= 10))
+    def check_integer(label, res, train_mask, val_mask, test_mask):
+        train_idx = res[train_mask] == 1
+        val_idx = res[val_mask] == 1
+        test_idx = res[test_mask] == 1
+        assert np.all(np.logical_and(label[train_idx] >= 0, label[train_idx] <= 10))
+        assert np.all(np.logical_and(label[val_idx] >= 0, label[val_idx] <= 10))
+        assert np.all(np.logical_and(label[test_idx] >= 0, label[test_idx] <= 10))
 
     # Check classification
-    def check_classification(res):
-        check_split(res)
+    def check_classification(res, mask_field_names=("train_mask", "val_mask", "test_mask")):
+        # default masks are train_mask, val_mask and test_mask
+        check_split(res, mask_field_names[0][0], mask_field_names[0][1], mask_field_names[0][2])
         assert np.issubdtype(res['label'].dtype, np.integer)
-        check_integer(res['label'], res)
-    def check_classification_no_split(res):
-        check_no_split(res)
+        check_integer(res['label'], res, mask_field_names[0][0], mask_field_names[0][1], mask_field_names[0][2])
+
+    def check_classification_no_split(res, mask_field_names=("train_mask", "val_mask", "test_mask")):
+        # default masks are train_mask, val_mask and test_mask
+        check_no_split(res, mask_field_names[0][0], mask_field_names[0][1], mask_field_names[0][2])
         assert np.issubdtype(res['label'].dtype, np.integer)
 
     conf = {
@@ -640,18 +643,26 @@ def test_label():
                  'split_pct': [0.8, 0.1, 0.1]}
             ]
     }
-    ops = parse_label_ops(conf, True)
+    ops, mask_field_names = parse_label_ops(conf, True)
     data = {'label' : np.random.uniform(size=10) * 10}
+    assert len(mask_field_names) == 1
+    assert mask_field_names[0][0] == "train_mask"
+    assert mask_field_names[0][1] == "val_mask"
+    assert mask_field_names[0][2] == "test_mask"
     res = process_labels(data, ops)
-    check_classification(res)
-    ops = parse_label_ops(conf, True)
+    check_classification(res, mask_field_names)
+    ops, mask_field_names = parse_label_ops(conf, False)
+    assert len(mask_field_names) == 1
+    assert mask_field_names[0][0] == "train_mask"
+    assert mask_field_names[0][1] == "val_mask"
+    assert mask_field_names[0][2] == "test_mask"
     res = process_labels(data, ops)
     check_classification(res)
 
     # Check classification with invalid labels.
     data = {'label' : np.random.uniform(size=13) * 10}
     data['label'][[0, 3, 4]] = np.NAN
-    ops = parse_label_ops(conf, True)
+    ops, _ = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     check_classification(res)
 
@@ -659,13 +670,13 @@ def test_label():
     data = {'label' : np.random.randint(2, size=(15,5)).astype(np.float32)}
     data['label'][[0,3,4]] = np.NAN
     data['label'][[1,2], [3,4]] = np.NAN
-    ops = parse_label_ops(conf, True)
+    ops, _ = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     check_classification(res)
 
     # Check classification with integer labels.
     data = {'label' : np.random.randint(10, size=10)}
-    ops = parse_label_ops(conf, True)
+    ops, _ = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     check_classification(res)
 
@@ -678,10 +689,30 @@ def test_label():
                  'split_pct': [0.4, 0.05, 0.05]}
             ]
     }
-    ops = parse_label_ops(conf, True)
+    ops, _ = parse_label_ops(conf, True)
     data = {'label' : np.random.randint(3, size=20)}
     res = process_labels(data, ops)
     check_classification(res)
+
+    # Check classification with user defined mask names.
+    conf = {
+            "labels": [
+                {'task_type': 'classification',
+                 'label_col': 'label',
+                 'split_pct': [0.4, 0.05, 0.05],
+                 'mask_field_names': ['train_mask_c',
+                                      'val_mask_c',
+                                      'test_mask_c']}
+            ]
+    }
+    ops, mask_field_names = parse_label_ops(conf, True)
+    assert len(mask_field_names) == 1
+    assert mask_field_names[0][0] == "train_mask_c"
+    assert mask_field_names[0][1] == "val_mask_c"
+    assert mask_field_names[0][2] == "test_mask_c"
+    data = {'label' : np.random.randint(3, size=20)}
+    res = process_labels(data, ops)
+    check_classification(res, mask_field_names)
 
     # split_pct is not specified.
     conf = {
@@ -690,12 +721,33 @@ def test_label():
                  'label_col': 'label'}
             ]
     }
-    ops = parse_label_ops(conf, True)
+    ops, _ = parse_label_ops(conf, True)
     data = {'label' : np.random.randint(3, size=10)}
     res = process_labels(data, ops)
     assert np.sum(res['train_mask']) == 8
     assert np.sum(res['val_mask']) == 1
     assert np.sum(res['test_mask']) == 1
+
+    # split_pct is not specified and customized mask names.
+    conf = {
+            "labels": [
+                {'task_type': 'classification',
+                 'label_col': 'label',
+                 'mask_field_names': ['train_mask_c',
+                                      'val_mask_c',
+                                      'test_mask_c']}
+            ]
+    }
+    ops, mask_field_names = parse_label_ops(conf, True)
+    assert len(mask_field_names) == 1
+    assert mask_field_names[0][0] == "train_mask_c"
+    assert mask_field_names[0][1] == "val_mask_c"
+    assert mask_field_names[0][2] == "test_mask_c"
+    data = {'label' : np.random.randint(3, size=10)}
+    res = process_labels(data, ops)
+    assert np.sum(res['train_mask_c']) == 8
+    assert np.sum(res['val_mask_c']) == 1
+    assert np.sum(res['test_mask_c']) == 1
 
     # Check custom data split for classification on node.
     data = {
@@ -715,9 +767,31 @@ def test_label():
                                             "test": "/tmp/test_idx.json"}}
             ]
     }
-    ops = parse_label_ops(conf, True)
+    ops, _ = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     check_classification(res)
+
+    # Check custom data split for classification on node with customized mask names.
+    conf = {
+            "node_id_col": "id",
+            "labels": [
+                {'task_type': 'classification',
+                 'label_col': 'label',
+                 'custom_split_filenames': {"train": "/tmp/train_idx.json",
+                                            "valid": "/tmp/val_idx.json",
+                                            "test": "/tmp/test_idx.json"},
+                 'mask_field_names': ['train_mask_c',
+                                      'val_mask_c',
+                                      'test_mask_c']}
+            ]
+    }
+    ops, mask_field_names = parse_label_ops(conf, True)
+    assert len(mask_field_names) == 1
+    assert mask_field_names[0][0] == "train_mask_c"
+    assert mask_field_names[0][1] == "val_mask_c"
+    assert mask_field_names[0][2] == "test_mask_c"
+    res = process_labels(data, ops)
+    check_classification(res, mask_field_names)
 
     # Check custom data split for classification on edge.
     data = {
@@ -740,9 +814,32 @@ def test_label():
                                             "test": "/tmp/test_idx.json"}}
             ]
     }
-    ops = parse_label_ops(conf, True)
+    ops, _ = parse_label_ops(conf, False)
     res = process_labels(data, ops)
     check_classification(res)
+
+    # Check custom data split for classification on edge with customized mask names
+    conf = {
+            "source_id_col": "src",
+            "dest_id_col": "dest",
+            "labels": [
+                {'task_type': 'classification',
+                 'label_col': 'label',
+                 'custom_split_filenames': {"train": "/tmp/train_idx.json",
+                                            "valid": "/tmp/val_idx.json",
+                                            "test": "/tmp/test_idx.json"},
+                 'mask_field_names': ['train_mask_ec',
+                                      'val_mask_ec',
+                                      'test_mask_ec']}
+            ]
+    }
+    ops, mask_field_names = parse_label_ops(conf, False)
+    assert len(mask_field_names) == 1
+    assert mask_field_names[0][0] == "train_mask_ec"
+    assert mask_field_names[0][1] == "val_mask_ec"
+    assert mask_field_names[0][2] == "test_mask_ec"
+    res = process_labels(data, ops)
+    check_classification(res, mask_field_names)
 
     # Check custom data split with only training set.
     data = {
@@ -758,7 +855,7 @@ def test_label():
                  'custom_split_filenames': {"train": "/tmp/train_idx.json"} }
             ]
     }
-    ops = parse_label_ops(conf, True)
+    ops, _ = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     assert "train_mask" in res
     assert np.sum(res["train_mask"]) == 8
@@ -766,6 +863,31 @@ def test_label():
     assert np.sum(res["val_mask"]) == 0
     assert "test_mask" in res
     assert np.sum(res["test_mask"]) == 0
+
+    # Check custom data split with only training set and customized mask names
+    conf = {
+            "node_id_col": "id",
+            "labels": [
+                {'task_type': 'classification',
+                 'label_col': 'label',
+                 'custom_split_filenames': {"train": "/tmp/train_idx.json"},
+                 'mask_field_names': ['train_mask_c',
+                                      'val_mask_c',
+                                      'test_mask_c'] }
+            ]
+    }
+    ops, mask_field_names = parse_label_ops(conf, True)
+    assert len(mask_field_names) == 1
+    assert mask_field_names[0][0] == "train_mask_c"
+    assert mask_field_names[0][1] == "val_mask_c"
+    assert mask_field_names[0][2] == "test_mask_c"
+    res = process_labels(data, ops)
+    assert "train_mask_c" in res
+    assert np.sum(res["train_mask_c"]) == 8
+    assert "val_mask_c" in res
+    assert np.sum(res["val_mask_c"]) == 0
+    assert "test_mask_c" in res
+    assert np.sum(res["test_mask_c"]) == 0
 
     # Check custom data split without providing split
     conf = {
@@ -775,10 +897,30 @@ def test_label():
                  'split_pct': [0, 0, 0]}
             ]
     }
-    ops = parse_label_ops(conf, True)
+    ops, _ = parse_label_ops(conf, True)
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
     check_classification_no_split(res)
+
+    # Check custom data split without providing split with customized mask names
+    conf = {
+            "labels": [
+                {'task_type': 'classification',
+                 'label_col': 'label',
+                 'split_pct': [0, 0, 0],
+                 'mask_field_names': ['train_mask_c',
+                                      'val_mask_c',
+                                      'test_mask_c']}
+            ]
+    }
+    ops, mask_field_names = parse_label_ops(conf, True)
+    assert len(mask_field_names) == 1
+    assert mask_field_names[0][0] == "train_mask_c"
+    assert mask_field_names[0][1] == "val_mask_c"
+    assert mask_field_names[0][2] == "test_mask_c"
+    data = {'label' : np.random.uniform(size=10) * 10}
+    res = process_labels(data, ops)
+    check_classification_no_split(res, mask_field_names)
 
     # Check regression
     def check_regression(res):
@@ -790,26 +932,64 @@ def test_label():
             "labels": [
                 {'task_type': 'regression',
                  'label_col': 'label',
-                 'split_pct': [0.8, 0.1, 0.1]}
+                 'split_pct': [0.8, 0.1, 0.1],
+                 'mask_field_names': ['train_mask_l',
+                                      'val_mask_l',
+                                      'test_mask_l']}
             ]
     }
-    ops = parse_label_ops(conf, True)
+    ops, mask_field_names = parse_label_ops(conf, True)
+    assert len(mask_field_names) == 1
+    assert mask_field_names[0][0] == "train_mask"
+    assert mask_field_names[0][1] == "val_mask"
+    assert mask_field_names[0][2] == "test_mask"
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
     check_regression(res)
-    ops = parse_label_ops(conf, False)
+    ops, mask_field_names = parse_label_ops(conf, False)
+    assert len(mask_field_names) == 1
+    assert mask_field_names[0][0] == "train_mask"
+    assert mask_field_names[0][1] == "val_mask"
+    assert mask_field_names[0][2] == "test_mask"
     res = process_labels(data, ops)
     check_regression(res)
+
+    # Check regression with customized mask names
+    conf = {
+            "labels": [
+                {'task_type': 'regression',
+                 'label_col': 'label',
+                 'split_pct': [0.8, 0.1, 0.1],
+                 'mask_field_names': ['train_mask_r',
+                                      'val_mask_r',
+                                      'test_mask_r']}
+            ]
+    }
+    ops, mask_field_names = parse_label_ops(conf, True)
+    assert len(mask_field_names) == 1
+    assert mask_field_names[0][0] == "train_mask_r"
+    assert mask_field_names[0][1] == "val_mask_r"
+    assert mask_field_names[0][2] == "test_mask_r"
+    data = {'label' : np.random.uniform(size=10) * 10}
+    res = process_labels(data, ops)
+    check_regression(res, mask_field_names)
+    ops, mask_field_names = parse_label_ops(conf, False)
+    assert len(mask_field_names) == 1
+    assert mask_field_names[0][0] == "train_mask_r"
+    assert mask_field_names[0][1] == "val_mask_r"
+    assert mask_field_names[0][2] == "test_mask_r"
+    res = process_labels(data, ops)
+    check_regression(res, mask_field_names)
 
     # Check regression with invalid labels.
     data = {'label' : np.random.uniform(size=13) * 10}
     data['label'][[0, 3, 4]] = np.NAN
-    ops = parse_label_ops(conf, True)
+    ops, _ = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     check_regression(res)
 
     # Check custom data split for regression.
-    data = {
+    data, _ = {
             "id": np.arange(10),
             'label' : np.random.uniform(size=10) * 10
     }
@@ -826,7 +1006,7 @@ def test_label():
                                             "test": "/tmp/test_idx.json"} }
             ]
     }
-    ops = parse_label_ops(conf, True)
+    ops, _ = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     check_regression(res)
 
@@ -839,7 +1019,7 @@ def test_label():
             ]
     }
     data = {'label' : np.random.uniform(size=10) * 10}
-    ops = parse_label_ops(conf, True)
+    ops, _ = parse_label_ops(conf, True)
     res = process_labels(data, ops)
     check_regression_no_split(res)
 
@@ -850,7 +1030,11 @@ def test_label():
                  'split_pct': [0.8, 0.1, 0.1]}
             ]
     }
-    ops = parse_label_ops(conf, False)
+    ops, mask_field_names = parse_label_ops(conf, False)
+    assert len(mask_field_names) == 1
+    assert mask_field_names[0][0] == "train_mask"
+    assert mask_field_names[0][1] == "val_mask"
+    assert mask_field_names[0][2] == "test_mask"
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
     assert len(res) == 3
@@ -861,6 +1045,31 @@ def test_label():
     assert np.sum(res['val_mask']) == 1
     assert np.sum(res['test_mask']) == 1
 
+    # Check link prediction with customized mask names
+    conf = {
+            "labels": [
+                {'task_type': 'link_prediction',
+                 'split_pct': [0.8, 0.1, 0.1],
+                 'mask_field_names': ['train_mask_l',
+                                      'val_mask_l',
+                                      'test_mask_l']}
+            ]
+    }
+    ops, mask_field_names = parse_label_ops(conf, False)
+    assert len(mask_field_names) == 1
+    assert mask_field_names[0][0] == "train_mask_l"
+    assert mask_field_names[0][1] == "val_mask_l"
+    assert mask_field_names[0][2] == "test_mask_l"
+    data = {'label' : np.random.uniform(size=10) * 10}
+    res = process_labels(data, ops)
+    assert len(res) == 3
+    assert 'train_mask_l' in res
+    assert 'val_mask_l' in res
+    assert 'test_mask_l' in res
+    assert np.sum(res['train_mask_l']) == 8
+    assert np.sum(res['val_mask_l']) == 1
+    assert np.sum(res['test_mask_l']) == 1
+
     # Check custom data split without providing split
     conf = {
             "labels": [
@@ -868,7 +1077,7 @@ def test_label():
                  'split_pct': [0, 0, 0]}
             ]
     }
-    ops = parse_label_ops(conf, False)
+    ops, _ = parse_label_ops(conf, False)
     data = {'label' : np.random.uniform(size=10) * 10}
     res = process_labels(data, ops)
     assert len(res) == 0
@@ -899,7 +1108,11 @@ def check_link_prediction_custom_label():
                  }
             ]
     }
-    ops = parse_label_ops(conf, False)
+    ops, mask_field_names = parse_label_ops(conf, False)
+    assert len(mask_field_names) == 1
+    assert mask_field_names[0][0] == "train_mask"
+    assert mask_field_names[0][1] == "val_mask"
+    assert mask_field_names[0][2] == "test_mask"
     res = process_labels(data, ops)
     assert len(res) == 3
     assert 'train_mask' in res
@@ -908,6 +1121,35 @@ def check_link_prediction_custom_label():
     assert np.sum(res['train_mask']) == 8
     assert np.sum(res['val_mask']) == 1
     assert np.sum(res['test_mask']) == 1
+
+    # With customized mask names
+    conf = {
+            "source_id_col": "src",
+            "dest_id_col": "dest",
+            "labels": [
+                {'task_type': 'link_prediction',
+                 'custom_split_filenames': {"train": "/tmp/train_idx.json",
+                                            "valid": "/tmp/val_idx.json",
+                                            "test": "/tmp/test_idx.json"},
+                 'mask_field_names': ['train_mask_l',
+                                      'val_mask_l',
+                                      'test_mask_l']
+                 }
+            ]
+    }
+    ops, mask_field_names = parse_label_ops(conf, False)
+    assert len(mask_field_names) == 1
+    assert mask_field_names[0][0] == "train_mask_l"
+    assert mask_field_names[0][1] == "val_mask_l"
+    assert mask_field_names[0][2] == "test_mask_l"
+    res = process_labels(data, ops)
+    assert len(res) == 3
+    assert 'train_mask_l' in res
+    assert 'val_mask_l' in res
+    assert 'test_mask_l' in res
+    assert np.sum(res['train_mask_l']) == 8
+    assert np.sum(res['val_mask_l']) == 1
+    assert np.sum(res['test_mask_l']) == 1
 
 def check_id_map_exist(id_map, input_ids):
     # Test the case that all Ids exist in the map.
@@ -1355,7 +1597,7 @@ def test_multiprocessing_checks():
     }
     in_files = ["/tmp/test1", "/tmp/test2"]
     (feat_ops, _, _, _) = parse_feat_ops(conf['features'])
-    label_ops = parse_label_ops(conf, is_node=True)
+    label_ops, _ = parse_label_ops(conf, is_node=True)
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
 
@@ -1372,7 +1614,7 @@ def test_multiprocessing_checks():
     }
     in_files = ["/tmp/test1", "/tmp/test2"]
     feat_ops = None
-    label_ops = parse_label_ops(conf, is_node=True)
+    label_ops, _ = parse_label_ops(conf, is_node=True)
     multiprocessing = do_multiprocess_transform(conf, feat_ops, label_ops, in_files)
     assert multiprocessing == True
 

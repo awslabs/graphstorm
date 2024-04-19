@@ -1380,10 +1380,13 @@ class CustomLabelProcessor:
         The array that contains the index of test data points.
     stats_type: str
         Speicfy how to summarize label statistics
+    mask_field_names: tuple of str
+        Field name of train, validation and test masks
+        Default: ("train_mask", "val_mask", "test_mask")
     """
     def __init__(self, col_name, label_name, id_col, task_type,
                  train_idx=None, val_idx=None, test_idx=None,
-                 stats_type=None):
+                 stats_type=None, mask_field_names=("train_mask", "val_mask", "test_mask")):
         self._id_col = id_col
         self._col_name = col_name
         self._label_name = label_name
@@ -1392,6 +1395,7 @@ class CustomLabelProcessor:
         self._test_idx = set(test_idx) if test_idx is not None else None
         self._task_type = task_type
         self._stats_type = stats_type
+        self._mask_field_names = mask_field_names
 
     @property
     def col_name(self):
@@ -1404,6 +1408,24 @@ class CustomLabelProcessor:
         """ The label name.
         """
         return self._label_name
+
+    @property
+    def train_mask_name(self):
+        """ The field name of the train mask
+        """
+        return self._mask_field_names[0]
+
+    @property
+    def val_mask_name(self):
+        """ The field name of the validation mask
+        """
+        return self._mask_field_names[1]
+
+    @property
+    def test_mask_name(self):
+        """ The field name of the test mask
+        """
+        return self._mask_field_names[2]
 
     def data_split(self, ids):
         """ Split the data for training/validation/test.
@@ -1429,9 +1451,9 @@ class CustomLabelProcessor:
                 val_mask[i] = 1
             elif self._test_idx is not None and idx in self._test_idx:
                 test_mask[i] = 1
-        train_mask_name = 'train_mask'
-        val_mask_name = 'val_mask'
-        test_mask_name = 'test_mask'
+        train_mask_name = self.train_mask_name # default: 'train_mask'
+        val_mask_name = self.val_mask_name # default: 'val_mask'
+        test_mask_name = self.test_mask_name # default: 'test_mask'
         return {train_mask_name: train_mask,
                 val_mask_name: val_mask,
                 test_mask_name: test_mask}
@@ -1470,7 +1492,7 @@ class CustomLabelProcessor:
                 if self._stats_type == LABEL_STATS_FREQUENCY_COUNT:
                     # get train labels
                     train_labels = res[self.label_name][ \
-                        res['train_mask'].astype(np.bool_)]
+                        res[self.train_mask_name].astype(np.bool_)]
                     vals, counts = np.unique(train_labels, return_counts=True)
                     res[LABEL_STATS_FIELD+self.label_name] = \
                         (LABEL_STATS_FREQUENCY_COUNT, vals, counts)
@@ -1725,12 +1747,14 @@ def parse_label_ops(confs, is_node):
             return [CustomLabelProcessor(col_name=label_col, label_name=label_col,
                                          id_col=confs["node_id_col"],
                                          task_type=task_type, train_idx=train_idx, val_idx=val_idx,
-                                         test_idx=test_idx, stats_type=label_stats_type)], [mask_field_names]
+                                         test_idx=test_idx, stats_type=label_stats_type,
+                                         mask_field_names=mask_field_names)], [mask_field_names]
         elif "source_id_col" in confs and "dest_id_col" in confs:
             return [CustomLabelProcessor(col_name=label_col, label_name=label_col,
                                          id_col=(confs["source_id_col"], confs["dest_id_col"]),
                                          task_type=task_type, train_idx=train_idx, val_idx=val_idx,
-                                         test_idx=test_idx, stats_type=label_stats_type)], [mask_field_names]
+                                         test_idx=test_idx, stats_type=label_stats_type,
+                                         mask_field_names=mask_field_names)], [mask_field_names]
         else:
             raise AttributeError("Custom data segmentation should be "
                                  "applied to either node or edge tasks.")
