@@ -550,8 +550,8 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
             fifo = np.finfo(out_dtype)
         else:
             fifo = np.finfo(np.float32)
-        self._max_bound = fifo.max if max_bound>=fifo.max else max_bound
-        self._min_bound = -fifo.max if min_bound<=-fifo.max else min_bound
+        self._max_bound = fifo.max if max_bound >= fifo.max else max_bound
+        self._min_bound = -fifo.max if min_bound <= -fifo.max else min_bound
         out_dtype = np.float32 if out_dtype is None else out_dtype
         super(NumericalMinMaxTransform, self).__init__(col_name, feat_name, out_dtype)
 
@@ -1732,13 +1732,13 @@ def parse_label_ops(confs, is_node):
 
     # default mask names
     mask_field_names = ("train_mask", "val_mask", "test_mask")
-    if "mask_field_names" in label_conf:
+    if 'mask_field_names' in label_conf:
         # User defined mask names
-        assert isinstance(label_conf["mask_field_names"], list) \
-            and len(label_conf["mask_field_names"]) == 3, \
+        assert isinstance(label_conf['mask_field_names'], list) and \
+            len(label_conf['mask_field_names']) == 3, \
             "User defined mask_field_names must be a list of three strings." \
-            f"But get {label_conf["mask_field_names"]}"
-        mask_field_names = tuple(label_conf["mask_field_names"])
+            f"But get {label_conf['mask_field_names']}"
+        mask_field_names = tuple(label_conf['mask_field_names'])
 
     if 'custom_split_filenames' in label_conf:
         custom_split = label_conf['custom_split_filenames']
