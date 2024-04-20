@@ -180,7 +180,7 @@ def run_dist_nc_eval_worker(eval_config, worker_rank, metric, val_pred, test_pre
     device = setup_device(worker_rank)
     config = eval_config
 
-    if config.eval_metric[0] in ["rmse", "mse"]:
+    if config.eval_metric_list[0] in ["rmse", "mse"]:
         evaluator = GSgnnRegressionEvaluator(config.eval_frequency,
                                              config.eval_metric_list,
                                              config.use_early_stop)
@@ -273,7 +273,7 @@ def run_local_nc_eval_worker(eval_config, metric, val_pred, test_pred,
                                       rank=0)
     config = eval_config
 
-    if config.eval_metric[0] in ["rmse", "mse"]:
+    if config.eval_metric_list[0] in ["rmse", "mse"]:
         evaluator = GSgnnRegressionEvaluator(config.eval_frequency,
                                              config.eval_metric_list,
                                              config.use_early_stop)
