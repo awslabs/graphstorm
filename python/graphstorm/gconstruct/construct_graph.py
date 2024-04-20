@@ -313,7 +313,7 @@ def process_node_data(process_confs, arr_merger, remap_id,
             parse_feat_ops(process_conf['features'], process_conf['format']['name']) \
                 if 'features' in process_conf else (None, [], {}, [])
         label_ops = parse_label_ops(process_conf, is_node=True) \
-                if 'labels' in process_conf else (None, None)
+                if 'labels' in process_conf else None
 
         # If it requires multiprocessing, we need to read data to memory.
         node_id_col = process_conf['node_id_col'] if 'node_id_col' in process_conf else None
@@ -383,11 +383,12 @@ def process_node_data(process_confs, arr_merger, remap_id,
             label_stats[node_type] = {}
             label_masks[node_type] = []
 
-        for label_op in label_ops:
-            train_mask = label_op.train_mask_name
-            val_mask = label_op.val_mask_name
-            test_mask = label_op.test_mask_name
-            label_masks[node_type].append((train_mask, val_mask, test_mask))
+        if label_ops is not None:
+            for label_op in label_ops:
+                train_mask = label_op.train_mask_name
+                val_mask = label_op.val_mask_name
+                test_mask = label_op.test_mask_name
+                label_masks[node_type].append((train_mask, val_mask, test_mask))
 
         for feat_name in list(type_node_data):
             # features start with LABEL_STATS_FIELD store label statistics
@@ -507,7 +508,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
             parse_feat_ops(process_conf['features'], process_conf['format']['name'])\
                 if 'features' in process_conf else (None, [], {}, [])
         label_ops = parse_label_ops(process_conf, is_node=False) \
-                if 'labels' in process_conf else (None, None)
+                if 'labels' in process_conf else None
 
         # We don't need to copy all node ID maps to the worker processes.
         # Only the node ID maps of the source node type and destination node type
@@ -563,11 +564,12 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
             label_stats[edge_type] = {}
             label_masks[edge_type] = []
 
-        for label_op in label_ops:
-            train_mask = label_op.train_mask_name
-            val_mask = label_op.val_mask_name
-            test_mask = label_op.test_mask_name
-            label_masks[edge_type].append((train_mask, val_mask, test_mask))
+        if label_ops is not None:
+            for label_op in label_ops:
+                train_mask = label_op.train_mask_name
+                val_mask = label_op.val_mask_name
+                test_mask = label_op.test_mask_name
+                label_masks[edge_type].append((train_mask, val_mask, test_mask))
 
         # handle edge type
         for feat_name in list(type_edge_data):

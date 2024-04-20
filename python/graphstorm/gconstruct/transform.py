@@ -1803,6 +1803,7 @@ def process_labels(data, label_processors):
     -------
     dict of tensors : labels (optional) and train/validation/test masks.
     """
+    print(label_processors)
     assert len(label_processors) == 1, "We only support one label per node/edge type."
     return label_processors[0](data)
 
