@@ -1719,7 +1719,6 @@ def parse_label_ops(confs, is_node):
     -------
     A tuple of
         list of LabelProcessor : the label processors generated from the configurations.
-        list of tuple of strings: the train, validation and mask names for each label.
     """
     label_confs = confs['labels']
     assert len(label_confs) == 1, "We only support one label per node/edge type."
@@ -1753,13 +1752,13 @@ def parse_label_ops(confs, is_node):
                                          id_col=confs["node_id_col"],
                                          task_type=task_type, train_idx=train_idx, val_idx=val_idx,
                                          test_idx=test_idx, stats_type=label_stats_type,
-                                         mask_field_names=mask_field_names)], [mask_field_names]
+                                         mask_field_names=mask_field_names)]
         elif "source_id_col" in confs and "dest_id_col" in confs:
             return [CustomLabelProcessor(col_name=label_col, label_name=label_col,
                                          id_col=(confs["source_id_col"], confs["dest_id_col"]),
                                          task_type=task_type, train_idx=train_idx, val_idx=val_idx,
                                          test_idx=test_idx, stats_type=label_stats_type,
-                                         mask_field_names=mask_field_names)], [mask_field_names]
+                                         mask_field_names=mask_field_names)]
         else:
             raise AttributeError("Custom data segmentation should be "
                                  "applied to either node or edge tasks.")
@@ -1776,19 +1775,19 @@ def parse_label_ops(confs, is_node):
                 "'label_col' must be defined in the label field."
         label_col = label_conf['label_col']
         return [ClassificationProcessor(label_col, label_col, split_pct,
-                                        label_stats_type, mask_field_names)], [mask_field_names]
+                                        label_stats_type, mask_field_names)]
     elif task_type == 'regression':
         assert 'label_col' in label_conf, \
                 "'label_col' must be defined in the label field."
         label_col = label_conf['label_col']
         return [RegressionProcessor(label_col, label_col, split_pct,
-                                    label_stats_type, mask_field_names)], [mask_field_names]
+                                    label_stats_type, mask_field_names)]
     else:
         assert task_type == 'link_prediction', \
                 "The task type must be classification, regression or link_prediction."
         assert not is_node, "link_prediction task must be defined on edges."
         return [LinkPredictionProcessor(None, None, split_pct,
-                                        label_stats_type, mask_field_names)], [mask_field_names]
+                                        label_stats_type, mask_field_names)]
 
 def process_labels(data, label_processors):
     """ Process labels

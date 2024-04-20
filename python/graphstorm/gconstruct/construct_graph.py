@@ -312,7 +312,7 @@ def process_node_data(process_confs, arr_merger, remap_id,
         (feat_ops, two_phase_feat_ops, after_merge_feat_ops, _) = \
             parse_feat_ops(process_conf['features'], process_conf['format']['name']) \
                 if 'features' in process_conf else (None, [], {}, [])
-        label_ops, label_mask_fields = parse_label_ops(process_conf, is_node=True) \
+        label_ops = parse_label_ops(process_conf, is_node=True) \
                 if 'labels' in process_conf else (None, None)
 
         # If it requires multiprocessing, we need to read data to memory.
@@ -383,8 +383,11 @@ def process_node_data(process_confs, arr_merger, remap_id,
             label_stats[node_type] = {}
             label_masks[node_type] = []
 
-        if label_mask_fields is not None:
-            label_masks[node_type].extend(label_mask_fields)
+        for label_op in label_ops:
+            train_mask = label_op.train_mask_name
+            val_mask = label_op.val_mask_name
+            test_mask = label_op.test_mask_name
+            label_masks[node_type].append((train_mask, val_mask, test_mask))
 
         for feat_name in list(type_node_data):
             # features start with LABEL_STATS_FIELD store label statistics
@@ -503,7 +506,7 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         (feat_ops, two_phase_feat_ops, after_merge_feat_ops, hard_edge_neg_ops) = \
             parse_feat_ops(process_conf['features'], process_conf['format']['name'])\
                 if 'features' in process_conf else (None, [], {}, [])
-        label_ops, label_mask_fields = parse_label_ops(process_conf, is_node=False) \
+        label_ops = parse_label_ops(process_conf, is_node=False) \
                 if 'labels' in process_conf else (None, None)
 
         # We don't need to copy all node ID maps to the worker processes.
@@ -560,8 +563,11 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
             label_stats[edge_type] = {}
             label_masks[edge_type] = []
 
-        if label_mask_fields is not None:
-            label_masks[edge_type].extend(label_mask_fields)
+        for label_op in label_ops:
+            train_mask = label_op.train_mask_name
+            val_mask = label_op.val_mask_name
+            test_mask = label_op.test_mask_name
+            label_masks[edge_type].append((train_mask, val_mask, test_mask))
 
         # handle edge type
         for feat_name in list(type_edge_data):
@@ -784,8 +790,13 @@ def process_graph(args):
                 data = edge_data[DEFAULT_ETYPE]
                 logging.warning("Reverse edge for homogeneous graph will have same feature as "
                                 "what we have in the original edges")
+                print(edge_label_masks)
+                edge_masks = []
+                for masks in edge_label_masks[DEFAULT_ETYPE]:
+                    edge_masks.extend(list(masks))
+
                 for key, value in data.items():
-                    if key not in edge_label_masks[DEFAULT_ETYPE]:
+                    if key not in edge_masks:
                         data[key] = np.concatenate([value, value])
                     else:
                         data[key] = np.concatenate([value, np.zeros(value.shape,
