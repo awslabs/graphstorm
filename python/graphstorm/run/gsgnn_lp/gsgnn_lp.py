@@ -111,7 +111,7 @@ def main(config_args):
     if not config.no_validation:
         # TODO(zhengda) we need to refactor the evaluator.
         # Currently, we only support mrr
-        evaluator = get_evaluator(config, train_data)
+        evaluator = get_evaluator(config)
         trainer.setup_evaluator(evaluator)
         assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
