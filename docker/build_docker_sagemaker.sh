@@ -39,7 +39,7 @@ cp -r "${GSF_HOME}/sagemaker" code/graphstorm/sagemaker
 cp -r "${GSF_HOME}/docker/sagemaker/build_artifacts" build_artifacts
 
 # Build OSS docker for EC2 instances that an pull ECR docker images
-DOCKER_FULLNAME="${IMAGE_NAME}:${TAG}"
+DOCKER_FULLNAME="${IMAGE_NAME}:${TAG}-${IMAGE_TYPE}"
 
 echo "Build a sagemaker docker image ${DOCKER_FULLNAME}"
 

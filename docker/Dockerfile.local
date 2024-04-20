@@ -1,34 +1,66 @@
-FROM nvidia/cuda:11.3.1-devel-ubuntu20.04
+ARG DEVICE=gpu
+
+FROM nvidia/cuda:12.1.0-runtime-ubuntu20.04 as branch-gpu
+ENV dev_type=GPU
+
+RUN apt update && apt install -y --no-install-recommends \
+    python3-dev \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install DGL and Pytorch for GPU
+RUN pip3 install torch==2.1.2 \
+    && rm -rf /root/.cache
+
+RUN pip3 install networkx==3.1 pydantic dgl==2.1.0+cu121 \
+    -f https://data.dgl.ai/wheels/cu121/repo.html && rm -rf /root/.cache
+
+FROM public.ecr.aws/ubuntu/ubuntu:22.04_stable as branch-cpu
+
+# Install DGL and Pytorch for CPU
+ENV dev_type=CPU
+
+RUN apt update && apt install -y --no-install-recommends \
+    python3-dev \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install torch==2.1.2 --index-url https://download.pytorch.org/whl/cpu
+
+RUN pip3 install networkx==3.1 pydantic dgl==2.1.0 \
+    -f https://data.dgl.ai/wheels-internal/repo.html && rm -rf /root/.cache
+
+FROM branch-${DEVICE} as runtime
+
+ENV PYTHONPATH="/root/dgl/tools/:${PYTHONPATH}"
 ENV DEBIAN_FRONTEND=noninteractive
 ENV HOME=/root
 
-RUN apt-get update
-RUN apt-get install -y --no-install-recommends build-essential python3-dev make g++ vim net-tools
+RUN apt update && apt install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    cython3 \
+    g++ \
+    git \
+    libicu-dev \
+    make \
+    net-tools \
+    openssh-client \
+    openssh-server \
+    psmisc \
+    unzip \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get install -y python3-pip git wget psmisc
-RUN apt-get install -y cmake
 
-# Install Pytorch
-RUN pip3 install networkx==3.1 pydantic
-RUN pip3 install torch==2.1.0+cu118 --extra-index-url https://download.pytorch.org/whl/cu118
-
-# Install DGL
-RUN pip3 install dgl==1.0.4+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
-ENV PYTHONPATH="/root/dgl/tools/:${PYTHONPATH}"
-
-# Install related Python packages
-RUN pip3 install ogb==1.3.6 scipy pyarrow boto3 scikit-learn transformers
-
-# Install other dependencies
-RUN apt-get install -y cython3 libicu-dev
-RUN pip3 install h5py psutil
-
-RUN apt-get install -y unzip
+# Install GraphStorm dependencies
+RUN pip3 install ogb==1.3.6 scipy pyarrow boto3 scikit-learn transformers h5py psutil \
+    && rm -rf /root/.cache
 
 # Download DGL source code
 RUN cd /root; git clone --recursive https://github.com/dmlc/dgl.git
 
-# Install GraphStorm from source code
+# Copy GraphStorm source and add to PYTHONPATH
 RUN mkdir -p /graphstorm
 COPY code/python/graphstorm /graphstorm/python/graphstorm
 ENV PYTHONPATH="/graphstorm/python/:${PYTHONPATH}"
@@ -39,16 +71,17 @@ COPY code/inference_scripts /graphstorm/inference_scripts
 COPY code/tools /graphstorm/tools
 COPY code/training_scripts /graphstorm/training_scripts
 
-# Set up SSH
-RUN apt-get install -y openssh-client openssh-server
+# Set up SSH access
 ENV SSH_PORT=2222
+
 RUN cat /etc/ssh/sshd_config > /tmp/sshd_config && \
     sed "0,/^#Port 22/s//Port ${SSH_PORT}/" /tmp/sshd_config > /etc/ssh/sshd_config
 ENV SSHDIR $HOME/.ssh
-RUN mkdir -p ${SSHDIR}
-RUN ssh-keygen -t rsa -f ${SSHDIR}/id_rsa -N ''
-RUN cp ${SSHDIR}/id_rsa.pub ${SSHDIR}/authorized_keys
+RUN mkdir -p ${SSHDIR} \
+    && ssh-keygen -t rsa -f ${SSHDIR}/id_rsa -N '' \
+    && cp ${SSHDIR}/id_rsa.pub ${SSHDIR}/authorized_keys \
+    && mkdir /run/sshd
 
-EXPOSE 2222
-RUN mkdir /run/sshd
+EXPOSE ${SSH_PORT}
+
 CMD ["/usr/sbin/sshd", "-D"]

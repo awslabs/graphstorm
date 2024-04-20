@@ -54,9 +54,9 @@ The ``build_docker_sagemaker.sh`` script takes four arguments:
 .. warning::
     In order to upload the GraphStorm SageMaker Docker image to Amazon ECR, users need to define the <DOCKER_NAME> to include the ECR URI string, **<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/**, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm``.
 
-4. **DOCKER_TAG** (optional), is the assigned tag name of the to-be built Docker image. Default is ``sm``.
+4. **DOCKER_TAG** (optional), is the assigned tag name of the to-be built Docker image. Default is ``sm-<cpu/gpu>``.
 
-Once the ``build_docker_sagemaker.sh`` command completes successfully, there will be a Docker image, named ``<DOCKER_NAME>:<DOCKER_TAG>``, such as ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm``, in the local repository, which could be listed by running:
+Once the ``build_docker_sagemaker.sh`` command completes successfully, there will be a Docker image, named ``<DOCKER_NAME>:<DOCKER_TAG>``, such as ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm-gpu``, in the local repository, which could be listed by running:
 
 .. code-block:: bash
 
@@ -84,7 +84,7 @@ And then use the below command to push the built GraphStorm Docker image to user
 
     docker push <DOCKER_NAME>:<DOCKER_TAG>
 
-Please replace the `<DOCKER_NAME>` and `<DOCKER_TAG>` with the actual Docker image name and tag, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm``.
+Please replace the `<DOCKER_NAME>` and `<DOCKER_TAG>` with the actual Docker image name and tag, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm-gpu``.
 
 Run GraphStorm on SageMaker
 ----------------------------
