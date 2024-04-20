@@ -343,7 +343,7 @@ def test_nc_dist_eval(metric, seed, backend):
     val_labels2[:160] = val_pred[:160]
 
     config = Dummy({
-        "eval_metric": metric,
+        "eval_metric_list": metric,
         "no_validation": False,
         "multilabel": False,
         "eval_frequency": 100,
@@ -420,21 +420,18 @@ def test_nc_dist_eval_multilabel(seed, backend):
     test_logits = softmax(test_logits)
 
     config = Dummy({
-        "eval_metric": ["accuracy"],
+        "eval_metric_list": ["accuracy"],
         "no_validation": False,
         "multilabel": True,
         "eval_frequency": 100,
         "use_early_stop": False,
     })
-    train_data = Dummy({
-        "do_validation": True
-    })
 
     # do evaluation with single worker
-    metrics_local = run_local_nc_eval((config, train_data), ["accuracy"], val_logits, test_logits,
+    metrics_local = run_local_nc_eval(config, ["accuracy"], val_logits, test_logits,
         val_labels0, val_labels1, val_labels2, test_labels0)
     # do evaluation with two workers
-    metrics_dist = run_dist_nc_eval((config, train_data), ["accuracy"], val_logits, test_logits,
+    metrics_dist = run_dist_nc_eval(config, ["accuracy"], val_logits, test_logits,
         val_labels0, val_labels1, val_labels2, test_labels0, backend)
 
     metrics_keys = list(metrics_local.keys())
@@ -463,18 +460,15 @@ def test_nc_dist_regression_eval(metric, seed, backend):
     test_labels[100:170] = test_pred[100:170]
 
     config = Dummy({
-        "eval_metric": metric,
+        "eval_metric_list": metric,
         "no_validation": False,
         "eval_frequency": 100,
         "use_early_stop": False,
     })
-    train_data = Dummy({
-        "do_validation": True
-    })
 
-    metrics_local = run_local_nc_eval((config, train_data), metric, val_pred, test_pred,
+    metrics_local = run_local_nc_eval(config, metric, val_pred, test_pred,
         val_labels0, val_labels1, val_labels2, test_labels)
-    metrics_dist = run_dist_nc_eval((config, train_data), metric, val_pred, test_pred,
+    metrics_dist = run_dist_nc_eval(config, metric, val_pred, test_pred,
         val_labels0, val_labels1, val_labels2, test_labels, backend)
 
     metrics_keys = list(metrics_local.keys())
