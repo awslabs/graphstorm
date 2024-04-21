@@ -207,7 +207,7 @@ def run_dist_nc_eval_worker(eval_config, worker_rank, metric, val_pred, test_pre
         test_labels.to(device), 300)
 
     if worker_rank == 0:
-        assert evaluator.metric == metric
+        assert evaluator.metric_list == metric
         assert evaluator.best_iter_num[metric[0]] == 200
         assert evaluator.best_val_score == val_score1
         assert evaluator.best_test_score == test_score1
@@ -290,7 +290,7 @@ def run_local_nc_eval_worker(eval_config, metric, val_pred, test_pred,
     assert val_score0 != val_score2
     assert test_score0 == test_score1
 
-    assert evaluator.metric == metric
+    assert evaluator.metric_list == metric
     assert evaluator.best_iter_num[metric[0]] == 200
     assert evaluator.best_val_score == val_score1
     assert evaluator.best_test_score == test_score1
