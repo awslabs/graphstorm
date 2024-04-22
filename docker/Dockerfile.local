@@ -1,64 +1,74 @@
 ARG DEVICE=gpu
+ARG SOURCE
 
-FROM nvidia/cuda:12.1.0-runtime-ubuntu20.04 as branch-gpu
-ENV dev_type=GPU
+FROM ${SOURCE} as base
 
-RUN apt update && apt install -y --no-install-recommends \
-    python3-dev \
-    python3-pip \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install DGL and Pytorch for GPU
-RUN pip3 install torch==2.1.2 \
-    && rm -rf /root/.cache
-
-RUN pip3 install networkx==3.1 pydantic dgl==2.1.0+cu121 \
-    -f https://data.dgl.ai/wheels/cu121/repo.html && rm -rf /root/.cache
-
-FROM public.ecr.aws/ubuntu/ubuntu:22.04_stable as branch-cpu
-
-# Install DGL and Pytorch for CPU
-ENV dev_type=CPU
-
-RUN apt update && apt install -y --no-install-recommends \
-    python3-dev \
-    python3-pip \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN pip3 install torch==2.1.2 --index-url https://download.pytorch.org/whl/cpu
-
-RUN pip3 install networkx==3.1 pydantic dgl==2.1.0 \
-    -f https://data.dgl.ai/wheels-internal/repo.html && rm -rf /root/.cache
-
-FROM branch-${DEVICE} as runtime
-
-ENV PYTHONPATH="/root/dgl/tools/:${PYTHONPATH}"
 ENV DEBIAN_FRONTEND=noninteractive
 ENV HOME=/root
 
+ARG DGL_VERSION=1.1.3
+ARG OGB_VERSION=1.3.6
+ARG TORCH_VERSION=2.1.2
+ARG TRANSFORMERS_VERSION=4.28.1
+
 RUN apt update && apt install -y --no-install-recommends \
-    build-essential \
-    cmake \
-    cython3 \
-    g++ \
     git \
     libicu-dev \
-    make \
-    net-tools \
     openssh-client \
     openssh-server \
-    psmisc \
-    unzip \
-    wget \
+    python3.9 \
+    python3.9-distutils \
+    python3.9-venv \
     && rm -rf /var/lib/apt/lists/*
 
+# Create and activate a Python venv
+RUN python3.9 -m venv /opt/gs-venv
+ENV PATH="/opt/gs-venv/bin:$PATH"
 
 # Install GraphStorm dependencies
-RUN pip3 install ogb==1.3.6 scipy pyarrow boto3 scikit-learn transformers h5py psutil \
+RUN pip install \
+    boto3==1.34.89 \
+    botocore==1.34.89 \
+    h5py==3.11.0 \
+    networkx==3.1 \
+    psutil==5.9.8 \
+    pyarrow==14.0.0 \
+    pydantic==2.7.0 \
+    scikit-learn==1.4.2 \
+    scipy==1.13.0 \
     && rm -rf /root/.cache
 
+FROM base as base-cpu
+
+# Install torch, DGL, and GSF deps that require torch
+RUN pip install \
+    torch==${TORCH_VERSION} \
+    --index-url https://download.pytorch.org/whl/cpu \
+    && rm -rf /root/.cache
+
+RUN pip install \
+    dgl==${DGL_VERSION} \
+    ogb==${OGB_VERSION} \
+    transformers==${TRANSFORMERS_VERSION} \
+    -f https://data.dgl.ai/wheels-internal/repo.html && rm -rf /root/.cache
+
+FROM base as base-gpu
+
+# Install torch, DGL, and GSF deps that require torch
+RUN pip install \
+    dgl==${DGL_VERSION}+cu121 \
+    ogb==${OGB_VERSION} \
+    torch==${TORCH_VERSION} \
+    transformers==${TRANSFORMERS_VERSION} \
+    -f https://data.dgl.ai/wheels/cu121/repo.html \
+    && rm -rf /root/.cache
+
+FROM base-${DEVICE} as runtime
+
+ENV PYTHONPATH="/root/dgl/tools/:${PYTHONPATH}"
+
 # Download DGL source code
-RUN cd /root; git clone --recursive https://github.com/dmlc/dgl.git
+RUN cd /root; git clone --single-branch https://github.com/dmlc/dgl.git
 
 # Copy GraphStorm source and add to PYTHONPATH
 RUN mkdir -p /graphstorm

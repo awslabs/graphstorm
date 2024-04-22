@@ -46,18 +46,23 @@ aws ecr-public get-login-password --region us-east-1 | \
 DOCKER_FULLNAME="${IMAGE_NAME}:${TAG}-${IMAGE_TYPE}"
 
 echo "Build a local docker image ${DOCKER_FULLNAME}"
-docker build --no-cache -f $GSF_HOME"/docker/Dockerfile.local" . -t $DOCKER_FULLNAME
 
-if [ $IMAGE_TYPE = "gpu" ] || [ $IMAGE_TYPE = "cpu" ]; then
-    # Use Buildkit to avoid pulling both CPU and GPU images
-    DOCKER_BUILDKIT=1 docker build --build-arg DEVICE=$IMAGE_TYPE \
-        -f "${GSF_HOME}/docker/Dockerfile.local" . -t $DOCKER_FULLNAME
+if [[ $IMAGE_TYPE = "gpu" ]]; then
+    SOURCE_IMAGE="nvidia/cuda:12.1.0-runtime-ubuntu20.04"
+elif [[ $IMAGE_TYPE = "cpu" ]]; then
+    SOURCE_IMAGE="public.ecr.aws/ubuntu/ubuntu:20.04_stable"
 else
-    echo "Image type can only be \"gpu\" or \"cpu\", but got \""$IMAGE_TYPE"\""
+    echo >&2 -e "Image type can only be \"gpu\" or \"cpu\", but got \""$IMAGE_TYPE"\""
     # remove the temporary code folder
     rm -rf code
     exit 1
 fi
+
+# Use Buildkit to avoid pulling both CPU and GPU images
+DOCKER_BUILDKIT=1 docker build \
+    --build-arg DEVICE=$IMAGE_TYPE \
+    --build-arg SOURCE=${SOURCE_IMAGE} \
+    -f "${GSF_HOME}/docker/Dockerfile.local" . -t $DOCKER_FULLNAME
 
 # remove the temporary code folder
 rm -rf $GSF_HOME"/docker/code"
