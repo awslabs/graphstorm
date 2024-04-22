@@ -53,7 +53,7 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
                     --input_dir {input_path} \
                     --schema_file {metadata_filename} \
                     --output_dir {input_path} --num_parts {num_parts}"
-        if run_command(command):
+        if self.run_command(command):
             logging.info("Successfully execute parmetis preprocess.")
         else:
             logging.info("Failed to execute parmetis preprocess.")
@@ -71,7 +71,7 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
                 ~/local/bin/pm_dglpart {graph_name} {num_parts} {input_path}/parmetis_nfiles.txt \
                   {input_path}/parmetis_efiles.txt"
 
-        if run_command(command):
+        if self.run_command(command):
             logging.info("Successfully execute parmetis preprocess.")
         else:
             logging.info("Failed to execute parmetis preprocess.")
@@ -95,7 +95,7 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
                         --parmetis_output_file {input_data_path}/{graph_name}_part.{num_parts} \
                         --partitions_dir {partition_dir}"
 
-        if run_command(command):
+        if self.run_command(command):
             logging.info("Successfully execute post parmetis preprocess.")
         else:
             logging.info("Failed to execute post parmetis preprocess.")

@@ -17,7 +17,7 @@ RUN pip3 install dgl==1.0.4+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
 
 # Install other dependencies
 RUN apt-get install -y cython3 libicu-dev
-RUN pip3 install pyarrow pandas pydantic
+RUN pip3 install pyarrow pandas pydantic pyyaml scikit-learn h5py psutil transformers ogb
 
 RUN apt-get install -y unzip
 

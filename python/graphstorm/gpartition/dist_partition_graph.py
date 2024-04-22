@@ -167,7 +167,7 @@ def parse_args() -> argparse.Namespace:
     argparser.add_argument("--dgl-tool-path", type=str,
                            help="The path to dgl/tools")
     argparser.add_argument("--partition-algorithm", type=str, default="random",
-                           choices=["random, parmetis"], help="Partition algorithm to use.")
+                           choices=["random", "parmetis"], help="Partition algorithm to use.")
     argparser.add_argument("--ip-list", type=str,
                            help="A file storing the ip list of instances of the partition cluster.")
     argparser.add_argument("--do-dispatch", action='store_true')
