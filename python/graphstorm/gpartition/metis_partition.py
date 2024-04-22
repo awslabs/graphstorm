@@ -28,7 +28,7 @@ from .partition_algo_base import LocalPartitionAlgorithm
 
 class MetisPartitionAlgorithm(LocalPartitionAlgorithm):
     """
-    Multiple-instance metis partitioning algorithm.
+    Multiple-instances metis partitioning algorithm.
 
     The partition algorithm accepts the intermediate output from GraphStorm
     gs-processing which matches the requirements of the DGL distributed
@@ -80,3 +80,37 @@ class MetisPartitionAlgorithm(LocalPartitionAlgorithm):
             Output path
         """
         return "Not Implmentation error"
+
+    def run_command(command):
+        """Function to execute a command and check for its success."""
+        print(f"Executing command: {command}")
+        try:
+            # Execute the command and check if it completes successfully
+            result = subprocess.run(command, shell=True, check=True, text=True, stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
+            print(f"Command output: {result.stdout}")
+            return True  # Return True if the command was successful
+        except subprocess.CalledProcessError as e:
+            print(f"Error executing command: {e.stderr}")
+            return False  # Return False if the command failed
+
+    def _assign_partitions(self, num_partitions: int, partition_dir: str):
+        # Execute each command function in sequence and stop if any fails
+        if not self._launch_preprocess():
+            raise RuntimeError("Stopping execution due to failure in preprocess")
+        elif not self._launch_parmetis():
+            raise RuntimeError("Stopping execution due to failure in parmetis partition process")
+        elif not self._launch_postprocess():
+            raise RuntimeError("Stopping execution due to failure in postprocess process")
+
+        logging.info("Finish all parmetis steps.")
+
+    def _create_metadata(self, num_partitions: int, partition_dir: str):
+        partition_meta = {
+            "algo_name": "parmetis",
+            "num_parts": num_partitions,
+            "version": "1.0.0"
+        }
+        partition_meta_filepath = os.path.join(partition_dir, "partition_meta.json")
+        with open(partition_meta_filepath, "w", encoding='utf-8') as metafile:
+            json.dump(partition_meta, metafile)
