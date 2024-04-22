@@ -98,7 +98,7 @@ cleanup() {
   # script cleanup here
 }
 
-parse_params "$@"
+parse_params "${@}"
 
 if [[ ${EXEC_ENV} == "sagemaker" || ${EXEC_ENV} == "emr-serverless" ]]; then
     :  # Do nothing
@@ -106,19 +106,17 @@ else
     die "--environment parameter needs to be one of 'emr', 'emr-serverless' or 'sagemaker', got ${EXEC_ENV}"
 fi
 
+TAG="${VERSION}-${ARCH}${SUFFIX}"
+LATEST_TAG="latest-${ARCH}${SUFFIX}"
+IMAGE_WITH_ENV="${IMAGE}-${EXEC_ENV}"
 
-# script logic here
 msg "Execution parameters: "
 msg "- ENVIRONMENT: ${EXEC_ENV}"
 msg "- ARCHITECTURE: ${ARCH}"
 msg "- IMAGE: ${IMAGE}"
-msg "- VERSION: ${VERSION}"
+msg "- TAG: ${TAG}"
 msg "- REGION: ${REGION}"
 msg "- ACCOUNT: ${ACCOUNT}"
-
-TAG="${VERSION}-${ARCH}${SUFFIX}"
-LATEST_TAG="latest-${ARCH}${SUFFIX}"
-IMAGE_WITH_ENV="${IMAGE}-${EXEC_ENV}"
 
 
 FULLNAME="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE_WITH_ENV}:${TAG}"

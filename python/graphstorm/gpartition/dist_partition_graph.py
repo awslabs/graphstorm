@@ -40,7 +40,8 @@ def run_build_dglgraph(
         ip_list,
         output_path,
         metadata_filename,
-        dgl_tool_path):
+        dgl_tool_path,
+        ssh_port):
     """ Build DistDGL Graph
 
     Parameters
@@ -55,6 +56,8 @@ def run_build_dglgraph(
         Output Path
     metadata_filename: str
         The filename for the graph partitioning metadata file we'll use to determine data sources.
+    ssh_port: int
+        SSH port
     """
     # Get the python interpreter used right now.
     # If we can not get it we go with the default `python3`
@@ -69,7 +72,7 @@ def run_build_dglgraph(
         "--partitions-dir", partitions_dir,
         "--ip-config", ip_list,
         "--out-dir", output_path,
-        "--ssh-port", "22",
+        "--ssh-port", f"{ssh_port}",
         "--python-path", f"{python_bin}",
         "--log-level", logging.getLevelName(logging.root.getEffectiveLevel()),
         "--save-orig-nids",
@@ -137,7 +140,8 @@ def main():
             args.ip_list,
             os.path.join(output_path, "dist_graph"),
             args.metadata_filename,
-            args.dgl_tool_path)
+            args.dgl_tool_path,
+            args.ssh_port)
 
         logging.info("DGL graph building took %f sec", part_end - time.time())
 
@@ -156,6 +160,7 @@ def parse_args() -> argparse.Namespace:
                            help="Path to store the partitioned data")
     argparser.add_argument("--num-parts", type=int, required=True,
                            help="Number of partitions to generate")
+    argparser.add_argument("--ssh-port", type=int, default=22, help="SSH Port")
     argparser.add_argument("--dgl-tool-path", type=str,
                            help="The path to dgl/tools")
     argparser.add_argument("--partition-algorithm", type=str, default="random",

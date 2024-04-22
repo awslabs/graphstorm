@@ -18,7 +18,7 @@
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
-from graphstorm.utils import rt_profiler, sys_tracker, setup_device, use_wholegraph
+from graphstorm.utils import rt_profiler, sys_tracker, get_device, use_wholegraph
 from graphstorm.dataloading import (GSgnnEdgeInferData, GSgnnNodeInferData)
 from graphstorm.config import  (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_NODE_REGRESSION,
@@ -36,10 +36,10 @@ def main(config_args):
 
     use_wg_feats = use_wholegraph(config.part_config)
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  local_rank=config.local_rank,
                   use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
-    device = setup_device(config.local_rank)
     tracker = gs.create_builtin_task_tracker(config)
     if gs.get_rank() == 0:
         tracker.log_params(config.__dict__)
@@ -85,7 +85,7 @@ def main(config_args):
 
     # start to infer
     emb_generator = GSgnnEmbGenInferer(model)
-    emb_generator.setup_device(device=device)
+    emb_generator.setup_device(device=get_device())
 
     emb_generator.infer(input_data, config.task_type,
                 save_embed_path=config.save_embed_path,

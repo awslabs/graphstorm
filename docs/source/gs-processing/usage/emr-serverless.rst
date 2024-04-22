@@ -180,6 +180,7 @@ as described in :ref:`gsp-upload-data-ref`.
     GRAPH_NAME="small-graph"
     CONFIG_FILE="gconstruct-config.json"
     NUM_FILES="-1"
+    DO_REPARTITION="true"
     GSP_HOME="enter/path/to/graphstorm/graphstorm-processing/"
 
     LOCAL_ENTRY_POINT=$GSP_HOME/graphstorm_processing/distributed_executor.py
@@ -200,6 +201,7 @@ as described in :ref:`gsp-upload-data-ref`.
         --arg cfg "$CONFIG_FILE" \
         --arg nfiles "$NUM_FILES" \
         --arg gname "$GRAPH_NAME" \
+        --arg repart "$DO_REPARTITION" \
         '{
             sparkSubmit: {
                 entryPoint: $entry,
@@ -208,7 +210,8 @@ as described in :ref:`gsp-upload-data-ref`.
                     "--output-prefix", $out,
                     "--config-file", $cfg,
                     "--num-output-files", $nfiles,
-                    "--graph-name", $gname]
+                    "--graph-name", $gname,
+                    "--do-repartition", $repart]
             }
         }' )
 
@@ -222,7 +225,12 @@ as described in :ref:`gsp-upload-data-ref`.
         --execution-role-arn $ROLE \
         --job-driver "${ARGS_JSON}" # Need to surround ARGS_JSON with quotes here to maintain JSON formatting
 
-Similar to the SageMaker example, we need to run a follow-up job to align the output with the
+Running the re-partition job
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Similar to the SageMaker example, we set the ``do-repartition`` value to ``True``,  to try to re-partition our
+data on the Spark leader. If the data are too large to re-partition on the Spark leader,
+we need to run a follow-up job to align the output with the
 expectations of the DistDGL partitioning pipeline. The easiest is to run the job locally
 on an instance with S3 access (where we installed GSProcessing):
 
@@ -258,7 +266,7 @@ For more details on the re-partitioning step see
 Examine the output
 ------------------
 
-Once both jobs are finished we can examine the output created, which
+Once both the jobs are finished we can examine the output created, which
 should match the output we saw when running the same jobs locally
 in :ref:`gsp-examining-output`.
 

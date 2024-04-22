@@ -43,7 +43,7 @@ from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER
 from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
 from graphstorm.model.utils import save_full_node_embeddings
 from graphstorm.model import do_full_graph_inference
-from graphstorm.utils import rt_profiler, sys_tracker, setup_device
+from graphstorm.utils import rt_profiler, sys_tracker, get_device
 
 def get_evaluator(config, train_data):
     """ Get evaluator according to config
@@ -83,10 +83,10 @@ def main(config_args):
     config = GSConfig(config_args)
     config.verify_arguments(True)
 
-    gs.initialize(ip_config=config.ip_config, backend=config.backend)
+    gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  local_rank=config.local_rank)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
-    device = setup_device(config.local_rank)
     train_data = GSgnnLPTrainData(config.graph_name,
                                   config.part_config,
                                   train_etypes=config.train_etype,
@@ -98,7 +98,7 @@ def main(config_args):
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)
-    trainer.setup_device(device=device)
+    trainer.setup_device(device=get_device())
     if not config.no_validation:
         # TODO(zhengda) we need to refactor the evaluator.
         # Currently, we only support mrr
@@ -129,7 +129,7 @@ def main(config_args):
     else:
         raise ValueError('Unknown negative sampler')
     dataloader = dataloader_cls(train_data, train_data.train_idxs, [],
-                                config.batch_size, config.num_negative_edges, device,
+                                config.batch_size, config.num_negative_edges,
                                 train_task=True,
                                 edge_dst_negative_field=config.train_etypes_negative_dstnode,
                                 num_hard_negs=config.num_train_hard_negatives)
@@ -187,7 +187,7 @@ def main(config_args):
         best_model_path = trainer.get_best_model_path()
         # TODO(zhengda) the model path has to be in a shared filesystem.
         model.restore_model(best_model_path)
-        model = model.to(device)
+        model = model.to(get_device())
         # Preparing input layer for training or inference.
         # The input layer can pre-compute node features in the preparing step if needed.
         # For example pre-compute all BERT embeddings

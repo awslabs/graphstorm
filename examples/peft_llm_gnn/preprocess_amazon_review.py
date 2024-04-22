@@ -44,8 +44,8 @@ def encode_parquet(sub_g, edge_dict, idx2asin, asin_data, field_name):
             pt_lvl3.append(math.nan)
     df = pd.DataFrame({'item': item, 'text': item_text, 'pt_lvl3': np.array(pt_lvl3)})
     table = pa.Table.from_pandas(df)
-    pq.write_table(table, f'data/amazon_review/{field_name}/item.parquet')
     os.makedirs(f'data/amazon_review/{field_name}/', exist_ok=True)
+    pq.write_table(table, f'data/amazon_review/{field_name}/item.parquet')
     for etype in edge_dict:
         u,v = edge_dict[etype]
         edge_mask = u < v
@@ -91,17 +91,17 @@ def construct_one_domain(full_file_path, field_name, asin_dict, asin_data, edge_
         else:
             q_text = text_process(data[idd]['title'])
         asin_data[idd] = q_text
-        
+
         if 'also_buy' in data[idd]:
             for dst_id in data[idd]['also_buy']:
                 if dst_id in asin_dict:
                     edge_dict[('item', 'also_buy', 'item')].append([asin_dict[idd], asin_dict[dst_id]])
-            
+
         if 'also_view' in data[idd]:
             for dst_id in data[idd]['also_view']:
                 if dst_id in asin_dict:
                     edge_dict[('item', 'also_view', 'item')].append([asin_dict[idd], asin_dict[dst_id]])
-        
+
         if 'category' in data[idd] and len(data[idd]['category']) > 0:
             cate = data[idd]['category']
             cate = cate + [''] * (3-len(cate))
@@ -117,7 +117,7 @@ def construct_one_domain(full_file_path, field_name, asin_dict, asin_data, edge_
 
 def construct_graph(directory_path, ood_fields = ['Video_Games, Automotive']):
     random.seed(2023)
-    
+
     cnt = 0
     for dirpath, dirnames, filenames in os.walk(directory_path):
         for filename in filenames:
@@ -138,9 +138,9 @@ def construct_graph(directory_path, ood_fields = ['Video_Games, Automotive']):
                     print(f"number of asins:{len(asin_dict)}, number of edges:{[(k,len(v)) for k,v in edge_dict.items()]}")
                     g = dgl.heterograph(edge_dict, num_nodes_dict={'item': len(asin_dict)} )
                     g.nodes['item'].data['label'] = labels
-                    # 
+
                     sub_g = dgl.edge_subgraph(g, {_etype: g.edges(form='eid', etype=_etype)  for _etype in g.etypes}, relabel_nodes=True, store_ids=True)
-                    #sub_g = g
+
                     idx2asin = {v:k for k,v in asin_dict.items()}
                     encode_parquet(sub_g, {_etype: g.edges(form='uv', etype=_etype)  for _etype in g.etypes}, idx2asin, asin_data, field_name)
 
