@@ -320,14 +320,14 @@ def main(args):
     val_idxs = train_data.get_node_val_set(eval_ntype)
     test_idxs = train_data.get_node_test_set(eval_ntype)
     # Optional: Define the evaluation dataloader
-    eval_dataloader = GSgnnNodeDataLoader(train_data, val_idxs,fanout=config.fanout,
+    eval_dataloader = GSgnnNodeDataLoader(train_data, val_idxs, fanout=config.fanout,
                                           batch_size=config.eval_batch_size,
                                           node_feats=node_feat_fields,
                                           label_field=config.label_field,
                                           train_task=False)
 
     # Optional: Define the evaluation dataloader
-    test_dataloader = GSgnnNodeDataLoader(train_data, test_idxs,fanout=config.fanout,
+    test_dataloader = GSgnnNodeDataLoader(train_data, test_idxs, fanout=config.fanout,
                                           batch_size=config.eval_batch_size,
                                           node_feats=node_feat_fields,
                                           label_field=config.label_field,
@@ -367,7 +367,8 @@ def main(args):
     infer.setup_device(device=get_device())
     infer.setup_evaluator(evaluator)
     infer.setup_task_tracker(tracker)
-    dataloader = GSgnnNodeDataLoader(infer_data, infer_data.test_idxs,
+    infer_idxs = infer_data.get_node_infer_set(eval_ntype)
+    dataloader = GSgnnNodeDataLoader(infer_data,infer_idxs,
                                     fanout=config.fanout, batch_size=100,
                                     node_feats=node_feat_fields,
                                     label_field=config.label_field,
@@ -398,7 +399,7 @@ if __name__ == '__main__':
                            default=argparse.SUPPRESS,
                           help="Print more information. \
                                 For customized models, MUST have this argument!!")
-    argparser.add_argument("--local_rank", type=int,
+    argparser.add_argument("--local-rank", type=int,
                            help="The rank of the trainer. \
                                  For customized models, MUST have this argument!!")
 
