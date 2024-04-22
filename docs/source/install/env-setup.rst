@@ -128,7 +128,7 @@ There are four positional arguments for ``build_docker_oss4local.sh``:
 1. **path-to-graphstorm** (**required**), is the absolute path of the "graphstorm" folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
 2. **docker-name** (optional), is the assigned name of the to be built Docker image. Default is ``graphstorm``.
 3. **docker-tag** (optional), is the assigned tag name of the to be built docker image. Default is ``local-<device>``.
-3. **device** (optional), is the intended device for the docker image. Default is ``gpu``, can also build a ``cpu`` image.
+4. **device** (optional), is the intended device for the docker image. Default is ``gpu``, can also build a ``cpu`` image.
 
 If Docker requires you to run it as a root user and you don't want to preface all docker commands with sudo, you can check the solution available `here <https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user>`_.
 
