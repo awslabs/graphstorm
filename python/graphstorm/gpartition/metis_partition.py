@@ -26,7 +26,7 @@ import pyarrow.csv as pa_csv
 from .partition_algo_base import LocalPartitionAlgorithm
 
 
-class MetisPartitionAlgorithm(LocalPartitionAlgorithm):
+class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
     """
     Multiple-instances metis partitioning algorithm.
 
@@ -42,31 +42,41 @@ class MetisPartitionAlgorithm(LocalPartitionAlgorithm):
         https://docs.dgl.ai/guide/distributed-preprocessing.html#specification
     """
 
-    def _launch_preprocess(self, num_parts, input_data_path, metadata_filename, output_path):
-        return "Not Implmentation error"
+    def __init__(self, metadata_dict, metis_config):
+        super().__init__(metadata_dict)
+        self.metis_config = metis_config
 
-    def _launch_parmetis(
-            self,
-            num_parts,
-            net_ifname,
-            input_data_path,
-            metis_input_path):
+    def _launch_preprocess(self, num_parts, input_path, ip_list, dgl_tool_path, metadata_filename):
+        command = f"mpirun -np 1 --allow-run-as-root --hostfile {ip_list} \
+                    -wdir {input_path} \
+                  python3 {dgl_tool_path}/distpartitioning/parmetis_preprocess.py \
+                    --input_dir {input_path} \
+                    --schema_file {metadata_filename} \
+                    --output_dir {input_path} --num_parts {num_parts}"
+        if run_command(command):
+            logging.info("Successfully execute parmetis preprocess.")
+        else:
+            logging.info("Failed to execute parmetis preprocess.")
+
+    def _launch_parmetis(self, num_parts, input_path, ip_list, graph_name):
         """ Launch parmetis script
 
         Parameters
         ----------
-        num_parts: int
-            Number of graph partitions
-        net_ifname: str
-            Network interface used by MPI
-        input_data_path: str
-            Path to the input graph data
-        metis_input_path: str
-            Path to metis input
         """
-        return "Not Implmentation error"
+        command = f"mpirun -np 2 --allow-run-as-root \
+                    --hostfile {ip_list} \
+                    --mca orte_base_help_aggregate 0 -mca btl_tcp_if_include eth0 \
+                    -wdir {input_path} \
+                ~/local/bin/pm_dglpart {graph_name} {num_parts} {input_path}/parmetis_nfiles.txt \
+                  {input_path}/parmetis_efiles.txt"
 
-    def _launch_postprocess(self, meta_data_config, parmetis_output_file, partitions_dir):
+        if run_command(command):
+            logging.info("Successfully execute parmetis preprocess.")
+        else:
+            logging.info("Failed to execute parmetis preprocess.")
+
+    def _launch_postprocess(self, num_parts, input_data_path, dgl_tool_path, metadata_filename, graph_name, partition_dir):
         """ Launch postprocess which translates nid-partid mapping into
             Per-node-type partid mappings.
 
@@ -79,9 +89,18 @@ class MetisPartitionAlgorithm(LocalPartitionAlgorithm):
         partitions_dir: str
             Output path
         """
-        return "Not Implmentation error"
+        command = f"python3 {dgl_tool_path}/distpartitioning/parmetis_postprocess.py \
+                        --postproc_input_dir {input_data_path} \
+                        --schema_file {metadata_filename} \
+                        --parmetis_output_file {input_data_path}/{graph_name}_part.{num_parts} \
+                        --partitions_dir {partition_dir}"
 
-    def run_command(command):
+        if run_command(command):
+            logging.info("Successfully execute post parmetis preprocess.")
+        else:
+            logging.info("Failed to execute post parmetis preprocess.")
+
+    def run_command(self, command):
         """Function to execute a command and check for its success."""
         print(f"Executing command: {command}")
         try:
@@ -96,18 +115,23 @@ class MetisPartitionAlgorithm(LocalPartitionAlgorithm):
 
     def _assign_partitions(self, num_partitions: int, partition_dir: str):
         # Execute each command function in sequence and stop if any fails
-        if not self._launch_preprocess():
+        if not self._launch_preprocess(num_partitions, self.metis_config.input_path,
+                                       self.metis_config.ip_list, self.metis_config.dgl_tool_path,
+                                       self.metis_config.metadata_filename):
             raise RuntimeError("Stopping execution due to failure in preprocess")
-        elif not self._launch_parmetis():
+        elif not self._launch_parmetis(num_partitions, self.metis_config.input_path,
+                                       self.metis_config.ip_list, self.metadata_dict["graph_name"]):
             raise RuntimeError("Stopping execution due to failure in parmetis partition process")
-        elif not self._launch_postprocess():
+        elif not self._launch_postprocess(num_partitions, self.metis_config.input_path, self.metis_config.dgl_tool_path,
+                                          self.metis_config.metadata_filename, self.metadata_dict["graph_name"],
+                                          partition_dir):
             raise RuntimeError("Stopping execution due to failure in postprocess process")
 
         logging.info("Finish all parmetis steps.")
 
     def _create_metadata(self, num_partitions: int, partition_dir: str):
         partition_meta = {
-            "algo_name": "parmetis",
+            "algo_name": "metis",
             "num_parts": num_partitions,
             "version": "1.0.0"
         }

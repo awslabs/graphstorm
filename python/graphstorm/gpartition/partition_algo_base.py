@@ -29,6 +29,8 @@ class LocalPartitionAlgorithm(ABC):
         Dictionary containing the metadata for the graph, in DGL chunked graph
         format. See https://docs.dgl.ai/guide/distributed-preprocessing.html#specification
         for details
+    input_path: str
+        Input path for directory, Default: None
     """
     def __init__(self, metadata_dict: Dict):
         self.metadata_dict = metadata_dict

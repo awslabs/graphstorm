@@ -32,6 +32,7 @@ from threading import Thread
 from graphstorm.gpartition import RandomPartitionAlgorithm
 from graphstorm.gpartition import ParMetisPartitionAlgorithm
 from graphstorm.utils import get_log_level
+from graphstorm.gpartition import ParMETISConfig
 
 
 def run_build_dglgraph(
@@ -119,7 +120,9 @@ def main():
     if args.partition_algorithm == "random":
         partitioner = RandomPartitionAlgorithm(metadata_dict)
     elif args.partition_algorithm == "parmetis":
-        partitioner = ParMetisPartitionAlgorithm(metadata_dict)
+        partition_config = ParMETISConfig(args.ip_list, args.input_path,
+                                          args.dgl_tool_path, args.metadata_filename)
+        partitioner = ParMetisPartitionAlgorithm(metadata_dict, partition_config)
     else:
         raise RuntimeError(f"Unknown partition algorithm {args.part_algorithm}")
 
