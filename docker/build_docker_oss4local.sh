@@ -3,8 +3,8 @@ set -eox pipefail
 
 # process argument 1: graphstorm home folder
 if [ -z "$1" ]; then
-    echo "Please provide the graphstorm home folder that the graphstorm codes are cloned to."
-    echo "For example, ./build_docker_oss4local.sh /graph-storm/"
+    echo "Please provide a path to the root directory of the GraphStorm repository."
+    echo "For example, ./build_docker_oss4local.sh ../ graphstorm local gpu"
     exit 1
 else
     GSF_HOME="$1"

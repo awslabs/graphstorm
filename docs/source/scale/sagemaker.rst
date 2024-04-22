@@ -43,20 +43,22 @@ Then, clone GraphStorm source code, and build a GraphStorm SageMaker compatible 
 
     cd /path-to-graphstorm/docker/
 
-    bash /path-to-graphstorm/docker/build_docker_sagemaker.sh /path-to-graphstorm/ <DOCKER_TYPE> <DOCKER_NAME> <DOCKER_TAG>
+    bash /path-to-graphstorm/docker/build_docker_sagemaker.sh /path-to-graphstorm/ <DEVICE_TYPE> <IMAGE_NAME> <IMAGE_TAG>
 
 The ``build_docker_sagemaker.sh`` script takes four arguments:
 
 1. **path-to-graphstorm** (**required**), is the absolute path of the ``graphstorm`` folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
-2. **DOCKER_TYPE** (optional), is the docker type of the to-be built Docker image. There are two options: ``cpu`` for building CPU-compatible images, and ``gpu`` for building Nvidia GPU-compatible images. Default is ``gpu``.
-3. **DOCKER_NAME** (optional), is the assigned name of the to-be built Docker image. Default is ``graphstorm``.
+2. **DEVICE_TYPE** (optional), is the intended device type of the to-be built Docker image. There are two options: ``cpu`` for building CPU-compatible images, and ``gpu`` for building Nvidia GPU-compatible images. Default is ``gpu``.
+3. **IMAGE_NAME** (optional), is the assigned name of the to-be built Docker image. Default is ``graphstorm``.
 
 .. warning::
-    In order to upload the GraphStorm SageMaker Docker image to Amazon ECR, users need to define the <DOCKER_NAME> to include the ECR URI string, **<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/**, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm``.
+    In order to upload the GraphStorm SageMaker Docker image to Amazon ECR, users need to define the <IMAGE_NAME> to include the ECR URI string, **<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/**, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm``.
 
-4. **DOCKER_TAG** (optional), is the assigned tag name of the to-be built Docker image. Default is ``sm-<cpu/gpu>``.
+4. **IMAGE_TAG** (optional), is the assigned tag name of the to-be built Docker image. Default is ``sm-<DEVICE_TYPE>``,
+   that is, ``sm-gpu`` for GPU images, ``sm-cpu`` for CPU images.
 
-Once the ``build_docker_sagemaker.sh`` command completes successfully, there will be a Docker image, named ``<DOCKER_NAME>:<DOCKER_TAG>``, such as ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm-gpu``, in the local repository, which could be listed by running:
+Once the ``build_docker_sagemaker.sh`` command completes successfully, there will be a Docker image, named ``<IMAGE_NAME>:<IMAGE_TAG>``,
+such as ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm-gpu``, in the local repository, which could be listed by running:
 
 .. code-block:: bash
 
@@ -76,15 +78,15 @@ The following command will authenticate the user account to access to user's ECR
 
 Please replace the `<REGION>` and `<AWS_ACCOUNT_ID>` with your own account information and be consistent with the values used in the **Step 1**.
 
-In addition, users need to create an ECR repository at the specified `<REGION>` with the name as `<DOCKER_NAME>` **WITHOUT** the ECR URI string, e.g., ``graphstorm``.
+In addition, users need to create an ECR repository at the specified `<REGION>` with the name as `<IMAGE_NAME>` **WITHOUT** the ECR URI string, e.g., ``graphstorm``.
 
 And then use the below command to push the built GraphStorm Docker image to users' own ECR repository.
 
 .. code-block:: bash
 
-    docker push <DOCKER_NAME>:<DOCKER_TAG>
+    docker push <IMAGE_NAME>:<IMAGE_TAG>
 
-Please replace the `<DOCKER_NAME>` and `<DOCKER_TAG>` with the actual Docker image name and tag, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm-gpu``.
+Please replace the `<IMAGE_NAME>` and `<IMAGE_TAG>` with the actual Docker image name and tag, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm-gpu``.
 
 Run GraphStorm on SageMaker
 ----------------------------
@@ -154,7 +156,7 @@ Users can use the following commands to launch a GraphStorm Link Prediction trai
             --backend gloo \
             --batch-size 128
 
-Please replace `<AMAZON_ECR_IMAGE_URI>` with the `<DOCKER_NAME>:<DOCKER_TAG>` that are uploaded in the Step 2, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm``, replace the `<REGION>` with the region where ECR image repository is located, e.g., ``us-east-1``, and replace the `<ROLE_ARN>` with your AWS account ARN that has SageMaker execution role, e.g., ``"arn:aws:iam::<ACCOUNT_ID>:role/service-role/AmazonSageMaker-ExecutionRole-20220627T143571"``.
+Please replace `<AMAZON_ECR_IMAGE_URI>` with the `<IMAGE_NAME>:<IMAGE_TAG>` that are uploaded in the Step 2, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm``, replace the `<REGION>` with the region where ECR image repository is located, e.g., ``us-east-1``, and replace the `<ROLE_ARN>` with your AWS account ARN that has SageMaker execution role, e.g., ``"arn:aws:iam::<ACCOUNT_ID>:role/service-role/AmazonSageMaker-ExecutionRole-20220627T143571"``.
 
 Because we are using a three-partition OGB-MAG graph, we need to set the ``--instance-count`` to 3 in this command.
 
