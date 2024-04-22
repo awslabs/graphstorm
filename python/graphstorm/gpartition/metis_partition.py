@@ -53,10 +53,14 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
                     --input_dir {input_path} \
                     --schema_file {metadata_filename} \
                     --output_dir {input_path} --num_parts {num_parts}"
+
         if self.run_command(command):
             logging.info("Successfully execute parmetis preprocess.")
+            return True
         else:
             logging.info("Failed to execute parmetis preprocess.")
+            return False
+
 
     def _launch_parmetis(self, num_parts, input_path, ip_list, graph_name):
         """ Launch parmetis script
@@ -73,8 +77,10 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
 
         if self.run_command(command):
             logging.info("Successfully execute parmetis preprocess.")
+            return True
         else:
             logging.info("Failed to execute parmetis preprocess.")
+            return False
 
     def _launch_postprocess(self, num_parts, input_data_path, dgl_tool_path, metadata_filename, graph_name, partition_dir):
         """ Launch postprocess which translates nid-partid mapping into
@@ -97,32 +103,36 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
 
         if self.run_command(command):
             logging.info("Successfully execute post parmetis preprocess.")
+            return True
         else:
             logging.info("Failed to execute post parmetis preprocess.")
+            return False
 
     def run_command(self, command):
         """Function to execute a command and check for its success."""
-        print(f"Executing command: {command}")
+        logging.info(f"Executing command: {command}")
         try:
             # Execute the command and check if it completes successfully
             result = subprocess.run(command, shell=True, check=True, text=True, stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE)
-            print(f"Command output: {result.stdout}")
+            logging.info(f"Command output: {result.stdout}")
             return True  # Return True if the command was successful
         except subprocess.CalledProcessError as e:
-            print(f"Error executing command: {e.stderr}")
+            logging.info(f"Error executing command: {e.stderr}")
             return False  # Return False if the command failed
 
     def _assign_partitions(self, num_partitions: int, partition_dir: str):
+        # TODO: adjust ip_list file input format inside
+        
         # Execute each command function in sequence and stop if any fails
         if not self._launch_preprocess(num_partitions, self.metis_config.input_path,
                                        self.metis_config.ip_list, self.metis_config.dgl_tool_path,
                                        self.metis_config.metadata_filename):
             raise RuntimeError("Stopping execution due to failure in preprocess")
-        elif not self._launch_parmetis(num_partitions, self.metis_config.input_path,
+        if not self._launch_parmetis(num_partitions, self.metis_config.input_path,
                                        self.metis_config.ip_list, self.metadata_dict["graph_name"]):
             raise RuntimeError("Stopping execution due to failure in parmetis partition process")
-        elif not self._launch_postprocess(num_partitions, self.metis_config.input_path, self.metis_config.dgl_tool_path,
+        if not self._launch_postprocess(num_partitions, self.metis_config.input_path, self.metis_config.dgl_tool_path,
                                           self.metis_config.metadata_filename, self.metadata_dict["graph_name"],
                                           partition_dir):
             raise RuntimeError("Stopping execution due to failure in postprocess process")
