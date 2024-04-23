@@ -44,8 +44,8 @@ def encode_parquet(sub_g, edge_dict, idx2asin, asin_data, field_name):
             pt_lvl3.append(math.nan)
     df = pd.DataFrame({'item': item, 'text': item_text, 'pt_lvl3': np.array(pt_lvl3)})
     table = pa.Table.from_pandas(df)
-    pq.write_table(table, f'data/amazon_review/{field_name}/item.parquet')
     os.makedirs(f'data/amazon_review/{field_name}/', exist_ok=True)
+    pq.write_table(table, f'data/amazon_review/{field_name}/item.parquet')
     for etype in edge_dict:
         u,v = edge_dict[etype]
         edge_mask = u < v
