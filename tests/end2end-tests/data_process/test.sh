@@ -83,6 +83,7 @@ error_and_exit $?
 
 python3 $GS_HOME/tests/end2end-tests/data_process/test_custom_mask_data.py --graph-format DistDGL --graph_dir /tmp/test_partition3 --conf_file /tmp/test_data/test_data_transform_custom_mask_new.conf
 
+error_and_exit $?
 
 # Test remap edge prediction results
 python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/ep_remap/id_mapping/ --logging-level debug --pred-etypes "n0,access,n1" "n1,access,n0" --preserve-input True --prediction-dir /tmp/ep_remap/pred/ --rank 1 --world-size 2

@@ -82,8 +82,8 @@ src_ids = np.array([reverse_node1_map[src_id] for src_id in src_ids.numpy()])
 dst_ids = dst_ids.numpy()
 assert np.all((src_ids + dst_ids) % 100 == label)
 assert 'train_mask' not in g.edges[('node1', 'relation1', 'node2')].data
-assert 'val_mask' not in g.nodesedges[('node1', 'relation1', 'node2')].data
-assert 'test_mask' not in g.nodesedges[('node1', 'relation1', 'node2')].data
+assert 'val_mask' not in g.edges[('node1', 'relation1', 'node2')].data
+assert 'test_mask' not in g.edges[('node1', 'relation1', 'node2')].data
 assert th.sum(g.edges[('node1', 'relation1', 'node2')].data['train_m']) \
         == int(g.number_of_edges(('node1', 'relation1', 'node2')) * 0.8)
 assert th.sum(g.edges[('node1', 'relation1', 'node2')].data['val_m']) \
