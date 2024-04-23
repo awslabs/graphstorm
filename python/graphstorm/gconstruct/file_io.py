@@ -30,6 +30,101 @@ import pandas as pd
 
 from .utils import HDF5Handle, HDF5Array
 
+
+def read_index(split_info):
+    """ Read the index from a JSON/parquet file.
+
+    Parameters
+    ----------
+    split_info : dict
+        Customized split information
+
+    Returns
+    -------
+    tuple of numpy.ndarray
+        Returns a tuple containing three numpy arrays:
+        - First element: Data from the training split, if not available, [].
+        - Second element: Data from the validation split, if not available, [].
+        - Third element: Data from the test split, if not available, [].
+        If the file extension is not '.json' or '.parquet', a ValueError is raised.
+    """
+    res = []
+    for idx in ['train', 'valid', 'test']:
+        if idx not in split_info:
+            res.append([])
+            continue
+        if isinstance(split_info[idx], str):
+            _, extension = os.path.splitext(split_info[idx])
+        else:
+            extensions = [os.path.splitext(path)[1] for path in split_info[idx]]
+            assert len(set(extensions)) == 1, f"each file should be in the same format, " \
+                                   f"but get {extensions}"
+            extension = extensions[0]
+
+        # Normalize the extension to ensure case insensitivity
+        extension = extension.lower()
+
+        # json files should be ended with .json and parquet files should be ended with parquet
+        if extension == '.json':
+            res.append(read_index_json(split_info[idx]))
+        elif extension == '.parquet':
+            # We should make sure there are multiple parquet files instead of one
+            res.append(read_index_parquet(split_info[idx], split_info['column']))
+        else:
+            raise ValueError(f"Expect mask data format be one of parquet "
+                             f"and json, but get {extension}")
+    return res[0], res[1], res[2]
+
+
+def expand_wildcard(data_files):
+    """
+    Expand the wildcard to the actual file lists.
+
+    Parameters
+    ----------
+    data_files : list[str]
+        The parquet files that contain the index.
+
+    """
+    expanded_files = []
+    for item in data_files:
+        if '*' in item:
+            matched_files = glob.glob(item)
+            assert len(matched_files) > 0, \
+                f"There is no file matching {item} pattern"
+            expanded_files.extend(matched_files)
+        else:
+            expanded_files.append(item)
+    return expanded_files
+
+def read_index_parquet(data_file, column):
+    """
+    Read the index from a parquet file.
+
+    Parameters
+    ----------
+    data_file : str or list[str]
+        The parquet file that contains the index.
+    column: list[str]
+        Column names on parquet which contain the index
+
+    """
+    if isinstance(data_file, str):
+        data_file = [data_file]
+    data_file = expand_wildcard(data_file)
+    df_list = [pd.read_parquet(file) for file in data_file]
+    df = pd.concat(df_list, ignore_index=True)
+
+    if len(column) == 1:
+        res_array = df[column[0]].to_numpy()
+    elif len(df.columns) == 2:
+        res_array = list(zip(df[column[0]].to_numpy(), df[column[1]].to_numpy()))
+    else:
+        raise ValueError("The Parquet file on node mask must contain exactly one column, "
+                         "and on edge mask must contain exactly two columns.")
+
+    return res_array
+
 def read_index_json(data_file):
     """ Read the index from a JSON file.
 
@@ -47,8 +142,14 @@ def read_index_json(data_file):
     with open(data_file, 'r', encoding="utf8") as json_file:
         indices = []
         for line in json_file.readlines():
-            indices.append(json.loads(line))
-    return np.array(indices)
+            parsed_line = json.loads(line)
+            if isinstance(parsed_line, list):
+                processed_item = tuple(parsed_line)
+            else:
+                processed_item = parsed_line
+
+            indices.append(processed_item)
+    return indices
 
 def write_index_json(data, data_file):
     """ Write the index to a json file.
@@ -60,9 +161,11 @@ def write_index_json(data, data_file):
     data_file : str
         The data file where the indices are written to.
     """
+    if isinstance(data, np.ndarray):
+        data = data.tolist()
     with open(data_file, 'w', encoding="utf8") as json_file:
         for index in data:
-            json_file.write(json.dumps(int(index)) + "\n")
+            json_file.write(json.dumps(index) + "\n")
 
 def read_data_csv(data_file, data_fields=None, delimiter=','):
     """ Read data from a CSV file.

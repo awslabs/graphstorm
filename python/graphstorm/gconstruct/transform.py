@@ -31,7 +31,7 @@ from scipy.special import erfinv # pylint: disable=no-name-in-module
 from transformers import AutoTokenizer
 from transformers import AutoModel, AutoConfig
 
-from .file_io import read_index_json
+from .file_io import read_index
 from .utils import ExtMemArrayWrapper, ExtFeatureWrapper, generate_hash
 
 LABEL_STATS_FIELD = "training_label_stats"
@@ -1368,7 +1368,7 @@ class CustomLabelProcessor:
         The column name for labels.
     label_name : str
         The label name.
-    id_col : str
+    id_col : str or tuple
         The name of the ID column.
     task_type : str
         The task type.
@@ -1387,9 +1387,9 @@ class CustomLabelProcessor:
         self._id_col = id_col
         self._col_name = col_name
         self._label_name = label_name
-        self._train_idx = set(train_idx.tolist()) if train_idx is not None else None
-        self._val_idx = set(val_idx.tolist()) if val_idx is not None else None
-        self._test_idx = set(test_idx.tolist()) if test_idx is not None else None
+        self._train_idx = set(train_idx) if train_idx is not None else None
+        self._val_idx = set(val_idx) if val_idx is not None else None
+        self._test_idx = set(test_idx) if test_idx is not None else None
         self._task_type = task_type
         self._stats_type = stats_type
 
@@ -1451,9 +1451,19 @@ class CustomLabelProcessor:
         dict of Tensors : it contains the labels as well as training/val/test splits.
         """
         label = data[self.col_name] if self.col_name in data else None
-        assert self._id_col in data, \
-                f"The input data does not have ID column {self._id_col}."
-        res = self.data_split(data[self._id_col])
+        if isinstance(self._id_col, str):
+            # For node label, the id_col is expected to be one single column
+            assert self._id_col in data, \
+                    f"The input data does not have ID column {self._id_col}."
+        else:
+            # For edge label, the id_col is expected a be a pair of (src_id_col, dest_id_col)
+            assert self._id_col[0] and self._id_col[1] in data,\
+                f"The input data does not have ID column {self._id_col[0]} and {self._id_col[1]}"
+
+        if isinstance(self._id_col, str):
+            res = self.data_split(data[self._id_col])
+        else:
+            res = self.data_split(list(zip(data[self._id_col[0]], data[self._id_col[1]])))
         if label is not None and self._task_type == "classification":
             res[self.label_name] = np.int32(label)
             if self._stats_type is not None:
@@ -1664,14 +1674,26 @@ def parse_label_ops(confs, is_node):
         custom_split = label_conf['custom_split_filenames']
         assert isinstance(custom_split, dict), \
                 "Custom data split needs to provide train/val/test index."
-        train_idx = read_index_json(custom_split['train']) if 'train' in custom_split else None
-        val_idx = read_index_json(custom_split['valid']) if 'valid' in custom_split else None
-        test_idx = read_index_json(custom_split['test']) if 'test' in custom_split else None
+        if "column" not in custom_split:
+            custom_split["column"] = []
+        # Treat all input as an input of list[str]
+        if isinstance(custom_split['column'], str):
+            custom_split["column"] = [custom_split["column"]]
+        train_idx, val_idx, test_idx = read_index(custom_split)
         label_col = label_conf['label_col'] if 'label_col' in label_conf else None
-        assert "node_id_col" in confs, "Custom data split only works for nodes."
-        return [CustomLabelProcessor(label_col, label_col, confs["node_id_col"],
-                                     task_type, train_idx, val_idx, test_idx,
-                                     label_stats_type)]
+        if "node_id_col" in confs:
+            return [CustomLabelProcessor(col_name=label_col, label_name=label_col,
+                                         id_col=confs["node_id_col"],
+                                         task_type=task_type, train_idx=train_idx, val_idx=val_idx,
+                                         test_idx=test_idx, stats_type=label_stats_type)]
+        elif "source_id_col" in confs and "dest_id_col" in confs:
+            return [CustomLabelProcessor(col_name=label_col, label_name=label_col,
+                                         id_col=(confs["source_id_col"], confs["dest_id_col"]),
+                                         task_type=task_type, train_idx=train_idx, val_idx=val_idx,
+                                         test_idx=test_idx, stats_type=label_stats_type)]
+        else:
+            raise AttributeError("Custom data segmentation should be "
+                                 "applied to either node or edge tasks.")
 
     if 'split_pct' in label_conf:
         split_pct = label_conf['split_pct']

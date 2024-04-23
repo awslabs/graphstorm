@@ -27,7 +27,7 @@ from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.model.utils import save_full_node_embeddings
 from graphstorm.model import do_full_graph_inference
-from graphstorm.utils import rt_profiler, sys_tracker, setup_device, use_wholegraph
+from graphstorm.utils import rt_profiler, sys_tracker, get_device, use_wholegraph
 from graphstorm.utils import get_lm_ntypes
 
 def get_evaluator(config):
@@ -59,10 +59,10 @@ def main(config_args):
 
     use_wg_feats = use_wholegraph(config.part_config)
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  local_rank=config.local_rank,
                   use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
-    device = setup_device(config.local_rank)
     # edge predict only handle edge feature in decoder
     train_data = GSgnnEdgeTrainData(config.graph_name,
                                     config.part_config,
@@ -76,7 +76,7 @@ def main(config_args):
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)
-    trainer.setup_device(device=device)
+    trainer.setup_device(device=get_device())
     if not config.no_validation:
         # TODO(zhengda) we need to refactor the evaluator.
         evaluator = get_evaluator(config)
@@ -89,7 +89,8 @@ def main(config_args):
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
     dataloader = GSgnnEdgeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
-                                     batch_size=config.batch_size, device=device, train_task=True,
+                                     batch_size=config.batch_size,
+                                     train_task=True,
                                      reverse_edge_types_map=config.reverse_edge_types_map,
                                      remove_target_edge_type=config.remove_target_edge_type,
                                      exclude_training_targets=config.exclude_training_targets,
@@ -102,7 +103,7 @@ def main(config_args):
     if len(train_data.val_idxs) > 0:
         val_dataloader = GSgnnEdgeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
-            device=device, train_task=False,
+            train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
             remove_target_edge_type=config.remove_target_edge_type,
             construct_feat_ntype=config.construct_feat_ntype,
@@ -110,7 +111,7 @@ def main(config_args):
     if len(train_data.test_idxs) > 0:
         test_dataloader = GSgnnEdgeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
-            device=device, train_task=False,
+            train_task=False,
             reverse_edge_types_map=config.reverse_edge_types_map,
             remove_target_edge_type=config.remove_target_edge_type,
             construct_feat_ntype=config.construct_feat_ntype,
@@ -142,7 +143,7 @@ def main(config_args):
         best_model_path = trainer.get_best_model_path()
         # TODO(zhengda) the model path has to be in a shared filesystem.
         model.restore_model(best_model_path)
-        model = model.to(device)
+        model = model.to(get_device())
         # Preparing input layer for training or inference.
         # The input layer can pre-compute node features in the preparing step if needed.
         # For example pre-compute all BERT embeddings

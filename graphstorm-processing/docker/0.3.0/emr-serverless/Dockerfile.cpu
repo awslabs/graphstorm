@@ -1,0 +1,55 @@
+ARG ARCH=x86_64
+FROM public.ecr.aws/emr-serverless/spark/emr-7.0.0:20240206-${ARCH} as base
+
+USER root
+ENV PYTHON_VERSION=3.9.18
+
+# Python won’t try to write .pyc or .pyo files on the import of source modules
+# Force stdin, stdout and stderr to be totally unbuffered. Good for logging
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONIOENCODING=UTF-8
+
+
+FROM base AS arch-x86_64
+
+FROM base AS arch-arm64
+RUN yum install -y python3-devel && \
+        rm -rf /var/cache/yum
+
+FROM arch-${ARCH} AS runtime
+
+
+WORKDIR /usr/lib/spark/code/
+
+# Install GSProcessing requirements to pyenv Python
+COPY requirements.txt requirements.txt
+# Use --mount=type=cache,target=/root/.cache when Buildkit CI issue is fixed:
+# https://github.com/moby/buildkit/issues/1512
+RUN pip install -r /usr/lib/spark/code/requirements.txt \
+    && rm -rf /root/.cache
+
+# Install Huggingface model cache if it is necessary
+ARG MODEL=""
+ENV HF_HOME=/home/hadoop/.cache/huggingface/hub
+RUN if [ -z "${MODEL}" ]; then \
+        echo "Skip installing model cache"; \
+else \
+        echo "Installing model cache for $MODEL" && \
+        python3 -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('${MODEL}')"; \
+        python3 -c "from transformers import AutoModel; AutoModel.from_pretrained('${MODEL}')"; \
+fi
+
+
+# GSProcessing codebase
+COPY code/ /usr/lib/spark/code/
+
+FROM runtime AS prod
+RUN python -m pip install --no-deps /usr/lib/spark/code/graphstorm_processing-*.whl && \
+    rm /usr/lib/spark/code/graphstorm_processing-*.whl && rm -rf /root/.cache
+
+FROM runtime AS test
+RUN python -m pip install --no-deps /usr/lib/spark/code/graphstorm-processing/ && rm -rf /root/.cache
+
+USER hadoop:hadoop
+WORKDIR /home/hadoop
