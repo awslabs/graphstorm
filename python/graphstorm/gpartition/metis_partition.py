@@ -123,7 +123,7 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
 
     def _assign_partitions(self, num_partitions: int, partition_dir: str):
         # TODO: adjust ip_list file input format inside
-        
+
         # Execute each command function in sequence and stop if any fails
         if not self._launch_preprocess(num_partitions, self.metis_config.input_path,
                                        self.metis_config.ip_list, self.metis_config.dgl_tool_path,
