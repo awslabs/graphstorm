@@ -1075,10 +1075,10 @@ def load_gsgnn_embeddings(emb_path):
     for ntype in emb_info["emb_name"]:
         path = os.path.join(emb_path, ntype)
         ntype_emb_files = os.listdir(path)
-        nid_files = [fname for fname in ntype_emb_files \
-                if fname.startswith("embed_nids-") and fname.endswith("pt")]
-        emb_files = [fname for fname in ntype_emb_files \
-                     if fname.startswith("embed-") and fname.endswith("pt")]
+        nid_files = sorted([fname for fname in ntype_emb_files \
+                if fname.startswith("embed_nids-") and fname.endswith("pt")])
+        emb_files = sorted([fname for fname in ntype_emb_files \
+                     if fname.startswith("embed-") and fname.endswith("pt")])
         num_parts = len(emb_files)
         embeddings_list = []
         nid_list = []
