@@ -1,0 +1,55 @@
+# syntax=docker/dockerfile:experimental
+FROM 153931337802.dkr.ecr.us-west-2.amazonaws.com/sagemaker-spark-processing:3.5-cpu-py39-v1.0 AS base
+
+# Python won’t try to write .pyc or .pyo files on the import of source modules
+# Force stdin, stdout and stderr to be totally unbuffered. Good for logging
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONIOENCODING=UTF-8
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/usr/local/lib"
+ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:/opt/conda/lib"
+ENV PATH=/opt/conda/bin:$PATH
+ENV PIP_NO_CACHE_DIR=1
+
+WORKDIR /usr/lib/spark/code/
+
+# Install GSProcessing dependencies to system Python 3.9
+COPY requirements.txt requirements.txt
+RUN /usr/local/bin/python3.9 -m pip install --no-cache-dir -r /usr/lib/spark/code/requirements.txt \
+    && rm -rf /root/.cache
+
+# Graphloader codebase
+COPY code/ /usr/lib/spark/code/
+
+# Base container assumes this is the workdir
+ENV SPARK_HOME /usr/lib/spark
+WORKDIR $SPARK_HOME
+
+# Ensure our python3 installation is the one used
+RUN echo 'alias python3=python3.9' >> ~/.bashrc
+
+# Install Huggingface model cache if it is necessary
+ARG MODEL=""
+ENV HF_HOME=/root/.cache/huggingface/hub
+RUN if [ -z "${MODEL}" ]; then \
+        echo "Skip installing model cache"; \
+else \
+        echo "Installing model cache for $MODEL" && \
+        python3 -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('${MODEL}')"; \
+        python3 -c "from transformers import AutoModel; AutoModel.from_pretrained('${MODEL}')"; \
+fi
+
+# Starts framework
+ENTRYPOINT ["bash", "/usr/lib/spark/code/docker-entry.sh"]
+
+FROM base AS prod
+RUN python3 -m pip install --no-deps /usr/lib/spark/code/graphstorm_processing-*.whl && \
+    rm /usr/lib/spark/code/graphstorm_processing-*.whl && rm -rf /root/.cache
+CMD ["gs-processing"]
+
+FROM base AS test
+RUN python3 -m pip install --no-deps /usr/lib/spark/code/graphstorm-processing/ mock pytest && \
+    rm -rf /root/.cache
+CMD ["sh", "-c", "pytest /usr/lib/spark/code/graphstorm-processing/tests/"]

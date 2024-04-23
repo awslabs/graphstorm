@@ -5,7 +5,7 @@ from graphstorm.config import GSConfig
 from graphstorm.dataloading import GSgnnNodeDataLoader
 from graphstorm.eval import GSgnnAccEvaluator
 from graphstorm.dataloading import GSgnnNodeTrainData
-from graphstorm.utils import setup_device
+from graphstorm.utils import get_device
 from graphstorm.inference import GSgnnNodePredictionInferrer
 from graphstorm.trainer import GSgnnNodePredictionTrainer
 from graphstorm.tracker import GSSageMakerTaskTracker
@@ -15,8 +15,8 @@ def main(config_args):
     """ main function
     """
     config = GSConfig(config_args)
-    gs.initialize(ip_config=config.ip_config, backend=config.backend)
-    device = setup_device(config.local_rank)
+    gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  local_rank=config.local_rank)
     # Define the training dataset
     train_data = GSgnnNodeTrainData(
         config.graph_name,
@@ -49,7 +49,7 @@ def main(config_args):
             model_layer_to_load=["gnn", "embed"],
         )
 
-    trainer.setup_device(device=device)
+    trainer.setup_device(device=get_device())
 
     # set evaluator
     evaluator = GSgnnAccEvaluator(
@@ -71,7 +71,6 @@ def main(config_args):
         train_data.train_idxs,
         fanout=config.fanout,
         batch_size=config.batch_size,
-        device=device,
         train_task=True,
     )
 
@@ -81,7 +80,6 @@ def main(config_args):
         train_data.val_idxs,
         fanout=config.fanout,
         batch_size=config.eval_batch_size,
-        device=device,
         train_task=False,
     )
 
@@ -97,14 +95,14 @@ def main(config_args):
         save_model_frequency=config.save_model_frequency,
         use_mini_batch_infer=True
     )
-    
+
     # Load the best checkpoint
     best_model_path = trainer.get_best_model_path()
     model.restore_model(best_model_path)
 
     # Create an inference for a node task.
     infer = GSgnnNodePredictionInferrer(model)
-    infer.setup_device(device=device)
+    infer.setup_device(device=get_device())
     infer.setup_evaluator(evaluator)
     infer.setup_task_tracker(tracker)
     # Create test loader
@@ -113,7 +111,6 @@ def main(config_args):
         train_data.test_idxs,
         fanout=config.fanout,
         batch_size=config.eval_batch_size,
-        device=device,
         train_task=False,
     )
     # Run inference on the inference dataset and save the GNN embeddings in the specified path.
