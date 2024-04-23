@@ -23,7 +23,10 @@ import numpy as np
 import torch as th
 import argparse
 
-from test_data import read_data_parquet
+def read_data_parquet(data_file):
+    table = pq.read_table(data_file)
+    pd = table.to_pandas()
+    return {key: np.array(pd[key]) for key in pd}
 
 argparser = argparse.ArgumentParser("Preprocess graphs")
 argparser.add_argument("--graph-format", type=str, required=True,

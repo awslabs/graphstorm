@@ -557,4 +557,9 @@ edge_conf = [
     }
 ]
 
+transform_conf = {
+    "nodes": node_conf,
+    "edges": edge_conf,
+}
+
 json.dump(transform_conf, open(os.path.join(in_dir, 'test_data_transform_custom_mask.conf'), 'w'), indent=4)
