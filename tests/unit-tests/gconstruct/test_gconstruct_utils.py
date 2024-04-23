@@ -38,6 +38,7 @@ from graphstorm.gconstruct.file_io import (write_data_hdf5,
                                            read_data_hdf5,
                                            get_in_files,
                                            write_data_parquet)
+from graphstorm.gconstruct.file_io import read_index, write_index_json
 from graphstorm.gconstruct.file_io import (read_data_csv,
                                            read_data_json,
                                            read_data_parquet)
@@ -450,6 +451,55 @@ def test_shuffle_hard_nids():
                             p1_etype1_neg0_shuffled)
 
 
+def test_read_index():
+    write_index_json([(3, 3)], "/tmp/test_idx.json")
+    split_info = {"valid": "/tmp/test_idx.json"}
+    _, json_content, _ = read_index(split_info)
+    assert json_content == [(3, 3)]
+
+    write_index_json(np.arange(3), "/tmp/test_idx.json")
+    split_info = {"train": "/tmp/test_idx.json"}
+    json_content, _, _ = read_index(split_info)
+    assert json_content == [0, 1, 2]
+
+    data = ["p70", "p71", "p72", "p73", "p74", "p75"]
+    df = pd.DataFrame(data, columns=['ID'])
+    df.to_parquet('/tmp/test_idx.parquet')
+    split_info = {"train": "/tmp/test_idx.parquet", "column": ["ID"]}
+    parquet_content, _, _ = read_index(split_info)
+    assert np.array_equal(parquet_content, data)
+
+    data_multi = ["p702", "p712", "p722", "p732", "p742", "p752"]
+    df = pd.DataFrame(data_multi, columns=['ID'])
+    # test with wildcard
+    df.to_parquet('/tmp/test_idx_multi.parquet')
+    split_info = {"train": "/tmp/test_idx*.parquet", "column": ["ID"]}
+    parquet_content, _, _ = read_index(split_info)
+    assert np.array_equal(parquet_content, data + data_multi)
+    # test with list input
+    split_info = {"train": ["/tmp/test_idx.parquet", "/tmp/test_idx_multi.parquet"],
+                  "column": ["ID"]}
+    parquet_content, _, _ = read_index(split_info)
+    assert np.array_equal(parquet_content, data + data_multi)
+
+    data, data2 = ["p1", "p2"], ["p3", "p4"]
+    df = pd.DataFrame({'src': data, 'dst': data2})
+    df.to_parquet('/tmp/train_idx.parquet')
+    split_info = {"train": "/tmp/train_idx.parquet", "column": ["src", "dst"]}
+    parquet_content, _, _ = read_index(split_info)
+    assert parquet_content == [("p1", "p3"), ("p2", "p4")]
+
+    data3, data4 = ["p5", "p6"], ["p7", "p8"]
+    df = pd.DataFrame({'src': data3, 'dst': data4})
+    df.to_parquet('/tmp/test_idx.parquet')
+    split_info = {"train": "/tmp/train_idx.parquet",
+                  "test": "/tmp/test_idx.parquet", "column": ["src", "dst"]}
+    train_content, _, test_content = read_index(split_info)
+    assert train_content == [("p1", "p3"), ("p2", "p4")]
+    assert test_content == [("p5", "p7"), ("p6", "p8")]
+
+
+
 if __name__ == '__main__':
     test_shuffle_hard_nids()
     test_save_load_maps()
@@ -462,3 +512,4 @@ if __name__ == '__main__':
     test_object_conversion()
     test_ext_mem_array()
     test_multiprocessing_read()
+    test_read_index()
