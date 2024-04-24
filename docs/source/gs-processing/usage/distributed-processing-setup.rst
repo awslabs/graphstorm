@@ -87,7 +87,7 @@ Once Docker and Poetry are installed, and your AWS credentials are set up,
 we can use the provided scripts
 in the ``graphstorm-processing/docker`` directory to build the image.
 
-GSProcessing supports Amazon SageMaker, EMR, and EMR Serverless as
+GSProcessing supports Amazon SageMaker, EMR on EC2, and EMR Serverless as
 execution environments, so we need to choose which image we want
 to build first.
 

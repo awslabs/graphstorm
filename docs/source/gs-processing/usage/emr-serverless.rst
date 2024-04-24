@@ -69,7 +69,7 @@ you are using would be:
                     "ecr:BatchGetImage",
                     "ecr:DescribeImages"
                 ],
-                "Resource": ""<ACCOUNT>.dkr.ecr.<REGION>.amazonaws.com/graphstorm-processing-emr-serverless"
+                "Resource": "<ACCOUNT>.dkr.ecr.<REGION>.amazonaws.com/graphstorm-processing-emr-serverless"
             }
         ]
     }
