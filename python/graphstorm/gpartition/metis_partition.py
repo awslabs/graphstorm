@@ -18,6 +18,7 @@
 import os
 import logging
 import json
+import subprocess
 
 import numpy as np
 import pyarrow as pa
@@ -68,7 +69,7 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
         Parameters
         ----------
         """
-        command = f"mpirun -np 2 --allow-run-as-root \
+        command = f"mpirun -np 1 --allow-run-as-root \
                     --hostfile {ip_list} \
                     --mca orte_base_help_aggregate 0 -mca btl_tcp_if_include eth0 \
                     -wdir {input_path} \
@@ -115,22 +116,41 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
             # Execute the command and check if it completes successfully
             result = subprocess.run(command, shell=True, check=True, text=True, stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE)
-            logging.info(f"Command output: {result.stdout}")
+            logging.info(f"Command output: {result.stdout}\n")
             return True  # Return True if the command was successful
         except subprocess.CalledProcessError as e:
-            logging.info(f"Error executing command: {e.stderr}")
+            logging.info(f"Error executing command: {e.stderr}\n")
             return False  # Return False if the command failed
+
+    def assigned_port(self, ip_file, port="2222"):
+        # MPI run will need to explicitly assign port=2222 in the ip list file
+        # when running in the docker environment
+        with open(ip_file, 'r') as file:
+            # Read all lines from the input file
+            ip_addresses = file.readlines()
+
+        parts = ip_file.rsplit('.', 1)
+        if len(parts) == 2 and parts[1] == 'txt':
+            output_file = f"{parts[0]}_parmetis}.{parts[1]}"
+        else:
+            raise ValueError("Input file should be a txt file.")
+        with open(output_file, 'w') as file:
+            # Write each IP address with the appended port information
+            for ip in ip_addresses:
+                ip = ip.strip()  # Remove any leading/trailing whitespace
+                file.write(f"{ip} port={port}\n")
+        return output_file
 
     def _assign_partitions(self, num_partitions: int, partition_dir: str):
         # TODO: adjust ip_list file input format inside
-
+        ip_file = self.assigned_port(self.metis_config.ip_list)
         # Execute each command function in sequence and stop if any fails
         if not self._launch_preprocess(num_partitions, self.metis_config.input_path,
-                                       self.metis_config.ip_list, self.metis_config.dgl_tool_path,
+                                       ip_file, self.metis_config.dgl_tool_path,
                                        self.metis_config.metadata_filename):
             raise RuntimeError("Stopping execution due to failure in preprocess")
         if not self._launch_parmetis(num_partitions, self.metis_config.input_path,
-                                       self.metis_config.ip_list, self.metadata_dict["graph_name"]):
+                                       ip_file, self.metadata_dict["graph_name"]):
             raise RuntimeError("Stopping execution due to failure in parmetis partition process")
         if not self._launch_postprocess(num_partitions, self.metis_config.input_path, self.metis_config.dgl_tool_path,
                                           self.metis_config.metadata_filename, self.metadata_dict["graph_name"],
