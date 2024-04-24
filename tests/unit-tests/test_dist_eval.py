@@ -32,7 +32,7 @@ import numpy as np
 
 from graphstorm.eval import GSgnnClassificationEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
-from graphstorm.eval import GSgnnLPEvaluator
+from graphstorm.eval import GSgnnMrrLPEvaluator
 from graphstorm.utils import setup_device
 
 from graphstorm.config import BUILTIN_LP_DOT_DECODER
@@ -49,8 +49,8 @@ def run_dist_lp_eval_worker(worker_rank, config, val_scores, test_scores, conn):
                                       world_size=2,
                                       rank=worker_rank)
 
-    lp_eval = GSgnnLPEvaluator(config.eval_frequency,
-                               use_early_stop=config.use_early_stop)
+    lp_eval = GSgnnMrrLPEvaluator(config.eval_frequency,
+                                  use_early_stop=config.use_early_stop)
     val_sc, test_sc = lp_eval.evaluate(val_scores, test_scores, 0)
 
     if worker_rank == 0:
@@ -101,8 +101,8 @@ def run_local_lp_eval_worker(config, val_scores, test_scores, conn):
                                       world_size=1,
                                       rank=0)
 
-    lp_eval = GSgnnLPEvaluator(config.eval_frequency,
-                               use_early_stop=config.use_early_stop)
+    lp_eval = GSgnnMrrLPEvaluator(config.eval_frequency,
+                                  use_early_stop=config.use_early_stop)
     val_sc, test_sc = lp_eval.evaluate(val_scores, test_scores, 0)
     conn.send((val_sc, test_sc))
     th.distributed.destroy_process_group()

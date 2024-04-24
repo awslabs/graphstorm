@@ -48,7 +48,7 @@ from graphstorm.dataloading import (FastGSgnnLinkPredictionDataLoader,
                                     FastGSgnnLPJointNegDataLoader,
                                     FastGSgnnLPLocalUniformNegDataLoader,
                                     FastGSgnnLPLocalJointNegDataLoader)
-from graphstorm.eval import GSgnnLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
+from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
 from graphstorm.model.utils import save_full_node_embeddings
 from graphstorm.model import do_full_graph_inference
 from graphstorm.utils import (
@@ -77,7 +77,7 @@ def get_evaluator(config):
                                            early_stop_rounds=config.early_stop_rounds,
                                            early_stop_strategy=config.early_stop_strategy)
     else:
-        return GSgnnLPEvaluator(eval_frequency=config.eval_frequency,
+        return GSgnnMrrLPEvaluator(eval_frequency=config.eval_frequency,
                                 use_early_stop=config.use_early_stop,
                                 early_stop_burnin_rounds=config.early_stop_burnin_rounds,
                                 early_stop_rounds=config.early_stop_rounds,

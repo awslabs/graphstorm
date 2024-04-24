@@ -23,7 +23,7 @@ Base Evaluators
 
     GSgnnBaseEvaluator
     GSgnnPredictionEvalInterface
-    GSgnnLPMrrEvalInterface
+    GSgnnLPRankingEvalInterface
 
 Evaluators
 -----------
@@ -35,5 +35,5 @@ Evaluators
 
     GSgnnClassificationEvaluator
     GSgnnRegressionEvaluator
-    GSgnnLPEvaluator
+    GSgnnMrrLPEvaluator
     GSgnnPerEtypeMrrLPEvaluator

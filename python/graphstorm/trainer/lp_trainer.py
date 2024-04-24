@@ -323,16 +323,16 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                                           edge_mask=edge_mask_for_gnn_embeddings,
                                           task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
-        val_scores = lp_mini_batch_predict(model, emb, val_loader, self.device) \
+        val_rankings = lp_mini_batch_predict(model, emb, val_loader, self.device) \
             if val_loader is not None else None
         sys_tracker.check('after_val_score')
         if test_loader is not None:
-            test_scores = lp_mini_batch_predict(model, emb, test_loader, self.device)
+            test_rankings = lp_mini_batch_predict(model, emb, test_loader, self.device)
         else:
-            test_scores = None
+            test_rankings = None
         sys_tracker.check('after_test_score')
         val_score, test_score = self.evaluator.evaluate(
-            val_scores, test_scores, total_steps)
+            val_rankings, test_rankings, total_steps)
         sys_tracker.check('evaluate validation/test')
         model.train()
 

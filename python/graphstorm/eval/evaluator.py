@@ -164,43 +164,49 @@ class GSgnnPredictionEvalInterface():
         """
 
 
-class GSgnnLPMrrEvalInterface():
-    """ Interface for Link Prediction evaluation function using "mrr"
+class GSgnnLPRankingEvalInterface():
+    """ Interface for Link Prediction evaluation function using ranking method
 
-    The interface set the two abstract methods for Link Prediction classes that use "mrr"
-    as the evaluation metric.
+    The interface set the two abstract methods for Link Prediction classes that use ranking
+    method to compute evaluation metrics, such as "mrr" (Mean Reciprocal Rank).
+    
+    There are two methdos to be implemented if inherite this interface.
+    1. ``evaluate()`` method, which will be called by Trainers to provide ranking-based evaluation
+       results of validation and test sets during training process.
+    2. ``compute_score()`` method, which compute the scores for given rankings.
     """
 
     @abc.abstractmethod
-    def evaluate(self, val_scores, test_scores, total_iters):
+    def evaluate(self, val_rankings, test_rankings, total_iters):
         """Evaluate validation and test sets for Link Prediciton tasks
 
         GSgnnTrainers will call this function to do evalution in their eval() fuction.
 
-        Link Prediction evaluators should provide the LP scores for validation and test sets.
+        Link Prediction evaluators should provide the ranking of validation and test sets as
+        input.
 
         Parameters
         ----------
         val_scores: dict of tensors
-            The rankings of validation edges for each edge type.
+            The rankings of validation edges for each edge type in format of {etype: ranking}.
         test_scores: dict of tensors
-            The rankings of testing edges for each edge type.
+            The rankings of testing edges for each edge type in format of {etype: ranking}.
         total_iters: int
             The current interation number.
 
         Returns
         -----------
         eval_score: float
-            Validation score
+            Validation score for each edge type in format of {etype: score}.
         test_score: float
-            Test score
+            Test score for each edge type in format of {etype: score}.
         """
 
     @abc.abstractmethod
-    def compute_score(self, rankings, train=False):
+    def compute_score(self, rankings):
         """ Compute evaluation score for Prediciton tasks
 
-        Classification and regression evaluators should provide both predictions and labels.
+        Ranking-based link prediction evaluators should provide ranking values as input.
 
         Parameters
         ----------
@@ -210,6 +216,7 @@ class GSgnnLPMrrEvalInterface():
         Returns
         -------
         Evaluation metric values: dict
+            scores for each edge type.
         """
 
 
@@ -218,7 +225,7 @@ class GSgnnBaseEvaluator():
 
     New base class in V0.3 to replace ``GSgnnInstanceEvaluator`` and ``GSgnnLPEvaluator``. This
     class serves as the base for the built-in ``GSgnnClassificationEvaluator``,
-    ``GSgnnRegressionEvaluator``, and ``GSgnnLinkPredictionEvaluator``.
+    ``GSgnnRegressionEvaluator``, ``GSgnnMrrLPEvaluator``, and ``GSgnnPerEtypeMrrLPEvaluator``.
 
     In order to create customized Evaluators, users can inherite this class and the corresponding
     EvalInteface class, and then implement the two abstract methods, i.e., ``evaluate()``
@@ -590,7 +597,7 @@ class GSgnnRegressionEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface)
                  early_stop_burnin_rounds=0,
                  early_stop_rounds=3,
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
-        # set up default metric to be mse
+        # set up default metric to be "rmse"
         if eval_metric_list is None:
             eval_metric_list = ["rmse"]
         super(GSgnnRegressionEvaluator, self).__init__(eval_frequency,
@@ -692,11 +699,11 @@ class GSgnnRegressionEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface)
         return scores
 
 
-class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPMrrEvalInterface):
-    """ Link Prediction Evaluator.
+class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
+    """ Link Prediction Evaluator using "mrr" as metric.
 
     GS built-in evaluator for Link Prediction task. It uses "mrr" as the default eval metric,
-    which therefore implements the `GSgnnLPMrrEvalInterface`.
+    which implements the `GSgnnLPRankingEvalInterface`.
     
     To create a customized LP evaluator that use evaluation metric other than "mrr", users might
     need to 1) define a new evaluation interface if the evaluation method requires different input
@@ -727,7 +734,7 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPMrrEvalInterface):
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
         if eval_metric_list is None:
             eval_metric_list = ["mrr"]
-        super(GSgnnLPEvaluator, self).__init__(eval_frequency,
+        super(GSgnnMrrLPEvaluator, self).__init__(eval_frequency,
             eval_metric_list, use_early_stop, early_stop_burnin_rounds,
             early_stop_rounds, early_stop_strategy)
         self.metrics_obj = LinkPredictionMetrics()
@@ -740,9 +747,9 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPMrrEvalInterface):
             self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_iter[metric] = 0
 
-    def evaluate(self, val_scores, test_scores, total_iters):
+    def evaluate(self, val_rankings, test_rankings, total_iters):
         """ `GSgnnLinkPredictionTrainer` and `GSgnnLinkPredictionInferrer` will call this function
-        to compute validation and test mrr scores.
+        to compute validation and test scores.
 
         Parameters
         ----------
@@ -761,14 +768,14 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPMrrEvalInterface):
             Test mrr score
         """
         with th.no_grad():
-            if test_scores is not None:
-                test_score = self.compute_score(test_scores)
+            if test_rankings is not None:
+                test_score = self.compute_score(test_rankings)
             else:
                 for metric in self.metric_list:
                     test_score = {metric: "N/A"} # Dummy
 
-            if val_scores is not None:
-                val_score = self.compute_score(val_scores)
+            if val_rankings is not None:
+                val_score = self.compute_score(val_rankings)
 
                 if get_rank() == 0:
                     for metric in self.metric_list:
@@ -784,17 +791,13 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPMrrEvalInterface):
 
         return val_score, test_score
 
-    def compute_score(self, rankings, train=False): # pylint:disable=unused-argument
+    def compute_score(self, rankings):
         """ Compute evaluation score
 
             Parameters
             ----------
             rankings: dict of tensors
                 Rankings of positive scores in format of {etype: ranking}
-            train: bool
-                TODO: Reversed for future use cases when we want to use different
-                way to generate scores for train (more efficient but less accurate)
-                and test.
 
             Returns
             -------
@@ -821,7 +824,7 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPMrrEvalInterface):
         return return_metrics
 
 
-class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPMrrEvalInterface):
+class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     """ The class for link prediction evaluation using Mrr metric and
         return a Per etype mrr score.
 
@@ -869,17 +872,13 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPMrrEvalInterface):
             self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_iter[metric] = 0
 
-    def compute_score(self, rankings, train=False): # pylint:disable=unused-argument
+    def compute_score(self, rankings):
         """ Compute evaluation score
 
             Parameters
             ----------
             rankings: dict of tensors
                 Rankings of positive scores in format of {etype: ranking}
-            train: bool
-                TODO: Reversed for future use cases when we want to use different
-                way to generate scores for train (more efficient but less accurate)
-                and test.
 
             Returns
             -------
@@ -917,7 +916,7 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPMrrEvalInterface):
             major_score = score[self.major_etype]
         return major_score
 
-    def evaluate(self, val_scores, test_scores, total_iters):
+    def evaluate(self, val_rankings, test_rankings, total_iters):
         """ `GSgnnLinkPredictionTrainer` and `GSgnnLinkPredictionInferrer` will call this function
         to compute validation and test mrr scores.
 
@@ -938,13 +937,13 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPMrrEvalInterface):
             Test mrr
         """
         with th.no_grad():
-            if test_scores is not None:
-                test_score = self.compute_score(test_scores)
+            if test_rankings is not None:
+                test_score = self.compute_score(test_rankings)
             else:
                 test_score = {"mrr": "N/A"} # Dummy
 
-            if val_scores is not None:
-                val_score = self.compute_score(val_scores)
+            if val_rankings is not None:
+                val_score = self.compute_score(val_rankings)
 
                 if get_rank() == 0:
                     for metric in self.metric_list:

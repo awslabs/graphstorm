@@ -21,7 +21,7 @@ import numpy as np
 from numpy.testing import assert_equal, assert_almost_equal
 import dgl
 
-from graphstorm.eval import GSgnnLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
+from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
 from graphstorm.eval import GSgnnClassificationEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.eval.evaluator import early_stop_avg_increase_judge
@@ -184,7 +184,7 @@ def test_lp_evaluator():
     val_pos_scores, val_neg_scores = val_scores
     test_pos_scores, test_neg_scores = test_scores
 
-    lp = GSgnnLPEvaluator(config.eval_frequency, use_early_stop=config.use_early_stop)
+    lp = GSgnnMrrLPEvaluator(config.eval_frequency, use_early_stop=config.use_early_stop)
     
     # checke default metric list
     assert lp.metric_list == ['mrr']
@@ -244,10 +244,10 @@ def test_lp_evaluator():
     assert_equal(test_sc['mrr'], "N/A")
 
     # test evaluate
-    @patch.object(GSgnnLPEvaluator, 'compute_score')
+    @patch.object(GSgnnMrrLPEvaluator, 'compute_score')
     def check_evaluate(mock_compute_score):
-        lp = GSgnnLPEvaluator(config.eval_frequency,
-                              use_early_stop=config.use_early_stop)
+        lp = GSgnnMrrLPEvaluator(config.eval_frequency,
+                                 use_early_stop=config.use_early_stop)
 
         mock_compute_score.side_effect = [
             {"mrr": 0.6},
@@ -275,13 +275,13 @@ def test_lp_evaluator():
         assert lp.best_test_score["mrr"] == 0.65
         assert lp.best_iter_num["mrr"] == 200
 
-    # check GSgnnLPEvaluator.evaluate()
+    # check GSgnnMrrLPEvaluator.evaluate()
     check_evaluate()
 
     # test evaluate
-    @patch.object(GSgnnLPEvaluator, 'compute_score')
+    @patch.object(GSgnnMrrLPEvaluator, 'compute_score')
     def check_evaluate_infer(mock_compute_score):
-        lp = GSgnnLPEvaluator(config.eval_frequency,
+        lp = GSgnnMrrLPEvaluator(config.eval_frequency,
                               use_early_stop=config.use_early_stop)
 
         mock_compute_score.side_effect = [
@@ -300,14 +300,14 @@ def test_lp_evaluator():
         assert lp.best_test_score["mrr"] == 0 # Still initial value 0
         assert lp.best_iter_num["mrr"] == 0 # Still initial value 0
 
-    # check GSgnnLPEvaluator.evaluate()
+    # check GSgnnMrrLPEvaluator.evaluate()
     check_evaluate_infer()
 
-    # check GSgnnLPEvaluator.do_eval()
+    # check GSgnnMrrLPEvaluator.do_eval()
     # train_data.do_validation True
     # config.no_validation False
-    lp = GSgnnLPEvaluator(config.eval_frequency,
-                          use_early_stop=config.use_early_stop)
+    lp = GSgnnMrrLPEvaluator(config.eval_frequency,
+                             use_early_stop=config.use_early_stop)
     assert lp.do_eval(120, epoch_end=True) is True
     assert lp.do_eval(200) is True
     assert lp.do_eval(0) is True
@@ -321,7 +321,7 @@ def test_lp_evaluator():
     # train_data.do_validation True
     # config.no_validation False
     # eval_frequency is 0
-    lp = GSgnnLPEvaluator(config3.eval_frequency,
+    lp = GSgnnMrrLPEvaluator(config3.eval_frequency,
                           use_early_stop=config3.use_early_stop)
     assert lp.do_eval(120, epoch_end=True) is True
     assert lp.do_eval(200) is False
@@ -705,8 +705,8 @@ def test_early_stop_lp_evaluator():
             "eval_frequency": 100,
             "use_early_stop": False,
         })
-    evaluator = GSgnnLPEvaluator(config.eval_frequency,
-                                 use_early_stop=config.use_early_stop)
+    evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
+                                    use_early_stop=config.use_early_stop)
     for _ in range(10):
         # always return false
         assert evaluator.do_early_stop({"mrr": 0.5}) is False
@@ -718,11 +718,11 @@ def test_early_stop_lp_evaluator():
             "early_stop_rounds": 3,
             "early_stop_strategy": EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY,
         })
-    evaluator = GSgnnLPEvaluator(config.eval_frequency,
-                                 use_early_stop=config.use_early_stop,
-                                 early_stop_burnin_rounds=config.early_stop_burnin_rounds,
-                                 early_stop_rounds=config.early_stop_rounds,
-                                 early_stop_strategy=config.early_stop_strategy)
+    evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
+                                    use_early_stop=config.use_early_stop,
+                                    early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                    early_stop_rounds=config.early_stop_rounds,
+                                    early_stop_strategy=config.early_stop_strategy)
     for _ in range(5):
         # always return false
         assert evaluator.do_early_stop({"mrr": 0.5}) is False
@@ -743,11 +743,11 @@ def test_early_stop_lp_evaluator():
             "early_stop_rounds": 3,
             "early_stop_strategy": EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
         })
-    evaluator = GSgnnLPEvaluator(config.eval_frequency,
-                                 use_early_stop=config.use_early_stop,
-                                 early_stop_burnin_rounds=config.early_stop_burnin_rounds,
-                                 early_stop_rounds=config.early_stop_rounds,
-                                 early_stop_strategy=config.early_stop_strategy)
+    evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
+                                    use_early_stop=config.use_early_stop,
+                                    early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                    early_stop_rounds=config.early_stop_rounds,
+                                    early_stop_strategy=config.early_stop_strategy)
     for _ in range(5):
         # always return false
         assert evaluator.do_early_stop({"accuracy": 0.5}) is False
@@ -832,7 +832,7 @@ def test_get_val_score_rank():
             "use_early_stop": False,
         })
 
-    evaluator = GSgnnLPEvaluator(config.eval_frequency,
+    evaluator = GSgnnMrrLPEvaluator(config.eval_frequency,
                                  use_early_stop=config.use_early_stop)
 
     # For MRR, the bigger the better

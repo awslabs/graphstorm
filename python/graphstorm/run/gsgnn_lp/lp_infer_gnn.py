@@ -20,7 +20,7 @@ import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnLinkPredictionInferrer
-from graphstorm.eval import GSgnnLPEvaluator
+from graphstorm.eval import GSgnnMrrLPEvaluator
 from graphstorm.dataloading import GSgnnEdgeInferData
 from graphstorm.dataloading import (GSgnnLinkPredictionTestDataLoader,
                                     GSgnnLinkPredictionJointTestDataLoader,
@@ -57,7 +57,7 @@ def main(config_args):
     infer.setup_device(device=get_device())
     if not config.no_validation:
         infer.setup_evaluator(
-            GSgnnLPEvaluator(config.eval_frequency))
+            GSgnnMrrLPEvaluator(config.eval_frequency))
         assert len(infer_data.test_idxs) > 0, "There is not test data for evaluation."
     tracker = gs.create_builtin_task_tracker(config)
     infer.setup_task_tracker(tracker)
