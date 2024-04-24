@@ -1,3 +1,13 @@
+## Preparing the environment
+Please follow https://graphstorm.readthedocs.io/en/latest/install/env-setup.html to setup your GraphStorm environment.
+In addition, run the following scripts to install necessary python packages
+
+```
+pip install ipython
+pip install peft
+```
+
+## Preparing Amazon Review dataset
 This folder contains the data processing script to process the raw Amazon Review dataset
 downloaded from https://cseweb.ucsd.edu/~jmcauley/datasets/amazon_v2/. We use domain Video
 Games https://datarepo.eng.ucsd.edu/mcauley_group/data/amazon_v2/metaFiles2/meta_Video_Games.json.gz
