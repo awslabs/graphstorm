@@ -100,7 +100,7 @@ cleanup() {
 
 parse_params "${@}"
 
-if [[ ${EXEC_ENV} == "sagemaker" || ${EXEC_ENV} == "emr-serverless" ]]; then
+if [[ ${EXEC_ENV} == "sagemaker" || ${EXEC_ENV} == "emr-serverless" || ${EXEC_ENV} == "emr" ]]; then
     :  # Do nothing
 else
     die "--environment parameter needs to be one of 'emr', 'emr-serverless' or 'sagemaker', got ${EXEC_ENV}"

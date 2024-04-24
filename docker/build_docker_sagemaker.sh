@@ -12,9 +12,9 @@ fi
 
 # process argument 2: docker image type, default is GPU
 if [ -z "$2" ]; then
-    IMAGE_TYPE="gpu"
+    DEVICE_TYPE="gpu"
 else
-    IMAGE_TYPE="$2"
+    DEVICE_TYPE="$2"
 fi
 
 # process argument 3: docker image name, default is graphstorm
@@ -39,7 +39,7 @@ cp -r "${GSF_HOME}/sagemaker" code/graphstorm/sagemaker
 cp -r "${GSF_HOME}/docker/sagemaker/build_artifacts" build_artifacts
 
 # Build OSS docker for EC2 instances that an pull ECR docker images
-DOCKER_FULLNAME="${IMAGE_NAME}:${TAG}"
+DOCKER_FULLNAME="${IMAGE_NAME}:${TAG}-${DEVICE_TYPE}"
 
 echo "Build a sagemaker docker image ${DOCKER_FULLNAME}"
 
@@ -47,12 +47,12 @@ echo "Build a sagemaker docker image ${DOCKER_FULLNAME}"
 aws ecr get-login-password --region us-east-1 \
         | docker login --username AWS --password-stdin 763104351884.dkr.ecr.us-east-1.amazonaws.com
 
-if [ $IMAGE_TYPE = "gpu" ] || [ $IMAGE_TYPE = "cpu" ]; then
+if [ $DEVICE_TYPE = "gpu" ] || [ $DEVICE_TYPE = "cpu" ]; then
     # Use Buildkit to avoid pulling both CPU and GPU images
-    DOCKER_BUILDKIT=1 docker build --build-arg DEVICE=$IMAGE_TYPE \
+    DOCKER_BUILDKIT=1 docker build --build-arg DEVICE=$DEVICE_TYPE \
         -f "${GSF_HOME}/docker/sagemaker/Dockerfile.sm" . -t $DOCKER_FULLNAME
 else
-    echo "Image type can only be \"gpu\" or \"cpu\", but got \""$IMAGE_TYPE"\""
+    echo "Device type can only be \"gpu\" or \"cpu\", but got \""$DEVICE_TYPE"\""
     # remove the temporary code folder
     rm -rf code
     exit 1
