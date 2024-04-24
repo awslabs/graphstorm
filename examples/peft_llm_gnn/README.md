@@ -71,7 +71,7 @@ dataset=amazon_review
 domain=Video_Games
 python -m graphstorm.run.launch \
     --workspace "$WORKSPACE" \
-    --part-config "$WORKSPACE"/dataset/amazon_review_"$domain"/amazon_review.json \
+    --part-config "$WORKSPACE"/datasets/amazon_review_"$domain"/amazon_review.json \
     --ip-config ./ip_list.txt \
     --num-trainers 8 \
     --num-servers 1 \
