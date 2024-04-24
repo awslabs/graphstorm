@@ -1397,7 +1397,9 @@ class CustomLabelProcessor:
         self._stats_type = stats_type
 
         assert isinstance(mask_field_names, tuple) and len(mask_field_names) == 3, \
-            "mask_field_names must be a tuple with three strings."
+            "mask_field_names must be a tuple with three strings " \
+            "for training mask, validation mask and test mask, respectively." \
+            "For example ('tmask', 'vmask', 'tmask')."
         self._mask_field_names = mask_field_names
 
     @property
@@ -1528,7 +1530,9 @@ class LabelProcessor:
         self._split_pct = split_pct
         self._stats_type = stats_type
         assert isinstance(mask_field_names, tuple) and len(mask_field_names) == 3, \
-            "mask_field_names must be a tuple with three strings."
+            "mask_field_names must be a tuple with three strings " \
+            "for training mask, validation mask and test mask, respectively." \
+            "For example ('tmask', 'vmask', 'tmask')."
         self._mask_field_names = mask_field_names
 
     @property
