@@ -114,6 +114,8 @@ def main(config_args):
         test_idxs,
         fanout=config.fanout,
         batch_size=config.eval_batch_size,
+        node_feats=config.node_feat_name,
+        label_field=config.label_field,
         train_task=False,
     )
     # Run inference on the inference dataset and save the GNN embeddings in the specified path.
