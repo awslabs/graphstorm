@@ -1090,6 +1090,176 @@ def test_label():
     assert 'val_mask' not in res
     assert 'test_mask' not in res
 
+def test_multitask_label():
+    def check_split(res, train_mask, val_mask, test_mask, label_field):
+        assert label_field in res
+        assert train_mask in res
+        assert val_mask in res
+        assert test_mask in res
+        assert res[train_mask].shape == (len(data[label_field]),)
+        assert res[val_mask].shape == (len(data[label_field]),)
+        assert res[test_mask].shape == (len(data[label_field]),)
+        assert np.sum(res[train_mask]) == 8
+        assert np.sum(res[val_mask]) == 1
+        assert np.sum(res[test_mask]) == 1
+        assert np.sum(res[train_mask] + res[val_mask] + res[test_mask]) == 10
+
+    def check_integer(label, res, train_mask, val_mask, test_mask):
+        train_idx = res[train_mask] == 1
+        val_idx = res[val_mask] == 1
+        test_idx = res[test_mask] == 1
+        assert np.all(np.logical_and(label[train_idx] >= 0, label[train_idx] <= 10))
+        assert np.all(np.logical_and(label[val_idx] >= 0, label[val_idx] <= 10))
+        assert np.all(np.logical_and(label[test_idx] >= 0, label[test_idx] <= 10))
+
+    conf = {
+            "labels": [
+                {'task_type': 'link_prediction'},
+                {'task_type': 'link_prediction'}
+            ]
+    }
+    try:
+        ops = parse_label_ops(conf, False)
+        assert False, "Should fail as both two labels are using the same training mask"
+    except:
+        pass
+    try:
+        ops = parse_label_ops(conf, True)
+        assert False, "Should fail as both two labels are using the same training mask"
+    except:
+        pass
+
+    write_index_json(np.arange(8), "/tmp/train_idx.json")
+    write_index_json(np.arange(8, 9), "/tmp/val_idx.json")
+    write_index_json(np.arange(9, 10), "/tmp/test_idx.json")
+    conf = {
+            "node_id_col": "id",
+            "labels": [
+                {'task_type': 'classification',
+                 'label_col': 'label_1',
+                 'split_pct': [0.8, 0.1, 0.1]},
+                {'task_type': 'classification',
+                 'label_col': 'label_2',
+                 'split_pct': [0.4, 0.05, 0.05],
+                 'mask_field_names': ['train_mask_c1',
+                                      'val_mask_c1',
+                                      'test_mask_c1']},
+                {'task_type': 'classification',
+                 'label_col': 'label_3',
+                 'split_pct': [0, 0, 0],
+                 'mask_field_names': ['train_mask_c2',
+                                      'val_mask_c2',
+                                      'test_mask_c2']},
+                {'task_type': 'regression',
+                 'label_col': 'label_4',
+                 'mask_field_names': ['train_mask_r1',
+                                      'val_mask_r1',
+                                      'test_mask_r1'],
+                 'custom_split_filenames': {"train": "/tmp/train_idx.json",
+                                            "valid": "/tmp/val_idx.json",
+                                            "test": "/tmp/test_idx.json"}},
+                {'task_type': 'regression',
+                 'label_col': 'label_5',
+                 'mask_field_names': ['train_mask_r2',
+                                      'val_mask_r2',
+                                      'test_mask_r2'],
+                 'custom_split_filenames': {"train": "/tmp/train_idx.json"},}
+            ]
+    }
+    ops = parse_label_ops(conf, True)
+    assert len(ops) == 5
+    assert ops[0].train_mask_name == "train_mask"
+    assert ops[0].val_mask_name == "val_mask"
+    assert ops[0].test_mask_name == "test_mask"
+    assert ops[1].train_mask_name == "train_mask_c1"
+    assert ops[1].val_mask_name == "val_mask_c1"
+    assert ops[1].test_mask_name == "test_mask_c1"
+    assert ops[3].train_mask_name == "train_mask_r1"
+    assert ops[3].val_mask_name == "val_mask_r1"
+    assert ops[3].test_mask_name == "test_mask_r1"
+    assert ops[4].train_mask_name == "train_mask_r2"
+    assert ops[4].val_mask_name == "val_mask_r2"
+    assert ops[4].test_mask_name == "test_mask_r2"
+
+    data = {'id': np.arange(10),
+            'label_1' : np.random.randint(3, size=10),
+            'label_2' : np.random.randint(3, size=20),
+            'label_3' : np.random.randint(3, size=10),
+            'label_4' : np.random.uniform(size=10) * 10,
+            'label_5' : np.random.uniform(size=10) * 10}
+    res = process_labels(data, ops)
+    assert len(res) == 17
+    check_split(res, "train_mask", "val_mask", "test_mask", "label_1")
+    check_integer(res['label_1'], res, "train_mask", "val_mask", "test_mask")
+    check_split(res, "train_mask_c1", "val_mask_c1", "test_mask_c1", "label_2")
+    check_integer(res['label_2'], res, "train_mask_c1", "val_mask_c1", "test_mask_c1")
+    assert "label_3" in res
+    assert "label_4" in res
+    check_split(res, "train_mask_r1", "val_mask_r1", "test_mask_r1", "label_4")
+    assert "label_5" in res
+    assert "train_mask_r2" in res
+    assert np.sum(res["train_mask_r2"]) == 8
+    assert "val_mask_r2" in res
+    assert np.sum(res["val_mask_r2"]) == 0
+    assert "test_mask_r2" in res
+    assert np.sum(res["test_mask_r2"]) == 0
+
+    write_index_json([(a,a) for a in range(8)], "/tmp/train_idx.json")
+    write_index_json([(8, 8)], "/tmp/val_idx.json")
+    write_index_json([(9, 9)], "/tmp/test_idx.json")
+    # Check edge tasks
+    conf = {
+            "source_id_col": "src",
+            "dest_id_col": "dst",
+            "labels": [
+                {'task_type': 'link_prediction',
+                 'split_pct': [0.8, 0.1, 0.1],
+                 'mask_field_names': ['train_mask_l',
+                                      'val_mask_l',
+                                      'test_mask_l']},
+                {'task_type': 'regression',
+                 'label_col': 'label1',
+                 'split_pct': [0.8, 0.1, 0.1],
+                 'mask_field_names': ['train_mask_r',
+                                      'val_mask_r',
+                                      'test_mask_r']
+                },
+                {'task_type': 'classification',
+                 'label_col': 'label2',
+                 'custom_split_filenames': {"train": "/tmp/train_idx.json",
+                                            "valid": "/tmp/val_idx.json",
+                                            "test": "/tmp/test_idx.json"},
+                 'mask_field_names': ['train_mask_ec',
+                                      'val_mask_ec',
+                                      'test_mask_ec']},
+            ]
+    }
+    ops = parse_label_ops(conf, False)
+    assert len(ops) == 3
+    assert ops[0].train_mask_name == "train_mask_l"
+    assert ops[0].val_mask_name == "val_mask_l"
+    assert ops[0].test_mask_name == "test_mask_l"
+    assert ops[1].train_mask_name == "train_mask_r"
+    assert ops[1].val_mask_name == "val_mask_r"
+    assert ops[1].test_mask_name == "test_mask_r"
+    assert ops[2].train_mask_name == "train_mask_ec"
+    assert ops[2].val_mask_name == "val_mask_ec"
+    assert ops[2].test_mask_name == "test_mask_ec"
+
+    data = {"src": np.arange(10),
+            "dst": np.arange(10),
+            'label1' : np.random.randint(3, size=10),
+            'label2' : np.random.randint(3, size=10)}
+    res = process_labels(data, ops)
+    assert 'train_mask_l' in res
+    assert 'val_mask_l' in res
+    assert 'test_mask_l' in res
+    assert np.sum(res['train_mask_l']) == 8
+    assert np.sum(res['val_mask_l']) == 1
+    assert np.sum(res['test_mask_l']) == 1
+    check_split(res, "train_mask_r", "val_mask_r", "test_mask_r", "label1")
+    check_split(res, "train_mask_ec", "val_mask_ec", "test_mask_ec", "label2")
+
 def check_link_prediction_custom_label():
     # Check link prediction on customized masks
     data = {
@@ -2279,6 +2449,7 @@ def test_homogeneous():
     assert not is_homogeneous(conf)
 
 if __name__ == '__main__':
+    test_multitask_label()
     test_partition_graph(2)
     test_parse_feat_ops_data_format()
     test_parse_edge_data()

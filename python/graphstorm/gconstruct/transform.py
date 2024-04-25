@@ -1808,9 +1808,8 @@ def parse_label_ops(confs, is_node):
             mask_names.append(ops.train_mask_name)
             mask_names.append(ops.val_mask_name)
             mask_names.append(ops.test_mask_name)
-        mask_names = set(mask_names)
-        assert len(mask_names) == len(label_ops) * 3, \
-            "Some train/val/test mask field names are duplicated, please check."
+        assert len(mask_names) == len(set(mask_names)), \
+            f"Some train/val/test mask field names are duplicated, please check: {mask_names}."
 
     return label_ops
 
@@ -1828,9 +1827,12 @@ def process_labels(data, label_processors):
     -------
     dict of tensors : labels (optional) and train/validation/test masks.
     """
-    print(label_processors)
-    assert len(label_processors) == 1, "We only support one label per node/edge type."
-    return label_processors[0](data)
+    assert len(label_processors) >= 1, \
+        "Number of label_processors must be one or more."
+    ret = {}
+    for label_processor in label_processors:
+        ret.update(label_processor(data))
+    return ret
 
 def do_multiprocess_transform(conf, feat_ops, label_ops, in_files):
     """ Test whether the input data requires multiprocessing.

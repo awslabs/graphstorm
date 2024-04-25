@@ -792,7 +792,6 @@ def process_graph(args):
                 data = edge_data[DEFAULT_ETYPE]
                 logging.warning("Reverse edge for homogeneous graph will have same feature as "
                                 "what we have in the original edges")
-                print(edge_label_masks)
                 edge_masks = []
                 for masks in edge_label_masks[DEFAULT_ETYPE]:
                     edge_masks.extend(list(masks))

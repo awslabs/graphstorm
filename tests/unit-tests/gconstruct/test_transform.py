@@ -1134,5 +1134,5 @@ if __name__ == '__main__':
 
     test_check_label_stats_type()
     test_collect_label_stats()
-    test_custom_label_processor()
+    test_custom_node_label_processor()
     test_classification_processor()
