@@ -71,7 +71,7 @@ edge_data1 = {
     'src': src1,
     'dst': dst1,
     'label_class': (src1 + dst1) % 100,
-    'label_reg': np.random.rand(node_id1.shape[0], ),
+    'label_reg': np.random.rand(src1.shape[0], ),
 }
 src2 = node_data1['id'][np.random.randint(0, 9999, 50000)]
 dst2 = node_data1['id'][np.random.randint(0, 9999, 50000)]
@@ -88,7 +88,7 @@ edge_data3 = {
     'src': src3,
     'dst': dst3,
     'label_class1': src3 % 100,
-    'label_class2': dst3 % 20
+    'label_class2': dst3.astype(np.int32) % 20
 }
 
 in_dir = '/tmp/multitask_test_data/'

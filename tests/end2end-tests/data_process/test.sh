@@ -89,6 +89,8 @@ error_and_exit $?
 
 rm -fr /tmp/test_partition
 
+python3 $GS_HOME/tests/end2end-tests/data_process/multitask_data_gen.py
+
 # Test multi-task support
 echo "********* Test the DGL graph format with multi mask support ********"
 python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_multitask_data_transform.conf --num-processes 2 --output-dir /tmp/test_out --graph-name test --output-format DGL --output-conf-file /tmp/test_data/test_multitask_data_transform_new.conf
