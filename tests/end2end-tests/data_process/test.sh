@@ -93,39 +93,39 @@ python3 $GS_HOME/tests/end2end-tests/data_process/multitask_data_gen.py
 
 # Test multi-task support
 echo "********* Test the DGL graph format with multi mask support ********"
-python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_multitask_data_transform.conf --num-processes 2 --output-dir /tmp/test_out --graph-name test --output-format DGL --output-conf-file /tmp/test_data/test_multitask_data_transform_new.conf
+python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/multitask_test_data/test_multitask_data_transform.conf --num-processes 2 --output-dir /tmp/multitask_test_out --graph-name test --output-format DGL --output-conf-file /tmp/multitask_test_data/test_multitask_data_transform_new.conf
 
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/data_process/test_multitask_data.py --graph_dir /tmp/test_out --conf_file /tmp/test_data/test_data_transform_new.conf --graph-format DGL
+python3 $GS_HOME/tests/end2end-tests/data_process/test_multitask_data.py --graph_dir /tmp/multitask_test_out --conf_file /tmp/multitask_test_data/test_multitask_data_transform_new.conf --graph-format DGL
 
 error_and_exit $?
 
 # Test the generated config.
 echo "********* Test using the generated config with multi mask support *********"
-python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_multitask_data_transform_new.conf --num-processes 4 --output-dir /tmp/test_out1 --graph-name test --output-format DGL
+python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/multitask_test_data/test_multitask_data_transform_new.conf --num-processes 4 --output-dir /tmp/multitask_test_out1 --graph-name test --output-format DGL
 
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/data_process/compare_graphs.py --graph-path1 /tmp/test_out/test.dgl --graph-path2 /tmp/test_out1/test.dgl
+python3 $GS_HOME/tests/end2end-tests/data_process/compare_graphs.py --graph-path1 /tmp/multitask_test_out/test.dgl --graph-path2 /tmp/multitask_test_out1/test.dgl
 
 error_and_exit $?
-rm /tmp/test_data/test_multitask_data_transform_new.conf
+rm /tmp/multitask_test_data/test_multitask_data_transform_new.conf
 
 echo "********* Test the DistDGL graph format with multi mask support ********"
-python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_multitask_data_transform.conf --num-processes 2 --output-dir /tmp/test_partition --graph-name test --output-conf-file /tmp/test_data/test_multitask_data_transform_new.conf --add-reverse-edges
+python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/multitask_test_data/test_multitask_data_transform.conf --num-processes 2 --output-dir /tmp/test_partition --graph-name test --output-conf-file /tmp/multitask_test_data/test_multitask_data_transform_new.conf --add-reverse-edges
 
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/data_process/test_multitask_data.py --graph-format DistDGL --graph_dir /tmp/test_partition --conf_file /tmp/test_data/test_data_transform_custom_mask_new.conf --with-reverse-edge True
+python3 $GS_HOME/tests/end2end-tests/data_process/test_multitask_data.py --graph-format DistDGL --graph_dir /tmp/test_partition --conf_file /tmp/multitask_test_data/test_data_transform_custom_mask_new.conf --with-reverse-edge True
 
 error_and_exit $?
 
-python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_data_transform_custom_mask_new.conf --num-processes 2 --output-dir /tmp/test_partition2 --graph-name test
+python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/multitask_test_data/test_data_transform_custom_mask_new.conf --num-processes 2 --output-dir /tmp/test_partition2 --graph-name test
 
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/data_process/test_multitask_data.py --graph-format DistDGL --graph_dir /tmp/test_partition2 --conf_file /tmp/test_data/test_data_transform_custom_mask_new.conf --with-reverse-edge True
+python3 $GS_HOME/tests/end2end-tests/data_process/test_multitask_data.py --graph-format DistDGL --graph_dir /tmp/test_partition2 --conf_file /tmp/multitask_test_data/test_data_transform_custom_mask_new.conf --with-reverse-edge True
 
 error_and_exit $?
 

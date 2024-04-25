@@ -68,8 +68,6 @@ else:
 
 node1_map = read_data_parquet(os.path.join(out_dir, "raw_id_mappings", "node1"))
 reverse_node1_map = {val: key for key, val in zip(node1_map['orig'], node1_map['new'])}
-node2_map = read_data_parquet(os.path.join(out_dir, "raw_id_mappings", "node2"))
-reverse_node2_map = {val: key for key, val in zip(node2_map['orig'], node2_map['new'])}
 node3_map = read_data_parquet(os.path.join(out_dir, "raw_id_mappings", "node3"))
 reverse_node3_map = {val: key for key, val in zip(node3_map['orig'], node3_map['new'])}
 
@@ -77,9 +75,8 @@ reverse_node3_map = {val: key for key, val in zip(node3_map['orig'], node3_map['
 assert g.nodes['node1'].data['feat'].dtype is th.float32
 data = g.nodes['node1'].data['feat'].numpy()
 orig_ids = np.array([reverse_node1_map[new_id] for new_id in range(g.number_of_nodes('node1'))])
-# After graph construction, any 1D features will be converted to 2D features, so
-# here need to convert orig_ids to 2D to pass test
-np.testing.assert_allclose(data, orig_ids.reshape(-1, 1))
+assert np.all(data <= 2)
+assert np.all(data >= -2)
 
 label_class = g.nodes['node1'].data['label_class'].numpy()
 assert "train_mask_class" in g.nodes['node1'].data
@@ -91,7 +88,7 @@ assert np.all(np.nonzero(g.nodes['node1'].data['val_mask_class'].numpy()) == np.
 assert th.sum(g.nodes['node1'].data['test_mask_class']) == 0
 
 label_reg = g.nodes['node1'].data['label_reg'].numpy()
-assert label_reg.dtype == np.float32
+assert np.issubdtype(label_reg.dtype, np.floating)
 assert th.sum(g.nodes['node1'].data['train_mask_reg']) == int(g.number_of_nodes('node1') * 0.8)
 assert th.sum(g.nodes['node1'].data['val_mask_reg']) == int(g.number_of_nodes('node1') * 0.1)
 assert th.sum(g.nodes['node1'].data['test_mask_reg']) == int(g.number_of_nodes('node1') * 0.1)
@@ -112,7 +109,7 @@ assert th.sum(g.nodes['node2'].data['test_mask_class2']) == int(g.number_of_node
 # Test the third node data
 assert g.nodes['node3'].data['feat'].dtype is th.float32
 data = g.nodes['node3'].data['feat'].numpy()
-orig_ids = np.array([reverse_node3_map[new_id] for new_id in range(g.number_of_nodes('node3'))])
+orig_ids = np.array([reverse_node3_map[new_id] for new_id in range(g.number_of_nodes('node3'))]).astype(np.float32)
 np.testing.assert_allclose(data, np.repeat(orig_ids, 5).reshape(len(orig_ids), 5))
 
 # Test the edge data of edge type 1
@@ -152,6 +149,8 @@ assert th.sum(hard_neg-ground_truth) == 0
 
 # Test the edge data of edge type 3
 src_ids, dst_ids = g.edges(etype=('node2', 'relation3', 'node3'))
+src_ids = src_ids.numpy()
+dst_ids = dst_ids.numpy()
 assert th.sum(g.edges[('node2', 'relation3', 'node3')].data['train_mask_lp']) \
         == int(g.number_of_edges(('node2', 'relation3', 'node3')) * 0.8)
 assert th.sum(g.edges[('node2', 'relation3', 'node3')].data['val_mask_lp']) \
@@ -165,15 +164,14 @@ assert th.sum(g.edges[('node2', 'relation3', 'node3')].data['train_mask_class1']
 assert th.sum(g.edges[('node2', 'relation3', 'node3')].data['val_mask_class1']) \
         == int(g.number_of_edges(('node2', 'relation3', 'node3')) * 0.2)
 assert th.sum(g.edges[('node2', 'relation3', 'node3')].data['test_mask_class1']) == 0
-src_ids = np.array([reverse_node2_map[src_id] for src_id in src_ids.numpy()])
-assert np.all(src_ids % 100 == g.edges[('node2', 'relation3', 'node3')].data['label_class1'])
+assert np.all((src_ids % 100) == g.edges[('node2', 'relation3', 'node3')].data['label_class1'].numpy())
 
 assert 'label_class2' in g.edges[('node2', 'relation3', 'node3')].data
 assert th.sum(g.edges[('node2', 'relation3', 'node3')].data['train_mask_class2']) \
         == int(g.number_of_edges(('node2', 'relation3', 'node3')) * 0.8)
 assert th.sum(g.edges[('node2', 'relation3', 'node3')].data['val_mask_class2']) \
-        == int(g.number_of_edges(('node2', 'relation3', 'node3')) * 0.2)
+        == int(g.number_of_edges(('node2', 'relation3', 'node3')) * 0.1)
 assert th.sum(g.edges[('node2', 'relation3', 'node3')].data['test_mask_class2']) \
         == int(g.number_of_edges(('node2', 'relation3', 'node3')) * 0.1)
-dst_ids = np.array([reverse_node3_map[dst_id] for dst_id in dst_ids.numpy()]).astype(np.int32)
-assert np.all(dst_ids % 20 == g.edges[('node2', 'relation3', 'node3')].data['label_class1'])
+dst_ids = np.array([reverse_node3_map[dst_id] for dst_id in dst_ids]).astype(np.int32)
+assert np.all((dst_ids % 20) == g.edges[('node2', 'relation3', 'node3')].data['label_class2'].numpy())

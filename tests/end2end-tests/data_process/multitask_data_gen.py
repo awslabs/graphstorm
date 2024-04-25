@@ -238,6 +238,8 @@ edge_conf = [
         ],
     },
     {
+        "source_id_col":    "src",
+        "dest_id_col":      "dst",
         "relation":         ("node2", "relation3", "node3"),
         "format":           {"name": "parquet"},
         "files":            os.path.join(in_dir, "edge_data3_*.parquet"),
