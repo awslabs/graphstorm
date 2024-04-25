@@ -1,6 +1,40 @@
 This folder contains the data processing and code to profile GraphStorm framework on Amazon Review dataset.
 
 # Data Processing
+## MAG
+### Process raw dataset into parquet files
+We first download the oag-2.1 MAG dataset from https://www.aminer.cn/oag-2-1 into raw_data/.
+The original data have affiliation data (`mag_affiliations.zip`), venue data (`mag_venues.zip`), 
+author data (`mag_authors_*.zip`), paper data (`mag_papers_*.zip`).
+
+After you unzip the above files, run the following notebook to generate the input for graph construction.
+```
+jupyter notebook MAG_parser_v0.2.ipynb
+```
+
+### Run gconstruct on process_data
+Once all the data are processed, run the following command to construct a graph
+for distributed GNN training in GraphStorm. 
+The command takes `MAG_construction_full.json` that specifies the
+input data for graph construction, constructs the graph,
+splits it into 4 partitions and saves the partitions to `mag_bert_constructed3`.
+The MAG graph is large, please use
+r6a.48xlarge instance to construct the graph. Please prepare a disk to store
+some intermediate data in the graph construction process. We can use
+`--ext-mem-workspace` to specify where the intermediate data can be stored.
+
+```
+python3 -m graphstorm.gconstruct.construct_graph \
+			--num-processes 16 \
+			--output-dir datasets/MAG_full \
+			--graph-name mag \
+			--num-parts 4 \
+			--skip-nonexist-edges \
+			--ext-mem-workspace /mnt/raid0/tmp_oag \
+			--ext-mem-feat-size 16 \
+			--conf-file gconstruct_configs/MAG_construction_full.json
+```
+
 ## Amazon Review
 ### Process raw dataset into parquet files
 We first download the full Amazon Review dataset from https://cseweb.ucsd.edu/~jmcauley/datasets/amazon_v2/.
@@ -38,11 +72,27 @@ python -m graphstorm.gconstruct.construct_graph \
 The processed data is stored under datasets/amazon_review_full/.
 The script partitions the graph into four parts.
 
-### Run graphstorm training
+# Model Training
 By default, we use four instances for training and their ips are written in ip_list.txt.
 Please refer to GraphStorm Distributed Training Tutorials for more details
 (https://graphstorm.readthedocs.io/en/latest/scale/distributed.html).
 
+## Run graphstorm on MAG
+Node classification
+```
+python -m graphstorm.run.gs_node_classification --num-trainers 8 \
+    --num-servers 1 --num-samplers 0 --part-config datasets/MAG_full/mag.json \
+    --ip-config ip_list.txt --ssh-port 22 --cf training_configs/main_experiments/MAG_nc_gnn.yaml
+```
+
+Link prediction
+```
+python -m graphstorm.run.gs_link_prediction --num-trainers 8 \
+    --num-servers 1 --num-samplers 0 --part-config datasets/MAG_full/mag.json \
+    --ip-config ip_list.txt --ssh-port 22 --cf training_configs/main_experiments/MAG_lp_gnn.yaml
+```
+
+## Run graphstorm on amazon_review
 Node classification
 ```
 python -m graphstorm.run.gs_node_classification --num-trainers 8 \
@@ -57,7 +107,7 @@ python -m graphstorm.run.gs_link_prediction --num-trainers 8 \
     --ip-config ip_list.txt --ssh-port 22 --cf training_configs/main_experiments/AR_lp_gnn.yaml
 ```
 
-### Performances
+# Performances
 In this section, we list the correspoding configs of each experiment and its performance.
 By default, we use accuracy/MRR as node classification/link prediction metrics, respectively.
 | Config | Description | Performance |
