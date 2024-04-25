@@ -34,6 +34,8 @@ gsf:
     num_classes: 152
     target_ntype:
     - paper
+    eval_target_ntype:
+    - paper
   output:
     topk_model_to_save: 1
   rgcn:
@@ -41,6 +43,4 @@ gsf:
     use_self_loop: true
 udf:
   save_result_path: tgat_nc_gpu
-  eval_target_ntype:
-  - paper
 version: 1.0
