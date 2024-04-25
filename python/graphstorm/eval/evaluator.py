@@ -157,6 +157,8 @@ class GSgnnPredictionEvalInterface():
             Rediction result
         labels:
             Label
+        train: boolean
+            If in model training.
 
         Returns
         -------
@@ -541,6 +543,8 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterf
                 Rediction result
             labels:
                 Label
+            train: boolean
+                If in model training.
 
             Returns
             -------
@@ -670,6 +674,8 @@ class GSgnnRegressionEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface)
                 Rediction result
             labels:
                 Label
+            train: boolean
+                If in model training.
 
             Returns
             -------
