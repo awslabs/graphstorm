@@ -273,4 +273,4 @@ transform_conf = {
     "nodes": node_conf,
     "edges": edge_conf,
 }
-json.dump(transform_conf, open(os.path.join(in_dir, 'test_data_transform.conf'), 'w'), indent=4)
+json.dump(transform_conf, open(os.path.join(in_dir, 'test_multitask_data_transform.conf'), 'w'), indent=4)
