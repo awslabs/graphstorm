@@ -33,7 +33,7 @@ def main(config_args):
 
     # Create a trainer for NC tasks.
     trainer = GSgnnNodePredictionTrainer(
-        model, gs.get_rank(), topk_model_to_save=config.topk_model_to_save
+        model, topk_model_to_save=config.topk_model_to_save
     )
 
     if config.restore_model_path is not None:
