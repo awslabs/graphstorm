@@ -759,9 +759,9 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
 
         Parameters
         ----------
-        val_scores: dict of tensors
+        val_rankings: dict of tensors
             Rankings of positive scores of validation edges for each edge type.
-        test_scores: dict of tensors
+        test_rankings: dict of tensors
             Rankings of positive scores of test edges for each edge type..
         total_iters: int
             The current interation number.
