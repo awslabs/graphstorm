@@ -122,13 +122,13 @@ By default, we use accuracy/MRR as node classification/link prediction metrics, 
 | main_experiments/mag_nc_gnn.yaml    |  pre-trained BERT+GNN for node classification on MAG        |  0.5715        |
 
 In the following table, we show the performance of link prediction on the Amazon Review dataset with different settings. (Test with GraphStorm 0.2.1 on 4 g5.48xlarge instances)
-| Config | Description | Performance (MRR) | epoch time (s) |
+| Config | Performance (MRR) | epoch time (s) |
+|----------|----------|----------|
 | link_prediction/lp_also_buy_1_layer_rgcn_dot_contrastive_loss_in_batch.yaml | In batch negative sampling with contrastive loss | 0.951 | 1340.90 |
 | link_prediction/lp_also_buy_1_layer_rgcn_dot_contrastive_loss_joint_1024_negative.yaml | Joint negative sampling with batch size of 1024 with contrastive loss | 0.956 | 1344.65 |
 | link_prediction/lp_also_buy_1_layer_rgcn_dot_contrastive_loss_joint_32_negative.yaml | Joint negative sampling with batch size of 32 with contrastive loss | 0.958 | 1286.64 |
 | link_prediction/lp_also_buy_1_layer_rgcn_dot_contrastive_loss_joint_4_negative.yaml | Joint negative sampling with batch size of 4 with contrastive loss | 0.956 | 1289.9 |
 | link_prediction/lp_also_buy_1_layer_rgcn_dot_contrastive_loss_uniform_32_negative.yaml | Uniform negative sampling with batch size of 32 with contrastive loss | 0.957 | 1726.19 |
-
 | link_prediction/lp_also_buy_1_layer_rgcn_dot_entropy_loss_in_batch.yaml | In batch negative sampling with cross entropy loss | 0.250 | 1343.94 |
 | link_prediction/lp_also_buy_1_layer_rgcn_dot_entropy_loss_joint_1024_negative.yaml| Joint negative sampling with batch size of 1024 with cross entropy loss | 0.334 | 1330.50 |
 | link_prediction/lp_also_buy_1_layer_rgcn_dot_entropy_loss_joint_32_negative.yaml | Joint negative sampling with batch size of 32 with cross entropy loss | 0.380 | 1290.72 |
