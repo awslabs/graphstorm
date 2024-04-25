@@ -22,7 +22,7 @@ def main(config_args):
         config.graph_name,
         config.part_config,
         train_ntypes=config.target_ntype,
-        eval_ntypes=config.eval_target_ntype,
+        eval_ntypes=config.eval_target_ntypes,
         label_field=config.label_field,
         node_feat_field=config.node_feat_name,
     )
