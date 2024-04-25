@@ -41,6 +41,6 @@ gsf:
     use_self_loop: true
 udf:
   save_result_path: tgat_nc_gpu
-  eval_target_ntype:
-  - paper
+  eval_target_ntypes:
+    - paper
 version: 1.0

@@ -65,7 +65,7 @@ def main(config_args):
     )
 
     # create val loader
-    val_idxs = train_data.get_node_val_set(config.eval_target_ntype)
+    val_idxs = train_data.get_node_val_set(config.eval_target_ntypes)
     val_dataloader = GSgnnNodeDataLoader(
         train_data,
         val_idxs,
@@ -77,7 +77,7 @@ def main(config_args):
     )
 
     # create test loader
-    test_idxs = train_data.get_node_test_set(config.eval_target_ntype)
+    test_idxs = train_data.get_node_test_set(config.eval_target_ntypes)
     test_dataloader = GSgnnNodeDataLoader(
         train_data,
         test_idxs,
