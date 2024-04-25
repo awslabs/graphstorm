@@ -165,7 +165,7 @@ class GSgnnPredictionEvalInterface():
 
 
 class GSgnnLPRankingEvalInterface():
-    """ Interface for Link Prediction evaluation function using ranking method
+    """ Interface for Link Prediction evaluation function using ranking methods
 
     The interface set the two abstract methods for Link Prediction classes that use ranking
     method to compute evaluation metrics, such as "mrr" (Mean Reciprocal Rank).
@@ -187,9 +187,9 @@ class GSgnnLPRankingEvalInterface():
 
         Parameters
         ----------
-        val_scores: dict of tensors
+        val_rankings: dict of tensors
             The rankings of validation edges for each edge type in format of {etype: ranking}.
-        test_scores: dict of tensors
+        test_rankings: dict of tensors
             The rankings of testing edges for each edge type in format of {etype: ranking}.
         total_iters: int
             The current interation number.
