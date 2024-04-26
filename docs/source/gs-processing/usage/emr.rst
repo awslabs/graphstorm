@@ -9,8 +9,8 @@ we suggest going through its
 to familiarize yourself with its concepts.
 
 In summary, we will launch an EMR cluster configured in a way that will allow
-us to run jobs with executors that use the GSProcessing EMR Docker image we just pushed to ECR,
-and then launch our our jobs using ``spark-submit`` from the
+us to run jobs with executors that use the GSProcessing EMR Docker image,
+and then launch our job using ``spark-submit`` from the
 cluster's leader node.
 
 Follow EMR set-up
@@ -27,10 +27,10 @@ Make note of the SSH key pair you plan to use to access the cluster.
 Ensure EMR instance role can access the ECR repository
 ------------------------------------------------------
 
-To ensure we are able to pull the image from within
+To ensure we are able to pull the image from ECR within
 the EMR cluster launched, we'll need to allow the
 EC2 instance profile used by EMR to read from ECR.
-To create these roles we can run the following using an
+To create these roles we can run the following command using an
 administrative user:
 
 .. code-block:: bash
@@ -119,7 +119,7 @@ command to trust the GSProcessing ECR repository:
     ]
 
 Here you would replace the placeholder values for ``<ACCOUNT>`` and ``<REGION>``
-with the appropriate values you used for your account. Save this
+with the appropriate values  for your account. Save this
 script and name it `container-executor.json`, we'll use it in the next step.
 
 For more information on running Spark jobs with custom Docker containers see the EMR
@@ -251,7 +251,7 @@ to submit jobs. We can do so by running:
 
     bash submit-gsp-job.sh
 
-Ensure row counts are aligned and terminate cluster
+Ensure row counts are aligned and terminate the cluster
 ---------------------------------------------------
 
 By setting ``--do-repartition True`` on our job launch script
