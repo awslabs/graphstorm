@@ -1758,14 +1758,21 @@ def parse_label_ops(confs, is_node):
             if "node_id_col" in confs:
                 return CustomLabelProcessor(col_name=label_col, label_name=label_col,
                                             id_col=confs["node_id_col"],
-                                            task_type=task_type, train_idx=train_idx, val_idx=val_idx,
-                                            test_idx=test_idx, stats_type=label_stats_type,
+                                            task_type=task_type,
+                                            train_idx=train_idx,
+                                            val_idx=val_idx,
+                                            test_idx=test_idx,
+                                            stats_type=label_stats_type,
                                             mask_field_names=mask_field_names)
             elif "source_id_col" in confs and "dest_id_col" in confs:
                 return CustomLabelProcessor(col_name=label_col, label_name=label_col,
-                                            id_col=(confs["source_id_col"], confs["dest_id_col"]),
-                                            task_type=task_type, train_idx=train_idx, val_idx=val_idx,
-                                            test_idx=test_idx, stats_type=label_stats_type,
+                                            id_col=(confs["source_id_col"],
+                                                    confs["dest_id_col"]),
+                                            task_type=task_type,
+                                            train_idx=train_idx,
+                                            val_idx=val_idx,
+                                            test_idx=test_idx,
+                                            stats_type=label_stats_type,
                                             mask_field_names=mask_field_names)
             else:
                 raise AttributeError("Custom data segmentation should be "
