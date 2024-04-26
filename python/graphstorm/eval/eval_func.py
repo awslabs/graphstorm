@@ -141,6 +141,14 @@ class LinkPredictionMetrics:
         self.metric_comparator = {}
         self.metric_comparator["mrr"] = operator.le
 
+        # This is the operator used to measure each metric performance
+        self.metric_function = {}
+        self.metric_function["mrr"] = compute_mrr
+
+        # This is the operator used to measure each metric performance in evaluation
+        self.metric_eval_function = {}
+        self.metric_eval_function["mrr"] = compute_mrr
+
     def assert_supported_metric(self, metric):
         """ check if the given metric is supported.
         """
@@ -589,3 +597,19 @@ def compute_mae(pred, labels):
 
     diff = th.abs(pred.cpu() - labels.cpu())
     return th.mean(diff).cpu().item()
+
+def compute_mrr(ranking):
+    """ Get link prediction mrr metrics
+
+        Parameters
+        ----------
+        ranking:
+            ranking of each positive edge
+
+        Returns
+        -------
+        link prediction mrr metrics: tensor
+    """
+    logs = th.div(1.0, ranking)
+    metrics = th.tensor(th.div(th.sum(logs),len(logs)))
+    return metrics

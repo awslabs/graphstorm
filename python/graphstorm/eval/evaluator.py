@@ -205,7 +205,7 @@ class GSgnnLPRankingEvalInterface():
         """
 
     @abc.abstractmethod
-    def compute_score(self, rankings):
+    def compute_score(self, rankings, train=True):
         """ Compute evaluation score for Prediciton tasks
 
         Ranking-based link prediction evaluators should provide ranking values as input.
@@ -214,6 +214,8 @@ class GSgnnLPRankingEvalInterface():
         ----------
         rankings: dict of tensors
             Rankings of positive scores in format of {etype: ranking}
+        train: boolean
+            If in model training.
 
         Returns
         -------
@@ -460,15 +462,12 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterf
         1) consecutive_increase and 2) average_increase.
     """
     def __init__(self, eval_frequency,
-                 eval_metric_list=None,
+                 eval_metric_list=["accuracy"],
                  multilabel=False,
                  use_early_stop=False,
                  early_stop_burnin_rounds=0,
                  early_stop_rounds=3,
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY): # pylint: disable=unused-argument
-        # set up default metric to be accuracy
-        if eval_metric_list is None:
-            eval_metric_list = ["accuracy"]
         super(GSgnnClassificationEvaluator, self).__init__(eval_frequency,
                                                            eval_metric_list,
                                                            use_early_stop,
@@ -596,14 +595,11 @@ class GSgnnRegressionEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface)
         1) consecutive_increase and 2) average_increase.
     """
     def __init__(self, eval_frequency,
-                 eval_metric_list=None,
+                 eval_metric_list=["rmse"],
                  use_early_stop=False,
                  early_stop_burnin_rounds=0,
                  early_stop_rounds=3,
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
-        # set up default metric to be "rmse"
-        if eval_metric_list is None:
-            eval_metric_list = ["rmse"]
         super(GSgnnRegressionEvaluator, self).__init__(eval_frequency,
             eval_metric_list, use_early_stop, early_stop_burnin_rounds,
             early_stop_rounds, early_stop_strategy)
@@ -708,7 +704,7 @@ class GSgnnRegressionEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface)
 class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     """ Link Prediction Evaluator using "mrr" as metric.
 
-    GS built-in evaluator for Link Prediction task. It uses "mrr" as the default eval metric,
+    GS built-in evaluator for Link Prediction tasks. It uses "mrr" as the default eval metric,
     which implements the `GSgnnLPRankingEvalInterface`.
     
     To create a customized LP evaluator that use evaluation metric other than "mrr", users might
@@ -733,13 +729,11 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         1) consecutive_increase and 2) average_increase.
     """
     def __init__(self, eval_frequency,
-                 eval_metric_list=None,
+                 eval_metric_list=["mrr"],
                  use_early_stop=False,
                  early_stop_burnin_rounds=0,
                  early_stop_rounds=3,
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
-        if eval_metric_list is None:
-            eval_metric_list = ["mrr"]
         super(GSgnnMrrLPEvaluator, self).__init__(eval_frequency,
             eval_metric_list, use_early_stop, early_stop_burnin_rounds,
             early_stop_rounds, early_stop_strategy)
@@ -797,36 +791,50 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
 
         return val_score, test_score
 
-    def compute_score(self, rankings):
+    def compute_score(self, rankings, train=True):
         """ Compute evaluation score
 
             Parameters
             ----------
             rankings: dict of tensors
                 Rankings of positive scores in format of {etype: ranking}
+            train: boolean
+                If in model training.
 
             Returns
             -------
             Evaluation metric values: dict
         """
         # We calculate global mrr, etype is ignored.
-        # User can develop its own per etype MRR evaluator
         ranking = []
         for _, rank in rankings.items():
             ranking.append(rank)
         ranking = th.cat(ranking, dim=0)
 
-        metrics = gen_mrr_score(ranking)
+        # compute ranking value for each metric
+        metrics = {}
+        for metric in self.metric_list:
+            if train:
+                # training expects always a single number to be
+                # returned and has a different (potentially) evluation function
+                metrics[metric] = self.metrics_obj.metric_function[metric](ranking)
+            else:
+                # validation or testing may have a different
+                # evaluation function, in our case the evaluation code
+                # may return a dictionary with the metric values for each metric
+                metrics[metric] = self.metrics_obj.metric_eval_function[metric](ranking)
 
         # When world size == 1, we do not need the barrier
         if get_world_size() > 1:
             barrier()
             for _, metric_val in metrics.items():
                 th.distributed.all_reduce(metric_val)
+
         return_metrics = {}
         for metric, metric_val in metrics.items():
             return_metric = metric_val / get_world_size()
             return_metrics[metric] = return_metric.item()
+
         return return_metrics
 
 
@@ -853,14 +861,12 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
         1) consecutive_increase and 2) average_increase.
     """
     def __init__(self, eval_frequency,
-                 eval_metric_list=None,
+                 eval_metric_list=["mrr"],
                  major_etype = LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL,
                  use_early_stop=False,
                  early_stop_burnin_rounds=0,
                  early_stop_rounds=3,
                  early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
-        if eval_metric_list is None:
-            eval_metric_list = ["mrr"]
         super(GSgnnPerEtypeMrrLPEvaluator, self).__init__(eval_frequency,
                                                           eval_metric_list,
                                                           use_early_stop,
@@ -878,13 +884,15 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
             self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_iter[metric] = 0
 
-    def compute_score(self, rankings):
+    def compute_score(self, rankings, train=True):
         """ Compute evaluation score
 
             Parameters
             ----------
             rankings: dict of tensors
                 Rankings of positive scores in format of {etype: ranking}
+            train: boolean
+                If in model training.
 
             Returns
             -------
@@ -892,19 +900,31 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
         """
         # We calculate global mrr, etype is ignored.
         # User can develop its own per etype MRR evaluator
-        metrics = {}
-        for etype, rank in rankings.items():
-            metrics[etype] = gen_mrr_score(rank)
+        per_etype_metrics = {}
+        for etype, ranking in rankings.items():
+            # compute ranking value for each metric
+            metrics = {}
+            for metric in self.metric_list:
+                if train:
+                    # training expects always a single number to be
+                    # returned and has a different (potentially) evluation function
+                    metrics[metric] = self.metrics_obj.metric_function[metric](ranking)
+                else:
+                    # validation or testing may have a different
+                    # evaluation function, in our case the evaluation code
+                    # may return a dictionary with the metric values for each metric
+                    metrics[metric] = self.metrics_obj.metric_eval_function[metric](ranking)
+            per_etype_metrics[etype] = metrics
 
         # When world size == 1, we do not need the barrier
         if get_world_size() > 1:
             barrier()
-            for _, metric in metrics.items():
+            for _, metric in per_etype_metrics.items():
                 for _, metric_val in metric.items():
                     th.distributed.all_reduce(metric_val)
 
         return_metrics = {}
-        for etype, metric in metrics.items():
+        for etype, metric in per_etype_metrics.items():
             for metric_key, metric_val in metric.items():
                 return_metric = metric_val / get_world_size()
                 if metric_key not in return_metrics:
@@ -946,7 +966,8 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
             if test_rankings is not None:
                 test_score = self.compute_score(test_rankings)
             else:
-                test_score = {"mrr": "N/A"} # Dummy
+                for metric in self.metric_list:
+                    test_score = {metric: "N/A"} # Dummy
 
             if val_rankings is not None:
                 val_score = self.compute_score(val_rankings)
@@ -962,7 +983,8 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
                             self._best_test_score[metric] = major_test_score
                             self._best_iter[metric] = total_iters
             else:
-                val_score = {"mrr": "N/A"} # Dummy
+                for metric in self.metric_list:
+                    val_score = {metric: "N/A"} # Dummy
 
         return val_score, test_score
 

@@ -172,7 +172,7 @@ def test_mrr_per_etype_lp_evaluation():
 
     th.distributed.destroy_process_group()
 
-def test_lp_evaluator():
+def test_mrr_lp_evaluator():
     # system heavily depends on th distributed
     dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
         master_ip='127.0.0.1', master_port='12346')
@@ -852,7 +852,7 @@ def test_get_val_score_rank():
 if __name__ == '__main__':
     # test evaluators
     test_mrr_per_etype_lp_evaluation()
-    test_lp_evaluator()
+    test_mrr_lp_evaluator()
     test_regression_evaluator()
     test_early_stop_avg_increase_judge()
     test_early_stop_cons_increase_judge()
