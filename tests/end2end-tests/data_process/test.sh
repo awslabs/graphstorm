@@ -121,7 +121,8 @@ python3 $GS_HOME/tests/end2end-tests/data_process/test_multitask_data.py --graph
 
 error_and_exit $?
 
-python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/multitask_test_data/test_multitask_data_transform_new.conf --num-processes 2 --output-dir /tmp/test_partition2 --graph-name test
+echo "********* Test the DistDGL graph format with multi mask support from saved config ********"
+python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/multitask_test_data/test_multitask_data_transform_new.conf --num-processes 2 --output-dir /tmp/test_partition2 --graph-name test --add-reverse-edges
 
 error_and_exit $?
 
