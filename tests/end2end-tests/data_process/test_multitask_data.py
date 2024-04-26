@@ -175,3 +175,13 @@ assert th.sum(g.edges[('node2', 'relation3', 'node3')].data['test_mask_class2'])
         == int(g.number_of_edges(('node2', 'relation3', 'node3')) * 0.1)
 dst_ids = np.array([reverse_node3_map[dst_id] for dst_id in dst_ids]).astype(np.int32)
 assert np.all((dst_ids % 20) == g.edges[('node2', 'relation3', 'node3')].data['label_class2'].numpy())
+
+if args.with_reverse_edge:
+    assert g.number_of_edges(('node1', 'relation1', 'node2')) == g.number_of_edges(('node2', 'rev-relation1', 'node1'))
+    assert 'label_class' not in g.edges[('node2', 'rev-relation1', 'node1')].data
+
+    assert g.number_of_edges(('node1', 'relation2', 'node1')) == g.number_of_edges(('node1', 'rev-relation2', 'node1'))
+    assert 'train_mask' not in g.edges[('node1', 'rev-relation2', 'node1')].data
+
+    assert g.number_of_edges(('node2', 'relation3', 'node3')) == g.number_of_edges(('node3', 'rev-relation3', 'node2'))
+    assert 'label_class1' not in g.edges[('node3', 'rev-relation3', 'node2')].data

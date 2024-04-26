@@ -117,15 +117,15 @@ python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/multitask_test
 
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/data_process/test_multitask_data.py --graph-format DistDGL --graph_dir /tmp/test_partition --conf_file /tmp/multitask_test_data/test_data_transform_custom_mask_new.conf --with-reverse-edge True
+python3 $GS_HOME/tests/end2end-tests/data_process/test_multitask_data.py --graph-format DistDGL --graph_dir /tmp/test_partition --conf_file /tmp/multitask_test_data/test_multitask_data_transform_new.conf --with-reverse-edge True
 
 error_and_exit $?
 
-python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/multitask_test_data/test_data_transform_custom_mask_new.conf --num-processes 2 --output-dir /tmp/test_partition2 --graph-name test
+python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/multitask_test_data/test_multitask_data_transform_new.conf --num-processes 2 --output-dir /tmp/test_partition2 --graph-name test
 
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/data_process/test_multitask_data.py --graph-format DistDGL --graph_dir /tmp/test_partition2 --conf_file /tmp/multitask_test_data/test_data_transform_custom_mask_new.conf --with-reverse-edge True
+python3 $GS_HOME/tests/end2end-tests/data_process/test_multitask_data.py --graph-format DistDGL --graph_dir /tmp/test_partition2 --conf_file /tmp/multitask_test_data/test_multitask_data_transform_new.conf --with-reverse-edge True
 
 error_and_exit $?
 
