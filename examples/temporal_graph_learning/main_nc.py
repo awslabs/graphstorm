@@ -19,9 +19,7 @@ def main(config_args):
 
     # Define the training dataset
     train_data = GSgnnData(
-        config.part_config,
-        node_feat_field=config.node_feat_name,
-    )
+        config.part_config)
 
     # Define TGAT model
     model = create_rgcn_model_for_nc(train_data.g, config)

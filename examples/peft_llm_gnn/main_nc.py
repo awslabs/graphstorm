@@ -19,9 +19,7 @@ def main(config_args):
                   local_rank=config.local_rank)
     # Define the training dataset
     train_data = GSgnnData(
-        config.part_config,
-        node_feat_field=config.node_feat_name
-    )
+        config.part_config)
 
     model = GNNLLM_NC(
             g=train_data.g,

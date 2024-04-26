@@ -272,8 +272,7 @@ def main(args):
         node_feat_fields[node_type] = feat_names.split(',')
 
     # Define the GraphStorm training dataset
-    train_data = GSgnnData(config.part_config,
-                           node_feat_field=node_feat_fields)
+    train_data = GSgnnData(config.part_config)
 
     # Create input arguments for the HGT model
     node_dict = {}
@@ -359,8 +358,7 @@ def main(args):
     model.restore_model(best_model_path)
 
     # Create a dataset for inference.
-    infer_data = GSgnnData(config.part_config,
-                           node_feat_field=node_feat_fields)
+    infer_data = GSgnnData(config.part_config)
 
     # Create an inference for a node task.
     infer = GSgnnNodePredictionInferrer(model)
