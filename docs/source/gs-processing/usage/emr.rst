@@ -93,8 +93,9 @@ Launch an EMR cluster with the appropriate permissions
 Once our roles are set up, that is we have an EMR EC2 instance role,
 and a user we can use to launch clusters, we can launch a cluster
 configured to allow us to run jobs with the GSProcessing EMR on EC2
-Docker image. We have tested GSProcessing with EMR 7.0.0 and EMR 6.10.0.
-Here we will assume we're using EMR 7.0.0. If you have persistent clusters you want to
+Docker image. We have tested GSProcessing with EMR 7.0.0 and EMR 6.10.0,
+and the instructions should apply for any EMR version ``>6.0.0``.
+If you have persistent clusters you want to
 use to run GSProcessing, you'd have to modify the EMR Dockerfile
 accordingly to use an appropriate EMR image as the source image.
 
@@ -198,7 +199,6 @@ To submit a job we can use a helper ``bash`` script, which we list below:
     GRAPH_NAME="small-graph"
     CONFIG_FILE="gconstruct-config.json"
     NUM_FILES="-1"
-    GSP_PATH="/path/to/graphstorm/graphstorm-processing"
 
     ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 
@@ -208,9 +208,6 @@ To submit a job we can use a helper ``bash`` script, which we list below:
     IMAGE="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${REPOSITORY}:${TAG}"
 
     S3_ENTRY_POINT="s3://${OUTPUT_BUCKET}/emr-scripts/distributed_executor.py"
-
-    # Upload the entry point, should be available locally
-    aws s3 cp ${GSP_PATH}/graphstorm_processing/distributed_executor.py ${S3_ENTRY_POINT}
 
     export OUTPUT_PREFIX="s3://${OUTPUT_BUCKET}/gsprocessing/emr/${GRAPH_NAME}/${NUM_FILES}files/"
 
@@ -230,15 +227,17 @@ To submit a job we can use a helper ``bash`` script, which we list below:
             --do-repartition True
 
 
-We will need to upload this helper script as well as the entry point
-script onto the Spark leader:
+We will need to save and upload this helper script to the Spark leader,
+and the ``distributed_executor.py`` entry point to an S3 location that the leader can access.
+From where you cloned graphstorm you can run:
 
 .. code-block:: bash
 
+    MY_BUCKET="enter-your-bucket-name-here" # The leader instance needs to be able to read this bucket
+    aws s3 cp /path/to/graphstorm/graphstorm-processing/graphstorm_processing/distributed_executor.py
+        \ "s3://${MY_BUCKET}/emr-scripts/distributed_executor.py"
     aws emr put --cluster-id j-XXXXXXXXXX --key-pair-file /path/to/my-key-pair.pem \
         --src submit-gsp-job.sh
-    aws emr put --cluster-id j-XXXXXXXXXX --key-pair-file /path/to/my-key-pair.pem \
-        --src /path/to/graphstorm/graphstorm-processing/graphstorm_processing/distributed_executor.py
 
 Once the cluster is launched we can use the key pair
 we created and the cluster ID to log into the Spark leader
@@ -279,7 +278,7 @@ which means our data are ready for distributed partitioning.
 If the re-partitioning failed, we can run a separate job, see :doc:`row-count-alignment`
 for details.
 
-We can now safely terminate our cluster:
+Once done, remember to clean up your cluster resources by terminating the cluster:
 
 .. code-block:: bash
 
