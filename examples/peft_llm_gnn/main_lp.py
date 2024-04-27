@@ -21,7 +21,9 @@ def main(config_args):
                   local_rank=config.local_rank)
     # Define the training dataset
     train_data = GSgnnData(
-        config.part_config)
+        config.part_config,
+        node_feat_field=config.node_feat_name,
+    )
     train_etypes=config.train_etype
     eval_etypes=config.eval_etype
 
