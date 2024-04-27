@@ -26,7 +26,7 @@ from ..config.config import (EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
                              EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY,
                              LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL)
 from ..utils import get_rank, get_world_size, barrier
-from .utils import gen_mrr_score
+
 
 def early_stop_avg_increase_judge(val_score, val_perf_list, comparator):
     """
