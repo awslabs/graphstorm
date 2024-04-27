@@ -275,7 +275,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                        'peak_RAM_mem_alloc_MB': \
                            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024,
                        'best validation iteration': \
-                           self.evaluator.best_iter_num[self.evaluator.metric[0]],
+                           self.evaluator.best_iter_num[self.evaluator.metric_list[0]],
                        'best model path': \
                            self.get_best_model_path() if save_model_path is not None else None}
             self.log_params(output)

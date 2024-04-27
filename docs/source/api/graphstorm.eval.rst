@@ -7,8 +7,9 @@ graphstorm.eval
     Learning (GML) tasks.
 
     If users want to implement customized evaluators or evaluation methods, a best practice is to
-    extend base evaluators, i.e., the ``GSgnnInstanceEvaluator`` class for node or edge prediction
-    tasks, and ``GSgnnLPEvaluator`` for link prediction tasks, and then implement the abstract methods.
+    extend the base evaluator, i.e., the ``GSgnnBaseEvaluator``, and the corresponding evaluation
+    interfaces, e.g., ``GSgnnPredictionEvalInterface``` for prediction tasks, and
+    ``GSgnnLPRankingEvalInterface`` for link prediction tasks, and then implement the abstract methods.
 
 .. currentmodule:: graphstorm.eval
 
@@ -20,8 +21,9 @@ Base Evaluators
     :nosignatures:
     :template: evaltemplate.rst
 
-    GSgnnInstanceEvaluator
-    GSgnnLPEvaluator
+    GSgnnBaseEvaluator
+    GSgnnPredictionEvalInterface
+    GSgnnLPRankingEvalInterface
 
 Evaluators
 -----------
@@ -31,8 +33,7 @@ Evaluators
     :nosignatures:
     :template: evaltemplate.rst
 
-    GSgnnLPEvaluator
-    GSgnnMrrLPEvaluator
-    GSgnnPerEtypeMrrLPEvaluator
     GSgnnClassificationEvaluator
     GSgnnRegressionEvaluator
+    GSgnnMrrLPEvaluator
+    GSgnnPerEtypeMrrLPEvaluator
