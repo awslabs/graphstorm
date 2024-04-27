@@ -1838,7 +1838,9 @@ def process_labels(data, label_processors):
         "Number of label_processors must be one or more."
     ret = {}
     for label_processor in label_processors:
-        ret.update(label_processor(data))
+        label_feats = label_processor(data)
+        logging.debug(f"Label information: {label_feats}")
+        ret.update(label_feats)
     return ret
 
 def do_multiprocess_transform(conf, feat_ops, label_ops, in_files):
