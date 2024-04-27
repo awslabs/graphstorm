@@ -1839,7 +1839,7 @@ def process_labels(data, label_processors):
     ret = {}
     for label_processor in label_processors:
         label_feats = label_processor(data)
-        logging.debug(f"Label information: {label_feats}")
+        logging.debug("Label information: %s", label_feats)
         ret.update(label_feats)
     return ret
 
