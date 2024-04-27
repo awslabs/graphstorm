@@ -159,12 +159,12 @@ node_conf = [
         "files": os.path.join(in_dir, "node_data2_*.json"),
         "labels":[
             {
-                "label_col":    "label_class1",
+                "label_col":    "label_class",
                 "task_type":    "classification",
                 "label_stats_type": "frequency_cnt",
-                "mask_field_names": ["train_mask_class1",
-                                     "val_mask_class1",
-                                     "test_mask_class1"],
+                "mask_field_names": ["train_mask_class",
+                                     "val_mask_class",
+                                     "test_mask_class"],
             },
             {
                 "label_col":    "label_class2",

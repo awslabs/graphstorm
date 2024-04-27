@@ -79,8 +79,6 @@ assert np.all(data <= 2)
 assert np.all(data >= -2)
 
 label_class = g.nodes['node1'].data['label_class'].numpy()
-assert "train_mask_class" in g.nodes['node1'].data
-assert "val_mask_class" in g.nodes['node1'].data
 assert label_class.dtype == np.int32
 assert np.all(label_class == orig_ids % 100)
 assert np.all(np.nonzero(g.nodes['node1'].data['train_mask_class'].numpy()) == np.arange(100))
@@ -94,11 +92,11 @@ assert th.sum(g.nodes['node1'].data['val_mask_reg']) == int(g.number_of_nodes('n
 assert th.sum(g.nodes['node1'].data['test_mask_reg']) == int(g.number_of_nodes('node1') * 0.1)
 
 # Test the second node data
-label_class_1 = g.nodes['node2'].data['label_class1'].numpy()
+label_class_1 = g.nodes['node2'].data['label_class'].numpy()
 assert label_class_1.dtype == np.int32
-assert th.sum(g.nodes['node2'].data['train_mask_class1']) == int(g.number_of_nodes('node2') * 0.8)
-assert th.sum(g.nodes['node2'].data['val_mask_class1']) == int(g.number_of_nodes('node2') * 0.1)
-assert th.sum(g.nodes['node2'].data['test_mask_class1']) == int(g.number_of_nodes('node2') * 0.1)
+assert th.sum(g.nodes['node2'].data['train_mask_class']) == int(g.number_of_nodes('node2') * 0.8)
+assert th.sum(g.nodes['node2'].data['val_mask_class']) == int(g.number_of_nodes('node2') * 0.1)
+assert th.sum(g.nodes['node2'].data['test_mask_class']) == int(g.number_of_nodes('node2') * 0.1)
 
 label_class_2 = g.nodes['node2'].data['label_class2'].numpy()
 assert label_class_1.dtype == np.int32
