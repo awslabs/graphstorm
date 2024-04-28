@@ -235,7 +235,7 @@ def check_node_prediction(model, data, is_homo=False):
     ----------
     model: GSgnnNodeModel
         Node model
-    data: GSgnnNodeTrainData
+    data: GSgnnData
         Train data
     """
     g = data.g
@@ -311,7 +311,7 @@ def check_node_prediction_with_reconstruct(model, data, construct_feat_ntype, tr
     ----------
     model: GSgnnNodeModel
         Node model
-    data: GSgnnNodeTrainData
+    data: GSgnnData
         Train data
     """
     target_ntype = train_ntypes[0]
@@ -390,7 +390,7 @@ def check_mlp_node_prediction(model, data):
     ----------
     model: GSgnnNodeModel
         Node model
-    data: GSgnnNodeTrainData
+    data: GSgnnData
         Train data
     """
     g = data.g

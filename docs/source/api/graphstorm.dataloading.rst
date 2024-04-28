@@ -33,10 +33,7 @@ DataSets
     :nosignatures:
     :template: datasettemplate.rst
 
-    GSgnnNodeTrainData
-    GSgnnNodeInferData
-    GSgnnEdgeTrainData
-    GSgnnEdgeInferData
+    GSgnnData
 
 DataLoaders
 ------------

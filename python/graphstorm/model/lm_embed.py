@@ -492,7 +492,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
     .. code:: python
 
         from graphstorm.model import GSgnnNodeModel, GSPureLMNodeInputLayer
-        from graphstorm.dataloading import GSgnnNodeTrainData
+        from graphstorm.dataloading import GSgnnData
 
         node_lm_configs = [
             {
@@ -502,7 +502,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
                 "node_types": ['a']
             }
         ]
-        np_data = GSgnnNodeTrainData(...)
+        np_data = GSgnnData(...)
         model = GSgnnNodeModel(...)
         lm_train_nodes=10
         encoder = GSPureLMNodeInputLayer(g=np_data.g, node_lm_configs=node_lm_configs,
@@ -687,8 +687,8 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
 
         from graphstorm import get_node_feat_size
         from graphstorm.model import GSgnnNodeModel, GSLMNodeEncoderInputLayer
-        from graphstorm.dataloading import GSgnnNodeTrainData
-        np_data = GSgnnNodeTrainData(...)
+        from graphstorm.dataloading import GSgnnData
+        np_data = GSgnnData(...)
         model = GSgnnNodeModel(...)
         feat_size = get_node_feat_size(np_data.g, 'feat')
         node_lm_configs = [{"lm_type": "bert",

@@ -46,21 +46,23 @@ def main(config_args):
                         model_layer_to_load=config.restore_model_layers)
     infer = GSgnnLinkPredictionInferrer(model)
     infer.setup_device(device=get_device())
-    test_idxs = infer_data.get_edge_test_set(config.eval_etype)
     if not config.no_validation:
+        infer_idxs = infer_data.get_edge_test_set(config.eval_etype)
         infer.setup_evaluator(
             GSgnnMrrLPEvaluator(config.eval_frequency,
                                 infer_data,
                                 config.num_negative_edges_eval,
                                 config.lp_decoder_type))
-        assert len(test_idxs) > 0, "There is not test data for evaluation."
+        assert len(infer_idxs) > 0, "There is not test data for evaluation."
+    else:
+        infer_idxs = infer_data.get_edge_infer_set(config.eval_etype)
     tracker = gs.create_builtin_task_tracker(config)
     infer.setup_task_tracker(tracker)
     # We only support full-graph inference for now.
     if config.eval_etypes_negative_dstnode is not None:
         # The negatives used in evaluation is fixed.
         dataloader = GSgnnLinkPredictionPredefinedTestDataLoader(
-            infer_data, test_idxs,
+            infer_data, infer_idxs,
             batch_size=config.eval_batch_size,
             fixed_edge_dst_negative_field=config.eval_etypes_negative_dstnode,
             node_feats=config.node_feat_name)
@@ -74,7 +76,7 @@ def main(config_args):
                 'Supported test negative samplers include '
                 f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
 
-        dataloader = test_dataloader_cls(infer_data, test_idxs,
+        dataloader = test_dataloader_cls(infer_data, infer_idxs,
             batch_size=config.eval_batch_size,
             num_negative_edges=config.num_negative_edges_eval,
             node_feats=config.node_feat_name)
