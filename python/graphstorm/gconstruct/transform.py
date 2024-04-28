@@ -1726,7 +1726,9 @@ def parse_label_ops(confs, is_node):
     """
     label_confs = confs['labels']
     assert len(label_confs) >= 1, \
-        "There must be at least one label configuration under the 'labels' config block."
+        "If a 'labels' field is defined for a node type or an edge type in the " \
+        "configuration file, it should not be empty."
+
     def parse_label_conf(label_conf):
         assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
         task_type = label_conf['task_type']

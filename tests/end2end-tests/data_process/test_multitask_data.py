@@ -44,11 +44,6 @@ out_dir = args.graph_dir
 with open(args.conf_file, 'r') as f:
     conf = json.load(f)
 
-args = argparser.parse_args()
-out_dir = args.graph_dir
-with open(args.conf_file, 'r') as f:
-    conf = json.load(f)
-
 if args.graph_format == "DGL":
     g = dgl.load_graphs(os.path.join(out_dir, "test.dgl"))[0][0]
 elif args.graph_format == "DistDGL":
