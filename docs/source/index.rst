@@ -23,6 +23,7 @@ Welcome to the GraphStorm Documentation and Tutorials
    gs-processing/usage/example
    gs-processing/usage/distributed-processing-setup
    gs-processing/usage/amazon-sagemaker
+   gs-processing/usage/emr
    gs-processing/usage/emr-serverless
    gs-processing/developer/input-configuration
 
