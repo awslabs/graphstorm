@@ -263,13 +263,13 @@ The GraphStorm trainers can have evaluators and task trackers associated. The fo
 .. code-block:: python
 
     # Optional: set up a evaluator
-    evaluator = GSgnnAccEvaluator(config.eval_frequency,
-                                  config.eval_metric,
-                                  config.multilabel,
-                                  config.use_early_stop,
-                                  config.early_stop_burnin_rounds,
-                                  config.early_stop_rounds,
-                                  config.early_stop_strategy)
+    evaluator = GSgnnClassificationEvaluator(config.eval_frequency,
+                                             config.eval_metric,
+                                             config.multilabel,
+                                             config.use_early_stop,
+                                             config.early_stop_burnin_rounds,
+                                             config.early_stop_rounds,
+                                             config.early_stop_strategy)
     trainer.setup_evaluator(evaluator)
     # Optional: set up a task tracker to show the progress of training.
     tracker = GSSageMakerTaskTracker(config.eval_frequency)
