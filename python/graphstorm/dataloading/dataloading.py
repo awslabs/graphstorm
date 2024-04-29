@@ -355,7 +355,11 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
         from graphstorm.trainer import GSgnnEdgePredictionTrainer
 
         ep_data = GSgnnData(...)
-        ep_dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, fanout=[15, 10], batch_size=128)
+        target_idx = ep_data.get_edge_train_set(...)
+        ep_dataloader = GSgnnEdgeDataLoader(
+            ep_data, target_idx,
+            fanout=[15, 10], batch_size=128,
+            label_field=config.label_field)
         ep_trainer = GSgnnEdgePredictionTrainer(...)
         ep_trainer.fit(ep_dataloader, num_epochs=10)
     """
@@ -679,6 +683,7 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
         from graphstorm.trainer import GSgnnLinkPredictionTrainer
 
         lp_data = GSgnnData(...)
+        target_idx = lp_data.get_edge_train_set(...)
         lp_dataloader = GSgnnLinkPredictionDataLoader(lp_data, target_idx, fanout=[15, 10],
                                                     num_negative_edges=10, batch_size=128)
         lp_trainer = GSgnnLinkPredictionTrainer(...)
@@ -1542,9 +1547,11 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
         from graphstorm.trainer import GSgnnNodePredictionTrainer
 
         np_data = GSgnnData(...)
+        target_idx = np_data.get_node_train_set(...)
         np_dataloader = GSgnnNodeDataLoader(np_data, target_idx, fanout=[15, 10],
                                             batch_size=128,
-                                            label_field="label", node_feats="feat")
+                                            label_field="label",
+                                            node_feats="feat")
         np_trainer = GSgnnNodePredictionTrainer(...)
         np_trainer.fit(np_dataloader, num_epochs=10)
     """
