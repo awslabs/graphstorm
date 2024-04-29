@@ -79,7 +79,8 @@ def main(config_args):
                   local_rank=config.local_rank)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
-    # language model only encoder does not allow node and edge features
+    # The model only uses language model(s) as its encoder
+    # It will not use node or edge features
     # except LM related features.
     train_data = GSgnnData(config.part_config)
     model = gs.create_builtin_lp_model(train_data.g, config, train_task=True)

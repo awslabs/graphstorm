@@ -38,7 +38,8 @@ def main(config_args):
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
                   local_rank=config.local_rank)
-    # language model only encoder does not allow node and edge features
+    # The model only uses language model(s) as its encoder
+    # It will not use node or edge features
     # except LM related features.
     infer_data = GSgnnData(config.part_config)
     model = gs.create_builtin_lp_model(infer_data.g, config, train_task=False)
