@@ -159,8 +159,6 @@ class GSgnnData():
 
     Parameters
     ----------
-    graph_name : str
-        The graph name
     part_config : str
         The path of the partition configuration file.
     node_feat_field: str or dict of list of str
