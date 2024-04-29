@@ -264,7 +264,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                        'peak_RAM_mem_alloc_MB': \
                            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024,
                        'best validation iteration': \
-                           self.evaluator.best_iter_num[self.evaluator.metric[0]],
+                           self.evaluator.best_iter_num[self.evaluator.metric_list[0]],
                        'best model path': \
                            self.get_best_model_path() if save_model_path is not None else None}
             self.log_params(output)
@@ -299,7 +299,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         teval = time.time()
         sys_tracker.check('before prediction')
 
-        metric = set(self.evaluator.metric)
+        metric = set(self.evaluator.metric_list)
         need_proba = metric.intersection({'roc_auc', 'per_class_roc_auc', 'precision_recall'})
         need_label_pred = metric.intersection({'accuracy', 'f1_score', 'per_class_f1_score'})
         assert len(need_proba) == 0 or len(need_label_pred) == 0, \

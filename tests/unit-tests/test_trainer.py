@@ -26,7 +26,7 @@ from graphstorm.config import GSConfig
 from graphstorm.tracker import GSSageMakerTaskTracker
 from graphstorm import create_builtin_node_gnn_model
 from graphstorm.trainer import GSgnnTrainer
-from graphstorm.eval import GSgnnAccEvaluator
+from graphstorm.eval import GSgnnClassificationEvaluator
 
 from data_utils import generate_dummy_dist_graph
 
@@ -79,10 +79,10 @@ def test_trainer_setup_evaluator():
     # case 1: by default trainer has no task_tracker
     assert trainer.task_tracker is None
 
-    evaluator = GSgnnAccEvaluator(config.eval_frequency,
-                                  config.eval_metric,
-                                  config.multilabel,
-                                  config.use_early_stop)
+    evaluator = GSgnnClassificationEvaluator(config.eval_frequency,
+                                             config.eval_metric,
+                                             config.multilabel,
+                                             config.use_early_stop)
 
     # case 2: evaluator has no task_tracker by default
     assert evaluator.task_tracker is None

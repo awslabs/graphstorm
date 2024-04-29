@@ -186,7 +186,7 @@ class GSgnnTrainer():
         best_val_score = self.evaluator.best_val_score
         best_test_score = self.evaluator.best_test_score
         best_iter_num = self.evaluator.best_iter_num
-        self.task_tracker.log_iter_metrics(self.evaluator.metric,
+        self.task_tracker.log_iter_metrics(self.evaluator.metric_list,
                 train_score=train_score, val_score=val_score,
                 test_score=test_score, best_val_score=best_val_score,
                 best_test_score=best_test_score, best_iter_num=best_iter_num,

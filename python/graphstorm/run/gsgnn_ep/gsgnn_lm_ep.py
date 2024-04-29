@@ -23,7 +23,7 @@ from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.trainer import GSgnnEdgePredictionTrainer
 from graphstorm.dataloading import GSgnnData, GSgnnEdgeDataLoader
-from graphstorm.eval import GSgnnAccEvaluator
+from graphstorm.eval import GSgnnClassificationEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.model.utils import save_full_node_embeddings
 from graphstorm.model import do_full_graph_inference
@@ -33,13 +33,13 @@ def get_evaluator(config):
     """ Get evaluator class
     """
     if config.task_type == "edge_classification":
-        return GSgnnAccEvaluator(config.eval_frequency,
-                                 config.eval_metric,
-                                 config.multilabel,
-                                 config.use_early_stop,
-                                 config.early_stop_burnin_rounds,
-                                 config.early_stop_rounds,
-                                 config.early_stop_strategy)
+        return GSgnnClassificationEvaluator(config.eval_frequency,
+                                            config.eval_metric,
+                                            config.multilabel,
+                                            config.use_early_stop,
+                                            config.early_stop_burnin_rounds,
+                                            config.early_stop_rounds,
+                                            config.early_stop_strategy)
     elif config.task_type == "edge_regression":
         return GSgnnRegressionEvaluator(config.eval_frequency,
                                         config.eval_metric,

@@ -3,7 +3,7 @@ import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.dataloading import GSgnnNodeDataLoader
-from graphstorm.eval import GSgnnAccEvaluator
+from graphstorm.eval import GSgnnClassificationEvaluator
 from graphstorm.dataloading import GSgnnData
 from graphstorm.utils import get_device
 from graphstorm.trainer import GSgnnNodePredictionTrainer
@@ -18,9 +18,7 @@ def main(config_args):
                   local_rank=config.local_rank)
 
     # Define the training dataset
-    train_data = GSgnnData(
-        config.part_config)
-
+    train_data = GSgnnData(config.part_config)
     # Define TGAT model
     model = create_rgcn_model_for_nc(train_data.g, config)
     print(model)
@@ -39,7 +37,7 @@ def main(config_args):
     trainer.setup_device(device=get_device())
 
     # set evaluator
-    evaluator = GSgnnAccEvaluator(
+    evaluator = GSgnnClassificationEvaluator(
         config.eval_frequency,
         config.eval_metric,
         config.multilabel,

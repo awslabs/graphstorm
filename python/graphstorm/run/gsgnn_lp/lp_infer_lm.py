@@ -49,13 +49,11 @@ def main(config_args):
     if not config.no_validation:
         infer_idxs = infer_data.get_edge_test_set(config.eval_etype)
         infer.setup_evaluator(
-            GSgnnMrrLPEvaluator(config.eval_frequency,
-                                infer_data,
-                                config.num_negative_edges_eval,
-                                config.lp_decoder_type))
+            GSgnnMrrLPEvaluator(config.eval_frequency))
         assert len(infer_idxs) > 0, "There is not test data for evaluation."
     else:
         infer_idxs = infer_data.get_edge_infer_set(config.eval_etype)
+
     tracker = gs.create_builtin_task_tracker(config)
     infer.setup_task_tracker(tracker)
     # We only support full-graph inference for now.

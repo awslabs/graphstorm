@@ -14,7 +14,7 @@ from graphstorm.trainer import GSgnnNodePredictionTrainer
 from graphstorm.inference import GSgnnNodePredictionInferrer
 from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import GSgnnNodeDataLoader
-from graphstorm.eval import GSgnnAccEvaluator
+from graphstorm.eval import GSgnnClassificationEvaluator
 from graphstorm.tracker import GSSageMakerTaskTracker
 from graphstorm.utils import get_device
 
@@ -333,13 +333,13 @@ def main(args):
                                           train_task=False)
 
     # Optional: set up a evaluator
-    evaluator = GSgnnAccEvaluator(config.eval_frequency,
-                                  config.eval_metric,
-                                  config.multilabel,
-                                  config.use_early_stop,
-                                  config.early_stop_burnin_rounds,
-                                  config.early_stop_rounds,
-                                  config.early_stop_strategy)
+    evaluator = GSgnnClassificationEvaluator(config.eval_frequency,
+                                             config.eval_metric,
+                                             config.multilabel,
+                                             config.use_early_stop,
+                                             config.early_stop_burnin_rounds,
+                                             config.early_stop_rounds,
+                                             config.early_stop_strategy)
     trainer.setup_evaluator(evaluator)
     # Optional: set up a task tracker to show the progress of training.
     tracker = GSSageMakerTaskTracker(config.eval_frequency)

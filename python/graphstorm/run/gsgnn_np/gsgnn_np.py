@@ -25,7 +25,7 @@ from graphstorm.trainer import GSgnnNodePredictionTrainer
 from graphstorm.trainer import GLEMNodePredictionTrainer
 from graphstorm.dataloading import GSgnnData, GSgnnNodeDataLoader,\
     GSgnnNodeSemiSupDataLoader
-from graphstorm.eval import GSgnnAccEvaluator
+from graphstorm.eval import GSgnnClassificationEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.model.utils import save_full_node_embeddings
 from graphstorm.model import do_full_graph_inference
@@ -38,13 +38,13 @@ def get_evaluator(config):
     if config.task_type == "node_classification":
         multilabel = config.multilabel[config.eval_target_ntype] \
             if isinstance(config.multilabel, dict) else config.multilabel
-        return GSgnnAccEvaluator(config.eval_frequency,
-                                 config.eval_metric,
-                                 multilabel,
-                                 config.use_early_stop,
-                                 config.early_stop_burnin_rounds,
-                                 config.early_stop_rounds,
-                                 config.early_stop_strategy)
+        return GSgnnClassificationEvaluator(config.eval_frequency,
+                                            config.eval_metric,
+                                            multilabel,
+                                            config.use_early_stop,
+                                            config.early_stop_burnin_rounds,
+                                            config.early_stop_rounds,
+                                            config.early_stop_strategy)
     elif config.task_type == "node_regression":
         return GSgnnRegressionEvaluator(config.eval_frequency,
                                         config.eval_metric,
