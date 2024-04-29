@@ -20,7 +20,7 @@ Setup the instance of a cluster
 .......................................
 A cluster contains several instances each of which can run GraphStorm Docker container.
 
-To create such a cluster, in one instance, please follow the :ref:`Environment Setup <setup_docker>` description to setup GraphStorm Docker container environment, and use a Docker management system, e.g., AWS ECR, to upload the Docker image built in the instance to a Docker repository and pull it to the rest of the instances in the cluster. 
+To create such a cluster, in one instance, please follow the :ref:`Environment Setup <setup_docker>` description to setup GraphStorm Docker container environment, and use a Docker management system, e.g., AWS ECR, to upload the Docker image built in the instance to a Docker repository and pull it to the rest of the instances in the cluster.
 
 If there is no such Docker manangement system available in your environment, in **each** instance of the cluster, follow the :ref:`Environment Setup <setup_docker>` description to build a GraphStorm Docker image, and start the image as a container. Then exchange the ssh key from inside of one GraphStorm Docker containers to the rest containers in the cluster, i.e., copy the keys from the ``/root/.ssh/id_rsa.pub`` from one container to ``/root/.ssh/authorized_keys`` in containers on all other containers.
 
@@ -43,7 +43,7 @@ In each instance, use the following command to start a GraphStorm Docker contain
     nvidia-docker run -v /path_to_data/:/data \
                       -v /dev/shm:/dev/shm \
                       --network=host \
-                      -d --name test graphstorm:local
+                      -d --name test graphstorm:local-gpu
 
 This command mount the shared ``/path_to_data/`` folder to each container's ``/data/`` folder by which GraphStorm codes can access graph data and save training and inference outcomes.
 
@@ -57,14 +57,14 @@ The GraphStorm Docker containers use SSH on port ``2222`` to communicate with ea
     :align: center
 
 .. note:: If possible, use **private IP addresses**, insteand of public IP addresses. Public IP addresses may have additional port constraints, which cause communication issues.
-    
+
 Put this file into container's ``/data/`` folder.
 
 Check port
 ................
 The GraphStorm Docker container uses port ``2222`` to **ssh** to containers running on other machines without passwords. Please make sure all host instances do not use this port.
 
-Users also need to make sure the port ``2222`` is open for **ssh** commands. 
+Users also need to make sure the port ``2222`` is open for **ssh** commands.
 
 Pick one instance and run the following command to connect to the GraphStorm Docker container.
 
@@ -78,9 +78,9 @@ In the container environment, users can check the connectivity with the command 
 
     ssh 172.38.12.143 -o StrictHostKeyChecking=no -p 2222
 
-If succeeds, you should login to the container in the ``<ip-in-the-cluster>`` instance. 
+If succeeds, you should login to the container in the ``<ip-in-the-cluster>`` instance.
 
-If not, please make sure there is no restriction of exposing port 2222. 
+If not, please make sure there is no restriction of exposing port 2222.
 
 For distributed training, users also need to make sure ports under 65536 is open for DistDGL to use.
 
@@ -117,9 +117,9 @@ After this command completes successfully, the partitioned OGBN-MAG graph is sto
 .. code-block:: bash
 
     /data/ogbn_mag_lp_3p
-    ogbn-mag.json 
+    ogbn-mag.json
     node_mapping.pt
-    edge_mapping.pt 
+    edge_mapping.pt
     |- part0
         edge_feat.dgl
         graph.dgl
@@ -137,7 +137,7 @@ After this command completes successfully, the partitioned OGBN-MAG graph is sto
 
 Launch Training on One Container
 ---------------------------------
-When graph partition data is ready, it is easy to launch a distributed training job. Pick a GraphStorm container, e.g. the container with IP address ``172.37.11.221``, and run the following command. 
+When graph partition data is ready, it is easy to launch a distributed training job. Pick a GraphStorm container, e.g. the container with IP address ``172.37.11.221``, and run the following command.
 
 .. code-block:: bash
 
@@ -168,7 +168,7 @@ In addition to the three GraphStorm instance created in the OGBN-MAG tutorial, t
     docker run -v /path_to_data/:/data \
                -v /dev/shm:/dev/shm \
                --network=host \
-               -d --name test graphstorm:local
+               -d --name test graphstorm:local-gpu
 
 .. note::
     - Use the "**docker**", instead of "nvidia-docker" command to create the GraphStorm container because the new r6a.32xlarge instance does not have GPUs installed.
@@ -176,7 +176,7 @@ In addition to the three GraphStorm instance created in the OGBN-MAG tutorial, t
 
 Process and Partition a Graph
 ..............................
-Run the below command to download and partition the OGBN-Papers100M data for a node classification task, which will predict the category of a paper. Because the ogbn-papers100M is one of GraphStorm's built-in datasets, we do not specify some arguments, such as ``target-ntype``, ``nlabel-field``, and ``ntask-type``, which have been automatically handled by GraphStorm's `ogbn_datasets.py <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/data/ogbn_datasets.py>`_. 
+Run the below command to download and partition the OGBN-Papers100M data for a node classification task, which will predict the category of a paper. Because the ogbn-papers100M is one of GraphStorm's built-in datasets, we do not specify some arguments, such as ``target-ntype``, ``nlabel-field``, and ``ntask-type``, which have been automatically handled by GraphStorm's `ogbn_datasets.py <https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/data/ogbn_datasets.py>`_.
 
 .. code-block:: bash
 
@@ -188,7 +188,7 @@ Run the below command to download and partition the OGBN-Papers100M data for a n
                                                 --balance-edges \
                                                 --output /data/ogbn_papers100M_3p \
 
-Given the size of OGBN-Papers100M, the download and partition process could run more than 5 hours and consume around 700GB memory in peak. After the command completes, the partitioned OGBN-Papers100M graphs are stored in the ``/data/ogbn_papers100M_3p`` folder whose structure is the same as the OGBN-MAG's. 
+Given the size of OGBN-Papers100M, the download and partition process could run more than 5 hours and consume around 700GB memory in peak. After the command completes, the partitioned OGBN-Papers100M graphs are stored in the ``/data/ogbn_papers100M_3p`` folder whose structure is the same as the OGBN-MAG's.
 
 Distribute Partitioned Graphs and Configurations to all Instances
 ...................................................................

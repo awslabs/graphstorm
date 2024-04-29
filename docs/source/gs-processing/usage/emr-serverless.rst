@@ -69,7 +69,7 @@ you are using would be:
                     "ecr:BatchGetImage",
                     "ecr:DescribeImages"
                 ],
-                "Resource": "<enter-ecr-repository-arn-here>"
+                "Resource": "<ACCOUNT>.dkr.ecr.<REGION>.amazonaws.com/graphstorm-processing-emr-serverless"
             }
         ]
     }

@@ -152,7 +152,10 @@ The examplary ACM graph also predifines two sets of labels. One set of labels ar
 
 Customized label split
 `````````````````````````
-If users want to split labels with your own logics, e.g., time sequence, you can split labels first, and then provide the split information in the configuration JSON file like the below example.
+If users want to split labels with your own logics, e.g., time sequence, you can split labels first, and then provide the split information in the configuration JSON file or parquet file like the example below.
+When using parquet files as input, please specify the column object you want to use for your labels. The column object here can be either a string or a list with a single string. When using parquet input, it allows input be either string or list of strings and it allows wildcard as the input.
+
+JSON:
 
 .. code-block:: json
 
@@ -163,6 +166,21 @@ If users want to split labels with your own logics, e.g., time sequence, you can
             "custom_split_filenames": {"train": "/tmp/acm_raw/nodes/train_idx.json",
                                        "valid": "/tmp/acm_raw/nodes/val_idx.json",
                                        "test": "/tmp/acm_raw/nodes/test_idx.json"}
+        }
+    ]
+
+Parquet:
+
+.. code-block:: json
+
+    "labels": [
+        {
+            "label_col": "label",
+            "task_type": "classification",
+            "custom_split_filenames": {"train": "/tmp/acm_raw/nodes/train_idx.parquet",
+                                       "valid": ["/tmp/acm_raw/nodes/val_idx_1.parquet", "/tmp/acm_raw/nodes/val_idx_2.parquet"],
+                                       "test": "/tmp/acm_raw/nodes/test_idx_*.parquet"
+                                        "column": "ID"}
         }
     ]
 
@@ -178,7 +196,9 @@ These JSON files only need to list the IDs on its own set. For example, in a nod
     ...
     59
 
-For edge data, users can do the similar thing as defining customized node labels to define the customized edge labels. The configuration looks the same:
+For edge data, users can do the similar thing as defining customized node labels to define the customized edge labels. The configuration looks same for JSON files, for parquet files, users need to specify both the source id column and destination id column in a list of strings:
+
+JSON:
 
 .. code-block:: json
 
@@ -189,6 +209,21 @@ For edge data, users can do the similar thing as defining customized node labels
             "custom_split_filenames": {"train": "/tmp/acm_raw/edges/train_idx.json",
                                        "valid": "/tmp/acm_raw/edges/val_idx.json",
                                        "test": "/tmp/acm_raw/edges/test_idx.json"}
+        }
+    ]
+
+Parquet:
+
+.. code-block:: json
+
+    "labels": [
+        {
+            "label_col": "label",
+            "task_type": "classification",
+            "custom_split_filenames": {"train": "/tmp/acm_raw/edges/train_idx.parquet",
+                                       "valid": "/tmp/acm_raw/edges/val_idx.parquet",
+                                       "test": "/tmp/acm_raw/edges/test_idx.parquet",
+                                       "column":  ["src", "dst"]}
         }
     ]
 
