@@ -4,7 +4,7 @@ from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.dataloading import GSgnnNodeDataLoader
 from graphstorm.eval import GSgnnClassificationEvaluator
-from graphstorm.dataloading import GSgnnNodeTrainData
+from graphstorm.dataloading import GSgnnData
 from graphstorm.utils import get_device
 from graphstorm.trainer import GSgnnNodePredictionTrainer
 
@@ -18,15 +18,7 @@ def main(config_args):
                   local_rank=config.local_rank)
 
     # Define the training dataset
-    train_data = GSgnnNodeTrainData(
-        config.graph_name,
-        config.part_config,
-        train_ntypes=config.target_ntype,
-        eval_ntypes=config.eval_target_ntypes,
-        label_field=config.label_field,
-        node_feat_field=config.node_feat_name,
-    )
-
+    train_data = GSgnnData(config.part_config)
     # Define TGAT model
     model = create_rgcn_model_for_nc(train_data.g, config)
     print(model)
@@ -57,29 +49,38 @@ def main(config_args):
     trainer.setup_evaluator(evaluator)
 
     # create train loader
+    train_idxs = train_data.get_node_train_set(config.target_ntype)
     dataloader = GSgnnNodeDataLoader(
         train_data,
-        train_data.train_idxs,
+        train_idxs,
         fanout=config.fanout,
         batch_size=config.batch_size,
+        node_feats=config.node_feat_name,
+        label_field=config.label_field,
         train_task=True,
     )
 
     # create val loader
+    val_idxs = train_data.get_node_val_set(config.eval_target_ntypes)
     val_dataloader = GSgnnNodeDataLoader(
         train_data,
-        train_data.val_idxs,
+        val_idxs,
         fanout=config.fanout,
         batch_size=config.eval_batch_size,
+        node_feats=config.node_feat_name,
+        label_field=config.label_field,
         train_task=False,
     )
 
     # create test loader
+    test_idxs = train_data.get_node_test_set(config.eval_target_ntypes)
     test_dataloader = GSgnnNodeDataLoader(
         train_data,
-        train_data.test_idxs,
+        test_idxs,
         fanout=config.fanout,
         batch_size=config.eval_batch_size,
+        node_feats=config.node_feat_name,
+        label_field=config.label_field,
         train_task=False,
     )
 

@@ -23,7 +23,7 @@ from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.trainer import GSgnnNodePredictionTrainer
 from graphstorm.trainer import GLEMNodePredictionTrainer
-from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeDataLoader,\
+from graphstorm.dataloading import GSgnnData, GSgnnNodeDataLoader,\
     GSgnnNodeSemiSupDataLoader
 from graphstorm.eval import GSgnnClassificationEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
@@ -67,13 +67,10 @@ def main(config_args):
                   use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
-    train_data = GSgnnNodeTrainData(config.graph_name,
-                                    config.part_config,
-                                    train_ntypes=config.target_ntype,
-                                    eval_ntypes=config.eval_target_ntype,
-                                    node_feat_field=config.node_feat_name,
-                                    label_field=config.label_field,
-                                    lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
+    train_data = GSgnnData(config.part_config,
+                           node_feat_field=config.node_feat_name,
+                           edge_feat_field=config.edge_feat_name,
+                           lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     model = gs.create_builtin_node_gnn_model(train_data.g, config, train_task=True)
 
     if config.training_method["name"] == "glem":
@@ -85,10 +82,17 @@ def main(config_args):
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)
     trainer.setup_device(device=get_device())
+    train_idxs = train_data.get_node_train_set(config.target_ntype)
+
+    eval_ntype = config.eval_target_ntype \
+        if config.eval_target_ntype is not None else config.target_ntype
+    val_idxs = train_data.get_node_val_set(eval_ntype)
+    test_idxs = train_data.get_node_test_set(eval_ntype)
+
     if not config.no_validation:
         evaluator = get_evaluator(config)
         trainer.setup_evaluator(evaluator)
-        assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
+        assert len(val_idxs) > 0, "The training data do not have validation set."
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
         # we have validation data.
     tracker = gs.create_builtin_task_tracker(config)
@@ -98,34 +102,44 @@ def main(config_args):
 
     if config.use_pseudolabel:
         # Use nodes not in train_idxs as unlabeled node sets
-        unlabeled_idxs = train_data.get_unlabeled_idxs()
+        unlabeled_idxs = train_data.get_unlabeled_node_set(train_idxs)
         # semi-supervised loader
-        dataloader = GSgnnNodeSemiSupDataLoader(train_data, train_data.train_idxs, unlabeled_idxs,
+        dataloader = GSgnnNodeSemiSupDataLoader(train_data, train_idxs,
+                                                unlabeled_idxs,
                                                 fanout=config.fanout,
                                                 batch_size=config.batch_size,
                                                 train_task=True,
+                                                node_feats=config.node_feat_name,
+                                                label_field=config.label_field,
                                                 construct_feat_ntype=config.construct_feat_ntype,
                                                 construct_feat_fanout=config.construct_feat_fanout)
     else:
-        dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
+        dataloader = GSgnnNodeDataLoader(train_data, train_idxs,
+                                         fanout=config.fanout,
                                          batch_size=config.batch_size,
                                          train_task=True,
+                                         node_feats=config.node_feat_name,
+                                         label_field=config.label_field,
                                          construct_feat_ntype=config.construct_feat_ntype,
                                          construct_feat_fanout=config.construct_feat_fanout)
     # we don't need fanout for full-graph inference
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
     val_dataloader = None
     test_dataloader = None
-    if len(train_data.val_idxs) > 0:
-        val_dataloader = GSgnnNodeDataLoader(train_data, train_data.val_idxs, fanout=fanout,
+    if len(val_idxs) > 0:
+        val_dataloader = GSgnnNodeDataLoader(train_data, val_idxs, fanout=fanout,
                                              batch_size=config.eval_batch_size,
                                              train_task=False,
+                                             node_feats=config.node_feat_name,
+                                             label_field=config.label_field,
                                              construct_feat_ntype=config.construct_feat_ntype,
                                              construct_feat_fanout=config.construct_feat_fanout)
-    if len(train_data.test_idxs) > 0:
-        test_dataloader = GSgnnNodeDataLoader(train_data, train_data.test_idxs, fanout=fanout,
+    if len(test_idxs) > 0:
+        test_dataloader = GSgnnNodeDataLoader(train_data, test_idxs, fanout=fanout,
                                               batch_size=config.eval_batch_size,
                                               train_task=False,
+                                              node_feats=config.node_feat_name,
+                                              label_field=config.label_field,
                                               construct_feat_ntype=config.construct_feat_ntype,
                                               construct_feat_fanout=config.construct_feat_fanout)
 
@@ -168,7 +182,7 @@ def main(config_args):
         # of the weight matrics of the edge types of the last layer GNN
         # targetting these ntype(s) will not receive any gradient from
         # the training loss.
-        embeddings = {ntype: embeddings[ntype] for ntype in train_data.train_ntypes}
+        embeddings = {config.target_ntype: embeddings[config.target_ntype]}
         save_full_node_embeddings(
             train_data.g,
             config.save_embed_path,

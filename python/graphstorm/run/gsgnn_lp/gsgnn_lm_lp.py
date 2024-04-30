@@ -22,7 +22,7 @@ import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.trainer import GSgnnLinkPredictionTrainer
-from graphstorm.dataloading import GSgnnLPTrainData
+from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
 from graphstorm.dataloading import (GSgnnLPJointNegDataLoader,
                                     GSgnnLPLocalUniformNegDataLoader,
@@ -79,12 +79,10 @@ def main(config_args):
                   local_rank=config.local_rank)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
-    train_data = GSgnnLPTrainData(config.graph_name,
-                                  config.part_config,
-                                  train_etypes=config.train_etype,
-                                  eval_etypes=config.eval_etype,
-                                  node_feat_field=config.node_feat_name,
-                                  pos_graph_feat_field=config.lp_edge_weight_for_loss)
+    # The model only uses language model(s) as its encoder
+    # It will not use node or edge features
+    # except LM related features.
+    train_data = GSgnnData(config.part_config)
     model = gs.create_builtin_lp_model(train_data.g, config, train_task=True)
     trainer = GSgnnLinkPredictionTrainer(model, topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
@@ -96,7 +94,8 @@ def main(config_args):
         # Currently, we only support mrr
         evaluator = get_evaluator(config)
         trainer.setup_evaluator(evaluator)
-        assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
+        val_idxs = train_data.get_edge_val_set(config.eval_etype)
+        assert len(val_idxs) > 0, "The training data do not have validation set."
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
         # we have validation data.
     tracker = gs.create_builtin_task_tracker(config)
@@ -120,8 +119,12 @@ def main(config_args):
         dataloader_cls = GSgnnAllEtypeLPJointNegDataLoader
     else:
         raise ValueError('Unknown negative sampler')
-    dataloader = dataloader_cls(train_data, train_data.train_idxs, [],
+    train_idxs = train_data.get_edge_train_set(config.train_etype)
+    dataloader = dataloader_cls(train_data,
+                                train_idxs, [],
                                 config.batch_size, config.num_negative_edges,
+                                node_feats=config.node_feat_name,
+                                pos_graph_edge_feats=config.lp_edge_weight_for_loss,
                                 train_task=True,
                                 edge_dst_negative_field=config.train_etypes_negative_dstnode,
                                 num_hard_negs=config.num_train_hard_negatives)
@@ -139,20 +142,36 @@ def main(config_args):
             f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
     val_dataloader = None
     test_dataloader = None
-    if len(train_data.val_idxs) > 0:
+
+    val_idxs = train_data.get_edge_val_set(config.eval_etype)
+    if len(val_idxs) > 0:
         if config.eval_etypes_negative_dstnode is not None:
-            val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
-                config.eval_batch_size, config.eval_etypes_negative_dstnode)
+            val_dataloader = test_dataloader_cls(train_data, val_idxs,
+                config.eval_batch_size,
+                config.eval_etypes_negative_dstnode,
+                node_feats=config.node_feat_name,
+                pos_graph_edge_feats=config.lp_edge_weight_for_loss)
         else:
-            val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
-                config.eval_batch_size, config.num_negative_edges_eval)
-    if len(train_data.test_idxs) > 0:
+            val_dataloader = test_dataloader_cls(train_data, val_idxs,
+                config.eval_batch_size,
+                config.num_negative_edges_eval,
+                node_feats=config.node_feat_name,
+                pos_graph_edge_feats=config.lp_edge_weight_for_loss)
+
+    test_idxs = train_data.get_edge_test_set(config.eval_etype)
+    if len(test_idxs) > 0:
         if config.eval_etypes_negative_dstnode is not None:
-            test_dataloader = test_dataloader_cls(train_data, train_data.test_idxs,
-                config.eval_batch_size, config.eval_etypes_negative_dstnode)
+            test_dataloader = test_dataloader_cls(train_data, test_idxs,
+                config.eval_batch_size,
+                config.eval_etypes_negative_dstnode,
+                node_feats=config.node_feat_name,
+                pos_graph_edge_feats=config.lp_edge_weight_for_loss)
         else:
-            test_dataloader = test_dataloader_cls(train_data, train_data.test_idxs,
-                config.eval_batch_size, config.num_negative_edges_eval)
+            test_dataloader = test_dataloader_cls(train_data, test_idxs,
+                config.eval_batch_size,
+                config.num_negative_edges_eval,
+                node_feats=config.node_feat_name,
+                pos_graph_edge_feats=config.lp_edge_weight_for_loss)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.

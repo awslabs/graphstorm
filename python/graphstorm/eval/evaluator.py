@@ -171,7 +171,7 @@ class GSgnnLPRankingEvalInterface():
 
     The interface set the two abstract methods for Link Prediction classes that use ranking
     method to compute evaluation metrics, such as "mrr" (Mean Reciprocal Rank).
-    
+
     There are two methdos to be implemented if inherite this interface.
     1. ``evaluate()`` method, which will be called by Trainers to provide ranking-based evaluation
        results of validation and test sets during training process.
@@ -712,7 +712,7 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
 
     GS built-in evaluator for Link Prediction tasks. It uses "mrr" as the default eval metric,
     which implements the `GSgnnLPRankingEvalInterface`.
-    
+
     To create a customized LP evaluator that use evaluation metric other than "mrr", users might
     need to 1) define a new evaluation interface if the evaluation method requires different input
     arguments; 2) inherite the new evaluation interface in a customized LP evaluator; 3) define
