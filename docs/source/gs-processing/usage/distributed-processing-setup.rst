@@ -87,14 +87,14 @@ Once Docker and Poetry are installed, and your AWS credentials are set up,
 we can use the provided scripts
 in the ``graphstorm-processing/docker`` directory to build the image.
 
-GSProcessing supports Amazon SageMaker and EMR Serverless as
+GSProcessing supports Amazon SageMaker, EMR on EC2, and EMR Serverless as
 execution environments, so we need to choose which image we want
 to build first.
 
 The ``build_gsprocessing_image.sh`` script can build the image
 locally and tag it, provided the intended execution environment,
 using the ``-e/--environment`` argument. The supported environments
-are ``sagemaker`` and ``emr-serverless``.
+are ``sagemaker``, ``emr``, and ``emr-serverless``.
 For example, assuming our current directory is where
 we cloned ``graphstorm/graphstorm-processing``, we can use
 the following to build the SageMaker image:
@@ -131,7 +131,7 @@ You can find detailed instructions on creating a VPC for EMR Serverless in the A
 Support for arm64 architecture
 ------------------------------
 
-For EMR Serverless images, it is possible to build images for the ``arm64`` architecture,
+For EMR and EMR Serverless images, it is possible to build images for the ``arm64`` architecture,
 which can lead to improved runtime and cost compared to ``x86_64``. For more details
 on EMR Serverless architecture options see the
 `official docs <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/architecture.html>`_.

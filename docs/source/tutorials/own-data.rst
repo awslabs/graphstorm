@@ -304,8 +304,8 @@ Required DGL graph format
 ```````````````````````````
 - a `dgl.heterograph <https://docs.dgl.ai/generated/dgl.heterograph.html#dgl.heterograph>`_.
 - All nodes/edges features are set in nodes/edges' data field, and remember the feature names, which will be used in the later steps.
-    - For nodes' features, the common way to set features is like ``g.nodes['nodetypename'].data['featurename']=nodefeaturetensor``, The formal explanation of DGL's node feature could be found in the `Using node features <https://docs.dgl.ai/generated/dgl.DGLGraph.nodes.html>`_.
-    - For edges' features, the common way to set features is like ``g.edges['edgetypename'].data['featurename']=edgefeaturetensor``, The formal explanation of DGL's edge feature could be found in the `Using edge features <https://docs.dgl.ai/generated/dgl.DGLGraph.edges.html>`_.
+    - For nodes' features, the common way to set features is like ``g.nodes['nodetypename'].data['featurename']=nodefeaturetensor``, The formal explanation of DGL's node feature could be found in the `Using node features <https://docs.dgl.ai/generated/dgl.DGLGraph.nodes.html>`_. Please make sure every node feature is a 2D tensor.
+    - For edges' features, the common way to set features is like ``g.edges['edgetypename'].data['featurename']=edgefeaturetensor``, The formal explanation of DGL's edge feature could be found in the `Using edge features <https://docs.dgl.ai/generated/dgl.DGLGraph.edges.html>`_. Please make sure every edge feature is a 2D tensor.
 - Save labels (for node/edge tasks) into the target nodes/edges as a feature, and remember the label feature names, which will be used in the later steps.
     - The common way to set node-related labels as a feature is like ``g.nodes['predictnodetypename'].data['labelname']=nodelabeltensor``.
     - The common way to set edge-related labels as a feature is like ``g.nodes['predictedgetypename'].data['labelname']=edgelabeltensor``.
@@ -495,7 +495,7 @@ Similar to the :ref:`Quick-Start <quick-start-standalone>` tutorial, users can l
               --node-feat-name paper:feat author:feat subject:feat \
               --restore-model-path /tmp/acm_nc/models/epoch-0 \
               --save-prediction-path  /tmp/acm_nc/predictions
-    
+
     # Link Prediction
     python -m graphstorm.run.gs_link_prediction \
               --inference \

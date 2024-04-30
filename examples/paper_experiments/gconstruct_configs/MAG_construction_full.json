@@ -1,0 +1,97 @@
+{
+	"nodes": [
+		{
+			"node_id_col":  "id",
+			"node_type":    "fos",
+			"format":       {"name": "parquet"},
+			"files":        "processed_data/mag/mag_fos.parquet",
+			"features":     [
+				{
+					"feature_col":  "id",
+					"transform":    {"name": "tokenize_hf",
+							 "bert_model": "bert-base-uncased",
+							 "max_seq_length": 8}
+				}
+			]
+		},
+                {
+                       "node_id_col":  "paper",
+                       "node_type":    "paper",
+                       "format":       {"name": "parquet"},
+                       "files":        "processed_data/mag/mag_papers_with_labels_*.parquet",
+                       "features":     [
+                               {
+                                       "feature_col":  "title",
+				       "transform":    {"name": "tokenize_hf",
+							"bert_model": "bert-base-uncased",
+							"max_seq_length": 128}
+                               },
+                               {
+                                       "feature_col":  "year",
+                                       "feature_name": "year"
+                               }
+                       ],
+		       "labels":	[
+				{
+					"label_col":	"venue",
+					"task_type":	"classification",
+					"split_pct":   [0.8, 0.1, 0.1]
+				}
+			]
+                },
+		{
+			"node_id_col":  "id",
+			"node_type":    "author",
+			"format":       {"name": "parquet"},
+			"files":        "processed_data/mag/mag_author_id.parquet"
+		},
+		{
+			"node_id_col":  "id",
+			"node_type":    "venue",
+			"format":       {"name": "parquet"},
+			"files":        "processed_data/mag/mag_venue_id.parquet"
+		},
+		{
+			"node_id_col":  "id",
+			"node_type":    "affiliation",
+			"format":       {"name": "parquet"},
+			"files":        "processed_data/mag/mag_affs.parquet"
+		}
+	],
+	"edges": [
+		{
+			"source_id_col":    "author",
+			"dest_id_col":      "affiliation",
+			"relation":         ["author", "belong", "affiliation"],
+			"format":           {"name": "parquet"},
+			"files":        "processed_data/mag/mag_author2aff_*.parquet"
+		},
+		{
+			"source_id_col":    "author",
+			"dest_id_col":      "paper",
+			"relation":         ["author", "write", "paper"],
+			"format":           {"name": "parquet"},
+			"files":        "processed_data/mag/mag_paper2author_*.parquet",
+			"features":     [
+				{
+					"feature_col":  "order",
+					"feature_name": "order"
+				}
+			]
+		},
+		{
+			"source_id_col":    "paper",
+			"dest_id_col":      "fos",
+			"relation":         ["paper", "is", "fos"],
+			"format":           {"name": "parquet"},
+			"files":        "processed_data/mag/mag_paper2fos_*.parquet"
+		},
+		{
+			"source_id_col":    "src_paper",
+			"dest_id_col":      "dst_paper",
+			"relation":         ["paper", "cite", "paper"],
+			"format":           {"name": "parquet"},
+			"files":        "processed_data/mag/mag_paper2paper_*.parquet"
+		}
+	]
+}

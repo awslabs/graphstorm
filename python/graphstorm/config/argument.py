@@ -352,7 +352,7 @@ class GSConfig:
         _ = self.log_report_frequency
 
         _ = self.task_type
-        # For classification tasks.
+        # For classification/regression tasks.
         if self.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_EDGE_CLASSIFICATION]:
             _ = self.label_field
             _ = self.num_classes
@@ -368,6 +368,7 @@ class GSConfig:
                               BUILTIN_TASK_LINK_PREDICTION] and is_train:
             _ = self.exclude_training_targets
             _ = self.reverse_edge_types_map
+        # For link prediction tasks.
         if self.task_type == BUILTIN_TASK_LINK_PREDICTION:
             _ = self.gamma
             _ = self.lp_decoder_type
@@ -752,6 +753,14 @@ class GSConfig:
             else:
                 raise RuntimeError("Only support input activate flag 'none' for None "
                                    "and 'relu' for torch.nn.functional.relu")
+        return None
+
+    @property
+    def edge_feat_name(self):
+        """ User defined edge feature name
+
+        Not used by GraphStorm, reserved for future usage.
+        """
         return None
 
     @property
