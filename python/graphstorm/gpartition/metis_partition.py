@@ -121,7 +121,7 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
         dgl_tool_path: str
             Path to the dgl tool added in the PYTHONPATH
         metadata_filename: str
-            schema file name defined in the parmetis step
+            Meta data configuration name
         graph_name: str
             name of the graph in the parmetis step
         partition_dir: str
