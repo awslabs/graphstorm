@@ -15,6 +15,7 @@
 
     Builtin configs
 """
+import dataclasses
 
 BUILTIN_GNN_ENCODER = ["gat", "rgat", "rgcn", "sage", "hgt", "gatv2"]
 BUILTIN_ENCODER = ["lm", "mlp"] + BUILTIN_GNN_ENCODER
@@ -73,3 +74,28 @@ BUILTIN_LP_DOT_DECODER = "dot_product"
 BUILTIN_LP_DISTMULT_DECODER = "distmult"
 
 SUPPORTED_LP_DECODER = [BUILTIN_LP_DOT_DECODER, BUILTIN_LP_DISTMULT_DECODER]
+
+################ Task info data classes ############################
+@dataclasses.dataclass
+class TaskInfo:
+    """Information of a training task in multi-task learning
+
+    Parameters
+    ----------
+    task_type: str
+        Task type
+    node_type: str
+        Node type of the task, if it is a node task
+    edge_type: tuple of strs
+        Edge type of the task, if it is a edge task
+    node_label_field: str
+        Node label field
+    edge_label_field: str
+        Edge label field
+    """
+    task_type : str
+    node_type : str = None
+    edge_type : tuple = None
+    node_label_field : str = None
+    edge_label_field : str = None
+    dataloader = None # dataloder

@@ -1,0 +1,74 @@
+---
+version: 1.0
+gsf:
+  basic:
+    backend: gloo
+    verbose: false
+    save_perf_results_path: null
+  gnn:
+    model_encoder_type: rgcn
+    fanout: "4"
+    num_layers: 1
+    hidden_size: 128
+    use_mini_batch_infer: true
+  input:
+    restore_model_path: null
+  output:
+    save_model_path: null
+    save_embed_path: null
+  hyperparam:
+    dropout: 0.
+    lr: 0.001
+    lm_tune_lr: 0.0001
+    num_epochs: 3
+    wd_l2norm: 0
+    no_validation: false
+  rgcn:
+    num_bases: -1
+    use_self_loop: true
+    sparse_optimizer_lr: 1e-2
+    use_node_embeddings: false
+  multi_task_learning:
+    - node_classification:
+      target_ntype: "movie"
+      label_field: "label"
+      multilabel: false
+      num_classes: 19
+      batch_size: 16 # will overwrite the global batch_size
+      mask_fields:
+        - "train_mask_field_nc"
+        - "val_mask_field_nc"
+        - "test_mask_field_nc"
+      task_weight: 1.0
+    - edge_classification:
+      target_etype:
+        - "user,rating,movie"
+      reverse_edge_types_map:
+        - "user,rating,rating-rev,movie"
+      label_field: "rate"
+      multilabel: false
+      num_classes: 5
+      num_decoder_basis: 32
+      exclude_training_targets: false
+      batch_size: 10 # will overwrite the global batch_size
+      mask_fields:
+        - "train_mask_field_ec"
+        - "val_mask_field_ec"
+        - "test_mask_field_ec"
+      task_weight: 0.5 # weight of the task
+    - link_prediction:
+      num_negative_edges: 4
+      num_negative_edges_eval: 100
+      train_negative_sampler: joint
+      eval_etype:
+        - "user,rating,movie"
+      train_etype:
+        - "user,rating,movie"
+      exclude_training_targets: false
+      reverse_edge_types_map: []
+      batch_size: 10 # will overwrite the global batch_size
+      mask_fields:
+        - "train_mask_field_lp"
+        - "" # empty means there is no validation mask
+        - "" # empty means there is no test mask
+      task_weight: 1.0

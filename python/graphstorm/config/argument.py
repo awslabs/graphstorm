@@ -146,6 +146,12 @@ class GSConfig:
         self.yaml_paths = cmd_args.yaml_config_file
         # Load all arguments from yaml config
         configuration = self.load_yaml_config(cmd_args.yaml_config_file)
+
+        if 'multi_task_learning' in configuration:
+            # parse multi task learning config and save it into self._multi_tasks
+            self._parse_multi_tasks(configuration['multi_task_learning'])
+            del configuration['multi_task_learning']
+
         self.set_attributes(configuration)
         # Override class attributes using command-line arguments
         self.override_arguments(cmd_args)
@@ -218,6 +224,38 @@ class GSConfig:
             # directly add udf configs as config arguments
             for key, val in udf_family.items():
                 setattr(self, key, val)
+
+    def _parse_multi_tasks(self, multi_task_config):
+        """ Parse multi-task configuration
+        """
+        assert len(multi_task_config) > 1, \
+            "There must be at least two tasks"
+
+        tasks = []
+        for task_config in multi_task_config:
+            assert isinstance(task_config, dict) and len(task_config) == 1, \
+                "When defining multiple tasks for " \
+                "training, define one task each time."
+            if "node_classification" in task_config:
+                task = self._parse_node_classification_task(
+                    task_config["node_classification"])
+            elif "node_regression" in task_config:
+                task = self._parse_node_regression_task(
+                    task_config["node_regression"])
+            elif "edge_classification" in task_config:
+                task = self._parse_edge_classification_task(
+                    task_config["edge_classification"])
+            elif "edge_regression" in task_config:
+                task = self._parse_edge_regression_task(
+                    task_config["edge_regression"])
+            elif "link_prediction" in task_config:
+                task = self._parse_link_prediction_task(
+                    task_config["link_prediction"])
+            else:
+                raise ValueError(f"Invalid task type in multi-task learning {task_config}.")
+            tasks.append(task)
+        logging.debug("Multi-task learning with %d tasks", len(tasks))
+        self._multi_tasks = tasks
 
     def load_yaml_config(self, yaml_path):
         """Helper function to load a yaml config file"""
@@ -2249,6 +2287,20 @@ class GSConfig:
 
         # Per edge type lp evaluation is disabled.
         return LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
+
+    ###Multi task support ####
+    @property
+    def multi_tasks(self):
+        """ Definition of tasks in multi-task learning.
+
+        Return: list of Tasks
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_multi_tasks"):
+            assert len(self._multi_tasks) > 1, \
+                "There must be at least two tasks for multi-task learning"
+            return self._multi_tasks
+        return None
 
     @property
     def num_ffn_layers_in_input(self):
