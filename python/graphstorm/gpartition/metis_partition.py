@@ -77,10 +77,10 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
                   {input_path}/parmetis_efiles.txt"
 
         if self.run_command(command):
-            logging.info("Successfully execute parmetis preprocess.")
+            logging.info("Successfully execute parmetis process.")
             return True
         else:
-            logging.info("Failed to execute parmetis preprocess.")
+            logging.info("Failed to execute parmetis process.")
             return False
 
     def _launch_postprocess(self, num_parts, input_data_path, dgl_tool_path, metadata_filename, graph_name, partition_dir):
@@ -103,10 +103,10 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
                         --partitions_dir {partition_dir}"
 
         if self.run_command(command):
-            logging.info("Successfully execute post parmetis preprocess.")
+            logging.info("Successfully execute post parmetis process.")
             return True
         else:
-            logging.info("Failed to execute post parmetis preprocess.")
+            logging.info("Failed to execute post parmetis process.")
             return False
 
     def run_command(self, command):
