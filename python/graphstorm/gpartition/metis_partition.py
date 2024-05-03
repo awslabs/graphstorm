@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Single-instance metis partition assignment
+    Parmetis partition assignment
 """
 import os
 import logging
@@ -108,7 +108,8 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
             logging.info("Failed to execute parmetis process.")
             return False
 
-    def _launch_postprocess(self, num_parts, input_data_path, dgl_tool_path, metadata_filename, graph_name, partition_dir):
+    def _launch_postprocess(self, num_parts, input_data_path, dgl_tool_path,
+                            metadata_filename, graph_name, partition_dir):
         """ Launch postprocess which translates nid-partid mapping into
             Per-node-type partid mappings.
 
@@ -142,15 +143,15 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
 
     def run_command(self, command):
         """Function to execute a command and check for its success."""
-        logging.info(f"Executing command: {command}\n")
+        logging.info("Executing command: %s", command)
         try:
             # Execute the command and check if it completes successfully
-            result = subprocess.run(command, shell=True, check=True, text=True, stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE)
-            logging.info(f"Command output: {result.stdout}\n")
+            result = subprocess.run(command, shell=True, check=True, text=True,
+                                    stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            logging.info("Command output: %s", result.stdout)
             return True  # Return True if the command was successful
         except subprocess.CalledProcessError as e:
-            logging.info(f"Error executing command: {e.stderr}\n")
+            logging.info("Error executing command: %s", e.stderr)
             return False  # Return False if the command failed
 
     def assigned_port(self, ip_file, port="2222"):
@@ -159,7 +160,7 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
             raise ValueError("ip file does not exist")
         # MPI run will need to explicitly assign port=2222 in the ip list file
         # when running in the docker environment
-        with open(ip_file, 'r') as file:
+        with open(ip_file, 'r', encoding='utf-8') as file:
             # Read all lines from the input file
             ip_addresses = file.readlines()
 
@@ -168,7 +169,7 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
             output_file = f"{parts[0]}_parmetis.{parts[1]}"
         else:
             raise ValueError("Input file should be a txt file.")
-        with open(output_file, 'w') as file:
+        with open(output_file, 'w', encoding='utf-8') as file:
             # Write each IP address with the appended port information
             for ip in ip_addresses:
                 ip = ip.strip()  # Remove any leading/trailing whitespace
@@ -185,9 +186,10 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
         if not self._launch_parmetis(num_partitions, self.metis_config.input_path,
                                        ip_file, self.metadata_dict["graph_name"]):
             raise RuntimeError("Stopping execution due to failure in parmetis partition process")
-        if not self._launch_postprocess(num_partitions, self.metis_config.input_path, self.metis_config.dgl_tool_path,
-                                          self.metis_config.metadata_filename, self.metadata_dict["graph_name"],
-                                          partition_dir):
+        if not self._launch_postprocess(num_partitions, self.metis_config.input_path,
+                                        self.metis_config.dgl_tool_path,
+                                        self.metis_config.metadata_filename,
+                                        self.metadata_dict["graph_name"], partition_dir):
             raise RuntimeError("Stopping execution due to failure in postprocess process")
 
         logging.info("Finish all parmetis steps.")
