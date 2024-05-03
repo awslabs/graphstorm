@@ -64,6 +64,31 @@ from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictContrastiveDistMultDecoder,
                                  LinkPredictWeightedDotDecoder,
                                  LinkPredictWeightedDistMultDecoder)
+from .dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
+                          BUILTIN_LP_JOINT_NEG_SAMPLER,BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER,
+                          BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER,
+                          BUILTIN_LP_LOCALJOINT_NEG_SAMPLER,
+                          BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER,
+                          BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER,
+                          BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER,
+                          BUILTIN_FAST_LP_JOINT_NEG_SAMPLER,
+                          BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER,
+                          BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER)
+from .dataloading import (FastGSgnnLinkPredictionDataLoader,
+                          FastGSgnnLPJointNegDataLoader,
+                          FastGSgnnLPLocalUniformNegDataLoader,
+                          FastGSgnnLPLocalJointNegDataLoader,
+                          GSgnnLinkPredictionDataLoader,
+                          GSgnnLPJointNegDataLoader,
+                          GSgnnLPLocalUniformNegDataLoader,
+                          GSgnnLPLocalJointNegDataLoader,
+                          GSgnnLPInBatchJointNegDataLoader,
+                          GSgnnAllEtypeLPJointNegDataLoader,
+                          GSgnnAllEtypeLinkPredictionDataLoader)
+from .dataloading import (GSgnnLinkPredictionTestDataLoader,
+                          GSgnnLinkPredictionJointTestDataLoader,
+                          GSgnnLinkPredictionPredefinedTestDataLoader)
+
 from .tracker import get_task_tracker_class
 
 def initialize(ip_config=None, backend='gloo', local_rank=0, use_wholegraph=False):
@@ -674,3 +699,46 @@ def check_homo(g):
 def create_builtin_task_tracker(config):
     tracker_class = get_task_tracker_class(config.task_tracker)
     return tracker_class(config.eval_frequency)
+
+def get_lp_eval_sampler(config):
+    test_dataloader_cls = None
+    if config.eval_etypes_negative_dstnode is not None:
+        test_dataloader_cls = GSgnnLinkPredictionPredefinedTestDataLoader
+    elif config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+        test_dataloader_cls = GSgnnLinkPredictionTestDataLoader
+    elif config.eval_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
+        test_dataloader_cls = GSgnnLinkPredictionJointTestDataLoader
+    else:
+        raise ValueError('Unknown test negative sampler.'
+            'Supported test negative samplers include '
+            f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
+    return test_dataloader_cls
+
+def get_lp_train_sampler(config):
+    dataloader_cls = None
+    if config.train_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+        dataloader_cls = GSgnnLinkPredictionDataLoader
+    elif config.train_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
+        dataloader_cls = GSgnnLPJointNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER:
+        dataloader_cls = GSgnnLPInBatchJointNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER:
+        dataloader_cls = GSgnnLPLocalUniformNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_LP_LOCALJOINT_NEG_SAMPLER:
+        dataloader_cls = GSgnnLPLocalJointNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER:
+        dataloader_cls = GSgnnAllEtypeLinkPredictionDataLoader
+    elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER:
+        dataloader_cls = GSgnnAllEtypeLPJointNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLinkPredictionDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_JOINT_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLPJointNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLPLocalUniformNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLPLocalJointNegDataLoader
+    else:
+        raise ValueError('Unknown negative sampler')
+
+    return dataloader_cls

@@ -20,11 +20,166 @@ import os
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
+from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
+                               BUILTIN_TASK_NODE_REGRESSION,
+                               BUILTIN_TASK_EDGE_CLASSIFICATION,
+                               BUILTIN_TASK_EDGE_REGRESSION,
+                               BUILTIN_TASK_LINK_PREDICTION)
 from graphstorm.dataloading import GSgnnData
+from graphstorm.dataloading import (GSgnnNodeDataLoader,
+                                    GSgnnEdgeDataLoader,
+                                    GSgnnMultiTaskDataLoader)
 from graphstorm.trainer import GSgnnMultiTaskLearningTrainer
 
 from graphstorm.utils import rt_profiler, sys_tracker, get_device, use_wholegraph
 from graphstorm.utils import get_lm_ntypes
+
+def create_task_train_dataloader(task, config, train_data):
+    if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
+        train_idxs = train_data.get_node_train_set(config.target_ntype)
+        return GSgnnNodeDataLoader(train_data,
+                                   train_idxs,
+                                   fanout=config.fanout,
+                                   batch_size=config.batch_size,
+                                   train_task=True,
+                                   node_feats=config.node_feat_name,
+                                   label_field=config.label_field)
+    elif task.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
+        train_idxs = train_data.get_edge_train_set(config.target_etype)
+        return GSgnnEdgeDataLoader(train_data,
+                                   train_idxs,
+                                   fanout=config.fanout,
+                                   batch_size=config.batch_size,
+                                   node_feats=config.node_feat_name,
+                                   label_field=config.label_field,
+                                   decoder_edge_feats=config.decoder_edge_feat,
+                                   train_task=True,
+                                   reverse_edge_types_map=config.reverse_edge_types_map,
+                                   remove_target_edge_type=config.remove_target_edge_type,
+                                   exclude_training_targets=config.exclude_training_targets)
+    elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+        train_idxs = train_data.get_edge_train_set(config.train_etype)
+        dataloader_cls = gs.get_lp_train_sampler(config)
+        return dataloader_cls(train_data,
+                              train_idxs,
+                              config.fanout,
+                              config.batch_size,
+                              config.num_negative_edges,
+                              node_feats=config.node_feat_name,
+                              pos_graph_edge_feats=config.lp_edge_weight_for_loss,
+                              train_task=True,
+                              reverse_edge_types_map=config.reverse_edge_types_map,
+                              exclude_training_targets=config.exclude_training_targets,
+                              edge_dst_negative_field=config.train_etypes_negative_dstnode,
+                              num_hard_negs=config.num_train_hard_negatives)
+
+    return None
+
+def create_task_val_dataloader(task, config, train_data):
+    fanout = config.eval_fanout if config.use_mini_batch_infer else []
+    if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
+        eval_ntype = config.eval_target_ntype \
+            if config.eval_target_ntype is not None else config.target_ntype
+        val_idxs = train_data.get_node_val_set(eval_ntype)
+
+        if len(val_idxs) > 0:
+            return GSgnnNodeDataLoader(train_data,
+                                       val_idxs,
+                                       fanout=fanout,
+                                       batch_size=config.eval_batch_size,
+                                       train_task=False,
+                                       node_feats=config.node_feat_name,
+                                       label_field=config.label_field,
+                                       construct_feat_ntype=config.construct_feat_ntype,
+                                       construct_feat_fanout=config.construct_feat_fanout)
+    elif task.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
+        val_idxs = train_data.get_edge_val_set(config.target_etype)
+        if len(val_idxs) > 0:
+            return GSgnnEdgeDataLoader(train_data,
+                                       val_idxs,
+                                       fanout=fanout,
+                                       batch_size=config.eval_batch_size,
+                                       node_feats=config.node_feat_name,
+                                       label_field=config.label_field,
+                                       decoder_edge_feats=config.decoder_edge_feat,
+                                       train_task=False,
+                                       reverse_edge_types_map=config.reverse_edge_types_map,
+                                       remove_target_edge_type=config.remove_target_edge_type)
+    elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+        val_idxs = train_data.get_edge_val_set(config.eval_etype)
+        dataloader_cls = gs.get_lp_eval_sampler(config)
+        if len(val_idxs) > 0:
+            if config.eval_etypes_negative_dstnode is not None:
+                return dataloader_cls(train_data, val_idxs,
+                    config.eval_batch_size,
+                    fixed_edge_dst_negative_field=config.eval_etypes_negative_dstnode,
+                    fanout=config.eval_fanout,
+                    fixed_test_size=config.fixed_test_size,
+                    node_feats=config.node_feat_name,
+                    pos_graph_edge_feats=config.lp_edge_weight_for_loss)
+            else:
+                return dataloader_cls(train_data, val_idxs,
+                    config.eval_batch_size,
+                    config.num_negative_edges_eval, config.eval_fanout,
+                    fixed_test_size=config.fixed_test_size,
+                    node_feats=config.node_feat_name,
+                    pos_graph_edge_feats=config.lp_edge_weight_for_loss)
+
+    return None
+
+def create_task_test_dataloader(task, config, train_data):
+    if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
+        eval_ntype = config.eval_target_ntype \
+            if config.eval_target_ntype is not None else config.target_ntype
+        test_idxs = train_data.get_node_test_set(eval_ntype)
+        fanout = config.eval_fanout if config.use_mini_batch_infer else []
+        if len(test_idxs) > 0:
+            return GSgnnNodeDataLoader(train_data,
+                                       test_idxs,
+                                       fanout=fanout,
+                                       batch_size=config.eval_batch_size,
+                                       train_task=False,
+                                       node_feats=config.node_feat_name,
+                                       label_field=config.label_field,
+                                       construct_feat_ntype=config.construct_feat_ntype,
+                                       construct_feat_fanout=config.construct_feat_fanout)
+
+    elif task.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
+        test_idxs = train_data.get_edge_test_set(config.target_etype)
+        if len(test_idxs) > 0:
+            return GSgnnEdgeDataLoader(train_data,
+                                       test_idxs,
+                                       fanout=fanout,
+                                       batch_size=config.eval_batch_size,
+                                       node_feats=config.node_feat_name,
+                                       label_field=config.label_field,
+                                       decoder_edge_feats=config.decoder_edge_feat,
+                                       train_task=False,
+                                       reverse_edge_types_map=config.reverse_edge_types_map,
+                                       remove_target_edge_type=config.remove_target_edge_type)
+    elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+        test_idxs = train_data.get_edge_test_set(config.eval_etype)
+        dataloader_cls = gs.get_lp_eval_sampler(config)
+        if len(test_idxs) > 0:
+            if config.eval_etypes_negative_dstnode is not None:
+                return dataloader_cls(train_data, test_idxs,
+                    config.eval_batch_size,
+                    fixed_edge_dst_negative_field=config.eval_etypes_negative_dstnode,
+                    fanout=config.eval_fanout,
+                    fixed_test_size=config.fixed_test_size,
+                    node_feats=config.node_feat_name,
+                    pos_graph_edge_feats=config.lp_edge_weight_for_loss)
+            else:
+                return dataloader_cls(train_data, test_idxs,
+                    config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout,
+                    fixed_test_size=config.fixed_test_size,
+                    node_feats=config.node_feat_name,
+                    pos_graph_edge_feats=config.lp_edge_weight_for_loss)
+    return None
+
+def create_task_decoder(task, config):
+
+def create_evaluator(task, config):
 
 def main(config_args):
     """ main function
@@ -49,10 +204,11 @@ def main(config_args):
     test_dataloaders = []
     decoders = []
     for task in tasks:
-        train_loader = create_task_train_dataloader(task, config, train_task=True)
+        train_loader = create_task_train_dataloader(task, config, train_data)
+        val_loader = create_task_val_dataloader(task, config)
+        test_loader = create_task_test_dataloader(task, config)
         decoder = create_task_decoder(task, config)
-        val_loader = create_task_val_dataloader(task, config, train_task=False)
-        test_loader = create_task_test_dataloader(task, config, train_task=False)
+        evaluator = create_evaluator(task, config)
 
     train_dataloader = GSgnnMultiTaskDataLoader(train_dataloaders)
     val_dataloader = GSgnnMultiTaskDataLoader(val_dataloaders)
