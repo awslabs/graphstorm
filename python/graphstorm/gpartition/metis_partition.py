@@ -38,9 +38,11 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
 
     Parameters
     ----------
-    metadata: dict
+    metadata_dict: dict
         DGL "Chunked graph data" JSON, as defined in
         https://docs.dgl.ai/guide/distributed-preprocessing.html#specification
+    metis_config: ParMETISConfig
+        Configuration object for ParMETIS.
     """
 
     def __init__(self, metadata_dict, metis_config):
@@ -48,6 +50,21 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
         self.metis_config = metis_config
 
     def _launch_preprocess(self, num_parts, input_path, ip_list, dgl_tool_path, metadata_filename):
+        """ Launch preprocessing script
+
+        Parameters
+        ----------
+        num_parts: int
+            Number of graph partitions
+        input_path: str
+            Path to the input graph data
+        ip_list: str
+            ip list file after port assigned
+        dgl_tool_path: str
+            Path to the dgl tool added in the PYTHONPATH
+        metadata_filename: str
+            Meta data configuration name
+        """
         command = f"mpirun -np {num_parts} --allow-run-as-root --hostfile {ip_list} \
                     -wdir {input_path} \
                   python3 {dgl_tool_path}/distpartitioning/parmetis_preprocess.py \
@@ -68,6 +85,14 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
 
         Parameters
         ----------
+        num_parts: int
+            Number of graph partitions
+        input_path: str
+            Path to the input graph data
+        ip_list: str
+            ip list
+        graph_name: str
+            Graph name
         """
         command = f"mpirun -np 1 --allow-run-as-root \
                     --hostfile {ip_list} \
@@ -89,12 +114,18 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
 
         Parameters
         ----------
-        meta_data_config: str
-            Path to the meta data configuration.
-        parmetis_output_file: str
-            Path to ParMetis output.
-        partitions_dir: str
-            Output path
+        num_parts: int
+            Number of graph partitions
+        input_data_path: str
+            Path to the input graph data
+        dgl_tool_path: str
+            Path to the dgl tool added in the PYTHONPATH
+        metadata_filename: str
+            schema file name defined in the parmetis step
+        graph_name: str
+            name of the graph in the parmetis step
+        partition_dir: str
+            output path
         """
         command = f"python3 {dgl_tool_path}/distpartitioning/parmetis_postprocess.py \
                         --postproc_input_dir {input_data_path} \
@@ -111,7 +142,7 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
 
     def run_command(self, command):
         """Function to execute a command and check for its success."""
-        logging.info(f"Executing command: {command}")
+        logging.info(f"Executing command: {command}\n")
         try:
             # Execute the command and check if it completes successfully
             result = subprocess.run(command, shell=True, check=True, text=True, stdout=subprocess.PIPE,
@@ -123,6 +154,7 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
             return False  # Return False if the command failed
 
     def assigned_port(self, ip_file, port="2222"):
+        """Function to assigned port to each ip prepared for mpi."""
         if not os.path.isfile(ip_file):
             raise ValueError("ip file does not exist")
         # MPI run will need to explicitly assign port=2222 in the ip list file
@@ -144,7 +176,6 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
         return output_file
 
     def _assign_partitions(self, num_partitions: int, partition_dir: str):
-        # TODO: adjust ip_list file input format inside
         ip_file = self.assigned_port(self.metis_config.ip_list)
         # Execute each command function in sequence and stop if any fails
         if not self._launch_preprocess(num_partitions, self.metis_config.input_path,
