@@ -550,8 +550,8 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
             fifo = np.finfo(out_dtype)
         else:
             fifo = np.finfo(np.float32)
-        self._max_bound = fifo.max if max_bound>=fifo.max else max_bound
-        self._min_bound = -fifo.max if min_bound<=-fifo.max else min_bound
+        self._max_bound = fifo.max if max_bound >= fifo.max else max_bound
+        self._min_bound = -fifo.max if min_bound <= -fifo.max else min_bound
         out_dtype = np.float32 if out_dtype is None else out_dtype
         super(NumericalMinMaxTransform, self).__init__(col_name, feat_name, out_dtype)
 
@@ -1380,10 +1380,13 @@ class CustomLabelProcessor:
         The array that contains the index of test data points.
     stats_type: str
         Speicfy how to summarize label statistics
+    mask_field_names: tuple of str
+        Field name of train, validation and test masks
+        Default: ("train_mask", "val_mask", "test_mask")
     """
     def __init__(self, col_name, label_name, id_col, task_type,
                  train_idx=None, val_idx=None, test_idx=None,
-                 stats_type=None):
+                 stats_type=None, mask_field_names=("train_mask", "val_mask", "test_mask")):
         self._id_col = id_col
         self._col_name = col_name
         self._label_name = label_name
@@ -1392,6 +1395,12 @@ class CustomLabelProcessor:
         self._test_idx = set(test_idx) if test_idx is not None else None
         self._task_type = task_type
         self._stats_type = stats_type
+
+        assert isinstance(mask_field_names, tuple) and len(mask_field_names) == 3, \
+            "mask_field_names must be a tuple with three strings " \
+            "for training mask, validation mask and test mask, respectively." \
+            "For example ('tmask', 'vmask', 'tmask')."
+        self._mask_field_names = mask_field_names
 
     @property
     def col_name(self):
@@ -1404,6 +1413,24 @@ class CustomLabelProcessor:
         """ The label name.
         """
         return self._label_name
+
+    @property
+    def train_mask_name(self):
+        """ The field name of the train mask
+        """
+        return self._mask_field_names[0]
+
+    @property
+    def val_mask_name(self):
+        """ The field name of the validation mask
+        """
+        return self._mask_field_names[1]
+
+    @property
+    def test_mask_name(self):
+        """ The field name of the test mask
+        """
+        return self._mask_field_names[2]
 
     def data_split(self, ids):
         """ Split the data for training/validation/test.
@@ -1429,9 +1456,9 @@ class CustomLabelProcessor:
                 val_mask[i] = 1
             elif self._test_idx is not None and idx in self._test_idx:
                 test_mask[i] = 1
-        train_mask_name = 'train_mask'
-        val_mask_name = 'val_mask'
-        test_mask_name = 'test_mask'
+        train_mask_name = self.train_mask_name # default: 'train_mask'
+        val_mask_name = self.val_mask_name # default: 'val_mask'
+        test_mask_name = self.test_mask_name # default: 'test_mask'
         return {train_mask_name: train_mask,
                 val_mask_name: val_mask,
                 test_mask_name: test_mask}
@@ -1470,7 +1497,7 @@ class CustomLabelProcessor:
                 if self._stats_type == LABEL_STATS_FREQUENCY_COUNT:
                     # get train labels
                     train_labels = res[self.label_name][ \
-                        res['train_mask'].astype(np.bool_)]
+                        res[self.train_mask_name].astype(np.bool_)]
                     vals, counts = np.unique(train_labels, return_counts=True)
                     res[LABEL_STATS_FIELD+self.label_name] = \
                         (LABEL_STATS_FREQUENCY_COUNT, vals, counts)
@@ -1491,12 +1518,22 @@ class LabelProcessor:
         The percentage of training, validation and test.
     stats_type: str
         Speicfy how to summarize label statistics
+        Default: None
+    mask_field_names: tuple of str
+        Specify the field name of train, validation and test masks
+        Default: ["train_mask", "val_mask", "test_mask"]
     """
-    def __init__(self, col_name, label_name, split_pct, stats_type=None):
+    def __init__(self, col_name, label_name, split_pct,
+                 stats_type=None, mask_field_names=("train_mask", "val_mask", "test_mask")):
         self._col_name = col_name
         self._label_name = label_name
         self._split_pct = split_pct
         self._stats_type = stats_type
+        assert isinstance(mask_field_names, tuple) and len(mask_field_names) == 3, \
+            "mask_field_names must be a tuple with three strings " \
+            "for training mask, validation mask and test mask, respectively." \
+            "For example ('tmask', 'vmask', 'tmask')."
+        self._mask_field_names = mask_field_names
 
     @property
     def col_name(self):
@@ -1509,6 +1546,30 @@ class LabelProcessor:
         """ The label name.
         """
         return self._label_name
+
+    @property
+    def mask_field_names(self):
+        """ The field names of train, validation and test masks
+        """
+        return self._mask_field_names
+
+    @property
+    def train_mask_name(self):
+        """ The field name of the train mask
+        """
+        return self._mask_field_names[0]
+
+    @property
+    def val_mask_name(self):
+        """ The field name of the validation mask
+        """
+        return self._mask_field_names[1]
+
+    @property
+    def test_mask_name(self):
+        """ The field name of the test mask
+        """
+        return self._mask_field_names[2]
 
     def data_split(self, get_valid_idx, num_samples):
         """ Split the data
@@ -1548,9 +1609,9 @@ class LabelProcessor:
         train_mask[train_idx] = 1
         val_mask[val_idx] = 1
         test_mask[test_idx] = 1
-        train_mask_name = 'train_mask'
-        val_mask_name = 'val_mask'
-        test_mask_name = 'test_mask'
+        train_mask_name = self.train_mask_name # default: 'train_mask'
+        val_mask_name = self.val_mask_name # default: 'val_mask'
+        test_mask_name = self.test_mask_name # default: 'test_mask'
         return {train_mask_name: train_mask,
                 val_mask_name: val_mask,
                 test_mask_name: test_mask}
@@ -1588,7 +1649,7 @@ class ClassificationProcessor(LabelProcessor):
             if self._stats_type == LABEL_STATS_FREQUENCY_COUNT:
                 # get train labels
                 train_labels = res[self.label_name][ \
-                    res['train_mask'].astype(np.bool_)]
+                    res[self.train_mask_name].astype(np.bool_)]
                 vals, counts = np.unique(train_labels, return_counts=True)
                 res[LABEL_STATS_FIELD+self.label_name] = \
                     (LABEL_STATS_FREQUENCY_COUNT, vals, counts)
@@ -1660,63 +1721,106 @@ def parse_label_ops(confs, is_node):
 
     Returns
     -------
-    list of LabelProcessor : the label processors generated from the configurations.
+    A tuple of
+        list of LabelProcessor : the label processors generated from the configurations.
     """
     label_confs = confs['labels']
-    assert len(label_confs) == 1, "We only support one label per node/edge type."
-    label_conf = label_confs[0]
-    assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
-    task_type = label_conf['task_type']
-    label_stats_type = label_conf['label_stats_type'] \
-        if 'label_stats_type' in label_conf else None
-    label_stats_type = _check_label_stats_type(task_type, label_stats_type)
-    if 'custom_split_filenames' in label_conf:
-        custom_split = label_conf['custom_split_filenames']
-        assert isinstance(custom_split, dict), \
-                "Custom data split needs to provide train/val/test index."
-        if "column" not in custom_split:
-            custom_split["column"] = []
-        # Treat all input as an input of list[str]
-        if isinstance(custom_split['column'], str):
-            custom_split["column"] = [custom_split["column"]]
-        train_idx, val_idx, test_idx = read_index(custom_split)
-        label_col = label_conf['label_col'] if 'label_col' in label_conf else None
-        if "node_id_col" in confs:
-            return [CustomLabelProcessor(col_name=label_col, label_name=label_col,
-                                         id_col=confs["node_id_col"],
-                                         task_type=task_type, train_idx=train_idx, val_idx=val_idx,
-                                         test_idx=test_idx, stats_type=label_stats_type)]
-        elif "source_id_col" in confs and "dest_id_col" in confs:
-            return [CustomLabelProcessor(col_name=label_col, label_name=label_col,
-                                         id_col=(confs["source_id_col"], confs["dest_id_col"]),
-                                         task_type=task_type, train_idx=train_idx, val_idx=val_idx,
-                                         test_idx=test_idx, stats_type=label_stats_type)]
+    assert len(label_confs) >= 1, \
+        "If a 'labels' field is defined for a node type or an edge type in the " \
+        "configuration file, it should not be empty."
+
+    def parse_label_conf(label_conf):
+        assert 'task_type' in label_conf, "'task_type' must be defined in the label field."
+        task_type = label_conf['task_type']
+        label_stats_type = label_conf['label_stats_type'] \
+            if 'label_stats_type' in label_conf else None
+        label_stats_type = _check_label_stats_type(task_type, label_stats_type)
+
+        # default mask names
+        mask_field_names = ("train_mask", "val_mask", "test_mask")
+        if 'mask_field_names' in label_conf:
+            # User defined mask names
+            assert isinstance(label_conf['mask_field_names'], list) and \
+                len(label_conf['mask_field_names']) == 3, \
+                "User defined mask_field_names must be a list of three strings." \
+                f"But get {label_conf['mask_field_names']}"
+            mask_field_names = tuple(label_conf['mask_field_names'])
+
+        if 'custom_split_filenames' in label_conf:
+            custom_split = label_conf['custom_split_filenames']
+            assert isinstance(custom_split, dict), \
+                    "Custom data split needs to provide train/val/test index."
+            if "column" not in custom_split:
+                custom_split["column"] = []
+            # Treat all input as an input of list[str]
+            if isinstance(custom_split['column'], str):
+                custom_split["column"] = [custom_split["column"]]
+            train_idx, val_idx, test_idx = read_index(custom_split)
+            label_col = label_conf['label_col'] if 'label_col' in label_conf else None
+            if "node_id_col" in confs:
+                return CustomLabelProcessor(col_name=label_col, label_name=label_col,
+                                            id_col=confs["node_id_col"],
+                                            task_type=task_type,
+                                            train_idx=train_idx,
+                                            val_idx=val_idx,
+                                            test_idx=test_idx,
+                                            stats_type=label_stats_type,
+                                            mask_field_names=mask_field_names)
+            elif "source_id_col" in confs and "dest_id_col" in confs:
+                return CustomLabelProcessor(col_name=label_col, label_name=label_col,
+                                            id_col=(confs["source_id_col"],
+                                                    confs["dest_id_col"]),
+                                            task_type=task_type,
+                                            train_idx=train_idx,
+                                            val_idx=val_idx,
+                                            test_idx=test_idx,
+                                            stats_type=label_stats_type,
+                                            mask_field_names=mask_field_names)
+            else:
+                raise AttributeError("Custom data segmentation should be "
+                                    "applied to either node or edge tasks.")
+
+        if 'split_pct' in label_conf:
+            split_pct = label_conf['split_pct']
         else:
-            raise AttributeError("Custom data segmentation should be "
-                                 "applied to either node or edge tasks.")
+            logging.info("'split_pct' is not found. " + \
+                    "Use the default data split: train(80%), valid(10%), test(10%).")
+            split_pct = [0.8, 0.1, 0.1]
 
-    if 'split_pct' in label_conf:
-        split_pct = label_conf['split_pct']
-    else:
-        logging.info("'split_pct' is not found. " + \
-                "Use the default data split: train(80%), valid(10%), test(10%).")
-        split_pct = [0.8, 0.1, 0.1]
+        if task_type == 'classification':
+            assert 'label_col' in label_conf, \
+                    "'label_col' must be defined in the label field."
+            label_col = label_conf['label_col']
+            return ClassificationProcessor(label_col, label_col, split_pct,
+                                            label_stats_type, mask_field_names)
+        elif task_type == 'regression':
+            assert 'label_col' in label_conf, \
+                    "'label_col' must be defined in the label field."
+            label_col = label_conf['label_col']
+            return RegressionProcessor(label_col, label_col, split_pct,
+                                        label_stats_type, mask_field_names)
+        else:
+            assert task_type == 'link_prediction', \
+                    "The task type must be classification, regression or link_prediction."
+            assert not is_node, "link_prediction task must be defined on edges."
+            return LinkPredictionProcessor(None, None, split_pct,
+                                            label_stats_type, mask_field_names)
+    label_ops = []
+    for label_conf in label_confs:
+        label_ops.append(parse_label_conf(label_conf))
 
-    if task_type == 'classification':
-        assert 'label_col' in label_conf, \
-                "'label_col' must be defined in the label field."
-        label_col = label_conf['label_col']
-        return [ClassificationProcessor(label_col, label_col, split_pct, label_stats_type)]
-    elif task_type == 'regression':
-        assert 'label_col' in label_conf, \
-                "'label_col' must be defined in the label field."
-        label_col = label_conf['label_col']
-        return [RegressionProcessor(label_col, label_col, split_pct, label_stats_type)]
-    else:
-        assert task_type == 'link_prediction', \
-                "The task type must be classification, regression or link_prediction."
-        assert not is_node, "link_prediction task must be defined on edges."
-        return [LinkPredictionProcessor(None, None, split_pct, label_stats_type)]
+    if len(label_ops) > 1:
+        # check whether train/val/test mask names are
+        # different for different labels
+        mask_names = []
+        for ops in label_ops:
+            mask_names.append(ops.train_mask_name)
+            mask_names.append(ops.val_mask_name)
+            mask_names.append(ops.test_mask_name)
+        assert len(mask_names) == len(set(mask_names)), \
+            f"Some train/val/test mask field names are duplicated, please check: {mask_names}."
+
+    return label_ops
 
 def process_labels(data, label_processors):
     """ Process labels
@@ -1732,8 +1836,14 @@ def process_labels(data, label_processors):
     -------
     dict of tensors : labels (optional) and train/validation/test masks.
     """
-    assert len(label_processors) == 1, "We only support one label per node/edge type."
-    return label_processors[0](data)
+    assert len(label_processors) >= 1, \
+        "Number of label_processors must be one or more."
+    ret = {}
+    for label_processor in label_processors:
+        label_feats = label_processor(data)
+        logging.debug("Label information: %s", label_feats)
+        ret.update(label_feats)
+    return ret
 
 def do_multiprocess_transform(conf, feat_ops, label_ops, in_files):
     """ Test whether the input data requires multiprocessing.

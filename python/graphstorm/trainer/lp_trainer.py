@@ -58,12 +58,11 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     .. code:: python
 
         from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
-        from graphstorm.dataset import GSgnnEdgeTrainData
+        from graphstorm.dataset import GSgnnData
         from graphstorm.model import GSgnnLinkPredictionModel
         from graphstorm.trainer import GSgnnLinkPredictionTrainer
 
-        my_dataset = GSgnnEdgeTrainData(
-            "my_graph", "/path/to/part_config", train_etypes="edge_type")
+        my_dataset = GSgnnData("/path/to/part_config")
         target_idx = {"edge_type": target_edges_tensor}
         my_data_loader = GSgnnLinkPredictionDataLoader(
             my_dataset, target_idx, fanout=[10], batch_size=1024)
@@ -171,12 +170,13 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 if not isinstance(input_nodes, dict):
                     assert len(pos_graph.ntypes) == 1
                     input_nodes = {pos_graph.ntypes[0]: input_nodes}
-                input_feats = data.get_node_feats(input_nodes, device)
-                if data.pos_graph_feat_field is not None:
+                nfeat_fields = train_loader.node_feat_fields
+                input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
+                if train_loader.pos_graph_feat_fields is not None:
                     input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
                         for etype in pos_graph.canonical_etypes}
                     pos_graph_feats = data.get_edge_feats(input_edges,
-                                                          data.pos_graph_feat_field,
+                                                          train_loader.pos_graph_feat_fields,
                                                           device)
                 else:
                     pos_graph_feats = None
@@ -275,7 +275,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                        'peak_RAM_mem_alloc_MB': \
                            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024,
                        'best validation iteration': \
-                           self.evaluator.best_iter_num[self.evaluator.metric[0]],
+                           self.evaluator.best_iter_num[self.evaluator.metric_list[0]],
                        'best model path': \
                            self.get_best_model_path() if save_model_path is not None else None}
             self.log_params(output)
@@ -293,7 +293,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         ----------
         model : Pytorch model
             The GNN model.
-        data : GSgnnEdgeTrainData
+        data : GSgnnData
             The training dataset
         val_loader: GSNodeDataLoader
             The dataloader for validation data

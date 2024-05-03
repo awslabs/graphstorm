@@ -15,7 +15,7 @@ Available options:
 
 -h, --help          Print this help and exit
 -x, --verbose       Print script debug info (set -x)
--e, --environment   Image execution environment. Must be one of 'emr-serverless' or 'sagemaker'. Required.
+-e, --environment   Image execution environment. Must be one of 'emr', 'emr-serverless' or 'sagemaker'. Required.
 -a, --architecture  Image architecture. Must be one of 'x86_64' or 'arm64'. Default is 'x86_64'.
                     Note that only x86_64 architecture is supported for SageMaker.
 -t, --target        Docker image target, must be one of 'prod' or 'test'. Default is 'prod'.
@@ -102,7 +102,7 @@ parse_params() {
   args=("$@")
 
   # check required params and arguments
-  [[ -z "${EXEC_ENV-}" ]] && die "Missing required parameter: -e/--environment [emr-serverless|sagemaker]"
+  [[ -z "${EXEC_ENV-}" ]] && die "Missing required parameter: -e/--environment [emr|emr-serverless|sagemaker]"
 
   return 0
 }
@@ -116,6 +116,13 @@ cleanup() {
 }
 
 parse_params "$@"
+
+if [[ ${EXEC_ENV} == "emr" || ${EXEC_ENV} == "emr-serverless" || ${EXEC_ENV} == "sagemaker" ]]; then
+    :  # Do nothing
+else
+    die "--environment parameter needs to be one of 'emr', 'emr-serverless' or 'sagemaker', got ${EXEC_ENV}"
+fi
+
 
 if [[ ${TARGET} == "prod" || ${TARGET} == "test" ]]; then
     :  # Do nothing

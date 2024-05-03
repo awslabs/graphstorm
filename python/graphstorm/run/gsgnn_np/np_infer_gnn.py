@@ -19,8 +19,8 @@ import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnNodePredictionInferrer
-from graphstorm.eval import GSgnnAccEvaluator, GSgnnRegressionEvaluator
-from graphstorm.dataloading import GSgnnNodeInferData, GSgnnNodeDataLoader
+from graphstorm.eval import GSgnnClassificationEvaluator, GSgnnRegressionEvaluator
+from graphstorm.dataloading import GSgnnData, GSgnnNodeDataLoader
 from graphstorm.utils import get_device, get_lm_ntypes, use_wholegraph
 
 def get_evaluator(config): # pylint: disable=unused-argument
@@ -30,9 +30,9 @@ def get_evaluator(config): # pylint: disable=unused-argument
         return GSgnnRegressionEvaluator(config.eval_frequency,
                                         config.eval_metric)
     elif config.task_type == 'node_classification':
-        return GSgnnAccEvaluator(config.eval_frequency,
-                                 config.eval_metric,
-                                 config.multilabel)
+        return GSgnnClassificationEvaluator(config.eval_frequency,
+                                            config.eval_metric,
+                                            config.multilabel)
     else:
         raise AttributeError(config.task_type + ' is not supported.')
 
@@ -47,12 +47,10 @@ def main(config_args):
                   local_rank=config.local_rank,
                   use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
 
-    infer_data = GSgnnNodeInferData(config.graph_name,
-                                    config.part_config,
-                                    eval_ntypes=config.target_ntype,
-                                    node_feat_field=config.node_feat_name,
-                                    label_field=config.label_field,
-                                    lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
+    infer_data = GSgnnData(config.part_config,
+                           node_feat_field=config.node_feat_name,
+                           edge_feat_field=config.edge_feat_name,
+                           lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
 
     model = gs.create_builtin_node_gnn_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path,
@@ -60,24 +58,26 @@ def main(config_args):
     infer = GSgnnNodePredictionInferrer(model)
     infer.setup_device(device=get_device())
     if not config.no_validation:
+        infer_idxs = infer_data.get_node_test_set(config.target_ntype)
         evaluator = get_evaluator(config)
         infer.setup_evaluator(evaluator)
-        assert len(infer_data.test_idxs) > 0, \
+        assert len(infer_idxs) > 0, \
             "There is not test data for evaluation. " \
             "You can use --no-validation true to avoid do testing"
-        target_idxs = infer_data.test_idxs
     else:
-        assert len(infer_data.infer_idxs) > 0, \
+        infer_idxs = infer_data.get_node_infer_set(config.target_ntype)
+        assert len(infer_idxs) > 0, \
             f"To do inference on {config.target_ntype} without doing evaluation, " \
             "you should not define test_mask as its node feature. " \
             "GraphStorm will do inference on the whole node set. "
-        target_idxs = infer_data.infer_idxs
     tracker = gs.create_builtin_task_tracker(config)
     infer.setup_task_tracker(tracker)
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
-    dataloader = GSgnnNodeDataLoader(infer_data, target_idxs, fanout=fanout,
+    dataloader = GSgnnNodeDataLoader(infer_data, infer_idxs, fanout=fanout,
                                      batch_size=config.eval_batch_size,
                                      train_task=False,
+                                     node_feats=config.node_feat_name,
+                                     label_field=config.label_field,
                                      construct_feat_ntype=config.construct_feat_ntype,
                                      construct_feat_fanout=config.construct_feat_fanout)
     infer.infer(dataloader, save_embed_path=config.save_embed_path,

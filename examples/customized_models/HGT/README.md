@@ -17,7 +17,7 @@ In order to plus users' own GNN models into the GraphStorm Framework, users need
     - Define your own loss function, or use GraphStorm's built-in loss functions that can handel common classification, regression, and link predictioin tasks.
     - In case having unused weights problem, modify the loss computation to include a regulation computation of all parameters
 
-3. Use the GraphStorm's dataset, e.g., [GSgnnNodeTrainData](https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/dataloading/dataset.py#L469) and dataloader, e.g., [GSgnnNodeDataLoader](https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/dataloading/dataloading.py#L544) to construct distributed graph loading and mini-batch sampling.
+3. Use the GraphStorm's dataset, e.g., [GSgnnData](https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/dataloading/dataset.py#L157) and dataloader, e.g., [GSgnnNodeDataLoader](https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/dataloading/dataloading.py#L544) to construct distributed graph loading and mini-batch sampling.
 
 4. Wrap your model in a GraphStorm trainer, e.g., [GSgnnNodePredictionTrainer](https://github.com/awslabs/graphstorm/blob/main/python/graphstorm/trainer/np_trainer.py), which will handle the training process with its fit() method.
 

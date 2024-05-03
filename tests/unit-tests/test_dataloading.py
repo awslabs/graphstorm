@@ -35,8 +35,7 @@ from data_utils import (
 
 import graphstorm as gs
 from graphstorm.utils import setup_device, get_device
-from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeInferData
-from graphstorm.dataloading import GSgnnEdgeTrainData, GSgnnEdgeInferData
+from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
@@ -78,272 +77,370 @@ def get_nonzero(mask):
     mask = mask[0:len(mask)]
     return th.nonzero(mask, as_tuple=True)[0]
 
-def test_GSgnnEdgeData_wo_test_mask():
-    for file in os.listdir("/dev/shm/"):
-        shutil.rmtree(file, ignore_errors=True)
+def test_GSgnnData():
+    # Create dist graph without reverse edges
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
-
-    va_etypes = [("n0", "r1", "n1")]
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
-                                                            dirname=os.path.join(tmpdirname, 'dummy'),
-                                                            gen_mask=False)
-
-        ev_data_nomask = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
-                                            eval_etypes=va_etypes)
-        ev_data_nomask2 = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
-                                             eval_etypes=None)
-
-    assert ev_data_nomask.eval_etypes == va_etypes
-    assert ev_data_nomask2.eval_etypes == dist_graph.canonical_etypes
-
-    # eval graph without test mask
-    # all edges in the eval etype are treated as target edges
-    assert len(ev_data_nomask.infer_idxs) == len(va_etypes)
-    for etype in va_etypes:
-        assert th.all(ev_data_nomask.infer_idxs[etype] == th.arange(dist_graph.num_edges(etype)))
-
-    assert len(ev_data_nomask2.infer_idxs) == len(dist_graph.canonical_etypes)
-    for etype in dist_graph.canonical_etypes:
-        assert th.all(ev_data_nomask2.infer_idxs[etype] == th.arange(dist_graph.num_edges(etype)))
-
-    # after test pass, destroy all process group
-    th.distributed.destroy_process_group()
-
-def test_GSgnnNodeData_wo_test_mask():
-    for file in os.listdir("/dev/shm/"):
-        shutil.rmtree(file, ignore_errors=True)
-    # initialize the torch distributed environment
-    th.distributed.init_process_group(backend='gloo',
-                                      init_method='tcp://127.0.0.1:23456',
-                                      rank=0,
-                                      world_size=1)
-    va_ntypes = ["n1"]
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy2',
-                                                            dirname=os.path.join(tmpdirname, 'dummy2'),
-                                                            gen_mask=False)
-        infer_data_nomask = GSgnnNodeInferData(graph_name='dummy2', part_config=part_config,
-                                            eval_ntypes=va_ntypes)
-    assert infer_data_nomask.eval_ntypes == va_ntypes
-    # eval graph without test mask
-    # all nodes in the eval ntype are treated as target nodes
-    assert len(infer_data_nomask.infer_idxs) == len(va_ntypes)
-    for ntype in va_ntypes:
-        assert th.all(infer_data_nomask.infer_idxs[ntype] == th.arange(dist_graph.num_nodes(ntype)))
-
-    # after test pass, destroy all process group
-    th.distributed.destroy_process_group()
-
-def test_GSgnnEdgeData():
-    # initialize the torch distributed environment
-    th.distributed.init_process_group(backend='gloo',
-                                      init_method='tcp://127.0.0.1:23456',
-                                      rank=0,
-                                      world_size=1)
-
-    tr_etypes = [("n0", "r1", "n1"), ("n0", "r0", "n1")]
-    tr_single_etype = [("n0", "r1", "n1")]
-    va_etypes = [("n0", "r1", "n1")]
-    ts_etypes = [("n0", "r1", "n1")]
+    tr_ntypes = ['n1']
+    va_ntypes = ['n1']
+    ts_ntypes = ['n1']
+    in_ntypes = ['n1']
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
-                                                            dirname=os.path.join(tmpdirname, 'dummy'))
-        tr_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=tr_etypes, eval_etypes=va_etypes,
-                                     label_field='label')
-        tr_data1 = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                      train_etypes=tr_etypes)
-        # pass train etypes as None
-        tr_data2 = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=None,
-                                     label_field='label')
-        # train etypes does not cover all etypes.
-        tr_data3 = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=tr_single_etype,
-                                     label_field='label')
-        ev_data = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
-                                     eval_etypes=va_etypes)
-        # pass eval etypes as None
-        ev_data2 = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
-                                      eval_etypes=None)
+                                                            dirname=tmpdirname, add_reverse=False)
+        gdata = GSgnnData(part_config=part_config)
 
-    # successful initialization with default setting
-    assert tr_data.train_etypes == tr_etypes
-    assert tr_data.eval_etypes == va_etypes
-    assert tr_data1.train_etypes == tr_etypes
-    assert tr_data1.eval_etypes == tr_etypes
-    assert ev_data.eval_etypes == va_etypes
-    assert tr_data2.train_etypes == tr_data2.eval_etypes
-    assert tr_data2.train_etypes == dist_graph.canonical_etypes
-    assert tr_data3.train_etypes == tr_single_etype
-    assert tr_data3.eval_etypes == tr_single_etype
-    assert ev_data2.eval_etypes == dist_graph.canonical_etypes
+        assert gdata.graph_name == 'dummy'
+        assert gdata.node_feat_field == None
+        assert gdata.edge_feat_field == None
+        assert gdata.has_node_feats('n1') is False
+        assert gdata.has_node_feats(('n0', 'r0', 'n1')) is False
+        assert gdata.has_node_lm_feats('n1') is False
+        assert gdata.has_edge_lm_feats(('n0', 'r0', 'n1')) is False
 
-    # sucessfully split train/val/test idxs
-    assert len(tr_data.train_idxs) == len(tr_etypes)
-    for etype in tr_etypes:
-        assert th.all(tr_data.train_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['train_mask']))
-    assert len(ev_data.train_idxs) == 0
+        # test node train/val/test idxs
+        for ntype in tr_ntypes:
+            assert th.all(gdata.get_node_train_set(ntype)[ntype] == get_nonzero(dist_graph.nodes[ntype].data['train_mask']))
+        for ntype in va_ntypes:
+            assert th.all(gdata.get_node_val_set(ntype)[ntype] == get_nonzero(dist_graph.nodes[ntype].data['val_mask']))
+        for ntype in ts_ntypes:
+            assert th.all(gdata.get_node_test_set(ntype)[ntype] == get_nonzero(dist_graph.nodes[ntype].data['test_mask']))
+        for ntype in in_ntypes:
+            # with test mask
+            assert th.all(gdata.get_node_infer_set(ntype)[ntype] == get_nonzero(dist_graph.nodes[ntype].data['test_mask']))
+        # without test mask
+        assert th.all(gdata.get_node_infer_set('n0')['n0'] == th.arange(dist_graph.num_nodes('n0')))
 
-    assert len(tr_data.val_idxs) == len(va_etypes)
-    for etype in va_etypes:
-        assert th.all(tr_data.val_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['val_mask']))
-    assert len(tr_data1.val_idxs) == len(tr_etypes)
-    for etype in tr_etypes:
-        assert th.all(tr_data1.val_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['val_mask']))
-    assert len(ev_data.val_idxs) == 0
+        # check node label
+        labels = gdata.get_node_feats({'n1': th.tensor([0, 1])}, 'label')
+        assert len(labels.keys()) == 1
+        assert 'n1' in labels
+        try:
+            labels = gdata.get_node_feats({'n0': th.tensor([0, 1])}, 'label')
+            no_label = False
+        except:
+            no_label = True
+        assert no_label
 
-    assert len(tr_data.test_idxs) == len(ts_etypes)
-    for etype in ts_etypes:
-        assert th.all(tr_data.test_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
-    assert len(tr_data1.test_idxs) == len(tr_etypes)
-    for etype in tr_etypes:
-        assert th.all(tr_data1.test_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
-    assert len(ev_data.test_idxs) == len(va_etypes)
-    assert len(ev_data.infer_idxs) == len(ev_data.test_idxs)
-    for etype in va_etypes:
-        assert th.all(ev_data.test_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
-        assert th.all(ev_data.infer_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
+        tr_etypes = [('n0', 'r1', 'n1'), ('n0', 'r0', 'n1')]
+        va_etypes = [('n0', 'r1', 'n1'), ('n0', 'r0', 'n1')]
+        ts_etypes = [('n0', 'r1', 'n1'), ('n0', 'r0', 'n1')]
+        if_etypes = [('n0', 'r1', 'n1'), ('n0', 'r0', 'n1')]
+        # test edge train/val/test idxs
+        train_idxs = gdata.get_edge_train_set()
+        assert len(train_idxs) == 2
+        for etype in tr_etypes:
+            assert th.all(gdata.get_edge_train_set(etype)[etype] == get_nonzero(dist_graph.edges[etype[1]].data['train_mask']))
+            assert th.all(train_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['train_mask']))
 
-    # pass train etypes as None
-    assert len(tr_data2.train_idxs) == len(dist_graph.canonical_etypes)
-    for etype in tr_etypes:
-        assert th.all(tr_data2.train_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['train_mask']))
-    for etype in tr_etypes:
-        assert th.all(tr_data2.val_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['val_mask']))
-    for etype in tr_etypes:
-        assert th.all(tr_data2.test_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
+        val_idxs = gdata.get_edge_val_set()
+        assert len(val_idxs) == 2
+        for etype in va_etypes:
+            assert th.all(gdata.get_edge_val_set(etype)[etype] == get_nonzero(dist_graph.edges[etype[1]].data['val_mask']))
+            assert th.all(val_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['val_mask']))
 
-    # train etypes does not cover all etypes.
-    assert len(tr_data3.train_idxs) == len(tr_single_etype)
-    for etype in tr_single_etype:
-        assert th.all(tr_data3.train_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['train_mask']))
-    for etype in tr_single_etype:
-        assert th.all(tr_data3.val_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['val_mask']))
-    for etype in tr_single_etype:
-        assert th.all(tr_data3.test_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
+        test_idxs = gdata.get_edge_test_set()
+        for etype in ts_etypes:
+            assert th.all(gdata.get_edge_test_set(etype)[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
+            assert th.all(test_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
 
-    # pass eval etypes as None
-    assert len(ev_data2.test_idxs) == 2
-    assert len(ev_data2.infer_idxs) == 2
-    for etype in dist_graph.canonical_etypes:
-        assert th.all(ev_data2.test_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
-        assert th.all(ev_data2.infer_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
+        infer_idxs = gdata.get_edge_infer_set()
+        assert len(infer_idxs) == 2
+        for etype in if_etypes:
+            assert th.all(gdata.get_edge_infer_set(etype)[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
+            assert th.all(infer_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
 
-    labels = tr_data.get_labels({('n0', 'r1', 'n1'): [0, 1]})
-    assert len(labels.keys()) == 1
-    assert ('n0', 'r1', 'n1') in labels
-    try:
-        labels = tr_data.get_labels({('n0', 'r0', 'n1'): [0, 1]})
-        no_label = False
-    except:
-        no_label = True
-    assert no_label
-    try:
-        labels = tr_data1.get_labels({('n0', 'r1', 'n1'): [0, 1]})
-        no_label = False
-    except:
-        no_label = True
-    assert no_label
+        # check edge label
+        labels = gdata.get_edge_feats({('n0', 'r1', 'n1'): th.tensor([0, 1])}, 'label')
+        assert len(labels.keys()) == 1
+        assert ('n0', 'r1', 'n1') in labels
+        try:
+            labels = gdata.get_edge_feats({('n0', 'r0', 'n1'): th.tensor([0, 1])}, 'label')
+            no_label = False
+        except:
+            no_label = True
+        assert no_label
+
+        ##################################
+        # provide node feat and edge feat
+        gdata = GSgnnData(part_config=part_config, node_feat_field='feat', edge_feat_field='feat', lm_feat_ntypes=['n0'], lm_feat_etypes=[('n0', 'r0', 'n1')])
+
+        assert gdata.graph_name == 'dummy'
+        assert gdata.node_feat_field == 'feat'
+        assert gdata.edge_feat_field == 'feat'
+        assert gdata.has_node_feats('n0') is True
+        assert gdata.has_node_feats(('n0', 'r0', 'n1')) is True
+        assert gdata.has_node_feats('n1') is True
+        assert gdata.has_node_feats(('n0', 'r1', 'n1')) is True
+        assert gdata.has_node_lm_feats('n0') is True
+        assert gdata.has_edge_lm_feats(('n0', 'r0', 'n1')) is True
+        assert gdata.has_node_lm_feats('n1') is False
+        assert gdata.has_edge_lm_feats(('n0', 'r1', 'n1')) is False
+
+        feat = gdata.get_node_feats({'n0': th.tensor([0, 1])}, 'feat')
+        assert th.all(feat['n0'] == dist_graph.nodes['n0'].data['feat'][th.tensor([0, 1])])
+        feat = gdata.get_node_feats({'n0': th.tensor([0, 1])}, {'n0':['feat', 'feat1']})
+        assert th.all(feat['n0'] == \
+                      th.cat([dist_graph.nodes['n0'].data['feat'][th.tensor([0, 1])],
+                             dist_graph.nodes['n0'].data['feat1'][th.tensor([0, 1])]], dim=1))
+        try:
+            feat = gdata.get_node_feats({'n0': th.tensor([0, 1])}, "feat2")
+            no_feat = False
+        except:
+            no_feat = True
+        assert no_feat
+
+        feat = gdata.get_node_feats({'n0': th.tensor([0, 1]),
+                                     'n1': th.tensor([0, 1])},
+                                     {'n0':['feat', 'feat1'],
+                                      'n1':['feat1']})
+        assert len(feat) == 2
+        assert th.all(feat['n0'] == \
+            th.cat([dist_graph.nodes['n0'].data['feat'][th.tensor([0, 1])],
+                   dist_graph.nodes['n0'].data['feat1'][th.tensor([0, 1])]], dim=1))
+        assert th.all(feat['n1'] == dist_graph.nodes['n1'].data['feat1'][th.tensor([0, 1])])
+
+        feat = gdata.get_edge_feats({('n0', 'r0', 'n1'): th.tensor([0, 1])}, 'feat')
+        assert th.all(feat[('n0', 'r0', 'n1')] == dist_graph.edges[('n0', 'r0', 'n1')].data['feat'][th.tensor([0, 1])])
+        feat = gdata.get_edge_feats({('n0', 'r0', 'n1'): th.tensor([0, 1])}, {('n0', 'r0', 'n1'): ['feat']})
+        assert th.all(feat[('n0', 'r0', 'n1')] == dist_graph.edges[('n0', 'r0', 'n1')].data['feat'][th.tensor([0, 1])])
+        try:
+            feat = gdata.get_edge_feats({('n0', 'r0', 'n1'): th.tensor([0, 1])}, "fea2")
+            no_feat = False
+        except:
+            no_feat = True
+        assert no_feat
+        feat = gdata.get_edge_feats({('n0', 'r0', 'n1'): th.tensor([0, 1]),
+                                     ('n0', 'r1', 'n1'): th.tensor([0, 1])},
+                                     'feat')
+        assert len(feat) == 2
+        assert th.all(feat[('n0', 'r0', 'n1')] == dist_graph.edges[('n0', 'r0', 'n1')].data['feat'][th.tensor([0, 1])])
+        assert th.all(feat[('n0', 'r1', 'n1')] == dist_graph.edges[('n0', 'r1', 'n1')].data['feat'][th.tensor([0, 1])])
+        try:
+            feat = gdata.get_edge_feats({('n0', 'r0', 'n1'): th.tensor([0, 1]),
+                                         ('n0', 'r1', 'n1'): th.tensor([0, 1])},
+                                        {('n0', 'r0', 'n1'):'feat',
+                                         ('n0', 'r1', 'n1'):'feat1'})
+            no_feat = False
+        except:
+            no_feat = True
+        assert no_feat
+
+        ########################
+        # Test internal functions
+        # test _check_ntypes
+        ntypes = None
+        try:
+            ntypes = gdata._check_ntypes(ntypes)
+            err_check = False
+        except:
+            err_check = True
+        assert err_check
+        ntypes = 'n0'
+        ntypes = gdata._check_ntypes(ntypes)
+        assert len(ntypes) == 1
+        assert ntypes[0] == 'n0'
+        ntypes = ['n0', 'n1']
+        ntypes = gdata._check_ntypes(ntypes)
+        assert len(ntypes) == 2
+        assert ntypes[0] == 'n0'
+        assert ntypes[1] == 'n1'
+        ntypes = {'n1':0}
+        try:
+            ntypes = gdata._check_ntypes(ntypes)
+            err_check = False
+        except:
+            err_check = True
+        assert err_check
+
+        # test _check_node_mask
+        ntypes = 'n0'
+        masks = gdata._check_node_mask(ntypes, 'train_m')
+        assert len(masks) == 1
+        assert masks[0] == 'train_m'
+        ntypes = ['n0', 'n1']
+        masks = gdata._check_node_mask(ntypes, 'train_m')
+        assert len(masks) == 2
+        assert masks[0] == 'train_m'
+        assert masks[1] == 'train_m'
+        ntypes = ['n0', 'n1']
+        masks = gdata._check_node_mask(ntypes, ['train_m0', 'train_m1'])
+        assert len(masks) == 2
+        assert masks[0] == 'train_m0'
+        assert masks[1] == 'train_m1'
+        ntypes = ['n0', 'n1']
+        try:
+            masks = gdata._check_node_mask(ntypes, ['train_m0'])
+            err_mask = False
+        except:
+            err_mask = True
+        assert err_mask
+
+        # test _check_etypes
+        etypes = None
+        try:
+            etypes = gdata._check_etypes(etypes)
+            err_check = False
+        except:
+            err_check = True
+        assert err_check
+        etypes = ('n0', 'r0', 'n1')
+        etypes = gdata._check_etypes(etypes)
+        assert len(etypes) == 1
+        assert etypes[0] == ('n0', 'r0', 'n1')
+        etypes = [('n0', 'r0', 'n1'), ('n0', 'r0', 'n2')]
+        etypes = gdata._check_etypes(etypes)
+        assert len(etypes) == 2
+        assert etypes[0] == ('n0', 'r0', 'n1')
+        assert etypes[1] == ('n0', 'r0', 'n2')
+        etypes = {('n0', 'r0', 'n2'):0}
+        try:
+            etypes = gdata._check_etypes(etypes)
+            err_check = False
+        except:
+            err_check = True
+        assert err_check
+
+        # test _check_edge_mask
+        etypes = ('n0', 'r0', 'n1')
+        masks = gdata._check_edge_mask(etypes, 'train_m')
+        assert len(masks) == 1
+        assert masks[0] == 'train_m'
+        etypes = [('n0', 'r0', 'n1'), ('n0', 'r0', 'n2')]
+        masks = gdata._check_edge_mask(etypes, 'train_m')
+        assert len(masks) == 2
+        assert masks[0] == 'train_m'
+        assert masks[1] == 'train_m'
+        etypes = [('n0', 'r0', 'n1'), ('n0', 'r0', 'n2')]
+        masks = gdata._check_edge_mask(etypes, ['train_m0', 'train_m1'])
+        assert len(masks) == 2
+        assert masks[0] == 'train_m0'
+        assert masks[1] == 'train_m1'
+        etypes = [('n0', 'r0', 'n1'), ('n0', 'r0', 'n2')]
+        try:
+            masks = gdata._check_edge_mask(etypes, ['train_m0'])
+            err_mask = False
+        except:
+            err_mask = True
+        assert err_mask
+
+        # test _exclude_reverse_etype
+        etypes = [('n0', 'r0', 'n1'), ('n0', 'r0', 'n2'), ('n1', 'r2', 'n0'), ('n2', 'r3', 'n0')]
+        new_etypes = gdata._exclude_reverse_etype(etypes)
+        assert len(new_etypes) == 4
+        assert set(etypes) == set(new_etypes)
+
+        new_etypes = gdata._exclude_reverse_etype(etypes, reverse_edge_types_map={('n0', 'r0', 'n2'): ('n2', 'r3', 'n0')})
+        assert len(new_etypes) == 3
+        assert set(etypes[:3]) == set(new_etypes)
+
+        new_etypes = gdata._exclude_reverse_etype(etypes, reverse_edge_types_map={('n2', 'r3', 'n0'): ('n0', 'r0', 'n2'),
+            ('n1', 'r2', 'n0'):('n0', 'r0', 'n1')})
+        assert len(new_etypes) == 2
+        assert set(etypes[2:]) == set(new_etypes)
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
-def test_GSgnnNodeData():
+def test_GSgnnData2():
+    # Create dist graph with reverse edges
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
-    tr_ntypes = ["n1"]
-    va_ntypes = ["n1"]
-    ts_ntypes = ["n1"]
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
-                                                            dirname=tmpdirname)
-        tr_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_ntypes=tr_ntypes, eval_ntypes=va_ntypes,
-                                     label_field='label')
-        tr_data1 = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                      train_ntypes=tr_ntypes)
-        ev_data = GSgnnNodeInferData(graph_name='dummy', part_config=part_config,
-                                     eval_ntypes=va_ntypes)
+                                                            dirname=tmpdirname, add_reverse=True)
+        # there will be three etypes:
+        # ('n0', 'r1', 'n1'), ('n0', 'r0', 'n1'), ("n1", "r2", "n0")
+        gdata = GSgnnData(part_config=part_config)
 
-    # successful initialization with default setting
-    assert tr_data.train_ntypes == tr_ntypes
-    assert tr_data.eval_ntypes == va_ntypes
-    assert tr_data1.train_ntypes == tr_ntypes
-    assert tr_data1.eval_ntypes == tr_ntypes
-    assert ev_data.eval_ntypes == va_ntypes
+        # There are reverse edges
+        tr_etypes = [('n0', 'r1', 'n1'), ('n0', 'r0', 'n1')]
+        va_etypes = [('n0', 'r1', 'n1'), ('n0', 'r0', 'n1')]
+        ts_etypes = [('n0', 'r1', 'n1'), ('n0', 'r0', 'n1')]
+        if_etypes = [('n0', 'r1', 'n1'), ('n0', 'r0', 'n1')]
+        extra_etype = ("n1", "r2", "n0")
+        # test edge train/val/test idxs
+        train_idxs = gdata.get_edge_train_set()
+        assert len(train_idxs) == 3
+        for etype in tr_etypes:
+            assert th.all(gdata.get_edge_train_set(etype)[etype] == get_nonzero(dist_graph.edges[etype[1]].data['train_mask']))
+            assert th.all(train_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['train_mask']))
+        # extra_etype does not have train_mask
+        assert th.all(gdata.get_edge_train_set(extra_etype)[extra_etype] == \
+            th.arange(dist_graph.num_edges(extra_etype)))
+        assert th.all(train_idxs[extra_etype] == \
+            th.arange(dist_graph.num_edges(extra_etype)))
 
-    # sucessfully split train/val/test idxs
-    assert len(tr_data.train_idxs) == len(tr_ntypes)
-    for ntype in tr_ntypes:
-        assert th.all(tr_data.train_idxs[ntype] == get_nonzero(dist_graph.nodes[ntype].data['train_mask']))
-    assert len(ev_data.train_idxs) == 0
+        # extra_etype does not have val_mask
+        # will skip it.
+        val_idxs = gdata.get_edge_val_set()
+        assert len(val_idxs) == 2
+        for etype in va_etypes:
+            assert th.all(gdata.get_edge_val_set(etype)[etype] == get_nonzero(dist_graph.edges[etype[1]].data['val_mask']))
+            assert th.all(val_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['val_mask']))
 
-    assert len(tr_data.val_idxs) == len(va_ntypes)
-    for ntype in va_ntypes:
-        assert th.all(tr_data.val_idxs[ntype] == get_nonzero(dist_graph.nodes[ntype].data['val_mask']))
-    assert len(tr_data1.val_idxs) == len(tr_ntypes)
-    for ntype in tr_ntypes:
-        assert th.all(tr_data1.val_idxs[ntype] == get_nonzero(dist_graph.nodes[ntype].data['val_mask']))
-    assert len(ev_data.val_idxs) == 0
+        # extra_etype does not have test_mask
+        # will skip it.
+        test_idxs = gdata.get_edge_test_set()
+        for etype in ts_etypes:
+            assert th.all(gdata.get_edge_test_set(etype)[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
+            assert th.all(test_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
 
-    assert len(tr_data.test_idxs) == len(ts_ntypes)
-    for ntype in ts_ntypes:
-        assert th.all(tr_data.test_idxs[ntype] == get_nonzero(dist_graph.nodes[ntype].data['test_mask']))
-    assert len(tr_data1.test_idxs) == len(tr_ntypes)
-    for ntype in tr_ntypes:
-        assert th.all(tr_data1.test_idxs[ntype] == get_nonzero(dist_graph.nodes[ntype].data['test_mask']))
-    assert len(ev_data.test_idxs) == len(va_ntypes)
-    assert len(ev_data.infer_idxs) == len(va_ntypes)
-    for ntype in va_ntypes:
-        assert th.all(ev_data.test_idxs[ntype] == get_nonzero(dist_graph.nodes[ntype].data['test_mask']))
-        assert th.all(ev_data.infer_idxs[ntype] == get_nonzero(dist_graph.nodes[ntype].data['test_mask']))
+        infer_idxs = gdata.get_edge_infer_set()
+        assert len(infer_idxs) == 3
+        for etype in if_etypes:
+            assert th.all(gdata.get_edge_infer_set(etype)[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
+            assert th.all(infer_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
+        # extra_etype does not have test_mask
+        assert th.all(gdata.get_edge_infer_set(extra_etype)[extra_etype] == \
+            th.arange(dist_graph.num_edges(extra_etype)))
+        assert th.all(infer_idxs[extra_etype] ==
+            th.arange(dist_graph.num_edges(extra_etype)))
 
-    labels = tr_data.get_labels({'n1': [0, 1]})
-    assert len(labels.keys()) == 1
-    assert 'n1' in labels
-    try:
-        labels = tr_data.get_labels({'n0': [0, 1]})
-        no_label = False
-    except:
-        no_label = True
-    assert no_label
-    try:
-        labels = tr_data1.get_labels({'n1': [0, 1]})
-        no_label = False
-    except:
-        no_label = True
-    assert no_label
+        # with reverse edges
+        train_idxs = gdata.get_edge_train_set(reverse_edge_types_map={
+            ('n0', 'r1', 'n1'): ("n1", "r2", "n0")
+        })
+        assert len(train_idxs) == 2
+        for etype in tr_etypes:
+            assert th.all(train_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['train_mask']))
+        infer_idxs = gdata.get_edge_infer_set(reverse_edge_types_map={
+            ('n0', 'r1', 'n1'): ("n1", "r2", "n0")
+        })
+        assert len(infer_idxs) == 2
+        for etype in if_etypes:
+            assert th.all(infer_idxs[etype] == get_nonzero(dist_graph.edges[etype[1]].data['test_mask']))
 
-    # test get feature size when node_feat_field is None
-    feat_size = tr_data.get_node_feat_size()
-    assert feat_size['n0'] == 0
-    assert feat_size['n1'] == 0
-
-    # test get feature size when node_feat_field is given in construction
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
-                                                            dirname=tmpdirname)
-        data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                  node_feat_field={'n0': ['feat','feat1'], 'n1': ['feat1']},
-                                  train_ntypes=tr_ntypes, eval_ntypes=va_ntypes,
-                                  label_field='label')
-    feat_size = data.get_node_feat_size()
-    assert feat_size['n0'] == 6
-    assert feat_size['n1'] == 4
+        train_idxs = gdata.get_edge_train_set(reverse_edge_types_map={
+            ('n0', 'r1', 'n1'): ("n1", "r2", "n0"),
+            ('n0', 'r0', 'n1'): ('n0', 'r0', 'n1') # fake reverse etype
+        })
+        assert len(train_idxs) == 1
+        val_idxs = gdata.get_edge_val_set(reverse_edge_types_map={
+            ('n0', 'r1', 'n1'): ("n1", "r2", "n0"),
+            ('n0', 'r0', 'n1'): ('n0', 'r0', 'n1') # fake reverse etype
+        })
+        assert len(val_idxs) == 1
+        test_idxs = gdata.get_edge_test_set(reverse_edge_types_map={
+            ('n0', 'r1', 'n1'): ("n1", "r2", "n0"),
+            ('n0', 'r0', 'n1'): ('n0', 'r0', 'n1') # fake reverse etype
+        })
+        assert len(test_idxs) == 1
+        infer_idxs = gdata.get_edge_infer_set(reverse_edge_types_map={
+            ('n0', 'r1', 'n1'): ("n1", "r2", "n0"),
+            ('n0', 'r0', 'n1'): ('n0', 'r0', 'n1') # fake reverse etype
+        })
+        assert len(infer_idxs) == 1
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
@@ -360,14 +457,13 @@ def test_GSgnnAllEtypeLinkPredictionDataLoader(batch_size):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        lp_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=tr_etypes, label_field='label')
+        lp_data = GSgnnData(part_config=part_config)
 
     # successful initialization with default setting
-    assert lp_data.train_etypes == tr_etypes
+    train_idxs = lp_data.get_edge_train_set(tr_etypes)
     dataloader = GSgnnAllEtypeLinkPredictionDataLoader(
         lp_data,
-        target_idx=lp_data.train_idxs,
+        target_idx=train_idxs,
         fanout=[],
         batch_size=batch_size,
         num_negative_edges=4,
@@ -396,13 +492,15 @@ def test_node_dataloader():
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_ntypes=['n1'], label_field='label')
+        np_data = GSgnnData(part_config=part_config)
 
     setup_device(0)
     # Without shuffling, the seed nodes should have the same order as the target nodes.
     target_idx = {'n1': th.arange(np_data.g.number_of_nodes('n1'))}
     dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
+                                     label_field='label',
+                                     node_feats='feat',
+                                     edge_feats='feat',
                                      train_task=False)
     all_nodes = []
     for input_nodes, seeds, blocks in dataloader:
@@ -410,10 +508,13 @@ def test_node_dataloader():
         all_nodes.append(seeds['n1'])
     all_nodes = th.cat(all_nodes)
     assert_equal(all_nodes.numpy(), target_idx['n1'])
+    assert dataloader.node_feat_fields == 'feat'
+    assert dataloader.edge_feat_fields == 'feat'
 
     # With data shuffling, the seed nodes should have different orders
     # whenever the data loader is called.
     dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
+                                     label_field='label',
                                      train_task=True)
     all_nodes1 = []
     for input_nodes, seeds, blocks in dataloader:
@@ -421,13 +522,27 @@ def test_node_dataloader():
         all_nodes1.append(seeds['n1'])
     all_nodes1 = th.cat(all_nodes1)
     dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
+                                     label_field='label',
                                      train_task=True)
+    assert dataloader.node_feat_fields == None
+    assert dataloader.edge_feat_fields == None
+
     all_nodes2 = []
     for input_nodes, seeds, blocks in dataloader:
         assert 'n1' in seeds
         all_nodes2.append(seeds['n1'])
     all_nodes2 = th.cat(all_nodes2)
     assert not np.all(all_nodes1.numpy() == all_nodes2.numpy())
+
+    # fail to create GSgnnNodeDataLoader when label field is set to None.
+    try:
+        dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
+                                         label_field=None,
+                                         train_task=True)
+        init_loader_fail = False
+    except:
+        init_loader_fail = True
+    assert init_loader_fail
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
@@ -443,23 +558,26 @@ def test_node_dataloader_reconstruct():
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph_reconstruct(graph_name='dummy',
                                                                dirname=tmpdirname)
-        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_ntypes=['n0'], label_field='label',
-                                     node_feat_field={'n0': ['feat'], 'n4': ['feat']})
+        np_data = GSgnnData(part_config=part_config,
+                            node_feat_field={'n0': ['feat'], 'n4': ['feat']})
     setup_device(0)
     feat_sizes = gs.get_node_feat_size(np_data.g, {'n0': 'feat', 'n4': 'feat'})
     target_idx = {'n0': th.arange(np_data.g.number_of_nodes('n0'))}
     # Test the case that we cannot construct all node features.
     try:
-        dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
-                                         train_task=False, construct_feat_ntype=['n1', 'n2'])
+        dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10, label_field='label',
+                                         train_task=False,
+                                         node_feats={'n0': ['feat'], 'n4': ['feat']},
+                                         construct_feat_ntype=['n1', 'n2'])
         assert False
     except:
         pass
 
     # Test the case that we construct node features for one-layer GNN.
-    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
-                                     train_task=False, construct_feat_ntype=['n2'])
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10, label_field='label',
+                                     train_task=False,
+                                     node_feats={'n0': ['feat'], 'n4': ['feat']},
+                                     construct_feat_ntype=['n2'])
     all_nodes = []
     rel_names_for_reconstruct = gs.gsf.get_rel_names_for_reconstruct(np_data.g,
                                                                      ['n1', 'n2'], feat_sizes)
@@ -482,8 +600,10 @@ def test_node_dataloader_reconstruct():
     assert_equal(all_nodes.numpy(), target_idx['n0'])
 
     # Test the case that we construct node features for two-layer GNN.
-    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10, 10], 10,
-                                     train_task=False, construct_feat_ntype=['n3'])
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10, 10], 10, label_field='label',
+                                     train_task=False,
+                                     node_feats={'n0': ['feat'], 'n4': ['feat']},
+                                     construct_feat_ntype=['n3'])
     all_nodes = []
     rel_names_for_reconstruct = gs.gsf.get_rel_names_for_reconstruct(np_data.g,
                                                                      ['n3'], feat_sizes)
@@ -518,17 +638,17 @@ def test_edge_dataloader():
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=[('n0', 'r1', 'n1')], label_field='label')
+        ep_data = GSgnnData(part_config=part_config)
 
     ################### Test train_task #######################
 
     # Without shuffling, the seed nodes should have the same order as the target nodes.
     target_idx = {('n0', 'r1', 'n1'): th.arange(ep_data.g.number_of_edges('r1'))}
     dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], 10,
+                                     label_field='label',
                                      train_task=False, remove_target_edge_type=False)
     all_edges = []
-    for input_nodes, batch_graph, blocks in dataloader:
+    for _, batch_graph, blocks in dataloader:
         assert len(batch_graph.etypes) == 1
         assert 'r1' in batch_graph.etypes
         all_edges.append(batch_graph.edata[dgl.EID])
@@ -538,15 +658,16 @@ def test_edge_dataloader():
     # With data shuffling, the seed edges should have different orders
     # whenever the data loader is called.
     dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], 10,
+                                     label_field='label',
                                      train_task=True, remove_target_edge_type=False)
     all_edges1 = []
-    for input_nodes, batch_graph, blocks in dataloader:
+    for _, batch_graph, blocks in dataloader:
         assert len(batch_graph.etypes) == 1
         assert 'r1' in batch_graph.etypes
         all_edges1.append(batch_graph.edata[dgl.EID])
     all_edges1 = th.cat(all_edges1)
     all_edges2 = []
-    for input_nodes, batch_graph, blocks in dataloader:
+    for _, batch_graph, blocks in dataloader:
         assert len(batch_graph.etypes) == 1
         assert 'r1' in batch_graph.etypes
         all_edges2.append(batch_graph.edata[dgl.EID])
@@ -555,6 +676,7 @@ def test_edge_dataloader():
 
     ################### Test removing target edges #######################
     dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], 10,
+                                     label_field='label',
                                      train_task=False, remove_target_edge_type=True,
                                      reverse_edge_types_map={('n0', 'r1', 'n1'): ('n0', 'r0', 'n1')})
     all_edges = []
@@ -575,8 +697,7 @@ def test_lp_dataloader():
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=[('n0', 'r1', 'n1')])
+        ep_data = GSgnnData(part_config=part_config)
 
     ################### Test train_task #######################
 
@@ -625,17 +746,16 @@ def test_GSgnnLinkPredictionTestDataLoader(batch_size, num_negative_edges):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        lp_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=test_etypes, label_field='label')
+        lp_data = GSgnnData(part_config=part_config)
         g = lp_data.g
-
+        train_idxs = lp_data.get_edge_train_set(test_etypes)
         dataloader = GSgnnLinkPredictionTestDataLoader(
             lp_data,
-            target_idx=lp_data.train_idxs, # use train edges as val or test edges
+            target_idx=train_idxs, # use train edges as val or test edges
             batch_size=batch_size,
             num_negative_edges=num_negative_edges)
 
-        total_edges = {etype: len(lp_data.train_idxs[etype]) for etype in test_etypes}
+        total_edges = {etype: len(train_idxs[etype]) for etype in test_etypes}
         num_pos_edges = {etype: 0 for etype in test_etypes}
         for pos_neg_tuple, sample_type in dataloader:
             assert sample_type == BUILTIN_LP_UNIFORM_NEG_SAMPLER
@@ -648,10 +768,10 @@ def test_GSgnnLinkPredictionTestDataLoader(batch_size, num_negative_edges):
                 assert pos_src.shape[0] == batch_size \
                     if num_pos_edges[canonical_etype] + batch_size < total_edges[canonical_etype] \
                     else total_edges[canonical_etype] - num_pos_edges[canonical_etype]
-                eid = lp_data.train_idxs[canonical_etype][num_pos_edges[canonical_etype]: \
+                eid = train_idxs[canonical_etype][num_pos_edges[canonical_etype]: \
                     num_pos_edges[canonical_etype]+batch_size] \
                     if num_pos_edges[canonical_etype]+batch_size < total_edges[canonical_etype] \
-                    else lp_data.train_idxs[canonical_etype] \
+                    else train_idxs[canonical_etype] \
                         [num_pos_edges[canonical_etype]:]
                 src, dst = g.find_edges(eid, etype=canonical_etype)
 
@@ -671,7 +791,7 @@ def test_GSgnnLinkPredictionTestDataLoader(batch_size, num_negative_edges):
         fixed_test_size = 10
         dataloader = GSgnnLinkPredictionTestDataLoader(
             lp_data,
-            target_idx=lp_data.train_idxs, # use train edges as val or test edges
+            target_idx=train_idxs, # use train edges as val or test edges
             batch_size=batch_size,
             num_negative_edges=num_negative_edges,fixed_test_size=fixed_test_size)
         num_samples = 0
@@ -688,7 +808,7 @@ def test_GSgnnLinkPredictionTestDataLoader(batch_size, num_negative_edges):
 
         expected_samples = 0
         expected_pos_pairs = 0
-        for _, t_idx in lp_data.train_idxs.items():
+        for _, t_idx in train_idxs.items():
             expected_idx_len = fixed_test_size if fixed_test_size < len(t_idx) else len(t_idx)
             expected_samples += -(-expected_idx_len // batch_size)
             expected_pos_pairs += expected_idx_len
@@ -709,21 +829,21 @@ def test_GSgnnLinkPredictionPredefinedTestDataLoader(batch_size):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        lp_data = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
-                                     eval_etypes=test_etypes)
+        lp_data = GSgnnData(part_config=part_config)
         g = lp_data.g
         g.edges[("n0", "r1", "n1")].data["neg"] = th.randint(g.num_nodes("n1"),
                                                              (g.num_edges(("n0", "r1", "n1")), 10))
         g.edges[("n0", "r0", "n1")].data["neg"] = th.randint(g.num_nodes("n1"),
                                                              (g.num_edges(("n0", "r0", "n1")), 10))
 
+        infer_idxs = lp_data.get_edge_infer_set(test_etypes)
         dataloader = GSgnnLinkPredictionPredefinedTestDataLoader(
             lp_data,
-            target_idx=lp_data.infer_idxs, # use train edges as val or test edges
+            target_idx=infer_idxs, # use train edges as val or test edges
             batch_size=batch_size,
             fixed_edge_dst_negative_field="neg")
 
-        total_edges = {etype: len(lp_data.infer_idxs[etype]) for etype in test_etypes}
+        total_edges = {etype: len(infer_idxs[etype]) for etype in test_etypes}
         num_pos_edges = {etype: 0 for etype in test_etypes}
         for pos_neg_tuple, sample_type in dataloader:
             assert sample_type == BUILTIN_LP_FIXED_NEG_SAMPLER
@@ -736,10 +856,10 @@ def test_GSgnnLinkPredictionPredefinedTestDataLoader(batch_size):
                 assert pos_src.shape[0] == batch_size \
                     if num_pos_edges[canonical_etype] + batch_size < total_edges[canonical_etype] \
                     else total_edges[canonical_etype] - num_pos_edges[canonical_etype]
-                eid = lp_data.infer_idxs[canonical_etype][num_pos_edges[canonical_etype]: \
+                eid = infer_idxs[canonical_etype][num_pos_edges[canonical_etype]: \
                     num_pos_edges[canonical_etype]+batch_size] \
                     if num_pos_edges[canonical_etype]+batch_size < total_edges[canonical_etype] \
-                    else lp_data.infer_idxs[canonical_etype] \
+                    else infer_idxs[canonical_etype] \
                         [num_pos_edges[canonical_etype]:]
                 src, dst = g.find_edges(eid, etype=canonical_etype)
                 assert_equal(pos_src.numpy(), src.numpy())
@@ -764,17 +884,16 @@ def test_GSgnnLinkPredictionJointTestDataLoader(batch_size, num_negative_edges):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        lp_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=test_etypes, label_field='label')
+        lp_data = GSgnnData(part_config=part_config)
         g = lp_data.g
-
+        train_idxs = lp_data.get_edge_train_set(test_etypes)
         dataloader = GSgnnLinkPredictionJointTestDataLoader(
             lp_data,
-            target_idx=lp_data.train_idxs, # use train edges as val or test edges
+            target_idx=train_idxs, # use train edges as val or test edges
             batch_size=batch_size,
             num_negative_edges=num_negative_edges)
 
-        total_edges = {etype: len(lp_data.train_idxs[etype]) for etype in test_etypes}
+        total_edges = {etype: len(train_idxs[etype]) for etype in test_etypes}
         num_pos_edges = {etype: 0 for etype in test_etypes}
         for pos_neg_tuple, sample_type in dataloader:
             assert sample_type == BUILTIN_LP_JOINT_NEG_SAMPLER
@@ -787,10 +906,10 @@ def test_GSgnnLinkPredictionJointTestDataLoader(batch_size, num_negative_edges):
                 assert pos_src.shape[0] == batch_size \
                     if num_pos_edges[canonical_etype] + batch_size < total_edges[canonical_etype] \
                     else total_edges[canonical_etype] - num_pos_edges[canonical_etype]
-                eid = lp_data.train_idxs[canonical_etype][num_pos_edges[canonical_etype]: \
+                eid = train_idxs[canonical_etype][num_pos_edges[canonical_etype]: \
                     num_pos_edges[canonical_etype]+batch_size] \
                     if num_pos_edges[canonical_etype]+batch_size < total_edges[canonical_etype] \
-                    else lp_data.train_idxs[canonical_etype] \
+                    else train_idxs[canonical_etype] \
                         [num_pos_edges[canonical_etype]:]
                 src, dst = g.find_edges(eid, etype=canonical_etype)
                 assert_equal(pos_src.numpy(), src.numpy())
@@ -816,8 +935,7 @@ def test_prepare_input():
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        lp_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=test_etypes, label_field='label')
+        lp_data = GSgnnData(part_config=part_config)
         lp_data.g.nodes['n1'].data['feat2'] = \
             lp_data.g.nodes['n1'].data['feat'][th.arange(lp_data.g.num_nodes('n1'))] * 2
         lp_data.g.edges['r0'].data['feat2'] = \
@@ -946,8 +1064,7 @@ def test_np_dataloader_trim_data(dataloader):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_ntypes=['n1'], label_field='label')
+        np_data = GSgnnData(part_config=part_config)
 
         target_idx = {'n1': th.arange(np_data.g.number_of_nodes('n1'))}
         @patch("graphstorm.dataloading.dataloading.trim_data")
@@ -958,13 +1075,13 @@ def test_np_dataloader_trim_data(dataloader):
             ]
 
             loader = dataloader(np_data, dict(target_idx),
-                                [10], 10,
+                                [10], 10, label_field='label',
                                 train_task=True)
             assert len(loader.dataloader.collator.nids) == 1
             assert len(loader.dataloader.collator.nids["n1"]) == np_data.g.number_of_nodes('n1') - 2
 
             loader = dataloader(np_data, dict(target_idx),
-                                [10], 10,
+                                [10], 10, label_field='label',
                                 train_task=False)
             assert len(loader.dataloader.collator.nids) == 1
             assert len(loader.dataloader.collator.nids["n1"]) == np_data.g.number_of_nodes('n1')
@@ -986,8 +1103,7 @@ def test_np_dataloader_trim_data_device(dataloader, backend):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_ntypes=['n1'], label_field='label')
+        np_data = GSgnnData(part_config=part_config)
 
         target_idx = {'n1': th.arange(np_data.g.number_of_nodes('n1'))}
         @patch("graphstorm.dataloading.dataloading.trim_data")
@@ -997,8 +1113,10 @@ def test_np_dataloader_trim_data_device(dataloader, backend):
                 target_idx["n1"][:len(target_idx["n1"])-2],
             ]
 
-            dataloader(np_data, dict(target_idx), [10], 10, train_task=True)
-            dataloader(np_data, dict(target_idx), [10], 10, train_task=False)
+            dataloader(np_data, dict(target_idx), [10], 10,
+                       label_field='label', train_task=True)
+            dataloader(np_data, dict(target_idx), [10], 10,
+                       label_field='label', train_task=False)
 
             args, _ = mock_trim_data.call_args
             assert args[1] == th.device('cpu') if backend == 'gloo' else th.device(0)
@@ -1019,42 +1137,41 @@ def test_edge_dataloader_trim_data(dataloader):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        lp_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=test_etypes, label_field='label')
-
+        lp_data = GSgnnData(part_config=part_config)
+        train_idxs = lp_data.get_edge_train_set(test_etypes)
         @patch("graphstorm.dataloading.dataloading.trim_data")
         def check_dataloader_trim(mock_trim_data):
             mock_trim_data.side_effect = [
-                lp_data.train_idxs[("n0", "r1", "n1")][:len(lp_data.train_idxs[("n0", "r1", "n1")])-1],
-                lp_data.train_idxs[("n0", "r0", "n1")][:len(lp_data.train_idxs[("n0", "r0", "n1")])-1],
+                train_idxs[("n0", "r1", "n1")][:len(train_idxs[("n0", "r1", "n1")])-1],
+                train_idxs[("n0", "r0", "n1")][:len(train_idxs[("n0", "r0", "n1")])-1],
 
-                lp_data.train_idxs[("n0", "r1", "n1")][:len(lp_data.train_idxs[("n0", "r1", "n1")])-1],
-                lp_data.train_idxs[("n0", "r0", "n1")][:len(lp_data.train_idxs[("n0", "r0", "n1")])-1],
+                train_idxs[("n0", "r1", "n1")][:len(train_idxs[("n0", "r1", "n1")])-1],
+                train_idxs[("n0", "r0", "n1")][:len(train_idxs[("n0", "r0", "n1")])-1],
             ]
 
             loader = dataloader(
                 lp_data,
                 fanout=[],
-                target_idx=dict(lp_data.train_idxs), # test train_idxs
+                target_idx=dict(train_idxs), # test train_idxs
                 batch_size=16,
                 num_negative_edges=4)
 
-            assert len(loader.dataloader.collator.eids) == len(lp_data.train_idxs)
-            for etype in lp_data.train_idxs.keys():
-                assert len(loader.dataloader.collator.eids[etype]) == len(lp_data.train_idxs[etype]) - 1
+            assert len(loader.dataloader.collator.eids) == len(train_idxs)
+            for etype in train_idxs.keys():
+                assert len(loader.dataloader.collator.eids[etype]) == len(train_idxs[etype]) - 1
 
             # test task, trim_data should not be called.
             loader = dataloader(
                 lp_data,
-                target_idx=dict(lp_data.train_idxs), # use train edges as val or test edges
+                target_idx=dict(train_idxs), # use train edges as val or test edges
                 fanout=[],
                 batch_size=16,
                 num_negative_edges=4,
                 train_task=False)
 
-            assert len(loader.dataloader.collator.eids) == len(lp_data.train_idxs)
-            for etype in lp_data.train_idxs.keys():
-                assert len(loader.dataloader.collator.eids[etype]) == len(lp_data.train_idxs[etype])
+            assert len(loader.dataloader.collator.eids) == len(train_idxs)
+            for etype in train_idxs.keys():
+                assert len(loader.dataloader.collator.eids[etype]) == len(train_idxs[etype])
 
         check_dataloader_trim()
 
@@ -1077,32 +1194,33 @@ def test_edge_dataloader_trim_data_device(dataloader, backend):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        edge_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=test_etypes, label_field='label')
+        edge_data = GSgnnData(part_config=part_config)
+        train_idxs = edge_data.get_edge_train_set([("n0", "r1", "n1"), ("n0", "r0", "n1")])
 
         @patch("graphstorm.dataloading.dataloading.trim_data")
         def check_dataloader_trim(mock_trim_data):
             mock_trim_data.side_effect = [
-                edge_data.train_idxs[("n0", "r1", "n1")][:len(edge_data.train_idxs[("n0", "r1", "n1")])-1],
-                edge_data.train_idxs[("n0", "r0", "n1")][:len(edge_data.train_idxs[("n0", "r0", "n1")])-1],
+                train_idxs[("n0", "r1", "n1")][:len(train_idxs[("n0", "r1", "n1")])-1],
+                train_idxs[("n0", "r0", "n1")][:len(train_idxs[("n0", "r0", "n1")])-1],
 
-                edge_data.train_idxs[("n0", "r1", "n1")][:len(edge_data.train_idxs[("n0", "r1", "n1")])-1],
-                edge_data.train_idxs[("n0", "r0", "n1")][:len(edge_data.train_idxs[("n0", "r0", "n1")])-1],
+                train_idxs[("n0", "r1", "n1")][:len(train_idxs[("n0", "r1", "n1")])-1],
+                train_idxs[("n0", "r0", "n1")][:len(train_idxs[("n0", "r0", "n1")])-1],
             ]
 
             if issubclass(dataloader, GSgnnLinkPredictionDataLoaderBase):
                 dataloader(
                     edge_data,
                     fanout=[],
-                    target_idx=dict(edge_data.train_idxs), # test train_idxs
+                    target_idx=dict(train_idxs), # test train_idxs
                     num_negative_edges=4,
                     batch_size=16)
             else:
                 dataloader(
                     edge_data,
                     fanout=[],
-                    target_idx=dict(edge_data.train_idxs), # test train_idxs
+                    target_idx=dict(train_idxs), # test train_idxs
                     batch_size=16,
+                    label_field='label',
                     remove_target_edge_type=False)
 
             args, _ = mock_trim_data.call_args
@@ -1144,6 +1262,7 @@ def test_distill_sampler_get_file(num_files):
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_distill_data(tmpdirname, num_files)
         file_list = os.listdir(tmpdirname)
+        file_list.sort()
         tracker = {
             "global_start": [],
             "global_end": [],
@@ -1372,37 +1491,42 @@ def test_np_dataloader_len(batch_size):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        np_data = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_ntypes=['n1'], label_field='label')
+        np_data = GSgnnData(part_config=part_config)
 
     setup_device(0)
     # Without shuffling, the seed nodes should have the same order as the target nodes.
     target_idx = {'n1': th.arange(np_data.g.number_of_nodes('n1'))}
     dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], batch_size,
+                                     label_field='label',
                                      train_task=False)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], batch_size,
+                                     label_field='label',
                                      train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
     target_idx_2 = {'n1': th.arange(np_data.g.number_of_nodes('n1')//2)}
     # target_idx > unlabeled_idx
-    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx, target_idx_2, [10], batch_size,
-                                     train_task=False)
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx, target_idx_2, [10],
+                                            batch_size, label_field='label',
+                                            train_task=False)
     assert len(dataloader) == len(list(dataloader))
 
-    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx, target_idx_2, [10], batch_size,
-                                     train_task=True)
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx, target_idx_2, [10],
+                                            batch_size, label_field='label',
+                                            train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
     # target_idx < unlabeled_idx
-    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx_2, target_idx, [10], batch_size,
-                                     train_task=False)
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx_2, target_idx, [10],
+                                            batch_size, label_field='label',
+                                            train_task=False)
     assert len(dataloader) == len(list(dataloader))
 
-    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx_2, target_idx, [10], batch_size,
-                                     train_task=True)
+    dataloader = GSgnnNodeSemiSupDataLoader(np_data, target_idx_2, target_idx, [10],
+                                            batch_size, label_field='label',
+                                            train_task=True)
     assert len(dataloader) == len(list(dataloader))
 
 @pytest.mark.parametrize("batch_size", [10, 11])
@@ -1410,18 +1534,19 @@ def test_ep_dataloader_len(batch_size):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=[('n0', 'r1', 'n1')], label_field='label')
+        ep_data = GSgnnData(part_config=part_config)
 
     ################### Test train_task #######################
 
     # Without shuffling, the seed nodes should have the same order as the target nodes.
     target_idx = {('n0', 'r1', 'n1'): th.arange(ep_data.g.number_of_edges('r1'))}
     dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], batch_size,
+                                     label_field='label',
                                      train_task=False, remove_target_edge_type=False)
     assert len(dataloader) == len(list(dataloader))
 
     dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], batch_size,
+                                     label_field='label',
                                      train_task=True, remove_target_edge_type=False)
     assert len(dataloader) == len(list(dataloader))
 
@@ -1430,8 +1555,7 @@ def test_lp_dataloader_len(batch_size):
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
-        ep_data = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=[('n0', 'r1', 'n1')])
+        ep_data = GSgnnData(part_config=part_config)
 
     ################### Test train_task #######################
 
@@ -1975,43 +2099,39 @@ def test_GSgnnTrainData_homogeneous():
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # generate the test dummy homogeneous distributed graph and
-        # test if it is possible to create GSgnnNodeTrainData on homogeneous graph
-        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
+        # test if it is possible to create GSgnnData on homogeneous graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy',
                                                             dirname=tmpdirname,
                                                             is_homo=True)
-        _ = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_ntypes=tr_ntypes, eval_ntypes=va_ntypes,
-                                     label_field='label')
+        data = GSgnnData(part_config=part_config)
+        _ = data.get_node_train_set(tr_ntypes)
+        _ = data.get_node_val_set(va_ntypes)
+        _ = data.get_node_test_set(va_ntypes)
+        _ = data.get_node_infer_set(va_ntypes)
 
         # generate the test dummy distributed graph with "_N" node type. As it is expected to be
         # a homogeneous graph with "_N" as node type and ("_N", "_E", "_N") as edge type.
         # It should throw an error to clarify that.
-        dist_graph, part_config = generate_dummy_dist_graph_homogeneous_failure_graph(graph_name='dummy',
+        _, part_config = generate_dummy_dist_graph_homogeneous_failure_graph(graph_name='dummy',
                                                             dirname=tmpdirname)
+        data = GSgnnData(part_config=part_config)
         try:
-            _ = GSgnnNodeTrainData(graph_name='dummy', part_config=part_config,
-                                         train_ntypes=tr_ntypes, eval_ntypes=va_ntypes,
-                                         label_field='label')
+            _ = data.get_node_train_set(tr_ntypes)
             assert False, "expected Error raised for non-homogeneous graph input"
         except AssertionError as _:
             pass
-
-        # generate the test dummy homogeneous distributed graph and
-        # test if it is possible to create GSgnnNodeInferData on homogeneous graph
-        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
-                                                            dirname=tmpdirname,
-                                                            is_homo=True)
-        _ = GSgnnNodeInferData(graph_name='dummy', part_config=part_config,
-                                     eval_ntypes=va_ntypes)
-
-        # generate the test dummy distributed graph with "_N" node type. As it is expected to be
-        # a homogeneous graph with "_N" as node type and ("_N", "_E", "_N") as edge type.
-        # It should throw an error to clarify that.
-        dist_graph, part_config = generate_dummy_dist_graph_homogeneous_failure_graph(graph_name='dummy',
-                                                            dirname=tmpdirname)
         try:
-            _ = GSgnnNodeInferData(graph_name='dummy', part_config=part_config,
-                                        eval_ntypes=va_ntypes)
+            _ = data.get_node_val_set(va_ntypes)
+            assert False, "expected Error raised for non-homogeneous graph input"
+        except AssertionError as _:
+            pass
+        try:
+            _ = data.get_node_test_set(va_ntypes)
+            assert False, "expected Error raised for non-homogeneous graph input"
+        except AssertionError as _:
+            pass
+        try:
+            _ = data.get_node_infer_set(va_ntypes)
             assert False, "expected Error raised for non-homogeneous graph input"
         except AssertionError as _:
             pass
@@ -2021,43 +2141,39 @@ def test_GSgnnTrainData_homogeneous():
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # generate the test dummy homogeneous distributed graph and
-        # test if it is possible to create GSgnnEdgeTrainData on homogeneous graph
-        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
+        # test if it is possible to create GSgnnData on homogeneous graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy',
                                                             dirname=os.path.join(tmpdirname, 'dummy'),
                                                             is_homo=True)
-        _ = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                     train_etypes=tr_etypes, eval_etypes=va_etypes,
-                                     label_field='label')
+        data = GSgnnData(part_config=part_config)
+        _ = data.get_edge_train_set(tr_etypes)
+        _ = data.get_edge_val_set(va_etypes)
+        _ = data.get_edge_test_set(va_etypes)
+        _ = data.get_edge_infer_set(va_etypes)
 
         # generate the test dummy distributed graph with "_N" node type. As it is expected to be
         # a homogeneous graph with "_N" as node type and ("_N", "_E", "_N") as edge type.
         # It should throw an error to clarify that.
         dist_graph, part_config = generate_dummy_dist_graph_homogeneous_failure_graph(graph_name='dummy',
                                                             dirname=os.path.join(tmpdirname, 'dummy'))
+        data = GSgnnData(part_config=part_config)
         try:
-            _ = GSgnnEdgeTrainData(graph_name='dummy', part_config=part_config,
-                                       train_etypes=tr_etypes, eval_etypes=va_etypes,
-                                       label_field='label')
+            _ = data.get_edge_train_set(tr_etypes)
             assert False, "expected Error raised for non-homogeneous graph input"
         except AssertionError as _:
             pass
-
-        # generate the test dummy homogeneous distributed graph and
-        # test if it is possible to create GSgnnEdgeInferData on homogeneous graph
-        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
-                                                            dirname=os.path.join(tmpdirname, 'dummy'),
-                                                            is_homo=True)
-        _ = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
-                                    eval_etypes=va_etypes)
-
-        # generate the test dummy distributed graph with "_N" node type. As it is expected to be
-        # a homogeneous graph with "_N" as node type and ("_N", "_E", "_N") as edge type.
-        # It should throw an error to clarify that.
-        dist_graph, part_config = generate_dummy_dist_graph_homogeneous_failure_graph(graph_name='dummy',
-                                                            dirname=os.path.join(tmpdirname, 'dummy'))
         try:
-            _ = GSgnnEdgeInferData(graph_name='dummy', part_config=part_config,
-                                    eval_etypes=va_etypes)
+            _ = data.get_edge_val_set(va_etypes)
+            assert False, "expected Error raised for non-homogeneous graph input"
+        except AssertionError as _:
+            pass
+        try:
+            _ = data.get_edge_test_set(va_etypes)
+            assert False, "expected Error raised for non-homogeneous graph input"
+        except AssertionError as _:
+            pass
+        try:
+            _ = data.get_edge_infer_set(va_etypes)
             assert False, "expected Error raised for non-homogeneous graph input"
         except AssertionError as _:
             pass
@@ -2080,10 +2196,8 @@ if __name__ == '__main__':
     test_np_dataloader_trim_data(GSgnnNodeDataLoader)
     test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
     test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
-    test_GSgnnEdgeData_wo_test_mask()
-    test_GSgnnNodeData_wo_test_mask()
-    test_GSgnnEdgeData()
-    test_GSgnnNodeData()
+    test_GSgnnData()
+    test_GSgnnData2()
     test_lp_dataloader()
     test_edge_dataloader()
     test_node_dataloader()

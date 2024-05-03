@@ -145,11 +145,12 @@ distributed training pipeline.
 Running on AWS resources
 ------------------------
 
-GSProcessing supports Amazon SageMaker and EMR Serverless as execution environments.
+GSProcessing supports Amazon SageMaker, EMR on EC2, and EMR Serverless as execution environments.
 To run distributed jobs on AWS resources we will have to build a Docker image
 and push it to the Amazon Elastic Container Registry, which we cover in
-:doc:`usage/distributed-processing-setup` and run a SageMaker Processing
-job which we describe in :doc:`usage/amazon-sagemaker`, or EMR Serverless
+:doc:`usage/distributed-processing-setup`. We can then run either a SageMaker Processing
+job which we describe in :doc:`usage/amazon-sagemaker`, an EMR on EC2 job which
+we describe in :doc:`usage/emr`, or an EMR Serverless
 job that is covered in :doc:`usage/emr-serverless`.
 
 
