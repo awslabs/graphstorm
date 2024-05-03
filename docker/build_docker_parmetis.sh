@@ -10,7 +10,7 @@ else
     GSF_HOME="$1"
 fi
 
-# process argument 2: docker image name, default is graphstorm
+# process argument 2: docker image name, default is graphstorm-parmetis
 if [ -z "$2" ]; then
     IMAGE_NAME="graphstorm-parmetis"
 else
@@ -42,7 +42,6 @@ echo "Build a local docker image ${DOCKER_FULLNAME}"
 
 SOURCE_IMAGE="public.ecr.aws/ubuntu/ubuntu:20.04_stable"
 
-# Use Buildkit to avoid pulling both CPU and GPU images
 DOCKER_BUILDKIT=1 docker build \
     --build-arg SOURCE=${SOURCE_IMAGE} \
     -f "${GSF_HOME}/docker/parmetis/Dockerfile.parmetis" . -t $DOCKER_FULLNAME
