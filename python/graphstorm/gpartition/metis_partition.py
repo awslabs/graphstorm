@@ -48,7 +48,7 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
         self.metis_config = metis_config
 
     def _launch_preprocess(self, num_parts, input_path, ip_list, dgl_tool_path, metadata_filename):
-        command = f"mpirun -np 1 --allow-run-as-root --hostfile {ip_list} \
+        command = f"mpirun -np {num_parts} --allow-run-as-root --hostfile {ip_list} \
                     -wdir {input_path} \
                   python3 {dgl_tool_path}/distpartitioning/parmetis_preprocess.py \
                     --input_dir {input_path} \
@@ -123,6 +123,8 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
             return False  # Return False if the command failed
 
     def assigned_port(self, ip_file, port="2222"):
+        if not os.path.isfile(ip_file):
+            raise ValueError("ip file does not exist")
         # MPI run will need to explicitly assign port=2222 in the ip list file
         # when running in the docker environment
         with open(ip_file, 'r') as file:
@@ -131,7 +133,7 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
 
         parts = ip_file.rsplit('.', 1)
         if len(parts) == 2 and parts[1] == 'txt':
-            output_file = f"{parts[0]}_parmetis}.{parts[1]}"
+            output_file = f"{parts[0]}_parmetis.{parts[1]}"
         else:
             raise ValueError("Input file should be a txt file.")
         with open(output_file, 'w') as file:
