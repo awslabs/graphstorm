@@ -20,10 +20,6 @@ import logging
 import json
 import subprocess
 
-import numpy as np
-import pyarrow as pa
-import pyarrow.csv as pa_csv
-
 from .partition_algo_base import LocalPartitionAlgorithm
 
 
