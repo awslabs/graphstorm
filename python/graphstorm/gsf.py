@@ -766,10 +766,25 @@ def check_homo(g):
 
 
 def create_builtin_task_tracker(config):
+    """ Create a builtin task tracker
+
+    Parameters
+    ----------
+    config: GSConfig
+        Configurations
+    """
     tracker_class = get_task_tracker_class(config.task_tracker)
     return tracker_class(config.eval_frequency)
 
-def get_lp_eval_sampler(config):
+def get_builtin_lp_eval_dataloader(config):
+    """ Return a builtin link prediction evaluation dataloader
+        based on input config
+
+    Parameters
+    ----------
+    config: GSConfig
+        Configurations
+    """
     test_dataloader_cls = None
     if config.eval_etypes_negative_dstnode is not None:
         test_dataloader_cls = GSgnnLinkPredictionPredefinedTestDataLoader
@@ -783,7 +798,15 @@ def get_lp_eval_sampler(config):
             f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
     return test_dataloader_cls
 
-def get_lp_train_sampler(config):
+def get_builtin_lp_train_sampler(config):
+    """ Return a builtin link prediction training dataloader
+        based on input config
+
+    Parameters
+    ----------
+    config: GSConfig
+        Configurations
+    """
     dataloader_cls = None
     if config.train_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
         dataloader_cls = GSgnnLinkPredictionDataLoader

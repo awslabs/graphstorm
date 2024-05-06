@@ -86,7 +86,7 @@ def main(config_args):
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
 
-    dataloader_cls = gs.get_lp_train_sampler(config)
+    dataloader_cls = gs.get_builtin_lp_train_sampler(config)
     train_idxs = train_data.get_edge_train_set(config.train_etype)
     dataloader = dataloader_cls(train_data,
                                 train_idxs, [],
@@ -98,7 +98,7 @@ def main(config_args):
                                 num_hard_negs=config.num_train_hard_negatives)
 
     # TODO(zhengda) let's use full-graph inference for now.
-    test_dataloader_cls = gs.get_lp_eval_sampler(config)
+    test_dataloader_cls = gs.get_builtin_lp_eval_dataloader(config)
     val_dataloader = None
     test_dataloader = None
 
