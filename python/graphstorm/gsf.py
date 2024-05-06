@@ -312,7 +312,7 @@ def create_builtin_node_model(g, config, train_task):
     encoder_out_dims = model.gnn_encoder.out_dims \
         if model.gnn_encoder is not None \
             else model.node_input_encoder.out_dims
-    decoder, loss_func = create_builtin_node_decoder(g, encoder_out_dims, config)
+    decoder, loss_func = create_builtin_node_decoder(g, encoder_out_dims, config, train_task)
     model.set_decoder(decoder)
     model.set_loss_func(loss_func)
 
