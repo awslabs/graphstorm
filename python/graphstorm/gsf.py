@@ -64,6 +64,31 @@ from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictContrastiveDistMultDecoder,
                                  LinkPredictWeightedDotDecoder,
                                  LinkPredictWeightedDistMultDecoder)
+from .dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
+                          BUILTIN_LP_JOINT_NEG_SAMPLER,BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER,
+                          BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER,
+                          BUILTIN_LP_LOCALJOINT_NEG_SAMPLER,
+                          BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER,
+                          BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER,
+                          BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER,
+                          BUILTIN_FAST_LP_JOINT_NEG_SAMPLER,
+                          BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER,
+                          BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER)
+from .dataloading import (FastGSgnnLinkPredictionDataLoader,
+                          FastGSgnnLPJointNegDataLoader,
+                          FastGSgnnLPLocalUniformNegDataLoader,
+                          FastGSgnnLPLocalJointNegDataLoader,
+                          GSgnnLinkPredictionDataLoader,
+                          GSgnnLPJointNegDataLoader,
+                          GSgnnLPLocalUniformNegDataLoader,
+                          GSgnnLPLocalJointNegDataLoader,
+                          GSgnnLPInBatchJointNegDataLoader,
+                          GSgnnAllEtypeLPJointNegDataLoader,
+                          GSgnnAllEtypeLinkPredictionDataLoader)
+from .dataloading import (GSgnnLinkPredictionTestDataLoader,
+                          GSgnnLinkPredictionJointTestDataLoader,
+                          GSgnnLinkPredictionPredefinedTestDataLoader)
+
 from .tracker import get_task_tracker_class
 
 def initialize(ip_config=None, backend='gloo', local_rank=0, use_wholegraph=False):
@@ -209,6 +234,59 @@ def create_builtin_node_gnn_model(g, config, train_task):
     """
     return create_builtin_node_model(g, config, train_task)
 
+# pylint: disable=unused-argument
+def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
+    """ create builtin node decoder according to task config
+
+    Parameters
+    ----------
+    g: DGLGraph
+        The graph data.
+        Note(xiang): Make it consistent with create_builtin_edge_decoder.
+        Reserved for future.
+    decoder_input_dim: int
+        Input dimension size of the decoder
+    config: GSConfig
+        Configurations
+    train_task : bool
+        Whether this model is used for training.
+
+    Returns
+    -------
+    decoder: The node task decoder(s)
+    loss_func: The loss function(s)
+    """
+    dropout = config.dropout if train_task else 0
+    if config.task_type == BUILTIN_TASK_NODE_CLASSIFICATION:
+        if not isinstance(config.num_classes, dict):
+            decoder = EntityClassifier(decoder_input_dim,
+                                       config.num_classes,
+                                       config.multilabel,
+                                       dropout=dropout)
+            loss_func = ClassifyLossFunc(config.multilabel,
+                                         config.multilabel_weights,
+                                         config.imbalance_class_weights)
+        else:
+            decoder = {}
+            loss_func = {}
+            for ntype in config.target_ntype:
+                decoder[ntype] = EntityClassifier(decoder_input_dim,
+                                                  config.num_classes[ntype],
+                                                  config.multilabel[ntype],
+                                                  dropout=dropout)
+                loss_func[ntype] = ClassifyLossFunc(config.multilabel[ntype],
+                                                config.multilabel_weights[ntype],
+                                                config.imbalance_class_weights[ntype])
+    elif config.task_type == BUILTIN_TASK_NODE_REGRESSION:
+        decoder  = EntityRegression(decoder_input_dim,
+                                    dropout=dropout)
+        loss_func = RegressionLossFunc()
+    else:
+        raise ValueError('unknown node task: {}'.format(config.task_type))
+
+    return decoder, loss_func
+
+
 def create_builtin_node_model(g, config, train_task):
     """ Create a built-in model for node prediction.
 
@@ -231,39 +309,13 @@ def create_builtin_node_model(g, config, train_task):
         model = GSgnnNodeModel(config.alpha_l2norm)
     set_encoder(model, g, config, train_task)
 
-    if config.task_type == BUILTIN_TASK_NODE_CLASSIFICATION:
-        if not isinstance(config.num_classes, dict):
-            model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims \
-                                                if model.gnn_encoder is not None \
-                                                else model.node_input_encoder.out_dims,
-                                               config.num_classes,
-                                               config.multilabel))
-            model.set_loss_func(ClassifyLossFunc(config.multilabel,
-                                             config.multilabel_weights,
-                                             config.imbalance_class_weights))
-        else:
-            decoder = {}
-            loss_func = {}
-            for ntype in config.target_ntype:
-                decoder[ntype] = EntityClassifier(model.gnn_encoder.out_dims \
-                                                if model.gnn_encoder is not None \
-                                                else model.node_input_encoder.out_dims,
-                                               config.num_classes[ntype],
-                                               config.multilabel[ntype])
-                loss_func[ntype] = ClassifyLossFunc(config.multilabel[ntype],
-                                                config.multilabel_weights[ntype],
-                                                config.imbalance_class_weights[ntype])
+    encoder_out_dims = model.gnn_encoder.out_dims \
+        if model.gnn_encoder is not None \
+            else model.node_input_encoder.out_dims
+    decoder, loss_func = create_builtin_node_decoder(g, encoder_out_dims, config)
+    model.set_decoder(decoder)
+    model.set_loss_func(loss_func)
 
-            model.set_decoder(decoder)
-            model.set_loss_func(loss_func)
-
-    elif config.task_type == BUILTIN_TASK_NODE_REGRESSION:
-        model.set_decoder(EntityRegression(model.gnn_encoder.out_dims \
-                                            if model.gnn_encoder is not None \
-                                            else model.node_input_encoder.out_dims))
-        model.set_loss_func(RegressionLossFunc())
-    else:
-        raise ValueError('unknown node task: {}'.format(config.task_type))
     if train_task:
         model.init_optimizer(lr=config.lr, sparse_optimizer_lr=config.sparse_optimizer_lr,
                              weight_decay=config.wd_l2norm,
@@ -288,28 +340,29 @@ def create_builtin_edge_gnn_model(g, config, train_task):
     """
     return create_builtin_edge_model(g, config, train_task)
 
-def create_builtin_edge_model(g, config, train_task):
-    """ Create a model for edge prediction.
+def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
+    """ create builtin edge decoder according to task config
 
     Parameters
     ----------
     g: DGLGraph
-        The graph used in training and testing
+        The graph data.
+    decoder_input_dim: int
+        Input dimension size of the decoder.
     config: GSConfig
-        Configurations
+        Configurations.
     train_task : bool
         Whether this model is used for training.
 
     Returns
     -------
-    GSgnnModel : The GNN model.
+    decoder: The node task decoder(s)
+    loss_func: The loss function(s)
     """
-    model = GSgnnEdgeModel(config.alpha_l2norm)
-    set_encoder(model, g, config, train_task)
+    dropout = config.dropout if train_task else 0
     if config.task_type == BUILTIN_TASK_EDGE_CLASSIFICATION:
         num_classes = config.num_classes
         decoder_type = config.decoder_type
-        dropout = config.dropout if train_task else 0
         # TODO(zhengda) we should support multiple target etypes
         target_etype = config.target_etype[0]
         if decoder_type == "DenseBiDecoder":
@@ -317,9 +370,7 @@ def create_builtin_edge_model(g, config, train_task):
             assert config.num_ffn_layers_in_decoder == 0, \
                 "DenseBiDecoder does not support adding extra feedforward neural network layers" \
                 "You can increases num_basis to increase the parameter size."
-            decoder = DenseBiDecoder(in_units=model.gnn_encoder.out_dims \
-                                        if model.gnn_encoder is not None \
-                                        else model.node_input_encoder.out_dims,
+            decoder = DenseBiDecoder(in_units=decoder_input_dim,
                                      num_classes=num_classes,
                                      multilabel=config.multilabel,
                                      num_basis=num_decoder_basis,
@@ -327,9 +378,7 @@ def create_builtin_edge_model(g, config, train_task):
                                      regression=False,
                                      target_etype=target_etype)
         elif decoder_type == "MLPDecoder":
-            decoder = MLPEdgeDecoder(model.gnn_encoder.out_dims \
-                                        if model.gnn_encoder is not None \
-                                        else model.node_input_encoder.out_dims,
+            decoder = MLPEdgeDecoder(decoder_input_dim,
                                      num_classes,
                                      multilabel=config.multilabel,
                                      target_etype=target_etype,
@@ -348,9 +397,7 @@ def create_builtin_edge_model(g, config, train_task):
                     for fname in decoder_edge_feat[target_etype]])
 
             decoder = MLPEFeatEdgeDecoder(
-                h_dim=model.gnn_encoder.out_dims \
-                    if model.gnn_encoder is not None \
-                    else model.node_input_encoder.out_dims,
+                h_dim=decoder_input_dim,
                 feat_dim=feat_dim,
                 out_dim=num_classes,
                 multilabel=config.multilabel,
@@ -359,10 +406,9 @@ def create_builtin_edge_model(g, config, train_task):
                 num_ffn_layers=config.num_ffn_layers_in_decoder)
         else:
             assert False, f"decoder {decoder_type} is not supported."
-        model.set_decoder(decoder)
-        model.set_loss_func(ClassifyLossFunc(config.multilabel,
-                                             config.multilabel_weights,
-                                             config.imbalance_class_weights))
+        loss_func = ClassifyLossFunc(config.multilabel,
+                                     config.multilabel_weights,
+                                     config.imbalance_class_weights)
     elif config.task_type == BUILTIN_TASK_EDGE_REGRESSION:
         decoder_type = config.decoder_type
         dropout = config.dropout if train_task else 0
@@ -370,9 +416,7 @@ def create_builtin_edge_model(g, config, train_task):
         target_etype = config.target_etype[0]
         if decoder_type == "DenseBiDecoder":
             num_decoder_basis = config.num_decoder_basis
-            decoder = DenseBiDecoder(model.gnn_encoder.out_dims \
-                                        if model.gnn_encoder is not None \
-                                        else model.node_input_encoder.out_dims,
+            decoder = DenseBiDecoder(decoder_input_dim,
                                      1,
                                      num_basis=num_decoder_basis,
                                      multilabel=False,
@@ -380,9 +424,7 @@ def create_builtin_edge_model(g, config, train_task):
                                      dropout_rate=dropout,
                                      regression=True)
         elif decoder_type == "MLPDecoder":
-            decoder = MLPEdgeDecoder(model.gnn_encoder.out_dims \
-                                        if model.gnn_encoder is not None \
-                                        else model.node_input_encoder.out_dims,
+            decoder = MLPEdgeDecoder(decoder_input_dim,
                                      1,
                                      multilabel=False,
                                      target_etype=target_etype,
@@ -401,9 +443,7 @@ def create_builtin_edge_model(g, config, train_task):
                     for fname in decoder_edge_feat[target_etype]])
 
             decoder = MLPEFeatEdgeDecoder(
-                h_dim=model.gnn_encoder.out_dims \
-                    if model.gnn_encoder is not None \
-                    else model.node_input_encoder.out_dims,
+                h_dim=decoder_input_dim,
                 feat_dim=feat_dim,
                 out_dim=1,
                 multilabel=False,
@@ -412,10 +452,36 @@ def create_builtin_edge_model(g, config, train_task):
                 regression=True)
         else:
             assert False, "decoder not supported"
-        model.set_decoder(decoder)
-        model.set_loss_func(RegressionLossFunc())
+        loss_func = RegressionLossFunc()
     else:
         raise ValueError('unknown node task: {}'.format(config.task_type))
+    return decoder, loss_func
+
+def create_builtin_edge_model(g, config, train_task):
+    """ Create a model for edge prediction.
+
+    Parameters
+    ----------
+    g: DGLGraph
+        The graph used in training and testing
+    config: GSConfig
+        Configurations
+    train_task : bool
+        Whether this model is used for training.
+
+    Returns
+    -------
+    GSgnnModel : The GNN model.
+    """
+    model = GSgnnEdgeModel(config.alpha_l2norm)
+    set_encoder(model, g, config, train_task)
+    encoder_out_dims = model.gnn_encoder.out_dims \
+        if model.gnn_encoder is not None \
+            else model.node_input_encoder.out_dims
+    decoder, loss_func = create_builtin_edge_decoder(g, encoder_out_dims, config, train_task)
+    model.set_decoder(decoder)
+    model.set_loss_func(loss_func)
+
     if train_task:
         model.init_optimizer(lr=config.lr, sparse_optimizer_lr=config.sparse_optimizer_lr,
                              weight_decay=config.wd_l2norm,
@@ -439,6 +505,70 @@ def create_builtin_lp_gnn_model(g, config, train_task):
     GSgnnModel : The GNN model.
     """
     return create_builtin_lp_model(g, config, train_task)
+
+# pylint: disable=unused-argument
+def create_builtin_lp_decoder(g, decoder_input_dim, config, train_task):
+    """ create builtin link prediction decoder according to task config
+
+    Parameters
+    ----------
+    g: DGLGraph
+        The graph data.
+    decoder_input_dim: int
+        Input dimension size of the decoder.
+    config: GSConfig
+        Configurations.
+    train_task : bool
+        Whether this model is used for training.
+
+    Returns
+    -------
+    decoder: The node task decoder(s)
+    loss_func: The loss function(s)
+    """
+    if config.lp_decoder_type == BUILTIN_LP_DOT_DECODER:
+        # if the training set only contains one edge type or it is specified in the arguments,
+        # we use dot product as the score function.
+        if get_rank() == 0:
+            logging.debug('use dot product for single-etype task.')
+            logging.debug("Using inner product objective for supervision")
+        if config.lp_edge_weight_for_loss is None:
+            decoder = LinkPredictContrastiveDotDecoder(decoder_input_dim) \
+                if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS else \
+                LinkPredictDotDecoder(decoder_input_dim)
+        else:
+            decoder = LinkPredictWeightedDotDecoder(decoder_input_dim,
+                                                    config.lp_edge_weight_for_loss)
+    elif config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER:
+        if get_rank() == 0:
+            logging.debug("Using distmult objective for supervision")
+        if config.lp_edge_weight_for_loss is None:
+            decoder = LinkPredictContrastiveDistMultDecoder(g.canonical_etypes,
+                                                            decoder_input_dim,
+                                                            config.gamma) \
+                if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS else \
+                LinkPredictDistMultDecoder(g.canonical_etypes,
+                                           decoder_input_dim,
+                                           config.gamma)
+        else:
+            decoder = LinkPredictWeightedDistMultDecoder(g.canonical_etypes,
+                                                         decoder_input_dim,
+                                                         config.gamma,
+                                                         config.lp_edge_weight_for_loss)
+    else:
+        raise Exception(f"Unknow link prediction decoder type {config.lp_decoder_type}")
+
+    if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS:
+        loss_func = LinkPredictContrastiveLossFunc(config.contrastive_loss_temperature)
+    elif config.lp_loss_func == BUILTIN_LP_LOSS_CROSS_ENTROPY:
+        if config.lp_edge_weight_for_loss is None:
+            loss_func = LinkPredictBCELossFunc()
+        else:
+            loss_func = WeightedLinkPredictBCELossFunc()
+    else:
+        raise TypeError(f"Unknown link prediction loss function {config.lp_loss_func}")
+
+    return decoder, loss_func
 
 def create_builtin_lp_model(g, config, train_task):
     """ Create a model for link prediction.
@@ -469,47 +599,11 @@ def create_builtin_lp_model(g, config, train_task):
     out_dims = model.gnn_encoder.out_dims \
                     if model.gnn_encoder is not None \
                     else model.node_input_encoder.out_dims
-    if config.lp_decoder_type == BUILTIN_LP_DOT_DECODER:
-        # if the training set only contains one edge type or it is specified in the arguments,
-        # we use dot product as the score function.
-        if get_rank() == 0:
-            logging.debug('use dot product for single-etype task.')
-            logging.debug("Using inner product objective for supervision")
-        if config.lp_edge_weight_for_loss is None:
-            decoder = LinkPredictContrastiveDotDecoder(out_dims) \
-                if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS else \
-                LinkPredictDotDecoder(out_dims)
-        else:
-            decoder = LinkPredictWeightedDotDecoder(out_dims,
-                                                    config.lp_edge_weight_for_loss)
-    elif config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER:
-        if get_rank() == 0:
-            logging.debug("Using distmult objective for supervision")
-        if config.lp_edge_weight_for_loss is None:
-            decoder = LinkPredictContrastiveDistMultDecoder(g.canonical_etypes,
-                                                            out_dims,
-                                                            config.gamma) \
-                if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS else \
-                LinkPredictDistMultDecoder(g.canonical_etypes,
-                                           out_dims,
-                                           config.gamma)
-        else:
-            decoder = LinkPredictWeightedDistMultDecoder(g.canonical_etypes,
-                                                         out_dims,
-                                                         config.gamma,
-                                                         config.lp_edge_weight_for_loss)
-    else:
-        raise Exception(f"Unknow link prediction decoder type {config.lp_decoder_type}")
+    decoder, loss_func = create_builtin_lp_decoder(g, out_dims, config, train_task)
+
     model.set_decoder(decoder)
-    if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS:
-        model.set_loss_func(LinkPredictContrastiveLossFunc(config.contrastive_loss_temperature))
-    elif config.lp_loss_func == BUILTIN_LP_LOSS_CROSS_ENTROPY:
-        if config.lp_edge_weight_for_loss is None:
-            model.set_loss_func(LinkPredictBCELossFunc())
-        else:
-            model.set_loss_func(WeightedLinkPredictBCELossFunc())
-    else:
-        raise TypeError(f"Unknown link prediction loss function {config.lp_loss_func}")
+    model.set_loss_func(loss_func)
+
     if train_task:
         model.init_optimizer(lr=config.lr, sparse_optimizer_lr=config.sparse_optimizer_lr,
                              weight_decay=config.wd_l2norm,
@@ -674,3 +768,46 @@ def check_homo(g):
 def create_builtin_task_tracker(config):
     tracker_class = get_task_tracker_class(config.task_tracker)
     return tracker_class(config.eval_frequency)
+
+def get_lp_eval_sampler(config):
+    test_dataloader_cls = None
+    if config.eval_etypes_negative_dstnode is not None:
+        test_dataloader_cls = GSgnnLinkPredictionPredefinedTestDataLoader
+    elif config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+        test_dataloader_cls = GSgnnLinkPredictionTestDataLoader
+    elif config.eval_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
+        test_dataloader_cls = GSgnnLinkPredictionJointTestDataLoader
+    else:
+        raise ValueError('Unknown test negative sampler.'
+            'Supported test negative samplers include '
+            f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
+    return test_dataloader_cls
+
+def get_lp_train_sampler(config):
+    dataloader_cls = None
+    if config.train_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
+        dataloader_cls = GSgnnLinkPredictionDataLoader
+    elif config.train_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
+        dataloader_cls = GSgnnLPJointNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER:
+        dataloader_cls = GSgnnLPInBatchJointNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER:
+        dataloader_cls = GSgnnLPLocalUniformNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_LP_LOCALJOINT_NEG_SAMPLER:
+        dataloader_cls = GSgnnLPLocalJointNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER:
+        dataloader_cls = GSgnnAllEtypeLinkPredictionDataLoader
+    elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER:
+        dataloader_cls = GSgnnAllEtypeLPJointNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLinkPredictionDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_JOINT_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLPJointNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLPLocalUniformNegDataLoader
+    elif config.train_negative_sampler == BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER:
+        dataloader_cls = FastGSgnnLPLocalJointNegDataLoader
+    else:
+        raise ValueError('Unknown negative sampler')
+
+    return dataloader_cls
