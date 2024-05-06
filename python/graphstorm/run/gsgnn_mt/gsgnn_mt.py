@@ -29,8 +29,15 @@ from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
                                     GSgnnMultiTaskDataLoader)
+
+from graphstorm.eval import (GSgnnClassificationEvaluator,
+                             GSgnnRegressionEvaluator,
+                             GSgnnPerEtypeMrrLPEvaluator,
+                             GSgnnMrrLPEvaluator)
 from graphstorm.model.multitask_gnn import GSgnnMultiTaskSharedEncoderModel
 from graphstorm.trainer import GSgnnMultiTaskLearningTrainer
+from graphstorm.model.utils import save_full_node_embeddings
+from graphstorm.model import do_full_graph_inference
 
 from graphstorm.utils import rt_profiler, sys_tracker, get_device, use_wholegraph
 from graphstorm.utils import get_lm_ntypes
@@ -189,6 +196,57 @@ def create_task_decoder(task, g, decoder_input_dim, train_task):
     return None, None
 
 def create_evaluator(task, config):
+    if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION]:
+        multilabel = config.multilabel[config.eval_target_ntype] \
+            if isinstance(config.multilabel, dict) else config.multilabel
+        return GSgnnClassificationEvaluator(config.eval_frequency,
+                                            config.eval_metric,
+                                            multilabel,
+                                            config.use_early_stop,
+                                            config.early_stop_burnin_rounds,
+                                            config.early_stop_rounds,
+                                            config.early_stop_strategy)
+
+    elif task.task_type in [BUILTIN_TASK_NODE_REGRESSION]:
+        return GSgnnRegressionEvaluator(config.eval_frequency,
+                                        config.eval_metric,
+                                        config.use_early_stop,
+                                        config.early_stop_burnin_rounds,
+                                        config.early_stop_rounds,
+                                        config.early_stop_strategy)
+    elif task.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION]:
+        return GSgnnClassificationEvaluator(config.eval_frequency,
+                                            config.eval_metric,
+                                            config.multilabel,
+                                            config.use_early_stop,
+                                            config.early_stop_burnin_rounds,
+                                            config.early_stop_rounds,
+                                            config.early_stop_strategy)
+
+    elif task.task_type in [BUILTIN_TASK_EDGE_REGRESSION]:
+        return GSgnnRegressionEvaluator(config.eval_frequency,
+                                        config.eval_metric,
+                                        config.use_early_stop,
+                                        config.early_stop_burnin_rounds,
+                                        config.early_stop_rounds,
+                                        config.early_stop_strategy)
+    elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+        assert len(config.eval_metric) == 1, \
+        "GraphStorm doees not support computing multiple metrics at the same time."
+        if config.report_eval_per_type:
+            return GSgnnPerEtypeMrrLPEvaluator(eval_frequency=config.eval_frequency,
+                                            major_etype=config.model_select_etype,
+                                            use_early_stop=config.use_early_stop,
+                                            early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                            early_stop_rounds=config.early_stop_rounds,
+                                            early_stop_strategy=config.early_stop_strategy)
+        else:
+            return GSgnnMrrLPEvaluator(eval_frequency=config.eval_frequency,
+                                    use_early_stop=config.use_early_stop,
+                                    early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                    early_stop_rounds=config.early_stop_rounds,
+                                    early_stop_strategy=config.early_stop_strategy)
+    return None
 
 def main(config_args):
     """ main function
@@ -259,3 +317,38 @@ def main(config_args):
 
     if config.save_embed_path is not None:
         # Save node embeddings
+        model = GSgnnMultiTaskSharedEncoderModel(config.alpha_l2norm)
+        gs.set_encoder(model, train_data.g, config, train_task=True)
+        best_model_path = trainer.get_best_model_path()
+        # TODO(zhengda) the model path has to be in a shared filesystem.
+        model.restore_model(best_model_path)
+        model = model.to(get_device())
+        # Preparing input layer for training or inference.
+        # The input layer can pre-compute node features in the preparing step if needed.
+        # For example pre-compute all BERT embeddings
+        model.prepare_input_encoder(train_data)
+
+        embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
+                                             edge_mask="train_mask", task_tracker=tracker)
+
+        save_full_node_embeddings(
+            train_data.g,
+            config.save_embed_path,
+            embeddings,
+            node_id_mapping_file=config.node_id_mapping_file,
+            save_embed_format=config.save_embed_format)
+
+def generate_parser():
+    """ Generate an argument parser
+    """
+    parser = get_argument_parser()
+    return parser
+
+if __name__ == '__main__':
+    arg_parser = generate_parser()
+
+    # Ignore unknown args to make script more robust to input arguments
+    gs_args, _ = arg_parser.parse_known_args()
+    main(gs_args)
+
+
