@@ -776,7 +776,7 @@ def create_builtin_task_tracker(config):
     tracker_class = get_task_tracker_class(config.task_tracker)
     return tracker_class(config.eval_frequency)
 
-def get_builtin_lp_eval_dataloader(config):
+def get_builtin_lp_eval_dataloader_class(config):
     """ Return a builtin link prediction evaluation dataloader
         based on input config
 
@@ -798,7 +798,7 @@ def get_builtin_lp_eval_dataloader(config):
             f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
     return test_dataloader_cls
 
-def get_builtin_lp_train_sampler(config):
+def get_builtin_lp_train_dataloader_class(config):
     """ Return a builtin link prediction training dataloader
         based on input config
 
