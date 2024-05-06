@@ -303,6 +303,11 @@ def main(config_args):
     else:
         save_model_path = None
 
+    tracker = gs.create_builtin_task_tracker(config)
+    if gs.get_rank() == 0:
+        tracker.log_params(config.__dict__)
+    trainer.setup_task_tracker(tracker)
+
     trainer.fit(train_loader=train_dataloader,
                 val_loader=val_dataloader,
                 test_loader=test_dataloader,

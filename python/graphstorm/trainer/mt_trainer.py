@@ -140,7 +140,7 @@ def multi_task_mini_batch_predict(
 
     Returns
     -------
-    list: prediction results of each task
+    dict: prediction results of each task
     """
     dataloaders = loader.dataloaders
     task_infos = loader.task_infos
@@ -325,7 +325,6 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
         # training loop
         total_steps = 0
         sys_tracker.check('start training')
-        g = data.g
         for epoch in range(num_epochs):
             model.train()
             epoch_start = time.time()
@@ -469,17 +468,17 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                                           task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
 
-        val_scores = \
+        val_results = \
             multi_task_mini_batch_predict(model, emb, val_loader, self.device, return_proba) \
             if val_loader is not None else None
 
-        test_scores = \
+        test_results = \
             multi_task_mini_batch_predict(model, emb, test_loader, self.device, return_proba) \
             if test_loader is not None else None
 
         sys_tracker.check('after_test_score')
         val_score, test_score = self.evaluator.evaluate(
-                val_scores, test_scores, total_steps)
+                val_results, test_results, total_steps)
         sys_tracker.check('evaluate validation/test')
         model.train()
 
