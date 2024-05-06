@@ -29,6 +29,7 @@ from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
                                     GSgnnMultiTaskDataLoader)
+from graphstorm.model.multitask_gnn import GSgnnMultiTaskSharedEncoderModel
 from graphstorm.trainer import GSgnnMultiTaskLearningTrainer
 
 from graphstorm.utils import rt_profiler, sys_tracker, get_device, use_wholegraph
@@ -179,11 +180,11 @@ def create_task_test_dataloader(task, config, train_data):
 
 def create_task_decoder(task, g, decoder_input_dim, train_task):
     if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
-        return create_builtin_node_decoder(decoder_input_dim, task, train_task)
+        return gs.create_builtin_node_decoder(decoder_input_dim, task, train_task)
     elif task.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
-        return create_builtin_edge_decoder(g, decoder_input_dim, task, train_task)
+        return gs.create_builtin_edge_decoder(g, decoder_input_dim, task, train_task)
     elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
-        return create_builtin_lp_decoder(g, decoder_input_dim, task, train_task)
+        return gs.create_builtin_lp_decoder(g, decoder_input_dim, task, train_task)
 
     return None, None
 
@@ -206,13 +207,12 @@ def main(config_args):
                            edge_feat_field=config.edge_feat_name,
                            lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     model = GSgnnMultiTaskSharedEncoderModel(config.alpha_l2norm)
-    set_encoder(model, g, config, train_task)
+    gs.set_encoder(model, train_data.g, config, train_task=True)
 
     tasks = config.multi_tasks
     train_dataloaders = []
     val_dataloaders = []
     test_dataloaders = []
-    decoders = []
     encoder_out_dims = model.gnn_encoder.out_dims \
         if model.gnn_encoder is not None \
             else model.node_input_encoder.out_dims
@@ -220,9 +220,9 @@ def main(config_args):
         train_loader = create_task_train_dataloader(task, config, train_data)
         val_loader = create_task_val_dataloader(task, config)
         test_loader = create_task_test_dataloader(task, config)
-        train_dataloaders.append(train_loader)
-        val_dataloaders.append(val_loader)
-        test_dataloaders.append(test_loader)
+        train_dataloaders.append((task, train_loader))
+        val_dataloaders.append((task, val_loader))
+        test_dataloaders.append((task, test_loader))
         decoder, loss_func = create_task_decoder(task, g, encoder_out_dims, train_task=True)
         model.add_task(task.task_id, task.task_type, decoder, loss_func, task.weight)
         evaluator = create_evaluator(task, config)
