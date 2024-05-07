@@ -23,23 +23,6 @@ from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.trainer import GSgnnLinkPredictionTrainer
 from graphstorm.dataloading import GSgnnData
-from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
-from graphstorm.dataloading import (GSgnnLPJointNegDataLoader,
-                                    GSgnnLPLocalUniformNegDataLoader,
-                                    GSgnnLPLocalJointNegDataLoader,
-                                    GSgnnLPInBatchJointNegDataLoader)
-from graphstorm.dataloading import GSgnnAllEtypeLPJointNegDataLoader
-from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
-from graphstorm.dataloading import (GSgnnLinkPredictionTestDataLoader,
-                                    GSgnnLinkPredictionJointTestDataLoader,
-                                    GSgnnLinkPredictionPredefinedTestDataLoader)
-from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
-                                    BUILTIN_LP_JOINT_NEG_SAMPLER,
-                                    BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER,
-                                    BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER,
-                                    BUILTIN_LP_LOCALJOINT_NEG_SAMPLER)
-from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER
-from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER
 from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
 from graphstorm.model.utils import save_full_node_embeddings
 from graphstorm.model import do_full_graph_inference
@@ -103,22 +86,7 @@ def main(config_args):
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
 
-    if config.train_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
-        dataloader_cls = GSgnnLinkPredictionDataLoader
-    elif config.train_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
-        dataloader_cls = GSgnnLPJointNegDataLoader
-    elif config.train_negative_sampler == BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER:
-        dataloader_cls = GSgnnLPInBatchJointNegDataLoader
-    elif config.train_negative_sampler == BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER:
-        dataloader_cls = GSgnnLPLocalUniformNegDataLoader
-    elif config.train_negative_sampler == BUILTIN_LP_LOCALJOINT_NEG_SAMPLER:
-        dataloader_cls = GSgnnLPLocalJointNegDataLoader
-    elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER:
-        dataloader_cls = GSgnnAllEtypeLinkPredictionDataLoader
-    elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER:
-        dataloader_cls = GSgnnAllEtypeLPJointNegDataLoader
-    else:
-        raise ValueError('Unknown negative sampler')
+    dataloader_cls = gs.get_builtin_lp_train_dataloader_class(config)
     train_idxs = train_data.get_edge_train_set(config.train_etype)
     dataloader = dataloader_cls(train_data,
                                 train_idxs, [],
@@ -130,16 +98,7 @@ def main(config_args):
                                 num_hard_negs=config.num_train_hard_negatives)
 
     # TODO(zhengda) let's use full-graph inference for now.
-    if config.eval_etypes_negative_dstnode is not None:
-        test_dataloader_cls = GSgnnLinkPredictionPredefinedTestDataLoader
-    elif config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
-        test_dataloader_cls = GSgnnLinkPredictionTestDataLoader
-    elif config.eval_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
-        test_dataloader_cls = GSgnnLinkPredictionJointTestDataLoader
-    else:
-        raise ValueError('Unknown test negative sampler.'
-            'Supported test negative samplers include '
-            f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
+    test_dataloader_cls = gs.get_builtin_lp_eval_dataloader_class(config)
     val_dataloader = None
     test_dataloader = None
 

@@ -23,7 +23,6 @@ from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.trainer import GSgnnLinkPredictionTrainer
 from graphstorm.dataloading import GSgnnData
-
 from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
 from graphstorm.model.utils import save_full_node_embeddings
 from graphstorm.model import do_full_graph_inference
@@ -95,9 +94,8 @@ def main(config_args):
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
 
-
+    dataloader_cls = gs.get_builtin_lp_train_dataloader_class(config)
     train_idxs = train_data.get_edge_train_set(config.train_etype)
-    dataloader_cls = gs.get_lp_train_sampler(config)
     dataloader = dataloader_cls(train_data, train_idxs, config.fanout,
                                 config.batch_size, config.num_negative_edges,
                                 node_feats=config.node_feat_name,
@@ -111,11 +109,10 @@ def main(config_args):
                                 num_hard_negs=config.num_train_hard_negatives)
 
     # TODO(zhengda) let's use full-graph inference for now.
-
+    test_dataloader_cls = gs.get_builtin_lp_eval_dataloader_class(config)
     val_dataloader = None
     test_dataloader = None
     val_idxs = train_data.get_edge_val_set(config.eval_etype)
-    test_dataloader_cls = gs.get_lp_eval_sampler(config)
     if len(val_idxs) > 0:
         if config.eval_etypes_negative_dstnode is not None:
             val_dataloader = test_dataloader_cls(train_data, val_idxs,
