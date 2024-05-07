@@ -27,3 +27,4 @@ from .evaluator import GSgnnMrrLPEvaluator
 from .evaluator import GSgnnPerEtypeMrrLPEvaluator
 from .evaluator import GSgnnClassificationEvaluator
 from .evaluator import GSgnnRegressionEvaluator
+from .evaluator import GSgnnMultiTaskEvaluator

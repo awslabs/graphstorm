@@ -16,6 +16,7 @@
     GSgnn multi-task learning
 """
 import os
+import logging
 
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
@@ -33,7 +34,8 @@ from graphstorm.dataloading import (GSgnnNodeDataLoader,
 from graphstorm.eval import (GSgnnClassificationEvaluator,
                              GSgnnRegressionEvaluator,
                              GSgnnPerEtypeMrrLPEvaluator,
-                             GSgnnMrrLPEvaluator)
+                             GSgnnMrrLPEvaluator,
+                             GSgnnMultiTaskEvaluator)
 from graphstorm.model.multitask_gnn import GSgnnMultiTaskSharedEncoderModel
 from graphstorm.trainer import GSgnnMultiTaskLearningTrainer
 from graphstorm.model.utils import save_full_node_embeddings
@@ -271,6 +273,7 @@ def main(config_args):
     train_dataloaders = []
     val_dataloaders = []
     test_dataloaders = []
+    task_evaluators = {}
     encoder_out_dims = model.gnn_encoder.out_dims \
         if model.gnn_encoder is not None \
             else model.node_input_encoder.out_dims
@@ -283,11 +286,24 @@ def main(config_args):
         test_dataloaders.append((task, test_loader))
         decoder, loss_func = create_task_decoder(task, g, encoder_out_dims, train_task=True)
         model.add_task(task.task_id, task.task_type, decoder, loss_func, task.weight)
-        evaluator = create_evaluator(task, config)
+        if not config.no_validation:
+            if val_loader is None:
+                logging.warning("The training data do not have validation set.")
+            if test_loader is None:
+                logging.warning("The training data do not have test set.")
+            task_evaluators[task.task_id] = \
+                create_evaluator(task, config)
+
 
     train_dataloader = GSgnnMultiTaskDataLoader(train_dataloaders)
     val_dataloader = GSgnnMultiTaskDataLoader(val_dataloaders)
     test_dataloader = GSgnnMultiTaskDataLoader(test_dataloaders)
+
+    if not config.no_validation:
+        evaluator = GSgnnMultiTaskEvaluator(config.eval_frequency,
+                                            task_evaluators,
+                                            use_early_stop=config.use_early_stop)
+        trainer.setup_evaluator(evaluator)
 
     trainer = GSgnnMultiTaskLearningTrainer(model, topk_model_to_save=config.topk_model_to_save)
 
