@@ -12,7 +12,7 @@ Graph Construction
 * **-\-num-processes-for-edges**: the number of processes to process edge data simulteneously. Increase this number can speed up edge data processing.
 * **-\-output-dir**: (**Required**) the path of the output data files.
 * **-\-graph-name**: (**Required**) the name assigned for the graph.
-* **-\-remap-node_id**: boolean value to decide whether to rename node IDs or not. Default is true.
+* **-\-remap-node-id**: boolean value to decide whether to rename node IDs or not. Default is true.
 * **-\-add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Default is true.
 * **-\-output-format**: the format of constructed graph, options are ``DGL``,  ``DistDGL``.  Default is ``DistDGL``. It also accepts multiple graph formats at the same time separated by an space, for example ``--output-format "DGL DistDGL"``. The output format is explained in the :ref:`Output <output-format>` section below.
 * **-\-num-parts**: the number of partitions of the constructed graph. This is only valid if the output format is ``DistDGL``.
@@ -65,7 +65,8 @@ Similarly, ``edges`` contains a list of edge types and the information of an edg
 
 * ``task_type``: (**Required**) specifies the task defined on the nodes or edges. Currently, its value can be ``classification``, ``regression`` and ``link_prediction``.
 * ``label_col``: specifies the column name in the input file that contains the label. This has to be specified for ``classification`` and ``regression`` tasks. ``label_col`` is used as the label name.
-* ``split_pct``: specifies how to split the data into training/validation/test. This is optional. If it's not specified, the data is split into 80% for training 10% for validation and 10% for testing. The pipeline constructs three additional vectors indicating the training/validation/test masks. For ``classification`` and ``regression`` tasks, the names of the mask tensors are ``train_mask``, ``val_mask`` and ``test_mask``.
+* ``split_pct``: (Optional) specifies how to split the data into training/validation/test. If it's not specified, the data is split into 80% for training 10% for validation and 10% for testing. The pipeline constructs three additional vectors indicating the training/validation/test masks. For ``classification`` and ``regression`` tasks, the names of the mask tensors are ``train_mask``, ``val_mask`` and ``test_mask``.
+* ``custom_split_filenames``: (Optional) specifies the customized training/validation/test mask. It has field named ``train``, ``valid``, and ``test`` to specify the path of the mask files. It is possible that one of the subfield here leaves empty and it will be treated as none. It will override the ``split_pct`` once provided. Refer to :ref:`Use Your Own Graphs Tutorial <use-own-data>` for an example.
 
 .. _input-format:
 

@@ -15,6 +15,7 @@ limitations under the License.
 
 This module is used to determine row counts for Parquet files.
 """
+
 import logging
 import os
 from typing import Dict, List, Sequence
@@ -83,25 +84,6 @@ class ParquetRowCounter:
             top_level_key="raw_id_mappings", edge_or_node_type_key="node_type"
         )
         self._add_counts_for_features(top_level_key="node_data", edge_or_node_type_key="node_type")
-
-        logging.info("Verifying features and structure row counts match...")
-        all_edge_counts_match = self.verify_features_and_graph_structure_match(
-            metadata_dict["edge_data"], metadata_dict["edges"]
-        )
-        all_node_data_counts_match = self.verify_all_features_match(metadata_dict["node_data"])
-        all_edge_data_counts_match = self.verify_all_features_match(metadata_dict["edge_data"])
-
-        if (
-            not all_edge_counts_match
-            or not all_node_data_counts_match
-            or not all_edge_data_counts_match
-        ):
-            # TODO: Should we create a file as indication
-            # downstream that repartitioning is necessary?
-            logging.warning(
-                "Some edge/node row counts do not match, "
-                "will need to re-partition before creating distributed graph."
-            )
 
         metadata_dict["num_nodes_per_type"] = [
             sum(type_rows) for type_rows in all_node_mapping_counts
@@ -405,3 +387,46 @@ class ParquetRowCounter:
                     )
 
         return all_match
+
+
+def verify_metadata_match(graph_meta: Dict[str, Dict]) -> bool:
+    """Verifies that the row counts for all edges and nodes match
+    for the provided graph metadata.
+
+    Parameters
+    ----------
+    graph_meta : Dict[str, Any]
+        A graph metadata dict with Dict entries for "node_data", "edge_data",
+        and "edges".
+
+    Returns
+    -------
+    bool
+        True if all row counts match for each type, False otherwise.
+    """
+    logging.info("Verifying features and structure row counts match...")
+    all_edge_counts_match = ParquetRowCounter.verify_features_and_graph_structure_match(
+        graph_meta["edge_data"], graph_meta["edges"]
+    )
+    all_node_data_counts_match = ParquetRowCounter.verify_all_features_match(
+        graph_meta["node_data"]
+    )
+    all_edge_data_counts_match = ParquetRowCounter.verify_all_features_match(
+        graph_meta["edge_data"]
+    )
+
+    all_match = True
+    if (
+        not all_edge_counts_match
+        or not all_node_data_counts_match
+        or not all_edge_data_counts_match
+    ):
+        all_match = False
+        # TODO: Should we create a file as indication
+        # downstream that repartitioning is necessary?
+        logging.info(
+            "Some edge/node row counts do not match, "
+            "will need to re-partition before creating distributed graph."
+        )
+
+    return all_match

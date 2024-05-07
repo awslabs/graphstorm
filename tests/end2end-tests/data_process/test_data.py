@@ -204,6 +204,27 @@ with open(os.path.join(out_dir, "edge_label_stats.json"), 'r') as f:
   assert ("node1,relation1,node2") in edge_label_stats
   assert "label" in edge_label_stats[("node1,relation1,node2")]
 
+# Test customized link prediction data split
+src_ids, dst_ids = g.edges(etype=('node1', 'relation_custom', 'node2'))
+src_ids = np.array([reverse_node1_map[src_id] for src_id in src_ids.numpy()])
+dst_ids = dst_ids.numpy()
+assert np.all((src_ids + dst_ids) % 100 == label)
+assert th.sum(g.edges[('node1', 'relation_custom', 'node2')].data['train_mask']) \
+        == 100
+assert th.sum(g.edges[('node1', 'relation_custom', 'node2')].data['val_mask']) \
+        == 20
+assert th.sum(g.edges[('node1', 'relation_custom', 'node2')].data['test_mask']) == 20
+
+src_ids, dst_ids = g.edges(etype=('node1', 'relation_custom_multi', 'node2'))
+src_ids = np.array([reverse_node1_map[src_id] for src_id in src_ids.numpy()])
+dst_ids = dst_ids.numpy()
+assert np.all((src_ids + dst_ids) % 100 == label)
+assert th.sum(g.edges[('node1', 'relation_custom_multi', 'node2')].data['train_mask']) \
+        == 100
+assert th.sum(g.edges[('node1', 'relation_custom_multi', 'node2')].data['val_mask']) \
+        == 20
+assert th.sum(g.edges[('node1', 'relation_custom_multi', 'node2')].data['test_mask']) == 20
+
 # Test hard negatives
 hard_neg = g.edges[('node1', 'relation2', 'node1')].data["hard_neg"]
 src_ids, dst_ids = g.edges(etype=("node1", "relation2", "node1"))

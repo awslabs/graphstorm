@@ -22,74 +22,41 @@ import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.trainer import GSgnnLinkPredictionTrainer
-from graphstorm.dataloading import GSgnnLPTrainData
-from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
-from graphstorm.dataloading import (GSgnnLPJointNegDataLoader,
-                                    GSgnnLPLocalUniformNegDataLoader,
-                                    GSgnnLPLocalJointNegDataLoader,
-                                    GSgnnLPInBatchJointNegDataLoader)
-from graphstorm.dataloading import GSgnnAllEtypeLPJointNegDataLoader
-from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
-from graphstorm.dataloading import (GSgnnLinkPredictionTestDataLoader,
-                                    GSgnnLinkPredictionJointTestDataLoader,
-                                    GSgnnLinkPredictionPredefinedTestDataLoader)
-from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
-                                    BUILTIN_LP_JOINT_NEG_SAMPLER,
-                                    BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER,
-                                    BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER,
-                                    BUILTIN_LP_LOCALJOINT_NEG_SAMPLER)
-from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER
-from graphstorm.dataloading import BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER
-from graphstorm.dataloading import (BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER,
-                                    BUILTIN_FAST_LP_JOINT_NEG_SAMPLER,
-                                    BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER,
-                                    BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER)
-from graphstorm.dataloading import (FastGSgnnLinkPredictionDataLoader,
-                                    FastGSgnnLPJointNegDataLoader,
-                                    FastGSgnnLPLocalUniformNegDataLoader,
-                                    FastGSgnnLPLocalJointNegDataLoader)
+from graphstorm.dataloading import GSgnnData
 from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
 from graphstorm.model.utils import save_full_node_embeddings
 from graphstorm.model import do_full_graph_inference
 from graphstorm.utils import (
     rt_profiler,
     sys_tracker,
-    setup_device,
+    get_device,
     use_wholegraph,
 )
 from graphstorm.utils import get_lm_ntypes
 
-def get_evaluator(config, train_data):
+def get_evaluator(config):
     """ Get evaluator according to config
 
         Parameters
         ----------
         config: GSConfig
             Configuration
-        train_data: GSgnnEdgeData
-            Training data
     """
     assert len(config.eval_metric) == 1, \
         "GraphStorm doees not support computing multiple metrics at the same time."
     if config.report_eval_per_type:
-        return GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency,
-                                           train_data,
-                                           config.num_negative_edges_eval,
-                                           config.lp_decoder_type,
-                                           config.model_select_etype,
-                                           config.use_early_stop,
-                                           config.early_stop_burnin_rounds,
-                                           config.early_stop_rounds,
-                                           config.early_stop_strategy)
+        return GSgnnPerEtypeMrrLPEvaluator(eval_frequency=config.eval_frequency,
+                                           major_etype=config.model_select_etype,
+                                           use_early_stop=config.use_early_stop,
+                                           early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                           early_stop_rounds=config.early_stop_rounds,
+                                           early_stop_strategy=config.early_stop_strategy)
     else:
-        return GSgnnMrrLPEvaluator(config.eval_frequency,
-                                   train_data,
-                                   config.num_negative_edges_eval,
-                                   config.lp_decoder_type,
-                                   config.use_early_stop,
-                                   config.early_stop_burnin_rounds,
-                                   config.early_stop_rounds,
-                                   config.early_stop_strategy)
+        return GSgnnMrrLPEvaluator(eval_frequency=config.eval_frequency,
+                                use_early_stop=config.use_early_stop,
+                                early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                early_stop_rounds=config.early_stop_rounds,
+                                early_stop_strategy=config.early_stop_strategy)
 
 def main(config_args):
     """ main function
@@ -99,29 +66,27 @@ def main(config_args):
 
     use_wg_feats = use_wholegraph(config.part_config)
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
-                  use_wholegraph=config.use_wholegraph_sparse_emb or use_wg_feats)
+                  local_rank=config.local_rank,
+                  use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
-    device = setup_device(config.local_rank)
-    train_data = GSgnnLPTrainData(config.graph_name,
-                                  config.part_config,
-                                  train_etypes=config.train_etype,
-                                  eval_etypes=config.eval_etype,
-                                  node_feat_field=config.node_feat_name,
-                                  pos_graph_feat_field=config.lp_edge_weight_for_loss,
-                                  lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
+    train_data = GSgnnData(config.part_config,
+                           node_feat_field=config.node_feat_name,
+                           edge_feat_field=config.edge_feat_name,
+                           lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=True)
     trainer = GSgnnLinkPredictionTrainer(model, topk_model_to_save=config.topk_model_to_save)
     if config.restore_model_path is not None:
         trainer.restore_model(model_path=config.restore_model_path,
                               model_layer_to_load=config.restore_model_layers)
-    trainer.setup_device(device=device)
+    trainer.setup_device(device=get_device())
     if not config.no_validation:
         # TODO(zhengda) we need to refactor the evaluator.
         # Currently, we only support mrr
-        evaluator = get_evaluator(config, train_data)
+        evaluator = get_evaluator(config)
         trainer.setup_evaluator(evaluator)
-        assert len(train_data.val_idxs) > 0, "The training data do not have validation set."
+        val_idxs = train_data.get_edge_val_set(config.eval_etype)
+        assert len(val_idxs) > 0, "The training data do not have validation set."
         # TODO(zhengda) we need to compute the size of the entire validation set to make sure
         # we have validation data.
     tracker = gs.create_builtin_task_tracker(config)
@@ -129,32 +94,12 @@ def main(config_args):
         tracker.log_params(config.__dict__)
     trainer.setup_task_tracker(tracker)
 
-    if config.train_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
-        dataloader_cls = GSgnnLinkPredictionDataLoader
-    elif config.train_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
-        dataloader_cls = GSgnnLPJointNegDataLoader
-    elif config.train_negative_sampler == BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER:
-        dataloader_cls = GSgnnLPInBatchJointNegDataLoader
-    elif config.train_negative_sampler == BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER:
-        dataloader_cls = GSgnnLPLocalUniformNegDataLoader
-    elif config.train_negative_sampler == BUILTIN_LP_LOCALJOINT_NEG_SAMPLER:
-        dataloader_cls = GSgnnLPLocalJointNegDataLoader
-    elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER:
-        dataloader_cls = GSgnnAllEtypeLinkPredictionDataLoader
-    elif config.train_negative_sampler == BUILTIN_LP_ALL_ETYPE_JOINT_NEG_SAMPLER:
-        dataloader_cls = GSgnnAllEtypeLPJointNegDataLoader
-    elif config.train_negative_sampler == BUILTIN_FAST_LP_UNIFORM_NEG_SAMPLER:
-        dataloader_cls = FastGSgnnLinkPredictionDataLoader
-    elif config.train_negative_sampler == BUILTIN_FAST_LP_JOINT_NEG_SAMPLER:
-        dataloader_cls = FastGSgnnLPJointNegDataLoader
-    elif config.train_negative_sampler == BUILTIN_FAST_LP_LOCALUNIFORM_NEG_SAMPLER:
-        dataloader_cls = FastGSgnnLPLocalUniformNegDataLoader
-    elif config.train_negative_sampler == BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER:
-        dataloader_cls = FastGSgnnLPLocalJointNegDataLoader
-    else:
-        raise ValueError('Unknown negative sampler')
-    dataloader = dataloader_cls(train_data, train_data.train_idxs, config.fanout,
-                                config.batch_size, config.num_negative_edges, device,
+    dataloader_cls = gs.get_builtin_lp_train_dataloader_class(config)
+    train_idxs = train_data.get_edge_train_set(config.train_etype)
+    dataloader = dataloader_cls(train_data, train_idxs, config.fanout,
+                                config.batch_size, config.num_negative_edges,
+                                node_feats=config.node_feat_name,
+                                pos_graph_edge_feats=config.lp_edge_weight_for_loss,
                                 train_task=True,
                                 reverse_edge_types_map=config.reverse_edge_types_map,
                                 exclude_training_targets=config.exclude_training_targets,
@@ -164,40 +109,43 @@ def main(config_args):
                                 num_hard_negs=config.num_train_hard_negatives)
 
     # TODO(zhengda) let's use full-graph inference for now.
-    if config.eval_etypes_negative_dstnode is not None:
-        test_dataloader_cls = GSgnnLinkPredictionPredefinedTestDataLoader
-    elif config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
-        test_dataloader_cls = GSgnnLinkPredictionTestDataLoader
-    elif config.eval_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER:
-        test_dataloader_cls = GSgnnLinkPredictionJointTestDataLoader
-    else:
-        raise ValueError('Unknown test negative sampler.'
-            'Supported test negative samplers include '
-            f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
+    test_dataloader_cls = gs.get_builtin_lp_eval_dataloader_class(config)
     val_dataloader = None
     test_dataloader = None
-    if len(train_data.val_idxs) > 0:
+    val_idxs = train_data.get_edge_val_set(config.eval_etype)
+    if len(val_idxs) > 0:
         if config.eval_etypes_negative_dstnode is not None:
-            val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
+            val_dataloader = test_dataloader_cls(train_data, val_idxs,
                 config.eval_batch_size,
                 fixed_edge_dst_negative_field=config.eval_etypes_negative_dstnode,
                 fanout=config.eval_fanout,
-                fixed_test_size=config.fixed_test_size)
+                fixed_test_size=config.fixed_test_size,
+                node_feats=config.node_feat_name,
+                pos_graph_edge_feats=config.lp_edge_weight_for_loss)
         else:
-            val_dataloader = test_dataloader_cls(train_data, train_data.val_idxs,
-                config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout,
-                fixed_test_size=config.fixed_test_size)
-    if len(train_data.test_idxs) > 0:
+            val_dataloader = test_dataloader_cls(train_data, val_idxs,
+                config.eval_batch_size,
+                config.num_negative_edges_eval, config.eval_fanout,
+                fixed_test_size=config.fixed_test_size,
+                node_feats=config.node_feat_name,
+                pos_graph_edge_feats=config.lp_edge_weight_for_loss)
+
+    test_idxs = train_data.get_edge_test_set(config.eval_etype)
+    if len(test_idxs) > 0:
         if config.eval_etypes_negative_dstnode is not None:
-            test_dataloader = test_dataloader_cls(train_data, train_data.test_idxs,
+            test_dataloader = test_dataloader_cls(train_data, test_idxs,
                 config.eval_batch_size,
                 fixed_edge_dst_negative_field=config.eval_etypes_negative_dstnode,
                 fanout=config.eval_fanout,
-                fixed_test_size=config.fixed_test_size)
+                fixed_test_size=config.fixed_test_size,
+                node_feats=config.node_feat_name,
+                pos_graph_edge_feats=config.lp_edge_weight_for_loss)
         else:
-            test_dataloader = test_dataloader_cls(train_data, train_data.test_idxs,
+            test_dataloader = test_dataloader_cls(train_data, test_idxs,
                 config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout,
-                fixed_test_size=config.fixed_test_size)
+                fixed_test_size=config.fixed_test_size,
+                node_feats=config.node_feat_name,
+                pos_graph_edge_feats=config.lp_edge_weight_for_loss)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
@@ -225,6 +173,7 @@ def main(config_args):
         best_model_path = trainer.get_best_model_path()
         # TODO(zhengda) the model path has to be in a shared filesystem.
         model.restore_model(best_model_path)
+        model = model.to(get_device())
         # Preparing input layer for training or inference.
         # The input layer can pre-compute node features in the preparing step if needed.
         # For example pre-compute all BERT embeddings

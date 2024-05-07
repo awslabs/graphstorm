@@ -151,6 +151,17 @@ class GSNodeInputLayer(GSLayer):  # pylint: disable=abstract-method
         """
         return None
 
+    @property
+    def use_wholegraph_sparse_emb(self):
+        """ Whether or not to use WholeGraph to host embeddings for sparse updates.
+
+            Note: By default, a GSNodeInputLayer does not support WholeGraph
+            sparse embedding, unless implemented specifically.
+
+            Note: GSNodeEncoderInputLayer supports WholeGraph sparse embedding.
+        """
+        return False
+
 
 class GSNodeEncoderInputLayer(GSNodeInputLayer):
     """The input encoder layer for all nodes in a heterogeneous graph.
@@ -194,9 +205,9 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
 
         from graphstorm import get_node_feat_size
         from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
-        from graphstorm.dataloading import GSgnnNodeTrainData
+        from graphstorm.dataloading import GSgnnData
 
-        np_data = GSgnnNodeTrainData(...)
+        np_data = GSgnnData(...)
 
         model = GSgnnEdgeModel(alpha_l2norm=0)
         feat_size = get_node_feat_size(np_data.g, 'feat')

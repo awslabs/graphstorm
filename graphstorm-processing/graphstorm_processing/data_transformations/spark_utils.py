@@ -8,6 +8,7 @@ We take some of the latest configuration code from the sagemaker-spark-container
 that only exists for the Python 3.9/Spark 3.2 container
 https://github.com/aws/sagemaker-spark-container/blob/4ef476fd535040f245def3d38c59fe43062e88a9/src/smspark/bootstrapper.py#L375
 """
+
 import logging
 import uuid
 from typing import Tuple, Sequence
@@ -20,7 +21,7 @@ from graphstorm_processing import constants
 try:
     from smspark.bootstrapper import Bootstrapper
 except ImportError:
-    # smspark only exists on the Docker image
+    # smspark only exists on the SageMaker Docker image
     class Bootstrapper:  # type:ignore
         # pylint: disable=all
         def load_processing_job_config(self):
@@ -61,7 +62,7 @@ def create_spark_session(sm_execution: bool, filesystem_type: str) -> SparkSessi
         instance_mem_mb = instance_type_info["MemoryInfo"]["SizeInMiB"]
         instance_cores = instance_type_info["VCpuInfo"]["DefaultVCpus"]
         logging.info(
-            "Detected instance type: %s with " f"total memory: %dM and total cores: %d",
+            "Detected instance type: %s with total memory: %d MiB and total cores: %d",
             instance_type,
             instance_mem_mb,
             instance_cores,
@@ -70,7 +71,7 @@ def create_spark_session(sm_execution: bool, filesystem_type: str) -> SparkSessi
         instance_mem_mb = int(psutil.virtual_memory().total / (1024 * 1024))
         instance_cores = psutil.cpu_count(logical=True)
         logging.warning(
-            "Failed to detect instance type config. " "Found total memory: %dM and total cores: %d",
+            "Failed to detect instance type config. Found total memory: %d MiB and total cores: %d",
             instance_mem_mb,
             instance_cores,
         )
@@ -98,7 +99,7 @@ def create_spark_session(sm_execution: bool, filesystem_type: str) -> SparkSessi
     # Avoid timeout errors due to connection pool starving
     # Allow sending large results to driver
     spark_builder = (
-        SparkSession.builder.appName("GraphlyticsGraphPreloading")
+        SparkSession.builder.appName("GSProcessing")
         .config("spark.hadoop.validateOutputSpecs", "false")
         .config("spark.driver.memory", f"{driver_mem_mb}m")
         .config("spark.driver.memoryOverhead", f"{driver_mem_overhead_mb}m")

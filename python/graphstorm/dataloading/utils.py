@@ -21,7 +21,7 @@ import dgl
 import torch as th
 import torch.distributed as dist
 
-from ..utils import is_distributed
+from ..utils import is_distributed, get_device
 
 def trim_data(nids, device):
     """ In distributed traning scenario, we need to make sure that
@@ -74,8 +74,7 @@ def dist_sum(size):
         return size
 
     if th.cuda.is_available():
-        dev_id = th.cuda.current_device()
-        size = th.tensor([size], device=th.device(dev_id))
+        size = th.tensor([size], device=get_device())
     else:
         size = th.tensor([size], device=th.device("cpu"))
     dist.all_reduce(size, dist.ReduceOp.SUM)
@@ -137,3 +136,53 @@ def flip_node_mask(dist_tensor, indices):
         part_policy=dist_tensor.part_policy)
     flipped_dist_tensor[indices] = 1 - dist_tensor[indices]
     return flipped_dist_tensor
+
+def verify_label_field(label_field):
+    """ Verify the format of label fields
+
+        Parameters
+        ----------
+        label_field: str or dict of str
+    """
+    assert label_field is not None and \
+        (isinstance(label_field, str) or \
+        (isinstance(label_field, dict) and \
+            isinstance(list(label_field.values())[0], str))), \
+        "Label field must be provided as a string or dict of string, " \
+        f"but get {label_field}"
+
+def verify_node_feat_fields(node_feats):
+    """ Verify the format of node feature fields
+
+        Parameters
+        ----------
+        node_feats: str, or dist of list of str
+            str: All the nodes have the same feature name.
+            list of string: All the nodes have the same list of features.
+            dist of list of string: Each node type have different set of node features.
+    """
+    assert node_feats is None or \
+            isinstance(node_feats, str) or \
+            (isinstance(node_feats, dict) and \
+                isinstance(list(node_feats.values())[0], list) and \
+                isinstance(list(node_feats.values())[0][0], str)), \
+                "Node features must be a string, " \
+                f"or a dict of list of string, but get {node_feats}."
+
+def verify_edge_feat_fields(edge_feats):
+    """ Verify the format of edge feature fields
+
+        Parameters
+        ----------
+        edge_feats: str, or dist of list of str
+            str: All the edges have the same feature name.
+            list of string: All the edges have the same list of features.
+            dist of list of string: Each edge type have different set of edge features.
+    """
+    assert edge_feats is None or \
+            isinstance(edge_feats, str) or \
+            (isinstance(edge_feats, dict) and \
+                isinstance(list(edge_feats.values())[0], list) and \
+                isinstance(list(edge_feats.values())[0][0], str)), \
+                "Edge features must be a string, " \
+                f"or a dict of list of string, but get {edge_feats}."

@@ -15,7 +15,6 @@
 
     Inference framework.
 """
-import torch as th
 from ..tracker import GSSageMakerTaskTracker
 
 class GSInferrer():
@@ -42,7 +41,7 @@ class GSInferrer():
         device :
             The device for inferrer.
         """
-        self._device = th.device(device)
+        self._device = device
         self._model = self._model.to(self.device)
 
     def setup_task_tracker(self, task_tracker):
@@ -94,7 +93,7 @@ class GSInferrer():
         best_val_score = self.evaluator.best_val_score
         best_test_score = self.evaluator.best_test_score
         best_iter_num = self.evaluator.best_iter_num
-        self.task_tracker.log_iter_metrics(self.evaluator.metric,
+        self.task_tracker.log_iter_metrics(self.evaluator.metric_list,
                                            train_score=train_score,
                                            val_score=val_score,
                                            test_score=test_score,

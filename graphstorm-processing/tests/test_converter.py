@@ -53,7 +53,7 @@ def test_try_read_file_with_wildcard(
 
 
 def test_try_read_unsupported_feature(converter: GConstructConfigConverter, node_dict: dict):
-    """We currently only support no-op and numerical features, so should error out otherwise."""
+    """We should test about giving unknown feature transformation type."""
     node_dict["nodes"][0]["features"] = [
         {
             "feature_col": ["paper_title"],
@@ -65,7 +65,62 @@ def test_try_read_unsupported_feature(converter: GConstructConfigConverter, node
         _ = converter.convert_nodes(node_dict["nodes"])
 
 
-def test_read_node_gconstruct(converter: GConstructConfigConverter, node_dict: dict):
+@pytest.mark.parametrize("transform", ["max_min_norm", "rank_gauss"])
+@pytest.mark.parametrize("out_dtype", ["float16", "float32", "float64"])
+def test_try_convert_out_dtype(
+    converter: GConstructConfigConverter, node_dict: dict, transform: str, out_dtype: str
+):
+    node_dict["nodes"][0]["features"] = [
+        {
+            "feature_col": ["paper_title"],
+            "transform": {"name": transform, "out_dtype": out_dtype},
+        }
+    ]
+
+    normalizer_dict = {"max_min_norm": "min-max", "rank_gauss": "rank-gauss"}
+    res = converter.convert_nodes(node_dict["nodes"])[0]
+    if out_dtype == "float32":
+        assert res.features == [
+            {
+                "column": "paper_title",
+                "transformation": {
+                    "kwargs": {
+                        "imputer": "none",
+                        "normalizer": normalizer_dict[transform],
+                        "out_dtype": "float32",
+                    },
+                    "name": "numerical",
+                },
+            }
+        ]
+    elif out_dtype == "float64":
+        assert res.features == [
+            {
+                "column": "paper_title",
+                "transformation": {
+                    "kwargs": {
+                        "imputer": "none",
+                        "normalizer": normalizer_dict[transform],
+                        "out_dtype": "float64",
+                    },
+                    "name": "numerical",
+                },
+            }
+        ]
+    elif out_dtype == "float16":
+        assert res.features == [
+            {
+                "column": "paper_title",
+                "transformation": {
+                    "kwargs": {"imputer": "none", "normalizer": normalizer_dict[transform]},
+                    "name": "numerical",
+                },
+            }
+        ]
+
+
+@pytest.mark.parametrize("col_name", ["citation_time", ["citation_time"]])
+def test_read_node_gconstruct(converter: GConstructConfigConverter, node_dict: dict, col_name: str):
     """Multiple test cases for GConstruct node conversion"""
     # test case with only necessary components
     node_config = converter.convert_nodes(node_dict["nodes"])[0]
@@ -84,7 +139,7 @@ def test_read_node_gconstruct(converter: GConstructConfigConverter, node_dict: d
             "format": {"name": "parquet"},
             "files": ["/tmp/acm_raw/nodes/paper.parquet"],
             "node_id_col": "node_id",
-            "features": [{"feature_col": ["citation_time"], "feature_name": "feat"}],
+            "features": [{"feature_col": col_name, "feature_name": "feat"}],
             "labels": [
                 {"label_col": "label", "task_type": "classification", "split_pct": [0.8, 0.1, 0.1]}
             ],
@@ -112,7 +167,8 @@ def test_read_node_gconstruct(converter: GConstructConfigConverter, node_dict: d
     ]
 
 
-def test_read_edge_gconstruct(converter: GConstructConfigConverter):
+@pytest.mark.parametrize("col_name", ["author", ["author"]])
+def test_read_edge_gconstruct(converter: GConstructConfigConverter, col_name):
     """Multiple test cases for GConstruct edges conversion"""
     text_input: dict[str, list[dict]] = {"edges": [{}]}
     # nodes only with required elements
@@ -147,7 +203,7 @@ def test_read_edge_gconstruct(converter: GConstructConfigConverter):
             "files": ["/tmp/acm_raw/edges/author_writing_paper.parquet"],
             "source_id_col": "~from",
             "dest_id_col": "~to",
-            "features": [{"feature_col": ["author"], "feature_name": "feat"}],
+            "features": [{"feature_col": col_name, "feature_name": "feat"}],
             "labels": [
                 {
                     "label_col": "edge_col",

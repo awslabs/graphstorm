@@ -141,6 +141,11 @@ def split_data(data, num):
 
 write_index_json(node_data1['id'][:100], os.path.join(in_dir, 'node1_train.json'))
 write_index_json(node_data1['id'][100:200], os.path.join(in_dir, 'node1_valid.json'))
+
+paired_data = [[int(edge_data1["src"][i]), int(edge_data1["dst"][i])] for i in range(140)]
+write_index_json(paired_data[:100], os.path.join(in_dir, "edge1_train.json"))
+write_index_json(paired_data[100: 120], os.path.join(in_dir, "edge1_valid.json"))
+write_index_json(paired_data[120: 140], os.path.join(in_dir, "edge1_test.json"))
 for i, node_data in enumerate(split_data(node_data1, 5)):
     write_data_parquet(node_data, os.path.join(in_dir, f'node_data1_{i}.parquet'))
 write_data_hdf5(node_data1_2, os.path.join(in_dir, f'node_data1_2.hdf5'))
@@ -316,6 +321,36 @@ edge_conf = [
         ],
     },
     {
+        "source_id_col": "src",
+        "dest_id_col": "dst",
+        "relation": ("node1", "relation_custom", "node2"),
+        "format": {"name": "csv"},
+        "files": os.path.join(in_dir, "edge_data1_*.csv"),
+        "labels": [
+            {
+                "task_type": "link_prediction",
+                "custom_split_filenames": {"train": os.path.join(in_dir, 'edge1_train.json'),
+                                           "valid": os.path.join(in_dir, 'edge1_valid.json'),
+                                           "test": os.path.join(in_dir, 'edge1_test.json')},
+            },
+        ],
+    },
+    {
+        "source_id_col": "src",
+        "dest_id_col": "dst",
+        "relation": ("node1", "relation_custom_multi", "node2"),
+        "format": {"name": "csv"},
+        "files": os.path.join(in_dir, "edge_data1_*.csv"),
+        "labels": [
+            {
+                "task_type": "link_prediction",
+                "custom_split_filenames": {"train": os.path.join(in_dir, 'edge1_train.json'),
+                                           "valid": os.path.join(in_dir, 'edge1_valid.json'),
+                                           "test": os.path.join(in_dir, 'edge1_test.json')},
+            },
+        ],
+    },
+    {
         "relation": ("node1", "relation1", "node2"),
         "format": {"name": "hdf5"},
         "files": os.path.join(in_dir, "edge_data1_2.hdf5"),
@@ -420,3 +455,111 @@ transform_conf = {
     "edges": edge_conf,
 }
 json.dump(transform_conf, open(os.path.join(in_dir, 'test_data_transform.conf'), 'w'), indent=4)
+
+node_conf = [
+    {
+        "node_type": "node1",
+        "format": {"name": "hdf5"},
+        "files": os.path.join(in_dir, "node_data1_2.hdf5"),
+        "features": [
+            {
+                "feature_col": "data",
+                "feature_name": "feat1",
+            }
+        ]
+    },
+    {
+        "node_id_col": "id",
+        "node_type": "node1",
+        "format": {"name": "parquet"},
+        "files": os.path.join(in_dir, "node_data1_*.parquet"),
+        "features": [
+            {
+                "feature_col": "data",
+                "feature_name": "feat",
+            }
+        ],
+        "labels":       [
+            {
+                "label_col":    "label",
+                "task_type":    "classification",
+                "custom_split_filenames": {"train": os.path.join(in_dir, 'node1_train.json'),
+                                           "valid": os.path.join(in_dir, 'node1_valid.json')},
+                "label_stats_type": "frequency_cnt",
+                "mask_field_names": ["train_m", "val_m", "test_m"]
+            },
+        ],
+    },
+    {
+        "node_id_col": "id",
+        "node_type": "node2",
+        "format": {"name": "parquet"},
+        "files": os.path.join(in_dir, "node_data2_*.parquet"),
+        "features": [
+            {
+                "feature_col": "data",
+                "feature_name": "category",
+                "transform": {"name": "to_categorical"},
+            },
+        ],
+    }
+]
+
+edge_conf = [
+    {
+        "source_id_col":    "src",
+        "dest_id_col":      "dst",
+        "relation":         ("node1", "relation1", "node2"),
+        "format":           {"name": "csv"},
+        "files":            os.path.join(in_dir, "edge_data1_*.csv"),
+        "labels":       [
+            {
+                "label_col":    "label",
+                "task_type":    "classification",
+                "split_pct":   [0.8, 0.2, 0.0],
+                "label_stats_type": "frequency_cnt",
+                "mask_field_names": ["train_m", "val_m", "test_m"]
+            },
+        ],
+    },
+    {
+        "source_id_col": "src",
+        "dest_id_col": "dst",
+        "relation": ("node1", "relation_custom", "node2"),
+        "format": {"name": "csv"},
+        "files": os.path.join(in_dir, "edge_data1_*.csv"),
+        "labels": [
+            {
+                "task_type": "link_prediction",
+                "custom_split_filenames": {"train": os.path.join(in_dir, 'edge1_train.json'),
+                                           "valid": os.path.join(in_dir, 'edge1_valid.json'),
+                                           "test": os.path.join(in_dir, 'edge1_test.json')},
+                "mask_field_names": ["train_m", "val_m", "test_m"]
+            },
+        ],
+    },
+    {
+
+        "relation": ("node1", "relation1", "node2"),
+        "format": {"name": "hdf5"},
+        "files": os.path.join(in_dir, "edge_data1_2.hdf5"),
+        "features": [
+            {
+                "feature_col": "float1",
+                "feature_name": "feat1",
+            },
+            {
+                "feature_col": "float1_max_min",
+                "feature_name": "max_min_norm",
+                "transform": {"name": 'max_min_norm'}
+            }
+        ]
+    }
+]
+
+transform_conf = {
+    "nodes": node_conf,
+    "edges": edge_conf,
+}
+
+json.dump(transform_conf, open(os.path.join(in_dir, 'test_data_transform_custom_mask.conf'), 'w'), indent=4)

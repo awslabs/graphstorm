@@ -43,9 +43,9 @@ job, followed by the re-partitioning job, both on SageMaker:
     CONFIG_FILE="gconstruct-config.json"
     INSTANCE_COUNT="2"
     INSTANCE_TYPE="ml.t3.xlarge"
-    NUM_FILES="4"
+    NUM_FILES="-1"
 
-    IMAGE_URI="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/graphstorm-processing-sagemaker:0.2.1-x86_64"
+    IMAGE_URI="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/graphstorm-processing-sagemaker:latest-x86_64"
     ROLE="arn:aws:iam::${ACCOUNT}:role/service-role/${SAGEMAKER_ROLE_NAME}"
 
     OUTPUT_PREFIX="s3://${OUTPUT_BUCKET}/gsprocessing/sagemaker/${GRAPH_NAME}/${INSTANCE_COUNT}x-${INSTANCE_TYPE}-${NUM_FILES}files/"
@@ -62,20 +62,31 @@ job, followed by the re-partitioning job, both on SageMaker:
         --instance-type ${INSTANCE_TYPE} \
         --job-name "${GRAPH_NAME}-${INSTANCE_COUNT}x-${INSTANCE_TYPE//./-}-${NUM_FILES}files" \
         --num-output-files ${NUM_FILES} \
+        --do-repartition True \
         --wait-for-job
 
-    # This will run the follow-up re-partitioning job
+Launch the gs-repartition job on Amazon SageMaker
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+In the above we have set `--do-repartition True` to perform the re-partition step on the Spark
+leader instance, since we know each individual feature and the edge structure are small
+enough to fit in the memory of the Spark leader.
+For large graphs you will
+want to launch that step as a separate job on an instance with more memory to avoid memory errors.
+`ml.r5` instances should allow you to re-partition graph data with billions of nodes and edges.
+For more details on the re-partitioning step see :doc:`row-count-alignment`.
+
+To run the re-partition job as a separate job use:
+
+.. code-block:: bash
+
+    # Ensure the bash variables are as set as above.
+    # This will only run the follow-up re-partitioning job on a single instance
     python scripts/run_repartitioning.py --s3-input-prefix ${OUTPUT_PREFIX} \
         --role ${ROLE} --image ${IMAGE_URI}  --config-filename "metadata.json" \
         --instance-type ${INSTANCE_TYPE} --wait-for-job
 
-
-.. note::
-
-    The re-partitioning job runs on a single instance, so for large graphs you will
-    want to scale up to an instance with more memory to avoid memory errors. `ml.r5` instances
-    should allow you to re-partition graph data with billions of nodes and edges.
-    For more details on the re-partitioning step see ::doc:`row-count-alignment`.
 
 The ``--num-output-files`` parameter
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -84,10 +95,11 @@ You can see that we provided a parameter named
 ``--num-output-files`` to ``run_distributed_processing.py``. This is an
 important parameter, as it provides a hint to set the parallelism for Spark.
 
-It can safely be skipped and let Spark decide the proper value based on the cluster's
-instance type and count. If setting it yourself a good value to use is
+We recommend setting this to `-1` to let Spark decide the proper value based on the cluster's
+vCPU count. If setting it yourself a good value to use is
 ``num_instances * num_cores_per_instance * 2``, which will ensure good
-utilization of the cluster resources.
+utilization of the cluster resources. For EMR serverless, equivalently set
+to ``num_executors * num_cores_per_executor * 2``
 
 
 Examine the output
@@ -104,7 +116,7 @@ in :ref:`gsp-examining-output`.
 
                                PRE edges/
                                PRE node_data/
-                               PRE node_id_mappings/
+                               PRE raw_id_mappings/
     2023-08-05 00:47:36        804 launch_arguments.json
     2023-08-05 00:47:36      11914 metadata.json
     2023-08-05 00:47:37        545 perf_counters.json

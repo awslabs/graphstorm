@@ -45,8 +45,11 @@ Optional:
     Number of EC2 instances to use for the processing job. (Default: 2)
 --instance-type: str
     EC2 instance type for the processing job. (Default: 'ml.r5.4xlarge')
---add-reverse-edges: bool
-    When set to True, will create reverse edges for every edge type. (Default: True)
+--add-reverse-edges: str
+    When set to "True", will create reverse edges for every edge type. (Default: "True")
+--do-repartition: str
+    When set to "True", will repartition the graph files on the leader node if needed.
+    (Default: "True")
 --num-output-files: int
     Number of output files to generate. If not specified, the number of output files
     will be determined by Spark.
@@ -65,6 +68,7 @@ Optional:
     --sm-estimator-parameters \"volume_size=100 subnets=['subnet-123','subnet-345']
     security_group_ids=['sg-1234','sg-3456']\"
 """
+
 import argparse
 import logging
 from pathlib import Path
@@ -101,6 +105,12 @@ def parse_args() -> argparse.Namespace:
         type=lambda x: (str(x).lower() in ["true", "1"]),
         default=True,
         help="When set to True, will create reverse edges for every edge type.",
+    )
+    parser.add_argument(
+        "--do-repartition",
+        type=lambda x: (str(x).lower() in ["true", "1"]),
+        default=False,
+        help="When set to True, will re-partition the graph data files on the Spark leader.",
     )
     parser.add_argument(
         "--num-output-files",
@@ -248,6 +258,8 @@ if __name__ == "__main__":
         str(args.num_output_files),
         "--add-reverse-edges",
         "True" if args.add_reverse_edges else "False",
+        "--do-repartition",
+        "True" if args.do_repartition else "False",
         "--log-level",
         args.container_log_level,
     ]

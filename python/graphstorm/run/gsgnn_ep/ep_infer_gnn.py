@@ -20,9 +20,9 @@ import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnEdgePredictionInferrer
-from graphstorm.eval import GSgnnAccEvaluator, GSgnnRegressionEvaluator
-from graphstorm.dataloading import GSgnnEdgeInferData, GSgnnEdgeDataLoader
-from graphstorm.utils import setup_device, get_lm_ntypes
+from graphstorm.eval import GSgnnClassificationEvaluator, GSgnnRegressionEvaluator
+from graphstorm.dataloading import GSgnnData, GSgnnEdgeDataLoader
+from graphstorm.utils import get_device, get_lm_ntypes, use_wholegraph
 
 def get_evaluator(config): # pylint: disable=unused-argument
     """ Get evaluator class
@@ -31,9 +31,9 @@ def get_evaluator(config): # pylint: disable=unused-argument
         return GSgnnRegressionEvaluator(config.eval_frequency,
                                         config.eval_metric)
     elif config.task_type == 'edge_classification':
-        return GSgnnAccEvaluator(config.eval_frequency,
-                                 config.eval_metric,
-                                 config.multilabel)
+        return GSgnnClassificationEvaluator(config.eval_frequency,
+                                            config.eval_metric,
+                                            config.multilabel)
     else:
         raise AttributeError(config.task_type + ' is not supported.')
 
@@ -43,41 +43,43 @@ def main(config_args):
     config = GSConfig(config_args)
     config.verify_arguments(False)
 
-    gs.initialize(ip_config=config.ip_config, backend=config.backend)
-    device = setup_device(config.local_rank)
+    use_wg_feats = use_wholegraph(config.part_config)
+    gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  local_rank=config.local_rank,
+                  use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
 
-    infer_data = GSgnnEdgeInferData(config.graph_name,
-                                    config.part_config,
-                                    eval_etypes=config.target_etype,
-                                    node_feat_field=config.node_feat_name,
-                                    label_field=config.label_field,
-                                    decoder_edge_feat=config.decoder_edge_feat,
-                                    lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
+    infer_data = GSgnnData(config.part_config,
+                           node_feat_field=config.node_feat_name,
+                           edge_feat_field=config.edge_feat_name,
+                           lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     model = gs.create_builtin_edge_gnn_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
     # TODO(zhengda) we should use a different way to get rank.
     infer = GSgnnEdgePredictionInferrer(model)
-    infer.setup_device(device=device)
+    infer.setup_device(device=get_device())
     if not config.no_validation:
+        target_idxs = infer_data.get_edge_test_set(config.target_etype)
         evaluator = get_evaluator(config)
         infer.setup_evaluator(evaluator)
-        assert len(infer_data.test_idxs) > 0, \
+        assert len(target_idxs) > 0, \
             "There is not test data for evaluation. " \
             "You can use --no-validation true to avoid do testing"
-        target_idxs = infer_data.test_idxs
     else:
-        assert len(infer_data.infer_idxs) > 0, \
+        target_idxs = infer_data.get_edge_infer_set(config.target_etype)
+        assert len(target_idxs) > 0, \
             f"To do inference on {config.target_etype} without doing evaluation, " \
             "you should not define test_mask as its edge feature. " \
             "GraphStorm will do inference on the whole edge set. "
-        target_idxs = infer_data.infer_idxs
     tracker = gs.create_builtin_task_tracker(config)
     infer.setup_task_tracker(tracker)
     fanout = config.eval_fanout if config.use_mini_batch_infer else []
     dataloader = GSgnnEdgeDataLoader(infer_data, target_idxs, fanout=fanout,
                                      batch_size=config.eval_batch_size,
-                                     device=device, train_task=False,
+                                     node_feats=config.node_feat_name,
+                                     label_field=config.label_field,
+                                     decoder_edge_feats=config.decoder_edge_feat,
+                                     train_task=False,
                                      reverse_edge_types_map=config.reverse_edge_types_map,
                                      remove_target_edge_type=config.remove_target_edge_type,
                                      construct_feat_ntype=config.construct_feat_ntype,

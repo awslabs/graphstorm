@@ -43,20 +43,22 @@ Then, clone GraphStorm source code, and build a GraphStorm SageMaker compatible 
 
     cd /path-to-graphstorm/docker/
 
-    bash /path-to-graphstorm/docker/build_docker_sagemaker.sh /path-to-graphstorm/ <DOCKER_TYPE> <DOCKER_NAME> <DOCKER_TAG>
+    bash /path-to-graphstorm/docker/build_docker_sagemaker.sh /path-to-graphstorm/ <DEVICE_TYPE> <IMAGE_NAME> <IMAGE_TAG>
 
 The ``build_docker_sagemaker.sh`` script takes four arguments:
 
 1. **path-to-graphstorm** (**required**), is the absolute path of the ``graphstorm`` folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
-2. **DOCKER_TYPE** (optional), is the docker type of the to-be built Docker image. There are two options: ``cpu`` for building CPU-compatible images, and ``gpu`` for building Nvidia GPU-compatible images. Default is ``gpu``.
-3. **DOCKER_NAME** (optional), is the assigned name of the to-be built Docker image. Default is ``graphstorm``.
+2. **DEVICE_TYPE** (optional), is the intended device type of the to-be built Docker image. There are two options: ``cpu`` for building CPU-compatible images, and ``gpu`` for building Nvidia GPU-compatible images. Default is ``gpu``.
+3. **IMAGE_NAME** (optional), is the assigned name of the to-be built Docker image. Default is ``graphstorm``.
 
 .. warning::
-    In order to upload the GraphStorm SageMaker Docker image to Amazon ECR, users need to define the <DOCKER_NAME> to include the ECR URI string, **<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/**, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm``.
+    In order to upload the GraphStorm SageMaker Docker image to Amazon ECR, users need to define the <IMAGE_NAME> to include the ECR URI string, **<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/**, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm``.
 
-4. **DOCKER_TAG** (optional), is the assigned tag name of the to-be built Docker image. Default is ``sm``.
+4. **IMAGE_TAG** (optional), is the assigned tag name of the to-be built Docker image. Default is ``sm-<DEVICE_TYPE>``,
+   that is, ``sm-gpu`` for GPU images, ``sm-cpu`` for CPU images.
 
-Once the ``build_docker_sagemaker.sh`` command completes successfully, there will be a Docker image, named ``<DOCKER_NAME>:<DOCKER_TAG>``, such as ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm``, in the local repository, which could be listed by running:
+Once the ``build_docker_sagemaker.sh`` command completes successfully, there will be a Docker image, named ``<IMAGE_NAME>:<IMAGE_TAG>``,
+such as ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm-gpu``, in the local repository, which could be listed by running:
 
 .. code-block:: bash
 
@@ -76,15 +78,15 @@ The following command will authenticate the user account to access to user's ECR
 
 Please replace the `<REGION>` and `<AWS_ACCOUNT_ID>` with your own account information and be consistent with the values used in the **Step 1**.
 
-In addition, users need to create an ECR repository at the specified `<REGION>` with the name as `<DOCKER_NAME>` **WITHOUT** the ECR URI string, e.g., ``graphstorm``.
+In addition, users need to create an ECR repository at the specified `<REGION>` with the name as `<IMAGE_NAME>` **WITHOUT** the ECR URI string, e.g., ``graphstorm``.
 
 And then use the below command to push the built GraphStorm Docker image to users' own ECR repository.
 
 .. code-block:: bash
 
-    docker push <DOCKER_NAME>:<DOCKER_TAG>
+    docker push <IMAGE_NAME>:<IMAGE_TAG>
 
-Please replace the `<DOCKER_NAME>` and `<DOCKER_TAG>` with the actual Docker image name and tag, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm``.
+Please replace the `<IMAGE_NAME>` and `<IMAGE_TAG>` with the actual Docker image name and tag, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm-gpu``.
 
 Run GraphStorm on SageMaker
 ----------------------------
@@ -154,7 +156,7 @@ Users can use the following commands to launch a GraphStorm Link Prediction trai
             --backend gloo \
             --batch-size 128
 
-Please replace `<AMAZON_ECR_IMAGE_URI>` with the `<DOCKER_NAME>:<DOCKER_TAG>` that are uploaded in the Step 2, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm``, replace the `<REGION>` with the region where ECR image repository is located, e.g., ``us-east-1``, and replace the `<ROLE_ARN>` with your AWS account ARN that has SageMaker execution role, e.g., ``"arn:aws:iam::<ACCOUNT_ID>:role/service-role/AmazonSageMaker-ExecutionRole-20220627T143571"``.
+Please replace `<AMAZON_ECR_IMAGE_URI>` with the `<IMAGE_NAME>:<IMAGE_TAG>` that are uploaded in the Step 2, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm``, replace the `<REGION>` with the region where ECR image repository is located, e.g., ``us-east-1``, and replace the `<ROLE_ARN>` with your AWS account ARN that has SageMaker execution role, e.g., ``"arn:aws:iam::<ACCOUNT_ID>:role/service-role/AmazonSageMaker-ExecutionRole-20220627T143571"``.
 
 Because we are using a three-partition OGB-MAG graph, we need to set the ``--instance-count`` to 3 in this command.
 
@@ -184,6 +186,7 @@ Users can use the following command to launch a GraphStorm Link Prediction infer
             --graph-data-s3 s3://<PATH_TO_DATA>/ogbn_mag_lp_3p \
             --yaml-s3 s3://<PATH_TO_TRAINING_CONFIG>/mag_lp.yaml \
             --model-artifact-s3 s3://<PATH_TO_SAVE_TRAINED_MODEL>/ \
+            --raw-node-mappings-s3 s3://<PATH_TO_DATA>/ogbn_mag_lp_3p/raw_id_mappings \
             --output-emb-s3 s3://<PATH_TO_SAVE_GENERATED_NODE_EMBEDDING>/ \
             --output-prediction-s3 s3://<PATH_TO_SAVE_PREDICTION_RESULTS> \
             --graph-name ogbn-mag \
@@ -196,7 +199,8 @@ Users can use the following command to launch a GraphStorm Link Prediction infer
 
 .. note::
 
-    Diffferent from the training command's argument, in the inference command, the value of the ``--model-artifact-s3`` argument needs to be path to a saved model. By default, it is stored under an S3 path with specific training epoch or epoch plus iteration number, e.g., ``s3://models/epoch-0-iter-999``, where the trained model artifacts were saved.
+    * Different from the training command's argument, in the inference command, the value of the ``--model-artifact-s3`` argument needs to be path to a saved model. By default, it is stored under an S3 path with specific training epoch or epoch plus iteration number, e.g., ``s3://models/epoch-0-iter-999``, where the trained model artifacts were saved.
+    * If ``--raw-node-mappings-s3`` is not provided, it will be default to the ``{graph-data-s3}/raw_id_mappings``. The expected graph mappings files should be ``node_mapping.pt``, ``edge_mapping.pt`` and parquet files under ``raw_id_mappings``. They record the mapping between original node and edge ids in the raw data files and the ids of nodes and edges in the Graph Node ID space. These files are created during graph construction by either GConstruct or GSProcessing.
 
 As the outcomes of the inference command, the generated node embeddings will be uploaded to ``s3://<PATH_TO_SAVE_GENERATED_NODE_EMBEDDING>/``. For node classification/regression or edge classification/regression tasks, users can use ``--output-prediction-s3`` to specify the saving locations of prediction results.
 

@@ -18,8 +18,8 @@
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
-from graphstorm.utils import rt_profiler, sys_tracker, setup_device, use_wholegraph
-from graphstorm.dataloading import (GSgnnEdgeInferData, GSgnnNodeInferData)
+from graphstorm.utils import rt_profiler, sys_tracker, get_device, use_wholegraph
+from graphstorm.dataloading import GSgnnData
 from graphstorm.config import  (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_NODE_REGRESSION,
                                 BUILTIN_TASK_EDGE_CLASSIFICATION,
@@ -36,34 +36,25 @@ def main(config_args):
 
     use_wg_feats = use_wholegraph(config.part_config)
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
-                  use_wholegraph=config.use_wholegraph_sparse_emb or use_wg_feats)
+                  local_rank=config.local_rank,
+                  use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
-    device = setup_device(config.local_rank)
     tracker = gs.create_builtin_task_tracker(config)
     if gs.get_rank() == 0:
         tracker.log_params(config.__dict__)
 
-    if config.task_type == BUILTIN_TASK_LINK_PREDICTION:
-        input_data = GSgnnEdgeInferData(config.graph_name,
-                                        config.part_config,
-                                        eval_etypes=config.eval_etype,
-                                        node_feat_field=config.node_feat_name,
-                                        lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
-    elif config.task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
-        input_data = GSgnnNodeInferData(config.graph_name,
-                                        config.part_config,
-                                        eval_ntypes=config.target_ntype,
-                                        node_feat_field=config.node_feat_name,
-                                        lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
-    elif config.task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
-        input_data = GSgnnEdgeInferData(config.graph_name,
-                                        config.part_config,
-                                        eval_etypes=config.target_etype,
-                                        node_feat_field=config.node_feat_name,
-                                        lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
-    else:
-        raise TypeError("Not supported for task type: ", config.task_type)
+    assert config.task_type in [BUILTIN_TASK_LINK_PREDICTION,
+                                BUILTIN_TASK_NODE_REGRESSION,
+                                BUILTIN_TASK_NODE_CLASSIFICATION,
+                                BUILTIN_TASK_EDGE_CLASSIFICATION,
+                                BUILTIN_TASK_EDGE_REGRESSION], \
+        f"Not supported for task type: {config.task_type}"
+
+    input_data = GSgnnData(config.part_config,
+                           node_feat_field=config.node_feat_name,
+                           edge_feat_field=config.edge_feat_name,
+                           lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
 
     # assert the setting for the graphstorm embedding generation.
     assert config.save_embed_path is not None, \
@@ -85,9 +76,25 @@ def main(config_args):
 
     # start to infer
     emb_generator = GSgnnEmbGenInferer(model)
-    emb_generator.setup_device(device=device)
+    emb_generator.setup_device(device=get_device())
 
-    emb_generator.infer(input_data, config.task_type,
+    task_type = config.task_type
+    # infer ntypes must be sorted for node embedding saving
+    if task_type == BUILTIN_TASK_LINK_PREDICTION:
+        infer_ntypes = None
+    elif task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
+        # TODO(xiangsx): Support multi-task on multiple node types.
+        infer_ntypes = [config.target_ntype]
+    elif task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
+        infer_ntypes = set()
+        for etype in config.target_etype:
+            infer_ntypes.add(etype[0])
+            infer_ntypes.add(etype[2])
+        infer_ntypes = sorted(list(infer_ntypes))
+    else:
+        raise TypeError("Not supported for task type: ", task_type)
+
+    emb_generator.infer(input_data, infer_ntypes,
                 save_embed_path=config.save_embed_path,
                 eval_fanout=config.eval_fanout,
                 use_mini_batch_infer=config.use_mini_batch_infer,

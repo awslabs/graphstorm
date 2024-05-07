@@ -73,13 +73,14 @@ class GSgnnNodePredictionInferrer(GSInferrer):
         """
         do_eval = self.evaluator is not None
         if do_eval:
-            assert loader.data.labels is not None, \
+            assert loader.label_field is not None, \
                 "A label field must be provided for node classification " \
                 "or regression inference when evaluation is required."
 
         sys_tracker.check('start inferencing')
         self._model.eval()
-        ntypes = loader.data.eval_ntypes
+        # get the list of ntypes for inference.
+        infer_ntypes = list(loader.target_nidx.keys())
 
         if use_mini_batch_infer:
             res = node_mini_batch_gnn_predict(self._model, loader, return_proba,
@@ -98,7 +99,7 @@ class GSgnnNodePredictionInferrer(GSInferrer):
             if save_embed_path is not None:
                 # Only embeddings of the target nodes will be saved.
                 embs = {ntype: embs[ntype][loader.target_nidx[ntype]] \
-                        for ntype in ntypes}
+                        for ntype in infer_ntypes}
             else:
                 # release embs
                 del embs
@@ -107,7 +108,7 @@ class GSgnnNodePredictionInferrer(GSInferrer):
         # do evaluation first
         if do_eval:
             # iterate all the target ntypes
-            for ntype in ntypes:
+            for ntype in infer_ntypes:
                 pred = preds[ntype]
                 label = labels[ntype]
                 test_start = time.time()
@@ -123,16 +124,16 @@ class GSgnnNodePredictionInferrer(GSInferrer):
         g = loader.data.g
         if save_embed_path is not None:
             # We are going to save the node embeddings of loader.target_nidx[ntype]
-            nid_shuffler = NodeIDShuffler(g, node_id_mapping_file, ntypes) \
+            nid_shuffler = NodeIDShuffler(g, node_id_mapping_file, infer_ntypes) \
                 if node_id_mapping_file else None
             shuffled_embs = {}
-            for ntype in ntypes:
+            for ntype in infer_ntypes:
                 if get_rank() == 0:
                     logging.info("save embeddings pf %s to %s", ntype, save_embed_path)
 
                 # only save embeddings of target_nidx
                 assert ntype in embs, \
-                    f"{ntype} is not in the set of evaluation ntypes {ntypes}"
+                    f"{ntype} is not in the set of evaluation ntypes {infer_ntypes}"
                 emb_nids = loader.target_nidx[ntype]
 
                 if node_id_mapping_file is not None:
@@ -150,8 +151,8 @@ class GSgnnNodePredictionInferrer(GSInferrer):
                     if node_id_mapping_file else None
             shuffled_preds = {}
             for ntype, pred in preds.items():
-                assert ntype in ntypes, \
-                    f"{ntype} is not in the set of evaluation ntypes {loader.data.eval_ntypes}"
+                assert ntype in infer_ntypes, \
+                    f"{ntype} is not in the set of evaluation ntypes {infer_ntypes}"
 
                 pred_nids = loader.target_nidx[ntype]
                 if node_id_mapping_file is not None:

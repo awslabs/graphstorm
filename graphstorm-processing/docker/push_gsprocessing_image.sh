@@ -14,10 +14,10 @@ Script description here.
 Available options:
 
 -h, --help          Print this help and exit
--x, --verbose       Print script debug info
+-x, --verbose       Print script debug info (set -x)
 -e, --environment   Image execution environment. Must be one of 'emr-serverless' or 'sagemaker'. Required.
 -c, --architecture  Image architecture. Must be one of 'x86_64' or 'arm64'. Default is 'x86_64'.
--i, --image         Docker image name, default is 'graphstorm-processing'.
+-i, --image         Docker image name, default is 'graphstorm-processing-\${environment}'.
 -v, --version       Docker version tag, default is the library's current version (`poetry version --short`)
 -s, --suffix        Suffix for the image tag, can be used to push custom image tags. Default is "".
 -r, --region        AWS Region to which we'll push the image. By default will get from aws-cli configuration.
@@ -98,27 +98,25 @@ cleanup() {
   # script cleanup here
 }
 
-parse_params "$@"
+parse_params "${@}"
 
-if [[ ${EXEC_ENV} == "sagemaker" || ${EXEC_ENV} == "emr-serverless" ]]; then
+if [[ ${EXEC_ENV} == "sagemaker" || ${EXEC_ENV} == "emr-serverless" || ${EXEC_ENV} == "emr" ]]; then
     :  # Do nothing
 else
     die "--environment parameter needs to be one of 'emr', 'emr-serverless' or 'sagemaker', got ${EXEC_ENV}"
 fi
 
+TAG="${VERSION}-${ARCH}${SUFFIX}"
+LATEST_TAG="latest-${ARCH}${SUFFIX}"
+IMAGE_WITH_ENV="${IMAGE}-${EXEC_ENV}"
 
-# script logic here
 msg "Execution parameters: "
 msg "- ENVIRONMENT: ${EXEC_ENV}"
 msg "- ARCHITECTURE: ${ARCH}"
 msg "- IMAGE: ${IMAGE}"
-msg "- VERSION: ${VERSION}"
+msg "- TAG: ${TAG}"
 msg "- REGION: ${REGION}"
 msg "- ACCOUNT: ${ACCOUNT}"
-
-TAG="${VERSION}-${ARCH}${SUFFIX}"
-LATEST_TAG="latest-${ARCH}"
-IMAGE_WITH_ENV="${IMAGE}-${EXEC_ENV}"
 
 
 FULLNAME="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE_WITH_ENV}:${TAG}"

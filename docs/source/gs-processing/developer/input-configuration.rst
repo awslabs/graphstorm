@@ -286,7 +286,7 @@ can contain the following top-level keys:
    feature values in the data.
 -  ``transformation`` (JSON object, optional): The type of
    transformation that will be applied to the feature. For details on
-   the individual transformations supported see :ref:`supported-transformations`.
+   the individual transformations supported see :ref:`gsp-supported-transformations-ref`.
    If this key is missing, the feature is treated as
    a **no-op** feature without ``kwargs``.
 
@@ -294,7 +294,7 @@ can contain the following top-level keys:
       applied.
    -  ``kwargs`` (JSON object, optional): A dictionary of parameter
       names and values. Each individual transformation will have its own
-      supported parameters, described in :ref:`supported-transformations`.
+      supported parameters, described in :ref:`gsp-supported-transformations-ref`.
 
 -  ``name`` (String, optional): The name that will be given to the
    encoded feature. If not given, **column** is used as the output name.
@@ -347,7 +347,7 @@ can contain the following top-level keys:
    for edges we need both the ``source`` and
    ``destination`` columns to use as a composite key.
 
-.. _supported-transformations:
+.. _gsp-supported-transformations-ref:
 
 Supported transformations
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -391,6 +391,8 @@ arguments.
          - ``rank-gauss``: Normalize each value using Rank-Gauss normalization. Rank-gauss first ranks all values,
            converts the ranks to the -1/1 range, and applies the `inverse of the error function <https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.erfinv.html>`_ to make the values conform
            to a Gaussian distribution shape. This transformation only supports a single column as input.
+      - ``out_dtype`` (Optional): Specify the data type of the transformed feature.
+        Currently we only support ``float32`` and ``float64`` .
       - ``epsilon``: Only relevant for ``rank-gauss``, this epsilon value is added to the denominator
         to avoid infinite values during normalization.
 -  ``multi-numerical``
@@ -406,10 +408,13 @@ arguments.
       - ``separator`` (String, optional): Same as for ``no-op`` transformation, used to separate numerical
         values in CSV input. If the input data are in Parquet format, each value in the
         column is assumed to be an array of floats.
+      - ``out_dtype`` (Optional): Specify the data type of the transformed feature.
+        Currently we only support ``float32`` and ``float64`` .
+
 -  ``bucket-numerical``
 
    -  Transforms a numerical column to a one-hot or multi-hot bucket representation, using bucketization.
-       Also supports optional missing value imputation through the `imputer` kwarg.```
+      Also supports optional missing value imputation through the `imputer` kwarg.
    -  ``kwargs``:
 
       - ``imputer`` (String, optional): A method to fill in missing values in the data.
@@ -455,23 +460,26 @@ arguments.
       - ``action`` (String, required): Currently we support embedding creation using HuggingFace models, where the input text is transformed to a vector representation,
         or tokenization of text the using using HuggingFace tokenizers, where the output is a tokenized version of the text to be used downstream as input to a Huggingface model during training.
 
-        - ``tokenize_hf``: It tokenizes text strings with a HuggingFace tokenizer with a predefined tokenizer hosted on huggingface.co. The tokenizer_hf can use any HuggingFace LM models available in the huggingface repo.
-                            Check more information on: `huggingface autotokenizer <https://huggingface.co/docs/transformers/main/en/model_doc/auto#transformers.AutoTokenizer>`_
-                            The expected input can any length of text strings, and the expected output will include ``input_ids`` for token IDs on the input text,
-                            ``attention_mask`` for a mask to avoid performing attention on padding token indices, and ``token_type_ids`` for segmenting two sentences in models.
-                            The output here is compatible for graphstorm language model training and inference pipelines.
+        - ``tokenize_hf``: Tokenize text strings with a HuggingFace tokenizer. The tokenizer_hf can use any HuggingFace LM models available in the
+          `huggingface model repository <https://huggingface.co/models>`_.
+          You can find more information about tokenization at `huggingface autotokenizer docs <https://huggingface.co/docs/transformers/main/en/model_doc/auto#transformers.AutoTokenizer>`_
+          The expected input are text strings, and the expected output will include ``input_ids`` for token IDs on the input text,
+          ``attention_mask`` for a mask to avoid performing attention on padding token indices, and ``token_type_ids`` for segmenting two sentences in models.
+          The output here is compatible for graphstorm language model training and inference pipelines.
 
-        - ``embedding_hf``: It encodes text strings with a HuggingFace model hosted on huggingface.co. The value can be any HuggingFace language model available in the
-                        `Huggingface model repository <https://huggingface.co/docs/transformers/main/en/main_classes/model>`_, e.g. `bert-base-uncased`.
-                        The expected input can any length of text strings, and the expected output will be the embeddings for the text strings.
-      - ``hf_model`` (String, required): It should be the identifier of a pre-trained model available in the Hugging Face Model Hub.
-        Check the model list on `Huggingface model repository <https://huggingface.co/models>`_.
-      - ``max_seq_length`` (Integer, required): It specifies the maximum number of tokens of the input. Use a length greater than the dataset's longest sentence; if not, choose 128.
+        - ``embedding_hf``: Encode text strings with a HuggingFace embedding model. The value can be any HuggingFace language model available in the
+          `Huggingface model repository <https://huggingface.co/models>`_, e.g. ``bert-base-uncased``.
+          The expected input are text strings, and the expected output will be the vector embeddings for the text strings.
+      - ``hf_model`` (String, required): An identifier of a pre-trained model available in the Hugging Face Model Hub, e.g. ``bert-base-uncased``.
+        You can find all models in the `Huggingface model repository <https://huggingface.co/models>`_.
+      - ``max_seq_length`` (Integer, required): Specifies the maximum number of tokens of the input.
+        You can use a length greater than the dataset's longest sentence; or for a safe value choose 128. Make sure to check
+        the model's max suported length when setting this value,
 
 --------------
 
 Creating a graph for inference
-------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 If no label entries are provided for any of the entries
 in the input configuration, the processed data will not

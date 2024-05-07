@@ -31,8 +31,14 @@ from .embed import GSNodeInputLayer
 from .embed import GSNodeEncoderInputLayer
 from .lm_model import init_lm_model
 from .lm_model import get_lm_node_feats
-from .utils import load_pytorch_embedding, save_pytorch_embedding
+from .utils import (
+    load_pytorch_embedding,
+    save_pytorch_embedding,
+    load_wholegraph_embedding,
+    save_wholegraph_embedding
+)
 from ..utils import get_rank, get_world_size, create_dist_tensor
+from ..wholegraph import WholeGraphDistTensor
 from ..distributed import flush_data
 
 class LMModels(nn.Module):
@@ -239,11 +245,12 @@ class LMCache:
     embed_path : str
         The path where the embedding files are stored.
     """
-    def __init__(self, g, lm_models, embed_path=None):
+    def __init__(self, g, lm_models, embed_path=None, use_wg=False):
         self._g = g
         self._lm_models = lm_models
         self._lm_emb_cache = {}
         self._embed_path = embed_path
+        self._use_wg = use_wg
         self._lm_hash = ''
 
     def _get_model_hash(self, ntype):
@@ -281,7 +288,11 @@ class LMCache:
                     logging.info("load LM embedding from %s for node type %s",
                             embed_path, ntype)
                 embed_name = embed_ndata_names[ntype]
-                self._lm_emb_cache[ntype] = load_pytorch_embedding(embed_path,
+                if self.use_wg:
+                    self._lm_emb_cache[ntype] = load_wholegraph_embedding(
+                        embed_path, embed_name)
+                else:
+                    self._lm_emb_cache[ntype] = load_pytorch_embedding(embed_path,
                         self._g.get_node_partition_policy(ntype), embed_name)
         if set(self._lm_emb_cache.keys()) == set(self._lm_models.ntypes):
             logging.debug("Successfully load all embeddings from the cache.")
@@ -305,10 +316,17 @@ class LMCache:
             embed_path = os.path.join(os.path.join(
                     os.path.join(self._embed_path, "lm_cache"), ntype),
                     self._get_model_name(ntype))
-            save_pytorch_embedding(embed_path,
-                                   self._lm_emb_cache[ntype],
-                                   get_rank(),
-                                   get_world_size())
+            if self.use_wg:
+                save_wholegraph_embedding(embed_path,
+                                        self._lm_emb_cache[ntype],
+                                        get_rank(),
+                                        get_world_size(),
+                                        fmt="binary")
+            else:
+                save_pytorch_embedding(embed_path,
+                                        self._lm_emb_cache[ntype],
+                                        get_rank(),
+                                        get_world_size())
 
     def __len__(self):
         return len(self._lm_emb_cache)
@@ -328,6 +346,12 @@ class LMCache:
         """ Get the node types with embedding cache.
         """
         return self._lm_models.ntypes
+
+    @property
+    def use_wg(self):
+        """ Whether to use WholeGraph to store the embeddings.
+        """
+        return self._use_wg
 
     @property
     def embed_ndata_name(self):
@@ -375,12 +399,18 @@ class LMCache:
             hidden_size = lm_model.feat_size
             if ntype not in self._lm_emb_cache:
                 embed_name = embed_ndata_names[ntype]
-                self._lm_emb_cache[ntype] = create_dist_tensor(
+                if self.use_wg:
+                    self._lm_emb_cache[ntype] = WholeGraphDistTensor(
                         (self._g.number_of_nodes(ntype), hidden_size),
-                        name=embed_name,
                         dtype=th.float16 if use_fp16 else th.float32,
-                        part_policy=self._g.get_node_partition_policy(ntype),
-                        persistent=True)
+                        name=embed_name)
+                else:
+                    self._lm_emb_cache[ntype] = create_dist_tensor(
+                            (self._g.number_of_nodes(ntype), hidden_size),
+                            name=embed_name,
+                            dtype=th.float16 if use_fp16 else th.float32,
+                            part_policy=self._g.get_node_partition_policy(ntype),
+                            persistent=True)
             emb = self._lm_emb_cache[ntype]
             # LM computations are very computationally expensive. It's better to force
             # an even split to ensure all processes have roughly the same number of nodes
@@ -401,10 +431,11 @@ class LMCache:
                             fname: feat[input_nodes] for fname, feat in lm_node_feat.items()
                     }
                     text_embs = lm_model(input_ntypes, input_lm_feats)
+                    device = 'cuda' if self.use_wg else 'cpu'
                     if use_fp16:
-                        emb[input_nodes] = text_embs[ntype].half().to('cpu')
+                        emb[input_nodes] = text_embs[ntype].half().to(device)
                     else:
-                        emb[input_nodes] = text_embs[ntype].to('cpu')
+                        emb[input_nodes] = text_embs[ntype].to(device)
                     if i % 1000 == 0 and get_rank() == 0:
                         logging.debug("Compute LM embeddings on %d batches out of %d",
                                       i, len(node_list))
@@ -461,7 +492,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
     .. code:: python
 
         from graphstorm.model import GSgnnNodeModel, GSPureLMNodeInputLayer
-        from graphstorm.dataloading import GSgnnNodeTrainData
+        from graphstorm.dataloading import GSgnnData
 
         node_lm_configs = [
             {
@@ -471,7 +502,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
                 "node_types": ['a']
             }
         ]
-        np_data = GSgnnNodeTrainData(...)
+        np_data = GSgnnData(...)
         model = GSgnnNodeModel(...)
         lm_train_nodes=10
         encoder = GSPureLMNodeInputLayer(g=np_data.g, node_lm_configs=node_lm_configs,
@@ -484,7 +515,9 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
                  num_train=0,
                  lm_infer_batch_size=16,
                  use_fp16=True,
-                 cached_embed_path=None):
+                 cached_embed_path=None,
+                 wg_cached_embed=False):
+
         super(GSPureLMNodeInputLayer, self).__init__(g)
         assert node_lm_configs is not None and len(node_lm_configs) > 0, \
             "language model configurations must be provided"
@@ -494,7 +527,8 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         self.lm_infer_batch_size = lm_infer_batch_size
         self.use_fp16 = use_fp16
         self.use_cache = False
-        self.lm_emb_cache = LMCache(g, self._lm_models, embed_path=cached_embed_path)
+        self.lm_emb_cache = LMCache(g, self._lm_models, embed_path=cached_embed_path,
+                                    use_wg=wg_cached_embed)
 
         self._feat_size = self._lm_models.get_feat_size(self._lm_models.ntypes[0])
         for lm_model in self._lm_models.lm_models:
@@ -653,8 +687,8 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
 
         from graphstorm import get_node_feat_size
         from graphstorm.model import GSgnnNodeModel, GSLMNodeEncoderInputLayer
-        from graphstorm.dataloading import GSgnnNodeTrainData
-        np_data = GSgnnNodeTrainData(...)
+        from graphstorm.dataloading import GSgnnData
+        np_data = GSgnnData(...)
         model = GSgnnNodeModel(...)
         feat_size = get_node_feat_size(np_data.g, 'feat')
         node_lm_configs = [{"lm_type": "bert",
@@ -684,6 +718,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
                  use_node_embeddings=False,
                  use_fp16=True,
                  cached_embed_path=None,
+                 wg_cached_embed=False,
                  force_no_embeddings=None):
         assert node_lm_configs is not None and len(node_lm_configs) > 0, \
             "language model configurations must be provided"
@@ -705,7 +740,8 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         self.use_fp16 = use_fp16
         self.lm_infer_batch_size = lm_infer_batch_size
         self.use_cache = False
-        self.lm_emb_cache = LMCache(g, lm_models, embed_path=cached_embed_path)
+        self.lm_emb_cache = LMCache(g, lm_models, embed_path=cached_embed_path,
+                                    use_wg=wg_cached_embed)
 
         super(GSLMNodeEncoderInputLayer, self).__init__(
             g, adjust_feat_size, embed_size,

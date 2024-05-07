@@ -16,11 +16,6 @@
     Inferer wrapper for embedding generation.
 """
 import logging
-from graphstorm.config import  (BUILTIN_TASK_NODE_CLASSIFICATION,
-                                BUILTIN_TASK_NODE_REGRESSION,
-                                BUILTIN_TASK_EDGE_CLASSIFICATION,
-                                BUILTIN_TASK_EDGE_REGRESSION,
-                                BUILTIN_TASK_LINK_PREDICTION)
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
 from ..model import do_full_graph_inference, do_mini_batch_inference
@@ -38,10 +33,11 @@ class GSgnnEmbGenInferer(GSInferrer):
     model : GSgnnNodeModel
         The GNN model with different task.
     """
-    def infer(self, data, task_type, save_embed_path, eval_fanout,
+    def infer(self, data, infer_ntypes, save_embed_path, eval_fanout,
             use_mini_batch_infer=False,
             node_id_mapping_file=None,
-            save_embed_format="pytorch"):
+            save_embed_format="pytorch",
+            infer_batch_size=1024):
         """ Do Embedding Generating
 
         Generate node embeddings and save into disk.
@@ -50,8 +46,8 @@ class GSgnnEmbGenInferer(GSInferrer):
         ----------
         data: GSgnnData
             The GraphStorm dataset
-        task_type : str
-            task_type must be one of graphstorm builtin task types
+        infer_ntypes : list of str
+            List of node types to compute embeddings.
         save_embed_path : str
             The path where the GNN embeddings will be saved.
         eval_fanout: list of int
@@ -63,6 +59,9 @@ class GSgnnEmbGenInferer(GSInferrer):
             graph partition algorithm.
         save_embed_format : str
             Specify the format of saved embeddings.
+        infer_batch_size: int
+            Specify the inference batch size when computing node embeddings
+            with mini batch inference.
         """
         assert save_embed_path is not None, \
             "It requires save embed path for gs_gen_node_embedding"
@@ -70,23 +69,9 @@ class GSgnnEmbGenInferer(GSInferrer):
         sys_tracker.check('start generating embedding')
         self._model.eval()
 
-        # infer ntypes must be sorted for node embedding saving
-        if task_type == BUILTIN_TASK_LINK_PREDICTION:
-            infer_ntypes = None
-        elif task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
-            infer_ntypes = sorted(data.infer_idxs)
-        elif task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
-            infer_ntypes = set()
-            for etype in data.infer_idxs:
-                infer_ntypes.add(etype[0])
-                infer_ntypes.add(etype[2])
-            infer_ntypes = sorted(infer_ntypes)
-        else:
-            raise TypeError("Not supported for task type: ", task_type)
-
         if use_mini_batch_infer:
-            embs = do_mini_batch_inference(self._model, data, fanout=eval_fanout,
-                                           edge_mask=None,
+            embs = do_mini_batch_inference(self._model, data, batch_size=infer_batch_size,
+                                           fanout=eval_fanout, edge_mask=None,
                                            task_tracker=self.task_tracker,
                                            infer_ntypes=infer_ntypes)
         else:

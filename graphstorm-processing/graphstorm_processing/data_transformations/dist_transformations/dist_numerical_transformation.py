@@ -13,13 +13,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 import logging
 from typing import Optional, Sequence
 import uuid
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
-from pyspark.sql.types import ArrayType, FloatType
+from pyspark.sql.types import ArrayType
 from pyspark.ml.feature import MinMaxScaler, Imputer, VectorAssembler, ElementwiseProduct
 from pyspark.ml.linalg import DenseVector
 from pyspark.ml.stat import Summarizer
@@ -32,7 +33,13 @@ import pandas as pd
 # pylint: disable = no-name-in-module
 from scipy.special import erfinv
 
-from graphstorm_processing.constants import SPECIAL_CHARACTERS, VALID_IMPUTERS, VALID_NORMALIZERS
+from graphstorm_processing.constants import (
+    SPECIAL_CHARACTERS,
+    VALID_IMPUTERS,
+    VALID_NORMALIZERS,
+    DTYPE_MAP,
+    TYPE_FLOAT32,
+)
 from .base_dist_transformation import DistributedTransformation
 from ..spark_utils import rename_multiple_cols
 
@@ -80,7 +87,11 @@ def apply_imputation(cols: Sequence[str], shared_imputation: str, input_df: Data
 
 
 def apply_norm(
-    cols: Sequence[str], shared_norm: str, imputed_df: DataFrame, epsilon: float = 1e-6
+    cols: Sequence[str],
+    shared_norm: str,
+    imputed_df: DataFrame,
+    out_dtype: str = TYPE_FLOAT32,
+    epsilon: float = 1e-6,
 ) -> DataFrame:
     """Applies a single normalizer to the imputed dataframe, individually to each of the columns
     provided in the cols argument.
@@ -95,6 +106,8 @@ def apply_norm(
     imputed_df : DataFrame
         The input DataFrame to apply normalization to. It should not contain
         missing values.
+    out_dtype: str
+        The output feature dtype.
     epsilon: float
         Epsilon for normalization used to avoid INF float during computation
         on "rank-gauss".
@@ -108,13 +121,20 @@ def apply_norm(
     ------
     RuntimeError
         If missing values exist in the data when the "standard" normalizer is used.
+
+    ValueError
+        If unsupported feature output dtype is provided.
     """
     other_cols = list(set(imputed_df.columns).difference(cols))
 
     def single_vec_to_float(vec):
         return float(vec[0])
 
-    vec_udf = F.udf(single_vec_to_float, FloatType())
+    # Use the map to get the corresponding data type object, or raise an error if not found
+    if out_dtype in DTYPE_MAP:
+        vec_udf = F.udf(single_vec_to_float, DTYPE_MAP[out_dtype])
+    else:
+        raise ValueError("Unsupported feature output dtype")
 
     assert shared_norm in VALID_NORMALIZERS, (
         f"Unsupported normalization requested: {shared_norm}, the supported "
@@ -122,6 +142,8 @@ def apply_norm(
     )
 
     if shared_norm == "none":
+        # Save the time and efficiency for not casting the type
+        # when not doing any normalization
         scaled_df = imputed_df
     elif shared_norm == "min-max":
         # Because the scalers expect Vector input, we need to use VectorAssembler on each,
@@ -154,7 +176,8 @@ def apply_norm(
                     "normalization. Use an imputer in the transformation."
                 )
         scaled_df = imputed_df.select(
-            [(F.col(c) / col_sums[f"sum({c})"]).alias(c) for c in cols] + other_cols
+            [(F.col(c) / col_sums[f"sum({c})"]).cast(DTYPE_MAP[out_dtype]).alias(c) for c in cols]
+            + other_cols
         )
     elif shared_norm == "rank-gauss":
         assert len(cols) == 1, "Rank-Guass numerical transformation only supports single column"
@@ -181,7 +204,7 @@ def apply_norm(
             return pd.Series(erfinv(clipped_rank))
 
         num_rows = value_rank_df.count()
-        gauss_udf = F.pandas_udf(gauss_transform, FloatType())
+        gauss_udf = F.pandas_udf(gauss_transform, DTYPE_MAP[out_dtype])
         normalized_df = value_rank_df.withColumn(column_name, gauss_udf(value_rank_col))
         scaled_df = normalized_df.orderBy(original_order_col).drop(
             value_rank_col, original_order_col
@@ -204,17 +227,25 @@ class DistNumericalTransformation(DistributedTransformation):
     imputer : str
         The type of missing value imputation to apply to the column.
         Valid values are "mean", "median" and "most_frequent".
+    out_dtype: str
+        Output feature dtype
     epsilon: float
         Epsilon for normalization used to avoid INF float during computation.
     """
 
     def __init__(
-        self, cols: Sequence[str], normalizer: str, imputer: str, epsilon: float = 1e-6
+        self,
+        cols: Sequence[str],
+        normalizer: str,
+        imputer: str,
+        out_dtype: str = TYPE_FLOAT32,
+        epsilon: float = 1e-6,
     ) -> None:
         super().__init__(cols)
         self.cols = cols
         self.shared_norm = normalizer
         self.epsilon = epsilon
+        self.out_dtype = out_dtype
         # Spark uses 'mode' for the most frequent element
         self.shared_imputation = "mode" if imputer == "most_frequent" else imputer
 
@@ -224,7 +255,9 @@ class DistNumericalTransformation(DistributedTransformation):
         )
 
         imputed_df = apply_imputation(self.cols, self.shared_imputation, input_df)
-        scaled_df = apply_norm(self.cols, self.shared_norm, imputed_df, self.epsilon)
+        scaled_df = apply_norm(
+            self.cols, self.shared_norm, imputed_df, self.out_dtype, self.epsilon
+        )
 
         # TODO: Figure out why the transformation is producing Double values, and switch to float
         return scaled_df
@@ -250,10 +283,17 @@ class DistMultiNumericalTransformation(DistNumericalTransformation):
     imputer : str
         The type of missing value imputation to apply to the column.
         Valid values are "mean", "median" and "most_frequent".
+    out_dtype: str
+        Output feature dtype
     """
 
     def __init__(
-        self, cols: Sequence[str], separator: Optional[str], normalizer: str, imputer: str
+        self,
+        cols: Sequence[str],
+        separator: Optional[str],
+        normalizer: str,
+        imputer: str,
+        out_dtype: str = TYPE_FLOAT32,
     ) -> None:
         assert (
             len(cols) == 1
@@ -268,6 +308,7 @@ class DistMultiNumericalTransformation(DistNumericalTransformation):
         # special chars to be used as separators
         if self.separator in SPECIAL_CHARACTERS:
             self.separator = f"\\{self.separator}"
+        self.out_dtype = out_dtype
 
     @staticmethod
     def get_transformation_name() -> str:
@@ -342,7 +383,7 @@ class DistMultiNumericalTransformation(DistNumericalTransformation):
                     ),  # Split along the separator
                     replace_empty_with_nan,
                 )
-                .cast(ArrayType(FloatType(), True))
+                .cast(ArrayType(DTYPE_MAP[self.out_dtype], True))
                 .alias(self.multi_column)
             )
 
@@ -404,7 +445,7 @@ class DistMultiNumericalTransformation(DistNumericalTransformation):
                 else:
                     split_array_df = input_df.select(
                         F.col(self.multi_column)
-                        .cast(ArrayType(FloatType(), True))
+                        .cast(ArrayType(DTYPE_MAP[self.out_dtype], True))
                         .alias(self.multi_column)
                     )
 

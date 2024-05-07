@@ -13,13 +13,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+
 from typing import List, Optional
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
-from pyspark.sql.types import ArrayType, DoubleType, NumericType
+from pyspark.sql.types import ArrayType, NumericType
 
-from graphstorm_processing.constants import SPECIAL_CHARACTERS
+from graphstorm_processing.constants import SPECIAL_CHARACTERS, DTYPE_MAP, TYPE_FLOAT32
+
 from .base_dist_transformation import DistributedTransformation
 
 
@@ -37,12 +39,17 @@ class NoopTransformation(DistributedTransformation):
         The list of columns to parse as floats or lists of float
     separator : Optional[str], optional
         Optional separator to use to split the string, by default None
+    out_dtype: str
+        The output feature dtype
     """
 
-    def __init__(self, cols: List[str], separator: Optional[str] = None) -> None:
+    def __init__(
+        self, cols: List[str], out_dtype: str = TYPE_FLOAT32, separator: Optional[str] = None
+    ) -> None:
         super().__init__(cols)
         # TODO: Support multiple cols?
 
+        self.out_dtype = out_dtype
         self.separator = separator
         # Spark's split function uses a regexp so we need to
         # escape special chars to be used as separators
@@ -77,7 +84,7 @@ class NoopTransformation(DistributedTransformation):
             return None
 
         strvec_to_float_vec_udf = F.udf(
-            str_list_to_float_vec, ArrayType(DoubleType(), containsNull=False)
+            str_list_to_float_vec, ArrayType(DTYPE_MAP[self.out_dtype], containsNull=False)
         )
 
         if self.separator:
@@ -91,7 +98,10 @@ class NoopTransformation(DistributedTransformation):
             return input_df
         else:
             return input_df.select(
-                [F.col(column).cast(DoubleType()).alias(column) for column in self.cols]
+                [
+                    F.col(column).cast(DTYPE_MAP[self.out_dtype]).alias(column)
+                    for column in self.cols
+                ]
             )
 
     @staticmethod
