@@ -28,7 +28,7 @@ from graphstorm.model import (GSgnnNodeModel,
 
 
 class RgcnNCModel(GSgnnNodeModel):
-    """ TODO
+    """ TODO add descriptions
     """
     def __init__(self,
                  g,
