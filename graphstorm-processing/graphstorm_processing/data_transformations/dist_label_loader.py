@@ -54,6 +54,23 @@ class SplitRates:
                 f"{self.train_rate=}, {self.val_rate=}, {self.test_rate=}"
             )
 
+@dataclass
+class CustomSplit:
+    """
+    Dataclass to hold the custom split for each of the train/val/test splits.
+    """
+
+    train: str
+    valid: str
+    test: str
+    column: list[str]
+
+    def tolist(self) -> List[str]:
+        """
+        Return the split rates as a list of floats: [train_rate, val_rate, test_rate]
+        """
+        return [self.train, self.val, self.test, self.column]
+
 
 class DistLabelLoader:
     """Used to transform label columns to conform to downstream GraphStorm expectations.

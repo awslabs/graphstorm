@@ -52,20 +52,29 @@ class GConstructConfigConverter(ConfigConverter):
                 label_column = label["label_col"] if "label_col" in label else ""
                 label_type = label["task_type"]
                 label_dict = {"column": label_column, "type": label_type}
-                if "split_pct" in label:
-                    label_splitrate = label["split_pct"]
-                    # check if split_pct is valid
-                    assert (
-                        sum(label_splitrate) <= 1.0
-                    ), "sum of the label split rate should be <=1.0"
-                    label_dict["split_rate"] = {
-                        "train": label_splitrate[0],
-                        "val": label_splitrate[1],
-                        "test": label_splitrate[2],
+                if "custom_split_filenames" not in label:
+                    if "split_pct" in label:
+                        label_splitrate = label["split_pct"]
+                        # check if split_pct is valid
+                        assert (
+                            sum(label_splitrate) <= 1.0
+                        ), "sum of the label split rate should be <=1.0"
+                        label_dict["split_rate"] = {
+                            "train": label_splitrate[0],
+                            "val": label_splitrate[1],
+                            "test": label_splitrate[2],
+                        }
+                    if "separator" in label:
+                        label_sep = label["separator"]
+                        label_dict["separator"] = label_sep
+                else:
+                    label_custom_split_filenames = label["custom_split_filenames"]
+                    label_dict["custom_split_filenames"] = {
+                        "train": label_custom_split_filenames["train"],
+                        "valid": label_custom_split_filenames["valid"],
+                        "test": label_custom_split_filenames["test"],
+                        "column": label_custom_split_filenames["column"]
                     }
-                if "separator" in label:
-                    label_sep = label["separator"]
-                    label_dict["separator"] = label_sep
                 labels_list.append(label_dict)
             except KeyError as exc:
                 raise KeyError(f"A required key was missing from label input {label}") from exc

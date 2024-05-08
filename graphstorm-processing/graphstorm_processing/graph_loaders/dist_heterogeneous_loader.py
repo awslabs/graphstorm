@@ -33,6 +33,7 @@ from pyspark.sql.types import (
     ArrayType,
     ByteType,
 )
+from pyspark.sql.functions import col, lit, when
 from numpy.random import default_rng
 
 from graphstorm_processing.constants import (
@@ -48,7 +49,7 @@ from ..config.config_parser import EdgeConfig, NodeConfig, StructureConfig
 from ..config.label_config_base import LabelConfig
 from ..config.feature_config_base import FeatureConfig
 from ..data_transformations.dist_feature_transformer import DistFeatureTransformer
-from ..data_transformations.dist_label_loader import DistLabelLoader, SplitRates
+from ..data_transformations.dist_label_loader import DistLabelLoader, SplitRates, CustomSplit
 from ..data_transformations import s3_utils, spark_utils
 from .heterogeneous_graphloader import HeterogeneousGraphLoader
 
@@ -1063,8 +1064,17 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 )
             else:
                 split_rates = None
+            if label_conf.custom_split_filenames:
+                custom_split_filenames = CustomSplit(
+                    train=label_conf.custom_split_filenames["train"],
+                    valid=label_conf.custom_split_filenames["valid"],
+                    test=label_conf.custom_split_filenames["test"],
+                    column=label_conf.custom_split_filenames["column"],
+                )
+            else:
+                custom_split_filenames = None
             label_split_dicts = self._create_split_files_from_rates(
-                nodes_df, label_conf.label_column, split_rates, split_masks_output_prefix
+                nodes_df, label_conf.label_column, split_rates, split_masks_output_prefix, custom_split_filenames
             )
             node_type_label_metadata.update(label_split_dicts)
 
@@ -1523,8 +1533,17 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 )
             else:
                 split_rates = None
+            if label_conf.custom_split_filenames:
+                custom_split_filenames = CustomSplit(
+                    train=label_conf.custom_split_filenames["train"],
+                    valid=label_conf.custom_split_filenames["valid"],
+                    test=label_conf.custom_split_filenames["test"],
+                    column=label_conf.custom_split_filenames["column"],
+                )
+            else:
+                custom_split_filenames = None
             label_split_dicts = self._create_split_files_from_rates(
-                edges_df, label_conf.label_column, split_rates, split_masks_output_prefix
+                edges_df, label_conf.label_column, split_rates, split_masks_output_prefix, custom_split_filenames
             )
             label_metadata_dicts.update(label_split_dicts)
             # TODO: Support custom_split_filenames
@@ -1607,6 +1626,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         label_column: str,
         split_rates: Optional[SplitRates],
         output_path: str,
+        custom_split_file: Optional[CustomSplit] = None,
         seed: Optional[int] = None,
     ) -> Dict:
         """
@@ -1637,37 +1657,64 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         """
         # If the user did not provide a split rate we use a default
         split_metadata = {}
-        if split_rates is None:
-            split_rates = SplitRates(train_rate=0.8, val_rate=0.1, test_rate=0.1)
+        if not custom_split_file:
+            if split_rates is None:
+                split_rates = SplitRates(train_rate=0.8, val_rate=0.1, test_rate=0.1)
+            else:
+                # TODO: add support for sums <= 1.0, useful for large-scale link prediction
+                if sum(split_rates.tolist()) != 1.0:
+                    raise RuntimeError(f"Provided split rates  do not sum to 1: {split_rates}")
+
+            split_list = split_rates.tolist()
+            logging.info(
+                "Creating split files for label column '%s' with split rates: %s",
+                label_column,
+                split_list,
+            )
+
+            rng = default_rng(seed=seed)
+
+            # We use multinomial sampling to create a one-hot
+            # vector indicating train/test/val membership
+            def multinomial_sample(label_col: str) -> Sequence[int]:
+                if label_col in {"", "None", "NaN", None}:
+                    return [0, 0, 0]
+                return rng.multinomial(1, split_list).tolist()
+
+            group_col_name = "sample_boolean_mask"  # TODO: Ensure uniqueness of column?
+
+            # TODO: Use PandasUDF and check if it is faster than UDF
+            split_group = F.udf(multinomial_sample, ArrayType(IntegerType()))
+            # Convert label col to string and apply UDF
+            # to create one-hot vector indicating train/test/val membership
+            input_col = F.col(label_column).astype("string") if label_column else F.lit("dummy")
+            int_group_df = input_df.select(split_group(input_col).alias(group_col_name))
+            train_mask_df = int_group_df.select(F.col(group_col_name)[0].alias("train_mask"))
+            val_mask_df = int_group_df.select(F.col(group_col_name)[1].alias("val_mask"))
+            test_mask_df = int_group_df.select(F.col(group_col_name)[2].alias("test_mask"))
         else:
-            # TODO: add support for sums <= 1.0, useful for large-scale link prediction
-            if sum(split_rates.tolist()) != 1.0:
-                raise RuntimeError(f"Provided split rates  do not sum to 1: {split_rates}")
+            # custom node label
+            custom_train_mask_df = self.spark.read.parquet(self.input_prefix + "/" + custom_split_file.train)\
+                .select(col(custom_split_file.column[0]).alias("custom_train_mask"))
+            train_mask_df = input_df.join(custom_train_mask_df,
+                                               input_df[NODE_MAPPING_STR] == custom_train_mask_df['custom_train_mask'], "left_outer")
+            train_mask_df = train_mask_df.withColumn("train_mask",
+                                                     when(train_mask_df['custom_train_mask'].isNotNull(), 1).otherwise(0)).select("train_mask")
 
-        split_list = split_rates.tolist()
-        logging.info(
-            "Creating split files for label column '%s' with split rates: %s",
-            label_column,
-            split_list,
-        )
+            custom_val_mask_df = self.spark.read.parquet(self.input_prefix + "/" + custom_split_file.valid)\
+                .select(col(custom_split_file.column[0]).alias("custom_valid_mask"))
+            val_mask_df = input_df.join(custom_val_mask_df,
+                                               input_df[NODE_MAPPING_STR] == custom_val_mask_df['custom_valid_mask'], "left_outer")
+            val_mask_df = val_mask_df.withColumn("val_mask",
+                                                     when(val_mask_df['custom_valid_mask'].isNotNull(), 1).otherwise(0)).select("val_mask")
 
-        rng = default_rng(seed=seed)
+            custom_test_mask_df = self.spark.read.parquet(self.input_prefix + "/" + custom_split_file.test)\
+                .select(col(custom_split_file.column[0]).alias("custom_test_mask"))
+            test_mask_df = input_df.join(custom_test_mask_df,
+                                               input_df[NODE_MAPPING_STR] == custom_test_mask_df['custom_test_mask'], "left_outer")
+            test_mask_df = test_mask_df.withColumn("test_mask",
+                                                     when(test_mask_df['custom_test_mask'].isNotNull(), 1).otherwise(0)).select("test_mask")
 
-        # We use multinomial sampling to create a one-hot
-        # vector indicating train/test/val membership
-        def multinomial_sample(label_col: str) -> Sequence[int]:
-            if label_col in {"", "None", "NaN", None}:
-                return [0, 0, 0]
-            return rng.multinomial(1, split_list).tolist()
-
-        group_col_name = "sample_boolean_mask"  # TODO: Ensure uniqueness of column?
-
-        # TODO: Use PandasUDF and check if it is faster than UDF
-        split_group = F.udf(multinomial_sample, ArrayType(IntegerType()))
-        # Convert label col to string and apply UDF
-        # to create one-hot vector indicating train/test/val membership
-        input_col = F.col(label_column).astype("string") if label_column else F.lit("dummy")
-        int_group_df = input_df.select(split_group(input_col).alias(group_col_name))
 
         def create_metadata_entry(path_list):
             return {"format": {"name": FORMAT_NAME, "delimiter": DELIMITER}, "data": path_list}
@@ -1679,15 +1726,12 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             )
             return out_path_list
 
-        train_mask_df = int_group_df.select(F.col(group_col_name)[0].alias("train_mask"))
         out_path_list = write_mask("train", train_mask_df)
         split_metadata["train_mask"] = create_metadata_entry(out_path_list)
 
-        val_mask_df = int_group_df.select(F.col(group_col_name)[1].alias("val_mask"))
         out_path_list = write_mask("val", val_mask_df)
         split_metadata["val_mask"] = create_metadata_entry(out_path_list)
 
-        test_mask_df = int_group_df.select(F.col(group_col_name)[2].alias("test_mask"))
         out_path_list = write_mask("test", test_mask_df)
         split_metadata["test_mask"] = create_metadata_entry(out_path_list)
 
