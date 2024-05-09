@@ -47,7 +47,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     model : GSgnnEdgeModel
         The GNN model for edge prediction.
     topk_model_to_save : int
-        The top K model to save.
+        The top K model to save. Default: 1
 
     Example
     -------
@@ -69,7 +69,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
         trainer.fit(my_data_loader, num_epochs=2)
     """
-    def __init__(self, model, topk_model_to_save):
+    def __init__(self, model, topk_model_to_save=1):
         super(GSgnnEdgePredictionTrainer, self).__init__(model, topk_model_to_save)
         assert isinstance(model, GSgnnEdgeModelInterface) and isinstance(model, GSgnnModelBase), \
                 "The input model is not an edge model. Please implement GSgnnEdgeModelBase."

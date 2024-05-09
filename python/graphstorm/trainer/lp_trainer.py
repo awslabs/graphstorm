@@ -50,7 +50,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     model : GSgnnLinkPredictionModel
         The GNN model for link prediction.
     topk_model_to_save : int
-        The top K model to save.
+        The top K model to save. Default: 1
 
     Example
     -------
@@ -72,7 +72,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
 
         trainer.fit(my_data_loader, num_epochs=2)
     """
-    def __init__(self, model, topk_model_to_save):
+    def __init__(self, model, topk_model_to_save=1):
         super(GSgnnLinkPredictionTrainer, self).__init__(model, topk_model_to_save)
         assert isinstance(model, GSgnnLinkPredictionModelInterface) \
                 and isinstance(model, GSgnnModelBase), \
@@ -214,7 +214,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                     self.evaluator.do_eval(total_steps, epoch_end=False):
                     val_score = self.eval(model.module if is_distributed() else model,
                                           data, val_loader, test_loader, total_steps,
-                                          edge_mask_for_gnn_embeddings)
+                                          edge_mask_for_gnn_embeddings, use_mini_batch_infer)
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
 
@@ -249,7 +249,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
                 val_score = self.eval(model.module if is_distributed() else model,
                                       data, val_loader, test_loader, total_steps,
-                                      edge_mask_for_gnn_embeddings)
+                                      edge_mask_for_gnn_embeddings, use_mini_batch_infer)
 
                 if self.evaluator.do_early_stop(val_score):
                     early_stop = True
