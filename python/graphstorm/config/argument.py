@@ -149,9 +149,9 @@ class GSConfig:
         # Load all arguments from yaml config
         configuration = self.load_yaml_config(cmd_args.yaml_config_file)
 
+        multi_task_config = None
         if 'multi_task_learning' in configuration:
-            # parse multi task learning config and save it into self._multi_tasks
-            self._parse_multi_tasks(configuration['multi_task_learning'])
+            multi_task_config = configuration['multi_task_learning']
             del configuration['multi_task_learning']
 
         self.set_attributes(configuration)
@@ -167,6 +167,10 @@ class GSConfig:
                 logging.debug("Overriding Argument: %s", arg_key)
         # We do argument check as early as possible to prevent config bugs.
         self.handle_argument_conflicts()
+
+        # parse multi task learning config and save it into self._multi_tasks
+        if multi_task_config is not None:
+            self._parse_multi_tasks(multi_task_config)
 
     def set_attributes(self, configuration):
         """Set class attributes from 2nd level arguments in yaml config"""
@@ -296,10 +300,8 @@ class GSConfig:
         task_id = get_mttask_id(task_type=task_type,
                                 ntype=target_ntype,
                                 label=label_field)
-        setattr(task_info, "task_type", task_type)
         setattr(task_info, "mask_fields", mask_fields)
         setattr(task_info, "task_weight", task_weight)
-        setattr(task_info, "task_id", task_id)
 
         return TaskInfo(task_type=task_type,
                         task_id=task_id,
@@ -326,10 +328,8 @@ class GSConfig:
         task_id = get_mttask_id(task_type=task_type,
                                 ntype=target_ntype,
                                 label=label_field)
-        setattr(task_info, "task_type", task_type)
         setattr(task_info, "mask_fields", mask_fields)
         setattr(task_info, "task_weight", task_weight)
-        setattr(task_info, "task_id", task_id)
 
         return TaskInfo(task_type=task_type,
                         task_id=task_id,
@@ -356,10 +356,8 @@ class GSConfig:
         task_id = get_mttask_id(task_type=task_type,
                                 etype=target_etype,
                                 label=label_field)
-        setattr(task_info, "task_type", task_type)
         setattr(task_info, "mask_fields", mask_fields)
         setattr(task_info, "task_weight", task_weight)
-        setattr(task_info, "task_id", task_id)
         return TaskInfo(task_type=task_type,
                         task_id=task_id,
                         task_info=task_info)
@@ -386,11 +384,8 @@ class GSConfig:
         task_id = get_mttask_id(task_type=task_type,
                                 etype=target_etype,
                                 label=label_field)
-
-        setattr(task_info, "task_type", task_type)
         setattr(task_info, "mask_fields", mask_fields)
         setattr(task_info, "task_weight", task_weight)
-        setattr(task_info, "task_id", task_id)
         return TaskInfo(task_type=task_type,
                         task_id=task_id,
                         task_info=task_info)
@@ -415,11 +410,8 @@ class GSConfig:
         task_id = get_mttask_id(
             task_type=task_type,
             etype=train_etype if train_etype is not None else "ALL_ETYPE")
-
-        setattr(task_info, "task_type", task_type)
         setattr(task_info, "mask_fields", mask_fields)
         setattr(task_info, "task_weight", task_weight)
-        setattr(task_info, "task_id", task_id)
         return TaskInfo(task_type=task_type,
                         task_id=task_id,
                         task_info=task_info)
@@ -435,6 +427,10 @@ class GSConfig:
             assert isinstance(task_config, dict) and len(task_config) == 1, \
                 "When defining multiple tasks for " \
                 "training, define one task each time."
+            if "batch_size" not in task_config:
+                # If batch_size is not set
+                # Use the global batch size.
+                task_config["batch_size"] = self.batch_size
             if "node_classification" in task_config:
                 task = self._parse_node_classification_task(
                     task_config["node_classification"])
@@ -2588,6 +2584,15 @@ class GSConfig:
             return self._num_ffn_layers_in_decoder
         # Set default mlp layer number between gnn layer to 0
         return 0
+
+    ################## Multi task learning ##################
+    @property
+    def multi_tasks(self):
+        """ Tasks in multi-task learning
+        """
+        assert hasattr(self, "_multi_tasks"), \
+            "multi_task_learning must be set in the task config"
+        return self._multi_tasks
 
 def _add_initialization_args(parser):
     group = parser.add_argument_group(title="initialization")

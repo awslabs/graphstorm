@@ -189,11 +189,11 @@ def create_task_test_dataloader(task, config, train_data):
 
 def create_task_decoder(task, g, decoder_input_dim, train_task):
     if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
-        return gs.create_builtin_node_decoder(decoder_input_dim, task, train_task)
+        return gs.create_builtin_node_decoder(decoder_input_dim, task.task_config, train_task)
     elif task.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
-        return gs.create_builtin_edge_decoder(g, decoder_input_dim, task, train_task)
+        return gs.create_builtin_edge_decoder(g, decoder_input_dim, task.task_config, train_task)
     elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
-        return gs.create_builtin_lp_decoder(g, decoder_input_dim, task, train_task)
+        return gs.create_builtin_lp_decoder(g, decoder_input_dim, task.task_config, train_task)
 
     return None, None
 
@@ -278,14 +278,15 @@ def main(config_args):
         if model.gnn_encoder is not None \
             else model.node_input_encoder.out_dims
     for task in tasks:
+        task_config = task.task_config
         train_loader = create_task_train_dataloader(task, config, train_data)
         val_loader = create_task_val_dataloader(task, config)
         test_loader = create_task_test_dataloader(task, config)
         train_dataloaders.append((task, train_loader))
         val_dataloaders.append((task, val_loader))
         test_dataloaders.append((task, test_loader))
-        decoder, loss_func = create_task_decoder(task, g, encoder_out_dims, train_task=True)
-        model.add_task(task.task_id, task.task_type, decoder, loss_func, task.weight)
+        decoder, loss_func = create_task_decoder(task, train_data.g, encoder_out_dims, train_task=True)
+        model.add_task(task.task_id, task.task_type, decoder, loss_func, task_config.weight)
         if not config.no_validation:
             if val_loader is None:
                 logging.warning("The training data do not have validation set.")
