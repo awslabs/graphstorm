@@ -1694,27 +1694,60 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             test_mask_df = int_group_df.select(F.col(group_col_name)[2].alias("test_mask"))
         else:
             # custom node label
-            custom_train_mask_df = self.spark.read.parquet(self.input_prefix + "/" + custom_split_file.train)\
-                .select(col(custom_split_file.column[0]).alias("custom_train_mask"))
-            train_mask_df = input_df.join(custom_train_mask_df,
-                                               input_df[NODE_MAPPING_STR] == custom_train_mask_df['custom_train_mask'], "left_outer")
-            train_mask_df = train_mask_df.withColumn("train_mask",
-                                                     when(train_mask_df['custom_train_mask'].isNotNull(), 1).otherwise(0)).select("train_mask")
+            if len(custom_split_file.column) == 1:
+                custom_train_mask_df = self.spark.read.parquet(self.input_prefix + "/" + custom_split_file.train)\
+                    .select(col(custom_split_file.column[0]).alias("custom_train_mask"))
+                train_mask_df = input_df.join(custom_train_mask_df,
+                                                   input_df[NODE_MAPPING_STR] == custom_train_mask_df['custom_train_mask'], "left_outer")
+                train_mask_df = train_mask_df.withColumn("train_mask",
+                                                         when(train_mask_df['custom_train_mask'].isNotNull(), 1).otherwise(0)).select("train_mask")
 
-            custom_val_mask_df = self.spark.read.parquet(self.input_prefix + "/" + custom_split_file.valid)\
-                .select(col(custom_split_file.column[0]).alias("custom_valid_mask"))
-            val_mask_df = input_df.join(custom_val_mask_df,
-                                               input_df[NODE_MAPPING_STR] == custom_val_mask_df['custom_valid_mask'], "left_outer")
-            val_mask_df = val_mask_df.withColumn("val_mask",
-                                                     when(val_mask_df['custom_valid_mask'].isNotNull(), 1).otherwise(0)).select("val_mask")
+                custom_val_mask_df = self.spark.read.parquet(self.input_prefix + "/" + custom_split_file.valid)\
+                    .select(col(custom_split_file.column[0]).alias("custom_valid_mask"))
+                val_mask_df = input_df.join(custom_val_mask_df,
+                                                   input_df[NODE_MAPPING_STR] == custom_val_mask_df['custom_valid_mask'], "left_outer")
+                val_mask_df = val_mask_df.withColumn("val_mask",
+                                                         when(val_mask_df['custom_valid_mask'].isNotNull(), 1).otherwise(0)).select("val_mask")
 
-            custom_test_mask_df = self.spark.read.parquet(self.input_prefix + "/" + custom_split_file.test)\
-                .select(col(custom_split_file.column[0]).alias("custom_test_mask"))
-            test_mask_df = input_df.join(custom_test_mask_df,
-                                               input_df[NODE_MAPPING_STR] == custom_test_mask_df['custom_test_mask'], "left_outer")
-            test_mask_df = test_mask_df.withColumn("test_mask",
-                                                     when(test_mask_df['custom_test_mask'].isNotNull(), 1).otherwise(0)).select("test_mask")
+                custom_test_mask_df = self.spark.read.parquet(self.input_prefix + "/" + custom_split_file.test)\
+                    .select(col(custom_split_file.column[0]).alias("custom_test_mask"))
+                test_mask_df = input_df.join(custom_test_mask_df,
+                                                   input_df[NODE_MAPPING_STR] == custom_test_mask_df['custom_test_mask'], "left_outer")
+                test_mask_df = test_mask_df.withColumn("test_mask",
+                                                         when(test_mask_df['custom_test_mask'].isNotNull(), 1).otherwise(0)).select("test_mask")
+            elif len(custom_split_file.column) == 2:
+                custom_train_mask_df = self.spark.read.parquet(self.input_prefix + "/" + custom_split_file.train) \
+                    .select(col(custom_split_file.column[0]).alias("custom_train_mask_src"),
+                            col(custom_split_file.column[1]).alias("custom_train_mask_dst"))
+                join_condition = (input_df["src_str_id"] == custom_train_mask_df['custom_train_mask_src']) & \
+                                (input_df["dst_str_id"] == custom_train_mask_df['custom_train_mask_dst'])
+                train_mask_df = input_df.join(custom_train_mask_df, join_condition, "left_outer")
+                train_mask_df = train_mask_df.withColumn("train_mask",
+                                                         when((train_mask_df['custom_train_mask_src'].isNotNull()) &
+                                                              (train_mask_df['custom_train_mask_dst'].isNotNull()),
+                                                              1).otherwise(0))
 
+                custom_val_mask_df = self.spark.read.parquet(self.input_prefix + "/" + custom_split_file.valid) \
+                    .select(col(custom_split_file.column[0]).alias("custom_val_mask_src"),
+                            col(custom_split_file.column[1]).alias("custom_val_mask_dst"))
+                join_condition = (input_df["src_str_id"] == custom_val_mask_df['custom_val_mask_src']) & \
+                                (input_df["dst_str_id"] == custom_val_mask_df['custom_val_mask_dst'])
+                val_mask_df = input_df.join(custom_val_mask_df, join_condition, "left_outer")
+                val_mask_df = val_mask_df.withColumn("val_mask",
+                                                         when((val_mask_df['custom_val_mask_src'].isNotNull()) &
+                                                              (val_mask_df['custom_val_mask_dst'].isNotNull()),
+                                                              1).otherwise(0))
+
+                custom_test_mask_df = self.spark.read.parquet(self.input_prefix + "/" + custom_split_file.test) \
+                    .select(col(custom_split_file.column[0]).alias("custom_test_mask_src"),
+                            col(custom_split_file.column[1]).alias("custom_test_mask_dst"))
+                join_condition = (input_df["src_str_id"] == custom_test_mask_df['custom_test_mask_src']) & \
+                                (input_df["dst_str_id"] == custom_test_mask_df['custom_test_mask_dst'])
+                test_mask_df = input_df.join(custom_test_mask_df, join_condition, "left_outer")
+                test_mask_df = test_mask_df.withColumn("test_mask",
+                                                         when((test_mask_df['custom_test_mask_src'].isNotNull()) &
+                                                              (test_mask_df['custom_test_mask_dst'].isNotNull()),
+                                                              1).otherwise(0))
 
         def create_metadata_entry(path_list):
             return {"format": {"name": FORMAT_NAME, "delimiter": DELIMITER}, "data": path_list}
