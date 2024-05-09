@@ -118,58 +118,5 @@ class TaskInfo:
     """
     task_type : str
     task_id : str
+    task_config = None
     dataloader = None # dataloder
-    batch_size: int = 0
-    mask_fields: list
-    task_weight: float
-    eval_metric : list
-
-@dataclasses.dataclass
-class NodeClassTaskInfo(TaskInfo):
-    target_ntype : str
-    label_field : str
-    num_classes: str
-    multilabel: bool = False
-    multilabel_weights: str = None
-    imbalance_class_weights: str = None
-
-
-@dataclasses.dataclass
-class NodeRegressionTaskInfo(TaskInfo):
-    target_ntype : str
-    label_field : str
-
-@dataclasses.dataclass
-class EdgeClassTaskInfo(TaskInfo):
-    target_etype : tuple
-    label_field : str
-    num_classes : str
-    multilabel: bool = False
-    multilabel_weights: str = None
-    imbalance_class_weights: str = None
-    decoder_type : str
-    num_decoder_basis : int
-    decoder_edge_feat : dict
-
-@dataclasses.dataclass
-class EdgeRegressionTaskInfo(TaskInfo):
-    target_etype : tuple
-    label_field : str
-    decoder_type : str
-    num_decoder_basis : int
-    decoder_edge_feat : dict
-
-@dataclasses.dataclass
-class LinkPredictionTaskInfo(TaskInfo):
-    train_etype : list
-    eval_etype : list
-    train_negative_sampler : str
-    eval_negative_sampler : str
-    num_negative_edges : int
-    num_negative_edges_eval : int
-    reverse_edge_types_map : dict
-    exclude_training_targets : bool
-    lp_loss_func : str
-    lp_decoder_type : str
-    gamma : float
-    report_eval_per_type : bool
