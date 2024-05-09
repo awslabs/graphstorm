@@ -104,8 +104,8 @@ class RgcnLPModel(GSgnnLinkPredictionModel):
     model architecture as the node model, but a different decoder layer and loss function:
     1. an input layer that converts input node features to the embeddings with hidden dimensions
     2. a GNN encoder layer that performs the message passing work
-    3. a decoder layer that transfors node representations into logits for classification, and
-    4. a loss function that matches to classification tasks.
+    3. a decoder layer that transfors edge representations into logits for link prediction, and
+    4. a loss function that matches to link prediction tasks.
 
     Then the model also initialize its own optimizer object.
 
