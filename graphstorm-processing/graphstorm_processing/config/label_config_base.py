@@ -89,6 +89,7 @@ class LabelConfig(abc.ABC):
     def custom_split_filenames(self) -> Dict[str, str]:
         return self._custom_split_filenames
 
+
 class EdgeLabelConfig(LabelConfig):
     """Holds the configuration of an edge label.
 

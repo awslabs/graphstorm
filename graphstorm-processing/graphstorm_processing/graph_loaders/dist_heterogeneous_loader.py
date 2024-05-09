@@ -1074,7 +1074,11 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             else:
                 custom_split_filenames = None
             label_split_dicts = self._create_split_files_from_rates(
-                nodes_df, label_conf.label_column, split_rates, split_masks_output_prefix, custom_split_filenames
+                nodes_df,
+                label_conf.label_column,
+                split_rates,
+                split_masks_output_prefix,
+                custom_split_filenames,
             )
             node_type_label_metadata.update(label_split_dicts)
 
@@ -1543,7 +1547,11 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             else:
                 custom_split_filenames = None
             label_split_dicts = self._create_split_files_from_rates(
-                edges_df, label_conf.label_column, split_rates, split_masks_output_prefix, custom_split_filenames
+                edges_df,
+                label_conf.label_column,
+                split_rates,
+                split_masks_output_prefix,
+                custom_split_filenames,
             )
             label_metadata_dicts.update(label_split_dicts)
             # TODO: Support custom_split_filenames
@@ -1706,32 +1714,49 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     raise ValueError("Unknown mask type")
 
                 if len(split_file.column) == 1:
-                    custom_mask_df = self.spark.read.parquet(self.input_prefix + "/" + file_path) \
-                        .select(col(custom_split_file.column[0]).alias(f"custom_{mask_type}_mask"))
-                    mask_df = input_df.join(custom_mask_df,
-                                                  input_df[NODE_MAPPING_STR] == custom_mask_df[
-                                                      f'custom_{mask_type}_mask'], "left_outer")
-                    mask_df = mask_df.withColumn(f"{mask_type}_mask",
-                                                             when(mask_df[f'custom_{mask_type}_mask'].isNotNull(),
-                                                                  1).otherwise(0)).select(f"{mask_type}_mask")
+                    custom_mask_df = self.spark.read.parquet(
+                        self.input_prefix + "/" + file_path
+                    ).select(col(custom_split_file.column[0]).alias(f"custom_{mask_type}_mask"))
+                    mask_df = input_df.join(
+                        custom_mask_df,
+                        input_df[NODE_MAPPING_STR] == custom_mask_df[f"custom_{mask_type}_mask"],
+                        "left_outer",
+                    )
+                    mask_df = mask_df.withColumn(
+                        f"{mask_type}_mask",
+                        when(mask_df[f"custom_{mask_type}_mask"].isNotNull(), 1).otherwise(0),
+                    ).select(f"{mask_type}_mask")
                 elif len(split_file.column) == 2:
-                    custom_mask_df = self.spark.read.parquet(self.input_prefix + "/" + file_path) \
-                        .select(col(custom_split_file.column[0]).alias(f"custom_{mask_type}_mask_src"),
-                                col(custom_split_file.column[1]).alias(f"custom_{mask_type}_mask_dst"))
-                    join_condition = (input_df["src_str_id"] == custom_mask_df[f'custom_{mask_type}_mask_src']) & \
-                                     (input_df["dst_str_id"] == custom_mask_df[f'custom_{mask_type}_mask_dst'])
+                    custom_mask_df = self.spark.read.parquet(
+                        self.input_prefix + "/" + file_path
+                    ).select(
+                        col(custom_split_file.column[0]).alias(f"custom_{mask_type}_mask_src"),
+                        col(custom_split_file.column[1]).alias(f"custom_{mask_type}_mask_dst"),
+                    )
+                    join_condition = (
+                        input_df["src_str_id"] == custom_mask_df[f"custom_{mask_type}_mask_src"]
+                    ) & (input_df["dst_str_id"] == custom_mask_df[f"custom_{mask_type}_mask_dst"])
                     mask_df = input_df.join(custom_mask_df, join_condition, "left_outer")
-                    mask_df = mask_df.withColumn(f"{mask_type}_mask",
-                                                             when((mask_df[f'custom_{mask_type}_mask_src'].isNotNull()) &
-                                                                  (mask_df[f'custom_{mask_type}_mask_dst'].isNotNull()),
-                                                                  1).otherwise(0))
+                    mask_df = mask_df.withColumn(
+                        f"{mask_type}_mask",
+                        when(
+                            (mask_df[f"custom_{mask_type}_mask_src"].isNotNull())
+                            & (mask_df[f"custom_{mask_type}_mask_dst"].isNotNull()),
+                            1,
+                        ).otherwise(0),
+                    )
                 else:
-                    raise ValueError("Only deal with node/edge label, the number of column should be only 1 or 2.")
+                    raise ValueError(
+                        "Only deal with node/edge label, the number of column should be only 1 or 2."
+                    )
 
                 return mask_df
 
-            train_mask_df, val_mask_df, test_mask_df = process_custom_mask_df(input_df, custom_split_file, "train"), \
-                process_custom_mask_df(input_df, custom_split_file, "val"), process_custom_mask_df(input_df, custom_split_file, "test")
+            train_mask_df, val_mask_df, test_mask_df = (
+                process_custom_mask_df(input_df, custom_split_file, "train"),
+                process_custom_mask_df(input_df, custom_split_file, "val"),
+                process_custom_mask_df(input_df, custom_split_file, "test"),
+            )
 
         def create_metadata_entry(path_list):
             return {"format": {"name": FORMAT_NAME, "delimiter": DELIMITER}, "data": path_list}

@@ -54,6 +54,7 @@ class SplitRates:
                 f"{self.train_rate=}, {self.val_rate=}, {self.test_rate=}"
             )
 
+
 @dataclass
 class CustomSplit:
     """

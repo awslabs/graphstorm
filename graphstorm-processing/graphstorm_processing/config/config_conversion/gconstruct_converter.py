@@ -73,7 +73,7 @@ class GConstructConfigConverter(ConfigConverter):
                         "train": label_custom_split_filenames["train"],
                         "valid": label_custom_split_filenames["valid"],
                         "test": label_custom_split_filenames["test"],
-                        "column": label_custom_split_filenames["column"]
+                        "column": label_custom_split_filenames["column"],
                     }
                 labels_list.append(label_dict)
             except KeyError as exc:
