@@ -574,7 +574,12 @@ class GSConfig:
                                       eval_negative_sampler=eval_negative_sampler,
                                       num_negative_edges=num_negative_edges,
                                       num_negative_edges_eval=num_negative_edges_eval,
-                                      )
+                                      reverse_edge_types_map=reverse_edge_types_map,
+                                      exclude_training_targets=exclude_training_targets,
+                                      lp_loss_func=lp_loss_func,
+                                      lp_decoder_type=lp_decoder_type,
+                                      gamma=gamma,
+                                      report_eval_per_type=report_eval_per_type)
 
     def _parse_multi_tasks(self, multi_task_config):
         """ Parse multi-task configuration
