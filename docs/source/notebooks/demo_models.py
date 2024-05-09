@@ -20,6 +20,7 @@
 """
 
 
+import graphstorm as gs
 from graphstorm.model import (GSgnnNodeModel,
                               GSNodeEncoderInputLayer,
                               RelationalGCNEncoder,
@@ -46,26 +47,29 @@ class RgcnNCModel(GSgnnNodeModel):
     Arguments
     ----------
     g: DistGraph
-        a DGL DistGraph
+        A DGL DistGraph
     num_hid_layers: int
-        the number of gnn layers
-    feat_size: dict of int
-        the dimension of features for each node type
+        The number of gnn layers
+    node_feat_field: dict of list of strings
+        The list features for each node type to be used in the model
     hid_size: int
-        the dimension of hidden layers.
+        The dimension of hidden layers.
     num_classes: int
-        the target number of classes for classification
+        The target number of classes for classification
     multilabel: boolean
-        indicator of if this is a multilabel task
+        Indicator of if this is a multilabel task
     """
     def __init__(self,
                  g,
                  num_hid_layers,
-                 feat_size,
+                 node_feat_field,
                  hid_size,
                  num_classes,
                  multilabel=False):
         super(RgcnNCModel, self).__init__(alpha_l2norm=0.)
+
+        # extract feature size
+        feat_size = gs.get_node_feat_size(g, node_feat_field)
 
         # set an input layer encoder
         encoder = GSNodeEncoderInputLayer(g=g, feat_size=feat_size, embed_size=hid_size)
@@ -111,17 +115,20 @@ class RgcnLPModel(GSgnnLinkPredictionModel):
         a DGL DistGraph
     num_hid_layers: int
         the number of gnn layers
-    feat_size: dict of int
-        the dimension of features for each node type
+    node_feat_field: dict of list of strings
+        The list features for each node type to be used in the model
     hid_size: int
         the dimension of hidden layers.
     """
     def __init__(self,
                  g,
                  num_hid_layers,
-                 feat_size,
+                 node_feat_field,
                  hid_size):
         super(RgcnLPModel, self).__init__(alpha_l2norm=0.)
+
+        # extract feature size
+        feat_size = gs.get_node_feat_size(g, node_feat_field)
 
         # set an input layer encoder
         encoder = GSNodeEncoderInputLayer(g=g, feat_size=feat_size, embed_size=hid_size)
