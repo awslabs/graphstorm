@@ -76,6 +76,25 @@ BUILTIN_LP_DISTMULT_DECODER = "distmult"
 SUPPORTED_LP_DECODER = [BUILTIN_LP_DOT_DECODER, BUILTIN_LP_DISTMULT_DECODER]
 
 ################ Task info data classes ############################
+def get_mttask_id(task_type, ntype=None, etype=None, label=None):
+    task_id = [task_type]
+    if ntype is not None:
+        task_id.append(ntype) # node task
+    if etype is not None:
+        if isinstance(etype, str):
+            task_id.append(etype)
+        elif isinstance(etype, tuple):
+            task_id.append("_".join(etype))
+        elif isinstance(etype, list): # a list of etypes
+            task_id.append("__".joint(["_".join(et) for et in etype]))
+        else:
+            raise TypeError("Unknown etype format: %s. Must be a string " \
+                            "or a tuple of strings or a list of tuples of strings.", etype)
+    if label is not None:
+        task_id.append(label)
+
+    return "-".join(task_id)
+
 @dataclasses.dataclass
 class TaskInfo:
     """Information of a training task in multi-task learning
@@ -83,19 +102,74 @@ class TaskInfo:
     Parameters
     ----------
     task_type: str
-        Task type
-    node_type: str
-        Node type of the task, if it is a node task
-    edge_type: tuple of strs
-        Edge type of the task, if it is a edge task
-    node_label_field: str
-        Node label field
-    edge_label_field: str
-        Edge label field
+        Task type.
+    task_id: str
+        Task id. Unique id for each task.
+    batch_size: int
+        Batch size of the current task.
+    mask_fields: list
+        Train/validation/test mask fields.
+    dataloader:
+        Task dataloader.
+    eval_metric: list
+        Evaluation metrics
+    task_weight: float
+        Weight of the task in final loss.
     """
     task_type : str
-    node_type : str = None
-    edge_type : tuple = None
-    node_label_field : str = None
-    edge_label_field : str = None
+    task_id : str
     dataloader = None # dataloder
+    batch_size: int = 0
+    mask_fields: list
+    task_weight: float
+    eval_metric : list
+
+@dataclasses.dataclass
+class NodeClassTaskInfo(TaskInfo):
+    target_ntype : str
+    label_field : str
+    num_classes: str
+    multilabel: bool = False
+    multilabel_weights: str = None
+    imbalance_class_weights: str = None
+
+
+@dataclasses.dataclass
+class NodeRegressionTaskInfo(TaskInfo):
+    target_ntype : str
+    label_field : str
+
+@dataclasses.dataclass
+class EdgeClassTaskInfo(TaskInfo):
+    target_etype : tuple
+    label_field : str
+    num_classes : str
+    multilabel: bool = False
+    multilabel_weights: str = None
+    imbalance_class_weights: str = None
+    decoder_type : str
+    num_decoder_basis : int
+    decoder_edge_feat : dict
+
+@dataclasses.dataclass
+class EdgeRegressionTaskInfo(TaskInfo):
+    target_etype : tuple
+    label_field : str
+    decoder_type : str
+    num_decoder_basis : int
+    decoder_edge_feat : dict
+
+@dataclasses.dataclass
+class LinkPredictionTaskInfo(TaskInfo):
+    train_etype : list
+    eval_etype : list
+    train_negative_sampler : str
+    eval_negative_sampler : str
+    num_negative_edges : int
+    num_negative_edges_eval : int
+    reverse_edge_types_map : dict
+    exclude_training_targets : bool
+    lp_loss_func : str
+    lp_decoder_type : str
+    gamma : float
+    report_eval_per_type : bool

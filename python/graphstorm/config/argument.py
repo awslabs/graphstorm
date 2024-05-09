@@ -55,6 +55,12 @@ from .config import (GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS,
 
 from .config import (GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_EMBED_LAYER,
                      GRAPHSTORM_MODEL_DECODER_LAYER, GRAPHSTORM_MODEL_LAYER_OPTIONS)
+from .config import get_mttask_id
+from .config import (NodeClassTaskInfo,
+                     NodeRegressionTaskInfo,
+                     EdgeClassTaskInfo,
+                     EdgeRegressionTaskInfo,
+                     LinkPredictionTaskInfo)
 
 from ..utils import TORCH_MAJOR_VER, get_log_level, get_graph_name
 
@@ -224,6 +230,351 @@ class GSConfig:
             # directly add udf configs as config arguments
             for key, val in udf_family.items():
                 setattr(self, key, val)
+
+    def _parse_general_task_config(self, task_config):
+        """ Parse the genral task info
+
+        Parameters
+        ----------
+        task_config: dict
+            Task config
+        """
+        assert "mask_fields" in task_config, \
+            "mask_fields should be provided for each node classification task " \
+            "in multi task learning"
+        assert "task_weight" in task_config, \
+            "task_weight should be provided for each node classification task " \
+            "in multi task learning"
+        batch_size = task_config["batch_size"] if "batch_size" in task_config else 0
+        assert batch_size >= 0 # if batch size is 0, will use the global batch_size
+        mask_fields = task_config["mask_fields"]
+        assert len(mask_fields) == 3, \
+            "The mask_fileds should be a list as [train-mask, validation-mask, test-mask], " \
+            f"but get {mask_fields}"
+        task_weight = task_config["task_weight"]
+        assert task_weight > 0, f"task_weight should be larger than 0, but get {task_weight}"
+
+        return batch_size, mask_fields, task_weight
+
+    def _parse_node_classification_task(self, task_config):
+        """ Parse the node classification task info
+
+        Parameters
+        ----------
+        task_config: dict
+            Node classification task config
+        """
+        task_type = BUILTIN_TASK_NODE_CLASSIFICATION
+        assert "target_ntype" in task_config, \
+            "target_ntype should be provided for each node classification task " \
+            "in multi task learning"
+        assert "label_field" in task_config, \
+            "label_field should be provided for each node classification task " \
+            "in multi task learning"
+        assert "num_classes" in task_config, \
+            "num_classes should be provided for each node classification task " \
+            "in multi task learning"
+
+        target_ntype = task_config["target_ntype"]
+        label_field = task_config["label_field"]
+        num_classes = task_config["num_classes"]
+        assert num_classes > 0
+        multilabel = task_config["multilabel"] \
+            if "multilabel" in task_config else False
+        assert multilabel in [True, False]
+        batch_size, mask_fields, task_weight = \
+            self._parse_general_task_config(task_config)
+
+        multilabel_weights = task_config["multilabel_weights"] \
+            if "multilabel_weights" in task_config else None
+        if multilabel_weights is not None:
+            multilabel_weights = self.check_multilabel_weights(multilabel, multilabel_weights, num_classes)
+        imbalance_class_weights = task_config["imbalance_class_weights"] \
+            if "imbalance_class_weights" in task_config else None
+        if imbalance_class_weights is not None:
+            imbalance_class_weights = self.check_imbalance_class_weights(
+                imbalance_class_weights,
+                num_classes)
+        task_id = get_mttask_id(task_type=task_type,
+                                ntype=target_ntype,
+                                label=label_field)
+        eval_metric = task_config["eval_metric"] \
+            if "eval_metric" in task_config else ["accuracy"]
+        eval_metric = self.check_classification_eval_metrics(eval_metric)
+
+        return NodeClassTaskInfo(task_type=task_type,
+                                 task_id=task_id,
+                                 batch_size=batch_size,mask_fields=mask_fields,
+                                 task_weight=task_weight,
+                                 eval_metric=eval_metric,
+                                 target_ntype=target_ntype,
+                                 label_field=label_field,
+                                 num_classes=num_classes,
+                                 multilabel=multilabel,
+                                 multilabel_weights=multilabel_weights,
+                                 imbalance_class_weights=imbalance_class_weights)
+
+    def _parse_node_regression_task(self, task_config):
+        """ Parse the node regression task info
+
+        Parameters
+        ----------
+        task_config: dict
+            Node regression task config
+        """
+        task_type = BUILTIN_TASK_NODE_REGRESSION
+        assert "target_ntype" in task_config, \
+            "target_ntype should be provided for each node regression task " \
+            "in multi task learning"
+        assert "label_field" in task_config, \
+            "label_field should be provided for each node regression task " \
+            "in multi task learning"
+        target_ntype = task_config["target_ntype"]
+        label_field = task_config["label_field"]
+
+        batch_size, mask_fields, task_weight = \
+            self._parse_general_task_config(task_config)
+        task_id = get_mttask_id(task_type=task_type,
+                                ntype=target_ntype,
+                                label=label_field)
+
+        eval_metric = task_config["eval_metric"] \
+            if "eval_metric" in task_config else ["accuracy"]
+        eval_metric = self.check_regression_eval_metrics(eval_metric)
+
+        return NodeRegressionTaskInfo(task_type=task_type,
+                                      task_id=task_id,
+                                      batch_size=batch_size,
+                                      mask_fields=mask_fields,
+                                      task_weight=task_weight,
+                                      eval_metric=eval_metric,
+                                      target_ntype=target_ntype,
+                                      label_field=label_field)
+
+    def _parse_edge_classification_task(self, task_config):
+        """ Parse the edge classification task info
+
+        Parameters
+        ----------
+        task_config: dict
+            Edge classification task config
+        """
+        task_type = BUILTIN_TASK_EDGE_CLASSIFICATION
+        assert "target_etype" in task_config, \
+            "target_etype should be provided for each edge classification task " \
+            "in multi task learning"
+        assert "label_field" in task_config, \
+            "label_field should be provided for each node classification task " \
+            "in multi task learning"
+        assert "num_classes" in task_config, \
+            "num_classes should be provided for each node classification task " \
+            "in multi task learning"
+        target_etype = task_config["target_etype"]
+        label_field = task_config["label_field"]
+        num_classes = task_config["num_classes"]
+        batch_size, mask_fields, task_weight = \
+            self._parse_general_task_config(task_config)
+
+        multilabel = task_config["multilabel"] \
+            if "multilabel" in task_config else False
+        assert multilabel in [True, False]
+        multilabel_weights = task_config["multilabel_weights"] \
+            if "multilabel_weights" in task_config else None
+        if multilabel_weights is not None:
+            multilabel_weights = self.check_multilabel_weights(multilabel, multilabel_weights, num_classes)
+        imbalance_class_weights = task_config["imbalance_class_weights"] \
+            if "imbalance_class_weights" in task_config else None
+        if imbalance_class_weights is not None:
+            imbalance_class_weights = self.check_imbalance_class_weights(
+                imbalance_class_weights,
+                num_classes)
+
+        decoder_type = task_config["decoder_type"] \
+            if "decoder_type" in task_config else "DenseBiDecoder"
+        num_decoder_basis = task_config["num_decoder_basis"] \
+            if "num_decoder_basis" in task_config else 2
+        decoder_edge_feat = task_config["decoder_edge_feat"] \
+            if "decoder_edge_feat" in task_config else None
+        decoder_edge_feat = self.parse_decoder_edge_feat(decoder_edge_feat)
+        if isinstance(decoder_edge_feat, dict):
+            assert len(decoder_edge_feat) == 1 and \
+                list(decoder_edge_feat.keys())[0] == target_etype, \
+                "In multi-task learning, we define edge regression " \
+                "tasks one by one. The edge type of " \
+                "decoder_edge_feat of the current regression task " \
+                f"must match {target_etype}, but get {decoder_edge_feat.keys()}"
+
+        task_id = get_mttask_id(task_type=task_type,
+                                etype=target_etype,
+                                label=label_field)
+
+        eval_metric = task_config["eval_metric"] \
+            if "eval_metric" in task_config else ["accuracy"]
+        eval_metric = self.check_classification_eval_metrics(eval_metric)
+
+        return EdgeClassTaskInfo(task_type=task_type,
+                                 task_id=task_id,
+                                 batch_size=batch_size,
+                                 mask_fields=mask_fields,
+                                 task_weight=task_weight,
+                                 eval_metric=eval_metric,
+                                 target_etype=target_etype,
+                                 label_field=label_field,
+                                 num_classes=num_classes,
+                                 multilabel=multilabel,
+                                 multilabel_weights=multilabel_weights,
+                                 imbalance_class_weights=imbalance_class_weights,
+                                 decoder_type=decoder_type,
+                                 num_decoder_basis=num_decoder_basis,
+                                 decoder_edge_feat=decoder_edge_feat
+                                 )
+
+    def _parse_edge_regression_task(self, task_config):
+        """ Parse the edge regression task info
+
+        Parameters
+        ----------
+        task_config: dict
+            Edge regression task config
+        """
+        task_type = BUILTIN_TASK_EDGE_REGRESSION
+        assert "target_etype" in task_config, \
+            "target_etype should be provided for each edge regression task " \
+            "in multi task learning"
+        assert "label_field" in task_config, \
+            "label_field should be provided for each node classification task " \
+            "in multi task learning"
+        target_etype = task_config["target_etype"]
+        label_field = task_config["label_field"]
+
+        batch_size, mask_fields, task_weight = \
+            self._parse_general_task_config(task_config)
+
+        decoder_type = task_config["decoder_type"] \
+            if "decoder_type" in task_config else "DenseBiDecoder"
+        num_decoder_basis = task_config["num_decoder_basis"] \
+            if "num_decoder_basis" in task_config else 2
+        decoder_edge_feat = task_config["decoder_edge_feat"] \
+            if "decoder_edge_feat" in task_config else None
+        decoder_edge_feat = self.parse_decoder_edge_feat(decoder_edge_feat)
+        if isinstance(decoder_edge_feat, dict):
+            assert len(decoder_edge_feat) == 1 and \
+                list(decoder_edge_feat.keys())[0] == target_etype, \
+                "In multi-task learning, we define edge regression " \
+                "tasks one by one. The edge type of " \
+                "decoder_edge_feat of the current regression task " \
+                f"must match {target_etype}, but get {decoder_edge_feat.keys()}"
+
+
+        task_id = get_mttask_id(task_type=task_type,
+                                etype=target_etype,
+                                label=label_field)
+        eval_metric = task_config["eval_metric"] \
+            if "eval_metric" in task_config else ["accuracy"]
+        eval_metric = self.check_regression_eval_metrics(eval_metric)
+        return EdgeRegressionTaskInfo(task_type=task_type,
+                                      task_id=task_id,
+                                      batch_size=batch_size,
+                                      mask_fields=mask_fields,
+                                      task_weight=task_weight,
+                                      eval_metric=eval_metric,
+                                      target_etype=target_etype,
+                                      label_field=label_field,
+                                      decoder_type=decoder_type,
+                                      num_decoder_basis=num_decoder_basis,
+                                      decoder_edge_feat=decoder_edge_feat)
+
+    def _parse_link_prediction_task(self, task_config):
+        """ Parse the link prediction task info
+
+        Parameters
+        ----------
+        task_config: dict
+           Link prediction task config
+        """
+        task_type = BUILTIN_TASK_LINK_PREDICTION
+
+        batch_size, mask_fields, task_weight = \
+            self._parse_general_task_config(task_config)
+
+        train_negative_sampler = task_config["train_negative_sampler"] \
+            if "train_negative_sampler" in task_config \
+            else BUILTIN_LP_UNIFORM_NEG_SAMPLER
+        eval_negative_sampler = task_config["eval_negative_sampler"] \
+            if "eval_negative_sampler" in task_config \
+            else BUILTIN_LP_JOINT_NEG_SAMPLER
+        num_negative_edges = task_config["num_negative_edges"] \
+            if "num_negative_edges" in task_config \
+            else 16
+        assert num_negative_edges > 0, \
+            "Number of negative edges must larger than 0"
+        num_negative_edges_eval = task_config["num_negative_edges_eval"] \
+            if "num_negative_edges_eval" in task_config \
+            else 1000
+        assert num_negative_edges_eval > 0, \
+            "Number of negative edges for evaluation must larger than 0"
+
+        train_etype = task_config["train_etype"] \
+            if "train_etype" in task_config \
+            else None # None means all etypes
+        train_etype = self.parse_lp_etype(train_etype)
+        eval_etype = task_config["eval_etype"] \
+            if "eval_etype" in task_config \
+            else None # None means all etypes
+        eval_etype = self.parse_lp_etype(eval_etype)
+        reverse_edge_types_map = task_config["reverse_edge_types_map"] \
+            if "reverse_edge_types_map" in task_config \
+            else {}
+        reverse_edge_types_map = self.parse_reverse_edge_type_map(reverse_edge_types_map)
+        exclude_training_targets = task_config["exclude_training_targets"] \
+            if "exclude_training_targets" in task_config \
+            else True
+        assert exclude_training_targets in [True, False]
+        if exclude_training_targets is True:
+            assert len(reverse_edge_types_map) > 0, \
+                "By default, exclude training targets is used." \
+                "Reverse edge types map must be provided."
+
+        lp_loss_func = task_config["lp_loss_func"] \
+            if "lp_loss_func" in task_config \
+            else BUILTIN_LP_LOSS_CROSS_ENTROPY
+        assert lp_loss_func in BUILTIN_LP_LOSS_FUNCTION
+        lp_decoder_type = task_config["lp_decoder_type"] \
+            if "lp_decoder_type" in task_config \
+            else BUILTIN_LP_DISTMULT_DECODER
+        assert lp_decoder_type in SUPPORTED_LP_DECODER, \
+                f"Link prediction decoder {lp_decoder_type} not supported. " \
+                f"GraphStorm only supports {SUPPORTED_LP_DECODER}"
+        gamma = task_config["gamma"] \
+            if "gamma" in task_config \
+            else 12.0
+
+
+        report_eval_per_type = task_config["report_eval_per_type"] \
+            if "report_eval_per_type" in task_config \
+            else False
+        assert report_eval_per_type in [True, False], \
+                "report_eval_per_type must be True or False"
+
+        task_id = get_mttask_id(
+            task_type=task_type,
+            etype=train_etype if train_etype is not None else "ALL_ETYPE")
+        eval_metric = task_config["eval_metric"] \
+            if "eval_metric" in task_config else ["accuracy"]
+        eval_metric = self.check_lp_eval_metrics(eval_metric)
+        return LinkPredictionTaskInfo(task_type=task_type,
+                                      task_id=task_id,
+                                      atch_size=batch_size,
+                                      mask_fields=mask_fields,
+                                      task_weight=task_weight,
+                                      eval_metric=eval_metric,
+                                      train_etype=train_etype,
+                                      eval_etype=eval_etype,
+                                      train_negative_sampler=train_negative_sampler,
+                                      eval_negative_sampler=eval_negative_sampler,
+                                      num_negative_edges=num_negative_edges,
+                                      num_negative_edges_eval=num_negative_edges_eval,
+                                      )
 
     def _parse_multi_tasks(self, multi_task_config):
         """ Parse multi-task configuration
@@ -1507,6 +1858,20 @@ class GSConfig:
                 return check_multilabel(self._multilabel)
             return False
 
+    @staticmethod
+    def check_multilabel_weights(multilabel, multilabel_weights, num_classes):
+        assert multilabel is True, "Must be a multi-label classification task."
+        try:
+            weights = multilabel_weights.split(",")
+            weights = [float(w) for w in weights]
+        except Exception: # pylint: disable=broad-except
+            raise RuntimeError("The weights should in following format 0.1,0.2,0.1,0.0")
+        for w in weights:
+            assert w >= 0., "multilabel weights can not be negative values"
+        assert len(weights) == num_classes, \
+            "Each class must have an assigned weight"
+        return th.tensor(weights)
+
     @property
     def multilabel_weights(self):
         """Used to specify label weight of each class in a
@@ -1515,20 +1880,6 @@ class GSConfig:
 
            The weights should be in the following format 0.1,0.2,0.3,0.1,0.0
         """
-
-        def check_multilabel_weights(multilabel, multilabel_weights, num_classes):
-            assert multilabel is True, "Must be a multi-label classification task."
-            try:
-                weights = multilabel_weights.split(",")
-                weights = [float(w) for w in weights]
-            except Exception: # pylint: disable=broad-except
-                raise RuntimeError("The weights should in following format 0.1,0.2,0.1,0.0")
-            for w in weights:
-                assert w >= 0., "multilabel weights can not be negative values"
-            assert len(weights) == num_classes, \
-                "Each class must have an assigned weight"
-            return th.tensor(weights)
-
         if hasattr(self, "_num_classes") and isinstance(self.num_classes, dict):
             if hasattr(self, "_multilabel_weights"):
                 multilabel = self.multilabel
@@ -1537,18 +1888,19 @@ class GSConfig:
                 ntype_weights = {}
                 for ntype in num_classes:
                     if ntype in multilabel_weights:
-                        ntype_weights[ntype] = check_multilabel_weights(multilabel[ntype],
-                                                                        multilabel_weights[ntype],
-                                                                        num_classes[ntype])
+                        ntype_weights[ntype] = self.check_multilabel_weights(
+                            multilabel[ntype],
+                            multilabel_weights[ntype],
+                            num_classes[ntype])
                     else:
                         ntype_weights[ntype] = None
                 return ntype_weights
             return {ntype: None for ntype in self.num_classes}
         else:
             if hasattr(self, "_multilabel_weights"):
-                return check_multilabel_weights(self.multilabel,
-                                                self._multilabel_weights,
-                                                self.num_classes)
+                return self.check_multilabel_weights(self.multilabel,
+                                                     self._multilabel_weights,
+                                                     self.num_classes)
 
             return None
 
@@ -1570,6 +1922,19 @@ class GSConfig:
         # By default, return all the predictions
         return True
 
+    @staticmethod
+    def check_imbalance_class_weights(imbalance_class_weights, num_classes):
+        try:
+            weights = imbalance_class_weights.split(",")
+            weights = [float(w) for w in weights]
+        except Exception: # pylint: disable=broad-except
+            raise RuntimeError("The weights should in following format 0.1,0.2,0.3,0.1")
+        for w in weights:
+            assert w > 0., "Each weight should be larger than 0."
+        assert len(weights) == num_classes, \
+            "Each class must have an assigned weight"
+        return th.tensor(weights)
+
     @property
     def imbalance_class_weights(self):
         """ Used to specify a manual rescaling weight given to each class
@@ -1579,19 +1944,6 @@ class GSConfig:
 
             Customer should provide the weight in following format 0.1,0.2,0.3,0.1
         """
-
-        def check_imbalance_class_weights(imbalance_class_weights, num_classes):
-            try:
-                weights = imbalance_class_weights.split(",")
-                weights = [float(w) for w in weights]
-            except Exception: # pylint: disable=broad-except
-                raise RuntimeError("The weights should in following format 0.1,0.2,0.3,0.1")
-            for w in weights:
-                assert w > 0., "Each weight should be larger than 0."
-            assert len(weights) == num_classes, \
-                "Each class must have an assigned weight"
-            return th.tensor(weights)
-
         if hasattr(self, "_num_classes") and isinstance(self.num_classes, dict):
             if hasattr(self, "_imbalance_class_weights"):
                 assert isinstance(self._imbalance_class_weights, dict), \
@@ -1601,7 +1953,7 @@ class GSConfig:
                 ntype_weights = {}
                 for ntype in num_classes:
                     if ntype in imbalance_class_weights:
-                        ntype_weights[ntype] = check_imbalance_class_weights(
+                        ntype_weights[ntype] = self.check_imbalance_class_weights(
                             imbalance_class_weights[ntype],
                             num_classes[ntype]
                             )
@@ -1611,8 +1963,8 @@ class GSConfig:
             return {ntype: None for ntype in self.num_classes}
         else:
             if hasattr(self, "_imbalance_class_weights"):
-                return check_imbalance_class_weights(self._imbalance_class_weights,
-                                                     self.num_classes)
+                return self.check_imbalance_class_weights(self._imbalance_class_weights,
+                                                          self.num_classes)
             return None
 
     ###classification/regression inference related ####
@@ -1661,6 +2013,40 @@ class GSConfig:
                 return None
 
     #### edge related task variables ####
+    @staticmethod
+    def parse_reverse_edge_type_map(reverse_edge_types_map):
+        """ Parse the reverse edge type map.
+
+        Parameters
+        ----------
+        reverse_edge_types_map: list
+            A list one etype and reverse edge type maps
+            in the format of head,relation,reverse relation,tail
+
+        Return
+        ------
+        A map: dict
+        """
+        if reverse_edge_types_map is None:
+            return {} # empty dict
+        assert isinstance(reverse_edge_types_map, list), \
+            "Reverse edge type map should has following format: " \
+            "[\"head,relation,reverse relation,tail\", " \
+            "\"head,relation,reverse relation,tail\", ...]"
+
+        reverse_map = {}
+        try:
+            for etype_info in reverse_edge_types_map:
+                head, rel, rev_rel, tail = etype_info.split(",")
+                reverse_map[(head, rel, tail)] = (tail, rev_rel, head)
+        except Exception: # pylint: disable=broad-except
+            assert False, \
+                "Reverse edge type map should has following format: " \
+                "[\"head,relation,reverse relation,tail\", " \
+                "\"head,relation,reverse relation,tail\", ...]" \
+                f"But get {reverse_edge_types_map}"
+        return reverse_map
+
     @property
     def reverse_edge_types_map(self):
         """ A list of reverse edge type info.
@@ -1678,26 +2064,7 @@ class GSConfig:
 
         # pylint: disable=no-member
         if hasattr(self, "_reverse_edge_types_map"):
-            if self._reverse_edge_types_map is None:
-                return {} # empty dict
-            assert isinstance(self._reverse_edge_types_map, list), \
-                "Reverse edge type map should has following format: " \
-                "[\"head,relation,reverse relation,tail\", " \
-                "\"head,relation,reverse relation,tail\", ...]"
-
-            reverse_edge_types_map = {}
-            try:
-                for etype_info in self._reverse_edge_types_map:
-                    head, rel, rev_rel, tail = etype_info.split(",")
-                    reverse_edge_types_map[(head, rel, tail)] = (tail, rev_rel, head)
-            except Exception: # pylint: disable=broad-except
-                assert False, \
-                    "Reverse edge type map should has following format: " \
-                    "[\"head,relation,reverse relation,tail\", " \
-                    "\"head,relation,reverse relation,tail\", ...]" \
-                    f"But get {self._reverse_edge_types_map}"
-
-            return reverse_edge_types_map
+            return self.parse_reverse_edge_type_map(self._reverse_edge_types_map)
 
         # By default return an empty dict
         return {}
@@ -1770,6 +2137,31 @@ class GSConfig:
         # By default, return 2
         return 2
 
+    @staticmethod
+    def parse_decoder_edge_feat(decoder_edge_feats):
+        """ Parse decoder edge feat
+
+        Parameter
+        ---------
+        decoder_edge_feats: list
+            Edge features that will be used by the decoder.
+        """
+        assert len(decoder_edge_feats) == 1, \
+                "We only support edge classifcation or regression on one edge type"
+
+        if ":" not in decoder_edge_feats[0]:
+            # global feat_name
+            return decoder_edge_feats[0]
+
+        # per edge type feature
+        feat_name = decoder_edge_feats[0]
+        feat_info = feat_name.split(":")
+        assert len(feat_info) == 2, \
+                f"Unknown format of the feature name: {feat_name}, " + \
+                "must be EDGE_TYPE:FEAT_NAME"
+        etype = tuple(feat_info[0].split(","))
+        return {etype: feat_info[1].split(",")}
+
     @property
     def decoder_edge_feat(self):
         """ A list of edge features that can be used by a decoder to
@@ -1781,27 +2173,14 @@ class GSConfig:
                 (BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION), \
                 "Decoder edge feature only works with " \
                 "edge classification or regression tasks"
-            decoder_edge_feats = self._decoder_edge_feat
-            assert len(decoder_edge_feats) == 1, \
-                "We only support edge classifcation or regression on one edge type"
+            decoder_edge_feat = self.parse_decoder_edge_feat(self._decoder_edge_feat)
 
-            if ":" not in decoder_edge_feats[0]:
-                # global feat_name
-                return decoder_edge_feats[0]
-
-            # per edge type feature
-            feat_name = decoder_edge_feats[0]
-            feat_info = feat_name.split(":")
-            assert len(feat_info) == 2, \
-                    f"Unknown format of the feature name: {feat_name}, " + \
-                    "must be EDGE_TYPE:FEAT_NAME"
-            etype = tuple(feat_info[0].split(","))
-            assert etype in self.target_etype, \
-                f"{etype} must in the training edge type list {self.target_etype}"
-            return {etype: feat_info[1].split(",")}
-
+            if isinstance(decoder_edge_feat, dict):
+                for etype in decoder_edge_feat.keys():
+                    assert etype in self.target_etype, \
+                        f"{etype} must in the training edge type list {self.target_etype}"
+            return decoder_edge_feat
         return None
-
 
     ### Link Prediction specific ###
     @property
@@ -1846,7 +2225,7 @@ class GSConfig:
         # pylint: disable=no-member
         if hasattr(self, "_num_negative_edges_eval"):
             assert self._num_negative_edges_eval > 0, \
-                "Number of negative edges must larger than 0"
+                "Number of negative edges for evaluation must larger than 0"
             return self._num_negative_edges_eval
         # Set default value to 1000.
         return 1000
@@ -2070,6 +2449,22 @@ class GSConfig:
         # By default fixed negative is not used
         return None
 
+    @staticmethod
+    def parse_lp_etype(etypes):
+        """ Parse and validate the input link prediction etypes
+
+        Parameters
+        ----------
+        etypes: str
+            Edge types
+        """
+        if etypes is None:
+            return None
+        assert isinstance(etypes, list)
+        assert len(etypes) > 0
+
+        return [tuple(etype.split(',')) for etype in etypes]
+
     @property
     def train_etype(self):
         """ The list of canonical etypes that will be added as
@@ -2079,12 +2474,7 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_train_etype"):
-            if self._train_etype is None:
-                return None
-            assert isinstance(self._train_etype, list)
-            assert len(self._train_etype) > 0
-
-            return [tuple(train_etype.split(',')) for train_etype in self._train_etype]
+            return self.parse_lp_etype(self._train_etype)
         # By default return None, which means use all edge types
         return None
 
@@ -2097,11 +2487,8 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_eval_etype"):
-            if self._eval_etype is None:
-                return None
-            assert isinstance(self._eval_etype, list)
-            assert len(self._eval_etype) > 0
-            return [tuple(eval_etype.split(',')) for eval_etype in self._eval_etype]
+            return self.parse_lp_etype(self._eval_etype)
+
         # By default return None, which means use all edge types
         return None
 
@@ -2175,6 +2562,116 @@ class GSConfig:
 
         return False
 
+    @staticmethod
+    def check_classification_eval_metrics(eval_metric):
+        """ Check the classification evaluation metrics
+
+        Parameter
+        ---------
+        eval_metric: str or list of str
+            Evaluation metric(s).
+
+        Return
+        ------
+        list of str
+            Evaluation metric(s).
+        """
+        if isinstance(eval_metric, str):
+            eval_metric = eval_metric.lower()
+            assert eval_metric in SUPPORTED_CLASSIFICATION_METRICS, \
+                f"Classification evaluation metric should be " \
+                f"in {SUPPORTED_CLASSIFICATION_METRICS}" \
+                f"but get {eval_metric}"
+            eval_metrics = [eval_metric]
+        elif isinstance(eval_metric, list) and len(eval_metric) > 0:
+            eval_metrics = []
+            for metric in eval_metric:
+                metric = metric.lower()
+                assert metric in SUPPORTED_CLASSIFICATION_METRICS, \
+                    f"Classification evaluation metric should be " \
+                    f"in {SUPPORTED_CLASSIFICATION_METRICS}" \
+                    f"but get {eval_metric}"
+                eval_metrics.append(metric)
+        else:
+            assert False, "Classification evaluation metric " \
+                "should be a string or a list of string"
+            # no eval_metric
+        return eval_metrics
+
+    @staticmethod
+    def check_regression_eval_metrics(eval_metric):
+        """ Check the regression evaluation metrics
+
+        Parameter
+        ---------
+        eval_metric: str or list of str
+            Evaluation metric(s).
+
+        Return
+        ------
+        list of str
+            Evaluation metric(s).
+        """
+        if isinstance(eval_metric, str):
+            eval_metric = eval_metric.lower()
+            assert eval_metric in SUPPORTED_REGRESSION_METRICS, \
+                f"Regression evaluation metric should be " \
+                f"in {SUPPORTED_REGRESSION_METRICS}, " \
+                f"but get {eval_metric}"
+            eval_metrics = [eval_metric]
+        elif isinstance(eval_metric, list) and len(eval_metric) > 0:
+            eval_metrics = []
+            for metric in eval_metric:
+                metric = metric.lower()
+                assert metric in SUPPORTED_REGRESSION_METRICS, \
+                    f"Regression evaluation metric should be " \
+                    f"in {SUPPORTED_REGRESSION_METRICS}" \
+                    f"but get {eval_metric}"
+                eval_metrics.append(metric)
+        else:
+            assert False, "Regression evaluation metric " \
+                "should be a string or a list of string"
+            # no eval_metric
+
+        return eval_metrics
+
+    @staticmethod
+    def check_lp_eval_metrics(eval_metric):
+        """ Check the link prediction evaluation metrics
+
+        Parameter
+        ---------
+        eval_metric: str or list of str
+            Evaluation metric(s).
+
+        Return
+        ------
+        list of str
+            Evaluation metric(s).
+        """
+        if isinstance(eval_metric, str):
+            eval_metric = eval_metric.lower()
+            assert eval_metric in SUPPORTED_LINK_PREDICTION_METRICS, \
+                f"Link prediction evaluation metric should be " \
+                f"in {SUPPORTED_LINK_PREDICTION_METRICS}" \
+                f"but get {eval_metric}"
+            eval_metrics = [eval_metric]
+        elif isinstance(eval_metric, list) and len(eval_metric) > 0:
+            eval_metrics = []
+            for metric in eval_metric:
+                metric = metric.lower()
+                assert metric in SUPPORTED_LINK_PREDICTION_METRICS, \
+                    f"Link prediction evaluation metric should be " \
+                    f"in {SUPPORTED_LINK_PREDICTION_METRICS}" \
+                    f"but get {eval_metric}"
+                eval_metrics.append(metric)
+        else:
+            assert False, "Link prediction evaluation metric " \
+                "should be a string or a list of string"
+            # no eval_metric
+
+        return eval_metrics
+
     @property
     def eval_metric(self):
         """ Evaluation metric used during evaluation
@@ -2196,75 +2693,18 @@ class GSConfig:
 
             # check evaluation metrics
             if hasattr(self, "_eval_metric"):
-                if isinstance(self._eval_metric, str):
-                    eval_metric = self._eval_metric.lower()
-                    assert eval_metric in SUPPORTED_CLASSIFICATION_METRICS, \
-                        f"Classification evaluation metric should be " \
-                        f"in {SUPPORTED_CLASSIFICATION_METRICS}" \
-                        f"but get {self._eval_metric}"
-                    eval_metric = [eval_metric]
-                elif isinstance(self._eval_metric, list) and len(self._eval_metric) > 0:
-                    eval_metric = []
-                    for metric in self._eval_metric:
-                        metric = metric.lower()
-                        assert metric in SUPPORTED_CLASSIFICATION_METRICS, \
-                            f"Classification evaluation metric should be " \
-                            f"in {SUPPORTED_CLASSIFICATION_METRICS}" \
-                            f"but get {self._eval_metric}"
-                        eval_metric.append(metric)
-                else:
-                    assert False, "Classification evaluation metric " \
-                        "should be a string or a list of string"
-                    # no eval_metric
+                eval_metric = self.check_classification_eval_metrics(self._eval_metric)
             else:
                 eval_metric = ["accuracy"]
         elif self.task_type in [BUILTIN_TASK_NODE_REGRESSION, \
             BUILTIN_TASK_EDGE_REGRESSION]:
             if hasattr(self, "_eval_metric"):
-                if isinstance(self._eval_metric, str):
-                    eval_metric = self._eval_metric.lower()
-                    assert eval_metric in SUPPORTED_REGRESSION_METRICS, \
-                        f"Regression evaluation metric should be " \
-                        f"in {SUPPORTED_REGRESSION_METRICS}, " \
-                        f"but get {self._eval_metric}"
-                    eval_metric = [eval_metric]
-                elif isinstance(self._eval_metric, list) and len(self._eval_metric) > 0:
-                    eval_metric = []
-                    for metric in self._eval_metric:
-                        metric = metric.lower()
-                        assert metric in SUPPORTED_REGRESSION_METRICS, \
-                            f"Regression evaluation metric should be " \
-                            f"in {SUPPORTED_REGRESSION_METRICS}" \
-                            f"but get {self._eval_metric}"
-                        eval_metric.append(metric)
-                else:
-                    assert False, "Regression evaluation metric " \
-                        "should be a string or a list of string"
-                    # no eval_metric
+                eval_metric = self.check_regression_eval_metrics(self._eval_metric)
             else:
                 eval_metric = ["rmse"]
         elif self.task_type == BUILTIN_TASK_LINK_PREDICTION:
             if hasattr(self, "_eval_metric"):
-                if isinstance(self._eval_metric, str):
-                    eval_metric = self._eval_metric.lower()
-                    assert eval_metric in SUPPORTED_LINK_PREDICTION_METRICS, \
-                        f"Link prediction evaluation metric should be " \
-                        f"in {SUPPORTED_LINK_PREDICTION_METRICS}" \
-                        f"but get {self._eval_metric}"
-                    eval_metric = [eval_metric]
-                elif isinstance(self._eval_metric, list) and len(self._eval_metric) > 0:
-                    eval_metric = []
-                    for metric in self._eval_metric:
-                        metric = metric.lower()
-                        assert metric in SUPPORTED_LINK_PREDICTION_METRICS, \
-                            f"Link prediction evaluation metric should be " \
-                            f"in {SUPPORTED_LINK_PREDICTION_METRICS}" \
-                            f"but get {self._eval_metric}"
-                        eval_metric.append(metric)
-                else:
-                    assert False, "Link prediction evaluation metric " \
-                        "should be a string or a list of string"
-                    # no eval_metric
+                eval_metric = self.check_lp_eval_metrics(self._eval_metric)
             else:
                 eval_metric = ["mrr"]
         else:

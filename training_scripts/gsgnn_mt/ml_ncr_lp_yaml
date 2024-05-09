@@ -40,6 +40,8 @@ gsf:
         - "val_mask_field_nc"
         - "test_mask_field_nc"
       task_weight: 1.0
+      eval_metric:
+        - "accuracy"
     - edge_classification:
       target_etype:
         - "user,rating,movie"
@@ -49,7 +51,6 @@ gsf:
       multilabel: false
       num_classes: 5
       num_decoder_basis: 32
-      exclude_training_targets: false
       batch_size: 10 # will overwrite the global batch_size
       mask_fields:
         - "train_mask_field_ec"
@@ -64,11 +65,11 @@ gsf:
         - "user,rating,movie"
       train_etype:
         - "user,rating,movie"
-      exclude_training_targets: false
+      exclude_training_targets: true
       reverse_edge_types_map: []
       batch_size: 10 # will overwrite the global batch_size
       mask_fields:
         - "train_mask_field_lp"
-        - "" # empty means there is no validation mask
-        - "" # empty means there is no test mask
+        - null # empty means there is no validation mask
+        - null # empty means there is no test mask
       task_weight: 1.0
