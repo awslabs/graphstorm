@@ -16,6 +16,7 @@
     Builtin configs
 """
 import dataclasses
+import typing
 
 BUILTIN_GNN_ENCODER = ["gat", "rgat", "rgcn", "sage", "hgt", "gatv2"]
 BUILTIN_ENCODER = ["lm", "mlp"] + BUILTIN_GNN_ENCODER
@@ -86,7 +87,7 @@ def get_mttask_id(task_type, ntype=None, etype=None, label=None):
         elif isinstance(etype, tuple):
             task_id.append("_".join(etype))
         elif isinstance(etype, list): # a list of etypes
-            task_id.append("__".joint(["_".join(et) for et in etype]))
+            task_id.append("__".join(["_".join(et) for et in etype]))
         else:
             raise TypeError("Unknown etype format: %s. Must be a string " \
                             "or a tuple of strings or a list of tuples of strings.", etype)
@@ -118,5 +119,5 @@ class TaskInfo:
     """
     task_type : str
     task_id : str
-    task_config = None
-    dataloader = None # dataloder
+    task_config : typing.Any = None
+    dataloader : typing.Any = None # dataloder

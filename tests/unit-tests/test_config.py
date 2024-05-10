@@ -1624,10 +1624,10 @@ def create_dummy_ec_config():
         "num_decoder_basis": 4,
         "remove_target_edge_type": False,
         "decoder_type": "MLPDecoder",
-        "decoder_edge_feat": "feat",
+        "decoder_edge_feat": ["feat"],
         "eval_metric": ["precision_recall"],
-        "multilabel_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2",
-        "imbalance_class_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2",
+        "multilabel_weights": "1,2,3,1",
+        "imbalance_class_weights": "1,2,3,1",
         "batch_size": 20,
         "task_weight": 1,
         "mask_fields": ["ec_train_mask", "ec_eval_mask", "ec_test_mask"]
@@ -1638,7 +1638,7 @@ def create_dummy_er_config():
         "target_etype": ["query,match-2,asin"],
         "label_field": "label_er",
         "eval_metric": ["mse"],
-        "decoder_edge_feat": ["feat1", "feat2"],
+        "decoder_edge_feat": ["query,no-match,asin:feat0,feat1"],
         "task_weight": 1,
         "mask_fields": ["er_train_mask", "er_eval_mask", "er_test_mask"]
     }
@@ -1706,13 +1706,13 @@ def create_multi_task_config(tmp_path, file_name):
 
 def test_multi_task_config():
     with tempfile.TemporaryDirectory() as tmpdirname:
-        create_rgcn_config(Path(tmpdirname), 'multi_task_test')
+        create_multi_task_config(Path(tmpdirname), 'multi_task_test')
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'multi_task_test_default.yaml'), local_rank=0)
         config = GSConfig(args)
 
-        assert len(config.multi_task) == 6
-        nc_config = config.multi_task[0]
+        assert len(config.multi_tasks) == 6
+        nc_config = config.multi_tasks[0]
         assert nc_config.task_type == BUILTIN_TASK_NODE_CLASSIFICATION
         assert nc_config.task_weight == 1
         assert len(nc_config.mask_fields) == 3
@@ -1732,7 +1732,7 @@ def test_multi_task_config():
         assert nc_config.multilabel_weights.tolist() == [1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2]
         assert nc_config.batch_size == 20
 
-        nr_config = config.multi_task[1]
+        nr_config = config.multi_tasks[1]
         assert nr_config.task_type == BUILTIN_TASK_NODE_REGRESSION
         assert nr_config.task_weight == 0.5
         assert len(nr_config.mask_fields) == 3
@@ -1746,7 +1746,7 @@ def test_multi_task_config():
         assert nr_config.eval_metric[0] == "rmse"
         assert nr_config.batch_size == 64
 
-        ec_config = config.multi_task[2]
+        ec_config = config.multi_tasks[2]
         assert ec_config.task_type == BUILTIN_TASK_EDGE_CLASSIFICATION
         assert ec_config.task_weight == 1
         assert len(ec_config.mask_fields) == 3
@@ -1765,10 +1765,10 @@ def test_multi_task_config():
         assert len(ec_config.eval_metric) == 1
         assert ec_config.eval_metric[0] == "precision_recall"
         assert ec_config.batch_size == 20
-        assert ec_config.imbalance_class_weights.tolist() == [1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2]
-        assert ec_config.multilabel_weights.tolist() == [1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2]
+        assert ec_config.imbalance_class_weights.tolist() == [1,2,3,1]
+        assert ec_config.multilabel_weights.tolist() == [1,2,3,1]
 
-        er_config = config.multi_task[3]
+        er_config = config.multi_tasks[3]
         assert er_config.task_type == BUILTIN_TASK_EDGE_REGRESSION
         assert er_config.task_weight == 1
         assert len(er_config.mask_fields) == 3
@@ -1780,13 +1780,13 @@ def test_multi_task_config():
         assert er_config.label_field == "label_er"
         assert len(er_config.eval_metric) == 1
         assert er_config.eval_metric[0] == "mse"
-        assert er_config.decoder_edge_feat == ["feat1", "feat2"]
+        assert er_config.decoder_edge_feat == ["feat0", "feat1"]
         assert er_config.batch_size == 64
         assert ec_config.remove_target_edge_type == True
         assert ec_config.decoder_type == "DenseBiDecoder"
         assert ec_config.num_decoder_basis == 2
 
-        lp_config = config.multi_task[4]
+        lp_config = config.multi_tasks[4]
         assert lp_config.task_type == BUILTIN_TASK_LINK_PREDICTION
         assert lp_config.task_weight == 1
         assert len(lp_config.mask_fields) == 3
@@ -1814,7 +1814,7 @@ def test_multi_task_config():
         assert lp_config.lp_edge_weight_for_loss == "weight"
 
 
-        lp_config = config.multi_task[5]
+        lp_config = config.multi_tasks[5]
         assert lp_config.task_type == BUILTIN_TASK_LINK_PREDICTION
         assert lp_config.task_weight == 2
         assert len(lp_config.mask_fields) == 3

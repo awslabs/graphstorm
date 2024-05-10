@@ -153,6 +153,7 @@ class GSConfig:
         if 'multi_task_learning' in configuration:
             multi_task_config = configuration['multi_task_learning']
             del configuration['multi_task_learning']
+            print(multi_task_config)
 
         self.set_attributes(configuration)
         # Override class attributes using command-line arguments
@@ -168,6 +169,7 @@ class GSConfig:
         # We do argument check as early as possible to prevent config bugs.
         self.handle_argument_conflicts()
 
+        print(multi_task_config)
         # parse multi task learning config and save it into self._multi_tasks
         if multi_task_config is not None:
             self._parse_multi_tasks(multi_task_config)
@@ -253,7 +255,7 @@ class GSConfig:
             Task specific config
         """
         for key, val in configuration.items():
-            setattr(self, key, val)
+            setattr(self, f"_{key}", val)
 
     def _parse_general_task_config(self, task_config):
         """ Parse the genral task info
@@ -277,7 +279,8 @@ class GSConfig:
         task_weight = task_config["task_weight"]
         assert task_weight > 0, f"task_weight should be larger than 0, but get {task_weight}"
 
-        return mask_fields, task_weight
+        batch_size = self.batch_size if "batch_size" not in task_config else task_config["batch_size"]
+        return mask_fields, task_weight, batch_size
 
     def _parse_node_classification_task(self, task_config):
         """ Parse the node classification task info
@@ -288,12 +291,15 @@ class GSConfig:
             Node classification task config
         """
         task_type = BUILTIN_TASK_NODE_CLASSIFICATION
+        mask_fields, task_weight, batch_size = \
+            self._parse_general_task_config(task_config)
+        task_config["batch_size"] = batch_size
+
         task_info = GSConfig.__new__(GSConfig)
         task_info.set_task_attributes(task_config)
+        setattr(task_info, "_task_type", task_type)
         task_info.verify_node_class_arguments()
 
-        mask_fields, task_weight = \
-            self._parse_general_task_config(task_config)
         target_ntype = task_info.target_ntype
         label_field = task_info.label_field
 
@@ -305,7 +311,7 @@ class GSConfig:
 
         return TaskInfo(task_type=task_type,
                         task_id=task_id,
-                        task_info=task_info)
+                        task_config=task_info)
 
     def _parse_node_regression_task(self, task_config):
         """ Parse the node regression task info
@@ -316,12 +322,15 @@ class GSConfig:
             Node regression task config
         """
         task_type = BUILTIN_TASK_NODE_REGRESSION
+        mask_fields, task_weight, batch_size = \
+            self._parse_general_task_config(task_config)
+        task_config["batch_size"] = batch_size
+
         task_info = GSConfig.__new__(GSConfig)
         task_info.set_task_attributes(task_config)
+        setattr(task_info, "_task_type", task_type)
         task_info.verify_node_regression_arguments()
 
-        mask_fields, task_weight = \
-            self._parse_general_task_config(task_config)
         target_ntype = task_info.target_ntype
         label_field = task_info.label_field
 
@@ -333,7 +342,7 @@ class GSConfig:
 
         return TaskInfo(task_type=task_type,
                         task_id=task_id,
-                        task_info=task_info)
+                        task_config=task_info)
 
     def _parse_edge_classification_task(self, task_config):
         """ Parse the edge classification task info
@@ -344,12 +353,15 @@ class GSConfig:
             Edge classification task config
         """
         task_type = BUILTIN_TASK_EDGE_CLASSIFICATION
+        mask_fields, task_weight, batch_size = \
+            self._parse_general_task_config(task_config)
+        task_config["batch_size"] = batch_size
+
         task_info = GSConfig.__new__(GSConfig)
         task_info.set_task_attributes(task_config)
+        setattr(task_info, "_task_type", task_type)
         task_info.verify_edge_class_arguments()
 
-        mask_fields, task_weight = \
-            self._parse_general_task_config(task_config)
         target_etype = task_info.target_etype
         label_field = task_info.label_field
 
@@ -360,7 +372,7 @@ class GSConfig:
         setattr(task_info, "task_weight", task_weight)
         return TaskInfo(task_type=task_type,
                         task_id=task_id,
-                        task_info=task_info)
+                        task_config=task_info)
 
     def _parse_edge_regression_task(self, task_config):
         """ Parse the edge regression task info
@@ -371,12 +383,14 @@ class GSConfig:
             Edge regression task config
         """
         task_type = BUILTIN_TASK_EDGE_REGRESSION
+        mask_fields, task_weight, batch_size = \
+            self._parse_general_task_config(task_config)
+        task_config["batch_size"] = batch_size
+
         task_info = GSConfig.__new__(GSConfig)
         task_info.set_task_attributes(task_config)
+        setattr(task_info, "_task_type", task_type)
         task_info.verify_edge_regression_arguments()
-
-        mask_fields, task_weight = \
-            self._parse_general_task_config(task_config)
 
         target_etype = task_info.target_etype
         label_field = task_info.label_field
@@ -388,7 +402,7 @@ class GSConfig:
         setattr(task_info, "task_weight", task_weight)
         return TaskInfo(task_type=task_type,
                         task_id=task_id,
-                        task_info=task_info)
+                        task_config=task_info)
 
     def _parse_link_prediction_task(self, task_config):
         """ Parse the link prediction task info
@@ -399,14 +413,16 @@ class GSConfig:
            Link prediction task config
         """
         task_type = BUILTIN_TASK_LINK_PREDICTION
+        mask_fields, task_weight, batch_size = \
+            self._parse_general_task_config(task_config)
+        task_config["batch_size"] = batch_size
+
         task_info = GSConfig.__new__(GSConfig)
         task_info.set_task_attributes(task_config)
+        setattr(task_info, "_task_type", task_type)
         task_info.verify_edge_regression_arguments()
 
-        mask_fields, task_weight = \
-            self._parse_general_task_config(task_config)
         train_etype = task_info.train_etype
-
         task_id = get_mttask_id(
             task_type=task_type,
             etype=train_etype if train_etype is not None else "ALL_ETYPE")
@@ -414,7 +430,7 @@ class GSConfig:
         setattr(task_info, "task_weight", task_weight)
         return TaskInfo(task_type=task_type,
                         task_id=task_id,
-                        task_info=task_info)
+                        task_config=task_info)
 
     def _parse_multi_tasks(self, multi_task_config):
         """ Parse multi-task configuration
@@ -427,10 +443,7 @@ class GSConfig:
             assert isinstance(task_config, dict) and len(task_config) == 1, \
                 "When defining multiple tasks for " \
                 "training, define one task each time."
-            if "batch_size" not in task_config:
-                # If batch_size is not set
-                # Use the global batch size.
-                task_config["batch_size"] = self.batch_size
+
             if "node_classification" in task_config:
                 task = self._parse_node_classification_task(
                     task_config["node_classification"])
