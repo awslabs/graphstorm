@@ -147,7 +147,7 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
             # Execute the command and check if it completes successfully
             result = subprocess.run(command, shell=True, check=True, text=True,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            if stream == "preprocess" or "postprocess":
+            if stream == "preprocess" or stream == "postprocess":
                 logging.info("Command output: %s", result.stderr)
             else:
                 logging.info("Command output: %s", result.stdout)
