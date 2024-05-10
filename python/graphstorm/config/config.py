@@ -15,6 +15,8 @@
 
     Builtin configs
 """
+import dataclasses
+import typing
 
 BUILTIN_GNN_ENCODER = ["gat", "rgat", "rgcn", "sage", "hgt", "gatv2"]
 BUILTIN_ENCODER = ["lm", "mlp"] + BUILTIN_GNN_ENCODER
@@ -73,3 +75,49 @@ BUILTIN_LP_DOT_DECODER = "dot_product"
 BUILTIN_LP_DISTMULT_DECODER = "distmult"
 
 SUPPORTED_LP_DECODER = [BUILTIN_LP_DOT_DECODER, BUILTIN_LP_DISTMULT_DECODER]
+
+################ Task info data classes ############################
+def get_mttask_id(task_type, ntype=None, etype=None, label=None):
+    task_id = [task_type]
+    if ntype is not None:
+        task_id.append(ntype) # node task
+    if etype is not None:
+        if isinstance(etype, str):
+            task_id.append(etype)
+        elif isinstance(etype, tuple):
+            task_id.append("_".join(etype))
+        elif isinstance(etype, list): # a list of etypes
+            task_id.append("__".join(["_".join(et) for et in etype]))
+        else:
+            raise TypeError("Unknown etype format: %s. Must be a string " \
+                            "or a tuple of strings or a list of tuples of strings.", etype)
+    if label is not None:
+        task_id.append(label)
+
+    return "-".join(task_id)
+
+@dataclasses.dataclass
+class TaskInfo:
+    """Information of a training task in multi-task learning
+
+    Parameters
+    ----------
+    task_type: str
+        Task type.
+    task_id: str
+        Task id. Unique id for each task.
+    batch_size: int
+        Batch size of the current task.
+    mask_fields: list
+        Train/validation/test mask fields.
+    dataloader:
+        Task dataloader.
+    eval_metric: list
+        Evaluation metrics
+    task_weight: float
+        Weight of the task in final loss.
+    """
+    task_type : str
+    task_id : str
+    task_config : typing.Any = None
+    dataloader : typing.Any = None # dataloder
