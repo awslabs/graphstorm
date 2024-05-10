@@ -277,7 +277,8 @@ class GSConfig:
         task_weight = task_config["task_weight"]
         assert task_weight > 0, f"task_weight should be larger than 0, but get {task_weight}"
 
-        batch_size = self.batch_size if "batch_size" not in task_config else task_config["batch_size"]
+        batch_size = self.batch_size \
+            if "batch_size" not in task_config else task_config["batch_size"]
         return mask_fields, task_weight, batch_size
 
     def _parse_node_classification_task(self, task_config):
