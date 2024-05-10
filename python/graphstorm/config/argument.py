@@ -432,6 +432,40 @@ class GSConfig:
 
     def _parse_multi_tasks(self, multi_task_config):
         """ Parse multi-task configuration
+
+        The Yaml config for multi-task liearning looks like:
+
+        .. code-block:: yaml
+            multi_task_learning:
+              - node_classification:
+                target_ntype: "movie"
+                label_field: "label"
+                mask_fields:
+                  - "train_mask_field_nc"
+                  - "val_mask_field_nc"
+                  - "test_mask_field_nc"
+                task_weight: 1.0
+                eval_metric:
+                  - "accuracy"
+              - edge_classification:
+                target_etype:
+                  - "user,rating,movie"
+                label_field: "rate"
+                multilabel: false
+                mask_fields:
+                  - "train_mask_field_ec"
+                  - "val_mask_field_ec"
+                  - "test_mask_field_ec"
+                task_weight: 0.5 # weight of the task
+              - link_prediction:
+                num_negative_edges: 4
+                num_negative_edges_eval: 100
+
+
+        Parameters
+        ----------
+        multi_task_config: list
+            A list of configs for multiple tasks.
         """
         assert len(multi_task_config) > 1, \
             "There must be at least two tasks"
