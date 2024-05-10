@@ -24,6 +24,7 @@ import dgl
 
 from ..model.lp_gnn import GSgnnLinkPredictionModelInterface
 from ..model.lp_gnn import lp_mini_batch_predict
+from ..model.gnn_with_reconstruct import GNNEncoderWithReconstructedEmbed
 from ..model import (do_full_graph_inference,
                      do_mini_batch_inference,
                      GSgnnModelBase,
@@ -128,6 +129,13 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         if not use_mini_batch_infer:
             assert isinstance(self._model, GSgnnModel), \
                     "Only GSgnnModel supports full-graph inference."
+        
+        # assert not use GNNEncoderWithReconstructedEmbed in use_mini_batch_infer=True
+        if model.gnn_encoder is not None:
+            assert not (isinstance(model.gnn_encoder, GNNEncoderWithReconstructedEmbed) and \
+                use_mini_batch_infer), f'GraphStorm GNNEncoderWithReconstructedEmbed encoder' + \
+                    ' dose not support use_mini_batch_infer is true.'
+
         # with freeze_input_layer_epochs is 0, computation graph will not be changed.
         static_graph = freeze_input_layer_epochs == 0
         on_cpu = self.device == th.device('cpu')
