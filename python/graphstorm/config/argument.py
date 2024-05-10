@@ -434,7 +434,7 @@ class GSConfig:
     def _parse_multi_tasks(self, multi_task_config):
         """ Parse multi-task configuration
 
-        The Yaml config for multi-task liearning looks like:
+        The Yaml config for multi-task learning looks like:
 
         .. code-block:: yaml
             multi_task_learning:
