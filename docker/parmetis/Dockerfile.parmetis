@@ -1,4 +1,3 @@
-ARG DEVICE=cpu
 ARG SOURCE
 
 FROM ${SOURCE} as base
@@ -44,8 +43,6 @@ RUN pip install \
     pyyaml \
     && rm -rf /root/.cache
 
-FROM base as base-cpu
-
 # Install torch, DGL, and GSF deps that require torch
 RUN pip install \
     torch==${TORCH_VERSION} \
@@ -58,12 +55,12 @@ RUN pip install \
     transformers==${TRANSFORMERS_VERSION} \
     -f https://data.dgl.ai/wheels-internal/repo.html && rm -rf /root/.cache
 
-FROM base-${DEVICE} as runtime
+FROM base as runtime
 
 ENV PYTHONPATH="/root/dgl/tools/:${PYTHONPATH}"
 
 # Download DGL source code
-RUN cd /root; git clone --single-branch https://github.com/dmlc/dgl.git
+RUN cd /root; git clone --single-branch --branch 2.2.x https://github.com/dmlc/dgl.git
 
 # Copy GraphStorm source and add to PYTHONPATH
 RUN mkdir -p /graphstorm
@@ -77,12 +74,10 @@ COPY code/tools /graphstorm/tools
 COPY code/training_scripts /graphstorm/training_scripts
 
 # Install GKLib
-RUN cd /root
-RUN git clone https://github.com/KarypisLab/GKlib; cd GKlib; make; make install
+RUN cd /root; git clone --single-branch --branch master https://github.com/KarypisLab/GKlib; cd GKlib; make; make install
 
 # Install Metis
-RUN cd /root
-RUN git clone https://github.com/KarypisLab/METIS.git; cd METIS; \
+RUN cd /root; git clone --single-branch --branch master https://github.com/KarypisLab/METIS.git; cd METIS; \
     make config shared=1 cc=gcc prefix=/root/local i64=1; make install
 
 # Install MPI
@@ -92,12 +87,10 @@ RUN wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.1.tar.g
     ./configure --prefix=/usr/local && \
     make all && \
     make install && \
-    ldconfig
-RUN rm -rf mpich-4.1.1.tar.gz
+    ldconfig && rm -rf mpich-4.1.1.tar.gz
 
 # Install Parmetis
-RUN cd /root
-RUN git clone https://github.com/KarypisLab/PM4GNN.git; cd PM4GNN; \
+RUN cd /root; git clone --single-branch --branch main https://github.com/KarypisLab/PM4GNN.git; cd PM4GNN; \
     make config cc=mpicc prefix=/root/local; make install
 ENV PATH=$PATH:/root/local/bin
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/local/lib/

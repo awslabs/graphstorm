@@ -29,10 +29,9 @@ import sys
 from typing import Dict
 from threading import Thread
 
-from graphstorm.gpartition import RandomPartitionAlgorithm
-from graphstorm.gpartition import ParMetisPartitionAlgorithm
+from graphstorm.gpartition import (ParMetisPartitionAlgorithm, ParMETISConfig,
+    RandomPartitionAlgorithm)
 from graphstorm.utils import get_log_level
-from graphstorm.gpartition import ParMETISConfig
 
 
 def run_build_dglgraph(

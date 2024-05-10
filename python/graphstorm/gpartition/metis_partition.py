@@ -19,6 +19,7 @@ import os
 import logging
 import json
 import subprocess
+import sys
 
 from .partition_algo_base import LocalPartitionAlgorithm
 
@@ -63,12 +64,12 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
         """
         command = f"mpirun -np {num_parts} --allow-run-as-root --hostfile {ip_list} \
                     -wdir {input_path} \
-                  python3 {dgl_tool_path}/distpartitioning/parmetis_preprocess.py \
+                  {sys.executable} {dgl_tool_path}/distpartitioning/parmetis_preprocess.py \
                     --input_dir {input_path} \
                     --schema_file {metadata_filename} \
                     --output_dir {input_path} --num_parts {num_parts}"
 
-        if self.run_command(command):
+        if self.run_command(command, "preprocess"):
             logging.info("Successfully execute parmetis preprocess.")
             return True
         else:
@@ -90,6 +91,8 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
         graph_name: str
             Graph name
         """
+        assert os.path.exists(os.path.expanduser("~/local/bin/pm_dglpart")), \
+            "pm_dglpart not found in ~/local/bin/"
         command = f"mpirun -np 1 --allow-run-as-root \
                     --hostfile {ip_list} \
                     --mca orte_base_help_aggregate 0 -mca btl_tcp_if_include eth0 \
@@ -97,7 +100,7 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
                 ~/local/bin/pm_dglpart {graph_name} {num_parts} {input_path}/parmetis_nfiles.txt \
                   {input_path}/parmetis_efiles.txt"
 
-        if self.run_command(command):
+        if self.run_command(command, "parmetis"):
             logging.info("Successfully execute parmetis process.")
             return True
         else:
@@ -124,27 +127,30 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
         partition_dir: str
             output path
         """
-        command = f"python3 {dgl_tool_path}/distpartitioning/parmetis_postprocess.py \
+        command = f"{sys.executable} {dgl_tool_path}/distpartitioning/parmetis_postprocess.py \
                         --postproc_input_dir {input_data_path} \
                         --schema_file {metadata_filename} \
                         --parmetis_output_file {input_data_path}/{graph_name}_part.{num_parts} \
                         --partitions_dir {partition_dir}"
 
-        if self.run_command(command):
+        if self.run_command(command, "postprocess"):
             logging.info("Successfully execute post parmetis process.")
             return True
         else:
             logging.info("Failed to execute post parmetis process.")
             return False
 
-    def run_command(self, command):
+    def run_command(self, command, stream):
         """Function to execute a command and check for its success."""
         logging.info("Executing command: %s", command)
         try:
             # Execute the command and check if it completes successfully
             result = subprocess.run(command, shell=True, check=True, text=True,
                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            logging.info("Command output: %s", result.stdout)
+            if stream == "preprocess" or "postprocess":
+                logging.info("Command output: %s", result.stderr)
+            else:
+                logging.info("Command output: %s", result.stdout)
             return True  # Return True if the command was successful
         except subprocess.CalledProcessError as e:
             logging.info("Error executing command: %s", e.stderr)
@@ -160,11 +166,8 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
             # Read all lines from the input file
             ip_addresses = file.readlines()
 
-        parts = ip_file.rsplit('.', 1)
-        if len(parts) == 2 and parts[1] == 'txt':
-            output_file = f"{parts[0]}_parmetis.{parts[1]}"
-        else:
-            raise ValueError("Input file should be a txt file.")
+        base, ext = os.path.splitext(ip_file)
+        output_file = f"{base}_parmetis{ext if ext else ''}"
         with open(output_file, 'w', encoding='utf-8') as file:
             # Write each IP address with the appended port information
             for ip in ip_addresses:
