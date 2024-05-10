@@ -153,7 +153,6 @@ class GSConfig:
         if 'multi_task_learning' in configuration:
             multi_task_config = configuration['multi_task_learning']
             del configuration['multi_task_learning']
-            print(multi_task_config)
 
         self.set_attributes(configuration)
         # Override class attributes using command-line arguments
@@ -169,7 +168,6 @@ class GSConfig:
         # We do argument check as early as possible to prevent config bugs.
         self.handle_argument_conflicts()
 
-        print(multi_task_config)
         # parse multi task learning config and save it into self._multi_tasks
         if multi_task_config is not None:
             self._parse_multi_tasks(multi_task_config)
@@ -420,7 +418,7 @@ class GSConfig:
         task_info = GSConfig.__new__(GSConfig)
         task_info.set_task_attributes(task_config)
         setattr(task_info, "_task_type", task_type)
-        task_info.verify_edge_regression_arguments()
+        task_info.verify_link_prediction_arguments()
 
         train_etype = task_info.train_etype
         task_id = get_mttask_id(

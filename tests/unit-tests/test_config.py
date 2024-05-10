@@ -1638,7 +1638,7 @@ def create_dummy_er_config():
         "target_etype": ["query,match-2,asin"],
         "label_field": "label_er",
         "eval_metric": ["mse"],
-        "decoder_edge_feat": ["query,no-match,asin:feat0,feat1"],
+        "decoder_edge_feat": ["query,match-2,asin:feat0,feat1"],
         "task_weight": 1,
         "mask_fields": ["er_train_mask", "er_eval_mask", "er_test_mask"]
     }
@@ -1667,7 +1667,8 @@ def create_dummy_lp_config2():
         "lp_loss_func": BUILTIN_LP_LOSS_CONTRASTIVELOSS,
         "lp_decoder_type": BUILTIN_LP_DISTMULT_DECODER,
         "task_weight": 2,
-        "mask_fields": ["lp2_train_mask", "lp2_eval_mask", "lp2_test_mask"]
+        "mask_fields": ["lp2_train_mask", "lp2_eval_mask", "lp2_test_mask"],
+        "exclude_training_targets": False
     }
 
 def create_multi_task_config(tmp_path, file_name):
@@ -1714,12 +1715,13 @@ def test_multi_task_config():
         assert len(config.multi_tasks) == 6
         nc_config = config.multi_tasks[0]
         assert nc_config.task_type == BUILTIN_TASK_NODE_CLASSIFICATION
+        assert nc_config.task_id == f"{BUILTIN_TASK_NODE_CLASSIFICATION}-a-label_c"
+        nc_config = nc_config.task_config
         assert nc_config.task_weight == 1
         assert len(nc_config.mask_fields) == 3
         assert nc_config.mask_fields[0] == "class_train_mask"
         assert nc_config.mask_fields[1] == "class_eval_mask"
         assert nc_config.mask_fields[2] == "class_test_mask"
-        nc_config = nc_config.task_config
         assert nc_config.target_ntype == "a"
         assert nc_config.label_field == "label_c"
         assert nc_config.multilabel == True
@@ -1734,12 +1736,13 @@ def test_multi_task_config():
 
         nr_config = config.multi_tasks[1]
         assert nr_config.task_type == BUILTIN_TASK_NODE_REGRESSION
+        assert nr_config.task_id == f"{BUILTIN_TASK_NODE_REGRESSION}-a-label_r"
+        nr_config = nr_config.task_config
         assert nr_config.task_weight == 0.5
         assert len(nr_config.mask_fields) == 3
         assert nr_config.mask_fields[0] == "reg_train_mask"
         assert nr_config.mask_fields[1] == "reg_eval_mask"
         assert nr_config.mask_fields[2] == "reg_test_mask"
-        nr_config = nr_config.task_config
         assert nr_config.target_ntype == "a"
         assert nr_config.label_field == "label_r"
         assert len(nr_config.eval_metric) == 1
@@ -1748,12 +1751,13 @@ def test_multi_task_config():
 
         ec_config = config.multi_tasks[2]
         assert ec_config.task_type == BUILTIN_TASK_EDGE_CLASSIFICATION
+        assert ec_config.task_id == f"{BUILTIN_TASK_EDGE_CLASSIFICATION}-query_match_asin-label_ec"
+        ec_config = ec_config.task_config
         assert ec_config.task_weight == 1
         assert len(ec_config.mask_fields) == 3
         assert ec_config.mask_fields[0] == "ec_train_mask"
         assert ec_config.mask_fields[1] == "ec_eval_mask"
         assert ec_config.mask_fields[2] == "ec_test_mask"
-        ec_config = ec_config.task_config
         assert ec_config.target_etype[0] == ("query", "match", "asin")
         assert ec_config.label_field == "label_ec"
         assert ec_config.multilabel == True
@@ -1770,30 +1774,33 @@ def test_multi_task_config():
 
         er_config = config.multi_tasks[3]
         assert er_config.task_type == BUILTIN_TASK_EDGE_REGRESSION
+        assert er_config.task_id == f"{BUILTIN_TASK_EDGE_REGRESSION}-query_match-2_asin-label_er"
+        er_config = er_config.task_config
         assert er_config.task_weight == 1
         assert len(er_config.mask_fields) == 3
         assert er_config.mask_fields[0] == "er_train_mask"
         assert er_config.mask_fields[1] == "er_eval_mask"
         assert er_config.mask_fields[2] == "er_test_mask"
-        er_config = er_config.task_config
         assert er_config.target_etype[0] == ("query", "match-2", "asin")
         assert er_config.label_field == "label_er"
         assert len(er_config.eval_metric) == 1
         assert er_config.eval_metric[0] == "mse"
-        assert er_config.decoder_edge_feat == ["feat0", "feat1"]
+        assert len(er_config.decoder_edge_feat) == 1
+        assert er_config.decoder_edge_feat[("query","match-2","asin")] == ["feat0", "feat1"]
         assert er_config.batch_size == 64
-        assert ec_config.remove_target_edge_type == True
-        assert ec_config.decoder_type == "DenseBiDecoder"
-        assert ec_config.num_decoder_basis == 2
+        assert er_config.remove_target_edge_type == True
+        assert er_config.decoder_type == "DenseBiDecoder"
+        assert er_config.num_decoder_basis == 2
 
         lp_config = config.multi_tasks[4]
         assert lp_config.task_type == BUILTIN_TASK_LINK_PREDICTION
+        assert lp_config.task_id == f"{BUILTIN_TASK_LINK_PREDICTION}-query_exactmatch_asin"
+        lp_config = lp_config.task_config
         assert lp_config.task_weight == 1
         assert len(lp_config.mask_fields) == 3
         assert lp_config.mask_fields[0] == "lp_train_mask"
         assert lp_config.mask_fields[1] == "lp_eval_mask"
         assert lp_config.mask_fields[2] == "lp_test_mask"
-        lp_config = lp_config.task_config
         assert lp_config.train_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER
         assert lp_config.num_negative_edges == 4
         assert lp_config.num_negative_edges_eval == 100
@@ -1816,17 +1823,18 @@ def test_multi_task_config():
 
         lp_config = config.multi_tasks[5]
         assert lp_config.task_type == BUILTIN_TASK_LINK_PREDICTION
+        assert lp_config.task_id == f"{BUILTIN_TASK_LINK_PREDICTION}-ALL_ETYPE"
+        lp_config = lp_config.task_config
         assert lp_config.task_weight == 2
         assert len(lp_config.mask_fields) == 3
         assert lp_config.mask_fields[0] == "lp2_train_mask"
         assert lp_config.mask_fields[1] == "lp2_eval_mask"
         assert lp_config.mask_fields[2] == "lp2_test_mask"
-        lp_config = lp_config.task_config
         assert lp_config.train_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER
         assert lp_config.num_negative_edges == 16
         assert lp_config.train_etype == None
         assert lp_config.eval_etype == None
-        check_failure(lp_config, "exclude_training_targets")
+        assert lp_config.exclude_training_targets == False
         assert len(lp_config.reverse_edge_types_map) == 0
         assert lp_config.gamma == 12.0
         assert lp_config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS

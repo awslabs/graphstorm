@@ -52,7 +52,7 @@ def run_node_predict_mini_batch(model, data, task_info, mini_batch, device):
     # TODO: we don't support edge features for now.
     loss = model(task_info.task_id, ((blocks, input_feats, None, input_nodes), lbl))
 
-    return loss
+    return loss, task_info.task_config.task_weight
 
 def run_edge_predict_mini_batch(model, data, task_info, mini_batch, device):
     input_nodes, batch_graph, blocks = mini_batch
@@ -90,7 +90,7 @@ def run_edge_predict_mini_batch(model, data, task_info, mini_batch, device):
     loss = model(task_info.task_id,
                     ((blocks, input_feats, None, input_nodes),
                     (batch_graph, edge_decoder_feats, lbl)))
-    return loss
+    return loss, task_info.task_config.task_weight
 
 def run_link_predict_mini_batch(model, data, task_info, mini_batch, device):
     input_nodes, pos_graph, neg_graph, blocks = mini_batch
@@ -119,7 +119,7 @@ def run_link_predict_mini_batch(model, data, task_info, mini_batch, device):
     loss = model(task_info.task_id,
                     ((blocks, input_feats, None, input_nodes),
                     (pos_graph, neg_graph,pos_graph_feats, None)))
-    return loss
+    return loss, task_info.task_config.task_weight
 
 def multi_task_mini_batch_predict(
     model, emb, loader, device, return_proba=True, return_label=False):
