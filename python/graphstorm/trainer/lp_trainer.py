@@ -134,7 +134,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         if self._model.gnn_encoder is not None:
             assert not (isinstance(self._model.gnn_encoder, GNNEncoderWithReconstructedEmbed) and \
                 use_mini_batch_infer), 'GraphStorm GNNEncoderWithReconstructedEmbed encoder' + \
-                    ' dose not support use_mini_batch_infer is true.'
+                    ' dose not support use_mini_batch_infer is true. Please set ' + \
+                        'use_mini_batch_infer to be false.'
 
         # with freeze_input_layer_epochs is 0, computation graph will not be changed.
         static_graph = freeze_input_layer_epochs == 0
