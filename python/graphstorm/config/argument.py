@@ -277,7 +277,8 @@ class GSConfig:
         task_weight = task_config["task_weight"]
         assert task_weight > 0, f"task_weight should be larger than 0, but get {task_weight}"
 
-        batch_size = self.batch_size if "batch_size" not in task_config else task_config["batch_size"]
+        batch_size = self.batch_size \
+            if "batch_size" not in task_config else task_config["batch_size"]
         return mask_fields, task_weight, batch_size
 
     def _parse_node_classification_task(self, task_config):
@@ -432,6 +433,40 @@ class GSConfig:
 
     def _parse_multi_tasks(self, multi_task_config):
         """ Parse multi-task configuration
+
+        The Yaml config for multi-task learning looks like:
+
+        .. code-block:: yaml
+            multi_task_learning:
+              - node_classification:
+                target_ntype: "movie"
+                label_field: "label"
+                mask_fields:
+                  - "train_mask_field_nc"
+                  - "val_mask_field_nc"
+                  - "test_mask_field_nc"
+                task_weight: 1.0
+                eval_metric:
+                  - "accuracy"
+              - edge_classification:
+                target_etype:
+                  - "user,rating,movie"
+                label_field: "rate"
+                multilabel: false
+                mask_fields:
+                  - "train_mask_field_ec"
+                  - "val_mask_field_ec"
+                  - "test_mask_field_ec"
+                task_weight: 0.5 # weight of the task
+              - link_prediction:
+                num_negative_edges: 4
+                num_negative_edges_eval: 100
+
+
+        Parameters
+        ----------
+        multi_task_config: list
+            A list of configs for multiple tasks.
         """
         assert len(multi_task_config) > 1, \
             "There must be at least two tasks"

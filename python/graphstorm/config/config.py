@@ -78,6 +78,27 @@ SUPPORTED_LP_DECODER = [BUILTIN_LP_DOT_DECODER, BUILTIN_LP_DISTMULT_DECODER]
 
 ################ Task info data classes ############################
 def get_mttask_id(task_type, ntype=None, etype=None, label=None):
+    """ Generate task ID for multi-task learning tasks.
+        The ID is composed of the task type, the node type
+        or the edge type(s) and the label of a task.
+
+    Parameters
+    ----------
+    task_type: str
+        Task type.
+    ntype: str
+        Node type.
+    etype: str, tuple or list of tuple
+        Edge type. It can be "ALL_ETYPE" meaning all the etypes.
+        It can be a tuple representing an edge type.
+        It can be a list of tuples representing a list of edge types.
+    label: str
+        Label name.
+
+    Return
+    ------
+    str: Task ID.
+    """
     task_id = [task_type]
     if ntype is not None:
         task_id.append(ntype) # node task
@@ -89,8 +110,8 @@ def get_mttask_id(task_type, ntype=None, etype=None, label=None):
         elif isinstance(etype, list): # a list of etypes
             task_id.append("__".join(["_".join(et) for et in etype]))
         else:
-            raise TypeError("Unknown etype format: %s. Must be a string " \
-                            "or a tuple of strings or a list of tuples of strings.", etype)
+            raise TypeError(f"Unknown etype format: {etype}. Must be a string " \
+                            "or a tuple of strings or a list of tuples of strings.")
     if label is not None:
         task_id.append(label)
 
