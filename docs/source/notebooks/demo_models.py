@@ -1,20 +1,17 @@
 """
-    Copyright 2023 Contributors
+    Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 
-    Licensed under the Apache License, Version 2.0 (the "License");
-    you may not use this file except in compliance with the License.
+    Licensed under the Apache License, Version 2.0 (the "License").
+    You may not use this file except in compliance with the License.
     You may obtain a copy of the License at
 
-       http://www.apache.org/licenses/LICENSE-2.0
+        http://www.apache.org/licenses/LICENSE-2.0
 
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-
-    Generate example graph data using built-in datasets for node classifcation,
-    node regression, edge classification and edge regression.
 
     Demonstration models for using GraphStorm APIs
 """
@@ -25,10 +22,7 @@ from graphstorm.model import (GSgnnNodeModel,
                               GSNodeEncoderInputLayer,
                               RelationalGCNEncoder,
                               EntityClassifier,
-                              ClassifyLossFunc,
-                              GSgnnLinkPredictionModel,
-                              LinkPredictDotDecoder,
-                              LinkPredictBCELossFunc)
+                              ClassifyLossFunc)
 
 
 class RgcnNCModel(GSgnnNodeModel):
@@ -90,63 +84,6 @@ class RgcnNCModel(GSgnnNodeModel):
 
         # classification loss function
         self.set_loss_func(ClassifyLossFunc(multilabel=multilabel))
-
-        # initialize model's optimizer
-        self.init_optimizer(lr=0.001,
-                            sparse_optimizer_lr=0.01,
-                            weight_decay=0)
-
-
-class RgcnLPModel(GSgnnLinkPredictionModel):
-    """ A simple RGCN model for link prediction using Graphstorm APIs
-
-    This RGCN model extends GraphStorm's GSgnnLinkPredictionModel, and it has the similar
-    model architecture as the node model, but a different decoder layer and loss function:
-    1. an input layer that converts input node features to the embeddings with hidden dimensions
-    2. a GNN encoder layer that performs the message passing work
-    3. a decoder layer that transfors edge representations into logits for link prediction, and
-    4. a loss function that matches to link prediction tasks.
-
-    Then the model also initialize its own optimizer object.
-
-    Arguments
-    ----------
-    g: DistGraph
-        a DGL DistGraph
-    num_hid_layers: int
-        the number of gnn layers
-    node_feat_field: dict of list of strings
-        The list features for each node type to be used in the model
-    hid_size: int
-        the dimension of hidden layers.
-    """
-    def __init__(self,
-                 g,
-                 num_hid_layers,
-                 node_feat_field,
-                 hid_size):
-        super(RgcnLPModel, self).__init__(alpha_l2norm=0.)
-
-        # extract feature size
-        feat_size = gs.get_node_feat_size(g, node_feat_field)
-
-        # set an input layer encoder
-        encoder = GSNodeEncoderInputLayer(g=g, feat_size=feat_size, embed_size=hid_size)
-        self.set_node_input_encoder(encoder)
-
-        # set a GNN encoder
-        gnn_encoder = RelationalGCNEncoder(g=g,
-                                           h_dim=hid_size,
-                                           out_dim=hid_size,
-                                           num_hidden_layers=num_hid_layers-1)
-        self.set_gnn_encoder(gnn_encoder)
-
-        # set a decoder specific to link prediction task
-        decoder = LinkPredictDotDecoder(hid_size)
-        self.set_decoder(decoder)
-
-        # link prediction loss function
-        self.set_loss_func(LinkPredictBCELossFunc())
 
         # initialize model's optimizer
         self.init_optimizer(lr=0.001,

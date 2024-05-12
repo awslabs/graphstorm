@@ -797,7 +797,6 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             else:
                 for metric in self.metric_list:
                     val_score = {metric: "N/A"} # Dummy
-        self._history.append((val_score, test_score))
 
         return val_score, test_score
 
@@ -998,7 +997,6 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
             else:
                 for metric in self.metric_list:
                     val_score = {metric: "N/A"} # Dummy
-        self._history.append((val_score, test_score))
 
         return val_score, test_score
 
