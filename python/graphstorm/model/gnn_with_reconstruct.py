@@ -142,7 +142,7 @@ class GNNEncoderWithReconstructedEmbed(GraphConvEncoder):
             Input node feature for each node type.
         """
         assert len(blocks) == self._gnn_encoder.num_layers + 1, \
-                f'There are {len(blocks)}, but there are {self._gnn_encoder.num_layers} GNN layers.'
+                "There are {len(blocks)}, but there are {self._gnn_encoder.num_layers} GNN layers."
         h = self.construct_node_feat(blocks[0], h)
         return self._gnn_encoder(blocks[1:], h)
 

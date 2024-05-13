@@ -46,7 +46,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
     model : GSgnnNodeModel
         The GNN model for node prediction.
     topk_model_to_save : int
-        The top K model to save. Default: 1
+        The top K model to save.
 
     Example
     -------
