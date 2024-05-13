@@ -34,6 +34,7 @@ from .dataloading import (FastGSgnnLinkPredictionDataLoader,
 from .dataloading import (GSgnnEdgeDataLoaderBase,
                           GSgnnLinkPredictionDataLoaderBase,
                           GSgnnNodeDataLoaderBase)
+from .dataloading import GSgnnMultiTaskDataLoader
 
 from .dataset import GSgnnData
 
