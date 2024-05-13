@@ -1751,8 +1751,13 @@ class GSgnnMultiTaskDataLoader:
             try:
                 mini_batch = next(dataloader)
             except StopIteration:
-                dataloader.__iter__()
+                load = dataloader.__iter__()
+                # we assume dataloader __iter__ will return itself.
+                assert load is dataloader, \
+                    "We assume the return value of __iter__() function " \
+                    "of each task dataloader is itself."
                 mini_batch = next(dataloader)
+
             if task_info.dataloader is None:
                 task_info.dataloader = dataloader
             else:
@@ -1784,7 +1789,6 @@ class GSgnnMultiTaskDataLoader:
         """
         # useful for conducting validation scores and test scores.
         return self._task_infos
-
 
 
 ####################### Distillation #############################

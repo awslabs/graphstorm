@@ -543,7 +543,7 @@ def generate_dummy_dist_graph_multi_target_ntypes(dirname, size='tiny', graph_na
     return partion_and_load_distributed_graph(hetero_graph=hetero_graph, dirname=dirname,
                                               graph_name=graph_name)
 
-def generate_dummy_dist_graph_multi_task(dirname, size='tiny', graph_name='dummy', gen_mask=True):
+def generate_dummy_dist_graph_multi_task(dirname, size='tiny', graph_name='dummy'):
     """
     Generate a dummy DGL distributed graph for multi-task testing
     with the given size
@@ -559,7 +559,7 @@ def generate_dummy_dist_graph_multi_task(dirname, size='tiny', graph_name='dummy
     dist_graph: a DGL distributed graph
     part_config : the path of the partition configuration file.
     """
-    hetero_graph = generate_dummy_hetero_graph_multi_task(size=size, gen_mask=gen_mask)
+    hetero_graph = generate_dummy_hetero_graph_multi_task(size=size)
     return partion_and_load_distributed_graph(hetero_graph=hetero_graph, dirname=dirname,
                                               graph_name=graph_name)
 

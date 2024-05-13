@@ -1102,7 +1102,7 @@ def test_np_dataloader_trim_data(dataloader):
 @pytest.mark.parametrize("dataloader", [GSgnnNodeDataLoader])
 @pytest.mark.parametrize("backend", ['gloo', 'nccl'])
 def test_np_dataloader_trim_data_device(dataloader, backend):
-     # initialize the torch distributed environment
+    # initialize the torch distributed environment
     th.distributed.init_process_group(backend=backend,
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
@@ -2192,8 +2192,8 @@ def test_GSgnnTrainData_homogeneous():
 def test_GSgnnMultiTaskDataLoader():
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
-        dist_graph, part_config = generate_dummy_dist_graph_multi_task(graph_name='dummy',
-                                                            dirname=tmpdirname, add_reverse=False)
+        _, part_config = generate_dummy_dist_graph_multi_task(graph_name='dummy',
+                                                              dirname=tmpdirname)
         gdata = GSgnnData(part_config=part_config)
 
         # n0: train_mask: 2, val_mask: 2, test_maks: 4
@@ -2271,7 +2271,9 @@ def test_GSgnnMultiTaskDataLoader():
                                      mask="train_mask1"),
             fanout=[10],
             batch_size=2,
-            train_task=True
+            label_field="label",
+            train_task=True,
+            remove_target_edge_type=False
         )
 
         task_edge_2_dataloader = GSgnnEdgeDataLoader(
@@ -2279,8 +2281,10 @@ def test_GSgnnMultiTaskDataLoader():
             gdata.get_edge_train_set(etypes=[("n0", "r1", "n1")],
                                      mask="train_mask2"),
             fanout=[10],
-            batch_size=2,
-            train_task=True
+            batch_size=20,
+            label_field="label",
+            train_task=True,
+            remove_target_edge_type=False
         )
 
         dataloaders = [task_n0_0_dataloader, task_n0_1_dataloader,
@@ -2291,17 +2295,17 @@ def test_GSgnnMultiTaskDataLoader():
         len_n0_0 = len(task_n0_0_dataloader)
         assert len_n0_0 == 1
         len_n0_1 = len(task_n0_1_dataloader)
-        assert len_n0_1 == 2
+        assert len_n0_1 == 3
         len_n0_2 = len(task_n0_2_dataloader)
         assert len_n0_2 == 10
         len_n1_0 = len(task_n1_0_dataloader)
         assert len_n1_0 == 5
         len_edge0_0 = len(task_edge_0_dataloader)
-        assert len_edge0_0 == 5
+        assert len_edge0_0 == 6
         len_edge1_0 = len(task_edge_1_dataloader)
-        assert len_edge1_0 == 2
+        assert len_edge1_0 == 3
         len_edge2_0 = len(task_edge_2_dataloader)
-        assert len_edge2_0 == 1
+        assert len_edge2_0 == 5
 
         assert len(multi_dataloader) == 10
 
@@ -2320,70 +2324,79 @@ def test_GSgnnMultiTaskDataLoader():
             if task_info.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
                 assert isinstance(dataloader, GSgnnLinkPredictionDataLoader)
 
-        num_iters = 0
+        iter_num = 0
+        n0_1_seeds_cnt = th.tensor([4] * 5) # check whether n0_1 datalaoder iterates the whole datasets 3 times.
+        edge0_seeds_cnt = th.tensor([2] * 50) # check whether edge0 datalaoder iterates the whole datasets 1 and half times.
         for mini_batches in multi_dataloader:
             assert len(mini_batches) == 7
             for task_info, mini_batch in mini_batches:
                 if task_info.task_id == "tast_info_n0_0":
                     assert task_info.dataloader == task_n0_0_dataloader
                     _, seeds, blocks = mini_batch
-                    assert len(seeds) == 2
+                    assert len(seeds["n0"]) == 2
                     assert len(blocks) == 1
-                    assert set(seeds.tolist()).issubset({0,1})
+                    assert set(seeds["n0"].tolist()).issubset({0,1})
                 if task_info.task_id == "tast_info_n0_1":
                     assert task_info.dataloader == task_n0_1_dataloader
                     _, seeds, blocks = mini_batch
-                    assert len(seeds) == 2
+                    assert len(seeds["n0"]) == 1 if (iter_num % 3 == 2) else 2
                     assert len(blocks) == 1
-                    assert set(seeds.tolist()).issubset({0,1,2,3,4})
+                    assert set(seeds["n0"].tolist()).issubset({0,1,2,3,4})
+                    n0_1_seeds_cnt[seeds["n0"]] =  n0_1_seeds_cnt[seeds["n0"]] - 1
                 if task_info.task_id == "tast_info_n0_2":
                     assert task_info.dataloader == task_n0_2_dataloader
                     _, seeds, blocks = mini_batch
-                    assert len(seeds) == 5
+                    assert len(seeds["n0"]) == 5
                     assert len(blocks) == 1
-                    assert np.all(seeds.numpy() >= SIZE_DICT['tiny'] // 2)
+                    assert np.all(seeds["n0"].numpy() >= SIZE_DICT['tiny'] // 2)
                 if task_info.task_id == "task_info_n1_0":
                     assert task_info.dataloader == task_n1_0_dataloader
                     _, seeds, blocks = mini_batch
-                    assert len(seeds) == 10
+                    assert len(seeds["n1"]) == 10
                     assert len(blocks) == 1
-                    assert np.all(seeds.numpy() < SIZE_DICT['tiny'] // 2)
+                    assert np.all(seeds["n1"].numpy() < SIZE_DICT['tiny'] // 2)
                 if task_info.task_id == "task_info_edge_0":
                     assert task_info.dataloader == task_edge_0_dataloader
                     _, pos_graph, _, blocks = mini_batch
-                    assert len(batch_graph) == 1
-                    assert ("n0", "r1", "n1") in batch_graph
-                    assert ("n0", "r0", "n1") in batch_graph
+                    assert ("n0", "r1", "n1") in pos_graph.canonical_etypes or \
+                        ("n0", "r0", "n1") in pos_graph.canonical_etypes
                     assert len(blocks) == 1
-                    eids = pos_graph.edges[("n0", "r1", "n1")].data[dgl.EID]
-                    assert len(eids) == 2
-                    assert set(eids.tolist()).issubset({0,1})
+                    num_edges = 0
+                    if ("n0", "r1", "n1") in pos_graph.canonical_etypes:
+                        eids = pos_graph.edges[("n0", "r1", "n1")].data[dgl.EID]
+                        assert set(eids.tolist()).issubset({0,1})
+                        num_edges += len(eids)
                     eids = pos_graph.edges[("n0", "r0", "n1")].data[dgl.EID]
-                    assert len(eids) == 10
+                    num_edges += len(eids)
+                    assert num_edges == 10 if iter_num != 5 else 2
                     assert np.any(eids.numpy() < SIZE_DICT['tiny'] // 2)
+                    edge0_seeds_cnt[eids] = edge0_seeds_cnt[eids] - 1
                 if task_info.task_id == "task_info_edge_1":
                     assert task_info.dataloader == task_edge_1_dataloader
                     _, batch_graph, blocks = mini_batch
-                    assert len(batch_graph) == 1
-                    assert ("n0", "r1", "n1") in batch_graph
-                    assert batch_graph.num_edges(("n0", "r1", "n1")) == 2
+                    assert len(batch_graph.canonical_etypes) == 1
+                    assert ("n0", "r1", "n1") in batch_graph.canonical_etypes
+                    assert batch_graph.num_edges(("n0", "r1", "n1")) == 1 if (iter_num % 3 == 2) else 2
                     assert len(blocks) == 1
                     eids = batch_graph.edges[("n0", "r1", "n1")].data[dgl.EID]
                     assert set(eids.tolist()).issubset({0,1,2,3,4})
                 if task_info.task_id == "task_info_edge_2":
                     assert task_info.dataloader == task_edge_2_dataloader
                     _, batch_graph, blocks = mini_batch
-                    assert len(batch_graph) == 1
-                    assert ("n0", "r1", "n1") in batch_graph
-                    assert batch_graph.num_edges(("n0", "r1", "n1")) == 2
+                    assert len(batch_graph.canonical_etypes) == 1
+                    assert ("n0", "r1", "n1") in batch_graph.canonical_etypes
+                    assert batch_graph.num_edges(("n0", "r1", "n1")) == 20
                     assert len(blocks) == 1
                     eids = batch_graph.edges[("n0", "r1", "n1")].data[dgl.EID]
                     assert np.any(eids.numpy() >= SIZE_DICT['tiny'])
-            num_iters += 1
-        assert num_iters == 10
+            iter_num += 1
+        assert iter_num == 9
+        assert np.any(n0_1_seeds_cnt.numpy() <= 1)
+        assert np.any(n0_1_seeds_cnt.numpy() >= 0)
+        assert np.any(edge0_seeds_cnt.numpy() <= 1)
+        assert np.any(edge0_seeds_cnt.numpy() >= 0)
 
 if __name__ == '__main__':
-
     test_GSgnnMultiTaskDataLoader()
     test_GSgnnLinkPredictionPredefinedTestDataLoader(1)
     test_GSgnnLinkPredictionPredefinedTestDataLoader(10)
