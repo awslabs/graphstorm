@@ -88,6 +88,14 @@ from .dataloading import (FastGSgnnLinkPredictionDataLoader,
 from .dataloading import (GSgnnLinkPredictionTestDataLoader,
                           GSgnnLinkPredictionJointTestDataLoader,
                           GSgnnLinkPredictionPredefinedTestDataLoader)
+from .trainer import (GSgnnLinkPredictionTrainer,
+                      GSgnnNodePredictionTrainer,
+                      GSgnnEdgePredictionTrainer,
+                      GLEMNodePredictionTrainer)
+from .inference import (GSgnnLinkPredictionInferrer,
+                        GSgnnNodePredictionInferrer,
+                        GSgnnEdgePredictionInferrer,
+                        GSgnnEdgePredictionInferrer)
 
 from .tracker import get_task_tracker_class
 
