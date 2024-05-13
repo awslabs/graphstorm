@@ -4,7 +4,7 @@ set -eox pipefail
 # process argument 1: graphstorm home folder
 if [ -z "$1" ]; then
     echo "Please provide a path to the root directory of the GraphStorm repository."
-    echo "For example, ./build_docker_parmetis.sh ../ graphstorm-parmetis local"
+    echo "For example, ./build_docker_parmetis.sh ../ graphstorm parmetis cpu"
     exit 1
 else
     GSF_HOME="$1"
@@ -12,14 +12,14 @@ fi
 
 # process argument 2: docker image name, default is graphstorm-parmetis
 if [ -z "$2" ]; then
-    IMAGE_NAME="graphstorm-parmetis"
+    IMAGE_NAME="graphstorm"
 else
     IMAGE_NAME="$2"
 fi
 
 # process argument 3: image's tag name, default is local
 if [ -z "$3" ]; then
-    TAG="local"
+    TAG="parmetis-cpu"
 else
     TAG="$3"
 fi
@@ -38,7 +38,7 @@ aws ecr-public get-login-password --region us-east-1 | \
 # Build OSS docker for EC2 instances that an pull ECR docker images
 DOCKER_FULLNAME="${IMAGE_NAME}:${TAG}"
 
-echo "Build a local docker image ${DOCKER_FULLNAME}"
+echo "Build a local docker image ${DOCKER_FULLNAME} for ParMETIS"
 
 SOURCE_IMAGE="public.ecr.aws/ubuntu/ubuntu:20.04_stable"
 
