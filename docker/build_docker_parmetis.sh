@@ -10,14 +10,14 @@ else
     GSF_HOME="$1"
 fi
 
-# process argument 2: docker image name, default is graphstorm-parmetis
+# process argument 2: docker image name, default is graphstorm
 if [ -z "$2" ]; then
     IMAGE_NAME="graphstorm"
 else
     IMAGE_NAME="$2"
 fi
 
-# process argument 3: image's tag name, default is local
+# process argument 3: image's tag name, default is 'parmetis-cpu'
 if [ -z "$3" ]; then
     TAG="parmetis-cpu"
 else
