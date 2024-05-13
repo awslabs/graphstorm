@@ -30,10 +30,16 @@ from data_utils import (
     generate_dummy_dist_graph,
     generate_dummy_dist_graph_reconstruct,
     generate_dummy_dist_graph_homogeneous_failure_graph,
+    generate_dummy_dist_graph_multi_task,
     create_distill_data,
 )
 
 import graphstorm as gs
+from graphstorm.config import (TaskInfo,
+                               BUILTIN_TASK_NODE_CLASSIFICATION,
+                               BUILTIN_TASK_NODE_REGRESSION,
+                               BUILTIN_TASK_EDGE_CLASSIFICATION,
+                               BUILTIN_TASK_LINK_PREDICTION)
 from graphstorm.utils import setup_device, get_device
 from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import GSgnnAllEtypeLinkPredictionDataLoader
@@ -55,6 +61,7 @@ from graphstorm.dataloading import (GSgnnLinkPredictionTestDataLoader,
                                     GSgnnLinkPredictionPredefinedTestDataLoader)
 from graphstorm.dataloading import DistillDataloaderGenerator, DistillDataManager
 from graphstorm.dataloading import DistributedFileSampler
+from graphstorm.dataloading import GSgnnMultiTaskDataLoader
 from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                                     BUILTIN_LP_JOINT_NEG_SAMPLER,
                                     BUILTIN_LP_FIXED_NEG_SAMPLER)
@@ -2181,7 +2188,161 @@ def test_GSgnnTrainData_homogeneous():
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
+def test_GSgnnMultiTaskDataLoader():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        dist_graph, part_config = generate_dummy_dist_graph_multi_task(graph_name='dummy',
+                                                            dirname=tmpdirname, add_reverse=False)
+        gdata = GSgnnData(part_config=part_config)
+
+        # n0: train_mask: 2, val_mask: 2, test_maks: 4
+        #     train_mask1: 5, val_mask1: 3, test_mask1: 7
+        #     train_mask2: 50, val_mask2: 25, test_mask2: 25
+        # n1: train_mask: 50, val_mask: 2, tset_mask:2
+        #
+        # ("n0", "r1", "n1"): train_mask: 2, val_mask: 2, test_maks: 4
+        # ("n0", "r1", "n1"): train_mask1: 5, val_mask1: 3, test_maks2: 7
+        # ("n0", "r1", "n1"): train_mask2: 2, val_mask2: 2, test_mask2: 4
+        # ("n0", "r0", "n1"): train_mask: 50, val_mask: 2, test_maks: 4
+        tast_info_n0_0 = TaskInfo(task_type=BUILTIN_TASK_NODE_CLASSIFICATION,
+                                  task_id='tast_info_n0_0',
+                                  task_config=None)
+        tast_info_n0_1 = TaskInfo(task_type=BUILTIN_TASK_NODE_REGRESSION,
+                                  task_id='tast_info_n0_1',
+                                  task_config=None)
+        tast_info_n0_2 = TaskInfo(task_type=BUILTIN_TASK_NODE_CLASSIFICATION,
+                                  task_id='tast_info_n0_2',
+                                  task_config=None)
+        task_info_n1_0 = TaskInfo(task_type=BUILTIN_TASK_NODE_CLASSIFICATION,
+                                  task_id='task_info_n1_0',
+                                  task_config=None)
+        task_info_edge_0 = TaskInfo(task_type=BUILTIN_TASK_LINK_PREDICTION,
+                                  task_id='task_info_edge_0',
+                                  task_config=None)
+        task_info_edge_1 = TaskInfo(task_type=BUILTIN_TASK_EDGE_CLASSIFICATION,
+                                  task_id='task_info_edge_1',
+                                  task_config=None)
+        task_info_edge_2 = TaskInfo(task_type=BUILTIN_TASK_EDGE_CLASSIFICATION,
+                                  task_id='task_info_edge_2',
+                                  task_config=None)
+        task_infos = [tast_info_n0_0, tast_info_n0_1,
+                      tast_info_n0_2, task_info_n1_0,
+                      task_info_edge_0, task_info_edge_1,
+                      task_info_edge_2]
+
+        task_n0_0_dataloader = GSgnnNodeDataLoader(gdata,
+                                                   gdata.get_node_train_set("n0", "train_mask"),
+                                                   fanout=[10],
+                                                   batch_size=2,
+                                                   label_field="label",
+                                                   train_task=True)
+        task_n0_1_dataloader = GSgnnNodeDataLoader(gdata,
+                                                   gdata.get_node_train_set("n0", "train_mask1"),
+                                                   fanout=[10],
+                                                   batch_size=2,
+                                                   label_field="label",
+                                                   train_task=True)
+        task_n0_2_dataloader = GSgnnNodeDataLoader(gdata,
+                                                   gdata.get_node_train_set("n0", "train_mask2"),
+                                                   fanout=[10],
+                                                   batch_size=5,
+                                                   label_field="label",
+                                                   train_task=True)
+        task_n1_0_dataloader = GSgnnNodeDataLoader(gdata,
+                                                   gdata.get_node_train_set("n1", "train_mask"),
+                                                   fanout=[10],
+                                                   batch_size=10,
+                                                   label_field="label",
+                                                   train_task=True)
+
+        task_edage_0_dataloader = GSgnnLinkPredictionDataLoader(
+            gdata,
+            gdata.get_edge_train_set(etypes=[("n0", "r1", "n1"), ("n0", "r0", "n1")]),
+            fanout=[10],
+            batch_size=10,
+            num_negative_edges=2,
+            train_task=True
+        )
+
+        task_edage_1_dataloader = GSgnnEdgeDataLoader(
+            gdata,
+            gdata.get_edge_train_set(etypes=[("n0", "r1", "n1")],
+                                     mask="train_mask1"),
+            fanout=[10],
+            batch_size=2,
+            num_negative_edges=2,
+            train_task=True
+        )
+
+        task_edage_2_dataloader = GSgnnEdgeDataLoader(
+            gdata,
+            gdata.get_edge_train_set(etypes=[("n0", "r1", "n1")],
+                                     mask="train_mask2"),
+            fanout=[10],
+            batch_size=2,
+            num_negative_edges=2,
+            train_task=True
+        )
+
+        dataloaders = [task_n0_0_dataloader, task_n0_1_dataloader,
+                       task_n0_2_dataloader, task_n1_0_dataloader,
+                       task_edage_0_dataloader, task_edage_1_dataloader,
+                       task_edage_2_dataloader]
+        multi_dataloader = GSgnnMultiTaskDataLoader(gdata, task_infos, dataloaders)
+        len_n0_0 = len(task_n0_0_dataloader)
+        assert len_n0_0 == 1
+        len_n0_1 = len(task_n0_1_dataloader)
+        assert len_n0_1 == 2
+        len_n0_2 = len(task_n0_2_dataloader)
+        assert len_n0_2 == 10
+        len_n1_0 = len(task_n1_0_dataloader)
+        assert len_n1_0 == 5
+        len_edge0_0 = len(task_edage_0_dataloader)
+        assert len_edge0_0 == 5
+        len_edge1_0 = len(task_edage_1_dataloader)
+        assert len_edge1_0 == 2
+        len_edge2_0 = len(task_edage_2_dataloader)
+        assert len_edge2_0 == 1
+
+        assert len(multi_dataloader) == 10
+
+        len(multi_dataloader.dataloaders) == 7
+        dataloaders = multi_dataloader.dataloaders
+        len(multi_dataloader.task_infos) == 7
+
+        dataloaders = multi_dataloader.dataloaders
+        task_infos = multi_dataloader.task_infos
+        for dataloader, task_info in zip(dataloaders, task_infos):
+            if task_info.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
+                assert isinstance(dataloader, GSgnnNodeDataLoader)
+
+            if task_info.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION]:
+                assert isinstance(dataloader, GSgnnEdgeDataLoader)
+            if task_info.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+                assert isinstance(dataloader, GSgnnLinkPredictionDataLoader)
+
+        for mini_batches in multi_dataloader:
+            assert len(mini_batches) == 7
+            for task_info, mini_batch in mini_batches:
+                if task_info.task_id == "tast_info_n0_0":
+                    assert task_info.dataloader == task_n0_0_dataloader
+                if task_info.task_id == "tast_info_n0_1":
+                    assert task_info.dataloader == task_n0_1_dataloader
+                if task_info.task_id == "tast_info_n0_2":
+                    assert task_info.dataloader == task_n0_2_dataloader
+                if task_info.task_id == "task_info_n1_0":
+                    assert task_info.dataloader == task_n1_0_dataloader
+                if task_info.task_id == "task_info_edge_0":
+                    assert task_info.dataloader == task_edage_0_dataloader
+                if task_info.task_id == "task_info_edge_1":
+                    assert task_info.dataloader == task_edage_1_dataloader
+                if task_info.task_id == "task_info_edge_2":
+                    assert task_info.dataloader == task_edage_2_dataloader
+
+
 if __name__ == '__main__':
+
+    test_GSgnnMultiTaskDataLoader()
     test_GSgnnLinkPredictionPredefinedTestDataLoader(1)
     test_GSgnnLinkPredictionPredefinedTestDataLoader(10)
     test_edge_fixed_dst_negative_sample_gen_neg_pairs()
