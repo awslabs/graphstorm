@@ -1706,9 +1706,9 @@ class GSgnnMultiTaskDataLoader:
         # check dataloaders
         lens = []
         for task_info, dataloader in zip(task_infos, task_dataloaders):
-            assert isinstance(dataloader, GSgnnEdgeDataLoaderBase) or \
-                isinstance(dataloader, GSgnnLinkPredictionDataLoaderBase) or \
-                isinstance(dataloader, GSgnnNodeDataLoaderBase), \
+            assert isinstance(dataloader, GSgnnEdgeDataLoaderBase,
+                              GSgnnLinkPredictionDataLoaderBase,
+                              GSgnnNodeDataLoaderBase), \
                 "The task data loader should be a GSgnnEdgeDataLoaderBase " \
                 " or a GSgnnLinkPredictionDataLoaderBase or a GSgnnNodeDataLoaderBase"
             num_iters = len(dataloader)
@@ -1728,9 +1728,8 @@ class GSgnnMultiTaskDataLoader:
         """ reset the dataloaders
         """
         for dataloader in self._dataloaders:
-            dataloader.__iter__()
+            iter(dataloader)
         self._num_iters = 0
-
 
     def __iter__(self):
         self._reset_loader()
