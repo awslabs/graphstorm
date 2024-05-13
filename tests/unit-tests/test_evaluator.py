@@ -21,9 +21,11 @@ import numpy as np
 from numpy.testing import assert_equal, assert_almost_equal
 import dgl
 
-from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
-from graphstorm.eval import GSgnnClassificationEvaluator
-from graphstorm.eval import GSgnnRegressionEvaluator
+from graphstorm.eval import (GSgnnMrrLPEvaluator,
+                             GSgnnPerEtypeMrrLPEvaluator,
+                             GSgnnClassificationEvaluator,
+                             GSgnnRegressionEvaluator,
+                             GSgnnMultiTaskEvaluator)
 from graphstorm.eval.evaluator import early_stop_avg_increase_judge
 from graphstorm.eval.evaluator import early_stop_cons_increase_judge
 from graphstorm.config.config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
@@ -185,7 +187,7 @@ def test_mrr_lp_evaluator():
     test_pos_scores, test_neg_scores = test_scores
 
     lp = GSgnnMrrLPEvaluator(config.eval_frequency, use_early_stop=config.use_early_stop)
-    
+
     # checke default metric list
     assert lp.metric_list == ['mrr']
 
@@ -774,7 +776,7 @@ def test_get_val_score_rank():
                                              config.eval_metric,
                                              config.multilabel,
                                              config.use_early_stop)
-    
+
     # For accuracy, the bigger the better.
     val_score = {"accuracy": 0.47}
     assert evaluator.get_val_score_rank(val_score) == 1
@@ -849,7 +851,54 @@ def test_get_val_score_rank():
     assert evaluator.get_val_score_rank(val_score) == 3
 
 
+def test_multi_task_evaluator_early_stop():
+    # common Dummy objects
+    config = Dummy({
+            "multilabel": False,
+            "eval_frequency": 100,
+            "eval_metric": ["accuracy"],
+            "use_early_stop": False,
+        })
+
+    task_evaluators = []
+    task_evaluators = xxx
+
+    try:
+        GSgnnMultiTaskEvaluator(config.eval_frequency,
+                                task_evaluators,
+                                use_early_stop=True)
+    except:
+
+
+def test_multi_task_evaluator():
+    # common Dummy objects
+    config = Dummy({
+            "multilabel": False,
+            "eval_frequency": 100,
+            "eval_metric": ["accuracy"],
+            "use_early_stop": False,
+        })
+
+    task_evaluators = []
+
+    failed = False
+    try:
+        # there is no evaluators, fail
+        GSgnnMultiTaskEvaluator(config.eval_frequency,
+                                task_evaluators,
+                                use_early_stop=False)
+    except:
+        failed = True
+    assert failed
+
+    task_evaluators = xxx
+    mt_evaluator = GSgnnMultiTaskEvaluator(config.eval_frequency,
+                                           task_evaluators,
+                                           use_early_stop=False)
+
 if __name__ == '__main__':
+    test_multi_task_evaluator_early_stop()
+    test_multi_task_evaluator()
     # test evaluators
     test_mrr_per_etype_lp_evaluation()
     test_mrr_lp_evaluator()
