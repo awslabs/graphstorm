@@ -16,6 +16,7 @@ limitations under the License.
 
 import json
 import logging
+import math
 import numbers
 import os
 from collections import Counter, defaultdict
@@ -143,7 +144,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
     def process_and_write_graph_data(
         self, data_configs: Mapping[str, Sequence[StructureConfig]]
-    ) -> Dict:
+    ) -> tuple[dict, dict]:
         """Process and encode all graph data.
 
         Extracts and encodes graph structure before writing to storage, then applies pre-processing
@@ -160,19 +161,22 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
         Returns
         -------
-        metadata_dict : Dict
-            Dictionary of metadata for the graph, in "chunked-graph"
+        tuple[dict, dict]
+            A tuple with two dictionaries:
+            The first is the dictionary of metadata for the graph, in "chunked-graph"
             format, with additional keys.
             For chunked graph format see
             https://docs.dgl.ai/guide/distributed-preprocessing.html#specification
 
             The dict also contains a "raw_id_mappings" key, which is a dict
             of dicts, one for each node type. Each entry contains files information
-            about the raw-to-integet ID mapping for each node.
+            about the raw-to-integer ID mapping for each node.
 
             The returned value also contains an additional dict of dicts,
             "graph_info" which contains additional information about the
             graph in a more readable format.
+
+            The second is a dict of duration values for each part of the execution.
         """
         # TODO: See if it's better to return some data structure
         # for the followup steps instead of just have side-effects
@@ -241,8 +245,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
         metadata_dict["graph_info"] = self._finalize_graphinfo_dict(metadata_dict)
 
-        # The metadata dict is written to disk as a JSON file,
-        # SageMaker takes care of uploading it to S3
+        # The metadata dict is written to disk as a JSON file
         with open(os.path.join(self.output_path, "metadata.json"), "w", encoding="utf-8") as f:
             json.dump(metadata_dict, f, indent=4)
 
@@ -254,13 +257,9 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
         self.timers["process_and_write_graph_data"] = perf_counter() - process_start_time
 
-        with open(os.path.join(self.output_path, "perf_counters.json"), "w", encoding="utf-8") as f:
-            sorted_timers = dict(sorted(self.timers.items(), key=lambda x: x[1], reverse=True))
-            json.dump(sorted_timers, f, indent=4)
-
         logging.info("Finished Distributed Graph Processing ...")
 
-        return metadata_dict
+        return metadata_dict, self.timers
 
     @staticmethod
     def _at_least_one_label_exists(data_configs: Mapping[str, Sequence[StructureConfig]]) -> bool:
@@ -875,6 +874,9 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 if self.enable_assertions:
                     nodes_df_count = nodes_df.count()
                     mapping_df_count = mapping_df.count()
+                    logging.warning(
+                        "Node mapping count for node type %s: %d", node_type, mapping_df_count
+                    )
                     assert nodes_df_count == mapping_df_count, (
                         f"Nodes df count ({nodes_df_count}) does not match "
                         f"mapping df count ({mapping_df_count})"
@@ -957,6 +959,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             transformer = DistFeatureTransformer(feat_conf)
 
             transformed_feature_df = transformer.apply_transformation(nodes_df)
+            transformed_feature_df.cache()
 
             def write_processed_feature(feat_name, single_feature_df, node_type, transformer_name):
                 feature_output_path = os.path.join(
@@ -1009,6 +1012,10 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                         node_type,
                         transformer.get_transformation_name(),
                     )
+
+            # Unpersist and move on to next feature
+            transformed_feature_df.unpersist()
+
         return node_type_feature_metadata, ntype_feat_sizes
 
     def _process_node_labels(
@@ -1136,14 +1143,20 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             incoming_edge_count = edge_df.count()
             intermediate_edge_count = edge_df_with_int_src.count()
             if incoming_edge_count != intermediate_edge_count:
+                distinct_nodes_src = edge_df.select(src_col).distinct().count()
                 logging.fatal(
-                    "Incoming and outgoing edge counts do not match for "
-                    "%s when joining %s with src_str_id! "
-                    "%d in != %d out",
+                    (
+                        "Incoming and outgoing edge counts do not match for "
+                        "%s when joining %s with src_str_id! "
+                        "%d in != %d out"
+                        "Edge had %d distinct src nodes of type %s"
+                    ),
                     edge_type,
                     src_col,
                     incoming_edge_count,
                     intermediate_edge_count,
+                    distinct_nodes_src,
+                    src_ntype,
                 )
 
         if src_ntype == dst_ntype:
@@ -1181,7 +1194,9 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         edge_df_with_int_ids_and_all_features = edge_df_with_int_ids
         edge_df_with_only_int_ids = edge_df_with_int_ids.select(["src_int_id", "dst_int_id"])
 
-        edge_structure_path = os.path.join(self.output_prefix, f"edges/{edge_type}")
+        edge_structure_path = os.path.join(
+            self.output_prefix, f"edges/{edge_type.replace(':', '_')}"
+        )
         logging.info("Writing edge structure for edge type %s...", edge_type)
         if self.add_reverse_edges:
             edge_df_with_only_int_ids.cache()
@@ -1193,7 +1208,9 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 self.output_prefix, f"edges/{rev_edge_type}"
             )
             logging.info("Writing edge structure for reverse edge type %s...", rev_edge_type)
-            reverse_path_list = self._write_df(reversed_edges, reversed_edge_structure_path)
+            reverse_path_list = self._write_df(
+                reversed_edges, reversed_edge_structure_path.replace(":", "_")
+            )
         else:
             reverse_path_list = []
 
@@ -1201,11 +1218,17 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         if self.enable_assertions:
             outgoing_edge_count = edge_df_with_only_int_ids.count()
             if incoming_edge_count != outgoing_edge_count:
+                distinct_nodes_dst = edge_df.select(dst_col).distinct().count()
                 logging.fatal(
-                    "Incoming and outgoing edge counts do not match for '%s'! %d in != %d out",
+                    (
+                        "Incoming and outgoing edge counts do not match for '%s'! %d in != %d out"
+                        "Edge had %d distinct dst nodes of type %s"
+                    ),
                     edge_type,
                     incoming_edge_count,
                     outgoing_edge_count,
+                    distinct_nodes_dst,
+                    dst_ntype,
                 )
         return edge_df_with_int_ids_and_all_features, path_list, reverse_path_list
 
@@ -1384,10 +1407,11 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             transformer = DistFeatureTransformer(feat_conf)
 
             transformed_feature_df = transformer.apply_transformation(edges_df)
+            transformed_feature_df.cache()
 
-            def process_feature(self, feat_name, single_feature_df, edge_type, transformer_name):
+            def write_feature(self, feat_name, single_feature_df, edge_type, transformer_name):
                 feature_output_path = os.path.join(
-                    self.output_prefix, f"edge_data/{edge_type}-{feat_name}"
+                    self.output_prefix, f"edge_data/{edge_type.replace(':', '_')}-{feat_name}"
                 )
                 logging.info(
                     "Writing output for feat_name: '%s' to %s", feat_name, feature_output_path
@@ -1420,7 +1444,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 ):
                     for bert_feat_name in ["input_ids", "attention_mask", "token_type_ids"]:
                         single_feature_df = transformed_feature_df.select(bert_feat_name)
-                        process_feature(
+                        write_feature(
                             self,
                             bert_feat_name,
                             single_feature_df,
@@ -1431,13 +1455,16 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(
                         feat_col, feat_name
                     )
-                    process_feature(
+                    write_feature(
                         self,
                         feat_name,
                         single_feature_df,
                         edge_type,
                         transformer.get_transformation_name(),
                     )
+
+            # Unpersist and move on to next feature
+            transformed_feature_df.unpersist()
 
         return edge_feature_metadata_dicts, etype_feat_sizes
 
@@ -1494,7 +1521,8 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 transformed_label = edge_label_loader.process_label(edges_df)
 
                 label_output_path = os.path.join(
-                    self.output_prefix, f"edge_data/{edge_type}-label-{rel_type_prefix}"
+                    self.output_prefix,
+                    f"edge_data/{edge_type.replace(':', '_')}-label-{rel_type_prefix}",
                 )
 
                 path_list = self._write_df(transformed_label, label_output_path)
@@ -1513,7 +1541,9 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     rel_type_prefix,
                 )
 
-            split_masks_output_prefix = os.path.join(self.output_prefix, f"edge_data/{edge_type}")
+            split_masks_output_prefix = os.path.join(
+                self.output_prefix, f"edge_data/{edge_type.replace(':', '_')}"
+            )
             logging.info("Creating train/test/val split for edge type %s...", edge_type)
             if label_conf.split_rate:
                 split_rates = SplitRates(
@@ -1641,7 +1671,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             split_rates = SplitRates(train_rate=0.8, val_rate=0.1, test_rate=0.1)
         else:
             # TODO: add support for sums <= 1.0, useful for large-scale link prediction
-            if sum(split_rates.tolist()) != 1.0:
+            if math.fsum(split_rates.tolist()) != 1.0:
                 raise RuntimeError(f"Provided split rates  do not sum to 1: {split_rates}")
 
         split_list = split_rates.tolist()
@@ -1668,6 +1698,8 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         # to create one-hot vector indicating train/test/val membership
         input_col = F.col(label_column).astype("string") if label_column else F.lit("dummy")
         int_group_df = input_df.select(split_group(input_col).alias(group_col_name))
+        # We cache because we re-use this DF 3 times
+        int_group_df.cache()
 
         def create_metadata_entry(path_list):
             return {"format": {"name": FORMAT_NAME, "delimiter": DELIMITER}, "data": path_list}
@@ -1693,5 +1725,5 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
         return split_metadata
 
-    def load(self) -> Dict:
+    def load(self) -> tuple[dict, dict]:
         return self.process_and_write_graph_data(self._data_configs)

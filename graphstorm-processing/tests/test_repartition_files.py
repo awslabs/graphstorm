@@ -29,6 +29,7 @@ from pyarrow import parquet as pq
 
 from graphstorm_processing.repartition_files import ParquetRepartitioner
 from graphstorm_processing import repartition_files
+from graphstorm_processing.constants import FilesystemType
 
 _ROOT = os.path.abspath(os.path.dirname(__file__))
 DUMMY_PREFIX = "s3://dummy_bucket/dummy_prefix"
@@ -186,7 +187,7 @@ def test_repartition_functions(desired_counts: List[int], partition_function_nam
     """Test the repartition functions, streaming and in-memory"""
     assert sum(desired_counts) == 50
 
-    my_partitioner = ParquetRepartitioner(TEMP_DATA_PREFIX, filesystem_type="local")
+    my_partitioner = ParquetRepartitioner(TEMP_DATA_PREFIX, filesystem_type=FilesystemType.LOCAL)
 
     metadata_path = os.path.join(TEMP_DATA_PREFIX, "partitioned_metadata.json")
 
