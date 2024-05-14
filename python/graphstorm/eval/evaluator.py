@@ -1020,3 +1020,213 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
         # after compare, append the score into existing list
         self._val_perf_rank_list.append(val_score)
         return rank
+
+
+class GSgnnMultiTaskEvalInterface():
+    """ Interface for multi-task evaluation
+
+    The interface set the two abstract methods
+    """
+    @abc.abstractmethod
+    def evaluate(self, val_results, test_results, total_iters):
+        """Evaluate validation and test sets for Prediciton tasks
+
+            GSgnnTrainers will call this function to do evalution in their eval() fuction.
+
+        Parameters
+        ----------
+        val_results: dict
+            Validation results in a format of {task_id: validation results}
+        test_results: dict
+            Testing results in a format of {task_id: test results}
+        total_iters: int
+            The current interation number.
+
+        Returns
+        -----------
+        val_scores: dict
+            Validation scores in a format of {task_id:cores}
+        test_scores: dict
+            Test scores in a format of {task_id:cores}
+        """
+
+class GSgnnMultiTaskEvaluator(GSgnnBaseEvaluator, GSgnnMultiTaskEvalInterface):
+    """ Multi-task evaluator
+
+    Parameters
+    ----------
+    eval_frequency: int
+        The frequency (# of iterations) of doing evaluation.
+    task_evaluators: dict
+        Specific evaluators for different tasks. In a format of {task_id:GSgnnBaseEvaluator}
+    use_early_stop: bool
+        Set true to use early stop.
+        Note(xiang): Early stop not implemented. Reserved for future.
+    early_stop_burnin_rounds: int
+        Burn-in rounds before start checking for the early stop condition.
+        Note(xiang): Early stop not implemented. Reserved for future.
+    early_stop_rounds: int
+        The number of rounds for validation scores used to decide early stop.
+        Note(xiang): Early stop not implemented. Reserved for future.
+    early_stop_strategy: str
+        The early stop strategy. GraphStorm supports two strategies:
+        1) consecutive_increase and 2) average_increase.
+        Note(xiang): Early stop not implemented. Reserved for future.
+    """
+    # pylint: disable=unused-argument
+    def __init__(self, eval_frequency, task_evaluators,
+                 use_early_stop=False,
+                 early_stop_burnin_rounds=0,
+                 early_stop_rounds=3,
+                 early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
+        # nodes whose embeddings are used during evaluation
+        # if None all nodes are used.
+        self._history = []
+        self.tracker = None
+        self._best_val_score = None
+        self._best_test_score = None
+        self._best_iter = None
+
+        self._task_evaluators = task_evaluators
+        assert len(self.task_evaluators) > 1, \
+            "There must be evaluators for different tasks." \
+            f"But get onely get {len(self.task_evaluators)}"
+
+        self._metric_list = {
+            task_id: evaluator.metric_list for task_id, evaluator in self.task_evaluators.items()
+        }
+
+        self._eval_frequency = eval_frequency
+        # TODO(xiang): Support early stop
+        assert use_early_stop is False, \
+            "GSgnnMultiTaskEvaluator do not support early stop now."
+        self._do_early_stop = use_early_stop
+
+        # add this list to store all of the performance rank of validation scores for pick top k
+        self._val_perf_rank_list = []
+
+
+    # pylint: disable=unused-argument
+    def do_early_stop(self, val_score):
+        """ Decide whether to stop the training
+
+        Note: do not support early stop for multi-task learning.
+        Will support it later.
+
+        Parameters
+        ----------
+        val_score: float
+            Evaluation score
+        """
+        raise RuntimeError("GSgnnMultiTaskEvaluator.do_early_stop is not implemented")
+
+    def get_metric_comparator(self):
+        """ Return the comparator of the major eval metric.
+
+            Note: not support now.
+
+        """
+        raise RuntimeError("GSgnnMultiTaskEvaluator.get_metric_comparator is not implemented")
+
+    # pylint: disable=unused-argument
+    def get_val_score_rank(self, val_score):
+        """
+        Get the rank of the given validation score by comparing its values to the existing value
+        list.
+
+        Note: not support now.
+
+        Parameters
+        ----------
+        val_score: dict
+            A dictionary whose key is the metric and the value is a score from evaluator's
+            validation computation.
+        """
+        raise RuntimeError("GSgnnMultiTaskEvaluator.get_val_score_rank is not implemented")
+
+    @property
+    def task_evaluators(self):
+        """ Task evaluators
+        """
+        return self._task_evaluators
+
+    @property
+    def best_val_score(self):
+        """ Best validation score
+        """
+        best_val_score = {
+            task_id: evaluator.best_val_score \
+                for task_id, evaluator in self.task_evaluators.items()
+        }
+        return best_val_score
+
+    @property
+    def best_test_score(self):
+        """ Best test score
+        """
+        best_test_score = {
+            task_id: evaluator.best_test_score \
+                for task_id, evaluator in self.task_evaluators.items()
+        }
+        return best_test_score
+
+    @property
+    def best_iter_num(self):
+        """ Best iteration number
+        """
+        best_iter = {
+            task_id: evaluator.best_iter_num \
+                for task_id, evaluator in self.task_evaluators.items()
+        }
+        return best_iter
+
+    @property
+    def val_perf_rank_list(self):
+        raise RuntimeError("GSgnnMultiTaskEvaluator.val_perf_rank_list not supported")
+
+    def evaluate(self, val_results, test_results, total_iters):
+        eval_tasks = {}
+        val_scores = {}
+        test_scores = {}
+
+        if val_results is not None:
+            for task_id, val_result in val_results.items():
+                eval_tasks[task_id] = [val_result]
+
+        if test_results is not None:
+            for task_id, test_result in test_results.items():
+                if task_id in eval_tasks:
+                    eval_tasks[task_id].append(test_result)
+                else:
+                    eval_tasks[task_id] = [None, test_result]
+
+        for task_id, eval_task in eval_tasks.items():
+            if len(eval_task) == 1:
+                # only has validation result
+                eval_task.append(None)
+            assert len(eval_task) == 2, \
+                "An evaluation task is composed of two parts: " \
+                f"validation and test, but get {len(eval_task)} parts"
+            assert task_id in self._task_evaluators, \
+                f"The evaluator of {task_id} is not defined."
+            task_evaluator = self._task_evaluators[task_id]
+
+            if isinstance(task_evaluator, GSgnnPredictionEvalInterface):
+                val_preds, val_labels = eval_task[0]
+                test_preds, test_labels = eval_task[1]
+                val_score, test_score = task_evaluator.evaluate(
+                    val_preds, test_preds, val_labels, test_labels, total_iters)
+            elif isinstance(task_evaluator, GSgnnLPRankingEvalInterface):
+                val_rankings = eval_task[0]
+                test_rankings = eval_task[1]
+                val_score, test_score = task_evaluator.evaluate(
+                    val_rankings, test_rankings, total_iters)
+            else:
+                raise TypeError("Unknown evaluator")
+
+            val_scores[task_id] = val_score
+            test_scores[task_id] = test_score
+
+        self._history.append((val_scores, test_scores))
+
+        return val_scores, test_scores
