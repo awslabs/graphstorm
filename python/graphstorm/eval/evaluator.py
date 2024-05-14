@@ -1074,6 +1074,7 @@ class GSgnnMultiTaskEvaluator(GSgnnBaseEvaluator, GSgnnMultiTaskEvalInterface):
         Note(xiang): Early stop not implemented. Reserved for future.
     """
     # pylint: disable=unused-argument
+    # pylint: disable=super-init-not-called
     def __init__(self, eval_frequency, task_evaluators,
                  use_early_stop=False,
                  early_stop_burnin_rounds=0,
