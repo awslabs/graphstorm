@@ -863,7 +863,8 @@ def test_multi_task_evaluator_early_stop():
                                            ["accuracy"],
                                            use_early_stop=False)
 
-    task_evaluators = [("lp", lp), ("c_eval", c_eval)]
+    task_evaluators = {"lp": lp,
+                       "c_eval": c_eval}
     try:
         GSgnnMultiTaskEvaluator(config.eval_frequency,
                                 task_evaluators,
@@ -893,7 +894,7 @@ def test_multi_task_evaluator():
     @patch.object(GSgnnMrrLPEvaluator, 'compute_score')
     @patch.object(GSgnnClassificationEvaluator, 'compute_score')
     @patch.object(GSgnnRegressionEvaluator, 'compute_score')
-    def check_multi_task_eval(mock_lp_comput_score, mock_class_compute_score, mock_reg_compute_score):
+    def check_multi_task_eval(mock_reg_compute_score, mock_class_compute_score, mock_lp_comput_score):
         mock_lp_comput_score.side_effect = [
             {"mrr": 0.6},
             {"mrr": 0.7},
@@ -921,16 +922,17 @@ def test_multi_task_evaluator():
             {"rmse": 0.31},
         ]
 
-        lp = GSgnnPerEtypeMrrLPEvaluator(config.eval_frequency,
-                                        use_early_stop=False)
+        lp = GSgnnMrrLPEvaluator(config.eval_frequency,
+                                 use_early_stop=False)
         c_eval = GSgnnClassificationEvaluator(config.eval_frequency,
                                             ["accuracy"],
                                             use_early_stop=False)
         r_eval = GSgnnRegressionEvaluator(config.eval_frequency,
                                         use_early_stop=False)
 
-        task_evaluators = [("lp", lp), ("c_eval", c_eval),
-                        ("r_eval", r_eval)]
+        task_evaluators = {"lp": lp,
+                           "c_eval": c_eval,
+                           "r_eval": r_eval}
         mt_evaluator = GSgnnMultiTaskEvaluator(config.eval_frequency,
                                             task_evaluators,
                                             use_early_stop=False)
@@ -938,59 +940,61 @@ def test_multi_task_evaluator():
 
         val_results = {
             "lp": th.rand(10,),
-            "c_eval": th.rand(10,),
-            "r_eval": th.rand(10,),
+            "c_eval": (th.rand(10,), th.rand(10,)),
+            "r_eval": (th.rand(10,), th.rand(10,))
         }
         test_results = {
             "lp": th.rand(10,),
-            "c_eval": th.rand(10,),
-            "r_eval": th.rand(10,),
+            "c_eval": (th.rand(10,), th.rand(10,)),
+            "r_eval": (th.rand(10,), th.rand(10,)),
         }
         val_scores, test_scores = mt_evaluator.evaluate(val_results, test_results, 100)
         assert len(val_scores) == 3
         assert len(test_scores) == 3
-        assert val_scores["lp"] == 0.7
-        assert val_scores["c_eval"] == 0.7
-        assert val_scores["r_eval"] == 0.7
-        assert test_scores["lp"] == 0.6
-        assert test_scores["c_eval"] == 0.65
-        assert test_scores["r_eval"] == 0.8
+        assert val_scores["lp"]["mrr"] == 0.7
+        assert val_scores["c_eval"]["accuracy"] == 0.7
+        assert val_scores["r_eval"]["rmse"] == 0.7
+        assert test_scores["lp"]["mrr"]  == 0.6
+        assert test_scores["c_eval"]["accuracy"] == 0.65
+        assert test_scores["r_eval"]["rmse"] == 0.8
 
         val_scores, test_scores = mt_evaluator.evaluate(val_results, test_results, 200)
         assert len(val_scores) == 3
         assert len(test_scores) == 3
-        assert val_scores["lp"] == 0.8
-        assert val_scores["c_eval"] == 0.8
-        assert val_scores["r_eval"] == 0.2
-        assert test_scores["lp"] == 0.65
-        assert test_scores["c_eval"] == 0.7
-        assert test_scores["r_eval"] == 0.23
+        assert val_scores["lp"]["mrr"]  == 0.8
+        assert val_scores["c_eval"]["accuracy"] == 0.8
+        assert val_scores["r_eval"]["rmse"] == 0.2
+        assert test_scores["lp"]["mrr"]  == 0.65
+        assert test_scores["c_eval"]["accuracy"] == 0.7
+        assert test_scores["r_eval"]["rmse"] == 0.23
 
         val_scores, test_scores = mt_evaluator.evaluate(val_results, test_results, 300)
         assert len(val_scores) == 3
         assert len(test_scores) == 3
-        assert val_scores["lp"] == 0.7
-        assert val_scores["c_eval"] == 0.76
-        assert val_scores["r_eval"] == 0.3
-        assert test_scores["lp"] == 0.8
-        assert test_scores["c_eval"] == 0.8
-        assert test_scores["r_eval"] == 0.31
+        assert val_scores["lp"]["mrr"]  == 0.7
+        assert val_scores["c_eval"]["accuracy"] == 0.76
+        assert val_scores["r_eval"]["rmse"] == 0.3
+        assert test_scores["lp"]["mrr"]  == 0.8
+        assert test_scores["c_eval"]["accuracy"] == 0.8
+        assert test_scores["r_eval"]["rmse"] == 0.31
 
-        best_val_score = mt_evaluator.best_val_score()
-        best_test_score = mt_evaluator.best_test_score()
-        best_iter_num = mt_evaluator.best_iter_num()
+        best_val_score = mt_evaluator.best_val_score
+        best_test_score = mt_evaluator.best_test_score
+        best_iter_num = mt_evaluator.best_iter_num
         assert len(best_val_score) == 3
         assert len(best_test_score) == 3
         assert len(best_iter_num) == 3
-        assert best_val_score["lp"] == 0.8
-        assert best_val_score["c_eval"] == 0.8
-        assert best_val_score["r_eval"] == 0.2
-        assert best_test_score["lp"] == 0.65
-        assert best_test_score["c_eval"] == 0.7
-        assert best_test_score["r_eval"] == 0.23
-        assert best_iter_num["lp"] == 200
-        assert best_iter_num["c_eval"] == 200
-        assert best_iter_num["r_eval"] == 300
+        assert best_val_score["lp"]["mrr"] == 0.8
+        assert best_val_score["c_eval"]["accuracy"] == 0.8
+        assert best_val_score["r_eval"]["rmse"] == 0.2
+        assert best_test_score["lp"]["mrr"] == 0.65
+        assert best_test_score["c_eval"]["accuracy"] == 0.7
+        assert best_test_score["r_eval"]["rmse"] == 0.23
+        assert best_iter_num["lp"]["mrr"] == 200
+        assert best_iter_num["c_eval"]["accuracy"] == 200
+        assert best_iter_num["r_eval"]["rmse"] == 200
+
+    check_multi_task_eval()
 
 if __name__ == '__main__':
     test_multi_task_evaluator_early_stop()

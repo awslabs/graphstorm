@@ -785,7 +785,6 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
 
             if val_rankings is not None:
                 val_score = self.compute_score(val_rankings)
-
                 if get_rank() == 0:
                     for metric in self.metric_list:
                         # be careful whether > or < it might change per metric.
@@ -1189,7 +1188,7 @@ class GSgnnMultiTaskEvaluator(GSgnnBaseEvaluator, GSgnnMultiTaskEvalInterface):
         test_scores = {}
 
         if val_results is not None:
-            for task_id, val_result in val_results.itmes():
+            for task_id, val_result in val_results.items():
                 eval_tasks[task_id] = [val_result]
 
         if test_results is not None:
@@ -1209,7 +1208,6 @@ class GSgnnMultiTaskEvaluator(GSgnnBaseEvaluator, GSgnnMultiTaskEvalInterface):
             assert task_id in self._task_evaluators, \
                 f"The evaluator of {task_id} is not defined."
             task_evaluator = self._task_evaluators[task_id]
-
 
             if isinstance(task_evaluator, GSgnnPredictionEvalInterface):
                 val_preds, val_labels = eval_task[0]
