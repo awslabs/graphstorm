@@ -51,7 +51,7 @@ For CPU environment:
     pip install dgl==1.1.3 -f https://data.dgl.ai/wheels-internal/repo.html
 
 Configure SSH No-password login (optional)
-........................................
+..........................................
 To perform distributed training in a cluster of machines, please use the following commands
 to configure a local SSH no-password login that GraphStorm relies on.
 
