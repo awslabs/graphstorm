@@ -1706,9 +1706,9 @@ class GSgnnMultiTaskDataLoader:
         # check dataloaders
         lens = []
         for task_info, dataloader in zip(task_infos, task_dataloaders):
-            assert isinstance(dataloader, GSgnnEdgeDataLoaderBase,
-                              GSgnnLinkPredictionDataLoaderBase,
-                              GSgnnNodeDataLoaderBase), \
+            assert isinstance(dataloader, (GSgnnEdgeDataLoaderBase,
+                                           GSgnnLinkPredictionDataLoaderBase,
+                                           GSgnnNodeDataLoaderBase)), \
                 "The task data loader should be a GSgnnEdgeDataLoaderBase " \
                 " or a GSgnnLinkPredictionDataLoaderBase or a GSgnnNodeDataLoaderBase"
             num_iters = len(dataloader)
