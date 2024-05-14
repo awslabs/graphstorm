@@ -18,7 +18,6 @@
 import math
 import inspect
 import logging
-
 import dgl
 import torch as th
 from torch.utils.data import DataLoader
@@ -1687,6 +1686,7 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
         return min(self.dataloader.expected_idxs,
                    self.unlabeled_dataloader.expected_idxs)
 
+
 ####################### Multi-task Dataloader ####################
 class GSgnnMultiTaskDataLoader:
     r""" DataLoader designed for multi-task learning
@@ -1706,9 +1706,9 @@ class GSgnnMultiTaskDataLoader:
         # check dataloaders
         lens = []
         for task_info, dataloader in zip(task_infos, task_dataloaders):
-            assert isinstance(dataloader, GSgnnEdgeDataLoaderBase,
-                              GSgnnLinkPredictionDataLoaderBase,
-                              GSgnnNodeDataLoaderBase), \
+            assert isinstance(dataloader, (GSgnnEdgeDataLoaderBase,
+                                           GSgnnLinkPredictionDataLoaderBase,
+                                           GSgnnNodeDataLoaderBase)), \
                 "The task data loader should be a GSgnnEdgeDataLoaderBase " \
                 " or a GSgnnLinkPredictionDataLoaderBase or a GSgnnNodeDataLoaderBase"
             num_iters = len(dataloader)
@@ -1731,6 +1731,7 @@ class GSgnnMultiTaskDataLoader:
             iter(dataloader)
         self._num_iters = 0
 
+
     def __iter__(self):
         self._reset_loader()
         return self
@@ -1750,7 +1751,7 @@ class GSgnnMultiTaskDataLoader:
             try:
                 mini_batch = next(dataloader)
             except StopIteration:
-                load = dataloader.__iter__()
+                load = iter(dataloader)
                 # we assume dataloader __iter__ will return itself.
                 assert load is dataloader, \
                     "We assume the return value of __iter__() function " \
