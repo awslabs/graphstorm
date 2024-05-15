@@ -3,8 +3,7 @@ cd ../../
 
 set -ex
 
-python3 -m pip install --upgrade prospector pip
-yes | pip3 install astroid==v3.0.0
+python3 -m pip install prospector==1.10.3
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/data/*.py
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/distributed/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/dataloading/
