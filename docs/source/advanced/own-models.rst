@@ -408,7 +408,7 @@ For users' own configurations, you still can pass them as input argument of the 
 
 Put Everything Together and Run them
 -------------------------------------
-With all required modifications ready, let's put everything of the modified HGT model together in a Python file, e.g, ``hgt_nc.py``. We can put the Python file and the related artifacts, including the YAML file, e.g., ``acm_nc.yaml``, and the ``ip_list.txt`` file in a folder, e.g. ``/hgt_nc/``. And then use the GraphStorm's launch script to run this modified HGT model.
+With all required modifications ready, let's put everything of the modified HGT model together in a Python file, e.g, ``hgt_nc.py``. We can put the Python file and the related artifacts, such as the YAML file, ``acm_nc.yaml``, in a folder, e.g. ``/hgt_nc/``. And then use the GraphStorm's launch script to run this modified HGT model.
 
 .. code-block:: python
 
