@@ -1702,15 +1702,15 @@ class GSgnnMultiTaskDataLoader:
     """
     def __init__(self, dataset, task_infos, task_dataloaders):
         assert len(task_infos) == len(task_dataloaders), \
-            "Number of task_info should match number of task dataloaders"
+            "Number of task_infos should match number of task dataloaders"
         # check dataloaders
         lens = []
         for task_info, dataloader in zip(task_infos, task_dataloaders):
             assert isinstance(dataloader, (GSgnnEdgeDataLoaderBase,
                                            GSgnnLinkPredictionDataLoaderBase,
                                            GSgnnNodeDataLoaderBase)), \
-                "The task data loader should be a GSgnnEdgeDataLoaderBase " \
-                " or a GSgnnLinkPredictionDataLoaderBase or a GSgnnNodeDataLoaderBase"
+                "The task data loader should be an instance of GSgnnEdgeDataLoaderBase, " \
+                "GSgnnLinkPredictionDataLoaderBase or GSgnnNodeDataLoaderBase"
             num_iters = len(dataloader)
             lens.append(num_iters)
             logging.debug("Task %s has number of iterations of %d",
@@ -1730,7 +1730,6 @@ class GSgnnMultiTaskDataLoader:
         for dataloader in self._dataloaders:
             iter(dataloader)
         self._num_iters = 0
-
 
     def __iter__(self):
         self._reset_loader()
