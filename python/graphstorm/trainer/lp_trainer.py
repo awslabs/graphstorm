@@ -24,6 +24,7 @@ import dgl
 
 from ..model.lp_gnn import GSgnnLinkPredictionModelInterface
 from ..model.lp_gnn import lp_mini_batch_predict
+from ..model.gnn_with_reconstruct import GNNEncoderWithReconstructedEmbed
 from ..model import (do_full_graph_inference,
                      do_mini_batch_inference,
                      GSgnnModelBase,
@@ -50,7 +51,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     model : GSgnnLinkPredictionModel
         The GNN model for link prediction.
     topk_model_to_save : int
-        The top K model to save.
+        The top K model to save. Default is 1.
 
     Example
     -------
@@ -72,7 +73,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
 
         trainer.fit(my_data_loader, num_epochs=2)
     """
-    def __init__(self, model, topk_model_to_save):
+    def __init__(self, model, topk_model_to_save=1):
         super(GSgnnLinkPredictionTrainer, self).__init__(model, topk_model_to_save)
         assert isinstance(model, GSgnnLinkPredictionModelInterface) \
                 and isinstance(model, GSgnnModelBase), \
@@ -128,6 +129,14 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         if not use_mini_batch_infer:
             assert isinstance(self._model, GSgnnModel), \
                     "Only GSgnnModel supports full-graph inference."
+
+        # assert not use GNNEncoderWithReconstructedEmbed when use_mini_batch_infer=True
+        if self._model.gnn_encoder is not None:
+            assert not (isinstance(self._model.gnn_encoder, GNNEncoderWithReconstructedEmbed) and \
+                use_mini_batch_infer), 'GraphStorm GNNEncoderWithReconstructedEmbed encoder' + \
+                    ' dose not support mini-batch inference. Please set ' + \
+                        'use_mini_batch_infer to be false.'
+
         # with freeze_input_layer_epochs is 0, computation graph will not be changed.
         static_graph = freeze_input_layer_epochs == 0
         on_cpu = self.device == th.device('cpu')
@@ -214,7 +223,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                     self.evaluator.do_eval(total_steps, epoch_end=False):
                     val_score = self.eval(model.module if is_distributed() else model,
                                           data, val_loader, test_loader, total_steps,
-                                          edge_mask_for_gnn_embeddings)
+                                          edge_mask_for_gnn_embeddings, use_mini_batch_infer)
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
 
@@ -249,7 +258,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
                 val_score = self.eval(model.module if is_distributed() else model,
                                       data, val_loader, test_loader, total_steps,
-                                      edge_mask_for_gnn_embeddings)
+                                      edge_mask_for_gnn_embeddings, use_mini_batch_infer)
 
                 if self.evaluator.do_early_stop(val_score):
                     early_stop = True
