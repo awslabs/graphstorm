@@ -9,7 +9,7 @@ gsf:
     model_encoder_type: rgcn
     fanout: "4"
     num_layers: 1
-    hidden_size: 128
+    hidden_size: 32
     use_mini_batch_infer: true
   input:
     restore_model_path: null
@@ -36,26 +36,49 @@ gsf:
       num_classes: 19
       batch_size: 16 # will overwrite the global batch_size
       mask_fields:
-        - "train_mask_field_nc"
-        - "val_mask_field_nc"
-        - "test_mask_field_nc"
+        - "train_mask_c0" # node classification mask 0
+        - "val_mask_c0"
+        - "test_mask_c0"
+      task_weight: 1.0
+      eval_metric:
+        - "accuracy"
+    - node_classification:
+      target_ntype: "movie"
+      label_field: "label2"
+      multilabel: false
+      num_classes: 19
+      batch_size: 16 # will overwrite the global batch_size
+      mask_fields:
+        - "train_mask_c1" # node classification mask 1
+        - "val_mask_c1"
+        - "test_mask_c1"
       task_weight: 1.0
       eval_metric:
         - "accuracy"
     - edge_classification:
       target_etype:
         - "user,rating,movie"
-      reverse_edge_types_map:
-        - "user,rating,rating-rev,movie"
-      label_field: "rate"
+      label_field: "rate_class"
       multilabel: false
       num_classes: 5
-      num_decoder_basis: 32
-      batch_size: 10 # will overwrite the global batch_size
+      num_decoder_basis: 2
+      remove_target_edge_type: false
+      batch_size: 16 # will overwrite the global batch_size
       mask_fields:
-        - "train_mask_field_ec"
-        - "val_mask_field_ec"
-        - "test_mask_field_ec"
+        - "train_mask_field_c" # edge classification mask
+        - "val_mask_field_c"
+        - "test_mask_field_c"
+      task_weight: 0.5 # weight of the task
+    - edge_regression:
+      target_etype:
+        - "user,rating,movie"
+      label_field: "rate"
+      num_decoder_basis: 32
+      remove_target_edge_type: false
+      mask_fields:
+        - "train_mask_field_r" # edge regression mask
+        - "val_mask_field_r"
+        - "test_mask_field_r"
       task_weight: 0.5 # weight of the task
     - link_prediction:
       num_negative_edges: 4
@@ -66,8 +89,9 @@ gsf:
       train_etype:
         - "user,rating,movie"
       exclude_training_targets: true
-      reverse_edge_types_map: []
-      batch_size: 10 # will overwrite the global batch_size
+      reverse_edge_types_map:
+        - user,rating,rating-rev,movie
+      batch_size: 8 # will overwrite the global batch_size
       mask_fields:
         - "train_mask_field_lp"
         - null # empty means there is no validation mask
