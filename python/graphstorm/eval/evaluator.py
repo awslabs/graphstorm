@@ -1091,7 +1091,7 @@ class GSgnnMultiTaskEvaluator(GSgnnBaseEvaluator, GSgnnMultiTaskEvalInterface):
         self._task_evaluators = task_evaluators
         assert len(self.task_evaluators) > 1, \
             "There must be multiple evaluators for different tasks." \
-            f"But get only get {len(self.task_evaluators)}"
+            f"But only get {len(self.task_evaluators)}"
 
         self._metric_list = {
             task_id: evaluator.metric_list for task_id, evaluator in self.task_evaluators.items()
