@@ -37,7 +37,7 @@
                             "test_mask_c0"]
                 },
                 {
-                    "label_col":	"label",
+                    "label_col":	"label2",
                     "task_type":	"classification",
                     "split_pct":	[0.7, 0.2, 0.1],
                     "mask_field_names": ["train_mask_c1",
@@ -56,7 +56,7 @@
         "files":        "/data/ml-100k/edges.parquet",
         "labels":	[
             {
-                "label_col":	"rate",
+                "label_col":	"rate_class",
                 "task_type":	"classification",
                 "split_pct":	[0.1, 0.1, 0.1],
                 "mask_field_names": ["train_mask_field_c",
