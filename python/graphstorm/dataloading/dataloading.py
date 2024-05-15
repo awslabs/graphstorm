@@ -1686,6 +1686,110 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
         return min(self.dataloader.expected_idxs,
                    self.unlabeled_dataloader.expected_idxs)
 
+
+####################### Multi-task Dataloader ####################
+class GSgnnMultiTaskDataLoader:
+    r""" DataLoader designed for multi-task learning
+
+    Parameters
+    ----------
+    dataset: GSgnnData
+        The GraphStorm dataset
+    task_infos: list of TaskInfo
+        Task meta information
+    task_dataloaders: list of GsgnnDataLoader
+        A list of task dataloaders
+    """
+    def __init__(self, dataset, task_infos, task_dataloaders):
+        assert len(task_infos) == len(task_dataloaders), \
+            "Number of task_infos should match number of task dataloaders"
+        # check dataloaders
+        lens = []
+        for task_info, dataloader in zip(task_infos, task_dataloaders):
+            assert isinstance(dataloader, (GSgnnEdgeDataLoaderBase,
+                                           GSgnnLinkPredictionDataLoaderBase,
+                                           GSgnnNodeDataLoaderBase)), \
+                "The task data loader should be an instance of GSgnnEdgeDataLoaderBase, " \
+                "GSgnnLinkPredictionDataLoaderBase or GSgnnNodeDataLoaderBase"
+            num_iters = len(dataloader)
+            lens.append(num_iters)
+            logging.debug("Task %s has number of iterations of %d",
+                          task_info, num_iters)
+
+        self._len = max(lens)
+        logging.info("Set the number of iterations to %d, which is the length " \
+                     "of the largest task in the multi-task learning.", self._len)
+        self._data = dataset
+        self._task_infos = task_infos
+        self._dataloaders = task_dataloaders # one dataloader for each task
+        self._reset_loader()
+
+    def _reset_loader(self):
+        """ reset the dataloaders
+        """
+        for dataloader in self._dataloaders:
+            iter(dataloader)
+        self._num_iters = 0
+
+    def __iter__(self):
+        self._reset_loader()
+        return self
+
+    def __len__(self):
+        return self._len
+
+    def __next__(self):
+        self._num_iters += 1
+        # End of iterating all the dataloaders
+        if self._num_iters == self._len:
+            raise StopIteration
+
+        # call __next__ of each dataloader
+        mini_batches = []
+        for task_info, dataloader in zip(self._task_infos, self._dataloaders):
+            try:
+                mini_batch = next(dataloader)
+            except StopIteration:
+                load = iter(dataloader)
+                # we assume dataloader __iter__ will return itself.
+                assert load is dataloader, \
+                    "We assume the return value of __iter__() function " \
+                    "of each task dataloader is itself."
+                mini_batch = next(dataloader)
+
+            if task_info.dataloader is None:
+                task_info.dataloader = dataloader
+            else:
+                assert task_info.dataloader is dataloader, \
+                    "Each task in multi-task learning should have a fixed dataloader."
+            mini_batches.append((task_info, mini_batch))
+        return mini_batches
+
+    @property
+    def data(self):
+        """ The dataset of this dataloader.
+
+        Returns
+        -------
+        GSgnnData : The dataset of the dataloader.
+        """
+        return self._data
+
+    @property
+    def dataloaders(self):
+        """Get the list of dataloaders
+        """
+        # useful for conducting validation scores and test scores.
+        return self._dataloaders
+
+    @property
+    def task_infos(self):
+        """Get the list of task_infos
+        """
+        # useful for conducting validation scores and test scores.
+        return self._task_infos
+
+
 ####################### Distillation #############################
 
 class DistillDataManager:
