@@ -173,6 +173,15 @@ objects:
          assign to the validation set [0.0, 1.0).
       -  ``test``: The percentage of the data with available labels to
          assign to the test set [0.0, 1.0).
+   -  ``custom_split_filenames`` (JSON object, optional): Specifies the customized
+      training/validation/test mask. Once it is defined, GSProcessing will ignore
+      the ``split_rate``.
+      -  ``train``: Path of the training mask file such that each line contains
+    the original ID for node tasks, or the pair [source_id, destination_id] for edge tasks.
+      -  ``val``: Path of the validation mask file such that each line contains
+    the original ID for node tasks, or the pair [source_id, destination_id] for edge tasks.
+      -  ``test``: Path of the test mask file such that each line contains
+    the original ID for node tasks, or the pair [source_id, destination_id] for edge tasks.
 
 -  ``features`` (List of JSON objects, optional)\ **:** Describes
    the set of features for the current edge type. See the :ref:`features-object` section for details.
