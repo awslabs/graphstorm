@@ -16,7 +16,7 @@
     Entry point for running multi-task learning.
 
     Run as:
-    python3 -m graphstorm.run.gs_multi_task <Launch args> <Train/Infer args>
+    python3 -m graphstorm.run.gs_multi_task_learning <Launch args> <Train/Infer args>
 """
 import os
 import logging
