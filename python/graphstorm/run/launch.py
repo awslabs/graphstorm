@@ -962,6 +962,7 @@ def get_ip_config(ip_config, workspace):
         # The user doesn't provide an IP config file. This means we are going to
         # run the training job in the local machine. We should create a temporary
         # IP config file.
+        # pylint: disable=invalid-name
         with tempfile.NamedTemporaryFile(delete=False) as fp:
             fp.write(b'127.0.0.1')
             ip_config = fp.name
