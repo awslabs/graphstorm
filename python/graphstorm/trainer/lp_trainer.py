@@ -50,7 +50,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     model : GSgnnLinkPredictionModel
         The GNN model for link prediction.
     topk_model_to_save : int
-        The top K model to save.
+        The top K model to save. Default is 1.
 
     Example
     -------
@@ -72,7 +72,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
 
         trainer.fit(my_data_loader, num_epochs=2)
     """
-    def __init__(self, model, topk_model_to_save):
+    def __init__(self, model, topk_model_to_save=1):
         super(GSgnnLinkPredictionTrainer, self).__init__(model, topk_model_to_save)
         assert isinstance(model, GSgnnLinkPredictionModelInterface) \
                 and isinstance(model, GSgnnModelBase), \

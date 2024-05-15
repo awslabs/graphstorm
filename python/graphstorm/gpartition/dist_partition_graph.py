@@ -29,7 +29,8 @@ import sys
 from typing import Dict
 from threading import Thread
 
-from graphstorm.gpartition import RandomPartitionAlgorithm
+from graphstorm.gpartition import (ParMetisPartitionAlgorithm, ParMETISConfig,
+    RandomPartitionAlgorithm)
 from graphstorm.utils import get_log_level
 
 
@@ -117,6 +118,10 @@ def main():
     part_start = time.time()
     if args.partition_algorithm == "random":
         partitioner = RandomPartitionAlgorithm(metadata_dict)
+    elif args.partition_algorithm == "parmetis":
+        partition_config = ParMETISConfig(args.ip_list, args.input_path,
+                                          args.dgl_tool_path, args.metadata_filename)
+        partitioner = ParMetisPartitionAlgorithm(metadata_dict, partition_config)
     else:
         raise RuntimeError(f"Unknown partition algorithm {args.part_algorithm}")
 
@@ -161,7 +166,7 @@ def parse_args() -> argparse.Namespace:
     argparser.add_argument("--dgl-tool-path", type=str,
                            help="The path to dgl/tools")
     argparser.add_argument("--partition-algorithm", type=str, default="random",
-                           choices=["random"], help="Partition algorithm to use.")
+                           choices=["random", "parmetis"], help="Partition algorithm to use.")
     argparser.add_argument("--ip-list", type=str,
                            help="A file storing the ip list of instances of the partition cluster.")
     argparser.add_argument("--do-dispatch", action='store_true')

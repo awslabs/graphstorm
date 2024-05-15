@@ -1,0 +1,111 @@
+ARG SOURCE
+
+FROM ${SOURCE} as base
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV HOME=/root
+
+ARG DGL_VERSION=1.1.3
+ARG OGB_VERSION=1.3.6
+ARG TORCH_VERSION=2.1.2
+ARG TRANSFORMERS_VERSION=4.28.1
+
+RUN apt update && apt install -y --no-install-recommends \
+    git \
+    libicu-dev \
+    openssh-client \
+    openssh-server \
+    python3.9 \
+    python3.9-distutils \
+    python3.9-venv \
+    gfortran \
+    cmake \
+    build-essential \
+    g++ \
+    vim \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+# Create and activate a Python venv
+RUN python3.9 -m venv /opt/gs-venv
+ENV PATH="/opt/gs-venv/bin:$PATH"
+
+# Install GraphStorm dependencies
+RUN pip install \
+    boto3==1.34.89 \
+    botocore==1.34.89 \
+    h5py==3.11.0 \
+    networkx==3.1 \
+    psutil==5.9.8 \
+    pyarrow==14.0.0 \
+    pydantic==2.7.0 \
+    scikit-learn==1.4.2 \
+    scipy==1.13.0 \
+    pyyaml \
+    && rm -rf /root/.cache
+
+# Install torch, DGL, and GSF deps that require torch
+RUN pip install \
+    torch==${TORCH_VERSION} \
+    --index-url https://download.pytorch.org/whl/cpu \
+    && rm -rf /root/.cache
+
+RUN pip install \
+    dgl==${DGL_VERSION} \
+    ogb==${OGB_VERSION} \
+    transformers==${TRANSFORMERS_VERSION} \
+    -f https://data.dgl.ai/wheels-internal/repo.html && rm -rf /root/.cache
+
+FROM base as runtime
+
+ENV PYTHONPATH="/root/dgl/tools/:${PYTHONPATH}"
+
+# Download DGL source code
+RUN cd /root; git clone --single-branch --branch 2.2.x https://github.com/dmlc/dgl.git
+
+# Copy GraphStorm source and add to PYTHONPATH
+RUN mkdir -p /graphstorm
+COPY code/python/graphstorm /graphstorm/python/graphstorm
+ENV PYTHONPATH="/graphstorm/python/:${PYTHONPATH}"
+
+# Copy GraphStorm scripts and tools
+COPY code/examples /graphstorm/examples
+COPY code/inference_scripts /graphstorm/inference_scripts
+COPY code/tools /graphstorm/tools
+COPY code/training_scripts /graphstorm/training_scripts
+
+# Install GKLib
+RUN cd /root; git clone --single-branch --branch master https://github.com/KarypisLab/GKlib; cd GKlib; make; make install
+
+# Install Metis
+RUN cd /root; git clone --single-branch --branch master https://github.com/KarypisLab/METIS.git; cd METIS; \
+    make config shared=1 cc=gcc prefix=/root/local i64=1; make install
+
+# Install MPI
+RUN wget https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-4.1.1.tar.gz && \
+    tar -xzvf openmpi-4.1.1.tar.gz && \
+    cd openmpi-4.1.1 && \
+    ./configure --prefix=/usr/local && \
+    make all && \
+    make install && \
+    ldconfig && rm -rf mpich-4.1.1.tar.gz
+
+# Install Parmetis
+RUN cd /root; git clone --single-branch --branch main https://github.com/KarypisLab/PM4GNN.git; cd PM4GNN; \
+    make config cc=mpicc prefix=/root/local; make install
+ENV PATH=$PATH:/root/local/bin
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/local/lib/
+
+# Set up SSH access
+ENV SSH_PORT=2222
+
+RUN cat /etc/ssh/sshd_config > /tmp/sshd_config && \
+    sed "0,/^#Port 22/s//Port ${SSH_PORT}/" /tmp/sshd_config > /etc/ssh/sshd_config
+ENV SSHDIR $HOME/.ssh
+RUN mkdir -p ${SSHDIR} \
+    && ssh-keygen -t rsa -f ${SSHDIR}/id_rsa -N '' \
+    && cp ${SSHDIR}/id_rsa.pub ${SSHDIR}/authorized_keys \
+    && mkdir /run/sshd
+
+EXPOSE ${SSH_PORT}
+
+CMD ["/usr/sbin/sshd", "-D"]
