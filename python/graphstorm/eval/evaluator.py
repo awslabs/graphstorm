@@ -797,6 +797,8 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
                 for metric in self.metric_list:
                     val_score = {metric: "N/A"} # Dummy
 
+        self._history.append((val_score, test_score))
+
         return val_score, test_score
 
     def compute_score(self, rankings, train=True):
@@ -997,6 +999,8 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
                 for metric in self.metric_list:
                     val_score = {metric: "N/A"} # Dummy
 
+        self._history.append((val_score, test_score))
+
         return val_score, test_score
 
     def get_val_score_rank(self, val_score):
@@ -1020,10 +1024,11 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
         self._val_perf_rank_list.append(val_score)
         return rank
 
+
 class GSgnnMultiTaskEvalInterface():
     """ Interface for multi-task evaluation
 
-    The interface set the two abstract methods
+    The interface set one abstract method
     """
     @abc.abstractmethod
     def evaluate(self, val_results, test_results, total_iters):
@@ -1043,9 +1048,9 @@ class GSgnnMultiTaskEvalInterface():
         Returns
         -----------
         val_scores: dict
-            Validation scores in a format of {task_id:cores}
+            Validation scores in a format of {task_id: scores}
         test_scores: dict
-            Test scores in a format of {task_id:cores}
+            Test scores in a format of {task_id: scores}
         """
 
 class GSgnnMultiTaskEvaluator(GSgnnBaseEvaluator, GSgnnMultiTaskEvalInterface):
@@ -1072,6 +1077,7 @@ class GSgnnMultiTaskEvaluator(GSgnnBaseEvaluator, GSgnnMultiTaskEvalInterface):
         Note(xiang): Early stop not implemented. Reserved for future.
     """
     # pylint: disable=unused-argument
+    # pylint: disable=super-init-not-called
     def __init__(self, eval_frequency, task_evaluators,
                  use_early_stop=False,
                  early_stop_burnin_rounds=0,
@@ -1087,8 +1093,8 @@ class GSgnnMultiTaskEvaluator(GSgnnBaseEvaluator, GSgnnMultiTaskEvalInterface):
 
         self._task_evaluators = task_evaluators
         assert len(self.task_evaluators) > 1, \
-            "There must be evaluators for different tasks." \
-            f"But get onely get {len(self.task_evaluators)}"
+            "There must be multiple evaluators for different tasks." \
+            f"But only get {len(self.task_evaluators)}"
 
         self._metric_list = {
             task_id: evaluator.metric_list for task_id, evaluator in self.task_evaluators.items()
@@ -1097,7 +1103,7 @@ class GSgnnMultiTaskEvaluator(GSgnnBaseEvaluator, GSgnnMultiTaskEvalInterface):
         self._eval_frequency = eval_frequency
         # TODO(xiang): Support early stop
         assert use_early_stop is False, \
-            "GSgnnMultiTaskEvaluator do not support early stop now."
+            "GSgnnMultiTaskEvaluator does not support early stop now."
         self._do_early_stop = use_early_stop
 
         # add this list to store all of the performance rank of validation scores for pick top k
@@ -1172,11 +1178,11 @@ class GSgnnMultiTaskEvaluator(GSgnnBaseEvaluator, GSgnnMultiTaskEvalInterface):
     def best_iter_num(self):
         """ Best iteration number
         """
-        best_iter = {
+        best_iter_num = {
             task_id: evaluator.best_iter_num \
                 for task_id, evaluator in self.task_evaluators.items()
         }
-        return best_iter
+        return best_iter_num
 
     @property
     def val_perf_rank_list(self):
@@ -1228,4 +1234,3 @@ class GSgnnMultiTaskEvaluator(GSgnnBaseEvaluator, GSgnnMultiTaskEvalInterface):
         self._history.append((val_scores, test_scores))
 
         return val_scores, test_scores
-

@@ -2310,7 +2310,6 @@ def test_GSgnnMultiTaskDataLoader():
         assert len(multi_dataloader) == 10
 
         len(multi_dataloader.dataloaders) == 7
-        dataloaders = multi_dataloader.dataloaders
         len(multi_dataloader.task_infos) == 7
 
         dataloaders = multi_dataloader.dataloaders
