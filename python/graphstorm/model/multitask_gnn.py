@@ -87,7 +87,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         super(GSgnnMultiTaskSharedEncoderModel, self).__init__()
         self._alpha_l2norm = alpha_l2norm
         self._task_pool = {}
-        self._task_decoders = nn.ModuleDict()
+        self._decoder = nn.ModuleDict()
 
     def add_task(self, task_id, task_type,
                  decoder, loss_func, weight):
@@ -97,7 +97,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
             f"Task {task_id} already exists"
         logging.info("Setup task %s", task_id)
         self._task_pool[task_id] = (task_type, loss_func, weight)
-        self._task_decoders[task_id] = decoder
+        self._decoder[task_id] = decoder
 
     @property
     def alpha_l2norm(self):
@@ -133,7 +133,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         encode_embs = self.normalize_node_embs(encode_embs)
 
         task_type, loss_func, weight = self.task_pool[task_id]
-        decoder = self._task_decoders[task_id]
+        task_decoder = self.decoder[task_id]
 
         if task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
             labels = decoder_data
@@ -147,7 +147,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
             assert target_ntype in labels, f"Node type {target_ntype} not in labels"
             emb = encode_embs[target_ntype]
             ntype_labels = labels[target_ntype]
-            ntype_logits = decoder(emb)
+            ntype_logits = task_decoder(emb)
             pred_loss = loss_func(ntype_logits, ntype_labels)
 
             return pred_loss, weight
@@ -158,15 +158,15 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
                 "on one edge type for a single edge task."
             pred_loss = 0
             target_etype = list(labels.keys())[0]
-            logits = decoder(target_edges, encode_embs, target_edge_feats)
+            logits = task_decoder(target_edges, encode_embs, target_edge_feats)
             pred_loss = loss_func(logits, labels[target_etype])
 
             return pred_loss, weight
         elif task_type == BUILTIN_TASK_LINK_PREDICTION:
             pos_graph, neg_graph, pos_edge_feats, neg_edge_feats = decoder_data
 
-            pos_score = decoder(pos_graph, encode_embs, pos_edge_feats)
-            neg_score = decoder(neg_graph, encode_embs, neg_edge_feats)
+            pos_score = task_decoder(pos_graph, encode_embs, pos_edge_feats)
+            neg_score = task_decoder(neg_graph, encode_embs, neg_edge_feats)
             assert pos_score.keys() == neg_score.keys(), \
                 "Positive scores and Negative scores must have edges of same" \
                 f"edge types, but get {pos_score.keys()} and {neg_score.keys()}"
@@ -197,7 +197,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         encode_embs = self.normalize_node_embs(encode_embs)
 
         task_type, _, _ = self.task_pool[task_id]
-        decoder = self._task_decoders[task_id]
+        task_decoder = self.decoder[task_id]
 
         if task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
             assert len(encode_embs) == 1, \
@@ -206,15 +206,15 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
             target_ntype = list(encode_embs.keys())[0]
             predicts = {}
             if return_proba:
-                predicts[target_ntype] = decoder.predict_proba(encode_embs[target_ntype])
+                predicts[target_ntype] = task_decoder.predict_proba(encode_embs[target_ntype])
             else:
-                predicts[target_ntype] = decoder.predict(encode_embs[target_ntype])
+                predicts[target_ntype] = task_decoder.predict(encode_embs[target_ntype])
             return predicts
         elif task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
             target_edges, target_edge_feats, _ = decoder_data
             if return_proba:
-                return decoder.predict_proba(target_edges, encode_embs, target_edge_feats)
-            return decoder.predict(target_edges, encode_embs, target_edge_feats)
+                return task_decoder.predict_proba(target_edges, encode_embs, target_edge_feats)
+            return task_decoder.predict(target_edges, encode_embs, target_edge_feats)
         elif task_type == BUILTIN_TASK_LINK_PREDICTION:
             logging.warning("Prediction for link prediction is not implemented")
             return None

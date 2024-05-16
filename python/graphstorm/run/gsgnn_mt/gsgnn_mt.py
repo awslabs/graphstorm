@@ -343,6 +343,10 @@ def main(config_args):
                                             task_evaluators,
                                             use_early_stop=config.use_early_stop)
         trainer.setup_evaluator(evaluator)
+    if config.restore_model_path is not None:
+        trainer.restore_model(model_path=config.restore_model_path,
+                              model_layer_to_load=config.restore_model_layers)
+    trainer.setup_device(device=get_device())
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.

@@ -65,6 +65,7 @@ def run_edge_predict_mini_batch(model, data, task_info, mini_batch, device):
     input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
 
     if task_info.dataloader.decoder_edge_feat_fields is not None:
+        print(task_info.dataloader.decoder_edge_feat_fields)
         input_edges = {etype: batch_graph.edges[etype].data[dgl.EID] \
                 for etype in batch_graph.canonical_etypes}
         edge_decoder_feats = \
@@ -214,10 +215,14 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
         ----------
         data: GSgnnData
             Graph data
+        model: GSgnnModel
+            Model
         task_info: TaskInfo
-            task meta information
+            Task meta information
         mini_batch: tuple
-            mini-batch info
+            Mini-batch info
+        device: torch.device
+            Device
 
         Return
         ------
@@ -342,13 +347,13 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
 
                 losses = []
                 for (task_info, mini_batch) in task_mini_batches:
-                    loss, weight = self._run_mini_batch(data, task_info, mini_batch)
+                    loss, weight = self._run_mini_batch(data, model, task_info, mini_batch, device)
                     losses.append((loss, weight))
 
                 reg_loss = th.tensor(0.).to(device)
-                for d_para in model.get_dense_params():
+                for d_para in model.module.get_dense_params():
                     reg_loss += d_para.square().sum()
-                alpha_l2norm = model.alpha_l2norm
+                alpha_l2norm = model.module.alpha_l2norm
 
                 mt_loss = reg_loss * alpha_l2norm
                 mt_loss += loss * weight
