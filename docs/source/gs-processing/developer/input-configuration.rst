@@ -176,11 +176,11 @@ objects:
    -  ``custom_split_filenames`` (JSON object, optional): Specifies the customized
       training/validation/test mask. Once it is defined, GSProcessing will ignore
       the ``split_rate``.
-      -  ``train``: Path of the training mask file such that each line contains
+      -  ``train``: Path of the training mask parquet file such that each line contains
     the original ID for node tasks, or the pair [source_id, destination_id] for edge tasks.
-      -  ``val``: Path of the validation mask file such that each line contains
+      -  ``val``: Path of the validation mask parquet file such that each line contains
     the original ID for node tasks, or the pair [source_id, destination_id] for edge tasks.
-      -  ``test``: Path of the test mask file such that each line contains
+      -  ``test``: Path of the test mask parquet file such that each line contains
     the original ID for node tasks, or the pair [source_id, destination_id] for edge tasks.
 
 -  ``features`` (List of JSON objects, optional)\ **:** Describes
