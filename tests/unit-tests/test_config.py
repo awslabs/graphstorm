@@ -1680,7 +1680,7 @@ def create_multi_task_config(tmp_path, file_name):
         "batch_size": 64,
         "eval_batch_size": 128,
     }
-    yaml_object["multi_task_learning"] = [
+    yaml_object['gsf']["multi_task_learning"] = [
         {
             BUILTIN_TASK_NODE_CLASSIFICATION : create_dummy_nc_config()
         },
