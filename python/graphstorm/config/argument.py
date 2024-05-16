@@ -1695,9 +1695,15 @@ class GSConfig:
     def remove_target_edge_type(self):
         """ Whether to remove the training target edge type for message passing.
 
-            Will set the fanout of training target edge type as zero
+            Will set the fanout of training target edge type as zero. Only used
+            with edge classification.
 
-            Only used with edge classification
+            If the edge classification is to predict the existence of an edge between
+            two nodes, we should remove the target edge in the message passing to
+            avoid information leak.
+            If it's to predict some attributes associated with an edge, we may not need
+            to remove the target edge.
+            Since we don't know what to predict, to be safe, we should remove the target edge in message passing by default.
         """
         # pylint: disable=no-member
         if hasattr(self, "_remove_target_edge_type"):
@@ -1706,6 +1712,10 @@ class GSConfig:
 
         # By default, remove training target etype during
         # message passing to avoid information leakage
+        logging.warning("remove_target_edge_type is set to True by default. "
+                        "If your edge classification task is not predicting "
+                        "the existence of the target edge, we suggest you to "
+                        "set it to False.")
         return True
 
     @property
