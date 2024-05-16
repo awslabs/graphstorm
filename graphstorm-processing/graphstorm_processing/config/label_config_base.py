@@ -86,6 +86,7 @@ class LabelConfig(abc.ABC):
 
     @property
     def custom_split_filenames(self) -> Dict[str, str]:
+        """The config for custom split labels."""
         return self._custom_split_filenames
 
 
