@@ -1554,7 +1554,6 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 custom_split_filenames,
             )
             label_metadata_dicts.update(label_split_dicts)
-            # TODO: Support custom_split_filenames
 
         return label_metadata_dicts
 

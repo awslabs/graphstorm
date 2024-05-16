@@ -66,12 +66,6 @@ class CustomSplit:
     test: str
     column: list[str]
 
-    def tolist(self) -> List[str]:
-        """
-        Return the split rates as a list of floats: [train_rate, val_rate, test_rate]
-        """
-        return [self.train, self.val, self.test, self.column]
-
 
 class DistLabelLoader:
     """Used to transform label columns to conform to downstream GraphStorm expectations.

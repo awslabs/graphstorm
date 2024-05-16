@@ -176,11 +176,14 @@ def test_read_node_gconstruct(converter: GConstructConfigConverter, node_dict: d
                 {
                     "label_col": "label",
                     "task_type": "classification",
-                    "custom_split_filenames": {"train": "customized_label/node_train_idx.parquet",
-                                   "valid": "customized_label/node_val_idx.parquet",
-                                   "test": "customized_label/node_test_idx.parquet",
-                                    "column": ["ID"]},
-                    "label_stats_type": "frequency_cnt"}
+                    "custom_split_filenames": {
+                        "train": "customized_label/node_train_idx.parquet",
+                        "valid": "customized_label/node_val_idx.parquet",
+                        "test": "customized_label/node_test_idx.parquet",
+                        "column": ["ID"],
+                    },
+                    "label_stats_type": "frequency_cnt",
+                }
             ],
         }
     )
@@ -198,10 +201,12 @@ def test_read_node_gconstruct(converter: GConstructConfigConverter, node_dict: d
         {
             "column": "label",
             "type": "classification",
-            "custom_split_filenames": {"train": "customized_label/node_train_idx.parquet",
-                                       "valid": "customized_label/node_val_idx.parquet",
-                                       "test": "customized_label/node_test_idx.parquet",
-                                       "column": ["ID"]}
+            "custom_split_filenames": {
+                "train": "customized_label/node_train_idx.parquet",
+                "valid": "customized_label/node_val_idx.parquet",
+                "test": "customized_label/node_test_idx.parquet",
+                "column": ["ID"],
+            },
         }
     ]
 

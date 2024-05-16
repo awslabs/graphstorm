@@ -64,9 +64,6 @@ class GConstructConfigConverter(ConfigConverter):
                             "val": label_splitrate[1],
                             "test": label_splitrate[2],
                         }
-                    if "separator" in label:
-                        label_sep = label["separator"]
-                        label_dict["separator"] = label_sep
                 else:
                     label_custom_split_filenames = label["custom_split_filenames"]
                     label_dict["custom_split_filenames"] = {
@@ -75,6 +72,9 @@ class GConstructConfigConverter(ConfigConverter):
                         "test": label_custom_split_filenames["test"],
                         "column": label_custom_split_filenames["column"],
                     }
+                if "separator" in label:
+                    label_sep = label["separator"]
+                    label_dict["separator"] = label_sep
                 labels_list.append(label_dict)
             except KeyError as exc:
                 raise KeyError(f"A required key was missing from label input {label}") from exc
