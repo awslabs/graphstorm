@@ -30,16 +30,14 @@ class LabelConfig(abc.ABC):
             self._label_column = ""
             assert config_dict["type"] == "link_prediction"
         self._task_type: str = config_dict["type"]
+        self._separator: str = config_dict["separator"] if "separator" in config_dict else None
+        self._multilabel = self._separator is not None
         if "custom_split_filenames" not in config_dict:
             self._split: Dict[str, float] = config_dict["split_rate"]
-            self._separator: str = config_dict["separator"] if "separator" in config_dict else None
-            self._multilabel = self._separator is not None
             self._custom_split_filenames = None
         else:
-            self._custom_split_filenames: Dict[str, str] = config_dict["custom_split_filenames"]
             self._split = None
-            # TODO: add support for multi label on custom split
-            self._multilabel = None
+            self._custom_split_filenames: Dict[str, str] = config_dict["custom_split_filenames"]
 
     def _sanity_check(self):
         if self._label_column == "":
@@ -57,6 +55,7 @@ class LabelConfig(abc.ABC):
             assert "valid" in self._custom_split_filenames
             assert "test" in self._custom_split_filenames
             assert "column" in self._custom_split_filenames
+            assert isinstance(self._separator, str) if self._multilabel else self._separator is None
 
     @property
     def label_column(self) -> str:
