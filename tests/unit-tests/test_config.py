@@ -1719,9 +1719,9 @@ def test_multi_task_config():
         nc_config = nc_config.task_config
         assert nc_config.task_weight == 1
         assert len(nc_config.mask_fields) == 3
-        assert nc_config.mask_fields[0] == "class_train_mask"
-        assert nc_config.mask_fields[1] == "class_eval_mask"
-        assert nc_config.mask_fields[2] == "class_test_mask"
+        assert nc_config.train_mask == "class_train_mask"
+        assert nc_config.val_mask == "class_eval_mask"
+        assert nc_config.test_mask == "class_test_mask"
         assert nc_config.target_ntype == "a"
         assert nc_config.label_field == "label_c"
         assert nc_config.multilabel == True
@@ -1740,9 +1740,9 @@ def test_multi_task_config():
         nr_config = nr_config.task_config
         assert nr_config.task_weight == 0.5
         assert len(nr_config.mask_fields) == 3
-        assert nr_config.mask_fields[0] == "reg_train_mask"
-        assert nr_config.mask_fields[1] == "reg_eval_mask"
-        assert nr_config.mask_fields[2] == "reg_test_mask"
+        assert nr_config.train_mask == "reg_train_mask"
+        assert nr_config.val_mask == "reg_eval_mask"
+        assert nr_config.test_mask == "reg_test_mask"
         assert nr_config.target_ntype == "a"
         assert nr_config.label_field == "label_r"
         assert len(nr_config.eval_metric) == 1
@@ -1755,9 +1755,9 @@ def test_multi_task_config():
         ec_config = ec_config.task_config
         assert ec_config.task_weight == 1
         assert len(ec_config.mask_fields) == 3
-        assert ec_config.mask_fields[0] == "ec_train_mask"
-        assert ec_config.mask_fields[1] == "ec_eval_mask"
-        assert ec_config.mask_fields[2] == "ec_test_mask"
+        assert ec_config.train_mask == "ec_train_mask"
+        assert ec_config.val_mask == "ec_eval_mask"
+        assert ec_config.test_mask == "ec_test_mask"
         assert ec_config.target_etype[0] == ("query", "match", "asin")
         assert ec_config.label_field == "label_ec"
         assert ec_config.multilabel == True
@@ -1778,9 +1778,9 @@ def test_multi_task_config():
         er_config = er_config.task_config
         assert er_config.task_weight == 1
         assert len(er_config.mask_fields) == 3
-        assert er_config.mask_fields[0] == "er_train_mask"
-        assert er_config.mask_fields[1] == "er_eval_mask"
-        assert er_config.mask_fields[2] == "er_test_mask"
+        assert er_config.train_mask == "er_train_mask"
+        assert er_config.val_mask == "er_eval_mask"
+        assert er_config.test_mask == "er_test_mask"
         assert er_config.target_etype[0] == ("query", "match-2", "asin")
         assert er_config.label_field == "label_er"
         assert len(er_config.eval_metric) == 1
@@ -1798,9 +1798,9 @@ def test_multi_task_config():
         lp_config = lp_config.task_config
         assert lp_config.task_weight == 1
         assert len(lp_config.mask_fields) == 3
-        assert lp_config.mask_fields[0] == "lp_train_mask"
-        assert lp_config.mask_fields[1] == "lp_eval_mask"
-        assert lp_config.mask_fields[2] == "lp_test_mask"
+        assert lp_config.train_mask == "lp_train_mask"
+        assert lp_config.val_mask == "lp_eval_mask"
+        assert lp_config.test_mask == "lp_test_mask"
         assert lp_config.train_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER
         assert lp_config.num_negative_edges == 4
         assert lp_config.num_negative_edges_eval == 100
@@ -1827,9 +1827,9 @@ def test_multi_task_config():
         lp_config = lp_config.task_config
         assert lp_config.task_weight == 2
         assert len(lp_config.mask_fields) == 3
-        assert lp_config.mask_fields[0] == "lp2_train_mask"
-        assert lp_config.mask_fields[1] == "lp2_eval_mask"
-        assert lp_config.mask_fields[2] == "lp2_test_mask"
+        assert lp_config.train_mask == "lp2_train_mask"
+        assert lp_config.val_mask == "lp2_eval_mask"
+        assert lp_config.test_mask == "lp2_test_mask"
         assert lp_config.train_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER
         assert lp_config.num_negative_edges == 16
         assert lp_config.train_etype == None

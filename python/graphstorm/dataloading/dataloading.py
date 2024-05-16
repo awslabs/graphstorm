@@ -1595,6 +1595,7 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
         if len(construct_feat_ntype) > 0:
             sampler = MultiLayerNeighborSamplerForReconstruct(sampler,
                     dataset, construct_feat_ntype, construct_feat_fanout)
+        print(target_idx)
         loader = dgl.dataloading.DistNodeDataLoader(g, target_idx, sampler,
             batch_size=batch_size, shuffle=train_task)
 

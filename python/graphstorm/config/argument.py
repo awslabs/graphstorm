@@ -305,7 +305,9 @@ class GSConfig:
         task_id = get_mttask_id(task_type=task_type,
                                 ntype=target_ntype,
                                 label=label_field)
-        setattr(task_info, "mask_fields", mask_fields)
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
         setattr(task_info, "task_weight", task_weight)
 
         return TaskInfo(task_type=task_type,
@@ -336,7 +338,9 @@ class GSConfig:
         task_id = get_mttask_id(task_type=task_type,
                                 ntype=target_ntype,
                                 label=label_field)
-        setattr(task_info, "mask_fields", mask_fields)
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
         setattr(task_info, "task_weight", task_weight)
 
         return TaskInfo(task_type=task_type,
@@ -367,7 +371,9 @@ class GSConfig:
         task_id = get_mttask_id(task_type=task_type,
                                 etype=target_etype,
                                 label=label_field)
-        setattr(task_info, "mask_fields", mask_fields)
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
         setattr(task_info, "task_weight", task_weight)
         return TaskInfo(task_type=task_type,
                         task_id=task_id,
@@ -397,7 +403,9 @@ class GSConfig:
         task_id = get_mttask_id(task_type=task_type,
                                 etype=target_etype,
                                 label=label_field)
-        setattr(task_info, "mask_fields", mask_fields)
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
         setattr(task_info, "task_weight", task_weight)
         return TaskInfo(task_type=task_type,
                         task_id=task_id,
@@ -425,7 +433,9 @@ class GSConfig:
         task_id = get_mttask_id(
             task_type=task_type,
             etype=train_etype if train_etype is not None else "ALL_ETYPE")
-        setattr(task_info, "mask_fields", mask_fields)
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
         setattr(task_info, "task_weight", task_weight)
         return TaskInfo(task_type=task_type,
                         task_id=task_id,
