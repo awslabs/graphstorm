@@ -121,7 +121,7 @@ def main(folder, node_feat_names, edge_feat_names, use_low_mem=False):
         )
 
     # Save metatada
-    with open(os.path.join(wg_folder, "metadata.json"), "w", encoding="utf8") as fp:
+    with open(os.path.join(wg_folder, "metadata.json"), "w", encoding="utf8") as fp: # pylint: disable=invalid-name
         json.dump(metadata, fp)
 
 
