@@ -33,7 +33,7 @@ from pyspark.sql.types import (
     ArrayType,
     ByteType,
 )
-from pyspark.sql.functions import col, lit, when
+from pyspark.sql.functions import col, when
 from numpy.random import default_rng
 
 from graphstorm_processing.constants import (
@@ -1746,7 +1746,8 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     )
                 else:
                     raise ValueError(
-                        "Only deal with node/edge label, the number of column should be only 1 or 2."
+                        "Only deal with node/edge label, "
+                        "the number of column should be only 1 or 2."
                     )
 
                 return mask_df
