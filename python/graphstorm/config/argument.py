@@ -1703,7 +1703,8 @@ class GSConfig:
             avoid information leak.
             If it's to predict some attributes associated with an edge, we may not need
             to remove the target edge.
-            Since we don't know what to predict, to be safe, we should remove the target edge in message passing by default.
+            Since we don't know what to predict, to be safe, we should remove the target
+            edge in message passing by default.
         """
         # pylint: disable=no-member
         if hasattr(self, "_remove_target_edge_type"):
