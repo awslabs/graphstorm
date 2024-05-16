@@ -39,8 +39,6 @@ cp -r $GSF_HOME"/inference_scripts" $GSF_HOME"/docker/code/inference_scripts"
 cp -r $GSF_HOME"/tools" $GSF_HOME"/docker/code/tools"
 cp -r $GSF_HOME"/training_scripts" $GSF_HOME"/docker/code/training_scripts"
 
-aws ecr-public get-login-password --region us-east-1 | \
-    docker login --username AWS --password-stdin public.ecr.aws
 
 # Build OSS docker for EC2 instances that an pull ECR docker images
 DOCKER_FULLNAME="${IMAGE_NAME}:${TAG}-${DEVICE_TYPE}"
@@ -50,6 +48,8 @@ echo "Build a local docker image ${DOCKER_FULLNAME}"
 if [[ $DEVICE_TYPE = "gpu" ]]; then
     SOURCE_IMAGE="nvidia/cuda:12.1.0-runtime-ubuntu20.04"
 elif [[ $DEVICE_TYPE = "cpu" ]]; then
+    aws ecr-public get-login-password --region us-east-1 | \
+        docker login --username AWS --password-stdin public.ecr.aws
     SOURCE_IMAGE="public.ecr.aws/ubuntu/ubuntu:20.04_stable"
 else
     echo >&2 -e "Image type can only be \"gpu\" or \"cpu\", but got \""$DEVICE_TYPE"\""
