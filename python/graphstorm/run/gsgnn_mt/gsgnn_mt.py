@@ -47,11 +47,12 @@ from graphstorm.utils import get_lm_ntypes
 def create_task_train_dataloader(task, config, task_config, train_data):
     """
     """
+    # All tasks share the same GNN model, so the fanout should be the global fanout
     fanout = config.fanout
     # All tasks share the same input encoder, so the node feats must be same.
     node_feats = config.node_feat_name
     if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
-        train_idxs = train_data.get_node_train_set(config.target_ntype)
+        train_idxs = train_data.get_node_train_set(task_config.target_ntype)
         # TODO(xiangsx): Support construct feat
         return GSgnnNodeDataLoader(train_data,
                                    train_idxs,
@@ -61,7 +62,7 @@ def create_task_train_dataloader(task, config, task_config, train_data):
                                    node_feats=node_feats,
                                    label_field=task_config.label_field)
     elif task.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
-        train_idxs = train_data.get_edge_train_set(config.target_etype)
+        train_idxs = train_data.get_edge_train_set(task_config.target_etype)
         # TODO(xiangsx): Support construct feat
         return GSgnnEdgeDataLoader(train_data,
                                    train_idxs,
@@ -75,8 +76,8 @@ def create_task_train_dataloader(task, config, task_config, train_data):
                                    remove_target_edge_type=task_config.remove_target_edge_type,
                                    exclude_training_targets=task_config.exclude_training_targets)
     elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
-        train_idxs = train_data.get_edge_train_set(config.train_etype)
-        dataloader_cls = gs.get_lp_train_sampler(config)
+        train_idxs = train_data.get_edge_train_set(task_config.train_etype)
+        dataloader_cls = gs.get_lp_train_sampler(task_config)
         return dataloader_cls(train_data,
                               train_idxs,
                               fanout,
@@ -98,10 +99,12 @@ def create_task_val_dataloader(task, config, task_config, train_data):
     # All tasks share the same input encoder, so the node feats must be same.
     node_feats = config.node_feat_name
     if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
-        eval_ntype = config.eval_target_ntype \
-            if config.eval_target_ntype is not None else config.target_ntype
+        eval_ntype = task_config.eval_target_ntype \
+            if task_config.eval_target_ntype is not None \
+            else task_config.target_ntype
         val_idxs = train_data.get_node_val_set(eval_ntype)
-        fanout = config.eval_fanout if config.use_mini_batch_infer else []
+        # All tasks share the same GNN model, so the fanout should be the global fanout
+        fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
         if len(val_idxs) > 0:
             # TODO(xiangsx): Support construct feat
             return GSgnnNodeDataLoader(train_data,
@@ -112,8 +115,9 @@ def create_task_val_dataloader(task, config, task_config, train_data):
                                        node_feats=node_feats,
                                        label_field=task_config.label_field)
     elif task.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
-        val_idxs = train_data.get_edge_val_set(config.target_etype)
-        fanout = config.eval_fanout if config.use_mini_batch_infer else []
+        val_idxs = train_data.get_edge_val_set(task_config.target_etype)
+        # All tasks share the same GNN model, so the fanout should be the global fanout
+        fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
         if len(val_idxs) > 0:
             # TODO(xiangsx): Support construct feat
             return GSgnnEdgeDataLoader(train_data,
@@ -127,11 +131,11 @@ def create_task_val_dataloader(task, config, task_config, train_data):
                                        reverse_edge_types_map=task_config.reverse_edge_types_map,
                                        remove_target_edge_type=task_config.remove_target_edge_type)
     elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
-        val_idxs = train_data.get_edge_val_set(config.eval_etype)
-        dataloader_cls = gs.get_lp_eval_sampler(config)
+        val_idxs = train_data.get_edge_val_set(task_config.eval_etype)
+        dataloader_cls = gs.get_lp_eval_sampler(task_config)
         if len(val_idxs) > 0:
             # TODO(xiangsx): Support construct feat
-            if config.eval_etypes_negative_dstnode is not None:
+            if task_config.eval_etypes_negative_dstnode is not None:
                 return dataloader_cls(train_data, val_idxs,
                     task_config.eval_batch_size,
                     fixed_edge_dst_negative_field=task_config.eval_etypes_negative_dstnode,
@@ -156,10 +160,12 @@ def create_task_test_dataloader(task, config, task_config, train_data):
     # All tasks share the same input encoder, so the node feats must be same.
     node_feats = config.node_feat_name
     if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
-        eval_ntype = config.eval_target_ntype \
-            if config.eval_target_ntype is not None else config.target_ntype
+        eval_ntype = task_config.eval_target_ntype \
+            if task_config.eval_target_ntype is not None \
+            else task_config.target_ntype
         test_idxs = train_data.get_node_test_set(eval_ntype)
-        fanout = config.eval_fanout if config.use_mini_batch_infer else []
+        # All tasks share the same GNN model, so the fanout should be the global fanout
+        fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
         if len(test_idxs) > 0:
             # TODO(xiangsx): Support construct feat
             return GSgnnNodeDataLoader(train_data,
@@ -171,8 +177,9 @@ def create_task_test_dataloader(task, config, task_config, train_data):
                                        label_field=task_config.label_field)
 
     elif task.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
-        test_idxs = train_data.get_edge_test_set(config.target_etype)
-        fanout = config.eval_fanout if config.use_mini_batch_infer else []
+        test_idxs = train_data.get_edge_test_set(task_config.target_etype)
+        # All tasks share the same GNN model, so the fanout should be the global fanout
+        fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
         if len(test_idxs) > 0:
             # TODO(xiangsx): Support construct feat
             return GSgnnEdgeDataLoader(train_data,
@@ -186,11 +193,11 @@ def create_task_test_dataloader(task, config, task_config, train_data):
                                        reverse_edge_types_map=task_config.reverse_edge_types_map,
                                        remove_target_edge_type=task_config.remove_target_edge_type)
     elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
-        test_idxs = train_data.get_edge_test_set(config.eval_etype)
-        dataloader_cls = gs.get_lp_eval_sampler(config)
+        test_idxs = train_data.get_edge_test_set(task_config.eval_etype)
+        dataloader_cls = gs.get_lp_eval_sampler(task_config)
         if len(test_idxs) > 0:
             # TODO(xiangsx): Support construct feat
-            if config.eval_etypes_negative_dstnode is not None:
+            if task_config.eval_etypes_negative_dstnode is not None:
                 return dataloader_cls(train_data, test_idxs,
                     task_config.eval_batch_size,
                     fixed_edge_dst_negative_field=task_config.eval_etypes_negative_dstnode,
