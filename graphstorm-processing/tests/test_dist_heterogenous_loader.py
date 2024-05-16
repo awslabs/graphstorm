@@ -680,3 +680,29 @@ def test_update_label_properties_multilabel(
 
     assert user_properties[COLUMN_NAME] == "multi"
     assert user_properties[VALUE_COUNTS] == {str(i): 1 for i in range(1, 11)}
+
+
+def test_custom_label(spark, user_df: DataFrame, dghl_loader: DistHeterogeneousGraphLoader, tmp_path):
+    data = [(i,) for i in range(1, 11)]
+
+    # Create DataFrame
+    nodes_df = spark.createDataFrame(data, ["id"])
+    nodes_df.show()
+
+    train_df = spark.createDataFrame([(i,) for i in range(1, 6)], ["mask_id"])
+    val_df = spark.createDataFrame([(i,) for i in range(6, 9)], ["mask_id"])
+    test_df = spark.createDataFrame([(i,) for i in range(9, 11)], ["mask_id"])
+
+    train_df.repartition(1).write.parquet(f"{tmp_path}/train.parquet")
+    val_df.repartition(1).write.parquet(f"{tmp_path}/val.parquet")
+    test_df.repartition(1).write.parquet(f"{tmp_path}/test.parquet")
+    config_dict = {
+        "column": "id",
+        "type": "classification",
+        "split_rate": {"train": 0.8, "val": 0.1, "test": 0.1},
+        "custom_split_filenames": {"train": f"{tmp_path}/train.parquet",
+                                   "valid": f"{tmp_path}/val.parquet",
+                                   "test": f"{tmp_path}/test.parquet",
+                                   "column": ["ID"]},
+    }
+    label_configs = [NodeLabelConfig(config_dict)]
