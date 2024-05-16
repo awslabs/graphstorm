@@ -29,7 +29,9 @@ from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_EDGE_REGRESSION,
                       BUILTIN_TASK_LINK_PREDICTION)
 from ..model import (do_full_graph_inference,
-                     do_mini_batch_inference,GSgnnModelBase, GSgnnModel)
+                     do_mini_batch_inference,
+                     GSgnnModelBase, GSgnnModel,
+                     GSgnnMultiTaskModelInterface)
 from .gsgnn_trainer import GSgnnTrainer
 from ..model import (run_node_mini_batch_predict,
                      run_edge_mini_batch_predict,
@@ -202,7 +204,7 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
     """
     def __init__(self, model, topk_model_to_save=1):
         super(GSgnnMultiTaskLearningTrainer, self).__init__(model, topk_model_to_save)
-        assert isinstance(model) and isinstance(model, GSgnnModelBase), \
+        assert isinstance(model, GSgnnMultiTaskModelInterface) and isinstance(model, GSgnnModelBase), \
                 "The input model is not a GSgnnModel model. Please implement GSgnnModelBase."
 
     def _run_mini_batch(self, data, model, task_info, mini_batch, device):

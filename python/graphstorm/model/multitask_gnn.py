@@ -17,16 +17,14 @@
 """
 import abc
 import logging
-import time
-import torch as th
-import dgl
+from torch import nn
 
 from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_NODE_REGRESSION,
                       BUILTIN_TASK_EDGE_CLASSIFICATION,
                       BUILTIN_TASK_EDGE_REGRESSION,
                       BUILTIN_TASK_LINK_PREDICTION)
-from .gnn import GSgnnModel, GSgnnModelBase
+from .gnn import GSgnnModel
 
 
 class GSgnnMultiTaskModelInterface:
@@ -89,6 +87,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         super(GSgnnMultiTaskSharedEncoderModel, self).__init__()
         self._alpha_l2norm = alpha_l2norm
         self._task_pool = {}
+        self._task_decoders = nn.ModuleDict()
 
     def add_task(self, task_id, task_type,
                  decoder, loss_func, weight):
@@ -97,7 +96,8 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         assert task_id not in self._task_pool, \
             f"Task {task_id} already exists"
         logging.info("Setup task %s", task_id)
-        self._task_pool[task_id] = (task_type, decoder, loss_func, weight)
+        self._task_pool[task_id] = (task_type, loss_func, weight)
+        self._task_decoders[task_id] = decoder
 
     @property
     def alpha_l2norm(self):
@@ -132,7 +132,8 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         # Call emb normalization.
         encode_embs = self.normalize_node_embs(encode_embs)
 
-        task_type, decoder, loss_func, weight = self.task_pool[task_id]
+        task_type, loss_func, weight = self.task_pool[task_id]
+        decoder = self._task_decoders[task_id]
 
         if task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
             labels = decoder_data
@@ -195,7 +196,8 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         # Call emb normalization.
         encode_embs = self.normalize_node_embs(encode_embs)
 
-        task_type, decoder, _, _ = self.task_pool[task_id]
+        task_type, _, _ = self.task_pool[task_id]
+        decoder = self._task_decoders[task_id]
 
         if task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
             assert len(encode_embs) == 1, \

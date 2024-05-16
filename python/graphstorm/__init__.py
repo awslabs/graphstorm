@@ -28,5 +28,9 @@ from .gsf import create_builtin_lp_gnn_model
 from .gsf import create_builtin_lp_model
 from .gsf import create_builtin_edge_model
 from .gsf import create_builtin_node_model
+
+from .gsf import (create_builtin_node_decoder,
+                  create_builtin_edge_decoder,
+                  create_builtin_lp_decoder)
 from .gsf import (get_builtin_lp_train_dataloader_class,
                   get_builtin_lp_eval_dataloader_class)

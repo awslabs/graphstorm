@@ -1595,7 +1595,6 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
         if len(construct_feat_ntype) > 0:
             sampler = MultiLayerNeighborSamplerForReconstruct(sampler,
                     dataset, construct_feat_ntype, construct_feat_fanout)
-        print(target_idx)
         loader = dgl.dataloading.DistNodeDataLoader(g, target_idx, sampler,
             batch_size=batch_size, shuffle=train_task)
 
@@ -1707,12 +1706,15 @@ class GSgnnMultiTaskDataLoader:
         # check dataloaders
         lens = []
         for task_info, dataloader in zip(task_infos, task_dataloaders):
+            # For evaluation and testing, we allow some of the val_dataloaders or test_dataloaders
+            # are empty (None).
             assert isinstance(dataloader, (GSgnnEdgeDataLoaderBase,
                                            GSgnnLinkPredictionDataLoaderBase,
-                                           GSgnnNodeDataLoaderBase)), \
+                                           GSgnnNodeDataLoaderBase)) or dataloader is None, \
                 "The task data loader should be an instance of GSgnnEdgeDataLoaderBase, " \
-                "GSgnnLinkPredictionDataLoaderBase or GSgnnNodeDataLoaderBase"
-            num_iters = len(dataloader)
+                "GSgnnLinkPredictionDataLoaderBase or GSgnnNodeDataLoaderBase" \
+                f"But get {type(dataloader)}"
+            num_iters = len(dataloader) if dataloader is not None else 0
             lens.append(num_iters)
             logging.debug("Task %s has number of iterations of %d",
                           task_info, num_iters)
@@ -1729,7 +1731,8 @@ class GSgnnMultiTaskDataLoader:
         """ reset the dataloaders
         """
         for dataloader in self._dataloaders:
-            iter(dataloader)
+            if dataloader is not None:
+                iter(dataloader)
         self._num_iters = 0
 
     def __iter__(self):
@@ -1748,6 +1751,19 @@ class GSgnnMultiTaskDataLoader:
         # call __next__ of each dataloader
         mini_batches = []
         for task_info, dataloader in zip(self._task_infos, self._dataloaders):
+            if dataloader is None:
+                # The dataloader is None
+                logging.warning("The dataloader of %s is None. "
+                                "Please check whether the coresponding "
+                                "train/val/test mask(s) are missing."
+                                "If you are calling iter(mt_dataloader) for validation "
+                                "or testing, we suggest you to use "
+                                "mt_dataloader.dataloaders to get task specific "
+                                "dataloaders and call the corresponding evaluators "
+                                "task by task", task_info.task_id)
+                mini_batches.append((task_info, None))
+                continue
+
             try:
                 mini_batch = next(dataloader)
             except StopIteration:

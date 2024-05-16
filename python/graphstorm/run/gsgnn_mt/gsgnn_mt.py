@@ -51,6 +51,8 @@ def create_task_train_dataloader(task, config, task_config, train_data):
     fanout = config.fanout
     # All tasks share the same input encoder, so the node feats must be same.
     node_feats = config.node_feat_name
+
+    logging.info("Create dataloader for %s", task.task_id)
     if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
         train_idxs = train_data.get_node_train_set(task_config.target_ntype, mask=task_config.train_mask)
         # TODO(xiangsx): Support construct feat
@@ -73,11 +75,10 @@ def create_task_train_dataloader(task, config, task_config, train_data):
                                    decoder_edge_feats=task_config.decoder_edge_feat,
                                    train_task=True,
                                    reverse_edge_types_map=task_config.reverse_edge_types_map,
-                                   remove_target_edge_type=task_config.remove_target_edge_type,
-                                   exclude_training_targets=task_config.exclude_training_targets)
+                                   remove_target_edge_type=task_config.remove_target_edge_type)
     elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
         train_idxs = train_data.get_edge_train_set(task_config.train_etype, mask=task_config.train_mask)
-        dataloader_cls = gs.get_lp_train_sampler(task_config)
+        dataloader_cls = gs.get_builtin_lp_train_dataloader_class(task_config)
         return dataloader_cls(train_data,
                               train_idxs,
                               fanout,
@@ -96,6 +97,9 @@ def create_task_train_dataloader(task, config, task_config, train_data):
 def create_task_val_dataloader(task, config, task_config, train_data):
     """
     """
+    if task_config.val_mask is None:
+        # There is no validation mask
+        return None
     # All tasks share the same input encoder, so the node feats must be same.
     node_feats = config.node_feat_name
     if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
@@ -132,7 +136,7 @@ def create_task_val_dataloader(task, config, task_config, train_data):
                                        remove_target_edge_type=task_config.remove_target_edge_type)
     elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
         val_idxs = train_data.get_edge_val_set(task_config.eval_etype, mask=task_config.val_mask)
-        dataloader_cls = gs.get_lp_eval_sampler(task_config)
+        dataloader_cls = gs.get_builtin_lp_eval_dataloader_class(task_config)
         if len(val_idxs) > 0:
             # TODO(xiangsx): Support construct feat
             if task_config.eval_etypes_negative_dstnode is not None:
@@ -157,13 +161,16 @@ def create_task_val_dataloader(task, config, task_config, train_data):
 def create_task_test_dataloader(task, config, task_config, train_data):
     """
     """
+    if task_config.test_mask is None:
+        # There is no validation mask
+        return None
     # All tasks share the same input encoder, so the node feats must be same.
     node_feats = config.node_feat_name
     if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
         eval_ntype = task_config.eval_target_ntype \
             if task_config.eval_target_ntype is not None \
             else task_config.target_ntype
-        test_idxs = train_data.get_node_test_set(eval_ntype, mask=task_config.val_mask)
+        test_idxs = train_data.get_node_test_set(eval_ntype, mask=task_config.test_mask)
         # All tasks share the same GNN model, so the fanout should be the global fanout
         fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
         if len(test_idxs) > 0:
@@ -177,7 +184,7 @@ def create_task_test_dataloader(task, config, task_config, train_data):
                                        label_field=task_config.label_field)
 
     elif task.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
-        test_idxs = train_data.get_edge_test_set(task_config.target_etype, mask=task_config.val_mask)
+        test_idxs = train_data.get_edge_test_set(task_config.target_etype, mask=task_config.test_mask)
         # All tasks share the same GNN model, so the fanout should be the global fanout
         fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
         if len(test_idxs) > 0:
@@ -194,7 +201,7 @@ def create_task_test_dataloader(task, config, task_config, train_data):
                                        remove_target_edge_type=task_config.remove_target_edge_type)
     elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
         test_idxs = train_data.get_edge_test_set(task_config.eval_etype, mask=task_config.val_mask)
-        dataloader_cls = gs.get_lp_eval_sampler(task_config)
+        dataloader_cls = gs.get_builtin_lp_eval_dataloader_class(task_config)
         if len(test_idxs) > 0:
             # TODO(xiangsx): Support construct feat
             if task_config.eval_etypes_negative_dstnode is not None:
@@ -217,7 +224,7 @@ def create_task_test_dataloader(task, config, task_config, train_data):
 
 def create_task_decoder(task, g, decoder_input_dim, train_task):
     if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
-        return gs.create_builtin_node_decoder(decoder_input_dim, task.task_config, train_task)
+        return gs.create_builtin_node_decoder(g, decoder_input_dim, task.task_config, train_task)
     elif task.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
         return gs.create_builtin_edge_decoder(g, decoder_input_dim, task.task_config, train_task)
     elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
@@ -236,7 +243,6 @@ def create_evaluator(task, config):
                                             config.early_stop_burnin_rounds,
                                             config.early_stop_rounds,
                                             config.early_stop_strategy)
-
     elif task.task_type in [BUILTIN_TASK_NODE_REGRESSION]:
         return GSgnnRegressionEvaluator(config.eval_frequency,
                                         config.eval_metric,
@@ -310,31 +316,33 @@ def main(config_args):
         train_loader = create_task_train_dataloader(task, config, task_config, train_data)
         val_loader = create_task_val_dataloader(task, config, task_config, train_data)
         test_loader = create_task_test_dataloader(task, config, task_config, train_data)
-        train_dataloaders.append((task, train_loader))
-        val_dataloaders.append((task, val_loader))
-        test_dataloaders.append((task, test_loader))
+        train_dataloaders.append(train_loader)
+        val_dataloaders.append(val_loader)
+        test_dataloaders.append(test_loader)
         decoder, loss_func = create_task_decoder(task, train_data.g, encoder_out_dims, train_task=True)
-        model.add_task(task.task_id, task.task_type, decoder, loss_func, task_config.weight)
+        model.add_task(task.task_id, task.task_type, decoder, loss_func, task_config.task_weight)
         if not config.no_validation:
             if val_loader is None:
                 logging.warning("The training data do not have validation set.")
             if test_loader is None:
                 logging.warning("The training data do not have test set.")
             task_evaluators[task.task_id] = \
-                create_evaluator(task, config)
+                create_evaluator(task, task_config)
 
+    train_dataloader = GSgnnMultiTaskDataLoader(train_data, tasks, train_dataloaders)
+    val_dataloader = GSgnnMultiTaskDataLoader(train_data, tasks, val_dataloaders)
+    test_dataloader = GSgnnMultiTaskDataLoader(train_data, tasks, test_dataloaders)
 
-    train_dataloader = GSgnnMultiTaskDataLoader(train_dataloaders)
-    val_dataloader = GSgnnMultiTaskDataLoader(val_dataloaders)
-    test_dataloader = GSgnnMultiTaskDataLoader(test_dataloaders)
-
+    model.init_optimizer(lr=config.lr,
+                         sparse_optimizer_lr=config.sparse_optimizer_lr,
+                         weight_decay=config.wd_l2norm,
+                         lm_lr=config.lm_tune_lr)
+    trainer = GSgnnMultiTaskLearningTrainer(model, topk_model_to_save=config.topk_model_to_save)
     if not config.no_validation:
         evaluator = GSgnnMultiTaskEvaluator(config.eval_frequency,
                                             task_evaluators,
                                             use_early_stop=config.use_early_stop)
         trainer.setup_evaluator(evaluator)
-
-    trainer = GSgnnMultiTaskLearningTrainer(model, topk_model_to_save=config.topk_model_to_save)
 
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
