@@ -323,17 +323,17 @@ def node_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
     # TODO(zhengda) I need to check if the data loader only returns target nodes.
     model.eval()
     with th.no_grad():
-        for input_nodes, seeds, _ in loader:
-            for ntype, in_nodes in input_nodes.items():
+        for _, seeds, _ in loader:
+            for ntype, seed_nodes in seeds.items():
                 if isinstance(model.decoder, th.nn.ModuleDict):
                     assert ntype in model.decoder, f"Node type {ntype} not in decoder"
                     decoder = model.decoder[ntype]
                 else:
                     decoder = model.decoder
                 if return_proba:
-                    pred = decoder.predict_proba(emb[ntype][in_nodes].to(device))
+                    pred = decoder.predict_proba(emb[ntype][seed_nodes].to(device))
                 else:
-                    pred = decoder.predict(emb[ntype][in_nodes].to(device))
+                    pred = decoder.predict(emb[ntype][seed_nodes].to(device))
                 if ntype in preds:
                     preds[ntype].append(pred.cpu())
                 else:
