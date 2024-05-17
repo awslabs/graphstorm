@@ -1825,7 +1825,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 ).select(f"{mask_type}_mask")
             else:
                 raise ValueError(
-                    "Only deal with node/edge label, " "the number of column should be only 1 or 2."
+                    "The number of column should be only 1 or 2."
                 )
 
             return mask_df
