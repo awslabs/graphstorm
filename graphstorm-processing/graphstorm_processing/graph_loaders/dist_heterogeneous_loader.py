@@ -1797,7 +1797,9 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 )
                 mask_df = mask_df.select(
                     "*",
-                    when(mask_df[f"custom_{mask_type}_mask"].isNotNull(), 1).otherwise(0).alias(f"{mask_type}_mask")
+                    when(mask_df[f"custom_{mask_type}_mask"].isNotNull(), 1)
+                    .otherwise(0)
+                    .alias(f"{mask_type}_mask"),
                 ).select(f"{mask_type}_mask")
             elif len(split_file.mask_columns) == 2:
                 # custom split on edge (srd, dst) original ids
@@ -1817,7 +1819,9 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                         (mask_df[f"custom_{mask_type}_mask_src"].isNotNull())
                         & (mask_df[f"custom_{mask_type}_mask_dst"].isNotNull()),
                         1,
-                    ).otherwise(0).alias(f"{mask_type}_mask")
+                    )
+                    .otherwise(0)
+                    .alias(f"{mask_type}_mask"),
                 ).select(f"{mask_type}_mask")
             else:
                 raise ValueError(
