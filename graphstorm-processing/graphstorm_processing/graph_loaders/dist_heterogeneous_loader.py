@@ -1824,9 +1824,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     .alias(f"{mask_type}_mask"),
                 ).select(f"{mask_type}_mask")
             else:
-                raise ValueError(
-                    "The number of column should be only 1 or 2."
-                )
+                raise ValueError("The number of column should be only 1 or 2.")
 
             return mask_df
 
