@@ -18,6 +18,7 @@ import json
 import logging
 import numbers
 import os
+import math
 from collections import Counter, defaultdict
 from time import perf_counter
 from typing import Any, Dict, Mapping, Optional, Sequence, Set, Tuple
@@ -1069,11 +1070,11 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     train=label_conf.custom_split_filenames["train"],
                     valid=label_conf.custom_split_filenames["valid"],
                     test=label_conf.custom_split_filenames["test"],
-                    column=label_conf.custom_split_filenames["column"],
+                    mask_columns=label_conf.custom_split_filenames["column"],
                 )
             else:
                 custom_split_filenames = None
-            label_split_dicts = self._create_split_files_from_rates(
+            label_split_dicts = self._create_split_files(
                 nodes_df,
                 label_conf.label_column,
                 split_rates,
@@ -1542,11 +1543,11 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     train=label_conf.custom_split_filenames["train"],
                     valid=label_conf.custom_split_filenames["valid"],
                     test=label_conf.custom_split_filenames["test"],
-                    column=label_conf.custom_split_filenames["column"],
+                    mask_columns=label_conf.custom_split_filenames["column"],
                 )
             else:
                 custom_split_filenames = None
-            label_split_dicts = self._create_split_files_from_rates(
+            label_split_dicts = self._create_split_files(
                 edges_df,
                 label_conf.label_column,
                 split_rates,
@@ -1627,7 +1628,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         else:
             raise RuntimeError(f"Invalid task type: {label_config.task_type}")
 
-    def _create_split_files_from_rates(
+    def _create_split_files(
         self,
         input_df: DataFrame,
         label_column: str,
@@ -1637,8 +1638,8 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         seed: Optional[int] = None,
     ) -> Dict:
         """
-        Given an input dataframe and a list of split rates creates the
-        split masks and writes them to S3 and returns the corresponding
+        Given an input dataframe and a list of split rates or a list of custom split files
+        creates the split masks and writes them to S3 and returns the corresponding
         metadata.json dict elements.
 
         Parameters
@@ -1654,6 +1655,9 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             If None, a default split rate of 0.9:0.05:0.05 is used.
         output_path: str
             The output path under which we write the masks.
+        custom_split_file: Optional[CustomSplit]
+            A CustomSplit object including path to the custom split files for
+            training/validation/test.
         seed: int
             An optional random seed for reproducibility.
 
@@ -1665,97 +1669,12 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         # If the user did not provide a split rate we use a default
         split_metadata = {}
         if not custom_split_file:
-            if split_rates is None:
-                split_rates = SplitRates(train_rate=0.8, val_rate=0.1, test_rate=0.1)
-            else:
-                # TODO: add support for sums <= 1.0, useful for large-scale link prediction
-                if sum(split_rates.tolist()) != 1.0:
-                    raise RuntimeError(f"Provided split rates  do not sum to 1: {split_rates}")
-
-            split_list = split_rates.tolist()
-            logging.info(
-                "Creating split files for label column '%s' with split rates: %s",
-                label_column,
-                split_list,
+            train_mask_df, val_mask_df, test_mask_df = self._create_split_files_split_rates(
+                input_df, label_column, split_rates, seed
             )
-
-            rng = default_rng(seed=seed)
-
-            # We use multinomial sampling to create a one-hot
-            # vector indicating train/test/val membership
-            def multinomial_sample(label_col: str) -> Sequence[int]:
-                if label_col in {"", "None", "NaN", None}:
-                    return [0, 0, 0]
-                return rng.multinomial(1, split_list).tolist()
-
-            group_col_name = "sample_boolean_mask"  # TODO: Ensure uniqueness of column?
-
-            # TODO: Use PandasUDF and check if it is faster than UDF
-            split_group = F.udf(multinomial_sample, ArrayType(IntegerType()))
-            # Convert label col to string and apply UDF
-            # to create one-hot vector indicating train/test/val membership
-            input_col = F.col(label_column).astype("string") if label_column else F.lit("dummy")
-            int_group_df = input_df.select(split_group(input_col).alias(group_col_name))
-            train_mask_df = int_group_df.select(F.col(group_col_name)[0].alias("train_mask"))
-            val_mask_df = int_group_df.select(F.col(group_col_name)[1].alias("val_mask"))
-            test_mask_df = int_group_df.select(F.col(group_col_name)[2].alias("test_mask"))
         else:
-            # custom node/edge label
-            # create custom mask dataframe for one of the types: train, val, test
-            def process_custom_mask_df(input_df, split_file, mask_type):
-                if mask_type == "train":
-                    file_path = split_file.train
-                elif mask_type == "val":
-                    file_path = split_file.valid
-                elif mask_type == "test":
-                    file_path = split_file.test
-                else:
-                    raise ValueError("Unknown mask type")
-
-                if len(split_file.column) == 1:
-                    custom_mask_df = self.spark.read.parquet(
-                        self.input_prefix + "/" + file_path
-                    ).select(col(custom_split_file.column[0]).alias(f"custom_{mask_type}_mask"))
-                    mask_df = input_df.join(
-                        custom_mask_df,
-                        input_df[NODE_MAPPING_STR] == custom_mask_df[f"custom_{mask_type}_mask"],
-                        "left_outer",
-                    )
-                    mask_df = mask_df.withColumn(
-                        f"{mask_type}_mask",
-                        when(mask_df[f"custom_{mask_type}_mask"].isNotNull(), 1).otherwise(0),
-                    ).select(f"{mask_type}_mask")
-                elif len(split_file.column) == 2:
-                    custom_mask_df = self.spark.read.parquet(
-                        self.input_prefix + "/" + file_path
-                    ).select(
-                        col(custom_split_file.column[0]).alias(f"custom_{mask_type}_mask_src"),
-                        col(custom_split_file.column[1]).alias(f"custom_{mask_type}_mask_dst"),
-                    )
-                    join_condition = (
-                        input_df["src_str_id"] == custom_mask_df[f"custom_{mask_type}_mask_src"]
-                    ) & (input_df["dst_str_id"] == custom_mask_df[f"custom_{mask_type}_mask_dst"])
-                    mask_df = input_df.join(custom_mask_df, join_condition, "left_outer")
-                    mask_df = mask_df.withColumn(
-                        f"{mask_type}_mask",
-                        when(
-                            (mask_df[f"custom_{mask_type}_mask_src"].isNotNull())
-                            & (mask_df[f"custom_{mask_type}_mask_dst"].isNotNull()),
-                            1,
-                        ).otherwise(0),
-                    )
-                else:
-                    raise ValueError(
-                        "Only deal with node/edge label, "
-                        "the number of column should be only 1 or 2."
-                    )
-
-                return mask_df
-
-            train_mask_df, val_mask_df, test_mask_df = (
-                process_custom_mask_df(input_df, custom_split_file, "train"),
-                process_custom_mask_df(input_df, custom_split_file, "val"),
-                process_custom_mask_df(input_df, custom_split_file, "test"),
+            train_mask_df, val_mask_df, test_mask_df = self._create_split_files_custom_split(
+                input_df, custom_split_file
             )
 
         def create_metadata_entry(path_list):
@@ -1778,6 +1697,141 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         split_metadata["test_mask"] = create_metadata_entry(out_path_list)
 
         return split_metadata
+
+    def _create_split_files_split_rates(self, input_df, label_column, split_rates, seed):
+        """
+        Creates the train/val/test mask dataframe based on split rates.
+
+        Parameters
+        ----------
+        input_df: DataFrame
+            Input dataframe for which we will create split masks.
+        label_column: str
+            The name of the label column. If provided, the values in the column
+            need to be not null for the data point to be included in one of the masks.
+            If an empty string, all rows in the input_df are included in one of train/val/test sets.
+        split_rates: Optional[SplitRates]
+            A SplitRates object indicating the train/val/test split rates.
+            If None, a default split rate of 0.9:0.05:0.05 is used.
+        seed: int
+            An optional random seed for reproducibility.
+
+        Returns
+        -------
+        Train/val/test mask dataframes.
+        """
+        if split_rates is None:
+            split_rates = SplitRates(train_rate=0.8, val_rate=0.1, test_rate=0.1)
+        else:
+            # TODO: add support for sums <= 1.0, useful for large-scale link prediction
+            if math.fsum(split_rates.tolist()) != 1.0:
+                raise RuntimeError(f"Provided split rates  do not sum to 1: {split_rates}")
+
+        split_list = split_rates.tolist()
+        logging.info(
+            "Creating split files for label column '%s' with split rates: %s",
+            label_column,
+            split_list,
+        )
+
+        rng = default_rng(seed=seed)
+
+        # We use multinomial sampling to create a one-hot
+        # vector indicating train/test/val membership
+        def multinomial_sample(label_col: str) -> Sequence[int]:
+            if label_col in {"", "None", "NaN", None}:
+                return [0, 0, 0]
+            return rng.multinomial(1, split_list).tolist()
+
+        group_col_name = "sample_boolean_mask"  # TODO: Ensure uniqueness of column?
+
+        # TODO: Use PandasUDF and check if it is faster than UDF
+        split_group = F.udf(multinomial_sample, ArrayType(IntegerType()))
+        # Convert label col to string and apply UDF
+        # to create one-hot vector indicating train/test/val membership
+        input_col = F.col(label_column).astype("string") if label_column else F.lit("dummy")
+        int_group_df = input_df.select(split_group(input_col).alias(group_col_name))
+        train_mask_df = int_group_df.select(F.col(group_col_name)[0].alias("train_mask"))
+        val_mask_df = int_group_df.select(F.col(group_col_name)[1].alias("val_mask"))
+        test_mask_df = int_group_df.select(F.col(group_col_name)[2].alias("test_mask"))
+        return train_mask_df, val_mask_df, test_mask_df
+
+    def _create_split_files_custom_split(self, input_df, custom_split_file):
+        """
+        Creates the train/val/test mask dataframe based on custom split files.
+
+        Parameters
+        ----------
+        input_df: DataFrame
+            Input dataframe for which we will create split masks.
+        custom_split_file: Optional[CustomSplit]
+            A CustomSplit object including path to the custom split files for
+            training/validation/test.
+
+        Returns
+        -------
+        Train/val/test mask dataframes.
+        """
+
+        # custom node/edge label
+        # create custom mask dataframe for one of the types: train, val, test
+        def process_custom_mask_df(input_df, split_file, mask_type):
+            if mask_type == "train":
+                file_path = split_file.train
+            elif mask_type == "val":
+                file_path = split_file.valid
+            elif mask_type == "test":
+                file_path = split_file.test
+            else:
+                raise ValueError("Unknown mask type")
+
+            if len(split_file.mask_columns) == 1:
+                # custom split on node original id
+                custom_mask_df = self.spark.read.parquet(
+                    os.path.join(self.input_prefix, file_path)
+                ).select(col(split_file.mask_columns[0]).alias(f"custom_{mask_type}_mask"))
+                mask_df = input_df.join(
+                    custom_mask_df,
+                    input_df[NODE_MAPPING_STR] == custom_mask_df[f"custom_{mask_type}_mask"],
+                    "left_outer",
+                )
+                mask_df = mask_df.select(
+                    "*",
+                    when(mask_df[f"custom_{mask_type}_mask"].isNotNull(), 1).otherwise(0).alias(f"{mask_type}_mask")
+                ).select(f"{mask_type}_mask")
+            elif len(split_file.mask_columns) == 2:
+                # custom split on edge (srd, dst) original ids
+                custom_mask_df = self.spark.read.parquet(
+                    os.path.join(self.input_prefix, file_path)
+                ).select(
+                    col(split_file.mask_columns[0]).alias(f"custom_{mask_type}_mask_src"),
+                    col(split_file.mask_columns[1]).alias(f"custom_{mask_type}_mask_dst"),
+                )
+                join_condition = (
+                    input_df["src_str_id"] == custom_mask_df[f"custom_{mask_type}_mask_src"]
+                ) & (input_df["dst_str_id"] == custom_mask_df[f"custom_{mask_type}_mask_dst"])
+                mask_df = input_df.join(custom_mask_df, join_condition, "left_outer")
+                mask_df = mask_df.select(
+                    "*",
+                    when(
+                        (mask_df[f"custom_{mask_type}_mask_src"].isNotNull())
+                        & (mask_df[f"custom_{mask_type}_mask_dst"].isNotNull()),
+                        1,
+                    ).otherwise(0).alias(f"{mask_type}_mask")
+                ).select(f"{mask_type}_mask")
+            else:
+                raise ValueError(
+                    "Only deal with node/edge label, " "the number of column should be only 1 or 2."
+                )
+
+            return mask_df
+
+        train_mask_df, val_mask_df, test_mask_df = (
+            process_custom_mask_df(input_df, custom_split_file, "train"),
+            process_custom_mask_df(input_df, custom_split_file, "val"),
+            process_custom_mask_df(input_df, custom_split_file, "test"),
+        )
+        return train_mask_df, val_mask_df, test_mask_df
 
     def load(self) -> Dict:
         return self.process_and_write_graph_data(self._data_configs)

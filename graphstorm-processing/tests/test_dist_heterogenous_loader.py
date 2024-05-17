@@ -528,8 +528,8 @@ def test_create_split_files_from_rates(
     non_missing_data_points = NUM_DATAPOINTS - missing_data_points
     edges_df = create_edges_df(spark, missing_data_points)
 
-    output_dicts = dghl_loader._create_split_files_from_rates(
-        edges_df, LABEL_COL, split_rates, os.path.join(tempdir, "sample_masks"), seed=42
+    output_dicts = dghl_loader._create_split_files(
+        edges_df, LABEL_COL, split_rates, os.path.join(tempdir, "sample_masks"), None, seed=42
     )
 
     train_mask_df, test_mask_df, val_mask_df = read_masks_from_disk(
@@ -559,8 +559,8 @@ def test_create_split_files_from_rates_empty_col(
     edges_df = create_edges_df(spark, 0).drop(LABEL_COL)
     split_rates = SplitRates(0.8, 0.1, 0.1)
 
-    output_dicts = dghl_loader._create_split_files_from_rates(
-        edges_df, "", split_rates, os.path.join(tempdir, "sample_masks"), seed=42
+    output_dicts = dghl_loader._create_split_files(
+        edges_df, "", split_rates, os.path.join(tempdir, "sample_masks"), None, seed=42
     )
 
     train_mask_df, test_mask_df, val_mask_df = read_masks_from_disk(
@@ -700,9 +700,9 @@ def test_node_custom_label(spark, dghl_loader: DistHeterogeneousGraphLoader, tmp
         "type": "classification",
         "split_rate": {"train": 0.8, "val": 0.1, "test": 0.1},
         "custom_split_filenames": {
-            "train": f"{tmp_path}/train.parquet"[1:],
-            "valid": f"{tmp_path}/val.parquet"[1:],
-            "test": f"{tmp_path}/test.parquet"[1:],
+            "train": f"{tmp_path}/train.parquet",
+            "valid": f"{tmp_path}/val.parquet",
+            "test": f"{tmp_path}/test.parquet",
             "column": ["mask_id"],
         },
     }
@@ -746,9 +746,9 @@ def test_edge_custom_label(spark, dghl_loader: DistHeterogeneousGraphLoader, tmp
         "column": "",
         "type": "link_prediction",
         "custom_split_filenames": {
-            "train": f"{tmp_path}/train.parquet"[1:],
-            "valid": f"{tmp_path}/val.parquet"[1:],
-            "test": f"{tmp_path}/test.parquet"[1:],
+            "train": f"{tmp_path}/train.parquet",
+            "valid": f"{tmp_path}/val.parquet",
+            "test": f"{tmp_path}/test.parquet",
             "column": ["mask_src_id", "mask_dst_id"],
         },
     }

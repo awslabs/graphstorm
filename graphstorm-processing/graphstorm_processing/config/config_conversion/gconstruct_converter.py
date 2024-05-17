@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import math
 from typing import Any
 from collections.abc import Mapping
 
@@ -57,8 +58,8 @@ class GConstructConfigConverter(ConfigConverter):
                         label_splitrate = label["split_pct"]
                         # check if split_pct is valid
                         assert (
-                            sum(label_splitrate) <= 1.0
-                        ), "sum of the label split rate should be <=1.0"
+                            math.fsum(label_splitrate) == 1.0
+                        ), "sum of the label split rate should be ==1.0"
                         label_dict["split_rate"] = {
                             "train": label_splitrate[0],
                             "val": label_splitrate[1],

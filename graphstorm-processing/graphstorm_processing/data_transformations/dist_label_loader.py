@@ -59,12 +59,23 @@ class SplitRates:
 class CustomSplit:
     """
     Dataclass to hold the custom split for each of the train/val/test splits.
+
+    Parameters
+    ----------
+    train : str
+        Path of the training mask parquet file.
+    valid : str
+        Path of the validation mask parquet file.
+    test : str
+        Path of the testing mask parquet file.
+    mask_columns : list[str]
+        List of columns that contain original string ids.
     """
 
     train: str
     valid: str
     test: str
-    column: list[str]
+    mask_columns: list[str]
 
 
 class DistLabelLoader:
