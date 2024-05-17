@@ -447,8 +447,6 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
             # final evaluation
             output = {'best_test_score': self.evaluator.best_test_score,
                        'best_val_score':self.evaluator.best_val_score,
-                       'last_test_score': self.evaluator.last_test_score,
-                       'last_val_score':self.evaluator.last_val_score,
                        'peak_GPU_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
                        'peak_RAM_mem_alloc_MB': \
                            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024,
