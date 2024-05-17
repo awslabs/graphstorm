@@ -168,7 +168,6 @@ def _configure_spark_env(
     # Improve memory utilization
     # Avoid timeout errors due to connection pool starving
     # Allow sending large results to driver
-    # TODO: Only set config when running on SageMaker, allow EMR/EMR-S defaults
     spark_builder = (
         spark_builder.config("spark.driver.memory", f"{driver_mem_mb}m")
         .config("spark.driver.memoryOverhead", f"{driver_mem_overhead_mb}m")

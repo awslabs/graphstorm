@@ -1205,12 +1205,10 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         if self.add_reverse_edges:
             reversed_edges = edge_df_with_only_int_ids.select("dst_int_id", "src_int_id")
             reversed_edge_structure_path = os.path.join(
-                self.output_prefix, f"edges/{rev_edge_type}"
+                self.output_prefix, f"edges/{rev_edge_type.replace(':', '_')}"
             )
             logging.info("Writing edge structure for reverse edge type %s...", rev_edge_type)
-            reverse_path_list = self._write_df(
-                reversed_edges, reversed_edge_structure_path.replace(":", "_")
-            )
+            reverse_path_list = self._write_df(reversed_edges, reversed_edge_structure_path)
         else:
             reverse_path_list = []
 

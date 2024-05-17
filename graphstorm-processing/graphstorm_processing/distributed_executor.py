@@ -294,10 +294,9 @@ class DistributedExecutor:
                 "All file row counts match, applying Parquet metadata modification on Spark leader."
             )
             modify_flat_array_metadata(graph_meta_dict, repartitioner)
-            logging.info(
-                "Data are now prepared for processing by the DistPart Partition pipeline, "
-                "use metadata.json as config file."
-            )
+            # modify_flat_array_metadata modifies file metadata in-place,
+            # so the original meta dict still applies
+            updated_metadata = graph_meta_dict
         else:
             if self.repartition_on_leader:
                 logging.info("Attempting to repartition graph data on Spark leader...")
@@ -306,20 +305,6 @@ class DistributedExecutor:
                     if self.filesystem_type == FilesystemType.S3:
                         self._upload_output_files(loader, force=True)
                     updated_metadata = repartition_files(graph_meta_dict, repartitioner)
-                    updated_meta_path = os.path.join(
-                        loader.output_path, "updated_row_counts_metadata.json"
-                    )
-                    with open(
-                        updated_meta_path,
-                        "w",
-                        encoding="utf-8",
-                    ) as f:
-                        json.dump(updated_metadata, f, indent=4)
-                        f.flush()
-                        logging.info("Updated metadata written to %s", updated_meta_path)
-                    logging.info(
-                        "Data are now prepared for processing by the DistPart Partition pipeline."
-                    )
                 except Exception as e:  # pylint: disable=broad-exception-caught
                     # If an error happens during re-partition, we don't want to fail the entire
                     # gs-processing job, so we just post an error and continue
@@ -332,6 +317,21 @@ class DistributedExecutor:
             else:
                 logging.warning("gs-repartition will need to run as a follow-up job on the data!")
         timers_dict["repartition"] = time.perf_counter() - repartition_start
+
+        # If any of the metadata modification took place, write an updated metadata file
+        if updated_metadata:
+            updated_meta_path = os.path.join(loader.output_path, "updated_row_counts_metadata.json")
+            with open(
+                updated_meta_path,
+                "w",
+                encoding="utf-8",
+            ) as f:
+                json.dump(updated_metadata, f, indent=4)
+                f.flush()
+                logging.info("Updated metadata written to %s", updated_meta_path)
+            logging.info(
+                "Data are now prepared for processing by the Distributed Partition pipeline."
+            )
 
         with open(
             os.path.join(self.local_output_path, "perf_counters.json"), "w", encoding="utf-8"
