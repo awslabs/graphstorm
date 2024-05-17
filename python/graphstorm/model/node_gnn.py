@@ -327,6 +327,9 @@ def run_node_mini_batch_predict(decoder, emb, loader, device,
                                 return_proba=True, return_label=False):
     """ Perform mini-batch prediction.
 
+        Note: caller should call model.eval() before calling this function
+        and call model.train() after when doing training.
+
     Parameters
     ----------
     decoder : GSNodeDecoder
@@ -360,15 +363,15 @@ def run_node_mini_batch_predict(decoder, emb, loader, device,
     labels = {}
     # TODO(zhengda) I need to check if the data loader only returns target nodes.
     with th.no_grad():
-        for input_nodes, seeds, _ in loader:
-            for ntype, in_nodes in input_nodes.items():
+        for _, seeds, _ in loader:
+            for ntype, seed_nodes in seeds.items():
                 if isinstance(decoder, th.nn.ModuleDict):
                     assert ntype in decoder, f"Node type {ntype} not in decoder"
                     decoder = decoder[ntype]
                 if return_proba:
-                    pred = decoder.predict_proba(emb[ntype][in_nodes].to(device))
+                    pred = decoder.predict_proba(emb[ntype][seed_nodes].to(device))
                 else:
-                    pred = decoder.predict(emb[ntype][in_nodes].to(device))
+                    pred = decoder.predict(emb[ntype][seed_nodes].to(device))
                 if ntype in preds:
                     preds[ntype].append(pred.cpu())
                 else:
@@ -379,7 +382,7 @@ def run_node_mini_batch_predict(decoder, emb, loader, device,
                     if ntype in labels:
                         labels[ntype].append(lbl[ntype])
                     else:
-                        labels[ntype] = lbl[ntype]
+                        labels[ntype] = [lbl[ntype]]
 
     for ntype, ntype_pred in preds.items():
         preds[ntype] = th.cat(ntype_pred)

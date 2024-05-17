@@ -1175,6 +1175,28 @@ class GSgnnMultiTaskEvaluator(GSgnnBaseEvaluator, GSgnnMultiTaskEvalInterface):
         return best_test_score
 
     @property
+    def last_val_score(self):
+        """ Last validation score
+        """
+        last_val_score = {
+            task_id: evaluator.last_val_score \
+                for task_id, evaluator in self.task_evaluators.items()
+        }
+        return last_val_score
+
+    @property
+    def last_test_score(self):
+        """ Last test score
+        """
+        last_test_score = {
+            task_id: evaluator.last_test_score \
+                for task_id, evaluator in self.task_evaluators.items()
+        }
+        return last_test_score
+
+
+
+    @property
     def best_iter_num(self):
         """ Best iteration number
         """

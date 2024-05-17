@@ -65,7 +65,6 @@ def run_edge_predict_mini_batch(model, data, task_info, mini_batch, device):
     input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
 
     if task_info.dataloader.decoder_edge_feat_fields is not None:
-        print(task_info.dataloader.decoder_edge_feat_fields)
         input_edges = {etype: batch_graph.edges[etype].data[dgl.EID] \
                 for etype in batch_graph.canonical_etypes}
         edge_decoder_feats = \
@@ -147,39 +146,62 @@ def multi_task_mini_batch_predict(
     """
     dataloaders = loader.dataloaders
     task_infos = loader.task_infos
-    task_pool = model.task_pool
+    task_decoders = model.task_decoders
     res = {}
     with th.no_grad():
         for dataloader, task_info in zip(dataloaders, task_infos):
             if task_info.task_type in \
             [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
-                task_type, decoder, _, _ = task_pool[task_info.task_id]
-                assert task_info.task_type == task_type
-                preds, labels = \
-                    run_node_mini_batch_predict(decoder,
-                                                emb,
-                                                dataloader,
-                                                device,
-                                                return_proba,
-                                                return_label)
-                res[task_info.task_id] = (preds, labels)
+                if dataloader is None:
+                    # In cases when there is no validation or test set.
+                    # set pred and labels to None
+                    res[task_info.task_id] = (None, None)
+                else:
+                    decoder = task_decoders[task_info.task_id]
+                    preds, labels = \
+                        run_node_mini_batch_predict(decoder,
+                                                    emb,
+                                                    dataloader,
+                                                    device,
+                                                    return_proba,
+                                                    return_label)
+                    assert len(labels) == 1, \
+                        "In multi-task learning, for each training task, " \
+                        "we only support prediction on one node type." \
+                        "For multiple node types, please treat them as " \
+                        "different training tasks."
+                    ntype = list(labels.keys())[0]
+                    res[task_info.task_id] = (preds[ntype], labels[ntype])
             elif task_info.task_type in \
             [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
-                task_type, decoder, _, _ = task_pool[task_info.task_id]
-                assert task_info.task_type == task_type
-                preds, labels = \
-                    run_edge_mini_batch_predict(decoder,
-                                                emb,
-                                                loader,
-                                                device,
-                                                return_proba,
-                                                return_label)
-                res[task_info.task_id] = (preds, labels)
+                if dataloader is None:
+                    # In cases when there is no validation or test set.
+                    # set pred and labels to None
+                    res[task_info.task_id] = (None, None)
+                else:
+                    decoder = task_decoders[task_info.task_id]
+                    preds, labels = \
+                        run_edge_mini_batch_predict(decoder,
+                                                    emb,
+                                                    dataloader,
+                                                    device,
+                                                    return_proba,
+                                                    return_label)
+                    assert len(labels) == 1, \
+                        "In multi-task learning, for each training task, " \
+                        "we only support prediction on one edge type." \
+                        "For multiple edge types, please treat them as " \
+                        "different training tasks."
+                    etype = list(labels.keys())[0]
+                    res[task_info.task_id] = (preds[etype], labels[etype])
             elif task_info.task_type == BUILTIN_TASK_LINK_PREDICTION:
-                task_type, decoder, _, _ = task_pool[task_info.task_id]
-                assert task_info.task_type == task_type
-                ranking = run_lp_mini_batch_predict(decoder, emb, dataloader, device)
-                res[task_info.task_id] = ranking
+                if dataloader is None:
+                    # In cases when there is no validation or test set.
+                    res[task_info.task_id] = None
+                else:
+                    decoder = task_decoders[task_info.task_id]
+                    ranking = run_lp_mini_batch_predict(decoder, emb, dataloader, device)
+                    res[task_info.task_id] = ranking
             else:
                 raise TypeError("Unknown task %s", task_info)
 
@@ -309,14 +331,13 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                     "Only GSgnnModel supports full-graph inference."
 
         # with freeze_input_layer_epochs is 0, computation graph will not be changed.
-        static_graph = freeze_input_layer_epochs == 0
         on_cpu = self.device == th.device('cpu')
         if is_distributed():
             model = DistributedDataParallel(self._model,
                                             device_ids=None if on_cpu else [self.device],
                                             output_device=None if on_cpu else self.device,
                                             find_unused_parameters=True,
-                                            static_graph=static_graph)
+                                            static_graph=False)
         else:
             model = self._model
         device = model.device
@@ -356,7 +377,8 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                 alpha_l2norm = model.module.alpha_l2norm
 
                 mt_loss = reg_loss * alpha_l2norm
-                mt_loss += loss * weight
+                for loss, weight in losses:
+                    mt_loss += loss * weight
                 rt_profiler.record('train_forward')
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -371,7 +393,7 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                 if i % 20 == 0 and get_rank() == 0:
                     rt_profiler.print_stats()
                     logging.info("Epoch %05d | Batch %03d | Train Loss: %.4f | Time: %.4f",
-                                 epoch, i, loss.item(), time.time() - batch_tic)
+                                 epoch, i, mt_loss.item(), time.time() - batch_tic)
 
                 val_score = None
                 if self.evaluator is not None and \
@@ -465,22 +487,41 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
         sys_tracker.check('before prediction')
         model.eval()
 
+        # All the tasks share the same GNN encoder so the fanouts are same
+        # for different tasks.
+        fanout = None
+        for task_fanout in val_loader.fanout:
+            if task_fanout is not None:
+                fanout = task_fanout
+                break
+        assert fanout is not None, \
+            "There is no validation dataloader. eval() function should not be called"
         if use_mini_batch_infer:
             emb = do_mini_batch_inference(model, data,
-                                          fanout=val_loader.fanout,
+                                          fanout=fanout,
                                           task_tracker=self.task_tracker)
         else:
             emb = do_full_graph_inference(model, data,
-                                          fanout=val_loader.fanout,
+                                          fanout=fanout,
                                           task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
 
         val_results = \
-            multi_task_mini_batch_predict(model, emb, val_loader, self.device, return_proba) \
+            multi_task_mini_batch_predict(model,
+                                          emb=emb,
+                                          loader=val_loader,
+                                          device=self.device,
+                                          return_proba=return_proba,
+                                          return_label=True) \
             if val_loader is not None else None
 
         test_results = \
-            multi_task_mini_batch_predict(model, emb, test_loader, self.device, return_proba) \
+            multi_task_mini_batch_predict(model,
+                                          emb=emb,
+                                          loader=test_loader,
+                                          device=self.device,
+                                          return_proba=return_proba,
+                                          return_label=True) \
             if test_loader is not None else None
 
         sys_tracker.check('after_test_score')

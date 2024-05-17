@@ -1806,6 +1806,17 @@ class GSgnnMultiTaskDataLoader:
         # useful for conducting validation scores and test scores.
         return self._task_infos
 
+    @property
+    def fanout(self):
+        """ The fanout of each GNN layers of each dataloader
+
+        Returns
+        -------
+        list or a dict of list : the fanouts for each GNN layer.
+        """
+        fanouts = [dataloader.fanout if dataloader is not None else None for dataloader in self.dataloaders]
+        return fanouts
+
 
 ####################### Distillation #############################
 

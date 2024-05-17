@@ -111,6 +111,12 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         """
         return self._task_pool
 
+    @property
+    def task_decoders(self):
+        """ Get task decoders
+        """
+        return self._decoder
+
     # pylint: disable=unused-argument
     def forward(self, task_id, mini_batch):
         """ The forward function for multi-task learning
@@ -132,7 +138,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         # Call emb normalization.
         encode_embs = self.normalize_node_embs(encode_embs)
 
-        task_type, loss_func, weight = self.task_pool[task_id]
+        task_type, loss_func, _ = self.task_pool[task_id]
         task_decoder = self.decoder[task_id]
 
         if task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
@@ -150,7 +156,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
             ntype_logits = task_decoder(emb)
             pred_loss = loss_func(ntype_logits, ntype_labels)
 
-            return pred_loss, weight
+            return pred_loss
         elif task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
             target_edges, target_edge_feats, labels = decoder_data
             assert len(labels) == 1, \
@@ -161,7 +167,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
             logits = task_decoder(target_edges, encode_embs, target_edge_feats)
             pred_loss = loss_func(logits, labels[target_etype])
 
-            return pred_loss, weight
+            return pred_loss
         elif task_type == BUILTIN_TASK_LINK_PREDICTION:
             pos_graph, neg_graph, pos_edge_feats, neg_edge_feats = decoder_data
 
@@ -171,7 +177,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
                 "Positive scores and Negative scores must have edges of same" \
                 f"edge types, but get {pos_score.keys()} and {neg_score.keys()}"
             pred_loss = loss_func(pos_score, neg_score)
-            return pred_loss, weight
+            return pred_loss
         else:
             raise TypeError("Unknow task type %s", task_type)
 
