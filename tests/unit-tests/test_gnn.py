@@ -275,15 +275,27 @@ def check_node_prediction(model, data, is_homo=False):
     dataloader2 = GSgnnNodeDataLoader(data, target_nidx, fanout=[-1, -1],
                                       batch_size=10, label_field='label',
                                       node_feats='feat', train_task=False)
-    pred2, _, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
+    # Call GNN mini-batch inference
+    pred2_gnn_pred, _, labels2_gnn_pred, = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
+    # Call last layer mini-batch inference with the GNN dataloader
+    pred2_pred, labels2_pred = node_mini_batch_predict(model, embs, dataloader2, return_label=True)
     if isinstance(pred1,dict):
-        assert len(pred1) == len(pred2) and len(labels1) == len(labels2)
+        assert len(pred1) == len(pred2_gnn_pred) and len(labels1) == len(labels2_gnn_pred)
+        assert len(pred1) == len(pred2_pred) and len(labels1) == len(labels2_pred)
         for ntype in pred1:
-            assert_almost_equal(pred1[ntype][0:len(pred1)].numpy(), pred2[ntype][0:len(pred2)].numpy(), decimal=5)
-            assert_equal(labels1[ntype].numpy(), labels2[ntype].numpy())
+            assert_almost_equal(pred1[ntype][0:len(pred1)].numpy(),
+                                pred2_gnn_pred[ntype][0:len(pred2_gnn_pred)].numpy(), decimal=5)
+            assert_equal(labels1[ntype].numpy(), labels2_gnn_pred[ntype].numpy())
+            assert_almost_equal(pred1[ntype][0:len(pred1)].numpy(),
+                                pred2_pred[ntype][0:len(pred2_pred)].numpy(), decimal=5)
+            assert_equal(labels1[ntype].numpy(), labels2_pred[ntype].numpy())
     else:
-        assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
-        assert_equal(labels1.numpy(), labels2.numpy())
+        assert_almost_equal(pred1[0:len(pred1)].numpy(),
+                            pred2_gnn_pred[0:len(pred2_gnn_pred)].numpy(), decimal=5)
+        assert_equal(labels1.numpy(), labels2_gnn_pred.numpy())
+        assert_almost_equal(pred1[0:len(pred1)].numpy(),
+                            pred2_pred[0:len(pred2_pred)].numpy(), decimal=5)
+        assert_equal(labels1.numpy(), labels2_pred.numpy())
 
     # Test the return_proba argument.
     pred3, labels3 = node_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
