@@ -785,6 +785,7 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
 
             if val_rankings is not None:
                 val_score = self.compute_score(val_rankings)
+
                 if get_rank() == 0:
                     for metric in self.metric_list:
                         # be careful whether > or < it might change per metric.
