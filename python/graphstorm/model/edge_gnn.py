@@ -311,6 +311,44 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
     model.eval()
     decoder = model.decoder
     device = model.device
+
+    preds, labels = run_edge_mini_batch_predict(decoder,
+                                                loader,
+                                                device,
+                                                return_proba,
+                                                return_label)
+    model.train()
+    return preds, labels
+
+def run_edge_mini_batch_predict(decoder, emb, loader, device,
+                                return_proba=True, return_label=False):
+    """ Perform mini-batch prediction using edge decoder
+
+    This function usually follows full-grain GNN embedding inference. After having
+    the GNN embeddings, we need to perform mini-batch computation to make predictions
+    on the GNN embeddings.
+
+    Parameters
+    ----------
+    decoder : GSEdgeDecoder
+        The GraphStorm edge decoder
+    emb : dict of Tensor
+        The GNN embeddings
+    loader : GSgnnEdgeDataLoader
+        The GraphStorm dataloader
+    device: th.device
+        Device used to compute prediction result
+    return_proba: bool
+        Whether to return all the predictions or the maximum prediction
+    return_label : bool
+        Whether or not to return labels
+
+    Returns
+    -------
+    dict of Tensor : GNN prediction results. Return all the results when return_proba is true
+        otherwise return the maximum result.
+    dict of Tensor : labels if return_labels is True
+    """
     data = loader.data
     g = data.g
     preds = {}
@@ -379,7 +417,6 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
                 append_to_dict(lbl, labels)
     barrier()
 
-    model.train()
     for target_etype, pred in preds.items():
         preds[target_etype] = th.cat(pred)
     if return_label:
