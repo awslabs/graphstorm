@@ -58,7 +58,7 @@ parse_params() {
       EXEC_ENV="${2-}"
       shift
       ;;
-    -a | --architecture)
+    -c | --architecture)
       ARCH="${2-}"
       shift
       ;;
