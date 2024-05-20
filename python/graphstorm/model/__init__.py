@@ -24,12 +24,17 @@ from .gnn import GSgnnModel, GSgnnModelBase, GSOptimizer
 from .gnn import do_full_graph_inference
 from .gnn import do_mini_batch_inference
 from .node_gnn import GSgnnNodeModel, GSgnnNodeModelBase, GSgnnNodeModelInterface
-from .node_gnn import node_mini_batch_gnn_predict, node_mini_batch_predict
+from .node_gnn import (node_mini_batch_gnn_predict,
+                       node_mini_batch_predict,
+                       run_node_mini_batch_predict)
 from .edge_gnn import GSgnnEdgeModel, GSgnnEdgeModelBase, GSgnnEdgeModelInterface
-from .edge_gnn import edge_mini_batch_gnn_predict, edge_mini_batch_predict
+from .edge_gnn import (edge_mini_batch_gnn_predict,
+                       edge_mini_batch_predict,
+                       run_edge_mini_batch_predict)
 from .lp_gnn import (GSgnnLinkPredictionModel,
                      GSgnnLinkPredictionModelBase,
-                     GSgnnLinkPredictionModelInterface)
+                     GSgnnLinkPredictionModelInterface,
+                     run_lp_mini_batch_predict)
 from .rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
 from .rgat_encoder import RelationalGATEncoder, RelationalAttLayer
 from .sage_encoder import SAGEEncoder, SAGEConv
