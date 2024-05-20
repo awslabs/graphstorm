@@ -995,6 +995,7 @@ def test_multi_task_evaluator():
 
     check_multi_task_eval()
 
+
 if __name__ == '__main__':
     # test evaluators
     test_multi_task_evaluator_early_stop()
