@@ -154,6 +154,30 @@ def lp_mini_batch_predict(model, emb, loader, device):
             Rankings of positive scores in format of {etype: ranking}
     """
     decoder = model.decoder
+    return run_lp_mini_batch_predict(decoder,
+                                     emb,
+                                     loader,
+                                     device)
+
+def run_lp_mini_batch_predict(decoder, emb, loader, device):
+    """ Perform mini-batch link prediction.
+
+        Parameters
+        ----------
+        decoder : LinkPredictNoParamDecoder or LinkPredictLearnableDecoder
+            The GraphStorm link prediction decoder model
+        emb : dict of Tensor
+            The GNN embeddings
+        loader : GSgnnEdgeDataLoader
+            The GraphStorm dataloader
+        device: th.device
+            Device used to compute test scores
+
+        Returns
+        -------
+        rankings: dict of tensors
+            Rankings of positive scores in format of {etype: ranking}
+    """
     with th.no_grad():
         ranking = {}
         for pos_neg_tuple, neg_sample_type in loader:
