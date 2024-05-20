@@ -313,6 +313,7 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
     device = model.device
 
     preds, labels = run_edge_mini_batch_predict(decoder,
+                                                emb,
                                                 loader,
                                                 device,
                                                 return_proba,
