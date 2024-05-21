@@ -104,7 +104,7 @@ class RgcnLPModel(GSgnnLinkPredictionModel):
     3. a decoder layer that transfors edge representations into logits for link prediction, and
     4. a loss function that matches to link prediction tasks.
 
-    Then the model also initialize its own optimizer object.
+    The model also initialize its own optimizer object.
 
     Arguments
     ----------
