@@ -1698,7 +1698,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
         return split_metadata
 
-    def _create_split_files_split_rates(self, input_df, label_column, split_rates, seed):
+    def _create_split_files_split_rates(self, input_df: DataFrame, label_column: str, split_rates: Optional[SplitRates], seed: Optional[int]) -> tuple[DataFrame, DataFrame, DataFrame]:
         """
         Creates the train/val/test mask dataframe based on split rates.
 
@@ -1713,12 +1713,13 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         split_rates: Optional[SplitRates]
             A SplitRates object indicating the train/val/test split rates.
             If None, a default split rate of 0.9:0.05:0.05 is used.
-        seed: int
+        seed: Optional[int]
             An optional random seed for reproducibility.
 
         Returns
         -------
-        Train/val/test mask dataframes.
+        tuple[DataFrame, DataFrame, DataFrame]
+            Train/val/test mask dataframes.
         """
         if split_rates is None:
             split_rates = SplitRates(train_rate=0.8, val_rate=0.1, test_rate=0.1)
@@ -1751,12 +1752,14 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         # to create one-hot vector indicating train/test/val membership
         input_col = F.col(label_column).astype("string") if label_column else F.lit("dummy")
         int_group_df = input_df.select(split_group(input_col).alias(group_col_name))
+        int_group_df.cache()
         train_mask_df = int_group_df.select(F.col(group_col_name)[0].alias("train_mask"))
         val_mask_df = int_group_df.select(F.col(group_col_name)[1].alias("val_mask"))
         test_mask_df = int_group_df.select(F.col(group_col_name)[2].alias("test_mask"))
+
         return train_mask_df, val_mask_df, test_mask_df
 
-    def _create_split_files_custom_split(self, input_df, custom_split_file):
+    def _create_split_files_custom_split(self, input_df: DataFrame, custom_split_file: str) -> tuple[DataFrame, DataFrame, DataFrame]:
         """
         Creates the train/val/test mask dataframe based on custom split files.
 
@@ -1770,7 +1773,8 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
         Returns
         -------
-        Train/val/test mask dataframes.
+        tuple[DataFrame, DataFrame, DataFrame]
+            Train/val/test mask dataframes.
         """
 
         # custom node/edge label
