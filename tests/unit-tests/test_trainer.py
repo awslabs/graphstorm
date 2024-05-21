@@ -22,11 +22,24 @@ import dgl
 from argparse import Namespace
 import torch as th
 
-from graphstorm.config import GSConfig
+from graphstorm.config import (GSConfig, TaskInfo)
+from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
+                               BUILTIN_TASK_EDGE_REGRESSION,
+                               BUILTIN_TASK_LINK_PREDICTION)
+from graphstorm.dataloading import GSgnnData
 from graphstorm.tracker import GSSageMakerTaskTracker
 from graphstorm import create_builtin_node_gnn_model
 from graphstorm.trainer import GSgnnTrainer
 from graphstorm.eval import GSgnnClassificationEvaluator
+from graphstorm.utils import setup_device, get_device
+from graphstorm.trainer.mt_trainer import (run_node_mini_batch,
+                                           run_edge_mini_batch,
+                                           run_link_predict_mini_batch)
+from graphstorm.dataloading import (GSgnnNodeDataLoader,
+                                    GSgnnEdgeDataLoader,
+                                    GSgnnLinkPredictionDataLoader)
+from graphstorm.model import GSgnnMultiTaskModelInterface, GSgnnModel
+from numpy.testing import assert_equal
 
 from data_utils import generate_dummy_dist_graph
 
@@ -86,7 +99,7 @@ def test_trainer_setup_evaluator():
 
     # case 2: evaluator has no task_tracker by default
     assert evaluator.task_tracker is None
-    
+
     # case 3: when setup an evaluator that has no task_tracker and train has no task tracker
     #         eitehr, create a new task_tracker and set it to the evaluator.
     trainer.setup_evaluator(evaluator)
@@ -115,6 +128,193 @@ def test_trainer_setup_evaluator():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+class DummyGSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface):
+    """ Dummy GSgnnMultiTaskSharedEncoderModel for testing
+    """
+    def __init__(self, task_id, task_type, input_nodes, labels, node_feats, expected_loss):
+        self.task_id = task_id
+        self.task_type = task_type
+        self.input_nodes = input_nodes
+        self.labels = labels
+        self.node_feats = node_feats
+        self.expected_loss = expected_loss
+
+    def forward(self, task_id, mini_batch):
+        assert task_id == self.task_id
+        assert len(mini_batch) == 2
+        encoder_data, decoder_data = mini_batch
+
+        if self.task_type == BUILTIN_TASK_NODE_CLASSIFICATION:
+            assert len(encoder_data) == 4
+            blocks, node_feats, _, input_nodes = encoder_data
+            lbl = decoder_data
+            assert blocks is None
+            assert_equal(lbl.numpy(), self.labels.numpy())
+            for ntype, idx in input_nodes.items():
+                assert_equal(idx.numpy(), self.input_nodes[ntype].numpy())
+
+            for ntype, feats in node_feats.items():
+                assert_equal(feats.numpy(), self.node_feats[ntype].numpy())
+
+            return self.expected_loss
+        if self.task_type == BUILTIN_TASK_EDGE_REGRESSION:
+            assert len(encoder_data) == 4
+            blocks, node_feats, _, input_nodes = encoder_data
+            assert blocks is None
+            for ntype, idx in input_nodes.items():
+                assert_equal(idx.numpy(), self.input_nodes[ntype].numpy())
+
+            for ntype, feats in node_feats.items():
+                assert_equal(feats.numpy(), self.node_feats[ntype].numpy())
+            assert len(decoder_data) == 3
+            batch_graph, edge_decoder_feats, lbl = decoder_data
+            assert batch_graph is None
+            assert edge_decoder_feats is None
+            assert_equal(lbl.numpy(), self.labels.numpy())
+
+            return self.expected_loss
+        if self.task_type == BUILTIN_TASK_LINK_PREDICTION:
+            assert len(encoder_data) == 4
+            blocks, node_feats, _, input_nodes = encoder_data
+            assert blocks is None
+            for ntype, idx in input_nodes.items():
+                assert_equal(idx.numpy(), self.input_nodes[ntype].numpy())
+
+            for ntype, feats in node_feats.items():
+                assert_equal(feats.numpy(), self.node_feats[ntype].numpy())
+
+            pos_graph, neg_graph, pos_graph_feats, _ = decoder_data
+            assert pos_graph is None
+            assert neg_graph is None
+            assert pos_graph_feats is None
+
+            return self.expected_loss
+
+        assert False
+
+    def predict(self, task_id, mini_batch, return_proba=False):
+        pass
+
+def test_mtask_run_node_mini_batch():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        np_data = GSgnnData(part_config=part_config)
+
+    setup_device(0)
+    device = get_device()
+    # Without shuffling, the seed nodes should have the same order as the target nodes.
+    target_idx = {'n1': th.arange(np_data.g.number_of_nodes('n1'))}
+    task_id = "test_node_prediction"
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
+                                     label_field='label',
+                                     node_feats='feat',
+                                     edge_feats='feat',
+                                     train_task=False)
+    task_config = GSConfig.__new__(GSConfig)
+    expected_loss = th.rand(np_data.g.number_of_nodes('n1'))
+    setattr(task_config, "task_weight", 0.75)
+    task_info = TaskInfo(task_type=BUILTIN_TASK_NODE_CLASSIFICATION,
+                         task_id=task_id,
+                         task_config=task_config,
+                         dataloader=dataloader)
+    node_feats = np_data.get_node_feats(target_idx, 'feat', device=device)
+    labels = np_data.get_node_feats(target_idx, 'label', device=device)
+    mini_batch = (target_idx, target_idx, None)
+    model = DummyGSgnnMultiTaskSharedEncoderModel(task_id=task_id,
+                                                  task_type=BUILTIN_TASK_NODE_CLASSIFICATION,
+                                                  input_nodes=target_idx,
+                                                  labels=labels,
+                                                  node_feast=node_feats,
+                                                  expected_loss=expected_loss)
+    loss, weight = run_node_mini_batch(model, np_data, task_info, mini_batch, device)
+    assert assert_equal(loss.numpy(), expected_loss.numpy())
+    assert weight == 0.75
+
+def test_mtask_run_edge_mini_batch():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        ep_data = GSgnnData(part_config=part_config)
+
+    setup_device(0)
+    device = get_device()
+
+    target_idx = {('n0', 'r1', 'n1'): th.arange(ep_data.g.number_of_edges('r1'))}
+    task_id = "test_edge_prediction"
+    dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, [10], 10,
+                                     node_feats='feat',
+                                     edge_feats='feat',
+                                     label_field='label',
+                                     train_task=True, remove_target_edge_type=False)
+
+    task_config = GSConfig.__new__(GSConfig)
+    expected_loss = th.rand(ep_data.g.number_of_edges('r1'))
+    setattr(task_config, "task_weight", 0.71)
+    task_info = TaskInfo(task_type=BUILTIN_TASK_EDGE_REGRESSION,
+                         task_id=task_id,
+                         task_config=task_config,
+                         dataloader=dataloader)
+    input_nodes = {
+        "n0": th.arange(10),
+        "n1": th.arange(20),
+    }
+    node_feats = ep_data.get_node_feats(input_nodes, 'feat', device=device)
+    labels = ep_data.get_node_feats(target_idx, 'label', device=device)
+    mini_batch = (input_nodes, None, None)
+    model = DummyGSgnnMultiTaskSharedEncoderModel(task_id,
+                                                  task_type=BUILTIN_TASK_EDGE_REGRESSION,
+                                                  labels=labels,
+                                                  node_feast=node_feats,
+                                                  expected_loss=expected_loss)
+
+
+    loss, weight = run_edge_mini_batch(model, ep_data, task_info, mini_batch, device)
+    assert assert_equal(loss.numpy(), expected_loss.numpy())
+    assert weight == 0.71
+
+def test_mtask_run_lp_mini_batch():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        ep_data = GSgnnData(part_config=part_config)
+
+    setup_device(0)
+    device = get_device()
+
+    target_idx = {('n0', 'r1', 'n1'): th.arange(ep_data.g.number_of_edges('r1'))}
+    task_id = "test_link_prediction"
+    dataloader = GSgnnLinkPredictionDataLoader(ep_data, target_idx,
+                                               [10], 10,
+                                               num_negative_edges=2,
+                                               train_task=False)
+    task_config = GSConfig.__new__(GSConfig)
+    expected_loss = th.rand(ep_data.g.number_of_edges('r1'))
+    setattr(task_config, "task_weight", 0.72)
+    task_info = TaskInfo(task_type=BUILTIN_TASK_LINK_PREDICTION,
+                         task_id=task_id,
+                         task_config=task_config,
+                         dataloader=dataloader)
+    input_nodes = {
+        "n0": th.arange(10),
+        "n1": th.arange(20),
+    }
+    node_feats = ep_data.get_node_feats(input_nodes, 'feat', device=device)
+
+    mini_batch = (input_nodes, None, None, None)
+    model = DummyGSgnnMultiTaskSharedEncoderModel(task_id,
+                                                  task_type=BUILTIN_TASK_LINK_PREDICTION,
+                                                  labels=None,
+                                                  node_feast=node_feats,
+                                                  expected_loss=expected_loss)
+
+    loss, weight = run_link_predict_mini_batch(model, ep_data, task_info, mini_batch, device)
+    assert assert_equal(loss.numpy(), expected_loss.numpy())
+    assert weight == 0.72
 
 if __name__ == '__main__':
     test_trainer_setup_evaluator()
+
+    test_mtask_run_node_mini_batch()
+    test_mtask_run_edge_mini_batch()
+    test_mtask_run_lp_mini_batch()

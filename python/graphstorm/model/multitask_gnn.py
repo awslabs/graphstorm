@@ -27,6 +27,11 @@ from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
 from .gnn import GSgnnModel
 
 
+from .node_gnn import run_node_mini_batch_predict
+from .edge_gnn import run_edge_mini_batch_predict
+from .lp_gnn import run_lp_mini_batch_predict
+
+
 class GSgnnMultiTaskModelInterface:
     """ The interface for GraphStorm multi-task learning.
 
@@ -226,3 +231,90 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
             return None
         else:
             raise TypeError("Unknow task type %s", task_type)
+
+def multi_task_mini_batch_predict(
+    model, emb, loader, device, return_proba=True, return_label=False):
+    """ conduct mini batch prediction on multiple tasks
+
+    Parameters
+    ----------
+    model: GSgnnMultiTaskModelInterface, GSgnnModel
+        Multi-task learning model
+    emb : dict of Tensor
+        The GNN embeddings
+    loader: GSgnnMultiTaskDataLoader
+        The mini-batch dataloader.
+    device: th.device
+        Device used to compute test scores.
+    return_proba: bool
+        Whether to return all the predictions or the maximum prediction.
+    return_label : bool
+        Whether or not to return labels.
+
+    Returns
+    -------
+    dict: prediction results of each task
+    """
+    dataloaders = loader.dataloaders
+    task_infos = loader.task_infos
+    task_decoders = model.task_decoders
+    res = {}
+    with th.no_grad():
+        for dataloader, task_info in zip(dataloaders, task_infos):
+            if task_info.task_type in \
+            [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
+                if dataloader is None:
+                    # In cases when there is no validation or test set.
+                    # set pred and labels to None
+                    res[task_info.task_id] = (None, None)
+                else:
+                    decoder = task_decoders[task_info.task_id]
+                    preds, labels = \
+                        run_node_mini_batch_predict(decoder,
+                                                    emb,
+                                                    dataloader,
+                                                    device,
+                                                    return_proba,
+                                                    return_label)
+                    assert len(labels) == 1, \
+                        "In multi-task learning, for each training task, " \
+                        "we only support prediction on one node type." \
+                        "For multiple node types, please treat them as " \
+                        "different training tasks."
+                    ntype = list(labels.keys())[0]
+                    res[task_info.task_id] = (preds[ntype], labels[ntype])
+            elif task_info.task_type in \
+            [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
+                if dataloader is None:
+                    # In cases when there is no validation or test set.
+                    # set pred and labels to None
+                    res[task_info.task_id] = (None, None)
+                else:
+                    decoder = task_decoders[task_info.task_id]
+                    preds, labels = \
+                        run_edge_mini_batch_predict(decoder,
+                                                    emb,
+                                                    dataloader,
+                                                    device,
+                                                    return_proba,
+                                                    return_label)
+                    assert len(labels) == 1, \
+                        "In multi-task learning, for each training task, " \
+                        "we only support prediction on one edge type." \
+                        "For multiple edge types, please treat them as " \
+                        "different training tasks."
+                    etype = list(labels.keys())[0]
+                    res[task_info.task_id] = (preds[etype], labels[etype])
+            elif task_info.task_type == BUILTIN_TASK_LINK_PREDICTION:
+                if dataloader is None:
+                    # In cases when there is no validation or test set.
+                    res[task_info.task_id] = None
+                else:
+                    decoder = task_decoders[task_info.task_id]
+                    ranking = run_lp_mini_batch_predict(decoder, emb, dataloader, device)
+                    res[task_info.task_id] = ranking
+            else:
+                raise TypeError("Unknown task %s", task_info)
+
+    return res
+

@@ -31,21 +31,22 @@ from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
 from ..model import (do_full_graph_inference,
                      do_mini_batch_inference,
                      GSgnnModelBase, GSgnnModel,
-                     GSgnnMultiTaskModelInterface)
+                     GSgnnMultiTaskModelInterface,
+                     multi_task_mini_batch_predict)
 from .gsgnn_trainer import GSgnnTrainer
-from ..model import (run_node_mini_batch_predict,
-                     run_edge_mini_batch_predict,
-                     run_lp_mini_batch_predict)
 
 from ..utils import sys_tracker, rt_profiler, print_mem, get_rank
-from ..utils import barrier, is_distributed, get_backend
+from ..utils import barrier, is_distributed
 
-def run_node_predict_mini_batch(model, data, task_info, mini_batch, device):
+def run_node_mini_batch(model, data, task_info, mini_batch, device):
+    """ Run node mini_batch forward
+    """
     g = data.g
     input_nodes, seeds, blocks = mini_batch
     if not isinstance(input_nodes, dict):
         assert len(g.ntypes) == 1
         input_nodes = {g.ntypes[0]: input_nodes}
+
     nfeat_fields = task_info.dataloader.node_feat_fields
     label_field = task_info.dataloader.label_field
     input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
@@ -56,11 +57,12 @@ def run_node_predict_mini_batch(model, data, task_info, mini_batch, device):
 
     return loss, task_info.task_config.task_weight
 
-def run_edge_predict_mini_batch(model, data, task_info, mini_batch, device):
+def run_edge_mini_batch(model, data, task_info, mini_batch, device):
     input_nodes, batch_graph, blocks = mini_batch
     if not isinstance(input_nodes, dict):
         assert len(batch_graph.ntypes) == 1
         input_nodes = {batch_graph.ntypes[0]: input_nodes}
+
     nfeat_fields = task_info.dataloader.node_feat_fields
     input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
 
@@ -123,89 +125,6 @@ def run_link_predict_mini_batch(model, data, task_info, mini_batch, device):
                     (pos_graph, neg_graph,pos_graph_feats, None)))
     return loss, task_info.task_config.task_weight
 
-def multi_task_mini_batch_predict(
-    model, emb, loader, device, return_proba=True, return_label=False):
-    """ conduct mini batch prediction on multiple tasks
-
-    Parameters
-    ----------
-    model: GSgnnMultiTaskModelInterface, GSgnnModel
-        Multi-task learning model
-    emb : dict of Tensor
-        The GNN embeddings
-    loader: GSgnnMultiTaskDataLoader
-        The mini-batch dataloader.
-    device: th.device
-        Device used to compute test scores.
-    return_proba: bool
-        Whether to return all the predictions or the maximum prediction.
-
-    Returns
-    -------
-    dict: prediction results of each task
-    """
-    dataloaders = loader.dataloaders
-    task_infos = loader.task_infos
-    task_decoders = model.task_decoders
-    res = {}
-    with th.no_grad():
-        for dataloader, task_info in zip(dataloaders, task_infos):
-            if task_info.task_type in \
-            [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
-                if dataloader is None:
-                    # In cases when there is no validation or test set.
-                    # set pred and labels to None
-                    res[task_info.task_id] = (None, None)
-                else:
-                    decoder = task_decoders[task_info.task_id]
-                    preds, labels = \
-                        run_node_mini_batch_predict(decoder,
-                                                    emb,
-                                                    dataloader,
-                                                    device,
-                                                    return_proba,
-                                                    return_label)
-                    assert len(labels) == 1, \
-                        "In multi-task learning, for each training task, " \
-                        "we only support prediction on one node type." \
-                        "For multiple node types, please treat them as " \
-                        "different training tasks."
-                    ntype = list(labels.keys())[0]
-                    res[task_info.task_id] = (preds[ntype], labels[ntype])
-            elif task_info.task_type in \
-            [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
-                if dataloader is None:
-                    # In cases when there is no validation or test set.
-                    # set pred and labels to None
-                    res[task_info.task_id] = (None, None)
-                else:
-                    decoder = task_decoders[task_info.task_id]
-                    preds, labels = \
-                        run_edge_mini_batch_predict(decoder,
-                                                    emb,
-                                                    dataloader,
-                                                    device,
-                                                    return_proba,
-                                                    return_label)
-                    assert len(labels) == 1, \
-                        "In multi-task learning, for each training task, " \
-                        "we only support prediction on one edge type." \
-                        "For multiple edge types, please treat them as " \
-                        "different training tasks."
-                    etype = list(labels.keys())[0]
-                    res[task_info.task_id] = (preds[etype], labels[etype])
-            elif task_info.task_type == BUILTIN_TASK_LINK_PREDICTION:
-                if dataloader is None:
-                    # In cases when there is no validation or test set.
-                    res[task_info.task_id] = None
-                else:
-                    decoder = task_decoders[task_info.task_id]
-                    ranking = run_lp_mini_batch_predict(decoder, emb, dataloader, device)
-                    res[task_info.task_id] = ranking
-            else:
-                raise TypeError("Unknown task %s", task_info)
-
-    return res
 
 class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
     r""" A trainer for multi-task learning
@@ -252,18 +171,18 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
         """
         if task_info.task_type in \
             [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
-            return run_node_predict_mini_batch(model,
-                                               data,
-                                               task_info,
-                                               mini_batch,
-                                               device)
+            return run_node_mini_batch(model,
+                                       data,
+                                       task_info,
+                                       mini_batch,
+                                       device)
         elif task_info.task_type in \
             [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
-            return run_edge_predict_mini_batch(model,
-                                               data,
-                                               task_info,
-                                               mini_batch,
-                                               device)
+            return run_edge_mini_batch(model,
+                                       data,
+                                       task_info,
+                                       mini_batch,
+                                       device)
         elif task_info.task_type == BUILTIN_TASK_LINK_PREDICTION:
             return run_link_predict_mini_batch(model,
                                                data,
