@@ -325,15 +325,16 @@ def node_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
 
 def run_node_mini_batch_predict(decoder, emb, loader, device,
                                 return_proba=True, return_label=False):
-    """ Perform mini-batch prediction.
+    """ Perform mini-batch prediction with the given decoder.
 
         Note: caller should call model.eval() before calling this function
         and call model.train() after when doing training.
 
     Parameters
     ----------
-    decoder : GSNodeDecoder
-        The GraphStorm node decoder
+    decoder : GSNodeDecoder or th.nn.ModuleDict
+        The GraphStorm node decoder.
+        It can be a GSNodeDecoder or a dict of GSNodeDecoders
     emb : dict of Tensor
         The GNN embeddings
     loader : GSgnnNodeDataLoader
@@ -365,11 +366,10 @@ def run_node_mini_batch_predict(decoder, emb, loader, device,
     with th.no_grad():
         for _, seeds, _ in loader: # seeds are target nodes
             for ntype, seed_nodes in seeds.items():
-                if isinstance(model.decoder, th.nn.ModuleDict):
-                    assert ntype in model.decoder, f"Node type {ntype} not in decoder"
-                    decoder = model.decoder[ntype]
-                else:
-                    decoder = model.decoder
+                if isinstance(decoder, th.nn.ModuleDict):
+                    assert ntype in decoder, f"Node type {ntype} not in decoder"
+                    decoder = decoder[ntype]
+
                 if return_proba:
                     pred = decoder.predict_proba(emb[ntype][seed_nodes].to(device))
                 else:
