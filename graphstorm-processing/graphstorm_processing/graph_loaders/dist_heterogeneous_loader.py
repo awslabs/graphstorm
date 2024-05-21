@@ -1698,7 +1698,13 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
         return split_metadata
 
-    def _create_split_files_split_rates(self, input_df: DataFrame, label_column: str, split_rates: Optional[SplitRates], seed: Optional[int]) -> tuple[DataFrame, DataFrame, DataFrame]:
+    def _create_split_files_split_rates(
+        self,
+        input_df: DataFrame,
+        label_column: str,
+        split_rates: Optional[SplitRates],
+        seed: Optional[int],
+    ) -> tuple[DataFrame, DataFrame, DataFrame]:
         """
         Creates the train/val/test mask dataframe based on split rates.
 
@@ -1759,7 +1765,9 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
         return train_mask_df, val_mask_df, test_mask_df
 
-    def _create_split_files_custom_split(self, input_df: DataFrame, custom_split_file: str) -> tuple[DataFrame, DataFrame, DataFrame]:
+    def _create_split_files_custom_split(
+        self, input_df: DataFrame, custom_split_file: str
+    ) -> tuple[DataFrame, DataFrame, DataFrame]:
         """
         Creates the train/val/test mask dataframe based on custom split files.
 
