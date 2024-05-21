@@ -323,13 +323,13 @@ def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
 
 def run_edge_mini_batch_predict(decoder, emb, loader, device,
                                 return_proba=True, return_label=False):
-    """ Perform mini-batch prediction with the given decoder.
+    """ Perform mini-batch edge prediction with the given decoder.
 
-    This function usually follows full-grain GNN embedding inference. After having
+    This function usually follows full-graph GNN embedding inference. After having
     the GNN embeddings, we need to perform mini-batch computation to make predictions
     on the GNN embeddings.
 
-    Note: caller should call model.eval() before calling this function
+    Note: callers should call model.eval() before calling this function
     and call model.train() after when doing training.
 
     Parameters

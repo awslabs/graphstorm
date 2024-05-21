@@ -137,6 +137,9 @@ def lp_mini_batch_predict(model, emb, loader, device):
         After having the GNN embeddings, we need to perform mini-batch
         computation to make predictions on the GNN embeddings.
 
+        Note: callers should call model.eval() before calling this function
+        and call model.train() after when doing training.
+
         Parameters
         ----------
         model : GSgnnModel
@@ -166,7 +169,7 @@ def run_lp_mini_batch_predict(decoder, emb, loader, device):
         After having the GNN embeddings, we need to perform mini-batch
         computation to make predictions on the GNN embeddings.
 
-        Note: caller should call model.eval() before calling this function
+        Note: callers should call model.eval() before calling this function
         and call model.train() after when doing training.
 
         Parameters
