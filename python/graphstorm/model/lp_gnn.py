@@ -133,9 +133,12 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
 def lp_mini_batch_predict(model, emb, loader, device):
     """ Perform mini-batch prediction.
 
-        This function follows full-grain GNN embedding inference.
+        This function follows full-graph GNN embedding inference.
         After having the GNN embeddings, we need to perform mini-batch
         computation to make predictions on the GNN embeddings.
+
+        Note: callers should call model.eval() before calling this function
+        and call model.train() after when doing training.
 
         Parameters
         ----------
@@ -160,7 +163,14 @@ def lp_mini_batch_predict(model, emb, loader, device):
                                      device)
 
 def run_lp_mini_batch_predict(decoder, emb, loader, device):
-    """ Perform mini-batch link prediction.
+    """ Perform mini-batch link prediction with the given decoder.
+
+        This function follows full-graph GNN embedding inference.
+        After having the GNN embeddings, we need to perform mini-batch
+        computation to make predictions on the GNN embeddings.
+
+        Note: callers should call model.eval() before calling this function
+        and call model.train() after when doing training.
 
         Parameters
         ----------
@@ -178,7 +188,6 @@ def run_lp_mini_batch_predict(decoder, emb, loader, device):
         rankings: dict of tensors
             Rankings of positive scores in format of {etype: ranking}
     """
-
     with th.no_grad():
         ranking = {}
         for pos_neg_tuple, neg_sample_type in loader:

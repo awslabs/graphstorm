@@ -325,9 +325,9 @@ def node_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
 
 def run_node_mini_batch_predict(decoder, emb, loader, device,
                                 return_proba=True, return_label=False):
-    """ Perform mini-batch prediction with the given decoder.
+    """ Perform mini-batch node prediction with the given decoder.
 
-        Note: caller should call model.eval() before calling this function
+        Note: callers should call model.eval() before calling this function
         and call model.train() after when doing training.
 
     Parameters
