@@ -60,9 +60,13 @@ from graphstorm import create_builtin_lp_gnn_model
 from graphstorm import get_node_feat_size
 from graphstorm.gsf import get_rel_names_for_reconstruct
 from graphstorm.model import do_full_graph_inference, do_mini_batch_inference
-from graphstorm.model.node_gnn import node_mini_batch_predict, node_mini_batch_gnn_predict
+from graphstorm.model.node_gnn import (node_mini_batch_predict,
+                                       run_node_mini_batch_predict,
+                                       node_mini_batch_gnn_predict)
 from graphstorm.model.node_gnn import GSgnnNodeModelInterface
-from graphstorm.model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predict
+from graphstorm.model.edge_gnn import (edge_mini_batch_predict,
+                                       run_edge_mini_batch_predict,
+                                       edge_mini_batch_gnn_predict)
 from graphstorm.model.gnn_with_reconstruct import construct_node_feat, get_input_embeds_combined
 from graphstorm.model.utils import load_model, save_model
 
@@ -279,9 +283,13 @@ def check_node_prediction(model, data, is_homo=False):
     pred2_gnn_pred, _, labels2_gnn_pred, = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
     # Call last layer mini-batch inference with the GNN dataloader
     pred2_pred, labels2_pred = node_mini_batch_predict(model, embs, dataloader2, return_label=True)
+
+    pred2_d_pred, labels2_d_pred = run_node_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_label=True)
+
     if isinstance(pred1,dict):
         assert len(pred1) == len(pred2_gnn_pred) and len(labels1) == len(labels2_gnn_pred)
         assert len(pred1) == len(pred2_pred) and len(labels1) == len(labels2_pred)
+        assert len(pred1) == len(pred2_d_pred) and len(labels1) == len(labels2_gnn_pred)
         for ntype in pred1:
             assert_almost_equal(pred1[ntype][0:len(pred1)].numpy(),
                                 pred2_gnn_pred[ntype][0:len(pred2_gnn_pred)].numpy(), decimal=5)
@@ -289,6 +297,9 @@ def check_node_prediction(model, data, is_homo=False):
             assert_almost_equal(pred1[ntype][0:len(pred1)].numpy(),
                                 pred2_pred[ntype][0:len(pred2_pred)].numpy(), decimal=5)
             assert_equal(labels1[ntype].numpy(), labels2_pred[ntype].numpy())
+            assert_almost_equal(pred1[ntype][0:len(pred1)].numpy(),
+                                pred2_d_pred[ntype][0:len(pred2_d_pred)].numpy())
+            assert_equal(labels1[ntype].numpy(), labels2_d_pred[ntype].numpy())
     else:
         assert_almost_equal(pred1[0:len(pred1)].numpy(),
                             pred2_gnn_pred[0:len(pred2_gnn_pred)].numpy(), decimal=5)
@@ -296,24 +307,42 @@ def check_node_prediction(model, data, is_homo=False):
         assert_almost_equal(pred1[0:len(pred1)].numpy(),
                             pred2_pred[0:len(pred2_pred)].numpy(), decimal=5)
         assert_equal(labels1.numpy(), labels2_pred.numpy())
+        assert_almost_equal(pred1[0:len(pred1)].numpy(),
+                            labels2_d_pred[0:len(labels2_d_pred)].numpy())
+        assert_equal(labels1.numpy(), labels2_d_pred.numpy())
 
     # Test the return_proba argument.
     pred3, labels3 = node_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
+    pred3_d, labels3_d = node_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_proba=True, return_label=True)
+
     pred4, labels4 = node_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
+    pred4_d, labels4_d = node_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_proba=False, return_label=True)
     if isinstance(pred3, dict):
         assert len(pred3) == len(pred4) and len(labels3) == len(labels4)
+        assert len(pred3) == len(pred3_d) and len(labels3) == len(labels3_d)
+        assert len(pred4) == len(pred4_d) and len(labels4) == len(labels4_d)
         for key in pred3:
             assert pred3[key].dim() == 2  # returns all predictions (2D tensor) when return_proba is true
             assert(th.is_floating_point(pred3[key]))
+            assert pred3_d[key].dim() == 2
+            assert(th.is_floating_point(pred3_d[key]))
             assert(pred4[key].dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
             assert(is_int(pred4[key]))
             assert(th.equal(pred3[key].argmax(dim=1), pred4[key]))
+            assert(pred4_d[key].dim() == 1)
+            assert(is_int(pred4_d[key]))
+            assert(th.equal(pred3[key].argmax(dim=1), pred4_d[key]))
     else:
         assert pred3.dim() == 2  # returns all predictions (2D tensor) when return_proba is true
         assert(th.is_floating_point(pred3))
+        assert pred3_d.dim() == 2
+        assert(th.is_floating_point(pred3_d))
         assert(pred4.dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
         assert(is_int(pred4))
         assert(th.equal(pred3.argmax(dim=1), pred4))
+        assert(labels4_d.dim() == 1)
+        assert(is_int(labels4_d))
+        assert(th.equal(pred3.argmax(dim=1), labels4_d))
 
 def check_node_prediction_with_reconstruct(model, data, construct_feat_ntype, train_ntypes, node_feat_field=None):
     """ Check whether full graph inference and mini batch inference generate the same
@@ -416,32 +445,51 @@ def check_mlp_node_prediction(model, data):
                                       batch_size=10, label_field='label',
                                       node_feats='feat', train_task=False)
     pred2, _, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
+    pred1_d, labels1_d = node_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_label=True)
     if isinstance(pred1, dict):
         assert len(pred1) == len(pred2) and len(labels1) == len(labels2)
+        assert len(pred1) == len(pred1_d) and len(labels1) == len(labels1_d)
         for ntype in pred1:
             assert_almost_equal(pred1[ntype][0:len(pred1)].numpy(), pred2[ntype][0:len(pred2)].numpy(), decimal=5)
             assert_equal(labels1[ntype].numpy(), labels2[ntype].numpy())
+            assert_almost_equal(pred1[ntype][0:len(pred1)].numpy(), pred1_d[ntype][0:len(pred1_d)].numpy())
+            assert_equal(labels1[ntype].numpy(), labels1_d[ntype].numpy())
     else:
         assert_almost_equal(pred1[0:len(pred1)].numpy(), pred2[0:len(pred2)].numpy(), decimal=5)
         assert_equal(labels1.numpy(), labels2.numpy())
+        assert_almost_equal(pred1[0:len(pred1)].numpy(), pred1_d[0:len(pred1_d)].numpy())
+        assert_equal(labels1.numpy(), labels1_d.numpy())
 
     # Test the return_proba argument.
-    pred3, labels3 = node_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
-    pred4, labels4 = node_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
+    pred3, _ = node_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
+    pred4, _ = node_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
+    pred3_d, _ = node_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_proba=True, return_label=True)
+    pred4_d, _ = node_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_proba=False, return_label=True)
     if isinstance(pred3, dict):
         assert len(pred3) == len(pred4)
+        assert len(pred3) == len(pred3_d)
+        assert len(pred4) == len(pred4_d)
         for ntype in pred3:
             assert pred3[ntype].dim() == 2  # returns all predictions (2D tensor) when return_proba is true
             assert(th.is_floating_point(pred3[ntype]))
+            assert pred3_d[ntype].dim() == 2
+            assert(th.is_floating_point(pred3_d[ntype]))
             assert(pred4[ntype].dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
             assert(is_int(pred4[ntype]))
             assert(th.equal(pred3[ntype].argmax(dim=1), pred4[ntype]))
+            assert(is_int(pred4_d[ntype]))
+            assert(th.equal(pred3[ntype].argmax(dim=1), pred4_d[ntype]))
     else:
         assert pred3.dim() == 2  # returns all predictions (2D tensor) when return_proba is true
         assert(th.is_floating_point(pred3))
+        assert pred3_d.dim() == 2
+        assert(th.is_floating_point(pred3_d))
         assert(pred4.dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
         assert(is_int(pred4))
         assert(th.equal(pred3.argmax(dim=1), pred4))
+        assert(pred4_d.dim() == 1)
+        assert(is_int(pred4_d))
+        assert(th.equal(pred3.argmax(dim=1), pred4_d))
 
 @pytest.mark.parametrize("norm", [None, 'batch', 'layer'])
 def test_rgcn_node_prediction(norm):
@@ -752,14 +800,30 @@ def check_edge_prediction(model, data):
                         pred2[("n0", "r1", "n1")][0:len(pred2[("n0", "r1", "n1")])].numpy(), decimal=5)
     assert_equal(labels1[("n0", "r1", "n1")].numpy(), labels2[("n0", "r1", "n1")].numpy())
 
+    pred1_d, labels1_d = run_edge_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_label=True)
+    assert_almost_equal(pred1[("n0", "r1", "n1")][0:len(pred1[("n0", "r1", "n1")])].numpy(),
+                        pred1_d[("n0", "r1", "n1")][0:len(pred1_d[("n0", "r1", "n1")])].numpy())
+    assert_equal(labels1[("n0", "r1", "n1")].numpy(), labels1_d[("n0", "r1", "n1")].numpy())
+
+
     # Test the return_proba argument.
-    pred3, labels3 = edge_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
+    pred3, _ = edge_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
     assert(th.is_floating_point(pred3[("n0", "r1", "n1")]))
     assert pred3[("n0", "r1", "n1")].dim() == 2  # returns all predictions (2D tensor) when return_proba is true
-    pred4, labels4 = edge_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
+
+    pred3_d, _ = run_edge_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_proba=True, return_label=True)
+    assert(th.is_floating_point(pred3_d[("n0", "r1", "n1")]))
+    assert pred3_d[("n0", "r1", "n1")].dim() == 2  # returns all predictions (2D tensor) when return_proba is true
+
+    pred4, _ = edge_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
     assert(pred4[("n0", "r1", "n1")].dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
     assert(is_int(pred4[("n0", "r1", "n1")]))
     assert(th.equal(pred3[("n0", "r1", "n1")].argmax(dim=1), pred4[("n0", "r1", "n1")]))
+
+    pred4_d, _ = run_edge_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_proba=False, return_label=True)
+    assert(pred4[("n0", "r1", "n1")].dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
+    assert(is_int(pred4_d[("n0", "r1", "n1")]))
+    assert(th.equal(pred3[("n0", "r1", "n1")].argmax(dim=1), pred4_d[("n0", "r1", "n1")]))
 
 def check_mlp_edge_prediction(model, data):
     """ Check whether full graph inference and mini batch inference generate the same
@@ -793,14 +857,29 @@ def check_mlp_edge_prediction(model, data):
                         pred2[("n0", "r1", "n1")][0:len(pred2[("n0", "r1", "n1")])].numpy(), decimal=5)
     assert_equal(labels1[("n0", "r1", "n1")].numpy(), labels2[("n0", "r1", "n1")].numpy())
 
+    pred1_d, labels1_d = run_edge_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_label=True)
+    assert_almost_equal(pred1[("n0", "r1", "n1")][0:len(pred1[("n0", "r1", "n1")])].numpy(),
+                        pred1_d[("n0", "r1", "n1")][0:len(pred1_d[("n0", "r1", "n1")])].numpy())
+    assert_equal(labels1[("n0", "r1", "n1")].numpy(), labels1_d[("n0", "r1", "n1")].numpy())
+
     # Test the return_proba argument.
-    pred3, labels3 = edge_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
+    pred3, _ = edge_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
     assert pred3[("n0", "r1", "n1")].dim() == 2  # returns all predictions (2D tensor) when return_proba is true
     assert(th.is_floating_point(pred3[("n0", "r1", "n1")]))
-    pred4, labels4 = edge_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
+
+    pred3_d, _ = run_edge_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_proba=True, return_label=True)
+    assert(th.is_floating_point(pred3_d[("n0", "r1", "n1")]))
+    assert pred3_d[("n0", "r1", "n1")].dim() == 2  # returns all predictions (2D tensor) when return_proba is true
+
+    pred4, _ = edge_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
     assert(pred4[("n0", "r1", "n1")].dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
     assert(is_int(pred4[("n0", "r1", "n1")]))
     assert(th.equal(pred3[("n0", "r1", "n1")].argmax(dim=1), pred4[("n0", "r1", "n1")]))
+
+    pred4_d, _ = run_edge_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_proba=False, return_label=True)
+    assert(pred4[("n0", "r1", "n1")].dim() == 1)  # returns maximum prediction (1D tensor) when return_proba is False
+    assert(is_int(pred4_d[("n0", "r1", "n1")]))
+    assert(th.equal(pred3[("n0", "r1", "n1")].argmax(dim=1), pred4_d[("n0", "r1", "n1")]))
 
 @pytest.mark.parametrize("num_ffn_layers", [0, 2])
 def test_rgcn_edge_prediction(num_ffn_layers):
