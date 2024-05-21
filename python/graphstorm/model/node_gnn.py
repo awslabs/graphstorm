@@ -332,8 +332,9 @@ def run_node_mini_batch_predict(decoder, emb, loader, device,
 
     Parameters
     ----------
-    decoder : GSNodeDecoder
-        The GraphStorm node decoder
+    decoder : GSNodeDecoder or th.nn.ModuleDict
+        The GraphStorm node decoder.
+        It can be a GSNodeDecoder or a dict of GSNodeDecoders
     emb : dict of Tensor
         The GNN embeddings
     loader : GSgnnNodeDataLoader
