@@ -166,6 +166,50 @@ def test_read_node_gconstruct(converter: GConstructConfigConverter, node_dict: d
         }
     ]
 
+    node_dict["nodes"].append(
+        {
+            "node_type": "paper_custom",
+            "format": {"name": "parquet"},
+            "files": ["/tmp/acm_raw/nodes/paper_custom.parquet"],
+            "node_id_col": "node_id",
+            "labels": [
+                {
+                    "label_col": "label",
+                    "task_type": "classification",
+                    "custom_split_filenames": {
+                        "train": "customized_label/node_train_idx.parquet",
+                        "valid": "customized_label/node_val_idx.parquet",
+                        "test": "customized_label/node_test_idx.parquet",
+                        "column": ["ID"],
+                    },
+                    "label_stats_type": "frequency_cnt",
+                }
+            ],
+        }
+    )
+
+    # nodes with all elements
+    # [self.type, self.format, self.files, self.separator, self.column, self.features, self.labels]
+    node_config = converter.convert_nodes(node_dict["nodes"])[2]
+    assert len(converter.convert_nodes(node_dict["nodes"])) == 3
+    assert node_config.node_type == "paper_custom"
+    assert node_config.file_format == "parquet"
+    assert node_config.files == ["/tmp/acm_raw/nodes/paper_custom.parquet"]
+    assert node_config.separator is None
+    assert node_config.column == "node_id"
+    assert node_config.labels == [
+        {
+            "column": "label",
+            "type": "classification",
+            "custom_split_filenames": {
+                "train": "customized_label/node_train_idx.parquet",
+                "valid": "customized_label/node_val_idx.parquet",
+                "test": "customized_label/node_test_idx.parquet",
+                "column": ["ID"],
+            },
+        }
+    ]
+
 
 @pytest.mark.parametrize("col_name", ["author", ["author"]])
 def test_read_edge_gconstruct(converter: GConstructConfigConverter, col_name):
