@@ -313,10 +313,10 @@ def check_node_prediction(model, data, is_homo=False):
 
     # Test the return_proba argument.
     pred3, labels3 = node_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
-    pred3_d, labels3_d = node_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_proba=True, return_label=True)
+    pred3_d, labels3_d = run_node_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_proba=True, return_label=True)
 
     pred4, labels4 = node_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
-    pred4_d, labels4_d = node_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_proba=False, return_label=True)
+    pred4_d, labels4_d = run_node_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_proba=False, return_label=True)
     if isinstance(pred3, dict):
         assert len(pred3) == len(pred4) and len(labels3) == len(labels4)
         assert len(pred3) == len(pred3_d) and len(labels3) == len(labels3_d)
@@ -445,7 +445,7 @@ def check_mlp_node_prediction(model, data):
                                       batch_size=10, label_field='label',
                                       node_feats='feat', train_task=False)
     pred2, _, labels2 = node_mini_batch_gnn_predict(model, dataloader2, return_label=True)
-    pred1_d, labels1_d = node_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_label=True)
+    pred1_d, labels1_d = run_node_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_label=True)
     if isinstance(pred1, dict):
         assert len(pred1) == len(pred2) and len(labels1) == len(labels2)
         assert len(pred1) == len(pred1_d) and len(labels1) == len(labels1_d)
@@ -463,8 +463,8 @@ def check_mlp_node_prediction(model, data):
     # Test the return_proba argument.
     pred3, _ = node_mini_batch_predict(model, embs, dataloader1, return_proba=True, return_label=True)
     pred4, _ = node_mini_batch_predict(model, embs, dataloader1, return_proba=False, return_label=True)
-    pred3_d, _ = node_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_proba=True, return_label=True)
-    pred4_d, _ = node_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_proba=False, return_label=True)
+    pred3_d, _ = run_node_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_proba=True, return_label=True)
+    pred4_d, _ = run_node_mini_batch_predict(model.decoder, embs, dataloader1, model.device, return_proba=False, return_label=True)
     if isinstance(pred3, dict):
         assert len(pred3) == len(pred4)
         assert len(pred3) == len(pred3_d)
