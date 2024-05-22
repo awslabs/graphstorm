@@ -771,9 +771,13 @@ def process_graph(args):
     sys_tracker.check('Process the edge data')
     num_nodes = {ntype: len(raw_node_id_maps[ntype]) for ntype in raw_node_id_maps}
     if args.output_conf_file is not None:
-        # Save the new config file.
-        with open(args.output_conf_file, "w", encoding="utf8") as outfile:
-            json.dump(process_confs, outfile, indent=4)
+        outfile_path = args.output_conf_file
+    else:
+        outfile_path = os.path.join(args.output_dir, 'data_transform_new.json')
+
+    # Save the new config file.
+    with open(outfile_path, "w", encoding="utf8") as outfile:
+        json.dump(process_confs, outfile, indent=4)
 
     if args.add_reverse_edges:
         edges1 = {}
