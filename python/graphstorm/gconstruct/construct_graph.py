@@ -770,6 +770,9 @@ def process_graph(args):
                           skip_nonexist_edges=args.skip_nonexist_edges)
     sys_tracker.check('Process the edge data')
     num_nodes = {ntype: len(raw_node_id_maps[ntype]) for ntype in raw_node_id_maps}
+
+    os.makedirs(args.output_dir, exist_ok=True)
+
     if args.output_conf_file is not None:
         outfile_path = args.output_conf_file
     else:
@@ -819,7 +822,6 @@ def process_graph(args):
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
     print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats,
                      node_label_masks, edge_label_masks)
-    os.makedirs(args.output_dir, exist_ok=True)
     sys_tracker.check('Construct DGL graph')
 
     # reshape customized mask
