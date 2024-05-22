@@ -1,6 +1,8 @@
 #!/bin/bash
 set -eox pipefail
 
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
+
 # process argument 1: graphstorm home folder
 if [ -z "$1" ]; then
     echo "Please provide a path to the root directory of the GraphStorm repository."
@@ -33,11 +35,16 @@ fi
 
 # Copy scripts and tools codes to the docker folder
 mkdir -p $GSF_HOME"/docker/code"
+cp $SCRIPT_DIR"/local/fetch_and_run.sh" $GSF_HOME"/docker/code/"
 cp -r $GSF_HOME"/python" $GSF_HOME"/docker/code/python"
 cp -r $GSF_HOME"/examples" $GSF_HOME"/docker/code/examples"
 cp -r $GSF_HOME"/inference_scripts" $GSF_HOME"/docker/code/inference_scripts"
 cp -r $GSF_HOME"/tools" $GSF_HOME"/docker/code/tools"
 cp -r $GSF_HOME"/training_scripts" $GSF_HOME"/docker/code/training_scripts"
+# If using a local DGL installation we expect it to be one level above GSF
+# mkdir -p code/dgl
+# rsync -qr "${GSF_HOME}/../dgl/" code/dgl/ --exclude .venv --exclude dist --exclude ".*/" \
+#         --exclude "*__pycache__" --exclude "third_party"
 
 
 # Build OSS docker for EC2 instances that an pull ECR docker images
@@ -46,7 +53,7 @@ DOCKER_FULLNAME="${IMAGE_NAME}:${TAG}-${DEVICE_TYPE}"
 echo "Build a local docker image ${DOCKER_FULLNAME}"
 
 if [[ $DEVICE_TYPE = "gpu" ]]; then
-    SOURCE_IMAGE="nvidia/cuda:12.1.0-runtime-ubuntu20.04"
+    SOURCE_IMAGE="nvidia/cuda:12.1.1-runtime-ubuntu20.04"
 elif [[ $DEVICE_TYPE = "cpu" ]]; then
     aws ecr-public get-login-password --region us-east-1 | \
         docker login --username AWS --password-stdin public.ecr.aws
@@ -62,7 +69,7 @@ fi
 DOCKER_BUILDKIT=1 docker build \
     --build-arg DEVICE=$DEVICE_TYPE \
     --build-arg SOURCE=${SOURCE_IMAGE} \
-    -f "${GSF_HOME}/docker/Dockerfile.local" . -t $DOCKER_FULLNAME
+    -f "${GSF_HOME}/docker/local/Dockerfile.local" . -t $DOCKER_FULLNAME
 
 # remove the temporary code folder
 rm -rf $GSF_HOME"/docker/code"
