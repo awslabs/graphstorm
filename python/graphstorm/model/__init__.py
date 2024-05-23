@@ -35,6 +35,9 @@ from .lp_gnn import (GSgnnLinkPredictionModel,
                      GSgnnLinkPredictionModelBase,
                      GSgnnLinkPredictionModelInterface,
                      run_lp_mini_batch_predict)
+from .multitask_gnn import (GSgnnMultiTaskModelInterface,
+                            GSgnnMultiTaskSharedEncoderModel)
+from .multitask_gnn import multi_task_mini_batch_predict
 from .rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
 from .rgat_encoder import RelationalGATEncoder, RelationalAttLayer
 from .sage_encoder import SAGEEncoder, SAGEConv
