@@ -776,7 +776,15 @@ def process_graph(args):
     if args.output_conf_file is not None:
         outfile_path = args.output_conf_file
     else:
-        outfile_path = os.path.join(args.output_dir, 'data_transform_new.json')
+        new_file_name = 'data_transform_new.json'
+        outfile_path = os.path.join(args.output_dir,new_file_name )
+
+    # check if the output configuration file exists. Overwrite it with a warning.
+    if os.path.exists(outfile_path):
+        logging.warning(f'Overwrote the existing {outfile_path} file, which was generated in ' + \
+                        'the previous graph construction command. Use the --output-conf-file ' + \
+                        'argument to specify a different location if not want to overwrite the ' + \
+                        'existing configuration file.')
 
     # Save the new config file.
     with open(outfile_path, "w", encoding="utf8") as outfile:
