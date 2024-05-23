@@ -65,9 +65,7 @@ def create_spark_session(
         .config("spark.logConf", "true")
     )
 
-    if execution_env == ExecutionEnv.EMR_SERVERLESS:
-        pass
-    else:
+    if execution_env != ExecutionEnv.EMR_SERVERLESS:
         spark_builder = _configure_spark_env(
             spark_builder, processing_job_config, instance_type_info
         )
