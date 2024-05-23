@@ -17,6 +17,7 @@
 """
 import abc
 import logging
+import torch as th
 from torch import nn
 
 from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
@@ -95,13 +96,27 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         self._decoder = nn.ModuleDict()
 
     def add_task(self, task_id, task_type,
-                 decoder, loss_func, weight):
+                 decoder, loss_func):
         """ Add a task into the multi-task pool
+
+        Parameters
+        ----------
+        task_id: str
+            Task ID.
+        task_type: str
+            Task type.
+        decoder: GSNodeDecoder or
+                 GSEdgeDecoder or
+                 LinkPredictNoParamDecoder or
+                 LinkPredictLearnableDecoder
+            Task decoder.
+        loss_func: func
+            Loss function.
         """
         assert task_id not in self._task_pool, \
             f"Task {task_id} already exists"
         logging.info("Setup task %s", task_id)
-        self._task_pool[task_id] = (task_type, loss_func, weight)
+        self._task_pool[task_id] = (task_type, loss_func)
         self._decoder[task_id] = decoder
 
     @property
@@ -143,7 +158,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         # Call emb normalization.
         encode_embs = self.normalize_node_embs(encode_embs)
 
-        task_type, loss_func, _ = self.task_pool[task_id]
+        task_type, loss_func = self.task_pool[task_id]
         task_decoder = self.decoder[task_id]
 
         if task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
@@ -163,13 +178,13 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
 
             return pred_loss
         elif task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
-            target_edges, target_edge_feats, labels = decoder_data
+            batch_graph, target_edge_feats, labels = decoder_data
             assert len(labels) == 1, \
                 "In multi-task learning, only support do prediction " \
                 "on one edge type for a single edge task."
             pred_loss = 0
             target_etype = list(labels.keys())[0]
-            logits = task_decoder(target_edges, encode_embs, target_edge_feats)
+            logits = task_decoder(batch_graph, encode_embs, target_edge_feats)
             pred_loss = loss_func(logits, labels[target_etype])
 
             return pred_loss
@@ -207,7 +222,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         # Call emb normalization.
         encode_embs = self.normalize_node_embs(encode_embs)
 
-        task_type, _, _ = self.task_pool[task_id]
+        task_type, _ = self.task_pool[task_id]
         task_decoder = self.decoder[task_id]
 
         if task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
@@ -222,10 +237,10 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
                 predicts[target_ntype] = task_decoder.predict(encode_embs[target_ntype])
             return predicts
         elif task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
-            target_edges, target_edge_feats, _ = decoder_data
+            batch_graph, target_edge_feats, _ = decoder_data
             if return_proba:
-                return task_decoder.predict_proba(target_edges, encode_embs, target_edge_feats)
-            return task_decoder.predict(target_edges, encode_embs, target_edge_feats)
+                return task_decoder.predict_proba(batch_graph, encode_embs, target_edge_feats)
+            return task_decoder.predict(batch_graph, encode_embs, target_edge_feats)
         elif task_type == BUILTIN_TASK_LINK_PREDICTION:
             logging.warning("Prediction for link prediction is not implemented")
             return None
@@ -276,13 +291,13 @@ def multi_task_mini_batch_predict(
                                                     device,
                                                     return_proba,
                                                     return_label)
-                    assert len(labels) == 1, \
+                    assert labels is None or len(labels) == 1, \
                         "In multi-task learning, for each training task, " \
                         "we only support prediction on one node type." \
                         "For multiple node types, please treat them as " \
                         "different training tasks."
-                    ntype = list(labels.keys())[0]
-                    res[task_info.task_id] = (preds[ntype], labels[ntype])
+                    ntype = list(preds.keys())[0]
+                    res[task_info.task_id] = (preds[ntype], labels[ntype] if labels is not None else None)
             elif task_info.task_type in \
             [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
                 if dataloader is None:
@@ -298,13 +313,13 @@ def multi_task_mini_batch_predict(
                                                     device,
                                                     return_proba,
                                                     return_label)
-                    assert len(labels) == 1, \
+                    assert labels is None or len(labels) == 1, \
                         "In multi-task learning, for each training task, " \
                         "we only support prediction on one edge type." \
                         "For multiple edge types, please treat them as " \
                         "different training tasks."
-                    etype = list(labels.keys())[0]
-                    res[task_info.task_id] = (preds[etype], labels[etype])
+                    etype = list(preds.keys())[0]
+                    res[task_info.task_id] = (preds[etype], labels[etype] if labels is not None else None)
             elif task_info.task_type == BUILTIN_TASK_LINK_PREDICTION:
                 if dataloader is None:
                     # In cases when there is no validation or test set.

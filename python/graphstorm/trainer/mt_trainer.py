@@ -121,8 +121,8 @@ def run_link_predict_mini_batch(model, data, task_info, mini_batch, device):
 
     # TODO: we don't support edge features for now.
     loss = model(task_info.task_id,
-                    ((blocks, input_feats, None, input_nodes),
-                    (pos_graph, neg_graph,pos_graph_feats, None)))
+                 ((blocks, input_feats, None, input_nodes),
+                  (pos_graph, neg_graph,pos_graph_feats, None)))
     return loss, task_info.task_config.task_weight
 
 

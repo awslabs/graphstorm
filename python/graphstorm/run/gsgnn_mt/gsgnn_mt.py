@@ -320,7 +320,7 @@ def main(config_args):
         val_dataloaders.append(val_loader)
         test_dataloaders.append(test_loader)
         decoder, loss_func = create_task_decoder(task, train_data.g, encoder_out_dims, train_task=True)
-        model.add_task(task.task_id, task.task_type, decoder, loss_func, task_config.task_weight)
+        model.add_task(task.task_id, task.task_type, decoder, loss_func)
         if not config.no_validation:
             if val_loader is None:
                 logging.warning("The training data do not have validation set.")

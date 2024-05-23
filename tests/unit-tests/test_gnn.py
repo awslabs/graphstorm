@@ -32,8 +32,13 @@ from numpy.testing import assert_almost_equal, assert_equal
 
 import dgl
 
-from graphstorm.config import GSConfig
+from graphstorm.config import GSConfig, TaskInfo
 from graphstorm.config import BUILTIN_LP_DOT_DECODER
+from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
+                                BUILTIN_TASK_NODE_REGRESSION,
+                                BUILTIN_TASK_EDGE_CLASSIFICATION,
+                                BUILTIN_TASK_EDGE_REGRESSION,
+                                BUILTIN_TASK_LINK_PREDICTION)
 from graphstorm.model import GSNodeEncoderInputLayer, RelationalGCNEncoder
 from graphstorm.model import GSgnnNodeModel, GSgnnEdgeModel
 from graphstorm.model import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
@@ -53,7 +58,7 @@ from graphstorm.model.edge_decoder import (DenseBiDecoder,
                                            LinkPredictWeightedDistMultDecoder)
 from graphstorm.model.node_decoder import EntityRegression, EntityClassifier
 from graphstorm.dataloading import GSgnnData
-from graphstorm.dataloading import GSgnnNodeDataLoader, GSgnnEdgeDataLoader
+from graphstorm.dataloading import GSgnnNodeDataLoader, GSgnnEdgeDataLoader, GSgnnMultiTaskDataLoader
 from graphstorm.dataloading.dataset import prepare_batch_input
 from graphstorm import create_builtin_edge_gnn_model, create_builtin_node_gnn_model
 from graphstorm import create_builtin_lp_gnn_model
@@ -67,8 +72,13 @@ from graphstorm.model.node_gnn import GSgnnNodeModelInterface
 from graphstorm.model.edge_gnn import (edge_mini_batch_predict,
                                        run_edge_mini_batch_predict,
                                        edge_mini_batch_gnn_predict)
+from graphstorm.model.multitask_gnn import multi_task_mini_batch_predict
 from graphstorm.model.gnn_with_reconstruct import construct_node_feat, get_input_embeds_combined
 from graphstorm.model.utils import load_model, save_model
+from graphstorm.model import GSgnnMultiTaskSharedEncoderModel
+from graphstorm.dataloading import (GSgnnEdgeDataLoaderBase,
+                                         GSgnnLinkPredictionDataLoaderBase,
+                                         GSgnnNodeDataLoaderBase)
 
 from data_utils import generate_dummy_dist_graph, generate_dummy_dist_graph_multi_target_ntypes
 from data_utils import generate_dummy_dist_graph_reconstruct
@@ -1714,7 +1724,567 @@ def test_node_mini_batch_gnn_predict():
 
     th.distributed.destroy_process_group()
 
+class DummyNCDecoder(nn.Module):
+
+    def forward(self, inputs):
+        return inputs
+
+    def predict(self, inputs):
+        return inputs
+
+    def predict_proba(self, inputs):
+        return inputs * 2
+
+class DummyNRDecoder(nn.Module):
+
+    def forward(self, inputs):
+        return inputs
+
+    def predict(self, inputs):
+        return inputs
+
+    def predict_proba(self, inputs):
+        return inputs * 2
+
+class DummyECDecoder(nn.Module):
+
+    def forward(self, g, h, e_h):
+        return h["n0"]
+
+    def predict(self, g, h, e_h):
+        return h["n0"]
+
+    def predict_proba(self, g, h, e_h):
+        return h["n0"] * 2
+
+class DummyERDecoder(nn.Module):
+
+    def forward(self, g, h, e_h):
+        return h["n0"] * 2
+
+    def predict(self, g, h, e_h):
+        return h["n0"]
+
+    def predict_proba(self, g, h, e_h):
+        return h["n0"] * 2
+
+class DummyLPDecoder(nn.Module):
+
+    def forward(self, g, h, e_h=None):
+        return h
+
+
+def test_multi_task_forward():
+    mt_model = GSgnnMultiTaskSharedEncoderModel(0.1)
+
+    def pred_los_func(logits, labels):
+        return logits - labels
+    def pred_lp_loss_func(pos_score, neg_score):
+        return pos_score["n0"] + neg_score["n0"]
+    mt_model.add_task("nc_task",
+                      BUILTIN_TASK_NODE_CLASSIFICATION,
+                      DummyNCDecoder(),
+                      pred_los_func)
+
+    mt_model.add_task("nr_task",
+                      BUILTIN_TASK_NODE_REGRESSION,
+                      DummyNRDecoder(),
+                      pred_los_func)
+
+    mt_model.add_task("ec_task",
+                      BUILTIN_TASK_EDGE_CLASSIFICATION,
+                      DummyECDecoder(),
+                      pred_los_func)
+
+    mt_model.add_task("er_task",
+                      BUILTIN_TASK_EDGE_REGRESSION,
+                      DummyERDecoder(),
+                      pred_los_func)
+
+    mt_model.add_task("lp_task",
+                      BUILTIN_TASK_LINK_PREDICTION,
+                      DummyLPDecoder(),
+                      pred_lp_loss_func)
+
+    @patch.object(GSgnnMultiTaskSharedEncoderModel, 'comput_input_embed')
+    @patch.object(GSgnnMultiTaskSharedEncoderModel, 'compute_embed_step')
+    @patch.object(GSgnnMultiTaskSharedEncoderModel, 'normalize_node_embs')
+    def check_forward(mock_normalize_node_embs,
+                      mock_compute_emb,
+                      mock_input_embed):
+
+        def normalize_size_effect_func(embs):
+            return embs
+
+        def compute_side_effect_func(blocks, node_feats, input_nodes):
+            return input_nodes
+
+        def input_embed_side_effect_func(input_nodes, node_feats):
+            return input_nodes
+
+        mock_normalize_node_embs.side_effect = normalize_size_effect_func
+        mock_compute_emb.side_effect = compute_side_effect_func
+        mock_input_embed.side_effect = input_embed_side_effect_func
+
+        ### blocks is None (no GNN setting)
+        # NC task
+        task_id = "nc_task"
+        blocks = None
+        input_nodes = {"n0": th.randint(5, (10,))}
+        labels = {"n0": th.randint(5, (10,))}
+        mini_batch = ((blocks, None, None, input_nodes), labels)
+        loss = mt_model(task_id, mini_batch)
+        assert_equal(loss.numpy(), (input_nodes["n0"]-labels["n0"]).numpy())
+
+        # NR task
+        task_id = "nr_task"
+        blocks = None
+        input_nodes = {"n0": th.rand((10,))}
+        labels = {"n0": th.rand((10,))}
+        mini_batch = ((blocks, None, None, input_nodes), labels)
+        loss = mt_model(task_id, mini_batch)
+        assert_equal(loss.numpy(), (input_nodes["n0"]-labels["n0"]).numpy())
+
+        # EC task
+        task_id = "ec_task"
+        blocks = None
+        input_nodes = {"n0": th.randint(5, (10,))}
+        labels = {("n0", "r1", "n1"): th.randint(5, (10,))}
+        mini_batch = ((blocks, None, None, input_nodes), (None, None, labels))
+        loss = mt_model(task_id, mini_batch)
+        assert_equal(loss.numpy(), (input_nodes["n0"]-labels[("n0", "r1", "n1")]).numpy())
+
+        # ER task
+        task_id = "er_task"
+        blocks = None
+        input_nodes = {"n0": th.rand((10,))}
+        labels = {("n0", "r1", "n1"): th.rand((10,))}
+        mini_batch = ((blocks, None, None, input_nodes), (None, None, labels))
+        loss = mt_model(task_id, mini_batch)
+        assert_equal(loss.numpy(), (input_nodes["n0"]*2-labels[("n0", "r1", "n1")]).numpy())
+
+        # LP task
+        task_id = "lp_task"
+        blocks = None
+        input_nodes = {"n0": th.rand((10,))}
+        mini_batch = mini_batch = ((blocks, None, None, input_nodes), (None, None, None, None))
+        loss = mt_model(task_id, mini_batch)
+        assert_equal(loss.numpy(), (input_nodes["n0"]*2).numpy())
+
+        ### blocks is a list (GNN setting)
+        # NC task
+        task_id = "nc_task"
+        blocks = [None, None] # trick mt_model there are two gnn layers.
+        input_nodes = {"n0": th.randint(5, (10,))}
+        labels = {"n0": th.randint(5, (10,))}
+        mini_batch = ((blocks, None, None, input_nodes), labels)
+        loss = mt_model(task_id, mini_batch)
+        assert_equal(loss.numpy(), (input_nodes["n0"]-labels["n0"]).numpy())
+
+        # NR task
+        task_id = "nr_task"
+        blocks = [None, None] # trick mt_model there are two gnn layers.
+        input_nodes = {"n0": th.rand((10,))}
+        labels = {"n0": th.rand((10,))}
+        mini_batch = ((blocks, None, None, input_nodes), labels)
+        loss = mt_model(task_id, mini_batch)
+        assert_equal(loss.numpy(), (input_nodes["n0"]-labels["n0"]).numpy())
+
+        # EC task
+        task_id = "ec_task"
+        blocks = [None, None] # trick mt_model there are two gnn layers.
+        input_nodes = {"n0": th.randint(5, (10,))}
+        labels = {("n0", "r1", "n1"): th.randint(5, (10,))}
+        mini_batch = ((blocks, None, None, input_nodes), (None, None, labels))
+        loss = mt_model(task_id, mini_batch)
+        assert_equal(loss.numpy(), (input_nodes["n0"]-labels[("n0", "r1", "n1")]).numpy())
+
+        # ER task
+        task_id = "er_task"
+        blocks = [None, None] # trick mt_model there are two gnn layers.
+        input_nodes = {"n0": th.rand((10,))}
+        labels = {("n0", "r1", "n1"): th.rand((10,))}
+        mini_batch = ((blocks, None, None, input_nodes), (None, None, labels))
+        loss = mt_model(task_id, mini_batch)
+        assert_equal(loss.numpy(), (input_nodes["n0"]*2-labels[("n0", "r1", "n1")]).numpy())
+
+        # LP task
+        task_id = "lp_task"
+        blocks = [None, None] # trick mt_model there are two gnn layers.
+        input_nodes = {"n0": th.rand((10,))}
+        mini_batch = mini_batch = ((blocks, None, None, input_nodes), (None, None, None, None))
+        loss = mt_model(task_id, mini_batch)
+        assert_equal(loss.numpy(), (input_nodes["n0"]*2).numpy())
+
+
+    check_forward()
+
+def test_multi_task_predict():
+    mt_model = GSgnnMultiTaskSharedEncoderModel(0.1)
+
+    def pred_los_func(logits, labels):
+        return logits - labels
+    def pred_lp_loss_func(pos_score, neg_score):
+        return pos_score["n0"] + neg_score["n0"]
+    mt_model.add_task("nc_task",
+                      BUILTIN_TASK_NODE_CLASSIFICATION,
+                      DummyNCDecoder(),
+                      pred_los_func)
+
+    mt_model.add_task("nr_task",
+                      BUILTIN_TASK_NODE_REGRESSION,
+                      DummyNRDecoder(),
+                      pred_los_func)
+
+    mt_model.add_task("ec_task",
+                      BUILTIN_TASK_EDGE_CLASSIFICATION,
+                      DummyECDecoder(),
+                      pred_los_func)
+
+    mt_model.add_task("er_task",
+                      BUILTIN_TASK_EDGE_REGRESSION,
+                      DummyERDecoder(),
+                      pred_los_func)
+
+    mt_model.add_task("lp_task",
+                      BUILTIN_TASK_LINK_PREDICTION,
+                      DummyLPDecoder(),
+                      pred_lp_loss_func)
+
+    @patch.object(GSgnnMultiTaskSharedEncoderModel, 'comput_input_embed')
+    @patch.object(GSgnnMultiTaskSharedEncoderModel, 'compute_embed_step')
+    @patch.object(GSgnnMultiTaskSharedEncoderModel, 'normalize_node_embs')
+    def check_forward(mock_normalize_node_embs,
+                      mock_compute_emb,
+                      mock_input_embed):
+
+        def normalize_size_effect_func(embs):
+            return embs
+
+        def compute_side_effect_func(blocks, node_feats, input_nodes):
+            return input_nodes
+
+        def input_embed_side_effect_func(input_nodes, node_feats):
+            return input_nodes
+
+        mock_normalize_node_embs.side_effect = normalize_size_effect_func
+        mock_compute_emb.side_effect = compute_side_effect_func
+        mock_input_embed.side_effect = input_embed_side_effect_func
+
+        ### blocks is None (no GNN setting)
+        # NC task
+        task_id = "nc_task"
+        blocks = None
+        input_nodes = {"n0": th.randint(5, (10,))}
+        labels = {"n0": th.randint(5, (10,))}
+        mini_batch = ((blocks, None, None, input_nodes), labels)
+        pred = mt_model.predict(task_id, mini_batch)
+        assert_equal(pred["n0"].numpy(), (input_nodes["n0"]).numpy())
+
+        # NR task
+        task_id = "nr_task"
+        blocks = None
+        input_nodes = {"n0": th.rand((10,))}
+        labels = {"n0": th.rand((10,))}
+        mini_batch = ((blocks, None, None, input_nodes), labels)
+        pred = mt_model.predict(task_id, mini_batch)
+        assert_equal(pred["n0"].numpy(), (input_nodes["n0"]).numpy())
+
+        # EC task
+        task_id = "ec_task"
+        blocks = None
+        input_nodes = {"n0": th.randint(5, (10,))}
+        labels = {("n0", "r1", "n1"): th.randint(5, (10,))}
+        mini_batch = ((blocks, None, None, input_nodes), (None, None, labels))
+        pred = mt_model.predict(task_id, mini_batch)
+        assert_equal(pred.numpy(), (input_nodes["n0"]).numpy())
+
+        # ER task
+        task_id = "er_task"
+        blocks = None
+        input_nodes = {"n0": th.rand((10,))}
+        labels = {("n0", "r1", "n1"): th.rand((10,))}
+        mini_batch = ((blocks, None, None, input_nodes), (None, None, labels))
+        pred = mt_model.predict(task_id, mini_batch)
+        assert_equal(pred.numpy(), (input_nodes["n0"]).numpy())
+
+        # LP task
+        task_id = "lp_task"
+        blocks = None
+        input_nodes = {"n0": th.rand((10,))}
+        mini_batch = mini_batch = ((blocks, None, None, input_nodes), (None, None, None, None))
+        pred = mt_model.predict(task_id, mini_batch)
+        assert pred is None
+
+        ### blocks is a list (GNN setting) and call return_proba=True
+        # NC task
+        task_id = "nc_task"
+        blocks = [None, None] # trick mt_model there are two gnn layers.
+        input_nodes = {"n0": th.randint(5, (10,))}
+        labels = {"n0": th.randint(5, (10,))}
+        mini_batch = ((blocks, None, None, input_nodes), labels)
+        pred = mt_model.predict(task_id, mini_batch, return_proba=True)
+        assert_equal(pred["n0"].numpy(), (input_nodes["n0"]*2).numpy())
+
+        # NR task
+        task_id = "nr_task"
+        blocks = [None, None] # trick mt_model there are two gnn layers.
+        input_nodes = {"n0": th.rand((10,))}
+        labels = {"n0": th.rand((10,))}
+        mini_batch = ((blocks, None, None, input_nodes), labels)
+        pred = mt_model.predict(task_id, mini_batch, return_proba=True)
+        assert_equal(pred["n0"].numpy(), (input_nodes["n0"]*2).numpy())
+
+        # EC task
+        task_id = "ec_task"
+        blocks = [None, None] # trick mt_model there are two gnn layers.
+        input_nodes = {"n0": th.randint(5, (10,))}
+        labels = {("n0", "r1", "n1"): th.randint(5, (10,))}
+        mini_batch = ((blocks, None, None, input_nodes), (None, None, labels))
+        pred = mt_model.predict(task_id, mini_batch, return_proba=True)
+        assert_equal(pred.numpy(), (input_nodes["n0"]*2).numpy())
+
+        # ER task
+        task_id = "er_task"
+        blocks = [None, None] # trick mt_model there are two gnn layers.
+        input_nodes = {"n0": th.rand((10,))}
+        labels = {("n0", "r1", "n1"): th.rand((10,))}
+        mini_batch = ((blocks, None, None, input_nodes), (None, None, labels))
+        pred = mt_model.predict(task_id, mini_batch, return_proba=True)
+        assert_equal(pred.numpy(), (input_nodes["n0"]*2).numpy())
+
+        # LP task
+        task_id = "lp_task"
+        blocks = [None, None] # trick mt_model there are two gnn layers.
+        input_nodes = {"n0": th.rand((10,))}
+        mini_batch = mini_batch = ((blocks, None, None, input_nodes), (None, None, None, None))
+        pred = mt_model.predict(task_id, mini_batch, return_proba=True)
+        assert pred is None
+
+    check_forward()
+
+class DummyGSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
+    def __init__(self):
+        pass # do nothing
+
+    def __len__(self):
+        return 10
+
+    def __iter__(self):
+        return self
+
+class DummyGSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
+    def __init__(self):
+        pass # do nothing
+
+    def __len__(self):
+        return 10
+
+    def __iter__(self):
+        return self
+
+class DummyGSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
+    def __init__(self):
+        pass # do nothing
+
+    def __len__(self):
+        return 10
+
+    def __iter__(self):
+        return self
+
+def test_multi_task_mini_batch_predict():
+    mt_model = GSgnnMultiTaskSharedEncoderModel(0.1)
+
+    def pred_los_func(logits, labels):
+        return logits - labels
+    def pred_lp_loss_func(pos_score, neg_score):
+        return pos_score["n0"] + neg_score["n0"]
+    mt_model.add_task("nc_task",
+                      BUILTIN_TASK_NODE_CLASSIFICATION,
+                      DummyNCDecoder(),
+                      pred_los_func)
+
+    mt_model.add_task("nr_task",
+                      BUILTIN_TASK_NODE_REGRESSION,
+                      DummyNRDecoder(),
+                      pred_los_func)
+
+    mt_model.add_task("ec_task",
+                      BUILTIN_TASK_EDGE_CLASSIFICATION,
+                      DummyECDecoder(),
+                      pred_los_func)
+
+    mt_model.add_task("er_task",
+                      BUILTIN_TASK_EDGE_REGRESSION,
+                      DummyERDecoder(),
+                      pred_los_func)
+
+    mt_model.add_task("lp_task",
+                      BUILTIN_TASK_LINK_PREDICTION,
+                      DummyLPDecoder(),
+                      pred_lp_loss_func)
+
+    tast_info_nc = TaskInfo(task_type=BUILTIN_TASK_NODE_CLASSIFICATION,
+                            task_id='nc_task',
+                            task_config=None)
+    nc_dataloader = DummyGSgnnNodeDataLoader()
+    tast_info_nr = TaskInfo(task_type=BUILTIN_TASK_NODE_REGRESSION,
+                            task_id='nr_task',
+                            task_config=None)
+    nr_dataloader = DummyGSgnnNodeDataLoader()
+    tast_info_ec = TaskInfo(task_type=BUILTIN_TASK_EDGE_CLASSIFICATION,
+                            task_id='ec_task',
+                            task_config=None)
+    ec_dataloader = DummyGSgnnEdgeDataLoader()
+    tast_info_er = TaskInfo(task_type=BUILTIN_TASK_EDGE_REGRESSION,
+                            task_id='er_task',
+                            task_config=None)
+    er_dataloader = DummyGSgnnEdgeDataLoader()
+    tast_info_lp = TaskInfo(task_type=BUILTIN_TASK_LINK_PREDICTION,
+                            task_id='lp_task',
+                            task_config=None)
+    lp_dataloader = DummyGSgnnLinkPredictionDataLoader()
+    task_infos = [tast_info_nc, tast_info_nr, tast_info_ec, tast_info_er, tast_info_lp]
+    dataloaders = [nc_dataloader, nr_dataloader, ec_dataloader, er_dataloader, lp_dataloader]
+
+    node_pred = {"n0": th.arange(10)}
+    node_prob = {"n0": th.arange(10)/10}
+    node_label = {"n0": th.arange(10)}
+    edge_pred = {("n0", "r0", "n1"): th.arange(5)}
+    edge_prob = {("n0", "r0", "n1"): th.arange(5)/10}
+    edge_label = {("n0", "r0", "n1"): th.arange(5)}
+    lp_pred = {("n0", "r0", "n1"): th.arange(5)/10,
+                ("n0", "r0", "n2"): th.arange(5)/20}
+
+    def run_node_mini_batch_predict_side_func(decoder, emb, loader, device, return_prob, return_label):
+        pred = node_pred
+        label = None
+        if return_prob:
+            pred = node_prob
+        if return_label:
+            label = node_label
+
+        return pred, label
+
+    def run_edge_mini_batch_predict_side_func(decoder, emb, loader, device, return_prob, return_label):
+        pred = edge_pred
+        label = None
+        if return_prob:
+            pred = edge_prob
+        if return_label:
+            label = edge_label
+
+        return pred, label
+
+    def run_lpmini_batch_predict_side_func(decoder, emb, loader, device):
+        return lp_pred
+
+    @patch("graphstorm.model.multitask_gnn.run_node_mini_batch_predict", side_effect = run_node_mini_batch_predict_side_func)
+    @patch("graphstorm.model.multitask_gnn.run_edge_mini_batch_predict", side_effect = run_edge_mini_batch_predict_side_func)
+    @patch("graphstorm.model.multitask_gnn.run_lp_mini_batch_predict", side_effect = run_lpmini_batch_predict_side_func)
+    def check_forward(mock_run_lp_mini_batch_predict,
+                      mock_run_edge_mini_batch_predict,
+                      mock_run_node_mini_batch_predict):
+
+        mt_dataloader = GSgnnMultiTaskDataLoader(None, task_infos, dataloaders)
+        res = multi_task_mini_batch_predict(mt_model,
+                                            None,
+                                            mt_dataloader,
+                                            device=th.device('cpu'),
+                                            return_proba=False,
+                                            return_label=False)
+        assert len(res["nc_task"]) == 2
+        assert_equal(res["nc_task"][0].numpy(), node_pred["n0"].numpy())
+        assert res["nc_task"][1] is None
+        assert len(res["nr_task"]) == 2
+        assert_equal(res["nr_task"][0].numpy(), node_pred["n0"].numpy())
+        assert res["nr_task"][1] is None
+        assert len(res["ec_task"]) == 2
+        assert_equal(res["ec_task"][0].numpy(), edge_pred[("n0", "r0", "n1")].numpy())
+        assert res["ec_task"][1] is None
+        assert len(res["er_task"]) == 2
+        assert_equal(res["er_task"][0].numpy(), edge_pred[("n0", "r0", "n1")].numpy())
+        assert res["er_task"][1] is None
+        assert_equal(res["lp_task"][("n0", "r0", "n1")].numpy(), lp_pred[("n0", "r0", "n1")].numpy())
+        assert_equal(res["lp_task"][("n0", "r0", "n2")].numpy(), lp_pred[("n0", "r0", "n2")].numpy())
+
+        res = multi_task_mini_batch_predict(mt_model,
+                                            None,
+                                            mt_dataloader,
+                                            device=th.device('cpu'),
+                                            return_proba=True,
+                                            return_label=False)
+        assert len(res["nc_task"]) == 2
+        assert_equal(res["nc_task"][0].numpy(), node_prob["n0"].numpy())
+        assert res["nc_task"][1] is None
+        assert len(res["nr_task"]) == 2
+        assert_equal(res["nr_task"][0].numpy(), node_prob["n0"].numpy())
+        assert res["nr_task"][1] is None
+        assert len(res["ec_task"]) == 2
+        assert_equal(res["ec_task"][0].numpy(), edge_prob[("n0", "r0", "n1")].numpy())
+        assert res["ec_task"][1] is None
+        assert len(res["er_task"]) == 2
+        assert_equal(res["er_task"][0].numpy(), edge_prob[("n0", "r0", "n1")].numpy())
+        assert res["er_task"][1] is None
+        assert_equal(res["lp_task"][("n0", "r0", "n1")].numpy(), lp_pred[("n0", "r0", "n1")].numpy())
+        assert_equal(res["lp_task"][("n0", "r0", "n2")].numpy(), lp_pred[("n0", "r0", "n2")].numpy())
+
+        res = multi_task_mini_batch_predict(mt_model,
+                                            None,
+                                            mt_dataloader,
+                                            device=th.device('cpu'),
+                                            return_proba=False,
+                                            return_label=True)
+        assert len(res["nc_task"]) == 2
+        assert_equal(res["nc_task"][0].numpy(), node_pred["n0"].numpy())
+        assert_equal(res["nc_task"][1].numpy(), node_label["n0"].numpy())
+        assert len(res["nr_task"]) == 2
+        assert_equal(res["nr_task"][0].numpy(), node_pred["n0"].numpy())
+        assert_equal(res["nr_task"][1].numpy(), node_label["n0"].numpy())
+        assert len(res["ec_task"]) == 2
+        assert_equal(res["ec_task"][0].numpy(), edge_pred[("n0", "r0", "n1")].numpy())
+        assert_equal(res["ec_task"][0].numpy(), edge_label[("n0", "r0", "n1")].numpy())
+        assert len(res["er_task"]) == 2
+        assert_equal(res["er_task"][0].numpy(), edge_pred[("n0", "r0", "n1")].numpy())
+        assert_equal(res["ec_task"][0].numpy(), edge_label[("n0", "r0", "n1")].numpy())
+        assert_equal(res["lp_task"][("n0", "r0", "n1")].numpy(), lp_pred[("n0", "r0", "n1")].numpy())
+        assert_equal(res["lp_task"][("n0", "r0", "n2")].numpy(), lp_pred[("n0", "r0", "n2")].numpy())
+
+
+        new_dataloaders = [nc_dataloader, None, ec_dataloader, None, None]
+        mt_dataloader = GSgnnMultiTaskDataLoader(None, task_infos, new_dataloaders)
+
+        res = multi_task_mini_batch_predict(mt_model,
+                                            None,
+                                            mt_dataloader,
+                                            device=th.device('cpu'),
+                                            return_proba=False,
+                                            return_label=False)
+        assert len(res["nc_task"]) == 2
+        assert_equal(res["nc_task"][0].numpy(), node_pred["n0"].numpy())
+        assert res["nc_task"][1] is None
+        assert len(res["nr_task"]) == 2
+        assert res["nr_task"][0] is None
+        assert res["nr_task"][1] is None
+        assert len(res["ec_task"]) == 2
+        assert_equal(res["ec_task"][0].numpy(), edge_pred[("n0", "r0", "n1")].numpy())
+        assert res["ec_task"][1] is None
+        assert len(res["er_task"]) == 2
+        assert res["er_task"][0] is None
+        assert res["er_task"][1] is None
+        assert res["lp_task"] is None
+
+
+
+    check_forward()
+
+
 if __name__ == '__main__':
+    test_multi_task_forward()
+    test_multi_task_predict()
+    test_multi_task_mini_batch_predict()
+
     test_lm_rgcn_node_prediction_with_reconstruct()
     test_rgcn_node_prediction_with_reconstruct(True)
     test_rgcn_node_prediction_with_reconstruct(False)
