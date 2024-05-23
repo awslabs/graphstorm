@@ -1814,7 +1814,8 @@ class GSgnnMultiTaskDataLoader:
         -------
         list or a dict of list : the fanouts for each GNN layer.
         """
-        fanouts = [dataloader.fanout if dataloader is not None else None for dataloader in self.dataloaders]
+        fanouts = [dataloader.fanout if dataloader is not None \
+                   else None for dataloader in self.dataloaders]
         return fanouts
 
 
