@@ -781,10 +781,10 @@ def process_graph(args):
 
     # check if the output configuration file exists. Overwrite it with a warning.
     if os.path.exists(outfile_path):
-        logging.warning(f'Overwrote the existing {outfile_path} file, which was generated in ' + \
+        logging.warning('Overwrote the existing %s file, which was generated in ' + \
                         'the previous graph construction command. Use the --output-conf-file ' + \
                         'argument to specify a different location if not want to overwrite the ' + \
-                        'existing configuration file.')
+                        'existing configuration file.', outfile_path)
 
     # Save the new config file.
     with open(outfile_path, "w", encoding="utf8") as outfile:
