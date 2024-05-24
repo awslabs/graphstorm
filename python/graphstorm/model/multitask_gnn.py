@@ -39,7 +39,7 @@ class GSgnnMultiTaskModelInterface:
     This interface defines two main methods for training and inference.
     """
     @abc.abstractmethod
-    def forward(self, task_id, mini_batch):
+    def forward(self, task_mini_batches):
         """ The forward function for multi-task learning
 
         This method is used for training, It runs model forword
@@ -48,11 +48,8 @@ class GSgnnMultiTaskModelInterface:
 
         Parameters
         ----------
-        task_id: str
-            ID of the task.
-        mini_batch: tuple
-            Mini-batch info.
-
+        task_mini_batches: list
+            Mini-batches.
 
         Return
         ------
@@ -166,7 +163,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
                                  (blocks, node_feats, edge_feats, input_nodes),
                                  (pos_graph, neg_graph, pos_edge_feats, neg_edge_feats))
         else:
-            raise TypeError("Unknown task %s", task_info)
+            raise TypeError(f"Unknown task {task_info}")
 
         return loss, task_info.task_config.task_weight
 
