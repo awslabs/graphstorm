@@ -51,7 +51,7 @@ class GSgnnMultiTaskModelInterface:
         task_id: str
             ID of the task.
         mini_batch: tuple
-            Mini-batch info
+            Mini-batch info.
 
 
         Return
@@ -60,7 +60,7 @@ class GSgnnMultiTaskModelInterface:
         """
 
     @abc.abstractmethod
-    def predict(self, task_info, mini_batch):
+    def predict(self, task_id, mini_batch):
         """ The forward function for multi-task prediction.
 
         This method is used for inference, It runs model forword
@@ -69,10 +69,10 @@ class GSgnnMultiTaskModelInterface:
 
         Parameters
         ----------
-        task_info: TaskInfo
-            task meta information
+        task_id: str
+            Task ID.
         mini_batch: tuple
-            mini-batch info
+            Mini-batch info.
 
         Returns
         -------
@@ -199,8 +199,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
             pred_loss = loss_func(pos_score, neg_score)
             return pred_loss
         else:
-            raise TypeError("Unknow task type %s", task_type)
-
+            raise TypeError(f"Unknow task type {task_type}")
 
     def predict(self, task_id, mini_batch, return_proba=False):
         """ The forward function for multi-task inference
@@ -245,7 +244,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
             logging.warning("Prediction for link prediction is not implemented")
             return None
         else:
-            raise TypeError("Unknow task type %s", task_type)
+            raise TypeError(f"Unknow task type {task_type}")
 
 def multi_task_mini_batch_predict(
     model, emb, loader, device, return_proba=True, return_label=False):
@@ -297,7 +296,8 @@ def multi_task_mini_batch_predict(
                         "For multiple node types, please treat them as " \
                         "different training tasks."
                     ntype = list(preds.keys())[0]
-                    res[task_info.task_id] = (preds[ntype], labels[ntype] if labels is not None else None)
+                    res[task_info.task_id] = (preds[ntype], labels[ntype] \
+                        if labels is not None else None)
             elif task_info.task_type in \
             [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
                 if dataloader is None:
@@ -319,7 +319,8 @@ def multi_task_mini_batch_predict(
                         "For multiple edge types, please treat them as " \
                         "different training tasks."
                     etype = list(preds.keys())[0]
-                    res[task_info.task_id] = (preds[etype], labels[etype] if labels is not None else None)
+                    res[task_info.task_id] = (preds[etype], labels[etype] \
+                        if labels is not None else None)
             elif task_info.task_type == BUILTIN_TASK_LINK_PREDICTION:
                 if dataloader is None:
                     # In cases when there is no validation or test set.
@@ -329,7 +330,6 @@ def multi_task_mini_batch_predict(
                     ranking = run_lp_mini_batch_predict(decoder, emb, dataloader, device)
                     res[task_info.task_id] = ranking
             else:
-                raise TypeError("Unknown task %s", task_info)
+                raise TypeError(f"Unknown task {task_info}")
 
     return res
-
