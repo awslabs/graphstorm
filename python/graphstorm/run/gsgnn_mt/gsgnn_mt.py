@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    GSgnn multi-task learning
+    GSgnn multi-task learning training entry point.
 """
 import os
 import logging
@@ -44,9 +44,23 @@ from graphstorm.model import do_full_graph_inference
 from graphstorm.utils import rt_profiler, sys_tracker, get_device, use_wholegraph
 from graphstorm.utils import get_lm_ntypes
 
-def create_task_train_dataloader(task, config, task_config, train_data):
+def create_task_train_dataloader(task, config, train_data):
+    """ Create task specific dataloader for training tasks
+
+    Parameters
+    ----------
+    task: TaskInfo
+        Task info.
+    config: GSConfig
+        Training config.
+    train_data: GSgnnData
+        Training data.
+
+    Return
+    ------
+    Task dataloader
     """
-    """
+    task_config = task.task_config
     # All tasks share the same GNN model, so the fanout should be the global fanout
     fanout = config.fanout
     # All tasks share the same input encoder, so the node feats must be same.
@@ -94,9 +108,23 @@ def create_task_train_dataloader(task, config, task_config, train_data):
 
     return None
 
-def create_task_val_dataloader(task, config, task_config, train_data):
+def create_task_val_dataloader(task, config, train_data):
+    """ Create task specific validation dataloader.
+
+    Parameters
+    ----------
+    task: TaskInfo
+        Task info.
+    config: GSConfig
+        Training config.
+    train_data: GSgnnData
+        Training data.
+
+    Return
+    ------
+    Task dataloader
     """
-    """
+    task_config = task.task_config
     if task_config.val_mask is None:
         # There is no validation mask
         return None
@@ -158,9 +186,23 @@ def create_task_val_dataloader(task, config, task_config, train_data):
 
     return None
 
-def create_task_test_dataloader(task, config, task_config, train_data):
+def create_task_test_dataloader(task, config, train_data):
+    """ Create task specific test dataloader.
+
+    Parameters
+    ----------
+    task: TaskInfo
+        Task info.
+    config: GSConfig
+        Training config.
+    train_data: GSgnnData
+        Training data.
+
+    Return
+    ------
+    Task dataloader
     """
-    """
+    task_config = task.task_config
     if task_config.test_mask is None:
         # There is no validation mask
         return None
@@ -222,17 +264,19 @@ def create_task_test_dataloader(task, config, task_config, train_data):
                     pos_graph_edge_feats=task_config.lp_edge_weight_for_loss)
     return None
 
-def create_task_decoder(task, g, decoder_input_dim, train_task):
-    if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
-        return gs.create_builtin_node_decoder(g, decoder_input_dim, task.task_config, train_task)
-    elif task.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
-        return gs.create_builtin_edge_decoder(g, decoder_input_dim, task.task_config, train_task)
-    elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
-        return gs.create_builtin_lp_decoder(g, decoder_input_dim, task.task_config, train_task)
+def create_evaluator(task):
+    """ Create task specific evaluators
 
-    return None, None
+    Parameters
+    ----------
+    task: TaskInfo
+        Task info.
 
-def create_evaluator(task, config):
+    Return
+    ------
+    Evaluators
+    """
+    config = task.task_config
     if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION]:
         multilabel = config.multilabel[config.eval_target_ntype] \
             if isinstance(config.multilabel, dict) else config.multilabel
@@ -312,14 +356,13 @@ def main(config_args):
         if model.gnn_encoder is not None \
             else model.node_input_encoder.out_dims
     for task in tasks:
-        task_config = task.task_config
-        train_loader = create_task_train_dataloader(task, config, task_config, train_data)
-        val_loader = create_task_val_dataloader(task, config, task_config, train_data)
-        test_loader = create_task_test_dataloader(task, config, task_config, train_data)
+        train_loader = create_task_train_dataloader(task, config, train_data)
+        val_loader = create_task_val_dataloader(task, config, train_data)
+        test_loader = create_task_test_dataloader(task, config, train_data)
         train_dataloaders.append(train_loader)
         val_dataloaders.append(val_loader)
         test_dataloaders.append(test_loader)
-        decoder, loss_func = create_task_decoder(task, train_data.g, encoder_out_dims, train_task=True)
+        decoder, loss_func = gs.create_task_decoder(task, train_data.g, encoder_out_dims, train_task=True)
         model.add_task(task.task_id, task.task_type, decoder, loss_func)
         if not config.no_validation:
             if val_loader is None:
@@ -327,7 +370,7 @@ def main(config_args):
             if test_loader is None:
                 logging.warning("The training data do not have test set.")
             task_evaluators[task.task_id] = \
-                create_evaluator(task, task_config)
+                create_evaluator(task)
 
     train_dataloader = GSgnnMultiTaskDataLoader(train_data, tasks, train_dataloaders)
     val_dataloader = GSgnnMultiTaskDataLoader(train_data, tasks, val_dataloaders)
@@ -380,7 +423,7 @@ def main(config_args):
     if config.save_embed_path is not None:
         # Save node embeddings
         model = GSgnnMultiTaskSharedEncoderModel(config.alpha_l2norm)
-        gs.set_encoder(model, train_data.g, config, train_task=True)
+        gs.gsf.set_encoder(model, train_data.g, config, train_task=True)
         best_model_path = trainer.get_best_model_path()
         # TODO(zhengda) the model path has to be in a shared filesystem.
         model.restore_model(best_model_path)
