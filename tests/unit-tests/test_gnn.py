@@ -1832,8 +1832,7 @@ def test_multi_task_forward():
         blocks = None
         input_nodes = {"n0": th.randint(5, (10,))}
         labels = {"n0": th.randint(5, (10,))}
-        mini_batch = ((blocks, None, None, input_nodes), labels)
-        loss = mt_model(task_id, mini_batch)
+        loss = mt_model._forward(task_id, (blocks, None, None, input_nodes), labels)
         assert_equal(loss.numpy(), (input_nodes["n0"]-labels["n0"]).numpy())
 
         # NR task
@@ -1841,8 +1840,7 @@ def test_multi_task_forward():
         blocks = None
         input_nodes = {"n0": th.rand((10,))}
         labels = {"n0": th.rand((10,))}
-        mini_batch = ((blocks, None, None, input_nodes), labels)
-        loss = mt_model(task_id, mini_batch)
+        loss = mt_model._forward(task_id, (blocks, None, None, input_nodes), labels)
         assert_equal(loss.numpy(), (input_nodes["n0"]-labels["n0"]).numpy())
 
         # EC task
@@ -1850,8 +1848,7 @@ def test_multi_task_forward():
         blocks = None
         input_nodes = {"n0": th.randint(5, (10,))}
         labels = {("n0", "r1", "n1"): th.randint(5, (10,))}
-        mini_batch = ((blocks, None, None, input_nodes), (None, None, labels))
-        loss = mt_model(task_id, mini_batch)
+        loss = mt_model._forward(task_id, (blocks, None, None, input_nodes), (None, None, labels))
         assert_equal(loss.numpy(), (input_nodes["n0"]-labels[("n0", "r1", "n1")]).numpy())
 
         # ER task
@@ -1859,16 +1856,14 @@ def test_multi_task_forward():
         blocks = None
         input_nodes = {"n0": th.rand((10,))}
         labels = {("n0", "r1", "n1"): th.rand((10,))}
-        mini_batch = ((blocks, None, None, input_nodes), (None, None, labels))
-        loss = mt_model(task_id, mini_batch)
+        loss = mt_model._forward(task_id, (blocks, None, None, input_nodes), (None, None, labels))
         assert_equal(loss.numpy(), (input_nodes["n0"]*2-labels[("n0", "r1", "n1")]).numpy())
 
         # LP task
         task_id = "lp_task"
         blocks = None
         input_nodes = {"n0": th.rand((10,))}
-        mini_batch = mini_batch = ((blocks, None, None, input_nodes), (None, None, None, None))
-        loss = mt_model(task_id, mini_batch)
+        loss = mt_model._forward(task_id, (blocks, None, None, input_nodes), (None, None, None, None))
         assert_equal(loss.numpy(), (input_nodes["n0"]*2).numpy())
 
         ### blocks is a list (GNN setting)
@@ -1877,8 +1872,7 @@ def test_multi_task_forward():
         blocks = [None, None] # trick mt_model there are two gnn layers.
         input_nodes = {"n0": th.randint(5, (10,))}
         labels = {"n0": th.randint(5, (10,))}
-        mini_batch = ((blocks, None, None, input_nodes), labels)
-        loss = mt_model(task_id, mini_batch)
+        loss = mt_model._forward(task_id, (blocks, None, None, input_nodes), labels)
         assert_equal(loss.numpy(), (input_nodes["n0"]-labels["n0"]).numpy())
 
         # NR task
@@ -1886,8 +1880,7 @@ def test_multi_task_forward():
         blocks = [None, None] # trick mt_model there are two gnn layers.
         input_nodes = {"n0": th.rand((10,))}
         labels = {"n0": th.rand((10,))}
-        mini_batch = ((blocks, None, None, input_nodes), labels)
-        loss = mt_model(task_id, mini_batch)
+        loss = mt_model._forward(task_id, (blocks, None, None, input_nodes), labels)
         assert_equal(loss.numpy(), (input_nodes["n0"]-labels["n0"]).numpy())
 
         # EC task
@@ -1895,8 +1888,7 @@ def test_multi_task_forward():
         blocks = [None, None] # trick mt_model there are two gnn layers.
         input_nodes = {"n0": th.randint(5, (10,))}
         labels = {("n0", "r1", "n1"): th.randint(5, (10,))}
-        mini_batch = ((blocks, None, None, input_nodes), (None, None, labels))
-        loss = mt_model(task_id, mini_batch)
+        loss = mt_model._forward(task_id, (blocks, None, None, input_nodes), (None, None, labels))
         assert_equal(loss.numpy(), (input_nodes["n0"]-labels[("n0", "r1", "n1")]).numpy())
 
         # ER task
@@ -1904,16 +1896,14 @@ def test_multi_task_forward():
         blocks = [None, None] # trick mt_model there are two gnn layers.
         input_nodes = {"n0": th.rand((10,))}
         labels = {("n0", "r1", "n1"): th.rand((10,))}
-        mini_batch = ((blocks, None, None, input_nodes), (None, None, labels))
-        loss = mt_model(task_id, mini_batch)
+        loss = mt_model._forward(task_id, (blocks, None, None, input_nodes), (None, None, labels))
         assert_equal(loss.numpy(), (input_nodes["n0"]*2-labels[("n0", "r1", "n1")]).numpy())
 
         # LP task
         task_id = "lp_task"
         blocks = [None, None] # trick mt_model there are two gnn layers.
         input_nodes = {"n0": th.rand((10,))}
-        mini_batch = mini_batch = ((blocks, None, None, input_nodes), (None, None, None, None))
-        loss = mt_model(task_id, mini_batch)
+        loss = mt_model._forward(task_id, (blocks, None, None, input_nodes), (None, None, None, None))
         assert_equal(loss.numpy(), (input_nodes["n0"]*2).numpy())
 
 
