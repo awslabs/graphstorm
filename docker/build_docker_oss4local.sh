@@ -41,10 +41,6 @@ cp -r $GSF_HOME"/examples" $GSF_HOME"/docker/code/examples"
 cp -r $GSF_HOME"/inference_scripts" $GSF_HOME"/docker/code/inference_scripts"
 cp -r $GSF_HOME"/tools" $GSF_HOME"/docker/code/tools"
 cp -r $GSF_HOME"/training_scripts" $GSF_HOME"/docker/code/training_scripts"
-# If using a local DGL installation we expect it to be one level above GSF
-# mkdir -p code/dgl
-# rsync -qr "${GSF_HOME}/../dgl/" code/dgl/ --exclude .venv --exclude dist --exclude ".*/" \
-#         --exclude "*__pycache__" --exclude "third_party"
 
 
 # Build OSS docker for EC2 instances that an pull ECR docker images

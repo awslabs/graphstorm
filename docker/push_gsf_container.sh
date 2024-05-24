@@ -3,9 +3,9 @@
 set -euox pipefail
 # Usage help
 if [ -b "${1-}" ] && [ "$1" == "--help" ] || [ -b "${1-}" ] && [ "$1" == "-h" ]; then
-    echo "Usage: docker/push_image.sh <image-name> <tag> <region> <account>"
+    echo "Usage: docker/push_gsf_container.sh <image-name> <tag> <region> <account>"
     echo "Optionally provide the image name, tag, region and account number for the ecr repository"
-    echo "For example: docker/push_container.sh graphstorm sm us-west-2 1234567890"
+    echo "For example: docker/push_gsf_container.sh graphstorm sm us-west-2 1234567890"
     exit 1
 fi
 

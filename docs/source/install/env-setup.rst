@@ -121,14 +121,14 @@ Please use the following command to build a Docker image from source:
 
     cd /path-to-graphstorm/docker/
 
-    bash /path-to-graphstorm/docker/build_docker_oss4local.sh /path-to-graphstorm/ docker-name docker-tag device
+    bash /path-to-graphstorm/docker/build_docker_oss4local.sh /path-to-graphstorm/ image-name image-tag device
 
 There are four positional arguments for ``build_docker_oss4local.sh``:
 
 1. **path-to-graphstorm** (**required**), is the absolute path of the "graphstorm" folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
-2. **docker-name** (optional), is the assigned name of the to be built Docker image. Default is ``graphstorm``.
-3. **docker-tag** (optional), is the assigned tag name of the to be built docker image. Default is ``local-<device>``.
-4. **device** (optional), is the intended device for the docker image. Default is ``gpu``, can also build a ``cpu`` image.
+2. **image-name** (optional), is the assigned name of the to be built Docker image. Default is ``graphstorm``.
+3. **image-tag** (optional), is the assigned tag prefix of the Docker image. Default is ``local``.
+4. **device** (optional), is the intended device for the docker image. This ges suffixed to ``image-tag``. Default is ``gpu``, can also build a ``cpu`` image.
 
 If Docker requires you to run it as a root user and you don't want to preface all docker commands with sudo, you can check the solution available `here <https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user>`_.
 
@@ -140,6 +140,16 @@ You can use the below command to check if the new Docker image is created succes
 
 If the build succeeds, there should be a new Docker image, named *<docker-name>:<docker-tag>*, e.g., ``graphstorm:local-gpu``.
 
+To push the image to ECR you can use the `push_gsf_container.sh` script.
+It takes 4 positional arguments,  `image-name` `image-tag-device`, `region`, and `account`.
+For example to push the local GPU image to the us-west-2 on AWS account `1234567890` use:
+
+.. code-block:: bash
+
+    bash docker/push_gsf_container.sh graphstorm local-gpu us-west-2 1234567890
+
+
+
 Create a GraphStorm Container
 ..............................
 
@@ -149,7 +159,7 @@ Run the following command:
 
 .. code:: bash
 
-    nvidia-docker run --network=host -v /dev/shm:/dev/shm/ -d --name test graphstorm:local-gpu
+    nvidia-docker run --network=host -v /dev/shm:/dev/shm/ -d --name test graphstorm:local-gpu service ssh restart
 
 This command will create a GraphStorm container, named ``test`` and run the container as a daemon.
 

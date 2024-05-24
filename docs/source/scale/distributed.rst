@@ -43,7 +43,7 @@ In each instance, use the following command to start a GraphStorm Docker contain
     nvidia-docker run -v /path_to_data/:/data \
                       -v /dev/shm:/dev/shm \
                       --network=host \
-                      -d --name test graphstorm:local-gpu
+                      -d --name test graphstorm:local-gpu service ssh restart
 
 This command mount the shared ``/path_to_data/`` folder to each container's ``/data/`` folder by which GraphStorm codes can access graph data and save training and inference outcomes.
 
