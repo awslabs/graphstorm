@@ -137,15 +137,63 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         """
         return self._decoder
 
+    def _run_mini_batch(self, task_info, mini_batch):
+        """ Run mini_batch forward
+        """
+        if task_info.task_type in \
+            [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
+            # Order follow GSgnnNodeModelInterface.forward
+            blocks, input_feats, edge_feats, lbl,input_nodes = mini_batch
+            loss = self._forward(task_info.task_id,
+                                 (blocks, input_feats, edge_feats, input_nodes),
+                                 lbl)
+
+        elif task_info.task_type in \
+            [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
+            # Order follow GSgnnEdgeModelInterface.forward
+            blocks, target_edges, node_feats, edge_feats, \
+                edge_decoder_feats, lbl, input_nodes = mini_batch
+            loss = self._forward(task_info.task_id,
+                                 (blocks, node_feats, None, input_nodes),
+                                 (target_edges, edge_decoder_feats, lbl))
+
+        elif task_info.task_type == BUILTIN_TASK_LINK_PREDICTION:
+            # Order follow GSgnnLinkPredictionModelInterface.forward
+            blocks, pos_graph, neg_graph, node_feats, edge_feats, \
+            pos_edge_feats, neg_edge_feats, input_nodes = mini_batch
+
+            loss = self._forward(task_info.task_id,
+                                 (blocks, node_feats, edge_feats, input_nodes),
+                                 (pos_graph, neg_graph, pos_edge_feats, neg_edge_feats))
+        else:
+            raise TypeError("Unknown task %s", task_info)
+
+        return loss, task_info.task_config.task_weight
+
+    def forward(self, task_mini_batches):
+        losses = []
+        for (task_info, mini_batch) in task_mini_batches:
+            loss, weight = self._run_mini_batch(task_info, mini_batch)
+            losses.append((loss, weight))
+
+            reg_loss = th.tensor(0.).to(losses[0][0].device)
+            for d_para in self.get_dense_params():
+                reg_loss += d_para.square().sum()
+            alpha_l2norm = self.alpha_l2norm
+
+            mt_loss = reg_loss * alpha_l2norm
+            for loss, weight in losses:
+                mt_loss += loss * weight
+        return mt_loss
+
     # pylint: disable=unused-argument
-    def forward(self, task_id, mini_batch):
+    def _forward(self, task_id, encoder_data, decoder_data):
         """ The forward function for multi-task learning
         """
         assert task_id in self.task_pool, \
             f"Unknown task: {task_id} in multi-task learning." \
             f"Existing tasks are {self.task_pool.keys()}"
 
-        encoder_data, decoder_data = mini_batch
         # message passing graph, node features, edge features, seed nodes
         blocks, node_feats, _, input_nodes = encoder_data
         if blocks is None or len(blocks) == 0:

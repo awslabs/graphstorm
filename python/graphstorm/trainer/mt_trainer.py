@@ -38,7 +38,7 @@ from .gsgnn_trainer import GSgnnTrainer
 from ..utils import sys_tracker, rt_profiler, print_mem, get_rank
 from ..utils import barrier, is_distributed
 
-def run_node_mini_batch(model, data, task_info, mini_batch, device):
+def prepare_node_mini_batch(data, task_info, mini_batch, device):
     """ Run node mini_batch forward
     """
     g = data.g
@@ -52,19 +52,21 @@ def run_node_mini_batch(model, data, task_info, mini_batch, device):
     input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
     lbl = data.get_node_feats(seeds, label_field, device)
     blocks = [block.to(device) for block in blocks]
+
+    # Order follow GSgnnNodeModelInterface.forward
     # TODO: we don't support edge features for now.
-    loss = model(task_info.task_id, ((blocks, input_feats, None, input_nodes), lbl))
+    return (blocks, input_feats, None, lbl, input_nodes)
 
-    return loss, task_info.task_config.task_weight
-
-def run_edge_mini_batch(model, data, task_info, mini_batch, device):
+def prepare_edge_mini_batch(data, task_info, mini_batch, device):
+    """
+    """
     input_nodes, batch_graph, blocks = mini_batch
     if not isinstance(input_nodes, dict):
         assert len(batch_graph.ntypes) == 1
         input_nodes = {batch_graph.ntypes[0]: input_nodes}
 
     nfeat_fields = task_info.dataloader.node_feat_fields
-    input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
+    node_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
 
     if task_info.dataloader.decoder_edge_feat_fields is not None:
         input_edges = {etype: batch_graph.edges[etype].data[dgl.EID] \
@@ -90,13 +92,12 @@ def run_edge_mini_batch(model, data, task_info, mini_batch, device):
     batch_graph = batch_graph.to(device)
     rt_profiler.record('train_graph2GPU')
 
+    # Order follow GSgnnEdgeModelInterface.forward
     # TODO(zhengda) we don't support edge features for now.
-    loss = model(task_info.task_id,
-                    ((blocks, input_feats, None, input_nodes),
-                    (batch_graph, edge_decoder_feats, lbl)))
-    return loss, task_info.task_config.task_weight
+    return (blocks, batch_graph, node_feats, None,
+                edge_decoder_feats, lbl, input_nodes)
 
-def run_link_predict_mini_batch(model, data, task_info, mini_batch, device):
+def prepare_link_predict_mini_batch(data, task_info, mini_batch, device):
     input_nodes, pos_graph, neg_graph, blocks = mini_batch
 
     if not isinstance(input_nodes, dict):
@@ -104,7 +105,7 @@ def run_link_predict_mini_batch(model, data, task_info, mini_batch, device):
         input_nodes = {pos_graph.ntypes[0]: input_nodes}
 
     nfeat_fields = task_info.dataloader.node_feat_fields
-    input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
+    node_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
 
     if task_info.dataloader.pos_graph_feat_fields is not None:
         input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
@@ -119,12 +120,8 @@ def run_link_predict_mini_batch(model, data, task_info, mini_batch, device):
     neg_graph = neg_graph.to(device)
     blocks = [blk.to(device) for blk in blocks]
 
-    # TODO: we don't support edge features for now.
-    loss = model(task_info.task_id,
-                 ((blocks, input_feats, None, input_nodes),
-                  (pos_graph, neg_graph,pos_graph_feats, None)))
-    return loss, task_info.task_config.task_weight
-
+    return (blocks, pos_graph, neg_graph, node_feats, None, \
+            pos_graph_feats, None, input_nodes)
 
 class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
     r""" A trainer for multi-task learning
@@ -149,8 +146,8 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
         assert isinstance(model, GSgnnMultiTaskModelInterface) and isinstance(model, GSgnnModelBase), \
                 "The input model is not a GSgnnModel model. Please implement GSgnnModelBase."
 
-    def _run_mini_batch(self, data, model, task_info, mini_batch, device):
-        """ run mini batch for a single task
+    def _prepare_mini_batch(self, data, task_info, mini_batch, device):
+        """ prepare mini batch for a single task
 
         Parameters
         ----------
@@ -167,28 +164,25 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
 
         Return
         ------
-        loss
+        tuple: mini-batch
         """
         if task_info.task_type in \
             [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
-            return run_node_mini_batch(model,
-                                       data,
-                                       task_info,
-                                       mini_batch,
-                                       device)
+            return prepare_node_mini_batch(data,
+                                           task_info,
+                                           mini_batch,
+                                           device)
         elif task_info.task_type in \
             [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
-            return run_edge_mini_batch(model,
-                                       data,
-                                       task_info,
-                                       mini_batch,
-                                       device)
+            return prepare_edge_mini_batch(data,
+                                           task_info,
+                                           mini_batch,
+                                           device)
         elif task_info.task_type == BUILTIN_TASK_LINK_PREDICTION:
-            return run_link_predict_mini_batch(model,
-                                               data,
-                                               task_info,
-                                               mini_batch,
-                                               device)
+            return prepare_link_predict_mini_batch(data,
+                                                   task_info,
+                                                   mini_batch,
+                                                   device)
         else:
             raise TypeError("Unknown task %s", task_info)
 
@@ -285,19 +279,13 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                 rt_profiler.record('train_sample')
                 total_steps += 1
 
-                losses = []
+                mini_batches = []
                 for (task_info, mini_batch) in task_mini_batches:
-                    loss, weight = self._run_mini_batch(data, model, task_info, mini_batch, device)
-                    losses.append((loss, weight))
+                    mini_batches.append((task_info, \
+                        self._prepare_mini_batch(data, task_info, mini_batch, device)))
 
-                reg_loss = th.tensor(0.).to(device)
-                for d_para in model.module.get_dense_params():
-                    reg_loss += d_para.square().sum()
-                alpha_l2norm = model.module.alpha_l2norm
+                loss = model(mini_batches)
 
-                mt_loss = reg_loss * alpha_l2norm
-                for loss, weight in losses:
-                    mt_loss += loss * weight
                 rt_profiler.record('train_forward')
                 self.optimizer.zero_grad()
                 loss.backward()
@@ -312,7 +300,7 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                 if i % 20 == 0 and get_rank() == 0:
                     rt_profiler.print_stats()
                     logging.info("Epoch %05d | Batch %03d | Train Loss: %.4f | Time: %.4f",
-                                 epoch, i, mt_loss.item(), time.time() - batch_tic)
+                                 epoch, i, loss.item(), time.time() - batch_tic)
 
                 val_score = None
                 if self.evaluator is not None and \
@@ -357,8 +345,6 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
             self.save_topk_models(model, epoch, None, None, save_model_path)
             rt_profiler.print_stats()
             barrier()
-
-
 
         rt_profiler.save_profile()
         print_mem(device)
