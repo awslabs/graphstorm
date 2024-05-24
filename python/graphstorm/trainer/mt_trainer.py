@@ -51,7 +51,8 @@ def prepare_node_mini_batch(data, task_info, mini_batch, device):
     label_field = task_info.dataloader.label_field
     input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
     lbl = data.get_node_feats(seeds, label_field, device)
-    blocks = [block.to(device) for block in blocks]
+    blocks = [block.to(device) for block in blocks] \
+        if blocks is not None else None
 
     # Order follow GSgnnNodeModelInterface.forward
     # TODO: we don't support edge features for now.
@@ -84,18 +85,19 @@ def prepare_edge_mini_batch(data, task_info, mini_batch, device):
     assert len(batch_graph.etypes) == 1
     target_etype = batch_graph.canonical_etypes[0]
     # TODO(zhengda) the data loader should return labels directly.
-    seeds = batch_graph.edges[target_etype[1]].data[dgl.EID]
+    seeds = batch_graph.edges[target_etype].data[dgl.EID]
 
     label_field = task_info.dataloader.label_field
     lbl = data.get_edge_feats({target_etype: seeds}, label_field, device)
-    blocks = [block.to(device) for block in blocks]
+    blocks = [block.to(device) for block in blocks] \
+        if blocks is not None else None
     batch_graph = batch_graph.to(device)
     rt_profiler.record('train_graph2GPU')
 
     # Order follow GSgnnEdgeModelInterface.forward
     # TODO(zhengda) we don't support edge features for now.
     return (blocks, batch_graph, node_feats, None,
-                edge_decoder_feats, lbl, input_nodes)
+            edge_decoder_feats, lbl, input_nodes)
 
 def prepare_link_predict_mini_batch(data, task_info, mini_batch, device):
     input_nodes, pos_graph, neg_graph, blocks = mini_batch
@@ -118,7 +120,8 @@ def prepare_link_predict_mini_batch(data, task_info, mini_batch, device):
 
     pos_graph = pos_graph.to(device)
     neg_graph = neg_graph.to(device)
-    blocks = [blk.to(device) for blk in blocks]
+    blocks = [blk.to(device) for blk in blocks] \
+        if blocks is not None else None
 
     return (blocks, pos_graph, neg_graph, node_feats, None, \
             pos_graph_feats, None, input_nodes)
