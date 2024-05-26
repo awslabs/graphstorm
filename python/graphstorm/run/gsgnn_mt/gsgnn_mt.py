@@ -424,6 +424,10 @@ def main(config_args):
         # Save node embeddings
         model = GSgnnMultiTaskSharedEncoderModel(config.alpha_l2norm)
         gs.gsf.set_encoder(model, train_data.g, config, train_task=True)
+
+        for task in tasks:
+            decoder, loss_func = gs.create_task_decoder(task, train_data.g, encoder_out_dims, train_task=True)
+            model.add_task(task.task_id, task.task_type, decoder, loss_func)
         best_model_path = trainer.get_best_model_path()
         # TODO(zhengda) the model path has to be in a shared filesystem.
         model.restore_model(best_model_path)
@@ -434,7 +438,7 @@ def main(config_args):
         model.prepare_input_encoder(train_data)
 
         embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
-                                             edge_mask="train_mask", task_tracker=tracker)
+                                             task_tracker=tracker)
 
         save_full_node_embeddings(
             train_data.g,

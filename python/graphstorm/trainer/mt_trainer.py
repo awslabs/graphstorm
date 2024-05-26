@@ -140,7 +140,7 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
     Parameters
     ----------
     model : GSgnnMultiTaskModel
-        The GNN model for node prediction.
+        The GNN model for prediction.
     topk_model_to_save : int
         The top K model to save.
     """
