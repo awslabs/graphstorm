@@ -20,11 +20,15 @@ from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.utils import rt_profiler, sys_tracker, get_device, use_wholegraph
 from graphstorm.dataloading import GSgnnData
-from graphstorm.config import  (BUILTIN_TASK_NODE_CLASSIFICATION,
-                                BUILTIN_TASK_NODE_REGRESSION,
-                                BUILTIN_TASK_EDGE_CLASSIFICATION,
-                                BUILTIN_TASK_EDGE_REGRESSION,
-                                BUILTIN_TASK_LINK_PREDICTION)
+from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
+                               BUILTIN_TASK_NODE_REGRESSION,
+                               BUILTIN_TASK_EDGE_CLASSIFICATION,
+                               BUILTIN_TASK_EDGE_REGRESSION,
+                               BUILTIN_TASK_LINK_PREDICTION,
+                               GRAPHSTORM_MODEL_ALL_LAYERS,
+                               GRAPHSTORM_MODEL_EMBED_LAYER,
+                               GRAPHSTORM_MODEL_GNN_LAYER,
+                               GRAPHSTORM_MODEL_DECODER_LAYER)
 from graphstorm.inference import GSgnnEmbGenInferer
 from graphstorm.utils import get_lm_ntypes
 from graphstorm.model.multitask_gnn import GSgnnMultiTaskSharedEncoderModel
@@ -70,6 +74,12 @@ def main(config_args):
         # Only support multi-task sahred encoder model.
         model = GSgnnMultiTaskSharedEncoderModel(config.alpha_l2norm)
         gs.gsf.set_encoder(model, input_data.g, config, train_task=False)
+        assert config.restore_model_layers is not GRAPHSTORM_MODEL_ALL_LAYERS, \
+            "When computing node embeddings with GSgnnMultiTaskSharedEncoderModel, " \
+            "please set --restore-model-layers to " \
+            f"{GRAPHSTORM_MODEL_EMBED_LAYER}, {GRAPHSTORM_MODEL_GNN_LAYER}." \
+            f"Please do not include {GRAPHSTORM_MODEL_DECODER_LAYER}" \
+            f"But we get {config.restore_model_layers}"
     else:
         if config.task_type == BUILTIN_TASK_LINK_PREDICTION:
             model = gs.create_builtin_lp_gnn_model(input_data.g, config, train_task=False)
