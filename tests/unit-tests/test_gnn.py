@@ -77,8 +77,8 @@ from graphstorm.model.gnn_with_reconstruct import construct_node_feat, get_input
 from graphstorm.model.utils import load_model, save_model
 from graphstorm.model import GSgnnMultiTaskSharedEncoderModel
 from graphstorm.dataloading import (GSgnnEdgeDataLoaderBase,
-                                         GSgnnLinkPredictionDataLoaderBase,
-                                         GSgnnNodeDataLoaderBase)
+                                    GSgnnLinkPredictionDataLoaderBase,
+                                    GSgnnNodeDataLoaderBase)
 
 from data_utils import generate_dummy_dist_graph, generate_dummy_dist_graph_multi_target_ntypes
 from data_utils import generate_dummy_dist_graph_reconstruct

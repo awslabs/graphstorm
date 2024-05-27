@@ -1707,7 +1707,7 @@ class GSgnnMultiTaskDataLoader:
         lens = []
         for task_info, dataloader in zip(task_infos, task_dataloaders):
             # For evaluation and testing, we allow some of the val_dataloaders or test_dataloaders
-            # are empty (None).
+            # to be empty (None).
             assert isinstance(dataloader, (GSgnnEdgeDataLoaderBase,
                                            GSgnnLinkPredictionDataLoaderBase,
                                            GSgnnNodeDataLoaderBase)) or dataloader is None, \
@@ -1812,7 +1812,7 @@ class GSgnnMultiTaskDataLoader:
 
         Returns
         -------
-        list or a dict of list : the fanouts for each GNN layer.
+        list of list or list of dict of list : the fanouts for each GNN layer.
         """
         fanouts = [dataloader.fanout if dataloader is not None \
                    else None for dataloader in self.dataloaders]
