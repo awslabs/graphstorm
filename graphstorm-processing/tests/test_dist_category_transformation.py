@@ -16,12 +16,11 @@ limitations under the License.
 
 from typing import Tuple, Iterator
 import os
-import pytest
-import pandas as pd
 import tempfile
 
 import mock
 from numpy.testing import assert_array_equal
+import pytest
 from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.types import StructField, StructType, StringType, ArrayType
 
@@ -40,7 +39,7 @@ _ROOT = os.path.abspath(os.path.dirname(__file__))
 def multi_cat_df_and_separator_fixture(
     spark: SparkSession, separator=","
 ) -> Iterator[Tuple[DataFrame, str]]:
-    """Gneerate multi-category df, yields the DF and its separator"""
+    """Generate multi-category df, yields the DF and its separator"""
     data = [
         (f"Actor{separator}Director",),
         (f"Director{separator}Writer",),
@@ -63,9 +62,9 @@ def multi_cat_df_and_separator_fixture(
     ),
     3,
 )
-def test_limited_category_transformation(user_df):
+def test_limited_category_transformation(user_df: DataFrame, spark: SparkSession):
     """Test single-cat transformation with limited categories"""
-    dist_category_transformation = DistCategoryTransformation(["occupation"])
+    dist_category_transformation = DistCategoryTransformation(["occupation"], spark)
 
     transformed_df = dist_category_transformation.apply(user_df)
     group_counts = (
@@ -77,9 +76,9 @@ def test_limited_category_transformation(user_df):
         assert row["count"] == expected_count
 
 
-def test_all_categories_transformation(user_df, check_df_schema):
+def test_all_categories_transformation(user_df, check_df_schema, spark):
     """Test single-cat transformation with all categories"""
-    dist_category_transformation = DistCategoryTransformation(["occupation"])
+    dist_category_transformation = DistCategoryTransformation(["occupation"], spark)
 
     transformed_df = dist_category_transformation.apply(user_df)
 
@@ -102,7 +101,7 @@ def test_category_transformation_with_null_values(spark: SparkSession):
 
     columns = ["name", "occupation", "gender"]
     df = spark.createDataFrame(data, schema=columns)
-    dist_category_transformation = DistCategoryTransformation(["occupation"])
+    dist_category_transformation = DistCategoryTransformation(["occupation"], spark)
 
     transformed_df = dist_category_transformation.apply(df)
 
@@ -111,9 +110,9 @@ def test_category_transformation_with_null_values(spark: SparkSession):
     assert transformed_distinct_values == 4
 
 
-def test_multiple_categories_transformation(user_df):
-    """Test transforming multiple cat columns"""
-    dist_category_transformation = DistCategoryTransformation(["occupation", "gender"])
+def test_multiple_categories_transformation(user_df, spark):
+    """Test transforming multiple single-cat columns"""
+    dist_category_transformation = DistCategoryTransformation(["occupation", "gender"], spark)
 
     transformed_df = dist_category_transformation.apply(user_df)
 
@@ -124,8 +123,26 @@ def test_multiple_categories_transformation(user_df):
     assert gender_distinct_values == 3
 
 
+def test_multiple_single_cat_cols_json(user_df, spark):
+    """Test JSON representation when transforming multiple single-cat columns"""
+    dist_category_transformation = DistCategoryTransformation(["occupation", "gender"], spark)
+
+    _ = dist_category_transformation.apply(user_df)
+
+    multi_cols_rep = dist_category_transformation.get_json_representation()
+
+    labels_array = multi_cols_rep["string_indexer_labels_array"]
+    one_hot_index_for_string = multi_cols_rep["per_col_label_to_one_hot_idx"]
+    cols = multi_cols_rep["cols"]
+
+    # The Spark-generated and our own one-hot-index mappings should match
+    for col_labels, col in zip(labels_array, cols):
+        for idx, label in enumerate(col_labels):
+            assert idx == one_hot_index_for_string[col][label]
+
+
 def test_multi_category_transformation(multi_cat_df_and_separator, check_df_schema):
-    """Test transforming multi-category column"""
+    """Test transforming single multi-category column"""
     df, separator = multi_cat_df_and_separator
     col_name = df.columns[0]
 
@@ -180,9 +197,10 @@ def test_multi_category_limited_categories(multi_cat_df_and_separator):
 
 
 def test_csv_input_categorical(spark: SparkSession, check_df_schema):
+    """Test categorical transformations with CSV input, as we treat them separately"""
     data_path = os.path.join(_ROOT, "resources/multi_num_numerical/multi_num.csv")
     long_vector_df = spark.read.csv(data_path, sep=",", header=True)
-    dist_categorical_transormation = DistCategoryTransformation(cols=["id"])
+    dist_categorical_transormation = DistCategoryTransformation(cols=["id"], spark=spark)
 
     transformed_df = dist_categorical_transormation.apply(long_vector_df)
     check_df_schema(transformed_df)
@@ -199,6 +217,7 @@ def test_csv_input_categorical(spark: SparkSession, check_df_schema):
 
 
 def test_csv_input_multi_categorical(spark: SparkSession, check_df_schema):
+    """Test mulit-categorical transformations with CSV input"""
     data_path = os.path.join(_ROOT, "resources/multi_num_numerical/multi_num.csv")
     long_vector_df = spark.read.csv(data_path, sep=",", header=True)
     dist_categorical_transormation = DistMultiCategoryTransformation(cols=["feat"], separator=";")
@@ -207,13 +226,14 @@ def test_csv_input_multi_categorical(spark: SparkSession, check_df_schema):
     check_df_schema(transformed_df)
     transformed_rows = transformed_df.collect()
     expected_rows = []
-    for i in range(5):
+    for _ in range(5):
         expected_rows.append([1] * 100)
     for row, expected_row in zip(transformed_rows, expected_rows):
         assert row["feat"] == expected_row
 
 
 def test_parquet_input_multi_categorical(spark: SparkSession, check_df_schema):
+    """Test multi-categorical transformations with Parquet input"""
     # Define the schema for the DataFrame
     schema = StructType([StructField("names", ArrayType(StringType()), True)])
 
@@ -240,7 +260,7 @@ def test_parquet_input_multi_categorical(spark: SparkSession, check_df_schema):
 
         # Show the DataFrame loaded from the Parquet file
         dist_categorical_transormation = DistMultiCategoryTransformation(
-            cols=["names"], separator=None
+            cols=["names"], separator=""
         )
 
         transformed_df = dist_categorical_transormation.apply(df_parquet)

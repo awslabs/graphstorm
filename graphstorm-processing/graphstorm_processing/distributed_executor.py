@@ -63,9 +63,11 @@ import botocore
 
 from graphstorm_processing.graph_loaders.dist_heterogeneous_loader import (
     DistHeterogeneousGraphLoader,
+    HeterogeneousLoaderConfig,
 )
 from graphstorm_processing.config.config_parser import create_config_objects
 from graphstorm_processing.config.config_conversion import GConstructConfigConverter
+from graphstorm_processing.constants import TRANSFORMATIONS_FILENAME
 from graphstorm_processing.data_transformations import spark_utils, s3_utils
 from graphstorm_processing.repartition_files import (
     repartition_files,
@@ -190,7 +192,17 @@ class DistributedExecutor:
         with open(graph_conf, "r", encoding="utf-8") as f:
             dataset_config_dict: Dict[str, Any] = json.load(f)
 
-        # Use appropriate config parser depending on file version
+        # Load the pre-computed transformations if the file exists
+        if os.path.exists(os.path.join(self.local_config_path, TRANSFORMATIONS_FILENAME)):
+            with open(
+                os.path.join(self.local_config_path, TRANSFORMATIONS_FILENAME),
+                "r",
+                encoding="utf-8",
+            ) as f:
+                self.precomputed_transformations = json.load(f)
+        else:
+            self.precomputed_transformations = {}
+
         if "version" in dataset_config_dict:
             config_version = dataset_config_dict["version"]
             if config_version == "gsprocessing-v1.0":
@@ -259,18 +271,22 @@ class DistributedExecutor:
         data_configs = create_config_objects(self.graph_config_dict)
 
         t0 = time.time()
-        # Prefer explicit arguments for clarity
-        loader = DistHeterogeneousGraphLoader(
-            spark=self.spark,
-            local_input_path=self.local_config_path,
-            local_output_path=self.local_output_path,
-            data_configs=data_configs,
-            input_prefix=self.input_prefix,
-            output_prefix=self.output_prefix,
-            num_output_files=self.num_output_files,
+        loader_config = HeterogeneousLoaderConfig(
             add_reverse_edges=self.add_reverse_edges,
+            data_configs=data_configs,
             enable_assertions=False,
             graph_name=self.graph_name,
+            input_prefix=self.input_prefix,
+            local_input_path=self.local_config_path,
+            local_output_path=self.local_output_path,
+            num_output_files=self.num_output_files,
+            output_prefix=self.output_prefix,
+            precomputed_transformations=self.precomputed_transformations,
+        )
+        # Prefer explicit arguments for clarity
+        loader = DistHeterogeneousGraphLoader(
+            self.spark,
+            loader_config,
         )
         graph_meta_dict, timers_dict = loader.load()
 
@@ -474,6 +490,15 @@ def main():
                     f"s3://{input_bucket}/{input_s3_prefix}/"
                     f"{gsprocessing_args.config_filename}"
                 ) from e
+            # Try to download the pre-computed transformations file, if it exists
+            try:
+                s3.download_file(
+                    input_bucket,
+                    f"{input_s3_prefix}/{TRANSFORMATIONS_FILENAME}",
+                    os.path.join(tempdir.name, TRANSFORMATIONS_FILENAME),
+                )
+            except botocore.exceptions.ClientError as _:
+                pass
             local_config_path = tempdir.name
 
     # local output location for metadata files

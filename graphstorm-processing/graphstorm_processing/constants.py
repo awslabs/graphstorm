@@ -85,3 +85,6 @@ SPARK_HADOOP_VERSIONS = {
     "3.4": "3.3.4",
     "3.3": "3.3.2",
 }
+
+########## Precomputed transformations ################
+TRANSFORMATIONS_FILENAME = "precomputed_transformations.json"
