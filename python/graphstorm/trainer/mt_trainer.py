@@ -39,7 +39,26 @@ from ..utils import sys_tracker, rt_profiler, print_mem, get_rank
 from ..utils import barrier, is_distributed
 
 def prepare_node_mini_batch(data, task_info, mini_batch, device):
-    """ Run node mini_batch forward
+    """ Prepare mini-batch for node classification and regression tasks.
+
+        The input is a mini-batch sampled by a node sampler.
+        The output ia a prepared input following the
+        input arguments of GSgnnNodeModelInterface.forward.
+
+    Parameters
+    ----------
+    data: GSgnnData
+        Graph data
+    task_info: TaskInfo
+        Task meta information
+    mini_batch: tuple
+        Mini-batch info
+    device: torch.device
+        Device
+
+    Return
+    ------
+    tuple: mini-batch
     """
     g = data.g
     input_nodes, seeds, blocks = mini_batch
@@ -59,7 +78,26 @@ def prepare_node_mini_batch(data, task_info, mini_batch, device):
     return (blocks, input_feats, None, lbl, input_nodes)
 
 def prepare_edge_mini_batch(data, task_info, mini_batch, device):
-    """
+    """ Prepare mini-batch for edge classification and regression tasks.
+
+        The input is a mini-batch sampled by an edge sampler.
+        The output ia a prepared input following the
+        input arguments of GSgnnEdgeModelInterface.forward.
+
+    Parameters
+    ----------
+    data: GSgnnData
+        Graph data
+    task_info: TaskInfo
+        Task meta information
+    mini_batch: tuple
+        Mini-batch info
+    device: torch.device
+        Device
+
+    Return
+    ------
+    tuple: mini-batch
     """
     input_nodes, batch_graph, blocks = mini_batch
     if not isinstance(input_nodes, dict):
@@ -70,6 +108,7 @@ def prepare_edge_mini_batch(data, task_info, mini_batch, device):
     node_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
 
     if task_info.dataloader.decoder_edge_feat_fields is not None:
+        # There are edge features used in decoder.
         input_edges = {etype: batch_graph.edges[etype].data[dgl.EID] \
                 for etype in batch_graph.canonical_etypes}
         edge_decoder_feats = \
@@ -84,11 +123,10 @@ def prepare_edge_mini_batch(data, task_info, mini_batch, device):
     # retrieving seed edge id from the graph to find labels
     assert len(batch_graph.etypes) == 1
     target_etype = batch_graph.canonical_etypes[0]
-    # TODO(zhengda) the data loader should return labels directly.
     seeds = batch_graph.edges[target_etype].data[dgl.EID]
-
     label_field = task_info.dataloader.label_field
     lbl = data.get_edge_feats({target_etype: seeds}, label_field, device)
+
     blocks = [block.to(device) for block in blocks] \
         if blocks is not None else None
     batch_graph = batch_graph.to(device)
@@ -100,6 +138,27 @@ def prepare_edge_mini_batch(data, task_info, mini_batch, device):
             edge_decoder_feats, lbl, input_nodes)
 
 def prepare_link_predict_mini_batch(data, task_info, mini_batch, device):
+    """ Prepare mini-batch for link prediction tasks.
+
+        The input is a mini-batch sampled by an edge sampler.
+        The output ia a prepared input following the
+        input arguments of GSgnnLinkPredictionModelInterface.forward.
+
+    Parameters
+    ----------
+    data: GSgnnData
+        Graph data
+    task_info: TaskInfo
+        Task meta information
+    mini_batch: tuple
+        Mini-batch info
+    device: torch.device
+        Device
+
+    Return
+    ------
+    tuple: mini-batch
+    """
     input_nodes, pos_graph, neg_graph, blocks = mini_batch
 
     if not isinstance(input_nodes, dict):
@@ -123,6 +182,7 @@ def prepare_link_predict_mini_batch(data, task_info, mini_batch, device):
     blocks = [blk.to(device) for blk in blocks] \
         if blocks is not None else None
 
+    # follow the interface of GSgnnLinkPredictionModelInterface.forward
     return (blocks, pos_graph, neg_graph, node_feats, None, \
             pos_graph_feats, None, input_nodes)
 
@@ -146,7 +206,8 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
     """
     def __init__(self, model, topk_model_to_save=1):
         super(GSgnnMultiTaskLearningTrainer, self).__init__(model, topk_model_to_save)
-        assert isinstance(model, GSgnnMultiTaskModelInterface) and isinstance(model, GSgnnModelBase), \
+        assert isinstance(model, GSgnnMultiTaskModelInterface) \
+            and isinstance(model, GSgnnModelBase), \
                 "The input model is not a GSgnnModel model. Please implement GSgnnModelBase."
 
     def _prepare_mini_batch(self, data, task_info, mini_batch, device):
@@ -187,8 +248,9 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                                                    mini_batch,
                                                    device)
         else:
-            raise TypeError("Unknown task %s", task_info)
+            raise TypeError(f"Unknown task {task_info}", )
 
+    # pylint: disable=unused-argument
     def fit(self, train_loader,
             num_epochs,
             val_loader=None,
@@ -227,6 +289,8 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
             The number of iteration to train the model before saving the model.
         save_perf_results_path : str
             The path of the file where the performance results are saved.
+            TODO(xiangsx): Add support for saving performance results on disk.
+            Reserved for future.
         freeze_input_layer_epochs: int
             Freeze the input layer for N epochs. This is commonly used when
             the input layer contains language models.
