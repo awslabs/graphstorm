@@ -146,7 +146,7 @@ then
 fi
 
 cnt=$(ls -l /data/gsgnn_mt/ | grep epoch | wc -l)
-if test $cnt != 1
+if test $cnt != 3
 then
     echo "The number of save models $cnt is not equal to the specified topk 1"
     exit -1
@@ -172,13 +172,20 @@ then
     exit -1
 fi
 
+cnt=$(ls -l /data/gsgnn_mt/emb/ | wc -l)
+cnt=$[cnt - 1]
+if test $cnt != 2
+then
+    echo "The number of saved embs $cnt is not equal to 2 (for movie and user)."
+fi
+
 echo "**************[Multi-task] dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch load from saved model"
 python3 -m graphstorm.run.gs_multi_task_learning -workspace $GS_HOME/training_scripts/gsgnn_mt  --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_task_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_ec_er_lp.yaml --restore-model-path /data/gsgnn_mt/epoch-2/ --save-model-path /data/gsgnn_mt_2/ --save-model-frequency 1000 --logging-file /tmp/train_log.txt --logging-level debug
 
 error_and_exit $?
 
 cnt=$(ls -l /data/gsgnn_mt_2/ | grep epoch | wc -l)
-if test $cnt != 1
+if test $cnt != 3
 then
     echo "The number of save models $cnt is not equal to the specified topk 1"
     exit -1
