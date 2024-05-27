@@ -171,6 +171,8 @@ class GSConfig:
         # parse multi task learning config and save it into self._multi_tasks
         if multi_task_config is not None:
             self._parse_multi_tasks(multi_task_config)
+        else:
+            self._multi_tasks = None
 
     def set_attributes(self, configuration):
         """Set class attributes from 2nd level arguments in yaml config"""
