@@ -1706,12 +1706,15 @@ class GSgnnMultiTaskDataLoader:
         # check dataloaders
         lens = []
         for task_info, dataloader in zip(task_infos, task_dataloaders):
+            # For evaluation and testing, we allow some of the val_dataloaders or test_dataloaders
+            # to be empty (None).
             assert isinstance(dataloader, (GSgnnEdgeDataLoaderBase,
                                            GSgnnLinkPredictionDataLoaderBase,
-                                           GSgnnNodeDataLoaderBase)), \
+                                           GSgnnNodeDataLoaderBase)) or dataloader is None, \
                 "The task data loader should be an instance of GSgnnEdgeDataLoaderBase, " \
-                "GSgnnLinkPredictionDataLoaderBase or GSgnnNodeDataLoaderBase"
-            num_iters = len(dataloader)
+                "GSgnnLinkPredictionDataLoaderBase or GSgnnNodeDataLoaderBase" \
+                f"But get {type(dataloader)}"
+            num_iters = len(dataloader) if dataloader is not None else 0
             lens.append(num_iters)
             logging.debug("Task %s has number of iterations of %d",
                           task_info, num_iters)
@@ -1728,7 +1731,8 @@ class GSgnnMultiTaskDataLoader:
         """ reset the dataloaders
         """
         for dataloader in self._dataloaders:
-            iter(dataloader)
+            if dataloader is not None:
+                iter(dataloader)
         self._num_iters = 0
 
     def __iter__(self):
@@ -1747,6 +1751,19 @@ class GSgnnMultiTaskDataLoader:
         # call __next__ of each dataloader
         mini_batches = []
         for task_info, dataloader in zip(self._task_infos, self._dataloaders):
+            if dataloader is None:
+                # The dataloader is None
+                logging.warning("The dataloader of %s is None. "
+                                "Please check whether the coresponding "
+                                "train/val/test mask(s) are missing."
+                                "If you are calling iter(mt_dataloader) for validation "
+                                "or testing, we suggest you to use "
+                                "mt_dataloader.dataloaders to get task specific "
+                                "dataloaders and call the corresponding evaluators "
+                                "task by task", task_info.task_id)
+                mini_batches.append((task_info, None))
+                continue
+
             try:
                 mini_batch = next(dataloader)
             except StopIteration:
@@ -1788,6 +1805,18 @@ class GSgnnMultiTaskDataLoader:
         """
         # useful for conducting validation scores and test scores.
         return self._task_infos
+
+    @property
+    def fanout(self):
+        """ The fanout of each GNN layers of each dataloader
+
+        Returns
+        -------
+        list of list or list of dict of list : the fanouts for each GNN layer.
+        """
+        fanouts = [dataloader.fanout if dataloader is not None \
+                   else None for dataloader in self.dataloaders]
+        return fanouts
 
 
 ####################### Distillation #############################
