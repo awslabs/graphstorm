@@ -19,6 +19,7 @@ Graph Construction
 * **-\-skip-nonexist-edges**: boolean value to decide whether skip edges whose endpoint nodes don't exist. Default is true.
 * **-\-ext-mem-workspace**: the directory where the tool can store data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
 * **-\-ext-mem-feat-size**: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.
+* **-\-output-conf-file**: The output file with the updated configurations that records the details of data transformation, e.g., one-hot encoding maps, max-min normalization ranges. If not specified, will save the updated configuration file in the **-\-output-dir** with name `data_transform_new.json`.
 
 .. _gconstruction-json:
 
