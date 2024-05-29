@@ -18,9 +18,17 @@
 import os
 import time
 
+from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
+                      BUILTIN_TASK_NODE_REGRESSION,
+                      BUILTIN_TASK_EDGE_CLASSIFICATION,
+                      BUILTIN_TASK_EDGE_REGRESSION,
+                      BUILTIN_TASK_LINK_PREDICTION)
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
-from ..model.utils import save_relation_embeddings
+from ..model.utils import (save_node_prediction_results,
+                           save_edge_prediction_results,
+                           save_relation_embeddings)
+from ..model.utils import NodeIDShuffler
 from ..model import do_full_graph_inference, do_mini_batch_inference
 from ..model.multitask_gnn import multi_task_mini_batch_predict
 from ..model.edge_decoder import LinkPredictDistMultDecoder
@@ -138,6 +146,69 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
             sys_tracker.check('save embeddings')
 
         barrier()
+
+        if save_prediction_path is not None:
+            target_ntypes = set()
+            task_infos = mt_loader.task_infos
+            dataloaders = mt_loader.dataloaders
+            for task_info in task_infos:
+                if task_info.task_type in \
+                    [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
+                    target_ntypes.add(task_info.task_config.target_ntype)
+                elif task_info.task_type in \
+                    [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
+                    target_ntypes.add(task_info.task_config.target_etype[0])
+                    target_ntypes.add(task_info.task_config.target_etype[1])
+                else:
+                    # task_info.task_type is BUILTIN_TASK_LINK_PREDICTION
+                    # There is no prediction results for link prediction
+                    continue
+
+            nid_shuffler = NodeIDShuffler(g, node_id_mapping_file, list(preds.keys())) \
+                    if node_id_mapping_file else None
+
+            for task_info, dataloader in zip(task_infos, dataloaders):
+                task_id = task_info.task_id
+                if task_id in pre_results:
+                    save_pred_path = os.path.join(save_prediction_path, task_id)
+                    if task_info.task_type in \
+                        [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
+                        pred, _ = pre_results[task_id]
+                        if pred is not None:
+                            shuffled_preds = {}
+
+                            target_ntype = task_info.task_config.target_ntype
+                            pred_nids = dataloader.target_nidx[target_ntype]
+                            if node_id_mapping_file is not None:
+                                pred_nids = nid_shuffler.shuffle_nids(
+                                    target_ntype, pred_nids)
+
+                            shuffled_preds[target_ntype] = (pred, pred_nids)
+                            save_node_prediction_results(shuffled_preds, save_pred_path)
+                    elif task_info.task_type in \
+                        [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
+                        pred, _ = pre_results[task_id]
+                        if pred is not None:
+                            shuffled_preds = {}
+                            target_etype = task_info.task_config.target_etype
+                            pred_eids = dataloader.target_eidx[target_etype]
+
+                            pred_src_nids, pred_dst_nids = \
+                                g.find_edges(pred_eids, etype=target_etype)
+
+                            if node_id_mapping_file is not None:
+                                pred_src_nids = nid_shuffler.shuffle_nids(
+                                    target_etype[0], pred_src_nids)
+                                pred_dst_nids = nid_shuffler.shuffle_nids(
+                                    target_etype[2], pred_dst_nids)
+                            shuffled_preds[target_etype] = \
+                                (pred, pred_src_nids, pred_dst_nids)
+                            save_edge_prediction_results(shuffled_preds, save_pred_path)
+
+                    else:
+                        # There is no prediction results for link prediction
+                        continue
+
         # save relation embedding if any
         if get_rank() == 0:
             decoders = self._model.task_decoders
