@@ -14,6 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from enum import Enum
+
 from pyspark.sql.types import FloatType, DoubleType
 
 ################### Categorical Limits #######################
@@ -33,7 +35,7 @@ VALUE_COUNTS = "VALUE_COUNTS"
 ############## Spark-specific constants #####################
 SPECIAL_CHARACTERS = {".", "+", "*", "?", "^", "$", "(", ")", "[", "]", "{", "}", "|", "\\"}
 
-"""Configuration to define driver and executor memory for distributed"""
+"""Configuration to define driver and executor memory for SageMaker PySpark"""
 # Percentage of instance memory to allocate to the driver process
 DRIVER_MEM_INSTANCE_MEM_RATIO = 0.9
 # Fraction of driver memory to be allocated as additional non-heap memory per process
@@ -55,3 +57,31 @@ DTYPE_MAP = {TYPE_FLOAT32: FloatType(), TYPE_FLOAT64: DoubleType()}
 HUGGINGFACE_TRANFORM = "huggingface"
 HUGGINGFACE_TOKENIZE = "tokenize_hf"
 HUGGINGFACE_EMB = "embedding_hf"
+
+
+################# Supported execution envs  ##############
+class ExecutionEnv(Enum):
+    """Supported execution environments"""
+
+    LOCAL = 1
+    SAGEMAKER = 2
+    EMR_SERVERLESS = 3
+
+
+################# Supported filesystem types#############
+class FilesystemType(Enum):
+    """Supported filesystem types"""
+
+    LOCAL = 1
+    S3 = 2
+
+
+# NOTE: These need to be updated with each Spark release
+# See the value for <hadoop.version> at the respective Spark version
+# https://github.com/apache/spark/blob/v3.5.1/pom.xml#L125
+# replace both Hadoop versions below with the one there
+SPARK_HADOOP_VERSIONS = {
+    "3.5": "3.3.4",
+    "3.4": "3.3.4",
+    "3.3": "3.3.2",
+}

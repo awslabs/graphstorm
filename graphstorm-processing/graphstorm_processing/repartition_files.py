@@ -53,6 +53,7 @@ from joblib import Parallel, delayed
 
 from graphstorm_processing.data_transformations import s3_utils
 from graphstorm_processing.graph_loaders.row_count_utils import ParquetRowCounter
+from graphstorm_processing.constants import FilesystemType
 
 NUM_WRITE_THREADS = 16
 
@@ -64,8 +65,8 @@ class ParquetRepartitioner:
     ----------
     input_prefix : str
         Prefix for the input files.
-    filesystem_type : str
-        The type of the filesystem being used. Should be 's3' or 'local'.
+    filesystem_type : FilesystemType
+        The type of the filesystem being used. Should be S3 or LOCAL.
     region : Optional[str]
         Region to be used for S3 interactions, by default None.
     verify_outputs : bool, optional
@@ -79,20 +80,15 @@ class ParquetRepartitioner:
     def __init__(
         self,
         input_prefix: str,
-        filesystem_type: str,
+        filesystem_type: FilesystemType,
         region: Optional[str] = None,
         verify_outputs: bool = True,
         streaming_repartitioning=False,
     ):
-        assert filesystem_type in [
-            "local",
-            "s3",
-        ], f"filesystem_type must be one of 'local' or 's3', got {filesystem_type}"
-
         # Pyarrow expects paths of the form "bucket/path/to/file", so we strip the s3:// prefix
         self.input_prefix = input_prefix[5:] if input_prefix.startswith("s3://") else input_prefix
         self.filesystem_type = filesystem_type
-        if self.filesystem_type == "s3":
+        if self.filesystem_type == FilesystemType.S3:
             self.bucket = self.input_prefix.split("/")[1]
             self.pyarrow_fs = fs.S3FileSystem(
                 region=region, retry_strategy=fs.AwsDefaultS3RetryStrategy(max_attempts=10)
@@ -121,7 +117,7 @@ class ParquetRepartitioner:
             dataset_relative_path = relative_path
         dataset_location = os.path.join(self.input_prefix, dataset_relative_path)
 
-        return ds.dataset(dataset_location, filesystem=self.pyarrow_fs)
+        return ds.dataset(dataset_location, filesystem=self.pyarrow_fs, exclude_invalid_files=False)
 
     def read_parquet_from_relative_path(self, relative_path: str) -> pyarrow.Table:
         """
@@ -140,7 +136,7 @@ class ParquetRepartitioner:
         # TODO: Might be easier to update the output file list every time
         # this is called to ensure consistency?
         file_path = os.path.join(self.input_prefix, relative_path)
-        if self.filesystem_type == "local":
+        if self.filesystem_type == FilesystemType.LOCAL:
             os.makedirs(Path(file_path).parent, exist_ok=True)
         pq.write_table(table, file_path, filesystem=self.pyarrow_fs, compression="snappy")
         if self.verify_outputs:
@@ -1167,13 +1163,13 @@ def main():
     logging.basicConfig(level=getattr(logging, repartition_config.log_level.upper(), None))
 
     if repartition_config.input_prefix.startswith("s3://"):
-        filesystem_type = "s3"
+        filesystem_type = FilesystemType.S3
     else:
         input_prefix = str(Path(repartition_config.input_prefix).resolve(strict=True))
-        filesystem_type = "local"
+        filesystem_type = FilesystemType.LOCAL
 
     # Trim trailing '/' from S3 URI
-    if filesystem_type == "s3":
+    if filesystem_type == FilesystemType.S3:
         input_prefix = s3_utils.s3_path_remove_trailing(repartition_config.input_prefix)
 
     logging.info(
@@ -1190,7 +1186,7 @@ def main():
 
     # Get the metadata file
     region = None
-    if filesystem_type == "s3":
+    if filesystem_type == FilesystemType.S3:
         bucket = input_prefix.split("/")[2]
         s3_key_prefix = input_prefix.split("/", 3)[3]
         region = s3_utils.get_bucket_region(bucket)
@@ -1224,7 +1220,7 @@ def main():
         metafile.flush()
 
         # Upload the updated metadata file to S3
-        if filesystem_type == "s3":
+        if filesystem_type == FilesystemType.S3:
             s3_client.upload_file(
                 metafile.name,
                 bucket,
