@@ -38,7 +38,7 @@ cloned the GraphStorm source code. For example, the path could be "/code/graphst
 "graphstorm".
 3. **docker-tag**(optional), is the assigned tag name of the to be built docker image. Default is
 "local".
-3. **device**(optional), is the intended execution device for the image. Can be `cpu` or `gpu`, default is
+4. **device**(optional), is the intended execution device for the image. Should be one of `cpu` or `gpu`, default is
 `gpu`.
 
 If Docker requires you to run it as a root user and you don't want to preface all docker commands with sudo, you can check the solution available [here](https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user).
@@ -62,7 +62,7 @@ bash docker/push_gsf_container.sh graphstorm local-gpu us-west-2 1234567890
 To use a local DGL codebase, you'll need to modify the build script and Dockerfile.local.
 
 
-You can add the followingto the build_docker_oss4local.sh:
+You can add the following to the build_docker_oss4local.sh:
 
 ```bash
 mkdir -p code/dgl
