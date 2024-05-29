@@ -461,7 +461,7 @@ class GSgnnData():
             # ntypes is a string, convert it into list
             ntypes = [ntypes]
 
-        if isinstance(masks, str):
+        if masks is None or isinstance(masks, str):
             # Mask is a string
             # All the masks are using the same name
             masks = [masks] * len(ntypes)

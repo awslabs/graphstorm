@@ -77,10 +77,10 @@ def create_task_infer_dataloader(task, config, infer_data):
         return GSgnnNodeDataLoader(infer_data,
                                    target_idxs,
                                    fanout=fanout,
-                                   batch_size=config.eval_batch_size,
+                                   batch_size=task_config.eval_batch_size,
                                    train_task=False,
                                    node_feats=node_feats,
-                                   label_field=config.label_field)
+                                   label_field=task_config.label_field)
     elif task.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
         eval_etype = task_config.target_etype
         if not config.no_validation:
@@ -107,7 +107,7 @@ def create_task_infer_dataloader(task, config, infer_data):
                                    reverse_edge_types_map=task_config.reverse_edge_types_map,
                                    remove_target_edge_type=task_config.remove_target_edge_type)
     elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
-        eval_etype = task_config.target_etype
+        eval_etype = task_config.eval_etype
         if not config.no_validation:
             infer_idxs = infer_data.get_edge_test_set(eval_etype)
             assert len(infer_idxs) > 0, \
@@ -115,12 +115,16 @@ def create_task_infer_dataloader(task, config, infer_data):
         else:
             infer_idxs = infer_data.get_edge_infer_set(eval_etype)
 
+        # We do not need fanout for full graph inference.
+        # In full graph inference, the test data loader
+        # is only used to provide test edges.
+        fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
         if task_config.eval_etypes_negative_dstnode is not None:
             return GSgnnLinkPredictionPredefinedTestDataLoader(
                 infer_data, infer_idxs,
                 batch_size=task_config.eval_batch_size,
                 fixed_edge_dst_negative_field=task_config.eval_etypes_negative_dstnode,
-                fanout=task_config.eval_fanout,
+                fanout=fanout,
                 node_feats=node_feats)
         else:
             if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
@@ -135,7 +139,7 @@ def create_task_infer_dataloader(task, config, infer_data):
             return test_dataloader_cls(infer_data, infer_idxs,
                 batch_size=task_config.eval_batch_size,
                 num_negative_edges=task_config.num_negative_edges_eval,
-                fanout=task_config.eval_fanout,
+                fanout=fanout,
                 node_feats=node_feats)
     return None
 
@@ -165,7 +169,6 @@ def main(config_args):
 
     for task in tasks:
         decoder, loss_func = gs.create_task_decoder(task, infer_data.g, encoder_out_dims, train_task=True)
-        model.add_task(task.task_id, task.task_type, decoder, loss_func)
 
         data_loader = create_task_infer_dataloader(task, config, infer_data)
         dataloaders.append(data_loader)

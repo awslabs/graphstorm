@@ -66,6 +66,9 @@ def create_task_train_dataloader(task, config, train_data):
     # All tasks share the same input encoder, so the node feats must be same.
     node_feats = config.node_feat_name
 
+    assert task_config.train_mask is not None, \
+        "For multi-task learning, train_mask field name " \
+        "must be provided through mask_fields, but get None"
     logging.info("Create dataloader for %s", task.task_id)
     if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
         train_idxs = train_data.get_node_train_set(
@@ -252,13 +255,15 @@ def create_task_test_dataloader(task, config, train_data):
     elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
         test_idxs = train_data.get_edge_test_set(task_config.eval_etype, mask=task_config.val_mask)
         dataloader_cls = gs.get_builtin_lp_eval_dataloader_class(task_config)
+        # All tasks share the same GNN model, so the fanout should be the global fanout
+        fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
         if len(test_idxs) > 0:
             # TODO(xiangsx): Support construct feat
             if task_config.eval_etypes_negative_dstnode is not None:
                 return dataloader_cls(train_data, test_idxs,
                     task_config.eval_batch_size,
                     fixed_edge_dst_negative_field=task_config.eval_etypes_negative_dstnode,
-                    fanout=task_config.eval_fanout,
+                    fanout=fanout,
                     fixed_test_size=task_config.fixed_test_size,
                     node_feats=node_feats,
                     pos_graph_edge_feats=task_config.lp_edge_weight_for_loss)
@@ -266,7 +271,7 @@ def create_task_test_dataloader(task, config, train_data):
                 return dataloader_cls(train_data, test_idxs,
                     task_config.eval_batch_size,
                     task_config.num_negative_edges_eval,
-                    task_config.eval_fanout,
+                    fanout=fanout,
                     fixed_test_size=task_config.fixed_test_size,
                     node_feats=node_feats,
                     pos_graph_edge_feats=task_config.lp_edge_weight_for_loss)

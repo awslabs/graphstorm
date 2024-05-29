@@ -6,10 +6,11 @@ DGL_HOME=/root/dgl
 GS_HOME=$(pwd)
 NUM_TRAINERS=4
 NUM_INFO_TRAINERS=2
+NUM_INFERs=2
 export PYTHONPATH=$GS_HOME/python/
 cd $GS_HOME/training_scripts/gsgnn_mt
 echo "127.0.0.1" > ip_list.txt
-cd $GS_HOME/inference_scripts/gsgnn_mt
+cd $GS_HOME/inference_scripts/mt_infer
 echo "127.0.0.1" > ip_list.txt
 
 error_and_exit () {
@@ -179,7 +180,7 @@ then
     echo "The number of saved embs $cnt is not equal to 2 (for movie and user)."
 fi
 
-echo "**************[Multi-task] dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch load from saved model"
+echo "**************[Multi-task] dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch load from saved model and train"
 python3 -m graphstorm.run.gs_multi_task_learning --workspace $GS_HOME/training_scripts/gsgnn_mt  --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_task_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_ec_er_lp.yaml --restore-model-path /data/gsgnn_mt/epoch-2/ --save-model-path /data/gsgnn_mt_2/ --save-model-frequency 1000 --logging-file /tmp/train_log.txt --logging-level debug
 
 error_and_exit $?
@@ -190,3 +191,13 @@ then
     echo "The number of save models $cnt is not equal to the specified topk 1"
     exit -1
 fi
+
+echo "**************[Multi-task] dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference only"
+python3 -m graphstorm.run.gs_multi_task_learning --inference --workspace $GS_HOME/inference_scripts/mt_infer  --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_task_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_ec_er_lp_only_infer.yaml --use-mini-batch-infer false  --save-embed-path /data/gsgnn_mt/infer-emb/ --restore-model-path /data/gsgnn_mt/epoch-2 --save-prediction-path /data/gsgnn_mt/prediction/ --logging-file /tmp/log.txt --preserve-input True --backend nccl
+
+error_and_exit $?
+
+echo "**************[Multi-task] dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference with test"
+python3 -m graphstorm.run.gs_multi_task_learning --inference --workspace $GS_HOME/inference_scripts/mt_infer  --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_task_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_ec_er_lp_with_mask_infer.yaml --use-mini-batch-infer false  --save-embed-path /data/gsgnn_mt/infer-emb/ --restore-model-path /data/gsgnn_mt/epoch-2 --save-prediction-path /data/gsgnn_mt/prediction/ --logging-file /tmp/log.txt --preserve-input True --backend nccl
+
+error_and_exit $?
