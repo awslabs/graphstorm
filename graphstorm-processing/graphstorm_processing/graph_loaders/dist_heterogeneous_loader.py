@@ -79,7 +79,7 @@ class HeterogeneousLoaderConfig:
         When true enables sanity checks for the output created.
         However these are costly to compute, so we disable them by default.
     graph_name: str
-        The name of the graph we will process.
+        Name of the graph.
     input_prefix : str
         The prefix to the input data. Can be an S3 URI or an **absolute** local path.
     local_input_path : str
