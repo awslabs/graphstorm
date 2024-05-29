@@ -41,7 +41,7 @@ class DistCategoryTransformation(DistributedTransformation):
     Transforms categorical features into a vector of one-hot-encoded values.
     """
 
-    def __init__(self, cols: List[str], spark: SparkSession) -> None:
+    def __init__(self, cols: list[str], spark: SparkSession) -> None:
         super().__init__(cols, spark)
 
     @staticmethod
@@ -128,7 +128,7 @@ class DistCategoryTransformation(DistributedTransformation):
             # so we remove instances of None from the list of strings to model
             if None in top_str_categories_list:
                 top_str_categories_list.remove(None)
-            print(top_str_categories_list)
+
             # Each col might have different number of top categories, we need one DF per col
             num_current_col_cats = len(top_str_categories_list)
             # We don't care about values for the other cols in this iteration,
@@ -160,6 +160,7 @@ class DistCategoryTransformation(DistributedTransformation):
             "string_indexer_labels_array": str_indexer_model.labelsArray,
             "cols": self.cols,
             "per_col_label_to_one_hot_idx": per_col_label_to_one_hot_idx,
+            "transformation_name": self.get_transformation_name(),
         }
 
         return dense_vector_features
@@ -181,6 +182,8 @@ class DistCategoryTransformation(DistributedTransformation):
                 list[str], with num_cols elements
             per_col_label_to_one_hot_idx:
                 dict[str, dict[str, int]], with num_cols elements, each with num_categories elements
+            transformation_name:
+                str, will be 'DistCategoryTransformation'
         """
         return self.json_representation
 
@@ -212,7 +215,7 @@ class DistMultiCategoryTransformation(DistributedTransformation):
         if self.separator in SPECIAL_CHARACTERS:
             self.separator = f"\\{self.separator}"
 
-        self.value_map = {}  # type: Dict[str, int]
+        self.value_map: dict[str, int] = {}
 
     @staticmethod
     def get_transformation_name() -> str:

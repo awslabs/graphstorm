@@ -134,6 +134,9 @@ def test_multiple_single_cat_cols_json(user_df, spark):
     labels_array = multi_cols_rep["string_indexer_labels_array"]
     one_hot_index_for_string = multi_cols_rep["per_col_label_to_one_hot_idx"]
     cols = multi_cols_rep["cols"]
+    name = multi_cols_rep["transformation_name"]
+
+    assert name == "DistCategoryTransformation"
 
     # The Spark-generated and our own one-hot-index mappings should match
     for col_labels, col in zip(labels_array, cols):
