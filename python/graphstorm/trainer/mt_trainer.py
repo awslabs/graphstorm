@@ -63,7 +63,10 @@ def prepare_node_mini_batch(data, task_info, mini_batch, device):
     g = data.g
     input_nodes, seeds, blocks = mini_batch
     if not isinstance(input_nodes, dict):
-        assert len(g.ntypes) == 1
+        # This happens on a homogeneous graph.
+        assert len(g.ntypes) == 1, \
+            "The graph should be a homogeneous graph, " \
+            f"but it has multiple node types {g.ntypes}"
         input_nodes = {g.ntypes[0]: input_nodes}
 
     nfeat_fields = task_info.dataloader.node_feat_fields
@@ -101,7 +104,9 @@ def prepare_edge_mini_batch(data, task_info, mini_batch, device):
     """
     input_nodes, batch_graph, blocks = mini_batch
     if not isinstance(input_nodes, dict):
-        assert len(batch_graph.ntypes) == 1
+        assert len(batch_graph.ntypes) == 1, \
+            "The graph should be a homogeneous graph, " \
+            f"but it has multiple node types {batch_graph.ntypes}"
         input_nodes = {batch_graph.ntypes[0]: input_nodes}
 
     nfeat_fields = task_info.dataloader.node_feat_fields
@@ -121,7 +126,9 @@ def prepare_edge_mini_batch(data, task_info, mini_batch, device):
         edge_decoder_feats = None
 
     # retrieving seed edge id from the graph to find labels
-    assert len(batch_graph.etypes) == 1
+    assert len(batch_graph.etypes) == 1, \
+        "Edge classification/regression tasks only support " \
+        "conducting prediction on one edge type."
     target_etype = batch_graph.canonical_etypes[0]
     seeds = batch_graph.edges[target_etype].data[dgl.EID]
     label_field = task_info.dataloader.label_field
@@ -162,7 +169,9 @@ def prepare_link_predict_mini_batch(data, task_info, mini_batch, device):
     input_nodes, pos_graph, neg_graph, blocks = mini_batch
 
     if not isinstance(input_nodes, dict):
-        assert len(pos_graph.ntypes) == 1
+        assert len(pos_graph.ntypes) == 1, \
+            "The graph should be a homogeneous graph, " \
+            f"but it has multiple node types {pos_graph.ntypes}"
         input_nodes = {pos_graph.ntypes[0]: input_nodes}
 
     nfeat_fields = task_info.dataloader.node_feat_fields
@@ -189,7 +198,7 @@ def prepare_link_predict_mini_batch(data, task_info, mini_batch, device):
 class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
     r""" A trainer for multi-task learning
 
-    This class is used to train models for multi task learning.
+    This class is used to train models for multi-task learning.
 
     It makes use of the functions provided by `GSgnnTrainer`
     to define two main functions: `fit` that performs the training
