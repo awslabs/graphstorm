@@ -6,6 +6,9 @@ gsf:
     verbose: false
     save_perf_results_path: null
     batch_size: 32
+    node_feat_name:
+      - user:feat
+      - movie:title
   gnn:
     model_encoder_type: rgcn
     fanout: "4"
@@ -61,10 +64,10 @@ gsf:
           - "user,rating,movie"
         label_field: "rate_class"
         multilabel: false
-        num_classes: 5
+        num_classes: 6
         num_decoder_basis: 2
         remove_target_edge_type: false
-        batch_size: 16 # will overwrite the global batch_size
+        batch_size: 64 # will overwrite the global batch_size
         mask_fields:
           - "train_mask_field_c" # edge classification mask
           - "val_mask_field_c"
@@ -92,7 +95,7 @@ gsf:
         exclude_training_targets: true
         reverse_edge_types_map:
           - user,rating,rating-rev,movie
-        batch_size: 8 # will overwrite the global batch_size
+        batch_size: 128 # will overwrite the global batch_size
         mask_fields:
           - "train_mask_field_lp"
           - null # empty means there is no validation mask

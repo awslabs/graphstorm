@@ -1102,7 +1102,7 @@ def test_np_dataloader_trim_data(dataloader):
 @pytest.mark.parametrize("dataloader", [GSgnnNodeDataLoader])
 @pytest.mark.parametrize("backend", ['gloo', 'nccl'])
 def test_np_dataloader_trim_data_device(dataloader, backend):
-     # initialize the torch distributed environment
+    # initialize the torch distributed environment
     th.distributed.init_process_group(backend=backend,
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,

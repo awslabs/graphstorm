@@ -28,10 +28,11 @@ from dgl.distributed.constants import DEFAULT_ETYPE
 
 from .utils import sys_tracker, get_rank
 from .utils import setup_device
-from .config import BUILTIN_TASK_NODE_CLASSIFICATION
-from .config import BUILTIN_TASK_NODE_REGRESSION
-from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
-from .config import BUILTIN_TASK_EDGE_REGRESSION
+from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
+                     BUILTIN_TASK_NODE_REGRESSION,
+                     BUILTIN_TASK_EDGE_CLASSIFICATION,
+                     BUILTIN_TASK_EDGE_REGRESSION,
+                     BUILTIN_TASK_LINK_PREDICTION)
 from .config import BUILTIN_LP_DOT_DECODER
 from .config import BUILTIN_LP_DISTMULT_DECODER
 from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
@@ -842,3 +843,31 @@ def get_builtin_lp_train_dataloader_class(config):
         raise ValueError('Unknown negative sampler')
 
     return dataloader_cls
+
+def create_task_decoder(task_info, g, decoder_input_dim, train_task):
+    """ Create a task decoder according to task_info.
+
+    Parameters
+    ----------
+    task_info: TaskInfo
+        Task info.
+    g: Dist DGLGraph
+        Graph
+    decoder_input_dim: int
+        The dimension of the input embedding of the decoder
+    train_task: bool
+        Whether the task is a training task
+
+    Return
+    ------
+    decoder: The task decoder
+    loss_func: The loss function
+    """
+    if task_info.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
+        return create_builtin_node_decoder(g, decoder_input_dim, task_info.task_config, train_task)
+    elif task_info.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
+        return create_builtin_edge_decoder(g, decoder_input_dim, task_info.task_config, train_task)
+    elif task_info.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+        return create_builtin_lp_decoder(g, decoder_input_dim, task_info.task_config, train_task)
+    else:
+        raise TypeError(f"Unknown task type {task_info.task_type}")

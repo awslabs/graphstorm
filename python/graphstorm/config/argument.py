@@ -150,9 +150,9 @@ class GSConfig:
         configuration = self.load_yaml_config(cmd_args.yaml_config_file)
 
         multi_task_config = None
-        if 'multi_task_learning' in configuration:
-            multi_task_config = configuration['multi_task_learning']
-            del configuration['multi_task_learning']
+        if 'multi_task_learning' in configuration['gsf']:
+            multi_task_config = configuration['gsf']['multi_task_learning']
+            del configuration['gsf']['multi_task_learning']
 
         self.set_attributes(configuration)
         # Override class attributes using command-line arguments
@@ -263,18 +263,16 @@ class GSConfig:
         task_config: dict
             Task config
         """
-        assert "mask_fields" in task_config, \
-            "mask_fields should be provided for each node classification task " \
-            "in multi task learning"
-        assert "task_weight" in task_config, \
-            "task_weight should be provided for each node classification task " \
-            "in multi task learning"
+        if "mask_fields" in task_config:
+            mask_fields = task_config["mask_fields"]
+            assert len(mask_fields) == 3, \
+                "The mask_fileds should be a list as [train-mask, validation-mask, test-mask], " \
+                f"but get {mask_fields}"
+        else:
+            mask_fields = (None, None, None)
 
-        mask_fields = task_config["mask_fields"]
-        assert len(mask_fields) == 3, \
-            "The mask_fileds should be a list as [train-mask, validation-mask, test-mask], " \
-            f"but get {mask_fields}"
-        task_weight = task_config["task_weight"]
+        task_weight = task_config["task_weight"] \
+            if "task_weight" in task_config else 1.0
         assert task_weight > 0, f"task_weight should be larger than 0, but get {task_weight}"
 
         batch_size = self.batch_size \
@@ -305,7 +303,9 @@ class GSConfig:
         task_id = get_mttask_id(task_type=task_type,
                                 ntype=target_ntype,
                                 label=label_field)
-        setattr(task_info, "mask_fields", mask_fields)
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
         setattr(task_info, "task_weight", task_weight)
 
         return TaskInfo(task_type=task_type,
@@ -336,7 +336,9 @@ class GSConfig:
         task_id = get_mttask_id(task_type=task_type,
                                 ntype=target_ntype,
                                 label=label_field)
-        setattr(task_info, "mask_fields", mask_fields)
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
         setattr(task_info, "task_weight", task_weight)
 
         return TaskInfo(task_type=task_type,
@@ -367,7 +369,9 @@ class GSConfig:
         task_id = get_mttask_id(task_type=task_type,
                                 etype=target_etype,
                                 label=label_field)
-        setattr(task_info, "mask_fields", mask_fields)
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
         setattr(task_info, "task_weight", task_weight)
         return TaskInfo(task_type=task_type,
                         task_id=task_id,
@@ -397,7 +401,9 @@ class GSConfig:
         task_id = get_mttask_id(task_type=task_type,
                                 etype=target_etype,
                                 label=label_field)
-        setattr(task_info, "mask_fields", mask_fields)
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
         setattr(task_info, "task_weight", task_weight)
         return TaskInfo(task_type=task_type,
                         task_id=task_id,
@@ -425,7 +431,9 @@ class GSConfig:
         task_id = get_mttask_id(
             task_type=task_type,
             etype=train_etype if train_etype is not None else "ALL_ETYPE")
-        setattr(task_info, "mask_fields", mask_fields)
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
         setattr(task_info, "task_weight", task_weight)
         return TaskInfo(task_type=task_type,
                         task_id=task_id,
