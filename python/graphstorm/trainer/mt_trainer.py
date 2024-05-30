@@ -217,7 +217,9 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
         super(GSgnnMultiTaskLearningTrainer, self).__init__(model, topk_model_to_save)
         assert isinstance(model, GSgnnMultiTaskModelInterface) \
             and isinstance(model, GSgnnModelBase), \
-                "The input model is not a GSgnnModel model. Please implement GSgnnModelBase."
+                "The input model is not a GSgnnModel model "\
+                "or not implement the GSgnnMultiTaskModelInterface." \
+                "Please implement GSgnnModelBase."
 
     def _prepare_mini_batch(self, data, task_info, mini_batch, device):
         """ prepare mini batch for a single task
@@ -386,8 +388,8 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                                           data, val_loader, test_loader, total_steps)
                     # TODO(xiangsx): Add early stop support
 
-                # Every n iterations, check to save the top k models. Will save
-                # the last k model or all models depends on the setting of top k
+                # Every n iterations, save the model and keep
+                # the lask k models.
                 # TODO(xiangsx): support saving the best top k model.
                 if save_model_frequency > 0 and \
                     total_steps % save_model_frequency == 0 and \

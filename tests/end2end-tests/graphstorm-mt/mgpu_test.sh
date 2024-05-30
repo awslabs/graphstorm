@@ -148,7 +148,7 @@ fi
 cnt=$(ls -l /data/gsgnn_mt/ | grep epoch | wc -l)
 if test $cnt != 3
 then
-    echo "The number of save models $cnt is not equal to the specified topk 1"
+    echo "The number of save models $cnt is not equal to the specified topk 3"
     exit -1
 fi
 
@@ -187,6 +187,6 @@ error_and_exit $?
 cnt=$(ls -l /data/gsgnn_mt_2/ | grep epoch | wc -l)
 if test $cnt != 3
 then
-    echo "The number of save models $cnt is not equal to the specified topk 1"
+    echo "The number of save models $cnt is not equal to the specified topk 3"
     exit -1
 fi
