@@ -104,7 +104,7 @@ By Specifying the output_format as ``DGL``, the output will be an `DGLGraph <htt
 
 **Node and Edge Mapping Files:**
 
-There are two node/edge id mapping stages during graph construction. The first mapping occurs when GraphStorm converts the original user provided node ids into integer-based node ids, and the second mapping happends when graph partition operation shuffles these integer-based node ids to each partition with new node ids. Meanwhile, graph construction also saves two sets of node id mapping files as parts of outputs.
+There are two node/edge id mapping stages during graph construction. The first mapping occurs when GraphStorm converts the original user provided node ids into integer-based node ids, and the second mapping happends when graph partition operation shuffles these integer-based node ids to each partition with new node ids. Meanwhile, graph construction also saves two sets of node id mapping files as parts of its outputs.
 
 Outputs of the first mapping stage is stored at the `raw_id_mappings` foler under the path specified by the **-\-output-dir** argument. For each node type, there is a dedicated folder named after the ``node_type`` filed, in which contains parquet format files named after `part-*****.parquet`, where `*****` represents five digit numbers starting from `00000`. 
 
