@@ -34,11 +34,13 @@ from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 
 from graphstorm.model.multitask_gnn import GSgnnMultiTaskSharedEncoderModel
-from graphstorm.inference import GSgnnLinkPredictionInferrer
+from graphstorm.inference import GSgnnMultiTaskLearningInferer
 
 from graphstorm.utils import get_device, use_wholegraph
 from graphstorm.utils import get_lm_ntypes
 from gsgnn_mt import create_evaluator
+
+from graphstorm.eval import GSgnnMultiTaskEvaluator
 
 def create_task_infer_dataloader(task, config, infer_data):
     """ Create task specific dataloader for inference tasks
@@ -62,7 +64,7 @@ def create_task_infer_dataloader(task, config, infer_data):
     if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
         eval_ntype = task_config.target_ntype
         if not config.no_validation:
-            target_idxs = infer_data.get_edge_test_set(eval_ntype, mask=task_config.test_mask)
+            target_idxs = infer_data.get_node_test_set(eval_ntype, mask=task_config.test_mask)
             assert len(target_idxs) > 0, \
                 f"There is not test data for evaluation for task {task.task_id}. " \
                 "You can use --no-validation true to avoid do testing"
@@ -84,12 +86,12 @@ def create_task_infer_dataloader(task, config, infer_data):
     elif task.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
         eval_etype = task_config.target_etype
         if not config.no_validation:
-            target_idxs = infer_data.get_edge_test_set(eval_etype)
+            target_idxs = infer_data.get_edge_test_set(eval_etype, mask=task_config.test_mask)
             assert len(target_idxs) > 0, \
                 f"There is not test data for evaluation for task {task.task_id}. " \
                 "You can use --no-validation true to avoid do testing"
         else:
-            target_idxs = infer_data.get_edge_infer_set(eval_etype)
+            target_idxs = infer_data.get_edge_infer_set(eval_etype, mask=task_config.test_mask)
             assert len(target_idxs) > 0, \
                 f"To do inference on {config.target_etype} for {task.task_id} " \
                 "without doing evaluation, you should not define test_mask as its " \
@@ -109,11 +111,11 @@ def create_task_infer_dataloader(task, config, infer_data):
     elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
         eval_etype = task_config.eval_etype
         if not config.no_validation:
-            infer_idxs = infer_data.get_edge_test_set(eval_etype)
+            infer_idxs = infer_data.get_edge_test_set(eval_etype, mask=task_config.test_mask)
             assert len(infer_idxs) > 0, \
-                "There is not test data for evaluation for task {task.task_id}. "
+                f"There is not test data for evaluation for task {task.task_id}. "
         else:
-            infer_idxs = infer_data.get_edge_infer_set(eval_etype)
+            infer_idxs =infer_data.get_edge_infer_set(eval_etype, mask=task_config.test_mask)
 
         # We do not need fanout for full graph inference.
         # In full graph inference, the test data loader
@@ -141,7 +143,8 @@ def create_task_infer_dataloader(task, config, infer_data):
                 num_negative_edges=task_config.num_negative_edges_eval,
                 fanout=fanout,
                 node_feats=node_feats)
-    return None
+    else:
+        raise TypeError(f"Unknown task type {task.task_type}")
 
 def main(config_args):
     """ main function
@@ -162,6 +165,9 @@ def main(config_args):
     gs.gsf.set_encoder(model, infer_data.g, config, train_task=False)
     tasks = config.multi_tasks
     dataloaders = []
+    mt_tasks = []
+    lp_test_dataloaders = []
+    lp_tasks = []
     task_evaluators = {}
     encoder_out_dims = model.gnn_encoder.out_dims \
         if model.gnn_encoder is not None \
@@ -171,28 +177,52 @@ def main(config_args):
         decoder, loss_func = gs.create_task_decoder(task, infer_data.g, encoder_out_dims, train_task=True)
 
         data_loader = create_task_infer_dataloader(task, config, infer_data)
-        dataloaders.append(data_loader)
+
         if not config.no_validation:
             task_evaluators[task.task_id] = \
                 create_evaluator(task)
+
+            if task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+                # Link prediction should be handled separately
+                # We should avoid using test edges in message passing
+                # when evaluating link prediction performance.
+                # Otherwise, there will be information leakage.
+                lp_test_dataloaders.append(data_loader)
+                lp_tasks.append(task)
+            else:
+                dataloaders.append(data_loader)
+                mt_tasks.append(task)
+        else:
+            dataloaders.append(data_loader)
+            mt_tasks.append(task)
+
         model.add_task(task.task_id, task.task_type, decoder, loss_func)
 
 
-    infer_dataloader = GSgnnMultiTaskDataLoader(infer_data, tasks, dataloaders)
+    infer_dataloader = GSgnnMultiTaskDataLoader(infer_data, mt_tasks, dataloaders)
+    # Create a multi-task dataloader for link prediction task
+    # testing specifically.
+    lp_test_dataloader = GSgnnMultiTaskDataLoader(
+        infer_data, lp_tasks, lp_test_dataloaders) \
+        if len(lp_test_dataloaders) > 0 else None
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
-    infer = GSgnnLinkPredictionInferrer(model)
+    model = model.to(get_device())
+    infer = GSgnnMultiTaskLearningInferer(model)
+    if not config.no_validation:
+        evaluator = GSgnnMultiTaskEvaluator(config.eval_frequency,
+                                            task_evaluators)
+        infer.setup_evaluator(evaluator)
     infer.setup_device(device=get_device())
     infer.infer(infer_data,
                 infer_dataloader,
+                lp_test_dataloader,
                 save_embed_path=config.save_embed_path,
                 save_prediction_path=config.save_prediction_path,
                 use_mini_batch_infer=config.use_mini_batch_infer,
                 node_id_mapping_file=config.node_id_mapping_file,
                 edge_id_mapping_file=config.edge_id_mapping_file,
                 return_proba=config.return_proba,
-                edge_mask_for_gnn_embeddings=None if config.no_validation else \
-                    'train_mask', # if no validation,any edge can be used in message passing.
                 save_embed_format=config.save_embed_format)
 
 def generate_parser():

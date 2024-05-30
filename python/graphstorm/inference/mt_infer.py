@@ -17,6 +17,7 @@
 """
 import os
 import time
+import torch as th
 
 from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_NODE_REGRESSION,
@@ -31,6 +32,8 @@ from ..model.utils import (save_node_prediction_results,
 from ..model.utils import NodeIDShuffler
 from ..model import do_full_graph_inference, do_mini_batch_inference
 from ..model.multitask_gnn import multi_task_mini_batch_predict
+from ..model.lp_gnn import run_lp_mini_batch_predict
+
 from ..model.edge_decoder import LinkPredictDistMultDecoder
 
 from ..utils import sys_tracker, get_rank, barrier
@@ -48,13 +51,14 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
     """
 
     # pylint: disable=unused-argument
-    def infer(self, data, mt_loader, save_embed_path=None,
+    def infer(self, data, mt_loader,
+              lp_test_loader=None,
+              save_embed_path=None,
               save_prediction_path=None,
               use_mini_batch_infer=False,
               node_id_mapping_file=None,
               edge_id_mapping_file=None,
               return_proba=True,
-              edge_mask_for_gnn_embeddings=None,
               save_embed_format="pytorch",
               infer_batch_size=1024):
         """ Do inference
@@ -85,10 +89,6 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
             graph partition algorithm.
         return_proba: bool
             Whether to return all the predictions or the maximum prediction.
-        edge_mask_for_gnn_embeddings : str
-            The mask that indicates the edges used for computing GNN embeddings. By default,
-            the dataloader uses the edges in the training graphs to compute GNN embeddings to
-            avoid information leak for link prediction.
         save_embed_format : str
             Specify the format of saved embeddings.
         infer_batch_size: int
@@ -107,11 +107,9 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
         if use_mini_batch_infer:
             embs = do_mini_batch_inference(self._model, data, batch_size=infer_batch_size,
                                            fanout=fanout,
-                                           edge_mask=edge_mask_for_gnn_embeddings,
                                            task_tracker=self.task_tracker)
         else:
             embs = do_full_graph_inference(self._model, data, fanout=fanout,
-                                           edge_mask=edge_mask_for_gnn_embeddings,
                                            task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
         device = self.device
@@ -124,10 +122,34 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
                                           return_proba=return_proba,
                                           return_label=do_eval)
 
+        if lp_test_loader is not None:
+            # We also need to add test metrics for link prediction tasks
+            dataloaders = lp_test_loader.dataloaders
+            task_infos = lp_test_loader.task_infos
+
+            with th.no_grad():
+                for dataloader, task_info in zip(dataloaders, task_infos):
+                    print(task_info.task_id)
+                    if dataloader is None:
+                        pre_results[task_info.task_id] = None
+
+                    if use_mini_batch_infer:
+                        lp_test_embs = do_mini_batch_inference(self._model, data, batch_size=infer_batch_size,
+                                                    fanout=fanout,
+                                                    edge_mask=task_info.task_config.train_mask,
+                                                    task_tracker=self.task_tracker)
+                    else:
+                        lp_test_embs = do_full_graph_inference(self._model, data, fanout=fanout,
+                                                    edge_mask=task_info.task_config.train_mask,
+                                                    task_tracker=self.task_tracker)
+                    decoder = self._model.task_decoders[task_info.task_id]
+                    ranking = run_lp_mini_batch_predict(decoder, lp_test_embs, dataloader, device)
+                    pre_results[task_info.task_id] = ranking
+
         if do_eval:
             test_start = time.time()
             val_score, test_score = self.evaluator.evaluate(
-                None, pre_results, 0)
+                pre_results, pre_results, 0)
             sys_tracker.check('run evaluation')
             if get_rank() == 0:
                 self.log_print_metrics(val_score=val_score,
@@ -157,14 +179,14 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
                     target_ntypes.add(task_info.task_config.target_ntype)
                 elif task_info.task_type in \
                     [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
-                    target_ntypes.add(task_info.task_config.target_etype[0])
-                    target_ntypes.add(task_info.task_config.target_etype[1])
+                    target_ntypes.add(task_info.task_config.target_etype[0][0])
+                    target_ntypes.add(task_info.task_config.target_etype[0][2])
                 else:
                     # task_info.task_type is BUILTIN_TASK_LINK_PREDICTION
                     # There is no prediction results for link prediction
                     continue
 
-            nid_shuffler = NodeIDShuffler(g, node_id_mapping_file, list(preds.keys())) \
+            nid_shuffler = NodeIDShuffler(g, node_id_mapping_file, list(target_ntypes)) \
                     if node_id_mapping_file else None
 
             for task_info, dataloader in zip(task_infos, dataloaders):
@@ -190,7 +212,7 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
                         pred, _ = pre_results[task_id]
                         if pred is not None:
                             shuffled_preds = {}
-                            target_etype = task_info.task_config.target_etype
+                            target_etype = task_info.task_config.target_etype[0]
                             pred_eids = dataloader.target_eidx[target_etype]
 
                             pred_src_nids, pred_dst_nids = \
@@ -216,4 +238,5 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
                 if isinstance(decoder, LinkPredictDistMultDecoder):
                     if save_embed_path is not None:
                         rel_emb_path = os.path.join(save_embed_path, task_id)
+                        os.makedirs(rel_emb_path, exist_ok=True)
                         save_relation_embeddings(rel_emb_path, decoder)

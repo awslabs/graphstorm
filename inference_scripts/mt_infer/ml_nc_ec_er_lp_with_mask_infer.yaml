@@ -89,6 +89,6 @@ gsf:
           - user,rating,rating-rev,movie
         batch_size: 128 # will overwrite the global batch_size
         mask_fields:
-          - "train_mask_field_lp"
+          - "train_mask_field_l"
           - null # empty means there is no validation mask
-          - null # empty means there is no test mask
+          - "test_mask_field_l"

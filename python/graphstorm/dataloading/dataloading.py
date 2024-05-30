@@ -1285,6 +1285,12 @@ class GSgnnLinkPredictionTestDataLoader(GSgnnLinkPredictionDataLoaderBase):
         """
         return self._fanout
 
+    def __len__(self):
+        num_samples = 0
+        for _, test_size in self._fixed_test_size.items():
+            num_samples += math.ceil(test_size // self._batch_size)
+        return num_samples
+
 class GSgnnLinkPredictionJointTestDataLoader(GSgnnLinkPredictionTestDataLoader):
     """ Link prediction minibatch dataloader for validation and test
         with joint negative sampler

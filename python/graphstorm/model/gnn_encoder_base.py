@@ -396,6 +396,6 @@ def dist_inference(g, gnn_encoder, get_input_embeds, batch_size, fanout,
                 get_input_embeds = partial(get_input_embeds1, node_feats=next_layer_input)
             next_layer_input = dist_inference_one_layer(str(i), g, dataloader,
                                                         list(infer_nodes.keys()),
-                                                        layer, get_input_embeds, device,
+                                                        layer, get_input_embeds,device,
                                                         task_tracker)
     return next_layer_input

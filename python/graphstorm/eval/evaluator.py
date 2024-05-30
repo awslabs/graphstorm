@@ -1217,8 +1217,10 @@ class GSgnnMultiTaskEvaluator(GSgnnBaseEvaluator, GSgnnMultiTaskEvalInterface):
             task_evaluator = self._task_evaluators[task_id]
 
             if isinstance(task_evaluator, GSgnnPredictionEvalInterface):
-                val_preds, val_labels = eval_task[0]
-                test_preds, test_labels = eval_task[1]
+                val_preds, val_labels = eval_task[0] \
+                    if eval_task[0] is not None else (None, None)
+                test_preds, test_labels = eval_task[1] \
+                    if eval_task[0] is not None else (None, None)
                 val_score, test_score = task_evaluator.evaluate(
                     val_preds, test_preds, val_labels, test_labels, total_iters)
             elif isinstance(task_evaluator, GSgnnLPRankingEvalInterface):
