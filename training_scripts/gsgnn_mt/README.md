@@ -15,4 +15,12 @@ python3 -m graphstorm.gconstruct.construct_graph \
 
 ## Run the example
 ```
+python3 -m graphstorm.run.gs_multi_task_learning \
+	--workspace $GS_HOME/training_scripts/gsgnn_mt  \
+	--num-trainers 1 \
+	--num-servers 1 \
+	--part-config movielen_100k_multi_task_train_val_1p_4t/movie-lens-100k.json \
+	--cf ml_nc_ec_er_lp.yaml \
+	--save-model-path /data/gsgnn_mt/ \
+	--save-model-frequency 1000
 ```

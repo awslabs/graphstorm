@@ -112,6 +112,7 @@ def apply_transform(
         logging.warning("The device to run huggingface transformation is %s", device)
         tokenizer = AutoTokenizer.from_pretrained(hf_model)
         if max_seq_length > tokenizer.model_max_length:
+            # TODO: Could we possibly raise this at config time?
             raise RuntimeError(
                 f"max_seq_length {max_seq_length} is larger "
                 f"than expected {tokenizer.model_max_length}"

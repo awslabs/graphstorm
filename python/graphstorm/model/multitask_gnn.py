@@ -79,7 +79,7 @@ class GSgnnMultiTaskModelInterface:
 
 class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface):
     """ GraphStorm GNN model for multi-task learning
-    with a shared encoder model and separate decoder models.
+    with a shared encoder model and separate decoder models for each task.
 
     Parameters
     ----------
@@ -135,7 +135,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         return self._decoder
 
     def _run_mini_batch(self, task_info, mini_batch):
-        """ Run mini_batch forward
+        """ Run mini_batch forward.
         """
         if task_info.task_type in \
             [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
@@ -168,24 +168,43 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         return loss, task_info.task_config.task_weight
 
     def forward(self, task_mini_batches):
+        """ The forward function for multi-task learning
+            It will iterate over the mini-batches and call
+            forward for each task.
+
+            Return
+            mt_loss: overall loss
+            losses: per task loss (used for debug)
+        """
         losses = []
         for (task_info, mini_batch) in task_mini_batches:
             loss, weight = self._run_mini_batch(task_info, mini_batch)
             losses.append((loss, weight))
 
-            reg_loss = th.tensor(0.).to(losses[0][0].device)
-            for d_para in self.get_dense_params():
-                reg_loss += d_para.square().sum()
-            alpha_l2norm = self.alpha_l2norm
+        reg_loss = th.tensor(0.).to(losses[0][0].device)
+        for d_para in self.get_dense_params():
+            reg_loss += d_para.square().sum()
+        alpha_l2norm = self.alpha_l2norm
 
-            mt_loss = reg_loss * alpha_l2norm
-            for loss, weight in losses:
-                mt_loss += loss * weight
-        return mt_loss
+        mt_loss = reg_loss * alpha_l2norm
+        for loss, weight in losses:
+            mt_loss += loss * weight
+
+        return mt_loss, losses
 
     # pylint: disable=unused-argument
     def _forward(self, task_id, encoder_data, decoder_data):
-        """ The forward function for multi-task learning
+        """ The forward function to run forward for a specific
+            task with task_id.
+
+        Parameters
+        ----------
+        task_id: str
+            Task ID.
+        encoder_data: tuple
+            The input data for the encoder.
+        decoder_data: tuple
+            The input for the decoder.
         """
         assert task_id in self.task_pool, \
             f"Unknown task: {task_id} in multi-task learning." \

@@ -63,7 +63,10 @@ def prepare_node_mini_batch(data, task_info, mini_batch, device):
     g = data.g
     input_nodes, seeds, blocks = mini_batch
     if not isinstance(input_nodes, dict):
-        assert len(g.ntypes) == 1
+        # This happens on a homogeneous graph.
+        assert len(g.ntypes) == 1, \
+            "The graph should be a homogeneous graph, " \
+            f"but it has multiple node types {g.ntypes}"
         input_nodes = {g.ntypes[0]: input_nodes}
 
     nfeat_fields = task_info.dataloader.node_feat_fields
@@ -101,7 +104,9 @@ def prepare_edge_mini_batch(data, task_info, mini_batch, device):
     """
     input_nodes, batch_graph, blocks = mini_batch
     if not isinstance(input_nodes, dict):
-        assert len(batch_graph.ntypes) == 1
+        assert len(batch_graph.ntypes) == 1, \
+            "The graph should be a homogeneous graph, " \
+            f"but it has multiple node types {batch_graph.ntypes}"
         input_nodes = {batch_graph.ntypes[0]: input_nodes}
 
     nfeat_fields = task_info.dataloader.node_feat_fields
@@ -121,7 +126,9 @@ def prepare_edge_mini_batch(data, task_info, mini_batch, device):
         edge_decoder_feats = None
 
     # retrieving seed edge id from the graph to find labels
-    assert len(batch_graph.etypes) == 1
+    assert len(batch_graph.etypes) == 1, \
+        "Edge classification/regression tasks only support " \
+        "conducting prediction on one edge type."
     target_etype = batch_graph.canonical_etypes[0]
     seeds = batch_graph.edges[target_etype].data[dgl.EID]
     label_field = task_info.dataloader.label_field
@@ -162,7 +169,9 @@ def prepare_link_predict_mini_batch(data, task_info, mini_batch, device):
     input_nodes, pos_graph, neg_graph, blocks = mini_batch
 
     if not isinstance(input_nodes, dict):
-        assert len(pos_graph.ntypes) == 1
+        assert len(pos_graph.ntypes) == 1, \
+            "The graph should be a homogeneous graph, " \
+            f"but it has multiple node types {pos_graph.ntypes}"
         input_nodes = {pos_graph.ntypes[0]: input_nodes}
 
     nfeat_fields = task_info.dataloader.node_feat_fields
@@ -189,7 +198,7 @@ def prepare_link_predict_mini_batch(data, task_info, mini_batch, device):
 class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
     r""" A trainer for multi-task learning
 
-    This class is used to train models for multi task learning.
+    This class is used to train models for multi-task learning.
 
     It makes use of the functions provided by `GSgnnTrainer`
     to define two main functions: `fit` that performs the training
@@ -208,7 +217,9 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
         super(GSgnnMultiTaskLearningTrainer, self).__init__(model, topk_model_to_save)
         assert isinstance(model, GSgnnMultiTaskModelInterface) \
             and isinstance(model, GSgnnModelBase), \
-                "The input model is not a GSgnnModel model. Please implement GSgnnModelBase."
+                "The input model is not a GSgnnModel model "\
+                "or not implement the GSgnnMultiTaskModelInterface." \
+                "Please implement GSgnnModelBase."
 
     def _prepare_mini_batch(self, data, task_info, mini_batch, device):
         """ prepare mini batch for a single task
@@ -351,7 +362,7 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                     mini_batches.append((task_info, \
                         self._prepare_mini_batch(data, task_info, mini_batch, device)))
 
-                loss = model(mini_batches)
+                loss, task_losses = model(mini_batches)
 
                 rt_profiler.record('train_forward')
                 self.optimizer.zero_grad()
@@ -366,8 +377,13 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
 
                 if i % 20 == 0 and get_rank() == 0:
                     rt_profiler.print_stats()
+                    per_task_loss = {}
+                    for mini_batch, task_loss in zip(mini_batches, task_losses):
+                        task_info, _ = mini_batch
+                        per_task_loss[task_info.task_id] = task_loss[0].item()
                     logging.info("Epoch %05d | Batch %03d | Train Loss: %.4f | Time: %.4f",
                                  epoch, i, loss.item(), time.time() - batch_tic)
+                    logging.debug("Per task Loss: %s", per_task_loss)
 
                 val_score = None
                 if self.evaluator is not None and \
@@ -377,8 +393,8 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                                           data, val_loader, test_loader, total_steps)
                     # TODO(xiangsx): Add early stop support
 
-                # Every n iterations, check to save the top k models. Will save
-                # the last k model or all models depends on the setting of top k
+                # Every n iterations, save the model and keep
+                # the lask k models.
                 # TODO(xiangsx): support saving the best top k model.
                 if save_model_frequency > 0 and \
                     total_steps % save_model_frequency == 0 and \

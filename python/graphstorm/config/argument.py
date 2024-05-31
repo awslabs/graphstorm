@@ -265,18 +265,16 @@ class GSConfig:
         task_config: dict
             Task config
         """
-        assert "mask_fields" in task_config, \
-            "mask_fields should be provided for each node classification task " \
-            "in multi task learning"
-        assert "task_weight" in task_config, \
-            "task_weight should be provided for each node classification task " \
-            "in multi task learning"
+        if "mask_fields" in task_config:
+            mask_fields = task_config["mask_fields"]
+            assert len(mask_fields) == 3, \
+                "The mask_fileds should be a list as [train-mask, validation-mask, test-mask], " \
+                f"but get {mask_fields}"
+        else:
+            mask_fields = (None, None, None)
 
-        mask_fields = task_config["mask_fields"]
-        assert len(mask_fields) == 3, \
-            "The mask_fileds should be a list as [train-mask, validation-mask, test-mask], " \
-            f"but get {mask_fields}"
-        task_weight = task_config["task_weight"]
+        task_weight = task_config["task_weight"] \
+            if "task_weight" in task_config else 1.0
         assert task_weight > 0, f"task_weight should be larger than 0, but get {task_weight}"
 
         batch_size = self.batch_size \
