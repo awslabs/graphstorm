@@ -380,7 +380,7 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                     per_task_loss = {}
                     for mini_batch, task_loss in zip(mini_batches, task_losses):
                         task_info, _ = mini_batch
-                        per_task_loss[task_info.task_id] = task_loss.item()
+                        per_task_loss[task_info.task_id] = task_loss[0].item()
                     logging.info("Epoch %05d | Batch %03d | Train Loss: %.4f | Time: %.4f",
                                  epoch, i, loss.item(), time.time() - batch_tic)
                     logging.debug("Per task Loss: %s", per_task_loss)
