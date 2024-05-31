@@ -362,7 +362,7 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                     mini_batches.append((task_info, \
                         self._prepare_mini_batch(data, task_info, mini_batch, device)))
 
-                loss = model(mini_batches)
+                loss, task_losses = model(mini_batches)
 
                 rt_profiler.record('train_forward')
                 self.optimizer.zero_grad()
@@ -377,8 +377,13 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
 
                 if i % 20 == 0 and get_rank() == 0:
                     rt_profiler.print_stats()
+                    per_task_loss = {}
+                    for mini_batch, task_loss in zip(mini_batches, task_losses):
+                        task_info, _ = mini_batch
+                        per_task_loss[task_info.task_id] = task_loss.item()
                     logging.info("Epoch %05d | Batch %03d | Train Loss: %.4f | Time: %.4f",
                                  epoch, i, loss.item(), time.time() - batch_tic)
+                    logging.debug("Per task Loss: %s", per_task_loss)
 
                 val_score = None
                 if self.evaluator is not None and \

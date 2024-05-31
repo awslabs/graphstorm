@@ -30,7 +30,6 @@ from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
                                     GSgnnMultiTaskDataLoader)
-
 from graphstorm.eval import (GSgnnClassificationEvaluator,
                              GSgnnRegressionEvaluator,
                              GSgnnPerEtypeMrrLPEvaluator,
