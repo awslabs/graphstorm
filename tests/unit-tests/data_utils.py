@@ -32,6 +32,13 @@ from graphstorm import get_node_feat_size
 from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
 from util import create_tokens
 
+SIZE_DICT = {
+        'tiny': 1e+2,
+        'small': 1e+4,
+        'medium': 1e+6,
+        'large': 1e+8,
+        'largest': 1e+10
+    }
 
 def generate_mask(idx, length):
     mask = np.zeros(length)
@@ -49,14 +56,7 @@ def generate_dummy_hetero_graph(size='tiny', gen_mask=True, add_reverse=False):
     :return:
     hg: a heterogeneous graph.
     """
-    size_dict = {
-        'tiny': 1e+2,
-        'small': 1e+4,
-        'medium': 1e+6,
-        'large': 1e+8,
-        'largest': 1e+10
-    }
-
+    size_dict = SIZE_DICT
     data_size = int(size_dict[size])
 
     num_nodes_dict = {
@@ -136,14 +136,7 @@ def generate_dummy_hetero_graph_multi_target_ntypes(size='tiny', gen_mask=True):
     :return:
     hg: a heterogeneous graph.
     """
-    size_dict = {
-        'tiny': 1e+2,
-        'small': 1e+4,
-        'medium': 1e+6,
-        'large': 1e+8,
-        'largest': 1e+10
-    }
-
+    size_dict = SIZE_DICT
     data_size = int(size_dict[size])
 
     num_nodes_dict = {
@@ -215,6 +208,56 @@ def generate_dummy_hetero_graph_multi_target_ntypes(size='tiny', gen_mask=True):
 
     return hetero_graph
 
+def generate_dummy_hetero_graph_multi_task(size='tiny'):
+    """
+    generate a dummy heterogeneous graph.
+    Parameters
+    ----------
+    size: the size of dummy graph data, could be one of tiny, small, medium, large, and largest
+
+    :return:
+    hg: a heterogeneous graph.
+    """
+    gen_mask=True
+    size_dict = SIZE_DICT
+    # based on the graph generated for multi_target_ntypes
+    # we add some more tasks.
+    hetero_graph = generate_dummy_hetero_graph_multi_target_ntypes(size=size, gen_mask=gen_mask)
+
+    data_size = int(size_dict[size])
+
+    # add extra mask for n0
+    node_train_mask = generate_mask([0,1,2,3,4], data_size)
+    node_val_mask = generate_mask([5,6,7], data_size)
+    node_test_mask = generate_mask([8,9,10,11,12,13,14], data_size)
+    hetero_graph.nodes["n0"].data['train_mask1'] = node_train_mask
+    hetero_graph.nodes["n0"].data['val_mask1'] = node_val_mask
+    hetero_graph.nodes["n0"].data['test_mask1'] = node_test_mask
+
+    node_train_mask = generate_mask([i for i in range(data_size//2, data_size)], data_size)
+    node_val_mask = generate_mask([i for i in range(data_size//4, data_size//2)], data_size)
+    node_test_mask = generate_mask([i for i in range(data_size//4)], data_size)
+    hetero_graph.nodes["n0"].data['train_mask2'] = node_train_mask
+    hetero_graph.nodes["n0"].data['val_mask2'] = node_val_mask
+    hetero_graph.nodes["n0"].data['test_mask2'] = node_test_mask
+
+    edge_train_mask = generate_mask([0,1,2,3,4], 2 * data_size)
+    edge_val_mask = generate_mask([5,6,7], 2 * data_size)
+    edge_test_mask = generate_mask([8,9,10,11,12,13,14], 2 * data_size)
+    hetero_graph.edges[("n0", "r1", "n1")].data['train_mask1'] = edge_train_mask
+    hetero_graph.edges[("n0", "r1", "n1")].data['val_mask1'] = edge_val_mask
+    hetero_graph.edges[("n0", "r1", "n1")].data['test_mask1'] = edge_test_mask
+
+    edge_train_mask = generate_mask([i for i in range(data_size, data_size * 2)], 2 * data_size)
+    edge_val_mask = generate_mask([i for i in range(data_size//2, data_size)], 2 * data_size)
+    edge_test_mask = generate_mask([i for i in range(data_size//2)], 2 * data_size)
+    hetero_graph.edges[("n0", "r1", "n1")].data['train_mask2'] = edge_train_mask
+    hetero_graph.edges[("n0", "r1", "n1")].data['val_mask2'] = edge_val_mask
+    hetero_graph.edges[("n0", "r1", "n1")].data['test_mask2'] = edge_test_mask
+
+    return hetero_graph
+
+
 def generate_dummy_hetero_graph_reconstruct(size='tiny', gen_mask=True):
     """
     generate a dummy heterogeneous graph for testing the construction of node features..
@@ -225,14 +268,7 @@ def generate_dummy_hetero_graph_reconstruct(size='tiny', gen_mask=True):
     :return:
     hg: a heterogeneous graph.
     """
-    size_dict = {
-        'tiny': 1e+2,
-        'small': 1e+4,
-        'medium': 1e+6,
-        'large': 1e+8,
-        'largest': 1e+10
-    }
-
+    size_dict = SIZE_DICT
     data_size = int(size_dict[size])
 
     num_nodes_dict = {
@@ -293,14 +329,7 @@ def generate_dummy_homo_graph(size='tiny', gen_mask=True):
     :return:
     hg: a homogeneous graph in one node type and one edge type.
     """
-    size_dict = {
-        'tiny': 1e+2,
-        'small': 1e+4,
-        'medium': 1e+6,
-        'large': 1e+8,
-        'largest': 1e+10
-    }
-
+    size_dict = SIZE_DICT
     data_size = int(size_dict[size])
 
     num_nodes_dict = {
@@ -368,14 +397,7 @@ def generate_dummy_homogeneous_failure_graph(size='tiny', gen_mask=True, type='n
     :return:
     hg: a homogeneous graph in one node type and one edge type.
     """
-    size_dict = {
-        'tiny': 1e+2,
-        'small': 1e+4,
-        'medium': 1e+6,
-        'large': 1e+8,
-        'largest': 1e+10
-    }
-
+    size_dict = SIZE_DICT
     data_size = int(size_dict[size])
 
     if type == 'node':
@@ -518,6 +540,26 @@ def generate_dummy_dist_graph_multi_target_ntypes(dirname, size='tiny', graph_na
     part_config : the path of the partition configuration file.
     """
     hetero_graph = generate_dummy_hetero_graph_multi_target_ntypes(size=size, gen_mask=gen_mask)
+    return partion_and_load_distributed_graph(hetero_graph=hetero_graph, dirname=dirname,
+                                              graph_name=graph_name)
+
+def generate_dummy_dist_graph_multi_task(dirname, size='tiny', graph_name='dummy'):
+    """
+    Generate a dummy DGL distributed graph for multi-task testing
+    with the given size
+
+    Parameters
+    ----------
+    dirname : the directory where the graph will be partitioned and stored.
+    size: the size of dummy graph data, could be one of tiny, small, medium, large, and largest
+    graph_name: string as a name
+
+    Returns
+    -------
+    dist_graph: a DGL distributed graph
+    part_config : the path of the partition configuration file.
+    """
+    hetero_graph = generate_dummy_hetero_graph_multi_task(size=size)
     return partion_and_load_distributed_graph(hetero_graph=hetero_graph, dirname=dirname,
                                               graph_name=graph_name)
 

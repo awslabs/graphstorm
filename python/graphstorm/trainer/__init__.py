@@ -20,3 +20,4 @@ from .np_trainer import GSgnnNodePredictionTrainer
 from .ep_trainer import GSgnnEdgePredictionTrainer
 from .gsgnn_trainer import GSgnnTrainer
 from .glem_np_trainer import GLEMNodePredictionTrainer
+from .mt_trainer import GSgnnMultiTaskLearningTrainer

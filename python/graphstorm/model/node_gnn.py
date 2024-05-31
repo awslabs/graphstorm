@@ -311,6 +311,48 @@ def node_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
         Labels if return_labels is True
     """
     device = model.device
+    decoder = model.decoder
+    model.eval()
+    preds, labels = \
+        run_node_mini_batch_predict(decoder,
+                                    emb,
+                                    loader,
+                                    device,
+                                    return_proba,
+                                    return_label)
+    model.train()
+    return preds, labels
+
+def run_node_mini_batch_predict(decoder, emb, loader, device,
+                                return_proba=True, return_label=False):
+    """ Perform mini-batch node prediction with the given decoder.
+
+        Note: callers should call model.eval() before calling this function
+        and call model.train() after when doing training.
+
+    Parameters
+    ----------
+    decoder : GSNodeDecoder or th.nn.ModuleDict
+        The GraphStorm node decoder.
+        It can be a GSNodeDecoder or a dict of GSNodeDecoders
+    emb : dict of Tensor
+        The GNN embeddings
+    loader : GSgnnNodeDataLoader
+        The GraphStorm dataloader
+    device: th.device
+        Device used to compute prediction result
+    return_proba : bool
+        Whether or not to return all the predictions or the maximum prediction
+    return_label : bool
+        Whether or not to return labels.
+
+    Returns
+    -------
+    dict of Tensor :
+        Prediction results.
+    dict of Tensor :
+        Labels if return_labels is True
+    """
     data = loader.data
 
     if return_label:
@@ -321,15 +363,13 @@ def node_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
     preds = {}
     labels = {}
     # TODO(zhengda) I need to check if the data loader only returns target nodes.
-    model.eval()
     with th.no_grad():
         for _, seeds, _ in loader: # seeds are target nodes
             for ntype, seed_nodes in seeds.items():
-                if isinstance(model.decoder, th.nn.ModuleDict):
-                    assert ntype in model.decoder, f"Node type {ntype} not in decoder"
-                    decoder = model.decoder[ntype]
-                else:
-                    decoder = model.decoder
+                if isinstance(decoder, th.nn.ModuleDict):
+                    assert ntype in decoder, f"Node type {ntype} not in decoder"
+                    decoder = decoder[ntype]
+
                 if return_proba:
                     pred = decoder.predict_proba(emb[ntype][seed_nodes].to(device))
                 else:
@@ -345,7 +385,6 @@ def node_mini_batch_predict(model, emb, loader, return_proba=True, return_label=
                         labels[ntype].append(lbl[ntype])
                     else:
                         labels[ntype] = [lbl[ntype]]
-    model.train()
 
     for ntype, ntype_pred in preds.items():
         preds[ntype] = th.cat(ntype_pred)
