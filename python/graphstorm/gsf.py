@@ -28,19 +28,11 @@ from dgl.distributed.constants import DEFAULT_ETYPE
 
 from .utils import sys_tracker, get_rank
 from .utils import setup_device
-<<<<<<< HEAD
-from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
-                               BUILTIN_TASK_NODE_REGRESSION,
-                               BUILTIN_TASK_EDGE_CLASSIFICATION,
-                               BUILTIN_TASK_EDGE_REGRESSION,
-                               BUILTIN_TASK_LINK_PREDICTION)
-=======
 from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                      BUILTIN_TASK_NODE_REGRESSION,
                      BUILTIN_TASK_EDGE_CLASSIFICATION,
                      BUILTIN_TASK_EDGE_REGRESSION,
                      BUILTIN_TASK_LINK_PREDICTION)
->>>>>>> master
 from .config import BUILTIN_LP_DOT_DECODER
 from .config import BUILTIN_LP_DISTMULT_DECODER
 from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
