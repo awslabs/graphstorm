@@ -268,7 +268,6 @@ def test_mtask_prepare_edge_mini_batch():
     }
     node_feats = ep_data.get_node_feats(input_node_idx, 'feat')
     labels = ep_data.get_edge_feats(target_idx, 'label')
-    print(g.edges[('n0', 'r1', 'n1')])
     batch_graph = dgl.heterograph(
         {('n0', 'r1', 'n1'): (th.randint(g.number_of_nodes("n0"), (g.number_of_edges('r1'),)),
                               th.randint(g.number_of_nodes("n1"), (g.number_of_edges('r1'),)))}

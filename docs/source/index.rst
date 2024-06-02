@@ -44,6 +44,7 @@ Welcome to the GraphStorm Documentation and Tutorials
 
    notebooks/Notebook_0_Data_Prepare
    notebooks/Notebook_1_NC_Pipeline
+   notebooks/Notebook_2_LP_Pipeline
 
 .. toctree::
    :maxdepth: 1

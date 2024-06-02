@@ -770,10 +770,25 @@ def process_graph(args):
                           skip_nonexist_edges=args.skip_nonexist_edges)
     sys_tracker.check('Process the edge data')
     num_nodes = {ntype: len(raw_node_id_maps[ntype]) for ntype in raw_node_id_maps}
+
+    os.makedirs(args.output_dir, exist_ok=True)
+
     if args.output_conf_file is not None:
-        # Save the new config file.
-        with open(args.output_conf_file, "w", encoding="utf8") as outfile:
-            json.dump(process_confs, outfile, indent=4)
+        outfile_path = args.output_conf_file
+    else:
+        new_file_name = 'data_transform_new.json'
+        outfile_path = os.path.join(args.output_dir,new_file_name )
+
+    # check if the output configuration file exists. Overwrite it with a warning.
+    if os.path.exists(outfile_path):
+        logging.warning('Overwrote the existing %s file, which was generated in ' + \
+                        'the previous graph construction command. Use the --output-conf-file ' + \
+                        'argument to specify a different location if not want to overwrite the ' + \
+                        'existing configuration file.', outfile_path)
+
+    # Save the new config file.
+    with open(outfile_path, "w", encoding="utf8") as outfile:
+        json.dump(process_confs, outfile, indent=4)
 
     if args.add_reverse_edges:
         edges1 = {}
@@ -815,7 +830,6 @@ def process_graph(args):
     g = dgl.heterograph(edges, num_nodes_dict=num_nodes)
     print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats,
                      node_label_masks, edge_label_masks)
-    os.makedirs(args.output_dir, exist_ok=True)
     sys_tracker.check('Construct DGL graph')
 
     # reshape customized mask

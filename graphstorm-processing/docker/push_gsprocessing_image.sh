@@ -9,7 +9,7 @@ usage() {
   cat <<EOF
 Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-x] [--image ...] [--version ...] [--region ...] [--account ...]
 
-Script description here.
+Pushes GSProcessing image to ECR.
 
 Available options:
 
