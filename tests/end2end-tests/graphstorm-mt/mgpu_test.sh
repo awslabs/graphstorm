@@ -204,4 +204,4 @@ then
 fi
 
 # Multi-task will save node embeddings of all the nodes.
-python3 check_infer.py --train-embout /data/gsgnn_mt/emb/ --infer-embout /data/gsgnn_mt/save-emb/ --link-prediction
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_mt/emb/ --infer-embout /data/gsgnn_mt/save-emb/ --link-prediction
