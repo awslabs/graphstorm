@@ -1401,6 +1401,8 @@ def test_node_regression():
     assert model.gnn_encoder.out_dims == 4
     assert isinstance(model.gnn_encoder, RelationalGATEncoder)
     assert isinstance(model.decoder, EntityRegression)
+    # It is single float regression by default
+    assert model.decoder.decoder.shape[1] == 1
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
