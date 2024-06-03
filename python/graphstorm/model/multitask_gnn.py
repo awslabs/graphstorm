@@ -24,7 +24,8 @@ from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_NODE_REGRESSION,
                       BUILTIN_TASK_EDGE_CLASSIFICATION,
                       BUILTIN_TASK_EDGE_REGRESSION,
-                      BUILTIN_TASK_LINK_PREDICTION)
+                      BUILTIN_TASK_LINK_PREDICTION,
+                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
 from .gnn import GSgnnModel
 
 
@@ -162,6 +163,12 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
             loss = self._forward(task_info.task_id,
                                  (blocks, node_feats, edge_feats, input_nodes),
                                  (pos_graph, neg_graph, pos_edge_feats, neg_edge_feats))
+        elif task_info.task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT:
+            # Order follow GSgnnNodeModelInterface.forward
+            blocks, input_feats, edge_feats, lbl, input_nodes = mini_batch
+            loss = self._forward(task_info.task_id,
+                                 (blocks, input_feats, edge_feats, input_nodes),
+                                 lbl)
         else:
             raise TypeError(f"Unknown task {task_info}")
 
@@ -262,6 +269,22 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
                 f"edge types, but get {pos_score.keys()} and {neg_score.keys()}"
             pred_loss = loss_func(pos_score, neg_score)
             return pred_loss
+        elif task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT:
+            labels = decoder_data
+            assert len(labels) == 1, \
+                "In multi-task learning, only support do prediction " \
+                "on one node type for a single node task."
+            pred_loss = 0
+            target_ntype = list(labels.keys())[0]
+
+            assert target_ntype in encode_embs, f"Node type {target_ntype} not in encode_embs"
+            assert target_ntype in labels, f"Node type {target_ntype} not in labels"
+            emb = encode_embs[target_ntype]
+            ntype_labels = labels[target_ntype]
+            ntype_logits = task_decoder(emb)
+            pred_loss = loss_func(ntype_logits, ntype_labels)
+
+            return pred_loss
         else:
             raise TypeError(f"Unknow task type {task_type}")
 
@@ -307,6 +330,9 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         elif task_type == BUILTIN_TASK_LINK_PREDICTION:
             logging.warning("Prediction for link prediction is not implemented")
             return None
+        elif task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT:
+            logging.warning("Prediction for node feature reconstruction is not supported")
+            return None
         else:
             raise TypeError(f"Unknow task type {task_type}")
 
@@ -340,7 +366,9 @@ def multi_task_mini_batch_predict(
     with th.no_grad():
         for dataloader, task_info in zip(dataloaders, task_infos):
             if task_info.task_type in \
-            [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
+            [BUILTIN_TASK_NODE_CLASSIFICATION,
+             BUILTIN_TASK_NODE_REGRESSION,
+             BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
                 if dataloader is None:
                     # In cases when there is no validation or test set.
                     # set pred and labels to None

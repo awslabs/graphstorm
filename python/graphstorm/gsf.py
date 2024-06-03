@@ -32,7 +32,8 @@ from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                      BUILTIN_TASK_NODE_REGRESSION,
                      BUILTIN_TASK_EDGE_CLASSIFICATION,
                      BUILTIN_TASK_EDGE_REGRESSION,
-                     BUILTIN_TASK_LINK_PREDICTION)
+                     BUILTIN_TASK_LINK_PREDICTION,
+                     BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
 from .config import BUILTIN_LP_DOT_DECODER
 from .config import BUILTIN_LP_DISTMULT_DECODER
 from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
@@ -242,6 +243,41 @@ def create_builtin_node_gnn_model(g, config, train_task):
     GSgnnModel : The GNN model.
     """
     return create_builtin_node_model(g, config, train_task)
+
+# pylint: disable=unused-argument
+def create_builtin_reconstruct_nfeat_decoder(g, decoder_input_dim, config, train_task):
+    """ create builtin node feature reconstruction decoder
+        according to task config
+
+    Parameters
+    ----------
+    g: DGLGraph
+        The graph data.
+        Note(xiang): Make it consistent with create_builtin_edge_decoder.
+        Reserved for future.
+    decoder_input_dim: int
+        Input dimension size of the decoder
+    config: GSConfig
+        Configurations
+    train_task : bool
+        Whether this model is used for training.
+
+    Returns
+    -------
+    decoder: The node task decoder(s)
+    loss_func: The loss function(s)
+    """
+    dropout = config.dropout if train_task else 0
+    target_ntype = config.target_ntype
+    reconstruct_feat = config.reconstruct_nfeat_name
+    feat_dim = g.nodes[target_ntype].data[reconstruct_feat].shape[1]
+
+    decoder = EntityRegression(decoder_input_dim,
+                               dropout=dropout,
+                               out_dim=feat_dim)
+
+    loss_func = RegressionLossFunc()
+    return decoder, loss_func
 
 # pylint: disable=unused-argument
 def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
@@ -869,5 +905,7 @@ def create_task_decoder(task_info, g, decoder_input_dim, train_task):
         return create_builtin_edge_decoder(g, decoder_input_dim, task_info.task_config, train_task)
     elif task_info.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
         return create_builtin_lp_decoder(g, decoder_input_dim, task_info.task_config, train_task)
+    elif task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
+        return create_builtin_reconstruct_nfeat_decoder(g, decoder_input_dim, task_info.task_config, train_task)
     else:
         raise TypeError(f"Unknown task type {task_info.task_type}")

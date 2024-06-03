@@ -25,13 +25,15 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
                                BUILTIN_TASK_EDGE_REGRESSION,
-                               BUILTIN_TASK_LINK_PREDICTION)
+                               BUILTIN_TASK_LINK_PREDICTION,
+                               BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
 from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
                                     GSgnnMultiTaskDataLoader)
 from graphstorm.eval import (GSgnnClassificationEvaluator,
                              GSgnnRegressionEvaluator,
+                             GSgnnRconstructFeatRegScoreEvaluator,
                              GSgnnPerEtypeMrrLPEvaluator,
                              GSgnnMrrLPEvaluator,
                              GSgnnMultiTaskEvaluator)
@@ -113,6 +115,18 @@ def create_task_train_dataloader(task, config, train_data):
                               exclude_training_targets=task_config.exclude_training_targets,
                               edge_dst_negative_field=task_config.train_etypes_negative_dstnode,
                               num_hard_negs=task_config.num_train_hard_negatives)
+    elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
+        train_idxs = train_data.get_node_train_set(
+            task_config.target_ntype,
+            mask=task_config.train_mask)
+        # TODO(xiangsx): Support construct feat
+        return GSgnnNodeDataLoader(train_data,
+                                   train_idxs,
+                                   fanout=fanout,
+                                   batch_size=task_config.batch_size,
+                                   train_task=True,
+                                   node_feats=node_feats,
+                                   label_field=task_config.reconstruct_nfeat_name)
 
     return None
 
@@ -191,6 +205,22 @@ def create_task_val_dataloader(task, config, train_data):
                     fixed_test_size=task_config.fixed_test_size,
                     node_feats=node_feats,
                     pos_graph_edge_feats=task_config.lp_edge_weight_for_loss)
+    elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
+        eval_ntype = task_config.eval_target_ntype \
+            if task_config.eval_target_ntype is not None \
+            else task_config.target_ntype
+        val_idxs = train_data.get_node_val_set(eval_ntype, mask=task_config.val_mask)
+        # All tasks share the same GNN model, so the fanout should be the global fanout
+        fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
+        if len(val_idxs) > 0:
+            # TODO(xiangsx): Support construct feat
+            return GSgnnNodeDataLoader(train_data,
+                                       val_idxs,
+                                       fanout=fanout,
+                                       batch_size=task_config.eval_batch_size,
+                                       train_task=False,
+                                       node_feats=node_feats,
+                                       label_field=task_config.reconstruct_nfeat_name)
 
     return None
 
@@ -274,6 +304,22 @@ def create_task_test_dataloader(task, config, train_data):
                     fixed_test_size=task_config.fixed_test_size,
                     node_feats=node_feats,
                     pos_graph_edge_feats=task_config.lp_edge_weight_for_loss)
+    elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
+        eval_ntype = task_config.eval_target_ntype \
+            if task_config.eval_target_ntype is not None \
+            else task_config.target_ntype
+        test_idxs = train_data.get_node_test_set(eval_ntype, mask=task_config.test_mask)
+        # All tasks share the same GNN model, so the fanout should be the global fanout
+        fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
+        if len(test_idxs) > 0:
+            # TODO(xiangsx): Support construct feat
+            return GSgnnNodeDataLoader(train_data,
+                                       test_idxs,
+                                       fanout=fanout,
+                                       batch_size=task_config.eval_batch_size,
+                                       train_task=False,
+                                       node_feats=node_feats,
+                                       label_field=task_config.reconstruct_nfeat_name)
     return None
 
 def create_evaluator(task):
@@ -340,6 +386,14 @@ def create_evaluator(task):
                 early_stop_burnin_rounds=config.early_stop_burnin_rounds,
                 early_stop_rounds=config.early_stop_rounds,
                 early_stop_strategy=config.early_stop_strategy)
+    elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
+        return GSgnnRconstructFeatRegScoreEvaluator(
+            config.eval_frequency,
+            config.eval_metric,
+            config.use_early_stop,
+            config.early_stop_burnin_rounds,
+            config.early_stop_rounds,
+            config.early_stop_strategy)
     return None
 
 def main(config_args):

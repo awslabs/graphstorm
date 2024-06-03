@@ -575,7 +575,6 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterf
         """
         return self._multilabel
 
-
 class GSgnnRegressionEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface):
     """ Regression Evaluator.
 
@@ -706,6 +705,84 @@ class GSgnnRegressionEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface)
 
         return scores
 
+class GSgnnRconstructFeatRegScoreEvaluator(GSgnnRegressionEvaluator):
+    """ Evaluator for feature reconstruction using regression scores.
+
+        We treat the prediction results as a 2D float tensor and
+        the label is also a 2D float tensor.
+
+        We compute mse or rmse for it.
+
+    Parameters
+    ----------
+    eval_frequency: int
+        The frequency (number of iterations) of doing evaluation.
+    eval_metric_list: list of string
+        Evaluation metric used during evaluation. Default: ["rmse"].
+    use_early_stop: bool
+        Set true to use early stop.
+    early_stop_burnin_rounds: int
+        Burn-in rounds before start checking for the early stop condition.
+    early_stop_rounds: int
+        The number of rounds for validation scores used to decide early stop.
+    early_stop_strategy: str
+        The early stop strategy. GraphStorm supports two strategies:
+        1) consecutive_increase and 2) average_increase.
+    """
+    def __init__(self, eval_frequency,
+                 eval_metric_list=None,
+                 use_early_stop=False,
+                 early_stop_burnin_rounds=0,
+                 early_stop_rounds=3,
+                 early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
+        # set default metric list
+        if eval_metric_list is None:
+            eval_metric_list = ["mse"]
+
+        super(GSgnnRconstructFeatRegScoreEvaluator, self).__init__(
+            eval_frequency,
+            eval_metric_list,
+            use_early_stop,
+            early_stop_burnin_rounds,
+            early_stop_rounds,
+            early_stop_strategy)
+
+    def compute_score(self, pred, labels, train=True):
+        """ Compute evaluation score
+
+            Parameters
+            ----------
+            pred:
+                Rediction result
+            labels:
+                Label
+            train: boolean
+                If in model training.
+
+            Returns
+            -------
+            Evaluation metric values: dict
+        """
+        scores = {}
+        for metric in self.metric_list:
+            if pred is not None and labels is not None:
+                pred = pred.to(th.float32)
+                labels = labels.to(th.float32)
+
+                if train:
+                    # training expects always a single number to be
+                    # returned and has a different (potentially) evluation function
+                    scores[metric] = self.metrics_obj.metric_function[metric](pred, labels)
+                else:
+                    # validation or testing may have a different
+                    # evaluation function, in our case the evaluation code
+                    # may return a dictionary with the metric values for each metric
+                    scores[metric] = self.metrics_obj.metric_eval_function[metric](pred, labels)
+            else:
+                # if the pred is None or the labels is None the metric can not me computed
+                scores[metric] = "N/A"
+
+        return scores
 
 class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     """ Link Prediction Evaluator using "mrr" as metric.
