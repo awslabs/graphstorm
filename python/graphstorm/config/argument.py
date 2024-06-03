@@ -449,6 +449,7 @@ class GSConfig:
             Reconstruct node feature task config
         """
         task_type = BUILTIN_TASK_RECONSTRUCT_NODE_FEAT
+        print(task_config)
         mask_fields, task_weight, batch_size = \
             self._parse_general_task_config(task_config)
         task_config["batch_size"] = batch_size
@@ -456,10 +457,10 @@ class GSConfig:
         task_info = GSConfig.__new__(GSConfig)
         task_info.set_task_attributes(task_config)
         setattr(task_info, "_task_type", task_type)
-        task_info.verify_node_class_arguments()
+        task_info.verify_node_feat_reconstruct_arguments()
 
         target_ntype = task_info.target_ntype
-        label_field = task_info.label_field
+        label_field = task_info.reconstruct_nfeat_name
 
         task_id = get_mttask_id(task_type=task_type,
                                 ntype=target_ntype,

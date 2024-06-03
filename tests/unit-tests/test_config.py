@@ -34,7 +34,8 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
                                BUILTIN_TASK_EDGE_REGRESSION,
-                               BUILTIN_TASK_LINK_PREDICTION)
+                               BUILTIN_TASK_LINK_PREDICTION,
+                               BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
 from graphstorm.config.config import GRAPHSTORM_LP_EMB_L2_NORMALIZATION
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
@@ -1671,6 +1672,14 @@ def create_dummy_lp_config2():
         "exclude_training_targets": False
     }
 
+def create_dummy_nfr_config():
+    return {
+        "target_ntype": "a",
+        "reconstruct_nfeat_name": "rfeat",
+        "task_weight": 0.5,
+        "mask_fields": ["nfr_train_mask", "nfr_eval_mask", "nfr_test_mask"]
+    }
+
 def create_multi_task_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
     yaml_object["gsf"]["basic"] = {
@@ -1699,6 +1708,9 @@ def create_multi_task_config(tmp_path, file_name):
         },
         {
             BUILTIN_TASK_LINK_PREDICTION : create_dummy_lp_config2()
+        },
+        {
+            BUILTIN_TASK_RECONSTRUCT_NODE_FEAT: create_dummy_nfr_config()
         }
     ]
 
@@ -1712,7 +1724,7 @@ def test_multi_task_config():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'multi_task_test_default.yaml'), local_rank=0)
         config = GSConfig(args)
 
-        assert len(config.multi_tasks) == 6
+        assert len(config.multi_tasks) == 7
         nc_config = config.multi_tasks[0]
         assert nc_config.task_type == BUILTIN_TASK_NODE_CLASSIFICATION
         assert nc_config.task_id == f"{BUILTIN_TASK_NODE_CLASSIFICATION}-a-label_c"
@@ -1815,7 +1827,6 @@ def test_multi_task_config():
         assert lp_config.eval_metric[0] == "mrr"
         assert lp_config.lp_edge_weight_for_loss == "weight"
 
-
         lp_config = config.multi_tasks[5]
         assert lp_config.task_type == BUILTIN_TASK_LINK_PREDICTION
         assert lp_config.task_id == f"{BUILTIN_TASK_LINK_PREDICTION}-ALL_ETYPE"
@@ -1838,6 +1849,20 @@ def test_multi_task_config():
         assert lp_config.eval_metric[0] == "mrr"
         assert config.lp_edge_weight_for_loss == None
         assert config.model_select_etype == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
+
+        nfr_config = config.multi_tasks[6]
+        assert nfr_config.task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT
+        assert nfr_config.task_id == f"{BUILTIN_TASK_RECONSTRUCT_NODE_FEAT}-a-rfeat"
+        nfr_config = nfr_config.task_config
+        assert nfr_config.task_weight == 0.5
+        assert nfr_config.train_mask == "nfr_train_mask"
+        assert nfr_config.val_mask == "nfr_eval_mask"
+        assert nfr_config.test_mask == "nfr_test_mask"
+        assert nfr_config.target_ntype == "a"
+        assert nfr_config.reconstruct_nfeat_name == "rfeat"
+        assert len(nfr_config.eval_metric) == 1
+        assert nfr_config.eval_metric[0] == "mse"
+        assert nfr_config.batch_size == 64
 
 if __name__ == '__main__':
     test_multi_task_config()
