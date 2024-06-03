@@ -57,11 +57,14 @@ from graphstorm.model.edge_decoder import (DenseBiDecoder,
                                            LinkPredictWeightedDotDecoder,
                                            LinkPredictWeightedDistMultDecoder)
 from graphstorm.model.node_decoder import EntityRegression, EntityClassifier
+from graphstorm.model.loss_func import RegressionLossFunc
 from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import GSgnnNodeDataLoader, GSgnnEdgeDataLoader, GSgnnMultiTaskDataLoader
 from graphstorm.dataloading.dataset import prepare_batch_input
-from graphstorm import create_builtin_edge_gnn_model, create_builtin_node_gnn_model
-from graphstorm import create_builtin_lp_gnn_model
+from graphstorm import (create_builtin_edge_gnn_model,
+                        create_builtin_node_gnn_model,
+                        create_builtin_lp_gnn_model,
+                        create_builtin_reconstruct_nfeat_decoder)
 from graphstorm import get_node_feat_size
 from graphstorm.gsf import get_rel_names_for_reconstruct
 from graphstorm.model import do_full_graph_inference, do_mini_batch_inference
@@ -1401,6 +1404,30 @@ def test_node_regression():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+def test_node_feat_reconstruct():
+    """ Test logic of building a node regression model
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
+        create_nr_config(Path(tmpdirname), 'gnn_nr.yaml')
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nr.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        setattr(config, "_reconstruct_nfeat_name", "feat")
+    decoder, loss_func = create_builtin_reconstruct_nfeat_decoder(
+        g, decoder_input_dim=32, config=config, train_task=True)
+    assert isinstance(decoder, EntityRegression)
+    assert decoder.decoder.shape[1] == 2
+    assert isinstance(loss_func, RegressionLossFunc)
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
 def create_nc_config(tmp_path, file_name):
     conf_object = {
         "version": 1.0,
@@ -2271,6 +2298,8 @@ def test_multi_task_mini_batch_predict():
 
 
 if __name__ == '__main__':
+    test_node_feat_reconstruct()
+
     test_multi_task_forward()
     test_multi_task_predict()
     test_multi_task_mini_batch_predict()
