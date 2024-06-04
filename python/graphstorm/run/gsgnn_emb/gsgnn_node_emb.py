@@ -78,8 +78,8 @@ def main(config_args):
             "When computing node embeddings with GSgnnMultiTaskSharedEncoderModel, " \
             "please set --restore-model-layers to " \
             f"{GRAPHSTORM_MODEL_EMBED_LAYER}, {GRAPHSTORM_MODEL_GNN_LAYER}." \
-            f"Please do not include {GRAPHSTORM_MODEL_DECODER_LAYER}" \
-            f"But we get {config.restore_model_layers}"
+            f"Please do not include {GRAPHSTORM_MODEL_DECODER_LAYER}, " \
+            f"but we get {config.restore_model_layers}"
     else:
         if config.task_type == BUILTIN_TASK_LINK_PREDICTION:
             model = gs.create_builtin_lp_gnn_model(input_data.g, config, train_task=False)
@@ -105,7 +105,6 @@ def main(config_args):
         if task_type == BUILTIN_TASK_LINK_PREDICTION:
             infer_ntypes = None
         elif task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
-            # TODO(xiangsx): Support multi-task on multiple node types.
             infer_ntypes = [config.target_ntype]
         elif task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
             infer_ntypes = set()
