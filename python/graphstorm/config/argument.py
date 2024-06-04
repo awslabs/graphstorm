@@ -568,6 +568,8 @@ class GSConfig:
                 setattr(self, f"_{arg_key}", arg_val)
 
     def verify_node_feat_reconstruct_arguments(self):
+        """Verify the correctness of arguments for node feature reconstruction tasks.
+        """
         _ = self.target_ntype
         _ = self.batch_size
         _ = self.eval_metric
