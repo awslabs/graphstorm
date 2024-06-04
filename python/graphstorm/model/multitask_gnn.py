@@ -233,12 +233,31 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
             # GNN message passing
             if task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT:
                 if isinstance(self.gnn_encoder, GSgnnGNNEncoderInterface):
-                    # skip the selfloop of the last layer to
-                    # avoid information leakage.
-                    self.gnn_encoder.skip_last_selfloop()
-                    encode_embs = self.compute_embed_step(
-                        blocks, node_feats, input_nodes)
-                    self.gnn_encoder.reset_last_selfloop()
+                    if self.has_sparse_params():
+                        # When there are learnable embeddings, we can not
+                        # just simply skip the last layer self-loop.
+                        # It may break the sparse optimizer backward code logic
+                        # keep the self-loop and print a warning insetead
+                        encode_embs = self.compute_embed_step(
+                            blocks, node_feats, input_nodes)
+                        if self._warn_printed is False:
+                            logging.warning("When doing %s training, we need to "
+                                            "avoid adding self loop in the last GNN layer "
+                                            "to avoid the potential node "
+                                            "feature leakage issue. "
+                                            "When there are learnable embeddings on "
+                                            "nodes, GraphStorm can not automatically"
+                                            "skip the last layer self-loop"
+                                            "Please set use_self_loop to False",
+                                            BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+                            self._warn_printed = True
+                    else:
+                        # skip the selfloop of the last layer to
+                        # avoid information leakage.
+                        self.gnn_encoder.skip_last_selfloop()
+                        encode_embs = self.compute_embed_step(
+                            blocks, node_feats, input_nodes)
+                        self.gnn_encoder.reset_last_selfloop()
                 else:
                     if self._warn_printed is False:
                         # Only print warning once to avoid overwhelming the log.
