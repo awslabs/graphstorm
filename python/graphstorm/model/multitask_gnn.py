@@ -242,11 +242,12 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
                 else:
                     if self._warn_printed is False:
                         # Only print warning once to avoid overwhelming the log.
-                        logging.warning(f"The gnn encoder {self.gnn_encoder} does "
-                                        "not support skip the last self-loop operation"
+                        logging.warning("The gnn encoder does not support skip "
+                                        "the last self-loop operation"
                                         "(skip_last_selfloop). There is a potential "
-                                        "node feature leakage risk when doing "
-                                        f"{BUILTIN_TASK_RECONSTRUCT_NODE_FEAT} training." )
+                                        "node feature leakage risk when doing training.",
+                                        self.gnn_encoder,
+                                        BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
                         self._warn_printed = True
                     encode_embs = self.compute_embed_step(
                         blocks, node_feats, input_nodes)
