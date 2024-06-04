@@ -1823,12 +1823,13 @@ def parse_label_ops(confs, is_node):
             # But there can be exceptions as users want to
             # provide masks through node features or
             # some tasks are sharing the same mask.
-            logging.warning(f"Some train/val/test mask field "
-                            "names are duplicated, please check: {mask_names}."
+            logging.warning("Some train/val/test mask field "
+                            "names are duplicated, please check: %s."
                             "If you provide masks as node/edge features,"
                             "please ignore this warning."
                             "If you share train/val/test mask fields "
-                            "across different tasks, please ignore this warning.")
+                            "across different tasks, please ignore this warning.",
+                            mask_names)
 
     return label_ops
 
