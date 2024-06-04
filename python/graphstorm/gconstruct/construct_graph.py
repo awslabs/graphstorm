@@ -710,6 +710,8 @@ def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats
                 logging.info("Train/val/test on %s with mask %s, %s, %s: %d, %d, %d",
                             ntype, train_mask, val_mask, test_mask,
                             num_train, num_val, num_test)
+                logging.info("Note: Custom train, validate, test mask "
+                             "information for nodes are not collected.")
     for etype in edge_data:
         feat_names = list(edge_data[etype].keys())
         logging.info("Edge type %s has features: %s.", str(etype), str(feat_names))
@@ -726,6 +728,8 @@ def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats
                 logging.info("Train/val/test on %s with mask %s, %s, %s: %d, %d, %d",
                             str(etype), train_mask, val_mask, test_mask,
                             num_train, num_val, num_test)
+                logging.info("Note: Custom train, validate, test mask "
+                             "information for edges are not collected.")
 
     for ntype in node_label_stats:
         for label_name, stats in node_label_stats[ntype].items():
