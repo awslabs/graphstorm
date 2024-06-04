@@ -27,7 +27,7 @@ from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_LINK_PREDICTION,
                       BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
 from .gnn import GSgnnModel
-
+from .gnn_encoder_base import GSgnnGNNEncoderInterface
 
 from .node_gnn import run_node_mini_batch_predict
 from .edge_gnn import run_edge_mini_batch_predict
@@ -92,6 +92,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         self._alpha_l2norm = alpha_l2norm
         self._task_pool = {}
         self._decoder = nn.ModuleDict()
+        self._warn_printed = False
 
     def add_task(self, task_id, task_type,
                  decoder, loss_func):
@@ -219,18 +220,41 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
 
         # message passing graph, node features, edge features, seed nodes
         blocks, node_feats, _, input_nodes = encoder_data
+        task_type, loss_func = self.task_pool[task_id]
+        task_decoder = self.decoder[task_id]
+
         if blocks is None or len(blocks) == 0:
             # no GNN message passing
+            if task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT:
+                logging.warning("Reconstruct node feature with only " \
+                                "input embedding layer may not work.")
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
             # GNN message passing
-            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
+            if task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT:
+                if isinstance(self.gnn_encoder, GSgnnGNNEncoderInterface):
+                    # skip the selfloop of the last layer to
+                    # avoid information leakage.
+                    self.gnn_encoder.skip_last_selfloop()
+                    encode_embs = self.compute_embed_step(
+                        blocks, node_feats, input_nodes)
+                    self.gnn_encoder.reset_last_selfloop()
+                else:
+                    if self._warn_printed is False:
+                        # Only print warning once to avoid overwhelming the log.
+                        logging.warning(f"The gnn encoder {self.gnn_encoder} does "
+                                        "not support skip the last self-loop operation"
+                                        "(skip_last_selfloop). There is a potential "
+                                        "node feature leakage risk when doing "
+                                        f"{BUILTIN_TASK_RECONSTRUCT_NODE_FEAT} training." )
+                        self._warn_printed = True
+                    encode_embs = self.compute_embed_step(
+                        blocks, node_feats, input_nodes)
+            else:
+                encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
 
         # Call emb normalization.
         encode_embs = self.normalize_node_embs(encode_embs)
-
-        task_type, loss_func = self.task_pool[task_id]
-        task_decoder = self.decoder[task_id]
 
         if task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
             labels = decoder_data
