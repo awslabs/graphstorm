@@ -71,7 +71,7 @@ def main(config_args):
 
     # load the model
     if config.multi_tasks:
-        # Only support multi-task sahred encoder model.
+        # Only support multi-task shared encoder model.
         model = GSgnnMultiTaskSharedEncoderModel(config.alpha_l2norm)
         gs.gsf.set_encoder(model, input_data.g, config, train_task=False)
         assert config.restore_model_layers is not GRAPHSTORM_MODEL_ALL_LAYERS, \
