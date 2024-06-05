@@ -25,7 +25,8 @@ from torch import nn
 from dgl.nn.functional import edge_softmax
 from ..config import BUILDIN_GNN_BATCH_NORM, BUILDIN_GNN_LAYER_NORM, BUILTIN_GNN_NORM
 from .ngnn_mlp import NGNNMLP
-from .gnn_encoder_base import GraphConvEncoder
+from .gnn_encoder_base import (GraphConvEncoder,
+                               GSgnnGNNEncoderInterface)
 
 
 class HGTLayer(nn.Module):
@@ -280,7 +281,7 @@ class HGTLayer(nn.Module):
             return new_h
 
 
-class HGTEncoder(GraphConvEncoder):
+class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
     r"""Heterogenous graph transformer (HGT) encoder
 
     The HGTEncoder employs several HGTLayers as its encoding mechanism.
@@ -374,6 +375,14 @@ class HGTEncoder(GraphConvEncoder):
                                     activation=F.relu,
                                     dropout=dropout,
                                     norm=norm))
+
+    def skip_last_selfloop(self):
+        # HGT does not have explicit self-loop
+        pass
+
+    def reset_last_selfloop(self):
+        # HGT does not have explicit self-loop
+        pass
 
     def forward(self, blocks, h):
         """Forward computation

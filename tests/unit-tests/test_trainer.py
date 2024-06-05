@@ -25,7 +25,8 @@ import torch as th
 from graphstorm.config import (GSConfig, TaskInfo)
 from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_EDGE_REGRESSION,
-                               BUILTIN_TASK_LINK_PREDICTION)
+                               BUILTIN_TASK_LINK_PREDICTION,
+                               BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
 from graphstorm.dataloading import GSgnnData
 from graphstorm.tracker import GSSageMakerTaskTracker
 from graphstorm import create_builtin_node_gnn_model
@@ -34,7 +35,8 @@ from graphstorm.eval import GSgnnClassificationEvaluator
 from graphstorm.utils import setup_device, get_device
 from graphstorm.trainer.mt_trainer import (prepare_node_mini_batch,
                                            prepare_edge_mini_batch,
-                                           prepare_link_predict_mini_batch)
+                                           prepare_link_predict_mini_batch,
+                                           prepare_reconstruct_node_feat)
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
                                     GSgnnLinkPredictionDataLoader)
@@ -194,6 +196,56 @@ class DummyGSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInter
 
     def predict(self, task_id, mini_batch, return_proba=False):
         pass
+
+def test_mtask_prepare_reconstruct_node_feat():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        np_data = GSgnnData(part_config=part_config)
+
+    setup_device(0)
+    device = get_device()
+    # Without shuffling, the seed nodes should have the same order as the target nodes.
+    target_idx = {'n1': th.arange(np_data.g.number_of_nodes('n1'))}
+    task_id = "test_node_feat_reconstruct"
+
+    # label is same as node feat
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
+                                     label_field='feat',
+                                     node_feats='feat',
+                                     train_task=False)
+    task_config = GSConfig.__new__(GSConfig)
+    setattr(task_config, "task_weight", 0.75)
+    task_info = TaskInfo(task_type=BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                         task_id=task_id,
+                         task_config=task_config,
+                         dataloader=dataloader)
+    node_feats = np_data.get_node_feats(target_idx, 'feat')
+    labels = np_data.get_node_feats(target_idx, 'feat')
+    mini_batch = (target_idx, target_idx, None)
+
+    blocks, input_feats, _, lbl, input_nodes = \
+        prepare_reconstruct_node_feat(np_data, task_info, mini_batch, device)
+    assert blocks is None
+    assert_equal(input_nodes["n1"].numpy(), target_idx["n1"].numpy())
+    assert_equal(input_feats["n1"].cpu().numpy(), node_feats["n1"].numpy())
+    assert_equal(lbl["n1"].cpu().numpy(), labels["n1"].numpy())
+    assert_equal(node_feats["n1"].cpu().numpy(), lbl["n1"].cpu().numpy())
+
+    # there is no node feat
+    dataloader = GSgnnNodeDataLoader(np_data, target_idx, [10], 10,
+                                     label_field='feat',
+                                     train_task=False)
+    task_info = TaskInfo(task_type=BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                         task_id=task_id,
+                         task_config=task_config,
+                         dataloader=dataloader)
+    _, input_feats, _, lbl, input_nodes = \
+        prepare_reconstruct_node_feat(np_data, task_info, mini_batch, device)
+    assert_equal(input_nodes["n1"].numpy(), target_idx["n1"].numpy())
+    assert len(input_feats) == 0
+    assert_equal(lbl["n1"].cpu().numpy(), labels["n1"].numpy())
+    assert_equal(node_feats["n1"].cpu().numpy(), lbl["n1"].cpu().numpy())
 
 def test_mtask_prepare_node_mini_batch():
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -371,3 +423,4 @@ if __name__ == '__main__':
     test_mtask_prepare_node_mini_batch()
     test_mtask_prepare_edge_mini_batch()
     test_mtask_prepare_lp_mini_batch()
+    test_mtask_prepare_reconstruct_node_feat()

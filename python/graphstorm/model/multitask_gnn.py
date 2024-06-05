@@ -24,9 +24,10 @@ from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_NODE_REGRESSION,
                       BUILTIN_TASK_EDGE_CLASSIFICATION,
                       BUILTIN_TASK_EDGE_REGRESSION,
-                      BUILTIN_TASK_LINK_PREDICTION)
+                      BUILTIN_TASK_LINK_PREDICTION,
+                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
 from .gnn import GSgnnModel
-
+from .gnn_encoder_base import GSgnnGNNEncoderInterface
 
 from .node_gnn import run_node_mini_batch_predict
 from .edge_gnn import run_edge_mini_batch_predict
@@ -91,6 +92,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         self._alpha_l2norm = alpha_l2norm
         self._task_pool = {}
         self._decoder = nn.ModuleDict()
+        self._warn_printed = False
 
     def add_task(self, task_id, task_type,
                  decoder, loss_func):
@@ -162,6 +164,12 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
             loss = self._forward(task_info.task_id,
                                  (blocks, node_feats, edge_feats, input_nodes),
                                  (pos_graph, neg_graph, pos_edge_feats, neg_edge_feats))
+        elif task_info.task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT:
+            # Order follow GSgnnNodeModelInterface.forward
+            blocks, input_feats, edge_feats, lbl, input_nodes = mini_batch
+            loss = self._forward(task_info.task_id,
+                                 (blocks, input_feats, edge_feats, input_nodes),
+                                 lbl)
         else:
             raise TypeError(f"Unknown task {task_info}")
 
@@ -212,18 +220,61 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
 
         # message passing graph, node features, edge features, seed nodes
         blocks, node_feats, _, input_nodes = encoder_data
+        task_type, loss_func = self.task_pool[task_id]
+        task_decoder = self.decoder[task_id]
+
         if blocks is None or len(blocks) == 0:
             # no GNN message passing
+            if task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT:
+                logging.warning("Reconstruct node feature with only " \
+                                "input embedding layer may not work.")
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
             # GNN message passing
-            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
+            if task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT:
+                if isinstance(self.gnn_encoder, GSgnnGNNEncoderInterface):
+                    if self.has_sparse_params():
+                        # When there are learnable embeddings, we can not
+                        # just simply skip the last layer self-loop.
+                        # It may break the sparse optimizer backward code logic
+                        # keep the self-loop and print a warning insetead
+                        encode_embs = self.compute_embed_step(
+                            blocks, node_feats, input_nodes)
+                        if self._warn_printed is False:
+                            logging.warning("When doing %s training, we need to "
+                                            "avoid adding self loop in the last GNN layer "
+                                            "to avoid the potential node "
+                                            "feature leakage issue. "
+                                            "When there are learnable embeddings on "
+                                            "nodes, GraphStorm can not automatically"
+                                            "skip the last layer self-loop"
+                                            "Please set use_self_loop to False",
+                                            BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+                            self._warn_printed = True
+                    else:
+                        # skip the selfloop of the last layer to
+                        # avoid information leakage.
+                        self.gnn_encoder.skip_last_selfloop()
+                        encode_embs = self.compute_embed_step(
+                            blocks, node_feats, input_nodes)
+                        self.gnn_encoder.reset_last_selfloop()
+                else:
+                    if self._warn_printed is False:
+                        # Only print warning once to avoid overwhelming the log.
+                        logging.warning("The gnn encoder %s does not support skip "
+                                        "the last self-loop operation"
+                                        "(skip_last_selfloop). There is a potential "
+                                        "node feature leakage risk when doing %s training.",
+                                        type(self.gnn_encoder),
+                                        BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+                        self._warn_printed = True
+                    encode_embs = self.compute_embed_step(
+                        blocks, node_feats, input_nodes)
+            else:
+                encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
 
         # Call emb normalization.
         encode_embs = self.normalize_node_embs(encode_embs)
-
-        task_type, loss_func = self.task_pool[task_id]
-        task_decoder = self.decoder[task_id]
 
         if task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
             labels = decoder_data
@@ -261,6 +312,22 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
                 "Positive scores and Negative scores must have edges of same" \
                 f"edge types, but get {pos_score.keys()} and {neg_score.keys()}"
             pred_loss = loss_func(pos_score, neg_score)
+            return pred_loss
+        elif task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT:
+            labels = decoder_data
+            assert len(labels) == 1, \
+                "In multi-task learning, only support do prediction " \
+                "on one node type for a single node task."
+            pred_loss = 0
+            target_ntype = list(labels.keys())[0]
+
+            assert target_ntype in encode_embs, f"Node type {target_ntype} not in encode_embs"
+            assert target_ntype in labels, f"Node type {target_ntype} not in labels"
+            emb = encode_embs[target_ntype]
+            ntype_labels = labels[target_ntype]
+            ntype_logits = task_decoder(emb)
+            pred_loss = loss_func(ntype_logits, ntype_labels)
+
             return pred_loss
         else:
             raise TypeError(f"Unknow task type {task_type}")
@@ -307,6 +374,9 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         elif task_type == BUILTIN_TASK_LINK_PREDICTION:
             logging.warning("Prediction for link prediction is not implemented")
             return None
+        elif task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT:
+            logging.warning("Prediction for node feature reconstruction is not supported")
+            return None
         else:
             raise TypeError(f"Unknow task type {task_type}")
 
@@ -340,7 +410,9 @@ def multi_task_mini_batch_predict(
     with th.no_grad():
         for dataloader, task_info in zip(dataloaders, task_infos):
             if task_info.task_type in \
-            [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
+            [BUILTIN_TASK_NODE_CLASSIFICATION,
+             BUILTIN_TASK_NODE_REGRESSION,
+             BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
                 if dataloader is None:
                     # In cases when there is no validation or test set.
                     # set pred and labels to None

@@ -27,7 +27,8 @@ from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_NODE_REGRESSION,
                       BUILTIN_TASK_EDGE_CLASSIFICATION,
                       BUILTIN_TASK_EDGE_REGRESSION,
-                      BUILTIN_TASK_LINK_PREDICTION)
+                      BUILTIN_TASK_LINK_PREDICTION,
+                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
 from ..model import (do_full_graph_inference,
                      do_mini_batch_inference,
                      GSgnnModelBase, GSgnnModel,
@@ -195,6 +196,33 @@ def prepare_link_predict_mini_batch(data, task_info, mini_batch, device):
     return (blocks, pos_graph, neg_graph, node_feats, None, \
             pos_graph_feats, None, input_nodes)
 
+def prepare_reconstruct_node_feat(data, task_info, mini_batch, device):
+    """ Prepare mini-batch for node feature reconstruction.
+
+        The input is a mini-batch sampled by a node sampler.
+        The output ia a prepared input following the
+        input arguments of GSgnnNodeModelInterface.forward.
+
+    Parameters
+    ----------
+    data: GSgnnData
+        Graph data
+    task_info: TaskInfo
+        Task meta information
+    mini_batch: tuple
+        Mini-batch info
+    device: torch.device
+        Device
+
+    Return
+    ------
+    tuple: mini-batch
+    """
+    # same are preparing node regression data
+    # Note: We may add some argumentation in the future
+    # So keep a different prepare func for node feature reconstruction.
+    return prepare_node_mini_batch(data, task_info, mini_batch, device)
+
 class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
     r""" A trainer for multi-task learning
 
@@ -258,6 +286,11 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                                                    task_info,
                                                    mini_batch,
                                                    device)
+        elif task_info.task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT:
+            return prepare_reconstruct_node_feat(data,
+                                                 task_info,
+                                                 mini_batch,
+                                                 device)
         else:
             raise TypeError(f"Unknown task {task_info}", )
 
