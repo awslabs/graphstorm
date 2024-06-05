@@ -718,7 +718,7 @@ class GSgnnRconstructFeatRegScoreEvaluator(GSgnnRegressionEvaluator):
     eval_frequency: int
         The frequency (number of iterations) of doing evaluation.
     eval_metric_list: list of string
-        Evaluation metric used during evaluation. Default: ["rmse"].
+        Evaluation metric used during evaluation. Default: ["mse"].
     use_early_stop: bool
         Set true to use early stop.
     early_stop_burnin_rounds: int
