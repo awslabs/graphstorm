@@ -27,4 +27,5 @@ from .evaluator import (GSgnnMrrLPEvaluator,
                         GSgnnPerEtypeMrrLPEvaluator,
                         GSgnnClassificationEvaluator,
                         GSgnnRegressionEvaluator,
+                        GSgnnRconstructFeatRegScoreEvaluator,
                         GSgnnMultiTaskEvaluator)

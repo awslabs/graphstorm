@@ -114,13 +114,16 @@ class EntityRegression(GSLayer):
         The hidden dimensions
     dropout : float
         The dropout
+    out_dim: int
+        The output dimension size
     '''
     def __init__(self,
                  h_dim,
-                 dropout=0):
+                 dropout=0,
+                 out_dim=1):
         super(EntityRegression, self).__init__()
         self.h_dim = h_dim
-        self.decoder = nn.Parameter(th.Tensor(h_dim, 1))
+        self.decoder = nn.Parameter(th.Tensor(h_dim, out_dim))
         nn.init.xavier_uniform_(self.decoder)
         # TODO(zhengda): The dropout is not used.
         self.dropout = nn.Dropout(dropout)

@@ -1817,8 +1817,19 @@ def parse_label_ops(confs, is_node):
             mask_names.append(ops.train_mask_name)
             mask_names.append(ops.val_mask_name)
             mask_names.append(ops.test_mask_name)
-        assert len(mask_names) == len(set(mask_names)), \
-            f"Some train/val/test mask field names are duplicated, please check: {mask_names}."
+        if len(mask_names) == len(set(mask_names)):
+            # In multi-task learning, we expect each task has
+            # its own train, validation and test mask fields.
+            # But there can be exceptions as users want to
+            # provide masks through node features or
+            # some tasks are sharing the same mask.
+            logging.warning("Some train/val/test mask field "
+                            "names are duplicated, please check: %s."
+                            "If you provide masks as node/edge features,"
+                            "please ignore this warning."
+                            "If you share train/val/test mask fields "
+                            "across different tasks, please ignore this warning.",
+                            mask_names)
 
     return label_ops
 

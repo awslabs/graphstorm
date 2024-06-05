@@ -40,6 +40,7 @@ from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from .config import BUILTIN_TASK_EDGE_REGRESSION
 from .config import (BUILTIN_TASK_LINK_PREDICTION,
                      LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL)
+from .config import BUILTIN_TASK_RECONSTRUCT_NODE_FEAT
 from .config import BUILTIN_GNN_NORM
 from .config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
 from .config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
@@ -441,6 +442,39 @@ class GSConfig:
                         task_id=task_id,
                         task_config=task_info)
 
+    def _parse_reconstruct_node_feat(self, task_config):
+        """ Parse the reconstruct node feature task info
+
+        Parameters
+        ----------
+        task_config: dict
+            Reconstruct node feature task config
+        """
+        task_type = BUILTIN_TASK_RECONSTRUCT_NODE_FEAT
+        mask_fields, task_weight, batch_size = \
+            self._parse_general_task_config(task_config)
+        task_config["batch_size"] = batch_size
+
+        task_info = GSConfig.__new__(GSConfig)
+        task_info.set_task_attributes(task_config)
+        setattr(task_info, "_task_type", task_type)
+        task_info.verify_node_feat_reconstruct_arguments()
+
+        target_ntype = task_info.target_ntype
+        label_field = task_info.reconstruct_nfeat_name
+
+        task_id = get_mttask_id(task_type=task_type,
+                                ntype=target_ntype,
+                                label=label_field)
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
+        setattr(task_info, "task_weight", task_weight)
+
+        return TaskInfo(task_type=task_type,
+                        task_id=task_id,
+                        task_config=task_info)
+
     def _parse_multi_tasks(self, multi_task_config):
         """ Parse multi-task configuration
 
@@ -502,6 +536,9 @@ class GSConfig:
             elif "link_prediction" in task_config:
                 task = self._parse_link_prediction_task(
                     task_config["link_prediction"])
+            elif "reconstruct_node_feat" in task_config:
+                task = self._parse_reconstruct_node_feat(
+                    task_config["reconstruct_node_feat"])
             else:
                 raise ValueError(f"Invalid task type in multi-task learning {task_config}.")
             tasks.append(task)
@@ -531,6 +568,14 @@ class GSConfig:
 
                 # for basic attributes
                 setattr(self, f"_{arg_key}", arg_val)
+
+    def verify_node_feat_reconstruct_arguments(self):
+        """Verify the correctness of arguments for node feature reconstruction tasks.
+        """
+        _ = self.target_ntype
+        _ = self.batch_size
+        _ = self.eval_metric
+        _ = self.reconstruct_nfeat_name
 
     def verify_node_class_arguments(self):
         """ Verify the correctness of arguments for node classification tasks.
@@ -2547,7 +2592,7 @@ class GSConfig:
             else:
                 eval_metric = ["accuracy"]
         elif self.task_type in [BUILTIN_TASK_NODE_REGRESSION, \
-            BUILTIN_TASK_EDGE_REGRESSION]:
+            BUILTIN_TASK_EDGE_REGRESSION, BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
             if hasattr(self, "_eval_metric"):
                 if isinstance(self._eval_metric, str):
                     eval_metric = self._eval_metric.lower()
@@ -2570,7 +2615,10 @@ class GSConfig:
                         "should be a string or a list of string"
                     # no eval_metric
             else:
-                eval_metric = ["rmse"]
+                if self.task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT:
+                    eval_metric = ["mse"]
+                else:
+                    eval_metric = ["rmse"]
         elif self.task_type == BUILTIN_TASK_LINK_PREDICTION:
             if hasattr(self, "_eval_metric"):
                 if isinstance(self._eval_metric, str):
@@ -2651,6 +2699,15 @@ class GSConfig:
             return self._num_ffn_layers_in_decoder
         # Set default mlp layer number between gnn layer to 0
         return 0
+
+    ################## Reconstruct node feats ###############
+    @property
+    def reconstruct_nfeat_name(self):
+        """ node feature name for reconstruction
+        """
+        assert hasattr(self, "_reconstruct_nfeat_name"), \
+            "reconstruct_nfeat_name must be provided under reconstruct_node_feat task "
+        return self._reconstruct_nfeat_name
 
     ################## Multi task learning ##################
     @property

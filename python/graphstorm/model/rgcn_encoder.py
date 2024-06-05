@@ -24,7 +24,8 @@ import dgl.nn as dglnn
 
 from dgl.nn.pytorch.hetero import get_aggregate_fn
 from .ngnn_mlp import NGNNMLP
-from .gnn_encoder_base import GraphConvEncoder
+from .gnn_encoder_base import (GraphConvEncoder,
+                               GSgnnGNNEncoderInterface)
 
 
 class RelGraphConvLayer(nn.Module):
@@ -254,7 +255,7 @@ class RelGraphConvLayer(nn.Module):
         return {ntype : _apply(ntype, h) for ntype, h in hs.items()}
 
 
-class RelationalGCNEncoder(GraphConvEncoder):
+class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
     r""" Relational graph conv encoder.
 
     The RelationalGCNEncoder employs several RelGraphConvLayer as its encoding mechanism.
@@ -344,6 +345,13 @@ class RelationalGCNEncoder(GraphConvEncoder):
             h_dim, out_dim, g.canonical_etypes,
             self.num_bases, activation=F.relu if last_layer_act else None,
             self_loop=use_self_loop, norm=norm if last_layer_act else None))
+
+    def skip_last_selfloop(self):
+        self.last_selfloop = self.layers[-1].self_loop
+        self.layers[-1].self_loop = False
+
+    def reset_last_selfloop(self):
+        self.layers[-1].self_loop = self.last_selfloop
 
     # TODO(zhengda) refactor this to support edge features.
     def forward(self, blocks, h):
