@@ -543,6 +543,17 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
 
         return params
 
+    def has_sparse_params(self):
+        """ Return whether there are sparse parameters (learnable embeddings)
+            in the model.
+
+        Return
+        ------
+        bool: True for there are sparse parameters
+        """
+        return len(self._optimizer.sparse_opts) > 0
+
+
     def get_sparse_params(self):
         """ get the sparse parameters of the model.
 

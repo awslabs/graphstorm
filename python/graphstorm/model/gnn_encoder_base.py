@@ -19,6 +19,7 @@
 from functools import partial
 import logging
 
+import abc
 import dgl
 import torch as th
 from torch import nn
@@ -27,6 +28,25 @@ from .gs_layer import GSLayer
 
 from ..utils import get_rank, barrier, is_distributed, create_dist_tensor, is_wholegraph
 from ..distributed import flush_data
+
+class GSgnnGNNEncoderInterface:
+    """ The interface for builtin GraphStorm gnn encoder layer.
+
+        The interface defines two functions that are useful in multi-task learning.
+        Any GNN encoder that implements these two functions can work with
+        GraphStorm multi-task learning pipeline.
+
+        Note: We can define more functions when necessary.
+    """
+    @abc.abstractmethod
+    def skip_last_selfloop(self):
+        """ Skip the self-loop of the last GNN layer.
+        """
+
+    @abc.abstractmethod
+    def reset_last_selfloop(self):
+        """ Reset the self-loop setting of the last GNN layer.
+        """
 
 class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
     r"""General encoder for graph data.
