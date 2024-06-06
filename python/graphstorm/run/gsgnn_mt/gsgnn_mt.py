@@ -416,6 +416,8 @@ def main(config_args):
     gs.gsf.set_encoder(model, train_data.g, config, train_task=True)
 
     tasks = config.multi_tasks
+    assert tasks is not None, \
+        "The multi_task_learning configure block should not be empty."
     train_dataloaders = []
     val_dataloaders = []
     test_dataloaders = []

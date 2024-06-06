@@ -20,13 +20,18 @@ from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.utils import rt_profiler, sys_tracker, get_device, use_wholegraph
 from graphstorm.dataloading import GSgnnData
-from graphstorm.config import  (BUILTIN_TASK_NODE_CLASSIFICATION,
-                                BUILTIN_TASK_NODE_REGRESSION,
-                                BUILTIN_TASK_EDGE_CLASSIFICATION,
-                                BUILTIN_TASK_EDGE_REGRESSION,
-                                BUILTIN_TASK_LINK_PREDICTION)
+from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
+                               BUILTIN_TASK_NODE_REGRESSION,
+                               BUILTIN_TASK_EDGE_CLASSIFICATION,
+                               BUILTIN_TASK_EDGE_REGRESSION,
+                               BUILTIN_TASK_LINK_PREDICTION,
+                               GRAPHSTORM_MODEL_ALL_LAYERS,
+                               GRAPHSTORM_MODEL_EMBED_LAYER,
+                               GRAPHSTORM_MODEL_GNN_LAYER,
+                               GRAPHSTORM_MODEL_DECODER_LAYER)
 from graphstorm.inference import GSgnnEmbGenInferer
 from graphstorm.utils import get_lm_ntypes
+from graphstorm.model.multitask_gnn import GSgnnMultiTaskSharedEncoderModel
 
 def main(config_args):
     """ main function
@@ -44,12 +49,14 @@ def main(config_args):
     if gs.get_rank() == 0:
         tracker.log_params(config.__dict__)
 
-    assert config.task_type in [BUILTIN_TASK_LINK_PREDICTION,
-                                BUILTIN_TASK_NODE_REGRESSION,
-                                BUILTIN_TASK_NODE_CLASSIFICATION,
-                                BUILTIN_TASK_EDGE_CLASSIFICATION,
-                                BUILTIN_TASK_EDGE_REGRESSION], \
-        f"Not supported for task type: {config.task_type}"
+    if config.multi_tasks is None:
+        # if not multi-task, check task type
+        assert config.task_type in [BUILTIN_TASK_LINK_PREDICTION,
+                                    BUILTIN_TASK_NODE_REGRESSION,
+                                    BUILTIN_TASK_NODE_CLASSIFICATION,
+                                    BUILTIN_TASK_EDGE_CLASSIFICATION,
+                                    BUILTIN_TASK_EDGE_REGRESSION], \
+            f"Not supported for task type: {config.task_type}"
 
     input_data = GSgnnData(config.part_config,
                            node_feat_field=config.node_feat_name,
@@ -63,14 +70,25 @@ def main(config_args):
         "restore model path cannot be none for gs_gen_node_embeddings"
 
     # load the model
-    if config.task_type == BUILTIN_TASK_LINK_PREDICTION:
-        model = gs.create_builtin_lp_gnn_model(input_data.g, config, train_task=False)
-    elif config.task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
-        model = gs.create_builtin_node_gnn_model(input_data.g, config, train_task=False)
-    elif config.task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
-        model = gs.create_builtin_edge_gnn_model(input_data.g, config, train_task=False)
+    if config.multi_tasks:
+        # Only support multi-task shared encoder model.
+        model = GSgnnMultiTaskSharedEncoderModel(config.alpha_l2norm)
+        gs.gsf.set_encoder(model, input_data.g, config, train_task=False)
+        assert config.restore_model_layers is not GRAPHSTORM_MODEL_ALL_LAYERS, \
+            "When computing node embeddings with GSgnnMultiTaskSharedEncoderModel, " \
+            "please set --restore-model-layers to " \
+            f"{GRAPHSTORM_MODEL_EMBED_LAYER}, {GRAPHSTORM_MODEL_GNN_LAYER}." \
+            f"Please do not include {GRAPHSTORM_MODEL_DECODER_LAYER}, " \
+            f"but we get {config.restore_model_layers}"
     else:
-        raise TypeError("Not supported for task type: ", config.task_type)
+        if config.task_type == BUILTIN_TASK_LINK_PREDICTION:
+            model = gs.create_builtin_lp_gnn_model(input_data.g, config, train_task=False)
+        elif config.task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
+            model = gs.create_builtin_node_gnn_model(input_data.g, config, train_task=False)
+        elif config.task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
+            model = gs.create_builtin_edge_gnn_model(input_data.g, config, train_task=False)
+        else:
+            raise TypeError("Not supported for task type: ", config.task_type)
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
 
@@ -78,21 +96,24 @@ def main(config_args):
     emb_generator = GSgnnEmbGenInferer(model)
     emb_generator.setup_device(device=get_device())
 
-    task_type = config.task_type
-    # infer ntypes must be sorted for node embedding saving
-    if task_type == BUILTIN_TASK_LINK_PREDICTION:
+    if config.multi_tasks:
+        # infer_ntypes = None means all node types.
         infer_ntypes = None
-    elif task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
-        # TODO(xiangsx): Support multi-task on multiple node types.
-        infer_ntypes = [config.target_ntype]
-    elif task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
-        infer_ntypes = set()
-        for etype in config.target_etype:
-            infer_ntypes.add(etype[0])
-            infer_ntypes.add(etype[2])
-        infer_ntypes = sorted(list(infer_ntypes))
     else:
-        raise TypeError("Not supported for task type: ", task_type)
+        task_type = config.task_type
+        # infer ntypes must be sorted for node embedding saving
+        if task_type == BUILTIN_TASK_LINK_PREDICTION:
+            infer_ntypes = None
+        elif task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
+            infer_ntypes = [config.target_ntype]
+        elif task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
+            infer_ntypes = set()
+            for etype in config.target_etype:
+                infer_ntypes.add(etype[0])
+                infer_ntypes.add(etype[2])
+            infer_ntypes = sorted(list(infer_ntypes))
+        else:
+            raise TypeError("Not supported for task type: ", task_type)
 
     emb_generator.infer(input_data, infer_ntypes,
                 save_embed_path=config.save_embed_path,
