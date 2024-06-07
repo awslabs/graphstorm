@@ -1280,10 +1280,10 @@ class GSgnnLinkPredictionTestDataLoader(GSgnnLinkPredictionDataLoaderBase):
         return cur_iter, self._neg_sample_type
 
     def __len__(self):
-        num_samples = 0
+        num_iters = 0
         for _, test_size in self._fixed_test_size.items():
-            num_samples += math.ceil(test_size / self._batch_size)
-        return num_samples
+            num_iters += math.ceil(test_size / self._batch_size)
+        return num_iters
 
     @property
     def fanout(self):
