@@ -1,7 +1,7 @@
 # Move to parent directory
 cd ../../
 
-pip install --no-cache-dir --extra-index-url https://pypi.nvidia.com pylibwholegraph-cu11
+pip install --no-cache-dir --extra-index-url https://pypi.nvidia.com pylibwholegraph-cu11==24.4.0
 
 set -ex
 
