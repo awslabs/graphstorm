@@ -22,7 +22,8 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
                                BUILTIN_TASK_EDGE_REGRESSION,
-                               BUILTIN_TASK_LINK_PREDICTION)
+                               BUILTIN_TASK_LINK_PREDICTION,
+                               BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
 from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
@@ -61,6 +62,8 @@ def create_task_infer_dataloader(task, config, infer_data):
     task_config = task.task_config
     # All tasks share the same input encoder, so the node feats must be same.
     node_feats = config.node_feat_name
+    # All tasks share the same GNN model, so the fanout should be the global fanout
+    fanout = config.eval_fanout if config.use_mini_batch_infer else []
     if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
         eval_ntype = task_config.target_ntype
         if not config.no_validation:
@@ -74,8 +77,6 @@ def create_task_infer_dataloader(task, config, infer_data):
                 f"To do inference on {config.target_ntype} for {task.task_id} " \
                 "task without doing evaluation, you should not define test_mask " \
                 "as its node feature. GraphStorm will do inference on the whole node set. "
-        # All tasks share the same GNN model, so the fanout should be the global fanout
-        fanout = config.eval_fanout if config.use_mini_batch_infer else []
         return GSgnnNodeDataLoader(infer_data,
                                    target_idxs,
                                    fanout=fanout,
@@ -96,8 +97,6 @@ def create_task_infer_dataloader(task, config, infer_data):
                 f"To do inference on {config.target_etype} for {task.task_id} " \
                 "without doing evaluation, you should not define test_mask as its " \
                 "edge feature. GraphStorm will do inference on the whole edge set. "
-        # All tasks share the same GNN model, so the fanout should be the global fanout
-        fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
         return GSgnnEdgeDataLoader(infer_data,
                                    target_idxs,
                                    fanout=fanout,
@@ -115,12 +114,10 @@ def create_task_infer_dataloader(task, config, infer_data):
             assert len(infer_idxs) > 0, \
                 f"There is not test data for evaluation for task {task.task_id}. "
         else:
-            infer_idxs =infer_data.get_edge_infer_set(eval_etype, mask=task_config.test_mask)
+            # There is no need to do testing.
+            # skip creating test dataloader for link prediction.
+            return None
 
-        # We do not need fanout for full graph inference.
-        # In full graph inference, the test data loader
-        # is only used to provide test edges.
-        fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
         if task_config.eval_etypes_negative_dstnode is not None:
             return GSgnnLinkPredictionPredefinedTestDataLoader(
                 infer_data, infer_idxs,
@@ -143,6 +140,24 @@ def create_task_infer_dataloader(task, config, infer_data):
                 num_negative_edges=task_config.num_negative_edges_eval,
                 fanout=fanout,
                 node_feats=node_feats)
+    elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
+        eval_ntype = task_config.target_ntype
+        if not config.no_validation:
+            target_idxs = infer_data.get_node_test_set(eval_ntype, mask=task_config.test_mask)
+            assert len(target_idxs) > 0, \
+                f"There is not test data for evaluation for task {task.task_id}. " \
+                "You can use --no-validation true to avoid do testing"
+        else:
+            # There is no need to do testing.
+            # skip creating test dataloader for node feature reconstruction
+            return None
+        return GSgnnNodeDataLoader(infer_data,
+                                   target_idxs,
+                                   fanout=fanout,
+                                   batch_size=task_config.eval_batch_size,
+                                   train_task=False,
+                                   node_feats=node_feats,
+                                   label_field=task_config.reconstruct_nfeat_name)
     else:
         raise TypeError(f"Unknown task type {task.task_type}")
 
@@ -168,6 +183,8 @@ def main(config_args):
     mt_tasks = []
     lp_test_dataloaders = []
     lp_tasks = []
+    recon_nfeat_dataloaders = []
+    recon_nfeat_tasks = []
     task_evaluators = {}
     encoder_out_dims = model.gnn_encoder.out_dims \
         if model.gnn_encoder is not None \
@@ -189,6 +206,12 @@ def main(config_args):
                 # Otherwise, there will be information leakage.
                 lp_test_dataloaders.append(data_loader)
                 lp_tasks.append(task)
+            elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
+                # Node feature reconstruction should be handled separately
+                # We should avoid including self-loop of the lask GNN layer
+                # when evaluating feature reconstruction performance.
+                recon_nfeat_dataloaders.append(data_loader)
+                recon_nfeat_tasks.append(task)
             else:
                 dataloaders.append(data_loader)
                 mt_tasks.append(task)
@@ -198,13 +221,26 @@ def main(config_args):
 
         model.add_task(task.task_id, task.task_type, decoder, loss_func)
 
-
-    infer_dataloader = GSgnnMultiTaskDataLoader(infer_data, mt_tasks, dataloaders)
+    # Multi-task testing dataloader for node prediction and
+    # edge prediction tasks.
+    # When computing node embeddings all the edges will be used
+    # in message passing.
+    test_dataloader = GSgnnMultiTaskDataLoader(infer_data, mt_tasks, dataloaders)
+    # When doing link prediction evaluation, we want to avoid
+    # including testing edges in the message passing.
     # Create a multi-task dataloader for link prediction task
     # testing specifically.
     lp_test_dataloader = GSgnnMultiTaskDataLoader(
         infer_data, lp_tasks, lp_test_dataloaders) \
         if len(lp_test_dataloaders) > 0 else None
+    # When doing node feature reconstruction evaluation, we want
+    # to avoid adding self-loop to the last GNN layer
+    # Create a multi-task dataloader for node feature reconstruction
+    # task testing specifically.
+    recon_nfeat_test_dataloader = GSgnnMultiTaskDataLoader(
+        infer_data, recon_nfeat_tasks, recon_nfeat_dataloaders) \
+        if len(recon_nfeat_dataloaders) > 0 else None
+
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
     model = model.to(get_device())
@@ -215,8 +251,7 @@ def main(config_args):
         infer.setup_evaluator(evaluator)
     infer.setup_device(device=get_device())
     infer.infer(infer_data,
-                infer_dataloader,
-                lp_test_dataloader,
+                (test_dataloader, lp_test_dataloader,recon_nfeat_test_dataloader),
                 save_embed_path=config.save_embed_path,
                 save_prediction_path=config.save_prediction_path,
                 use_mini_batch_infer=config.use_mini_batch_infer,

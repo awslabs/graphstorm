@@ -92,3 +92,13 @@ gsf:
           - "train_mask_field_l"
           - null # empty means there is no validation mask
           - "test_mask_field_l"
+    - reconstruct_node_feat:
+        reconstruct_nfeat_name: "title"
+        target_ntype: "movie"
+        batch_size: 128
+        mask_fields:
+          - "train_mask_c0" # node classification mask 0
+          - "val_mask_c0"
+          - "test_mask_c0"
+        eval_metric:
+          - "mse"

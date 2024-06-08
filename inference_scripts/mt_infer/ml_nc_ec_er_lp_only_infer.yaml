@@ -72,3 +72,9 @@ gsf:
         reverse_edge_types_map:
           - user,rating,rating-rev,movie
         batch_size: 128 # will overwrite the global batch_size
+    - reconstruct_node_feat:
+        reconstruct_nfeat_name: "title"
+        target_ntype: "movie"
+        batch_size: 128
+        eval_metric:
+          - "mse"

@@ -17,13 +17,14 @@
 """
 import os
 import time
+import logging
 import torch as th
 
 from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_NODE_REGRESSION,
                       BUILTIN_TASK_EDGE_CLASSIFICATION,
                       BUILTIN_TASK_EDGE_REGRESSION,
-                      BUILTIN_TASK_LINK_PREDICTION)
+                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
 from ..model.utils import (save_node_prediction_results,
@@ -32,7 +33,9 @@ from ..model.utils import (save_node_prediction_results,
 from ..model.utils import NodeIDShuffler
 from ..model import do_full_graph_inference, do_mini_batch_inference
 from ..model.multitask_gnn import multi_task_mini_batch_predict
+from ..model.node_gnn import run_node_mini_batch_predict
 from ..model.lp_gnn import run_lp_mini_batch_predict
+from ..model.gnn_encoder_base import GSgnnGNNEncoderInterface
 
 from ..model.edge_decoder import LinkPredictDistMultDecoder
 
@@ -51,8 +54,8 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
     """
 
     # pylint: disable=unused-argument
-    def infer(self, data, mt_loader,
-              lp_test_loader=None,
+    def infer(self, data,
+              mt_test_loader,
               save_embed_path=None,
               save_prediction_path=None,
               use_mini_batch_infer=False,
@@ -73,8 +76,16 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
         ----------
         data: GSgnnData
             Graph data.
-        mt_loader:  GSgnnMultiTaskDataLoader
-            The mini-batch sampler for inference.
+        mt_test_loader:  tuple of GSgnnMultiTaskDataLoaders
+            A tuple of mini-batch samplers for inference.
+            In format of (test_dataloader, lp_test_dataloader,
+            recon_nfeat_test_dataloader). The second dataloader
+            contains test dataloaders for link predicction tasks.
+            The third dataloader contains test dataloaders for
+            node feature reconstruction tasks. When evaluating
+            these tasks, different message passing strategies
+            will be applied. The first dataloader contains
+            all other dataloaders.
         save_embed_path: str
             The path to save the node embeddings.
         save_prediction_path: str
@@ -98,19 +109,26 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
         do_eval = self.evaluator is not None
         sys_tracker.check('start inferencing')
         self._model.eval()
+        mt_loader, lp_test_loader, recon_nfeat_test_loader = mt_test_loader
 
         fanout = None
         for task_fanout in mt_loader.fanout:
             if task_fanout is not None:
                 fanout = task_fanout
                 break
-        if use_mini_batch_infer:
-            embs = do_mini_batch_inference(self._model, data, batch_size=infer_batch_size,
-                                           fanout=fanout,
-                                           task_tracker=self.task_tracker)
-        else:
-            embs = do_full_graph_inference(self._model, data, fanout=fanout,
-                                           task_tracker=self.task_tracker)
+
+        def gen_embs():
+            # Generate node embeddings.
+            if use_mini_batch_infer:
+                embs = do_mini_batch_inference(
+                    self._model, data, batch_size=infer_batch_size,
+                    fanout=fanout, task_tracker=self.task_tracker)
+            else:
+                embs = do_full_graph_inference(
+                    self._model, data, fanout=fanout,
+                    task_tracker=self.task_tracker)
+            return embs
+        embs = gen_embs()
         sys_tracker.check('compute embeddings')
         device = self.device
 
@@ -123,28 +141,79 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
                                           return_label=do_eval)
 
         if lp_test_loader is not None:
-            # We also need to add test metrics for link prediction tasks
+            # We also need to compute test scores for link prediction tasks.
             dataloaders = lp_test_loader.dataloaders
             task_infos = lp_test_loader.task_infos
 
             with th.no_grad():
                 for dataloader, task_info in zip(dataloaders, task_infos):
-                    print(task_info.task_id)
                     if dataloader is None:
                         pre_results[task_info.task_id] = None
 
                     if use_mini_batch_infer:
-                        lp_test_embs = do_mini_batch_inference(self._model, data, batch_size=infer_batch_size,
-                                                    fanout=fanout,
-                                                    edge_mask=task_info.task_config.train_mask,
-                                                    task_tracker=self.task_tracker)
+                        lp_test_embs = do_mini_batch_inference(
+                            self._model, data, batch_size=infer_batch_size,
+                            fanout=fanout,
+                            edge_mask=task_info.task_config.train_mask,
+                            task_tracker=self.task_tracker)
                     else:
-                        lp_test_embs = do_full_graph_inference(self._model, data, fanout=fanout,
-                                                    edge_mask=task_info.task_config.train_mask,
-                                                    task_tracker=self.task_tracker)
+                        lp_test_embs = do_full_graph_inference(
+                            self._model, data, fanout=fanout,
+                            edge_mask=task_info.task_config.train_mask,
+                            task_tracker=self.task_tracker)
                     decoder = self._model.task_decoders[task_info.task_id]
                     ranking = run_lp_mini_batch_predict(decoder, lp_test_embs, dataloader, device)
                     pre_results[task_info.task_id] = ranking
+        if recon_nfeat_test_loader is not None:
+            # We also need to compute test scores for node feature reconstruction tasks.
+            dataloaders = lp_test_loader.dataloaders
+            task_infos = lp_test_loader.task_infos
+
+            with th.no_grad():
+                for dataloader, task_info in zip(dataloaders, task_infos):
+                    if dataloader is None:
+                        pre_results[task_info.task_id] = (None, None)
+
+                    if isinstance(self.gnn_encoder, GSgnnGNNEncoderInterface):
+                        if self.has_sparse_params():
+                            # When there are learnable embeddings, we can not
+                            # just simply skip the last layer self-loop.
+                            # Keep the self-loop and print a warning
+                            # we will use the computed embs directly
+                            logging.warning("When doing %s inference, we need to "
+                                            "avoid adding self loop in the last GNN layer "
+                                            "to avoid the potential node "
+                                            "feature leakage issue. "
+                                            "When there are learnable embeddings on "
+                                            "nodes, GraphStorm can not automatically"
+                                            "skip the last layer self-loop"
+                                            "Please set use_self_loop to False",
+                                            BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+                        else:
+                            # skip the selfloop of the last layer to
+                            # avoid information leakage.
+                            self._model.gnn_encoder.skip_last_selfloop()
+                            embs = gen_embs()
+                            self._model.gnn_encoder.reset_last_selfloop()
+                    else:
+                        # we will use the computed embs directly
+                        logging.warning("The gnn encoder %s does not support skip "
+                                        "the last self-loop operation"
+                                        "(skip_last_selfloop). There is a potential "
+                                        "node feature leakage risk when doing %s training.",
+                                        type(self._model.gnn_encoder),
+                                        BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+                    decoder = self._model.task_decoders[task_info.task_id]
+                    preds, labels = \
+                        run_node_mini_batch_predict(decoder,
+                                                    embs,
+                                                    dataloader,
+                                                    device=device,
+                                                    return_proba=return_proba,
+                                                    return_label=do_eval)
+                    ntype = list(preds.keys())[0]
+                    pre_results[task_info.task_id] = (preds[ntype], labels[ntype] \
+                        if labels is not None else None)
 
         if do_eval:
             test_start = time.time()
@@ -229,6 +298,7 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
 
                     else:
                         # There is no prediction results for link prediction
+                        # and feature reconstruction
                         continue
 
         # save relation embedding if any
