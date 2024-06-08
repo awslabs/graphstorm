@@ -108,7 +108,7 @@ def dghl_loader_fixture(spark, data_configs_with_label, tempdir) -> DistHeteroge
         graph_name="small_heterogeneous_graph",
         input_prefix=input_path,
         local_input_path=input_path,
-        local_output_path=tempdir,
+        local_metadata_output_path=tempdir,
         num_output_files=1,
         output_prefix=tempdir,
         precomputed_transformations={},
@@ -133,7 +133,7 @@ def dghl_loader_no_label_fixture(
         graph_name="small_heterogeneous_graph",
         input_prefix=input_path,
         local_input_path=input_path,
-        local_output_path=tempdir,
+        local_metadata_output_path=tempdir,
         num_output_files=1,
         output_prefix=tempdir,
         precomputed_transformations={},
@@ -158,7 +158,7 @@ def dghl_loader_no_reverse_edges_fixture(
         graph_name="small_heterogeneous_graph",
         input_prefix=input_path,
         local_input_path=input_path,
-        local_output_path=tempdir,
+        local_metadata_output_path=tempdir,
         num_output_files=1,
         output_prefix=tempdir,
         precomputed_transformations={},
@@ -709,6 +709,7 @@ def test_update_label_properties_multilabel(
 
 
 def test_node_custom_label(spark, dghl_loader: DistHeterogeneousGraphLoader, tmp_path):
+    """Test using custom label splits for nodes"""
     data = [(i,) for i in range(1, 11)]
 
     # Create DataFrame
@@ -751,6 +752,7 @@ def test_node_custom_label(spark, dghl_loader: DistHeterogeneousGraphLoader, tmp
 
 
 def test_edge_custom_label(spark, dghl_loader: DistHeterogeneousGraphLoader, tmp_path):
+    """Test using custom label splits for edges"""
     data = [(i, j) for i in range(1, 4) for j in range(11, 14)]
     # Create DataFrame
     edges_df = spark.createDataFrame(data, ["src_str_id", "dst_str_id"])
