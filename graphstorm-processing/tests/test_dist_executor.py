@@ -58,8 +58,8 @@ def test_merge_input_and_transform_dicts(tempdir: str):
     pre_comp_transormations = {
         "node_features": {
             "user": {
-                "age": {
-                    "transformation": "numerical",
+                "state": {
+                    "transformation_name": "categorical",
                 }
             }
         },
@@ -75,5 +75,6 @@ def test_merge_input_and_transform_dicts(tempdir: str):
     for node_input_dict in input_config_with_transforms["graph"]["nodes"]:
         if "user" == node_input_dict["type"]:
             for feature in node_input_dict["features"]:
-                if "age" == feature["column"]:
-                    assert feature["precomputed_transformation"]["transformation"] == "numerical"
+                if "state" == feature["column"]:
+                    transform_for_feature = feature["precomputed_transformation"]
+                    assert transform_for_feature["transformation_name"] == "categorical"

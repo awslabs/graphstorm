@@ -446,7 +446,7 @@ class DistributedExecutor:
 
         def append_transformations(
             structure_input_dicts: list[dict],
-            structure_transformations: Mapping[str, Mapping[str, Mapping]],
+            structure_transforms: Mapping[str, Mapping[str, Mapping]],
             structure_type: str,
         ):
             """Appends the pre-computed transformations to the input dicts."""
@@ -454,10 +454,8 @@ class DistributedExecutor:
             for input_dict in structure_input_dicts:
                 type_name = get_structure_type(input_dict, structure_type)
                 # If we have pre-computed transformations for this type
-                if type_name in structure_transformations:
-                    type_transformations: Mapping[str, Mapping] = structure_transformations[
-                        type_name
-                    ]
+                if type_name in structure_transforms:
+                    type_transforms: Mapping[str, Mapping] = structure_transforms[type_name]
                     assert (
                         "features" in input_dict
                     ), f"Expected type {type_name} to have have features in the input config"
@@ -470,8 +468,8 @@ class DistributedExecutor:
                             if "name" in type_feat_dict
                             else type_feat_dict["column"]
                         )
-                        if feat_name in type_transformations:
-                            type_feat_dict["precomputed_transformation"] = type_transformations[
+                        if feat_name in type_transforms:
+                            type_feat_dict["precomputed_transformation"] = type_transforms[
                                 feat_name
                             ]
 
