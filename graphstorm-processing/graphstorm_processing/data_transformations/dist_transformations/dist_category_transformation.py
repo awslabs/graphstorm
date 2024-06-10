@@ -14,17 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+from collections import defaultdict
 from typing import List, Optional, Sequence
+from functools import partial
 
 import numpy as np
 import pandas as pd
 
-from pyspark.sql import DataFrame, functions as F, SparkSession
-from pyspark.sql.functions import when
-from pyspark.sql.types import ArrayType, FloatType, StringType
 from pyspark.ml.feature import StringIndexer, OneHotEncoder
 from pyspark.ml.functions import vector_to_array
 from pyspark.ml.linalg import Vectors
+from pyspark.sql import DataFrame, functions as F, SparkSession
+from pyspark.sql.functions import when
+from pyspark.sql.types import ArrayType, FloatType, StringType
+from pyspark.sql.types import IntegerType
 
 from graphstorm_processing.constants import (
     MAX_CATEGORIES_PER_FEATURE,
@@ -41,8 +44,12 @@ class DistCategoryTransformation(DistributedTransformation):
     Transforms categorical features into a vector of one-hot-encoded values.
     """
 
-    def __init__(self, cols: list[str], spark: SparkSession) -> None:
-        super().__init__(cols, spark)
+    def __init__(
+        self, cols: list[str], spark: SparkSession, json_representation: Optional[dict] = None
+    ) -> None:
+        if not json_representation:
+            json_representation = {}
+        super().__init__(cols, spark, json_representation)
 
     @staticmethod
     def get_transformation_name() -> str:
@@ -51,6 +58,7 @@ class DistCategoryTransformation(DistributedTransformation):
     def apply(self, input_df: DataFrame) -> DataFrame:
         processed_col_names = []
         top_categories_per_col: dict[str, list] = {}
+
         for current_col in self.cols:
             processed_col_names.append(current_col + "_processed")
             distinct_category_counts = input_df.groupBy(current_col).count()  # type: DataFrame
@@ -157,13 +165,89 @@ class DistCategoryTransformation(DistributedTransformation):
 
         # see get_json_representation() docstring for structure
         self.json_representation = {
-            "string_indexer_labels_array": str_indexer_model.labelsArray,
+            "string_indexer_labels_arrays": str_indexer_model.labelsArray,
             "cols": self.cols,
             "per_col_label_to_one_hot_idx": per_col_label_to_one_hot_idx,
             "transformation_name": self.get_transformation_name(),
         }
 
         return dense_vector_features
+
+    def apply_precomputed_transformation(self, input_df: DataFrame) -> DataFrame:
+
+        # Get JSON representation of categorical transformation
+        labels_arrays: list[list[str]] = self.json_representation["string_indexer_labels_arrays"]
+        per_col_label_to_one_hot_idx: dict[str, dict[str, int]] = self.json_representation[
+            "per_col_label_to_one_hot_idx"
+        ]
+        precomputed_cols: list[str] = self.json_representation["cols"]
+
+        # Assertions to ensure correctness of representation
+        assert set(precomputed_cols) == set(self.cols), (
+            f"Mismatched columns in precomputed transformation: "
+            f"pre-computed cols: {sorted(precomputed_cols)}, "
+            f"columns in current config: {sorted(self.cols)}"
+        )
+        for col_labels, col in zip(labels_arrays, precomputed_cols):
+            for idx, label in enumerate(col_labels):
+                assert idx == per_col_label_to_one_hot_idx[col][label], (
+                    "Mismatch between Spark labelsArray and pre-computed array index "
+                    f"for col {col}, string: {label}, "
+                    f"{idx} != {per_col_label_to_one_hot_idx[col][label]}"
+                )
+
+        # For each column in the transformation, we create a defaultdict
+        # with each unique value as keys, and the one-hot vector encoding
+        # of the value as value. Values not in the dict get the all zeroes (missing)
+        # vector
+        # Do this for each column in the transformation and return the resulting DF
+
+        # We need to define these outside the loop to avoid
+        # https://pylint.readthedocs.io/en/latest/user_guide/messages/warning/cell-var-from-loop.html
+        def replace_col_in_row(val: str, str_to_vec: dict):
+            return str_to_vec[val]
+
+        def create_zeroes_list(vec_size: int):
+            return [0] * vec_size
+
+        transformed_df = None
+        already_transformed_cols = []
+        remaining_cols = list(self.cols)
+
+        for col_idx, current_col in enumerate(precomputed_cols):
+            vector_size = len(labels_arrays[col_idx])
+            # Mapping from string to one-hot vector,
+            # with all-zeroes default for unknown/missing values
+            string_to_vector = defaultdict(partial(create_zeroes_list, vector_size))
+
+            string_to_one_hot_idx = per_col_label_to_one_hot_idx[current_col]
+
+            # Populate the one-hot vectors for known strings
+            for string_val, one_hot_idx in string_to_one_hot_idx.items():
+                one_hot_vec = [0] * vector_size
+                one_hot_vec[one_hot_idx] = 1
+                string_to_vector[string_val] = one_hot_vec
+
+            # UDF that replaces strings values with their one-hot encoding (ohe)
+            replace_cur_col = partial(replace_col_in_row, str_to_vec=string_to_vector)
+            replace_cur_col_udf = F.udf(replace_cur_col, ArrayType(IntegerType()))
+
+            partial_df = transformed_df if transformed_df else input_df
+
+            transformed_col = f"{current_col}_ohe"
+            remaining_cols.remove(current_col)
+            # We maintain only the already transformed cols, and the ones yet to be transformed
+            transformed_df = partial_df.select(
+                replace_cur_col_udf(F.col(current_col)).alias(transformed_col),
+                *remaining_cols,
+                *already_transformed_cols,
+            ).drop(current_col)
+            already_transformed_cols.append(transformed_col)
+
+        assert transformed_df
+        transformed_df = transformed_df.select(*already_transformed_cols).toDF(*self.cols)
+
+        return transformed_df
 
     def get_json_representation(self) -> dict:
         """Representation of the single-category transformation for one or more columns.

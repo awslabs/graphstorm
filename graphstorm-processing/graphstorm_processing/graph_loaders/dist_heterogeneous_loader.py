@@ -25,7 +25,6 @@ from dataclasses import dataclass
 from time import perf_counter
 from typing import Any, Dict, Optional, Set, Tuple
 
-from pyspark import RDD
 from pyspark.sql import Row, SparkSession, DataFrame, functions as F
 from pyspark.sql.types import (
     StructType,
@@ -49,16 +48,21 @@ from graphstorm_processing.constants import (
     HUGGINGFACE_TOKENIZE,
     TRANSFORMATIONS_FILENAME,
 )
-from ..config.config_parser import EdgeConfig, NodeConfig, StructureConfig
-from ..config.label_config_base import LabelConfig
-from ..config.feature_config_base import FeatureConfig
-from ..data_transformations.dist_feature_transformer import DistFeatureTransformer
-from ..data_transformations.dist_label_loader import DistLabelLoader, SplitRates, CustomSplit
-from ..data_transformations import s3_utils, spark_utils
+from graphstorm_processing.config.config_parser import EdgeConfig, NodeConfig, StructureConfig
+from graphstorm_processing.config.label_config_base import LabelConfig
+from graphstorm_processing.config.feature_config_base import FeatureConfig
+from graphstorm_processing.data_transformations.dist_feature_transformer import (
+    DistFeatureTransformer,
+)
+from graphstorm_processing.data_transformations.dist_label_loader import (
+    CustomSplit,
+    DistLabelLoader,
+    SplitRates,
+)
+from graphstorm_processing.data_transformations import s3_utils, spark_utils
 
-# TODO: Remove the pylint disable once we add the rest of the code
-from . import schema_utils  # pylint: disable=no-name-in-module
-from .row_count_utils import ParquetRowCounter  # pylint: disable=no-name-in-module
+from . import schema_utils
+from .row_count_utils import ParquetRowCounter
 
 FORMAT_NAME = "parquet"
 DELIMITER = "" if FORMAT_NAME == "parquet" else ","
@@ -207,7 +211,10 @@ class DistHeterogeneousGraphLoader(object):
         #     },
         #     "edges_features": {...}
         # }
-        self.transformation_representations = {"node_features": {}, "edge_features": {}}
+        self.transformation_representations = {
+            "node_features": defaultdict(dict),
+            "edge_features": defaultdict(dict),
+        }
         self.graph_name = loader_config.graph_name
         self.skip_train_masks = False
         self.pre_computed_transformations = loader_config.precomputed_transformations
@@ -1029,16 +1036,26 @@ class DistHeterogeneousGraphLoader(object):
         """
         node_type_feature_metadata = {}
         ntype_feat_sizes = {}  # type: Dict[str, int]
+
         for feat_conf in feature_configs:
-            json_representation = self.transformation_representations.get(feat_conf.feat_name, {})
+            json_representation = (
+                self.pre_computed_transformations.get("node_features", {})
+                .get(node_type, {})
+                .get(feat_conf.feat_name, {})
+            )
             transformer = DistFeatureTransformer(feat_conf, self.spark, json_representation)
+
+            if json_representation:
+                logging.info(
+                    "Will apply pre-computed transformation for feature: %s", feat_conf.feat_name
+                )
 
             transformed_feature_df, json_representation = transformer.apply_transformation(nodes_df)
             transformed_feature_df.cache()
 
-            # Will evaluate False for empty dict
+            # Will evaluate False for empty dict, only create representations when needed
             if json_representation:
-                self.transformation_representations["node_features"][
+                self.transformation_representations["node_features"][node_type][
                     feat_conf.feat_name
                 ] = json_representation
 
@@ -1425,6 +1442,7 @@ class DistHeterogeneousGraphLoader(object):
                 logging.info("No features or labels for edge type: %s", edge_type)
             # With features or labels
             else:
+                # TODO: Add unit tests for this branch
                 relation_col = edge_config.rel_col
                 edge_type_metadata_dicts = {}
 
@@ -1493,6 +1511,7 @@ class DistHeterogeneousGraphLoader(object):
             for each feature, which tells us the column size of the
             encoded features.
         """
+        # TODO: Add unit tests for edge feature processing
         edge_feature_metadata_dicts = {}
         etype_feat_sizes = {}  # type: Dict[str, int]
         for feat_conf in feature_configs:
@@ -1501,14 +1520,22 @@ class DistHeterogeneousGraphLoader(object):
                 feat_conf.feat_name,
                 edge_type,
             )
-            json_representation = self.transformation_representations.get(feat_conf.feat_name, {})
+            json_representation = (
+                self.pre_computed_transformations.get("edges_features", {})
+                .get(edge_type, {})
+                .get(feat_conf.feat_name, {})
+            )
             transformer = DistFeatureTransformer(feat_conf, self.spark, json_representation)
 
+            if json_representation:
+                logging.info(
+                    "Will apply pre-computed transformation for feature: %s", feat_conf.feat_name
+                )
             transformed_feature_df, json_representation = transformer.apply_transformation(edges_df)
             transformed_feature_df.cache()
             # Will evaluate False for empty dict
             if json_representation:
-                self.transformation_representations["node_features"][
+                self.transformation_representations["edge_features"][edge_type][
                     feat_conf.feat_name
                 ] = json_representation
 

@@ -44,7 +44,7 @@ class DistFeatureTransformer(object):
         feat_name = feature_config.feat_name
         args_dict = feature_config.transformation_kwargs
         self.transformation: DistributedTransformation
-        # TODO: We will use this to re-apply transformations
+        # We use this to re-apply transformations
         self.json_representation = json_representation
 
         default_kwargs = {
@@ -63,7 +63,7 @@ class DistFeatureTransformer(object):
             self.transformation = DistBucketNumericalTransformation(**default_kwargs, **args_dict)
         elif feat_type == "categorical":
             self.transformation = DistCategoryTransformation(
-                **default_kwargs, **args_dict, spark=spark
+                **default_kwargs, **args_dict, spark=spark, json_representation=json_representation
             )
         elif feat_type == "multi-categorical":
             self.transformation = DistMultiCategoryTransformation(**default_kwargs, **args_dict)
@@ -88,10 +88,17 @@ class DistFeatureTransformer(object):
         """
         input_df = input_df.select(self.transformation.cols)  # type: ignore
 
-        return (
-            self.transformation.apply(input_df),
-            self.transformation.get_json_representation(),
-        )
+        if self.json_representation:
+            logging.info("Applying precomputed transformation...")
+            return (
+                self.transformation.apply_precomputed_transformation(input_df),
+                self.json_representation,
+            )
+        else:
+            return (
+                self.transformation.apply(input_df),
+                self.transformation.get_json_representation(),
+            )
 
     def get_transformation_name(self) -> str:
         """

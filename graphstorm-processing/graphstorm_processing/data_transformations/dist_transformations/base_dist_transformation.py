@@ -16,6 +16,7 @@ limitations under the License.
 
 from abc import ABC, abstractmethod
 from typing import Optional, Sequence
+import logging
 
 from pyspark.sql import DataFrame, SparkSession
 
@@ -23,6 +24,15 @@ from pyspark.sql import DataFrame, SparkSession
 class DistributedTransformation(ABC):
     """
     Base class for all distributed transformations.
+
+    Parameters
+    ----------
+    cols : Sequence[str]
+        Column names to which we will apply the transformation
+    spark : Optional[SparkSession], optional
+        Optional SparkSession if needed by the underlying implementation, by default None
+    json_representation : Optional[dict], optional
+        Pre-computed transformation representation to use, by default None
     """
 
     def __init__(
@@ -51,6 +61,28 @@ class DistributedTransformation(ABC):
             return self.json_representation
         else:
             return {}
+
+    def apply_precomputed_transformation(self, input_df: DataFrame) -> DataFrame:
+        """Applies a transformation using pre-computed representation.
+
+        Parameters
+        ----------
+        input_df : DataFrame
+            Input DataFrame to apply the transformation to.
+
+        Returns
+        -------
+        DataFrame
+            The input DataFrame, modified according to the pre-computed transformation values.
+        """
+        logging.warning(
+            (
+                "Transformation %s does not support pre-existing transform"
+                ", applying new transformation"
+            ),
+            self.get_transformation_name(),
+        )
+        return self.apply(input_df)
 
     @staticmethod
     @abstractmethod
