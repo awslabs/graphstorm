@@ -369,7 +369,8 @@ class DistributedExecutor:
         # If pre-computed representations exist, merge them with the input dict and save to disk
         with open(
             os.path.join(
-                self.local_metadata_output_path, f"{self.config_filename}_with_transformations"
+                self.local_metadata_output_path,
+                f"{os.path.splitext(self.config_filename)[0]}_with_transformations.json",
             ),
             "w",
             encoding="utf-8",
