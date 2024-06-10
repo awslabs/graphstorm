@@ -37,6 +37,7 @@ from .s3_utils import download_data_from_s3, upload_file_to_s3
 from .sm_partition_algorithm import (
     SageMakerPartitionerConfig,
     SageMakerRandomPartitioner,
+    SageMakerRangePartitioner,
     )
 
 DGL_TOOL_PATH = "/root/dgl/tools"
@@ -321,6 +322,8 @@ def run_partition(job_config: PartitionJobConfig):
 
     if job_config.partition_algorithm == 'random':
         sm_partitioner = SageMakerRandomPartitioner(partition_config)
+    elif job_config.partition_algorithm == 'range':
+        sm_partitioner = SageMakerRangePartitioner(partition_config)
     else:
         raise RuntimeError(f"Unknown partition algorithm: '{job_config.partition_algorithm}'", )
 

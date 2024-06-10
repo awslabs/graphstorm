@@ -94,7 +94,7 @@ def get_parser():
         help="Skip partitioning step and only do GSL object creation. Partition assignments "
              "need to exist under the <output-data-s3>/partitions location.")
     partition_parser.add_argument("--partition-algorithm", required=False,
-        default='random', choices=['random'],
+        default='random', choices=['random', 'range'],
         help="Partition algorithm to use.")
     partition_parser.add_argument("--metadata-filename", required=False,
         default="metadata.json", help="Metadata file that describes the files "

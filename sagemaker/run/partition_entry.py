@@ -32,7 +32,7 @@ def partition_arg_parser():
     parser.add_argument("--metadata-filename", type=str,
         default="metadata.json", help="file name of metadata config file")
     parser.add_argument("--partition-algorithm", type=str, default='random',
-        choices=['random'],
+        choices=['random', 'range'],
         help="Partition algorithm to use.")
     parser.add_argument("--skip-partitioning", type=str, default='false',
         choices=['true', 'false'],

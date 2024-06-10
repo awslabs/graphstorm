@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Tuple
 
 from sagemaker import Session
-from graphstorm.gpartition import RandomPartitionAlgorithm
+from graphstorm.gpartition import RandomPartitionAlgorithm, RangePartitionAlgorithm, LocalPartitionAlgorithm
 
 from .s3_utils import upload_file_to_s3
 
@@ -179,19 +179,16 @@ class SageMakerPartitioner(abc.ABC):
             S3 prefix to upload the partitioning results to.
         """
 
-class SageMakerRandomPartitioner(SageMakerPartitioner): # pylint: disable=too-few-public-methods
-    """
-    Single-instance random partitioning algorithm running on SageMaker
-    """
-    def _run_partitioning(self, num_partitions: int) -> str:
-        random_part = RandomPartitionAlgorithm(self.metadata)
+class SageMakerSingleInstancePartitioner(SageMakerPartitioner):
+    local_partitioner: LocalPartitionAlgorithm
 
+    def _run_partitioning(self, num_partitions: int) -> str:
         part_assignment_dir = os.path.join(self.local_output_path, "partition_assignment")
         os.makedirs(part_assignment_dir, exist_ok=True)
 
         # Only the leader creates partition assignments
         if self.rank == 0:
-            random_part.create_partitions(num_partitions, part_assignment_dir)
+            self.local_partitioner.create_partitions(num_partitions, part_assignment_dir)
 
         return part_assignment_dir
 
@@ -205,3 +202,21 @@ class SageMakerRandomPartitioner(SageMakerPartitioner): # pylint: disable=too-fe
         else:
             # Workers do not hold any partitioning information locally
             pass
+
+class SageMakerRandomPartitioner(SageMakerSingleInstancePartitioner): # pylint: disable=too-few-public-methods
+    """
+    Single-instance random partitioning algorithm running on SageMaker
+    """
+    def __init__(self, partition_config: SageMakerPartitionerConfig):
+        super().__init__(partition_config)
+
+        self.local_partitioner = RandomPartitionAlgorithm(self.metadata)
+
+class SageMakerRangePartitioner(SageMakerSingleInstancePartitioner): # pylint: disable=too-few-public-methods
+    """
+    Single-instance range partitioning algorithm running on SageMaker
+    """
+    def __init__(self, partition_config: SageMakerPartitionerConfig):
+        super().__init__(partition_config)
+
+        self.local_partitioner = RangePartitionAlgorithm(self.metadata)

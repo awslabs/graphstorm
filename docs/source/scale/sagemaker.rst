@@ -237,7 +237,8 @@ data for distributed training.
 Running the above will take the dataset in chunked format
 from ``${DATASET_S3_PATH}`` as input and create a DistDGL graph with
 ``${NUM_PARTITIONS}`` under the output path, ``${OUTPUT_PATH}``.
-Currently we only support ``random`` as the partitioning algorithm.
+Currently we support ``random`` and ``range`` partition
+assignment algorithms.
 
 Passing additional arguments to the SageMaker
 `````````````````````````````````````````````

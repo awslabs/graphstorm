@@ -34,6 +34,7 @@ from graphstorm.gpartition import (
     ParMetisPartitionAlgorithm,
     ParMETISConfig,
     RandomPartitionAlgorithm,
+    RangePartitionAlgorithm,
 )
 from graphstorm.utils import get_log_level
 
@@ -126,6 +127,8 @@ def main():
         partition_config = ParMETISConfig(args.ip_config, args.input_path,
                                           args.dgl_tool_path, args.metadata_filename)
         partitioner = ParMetisPartitionAlgorithm(metadata_dict, partition_config)
+    elif args.partition_algorithm == "range":
+        partitioner = RangePartitionAlgorithm(metadata_dict)
     else:
         raise RuntimeError(f"Unknown partition algorithm {args.part_algorithm}")
 
@@ -185,7 +188,7 @@ def parse_args() -> argparse.Namespace:
     argparser.add_argument("--dgl-tool-path", type=str, default="/root/dgl/tools",
                            help="The path to dgl/tools")
     argparser.add_argument("--partition-algorithm", type=str, default="random",
-                           choices=["random", "parmetis"], help="Partition algorithm to use.")
+                           choices=["random", "parmetis", "range"], help="Partition algorithm to use.")
     argparser.add_argument("--ip-config", type=str,
                            help=("A file storing a list of IPs, one line for "
                                 "each instance of the partition cluster."))
