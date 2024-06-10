@@ -173,7 +173,7 @@ we can use the following command to run the processing job locally:
 
 .. code-block:: bash
 
-    gs-processing --config-filename gconstruct-config.json \
+    gs-processing --config-filename gsprocessing-config.json \
         --input-prefix ./tests/resources/small_heterogeneous_graph \
         --output-prefix /tmp/gsprocessing-example/ \
         --do-repartition True
@@ -211,26 +211,41 @@ and can be used downstream to create a partitioned graph.
 .. code-block:: bash
 
     $ cd /tmp/gsprocessing-example
-    $ ls
+    $ ls -l
 
-    edges/  launch_arguments.json  metadata.json  node_data/
-    raw_id_mappings/  perf_counters.json  updated_row_counts_metadata.json
+    edges/
+    gconstruct-config_with_transformations.json
+    launch_arguments.json
+    metadata.json
+    node_data/
+    perf_counters.json
+    precomputed_transformations.json
+    raw_id_mappings/
+    updated_row_counts_metadata.json
 
 We have a few JSON files and the data directories containing
 the graph structure, features, and labels. In more detail:
 
+* ``gsprocessing-config_with_transformations.json``: This is the input configuration
+  we used, modified to include representations of any supported transformations
+  we applied. This file can be used to re-apply the transformations on new data.
 * ``launch_arguments.json``: Contains the arguments that were used
   to launch the processing job, allowing you to check the parameters after the
   job finishes.
-* ``updated_row_counts_metadata.json``:
-  This file is meant to be used as the input configuration for the
-  distributed partitioning pipeline. ``gs-repartition`` produces
-  this file using the original ``metadata.json`` file as input.
 * ``metadata.json``: Created by ``gs-processing`` and used as input
   for ``gs-repartition``, can be removed the ``gs-repartition`` step.
 * ``perf_counters.json``: A JSON file that contains runtime measurements
   for the various components of GSProcessing. Can be used to profile the
   application and discover bottlenecks.
+* ``precomputed_transformations.json``: A JSON file that contains representations
+  of supported transformations. This file can be copied to the input path of another
+  set of raw files, and GSProcessing will use the transformation values listed here
+  instead of creating new ones. Use this to re-apply the same transformations to new
+  data.
+* ``updated_row_counts_metadata.json``:
+  This file is meant to be used as the input configuration for the
+  distributed partitioning pipeline. ``gs-repartition`` produces
+  this file using the original ``metadata.json`` file as input.
 
 The directories created contain:
 
