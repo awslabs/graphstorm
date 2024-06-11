@@ -32,6 +32,7 @@ from .gnn_encoder_base import GSgnnGNNEncoderInterface
 from .node_gnn import run_node_mini_batch_predict
 from .edge_gnn import run_edge_mini_batch_predict
 from .lp_gnn import run_lp_mini_batch_predict
+from ..utils import is_distributed
 
 
 class GSgnnMultiTaskModelInterface:
@@ -380,7 +381,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         else:
             raise TypeError(f"Unknow task type {task_type}")
 
-def multi_task_mini_batch_predict(
+def multi_prediction_task_mini_batch_predict(
     model, emb, loader, device, return_proba=True, return_label=False):
     """ conduct mini batch prediction on multiple tasks
 
@@ -469,3 +470,116 @@ def multi_task_mini_batch_predict(
                 raise TypeError(f"Unknown task {task_info}")
 
     return res
+
+def gen_emb_for_nfeat_reconstruct(model, gen_embs):
+    """ Generate node embeddings for node feature reconstruction.
+        In theory, we should skip the self-loop of the last GNN layer.
+        However, there are some exceptions. This function handles
+        those exceptions.
+
+    Parameters
+    ----------
+    model: GSgnnMultiTaskSharedEncoderModel
+        Multi-task model
+    gen_embs: func
+        The function used to generate node embeddings.
+        It should accept a bool flag indicating whether
+        the last GNN layer self-loop should be removed.
+
+    Return
+    ------
+    embs: node embedings
+    """
+    if isinstance(model.gnn_encoder, GSgnnGNNEncoderInterface):
+        if model.has_sparse_params():
+            # When there are learnable embeddings, we can not
+            # just simply skip the last layer self-loop.
+            # Keep the self-loop and print a warning
+            # we will use the computed embs directly
+            logging.warning("When doing %s inference, we need to "
+                            "avoid adding self loop in the last GNN layer "
+                            "to avoid the potential node "
+                            "feature leakage issue. "
+                            "When there are learnable embeddings on "
+                            "nodes, GraphStorm can not automatically"
+                            "skip the last layer self-loop"
+                            "Please set use_self_loop to False",
+                            BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+            embs = gen_embs(last_self_loop=True)
+        else:
+            # skip the selfloop of the last layer to
+            # avoid information leakage.
+            embs = gen_embs(last_self_loop=False)
+    else:
+        # we will use the computed embs directly
+        logging.warning("The gnn encoder %s does not support skip "
+                        "the last self-loop operation"
+                        "(skip_last_selfloop). There is a potential "
+                        "node feature leakage risk when doing %s training.",
+                        type(model.gnn_encoder),
+                        BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+        embs = gen_embs(last_self_loop=True)
+    return embs
+
+def multi_nfeat_recon_task_mini_batch_predict(
+        model, embs,
+        nfeat_recon_val_loaders,
+        nfeat_recon_test_loaders,
+        task_infos,
+        device,
+        return_label=False):
+    """ conduct mini batch prediction on node feature
+        reconstruction tasks
+
+    Parameters
+    ----------
+    model: GSgnnMultiTaskModelInterface, GSgnnModel
+        Multi-task learning model
+    embs : dict of Tensor
+        The GNN embeddings
+    nfeat_recon_val_loaders: list
+        List of validation datalaoders
+    nfeat_recon_test_loaders: list
+        List of test dataloaders
+    task_infos: list
+        List of task info
+    device: th.device
+        Device used to compute test scores.
+    return_label : bool
+        Whether or not to return labels.
+
+    Return
+    ------
+    dict: Validatoin results
+    dict: test results
+    """
+    val_results = {}
+    test_results = {}
+    for val_loader, test_loader, task_info in \
+        zip(nfeat_recon_val_loaders, nfeat_recon_test_loaders, task_infos):
+        decoder = model.task_decoders[task_info.task_id]
+        if val_loader is None:
+            val_results[task_info.task_id] = (None, None)
+        else:
+            val_preds, val_labels = \
+                run_node_mini_batch_predict(decoder,
+                                            embs,
+                                            val_loader,
+                                            device=device,
+                                            return_proba=False,
+                                            return_label=return_label)
+            val_results[task_info.task_id] = (val_preds, val_labels)
+
+        if test_loader is None:
+            test_results[task_info.task_id] = (None, None)
+        else:
+            test_preds, test_labels = \
+                run_node_mini_batch_predict(decoder,
+                                            embs,
+                                            test_loader,
+                                            device=device,
+                                            return_proba=False,
+                                            return_label=return_label)
+            test_results[task_info.task_id] = (test_preds, test_labels)
+
+    return val_results, test_results

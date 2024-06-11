@@ -33,7 +33,10 @@ from ..model import (do_full_graph_inference,
                      do_mini_batch_inference,
                      GSgnnModelBase, GSgnnModel,
                      GSgnnMultiTaskModelInterface,
-                     multi_task_mini_batch_predict)
+                     multi_prediction_task_mini_batch_predict,
+                     multi_nfeat_recon_task_mini_batch_predict,
+                     gen_emb_for_nfeat_reconstruct)
+from ..model.lp_gnn import run_lp_mini_batch_predict
 from .gsgnn_trainer import GSgnnTrainer
 
 from ..utils import sys_tracker, rt_profiler, print_mem, get_rank
@@ -506,42 +509,173 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
         sys_tracker.check('before prediction')
         model.eval()
 
+        if val_loader is None and test_loader is None:
+            # no need to do validation and test
+            # do nothing.
+            return None
+
+        val_dataloaders = val_loader.dataloaders \
+            if val_loader is not None else None
+        test_dataloaders = test_loader.dataloaders \
+            if test_loader is not None else None
+        task_infos = val_loader.task_infos \
+            if val_loader is not None else test_loader.task_infos
+
         # All the tasks share the same GNN encoder so the fanouts are same
         # for different tasks.
         fanout = None
-        for task_fanout in val_loader.fanout:
-            if task_fanout is not None:
-                fanout = task_fanout
-                break
-        assert fanout is not None, \
-            "There is no validation dataloader. eval() function should not be called"
-        if use_mini_batch_infer:
-            emb = do_mini_batch_inference(model, data,
-                                          fanout=fanout,
-                                          task_tracker=self.task_tracker)
+        if val_loader is not None:
+            for task_fanout in val_loader.fanout:
+                if task_fanout is not None:
+                    fanout = task_fanout
+                    break
         else:
-            emb = do_full_graph_inference(model, data,
-                                          fanout=fanout,
-                                          task_tracker=self.task_tracker)
-        sys_tracker.check('compute embeddings')
+            for task_fanout in test_loader.fanout:
+                if task_fanout is not None:
+                    fanout = task_fanout
+                    break
+        assert fanout is not None, \
+            "There is no validation dataloader.eval() function should not be called"
 
-        val_results = \
-            multi_task_mini_batch_predict(model,
-                                          emb=emb,
-                                          loader=val_loader,
-                                          device=self.device,
-                                          return_proba=return_proba,
-                                          return_label=True) \
-            if val_loader is not None else None
+        # Node prediction and edge prediction
+        # do not have information leakage problem
+        predict_tasks = []
+        predict_val_loaders = []
+        predict_test_loaders = []
+        # For link prediction tasks, we need to
+        # exclude valid and test edges during message
+        # passk
+        lp_tasks = []
+        lp_val_loaders = []
+        lp_test_loaders = []
+        # For node feature reconstruction tasks,
+        # we need to avoid self-loop in the last
+        # GNN layer
+        nfeat_recon_tasks = []
+        nfeat_recon_val_loaders = []
+        nfeat_recon_test_loaders = []
 
-        test_results = \
-            multi_task_mini_batch_predict(model,
-                                          emb=emb,
-                                          loader=test_loader,
-                                          device=self.device,
-                                          return_proba=return_proba,
-                                          return_label=True) \
-            if test_loader is not None else None
+        for val_loader, test_loader, task_info \
+            in zip(val_dataloaders, test_dataloaders, task_infos):
+            if val_loader is None and test_loader is None:
+                # For this task, these is no need to do compute test or val score
+                # skip this task
+                continue
+
+            if task_info.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION,
+                                       BUILTIN_TASK_NODE_REGRESSION,
+                                       BUILTIN_TASK_EDGE_CLASSIFICATION,
+                                       BUILTIN_TASK_EDGE_REGRESSION]:
+                predict_tasks.append(task_info)
+                predict_val_loaders.append(val_loader)
+                predict_test_loaders.append(test_loader)
+
+            if task_info.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+                lp_tasks.append(task_info)
+                lp_val_loaders.append(val_loader)
+                lp_test_loaders.append(test_loader)
+
+            if task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
+                nfeat_recon_tasks.append(task_info)
+                nfeat_recon_val_loaders.append(val_loader)
+                nfeat_recon_test_loaders.append(test_loader)
+
+        def gen_embs(edge_mask=None):
+            """ Compute node embeddings
+            """
+            if use_mini_batch_infer:
+                emb = do_mini_batch_inference(model, data,
+                                              fanout=fanout,
+                                              edge_mask=edge_mask,
+                                              task_tracker=self.task_tracker)
+            else:
+                emb = do_full_graph_inference(model, data,
+                                              fanout=fanout,
+                                              edge_mask=edge_mask,
+                                              task_tracker=self.task_tracker)
+            return emb
+
+        embs = None
+        val_results = None
+        test_results = None
+        if len(predict_tasks) > 0:
+            # do validation and test for prediciton tasks.
+            sys_tracker.check('compute embeddings')
+            embs = gen_embs()
+            val_results = \
+                multi_prediction_task_mini_batch_predict(
+                    model,
+                    emb=embs,
+                    loader=val_loader,
+                    device=self.device,
+                    return_proba=return_proba,
+                    return_label=True) \
+                if val_loader is not None else None
+
+            test_results = \
+                multi_prediction_task_mini_batch_predict(
+                    model,
+                    emb=embs,
+                    loader=test_loader,
+                    device=self.device,
+                    return_proba=return_proba,
+                    return_label=True) \
+                if test_loader is not None else None
+
+        if len(lp_tasks) > 0:
+            for lp_val_loader, lp_test_loader, task_info \
+                in zip(lp_val_loaders, lp_test_loaders, task_infos):
+
+                lp_test_embs = gen_embs(edge_mask=task_info.task_config.train_mask)
+
+                decoder = model.task_decoders[task_info.task_id]
+                val_scores = run_lp_mini_batch_predict(decoder, lp_test_embs, lp_val_loader, self.device) \
+                    if val_loader is not None else None
+                test_scores = run_lp_mini_batch_predict(decoder, lp_test_embs, lp_test_loader, self.device) \
+                    if val_loader is not None else None
+                if val_results is not None:
+                    val_results[task_info.task_id] = val_scores
+                else:
+                    val_results = {task_info.task_id: val_scores}
+                if test_results is not None:
+                    test_results[task_info.task_id] = test_scores
+                else:
+                    test_results = {task_info.task_id: test_scores}
+
+        if len(nfeat_recon_tasks) > 0:
+            def nfrecon_gen_embs(model, last_self_loop=False):
+                """ Generate node embeddings for node feature reconstruction
+                """
+                if last_self_loop is False:
+                    model.gnn_encoder.skip_last_selfloop()
+                    new_embs = gen_embs()
+                    model.gnn_encoder.reset_last_selfloop()
+                    return new_embs
+                else:
+                    # if lask_self_loop is True
+                    # we can reuse the computed embs if any
+                    return embs if embs is not None else gen_embs()
+
+            nfeat_embs = gen_emb_for_nfeat_reconstruct(model, nfrecon_gen_embs)
+
+            nfeat_recon_val_results, nfeat_recon_test_results = \
+                multi_nfeat_recon_task_mini_batch_predict(
+                    model,
+                    nfeat_embs,
+                    nfeat_recon_val_loaders,
+                    nfeat_recon_test_loaders,
+                    task_infos,
+                    device=self.device,
+                    return_label=True)
+
+            if val_results is not None:
+                val_results.update(nfeat_recon_val_results)
+            else:
+                val_results = nfeat_recon_val_results
+            if test_results is not None:
+                test_results.update(nfeat_recon_val_results)
+            else:
+                test_results = nfeat_recon_test_results
 
         sys_tracker.check('after_test_score')
         val_score, test_score = self.evaluator.evaluate(
