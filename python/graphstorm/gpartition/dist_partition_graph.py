@@ -119,7 +119,7 @@ def main():
     if args.partition_algorithm == "random":
         partitioner = RandomPartitionAlgorithm(metadata_dict)
     elif args.partition_algorithm == "parmetis":
-        partition_config = ParMETISConfig(args.ip_list, args.input_path,
+        partition_config = ParMETISConfig(args.ip_config, args.input_path,
                                           args.dgl_tool_path, args.metadata_filename)
         partitioner = ParMetisPartitionAlgorithm(metadata_dict, partition_config)
     else:
@@ -139,7 +139,7 @@ def main():
         run_build_dglgraph(
             args.input_path,
             part_assignment_dir,
-            args.ip_list,
+            args.ip_config,
             os.path.join(output_path, "dist_graph"),
             args.metadata_filename,
             args.dgl_tool_path,
@@ -167,8 +167,8 @@ def parse_args() -> argparse.Namespace:
                            help="The path to dgl/tools")
     argparser.add_argument("--partition-algorithm", type=str, default="random",
                            choices=["random", "parmetis"], help="Partition algorithm to use.")
-    argparser.add_argument("--ip-list", type=str,
-                           help="A file storing the ip list of instances of the partition cluster.")
+    argparser.add_argument("--ip-config", type=str,
+                           help="A file storing a list of IPs, one line for each instance of the partition cluster.")
     argparser.add_argument("--do-dispatch", action='store_true')
     argparser.add_argument("--logging-level", type=str, default="info",
                            help="The logging level. The possible values: debug, info, warning, \
