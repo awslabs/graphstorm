@@ -33,8 +33,7 @@ from ..model import (do_full_graph_inference,
                      do_mini_batch_inference,
                      GSgnnModelBase, GSgnnModel,
                      GSgnnMultiTaskModelInterface,
-                     multi_prediction_task_mini_batch_predict,
-                     multi_nfeat_recon_task_mini_batch_predict,
+                     multi_task_mini_batch_predict,
                      gen_emb_for_nfeat_reconstruct)
 from ..model.lp_gnn import run_lp_mini_batch_predict
 from .gsgnn_trainer import GSgnnTrainer
@@ -603,24 +602,26 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
             sys_tracker.check('compute embeddings')
             embs = gen_embs()
             val_results = \
-                multi_prediction_task_mini_batch_predict(
+                multi_task_mini_batch_predict(
                     model,
                     emb=embs,
-                    loader=val_loader,
+                    loader=predict_val_loaders,
+                    task_infos=predict_tasks,
                     device=self.device,
                     return_proba=return_proba,
                     return_label=True) \
-                if val_loader is not None else None
+                if len(predict_val_loaders) > 0 else None
 
             test_results = \
-                multi_prediction_task_mini_batch_predict(
+                multi_task_mini_batch_predict(
                     model,
                     emb=embs,
-                    loader=test_loader,
+                    loader=predict_test_loaders,
+                    task_infos=predict_tasks,
                     device=self.device,
                     return_proba=return_proba,
                     return_label=True) \
-                if test_loader is not None else None
+                if len(predict_test_loaders) > 0 else None
 
         if len(lp_tasks) > 0:
             for lp_val_loader, lp_test_loader, task_info \
@@ -658,24 +659,40 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
 
             nfeat_embs = gen_emb_for_nfeat_reconstruct(model, nfrecon_gen_embs)
 
-            nfeat_recon_val_results, nfeat_recon_test_results = \
-                multi_nfeat_recon_task_mini_batch_predict(
+            nfeat_recon_val_results = \
+                multi_task_mini_batch_predict(
                     model,
-                    nfeat_embs,
-                    nfeat_recon_val_loaders,
-                    nfeat_recon_test_loaders,
-                    task_infos,
+                    emb=nfeat_embs,
+                    loader=nfeat_recon_val_loaders,
+                    task_infos=predict_tasks,
                     device=self.device,
-                    return_label=True)
+                    return_proba=return_proba,
+                    return_label=True) \
+                if len(nfeat_recon_val_loaders) > 0 else None
 
-            if val_results is not None:
-                val_results.update(nfeat_recon_val_results)
-            else:
+            nfeat_recon_test_results = \
+                multi_task_mini_batch_predict(
+                    model,
+                    emb=nfeat_embs,
+                    loader=nfeat_recon_test_loaders,
+                    task_infos=predict_tasks,
+                    device=self.device,
+                    return_proba=return_proba,
+                    return_label=True) \
+                if len(nfeat_recon_test_loaders) > 0 else None
+
+            if val_results is None:
                 val_results = nfeat_recon_val_results
-            if test_results is not None:
-                test_results.update(nfeat_recon_val_results)
             else:
+                if nfeat_recon_val_results is not None:
+                    val_results.update(nfeat_recon_val_results)
+
+            if test_results is None:
                 test_results = nfeat_recon_test_results
+            else:
+                if nfeat_recon_test_results is not None:
+                    test_results.update(nfeat_recon_test_results)
+
 
         sys_tracker.check('after_test_score')
         val_score, test_score = self.evaluator.evaluate(
