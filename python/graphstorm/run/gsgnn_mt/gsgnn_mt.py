@@ -444,8 +444,12 @@ def main(config_args):
                 logging.warning("The training data do not have validation set.")
             if test_loader is None:
                 logging.warning("The training data do not have test set.")
-            task_evaluators[task.task_id] = \
-                create_evaluator(task)
+
+            if val_loader is None and test_loader is None:
+                logging.warning("Task %s does not have validation and test sets.", task.task_id)
+            else:
+                task_evaluators[task.task_id] = \
+                    create_evaluator(task)
 
     train_dataloader = GSgnnMultiTaskDataLoader(train_data, tasks, train_dataloaders)
     val_dataloader = GSgnnMultiTaskDataLoader(train_data, tasks, val_dataloaders)

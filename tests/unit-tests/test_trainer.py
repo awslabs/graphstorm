@@ -21,28 +21,38 @@ import tempfile
 import dgl
 from argparse import Namespace
 import torch as th
+import numpy as np
+from unittest.mock import patch
 
 from graphstorm.config import (GSConfig, TaskInfo)
 from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
-                               BUILTIN_TASK_EDGE_REGRESSION,
-                               BUILTIN_TASK_LINK_PREDICTION,
-                               BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
-from graphstorm.dataloading import GSgnnData
+                                BUILTIN_TASK_NODE_REGRESSION,
+                                BUILTIN_TASK_EDGE_CLASSIFICATION,
+                                BUILTIN_TASK_EDGE_REGRESSION,
+                                BUILTIN_TASK_LINK_PREDICTION,
+                                BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+from graphstorm.dataloading import GSgnnData, GSgnnMultiTaskDataLoader
 from graphstorm.tracker import GSSageMakerTaskTracker
 from graphstorm import create_builtin_node_gnn_model
 from graphstorm.trainer import GSgnnTrainer
 from graphstorm.eval import GSgnnClassificationEvaluator
 from graphstorm.utils import setup_device, get_device
-from graphstorm.trainer.mt_trainer import (prepare_node_mini_batch,
+from graphstorm.trainer.mt_trainer import (GSgnnMultiTaskLearningTrainer,
+                                           prepare_node_mini_batch,
                                            prepare_edge_mini_batch,
                                            prepare_link_predict_mini_batch,
                                            prepare_reconstruct_node_feat)
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
                                     GSgnnLinkPredictionDataLoader)
-from graphstorm.model import GSgnnMultiTaskModelInterface, GSgnnModel
+from graphstorm.model import GSgnnMultiTaskModelInterface, GSgnnModel, GSgnnModelBase
 from numpy.testing import assert_equal
 
+from util import (DummyGSgnnEncoderModel,
+                  DummyGSgnnMTModel,
+                  DummyGSgnnNodeDataLoader,
+                  DummyGSgnnEdgeDataLoader,
+                  DummyGSgnnLinkPredictionDataLoader)
 from data_utils import generate_dummy_dist_graph
 
 
@@ -417,7 +427,219 @@ def test_mtask_prepare_lp_mini_batch():
     assert_equal(input_nodes["n0"].numpy(), input_node_idx["n0"].numpy())
     assert_equal(input_nodes["n1"].numpy(), input_node_idx["n1"].numpy())
 
+class MTaskCheckerEvaluator():
+    def __init__(self, val_resluts, test_results, steps):
+        self._val_results = val_resluts
+        self._test_results = test_results
+        self._steps = steps
+
+    def evaluate(self, val_results, test_results, total_steps):
+        assert self._steps == total_steps
+        def compare_results(target_res, check_res):
+            assert len(target_res) == len(check_res)
+            for task_id, target_r in target_res.items():
+                assert task_id in check_res
+                check_r = check_res[task_id]
+                if isinstance(target_r, tuple):
+                    # prediction tasks
+                    tr_1, tr_2 = target_r
+                    cr_1, cr_2 = check_r
+                    assert_equal(tr_1, cr_1)
+                    assert_equal(tr_2, cr_2)
+                else:
+                    assert_equal(target_r, check_r)
+
+        if self._val_results is not None:
+            compare_results(self._val_results, val_results)
+        if self._test_results is not None:
+            compare_results(self._test_results, test_results)
+        return None, None
+
+    @property
+    def task_tracker(self):
+        return "dummy tracker"
+
+def test_mtask_eval():
+    tast_info_nc = TaskInfo(task_type=BUILTIN_TASK_NODE_CLASSIFICATION,
+                            task_id='nc_task',
+                            task_config=None)
+    nc_dataloader = DummyGSgnnNodeDataLoader()
+    tast_info_nr = TaskInfo(task_type=BUILTIN_TASK_NODE_REGRESSION,
+                            task_id='nr_task',
+                            task_config=None)
+    nr_dataloader = DummyGSgnnNodeDataLoader()
+    tast_info_ec = TaskInfo(task_type=BUILTIN_TASK_EDGE_CLASSIFICATION,
+                            task_id='ec_task',
+                            task_config=None)
+    ec_dataloader = DummyGSgnnEdgeDataLoader()
+    tast_info_er = TaskInfo(task_type=BUILTIN_TASK_EDGE_REGRESSION,
+                            task_id='er_task',
+                            task_config=None)
+    er_dataloader = DummyGSgnnEdgeDataLoader()
+    task_config = GSConfig.__new__(GSConfig)
+    setattr(task_config, "train_mask", "train_mask")
+    tast_info_lp = TaskInfo(task_type=BUILTIN_TASK_LINK_PREDICTION,
+                            task_id='lp_task',
+                            task_config=task_config)
+
+    encoder_model = DummyGSgnnEncoderModel()
+    model = DummyGSgnnMTModel(encoder_model, decoders={tast_info_lp.task_id: "dummy"}, has_sparse=True)
+
+    mt_trainer = GSgnnMultiTaskLearningTrainer(model)
+    mt_trainer._device = 'cpu'
+
+    lp_dataloader = DummyGSgnnLinkPredictionDataLoader()
+    tast_info_nfr = TaskInfo(task_type=BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                            task_id='nfr_task',
+                            task_config=None)
+    nfr_dataloader = DummyGSgnnNodeDataLoader()
+    task_infos = [tast_info_nc, tast_info_nr, tast_info_ec,
+                  tast_info_er, tast_info_lp, tast_info_nfr]
+
+    data = None
+    res = mt_trainer.eval(model, data, None, None, 100)
+    assert res is None
+
+    def mock_func_do_mini_batch_inference(*args, **kwargs):
+        return None
+
+    def mock_func_do_full_graph_inference(*args, **kwargs):
+        return None
+
+    def mock_func_run_lp_mini_batch_predict(*args, **kwargs):
+        return lp_res
+
+    ntask_res = (np.arange(10), np.arange(10))
+    etask_res = (np.arange(20), np.arange(20))
+    lp_res = np.arange(5)
+    def mock_func_multi_task_mini_batch_predict(model, emb, dataloaders, task_infos, device, return_proba, return_label):
+        res = {}
+        for dataloader, task_info in zip(dataloaders, task_infos):
+            if task_info.task_type in \
+            [BUILTIN_TASK_NODE_CLASSIFICATION,
+             BUILTIN_TASK_NODE_REGRESSION,
+             BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
+                if dataloader is None:
+                    res[task_info.task_id] = (None, None)
+                else:
+                    res[task_info.task_id] = ntask_res
+            elif task_info.task_type in \
+            [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
+                if dataloader is None:
+                    res[task_info.task_id] = (None, None)
+                else:
+                    res[task_info.task_id] = etask_res
+            elif task_info.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+                if dataloader is None:
+                    res[task_info.task_id] = None
+                else:
+                    res[task_info.task_id] = lp_res
+
+        return res
+
+    # avoid calling log_print_metrics
+    def mock_func_get_rank():
+        return 1
+
+    @patch("graphstorm.trainer.mt_trainer.get_rank", side_effect = mock_func_get_rank)
+    @patch("graphstorm.trainer.mt_trainer.multi_task_mini_batch_predict", side_effect = mock_func_multi_task_mini_batch_predict)
+    @patch("graphstorm.trainer.mt_trainer.run_lp_mini_batch_predict", side_effect = mock_func_run_lp_mini_batch_predict)
+    @patch("graphstorm.trainer.mt_trainer.do_full_graph_inference", side_effect = mock_func_do_full_graph_inference)
+    @patch("graphstorm.trainer.mt_trainer.do_mini_batch_inference", side_effect = mock_func_do_mini_batch_inference)
+    def check_eval(mock_do_mini_batch_inference,
+                   mock_do_full_graph_inference,
+                   mock_run_lp_mini_batch_predict,
+                   mock_multi_task_mini_batch_predict,
+                   mock_get_rank):
+
+        val_dataloaders = [nc_dataloader, nr_dataloader, ec_dataloader,
+                       er_dataloader, lp_dataloader, nfr_dataloader]
+        test_dataloaders = [nc_dataloader, nr_dataloader, ec_dataloader,
+                            er_dataloader, lp_dataloader, nfr_dataloader]
+        val_loader = GSgnnMultiTaskDataLoader(None, task_infos, val_dataloaders)
+        test_loader = GSgnnMultiTaskDataLoader(None, task_infos, test_dataloaders)
+
+        target_res = {
+            "nc_task":ntask_res,
+            "nr_task":ntask_res,
+            "ec_task":etask_res,
+            "er_task":etask_res,
+            "lp_task":lp_res,
+            "nfr_task":ntask_res
+        }
+        evaluator = MTaskCheckerEvaluator(target_res, None, 100)
+        mt_trainer.setup_evaluator(evaluator)
+
+        # test when val_loader is None
+        mt_trainer.eval(model, data, val_loader, None, 100)
+
+        evaluator = MTaskCheckerEvaluator(None, target_res, 100)
+        mt_trainer.setup_evaluator(evaluator)
+        mt_trainer.eval(model, data, None, test_loader, 100)
+
+        evaluator = MTaskCheckerEvaluator(target_res, target_res, 100)
+        mt_trainer.setup_evaluator(evaluator)
+        mt_trainer.eval(model, data, val_loader, test_loader, 100)
+
+        # predict tasks are empty
+        val_dataloaders = [None, None, None,
+                       None, lp_dataloader, nfr_dataloader]
+        test_dataloaders = [None, None, None,
+                            None, lp_dataloader, nfr_dataloader]
+        val_loader = GSgnnMultiTaskDataLoader(None, task_infos, val_dataloaders)
+        test_loader = GSgnnMultiTaskDataLoader(None, task_infos, test_dataloaders)
+
+        target_res = {
+            "lp_task":lp_res,
+            "nfr_task":ntask_res
+        }
+        evaluator = MTaskCheckerEvaluator(target_res, target_res, 100)
+        mt_trainer.setup_evaluator(evaluator)
+        # test when val_loader is None
+        mt_trainer.eval(model, data, val_loader, test_loader, 100)
+
+        # lp tasks are empty
+        val_dataloaders = [nc_dataloader, nr_dataloader, ec_dataloader,
+                       er_dataloader, None, nfr_dataloader]
+        test_dataloaders = [nc_dataloader, nr_dataloader, ec_dataloader,
+                            er_dataloader, None, nfr_dataloader]
+        val_loader = GSgnnMultiTaskDataLoader(None, task_infos, val_dataloaders)
+        test_loader = GSgnnMultiTaskDataLoader(None, task_infos, test_dataloaders)
+        target_res = {
+            "nc_task":ntask_res,
+            "nr_task":ntask_res,
+            "ec_task":etask_res,
+            "er_task":etask_res,
+            "nfr_task":ntask_res
+        }
+        evaluator = MTaskCheckerEvaluator(target_res, target_res, 200)
+        mt_trainer.setup_evaluator(evaluator)
+        # test when val_loader is None
+        mt_trainer.eval(model, data, val_loader, test_loader, 200)
+
+        # node feature reconstruct tasks are empty
+        val_dataloaders = [nc_dataloader, nr_dataloader, ec_dataloader,
+                       er_dataloader, lp_dataloader, None]
+        test_dataloaders = [nc_dataloader, nr_dataloader, ec_dataloader,
+                            er_dataloader, lp_dataloader, None]
+        val_loader = GSgnnMultiTaskDataLoader(None, task_infos, val_dataloaders)
+        test_loader = GSgnnMultiTaskDataLoader(None, task_infos, test_dataloaders)
+        target_res = {
+            "nc_task":ntask_res,
+            "nr_task":ntask_res,
+            "ec_task":etask_res,
+            "er_task":etask_res,
+            "lp_task":lp_res,
+        }
+        evaluator = MTaskCheckerEvaluator(target_res, target_res, 200)
+        mt_trainer.setup_evaluator(evaluator)
+        # test when val_loader is None
+        mt_trainer.eval(model, data, val_loader, test_loader, 200)
+
+    check_eval()
+
 if __name__ == '__main__':
+    test_mtask_eval()
     test_trainer_setup_evaluator()
 
     test_mtask_prepare_node_mini_batch()

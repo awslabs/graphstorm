@@ -32,7 +32,6 @@ from .gnn_encoder_base import GSgnnGNNEncoderInterface
 from .node_gnn import run_node_mini_batch_predict
 from .edge_gnn import run_edge_mini_batch_predict
 from .lp_gnn import run_lp_mini_batch_predict
-from ..utils import is_distributed
 
 
 class GSgnnMultiTaskModelInterface:
@@ -383,7 +382,10 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
 
 def multi_task_mini_batch_predict(
     model, emb, dataloaders, task_infos, device, return_proba=True, return_label=False):
-    """ conduct mini batch prediction on multiple tasks
+    """ conduct mini batch prediction on multiple tasks.
+
+        The task infos are passed in as task_infos.
+        The task dataloaders are passed in as dataloaders.
 
     Parameters
     ----------
@@ -391,8 +393,8 @@ def multi_task_mini_batch_predict(
         Multi-task learning model
     emb : dict of Tensor
         The GNN embeddings
-    loader: GSgnnMultiTaskDataLoader
-        The mini-batch dataloader.
+    dataloaders: list
+        List of val or test dataloaders.
     task_infos: list
         List of task info
     device: th.device
@@ -458,6 +460,14 @@ def multi_task_mini_batch_predict(
                     etype = list(preds.keys())[0]
                     res[task_info.task_id] = (preds[etype], labels[etype] \
                         if labels is not None else None)
+            elif task_info.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+                if dataloader is None:
+                    # In cases when there is no validation or test set.
+                    res[task_info.task_id] = None
+                else:
+                    decoder = task_decoders[task_info.task_id]
+                    ranking = run_lp_mini_batch_predict(decoder, emb, dataloader, device)
+                    res[task_info.task_id] = ranking
             else:
                 raise TypeError(f"Unsupported task {task_info}")
 

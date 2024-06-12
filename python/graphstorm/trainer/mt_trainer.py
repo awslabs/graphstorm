@@ -519,6 +519,10 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
             if test_loader is not None else None
         task_infos = val_loader.task_infos \
             if val_loader is not None else test_loader.task_infos
+        if val_dataloaders is None:
+            val_dataloaders = [None] * len(task_infos)
+        if test_dataloaders is None:
+            test_dataloaders = [None] * len(task_infos)
 
         # All the tasks share the same GNN encoder so the fanouts are same
         # for different tasks.
@@ -556,6 +560,7 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
 
         for val_loader, test_loader, task_info \
             in zip(val_dataloaders, test_dataloaders, task_infos):
+
             if val_loader is None and test_loader is None:
                 # For this task, these is no need to do compute test or val score
                 # skip this task
@@ -605,7 +610,7 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                 multi_task_mini_batch_predict(
                     model,
                     emb=embs,
-                    loader=predict_val_loaders,
+                    dataloaders=predict_val_loaders,
                     task_infos=predict_tasks,
                     device=self.device,
                     return_proba=return_proba,
@@ -616,7 +621,7 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                 multi_task_mini_batch_predict(
                     model,
                     emb=embs,
-                    loader=predict_test_loaders,
+                    dataloaders=predict_test_loaders,
                     task_infos=predict_tasks,
                     device=self.device,
                     return_proba=return_proba,
@@ -625,15 +630,17 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
 
         if len(lp_tasks) > 0:
             for lp_val_loader, lp_test_loader, task_info \
-                in zip(lp_val_loaders, lp_test_loaders, task_infos):
-
+                in zip(lp_val_loaders, lp_test_loaders, lp_tasks):
+                # For link prediction, do evaluation task
+                # by task.
                 lp_test_embs = gen_embs(edge_mask=task_info.task_config.train_mask)
 
                 decoder = model.task_decoders[task_info.task_id]
                 val_scores = run_lp_mini_batch_predict(decoder, lp_test_embs, lp_val_loader, self.device) \
-                    if val_loader is not None else None
+                    if lp_val_loader is not None else None
                 test_scores = run_lp_mini_batch_predict(decoder, lp_test_embs, lp_test_loader, self.device) \
-                    if val_loader is not None else None
+                    if lp_test_loader is not None else None
+
                 if val_results is not None:
                     val_results[task_info.task_id] = val_scores
                 else:
@@ -644,7 +651,7 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                     test_results = {task_info.task_id: test_scores}
 
         if len(nfeat_recon_tasks) > 0:
-            def nfrecon_gen_embs(model, last_self_loop=False):
+            def nfrecon_gen_embs(last_self_loop=False):
                 """ Generate node embeddings for node feature reconstruction
                 """
                 if last_self_loop is False:
@@ -663,8 +670,8 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                 multi_task_mini_batch_predict(
                     model,
                     emb=nfeat_embs,
-                    loader=nfeat_recon_val_loaders,
-                    task_infos=predict_tasks,
+                    dataloaders=nfeat_recon_val_loaders,
+                    task_infos=nfeat_recon_tasks,
                     device=self.device,
                     return_proba=return_proba,
                     return_label=True) \
@@ -674,8 +681,8 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                 multi_task_mini_batch_predict(
                     model,
                     emb=nfeat_embs,
-                    loader=nfeat_recon_test_loaders,
-                    task_infos=predict_tasks,
+                    dataloaders=nfeat_recon_test_loaders,
+                    task_infos=nfeat_recon_tasks,
                     device=self.device,
                     return_proba=return_proba,
                     return_label=True) \
