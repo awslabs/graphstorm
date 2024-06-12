@@ -479,7 +479,7 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                            self.get_best_model_path() if save_model_path is not None else None}
             self.log_params(output)
 
-def eval(self, model, data, mt_val_loader, mt_test_loader, total_steps,
+    def eval(self, model, data, mt_val_loader, mt_test_loader, total_steps,
         use_mini_batch_infer=False, return_proba=True):
         """ do the model evaluation using validation and test sets
 
