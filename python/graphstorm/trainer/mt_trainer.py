@@ -479,7 +479,7 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                            self.get_best_model_path() if save_model_path is not None else None}
             self.log_params(output)
 
-    def eval(self, model, data, val_loader, test_loader, total_steps,
+def eval(self, model, data, mt_val_loader, mt_test_loader, total_steps,
         use_mini_batch_infer=False, return_proba=True):
         """ do the model evaluation using validation and test sets
 
@@ -489,9 +489,9 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
             The GNN model.
         data : GSgnnData
             The training dataset
-        val_loader: GSNodeDataLoader
+        mt_val_loader: GSNodeDataLoader
             The dataloader for validation data
-        test_loader : GSNodeDataLoader
+        mt_test_loader : GSNodeDataLoader
             The dataloader for test data.
         total_steps: int
             Total number of iterations.
@@ -508,17 +508,17 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
         sys_tracker.check('before prediction')
         model.eval()
 
-        if val_loader is None and test_loader is None:
+        if mt_val_loader is None and mt_test_loader is None:
             # no need to do validation and test
             # do nothing.
             return None
 
-        val_dataloaders = val_loader.dataloaders \
-            if val_loader is not None else None
-        test_dataloaders = test_loader.dataloaders \
-            if test_loader is not None else None
-        task_infos = val_loader.task_infos \
-            if val_loader is not None else test_loader.task_infos
+        val_dataloaders = mt_val_loader.dataloaders \
+            if mt_val_loader is not None else None
+        test_dataloaders = mt_test_loader.dataloaders \
+            if mt_test_loader is not None else None
+        task_infos = mt_val_loader.task_infos \
+            if mt_val_loader is not None else mt_test_loader.task_infos
         if val_dataloaders is None:
             val_dataloaders = [None] * len(task_infos)
         if test_dataloaders is None:
@@ -527,13 +527,13 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
         # All the tasks share the same GNN encoder so the fanouts are same
         # for different tasks.
         fanout = None
-        if val_loader is not None:
-            for task_fanout in val_loader.fanout:
+        if mt_val_loader is not None:
+            for task_fanout in mt_val_loader.fanout:
                 if task_fanout is not None:
                     fanout = task_fanout
                     break
         else:
-            for task_fanout in test_loader.fanout:
+            for task_fanout in mt_test_loader.fanout:
                 if task_fanout is not None:
                     fanout = task_fanout
                     break
@@ -636,9 +636,15 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                 lp_test_embs = gen_embs(edge_mask=task_info.task_config.train_mask)
 
                 decoder = model.task_decoders[task_info.task_id]
-                val_scores = run_lp_mini_batch_predict(decoder, lp_test_embs, lp_val_loader, self.device) \
+                val_scores = run_lp_mini_batch_predict(decoder,
+                                                       lp_test_embs,
+                                                       lp_val_loader,
+                                                       self.device) \
                     if lp_val_loader is not None else None
-                test_scores = run_lp_mini_batch_predict(decoder, lp_test_embs, lp_test_loader, self.device) \
+                test_scores = run_lp_mini_batch_predict(decoder,
+                                                        lp_test_embs,
+                                                        lp_test_loader,
+                                                        self.device) \
                     if lp_test_loader is not None else None
 
                 if val_results is not None:
