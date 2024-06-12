@@ -163,12 +163,13 @@ def parse_args() -> argparse.Namespace:
     argparser.add_argument("--num-parts", type=int, required=True,
                            help="Number of partitions to generate")
     argparser.add_argument("--ssh-port", type=int, default=22, help="SSH Port")
-    argparser.add_argument("--dgl-tool-path", type=str,
+    argparser.add_argument("--dgl-tool-path", type=str, default="/root/dgl/tools",
                            help="The path to dgl/tools")
     argparser.add_argument("--partition-algorithm", type=str, default="random",
                            choices=["random", "parmetis"], help="Partition algorithm to use.")
     argparser.add_argument("--ip-config", type=str,
-                           help="A file storing a list of IPs, one line for each instance of the partition cluster.")
+                           help=("A file storing a list of IPs, one line for "
+                                "each instance of the partition cluster."))
     argparser.add_argument("--do-dispatch", action='store_true')
     argparser.add_argument("--logging-level", type=str, default="info",
                            help="The logging level. The possible values: debug, info, warning, \
