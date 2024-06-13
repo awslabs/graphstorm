@@ -214,7 +214,7 @@ and can be used downstream to create a partitioned graph.
     $ ls -l
 
     edges/
-    gconstruct-config_with_transformations.json
+    gsprocessing-config_with_transformations.json
     launch_arguments.json
     metadata.json
     node_data/

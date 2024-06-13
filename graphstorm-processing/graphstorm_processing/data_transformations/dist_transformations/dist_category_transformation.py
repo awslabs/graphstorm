@@ -186,7 +186,8 @@ class DistCategoryTransformation(DistributedTransformation):
         assert set(precomputed_cols) == set(self.cols), (
             f"Mismatched columns in precomputed transformation: "
             f"pre-computed cols: {sorted(precomputed_cols)}, "
-            f"columns in current config: {sorted(self.cols)}"
+            f"columns in current config: {sorted(self.cols)}, "
+            f"different items: {set(precomputed_cols).symmetric_difference(set(self.cols))}"
         )
         for col_labels, col in zip(labels_arrays, precomputed_cols):
             for idx, label in enumerate(col_labels):
