@@ -107,7 +107,8 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         save_model_path : str
             The path where the model is saved.
         save_model_frequency : int
-            The number of iteration to train the model before saving the model.
+            The number of iteration to train the model before saving the model. Default is -1,
+            meaning only save model after each epoch.
         save_perf_results_path : str
             The path of the file where the performance results are saved.
         freeze_input_layer_epochs: int
