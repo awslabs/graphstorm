@@ -179,8 +179,8 @@ def main(config_args):
     model = GSgnnMultiTaskSharedEncoderModel(config.alpha_l2norm)
     gs.gsf.set_encoder(model, infer_data.g, config, train_task=False)
     tasks = config.multi_tasks
-    dataloaders = []
-    mt_tasks = []
+    predict_dataloaders = []
+    predict_tasks = []
     lp_test_dataloaders = []
     lp_tasks = []
     recon_nfeat_dataloaders = []
@@ -196,28 +196,26 @@ def main(config_args):
         data_loader = create_task_infer_dataloader(task, config, infer_data)
 
         if not config.no_validation:
+            # With validation, we should init evaluators.
             task_evaluators[task.task_id] = \
                 create_evaluator(task)
 
-            if task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
-                # Link prediction should be handled separately
-                # We should avoid using test edges in message passing
-                # when evaluating link prediction performance.
-                # Otherwise, there will be information leakage.
-                lp_test_dataloaders.append(data_loader)
-                lp_tasks.append(task)
-            elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
-                # Node feature reconstruction should be handled separately
-                # We should avoid including self-loop of the lask GNN layer
-                # when evaluating feature reconstruction performance.
-                recon_nfeat_dataloaders.append(data_loader)
-                recon_nfeat_tasks.append(task)
-            else:
-                dataloaders.append(data_loader)
-                mt_tasks.append(task)
+        if task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+            # Link prediction should be handled separately
+            # We should avoid using test edges in message passing
+            # when evaluating link prediction performance.
+            # Otherwise, there will be information leakage.
+            lp_test_dataloaders.append(data_loader)
+            lp_tasks.append(task)
+        elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
+            # Node feature reconstruction should be handled separately
+            # We should avoid including self-loop of the lask GNN layer
+            # when evaluating feature reconstruction performance.
+            recon_nfeat_dataloaders.append(data_loader)
+            recon_nfeat_tasks.append(task)
         else:
-            dataloaders.append(data_loader)
-            mt_tasks.append(task)
+            predict_dataloaders.append(data_loader)
+            predict_tasks.append(task)
 
         model.add_task(task.task_id, task.task_type, decoder, loss_func)
 
@@ -225,7 +223,8 @@ def main(config_args):
     # edge prediction tasks.
     # When computing node embeddings all the edges will be used
     # in message passing.
-    test_dataloader = GSgnnMultiTaskDataLoader(infer_data, mt_tasks, dataloaders)
+    predict_test_dataloader = GSgnnMultiTaskDataLoader(infer_data, predict_tasks, predict_dataloaders) \
+        if len(predict_dataloaders) > 0 else None
     # When doing link prediction evaluation, we want to avoid
     # including testing edges in the message passing.
     # Create a multi-task dataloader for link prediction task
@@ -251,7 +250,9 @@ def main(config_args):
         infer.setup_evaluator(evaluator)
     infer.setup_device(device=get_device())
     infer.infer(infer_data,
-                (test_dataloader, lp_test_dataloader,recon_nfeat_test_dataloader),
+                predict_test_dataloader,
+                lp_test_dataloader,
+                recon_nfeat_test_dataloader,
                 save_embed_path=config.save_embed_path,
                 save_prediction_path=config.save_prediction_path,
                 use_mini_batch_infer=config.use_mini_batch_infer,

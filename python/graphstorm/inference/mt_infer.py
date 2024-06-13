@@ -31,10 +31,10 @@ from ..model.utils import (save_node_prediction_results,
                            save_edge_prediction_results,
                            save_relation_embeddings)
 from ..model.utils import NodeIDShuffler
-from ..model import do_full_graph_inference, do_mini_batch_inference
+from ..model import (do_full_graph_inference,
+                     do_mini_batch_inference,
+                     gen_emb_for_nfeat_reconstruct)
 from ..model.multitask_gnn import multi_task_mini_batch_predict
-from ..model.node_gnn import (run_node_mini_batch_predict,
-                              gen_emb_for_nfeat_reconstruct)
 from ..model.lp_gnn import run_lp_mini_batch_predict
 from ..model.gnn_encoder_base import GSgnnGNNEncoderInterface
 
@@ -56,7 +56,9 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
 
     # pylint: disable=unused-argument
     def infer(self, data,
-              mt_test_loader,
+              predict_test_loader=None,
+              lp_test_loader=None,
+              recon_nfeat_test_loader=None,
               save_embed_path=None,
               save_prediction_path=None,
               use_mini_batch_infer=False,
@@ -77,16 +79,12 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
         ----------
         data: GSgnnData
             Graph data.
-        mt_test_loader:  tuple of GSgnnMultiTaskDataLoaders
-            A tuple of mini-batch samplers for inference.
-            In format of (test_dataloader, lp_test_dataloader,
-            recon_nfeat_test_dataloader). The second dataloader
-            contains test dataloaders for link predicction tasks.
-            The third dataloader contains test dataloaders for
-            node feature reconstruction tasks. When evaluating
-            these tasks, different message passing strategies
-            will be applied. The first dataloader contains
-            all other dataloaders.
+        predict_test_loader: GSgnnMultiTaskDataLoaders
+            Test dataloader for prediction tasks.
+        lp_test_loader: GSgnnMultiTaskDataLoaders
+            Test dataloader for link prediction tasks.
+        recon_nfeat_test_loader: GSgnnMultiTaskDataLoaders
+            Test dataloader for node feature reconstruction tasks.
         save_embed_path: str
             The path to save the node embeddings.
         save_prediction_path: str
@@ -110,13 +108,25 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
         do_eval = self.evaluator is not None
         sys_tracker.check('start inferencing')
         self._model.eval()
-        mt_loader, lp_test_loader, recon_nfeat_test_loader = mt_test_loader
 
+        # All the tasks share the same GNN encoder so the fanouts are same
+        # for different tasks.
         fanout = None
-        for task_fanout in mt_loader.fanout:
-            if task_fanout is not None:
-                fanout = task_fanout
-                break
+        if predict_test_loader is not None:
+            for task_fanout in predict_test_loader.fanout:
+                if task_fanout is not None:
+                    fanout = task_fanout
+                    break
+        elif lp_test_loader is not None:
+            for task_fanout in lp_test_loader.fanout:
+                if task_fanout is not None:
+                    fanout = task_fanout
+                    break
+        else:
+            for task_fanout in recon_nfeat_test_loader.fanout:
+                if task_fanout is not None:
+                    fanout = task_fanout
+                    break
 
         def gen_embs(edge_mask=None):
             # Generate node embeddings.
@@ -138,15 +148,17 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
         sys_tracker.check('compute embeddings')
         device = self.device
 
-        pre_results = \
-            multi_task_mini_batch_predict(
-                self._model,
-                emb=embs,
-                loader=mt_loader.dataloaders,
-                task_infos=mt_loader.task_infos,
-                device=device,
-                return_proba=return_proba,
-                return_label=do_eval)
+        pre_results = {}
+        if predict_test_loader is not None:
+            pre_results = \
+                multi_task_mini_batch_predict(
+                    self._model,
+                    emb=embs,
+                    dataloaders=predict_test_loader.dataloaders,
+                    task_infos=predict_test_loader.task_infos,
+                    device=device,
+                    return_proba=return_proba,
+                    return_label=do_eval)
 
         if lp_test_loader is not None:
             # We also need to compute test scores for link prediction tasks.
@@ -163,10 +175,11 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
                     decoder = self._model.task_decoders[task_info.task_id]
                     ranking = run_lp_mini_batch_predict(decoder, lp_test_embs, dataloader, device)
                     pre_results[task_info.task_id] = ranking
+
         if recon_nfeat_test_loader is not None:
             # We also need to compute test scores for node feature reconstruction tasks.
-            dataloaders = lp_test_loader.dataloaders
-            task_infos = lp_test_loader.task_infos
+            dataloaders = recon_nfeat_test_loader.dataloaders
+            task_infos = recon_nfeat_test_loader.task_infos
 
             with th.no_grad():
                 def nfrecon_gen_embs(last_self_loop=False):
@@ -216,12 +229,21 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
             barrier()
             sys_tracker.check('save embeddings')
 
+            # save relation embedding if any for link prediction tasks
+            if get_rank() == 0:
+                decoders = self._model.task_decoders
+                for task_id, decoder in decoders.items():
+                    if isinstance(decoder, LinkPredictDistMultDecoder):
+                        rel_emb_path = os.path.join(save_embed_path, task_id)
+                        os.makedirs(rel_emb_path, exist_ok=True)
+                        save_relation_embeddings(rel_emb_path, decoder)
+
         barrier()
 
         if save_prediction_path is not None:
             target_ntypes = set()
-            task_infos = mt_loader.task_infos
-            dataloaders = mt_loader.dataloaders
+            task_infos = predict_test_loader.task_infos
+            dataloaders = predict_test_loader.dataloaders
             for task_info in task_infos:
                 if task_info.task_type in \
                     [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
@@ -232,7 +254,8 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
                     target_ntypes.add(task_info.task_config.target_etype[0][2])
                 else:
                     # task_info.task_type is BUILTIN_TASK_LINK_PREDICTION
-                    # There is no prediction results for link prediction
+                    # or BUILTIN_TASK_RECONSTRUCT_NODE_FEAT
+                    # There is no prediction results.
                     continue
 
             nid_shuffler = NodeIDShuffler(g, node_id_mapping_file, list(target_ntypes)) \
@@ -275,18 +298,7 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
                             shuffled_preds[target_etype] = \
                                 (pred, pred_src_nids, pred_dst_nids)
                             save_edge_prediction_results(shuffled_preds, save_pred_path)
-
                     else:
                         # There is no prediction results for link prediction
                         # and feature reconstruction
                         continue
-
-        # save relation embedding if any
-        if get_rank() == 0:
-            decoders = self._model.task_decoders
-            for task_id, decoder in decoders.items():
-                if isinstance(decoder, LinkPredictDistMultDecoder):
-                    if save_embed_path is not None:
-                        rel_emb_path = os.path.join(save_embed_path, task_id)
-                        os.makedirs(rel_emb_path, exist_ok=True)
-                        save_relation_embeddings(rel_emb_path, decoder)
