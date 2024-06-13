@@ -38,7 +38,8 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_NODE_REGRESSION,
                                 BUILTIN_TASK_EDGE_CLASSIFICATION,
                                 BUILTIN_TASK_EDGE_REGRESSION,
-                                BUILTIN_TASK_LINK_PREDICTION)
+                                BUILTIN_TASK_LINK_PREDICTION,
+                                BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
 from graphstorm.model import GSNodeEncoderInputLayer, RelationalGCNEncoder
 from graphstorm.model import GSgnnNodeModel, GSgnnEdgeModel
 from graphstorm.model import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
@@ -59,7 +60,7 @@ from graphstorm.model.edge_decoder import (DenseBiDecoder,
 from graphstorm.model.node_decoder import EntityRegression, EntityClassifier
 from graphstorm.model.loss_func import RegressionLossFunc
 from graphstorm.dataloading import GSgnnData
-from graphstorm.dataloading import GSgnnNodeDataLoader, GSgnnEdgeDataLoader, GSgnnMultiTaskDataLoader
+from graphstorm.dataloading import GSgnnNodeDataLoader, GSgnnEdgeDataLoader
 from graphstorm.dataloading.dataset import prepare_batch_input
 from graphstorm import (create_builtin_edge_gnn_model,
                         create_builtin_node_gnn_model,
@@ -75,13 +76,17 @@ from graphstorm.model.node_gnn import GSgnnNodeModelInterface
 from graphstorm.model.edge_gnn import (edge_mini_batch_predict,
                                        run_edge_mini_batch_predict,
                                        edge_mini_batch_gnn_predict)
-from graphstorm.model.multitask_gnn import multi_task_mini_batch_predict
+from graphstorm.model.multitask_gnn import (multi_task_mini_batch_predict,
+                                            gen_emb_for_nfeat_reconstruct)
 from graphstorm.model.gnn_with_reconstruct import construct_node_feat, get_input_embeds_combined
 from graphstorm.model.utils import load_model, save_model
 from graphstorm.model import GSgnnMultiTaskSharedEncoderModel
-from graphstorm.dataloading import (GSgnnEdgeDataLoaderBase,
-                                    GSgnnLinkPredictionDataLoaderBase,
-                                    GSgnnNodeDataLoaderBase)
+
+from util import (DummyGSgnnNodeDataLoader,
+                  DummyGSgnnEdgeDataLoader,
+                  DummyGSgnnLinkPredictionDataLoader,
+                  DummyGSgnnModel,
+                  DummyGSgnnEncoderModel)
 
 from data_utils import generate_dummy_dist_graph, generate_dummy_dist_graph_multi_target_ntypes
 from data_utils import generate_dummy_dist_graph_reconstruct
@@ -2082,36 +2087,6 @@ def test_multi_task_predict():
 
     check_forward()
 
-class DummyGSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
-    def __init__(self):
-        pass # do nothing
-
-    def __len__(self):
-        return 10
-
-    def __iter__(self):
-        return self
-
-class DummyGSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
-    def __init__(self):
-        pass # do nothing
-
-    def __len__(self):
-        return 10
-
-    def __iter__(self):
-        return self
-
-class DummyGSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
-    def __init__(self):
-        pass # do nothing
-
-    def __len__(self):
-        return 10
-
-    def __iter__(self):
-        return self
-
 def test_multi_task_mini_batch_predict():
     mt_model = GSgnnMultiTaskSharedEncoderModel(0.1)
 
@@ -2144,6 +2119,11 @@ def test_multi_task_mini_batch_predict():
                       DummyLPDecoder(),
                       pred_lp_loss_func)
 
+    mt_model.add_task("nfr_task",
+                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                      DummyLPDecoder(),
+                      pred_lp_loss_func)
+
     tast_info_nc = TaskInfo(task_type=BUILTIN_TASK_NODE_CLASSIFICATION,
                             task_id='nc_task',
                             task_config=None)
@@ -2164,8 +2144,14 @@ def test_multi_task_mini_batch_predict():
                             task_id='lp_task',
                             task_config=None)
     lp_dataloader = DummyGSgnnLinkPredictionDataLoader()
-    task_infos = [tast_info_nc, tast_info_nr, tast_info_ec, tast_info_er, tast_info_lp]
-    dataloaders = [nc_dataloader, nr_dataloader, ec_dataloader, er_dataloader, lp_dataloader]
+    tast_info_nfr = TaskInfo(task_type=BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                            task_id='nfr_task',
+                            task_config=None)
+    nfr_dataloader = DummyGSgnnNodeDataLoader()
+    task_infos = [tast_info_nc, tast_info_nr, tast_info_ec,
+                  tast_info_er, tast_info_lp, tast_info_nfr]
+    dataloaders = [nc_dataloader, nr_dataloader, ec_dataloader,
+                   er_dataloader, lp_dataloader, nfr_dataloader]
 
     node_pred = {"n0": th.arange(10)}
     node_prob = {"n0": th.arange(10)/10}
@@ -2206,10 +2192,10 @@ def test_multi_task_mini_batch_predict():
                       mock_run_edge_mini_batch_predict,
                       mock_run_node_mini_batch_predict):
 
-        mt_dataloader = GSgnnMultiTaskDataLoader(None, task_infos, dataloaders)
         res = multi_task_mini_batch_predict(mt_model,
                                             None,
-                                            mt_dataloader,
+                                            dataloaders,
+                                            task_infos,
                                             device=th.device('cpu'),
                                             return_proba=False,
                                             return_label=False)
@@ -2227,10 +2213,15 @@ def test_multi_task_mini_batch_predict():
         assert res["er_task"][1] is None
         assert_equal(res["lp_task"][("n0", "r0", "n1")].numpy(), lp_pred[("n0", "r0", "n1")].numpy())
         assert_equal(res["lp_task"][("n0", "r0", "n2")].numpy(), lp_pred[("n0", "r0", "n2")].numpy())
+        # node feature reconstruction also calls
+        # run_node_mini_batch_predict
+        assert len(res["nfr_task"]) == 2
+        assert_equal(res["nfr_task"][0].numpy(), node_pred["n0"].numpy())
 
         res = multi_task_mini_batch_predict(mt_model,
                                             None,
-                                            mt_dataloader,
+                                            dataloaders,
+                                            task_infos,
                                             device=th.device('cpu'),
                                             return_proba=True,
                                             return_label=False)
@@ -2248,10 +2239,15 @@ def test_multi_task_mini_batch_predict():
         assert res["er_task"][1] is None
         assert_equal(res["lp_task"][("n0", "r0", "n1")].numpy(), lp_pred[("n0", "r0", "n1")].numpy())
         assert_equal(res["lp_task"][("n0", "r0", "n2")].numpy(), lp_pred[("n0", "r0", "n2")].numpy())
+        # node feature reconstruction also calls
+        # run_node_mini_batch_predict
+        assert len(res["nfr_task"]) == 2
+        assert_equal(res["nfr_task"][0].numpy(), node_prob["n0"].numpy())
 
         res = multi_task_mini_batch_predict(mt_model,
                                             None,
-                                            mt_dataloader,
+                                            dataloaders,
+                                            task_infos,
                                             device=th.device('cpu'),
                                             return_proba=False,
                                             return_label=True)
@@ -2269,14 +2265,18 @@ def test_multi_task_mini_batch_predict():
         assert_equal(res["ec_task"][0].numpy(), edge_label[("n0", "r0", "n1")].numpy())
         assert_equal(res["lp_task"][("n0", "r0", "n1")].numpy(), lp_pred[("n0", "r0", "n1")].numpy())
         assert_equal(res["lp_task"][("n0", "r0", "n2")].numpy(), lp_pred[("n0", "r0", "n2")].numpy())
+        # node feature reconstruction also calls
+        # run_node_mini_batch_predict
+        assert len(res["nfr_task"]) == 2
+        assert_equal(res["nfr_task"][0].numpy(), node_pred["n0"].numpy())
+        assert_equal(res["nfr_task"][1].numpy(), node_label["n0"].numpy())
 
 
-        new_dataloaders = [nc_dataloader, None, ec_dataloader, None, None]
-        mt_dataloader = GSgnnMultiTaskDataLoader(None, task_infos, new_dataloaders)
-
+        new_dataloaders = [nc_dataloader, None, ec_dataloader, None, None, None]
         res = multi_task_mini_batch_predict(mt_model,
                                             None,
-                                            mt_dataloader,
+                                            new_dataloaders,
+                                            task_infos,
                                             device=th.device('cpu'),
                                             return_proba=False,
                                             return_label=False)
@@ -2293,10 +2293,28 @@ def test_multi_task_mini_batch_predict():
         assert res["er_task"][0] is None
         assert res["er_task"][1] is None
         assert res["lp_task"] is None
-
-
+        assert len(res["nfr_task"]) == 2
+        assert res["nfr_task"][0] is None
+        assert res["nfr_task"][1] is None
 
     check_forward()
+
+def test_gen_emb_for_nfeat_recon():
+    encoder_model = DummyGSgnnEncoderModel()
+    def check_call_gen_embs(skip_last_self_loop):
+        assert skip_last_self_loop == skip_self_loop
+
+    model = DummyGSgnnModel(encoder_model, has_sparse=True)
+    skip_self_loop = False
+    gen_emb_for_nfeat_reconstruct(model, check_call_gen_embs)
+
+    skip_self_loop = True
+    model = DummyGSgnnModel(encoder_model, has_sparse=False)
+    gen_emb_for_nfeat_reconstruct(model, check_call_gen_embs)
+
+    model = DummyGSgnnModel(None)
+    skip_self_loop = False
+    gen_emb_for_nfeat_reconstruct(model, check_call_gen_embs)
 
 
 if __name__ == '__main__':
@@ -2305,6 +2323,7 @@ if __name__ == '__main__':
     test_multi_task_forward()
     test_multi_task_predict()
     test_multi_task_mini_batch_predict()
+    test_gen_emb_for_nfeat_recon()
 
     test_lm_rgcn_node_prediction_with_reconstruct()
     test_rgcn_node_prediction_with_reconstruct(True)
