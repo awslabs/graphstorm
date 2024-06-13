@@ -429,7 +429,7 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                     # TODO(xiangsx): Add early stop support
 
                 # Every n iterations, save the model and keep
-                # the lask k models.
+                # the last k models.
                 # TODO(xiangsx): support saving the best top k model.
                 if save_model_frequency > 0 and \
                     total_steps % save_model_frequency == 0 and \
@@ -489,9 +489,9 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
             The GNN model.
         data : GSgnnData
             The training dataset
-        mt_val_loader: GSNodeDataLoader
+        mt_val_loader: GSgnnMultiTaskDataLoader
             The dataloader for validation data
-        mt_test_loader : GSNodeDataLoader
+        mt_test_loader : GSgnnMultiTaskDataLoader
             The dataloader for test data.
         total_steps: int
             Total number of iterations.
@@ -657,18 +657,26 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                     test_results = {task_info.task_id: test_scores}
 
         if len(nfeat_recon_tasks) > 0:
-            def nfrecon_gen_embs(last_self_loop=False):
+            def nfrecon_gen_embs(skip_last_self_loop=False):
                 """ Generate node embeddings for node feature reconstruction
                 """
-                if last_self_loop is False:
+                if skip_last_self_loop is True:
+                    # Turn off the last layer GNN's self-loop
+                    # to compute node embeddings.
                     model.gnn_encoder.skip_last_selfloop()
                     new_embs = gen_embs()
                     model.gnn_encoder.reset_last_selfloop()
                     return new_embs
                 else:
-                    # if lask_self_loop is True
-                    # we can reuse the computed embs if any
-                    return embs if embs is not None else gen_embs()
+                    # If skip_last_self_loop is False
+                    # we will not change the way we compute
+                    # node embeddings.
+                    if embs is not None:
+                        # The embeddings have been computed
+                        # when handling predict_tasks in L608
+                        return embs
+                    else:
+                        return gen_embs()
 
             nfeat_embs = gen_emb_for_nfeat_reconstruct(model, nfrecon_gen_embs)
 

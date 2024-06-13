@@ -2301,21 +2301,20 @@ def test_multi_task_mini_batch_predict():
 
 def test_gen_emb_for_nfeat_recon():
     encoder_model = DummyGSgnnEncoderModel()
-    model = DummyGSgnnModel(encoder_model, has_sparse=True)
-    call_self_loop = True
-    def check_call_gen_embs(last_self_loop):
-        assert last_self_loop == call_self_loop
+    def check_call_gen_embs(skip_last_self_loop):
+        assert skip_last_self_loop == skip_self_loop
 
+    model = DummyGSgnnModel(encoder_model, has_sparse=True)
+    skip_self_loop = False
     gen_emb_for_nfeat_reconstruct(model, check_call_gen_embs)
 
-    call_self_loop = False
+    skip_self_loop = True
     model = DummyGSgnnModel(encoder_model, has_sparse=False)
     gen_emb_for_nfeat_reconstruct(model, check_call_gen_embs)
 
     model = DummyGSgnnModel(None)
-    call_self_loop = True
-    def check_call_gen_embs(last_self_loop):
-        assert last_self_loop == call_self_loop
+    skip_self_loop = False
+    gen_emb_for_nfeat_reconstruct(model, check_call_gen_embs)
 
 
 if __name__ == '__main__':

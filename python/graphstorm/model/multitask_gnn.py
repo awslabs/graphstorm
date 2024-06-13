@@ -490,7 +490,7 @@ def gen_emb_for_nfeat_reconstruct(model, gen_embs):
 
     Return
     ------
-    embs: node embedings
+    embs: node embeddings
     """
     if isinstance(model.gnn_encoder, GSgnnGNNEncoderInterface):
         if model.has_sparse_params():
@@ -507,11 +507,11 @@ def gen_emb_for_nfeat_reconstruct(model, gen_embs):
                             "skip the last layer self-loop"
                             "Please set use_self_loop to False",
                             BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
-            embs = gen_embs(last_self_loop=True)
+            embs = gen_embs(skip_last_self_loop=False)
         else:
             # skip the selfloop of the last layer to
             # avoid information leakage.
-            embs = gen_embs(last_self_loop=False)
+            embs = gen_embs(skip_last_self_loop=True)
     else:
         # we will use the computed embs directly
         logging.warning("The gnn encoder %s does not support skip "
@@ -520,5 +520,5 @@ def gen_emb_for_nfeat_reconstruct(model, gen_embs):
                         "node feature leakage risk when doing %s training.",
                         type(model.gnn_encoder),
                         BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
-        embs = gen_embs(last_self_loop=True)
+        embs = gen_embs(skip_last_self_loop=False)
     return embs
