@@ -460,41 +460,41 @@ class MTaskCheckerEvaluator():
         return "dummy tracker"
 
 def test_mtask_eval():
-    tast_info_nc = TaskInfo(task_type=BUILTIN_TASK_NODE_CLASSIFICATION,
+    task_info_nc = TaskInfo(task_type=BUILTIN_TASK_NODE_CLASSIFICATION,
                             task_id='nc_task',
                             task_config=None)
     nc_dataloader = DummyGSgnnNodeDataLoader()
-    tast_info_nr = TaskInfo(task_type=BUILTIN_TASK_NODE_REGRESSION,
+    task_info_nr = TaskInfo(task_type=BUILTIN_TASK_NODE_REGRESSION,
                             task_id='nr_task',
                             task_config=None)
     nr_dataloader = DummyGSgnnNodeDataLoader()
-    tast_info_ec = TaskInfo(task_type=BUILTIN_TASK_EDGE_CLASSIFICATION,
+    task_info_ec = TaskInfo(task_type=BUILTIN_TASK_EDGE_CLASSIFICATION,
                             task_id='ec_task',
                             task_config=None)
     ec_dataloader = DummyGSgnnEdgeDataLoader()
-    tast_info_er = TaskInfo(task_type=BUILTIN_TASK_EDGE_REGRESSION,
+    task_info_er = TaskInfo(task_type=BUILTIN_TASK_EDGE_REGRESSION,
                             task_id='er_task',
                             task_config=None)
     er_dataloader = DummyGSgnnEdgeDataLoader()
     task_config = GSConfig.__new__(GSConfig)
     setattr(task_config, "train_mask", "train_mask")
-    tast_info_lp = TaskInfo(task_type=BUILTIN_TASK_LINK_PREDICTION,
+    task_info_lp = TaskInfo(task_type=BUILTIN_TASK_LINK_PREDICTION,
                             task_id='lp_task',
                             task_config=task_config)
 
     encoder_model = DummyGSgnnEncoderModel()
-    model = DummyGSgnnMTModel(encoder_model, decoders={tast_info_lp.task_id: "dummy"}, has_sparse=True)
+    model = DummyGSgnnMTModel(encoder_model, decoders={task_info_lp.task_id: "dummy"}, has_sparse=True)
 
     mt_trainer = GSgnnMultiTaskLearningTrainer(model)
     mt_trainer._device = 'cpu'
 
     lp_dataloader = DummyGSgnnLinkPredictionDataLoader()
-    tast_info_nfr = TaskInfo(task_type=BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+    task_info_nfr = TaskInfo(task_type=BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
                             task_id='nfr_task',
                             task_config=None)
     nfr_dataloader = DummyGSgnnNodeDataLoader()
-    task_infos = [tast_info_nc, tast_info_nr, tast_info_ec,
-                  tast_info_er, tast_info_lp, tast_info_nfr]
+    task_infos = [task_info_nc, task_info_nr, task_info_ec,
+                  task_info_er, task_info_lp, task_info_nfr]
 
     data = None
     res = mt_trainer.eval(model, data, None, None, 100)
@@ -595,7 +595,6 @@ def test_mtask_eval():
         }
         evaluator = MTaskCheckerEvaluator(target_res, target_res, 100)
         mt_trainer.setup_evaluator(evaluator)
-        # test when val_loader is None
         mt_trainer.eval(model, data, val_loader, test_loader, 100)
 
         # lp tasks are empty
@@ -614,7 +613,6 @@ def test_mtask_eval():
         }
         evaluator = MTaskCheckerEvaluator(target_res, target_res, 200)
         mt_trainer.setup_evaluator(evaluator)
-        # test when val_loader is None
         mt_trainer.eval(model, data, val_loader, test_loader, 200)
 
         # node feature reconstruct tasks are empty
@@ -633,7 +631,6 @@ def test_mtask_eval():
         }
         evaluator = MTaskCheckerEvaluator(target_res, target_res, 200)
         mt_trainer.setup_evaluator(evaluator)
-        # test when val_loader is None
         mt_trainer.eval(model, data, val_loader, test_loader, 200)
 
     check_eval()

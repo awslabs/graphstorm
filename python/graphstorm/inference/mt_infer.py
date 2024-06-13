@@ -182,18 +182,26 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
             task_infos = recon_nfeat_test_loader.task_infos
 
             with th.no_grad():
-                def nfrecon_gen_embs(last_self_loop=False):
+                def nfrecon_gen_embs(skip_last_self_loop=False):
                     """ Generate node embeddings for node feature reconstruction
                     """
-                    if last_self_loop is False:
-                        self._model.gnn_encoder.skip_last_selfloop()
+                    if skip_last_self_loop is True:
+                        # Turn off the last layer GNN's self-loop
+                        # to compute node embeddings.
+                        model.gnn_encoder.skip_last_selfloop()
                         new_embs = gen_embs()
-                        self._model.gnn_encoder.reset_last_selfloop()
+                        model.gnn_encoder.reset_last_selfloop()
                         return new_embs
                     else:
-                        # if lask_self_loop is True
-                        # we can reuse the computed embs if any
-                        return embs if embs is not None else gen_embs()
+                        # If skip_last_self_loop is False
+                        # we will not change the way we compute
+                        # node embeddings.
+                        if embs is not None:
+                            # The embeddings have been computed
+                            # when handling predict_tasks in L608
+                            return embs
+                        else:
+                            return gen_embs()
 
                 nfeat_embs = gen_emb_for_nfeat_reconstruct(self._model, nfrecon_gen_embs)
 
