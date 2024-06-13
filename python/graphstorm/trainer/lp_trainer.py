@@ -84,7 +84,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             test_loader=None,           # pylint: disable=unused-argument
             use_mini_batch_infer=True,      # pylint: disable=unused-argument
             save_model_path=None,
-            save_model_frequency=None,
+            save_model_frequency=-1,
             save_perf_results_path=None,
             edge_mask_for_gnn_embeddings='train_mask',
             freeze_input_layer_epochs=0,
@@ -108,7 +108,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         save_model_path : str
             The path where the model is saved.
         save_model_frequency : int
-            The number of iteration to train the model before saving the model.
+            The number of iteration to train the model before saving the model. Default is -1,
+            meaning only save model after each epoch.
         save_perf_results_path : str
             The path of the file where the performance results are saved.
         edge_mask_for_gnn_embeddings : str
