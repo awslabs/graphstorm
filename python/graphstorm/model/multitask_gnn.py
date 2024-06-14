@@ -381,8 +381,11 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
             raise TypeError(f"Unknow task type {task_type}")
 
 def multi_task_mini_batch_predict(
-    model, emb, loader, device, return_proba=True, return_label=False):
-    """ conduct mini batch prediction on multiple tasks
+    model, emb, dataloaders, task_infos, device, return_proba=True, return_label=False):
+    """ conduct mini batch prediction on multiple tasks.
+
+        The task infos are passed in as task_infos.
+        The task dataloaders are passed in as dataloaders.
 
     Parameters
     ----------
@@ -390,8 +393,10 @@ def multi_task_mini_batch_predict(
         Multi-task learning model
     emb : dict of Tensor
         The GNN embeddings
-    loader: GSgnnMultiTaskDataLoader
-        The mini-batch dataloader.
+    dataloaders: list
+        List of val or test dataloaders.
+    task_infos: list
+        List of task info
     device: th.device
         Device used to compute test scores.
     return_proba: bool
@@ -403,8 +408,6 @@ def multi_task_mini_batch_predict(
     -------
     dict: prediction results of each task
     """
-    dataloaders = loader.dataloaders
-    task_infos = loader.task_infos
     task_decoders = model.task_decoders
     res = {}
     with th.no_grad():
@@ -457,7 +460,7 @@ def multi_task_mini_batch_predict(
                     etype = list(preds.keys())[0]
                     res[task_info.task_id] = (preds[etype], labels[etype] \
                         if labels is not None else None)
-            elif task_info.task_type == BUILTIN_TASK_LINK_PREDICTION:
+            elif task_info.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
                 if dataloader is None:
                     # In cases when there is no validation or test set.
                     res[task_info.task_id] = None
@@ -466,6 +469,56 @@ def multi_task_mini_batch_predict(
                     ranking = run_lp_mini_batch_predict(decoder, emb, dataloader, device)
                     res[task_info.task_id] = ranking
             else:
-                raise TypeError(f"Unknown task {task_info}")
+                raise TypeError(f"Unsupported task {task_info}")
 
     return res
+
+def gen_emb_for_nfeat_reconstruct(model, gen_embs):
+    """ Generate node embeddings for node feature reconstruction.
+        In theory, we should skip the self-loop of the last GNN layer.
+        However, there are some exceptions. This function handles
+        those exceptions.
+
+    Parameters
+    ----------
+    model: GSgnnMultiTaskSharedEncoderModel
+        Multi-task model
+    gen_embs: func
+        The function used to generate node embeddings.
+        It should accept a bool flag indicating whether
+        the last GNN layer self-loop should be removed.
+
+    Return
+    ------
+    embs: node embeddings
+    """
+    if isinstance(model.gnn_encoder, GSgnnGNNEncoderInterface):
+        if model.has_sparse_params():
+            # When there are learnable embeddings, we can not
+            # just simply skip the last layer self-loop.
+            # Keep the self-loop and print a warning
+            # we will use the computed embs directly
+            logging.warning("When doing %s inference, we need to "
+                            "avoid adding self loop in the last GNN layer "
+                            "to avoid the potential node "
+                            "feature leakage issue. "
+                            "When there are learnable embeddings on "
+                            "nodes, GraphStorm can not automatically"
+                            "skip the last layer self-loop"
+                            "Please set use_self_loop to False",
+                            BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+            embs = gen_embs(skip_last_self_loop=False)
+        else:
+            # skip the selfloop of the last layer to
+            # avoid information leakage.
+            embs = gen_embs(skip_last_self_loop=True)
+    else:
+        # we will use the computed embs directly
+        logging.warning("The gnn encoder %s does not support skip "
+                        "the last self-loop operation"
+                        "(skip_last_selfloop). There is a potential "
+                        "node feature leakage risk when doing %s training.",
+                        type(model.gnn_encoder),
+                        BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+        embs = gen_embs(skip_last_self_loop=False)
+    return embs

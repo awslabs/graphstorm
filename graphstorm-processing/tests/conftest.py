@@ -18,6 +18,7 @@ import os
 import sys
 import logging
 import tempfile
+from typing import Iterator
 
 import numpy as np
 import pytest
@@ -61,7 +62,7 @@ def temp_output_root():
 
 
 @pytest.fixture(scope="session", name="spark")
-def spark_fixture():
+def spark_fixture() -> Iterator[SparkSession]:
     """Create the main SparkContext we use throughout the tests"""
     spark_context = (
         SparkSession.builder.master("local[4]")

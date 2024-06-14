@@ -74,9 +74,9 @@
             {
                 "task_type":	"link_prediction",
                 "split_pct":	[0.1, 0.1, 0.1],
-                "mask_field_names": ["train_mask_field_l",
-                            "val_mask_field_l",
-                            "test_mask_field_l"]
+                "mask_field_names": ["train_mask_field_lp",
+                            "val_mask_field_lp",
+                            "test_mask_field_lp"]
             }
         ]
     }

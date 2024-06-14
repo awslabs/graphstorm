@@ -187,13 +187,15 @@ def create_task_val_dataloader(task, config, train_data):
     elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
         val_idxs = train_data.get_edge_val_set(task_config.eval_etype, mask=task_config.val_mask)
         dataloader_cls = gs.get_builtin_lp_eval_dataloader_class(task_config)
+        # All tasks share the same GNN model, so the fanout should be the global fanout
+        fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
         if len(val_idxs) > 0:
             # TODO(xiangsx): Support construct feat
             if task_config.eval_etypes_negative_dstnode is not None:
                 return dataloader_cls(train_data, val_idxs,
                     task_config.eval_batch_size,
                     fixed_edge_dst_negative_field=task_config.eval_etypes_negative_dstnode,
-                    fanout=task_config.eval_fanout,
+                    fanout=fanout,
                     fixed_test_size=task_config.fixed_test_size,
                     node_feats=node_feats,
                     pos_graph_edge_feats=task_config.lp_edge_weight_for_loss)
@@ -201,7 +203,7 @@ def create_task_val_dataloader(task, config, train_data):
                 return dataloader_cls(train_data, val_idxs,
                     task_config.eval_batch_size,
                     task_config.num_negative_edges_eval,
-                    fanout=task_config.eval_fanout,
+                    fanout=fanout,
                     fixed_test_size=task_config.fixed_test_size,
                     node_feats=node_feats,
                     pos_graph_edge_feats=task_config.lp_edge_weight_for_loss)
@@ -442,8 +444,12 @@ def main(config_args):
                 logging.warning("The training data do not have validation set.")
             if test_loader is None:
                 logging.warning("The training data do not have test set.")
-            task_evaluators[task.task_id] = \
-                create_evaluator(task)
+
+            if val_loader is None and test_loader is None:
+                logging.warning("Task %s does not have validation and test sets.", task.task_id)
+            else:
+                task_evaluators[task.task_id] = \
+                    create_evaluator(task)
 
     train_dataloader = GSgnnMultiTaskDataLoader(train_data, tasks, train_dataloaders)
     val_dataloader = GSgnnMultiTaskDataLoader(train_data, tasks, val_dataloaders)

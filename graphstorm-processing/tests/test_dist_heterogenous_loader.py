@@ -28,6 +28,7 @@ import pytest
 
 from graphstorm_processing.graph_loaders.dist_heterogeneous_loader import (
     DistHeterogeneousGraphLoader,
+    HeterogeneousLoaderConfig,
     NODE_MAPPING_INT,
     NODE_MAPPING_STR,
 )
@@ -46,6 +47,7 @@ from graphstorm_processing.constants import (
     MIN_VALUE,
     MAX_VALUE,
     VALUE_COUNTS,
+    TRANSFORMATIONS_FILENAME,
 )
 
 pytestmark = pytest.mark.usefixtures("spark")
@@ -99,16 +101,21 @@ def no_label_data_configs_fixture():
 def dghl_loader_fixture(spark, data_configs_with_label, tempdir) -> DistHeterogeneousGraphLoader:
     """Create a re-usable loader that includes labels"""
     input_path = os.path.join(_ROOT, "resources/small_heterogeneous_graph")
+    loader_config = HeterogeneousLoaderConfig(
+        add_reverse_edges=True,
+        data_configs=data_configs_with_label,
+        enable_assertions=True,
+        graph_name="small_heterogeneous_graph",
+        input_prefix=input_path,
+        local_input_path=input_path,
+        local_metadata_output_path=tempdir,
+        num_output_files=1,
+        output_prefix=tempdir,
+        precomputed_transformations={},
+    )
     dhgl = DistHeterogeneousGraphLoader(
         spark,
-        local_input_path=input_path,
-        local_output_path=tempdir,
-        output_prefix=tempdir,
-        input_prefix=input_path,
-        data_configs=data_configs_with_label,
-        num_output_files=1,
-        add_reverse_edges=True,
-        enable_assertions=True,
+        loader_config=loader_config,
     )
     return dhgl
 
@@ -119,16 +126,21 @@ def dghl_loader_no_label_fixture(
 ) -> DistHeterogeneousGraphLoader:
     """Create a re-usable loader without labels"""
     input_path = os.path.join(_ROOT, "resources/small_heterogeneous_graph")
+    loader_config = HeterogeneousLoaderConfig(
+        add_reverse_edges=True,
+        data_configs=no_label_data_configs,
+        enable_assertions=True,
+        graph_name="small_heterogeneous_graph",
+        input_prefix=input_path,
+        local_input_path=input_path,
+        local_metadata_output_path=tempdir,
+        num_output_files=1,
+        output_prefix=tempdir,
+        precomputed_transformations={},
+    )
     dhgl = DistHeterogeneousGraphLoader(
         spark,
-        local_input_path=input_path,
-        local_output_path=tempdir,
-        output_prefix=tempdir,
-        input_prefix=input_path,
-        data_configs=no_label_data_configs,
-        num_output_files=1,
-        add_reverse_edges=True,
-        enable_assertions=True,
+        loader_config,
     )
     return dhgl
 
@@ -139,16 +151,21 @@ def dghl_loader_no_reverse_edges_fixture(
 ) -> DistHeterogeneousGraphLoader:
     """Create a re-usable loader that doesn't produce reverse edegs"""
     input_path = os.path.join(_ROOT, "resources/small_heterogeneous_graph")
+    loader_config = HeterogeneousLoaderConfig(
+        add_reverse_edges=False,
+        data_configs=data_configs_with_label,
+        enable_assertions=True,
+        graph_name="small_heterogeneous_graph",
+        input_prefix=input_path,
+        local_input_path=input_path,
+        local_metadata_output_path=tempdir,
+        num_output_files=1,
+        output_prefix=tempdir,
+        precomputed_transformations={},
+    )
     dhgl = DistHeterogeneousGraphLoader(
         spark,
-        local_input_path=input_path,
-        local_output_path=tempdir,
-        output_prefix=tempdir,
-        input_prefix=input_path,
-        data_configs=data_configs_with_label,
-        num_output_files=1,
-        add_reverse_edges=False,
-        enable_assertions=True,
+        loader_config,
     )
     return dhgl
 
@@ -246,6 +263,7 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
                 "input_ids": 16,
                 "token_type_ids": 16,
                 "multi": 2,
+                "state": 3,
             }
         },
         "efeat_size": {},
@@ -273,6 +291,7 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
             "test_mask",
             "age",
             "multi",
+            "state",
             "input_ids",
             "attention_mask",
             "token_type_ids",
@@ -281,6 +300,13 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
 
     for node_type in metadata["node_data"]:
         assert metadata["node_data"][node_type].keys() == expected_node_data[node_type]
+
+    with open(
+        os.path.join(dghl_loader.output_path, TRANSFORMATIONS_FILENAME), "r", encoding="utf-8"
+    ) as transformation_file:
+        transformations_dict = json.load(transformation_file)
+
+        assert "state" in transformations_dict["node_features"]
 
 
 def test_load_dist_hgl_without_labels(
@@ -683,6 +709,7 @@ def test_update_label_properties_multilabel(
 
 
 def test_node_custom_label(spark, dghl_loader: DistHeterogeneousGraphLoader, tmp_path):
+    """Test using custom label splits for nodes"""
     data = [(i,) for i in range(1, 11)]
 
     # Create DataFrame
@@ -725,6 +752,7 @@ def test_node_custom_label(spark, dghl_loader: DistHeterogeneousGraphLoader, tmp
 
 
 def test_edge_custom_label(spark, dghl_loader: DistHeterogeneousGraphLoader, tmp_path):
+    """Test using custom label splits for edges"""
     data = [(i, j) for i in range(1, 4) for j in range(11, 14)]
     # Create DataFrame
     edges_df = spark.createDataFrame(data, ["src_str_id", "dst_str_id"])

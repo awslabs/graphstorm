@@ -48,24 +48,29 @@ Script Parameters
     the Spark leader.
 """
 
-import dataclasses
 import argparse
+import copy
+import dataclasses
 import json
 import logging
 import os
 from pathlib import Path
-import time
-from typing import Any, Dict
 import tempfile
+import time
+from collections.abc import Mapping
+from typing import Any, Dict
 
 import boto3
 import botocore
 
 from graphstorm_processing.graph_loaders.dist_heterogeneous_loader import (
     DistHeterogeneousGraphLoader,
+    HeterogeneousLoaderConfig,
+    ProcessedGraphRepresentation,
 )
 from graphstorm_processing.config.config_parser import create_config_objects
 from graphstorm_processing.config.config_conversion import GConstructConfigConverter
+from graphstorm_processing.constants import TRANSFORMATIONS_FILENAME
 from graphstorm_processing.data_transformations import spark_utils, s3_utils
 from graphstorm_processing.repartition_files import (
     repartition_files,
@@ -83,8 +88,8 @@ class ExecutorConfig:
     Parameters
     ----------
     local_config_path : str
-        Local path to the config file.
-    local_output_path : str
+        Local path to the input config file.
+    local_metadata_output_path : str
         Local path for output metadata files.
     input_prefix : str
         Prefix for input data. Can be S3 URI or local path.
@@ -107,7 +112,7 @@ class ExecutorConfig:
     """
 
     local_config_path: str
-    local_output_path: str
+    local_metadata_output_path: str
     input_prefix: str
     output_prefix: str
     num_output_files: int
@@ -148,7 +153,7 @@ class DistributedExecutor:
         executor_config: ExecutorConfig,
     ):
         self.local_config_path = executor_config.local_config_path
-        self.local_output_path = executor_config.local_output_path
+        self.local_metadata_output_path = executor_config.local_metadata_output_path
         self.input_prefix = executor_config.input_prefix
         self.output_prefix = executor_config.output_prefix
         self.num_output_files = executor_config.num_output_files
@@ -158,6 +163,8 @@ class DistributedExecutor:
         self.add_reverse_edges = executor_config.add_reverse_edges
         self.graph_name = executor_config.graph_name
         self.repartition_on_leader = executor_config.do_repartition
+        # Input config dict using GSProcessing schema
+        self.gsp_config_dict = {}
 
         # Ensure we have write access to the output path
         if self.filesystem_type == FilesystemType.LOCAL:
@@ -190,23 +197,33 @@ class DistributedExecutor:
         with open(graph_conf, "r", encoding="utf-8") as f:
             dataset_config_dict: Dict[str, Any] = json.load(f)
 
-        # Use appropriate config parser depending on file version
+        # Load the pre-computed transformations if the file exists
+        if os.path.exists(os.path.join(self.local_config_path, TRANSFORMATIONS_FILENAME)):
+            with open(
+                os.path.join(self.local_config_path, TRANSFORMATIONS_FILENAME),
+                "r",
+                encoding="utf-8",
+            ) as f:
+                self.precomputed_transformations = json.load(f)
+        else:
+            self.precomputed_transformations = {}
+
         if "version" in dataset_config_dict:
             config_version = dataset_config_dict["version"]
             if config_version == "gsprocessing-v1.0":
                 logging.info("Parsing config file as GSProcessing config")
-                self.graph_config_dict = dataset_config_dict["graph"]
+                self.gsp_config_dict = dataset_config_dict["graph"]
             elif config_version == "gconstruct-v1.0":
                 logging.info("Parsing config file as GConstruct config")
                 converter = GConstructConfigConverter()
-                self.graph_config_dict = converter.convert_to_gsprocessing(dataset_config_dict)[
+                self.gsp_config_dict = converter.convert_to_gsprocessing(dataset_config_dict)[
                     "graph"
                 ]
             else:
                 logging.warning("Unrecognized configuration file version name: %s", config_version)
                 try:
                     converter = GConstructConfigConverter()
-                    self.graph_config_dict = converter.convert_to_gsprocessing(dataset_config_dict)[
+                    self.gsp_config_dict = converter.convert_to_gsprocessing(dataset_config_dict)[
                         "graph"
                     ]
                 except Exception:  # pylint: disable=broad-exception-caught
@@ -214,13 +231,13 @@ class DistributedExecutor:
                     assert (
                         "graph" in dataset_config_dict
                     ), "Top-level element 'graph' needs to exist in a GSProcessing config"
-                    self.graph_config_dict = dataset_config_dict["graph"]
+                    self.gsp_config_dict = dataset_config_dict["graph"]
                     logging.info("Parsed config file as GSProcessing config")
         else:
             # Older versions of GConstruct configs might be missing a version entry
             logging.warning("No configuration file version name, trying to parse as GConstruct...")
             converter = GConstructConfigConverter()
-            self.graph_config_dict = converter.convert_to_gsprocessing(dataset_config_dict)["graph"]
+            self.gsp_config_dict = converter.convert_to_gsprocessing(dataset_config_dict)["graph"]
 
         # Create the Spark session for execution
         self.spark = spark_utils.create_spark_session(self.execution_env, self.filesystem_type)
@@ -256,23 +273,28 @@ class DistributedExecutor:
         Executes the Spark processing job.
         """
         logging.info("Performing data processing with PySpark...")
-        data_configs = create_config_objects(self.graph_config_dict)
+        data_configs = create_config_objects(self.gsp_config_dict)
 
         t0 = time.time()
         # Prefer explicit arguments for clarity
-        loader = DistHeterogeneousGraphLoader(
-            spark=self.spark,
-            local_input_path=self.local_config_path,
-            local_output_path=self.local_output_path,
-            data_configs=data_configs,
-            input_prefix=self.input_prefix,
-            output_prefix=self.output_prefix,
-            num_output_files=self.num_output_files,
+        loader_config = HeterogeneousLoaderConfig(
             add_reverse_edges=self.add_reverse_edges,
+            data_configs=data_configs,
             enable_assertions=False,
             graph_name=self.graph_name,
+            input_prefix=self.input_prefix,
+            local_input_path=self.local_config_path,
+            local_metadata_output_path=self.local_metadata_output_path,
+            num_output_files=self.num_output_files,
+            output_prefix=self.output_prefix,
+            precomputed_transformations=self.precomputed_transformations,
         )
-        graph_meta_dict, timers_dict = loader.load()
+        loader = DistHeterogeneousGraphLoader(
+            self.spark,
+            loader_config,
+        )
+        processed_representations: ProcessedGraphRepresentation = loader.load()
+        graph_meta_dict = processed_representations.processed_graph_metadata_dict
 
         t1 = time.time()
         logging.info("Time to transform data for distributed partitioning: %s sec", t1 - t0)
@@ -316,7 +338,8 @@ class DistributedExecutor:
                     )
             else:
                 logging.warning("gs-repartition will need to run as a follow-up job on the data!")
-        timers_dict["repartition"] = time.perf_counter() - repartition_start
+
+        processed_representations.timers["repartition"] = time.perf_counter() - repartition_start
 
         # If any of the metadata modification took place, write an updated metadata file
         if updated_metadata:
@@ -334,17 +357,141 @@ class DistributedExecutor:
             )
 
         with open(
-            os.path.join(self.local_output_path, "perf_counters.json"), "w", encoding="utf-8"
+            os.path.join(self.local_metadata_output_path, "perf_counters.json"),
+            "w",
+            encoding="utf-8",
         ) as f:
-            sorted_timers = dict(sorted(timers_dict.items(), key=lambda x: x[1], reverse=True))
+            sorted_timers = dict(
+                sorted(processed_representations.timers.items(), key=lambda x: x[1], reverse=True)
+            )
             json.dump(sorted_timers, f, indent=4)
 
-        # This is used to upload the output JSON files to S3 on non-SageMaker runs,
+        # If pre-computed representations exist, merge them with the input dict and save to disk
+        with open(
+            os.path.join(
+                self.local_metadata_output_path,
+                f"{os.path.splitext(self.config_filename)[0]}_with_transformations.json",
+            ),
+            "w",
+            encoding="utf-8",
+        ) as f:
+            input_dict_with_transforms = self._merge_config_with_transformations(
+                self.gsp_config_dict, processed_representations.transformation_representations
+            )
+            json.dump(input_dict_with_transforms, f, indent=4)
+
+        # This is used to upload the output output JSON files to S3 on non-SageMaker runs,
         # since we can't rely on SageMaker to do it
         if self.filesystem_type == FilesystemType.S3:
             self._upload_output_files(
-                loader, force=not self.execution_env == ExecutionEnv.SAGEMAKER
+                loader, force=(not self.execution_env == ExecutionEnv.SAGEMAKER)
             )
+
+    def _merge_config_with_transformations(
+        self,
+        gsp_config_dict: dict,
+        transformations: Mapping[str, Mapping[str, Mapping]],
+    ) -> dict:
+        """Merge the config dict with the transformations dict and return a copy.
+
+        Parameters
+        ----------
+        gsp_config_dict : dict
+            The input configuration dictionary, using GSProcessing schema
+        transformations : Mapping[str, Mapping[str, Mapping]]
+            The processed graph representations containing the transformations.
+            Expected dict schema:
+
+            {
+                "node_features": {
+                    "node_type1": {
+                        "feature_name1": {
+                            "transformation": # transformation type
+                            # feature1 representation goes here
+                        },
+                        "feature_name2": {}, ...
+                    },
+                    "node_type2": {...}
+                },
+                "edges_features": {...}
+            }
+
+        Returns
+        -------
+        dict
+            A copy of the ``gsp_config_dict`` modified to be merged with
+            the transformation representations.
+        """
+        gsp_config_dict_copy = copy.deepcopy(gsp_config_dict)
+
+        edge_transformations: Mapping[str, Mapping[str, Mapping]] = transformations["edge_features"]
+        node_transformations: Mapping[str, Mapping[str, Mapping]] = transformations["node_features"]
+        edge_input_dicts: list[dict] = gsp_config_dict_copy["edges"]
+        node_input_dicts: list[dict] = gsp_config_dict_copy["nodes"]
+
+        def get_structure_type(single_input_dict: dict, structure_type: str) -> str:
+            """Gets the node or edge type name from input dict."""
+            if structure_type == "node":
+                type_name = single_input_dict["type"]
+            elif structure_type == "edge":
+                src_type = single_input_dict["source"]["type"]
+                dst_type = single_input_dict["dest"]["type"]
+                relation = single_input_dict["relation"]["type"]
+                type_name = f"{src_type}:{relation}:{dst_type}"
+            else:
+                raise ValueError(
+                    f"Invalid structure type: {structure_type}. Expected 'node' or 'edge'."
+                )
+
+            return type_name
+
+        def append_transformations(
+            structure_input_dicts: list[dict],
+            structure_transforms: Mapping[str, Mapping[str, Mapping]],
+            structure_type: str,
+        ):
+            """Appends the pre-computed transformations to the input dicts."""
+            assert structure_type in ["edge", "node"]
+            for input_dict in structure_input_dicts:
+                # type_name is the name of either a node type or edge type
+                type_name = get_structure_type(input_dict, structure_type)
+                # If we have pre-computed transformations for this type
+                if type_name in structure_transforms:
+                    # type_transforms holds the transformation representations for
+                    # every feature that has one for type_name, from feature name to
+                    # feature representation dict.
+                    type_transforms: Mapping[str, Mapping] = structure_transforms[type_name]
+                    assert (
+                        "features" in input_dict
+                    ), f"Expected type {type_name} to have have features in the input config"
+
+                    # Iterate over every feature for the node/edge type,
+                    # and append representation to its input dict, if one exists
+                    for type_feat_dict in input_dict["features"]:
+                        # We take a feature's name either explicitly if it exists,
+                        # or from the column name otherwise.
+                        feat_name = (
+                            type_feat_dict["name"]
+                            if "name" in type_feat_dict
+                            else type_feat_dict["column"]
+                        )
+                        if feat_name in type_transforms:
+                            # Feature representation needs to contain all the
+                            # necessary information to re-apply the feature transformation
+                            feature_representation = type_transforms[feat_name]
+                            type_feat_dict["precomputed_transformation"] = feature_representation
+
+        if edge_transformations:
+            append_transformations(edge_input_dicts, edge_transformations, "edge")
+        if node_transformations:
+            append_transformations(node_input_dicts, node_transformations, "node")
+
+        gsp_top_level_dict = {
+            "graph": gsp_config_dict_copy,
+            "version": "gsprocessing-v1.0",
+        }
+
+        return gsp_top_level_dict
 
 
 def parse_args() -> argparse.Namespace:
@@ -474,29 +621,40 @@ def main():
                     f"s3://{input_bucket}/{input_s3_prefix}/"
                     f"{gsprocessing_args.config_filename}"
                 ) from e
+            # Try to download the pre-computed transformations file, if it exists
+            try:
+                s3.download_file(
+                    input_bucket,
+                    f"{input_s3_prefix}/{TRANSFORMATIONS_FILENAME}",
+                    os.path.join(tempdir.name, TRANSFORMATIONS_FILENAME),
+                )
+            except botocore.exceptions.ClientError as _:
+                pass
             local_config_path = tempdir.name
 
     # local output location for metadata files
     if execution_env == ExecutionEnv.SAGEMAKER:
-        local_output_path = "/opt/ml/processing/output"
+        local_metadata_output_path = "/opt/ml/processing/output"
     else:
         if filesystem_type == FilesystemType.LOCAL:
-            local_output_path = gsprocessing_args.output_prefix
+            local_metadata_output_path = gsprocessing_args.output_prefix
         else:
             # Only needed for local execution with S3 data
-            local_output_path = tempdir.name
+            local_metadata_output_path = tempdir.name
 
     if not gsprocessing_args.num_output_files:
         gsprocessing_args.num_output_files = -1
 
     # Save arguments to file for posterity
-    with open(os.path.join(local_output_path, "launch_arguments.json"), "w", encoding="utf-8") as f:
+    with open(
+        os.path.join(local_metadata_output_path, "launch_arguments.json"), "w", encoding="utf-8"
+    ) as f:
         json.dump(dataclasses.asdict(gsprocessing_args), f, indent=4)
         f.flush()
 
     executor_configuration = ExecutorConfig(
         local_config_path=local_config_path,
-        local_output_path=local_output_path,
+        local_metadata_output_path=local_metadata_output_path,
         input_prefix=gsprocessing_args.input_prefix,
         output_prefix=gsprocessing_args.output_prefix,
         num_output_files=gsprocessing_args.num_output_files,

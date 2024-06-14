@@ -98,7 +98,7 @@ gsf:
         batch_size: 128 # will overwrite the global batch_size
         mask_fields:
           - "train_mask_field_lp"
-          - null # empty means there is no validation mask
+          - "val_mask_field_lp"
           - null # empty means there is no test mask
         task_weight: 1.0
     - reconstruct_node_feat:
