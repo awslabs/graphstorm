@@ -238,10 +238,13 @@ the graph structure, features, and labels. In more detail:
   for the various components of GSProcessing. Can be used to profile the
   application and discover bottlenecks.
 * ``precomputed_transformations.json``: A JSON file that contains representations
-  of supported transformations. This file can be copied to the input path of another
-  set of raw files, and GSProcessing will use the transformation values listed here
-  instead of creating new ones. Use this to re-apply the same transformations to new
-  data.
+  of supported transformations. To re-use these transformations on another dataset,
+  place this file in the top level of another set of raw data, at the same level
+  as the input GSProcessing/GConstruct configuration JSON file.
+  GSProcessing will use the transformation values listed here
+  instead of creating new ones, ensuring that models trained with the original
+  data can still be used in the newly transformed data. Currently only
+  categorical transformations can be re-applied.
 * ``updated_row_counts_metadata.json``:
   This file is meant to be used as the input configuration for the
   distributed partitioning pipeline. ``gs-repartition`` produces

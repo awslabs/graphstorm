@@ -1038,6 +1038,9 @@ class DistHeterogeneousGraphLoader(object):
         ntype_feat_sizes = {}  # type: Dict[str, int]
 
         for feat_conf in feature_configs:
+            # This will get a value iff there exists a pre-computed representation
+            # for this feature name and node type, an empty dict (which evaluates to False)
+            # otherwise. We do the same for the edges.
             json_representation = (
                 self.pre_computed_transformations.get("node_features", {})
                 .get(node_type, {})

@@ -175,11 +175,15 @@ class DistCategoryTransformation(DistributedTransformation):
 
     def apply_precomputed_transformation(self, input_df: DataFrame) -> DataFrame:
 
-        # Get JSON representation of categorical transformation
+        # List of StringIndexerModel labelsArray lists, each one containing the strings
+        # for one column. See docs for pyspark.ml.feature.StringIndexerModel.labelsArray
         labels_arrays: list[list[str]] = self.json_representation["string_indexer_labels_arrays"]
+        # More verbose representation of the mapping from string to one hot index location,
+        # for each column in the input.
         per_col_label_to_one_hot_idx: dict[str, dict[str, int]] = self.json_representation[
             "per_col_label_to_one_hot_idx"
         ]
+        # The list of cols the transformation was originally applied to.
         precomputed_cols: list[str] = self.json_representation["cols"]
 
         # Assertions to ensure correctness of representation

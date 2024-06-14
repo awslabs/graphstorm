@@ -16,7 +16,6 @@ limitations under the License.
 
 from abc import ABC, abstractmethod
 from typing import Optional, Sequence
-import logging
 
 from pyspark.sql import DataFrame, SparkSession
 
@@ -74,15 +73,14 @@ class DistributedTransformation(ABC):
         -------
         DataFrame
             The input DataFrame, modified according to the pre-computed transformation values.
+        Raises
+        ------
+        NotImplementedError
+            If the underlying transformation does not support re-applying using JSON input.
         """
-        logging.warning(
-            (
-                "Transformation %s does not support pre-existing transform"
-                ", applying new transformation"
-            ),
-            self.get_transformation_name(),
+        raise NotImplementedError(
+            f"Pre-computed transformation not available for {self.get_transformation_name()}"
         )
-        return self.apply(input_df)
 
     @staticmethod
     @abstractmethod
