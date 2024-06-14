@@ -13,21 +13,30 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import pytest
 import os
+import argparse
 import tempfile
 import pytest
 from functools import partial
+from pathlib import Path
 
 import pandas as pd
 import torch as th
 import numpy as np
 from numpy.testing import assert_equal, assert_almost_equal
 
+from graphstorm.config import GSConfig
+from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
+                               BUILTIN_TASK_NODE_REGRESSION,
+                               BUILTIN_TASK_EDGE_CLASSIFICATION,
+                               BUILTIN_TASK_EDGE_REGRESSION,
+                               BUILTIN_TASK_LINK_PREDICTION,
+                               BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
 from graphstorm.gconstruct import remap_result
 from graphstorm.gconstruct.file_io import read_data_parquet
 from graphstorm.gconstruct.id_map import IdMap, IdReverseMap
-from graphstorm.gconstruct.remap_result import _get_file_range
+from graphstorm.gconstruct.remap_result import (_get_file_range,
+                                                _parse_gs_config)
 from graphstorm.gconstruct.remap_result import (worker_remap_edge_pred,
                                                 worker_remap_node_data)
 from graphstorm.gconstruct.remap_result import (write_data_parquet_file,
@@ -382,8 +391,52 @@ def test_write_data_csv_file():
 
         check_write_content(output_fname, ["new_emb", "new_nid", "pred"])
 
+def test_parse_config():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        part_path = os.path.join(tmpdirname, "tmp.json")
+        save_prediction_path = os.path.join(tmpdirname,  "predict")
+        save_embed_path = os.path.join(tmpdirname, "emb")
+        Path(part_path).touch()
+        os.mkdir(save_prediction_path)
+        os.mkdir(save_embed_path)
+        target_ntype = "n1"
+
+        config = GSConfig.__new__(GSConfig)
+        setattr(config, "_part_config", part_path)
+        setattr(config, "_save_prediction_path", save_prediction_path)
+        setattr(config, "_save_embed_path", save_embed_path)
+        setattr(config, "_task_type", BUILTIN_TASK_NODE_CLASSIFICATION)
+        setattr(config, "_target_ntype", target_ntype)
+        setattr(config, "_multi_tasks", None)
+        node_id_mapping, predict_dir, emb_dir, pred_ntypes, pred_etypes = _parse_gs_config(config)
+        assert node_id_mapping == os.path.join(tmpdirname, "raw_id_mappings")
+        assert predict_dir == save_prediction_path
+        assert emb_dir == save_embed_path
+        assert len(pred_ntypes) == 1
+        assert pred_ntypes[0] == target_ntype
+        assert len(pred_etypes) == 0
+
+        target_etype = ["n0,r0,n1"]
+        config = GSConfig.__new__(GSConfig)
+        setattr(config, "_part_config", part_path)
+        setattr(config, "_save_prediction_path", save_prediction_path)
+        setattr(config, "_save_embed_path", save_embed_path)
+        setattr(config, "_task_type", BUILTIN_TASK_EDGE_CLASSIFICATION)
+        setattr(config, "_target_etype", target_etype)
+        setattr(config, "_multi_tasks", None)
+
+        node_id_mapping, predict_dir, emb_dir, pred_ntypes, pred_etypes = _parse_gs_config(config)
+        assert node_id_mapping == os.path.join(tmpdirname, "raw_id_mappings")
+        assert predict_dir == save_prediction_path
+        assert emb_dir == save_embed_path
+        assert len(pred_ntypes) == 0
+        assert len(pred_etypes) == 1
+        print(pred_etypes)
+        assert pred_etypes[0] == ["n0", "r0", "n1"]
 
 if __name__ == '__main__':
+    test_parse_config()
+
     test_write_data_csv_file()
     test_write_data_parquet_file()
     test__get_file_range()

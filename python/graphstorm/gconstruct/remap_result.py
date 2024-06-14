@@ -865,8 +865,9 @@ def main(args, gs_config_args):
             for pred_dir, pred_etype in zip(edge_predict_dirs, pred_etypes):
                 assert os.path.exists(pred_dir), \
                     f"Prediction dir {pred_dir} does not exist."
-                assert os.path.exists(os.path.join(pred_dir, "_".join(pred_etype))), \
-                    f"Prediction dir {os.path.join(pred_dir, "_".join(pred_etype))}" \
+                pred_path = os.path.join(pred_dir, "_".join(pred_etype))
+                assert os.path.exists(pred_path), \
+                    f"Prediction dir {pred_path}" \
                     f"for {pred_etype} does not exist."
 
     else:
