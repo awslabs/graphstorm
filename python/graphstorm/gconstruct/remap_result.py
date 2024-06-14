@@ -672,10 +672,10 @@ def _parse_gs_config(config):
                 pred_ntype = task_config.target_ntype
                 pred_ntypes.append(pred_ntype)
                 node_predict_dirs.append(pred_path)
-            elif task_type in (BUILTIN_TASK_EDGE_CLASSIFICATION,
+            elif task.task_type in (BUILTIN_TASK_EDGE_CLASSIFICATION,
                                BUILTIN_TASK_EDGE_REGRESSION):
-                pred_etype = config.target_etype
-                pred_etypes.append(pred_etype)
+                pred_etype = task_config.target_etype[0]
+                pred_etypes.append(list(pred_etype))
                 edge_predict_dirs.append(pred_path)
 
         predict_dir = (node_predict_dirs, edge_predict_dirs)
