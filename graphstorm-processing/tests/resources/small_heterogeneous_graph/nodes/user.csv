@@ -1,6 +1,6 @@
-~id,age,occupation,gender,salary,multi
-mark,30,actor,male,10000,1|2
-john,22,student,male,,3|4
-tara,33,lawyer,female,30000,5|6
-kate,29,doctor,,35000,7|8
-george,22,student,male,0,9|10
+~id,age,occupation,gender,salary,multi,state
+mark,30,actor,male,10000,1|2,wa
+john,22,student,male,,3|4,ca
+tara,33,lawyer,female,30000,5|6,wa
+kate,29,doctor,,35000,7|8,
+george,22,student,male,0,9|10,ny

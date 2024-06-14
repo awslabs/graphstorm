@@ -20,8 +20,10 @@ import math
 import numbers
 import os
 from collections import Counter, defaultdict
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from time import perf_counter
-from typing import Any, Dict, Mapping, Optional, Sequence, Set, Tuple
+from typing import Any, Dict, Optional, Set, Tuple
 
 from pyspark import RDD
 from pyspark.sql import Row, SparkSession, DataFrame, functions as F
@@ -45,6 +47,7 @@ from graphstorm_processing.constants import (
     SPECIAL_CHARACTERS,
     HUGGINGFACE_TRANFORM,
     HUGGINGFACE_TOKENIZE,
+    TRANSFORMATIONS_FILENAME,
 )
 from ..config.config_parser import EdgeConfig, NodeConfig, StructureConfig
 from ..config.label_config_base import LabelConfig
@@ -52,7 +55,6 @@ from ..config.feature_config_base import FeatureConfig
 from ..data_transformations.dist_feature_transformer import DistFeatureTransformer
 from ..data_transformations.dist_label_loader import DistLabelLoader, SplitRates, CustomSplit
 from ..data_transformations import s3_utils, spark_utils
-from .heterogeneous_graphloader import HeterogeneousGraphLoader
 
 # TODO: Remove the pylint disable once we add the rest of the code
 from . import schema_utils  # pylint: disable=no-name-in-module
@@ -64,7 +66,82 @@ NODE_MAPPING_STR = "orig"
 NODE_MAPPING_INT = "new"
 
 
-class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
+@dataclass
+class HeterogeneousLoaderConfig:
+    """
+    Configuration object for the loader.
+
+    add_reverse_edges : bool
+        Whether to add reverse edges to the graph.
+    data_configs : Dict[str, Sequence[StructureConfig]]
+        Dictionary of node and edge configurations objects.
+    enable_assertions : bool, optional
+        When true enables sanity checks for the output created.
+        However these are costly to compute, so we disable them by default.
+    graph_name: str
+        Name of the graph.
+    input_prefix : str
+        The prefix to the input data. Can be an S3 URI or an **absolute** local path.
+    local_input_path : str
+        Local path to input configuration data
+    local_metadata_output_path : str
+        Local path to where the output metadata files will be created.
+    num_output_files : int
+        The number of files (partitions) to create for the output, if None we
+        let Spark decide.
+    output_prefix : str
+        The prefix to where the output data will be created. Can be an S3 URI
+        or an **absolute** local path.
+    precomputed_transformations: dict
+        A dictionary describing precomputed transformations for the features
+        of the graph.
+    """
+
+    add_reverse_edges: bool
+    data_configs: Mapping[str, Sequence[StructureConfig]]
+    enable_assertions: bool
+    graph_name: str
+    input_prefix: str
+    local_input_path: str
+    local_metadata_output_path: str
+    num_output_files: int
+    output_prefix: str
+    precomputed_transformations: dict
+
+
+@dataclass
+class ProcessedGraphRepresentation:
+    """JSON representations of a processed graph.
+
+    Parameters
+    ----------
+    processed_graph_metadata_dict : dict
+        A dictionary of metadata for the graph, in "chunked-graph"
+        format, with additional key "graph_info" that contains a more
+        verbose representation of th processed graph.
+
+        The dict also contains a "raw_id_mappings" key, which is a dict
+        of dicts, one for each node type. Each entry contains files information
+        about the raw-to-integer ID mapping for each node.
+
+        The returned value also contains an additional dict of dicts,
+        "graph_info" which contains additional information about the
+        graph in a more readable format.
+
+        For chunked graph format see
+        https://docs.dgl.ai/guide/distributed-preprocessing.html#specification
+    transformation_representations : dict
+        A dictionary containing the processed graph transformations.
+    timers : dict
+        A dictionary containing the timing information for different steps of processing.
+    """
+
+    processed_graph_metadata_dict: dict
+    transformation_representations: dict
+    timers: dict
+
+
+class DistHeterogeneousGraphLoader(object):
     """
     A graph loader designed to run distributed processing of a heterogeneous graph.
 
@@ -72,80 +149,72 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
     ----------
     spark : SparkSession
         The SparkSession that we use to perform the processing
-    local_input_path : str
-        Local path to input configuration data
-    local_metadata_path : str
-        Local path to where the output metadata files will be created.
-    data_configs : Dict[str, Sequence[StructureConfig]]
-        Dictionary of node and edge configurations objects.
-    input_prefix : str
-        The prefix to the input data. Can be an S3 URI or an **absolute** local path.
-    output_prefix : str
-        The prefix to where the output data will be created. Can be an S3 URI
-        or an **absolute** local path.
-    num_output_files : Optional[int], optional
-        The number of files (partitions) to create for the output, if None we
-        let Spark decide.
-    enable_assertions : bool, optional
-        When true enables sanity checks for the output created.
-        However these are costly to compute, so we disable them by default.
     """
 
     def __init__(
         self,
         spark: SparkSession,
-        local_input_path: str,
-        local_output_path: str,
-        data_configs: Dict[str, Sequence[StructureConfig]],
-        input_prefix: str,
-        output_prefix: str,
-        num_output_files: Optional[int] = None,
-        add_reverse_edges=True,
-        enable_assertions=False,
-        graph_name: Optional[str] = None,
+        loader_config: HeterogeneousLoaderConfig,
     ):
-        super().__init__(local_input_path, local_output_path, data_configs)
+        self.output_path = loader_config.local_metadata_output_path
+        self._data_configs = loader_config.data_configs
+        self.feature_configs: list[FeatureConfig] = []
 
         # TODO: Pass as an argument?
-        if input_prefix.startswith("s3://"):
+        if loader_config.input_prefix.startswith("s3://"):
             self.filesystem_type = "s3"
         else:
-            assert os.path.isabs(input_prefix), "We expect an absolute path"
+            assert os.path.isabs(loader_config.input_prefix), "We expect an absolute path"
             self.filesystem_type = "local"
 
         self.spark = spark  # type: SparkSession
-        self.add_reverse_edges = add_reverse_edges
+        self.add_reverse_edges = loader_config.add_reverse_edges
         # Remove trailing slash in s3 paths
         if self.filesystem_type == "s3":
-            self.input_prefix = s3_utils.s3_path_remove_trailing(input_prefix)
-            self.output_prefix = s3_utils.s3_path_remove_trailing(output_prefix)
+            self.input_prefix = s3_utils.s3_path_remove_trailing(loader_config.input_prefix)
+            self.output_prefix = s3_utils.s3_path_remove_trailing(loader_config.output_prefix)
         else:
             # TODO: Any checks for local paths?
-            self.input_prefix = input_prefix
-            self.output_prefix = output_prefix
+            self.input_prefix = loader_config.input_prefix
+            self.output_prefix = loader_config.output_prefix
         self.num_output_files = (
-            num_output_files
-            if num_output_files and num_output_files > 0
+            loader_config.num_output_files
+            if loader_config.num_output_files and loader_config.num_output_files > 0
             else int(spark.sparkContext.defaultParallelism)
         )
         assert self.num_output_files > 0
         # Mapping from node type to filepath, each file is a node-str to node-int-id mapping
-        self.node_mapping_paths = {}  # type: Dict[str, Sequence[str]]
+        self.node_mapping_paths: dict[str, Sequence[str]] = {}
         # Mapping from label name to value counts
         self.label_properties: Dict[str, Counter] = defaultdict(Counter)
-        self.timers = defaultdict(float)  # type: Dict
-        self.enable_assertions = enable_assertions
+        self.timers = defaultdict(float)
+        self.enable_assertions = loader_config.enable_assertions
         # Column names that are valid in CSV can be invalid in Parquet
         # we collect an column name substitutions we had to make
         # here and later output as a JSON file.
-        self.column_substitutions = {}  # type: Dict[str, str]
-        self.graph_info = {}  # type: Dict[str, Any]
-        self.graph_name = graph_name
+        self.column_substitutions: dict[str, str] = {}
+        self.graph_info: dict[str, Any] = {}
+        # Structure:
+        # {
+        #     "node_features": {
+        #         "node_type1": {
+        #             "feature_name1": {
+        #                 # feature1 representation goes here
+        #             },
+        #             "feature_name2": {}, ...
+        #         },
+        #         "node_type2": {...}
+        #     },
+        #     "edges_features": {...}
+        # }
+        self.transformation_representations = {"node_features": {}, "edge_features": {}}
+        self.graph_name = loader_config.graph_name
         self.skip_train_masks = False
+        self.pre_computed_transformations = loader_config.precomputed_transformations
 
     def process_and_write_graph_data(
         self, data_configs: Mapping[str, Sequence[StructureConfig]]
-    ) -> tuple[dict, dict]:
+    ) -> ProcessedGraphRepresentation:
         """Process and encode all graph data.
 
         Extracts and encodes graph structure before writing to storage, then applies pre-processing
@@ -162,22 +231,12 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
         Returns
         -------
-        tuple[dict, dict]
-            A tuple with two dictionaries:
-            The first is the dictionary of metadata for the graph, in "chunked-graph"
-            format, with additional keys.
-            For chunked graph format see
-            https://docs.dgl.ai/guide/distributed-preprocessing.html#specification
+        ProcessedGraphRepresentation
+            A dataclass object containing JSON representations of a graph after
+            it has been processed.
 
-            The dict also contains a "raw_id_mappings" key, which is a dict
-            of dicts, one for each node type. Each entry contains files information
-            about the raw-to-integer ID mapping for each node.
-
-            The returned value also contains an additional dict of dicts,
-            "graph_info" which contains additional information about the
-            graph in a more readable format.
-
-            The second is a dict of duration values for each part of the execution.
+            See `dist_heterogeneous_loader.ProcessedGraphRepresentation` for more
+            details.
         """
         # TODO: See if it's better to return some data structure
         # for the followup steps instead of just have side-effects
@@ -250,6 +309,14 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         with open(os.path.join(self.output_path, "metadata.json"), "w", encoding="utf-8") as f:
             json.dump(metadata_dict, f, indent=4)
 
+        # Write the transformations file
+        with open(
+            os.path.join(self.output_path, TRANSFORMATIONS_FILENAME), "w", encoding="utf-8"
+        ) as f:
+            json.dump(self.transformation_representations, f, indent=4)
+
+        # Column substitutions contain any col names we needed to change because their original
+        # name did not fit Parquet requirements
         if len(self.column_substitutions) > 0:
             with open(
                 os.path.join(self.output_path, "column_substitutions.json"), "w", encoding="utf-8"
@@ -260,7 +327,13 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
         logging.info("Finished Distributed Graph Processing ...")
 
-        return metadata_dict, self.timers
+        processed_representations = ProcessedGraphRepresentation(
+            processed_graph_metadata_dict=metadata_dict,
+            transformation_representations=self.transformation_representations,
+            timers=self.timers,
+        )
+
+        return processed_representations
 
     @staticmethod
     def _at_least_one_label_exists(data_configs: Mapping[str, Sequence[StructureConfig]]) -> bool:
@@ -462,7 +535,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     # Single column, but could be a multi-valued vector
                     return f"{row_vals[0]}"
 
-            input_rdd = input_df.rdd.map(csv_row)  # type: RDD
+            input_rdd: RDD = input_df.rdd.map(csv_row)
             input_rdd.saveAsTextFile(os.path.join(full_output_path, "csv"))
             prefix_with_format = os.path.join(output_prefix, "csv")
         else:
@@ -949,7 +1022,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         Returns
         -------
         Tuple[Dict, Dict]
-            A tuple with two dicts, both dicts have names as their keys.
+            A tuple with two dicts, both dicts have feature names as their keys.
             The first dict has the output metadata for the feature
             as  values, and the second has the lengths of the
             vector representations of the features as values.
@@ -957,12 +1030,24 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         node_type_feature_metadata = {}
         ntype_feat_sizes = {}  # type: Dict[str, int]
         for feat_conf in feature_configs:
-            transformer = DistFeatureTransformer(feat_conf)
+            json_representation = self.transformation_representations.get(feat_conf.feat_name, {})
+            transformer = DistFeatureTransformer(feat_conf, self.spark, json_representation)
 
-            transformed_feature_df = transformer.apply_transformation(nodes_df)
+            transformed_feature_df, json_representation = transformer.apply_transformation(nodes_df)
             transformed_feature_df.cache()
 
-            def write_processed_feature(feat_name, single_feature_df, node_type, transformer_name):
+            # Will evaluate False for empty dict
+            if json_representation:
+                self.transformation_representations["node_features"][
+                    feat_conf.feat_name
+                ] = json_representation
+
+            def write_processed_feature(
+                feat_name: str,
+                single_feature_df: DataFrame,
+                node_type: str,
+                transformer: DistFeatureTransformer,
+            ):
                 feature_output_path = os.path.join(
                     self.output_prefix, f"node_data/{node_type}-{feat_name}"
                 )
@@ -983,7 +1068,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 nfeat_size = 1 if isinstance(feat_val, (int, float)) else len(feat_val)
                 ntype_feat_sizes.update({feat_name: nfeat_size})
 
-                self.timers[f"{transformer_name}-{node_type}-{feat_name}"] = (
+                self.timers[f"{transformer.get_transformation_name()}-{node_type}-{feat_name}"] = (
                     perf_counter() - node_transformation_start
                 )
 
@@ -1001,7 +1086,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                             bert_feat_name,
                             single_feature_df,
                             node_type,
-                            transformer.get_transformation_name(),
+                            transformer,
                         )
                 else:
                     single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(
@@ -1011,7 +1096,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                         feat_name,
                         single_feature_df,
                         node_type,
-                        transformer.get_transformation_name(),
+                        transformer,
                     )
 
             # Unpersist and move on to next feature
@@ -1416,10 +1501,16 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 feat_conf.feat_name,
                 edge_type,
             )
-            transformer = DistFeatureTransformer(feat_conf)
+            json_representation = self.transformation_representations.get(feat_conf.feat_name, {})
+            transformer = DistFeatureTransformer(feat_conf, self.spark, json_representation)
 
-            transformed_feature_df = transformer.apply_transformation(edges_df)
+            transformed_feature_df, json_representation = transformer.apply_transformation(edges_df)
             transformed_feature_df.cache()
+            # Will evaluate False for empty dict
+            if json_representation:
+                self.transformation_representations["node_features"][
+                    feat_conf.feat_name
+                ] = json_representation
 
             def write_feature(self, feat_name, single_feature_df, edge_type, transformer_name):
                 feature_output_path = os.path.join(
@@ -1610,7 +1701,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             In case an invalid task type name is specified in the label config.
         """
         label_col = label_config.label_column
-        if not node_or_edge_type in self.label_properties:
+        if node_or_edge_type not in self.label_properties:
             self.label_properties[node_or_edge_type] = Counter()
         # TODO: Something wrong with the assignment here? Investigate
         self.label_properties[node_or_edge_type][COLUMN_NAME] = label_col
@@ -1876,5 +1967,6 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         )
         return train_mask_df, val_mask_df, test_mask_df
 
-    def load(self) -> tuple[dict, dict]:
+    def load(self) -> ProcessedGraphRepresentation:
+        """Load graph and return JSON representations."""
         return self.process_and_write_graph_data(self._data_configs)

@@ -657,7 +657,7 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                     test_results = {task_info.task_id: test_scores}
 
         if len(nfeat_recon_tasks) > 0:
-            def nfrecon_gen_embs(skip_last_self_loop=False,node_embs=embs):
+            def nfrecon_gen_embs(skip_last_self_loop=False, node_embs=embs):
                 """ Generate node embeddings for node feature reconstruction
                 """
                 if skip_last_self_loop is True:
