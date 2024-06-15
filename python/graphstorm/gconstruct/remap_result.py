@@ -661,6 +661,8 @@ def _parse_gs_config(config):
     if config.multi_tasks is not None:
         node_predict_dirs = []
         edge_predict_dirs = []
+        if predict_dir is None:
+            return node_id_mapping, None, emb_dir, pred_ntypes, pred_etypes
         # multi-task setting
         tasks = config.multi_tasks
         for task in tasks:

@@ -499,6 +499,31 @@ def test_parse_config():
         assert pred_etypes[0] == ['n0', 'r0', 'r1']
         assert pred_etypes[1] == ['n0', 'r0', 'r2']
 
+        # there is no predict path
+        # it will use emb_path
+        config = GSConfig.__new__(GSConfig)
+        setattr(config, "_part_config", part_path)
+        setattr(config, "_save_embed_path", save_embed_path)
+        config._parse_multi_tasks(multi_task_config)
+        node_id_mapping, predict_dir, emb_dir, pred_ntypes, pred_etypes = _parse_gs_config(config)
+        assert node_id_mapping == os.path.join(tmpdirname, "raw_id_mappings")
+        assert isinstance(predict_dir, tuple)
+        node_predict_dirs, edge_predict_dirs = predict_dir
+        assert len(node_predict_dirs) == 2
+        assert len(edge_predict_dirs) == 2
+        assert node_predict_dirs[0] == os.path.join(save_embed_path, config.multi_tasks[0].task_id)
+        assert node_predict_dirs[1] == os.path.join(save_embed_path, config.multi_tasks[1].task_id)
+        assert edge_predict_dirs[0] == os.path.join(save_embed_path, config.multi_tasks[2].task_id)
+        assert edge_predict_dirs[1] == os.path.join(save_embed_path, config.multi_tasks[3].task_id)
+
+        # there is no predict path and emb path
+        config = GSConfig.__new__(GSConfig)
+        setattr(config, "_part_config", part_path)
+        config._parse_multi_tasks(multi_task_config)
+        node_id_mapping, predict_dir, emb_dir, pred_ntypes, pred_etypes = _parse_gs_config(config)
+        assert predict_dir is None
+        assert emb_dir is None
+
 if __name__ == '__main__':
     test_parse_config()
 
