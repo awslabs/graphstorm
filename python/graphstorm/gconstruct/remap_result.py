@@ -946,7 +946,9 @@ def main(args, gs_config_args):
     if len(pred_etypes) > 0:
         if isinstance(predict_dir, tuple):
             _, edge_predict_dirs = predict_dir
-            edge_pred_etypes = pred_etypes
+            # In multi-task learning,
+            # each edge predict task only does prediction on one edge type
+            edge_pred_etypes = [[pred_etype] for pred_etype in pred_etypes]
         else:
             edge_predict_dirs = [predict_dir]
             edge_pred_etypes = [pred_etypes]
@@ -969,7 +971,9 @@ def main(args, gs_config_args):
     if len(pred_ntypes) > 0:
         if isinstance(predict_dir, tuple):
             node_predict_dirs, _ = predict_dir
-            node_pred_ntypes = pred_ntypes
+            # In multi-task learning,
+            # each node predict task only does prediction on one node type
+            node_pred_ntypes = [[pred_ntype] for pred_ntype in pred_ntypes]
         else:
             node_predict_dirs = [predict_dir]
             node_pred_ntypes = [pred_ntypes]

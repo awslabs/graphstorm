@@ -376,3 +376,70 @@ python3 $GS_HOME/tests/end2end-tests/data_process/check_emb_remap.py --remap-out
 error_and_exit $?
 
 rm -fr /tmp/em_remap/
+
+# Test remap for multi-task learning
+echo "********* Test the remap multi-task predictions *********"
+python3 $GS_HOME/tests/end2end-tests/data_process/gen_multi_task_remap_test.py --output /tmp/mt_remap/
+
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/mt_remap/id_mapping/ --logging-level debug --cf /tmp/mt_remap/task.yaml --preserve-input True --rank 0 --world-size 2 --with-shared-fs False
+
+error_and_exit $?
+
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/mt_remap/id_mapping/ --logging-level debug --cf /tmp/mt_remap/task.yaml --preserve-input True --rank 1 --world-size 2 --with-shared-fs False
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/data_process/check_edge_predict_remap.py --remap-output /tmp/mt_remap/predict/edge_classification-n0_access_n1-test_ec0/ --test-etypes "n0,access,n1"
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/data_process/check_edge_predict_remap.py --remap-output /tmp/mt_remap/predict/edge_classification-n1_access_n0-test_ec1/ --test-etypes "n1,access,n0"
+
+error_and_exit $?
+
+cnt=$(ls /tmp/mt_remap/predict/edge_classification-n0_access_n1-test_ec0/n0_access_n1/src_nids-*.pt | wc -l)
+if test $cnt == 2
+then
+    echo "src_nids-xxx.pt must exist."
+    exit -1
+fi
+
+cnt=$(ls /tmp/mt_remap/predict/edge_classification-n0_access_n1-test_ec0/n0_access_n1/dst_nids-*.pt | wc -l)
+if test $cnt == 2
+then
+    echo "dst_nids-xxx.pt must exist."
+    exit -1
+fi
+
+cnt=$(ls /tmp/mt_remap/predict/edge_classification-n0_access_n1-test_ec0/n0_access_n1/predict-*.pt | wc -l)
+if test $cnt == 2
+then
+    echo "predict-xxx.pt must exist."
+    exit -1
+fi
+
+cnt=$(ls /tmp/mt_remap/predict/edge_classification-n1_access_n0-test_ec1/n1_access_n0/src_nids-*.pt | wc -l)
+if test $cnt == 2
+then
+    echo "src_nids-xxx.pt must exist."
+    exit -1
+fi
+
+cnt=$(ls /tmp/mt_remap/predict/edge_classification-n1_access_n0-test_ec1/n1_access_n0/dst_nids-*.pt | wc -l)
+if test $cnt == 2
+then
+    echo "dst_nids-xxx.pt must exist."
+    exit -1
+fi
+
+cnt=$(ls /tmp/mt_remap/predict/edge_classification-n1_access_n0-test_ec1/n1_access_n0/predict-*.pt | wc -l)
+if test $cnt == 2
+then
+    echo "predict-xxx.pt must exist."
+    exit -1
+fi
+
+python3 $GS_HOME/tests/end2end-tests/data_process/check_node_predict_remap.py --remap-output /tmp/mt_remap/predict/node_classification-n0-test_nc1/ --test-ntypes "n0"
+
+error_and_exit $?
+
+rm -fr /tmp/mt_remap/
