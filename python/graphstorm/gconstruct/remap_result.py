@@ -859,19 +859,33 @@ def main(args, gs_config_args):
         else:
             # check the prediciton result paths
             for pred_dir, pred_ntype in zip(node_predict_dirs, pred_ntypes):
-                assert os.path.exists(pred_dir), \
-                    f"Prediction dir {pred_dir} does not exist."
+                if not os.path.exists(pred_dir):
+                    logging.warning("prediction results of %s"
+                                    "do not exists. Skip doing remapping for it",
+                                    pred_dir)
+                    # The prediction path may not exist.
+                    continue
+
+                # if the prediction path exists
+                # the <prediction-path>/<ntype> must exists.
                 assert os.path.exists(os.path.join(pred_dir, pred_ntype)), \
                     f"Prediction dir {os.path.join(pred_dir, pred_ntype)}" \
                     f"for {pred_ntype} does not exist."
+
             for pred_dir, pred_etype in zip(edge_predict_dirs, pred_etypes):
-                assert os.path.exists(pred_dir), \
-                    f"Prediction dir {pred_dir} does not exist."
+                if not os.path.exists(pred_dir):
+                    logging.warning("prediction results of %s"
+                                    "do not exists. Skip doing remapping for it",
+                                    pred_dir)
+                    # The prediction path may not exist.
+                    continue
+
+                # if the prediction path exists
+                # the <prediction-path>/<etype> must exists.
                 pred_path = os.path.join(pred_dir, "_".join(pred_etype))
                 assert os.path.exists(pred_path), \
                     f"Prediction dir {pred_path}" \
                     f"for {pred_etype} does not exist."
-
     else:
         pred_etypes = []
         pred_ntypes = []
