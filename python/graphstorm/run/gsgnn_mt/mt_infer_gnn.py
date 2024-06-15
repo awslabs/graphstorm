@@ -39,9 +39,9 @@ from graphstorm.inference import GSgnnMultiTaskLearningInferer
 
 from graphstorm.utils import get_device, use_wholegraph
 from graphstorm.utils import get_lm_ntypes
-from gsgnn_mt import create_evaluator
-
 from graphstorm.eval import GSgnnMultiTaskEvaluator
+
+from gsgnn_mt import create_evaluator
 
 def create_task_infer_dataloader(task, config, infer_data):
     """ Create task specific dataloader for inference tasks
@@ -191,7 +191,8 @@ def main(config_args):
             else model.node_input_encoder.out_dims
 
     for task in tasks:
-        decoder, loss_func = gs.create_task_decoder(task, infer_data.g, encoder_out_dims, train_task=True)
+        decoder, loss_func = gs.create_task_decoder(
+            task, infer_data.g, encoder_out_dims, train_task=True)
 
         data_loader = create_task_infer_dataloader(task, config, infer_data)
 
@@ -223,7 +224,8 @@ def main(config_args):
     # edge prediction tasks.
     # When computing node embeddings all the edges will be used
     # in message passing.
-    predict_test_dataloader = GSgnnMultiTaskDataLoader(infer_data, predict_tasks, predict_dataloaders) \
+    predict_test_dataloader = GSgnnMultiTaskDataLoader(
+        infer_data, predict_tasks, predict_dataloaders) \
         if len(predict_dataloaders) > 0 else None
     # When doing link prediction evaluation, we want to avoid
     # including testing edges in the message passing.
