@@ -41,8 +41,6 @@ from graphstorm.utils import get_device, use_wholegraph
 from graphstorm.utils import get_lm_ntypes
 from graphstorm.eval import GSgnnMultiTaskEvaluator
 
-from gsgnn_mt import create_evaluator
-
 def create_task_infer_dataloader(task, config, infer_data):
     """ Create task specific dataloader for inference tasks
 
@@ -199,7 +197,7 @@ def main(config_args):
         if not config.no_validation:
             # With validation, we should init evaluators.
             task_evaluators[task.task_id] = \
-                create_evaluator(task)
+                gs.create_evaluator(task)
 
         if task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
             # Link prediction should be handled separately

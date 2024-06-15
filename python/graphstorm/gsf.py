@@ -90,14 +90,12 @@ from .dataloading import (FastGSgnnLinkPredictionDataLoader,
 from .dataloading import (GSgnnLinkPredictionTestDataLoader,
                           GSgnnLinkPredictionJointTestDataLoader,
                           GSgnnLinkPredictionPredefinedTestDataLoader)
-from .trainer import (GSgnnLinkPredictionTrainer,
-                      GSgnnNodePredictionTrainer,
-                      GSgnnEdgePredictionTrainer,
-                      GLEMNodePredictionTrainer)
-from .inference import (GSgnnLinkPredictionInferrer,
-                        GSgnnNodePredictionInferrer,
-                        GSgnnEdgePredictionInferrer,
-                        GSgnnEdgePredictionInferrer)
+
+from .eval import (GSgnnClassificationEvaluator,
+                   GSgnnRegressionEvaluator,
+                   GSgnnRconstructFeatRegScoreEvaluator,
+                   GSgnnPerEtypeMrrLPEvaluator,
+                   GSgnnMrrLPEvaluator)
 
 from .tracker import get_task_tracker_class
 
@@ -909,3 +907,78 @@ def create_task_decoder(task_info, g, decoder_input_dim, train_task):
         return create_builtin_reconstruct_nfeat_decoder(g, decoder_input_dim, task_info.task_config, train_task)
     else:
         raise TypeError(f"Unknown task type {task_info.task_type}")
+
+def create_evaluator(task_info):
+    """ Create task specific evaluator according to task_info
+
+    Parameters
+    ----------
+    task_info: TaskInfo
+        Task info.
+
+    Return
+    ------
+    Evaluators
+    """
+    config = task_info.task_config
+    if task_info.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION]:
+        multilabel = config.multilabel[config.eval_target_ntype] \
+            if isinstance(config.multilabel, dict) else config.multilabel
+        return GSgnnClassificationEvaluator(config.eval_frequency,
+                                            config.eval_metric,
+                                            multilabel,
+                                            config.use_early_stop,
+                                            config.early_stop_burnin_rounds,
+                                            config.early_stop_rounds,
+                                            config.early_stop_strategy)
+    elif task_info.task_type in [BUILTIN_TASK_NODE_REGRESSION]:
+        return GSgnnRegressionEvaluator(config.eval_frequency,
+                                        config.eval_metric,
+                                        config.use_early_stop,
+                                        config.early_stop_burnin_rounds,
+                                        config.early_stop_rounds,
+                                        config.early_stop_strategy)
+    elif task_info.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION]:
+        return GSgnnClassificationEvaluator(config.eval_frequency,
+                                            config.eval_metric,
+                                            config.multilabel,
+                                            config.use_early_stop,
+                                            config.early_stop_burnin_rounds,
+                                            config.early_stop_rounds,
+                                            config.early_stop_strategy)
+
+    elif task_info.task_type in [BUILTIN_TASK_EDGE_REGRESSION]:
+        return GSgnnRegressionEvaluator(config.eval_frequency,
+                                        config.eval_metric,
+                                        config.use_early_stop,
+                                        config.early_stop_burnin_rounds,
+                                        config.early_stop_rounds,
+                                        config.early_stop_strategy)
+    elif task_info.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+        assert len(config.eval_metric) == 1, \
+        "GraphStorm doees not support computing multiple metrics at the same time."
+        if config.report_eval_per_type:
+            return GSgnnPerEtypeMrrLPEvaluator(
+                eval_frequency=config.eval_frequency,
+                major_etype=config.model_select_etype,
+                use_early_stop=config.use_early_stop,
+                early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                early_stop_rounds=config.early_stop_rounds,
+                early_stop_strategy=config.early_stop_strategy)
+        else:
+            return GSgnnMrrLPEvaluator(
+                eval_frequency=config.eval_frequency,
+                use_early_stop=config.use_early_stop,
+                early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                early_stop_rounds=config.early_stop_rounds,
+                early_stop_strategy=config.early_stop_strategy)
+    elif task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
+        return GSgnnRconstructFeatRegScoreEvaluator(
+            config.eval_frequency,
+            config.eval_metric,
+            config.use_early_stop,
+            config.early_stop_burnin_rounds,
+            config.early_stop_rounds,
+            config.early_stop_strategy)
+    return None
+
