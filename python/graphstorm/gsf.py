@@ -918,7 +918,7 @@ def create_evaluator(task_info):
 
     Return
     ------
-    Evaluators
+    Evaluator
     """
     config = task_info.task_config
     if task_info.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION]:
