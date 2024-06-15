@@ -23,8 +23,7 @@ import torch as th
 from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_NODE_REGRESSION,
                       BUILTIN_TASK_EDGE_CLASSIFICATION,
-                      BUILTIN_TASK_EDGE_REGRESSION,
-                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+                      BUILTIN_TASK_EDGE_REGRESSION)
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
 from ..model.utils import (save_node_prediction_results,
@@ -36,7 +35,6 @@ from ..model import (do_full_graph_inference,
                      gen_emb_for_nfeat_reconstruct)
 from ..model.multitask_gnn import multi_task_mini_batch_predict
 from ..model.lp_gnn import run_lp_mini_batch_predict
-from ..model.gnn_encoder_base import GSgnnGNNEncoderInterface
 
 from ..model.edge_decoder import LinkPredictDistMultDecoder
 
@@ -188,9 +186,9 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
                     if skip_last_self_loop is True:
                         # Turn off the last layer GNN's self-loop
                         # to compute node embeddings.
-                        model.gnn_encoder.skip_last_selfloop()
+                        self._model.gnn_encoder.skip_last_selfloop()
                         new_embs = gen_embs()
-                        model.gnn_encoder.reset_last_selfloop()
+                        self._model.gnn_encoder.reset_last_selfloop()
                         return new_embs
                     else:
                         # If skip_last_self_loop is False
@@ -229,6 +227,7 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
 
         g = data.g
         if save_embed_path is not None:
+            logging.info("Saving node embeddings")
             save_gsgnn_embeddings(g,
                                   save_embed_path,
                                   embs,
@@ -249,6 +248,7 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
         barrier()
 
         if save_prediction_path is not None:
+            logging.info("Saving prediction results")
             target_ntypes = set()
             task_infos = predict_test_loader.task_infos
             dataloaders = predict_test_loader.dataloaders
@@ -271,42 +271,47 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
 
             for task_info, dataloader in zip(task_infos, dataloaders):
                 task_id = task_info.task_id
-                if task_id in pre_results:
-                    save_pred_path = os.path.join(save_prediction_path, task_id)
-                    if task_info.task_type in \
-                        [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
-                        pred, _ = pre_results[task_id]
-                        if pred is not None:
-                            shuffled_preds = {}
+                if task_id not in pre_results:
+                    logging.debug("No Prediction results for %s",
+                                  task_id)
+                    continue
 
-                            target_ntype = task_info.task_config.target_ntype
-                            pred_nids = dataloader.target_nidx[target_ntype]
-                            if node_id_mapping_file is not None:
-                                pred_nids = nid_shuffler.shuffle_nids(
-                                    target_ntype, pred_nids)
+                # Save prediction results
+                save_pred_path = os.path.join(save_prediction_path, task_id)
+                if task_info.task_type in \
+                    [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
+                    pred, _ = pre_results[task_id]
+                    if pred is not None:
+                        shuffled_preds = {}
 
-                            shuffled_preds[target_ntype] = (pred, pred_nids)
-                            save_node_prediction_results(shuffled_preds, save_pred_path)
-                    elif task_info.task_type in \
-                        [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
-                        pred, _ = pre_results[task_id]
-                        if pred is not None:
-                            shuffled_preds = {}
-                            target_etype = task_info.task_config.target_etype[0]
-                            pred_eids = dataloader.target_eidx[target_etype]
+                        target_ntype = task_info.task_config.target_ntype
+                        pred_nids = dataloader.target_nidx[target_ntype]
+                        if node_id_mapping_file is not None:
+                            pred_nids = nid_shuffler.shuffle_nids(
+                                target_ntype, pred_nids)
 
-                            pred_src_nids, pred_dst_nids = \
-                                g.find_edges(pred_eids, etype=target_etype)
+                        shuffled_preds[target_ntype] = (pred, pred_nids)
+                        save_node_prediction_results(shuffled_preds, save_pred_path)
+                elif task_info.task_type in \
+                    [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
+                    pred, _ = pre_results[task_id]
+                    if pred is not None:
+                        shuffled_preds = {}
+                        target_etype = task_info.task_config.target_etype[0]
+                        pred_eids = dataloader.target_eidx[target_etype]
 
-                            if node_id_mapping_file is not None:
-                                pred_src_nids = nid_shuffler.shuffle_nids(
-                                    target_etype[0], pred_src_nids)
-                                pred_dst_nids = nid_shuffler.shuffle_nids(
-                                    target_etype[2], pred_dst_nids)
-                            shuffled_preds[target_etype] = \
-                                (pred, pred_src_nids, pred_dst_nids)
-                            save_edge_prediction_results(shuffled_preds, save_pred_path)
-                    else:
-                        # There is no prediction results for link prediction
-                        # and feature reconstruction
-                        continue
+                        pred_src_nids, pred_dst_nids = \
+                            g.find_edges(pred_eids, etype=target_etype)
+
+                        if node_id_mapping_file is not None:
+                            pred_src_nids = nid_shuffler.shuffle_nids(
+                                target_etype[0], pred_src_nids)
+                            pred_dst_nids = nid_shuffler.shuffle_nids(
+                                target_etype[2], pred_dst_nids)
+                        shuffled_preds[target_etype] = \
+                            (pred, pred_src_nids, pred_dst_nids)
+                        save_edge_prediction_results(shuffled_preds, save_pred_path)
+                else:
+                    # There is no prediction results for link prediction
+                    # and feature reconstruction
+                    continue
