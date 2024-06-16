@@ -148,6 +148,9 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
 
         pre_results = {}
         if predict_test_loader is not None:
+            # compute prediction results for node classification,
+            # node regressoin, edge classification
+            # and edge regression tasks.
             pre_results = \
                 multi_task_mini_batch_predict(
                     self._model,
@@ -166,7 +169,10 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
             with th.no_grad():
                 for dataloader, task_info in zip(dataloaders, task_infos):
                     if dataloader is None:
+                        # dataloader is None, skip
                         pre_results[task_info.task_id] = None
+                        continue
+
                     # For link prediction, do evaluation task by task.
                     lp_test_embs = gen_embs(edge_mask=task_info.task_config.train_mask)
 

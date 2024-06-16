@@ -97,7 +97,7 @@ gsf:
         target_ntype: "movie"
         batch_size: 128
         mask_fields:
-          - "train_mask_c0" # node classification mask 0
+          - "train_mask_c0" # use the same mask as node classification c0
           - "val_mask_c0"
           - "test_mask_c0"
         eval_metric:
