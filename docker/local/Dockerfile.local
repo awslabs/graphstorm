@@ -106,5 +106,4 @@ COPY code/tools /graphstorm/tools
 COPY code/training_scripts /graphstorm/training_scripts
 COPY code/fetch_and_run.sh /graphstorm/fetch_and_run.sh
 
-
-CMD ["bash", "/graphstorm/fetch_and_run.sh"]
+CMD ["/usr/sbin/sshd", "-D"]
