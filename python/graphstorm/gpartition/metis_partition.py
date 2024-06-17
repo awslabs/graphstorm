@@ -71,11 +71,11 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
                     --schema_file {metadata_filename} \
                     --output_dir {input_path} --num_parts {num_parts}"
 
-
         if self.run_command(command, "preprocess"):
             # parmetis_preprocess.py creates this file, but doesn't put it in the cwd,
             # where the parmetis program (pm_dglpart) expects it to be.
-            # So we copy it here.
+            # So we copy it from the location parmetis_preprocess saves it to the cwd.
+            # https://github.com/dmlc/dgl/blob/cbad2f0af317dce2af1771c131b7eea92ae7c8a7/tools/distpartitioning/parmetis_preprocess.py#L318
             with open(os.path.join(input_path, metadata_filename), encoding="utf-8") as f:
                 graph_meta = json.load(f)
             graph_name = graph_meta["graph_name"]
