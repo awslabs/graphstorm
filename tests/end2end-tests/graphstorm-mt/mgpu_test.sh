@@ -501,8 +501,8 @@ then
     exit -1
 fi
 
-cnt=$(ls -l /data/gsgnn_mt/prediction/node_classification-movie-label/movie | grep predict | wc -l)
-if test $cnt !=$[$NUM_INFERs * 2]
+cnt=$(ls -l /data/gsgnn_mt/prediction/node_classification-movie-label/movie | grep predict- | wc -l)
+if test $cnt != $[$NUM_INFERs * 2]
 then
     echo "The number of saved prediction result files is $cnt which does not equal to $NUM_INFERs (the number of inferers) * 2 as --preserve-input is True, for movie node classification task 0"
     exit -1
@@ -515,7 +515,7 @@ then
     exit -1
 fi
 
-cnt=$(ls -l /data/gsgnn_mt/prediction/node_classification-movie-label2/movie | grep predict | wc -l)
+cnt=$(ls -l /data/gsgnn_mt/prediction/node_classification-movie-label2/movie | grep predict- | wc -l)
 if test $cnt != $[$NUM_INFERs * 2]
 then
     echo "The number of saved prediction result files is $cnt which does not equal to $NUM_INFERs (the number of inferers) * 2 as --preserve-input is True, for movie node classification task 1"
