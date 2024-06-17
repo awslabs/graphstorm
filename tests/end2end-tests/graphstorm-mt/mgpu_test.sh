@@ -474,7 +474,7 @@ then
 fi
 
 cnt=$(ls -l /data/gsgnn_mt/prediction/edge_classification-user_rating_movie-rate_class/user_rating_movie/ | grep predict | wc -l)
-if test $cnt != $NUM_INFERs * 2
+if test $cnt != $[$NUM_INFERs * 2]
 then
     echo "The number of saved prediction result files is $cnt which does not equal to $NUM_INFERs (the number of inferers) * 2 as --preserve-input is True, for user,rating,movie rate edge classification"
     exit -1
@@ -488,7 +488,7 @@ then
 fi
 
 cnt=$(ls -l /data/gsgnn_mt/prediction/edge_regression-user_rating_movie-rate/user_rating_movie/ | grep predict | wc -l)
-if test $cnt != $NUM_INFERs * 2
+if test $cnt != $[$NUM_INFERs * 2]
 then
     echo "The number of saved prediction result files is $cnt which does not equal to $NUM_INFERs (the number of inferers) * 2 as --preserve-input is True, for user,rating,movie rate edge regression"
     exit -1
@@ -502,7 +502,7 @@ then
 fi
 
 cnt=$(ls -l /data/gsgnn_mt/prediction/node_classification-movie-label/movie | grep predict | wc -l)
-if test $cnt != $NUM_INFERs * 2
+if test $cnt !=$[$NUM_INFERs * 2]
 then
     echo "The number of saved prediction result files is $cnt which does not equal to $NUM_INFERs (the number of inferers) * 2 as --preserve-input is True, for movie node classification task 0"
     exit -1
@@ -516,7 +516,7 @@ then
 fi
 
 cnt=$(ls -l /data/gsgnn_mt/prediction/node_classification-movie-label2/movie | grep predict | wc -l)
-if test $cnt != $NUM_INFERs * 2
+if test $cnt != $[$NUM_INFERs * 2]
 then
     echo "The number of saved prediction result files is $cnt which does not equal to $NUM_INFERs (the number of inferers) * 2 as --preserve-input is True, for movie node classification task 1"
     exit -1
@@ -538,23 +538,23 @@ then
 fi
 
 cnt=$(grep "Test node_classification" /tmp/infer_log.txt | wc -l)
-if test $bst_cnt != 2
+if test $cnt != 4
 then
-    echo "We use SageMaker task tracker, the number of Test node_classification should be 2."
+    echo "We use SageMaker task tracker, the number of Test node_classification should be 4."
     exit -1
 fi
 
 bst_cnt=$(grep "Best Validation node_classification" /tmp/infer_log.txt | wc -l)
 if test $bst_cnt != 2
 then
-    echo "We use SageMaker task tracker, the number of Best Validation accuracy node_classification should be 2."
+    echo "We use SageMaker task tracker, the number of Best Validation accuracy node_classification should be 4."
     exit -1
 fi
 
 cnt=$(grep "Validation node_classification" /tmp/infer_log.txt | wc -l)
-if test $cnt != 2
+if test $cnt != 4
 then
-    echo "We use SageMaker task tracker, the number of Validation node_classification should be 2."
+    echo "We use SageMaker task tracker, the number of Validation node_classification should be 4."
     exit -1
 fi
 
@@ -566,9 +566,9 @@ then
 fi
 
 cnt=$(grep "Test edge_classification" /tmp/infer_log.txt | wc -l)
-if test $cnt != 1
+if test $cnt != 2
 then
-    echo "We use SageMaker task tracker, the number of Test edge_classification should be 1."
+    echo "We use SageMaker task tracker, the number of Test edge_classification should be 2."
     exit -1
 fi
 
@@ -580,9 +580,9 @@ then
 fi
 
 cnt=$(grep "Validation edge_classification" /tmp/infer_log.txt | wc -l)
-if test $cnt != 1
+if test $cnt != 2
 then
-    echo "We use SageMaker task tracker, the number of  Validation edge_classification should be 1."
+    echo "We use SageMaker task tracker, the number of  Validation edge_classification should be 2."
     exit -1
 fi
 
@@ -594,9 +594,9 @@ then
 fi
 
 cnt=$(grep "Test edge_regression" /tmp/infer_log.txt | wc -l)
-if test $cnt != 1
+if test $cnt != 2
 then
-    echo "We use SageMaker task tracker, the number of Test edge_regression should be 1."
+    echo "We use SageMaker task tracker, the number of Test edge_regression should be 2."
     exit -1
 fi
 
@@ -608,9 +608,9 @@ then
 fi
 
 cnt=$(grep "Validation edge_regression" /tmp/infer_log.txt | wc -l)
-if test $cnt != 1
+if test $cnt != 2
 then
-    echo "We use SageMaker task tracker, the number of Validation edge_regression should be 1."
+    echo "We use SageMaker task tracker, the number of Validation edge_regression should be 2."
     exit -1
 fi
 
@@ -622,9 +622,9 @@ then
 fi
 
 cnt=$(grep "Test link_prediction" /tmp/infer_log.txt | wc -l)
-if test $cnt != 1
+if test $cnt != 2
 then
-    echo "We use SageMaker task tracker, the number of Test link_prediction should be 1."
+    echo "We use SageMaker task tracker, the number of Test link_prediction should be 2."
     exit -1
 fi
 
@@ -636,9 +636,9 @@ then
 fi
 
 cnt=$(grep "Validation link_prediction" /tmp/infer_log.txt | wc -l)
-if test $cnt != 1
+if test $cnt != 2
 then
-    echo "We use SageMaker task tracker, the number of Validation link_prediction should be 1."
+    echo "We use SageMaker task tracker, the number of Validation link_prediction should be 2."
     exit -1
 fi
 
@@ -650,9 +650,9 @@ then
 fi
 
 cnt=$(grep "Test reconstruct_node_feat" /tmp/infer_log.txt | wc -l)
-if test $cnt != 1
+if test $cnt != 2
 then
-    echo "We use SageMaker task tracker, the number of Test reconstruct_node_feat should be 1."
+    echo "We use SageMaker task tracker, the number of Test reconstruct_node_feat should be 2."
     exit -1
 fi
 
@@ -664,9 +664,9 @@ then
 fi
 
 cnt=$(grep "Validation reconstruct_node_feat" /tmp/infer_log.txt | wc -l)
-if test $cnt != 1
+if test $cnt != 2
 then
-    echo "We use SageMaker task tracker, the number of Validation reconstruct_node_feat should be 1."
+    echo "We use SageMaker task tracker, the number of Validation reconstruct_node_feat should be 2."
     exit -1
 fi
 
