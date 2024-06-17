@@ -55,6 +55,32 @@ _ROOT = os.path.abspath(os.path.dirname(__file__))
 LABEL_COL = "label"
 NUM_DATAPOINTS = 10000
 
+NODE_CLASS_GRAPHINFO_UPDATES = {
+    "nfeat_size": {
+        "user": {
+            "age": 1,
+            "attention_mask": 16,
+            "input_ids": 16,
+            "token_type_ids": 16,
+            "multi": 2,
+            "state": 3,
+        }
+    },
+    "efeat_size": {},
+    "etype_label": [],
+    "etype_label_property": [],
+    "ntype_label": ["user"],
+    "ntype_label_property": ["gender"],
+    "task_type": "node_class",
+    "label_map": {"male": 0, "female": 1},
+    "label_properties": {
+        "user": {
+            "COLUMN_NAME": "gender",
+            "VALUE_COUNTS": {"male": 3, "female": 1, "null": 1},
+        }
+    },
+}
+
 
 @pytest.fixture(autouse=True, name="tempdir")
 def tempdir_fixture():
@@ -201,9 +227,12 @@ def verify_integ_test_output(
     expected_node_counts = {"director": 3, "genre": 2, "movie": 4, "user": 5}
     # TODO: The following Parquet reads assume there's only one file in the output
     for node_type in metadata["node_type"]:
-        nrows = pq.ParquetFile(
-            os.path.join(loader.output_path, metadata["raw_id_mappings"][node_type]["data"][0])
-        ).metadata.num_rows
+        nrows = pq.read_table(
+            os.path.join(
+                loader.output_path,
+                os.path.dirname(metadata["raw_id_mappings"][node_type]["data"][0]),
+            )
+        ).num_rows
         assert nrows == expected_node_counts[node_type]
 
     expected_edge_counts = {
@@ -216,9 +245,11 @@ def verify_integ_test_output(
     }
 
     for edge_type in metadata["edge_type"]:
-        nrows = pq.ParquetFile(
-            os.path.join(loader.output_path, metadata["edges"][edge_type]["data"][0])
-        ).metadata.num_rows
+        nrows = pq.read_table(
+            os.path.join(
+                loader.output_path, os.path.dirname(metadata["edges"][edge_type]["data"][0])
+            )
+        ).num_rows
         assert nrows == expected_edge_counts[edge_type]
 
     shared_expected_graphinfo = {
@@ -255,33 +286,7 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
     ) as mfile:
         metadata = json.load(mfile)
 
-    graphinfo_updates = {
-        "nfeat_size": {
-            "user": {
-                "age": 1,
-                "attention_mask": 16,
-                "input_ids": 16,
-                "token_type_ids": 16,
-                "multi": 2,
-                "state": 3,
-            }
-        },
-        "efeat_size": {},
-        "etype_label": [],
-        "etype_label_property": [],
-        "ntype_label": ["user"],
-        "ntype_label_property": ["gender"],
-        "task_type": "node_class",
-        "label_map": {"male": 0, "female": 1},
-        "label_properties": {
-            "user": {
-                "COLUMN_NAME": "gender",
-                "VALUE_COUNTS": {"male": 3, "female": 1, "null": 1},
-            }
-        },
-    }
-
-    verify_integ_test_output(metadata, dghl_loader, graphinfo_updates)
+    verify_integ_test_output(metadata, dghl_loader, NODE_CLASS_GRAPHINFO_UPDATES)
 
     expected_node_data = {
         "user": {
@@ -306,7 +311,8 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
     ) as transformation_file:
         transformations_dict = json.load(transformation_file)
 
-        assert "state" in transformations_dict["node_features"]
+        assert "user" in transformations_dict["node_features"]
+        assert "state" in transformations_dict["node_features"]["user"]
 
 
 def test_load_dist_hgl_without_labels(

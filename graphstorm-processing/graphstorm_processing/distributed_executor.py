@@ -242,6 +242,25 @@ class DistributedExecutor:
         # Create the Spark session for execution
         self.spark = spark_utils.create_spark_session(self.execution_env, self.filesystem_type)
 
+        # Initialize the graph loader
+        data_configs = create_config_objects(self.gsp_config_dict)
+        loader_config = HeterogeneousLoaderConfig(
+            add_reverse_edges=self.add_reverse_edges,
+            data_configs=data_configs,
+            enable_assertions=False,
+            graph_name=self.graph_name,
+            input_prefix=self.input_prefix,
+            local_input_path=self.local_config_path,
+            local_metadata_output_path=self.local_metadata_output_path,
+            num_output_files=self.num_output_files,
+            output_prefix=self.output_prefix,
+            precomputed_transformations=self.precomputed_transformations,
+        )
+        self.loader = DistHeterogeneousGraphLoader(
+            self.spark,
+            loader_config,
+        )
+
     def _upload_output_files(self, loader: DistHeterogeneousGraphLoader, force=False):
         """Upload output files to S3
 
@@ -273,27 +292,10 @@ class DistributedExecutor:
         Executes the Spark processing job.
         """
         logging.info("Performing data processing with PySpark...")
-        data_configs = create_config_objects(self.gsp_config_dict)
 
         t0 = time.time()
-        # Prefer explicit arguments for clarity
-        loader_config = HeterogeneousLoaderConfig(
-            add_reverse_edges=self.add_reverse_edges,
-            data_configs=data_configs,
-            enable_assertions=False,
-            graph_name=self.graph_name,
-            input_prefix=self.input_prefix,
-            local_input_path=self.local_config_path,
-            local_metadata_output_path=self.local_metadata_output_path,
-            num_output_files=self.num_output_files,
-            output_prefix=self.output_prefix,
-            precomputed_transformations=self.precomputed_transformations,
-        )
-        loader = DistHeterogeneousGraphLoader(
-            self.spark,
-            loader_config,
-        )
-        processed_representations: ProcessedGraphRepresentation = loader.load()
+
+        processed_representations: ProcessedGraphRepresentation = self.loader.load()
         graph_meta_dict = processed_representations.processed_graph_metadata_dict
 
         t1 = time.time()
@@ -343,7 +345,9 @@ class DistributedExecutor:
 
         # If any of the metadata modification took place, write an updated metadata file
         if updated_metadata:
-            updated_meta_path = os.path.join(loader.output_path, "updated_row_counts_metadata.json")
+            updated_meta_path = os.path.join(
+                self.loader.output_path, "updated_row_counts_metadata.json"
+            )
             with open(
                 updated_meta_path,
                 "w",
@@ -384,7 +388,7 @@ class DistributedExecutor:
         # since we can't rely on SageMaker to do it
         if self.filesystem_type == FilesystemType.S3:
             self._upload_output_files(
-                loader, force=(not self.execution_env == ExecutionEnv.SAGEMAKER)
+                self.loader, force=(not self.execution_env == ExecutionEnv.SAGEMAKER)
             )
 
     def _merge_config_with_transformations(
@@ -406,7 +410,7 @@ class DistributedExecutor:
                 "node_features": {
                     "node_type1": {
                         "feature_name1": {
-                            "transformation": # transformation type
+                            "transformation_name": # transformation name, e.g. "numerical"
                             # feature1 representation goes here
                         },
                         "feature_name2": {}, ...

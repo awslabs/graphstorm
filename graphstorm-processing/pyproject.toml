@@ -40,6 +40,7 @@ black = "~24.2.0"
 pre-commit = "^3.3.3"
 types-mock = "^5.1.0.1"
 pylint = "~2.17.5"
+diff-cover = "^9.0.0"
 
 [project]
 requires-python = ">=3.9" # TODO: Do we need a tilde here?

@@ -131,7 +131,7 @@ def test_multiple_single_cat_cols_json(user_df, spark):
 
     multi_cols_rep = dist_category_transformation.get_json_representation()
 
-    labels_array = multi_cols_rep["string_indexer_labels_array"]
+    labels_arrays = multi_cols_rep["string_indexer_labels_arrays"]
     one_hot_index_for_string = multi_cols_rep["per_col_label_to_one_hot_idx"]
     cols = multi_cols_rep["cols"]
     name = multi_cols_rep["transformation_name"]
@@ -139,9 +139,35 @@ def test_multiple_single_cat_cols_json(user_df, spark):
     assert name == "DistCategoryTransformation"
 
     # The Spark-generated and our own one-hot-index mappings should match
-    for col_labels, col in zip(labels_array, cols):
+    for col_labels, col in zip(labels_arrays, cols):
         for idx, label in enumerate(col_labels):
             assert idx == one_hot_index_for_string[col][label]
+
+
+def test_apply_precomputed_single_cat_cols(user_df, spark):
+    """Test applying precomputed transformation for single-cat columns"""
+    dist_category_transformation = DistCategoryTransformation(["occupation", "gender"], spark)
+
+    original_transformed_df = dist_category_transformation.apply(user_df)
+
+    multi_cols_rep = dist_category_transformation.get_json_representation()
+
+    precomputed_transformation = DistCategoryTransformation(
+        ["occupation", "gender"], spark, multi_cols_rep
+    )
+
+    precomp_transformed_df = precomputed_transformation.apply_precomputed_transformation(user_df)
+
+    occupation_distinct_values = original_transformed_df.select("occupation").distinct().count()
+    gender_distinct_values = original_transformed_df.select("gender").distinct().count()
+
+    precomp_occupation_distinct_values = (
+        precomp_transformed_df.select("occupation").distinct().count()
+    )
+    precomp_gender_distinct_values = precomp_transformed_df.select("gender").distinct().count()
+
+    assert occupation_distinct_values == precomp_occupation_distinct_values
+    assert gender_distinct_values == precomp_gender_distinct_values
 
 
 def test_multi_category_transformation(multi_cat_df_and_separator, check_df_schema):

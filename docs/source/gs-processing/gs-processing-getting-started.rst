@@ -161,6 +161,22 @@ GSProcessing supports both the GConstruct JSON configuration format,
 as well as its own GSProcessing config. You can learn about the
 GSProcessing JSON configuration in :doc:`developer/input-configuration`.
 
+Re-applying feature transformations to new data
+-----------------------------------------------
+
+Often you will process your data at training time and run inference at later
+dates. If your data changes in the meantime. e.g. new values appear in a
+categorical feature, you'll need to ensure no new values appear in the transformed
+data, as the trained model relies on pre-existing values only.
+
+To achieve that, GSProcessing creates an additional file in the output,
+named ``precomputed_transformations.json``. To ensure the same transformations
+are applied to new data, you can copy this file to the top-level path of your
+new input data, and GSProcessing will pick up any transformations there to ensure
+the produced data match the ones that were used to train your model.
+
+Currently, we only support re-applying transformations for categorical features.
+
 
 Developer guide
 ---------------
