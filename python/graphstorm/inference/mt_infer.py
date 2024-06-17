@@ -203,6 +203,10 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
             task_infos = recon_nfeat_test_loader.task_infos
 
             with th.no_grad():
+                # Note: We need to be careful here as embs is a mutable
+                # object (a dictionary), use a mutable value
+                # as default value for an argument is danerous.
+                # pylint: disable=dangerous-default-value
                 def nfrecon_gen_embs(skip_last_self_loop=False, node_embs=embs):
                     """ Generate node embeddings for node feature reconstruction
                     """
