@@ -145,7 +145,7 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
                     task_tracker=self.task_tracker)
             return embs
 
-        node_embs = gen_embs()
+        embs = gen_embs()
         sys_tracker.check('compute embeddings')
         device = self.device
 
@@ -156,7 +156,7 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
             logging.info("Saving node embeddings")
             save_gsgnn_embeddings(g,
                                   save_embed_path,
-                                  node_embs,
+                                  embs,
                                   node_id_mapping_file=node_id_mapping_file,
                                   save_embed_format=save_embed_format)
             barrier()
@@ -190,7 +190,7 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
             pre_results = \
                 multi_task_mini_batch_predict(
                     self._model,
-                    emb=node_embs,
+                    emb=embs,
                     dataloaders=predict_test_loader.dataloaders,
                     task_infos=predict_test_loader.task_infos,
                     device=device,
@@ -203,7 +203,7 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
             task_infos = recon_nfeat_test_loader.task_infos
 
             with th.no_grad():
-                def nfrecon_gen_embs(skip_last_self_loop=False, embs=node_embs):
+                def nfrecon_gen_embs(skip_last_self_loop=False, node_embs=embs):
                     """ Generate node embeddings for node feature reconstruction
                     """
                     if skip_last_self_loop is True:
@@ -217,22 +217,22 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
                         # If skip_last_self_loop is False
                         # we will not change the way we compute
                         # node embeddings.
-                        if embs is not None:
+                        if node_embs is not None:
                             # The embeddings have been computed
                             # when handling predict_tasks in L608
-                            return embs
+                            return node_embs
                         else:
                             return gen_embs()
 
                 # Note(xiangsx): In DistDGl, as we are using the
                 # same dist tensor, the node embeddings
                 # are updated inplace.
-                node_embs = gen_emb_for_nfeat_reconstruct(self._model, nfrecon_gen_embs)
+                nfeat_embs = gen_emb_for_nfeat_reconstruct(self._model, nfrecon_gen_embs)
 
                 nfeat_recon_results = \
                     multi_task_mini_batch_predict(
                         self._model,
-                        emb=node_embs,
+                        emb=nfeat_embs,
                         dataloaders=dataloaders,
                         task_infos=task_infos,
                         device=self.device,
