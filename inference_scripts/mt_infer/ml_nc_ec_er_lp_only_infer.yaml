@@ -11,7 +11,6 @@ gsf:
       - movie:title
   gnn:
     model_encoder_type: rgcn
-    eval_fanout: "4"
     num_layers: 1
     hidden_size: 32
     use_mini_batch_infer: true

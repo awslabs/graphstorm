@@ -393,7 +393,7 @@ then
 fi
 
 # Multi-task will save node embeddings of all the nodes.
-python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_mt/emb/ --infer-embout /data/gsgnn_mt/save-emb/ --link-prediction
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_mt/emb/ --infer-embout /data/gsgnn_mt/save-emb/
 
 
 # Test inference for multi-task learning
@@ -409,7 +409,7 @@ then
     echo "The number of saved embs $cnt is not equal to 3 (for movie, user and the relations)."
 fi
 
-python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_mt/emb/ --infer-embout /data/gsgnn_mt/infer-emb/ --link-prediction
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_mt/emb/ --infer-embout /data/gsgnn_mt/infer-emb/
 
 error_and_exit $?
 

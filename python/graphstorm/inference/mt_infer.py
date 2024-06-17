@@ -142,9 +142,32 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
                     task_tracker=self.task_tracker)
             return embs
 
-        embs = gen_embs()
+        node_embs = gen_embs()
         sys_tracker.check('compute embeddings')
         device = self.device
+
+        g = data.g
+        print(node_embs["movie"][th.arange(10)])
+        if save_embed_path is not None:
+            logging.info("Saving node embeddings")
+            save_gsgnn_embeddings(g,
+                                  save_embed_path,
+                                  node_embs,
+                                  node_id_mapping_file=node_id_mapping_file,
+                                  save_embed_format=save_embed_format)
+            barrier()
+            sys_tracker.check('save embeddings')
+
+            # save relation embedding if any for link prediction tasks
+            if get_rank() == 0:
+                decoders = self._model.task_decoders
+                for task_id, decoder in decoders.items():
+                    if isinstance(decoder, LinkPredictDistMultDecoder):
+                        rel_emb_path = os.path.join(save_embed_path, task_id)
+                        os.makedirs(rel_emb_path, exist_ok=True)
+                        save_relation_embeddings(rel_emb_path, decoder)
+
+        barrier()
 
         pre_results = {}
         if predict_test_loader is not None:
@@ -154,7 +177,7 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
             pre_results = \
                 multi_task_mini_batch_predict(
                     self._model,
-                    emb=embs,
+                    emb=node_embs,
                     dataloaders=predict_test_loader.dataloaders,
                     task_infos=predict_test_loader.task_infos,
                     device=device,
@@ -200,10 +223,10 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
                         # If skip_last_self_loop is False
                         # we will not change the way we compute
                         # node embeddings.
-                        if embs is not None:
+                        if node_embs is not None:
                             # The embeddings have been computed
                             # when handling predict_tasks in L608
-                            return embs
+                            return node_embs
                         else:
                             return gen_embs()
 
@@ -230,28 +253,6 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
                                        test_score=test_score,
                                        dur_eval=time.time() - test_start,
                                        total_steps=0)
-
-        g = data.g
-        if save_embed_path is not None:
-            logging.info("Saving node embeddings")
-            save_gsgnn_embeddings(g,
-                                  save_embed_path,
-                                  embs,
-                                  node_id_mapping_file=node_id_mapping_file,
-                                  save_embed_format=save_embed_format)
-            barrier()
-            sys_tracker.check('save embeddings')
-
-            # save relation embedding if any for link prediction tasks
-            if get_rank() == 0:
-                decoders = self._model.task_decoders
-                for task_id, decoder in decoders.items():
-                    if isinstance(decoder, LinkPredictDistMultDecoder):
-                        rel_emb_path = os.path.join(save_embed_path, task_id)
-                        os.makedirs(rel_emb_path, exist_ok=True)
-                        save_relation_embeddings(rel_emb_path, decoder)
-
-        barrier()
 
         if save_prediction_path is not None:
             logging.info("Saving prediction results")
