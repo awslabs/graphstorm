@@ -29,7 +29,7 @@ from graphstorm import create_builtin_node_gnn_model
 from graphstorm.inference.graphstorm_infer import GSInferrer
 from graphstorm.eval import GSgnnClassificationEvaluator
 from graphstorm.dataloading import GSgnnMultiTaskDataLoader
-from graphstorm.inference import GSgnnMultiTaskLearningInferer
+from graphstorm.inference import GSgnnMultiTaskLearningInferrer
 from graphstorm.model import LinkPredictDistMultDecoder
 
 from graphstorm.config import (GSConfig, TaskInfo)
@@ -166,7 +166,7 @@ def test_mtask_infer():
 
     encoder_model = DummyGSgnnEncoderModel()
     model = DummyGSgnnMTModel(encoder_model, decoders={tast_info_lp.task_id: LinkPredictDistMultDecoder([("n1","r1","n2")], 128)}, has_sparse=True)
-    mt_infer = GSgnnMultiTaskLearningInferer(model)
+    mt_infer = GSgnnMultiTaskLearningInferrer(model)
     mt_infer._device = 'cpu'
 
     predict_dataloaders = [nc_dataloader, nr_dataloader,
@@ -246,7 +246,7 @@ def test_mtask_infer():
                 assert False
         return res
 
-    @patch("graphstorm.inference.mt_infer.GSgnnMultiTaskLearningInferer.log_print_metrics", side_effect = mock_func_log_print_metrics)
+    @patch("graphstorm.inference.mt_infer.GSgnnMultiTaskLearningInferrer.log_print_metrics", side_effect = mock_func_log_print_metrics)
     @patch("graphstorm.inference.mt_infer.save_relation_embeddings", side_effect = mock_func_save_relation_embeddings)
     @patch("graphstorm.inference.mt_infer.save_gsgnn_embeddings", side_effect = mock_func_save_gsgnn_embeddings)
     @patch("graphstorm.inference.mt_infer.get_rank", side_effect = mock_func_get_rank)

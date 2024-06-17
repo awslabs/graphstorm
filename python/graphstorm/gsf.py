@@ -96,6 +96,14 @@ from .eval import (GSgnnClassificationEvaluator,
                    GSgnnRconstructFeatRegScoreEvaluator,
                    GSgnnPerEtypeMrrLPEvaluator,
                    GSgnnMrrLPEvaluator)
+from .trainer import (GSgnnLinkPredictionTrainer,
+                      GSgnnNodePredictionTrainer,
+                      GSgnnEdgePredictionTrainer,
+                      GLEMNodePredictionTrainer)
+from .inference import (GSgnnLinkPredictionInferrer,
+                        GSgnnNodePredictionInferrer,
+                        GSgnnEdgePredictionInferrer,
+                        GSgnnEdgePredictionInferrer)
 
 from .tracker import get_task_tracker_class
 
@@ -909,7 +917,7 @@ def create_task_decoder(task_info, g, decoder_input_dim, train_task):
         raise TypeError(f"Unknown task type {task_info.task_type}")
 
 def create_evaluator(task_info):
-    """ Create task specific evaluator according to task_info
+    """ Create task specific evaluator according to task_info for multi-task learning.
 
     Parameters
     ----------
@@ -922,11 +930,14 @@ def create_evaluator(task_info):
     """
     config = task_info.task_config
     if task_info.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION]:
-        multilabel = config.multilabel[config.eval_target_ntype] \
-            if isinstance(config.multilabel, dict) else config.multilabel
+        assert isinstance(config.multilabel, bool), \
+            "In multi-task learning, we define one task at one time." \
+            "But here, the task config is expecting to define multiple " \
+            "tasks as config.multilabel is not a single boolean " \
+            f'but {config.multilabel}.'
         return GSgnnClassificationEvaluator(config.eval_frequency,
                                             config.eval_metric,
-                                            multilabel,
+                                            config.multilabel,
                                             config.use_early_stop,
                                             config.early_stop_burnin_rounds,
                                             config.early_stop_rounds,
@@ -946,7 +957,6 @@ def create_evaluator(task_info):
                                             config.early_stop_burnin_rounds,
                                             config.early_stop_rounds,
                                             config.early_stop_strategy)
-
     elif task_info.task_type in [BUILTIN_TASK_EDGE_REGRESSION]:
         return GSgnnRegressionEvaluator(config.eval_frequency,
                                         config.eval_metric,
@@ -956,7 +966,7 @@ def create_evaluator(task_info):
                                         config.early_stop_strategy)
     elif task_info.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
         assert len(config.eval_metric) == 1, \
-        "GraphStorm doees not support computing multiple metrics at the same time."
+        "GraphStorm doees not support computing multiple metrics at the same time for link prediction tasks."
         if config.report_eval_per_type:
             return GSgnnPerEtypeMrrLPEvaluator(
                 eval_frequency=config.eval_frequency,

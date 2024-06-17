@@ -35,7 +35,7 @@ from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 
 from graphstorm.model.multitask_gnn import GSgnnMultiTaskSharedEncoderModel
-from graphstorm.inference import GSgnnMultiTaskLearningInferer
+from graphstorm.inference import GSgnnMultiTaskLearningInferrer
 
 from graphstorm.utils import get_device, use_wholegraph
 from graphstorm.utils import get_lm_ntypes
@@ -243,7 +243,7 @@ def main(config_args):
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
     model = model.to(get_device())
-    infer = GSgnnMultiTaskLearningInferer(model)
+    infer = GSgnnMultiTaskLearningInferrer(model)
     if not config.no_validation:
         evaluator = GSgnnMultiTaskEvaluator(config.eval_frequency,
                                             task_evaluators)

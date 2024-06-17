@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    GNN inferer for multi-task learning in GraphStorm
+    GNN inferrer for multi-task learning in GraphStorm
 """
 import os
 import time
@@ -40,7 +40,7 @@ from ..model.edge_decoder import LinkPredictDistMultDecoder
 
 from ..utils import sys_tracker, get_rank, barrier
 
-class GSgnnMultiTaskLearningInferer(GSInferrer):
+class GSgnnMultiTaskLearningInferrer(GSInferrer):
     """ Multi task inferrer.
 
     This is a high-level inferrer wrapper that can be used directly
@@ -173,6 +173,15 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
 
         barrier()
 
+        # As re-computing node embeddings, for reconstruct node
+        # feature evaluation and link prediction evaluation,
+        # will directly update the underlying DistTensors,
+        # we have to do the evaluation (prediction) of each
+        # task in the following priority:
+        # 1. node and edge prediction tasks (classificaiton/regression)
+        # 2. node feature reconstruction (as it has the chance
+        #    to reuse the node embeddings generated at the beginning)
+        # 3. link prediction.
         pre_results = {}
         if predict_test_loader is not None:
             # compute prediction results for node classification,
@@ -187,6 +196,49 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
                     device=device,
                     return_proba=return_proba,
                     return_label=do_eval)
+
+        if recon_nfeat_test_loader is not None:
+            # We also need to compute test scores for node feature reconstruction tasks.
+            dataloaders = recon_nfeat_test_loader.dataloaders
+            task_infos = recon_nfeat_test_loader.task_infos
+
+            with th.no_grad():
+                def nfrecon_gen_embs(skip_last_self_loop=False, embs=node_embs):
+                    """ Generate node embeddings for node feature reconstruction
+                    """
+                    if skip_last_self_loop is True:
+                        # Turn off the last layer GNN's self-loop
+                        # to compute node embeddings.
+                        self._model.gnn_encoder.skip_last_selfloop()
+                        new_embs = gen_embs()
+                        self._model.gnn_encoder.reset_last_selfloop()
+                        return new_embs
+                    else:
+                        # If skip_last_self_loop is False
+                        # we will not change the way we compute
+                        # node embeddings.
+                        if embs is not None:
+                            # The embeddings have been computed
+                            # when handling predict_tasks in L608
+                            return embs
+                        else:
+                            return gen_embs()
+
+                # Note(xiangsx): In DistDGl, as we are using the
+                # same dist tensor, the node embeddings
+                # are updated inplace.
+                node_embs = gen_emb_for_nfeat_reconstruct(self._model, nfrecon_gen_embs)
+
+                nfeat_recon_results = \
+                    multi_task_mini_batch_predict(
+                        self._model,
+                        emb=node_embs,
+                        dataloaders=dataloaders,
+                        task_infos=task_infos,
+                        device=self.device,
+                        return_proba=return_proba,
+                        return_label=True)
+                pre_results.update(nfeat_recon_results)
 
         if lp_test_loader is not None:
             # We also need to compute test scores for link prediction tasks.
@@ -206,49 +258,6 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
                     decoder = self._model.task_decoders[task_info.task_id]
                     ranking = run_lp_mini_batch_predict(decoder, lp_test_embs, dataloader, device)
                     pre_results[task_info.task_id] = ranking
-
-        if recon_nfeat_test_loader is not None:
-            # We also need to compute test scores for node feature reconstruction tasks.
-            dataloaders = recon_nfeat_test_loader.dataloaders
-            task_infos = recon_nfeat_test_loader.task_infos
-
-            with th.no_grad():
-                def nfrecon_gen_embs(skip_last_self_loop=False):
-                    """ Generate node embeddings for node feature reconstruction
-                    """
-                    if skip_last_self_loop is True:
-                        # Turn off the last layer GNN's self-loop
-                        # to compute node embeddings.
-                        self._model.gnn_encoder.skip_last_selfloop()
-                        new_embs = gen_embs()
-                        self._model.gnn_encoder.reset_last_selfloop()
-                        return new_embs
-                    else:
-                        # If skip_last_self_loop is False
-                        # we will not change the way we compute
-                        # node embeddings.
-                        if node_embs is not None:
-                            # The embeddings have been computed
-                            # when handling predict_tasks in L608
-                            return node_embs
-                        else:
-                            return gen_embs()
-
-                # Note(xiangsx): In DistDGl, as we are using the
-                # same dist tensor, the node embeddings
-                # are updated inplace.
-                node_embs = gen_emb_for_nfeat_reconstruct(self._model, nfrecon_gen_embs)
-
-                nfeat_recon_results = \
-                    multi_task_mini_batch_predict(
-                        self._model,
-                        emb=node_embs,
-                        dataloaders=dataloaders,
-                        task_infos=task_infos,
-                        device=self.device,
-                        return_proba=return_proba,
-                        return_label=True)
-                pre_results.update(nfeat_recon_results)
 
         if do_eval:
             test_start = time.time()

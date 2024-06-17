@@ -88,9 +88,9 @@ gsf:
           - user,rating,rating-rev,movie
         batch_size: 128 # will overwrite the global batch_size
         mask_fields:
-          - "train_mask_field_l"
+          - "train_mask_field_lp"
           - null # empty means there is no validation mask
-          - "test_mask_field_l"
+          - "test_mask_field_lp"
     - reconstruct_node_feat:
         reconstruct_nfeat_name: "title"
         target_ntype: "movie"
