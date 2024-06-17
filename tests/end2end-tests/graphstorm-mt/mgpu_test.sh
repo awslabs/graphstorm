@@ -395,6 +395,7 @@ fi
 # Multi-task will save node embeddings of all the nodes.
 python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_mt/emb/ --infer-embout /data/gsgnn_mt/save-emb/
 
+rm -fr /tmp/train_log.txt
 
 # Test inference for multi-task learning
 echo "**************[Multi-task] dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference only"
@@ -409,14 +410,24 @@ then
     echo "The number of saved embs $cnt is not equal to 3 (for movie, user and the relations)."
 fi
 
+cnt=$(ls -l /data/gsgnn_mt/prediction | wc -l)
+cnt=$[cnt - 1]
+if test $cnt != 4
+then
+    echo "There are 4 prediction tasks, but got prediction results for $cnt"
+    exit -1
+fi
+
 python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_mt/emb/ --infer-embout /data/gsgnn_mt/infer-emb/
 
 error_and_exit $?
 
 rm -fr /data/gsgnn_mt/infer-emb/
+rm -fr /data/gsgnn_mt/prediction/
 
-echo "**************[Multi-task] dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference with test"
-python3 -m graphstorm.run.gs_multi_task_learning --inference --workspace $GS_HOME/inference_scripts/mt_infer  --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_task_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_ec_er_lp_with_mask_infer.yaml --use-mini-batch-infer false  --save-embed-path /data/gsgnn_mt/infer-emb/ --restore-model-path /data/gsgnn_mt/epoch-2 --save-prediction-path /data/gsgnn_mt/prediction/ --logging-file /tmp/log.txt --preserve-input True --backend nccl
+
+echo "**************[Multi-task] dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference only with mini-batch inference"
+python3 -m graphstorm.run.gs_multi_task_learning --inference --workspace $GS_HOME/inference_scripts/mt_infer  --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_task_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_ec_er_lp_only_infer.yaml --use-mini-batch-infer true  --save-embed-path /data/gsgnn_mt/infer-emb/ --restore-model-path /data/gsgnn_mt/epoch-2 --save-prediction-path /data/gsgnn_mt/prediction/ --logging-file /tmp/log.txt --preserve-input True --backend nccl
 
 error_and_exit $?
 
@@ -427,6 +438,242 @@ then
     echo "The number of saved embs $cnt is not equal to 3 (for movie, user and the relations)."
 fi
 
-python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_mt/emb/ --infer-embout /data/gsgnn_mt/infer-emb/ --link-prediction
+cnt=$(ls -l /data/gsgnn_mt/prediction | wc -l)
+cnt=$[cnt - 1]
+if test $cnt != 4
+then
+    echo "There are 4 prediction tasks, but got prediction results for $cnt"
+    exit -1
+fi
+
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_mt/emb/ --infer-embout /data/gsgnn_mt/infer-emb/
 
 error_and_exit $?
+
+rm -fr /data/gsgnn_mt/infer-emb/
+rm -fr /data/gsgnn_mt/prediction/
+
+echo "**************[Multi-task] dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference with test"
+python3 -m graphstorm.run.gs_multi_task_learning --inference --workspace $GS_HOME/inference_scripts/mt_infer  --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_task_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_ec_er_lp_with_mask_infer.yaml --use-mini-batch-infer false  --save-embed-path /data/gsgnn_mt/infer-emb/ --restore-model-path /data/gsgnn_mt/epoch-2 --save-prediction-path /data/gsgnn_mt/prediction/ --logging-file /tmp/infer_log.txt --preserve-input True --backend nccl
+
+error_and_exit $?
+
+cnt=$(ls -l /data/gsgnn_mt/infer-emb/ | wc -l)
+cnt=$[cnt - 2]
+if test $cnt != 3
+then
+    echo "The number of saved embs $cnt is not equal to 3 (for movie, user and the relations)."
+fi
+
+cnt=$(ls -l /data/gsgnn_mt/prediction | wc -l)
+cnt=$[cnt - 1]
+if test $cnt != 4
+then
+    echo "There are 4 prediction tasks, but got prediction results for $cnt"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_mt/prediction/edge_classification-user_rating_movie-rate_class/user_rating_movie/ | grep predict | wc -l)
+if test $cnt != $NUM_INFERs * 2
+then
+    echo "The number of saved prediction result files is $cnt which does not equal to $NUM_INFERs (the number of inferers) * 2 as --preserve-input is True, for user,rating,movie rate edge classification"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_mt/prediction/edge_classification-user_rating_movie-rate_class/user_rating_movie/ | grep pred.predict | wc -l)
+if test $cnt != $NUM_INFERs
+then
+    echo "The number of final prediction result files (parquet files) is $cnt, which must be $NUM_INFERs for user,rating,movie rate edge classification"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_mt/prediction/edge_regression-user_rating_movie-rate/user_rating_movie/ | grep predict | wc -l)
+if test $cnt != $NUM_INFERs * 2
+then
+    echo "The number of saved prediction result files is $cnt which does not equal to $NUM_INFERs (the number of inferers) * 2 as --preserve-input is True, for user,rating,movie rate edge regression"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_mt/prediction/edge_regression-user_rating_movie-rate/user_rating_movie/ | grep pred.predict | wc -l)
+if test $cnt != $NUM_INFERs
+then
+    echo "The number of final prediction result files (parquet files) is $cnt, which must be $NUM_INFERs for user,rating,movie rate edge regression"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_mt/prediction/node_classification-movie-label/movie | grep predict | wc -l)
+if test $cnt != $NUM_INFERs * 2
+then
+    echo "The number of saved prediction result files is $cnt which does not equal to $NUM_INFERs (the number of inferers) * 2 as --preserve-input is True, for movie node classification task 0"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_mt/prediction/node_classification-movie-label/movie | grep pred.predict | wc -l)
+if test $cnt != $NUM_INFERs
+then
+    echo "The number of final prediction result files (parquet files) is $cnt, which must be $NUM_INFERs for movie node classification task 0"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_mt/prediction/node_classification-movie-label2/movie | grep predict | wc -l)
+if test $cnt != $NUM_INFERs * 2
+then
+    echo "The number of saved prediction result files is $cnt which does not equal to $NUM_INFERs (the number of inferers) * 2 as --preserve-input is True, for movie node classification task 1"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_mt/prediction/node_classification-movie-label2/movie | grep pred.predict | wc -l)
+if test $cnt != $NUM_INFERs
+then
+    echo "The number of final prediction result files (parquet files) is $cnt, which must be $NUM_INFERs for movie node classification task 1"
+    exit -1
+fi
+
+# check prints
+bst_cnt=$(grep "Best Test node_classification" /tmp/infer_log.txt | wc -l)
+if test $bst_cnt != 2
+then
+    echo "We use SageMaker task tracker, the number of Best Test node_classification prints should be 2."
+    exit -1
+fi
+
+cnt=$(grep "Test node_classification" /tmp/infer_log.txt | wc -l)
+if test $bst_cnt != 2
+then
+    echo "We use SageMaker task tracker, the number of Test node_classification should be 2."
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Validation node_classification" /tmp/infer_log.txt | wc -l)
+if test $bst_cnt != 2
+then
+    echo "We use SageMaker task tracker, the number of Best Validation accuracy node_classification should be 2."
+    exit -1
+fi
+
+cnt=$(grep "Validation node_classification" /tmp/infer_log.txt | wc -l)
+if test $cnt != 2
+then
+    echo "We use SageMaker task tracker, the number of Validation node_classification should be 2."
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Test edge_classification" /tmp/infer_log.txt | wc -l)
+if test $bst_cnt != 1
+then
+    echo "We use SageMaker task tracker, the number of Best Test edge_classification should be 1."
+    exit -1
+fi
+
+cnt=$(grep "Test edge_classification" /tmp/infer_log.txt | wc -l)
+if test $cnt != 1
+then
+    echo "We use SageMaker task tracker, the number of Test edge_classification should be 1."
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Validation edge_classification" /tmp/infer_log.txt | wc -l)
+if test $bst_cnt != 1
+then
+    echo "We use SageMaker task tracker, the number of Best Validation edge_classification should be 1."
+    exit -1
+fi
+
+cnt=$(grep "Validation edge_classification" /tmp/infer_log.txt | wc -l)
+if test $cnt != 1
+then
+    echo "We use SageMaker task tracker, the number of  Validation edge_classification should be 1."
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Test edge_regression" /tmp/infer_log.txt | wc -l)
+if test $bst_cnt != 1
+then
+    echo "We use SageMaker task tracker, the number of Best Test edge_regression should be 1."
+    exit -1
+fi
+
+cnt=$(grep "Test edge_regression" /tmp/infer_log.txt | wc -l)
+if test $cnt != 1
+then
+    echo "We use SageMaker task tracker, the number of Test edge_regression should be 1."
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Validation edge_regression" /tmp/infer_log.txt | wc -l)
+if test $bst_cnt != 1
+then
+    echo "We use SageMaker task tracker, the number of Best Validation edge_regression should be 1."
+    exit -1
+fi
+
+cnt=$(grep "Validation edge_regression" /tmp/infer_log.txt | wc -l)
+if test $cnt != 1
+then
+    echo "We use SageMaker task tracker, the number of Validation edge_regression should be 1."
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Test link_prediction" /tmp/infer_log.txt | wc -l)
+if test $bst_cnt != 1
+then
+    echo "We use SageMaker task tracker, the number of Best Test link_prediction should be 1."
+    exit -1
+fi
+
+cnt=$(grep "Test link_prediction" /tmp/infer_log.txt | wc -l)
+if test $cnt != 1
+then
+    echo "We use SageMaker task tracker, the number of Test link_prediction should be 1."
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Validation link_prediction" /tmp/infer_log.txt | wc -l)
+if test $bst_cnt != 1
+then
+    echo "We use SageMaker task tracker, the number of Best Validation link_prediction should be 1."
+    exit -1
+fi
+
+cnt=$(grep "Validation link_prediction" /tmp/infer_log.txt | wc -l)
+if test $cnt != 1
+then
+    echo "We use SageMaker task tracker, the number of Validation link_prediction should be 1."
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Test reconstruct_node_feat" /tmp/infer_log.txt | wc -l)
+if test $bst_cnt != 1
+then
+    echo "We use SageMaker task tracker, the number of Best Test reconstruct_node_feat should be 1."
+    exit -1
+fi
+
+cnt=$(grep "Test reconstruct_node_feat" /tmp/infer_log.txt | wc -l)
+if test $cnt != 1
+then
+    echo "We use SageMaker task tracker, the number of Test reconstruct_node_feat should be 1."
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Validation reconstruct_node_feat" /tmp/infer_log.txt | wc -l)
+if test $bst_cnt != 1
+then
+    echo "We use SageMaker task tracker,the number of Best Validation reconstruct_node_feat should be 1."
+    exit -1
+fi
+
+cnt=$(grep "Validation reconstruct_node_feat" /tmp/infer_log.txt | wc -l)
+if test $cnt != 1
+then
+    echo "We use SageMaker task tracker, the number of Validation reconstruct_node_feat should be 1."
+    exit -1
+fi
+
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_mt/emb/ --infer-embout /data/gsgnn_mt/infer-emb/
+
+error_and_exit $?
+
+rm -fr /data/gsgnn_mt/infer-emb/
+rm -fr /data/gsgnn_mt/prediction/
+rm -fr /tmp/infer_log.txt

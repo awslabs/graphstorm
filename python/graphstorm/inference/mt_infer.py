@@ -128,6 +128,9 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
 
         def gen_embs(edge_mask=None):
             # Generate node embeddings.
+            # Note(xiangsx): In DistDGl, as we are using the
+            # same DistTensor to save the node embeddings
+            # so the node embeddings are updated inplace.
             if use_mini_batch_infer:
                 embs = do_mini_batch_inference(
                     self._model, data, batch_size=infer_batch_size,
@@ -147,7 +150,8 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
         device = self.device
 
         g = data.g
-        print(node_embs["movie"][th.arange(10)])
+        # Note(xiangsx): Save embeddings should happen
+        # before conducting prediction results.
         if save_embed_path is not None:
             logging.info("Saving node embeddings")
             save_gsgnn_embeddings(g,
@@ -230,12 +234,15 @@ class GSgnnMultiTaskLearningInferer(GSInferrer):
                         else:
                             return gen_embs()
 
-                nfeat_embs = gen_emb_for_nfeat_reconstruct(self._model, nfrecon_gen_embs)
+                # Note(xiangsx): In DistDGl, as we are using the
+                # same dist tensor, the node embeddings
+                # are updated inplace.
+                node_embs = gen_emb_for_nfeat_reconstruct(self._model, nfrecon_gen_embs)
 
                 nfeat_recon_results = \
                     multi_task_mini_batch_predict(
                         self._model,
-                        emb=nfeat_embs,
+                        emb=node_embs,
                         dataloaders=dataloaders,
                         task_infos=task_infos,
                         device=self.device,
