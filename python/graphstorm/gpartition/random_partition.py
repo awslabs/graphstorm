@@ -50,10 +50,16 @@ class RandomPartitionAlgorithm(LocalPartitionAlgorithm):
             logging.info("Generating random partition for node type %s", ntype)
             ntype_output = os.path.join(partition_dir, f"{ntype}.txt")
 
-            partition_assignment = np.random.randint(0, num_partitions, (num_nodes_for_type,))
+            partition_dtype = np.uint8 if num_partitions <= 256 else np.uint16
+
+            partition_assignment = np.random.randint(
+                0,
+                num_partitions,
+                (num_nodes_for_type,),
+                dtype=partition_dtype)
 
             arrow_partitions = pa.Table.from_arrays(
-                [pa.array(partition_assignment, type=pa.int64())],
+                [pa.array(partition_assignment)],
                 names=["partition_id"])
             options = pa_csv.WriteOptions(include_header=False, delimiter=' ')
             pa_csv.write_csv(arrow_partitions, ntype_output, write_options=options)
