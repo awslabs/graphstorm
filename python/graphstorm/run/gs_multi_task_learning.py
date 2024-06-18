@@ -34,7 +34,7 @@ def main():
 
     lib_dir = os.path.abspath(os.path.dirname(__file__))
     if args.inference:
-        assert False, "Not implemented"
+        cmd = "gsgnn_mt/mt_infer_gnn.py"
     else:
         cmd = "gsgnn_mt/gsgnn_mt.py"
     cmd_path = os.path.join(lib_dir, cmd)
