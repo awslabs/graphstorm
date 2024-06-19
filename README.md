@@ -106,6 +106,20 @@ python -m graphstorm.run.gs_link_prediction \
 
 To learn GraphStorm's full capabilities, please refer to our [Documentations and Tutorials](https://graphstorm.readthedocs.io/en/latest/).
 
+
+## Cite
+
+If you use GraphStorm in a scientific publication, we would appreciate citations to the following paper:
+```
+@article{zheng2024graphstorm,
+  title={GraphStorm: all-in-one graph machine learning framework for industry applications},
+  author={Zheng, Da and Song, Xiang and Zhu, Qi and Zhang, Jian and Vasiloudis, Theodore and Ma, Runjie and Zhang, Houyu and Wang, Zichen and Adeshina, Soji and Nisa, Israt and others},
+  journal={arXiv preprint arXiv:2406.06022},
+  year={2024}
+}
+```
+
+
 ## Limitation
 GraphStorm framework now supports using CPU or NVidia GPU for model training and inference. But it only works with PyTorch-gloo backend. It was only tested on AWS CPU instances or AWS GPU instances equipped with NVidia GPUs including P4, V100, A10 and A100.
 
