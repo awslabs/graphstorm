@@ -1,5 +1,5 @@
 ## GraphStorm
-|[Document and Tutorial Site](https://graphstorm.readthedocs.io/en/latest/) |
+| [Document and Tutorial Site](https://graphstorm.readthedocs.io/en/latest/) | [GraphStorm Paper](https://arxiv.org/abs/2406.06022) |
 
 GraphStorm is a graph machine learning (GML) framework for enterprise use cases.
 It simplifies the development, training and deployment of GML models for industry-scale graphs
@@ -41,7 +41,7 @@ python /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
                                             --output /tmp/ogbn_arxiv_nc_train_val_1p_4t
 ```
 
-GraphStorm training relies on ssh to launch training jobs. The GraphStorm standalone mode uses ssh services in port 22. 
+GraphStorm training relies on ssh to launch training jobs. The GraphStorm standalone mode uses ssh services in port 22.
 
 In addition, to run GraphStorm training in a single machine, users need to create a ``ip_list.txt`` file that contains one row as below, which will facilitate ssh communication to the machine itself.
 
