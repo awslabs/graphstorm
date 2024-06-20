@@ -249,6 +249,9 @@ The raw node and edge data files are both in a parquet format, whose contents ar
 
 In this example, only the ``paper`` nodes have labels and the task is node classification. So, in the JSON file, the ``paper`` node has the ``labels`` field, and the ``task_type`` is specified as ``classification``. Correspondingly, in the paper node parquet file, there is a column, ``label``, stores the label values. All edge types do not have features associated. Therefore, we only have two columns in these parquet files for edges, the ``source_id`` and the ``dest_id``. For the link prediction task, there is no actual labels. Users just need to specify the ``labels`` field in one or more ``edge`` objects of the JSON config file.
 
+
+.. _run-graph-construction:
+
 Run graph construction
 ```````````````````````
 The configuration JSON file along with these node and edge parquet files are the required inputs of the GraphStorm's construction tools. Then we can use the tool to create the partition graph data with the following command.
