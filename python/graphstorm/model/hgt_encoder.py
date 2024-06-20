@@ -183,6 +183,21 @@ class HGTLayer(nn.Module):
 
         # Dropout
         self.drop = nn.Dropout(dropout)
+        self.warn_msg = set()
+
+    def warning_once(self, warn_msg):
+        """ Print same warning msg only once
+
+        Parameters
+        ----------
+        warn_msg: str
+            Warning message
+        """
+        if warn_msg in self.warn_msg:
+            # Skip printing warning
+            return
+        self.warn_msg.add(warn_msg)
+        logging.warning(warn_msg)
 
     def forward(self, g, h):
         """Forward computation
@@ -255,9 +270,10 @@ class HGTLayer(nn.Module):
                         else:
                             trans_out = trans_out * alpha + self.a_linears[k](h[k]) * (1-alpha)
                     else:                       # Nodes not really in destination side.
-                        logging.warning("Warning. Graph convolution returned empty " + \
-                          f"dictionary for nodes in type: {str(k)}. Please check your data" + \
-                          f" for no in-degree nodes in type: {str(k)}.")
+                        warn_msg = "Warning. Graph convolution returned empty " \
+                            f"dictionary for nodes in type: {str(k)}. Please check your data" \
+                            f" for no in-degree nodes in type: {str(k)}."
+                        self.warning_once(warn_msg)
                         # So add psudo self-loop for the destination nodes with its own feature.
                         dst_h = self.a_linears[k](h[k][:g.num_dst_nodes(k)])
                         trans_out = self.drop(dst_h)
