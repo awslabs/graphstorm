@@ -15,6 +15,8 @@
 
     GSgnn pure gpu generate embeddings.
 """
+import logging
+
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
@@ -133,5 +135,8 @@ if __name__ == '__main__':
     arg_parser = generate_parser()
 
     # Ignore unknown args to make script more robust to input arguments
-    gs_args, _ = arg_parser.parse_known_args()
+    gs_args, unknown_args = arg_parser.parse_known_args()
+    logging.warning("Unknown arguments for "
+                    "graphstorm.run.gs_gen_node_embedding: %s",
+                    unknown_args)
     main(gs_args)
