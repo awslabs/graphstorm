@@ -3,6 +3,12 @@ Running distributed processing jobs on AWS Infra
 
 This doc illustrates different usage of GSProcessing on different AWS Infras.
 
+Running distributed jobs on Amazon SageMaker: :ref:`_sagemaker`
+Running distributed jobs on EMR Serverless: :ref:`_emr_serverless`
+Running distributed jobs on EMR on EC2: :ref:`_emr_ec2`
+
+.. _sagemaker:
+
 Running distributed jobs on Amazon SageMaker
 ============================================
 
@@ -134,6 +140,8 @@ With the data now processed you can follow the
 `GraphStorm Amazon SageMaker guide
 <https://graphstorm.readthedocs.io/en/latest/scale/sagemaker.html#run-graphstorm-on-sagemaker>`_
 to partition your data and run training on AWS.
+
+.. _emr_serverless:
 
 Running distributed jobs on EMR Serverless
 ==========================================
@@ -428,6 +436,8 @@ With the data now processed you can follow the
 `GraphStorm Amazon SageMaker guide
 <https://graphstorm.readthedocs.io/en/latest/scale/sagemaker.html#run-graphstorm-on-sagemaker>`_
 to partition your data and run training on AWS.
+
+.. _emr_ec2:
 
 Running distributed jobs on EMR on EC2
 ======================================
