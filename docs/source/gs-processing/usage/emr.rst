@@ -223,6 +223,7 @@ To submit a job we can use a helper ``bash`` script, which we list below:
         ${S3_ENTRY_POINT} \
             --config-filename ${CONFIG_FILENAME} \
             --input-prefix ${INPUT_PREFIX} \
+            --num-output-files ${NUM_FILES} \
             --output-prefix ${OUTPUT_PREFIX} \
             --do-repartition True
 
