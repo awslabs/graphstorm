@@ -438,12 +438,14 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                         val_score = self.eval(model.module if is_distributed() else model,
                                               data, val_loader, test_loader, total_steps)
 
-                        # We will save the best model when
-                        # 1. There is no evaluation, we will keep the
-                        #    latest K models.
-                        # 2. (TODO) There is evaluaiton, we need to follow the
-                        #    guidance of validation score.
-                    self.save_topk_models(model, epoch, i, None, save_model_path)
+                    # We will save the best model when
+                    # 1. There is no evaluation, we will keep the
+                    #    latest K models.
+                    # 2. (TODO) There is evaluaiton, we need to follow the
+                    #    guidance of validation score. 
+                    # So here reset val_score to be None
+                    val_score = None
+                    self.save_topk_models(model, epoch, i, val_score, save_model_path)
 
                 batch_tic = time.time()
                 rt_profiler.record('train_eval')

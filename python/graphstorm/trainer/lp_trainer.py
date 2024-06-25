@@ -227,7 +227,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
 
-                # In every save_model_frequency iterations, check to save the top k models. 
+                # In every save_model_frequency iterations, check to save the top k models.
                 # If has validation score, will save the best top k. If no validation, will
                 # either save the last k model or all models depends on the setting of top k.
                 if save_model_frequency > 0 and \
