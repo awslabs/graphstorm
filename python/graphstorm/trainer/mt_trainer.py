@@ -442,7 +442,7 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                     # 1. There is no evaluation, we will keep the
                     #    latest K models.
                     # 2. (TODO) There is evaluaiton, we need to follow the
-                    #    guidance of validation score. 
+                    #    guidance of validation score.
                     # So here reset val_score to be None
                     val_score = None
                     self.save_topk_models(model, epoch, i, val_score, save_model_path)
