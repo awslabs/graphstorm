@@ -179,6 +179,21 @@ class RelGraphConvLayer(nn.Module):
                                      num_ffn_layers_in_gnn, ffn_activation, dropout)
 
         self.dropout = nn.Dropout(dropout)
+        self.warn_msg = set()
+
+    def warning_once(self, warn_msg):
+        """ Print same warning msg only once
+
+        Parameters
+        ----------
+        warn_msg: str
+            Warning message
+        """
+        if warn_msg in self.warn_msg:
+            # Skip printing warning
+            return
+        self.warn_msg.add(warn_msg)
+        logging.warning(warn_msg)
 
     # pylint: disable=invalid-name
     def forward(self, g, inputs):
@@ -245,9 +260,10 @@ class RelGraphConvLayer(nn.Module):
         for k, _ in inputs.items():
             if g.number_of_dst_nodes(k) > 0:
                 if k not in hs:
-                    logging.warning("Warning. Graph convolution returned empty " + \
-                          f"dictionary for nodes in type: {str(k)}. Please check your data" + \
-                          f" for no in-degree nodes in type: {str(k)}.")
+                    warn_msg = "Warning. Graph convolution returned empty " \
+                        f"dictionary for nodes in type: {str(k)}. Please check your data" \
+                        f" for no in-degree nodes in type: {str(k)}."
+                    self.warning_once(warn_msg)
                     hs[k] = th.zeros((g.number_of_dst_nodes(k),
                                       self.out_feat),
                                      device=inputs[k].device)

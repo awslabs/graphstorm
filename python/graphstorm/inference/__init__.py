@@ -20,3 +20,4 @@ from .lp_infer import GSgnnLinkPredictionInferrer
 from .np_infer import GSgnnNodePredictionInferrer
 from .ep_infer import GSgnnEdgePredictionInferrer
 from .emb_infer import GSgnnEmbGenInferer
+from .mt_infer import GSgnnMultiTaskLearningInferrer

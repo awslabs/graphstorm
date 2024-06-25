@@ -551,8 +551,14 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         ------
         bool: True for there are sparse parameters
         """
-        return len(self._optimizer.sparse_opts) > 0
+        if self._optimizer is not None:
+            # Optimizer is not None, it is in training,
+            # then check sparse optimizers.
+            return len(self._optimizer.sparse_opts) > 0
 
+        # Optimizer is None, it is inference,
+        # then check sparse parameters.
+        return len(self.get_sparse_params()) > 0
 
     def get_sparse_params(self):
         """ get the sparse parameters of the model.
