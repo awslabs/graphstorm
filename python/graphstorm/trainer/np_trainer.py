@@ -205,9 +205,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                                  get_rank(), epoch, i,  loss.item(), time.time() - batch_tic)
 
                 val_score = None
-                if self.evaluator is not None and \
-                    self.evaluator.do_eval(total_steps, epoch_end=False) and \
-                    val_loader is not None:
+                if self.can_do_model_eval(val_loader) and self.evaluator.do_eval(total_steps):
                     val_score = self.eval(model.module if is_distributed() else model,
                                           val_loader, test_loader,
                                           use_mini_batch_infer, total_steps, return_proba=False)
@@ -215,19 +213,21 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
 
-                # Every n iterations, check to save the top k models. If has validation score,
-                # will save the best top k. But if no validation, will either save
-                # the last k model or all models depends on the setting of top k
+                # In every save_model_frequency iterations, check to save the top k models. 
+                # If has validation score, will save the best top k. If no validation, will
+                # either save the last k model or all models depends on the setting of top k.
                 if save_model_frequency > 0 and \
                     total_steps % save_model_frequency == 0 and \
                     total_steps != 0:
-                    if self.evaluator is None or val_score is not None:
-                        # We will save the best model when
-                        # 1. There is no evaluation, we will keep the
-                        #    latest K models.
-                        # 2. There is evaluaiton, we need to follow the
-                        #    guidance of validation score.
-                        self.save_topk_models(model, epoch, i, val_score, save_model_path)
+                    if self.can_do_model_eval(val_loader):
+                        # for model saving, force to do evaluation if can
+                        val_score = self.eval(model.module if is_distributed() else model,
+                                              val_loader, test_loader, use_mini_batch_infer,
+                                              total_steps, return_proba=False)
+                    # We will save the best model when
+                    # 1. If not do evaluation, we will keep the latest K models.
+                    # 2. If do evaluaiton, we need to follow the guidance of validation score.
+                    self.save_topk_models(model, epoch, i, val_score, save_model_path)
 
                 rt_profiler.record('train_eval')
                 batch_tic = time.time()
@@ -235,14 +235,16 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 if early_stop is True:
                     break
 
-            # end of an epoch
+            # ------- end of an epoch -------
+
             barrier()
             epoch_time = time.time() - epoch_start
             if get_rank() == 0:
                 logging.info("Epoch %d take %.3f seconds", epoch, epoch_time)
 
             val_score = None
-            if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
+            # do evaluation and mode saving after each epoch if can
+            if self.can_do_model_eval(val_loader):
                 val_score = self.eval(model.module if is_distributed() else model,
                                       val_loader, test_loader,
                                       use_mini_batch_infer, total_steps, return_proba=False)
@@ -254,6 +256,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             # depends on the setting of top k. To show this is after epoch save, set the iteration
             # to be None, so that we can have a determistic model folder name for testing and debug.
             self.save_topk_models(model, epoch, None, val_score, save_model_path)
+            barrier()
 
             # early_stop, exit training
             if early_stop is True:

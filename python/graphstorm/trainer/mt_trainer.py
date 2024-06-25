@@ -421,9 +421,7 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                     logging.debug("Per task Loss: %s", per_task_loss)
 
                 val_score = None
-                if self.evaluator is not None and \
-                    self.evaluator.do_eval(total_steps, epoch_end=False):
-
+                if self.can_do_model_eval(val_loader) and self.evaluator.do_eval(total_steps):
                     val_score = self.eval(model.module if is_distributed() else model,
                                           data, val_loader, test_loader, total_steps)
                     # TODO(xiangsx): Add early stop support
@@ -435,25 +433,31 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                     total_steps % save_model_frequency == 0 and \
                     total_steps != 0:
 
-                    if self.evaluator is None or val_score is not None:
+                    if self.can_do_model_eval(val_loader):
+                        # for model saving, force to do evaluation if can
+                        val_score = self.eval(model.module if is_distributed() else model,
+                                              data, val_loader, test_loader, total_steps)
+
                         # We will save the best model when
                         # 1. There is no evaluation, we will keep the
                         #    latest K models.
                         # 2. (TODO) There is evaluaiton, we need to follow the
                         #    guidance of validation score.
-                        self.save_topk_models(model, epoch, i, None, save_model_path)
+                    self.save_topk_models(model, epoch, i, None, save_model_path)
 
                 batch_tic = time.time()
                 rt_profiler.record('train_eval')
 
             # ------- end of an epoch -------
+
             barrier()
             epoch_time = time.time() - epoch_start
             if get_rank() == 0:
                 logging.info("Epoch %d take %.3f seconds", epoch, epoch_time)
 
             val_score = None
-            if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
+            # do evaluation and mode saving after each epoch if can
+            if self.can_do_model_eval(val_loader):
                 val_score = self.eval(model.module if is_distributed() else model,
                                       data, val_loader, test_loader, total_steps)
 
