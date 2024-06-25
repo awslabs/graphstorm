@@ -15,7 +15,6 @@
 
     GSgnn pure gpu link prediction.
 """
-
 import os
 import logging
 
