@@ -233,11 +233,13 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 if save_model_frequency > 0 and \
                     total_steps % save_model_frequency == 0 and \
                     total_steps != 0:
-                    if self.can_do_model_eval(val_loader):
-                        # for model saving, force to do evaluation if can
-                        val_score = self.eval(model.module if is_distributed() else model,
-                                            data, val_loader, test_loader, total_steps,
-                                            edge_mask_for_gnn_embeddings, use_mini_batch_infer)
+                    if val_score is None:
+                        # not in the same eval_frequncy iteration
+                        if self.can_do_model_eval(val_loader):
+                            # for model saving, force to do evaluation if can
+                            val_score = self.eval(model.module if is_distributed() else model,
+                                                data, val_loader, test_loader, total_steps,
+                                                edge_mask_for_gnn_embeddings, use_mini_batch_infer)
                     # We will save the best model when
                     # 1. If not do evaluation, we will keep the latest K models.
                     # 2. If do evaluaiton, we need to follow the guidance of validation score.
@@ -272,6 +274,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             # to be None, so that we can have a determistic model folder name for testing and debug.
             self.save_topk_models(model, epoch, None, val_score, save_model_path)
             rt_profiler.print_stats()
+            # make sure saving model finishes properly before the main process kills this training
             barrier()
 
             # early_stop, exit training
