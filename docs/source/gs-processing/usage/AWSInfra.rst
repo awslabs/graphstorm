@@ -6,17 +6,9 @@ This doc illustrates different usage of GSProcessing on different AWS Infras.
 
 Running distributed jobs on Amazon SageMaker: :ref:`sagemaker`.
 
-Running distributed jobs on EMR Serverless: :ref:`_emr_serverless`
+Running distributed jobs on EMR Serverless: :ref:`emr_serverless`
 
-Running distributed jobs on EMR on EC2: :ref:`_emr_ec2`
-
-
-.. _gsp-upload-data-ref-2:
-
-Upload data to S3-2
--------------------
-
-Test 2
+Running distributed jobs on EMR on EC2: :ref:`emr_ec2`
 
 .. _sagemaker:
 
