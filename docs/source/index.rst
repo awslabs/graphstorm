@@ -56,6 +56,7 @@ Welcome to the GraphStorm Documentation and Tutorials
    advanced/language-models
    advanced/advanced-usages
    advanced/advanced-wholegraph
+   advanced/multi-task-learning
 
 .. toctree::
    :maxdepth: 1
