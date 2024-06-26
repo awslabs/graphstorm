@@ -198,7 +198,6 @@ To submit a job we can use a helper ``bash`` script, which we list below:
     OUTPUT_BUCKET=${MY_BUCKET}
     GRAPH_NAME="small-graph"
     CONFIG_FILE="gconstruct-config.json"
-    NUM_FILES="-1"
 
     ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
 
@@ -209,7 +208,7 @@ To submit a job we can use a helper ``bash`` script, which we list below:
 
     S3_ENTRY_POINT="s3://${OUTPUT_BUCKET}/emr-scripts/distributed_executor.py"
 
-    export OUTPUT_PREFIX="s3://${OUTPUT_BUCKET}/gsprocessing/emr/${GRAPH_NAME}/${NUM_FILES}files/"
+    export OUTPUT_PREFIX="s3://${OUTPUT_BUCKET}/gsprocessing/emr/${GRAPH_NAME}/"
 
     spark-submit --master yarn \
         --deploy-mode cluster \
@@ -223,7 +222,6 @@ To submit a job we can use a helper ``bash`` script, which we list below:
         ${S3_ENTRY_POINT} \
             --config-filename ${CONFIG_FILENAME} \
             --input-prefix ${INPUT_PREFIX} \
-            --num-output-files ${NUM_FILES} \
             --output-prefix ${OUTPUT_PREFIX} \
             --do-repartition True
 
