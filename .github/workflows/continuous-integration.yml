@@ -42,7 +42,7 @@ env:
   COMMAND-E2E-CPU-TEST: chmod +x ./e2e_cpu_check.sh && ./e2e_cpu_check.sh
   COMMAND-E2E: chmod +x ./e2e_check.sh && ./e2e_check.sh
   COMMAND-E2E-MGPU: chmod +x ./e2e_mgpu_check.sh && ./e2e_mgpu_check.sh
-  COMMAND-E2E-MGPU-MULTITASK: chmod +x ./e2e_mgpu_check.sh && ./e2e_mgpu_check.sh
+  COMMAND-E2E-MGPU-MULTITASK: chmod +x ./e2e_mgpu_multitask_check.sh && ./e2e_mgpu_multitask_check.sh
 
 jobs:
 
