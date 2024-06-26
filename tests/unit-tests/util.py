@@ -42,6 +42,14 @@ def create_tokens(tokenizer, input_text, max_seq_length, num_node, return_token_
         if return_token_type_ids else None
     return input_ids, valid_len, attention_mask, token_type_ids
 
+class DummyGSgnnData():
+    def __init__(self):
+        pass # do nothing
+
+    @property
+    def g(self):
+        return None
+
 class DummyGSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     def __init__(self):
         pass # do nothing

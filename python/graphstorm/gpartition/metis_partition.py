@@ -20,8 +20,10 @@ import logging
 import json
 import subprocess
 import sys
+import shutil
 
 from .partition_algo_base import LocalPartitionAlgorithm
+from .partition_config import ParMETISConfig
 
 
 class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
@@ -42,7 +44,7 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
         Configuration object for ParMETIS.
     """
 
-    def __init__(self, metadata_dict, metis_config):
+    def __init__(self, metadata_dict: dict, metis_config: ParMETISConfig):
         super().__init__(metadata_dict)
         self.metis_config = metis_config
 
@@ -70,7 +72,19 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
                     --output_dir {input_path} --num_parts {num_parts}"
 
         if self.run_command(command, "preprocess"):
-            logging.info("Successfully execute parmetis preprocess.")
+            # parmetis_preprocess.py creates this file, but doesn't put it in the cwd,
+            # where the parmetis program (pm_dglpart) expects it to be.
+            # So we copy it from the location parmetis_preprocess saves it to the cwd.
+            # https://github.com/dmlc/dgl/blob/cbad2f0af317dce2af1771c131b7eea92ae7c8a7/tools/distpartitioning/parmetis_preprocess.py#L318
+            with open(os.path.join(input_path, metadata_filename), encoding="utf-8") as f:
+                graph_meta = json.load(f)
+            graph_name = graph_meta["graph_name"]
+            shutil.copy(
+                os.path.join(input_path, f"{graph_name}_stats.txt"),
+                f"{graph_name}_stats.txt",
+            )
+
+            logging.info("Successfully executed parmetis preprocess.")
             return True
         else:
             logging.info("Failed to execute parmetis preprocess.")
@@ -93,7 +107,9 @@ class ParMetisPartitionAlgorithm(LocalPartitionAlgorithm):
         """
         assert os.path.exists(os.path.expanduser("~/local/bin/pm_dglpart")), \
             "pm_dglpart not found in ~/local/bin/"
-        command = f"mpirun -np 1 --allow-run-as-root \
+        # TODO: ParMETIS also claims to support num_workers != num_parts, we can test
+        # if it's possible to speed the process up by using more workers than partitions
+        command = f"mpirun -np {num_parts} --allow-run-as-root \
                     --hostfile {ip_list} \
                     --mca orte_base_help_aggregate 0 -mca btl_tcp_if_include eth0 \
                     -wdir {input_path} \

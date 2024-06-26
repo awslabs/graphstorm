@@ -1,5 +1,5 @@
 ## GraphStorm
-|[Document and Tutorial Site](https://graphstorm.readthedocs.io/en/latest/) |
+| [Document and Tutorial Site](https://graphstorm.readthedocs.io/en/latest/) | [GraphStorm Paper](https://arxiv.org/abs/2406.06022) |
 
 GraphStorm is a graph machine learning (GML) framework for enterprise use cases.
 It simplifies the development, training and deployment of GML models for industry-scale graphs
@@ -41,7 +41,7 @@ python /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
                                             --output /tmp/ogbn_arxiv_nc_train_val_1p_4t
 ```
 
-GraphStorm training relies on ssh to launch training jobs. The GraphStorm standalone mode uses ssh services in port 22. 
+GraphStorm training relies on ssh to launch training jobs. The GraphStorm standalone mode uses ssh services in port 22.
 
 In addition, to run GraphStorm training in a single machine, users need to create a ``ip_list.txt`` file that contains one row as below, which will facilitate ssh communication to the machine itself.
 
@@ -105,6 +105,20 @@ python -m graphstorm.run.gs_link_prediction \
 ```
 
 To learn GraphStorm's full capabilities, please refer to our [Documentations and Tutorials](https://graphstorm.readthedocs.io/en/latest/).
+
+
+## Cite
+
+If you use GraphStorm in a scientific publication, we would appreciate citations to the following paper:
+```
+@article{zheng2024graphstorm,
+  title={GraphStorm: all-in-one graph machine learning framework for industry applications},
+  author={Zheng, Da and Song, Xiang and Zhu, Qi and Zhang, Jian and Vasiloudis, Theodore and Ma, Runjie and Zhang, Houyu and Wang, Zichen and Adeshina, Soji and Nisa, Israt and others},
+  journal={arXiv preprint arXiv:2406.06022},
+  year={2024}
+}
+```
+
 
 ## Limitation
 GraphStorm framework now supports using CPU or NVidia GPU for model training and inference. But it only works with PyTorch-gloo backend. It was only tested on AWS CPU instances or AWS GPU instances equipped with NVidia GPUs including P4, V100, A10 and A100.
