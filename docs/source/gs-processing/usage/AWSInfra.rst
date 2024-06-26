@@ -3,6 +3,7 @@ Running distributed processing jobs on AWS Infra
 ================================================
 
 This doc illustrates different usage of GSProcessing on different AWS Infras.
+Followings are for quick reference about different usages on different AWS Infras:
 
 Running distributed jobs on Amazon SageMaker: :ref:`sagemaker`.
 
@@ -13,7 +14,7 @@ Running distributed jobs on EMR on EC2: :ref:`emr_ec2`
 .. _sagemaker:
 
 Running distributed jobs on Amazon SageMaker
-================================================
+============================================
 
 Once the :doc:`Amazon SageMaker setup <distributed-processing-setup>` is complete, we can
 use the Amazon SageMaker launch scripts to launch distributed processing
@@ -135,14 +136,6 @@ in :ref:`gsp-examining-output`.
     2023-08-05 00:47:36      11914 metadata.json
     2023-08-05 00:47:37        545 perf_counters.json
     2023-08-05 00:47:37      12082 updated_row_counts_metadata.json
-
-Run distributed partitioning and training on Amazon SageMaker
--------------------------------------------------------------
-
-With the data now processed you can follow the
-`GraphStorm Amazon SageMaker guide
-<https://graphstorm.readthedocs.io/en/latest/scale/sagemaker.html#run-graphstorm-on-sagemaker>`_
-to partition your data and run training on AWS.
 
 .. _emr_serverless:
 
@@ -430,15 +423,6 @@ in :ref:`gsp-examining-output`.
     2023-08-05 00:47:36      11914 metadata.json
     2023-08-05 00:47:37        545 perf_counters.json
     2023-08-05 00:47:37      12082 updated_row_counts_metadata.json
-
-
-Run distributed partitioning and training on Amazon SageMaker
--------------------------------------------------------------
-
-With the data now processed you can follow the
-`GraphStorm Amazon SageMaker guide
-<https://graphstorm.readthedocs.io/en/latest/scale/sagemaker.html#run-graphstorm-on-sagemaker>`_
-to partition your data and run training on AWS.
 
 .. _emr_ec2:
 
@@ -729,7 +713,7 @@ Once done, remember to clean up your cluster resources by terminating the cluste
     aws emr terminate-clusters --cluster-ids j-XXXXXXXXXX
 
 Run distributed partitioning and training on Amazon SageMaker
--------------------------------------------------------------
+=============================================================
 
 With the data now processed you can follow the
 `GraphStorm Amazon SageMaker guide
