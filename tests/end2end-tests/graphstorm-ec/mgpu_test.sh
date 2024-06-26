@@ -288,7 +288,7 @@ python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_s
 error_and_exit $?
 
 save_model_cnts=$(grep "successfully save the model to" /tmp/train_log.txt | wc -l)
-do_eval_cnts=$(grep "Best Validation accuracy:" /tmp/train_log.txt | wc -l)
+do_eval_cnts=$(grep "Best Validation" /tmp/train_log.txt | wc -l)
 
 echo "Save model counts: "$save_model_cnts
 echo "Evaluation counts: "$do_eval_cnts
