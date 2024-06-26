@@ -544,8 +544,8 @@ class GSgnnData():
                     "empty or the number of training nodes is smaller than " \
                     f"the number of trainers {get_world_size()}" \
                     "Please check your training data and make sure " \
-                    "the number of trainers (GPUs) is smaller than the " \
-                    "number of training data."
+                    "the number of trainers (GPUs, if using GPU-supported " \
+                    "machines) is smaller than the number of training data."
                 num_train += len(train_idx)
                 train_idxs[ntype] = train_idx
 
@@ -781,8 +781,8 @@ class GSgnnData():
                 "empty or the number of training edges is smaller than " \
                 f"the number of trainers {get_world_size()}" \
                 "Please check your training data and make sure " \
-                "the number of trainers (GPUs) is smaller than the " \
-                "number of training data."
+                "the number of trainers (GPUs, if using GPU-supported " \
+                "machines) is smaller than the number of training data."
             num_train += len(train_idx)
             train_idxs[canonical_etype] = train_idx
 
