@@ -565,12 +565,15 @@ rm -fr /tmp/*
 echo "=================== test save model and do evaluation behaviors ==================="
 
 echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: BERT nodes: movie, user inference: mini-batch, no-topk save model, no eval frequency"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext.yaml  --save-model-path /data/gsgnn_nc_ml_text/ --save-model-frequency 10 --save-embed-path /data/gsgnn_nc_ml_text/emb/ --num-epochs 3 --logging-file /tmp/train_log.txt
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext.yaml  --save-model-path /data/gsgnn_nc_ml_text/ --save-model-frequency 10 --save-embed-path /data/gsgnn_nc_ml_text/emb/ --num-epochs 1 --logging-file /tmp/train_log.txt
 
 error_and_exit $?
 
 save_model_cnts=$(grep "successfully save the model to" /tmp/train_log.txt | wc -l)
 do_eval_cnts=$(grep "Best Validation accuracy:" /tmp/train_log.txt | wc -l)
+
+echo "Save model counts: "$save_model_cnts
+echo "Evaluation counts: "$do_eval_cnts
 
 if test $save_model_cnts != $do_eval_cnts
 then
@@ -581,7 +584,7 @@ fi
 rm /tmp/train_log.txt
 
 echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: BERT nodes: movie, user inference: mini-batch, no-topk save model, eval less frequently but divisible by save model frequency"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext.yaml  --save-model-path /data/gsgnn_nc_ml_text/ --save-model-frequency 10 --eval-frequency 20 --save-embed-path /data/gsgnn_nc_ml_text/emb/ --num-epochs 3 --logging-file /tmp/train_log.txt
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext.yaml  --save-model-path /data/gsgnn_nc_ml_text/ --save-model-frequency 10 --eval-frequency 20 --save-embed-path /data/gsgnn_nc_ml_text/emb/ --num-epochs 1 --logging-file /tmp/train_log.txt
 
 error_and_exit $?
 
@@ -597,7 +600,7 @@ fi
 rm /tmp/train_log.txt
 
 echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: BERT nodes: movie, user inference: mini-batch, no-topk save model, eval more frequency"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext.yaml  --save-model-path /data/gsgnn_nc_ml_text/ --save-model-frequency 20 --eval-frequency 10 --save-embed-path /data/gsgnn_nc_ml_text/emb/ --num-epochs 3 --logging-file /tmp/train_log.txt
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext.yaml  --save-model-path /data/gsgnn_nc_ml_text/ --save-model-frequency 20 --eval-frequency 10 --save-embed-path /data/gsgnn_nc_ml_text/emb/ --num-epochs 1 --logging-file /tmp/train_log.txt
 
 error_and_exit $?
 
@@ -611,3 +614,5 @@ then
 fi
 
 rm /tmp/train_log.txt
+
+rm -fr /tmp/*

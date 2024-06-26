@@ -278,4 +278,27 @@ python3 check_infer.py --train-embout /data/gsgnn_wg_ec/emb/ --infer-embout /dat
 error_and_exit $?
 
 rm -fr /data/gsgnn_wg_ec/
+
+
+echo "=================== test save model and do evaluation behaviors ==================="
+
+echo "**************dataset: Generated multilabel MovieLens EC, RGCN layer: 1, node feat: generated feature, inference: full graph, exclude-training-targets: True, no-topk save model, no eval frequency"
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 5 --node-feat-name movie:title user:feat --use-mini-batch-infer false  --save-embed-path /data/gsgnn_ec/emb/ --save-model-path /data/gsgnn_ec/ --save-model-frequency 100 --num-epochs 1 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --backend nccl
+
+error_and_exit $?
+
+save_model_cnts=$(grep "successfully save the model to" /tmp/train_log.txt | wc -l)
+do_eval_cnts=$(grep "Best Validation accuracy:" /tmp/train_log.txt | wc -l)
+
+echo "Save model counts: "$save_model_cnts
+echo "Evaluation counts: "$do_eval_cnts
+
+if test $save_model_cnts != $do_eval_cnts
+then
+    echo "The number of save models $save_model_cnts is not equal to the do evaluation $do_eval_cnts."
+    exit -1
+fi
+
+rm /tmp/train_log.txt
+
 rm -fr /tmp/*
