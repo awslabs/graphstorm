@@ -256,7 +256,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                              get_rank(), epoch, i,  loss.item(), time.time() - batch_tic)
 
             val_score = None
-            if self.can_do_model_eval(val_loader) and self.evaluator.do_eval(total_steps):
+            if self.can_do_validation(val_loader) and self.evaluator.do_eval(total_steps):
                 val_score = self.eval(model.module, val_loader, test_loader,
                                       use_mini_batch_infer, total_steps, return_proba=False)
 
@@ -271,7 +271,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
                 total_steps != 0:
                 if val_score is None:
                     # not in the same eval_frequncy iteration
-                    if self.can_do_model_eval(val_loader):
+                    if self.can_do_validation(val_loader):
                         # for model saving, force to do evaluation if can
                         val_score = self.eval(model.module, val_loader, test_loader,
                                             use_mini_batch_infer, total_steps, return_proba=False)
@@ -291,7 +291,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
 
         val_score = None
         # do evaluation and mode saving after each epoch if can
-        if self.can_do_model_eval(val_loader):
+        if self.can_do_validation(val_loader):
             val_score = self.eval(model.module, val_loader, test_loader,
                                   use_mini_batch_infer, total_steps, return_proba=False)
             if self.evaluator.do_early_stop(val_score):

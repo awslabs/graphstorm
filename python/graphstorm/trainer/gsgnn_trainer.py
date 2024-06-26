@@ -324,7 +324,7 @@ class GSgnnTrainer():
         if model_layer_to_load == GRAPHSTORM_MODEL_ALL_LAYERS:
             self._optimizer.load_opt_state(model_path, self._model.device)
 
-    def can_do_model_eval(self, val_dataloader):
+    def can_do_validation(self, val_dataloader):
         """ A unified method to judge if a trainer can do model evaluation
 
         Parameters
