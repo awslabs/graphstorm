@@ -1,4 +1,3 @@
-================================================
 Running distributed processing jobs on AWS Infra
 ================================================
 
@@ -13,7 +12,7 @@ Running distributed jobs on EMR on EC2: :ref:`_emr_ec2`
 .. _sagemaker:
 
 Running distributed jobs on Amazon SageMaker
-================================================
+--------------------------------------------
 
 Once the :doc:`Amazon SageMaker setup <distributed-processing-setup>` is complete, we can
 use the Amazon SageMaker launch scripts to launch distributed processing
