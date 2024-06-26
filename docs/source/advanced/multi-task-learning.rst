@@ -169,7 +169,7 @@ You can specify multiple training tasks for a training job by providing the `mul
 configurations in the YAML file. The following configuration defines two training tasks, one for node
 classification and one for edge classification.
 
-.. code-blocks:: json
+.. code-block:: yaml
 
     ---
     version: 1.0
@@ -217,7 +217,7 @@ In multi-task learning, GraphStorm provides a new unsupervised training signal, 
 reconstruction (`BUILTIN_TASK_RECONSTRUCT_NODE_FEAT = "reconstruct_node_feat"`). You can define a
 node feature reconstruction task as the following example:
 
-.. code-blocks:: json
+.. code-block:: yaml
 
     ---
     version: 1.0
