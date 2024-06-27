@@ -539,7 +539,13 @@ class GSgnnData():
                 train_idx = dgl.distributed.node_split(g.nodes[ntype].data[msk],
                                                        pb, ntype=ntype, force_even=True,
                                                        node_trainer_ids=node_trainer_ids)
-                assert train_idx is not None, "There is no training data."
+                assert train_idx is not None, \
+                    f"The training set of the {ntype} nodes is " \
+                    "empty or the number of training nodes is smaller than " \
+                    f"the number of trainers {get_world_size()}" \
+                    "Please check your training data and make sure " \
+                    "the number of trainers (GPUs, if using GPU-supported " \
+                    "machines) is smaller than the number of training data."
                 num_train += len(train_idx)
                 train_idxs[ntype] = train_idx
 
@@ -770,7 +776,13 @@ class GSgnnData():
                 # TODO(zhengda) we need to split the edges properly to increase the data locality.
                 train_idx = split_full_edge_list(g, canonical_etype, get_rank())
 
-            assert train_idx is not None, "There is no training data."
+            assert train_idx is not None, \
+                f"The training set of the {canonical_etype} edges is " \
+                "empty or the number of training edges is smaller than " \
+                f"the number of trainers {get_world_size()}" \
+                "Please check your training data and make sure " \
+                "the number of trainers (GPUs, if using GPU-supported " \
+                "machines) is smaller than the number of training data."
             num_train += len(train_idx)
             train_idxs[canonical_etype] = train_idx
 
