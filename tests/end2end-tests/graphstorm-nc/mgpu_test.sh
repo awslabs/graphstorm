@@ -615,7 +615,7 @@ echo "NP Evaluation counts: "$do_eval_cnts
 
 if test $save_model_cnts < $do_eval_cnts
 then
-    echo "The number of save models $save_model_cnts is not equal to the do evaluation $do_eval_cnts."
+    echo "The number of save models $save_model_cnts is not less than the number of do evaluation $do_eval_cnts."
     exit -1
 fi
 
