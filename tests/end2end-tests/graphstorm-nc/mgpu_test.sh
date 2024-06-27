@@ -564,8 +564,8 @@ rm -fr /tmp/*
 
 echo "=================== test save model and do evaluation behaviors ==================="
 
-echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: BERT nodes: movie, user inference: mini-batch, no-topk save model, no eval frequency"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext.yaml  --save-model-path /data/gsgnn_nc_ml_text/ --save-model-frequency 5 --save-embed-path /data/gsgnn_nc_ml_text/emb/ --num-epochs 1 --logging-file /tmp/train_log.txt
+echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, no-topk save model, no eval frequency"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --node-feat-name movie:title user:feat --batch-size 64 --save-model-path /data/gsgnn_nc_ml_text/ --save-model-frequency 5 --num-epochs 1 --logging-file /tmp/train_log.txt
 
 error_and_exit $?
 
@@ -583,8 +583,8 @@ fi
 
 rm /tmp/train_log.txt
 
-echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: BERT nodes: movie, user inference: mini-batch, no-topk save model, eval less frequently but divisible by save model frequency"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext.yaml  --save-model-path /data/gsgnn_nc_ml_text/ --save-model-frequency 5 --eval-frequency 10 --save-embed-path /data/gsgnn_nc_ml_text/emb/ --num-epochs 1 --logging-file /tmp/train_log.txt
+echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch,, no-topk save model, eval less frequently but divisible by save model frequency"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --node-feat-name movie:title user:feat --batch-size 64 --save-model-path /data/gsgnn_nc_ml_text/ --save-model-frequency 5 --eval-frequency 10  --num-epochs 1 --logging-file /tmp/train_log.txt
 
 error_and_exit $?
 
@@ -602,8 +602,8 @@ fi
 
 rm /tmp/train_log.txt
 
-echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: BERT nodes: movie, user inference: mini-batch, no-topk save model, eval more frequently"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lm_encoder_train_val_1p_4t/movie-lens-100k-text.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_utext.yaml  --save-model-path /data/gsgnn_nc_ml_text/ --save-model-frequency 5 --eval-frequency 3 --save-embed-path /data/gsgnn_nc_ml_text/emb/ --num-epochs 1 --logging-file /tmp/train_log.txt
+echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch,, no-topk save model, eval more frequently"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --node-feat-name movie:title user:feat --batch-size 64 --save-model-path /data/gsgnn_nc_ml_text/ --save-model-frequency 5 --eval-frequency 3  --num-epochs 1 --logging-file /tmp/train_log.txt
 
 error_and_exit $?
 

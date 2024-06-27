@@ -283,7 +283,7 @@ rm -fr /data/gsgnn_wg_ec/
 echo "=================== test save model and do evaluation behaviors ==================="
 
 echo "**************dataset: Generated multilabel MovieLens EC, RGCN layer: 1, node feat: generated feature, inference: full graph, exclude-training-targets: True, no-topk save model, no eval frequency"
-python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 5 --node-feat-name movie:title user:feat --use-mini-batch-infer false  --save-embed-path /data/gsgnn_ec/emb/ --save-model-path /data/gsgnn_ec/ --save-model-frequency 20 --num-epochs 1 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --backend nccl
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 5 --node-feat-name movie:title user:feat --use-mini-batch-infer false  --save-model-path /data/gsgnn_ec/ --batch-size 64  --save-model-frequency 20 --num-epochs 1 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --backend nccl
 
 error_and_exit $?
 
@@ -302,7 +302,7 @@ fi
 rm /tmp/train_log.txt
 
 echo "**************dataset: Generated multilabel MovieLens EC, RGCN layer: 1, node feat: generated feature, inference: full graph, exclude-training-targets: True, no-topk save model, eval less frequently but divisible by save model frequency"
-python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 5 --node-feat-name movie:title user:feat --use-mini-batch-infer false  --save-embed-path /data/gsgnn_ec/emb/ --save-model-path /data/gsgnn_ec/ --save-model-frequency 20 --eval-frequency 40 --num-epochs 1 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --backend nccl
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 5 --node-feat-name movie:title user:feat --use-mini-batch-infer false  --save-model-path /data/gsgnn_ec/ --batch-size 64 --save-model-frequency 20 --eval-frequency 40 --num-epochs 1 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --backend nccl
 
 error_and_exit $?
 
@@ -321,7 +321,7 @@ fi
 rm /tmp/train_log.txt
 
 echo "**************dataset: Generated multilabel MovieLens EC, RGCN layer: 1, node feat: generated feature, inference: full graph, exclude-training-targets: True, no-topk save model, eval more frequently"
-python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 5 --node-feat-name movie:title user:feat --use-mini-batch-infer false  --save-embed-path /data/gsgnn_ec/emb/ --save-model-path /data/gsgnn_ec/ --save-model-frequency 20 --eval-frequency 10 --num-epochs 1 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --backend nccl
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 5 --node-feat-name movie:title user:feat --use-mini-batch-infer false  --save-model-path /data/gsgnn_ec/ --batch-size 64 --save-model-frequency 20 --eval-frequency 10 --num-epochs 1 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --backend nccl
 
 error_and_exit $?
 

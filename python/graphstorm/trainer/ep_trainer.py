@@ -264,7 +264,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 logging.info("Epoch %d take %.3f seconds", epoch, epoch_time)
 
             val_score = None
-            # do evaluation and mode saving after each epoch if can
+            # do evaluation and model saving after each epoch if can
             if self.can_do_validation(val_loader):
                 val_score = self.eval(model.module if is_distributed() else model,
                                       val_loader, test_loader, use_mini_batch_infer,
