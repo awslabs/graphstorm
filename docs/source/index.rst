@@ -22,9 +22,7 @@ Welcome to the GraphStorm Documentation and Tutorials
    gs-processing/gs-processing-getting-started
    gs-processing/usage/example
    gs-processing/usage/distributed-processing-setup
-   gs-processing/usage/amazon-sagemaker
-   gs-processing/usage/emr
-   gs-processing/usage/emr-serverless
+   gs-processing/usage/AWSInfra
    gs-processing/developer/input-configuration
 
 .. toctree::
