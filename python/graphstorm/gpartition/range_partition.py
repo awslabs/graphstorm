@@ -18,21 +18,22 @@
 import os
 import logging
 import json
+from typing import List
 
 import numpy as np
 import pyarrow as pa
 import pyarrow.csv as pa_csv
 
-from .partition_algo_base import LocalPartitionAlgorithm
+from .random_partition import LocalPartitionAlgorithm
 
-class RandomPartitionAlgorithm(LocalPartitionAlgorithm):
+class RangePartitionAlgorithm(LocalPartitionAlgorithm):
     """
-    Single-instance random partitioning algorithm.
+    Single-instance range partitioning algorithm.
 
     The partition algorithm accepts the intermediate output from GraphStorm
     gs-processing which matches the requirements of the DGL distributed
-    partitioning pipeline. It does random node assignments for each node
-    during partition and outputs the node assignment results and partition
+    partitioning pipeline. It sequentially assigns nodes to partitions
+    and outputs the node assignment results and partition
     metadata file to the provided output directory.
 
 
@@ -43,28 +44,33 @@ class RandomPartitionAlgorithm(LocalPartitionAlgorithm):
         https://docs.dgl.ai/guide/distributed-preprocessing.html#specification
     """
     def _assign_partitions(self, num_partitions: int, partition_dir: str):
-        num_nodes_per_type = self.metadata_dict["num_nodes_per_type"]
-        ntypes = self.metadata_dict["node_type"]
+        num_nodes_per_type = self.metadata_dict["num_nodes_per_type"]  # type: List[int]
+        ntypes = self.metadata_dict["node_type"]  # type: List[str]
+
         # Note: This assumes that the order of node_type is the same as the order num_nodes_per_type
         for ntype, num_nodes_for_type in zip(ntypes, num_nodes_per_type):
-            logging.info("Generating random partition for node type %s", ntype)
-            ntype_output = os.path.join(partition_dir, f"{ntype}.txt")
+            logging.debug("Generating range partition for node type %s", ntype)
+            ntype_output_path = os.path.join(partition_dir, f"{ntype}.txt")
 
             partition_dtype = np.uint8 if num_partitions <= 256 else np.uint16
 
-            partition_assignment = np.random.randint(
-                0,
-                num_partitions,
-                (num_nodes_for_type,),
-                dtype=partition_dtype)
+            assigned_parts = np.array_split(
+                np.empty(num_nodes_for_type, dtype=partition_dtype),
+                num_partitions)
+
+            for idx, assigned_part in enumerate(assigned_parts):
+                assigned_part[:] = idx
 
             arrow_partitions = pa.Table.from_arrays(
-                [pa.array(partition_assignment)],
+                [np.concatenate(assigned_parts)],
                 names=["partition_id"])
             options = pa_csv.WriteOptions(include_header=False, delimiter=' ')
-            pa_csv.write_csv(arrow_partitions, ntype_output, write_options=options)
+            pa_csv.write_csv(arrow_partitions, ntype_output_path, write_options=options)
 
-    def _create_metadata(self, num_partitions: int, partition_dir: str):
+
+    def _create_metadata(self, num_partitions: int, partition_dir: str) -> None:
+        # TODO: DGL currently restricts the names we can give in the metadata, will
+        # fix once https://github.com/dmlc/dgl/pull/7361 is merged into a release
         partition_meta = {
             "algo_name": "random",
             "num_parts": num_partitions,

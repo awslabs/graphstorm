@@ -105,7 +105,7 @@ def get_partition_parser():
         help="File name of metadata config file for chunked format data")
 
     partition_args.add_argument("--partition-algorithm", type=str, default='random',
-        help="Partition algorithm to use.", choices=['random'])
+        help="Partition algorithm to use.", choices=['random', 'range'])
 
     partition_args.add_argument("--skip-partitioning", action='store_true',
         help="When set, we skip the partitioning step. "

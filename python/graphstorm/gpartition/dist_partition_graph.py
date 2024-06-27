@@ -24,13 +24,18 @@ import logging
 import os
 import queue
 import time
+import shutil
 import subprocess
 import sys
 from typing import Dict
 from threading import Thread
 
-from graphstorm.gpartition import (ParMetisPartitionAlgorithm, ParMETISConfig,
-    RandomPartitionAlgorithm)
+from graphstorm.gpartition import (
+    ParMetisPartitionAlgorithm,
+    ParMETISConfig,
+    RandomPartitionAlgorithm,
+    RangePartitionAlgorithm,
+)
 from graphstorm.utils import get_log_level
 
 
@@ -122,6 +127,8 @@ def main():
         partition_config = ParMETISConfig(args.ip_config, args.input_path,
                                           args.dgl_tool_path, args.metadata_filename)
         partitioner = ParMetisPartitionAlgorithm(metadata_dict, partition_config)
+    elif args.partition_algorithm == "range":
+        partitioner = RangePartitionAlgorithm(metadata_dict)
     else:
         raise RuntimeError(f"Unknown partition algorithm {args.part_algorithm}")
 
@@ -133,7 +140,10 @@ def main():
         part_assignment_dir)
 
     part_end = time.time()
-    logging.info("Partition assignment took %f sec", part_end - part_start)
+    logging.info("Partition assignment with algorithm '%s' took %f sec",
+                 args.partition_algorithm,
+                 part_end - part_start,
+    )
 
     if args.do_dispatch:
         run_build_dglgraph(
@@ -146,6 +156,18 @@ def main():
             args.ssh_port)
 
         logging.info("DGL graph building took %f sec", part_end - time.time())
+
+    # Copy raw_id_mappings to dist_graph if they exist in the input
+    raw_id_mappings_path = os.path.join(args.input_path, "raw_id_mappings")
+
+    if os.path.exists(raw_id_mappings_path):
+        logging.info("Copying raw_id_mappings to dist_graph")
+        shutil.copytree(
+            raw_id_mappings_path,
+            os.path.join(output_path, 'dist_graph/raw_id_mappings'),
+            dirs_exist_ok=True,
+        )
+
 
     logging.info('Partition assignment and DGL graph creation took %f seconds',
                  time.time() - start)
@@ -166,7 +188,7 @@ def parse_args() -> argparse.Namespace:
     argparser.add_argument("--dgl-tool-path", type=str, default="/root/dgl/tools",
                            help="The path to dgl/tools")
     argparser.add_argument("--partition-algorithm", type=str, default="random",
-                           choices=["random", "parmetis"], help="Partition algorithm to use.")
+                           choices=["random", "parmetis", "range"], help="Partition algorithm to use.")
     argparser.add_argument("--ip-config", type=str,
                            help=("A file storing a list of IPs, one line for "
                                 "each instance of the partition cluster."))
