@@ -53,7 +53,7 @@ def test_try_read_file_with_wildcard(
 
 
 def test_try_read_unsupported_feature(converter: GConstructConfigConverter, node_dict: dict):
-    """We currently only support no-op and numerical features, so should error out otherwise."""
+    """We should test about giving unknown feature transformation type."""
     node_dict["nodes"][0]["features"] = [
         {
             "feature_col": ["paper_title"],
@@ -63,6 +63,60 @@ def test_try_read_unsupported_feature(converter: GConstructConfigConverter, node
 
     with pytest.raises(ValueError):
         _ = converter.convert_nodes(node_dict["nodes"])
+
+
+@pytest.mark.parametrize("transform", ["max_min_norm", "rank_gauss"])
+@pytest.mark.parametrize("out_dtype", ["float16", "float32", "float64"])
+def test_try_convert_out_dtype(
+    converter: GConstructConfigConverter, node_dict: dict, transform: str, out_dtype: str
+):
+    node_dict["nodes"][0]["features"] = [
+        {
+            "feature_col": ["paper_title"],
+            "transform": {"name": transform, "out_dtype": out_dtype},
+        }
+    ]
+
+    normalizer_dict = {"max_min_norm": "min-max", "rank_gauss": "rank-gauss"}
+    res = converter.convert_nodes(node_dict["nodes"])[0]
+    if out_dtype == "float32":
+        assert res.features == [
+            {
+                "column": "paper_title",
+                "transformation": {
+                    "kwargs": {
+                        "imputer": "none",
+                        "normalizer": normalizer_dict[transform],
+                        "out_dtype": "float32",
+                    },
+                    "name": "numerical",
+                },
+            }
+        ]
+    elif out_dtype == "float64":
+        assert res.features == [
+            {
+                "column": "paper_title",
+                "transformation": {
+                    "kwargs": {
+                        "imputer": "none",
+                        "normalizer": normalizer_dict[transform],
+                        "out_dtype": "float64",
+                    },
+                    "name": "numerical",
+                },
+            }
+        ]
+    elif out_dtype == "float16":
+        assert res.features == [
+            {
+                "column": "paper_title",
+                "transformation": {
+                    "kwargs": {"imputer": "none", "normalizer": normalizer_dict[transform]},
+                    "name": "numerical",
+                },
+            }
+        ]
 
 
 @pytest.mark.parametrize("col_name", ["citation_time", ["citation_time"]])
@@ -109,6 +163,50 @@ def test_read_node_gconstruct(converter: GConstructConfigConverter, node_dict: d
             "column": "label",
             "type": "classification",
             "split_rate": {"train": 0.8, "val": 0.1, "test": 0.1},
+        }
+    ]
+
+    node_dict["nodes"].append(
+        {
+            "node_type": "paper_custom",
+            "format": {"name": "parquet"},
+            "files": ["/tmp/acm_raw/nodes/paper_custom.parquet"],
+            "node_id_col": "node_id",
+            "labels": [
+                {
+                    "label_col": "label",
+                    "task_type": "classification",
+                    "custom_split_filenames": {
+                        "train": "customized_label/node_train_idx.parquet",
+                        "valid": "customized_label/node_val_idx.parquet",
+                        "test": "customized_label/node_test_idx.parquet",
+                        "column": ["ID"],
+                    },
+                    "label_stats_type": "frequency_cnt",
+                }
+            ],
+        }
+    )
+
+    # nodes with all elements
+    # [self.type, self.format, self.files, self.separator, self.column, self.features, self.labels]
+    node_config = converter.convert_nodes(node_dict["nodes"])[2]
+    assert len(converter.convert_nodes(node_dict["nodes"])) == 3
+    assert node_config.node_type == "paper_custom"
+    assert node_config.file_format == "parquet"
+    assert node_config.files == ["/tmp/acm_raw/nodes/paper_custom.parquet"]
+    assert node_config.separator is None
+    assert node_config.column == "node_id"
+    assert node_config.labels == [
+        {
+            "column": "label",
+            "type": "classification",
+            "custom_split_filenames": {
+                "train": "customized_label/node_train_idx.parquet",
+                "valid": "customized_label/node_val_idx.parquet",
+                "test": "customized_label/node_test_idx.parquet",
+                "column": ["ID"],
+            },
         }
     ]
 

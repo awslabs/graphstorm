@@ -16,13 +16,15 @@ limitations under the License.
 
 import json
 import logging
+import math
 import numbers
 import os
 from collections import Counter, defaultdict
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from time import perf_counter
-from typing import Any, Dict, Mapping, Optional, Sequence, Set, Tuple
+from typing import Any, Dict, Optional, Set, Tuple
 
-from pyspark import RDD
 from pyspark.sql import Row, SparkSession, DataFrame, functions as F
 from pyspark.sql.types import (
     StructType,
@@ -33,6 +35,7 @@ from pyspark.sql.types import (
     ArrayType,
     ByteType,
 )
+from pyspark.sql.functions import col, when
 from numpy.random import default_rng
 
 from graphstorm_processing.constants import (
@@ -43,18 +46,23 @@ from graphstorm_processing.constants import (
     SPECIAL_CHARACTERS,
     HUGGINGFACE_TRANFORM,
     HUGGINGFACE_TOKENIZE,
+    TRANSFORMATIONS_FILENAME,
 )
-from ..config.config_parser import EdgeConfig, NodeConfig, StructureConfig
-from ..config.label_config_base import LabelConfig
-from ..config.feature_config_base import FeatureConfig
-from ..data_transformations.dist_feature_transformer import DistFeatureTransformer
-from ..data_transformations.dist_label_loader import DistLabelLoader, SplitRates
-from ..data_transformations import s3_utils, spark_utils
-from .heterogeneous_graphloader import HeterogeneousGraphLoader
+from graphstorm_processing.config.config_parser import EdgeConfig, NodeConfig, StructureConfig
+from graphstorm_processing.config.label_config_base import LabelConfig
+from graphstorm_processing.config.feature_config_base import FeatureConfig
+from graphstorm_processing.data_transformations.dist_feature_transformer import (
+    DistFeatureTransformer,
+)
+from graphstorm_processing.data_transformations.dist_label_loader import (
+    CustomSplit,
+    DistLabelLoader,
+    SplitRates,
+)
+from graphstorm_processing.data_transformations import s3_utils, spark_utils
 
-# TODO: Remove the pylint disable once we add the rest of the code
-from . import schema_utils  # pylint: disable=no-name-in-module
-from .row_count_utils import ParquetRowCounter  # pylint: disable=no-name-in-module
+from . import schema_utils
+from .row_count_utils import ParquetRowCounter
 
 FORMAT_NAME = "parquet"
 DELIMITER = "" if FORMAT_NAME == "parquet" else ","
@@ -62,7 +70,82 @@ NODE_MAPPING_STR = "orig"
 NODE_MAPPING_INT = "new"
 
 
-class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
+@dataclass
+class HeterogeneousLoaderConfig:
+    """
+    Configuration object for the loader.
+
+    add_reverse_edges : bool
+        Whether to add reverse edges to the graph.
+    data_configs : Dict[str, Sequence[StructureConfig]]
+        Dictionary of node and edge configurations objects.
+    enable_assertions : bool, optional
+        When true enables sanity checks for the output created.
+        However these are costly to compute, so we disable them by default.
+    graph_name: str
+        Name of the graph.
+    input_prefix : str
+        The prefix to the input data. Can be an S3 URI or an **absolute** local path.
+    local_input_path : str
+        Local path to input configuration data
+    local_metadata_output_path : str
+        Local path to where the output metadata files will be created.
+    num_output_files : int
+        The number of files (partitions) to create for the output, if None we
+        let Spark decide.
+    output_prefix : str
+        The prefix to where the output data will be created. Can be an S3 URI
+        or an **absolute** local path.
+    precomputed_transformations: dict
+        A dictionary describing precomputed transformations for the features
+        of the graph.
+    """
+
+    add_reverse_edges: bool
+    data_configs: Mapping[str, Sequence[StructureConfig]]
+    enable_assertions: bool
+    graph_name: str
+    input_prefix: str
+    local_input_path: str
+    local_metadata_output_path: str
+    num_output_files: int
+    output_prefix: str
+    precomputed_transformations: dict
+
+
+@dataclass
+class ProcessedGraphRepresentation:
+    """JSON representations of a processed graph.
+
+    Parameters
+    ----------
+    processed_graph_metadata_dict : dict
+        A dictionary of metadata for the graph, in "chunked-graph"
+        format, with additional key "graph_info" that contains a more
+        verbose representation of th processed graph.
+
+        The dict also contains a "raw_id_mappings" key, which is a dict
+        of dicts, one for each node type. Each entry contains files information
+        about the raw-to-integer ID mapping for each node.
+
+        The returned value also contains an additional dict of dicts,
+        "graph_info" which contains additional information about the
+        graph in a more readable format.
+
+        For chunked graph format see
+        https://docs.dgl.ai/guide/distributed-preprocessing.html#specification
+    transformation_representations : dict
+        A dictionary containing the processed graph transformations.
+    timers : dict
+        A dictionary containing the timing information for different steps of processing.
+    """
+
+    processed_graph_metadata_dict: dict
+    transformation_representations: dict
+    timers: dict
+
+
+class DistHeterogeneousGraphLoader(object):
     """
     A graph loader designed to run distributed processing of a heterogeneous graph.
 
@@ -70,80 +153,75 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
     ----------
     spark : SparkSession
         The SparkSession that we use to perform the processing
-    local_input_path : str
-        Local path to input configuration data
-    local_metadata_path : str
-        Local path to where the output metadata files will be created.
-    data_configs : Dict[str, Sequence[StructureConfig]]
-        Dictionary of node and edge configurations objects.
-    input_prefix : str
-        The prefix to the input data. Can be an S3 URI or an **absolute** local path.
-    output_prefix : str
-        The prefix to where the output data will be created. Can be an S3 URI
-        or an **absolute** local path.
-    num_output_files : Optional[int], optional
-        The number of files (partitions) to create for the output, if None we
-        let Spark decide.
-    enable_assertions : bool, optional
-        When true enables sanity checks for the output created.
-        However these are costly to compute, so we disable them by default.
     """
 
     def __init__(
         self,
         spark: SparkSession,
-        local_input_path: str,
-        local_output_path: str,
-        data_configs: Dict[str, Sequence[StructureConfig]],
-        input_prefix: str,
-        output_prefix: str,
-        num_output_files: Optional[int] = None,
-        add_reverse_edges=True,
-        enable_assertions=False,
-        graph_name: Optional[str] = None,
+        loader_config: HeterogeneousLoaderConfig,
     ):
-        super().__init__(local_input_path, local_output_path, data_configs)
+        self.output_path = loader_config.local_metadata_output_path
+        self._data_configs = loader_config.data_configs
+        self.feature_configs: list[FeatureConfig] = []
 
         # TODO: Pass as an argument?
-        if input_prefix.startswith("s3://"):
+        if loader_config.input_prefix.startswith("s3://"):
             self.filesystem_type = "s3"
         else:
-            assert os.path.isabs(input_prefix), "We expect an absolute path"
+            assert os.path.isabs(loader_config.input_prefix), "We expect an absolute path"
             self.filesystem_type = "local"
 
         self.spark = spark  # type: SparkSession
-        self.add_reverse_edges = add_reverse_edges
+        self.add_reverse_edges = loader_config.add_reverse_edges
         # Remove trailing slash in s3 paths
         if self.filesystem_type == "s3":
-            self.input_prefix = s3_utils.s3_path_remove_trailing(input_prefix)
-            self.output_prefix = s3_utils.s3_path_remove_trailing(output_prefix)
+            self.input_prefix = s3_utils.s3_path_remove_trailing(loader_config.input_prefix)
+            self.output_prefix = s3_utils.s3_path_remove_trailing(loader_config.output_prefix)
         else:
             # TODO: Any checks for local paths?
-            self.input_prefix = input_prefix
-            self.output_prefix = output_prefix
+            self.input_prefix = loader_config.input_prefix
+            self.output_prefix = loader_config.output_prefix
         self.num_output_files = (
-            num_output_files
-            if num_output_files and num_output_files > 0
+            loader_config.num_output_files
+            if loader_config.num_output_files and loader_config.num_output_files > 0
             else int(spark.sparkContext.defaultParallelism)
         )
         assert self.num_output_files > 0
         # Mapping from node type to filepath, each file is a node-str to node-int-id mapping
-        self.node_mapping_paths = {}  # type: Dict[str, Sequence[str]]
+        self.node_mapping_paths: dict[str, Sequence[str]] = {}
         # Mapping from label name to value counts
         self.label_properties: Dict[str, Counter] = defaultdict(Counter)
-        self.timers = defaultdict(float)  # type: Dict
-        self.enable_assertions = enable_assertions
+        self.timers = defaultdict(float)
+        self.enable_assertions = loader_config.enable_assertions
         # Column names that are valid in CSV can be invalid in Parquet
         # we collect an column name substitutions we had to make
         # here and later output as a JSON file.
-        self.column_substitutions = {}  # type: Dict[str, str]
-        self.graph_info = {}  # type: Dict[str, Any]
-        self.graph_name = graph_name
+        self.column_substitutions: dict[str, str] = {}
+        self.graph_info: dict[str, Any] = {}
+        # Structure:
+        # {
+        #     "node_features": {
+        #         "node_type1": {
+        #             "feature_name1": {
+        #                 # feature1 representation goes here
+        #             },
+        #             "feature_name2": {}, ...
+        #         },
+        #         "node_type2": {...}
+        #     },
+        #     "edges_features": {...}
+        # }
+        self.transformation_representations = {
+            "node_features": defaultdict(dict),
+            "edge_features": defaultdict(dict),
+        }
+        self.graph_name = loader_config.graph_name
         self.skip_train_masks = False
+        self.pre_computed_transformations = loader_config.precomputed_transformations
 
     def process_and_write_graph_data(
         self, data_configs: Mapping[str, Sequence[StructureConfig]]
-    ) -> None:
+    ) -> ProcessedGraphRepresentation:
         """Process and encode all graph data.
 
         Extracts and encodes graph structure before writing to storage, then applies pre-processing
@@ -157,6 +235,15 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         ----------
         data_configs : Mapping[str, Sequence[StructureConfig]]
             Dictionary of configuration for nodes and edges
+
+        Returns
+        -------
+        ProcessedGraphRepresentation
+            A dataclass object containing JSON representations of a graph after
+            it has been processed.
+
+            See `dist_heterogeneous_loader.ProcessedGraphRepresentation` for more
+            details.
         """
         # TODO: See if it's better to return some data structure
         # for the followup steps instead of just have side-effects
@@ -225,11 +312,18 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
         metadata_dict["graph_info"] = self._finalize_graphinfo_dict(metadata_dict)
 
-        # The metadata dict is written to disk as a JSON file,
-        # SageMaker takes care of uploading it to S3
+        # The metadata dict is written to disk as a JSON file
         with open(os.path.join(self.output_path, "metadata.json"), "w", encoding="utf-8") as f:
             json.dump(metadata_dict, f, indent=4)
 
+        # Write the transformations file
+        with open(
+            os.path.join(self.output_path, TRANSFORMATIONS_FILENAME), "w", encoding="utf-8"
+        ) as f:
+            json.dump(self.transformation_representations, f, indent=4)
+
+        # Column substitutions contain any col names we needed to change because their original
+        # name did not fit Parquet requirements
         if len(self.column_substitutions) > 0:
             with open(
                 os.path.join(self.output_path, "column_substitutions.json"), "w", encoding="utf-8"
@@ -238,11 +332,15 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
         self.timers["process_and_write_graph_data"] = perf_counter() - process_start_time
 
-        with open(os.path.join(self.output_path, "perf_counters.json"), "w", encoding="utf-8") as f:
-            sorted_timers = dict(sorted(self.timers.items(), key=lambda x: x[1], reverse=True))
-            json.dump(sorted_timers, f, indent=4)
-
         logging.info("Finished Distributed Graph Processing ...")
+
+        processed_representations = ProcessedGraphRepresentation(
+            processed_graph_metadata_dict=metadata_dict,
+            transformation_representations=self.transformation_representations,
+            timers=self.timers,
+        )
+
+        return processed_representations
 
     @staticmethod
     def _at_least_one_label_exists(data_configs: Mapping[str, Sequence[StructureConfig]]) -> bool:
@@ -444,7 +542,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     # Single column, but could be a multi-valued vector
                     return f"{row_vals[0]}"
 
-            input_rdd = input_df.rdd.map(csv_row)  # type: RDD
+            input_rdd: RDD = input_df.rdd.map(csv_row)
             input_rdd.saveAsTextFile(os.path.join(full_output_path, "csv"))
             prefix_with_format = os.path.join(output_prefix, "csv")
         else:
@@ -800,12 +898,16 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         self.graph_info["ntype_label"] = []
         self.graph_info["ntype_label_property"] = []
         for node_config in node_configs:
-            logging.info("node_config: %s", node_config)
             files = node_config.files
             file_paths = [f"{self.input_prefix}/{f}" for f in files]
 
             node_type = node_config.ntype
             node_col = node_config.node_col
+            logging.info(
+                "Processing data for node type %s with config: %s",
+                node_type,
+                node_config,
+            )
 
             read_nodefile_start = perf_counter()
             # TODO: Maybe we use same enforced type for Parquet and CSV
@@ -853,6 +955,9 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 if self.enable_assertions:
                     nodes_df_count = nodes_df.count()
                     mapping_df_count = mapping_df.count()
+                    logging.warning(
+                        "Node mapping count for node type %s: %d", node_type, mapping_df_count
+                    )
                     assert nodes_df_count == mapping_df_count, (
                         f"Nodes df count ({nodes_df_count}) does not match "
                         f"mapping df count ({mapping_df_count})"
@@ -861,6 +966,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     NODE_MAPPING_INT
                 )
             else:
+                logging.info("Creating node str-to-int mapping for node type: %s", node_type)
                 nodes_df = self.create_node_id_map_from_nodes_df(nodes_df, node_col)
                 self._write_nodeid_mapping_and_update_state(nodes_df, node_type)
 
@@ -923,23 +1029,45 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         Returns
         -------
         Tuple[Dict, Dict]
-            A tuple with two dicts, both dicts have names as their keys.
+            A tuple with two dicts, both dicts have feature names as their keys.
             The first dict has the output metadata for the feature
             as  values, and the second has the lengths of the
             vector representations of the features as values.
         """
         node_type_feature_metadata = {}
         ntype_feat_sizes = {}  # type: Dict[str, int]
+
         for feat_conf in feature_configs:
-            logging.info(
-                "Processing feat_name: '%s' feat_cols: %s", feat_conf.feat_name, feat_conf.cols
+            # This will get a value iff there exists a pre-computed representation
+            # for this feature name and node type, an empty dict (which evaluates to False)
+            # otherwise. We do the same for the edges.
+            json_representation = (
+                self.pre_computed_transformations.get("node_features", {})
+                .get(node_type, {})
+                .get(feat_conf.feat_name, {})
             )
+            transformer = DistFeatureTransformer(feat_conf, self.spark, json_representation)
 
-            transformer = DistFeatureTransformer(feat_conf)
+            if json_representation:
+                logging.info(
+                    "Will apply pre-computed transformation for feature: %s", feat_conf.feat_name
+                )
 
-            transformed_feature_df = transformer.apply_transformation(nodes_df)
+            transformed_feature_df, json_representation = transformer.apply_transformation(nodes_df)
+            transformed_feature_df.cache()
 
-            def process_feature(self, feat_name, single_feature_df, node_type, transformer_name):
+            # Will evaluate False for empty dict, only create representations when needed
+            if json_representation:
+                self.transformation_representations["node_features"][node_type][
+                    feat_conf.feat_name
+                ] = json_representation
+
+            def write_processed_feature(
+                feat_name: str,
+                single_feature_df: DataFrame,
+                node_type: str,
+                transformer: DistFeatureTransformer,
+            ):
                 feature_output_path = os.path.join(
                     self.output_prefix, f"node_data/{node_type}-{feat_name}"
                 )
@@ -960,7 +1088,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 nfeat_size = 1 if isinstance(feat_val, (int, float)) else len(feat_val)
                 ntype_feat_sizes.update({feat_name: nfeat_size})
 
-                self.timers[f"{transformer_name}-{node_type}-{feat_name}"] = (
+                self.timers[f"{transformer.get_transformation_name()}-{node_type}-{feat_name}"] = (
                     perf_counter() - node_transformation_start
                 )
 
@@ -974,24 +1102,26 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 ):
                     for bert_feat_name in ["input_ids", "attention_mask", "token_type_ids"]:
                         single_feature_df = transformed_feature_df.select(bert_feat_name)
-                        process_feature(
-                            self,
+                        write_processed_feature(
                             bert_feat_name,
                             single_feature_df,
                             node_type,
-                            transformer.get_transformation_name(),
+                            transformer,
                         )
                 else:
                     single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(
                         feat_col, feat_name
                     )
-                    process_feature(
-                        self,
+                    write_processed_feature(
                         feat_name,
                         single_feature_df,
                         node_type,
-                        transformer.get_transformation_name(),
+                        transformer,
                     )
+
+            # Unpersist and move on to next feature
+            transformed_feature_df.unpersist()
+
         return node_type_feature_metadata, ntype_feat_sizes
 
     def _process_node_labels(
@@ -1009,6 +1139,11 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             )
             self.graph_info["is_multilabel"] = label_conf.multilabel
             node_label_loader = DistLabelLoader(label_conf, self.spark)
+            logging.info(
+                "Processing label data for node type %s, label col: %s...",
+                node_type,
+                label_conf.label_column,
+            )
             transformed_label = node_label_loader.process_label(nodes_df)
             self.graph_info["label_map"] = node_label_loader.label_map
 
@@ -1028,7 +1163,11 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
 
             split_masks_output_prefix = f"{self.output_prefix}/node_data/{node_type}"
 
-            logging.info("Creating train/test/val split for node type %s...", node_type)
+            logging.info(
+                "Creating train/test/val split for node type %s, label col: %s...",
+                node_type,
+                label_conf.label_column,
+            )
             if label_conf.split_rate:
                 split_rates = SplitRates(
                     train_rate=label_conf.split_rate["train"],
@@ -1037,8 +1176,21 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 )
             else:
                 split_rates = None
-            label_split_dicts = self._create_split_files_from_rates(
-                nodes_df, label_conf.label_column, split_rates, split_masks_output_prefix
+            if label_conf.custom_split_filenames:
+                custom_split_filenames = CustomSplit(
+                    train=label_conf.custom_split_filenames["train"],
+                    valid=label_conf.custom_split_filenames["valid"],
+                    test=label_conf.custom_split_filenames["test"],
+                    mask_columns=label_conf.custom_split_filenames["column"],
+                )
+            else:
+                custom_split_filenames = None
+            label_split_dicts = self._create_split_files(
+                nodes_df,
+                label_conf.label_column,
+                split_rates,
+                split_masks_output_prefix,
+                custom_split_filenames,
             )
             node_type_label_metadata.update(label_split_dicts)
 
@@ -1073,11 +1225,6 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             The first list contains the original edge files, the second is the reversed
             edge files, will be empty if `self.add_reverse_edges` is False.
         """
-        # TODO: An option for dealing with skewed data:
-        # Find the heavy hitter, collect, do broadcast join with just them,
-        # (for both sides of the edge and filter the rows?) then do the join with
-        # the rest, then concat the two (or write to storage separately, concat at read-time)
-
         src_col = edge_config.src_col
         src_ntype = edge_config.src_ntype
         dst_col = edge_config.dst_col
@@ -1098,10 +1245,13 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             )
             .withColumnRenamed(NODE_MAPPING_INT, "src_int_id")
             .withColumnRenamed(NODE_MAPPING_STR, "src_str_id")
-            .repartition(self.num_output_files, F.col("src_str_id"))
         )
+
+        # If edge is homogeneous, we'll re-use the same mapping for both src and dst
+        if src_ntype == dst_ntype:
+            src_node_id_mapping.cache()
+
         # Join incoming edge df with mapping df to transform source str-ids to int ids
-        edge_df = edge_df.repartition(self.num_output_files, F.col(src_col))
         edge_df_with_int_src = src_node_id_mapping.join(
             edge_df,
             src_node_id_mapping["src_str_id"] == edge_df[src_col],
@@ -1112,32 +1262,40 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             incoming_edge_count = edge_df.count()
             intermediate_edge_count = edge_df_with_int_src.count()
             if incoming_edge_count != intermediate_edge_count:
+                distinct_nodes_src = edge_df.select(src_col).distinct().count()
                 logging.fatal(
-                    "Incoming and outgoing edge counts do not match for "
-                    "%s when joining %s with src_str_id! "
-                    "%d in != %d out",
+                    (
+                        "Incoming and outgoing edge counts do not match for "
+                        "%s when joining %s with src_str_id! "
+                        "%d in != %d out"
+                        "Edge had %d distinct src nodes of type %s"
+                    ),
                     edge_type,
                     src_col,
                     incoming_edge_count,
                     intermediate_edge_count,
+                    distinct_nodes_src,
+                    src_ntype,
                 )
 
-        dst_node_id_mapping = (
-            self.spark.read.parquet(
-                *[
-                    f"{self.output_prefix}/{dst_path}"
-                    for dst_path in self.node_mapping_paths[dst_ntype]
-                ]
+        if src_ntype == dst_ntype:
+            # Re-use mapping for homogeneous edges
+            dst_node_id_mapping = src_node_id_mapping.withColumnRenamed(
+                "src_int_id", "dst_int_id"
+            ).withColumnRenamed("src_str_id", "dst_str_id")
+        else:
+            dst_node_id_mapping = (
+                self.spark.read.parquet(
+                    *[
+                        f"{self.output_prefix}/{dst_path}"
+                        for dst_path in self.node_mapping_paths[dst_ntype]
+                    ]
+                )
+                .withColumnRenamed(NODE_MAPPING_INT, "dst_int_id")
+                .withColumnRenamed(NODE_MAPPING_STR, "dst_str_id")
             )
-            .withColumnRenamed(NODE_MAPPING_INT, "dst_int_id")
-            .withColumnRenamed(NODE_MAPPING_STR, "dst_str_id")
-            .repartition(self.num_output_files, F.col("dst_str_id"))
-        )
         # Join the newly created src-int-id edge df with mapping
         # df to transform destination str-ids to int ids
-        edge_df_with_int_src = edge_df_with_int_src.repartition(
-            self.num_output_files, F.col(dst_col)
-        )
         edge_df_with_int_ids = dst_node_id_mapping.join(
             edge_df_with_int_src,
             dst_node_id_mapping["dst_str_id"] == edge_df_with_int_src[dst_col],
@@ -1155,14 +1313,18 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         edge_df_with_int_ids_and_all_features = edge_df_with_int_ids
         edge_df_with_only_int_ids = edge_df_with_int_ids.select(["src_int_id", "dst_int_id"])
 
-        edge_structure_path = os.path.join(self.output_prefix, f"edges/{edge_type}")
+        edge_structure_path = os.path.join(
+            self.output_prefix, f"edges/{edge_type.replace(':', '_')}"
+        )
         logging.info("Writing edge structure for edge type %s...", edge_type)
+        if self.add_reverse_edges:
+            edge_df_with_only_int_ids.cache()
         path_list = self._write_df(edge_df_with_only_int_ids, edge_structure_path)
 
         if self.add_reverse_edges:
             reversed_edges = edge_df_with_only_int_ids.select("dst_int_id", "src_int_id")
             reversed_edge_structure_path = os.path.join(
-                self.output_prefix, f"edges/{rev_edge_type}"
+                self.output_prefix, f"edges/{rev_edge_type.replace(':', '_')}"
             )
             logging.info("Writing edge structure for reverse edge type %s...", rev_edge_type)
             reverse_path_list = self._write_df(reversed_edges, reversed_edge_structure_path)
@@ -1173,11 +1335,17 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         if self.enable_assertions:
             outgoing_edge_count = edge_df_with_only_int_ids.count()
             if incoming_edge_count != outgoing_edge_count:
+                distinct_nodes_dst = edge_df.select(dst_col).distinct().count()
                 logging.fatal(
-                    "Incoming and outgoing edge counts do not match for '%s'! %d in != %d out",
+                    (
+                        "Incoming and outgoing edge counts do not match for '%s'! %d in != %d out"
+                        "Edge had %d distinct dst nodes of type %s"
+                    ),
                     edge_type,
                     incoming_edge_count,
                     outgoing_edge_count,
+                    distinct_nodes_dst,
+                    dst_ntype,
                 )
         return edge_df_with_int_ids_and_all_features, path_list, reverse_path_list
 
@@ -1277,6 +1445,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 logging.info("No features or labels for edge type: %s", edge_type)
             # With features or labels
             else:
+                # TODO: Add unit tests for this branch
                 relation_col = edge_config.rel_col
                 edge_type_metadata_dicts = {}
 
@@ -1345,6 +1514,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             for each feature, which tells us the column size of the
             encoded features.
         """
+        # TODO: Add unit tests for edge feature processing
         edge_feature_metadata_dicts = {}
         etype_feat_sizes = {}  # type: Dict[str, int]
         for feat_conf in feature_configs:
@@ -1353,13 +1523,28 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 feat_conf.feat_name,
                 edge_type,
             )
-            transformer = DistFeatureTransformer(feat_conf)
+            json_representation = (
+                self.pre_computed_transformations.get("edges_features", {})
+                .get(edge_type, {})
+                .get(feat_conf.feat_name, {})
+            )
+            transformer = DistFeatureTransformer(feat_conf, self.spark, json_representation)
 
-            transformed_feature_df = transformer.apply_transformation(edges_df)
+            if json_representation:
+                logging.info(
+                    "Will apply pre-computed transformation for feature: %s", feat_conf.feat_name
+                )
+            transformed_feature_df, json_representation = transformer.apply_transformation(edges_df)
+            transformed_feature_df.cache()
+            # Will evaluate False for empty dict
+            if json_representation:
+                self.transformation_representations["edge_features"][edge_type][
+                    feat_conf.feat_name
+                ] = json_representation
 
-            def process_feature(self, feat_name, single_feature_df, edge_type, transformer_name):
+            def write_feature(self, feat_name, single_feature_df, edge_type, transformer_name):
                 feature_output_path = os.path.join(
-                    self.output_prefix, f"edge_data/{edge_type}-{feat_name}"
+                    self.output_prefix, f"edge_data/{edge_type.replace(':', '_')}-{feat_name}"
                 )
                 logging.info(
                     "Writing output for feat_name: '%s' to %s", feat_name, feature_output_path
@@ -1392,7 +1577,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 ):
                     for bert_feat_name in ["input_ids", "attention_mask", "token_type_ids"]:
                         single_feature_df = transformed_feature_df.select(bert_feat_name)
-                        process_feature(
+                        write_feature(
                             self,
                             bert_feat_name,
                             single_feature_df,
@@ -1403,13 +1588,16 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     single_feature_df = transformed_feature_df.select(feat_col).withColumnRenamed(
                         feat_col, feat_name
                     )
-                    process_feature(
+                    write_feature(
                         self,
                         feat_name,
                         single_feature_df,
                         edge_type,
                         transformer.get_transformation_name(),
                     )
+
+            # Unpersist and move on to next feature
+            transformed_feature_df.unpersist()
 
         return edge_feature_metadata_dicts, etype_feat_sizes
 
@@ -1466,7 +1654,8 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 transformed_label = edge_label_loader.process_label(edges_df)
 
                 label_output_path = os.path.join(
-                    self.output_prefix, f"edge_data/{edge_type}-label-{rel_type_prefix}"
+                    self.output_prefix,
+                    f"edge_data/{edge_type.replace(':', '_')}-label-{rel_type_prefix}",
                 )
 
                 path_list = self._write_df(transformed_label, label_output_path)
@@ -1485,7 +1674,9 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                     rel_type_prefix,
                 )
 
-            split_masks_output_prefix = os.path.join(self.output_prefix, f"edge_data/{edge_type}")
+            split_masks_output_prefix = os.path.join(
+                self.output_prefix, f"edge_data/{edge_type.replace(':', '_')}"
+            )
             logging.info("Creating train/test/val split for edge type %s...", edge_type)
             if label_conf.split_rate:
                 split_rates = SplitRates(
@@ -1495,11 +1686,23 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
                 )
             else:
                 split_rates = None
-            label_split_dicts = self._create_split_files_from_rates(
-                edges_df, label_conf.label_column, split_rates, split_masks_output_prefix
+            if label_conf.custom_split_filenames:
+                custom_split_filenames = CustomSplit(
+                    train=label_conf.custom_split_filenames["train"],
+                    valid=label_conf.custom_split_filenames["valid"],
+                    test=label_conf.custom_split_filenames["test"],
+                    mask_columns=label_conf.custom_split_filenames["column"],
+                )
+            else:
+                custom_split_filenames = None
+            label_split_dicts = self._create_split_files(
+                edges_df,
+                label_conf.label_column,
+                split_rates,
+                split_masks_output_prefix,
+                custom_split_filenames,
             )
             label_metadata_dicts.update(label_split_dicts)
-            # TODO: Support custom_split_filenames
 
         return label_metadata_dicts
 
@@ -1528,7 +1731,7 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             In case an invalid task type name is specified in the label config.
         """
         label_col = label_config.label_column
-        if not node_or_edge_type in self.label_properties:
+        if node_or_edge_type not in self.label_properties:
             self.label_properties[node_or_edge_type] = Counter()
         # TODO: Something wrong with the assignment here? Investigate
         self.label_properties[node_or_edge_type][COLUMN_NAME] = label_col
@@ -1573,17 +1776,18 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         else:
             raise RuntimeError(f"Invalid task type: {label_config.task_type}")
 
-    def _create_split_files_from_rates(
+    def _create_split_files(
         self,
         input_df: DataFrame,
         label_column: str,
         split_rates: Optional[SplitRates],
         output_path: str,
+        custom_split_file: Optional[CustomSplit] = None,
         seed: Optional[int] = None,
     ) -> Dict:
         """
-        Given an input dataframe and a list of split rates creates the
-        split masks and writes them to S3 and returns the corresponding
+        Given an input dataframe and a list of split rates or a list of custom split files
+        creates the split masks and writes them to S3 and returns the corresponding
         metadata.json dict elements.
 
         Parameters
@@ -1599,6 +1803,9 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
             If None, a default split rate of 0.9:0.05:0.05 is used.
         output_path: str
             The output path under which we write the masks.
+        custom_split_file: Optional[CustomSplit]
+            A CustomSplit object including path to the custom split files for
+            training/validation/test.
         seed: int
             An optional random seed for reproducibility.
 
@@ -1609,11 +1816,70 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         """
         # If the user did not provide a split rate we use a default
         split_metadata = {}
+        if not custom_split_file:
+            train_mask_df, val_mask_df, test_mask_df = self._create_split_files_split_rates(
+                input_df, label_column, split_rates, seed
+            )
+        else:
+            train_mask_df, val_mask_df, test_mask_df = self._create_split_files_custom_split(
+                input_df, custom_split_file
+            )
+
+        def create_metadata_entry(path_list):
+            return {"format": {"name": FORMAT_NAME, "delimiter": DELIMITER}, "data": path_list}
+
+        def write_mask(kind: str, mask_df: DataFrame) -> Sequence[str]:
+            out_path_list = self._write_df(
+                mask_df.select(F.col(f"{kind}_mask").cast(ByteType()).alias(f"{kind}_mask")),
+                f"{output_path}-{kind}-mask",
+            )
+            return out_path_list
+
+        out_path_list = write_mask("train", train_mask_df)
+        split_metadata["train_mask"] = create_metadata_entry(out_path_list)
+
+        out_path_list = write_mask("val", val_mask_df)
+        split_metadata["val_mask"] = create_metadata_entry(out_path_list)
+
+        out_path_list = write_mask("test", test_mask_df)
+        split_metadata["test_mask"] = create_metadata_entry(out_path_list)
+
+        return split_metadata
+
+    def _create_split_files_split_rates(
+        self,
+        input_df: DataFrame,
+        label_column: str,
+        split_rates: Optional[SplitRates],
+        seed: Optional[int],
+    ) -> tuple[DataFrame, DataFrame, DataFrame]:
+        """
+        Creates the train/val/test mask dataframe based on split rates.
+
+        Parameters
+        ----------
+        input_df: DataFrame
+            Input dataframe for which we will create split masks.
+        label_column: str
+            The name of the label column. If provided, the values in the column
+            need to be not null for the data point to be included in one of the masks.
+            If an empty string, all rows in the input_df are included in one of train/val/test sets.
+        split_rates: Optional[SplitRates]
+            A SplitRates object indicating the train/val/test split rates.
+            If None, a default split rate of 0.9:0.05:0.05 is used.
+        seed: Optional[int]
+            An optional random seed for reproducibility.
+
+        Returns
+        -------
+        tuple[DataFrame, DataFrame, DataFrame]
+            Train/val/test mask dataframes.
+        """
         if split_rates is None:
             split_rates = SplitRates(train_rate=0.8, val_rate=0.1, test_rate=0.1)
         else:
             # TODO: add support for sums <= 1.0, useful for large-scale link prediction
-            if sum(split_rates.tolist()) != 1.0:
+            if math.fsum(split_rates.tolist()) != 1.0:
                 raise RuntimeError(f"Provided split rates  do not sum to 1: {split_rates}")
 
         split_list = split_rates.tolist()
@@ -1641,29 +1907,96 @@ class DistHeterogeneousGraphLoader(HeterogeneousGraphLoader):
         input_col = F.col(label_column).astype("string") if label_column else F.lit("dummy")
         int_group_df = input_df.select(split_group(input_col).alias(group_col_name))
 
-        def create_metadata_entry(path_list):
-            return {"format": {"name": FORMAT_NAME, "delimiter": DELIMITER}, "data": path_list}
-
-        def write_mask(kind: str, mask_df: DataFrame) -> Sequence[str]:
-            out_path_list = self._write_df(
-                mask_df.select(F.col(f"{kind}_mask").cast(ByteType()).alias(f"{kind}_mask")),
-                f"{output_path}-{kind}-mask",
-            )
-            return out_path_list
-
+        # We cache because we re-use this DF 3 times
+        int_group_df.cache()
         train_mask_df = int_group_df.select(F.col(group_col_name)[0].alias("train_mask"))
-        out_path_list = write_mask("train", train_mask_df)
-        split_metadata["train_mask"] = create_metadata_entry(out_path_list)
-
         val_mask_df = int_group_df.select(F.col(group_col_name)[1].alias("val_mask"))
-        out_path_list = write_mask("val", val_mask_df)
-        split_metadata["val_mask"] = create_metadata_entry(out_path_list)
-
         test_mask_df = int_group_df.select(F.col(group_col_name)[2].alias("test_mask"))
-        out_path_list = write_mask("test", test_mask_df)
-        split_metadata["test_mask"] = create_metadata_entry(out_path_list)
 
-        return split_metadata
+        return train_mask_df, val_mask_df, test_mask_df
 
-    def load(self):
-        self.process_and_write_graph_data(self._data_configs)
+    def _create_split_files_custom_split(
+        self, input_df: DataFrame, custom_split_file: str
+    ) -> tuple[DataFrame, DataFrame, DataFrame]:
+        """
+        Creates the train/val/test mask dataframe based on custom split files.
+
+        Parameters
+        ----------
+        input_df: DataFrame
+            Input dataframe for which we will create split masks.
+        custom_split_file: Optional[CustomSplit]
+            A CustomSplit object including path to the custom split files for
+            training/validation/test.
+
+        Returns
+        -------
+        tuple[DataFrame, DataFrame, DataFrame]
+            Train/val/test mask dataframes.
+        """
+
+        # custom node/edge label
+        # create custom mask dataframe for one of the types: train, val, test
+        def process_custom_mask_df(input_df, split_file, mask_type):
+            if mask_type == "train":
+                file_path = split_file.train
+            elif mask_type == "val":
+                file_path = split_file.valid
+            elif mask_type == "test":
+                file_path = split_file.test
+            else:
+                raise ValueError("Unknown mask type")
+
+            if len(split_file.mask_columns) == 1:
+                # custom split on node original id
+                custom_mask_df = self.spark.read.parquet(
+                    os.path.join(self.input_prefix, file_path)
+                ).select(col(split_file.mask_columns[0]).alias(f"custom_{mask_type}_mask"))
+                mask_df = input_df.join(
+                    custom_mask_df,
+                    input_df[NODE_MAPPING_STR] == custom_mask_df[f"custom_{mask_type}_mask"],
+                    "left_outer",
+                )
+                mask_df = mask_df.select(
+                    "*",
+                    when(mask_df[f"custom_{mask_type}_mask"].isNotNull(), 1)
+                    .otherwise(0)
+                    .alias(f"{mask_type}_mask"),
+                ).select(f"{mask_type}_mask")
+            elif len(split_file.mask_columns) == 2:
+                # custom split on edge (srd, dst) original ids
+                custom_mask_df = self.spark.read.parquet(
+                    os.path.join(self.input_prefix, file_path)
+                ).select(
+                    col(split_file.mask_columns[0]).alias(f"custom_{mask_type}_mask_src"),
+                    col(split_file.mask_columns[1]).alias(f"custom_{mask_type}_mask_dst"),
+                )
+                join_condition = (
+                    input_df["src_str_id"] == custom_mask_df[f"custom_{mask_type}_mask_src"]
+                ) & (input_df["dst_str_id"] == custom_mask_df[f"custom_{mask_type}_mask_dst"])
+                mask_df = input_df.join(custom_mask_df, join_condition, "left_outer")
+                mask_df = mask_df.select(
+                    "*",
+                    when(
+                        (mask_df[f"custom_{mask_type}_mask_src"].isNotNull())
+                        & (mask_df[f"custom_{mask_type}_mask_dst"].isNotNull()),
+                        1,
+                    )
+                    .otherwise(0)
+                    .alias(f"{mask_type}_mask"),
+                ).select(f"{mask_type}_mask")
+            else:
+                raise ValueError("The number of column should be only 1 or 2.")
+
+            return mask_df
+
+        train_mask_df, val_mask_df, test_mask_df = (
+            process_custom_mask_df(input_df, custom_split_file, "train"),
+            process_custom_mask_df(input_df, custom_split_file, "val"),
+            process_custom_mask_df(input_df, custom_split_file, "test"),
+        )
+        return train_mask_df, val_mask_df, test_mask_df
+
+    def load(self) -> ProcessedGraphRepresentation:
+        """Load graph and return JSON representations."""
+        return self.process_and_write_graph_data(self._data_configs)

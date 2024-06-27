@@ -16,14 +16,15 @@
     Inference script for edge classification/regression tasks with language
     model as encoder only.
 """
+import logging
 
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnEdgePredictionInferrer
-from graphstorm.eval import GSgnnAccEvaluator, GSgnnRegressionEvaluator
-from graphstorm.dataloading import GSgnnEdgeInferData, GSgnnEdgeDataLoader
-from graphstorm.utils import setup_device
+from graphstorm.eval import GSgnnClassificationEvaluator, GSgnnRegressionEvaluator
+from graphstorm.dataloading import GSgnnData, GSgnnEdgeDataLoader
+from graphstorm.utils import get_device
 
 def get_evaluator(config): # pylint: disable=unused-argument
     """ Get evaluator class
@@ -32,9 +33,9 @@ def get_evaluator(config): # pylint: disable=unused-argument
         return GSgnnRegressionEvaluator(config.eval_frequency,
                                         config.eval_metric)
     elif config.task_type == 'edge_classification':
-        return GSgnnAccEvaluator(config.eval_frequency,
-                                 config.eval_metric,
-                                 config.multilabel)
+        return GSgnnClassificationEvaluator(config.eval_frequency,
+                                            config.eval_metric,
+                                            config.multilabel)
     else:
         raise AttributeError(config.task_type + ' is not supported.')
 
@@ -44,29 +45,36 @@ def main(config_args):
     config = GSConfig(config_args)
     config.verify_arguments(False)
 
-    gs.initialize(ip_config=config.ip_config, backend=config.backend)
-    device = setup_device(config.local_rank)
-
-    infer_data = GSgnnEdgeInferData(config.graph_name,
-                                    config.part_config,
-                                    eval_etypes=config.target_etype,
-                                    node_feat_field=config.node_feat_name,
-                                    label_field=config.label_field,
-                                    decoder_edge_feat=config.decoder_edge_feat)
+    gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  local_rank=config.local_rank)
+    # The model only uses language model(s) as its encoder
+    # It will not use node or edge features
+    # except LM related features.
+    infer_data = GSgnnData(config.part_config)
     model = gs.create_builtin_edge_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
     infer = GSgnnEdgePredictionInferrer(model)
-    infer.setup_device(device=device)
+    infer.setup_device(device=get_device())
     if not config.no_validation:
+        target_idxs = infer_data.get_edge_test_set(config.target_etype)
         evaluator = get_evaluator(config)
         infer.setup_evaluator(evaluator)
-        assert len(infer_data.test_idxs) > 0, "There is not test data for evaluation."
+        assert len(target_idxs) > 0, "There is no test data for evaluation."
+    else:
+        target_idxs = infer_data.get_edge_infer_set(config.target_etype)
+        assert len(target_idxs) > 0, \
+            f"To do inference on {config.target_etype} without doing evaluation, " \
+            "you should not define test_mask as its edge feature. " \
+            "GraphStorm will do inference on the whole edge set. "
     tracker = gs.create_builtin_task_tracker(config)
     infer.setup_task_tracker(tracker)
-    dataloader = GSgnnEdgeDataLoader(infer_data, infer_data.test_idxs, fanout=[],
+    dataloader = GSgnnEdgeDataLoader(infer_data, target_idxs, fanout=[],
                                      batch_size=config.eval_batch_size,
-                                     device=device, train_task=False,
+                                     node_feats=config.node_feat_name,
+                                     label_field=config.label_field,
+                                     decoder_edge_feats=config.decoder_edge_feat,
+                                     train_task=False,
                                      remove_target_edge_type=False)
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
@@ -90,5 +98,9 @@ if __name__ == '__main__':
     arg_parser=generate_parser()
 
     # Ignore unknown args to make script more robust to input arguments
-    gs_args, _ = arg_parser.parse_known_args()
+    gs_args, unknown_args = arg_parser.parse_known_args()
+    logging.warning("Unknown arguments for command "
+                    "graphstorm.run.gs_edge_classification or "
+                    "graphstorm.run.gs_edge_regression: %s",
+                    unknown_args)
     main(gs_args)

@@ -8,6 +8,8 @@ Motivation
 
 Feature transfer is often the most expensive module in a link prediction training task . When dealing with MAG-240m datasets, approximately 75% of the epoch time is spent on transferring features from remote machines. To address this critical bottleneck, we have leveraged NVIDIA's `WholeGraph <https://github.com/rapidsai/wholegraph>`_ library. WholeGraph optimizes the procedure by copying node features from remote CPUs to remote GPUs and then efficiently transferring these features to local GPUs. This is achieved through the utilization of the Elastic Fabric Adapter (EFA) network interface and NVIDIA Collective Communications Library (NCCL).  WholeGraph is able to achieve 3.8x speedup in end-to-end training compare to non-WholeGraph counterpart using  P4d instances on Amazon EC2.
 
+GraphStorm now extends WholeGraph support to accelerate learnable embeddings (with WholeGraph sparse optimizer) and language model cached embeddings, broadening the optimization of using WholeGraph and further reducing communication overhead.
+
 .. Note::
 
     WholeGraph support is an experimental feature of GraphStorm. Currently, only node features can be accessed through WholeGraph. We will add support of accessing edge features through WholeGraph in `the next release <https://github.com/awslabs/graphstorm/issues/512>`_.
@@ -19,9 +21,9 @@ Prerequisite
 ^^^^^^^^^^^^^^^
 
     1. **EFA supported Hardware**: Elastic Fabric Adapter (EFA) supported NVIDIA GPU clusters. Amazon EC2 supports EFA on specific instances, including `p3dn.24xlarge`, `p4d.24xlarge`, and `p5.48xlarge`.
-    
+
     2. **EFA-enabled security group**: Please follow the `steps <https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start-nccl-base.html#nccl-start-base-setup>`_ to prepare an EFA-enabled security group for Amazon EC2 instances.
-    
+
     3. **NVIDIA-Docker**: You need to install NVIDIA Docker in your environment and the `Nvidia Container Toolkit <https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html>`_.
 
 For example, in an Amazon EC2 instance without Docker preinstalled, you can run the following commands to install NVIDIA Docker.
@@ -80,9 +82,9 @@ Please use the following command to build a Docker image from source:
 There are three arguments of the ``build_docker_wholegraph.sh``:
 
     1. **path-to-graphstorm (required)**, is the absolute path of the ``graphstorm`` folder, where you clone the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
-    
+
     2. **docker-name (optional)**, is the assigned name of the Docker image to be built. Default is ``graphstorm-wholegraph``.
-    
+
     3. **docker-tag (optional)**, is the assigned tag of the Docker image to be built. Default is ``local``.
 
 You can use the below command to check if the new Docker image is created successfully.
@@ -102,12 +104,12 @@ You can launch a container based on the Docker image built in the previous step.
 
     $ sudo docker run --gpus all \
                       --ipc=host \
-                      --ulimit memlock=-1 \ 
+                      --ulimit memlock=-1 \
                       --ulimit stack=67108864 \
                       --network=host \
                       --privileged \
                       --name test -d -t graphstorm-wholegraph:local
-                      
+
 This command will create a GraphStorm-wholeGraph container, named test and run the container as a daemon.
 Then connect to the container by running the following command:
 
@@ -122,7 +124,7 @@ If succeeds, the command prompt will change to the container's, like
     root@<ip-address>:/#
 
 .. note::
-    
+
     If you want to use the built Docker image in a distributed cluster, please make sure you follow the :ref:`Create a GraphStorm Cluster<create_cluster>` step and use the WholeGraph-supported Docker image in your cluster.
 
 Verify EFA and NCCL configuration
@@ -159,9 +161,9 @@ After successfully installing EFA on all the instances, next, verify network com
     -n <Sum of num_gpus on all instances> \
     -H <ip1>:<num_gpus of instance1>,<ip2>:<num_gpus of instance2>, <ip3>...
     --bind-to none  alltoall_perf_mpi \
-    -duint8 -b8 -e2G -f2 -g1 |& tee 
-    
-The `<ip>` should hold the IP address of the docker container .  
+    -duint8 -b8 -e2G -f2 -g1 |& tee
+
+The `<ip>` should hold the IP address of the docker container .
 
 The output should resemble with the following screenshot which includes `NCCL INFO NET/OFI Selected Provider is efa`:
 
@@ -187,7 +189,9 @@ In the above example, the script will create a new folder named ``wholegraph`` u
 Run training jobs for link prediction using WholeGraph
 -------------------------------------------------------
 
-After completing the setup steps outlined in 1-3, launching a GraphStorm task with WholeGraph becomes a straightforward process. Once the machines are configured correctly, training jobs can be initiated using regular GraphStorm scripts. Utilizing WholeGraph within GraphStorm is seamless and doesn't require any additional steps. The system automatically detects the generated ``wholegraph`` folder and utilizes WholeGraph when available.
+After completing the setup steps outlined in 1-3, launching a GraphStorm task with WholeGraph becomes a straightforward process. Once the machines are configured correctly, training jobs can be initiated using regular GraphStorm scripts. Utilizing WholeGraph within GraphStorm for feature transfer is seamless and doesn't require any additional steps. The system automatically detects the generated ``wholegraph`` folder and utilizes WholeGraph when available.
+
+GraphStorm also supports using WholeGraph to accelerate learnable embeddings (with WholeGraph sparse optimizer) and language model cached embeddings. To take advantage of this optimization, one can simply add the `--use-wholegraph-embed` argument to your command line.
 
 For example link prediction task can be initiated using the following command:
 
@@ -203,7 +207,8 @@ For example link prediction task can be initiated using the following command:
             --ssh-port 2222 \
             --graph-format csc,coo \
             --cf /graphstorm/training_scripts/gsgnn_lp/mag_lp.yaml \
-            --node-feat-name paper:feat
+            --node-feat-name paper:feat \
+            --use-wholegraph-embed true
 
 The output should include the following messages confirming the use of WholeGraph.
 

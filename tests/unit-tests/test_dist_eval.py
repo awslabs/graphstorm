@@ -18,7 +18,7 @@
     and when called by two workers (distributed evaluation).
 
     For classification tasks. it compares the output of
-    `GSgnnAccEvaluator.evaluate' when called by a single worker
+    `GSgnnClassificationEvaluator.evaluate' when called by a single worker
     (single process evaluation) and when called by two workers
     (distributed evaluation).
 """
@@ -30,7 +30,7 @@ import torch as th
 from numpy.testing import assert_almost_equal
 import numpy as np
 
-from graphstorm.eval import GSgnnAccEvaluator
+from graphstorm.eval import GSgnnClassificationEvaluator
 from graphstorm.eval import GSgnnRegressionEvaluator
 from graphstorm.eval import GSgnnMrrLPEvaluator
 from graphstorm.utils import setup_device
@@ -41,7 +41,7 @@ from util import Dummy
 
 from test_evaluator import gen_hg
 
-def run_dist_lp_eval_worker(worker_rank, train_data, config, val_scores, test_scores, conn):
+def run_dist_lp_eval_worker(worker_rank, config, val_scores, test_scores, conn):
     dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
         master_ip='127.0.0.1', master_port='12345')
     th.distributed.init_process_group(backend="gloo",
@@ -50,9 +50,6 @@ def run_dist_lp_eval_worker(worker_rank, train_data, config, val_scores, test_sc
                                       rank=worker_rank)
 
     lp_eval = GSgnnMrrLPEvaluator(config.eval_frequency,
-                                  train_data,
-                                  num_negative_edges_eval=config.num_negative_edges_eval,
-                                  lp_decoder_type=config.lp_decoder_type,
                                   use_early_stop=config.use_early_stop)
     val_sc, test_sc = lp_eval.evaluate(val_scores, test_scores, 0)
 
@@ -60,15 +57,15 @@ def run_dist_lp_eval_worker(worker_rank, train_data, config, val_scores, test_sc
         conn.send((val_sc, test_sc))
     th.distributed.destroy_process_group()
 
-def run_dist_lp_eval(train_data, config,
+def run_dist_lp_eval(config,
         val_scores_0, val_scores_1,
         test_scores_0, test_scores_1):
     ctx = mp.get_context('spawn')
     conn1, conn2 = mp.Pipe()
     p0 = ctx.Process(target=run_dist_lp_eval_worker,
-                     args=(0, train_data, config, val_scores_0, test_scores_0, conn2))
+                     args=(0, config, val_scores_0, test_scores_0, conn2))
     p1 = ctx.Process(target=run_dist_lp_eval_worker,
-                     args=(1, train_data, config, val_scores_1, test_scores_1, None))
+                     args=(1, config, val_scores_1, test_scores_1, None))
     p0.start()
     p1.start()
     p0.join()
@@ -82,11 +79,11 @@ def run_dist_lp_eval(train_data, config,
     conn2.close()
     return val_scores, test_scores
 
-def run_local_lp_eval(train_data, config, val_scores, test_scores):
+def run_local_lp_eval(config, val_scores, test_scores):
     ctx = mp.get_context('spawn')
     conn1, conn2 = mp.Pipe()
     p = ctx.Process(target=run_local_lp_eval_worker,
-                    args=(train_data, config, val_scores, test_scores, conn2))
+                    args=(config, val_scores, test_scores, conn2))
     p.start()
     p.join()
     assert p.exitcode == 0
@@ -96,7 +93,7 @@ def run_local_lp_eval(train_data, config, val_scores, test_scores):
     conn2.close()
     return val_scores, test_scores
 
-def run_local_lp_eval_worker(train_data, config, val_scores, test_scores, conn):
+def run_local_lp_eval_worker(config, val_scores, test_scores, conn):
     dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
         master_ip='127.0.0.1', master_port='12346')
     th.distributed.init_process_group(backend="gloo",
@@ -105,9 +102,6 @@ def run_local_lp_eval_worker(train_data, config, val_scores, test_scores, conn):
                                       rank=0)
 
     lp_eval = GSgnnMrrLPEvaluator(config.eval_frequency,
-                                  train_data,
-                                  num_negative_edges_eval=config.num_negative_edges_eval,
-                                  lp_decoder_type=config.lp_decoder_type,
                                   use_early_stop=config.use_early_stop)
     val_sc, test_sc = lp_eval.evaluate(val_scores, test_scores, 0)
     conn.send((val_sc, test_sc))
@@ -149,25 +143,18 @@ def test_lp_dist_eval(seed):
     }
 
     # Dummy objects
-    train_data = Dummy({
-            "train_idxs": th.randint(10, (10,)),
-            "val_idxs": th.randint(10, (10,)),
-            "test_idxs": th.randint(10, (10,)),
-        })
     config = Dummy({
-            "num_negative_edges_eval": 10,
-            "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
             "eval_frequency": 100,
             "use_early_stop": False,
-            "eval_metric": ["mrr"]
+            "eval_metric_list": ["mrr"]
         })
 
     # do evaluation with two workers
-    val_dist, test_dist = run_dist_lp_eval(train_data, config,
+    val_dist, test_dist = run_dist_lp_eval(config,
         val_scores_0, val_scores_1,
         test_scores_0, test_scores_1)
     # do evaluation with single worker
-    val_local, test_local = run_local_lp_eval(train_data, config,
+    val_local, test_local = run_local_lp_eval(config,
         {etypes[0]: th.cat((val_scores_0[etypes[0]], val_scores_1[etypes[0]]), dim = 0),
          etypes[1]: th.cat((val_scores_0[etypes[1]], val_scores_1[etypes[1]]), dim = 0)},
         {etypes[0]: th.cat((test_scores_0[etypes[0]], test_scores_1[etypes[0]]), dim = 0),
@@ -191,17 +178,17 @@ def run_dist_nc_eval_worker(eval_config, worker_rank, metric, val_pred, test_pre
 
     th.cuda.set_device(worker_rank)
     device = setup_device(worker_rank)
-    config, train_data = eval_config
+    config = eval_config
 
-    if config.eval_metric[0] in ["rmse", "mse"]:
+    if config.eval_metric_list[0] in ["rmse", "mse"]:
         evaluator = GSgnnRegressionEvaluator(config.eval_frequency,
-                                             config.eval_metric,
+                                             config.eval_metric_list,
                                              config.use_early_stop)
     else:
-        evaluator = GSgnnAccEvaluator(config.eval_frequency,
-                                      config.eval_metric,
-                                      config.multilabel,
-                                      config.use_early_stop)
+        evaluator = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                 config.eval_metric_list,
+                                                 config.multilabel,
+                                                 config.use_early_stop)
 
     val_score0, test_score0 = evaluator.evaluate(
         val_pred.to(device),
@@ -220,7 +207,7 @@ def run_dist_nc_eval_worker(eval_config, worker_rank, metric, val_pred, test_pre
         test_labels.to(device), 300)
 
     if worker_rank == 0:
-        assert evaluator.metric == metric
+        assert evaluator.metric_list == metric
         assert evaluator.best_iter_num[metric[0]] == 200
         assert evaluator.best_val_score == val_score1
         assert evaluator.best_test_score == test_score1
@@ -284,17 +271,18 @@ def run_local_nc_eval_worker(eval_config, metric, val_pred, test_pred,
                                       init_method=dist_init_method,
                                       world_size=1,
                                       rank=0)
-    config, train_data = eval_config
+    config = eval_config
 
-    if config.eval_metric[0] in ["rmse", "mse"]:
+    if config.eval_metric_list[0] in ["rmse", "mse"]:
         evaluator = GSgnnRegressionEvaluator(config.eval_frequency,
-                                             config.eval_metric,
+                                             config.eval_metric_list,
                                              config.use_early_stop)
     else:
-        evaluator = GSgnnAccEvaluator(config.eval_frequency,
-                                      config.eval_metric,
-                                      config.multilabel,
-                                      config.use_early_stop)
+        evaluator = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                 config.eval_metric_list,
+                                                 config.multilabel,
+                                                 config.use_early_stop)
+
     val_score0, test_score0 = evaluator.evaluate(val_pred, test_pred, val_labels0, test_labels, 100)
     val_score1, test_score1 = evaluator.evaluate(val_pred, test_pred, val_labels1, test_labels, 200)
     val_score2, _ = evaluator.evaluate(val_pred, test_pred, val_labels2, test_labels, 300)
@@ -302,7 +290,7 @@ def run_local_nc_eval_worker(eval_config, metric, val_pred, test_pred,
     assert val_score0 != val_score2
     assert test_score0 == test_score1
 
-    assert evaluator.metric == metric
+    assert evaluator.metric_list == metric
     assert evaluator.best_iter_num[metric[0]] == 200
     assert evaluator.best_val_score == val_score1
     assert evaluator.best_test_score == test_score1
@@ -355,21 +343,18 @@ def test_nc_dist_eval(metric, seed, backend):
     val_labels2[:160] = val_pred[:160]
 
     config = Dummy({
-        "eval_metric": metric,
+        "eval_metric_list": metric,
         "no_validation": False,
         "multilabel": False,
         "eval_frequency": 100,
         "use_early_stop": False,
     })
-    train_data = Dummy({
-        "do_validation": True
-    })
 
     # do evaluation with single worker
-    metrics_local = run_local_nc_eval((config, train_data), metric, val_pred, test_pred,
+    metrics_local = run_local_nc_eval(config, metric, val_pred, test_pred,
         val_labels0, val_labels1, val_labels2, test_labels)
     # do evaluation with two workers
-    metrics_dist = run_dist_nc_eval((config, train_data), metric, val_pred, test_pred,
+    metrics_dist = run_dist_nc_eval(config, metric, val_pred, test_pred,
         val_labels0, val_labels1, val_labels2, test_labels, backend)
 
 
@@ -435,21 +420,18 @@ def test_nc_dist_eval_multilabel(seed, backend):
     test_logits = softmax(test_logits)
 
     config = Dummy({
-        "eval_metric": ["accuracy"],
+        "eval_metric_list": ["accuracy"],
         "no_validation": False,
         "multilabel": True,
         "eval_frequency": 100,
         "use_early_stop": False,
     })
-    train_data = Dummy({
-        "do_validation": True
-    })
 
     # do evaluation with single worker
-    metrics_local = run_local_nc_eval((config, train_data), ["accuracy"], val_logits, test_logits,
+    metrics_local = run_local_nc_eval(config, ["accuracy"], val_logits, test_logits,
         val_labels0, val_labels1, val_labels2, test_labels0)
     # do evaluation with two workers
-    metrics_dist = run_dist_nc_eval((config, train_data), ["accuracy"], val_logits, test_logits,
+    metrics_dist = run_dist_nc_eval(config, ["accuracy"], val_logits, test_logits,
         val_labels0, val_labels1, val_labels2, test_labels0, backend)
 
     metrics_keys = list(metrics_local.keys())
@@ -478,18 +460,15 @@ def test_nc_dist_regression_eval(metric, seed, backend):
     test_labels[100:170] = test_pred[100:170]
 
     config = Dummy({
-        "eval_metric": metric,
+        "eval_metric_list": metric,
         "no_validation": False,
         "eval_frequency": 100,
         "use_early_stop": False,
     })
-    train_data = Dummy({
-        "do_validation": True
-    })
 
-    metrics_local = run_local_nc_eval((config, train_data), metric, val_pred, test_pred,
+    metrics_local = run_local_nc_eval(config, metric, val_pred, test_pred,
         val_labels0, val_labels1, val_labels2, test_labels)
-    metrics_dist = run_dist_nc_eval((config, train_data), metric, val_pred, test_pred,
+    metrics_dist = run_dist_nc_eval(config, metric, val_pred, test_pred,
         val_labels0, val_labels1, val_labels2, test_labels, backend)
 
     metrics_keys = list(metrics_local.keys())

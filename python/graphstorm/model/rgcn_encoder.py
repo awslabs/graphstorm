@@ -24,7 +24,8 @@ import dgl.nn as dglnn
 
 from dgl.nn.pytorch.hetero import get_aggregate_fn
 from .ngnn_mlp import NGNNMLP
-from .gnn_encoder_base import GraphConvEncoder
+from .gnn_encoder_base import (GraphConvEncoder,
+                               GSgnnGNNEncoderInterface)
 
 
 class RelGraphConvLayer(nn.Module):
@@ -178,6 +179,21 @@ class RelGraphConvLayer(nn.Module):
                                      num_ffn_layers_in_gnn, ffn_activation, dropout)
 
         self.dropout = nn.Dropout(dropout)
+        self.warn_msg = set()
+
+    def warning_once(self, warn_msg):
+        """ Print same warning msg only once
+
+        Parameters
+        ----------
+        warn_msg: str
+            Warning message
+        """
+        if warn_msg in self.warn_msg:
+            # Skip printing warning
+            return
+        self.warn_msg.add(warn_msg)
+        logging.warning(warn_msg)
 
     # pylint: disable=invalid-name
     def forward(self, g, inputs):
@@ -244,9 +260,10 @@ class RelGraphConvLayer(nn.Module):
         for k, _ in inputs.items():
             if g.number_of_dst_nodes(k) > 0:
                 if k not in hs:
-                    logging.warning("Warning. Graph convolution returned empty " + \
-                          f"dictionary for nodes in type: {str(k)}. Please check your data" + \
-                          f" for no in-degree nodes in type: {str(k)}.")
+                    warn_msg = "Warning. Graph convolution returned empty " \
+                        f"dictionary for nodes in type: {str(k)}. Please check your data" \
+                        f" for no in-degree nodes in type: {str(k)}."
+                    self.warning_once(warn_msg)
                     hs[k] = th.zeros((g.number_of_dst_nodes(k),
                                       self.out_feat),
                                      device=inputs[k].device)
@@ -254,7 +271,7 @@ class RelGraphConvLayer(nn.Module):
         return {ntype : _apply(ntype, h) for ntype, h in hs.items()}
 
 
-class RelationalGCNEncoder(GraphConvEncoder):
+class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
     r""" Relational graph conv encoder.
 
     The RelationalGCNEncoder employs several RelGraphConvLayer as its encoding mechanism.
@@ -293,10 +310,10 @@ class RelationalGCNEncoder(GraphConvEncoder):
         from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
         from graphstorm.model.node_decoder import EntityClassifier
         from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
-        from graphstorm.dataloading import GSgnnNodeTrainData
+        from graphstorm.dataloading import GSgnnData
         from graphstorm.model import do_full_graph_inference
 
-        np_data = GSgnnNodeTrainData(...)
+        np_data = GSgnnData(...)
 
         model = GSgnnNodeModel(alpha_l2norm=0)
         feat_size = get_node_feat_size(np_data.g, 'feat')
@@ -344,6 +361,13 @@ class RelationalGCNEncoder(GraphConvEncoder):
             h_dim, out_dim, g.canonical_etypes,
             self.num_bases, activation=F.relu if last_layer_act else None,
             self_loop=use_self_loop, norm=norm if last_layer_act else None))
+
+    def skip_last_selfloop(self):
+        self.last_selfloop = self.layers[-1].self_loop
+        self.layers[-1].self_loop = False
+
+    def reset_last_selfloop(self):
+        self.layers[-1].self_loop = self.last_selfloop
 
     # TODO(zhengda) refactor this to support edge features.
     def forward(self, blocks, h):

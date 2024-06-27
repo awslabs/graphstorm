@@ -3,31 +3,25 @@ import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.dataloading import GSgnnNodeDataLoader
-from graphstorm.eval import GSgnnAccEvaluator
-from graphstorm.dataloading import GSgnnNodeTrainData
-from graphstorm.utils import setup_device
+from graphstorm.eval import GSgnnClassificationEvaluator
+from graphstorm.dataloading import GSgnnData
+from graphstorm.utils import get_device
 from graphstorm.inference import GSgnnNodePredictionInferrer
 from graphstorm.trainer import GSgnnNodePredictionTrainer
 from graphstorm.tracker import GSSageMakerTaskTracker
-from llm_gnn_model import LLMGraphModel
+from llm_gnn_model import GNNLLM_NC
 
 def main(config_args):
     """ main function
     """
     config = GSConfig(config_args)
-    gs.initialize(ip_config=config.ip_config, backend=config.backend)
-    device = setup_device(config.local_rank)
+    gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  local_rank=config.local_rank)
     # Define the training dataset
-    train_data = GSgnnNodeTrainData(
-        config.graph_name,
-        config.part_config,
-        train_ntypes=config.target_ntype,
-        eval_ntypes=config.eval_target_ntype,
-        label_field=config.label_field,
-        node_feat_field=config.node_feat_name,
-    )
+    train_data = GSgnnData(
+        config.part_config)
 
-    model = LLMGraphModel(
+    model = GNNLLM_NC(
             g=train_data.g,
             node_lm_configs=config.node_lm_configs,
             h_dim=config.hidden_size,
@@ -49,10 +43,10 @@ def main(config_args):
             model_layer_to_load=["gnn", "embed"],
         )
 
-    trainer.setup_device(device=device)
+    trainer.setup_device(device=get_device())
 
     # set evaluator
-    evaluator = GSgnnAccEvaluator(
+    evaluator = GSgnnClassificationEvaluator(
         config.eval_frequency,
         config.eval_metric,
         config.multilabel,
@@ -66,22 +60,26 @@ def main(config_args):
     trainer.setup_task_tracker(tracker)
 
     # create train loader
+    train_idxs = train_data.get_node_train_set(config.target_ntype)
     dataloader = GSgnnNodeDataLoader(
         train_data,
-        train_data.train_idxs,
+        train_idxs,
         fanout=config.fanout,
         batch_size=config.batch_size,
-        device=device,
+        node_feats=config.node_feat_name,
+        label_field=config.label_field,
         train_task=True,
     )
 
     # create val loader
+    val_idxs = train_data.get_node_val_set(config.eval_target_ntype)
     val_dataloader = GSgnnNodeDataLoader(
         train_data,
-        train_data.val_idxs,
+        val_idxs,
         fanout=config.fanout,
         batch_size=config.eval_batch_size,
-        device=device,
+        node_feats=config.node_feat_name,
+        label_field=config.label_field,
         train_task=False,
     )
 
@@ -97,23 +95,25 @@ def main(config_args):
         save_model_frequency=config.save_model_frequency,
         use_mini_batch_infer=True
     )
-    
+
     # Load the best checkpoint
     best_model_path = trainer.get_best_model_path()
     model.restore_model(best_model_path)
 
     # Create an inference for a node task.
     infer = GSgnnNodePredictionInferrer(model)
-    infer.setup_device(device=device)
+    infer.setup_device(device=get_device())
     infer.setup_evaluator(evaluator)
     infer.setup_task_tracker(tracker)
     # Create test loader
+    test_idxs = train_data.get_node_test_set(config.eval_target_ntype)
     test_dataloader = GSgnnNodeDataLoader(
         train_data,
-        train_data.test_idxs,
+        test_idxs,
         fanout=config.fanout,
         batch_size=config.eval_batch_size,
-        device=device,
+        node_feats=config.node_feat_name,
+        label_field=config.label_field,
         train_task=False,
     )
     # Run inference on the inference dataset and save the GNN embeddings in the specified path.

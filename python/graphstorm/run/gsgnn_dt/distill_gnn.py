@@ -17,11 +17,12 @@
 """
 
 import os
+import logging
 import torch as th
 import graphstorm as gs
 from graphstorm.config import GSConfig, get_argument_parser
 from graphstorm.distiller import GSdistiller
-from graphstorm.utils import setup_device, barrier
+from graphstorm.utils import get_device, barrier
 from graphstorm.model.gnn_distill import GSDistilledModel
 from graphstorm.dataloading import DistillDataloaderGenerator, DistillDataManager
 
@@ -31,8 +32,8 @@ def main(config_args):
     """
     config = GSConfig(config_args)
     config.verify_arguments(True)
-    gs.initialize(ip_config=config.ip_config, backend=config.backend)
-    device = setup_device(config.local_rank)
+    gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  local_rank=config.local_rank)
 
     # initiate model
     student_model = GSDistilledModel(lm_type=config.distill_lm_configs[0]["lm_type"],
@@ -41,7 +42,6 @@ def main(config_args):
     # initiate DataloaderGenerator and DataManager
     dataloader_generator = DistillDataloaderGenerator(tokenizer=student_model.tokenizer,
         max_seq_len=config.max_seq_len,
-        device=device,
         batch_size=config.batch_size,
     )
     train_data_mgr = DistillDataManager(
@@ -70,7 +70,7 @@ def main(config_args):
 
     # initiate distiller
     distiller = GSdistiller(model=student_model)
-    distiller.setup_device(device=device)
+    distiller.setup_device(device=get_device())
     barrier()
 
     distiller.fit(
@@ -93,5 +93,8 @@ if __name__ == '__main__':
     arg_parser=generate_parser()
 
     # Ignore unknown args to make script more robust to input arguments
-    gs_args, _ = arg_parser.parse_known_args()
+    gs_args, unknown_args = arg_parser.parse_known_args()
+    logging.warning("Unknown arguments for command "
+                    "graphstorm.run.gs_gnn_distillation: %s",
+                    unknown_args)
     main(gs_args)

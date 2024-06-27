@@ -42,6 +42,7 @@ env:
   COMMAND-E2E-CPU-TEST: chmod +x ./e2e_cpu_check.sh && ./e2e_cpu_check.sh
   COMMAND-E2E: chmod +x ./e2e_check.sh && ./e2e_check.sh
   COMMAND-E2E-MGPU: chmod +x ./e2e_mgpu_check.sh && ./e2e_mgpu_check.sh
+  COMMAND-E2E-MGPU-MULTITASK: chmod +x ./e2e_mgpu_multitask_check.sh && ./e2e_mgpu_multitask_check.sh
 
 jobs:
 
@@ -263,6 +264,49 @@ jobs:
         echo "Start submitting job - Pull Request"
         python3 ./submitJob.py --job-type CI-GPU --name Graphstorm-E2E-MGPUTest-PR#-'${{ github.event.number }}' \
                                --command "${{ env.COMMAND-E2E-MGPU }}" \
+                               --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
+                               --source-ref '${{ github.event.pull_request.head.sha }}' \
+                               --wait
+
+  e2e_mgpu_check_multitask:
+    if: ${{ github.event.label.name != 'draft' }}
+    needs: [pytest_check, lint_check]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        role-to-assume: arn:aws:iam::698571788627:role/github-oidc-role
+        aws-region: us-east-1
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    - name: Set up Python 3.x
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+    - name: Install dependencies
+      shell: bash
+      run: |
+        python3 -m pip install --upgrade pip
+        python3 -m pip install pytest
+        pip3 install boto3
+    - name: Submit Job (for Push)
+      if: ${{ github.event_name == 'push' }}
+      shell: bash
+      run: |
+        echo "Start submitting job - Push"  
+        python3 ./submitJob.py --job-type CI-GPU-PUSH --name Graphstorm-E2E-MGPUTest-MultiTask-Push-'${{ github.ref }}' \
+                               --command "${{ env.COMMAND-E2E-MGPU-MULTITASK }}" \
+                               --remote https://github.com/'${{ github.repository }}' \
+                               --source-ref '${{ github.ref }}' \
+                               --wait
+    - name: Submit Job (for Pull Request)
+      if: ${{ github.event_name == 'pull_request_target' }}
+      shell: bash
+      run: |
+        echo "Start submitting job - Pull Request"
+        python3 ./submitJob.py --job-type CI-GPU --name Graphstorm-E2E-MGPUTest-MultiTask-PR#-'${{ github.event.number }}' \
+                               --command "${{ env.COMMAND-E2E-MGPU-MULTITASK }}" \
                                --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
                                --source-ref '${{ github.event.pull_request.head.sha }}' \
                                --wait

@@ -14,6 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
+import math
 from typing import Any
 from collections.abc import Mapping
 
@@ -52,16 +53,25 @@ class GConstructConfigConverter(ConfigConverter):
                 label_column = label["label_col"] if "label_col" in label else ""
                 label_type = label["task_type"]
                 label_dict = {"column": label_column, "type": label_type}
-                if "split_pct" in label:
-                    label_splitrate = label["split_pct"]
-                    # check if split_pct is valid
-                    assert (
-                        sum(label_splitrate) <= 1.0
-                    ), "sum of the label split rate should be <=1.0"
-                    label_dict["split_rate"] = {
-                        "train": label_splitrate[0],
-                        "val": label_splitrate[1],
-                        "test": label_splitrate[2],
+                if "custom_split_filenames" not in label:
+                    if "split_pct" in label:
+                        label_splitrate = label["split_pct"]
+                        # check if split_pct is valid
+                        assert (
+                            math.fsum(label_splitrate) == 1.0
+                        ), "sum of the label split rate should be ==1.0"
+                        label_dict["split_rate"] = {
+                            "train": label_splitrate[0],
+                            "val": label_splitrate[1],
+                            "test": label_splitrate[2],
+                        }
+                else:
+                    label_custom_split_filenames = label["custom_split_filenames"]
+                    label_dict["custom_split_filenames"] = {
+                        "train": label_custom_split_filenames["train"],
+                        "valid": label_custom_split_filenames["valid"],
+                        "test": label_custom_split_filenames["test"],
+                        "column": label_custom_split_filenames["column"],
                     }
                 if "separator" in label:
                     label_sep = label["separator"]
@@ -102,7 +112,15 @@ class GConstructConfigConverter(ConfigConverter):
 
                 if gconstruct_transform_dict["name"] == "max_min_norm":
                     gsp_transformation_dict["name"] = "numerical"
-                    gsp_transformation_dict["kwargs"] = {"normalizer": "min-max", "imputer": "none"}
+                    gsp_transformation_dict["kwargs"] = {
+                        "normalizer": "min-max",
+                        "imputer": "none",
+                    }
+
+                    if gconstruct_transform_dict.get("out_dtype") in ["float32", "float64"]:
+                        gsp_transformation_dict["kwargs"]["out_dtype"] = gconstruct_transform_dict[
+                            "out_dtype"
+                        ]
                 elif gconstruct_transform_dict["name"] == "bucket_numerical":
                     gsp_transformation_dict["name"] = "bucket-numerical"
                     assert (
@@ -119,17 +137,19 @@ class GConstructConfigConverter(ConfigConverter):
                     }
                 elif gconstruct_transform_dict["name"] == "rank_gauss":
                     gsp_transformation_dict["name"] = "numerical"
+                    gsp_transformation_dict["kwargs"] = {
+                        "normalizer": "rank-gauss",
+                        "imputer": "none",
+                    }
+
                     if "epsilon" in gconstruct_transform_dict:
-                        gsp_transformation_dict["kwargs"] = {
-                            "epsilon": gconstruct_transform_dict["epsilon"],
-                            "normalizer": "rank-gauss",
-                            "imputer": "none",
-                        }
-                    else:
-                        gsp_transformation_dict["kwargs"] = {
-                            "normalizer": "rank-gauss",
-                            "imputer": "none",
-                        }
+                        gsp_transformation_dict["kwargs"]["epsilon"] = gconstruct_transform_dict[
+                            "epsilon"
+                        ]
+                    if gconstruct_transform_dict.get("out_dtype") in ["float32", "float64"]:
+                        gsp_transformation_dict["kwargs"]["out_dtype"] = gconstruct_transform_dict[
+                            "out_dtype"
+                        ]
                 elif gconstruct_transform_dict["name"] == "to_categorical":
                     if "separator" in gconstruct_transform_dict:
                         gsp_transformation_dict["name"] = "multi-categorical"

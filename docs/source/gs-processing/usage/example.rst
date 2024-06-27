@@ -110,7 +110,7 @@ Given the above we can run a job with local input data as:
 .. code-block:: bash
 
     > gs-processing --input-data /home/path/to/data \
-        --config-filename gconstruct-config.json
+        --config-filename gconstruct-config.json --do-repartition True
 
 The benefit with using relative paths is that we can move the same files
 to any location, including S3, and run the same job without making changes to the config
@@ -173,21 +173,30 @@ we can use the following command to run the processing job locally:
 
 .. code-block:: bash
 
-    gs-processing --config-filename gconstruct-config.json \
+    gs-processing --config-filename gsprocessing-config.json \
         --input-prefix ./tests/resources/small_heterogeneous_graph \
-        --output-prefix /tmp/gsprocessing-example/
+        --output-prefix /tmp/gsprocessing-example/ \
+        --do-repartition True
 
+About re-partitioning
+~~~~~~~~~~~~~~~~~~~~~
 
 To finalize processing and to wrangle the data into the structure that
 DGL distributed partitioning expects, we need an additional step that
-guarantees the data conform to the expectations of DGL:
+guarantees the data conform to the expectations of DGL, after the
+Spark job is done.
+
+We have the option to run this additional step on the Spark leader
+as shown above by setting `--do-repartition` to `"True"`.
+If our data are too large for the memory of our Spark leader
+we can run the step as a separate job:
 
 .. code-block:: bash
 
     gs-repartition --input-prefix /tmp/gsprocessing-example/
 
 For more details on the re-partitioning step see
-::doc:`row-count-alignment`.
+:doc:`row-count-alignment`.
 
 .. _gsp-examining-output:
 
@@ -202,26 +211,44 @@ and can be used downstream to create a partitioned graph.
 .. code-block:: bash
 
     $ cd /tmp/gsprocessing-example
-    $ ls
+    $ ls -l
 
-    edges/  launch_arguments.json  metadata.json  node_data/
-    raw_id_mappings/  perf_counters.json  updated_row_counts_metadata.json
+    edges/
+    gsprocessing-config_with_transformations.json
+    launch_arguments.json
+    metadata.json
+    node_data/
+    perf_counters.json
+    precomputed_transformations.json
+    raw_id_mappings/
+    updated_row_counts_metadata.json
 
 We have a few JSON files and the data directories containing
 the graph structure, features, and labels. In more detail:
 
+* ``gsprocessing-config_with_transformations.json``: This is the input configuration
+  we used, modified to include representations of any supported transformations
+  we applied. This file can be used to re-apply the transformations on new data.
 * ``launch_arguments.json``: Contains the arguments that were used
   to launch the processing job, allowing you to check the parameters after the
   job finishes.
-* ``updated_row_counts_metadata.json``:
-  This file is meant to be used as the input configuration for the
-  distributed partitioning pipeline. ``gs-repartition`` produces
-  this file using the original ``metadata.json`` file as input.
 * ``metadata.json``: Created by ``gs-processing`` and used as input
   for ``gs-repartition``, can be removed the ``gs-repartition`` step.
 * ``perf_counters.json``: A JSON file that contains runtime measurements
   for the various components of GSProcessing. Can be used to profile the
   application and discover bottlenecks.
+* ``precomputed_transformations.json``: A JSON file that contains representations
+  of supported transformations. To re-use these transformations on another dataset,
+  place this file in the top level of another set of raw data, at the same level
+  as the input GSProcessing/GConstruct configuration JSON file.
+  GSProcessing will use the transformation values listed here
+  instead of creating new ones, ensuring that models trained with the original
+  data can still be used in the newly transformed data. Currently only
+  categorical transformations can be re-applied.
+* ``updated_row_counts_metadata.json``:
+  This file is meant to be used as the input configuration for the
+  distributed partitioning pipeline. ``gs-repartition`` produces
+  this file using the original ``metadata.json`` file as input.
 
 The directories created contain:
 

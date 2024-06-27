@@ -24,6 +24,7 @@ import dgl
 
 from ..model.lp_gnn import GSgnnLinkPredictionModelInterface
 from ..model.lp_gnn import lp_mini_batch_predict
+from ..model.gnn_with_reconstruct import GNNEncoderWithReconstructedEmbed
 from ..model import (do_full_graph_inference,
                      do_mini_batch_inference,
                      GSgnnModelBase,
@@ -50,7 +51,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     model : GSgnnLinkPredictionModel
         The GNN model for link prediction.
     topk_model_to_save : int
-        The top K model to save.
+        The top K model to save. Default is 1.
 
     Example
     -------
@@ -58,12 +59,11 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     .. code:: python
 
         from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
-        from graphstorm.dataset import GSgnnEdgeTrainData
+        from graphstorm.dataset import GSgnnData
         from graphstorm.model import GSgnnLinkPredictionModel
         from graphstorm.trainer import GSgnnLinkPredictionTrainer
 
-        my_dataset = GSgnnEdgeTrainData(
-            "my_graph", "/path/to/part_config", train_etypes="edge_type")
+        my_dataset = GSgnnData("/path/to/part_config")
         target_idx = {"edge_type": target_edges_tensor}
         my_data_loader = GSgnnLinkPredictionDataLoader(
             my_dataset, target_idx, fanout=[10], batch_size=1024)
@@ -73,7 +73,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
 
         trainer.fit(my_data_loader, num_epochs=2)
     """
-    def __init__(self, model, topk_model_to_save):
+    def __init__(self, model, topk_model_to_save=1):
         super(GSgnnLinkPredictionTrainer, self).__init__(model, topk_model_to_save)
         assert isinstance(model, GSgnnLinkPredictionModelInterface) \
                 and isinstance(model, GSgnnModelBase), \
@@ -84,7 +84,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             test_loader=None,           # pylint: disable=unused-argument
             use_mini_batch_infer=True,      # pylint: disable=unused-argument
             save_model_path=None,
-            save_model_frequency=None,
+            save_model_frequency=-1,
             save_perf_results_path=None,
             edge_mask_for_gnn_embeddings='train_mask',
             freeze_input_layer_epochs=0,
@@ -108,7 +108,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         save_model_path : str
             The path where the model is saved.
         save_model_frequency : int
-            The number of iteration to train the model before saving the model.
+            The number of iteration to train the model before saving the model. Default is -1,
+            meaning only save model after each epoch.
         save_perf_results_path : str
             The path of the file where the performance results are saved.
         edge_mask_for_gnn_embeddings : str
@@ -129,6 +130,14 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         if not use_mini_batch_infer:
             assert isinstance(self._model, GSgnnModel), \
                     "Only GSgnnModel supports full-graph inference."
+
+        # assert not use GNNEncoderWithReconstructedEmbed when use_mini_batch_infer=True
+        if self._model.gnn_encoder is not None:
+            assert not (isinstance(self._model.gnn_encoder, GNNEncoderWithReconstructedEmbed) and \
+                use_mini_batch_infer), 'GraphStorm GNNEncoderWithReconstructedEmbed encoder' + \
+                    ' dose not support mini-batch inference. Please set ' + \
+                        'use_mini_batch_infer to be false.'
+
         # with freeze_input_layer_epochs is 0, computation graph will not be changed.
         static_graph = freeze_input_layer_epochs == 0
         on_cpu = self.device == th.device('cpu')
@@ -171,12 +180,13 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 if not isinstance(input_nodes, dict):
                     assert len(pos_graph.ntypes) == 1
                     input_nodes = {pos_graph.ntypes[0]: input_nodes}
-                input_feats = data.get_node_feats(input_nodes, device)
-                if data.pos_graph_feat_field is not None:
+                nfeat_fields = train_loader.node_feat_fields
+                input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
+                if train_loader.pos_graph_feat_fields is not None:
                     input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
                         for etype in pos_graph.canonical_etypes}
                     pos_graph_feats = data.get_edge_feats(input_edges,
-                                                          data.pos_graph_feat_field,
+                                                          train_loader.pos_graph_feat_fields,
                                                           device)
                 else:
                     pos_graph_feats = None
@@ -214,7 +224,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                     self.evaluator.do_eval(total_steps, epoch_end=False):
                     val_score = self.eval(model.module if is_distributed() else model,
                                           data, val_loader, test_loader, total_steps,
-                                          edge_mask_for_gnn_embeddings)
+                                          edge_mask_for_gnn_embeddings, use_mini_batch_infer)
                     if self.evaluator.do_early_stop(val_score):
                         early_stop = True
 
@@ -249,7 +259,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             if self.evaluator is not None and self.evaluator.do_eval(total_steps, epoch_end=True):
                 val_score = self.eval(model.module if is_distributed() else model,
                                       data, val_loader, test_loader, total_steps,
-                                      edge_mask_for_gnn_embeddings)
+                                      edge_mask_for_gnn_embeddings, use_mini_batch_infer)
 
                 if self.evaluator.do_early_stop(val_score):
                     early_stop = True
@@ -275,7 +285,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                        'peak_RAM_mem_alloc_MB': \
                            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024,
                        'best validation iteration': \
-                           self.evaluator.best_iter_num[self.evaluator.metric[0]],
+                           self.evaluator.best_iter_num[self.evaluator.metric_list[0]],
                        'best model path': \
                            self.get_best_model_path() if save_model_path is not None else None}
             self.log_params(output)
@@ -293,7 +303,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         ----------
         model : Pytorch model
             The GNN model.
-        data : GSgnnEdgeTrainData
+        data : GSgnnData
             The training dataset
         val_loader: GSNodeDataLoader
             The dataloader for validation data

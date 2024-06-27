@@ -29,30 +29,35 @@ Users can use ``pip`` or ``pip3`` to install GraphStorm.
 
 Install Dependencies
 .....................
-Users should install PyTorch v2.1.0 and DGL v1.0.4 that is the core dependency of GraphStorm using the following commands.
+Users should install PyTorch v2.1.0 and DGL v1.1.3 that is the core dependency of GraphStorm using the following commands.
 
 For Nvidia GPU environment:
 
 .. code-block:: bash
 
-    pip3 install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-    pip install dgl==1.0.4+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html
+    # for CUDA 11
+    pip install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+    pip install dgl==1.1.3+cu118 -f https://data.dgl.ai/wheels/cu118/repo.html
+
+    # for CUDA 12
+    pip install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+    pip install dgl==1.1.3+cu121 -f https://data.dgl.ai/wheels/cu121/repo.html
 
 For CPU environment:
 
 .. code-block:: bash
 
-    pip3 install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-    pip install dgl==1.0.4 -f https://data.dgl.ai/wheels-internal/repo.html
+    pip install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+    pip install dgl==1.1.3 -f https://data.dgl.ai/wheels-internal/repo.html
 
-Configure SSH No-password login
-................................
+Configure SSH No-password login (optional)
+..........................................
 To perform distributed training in a cluster of machines, please use the following commands
 to configure a local SSH no-password login that GraphStorm relies on.
 
 .. note::
 
-    This is not needed for the standalone mode.
+    The "SSH No-password login" is **NOT** needed for GraphStorm's Standalone mode, i.e., running GraphStorm in one machine only.
 
 .. code-block:: bash
 
@@ -81,12 +86,6 @@ Users can clone GraphStorm source code to obtain these toolkits.
 .. code-block:: bash
 
     git clone https://github.com/awslabs/graphstorm.git
-
-.. warning:: 
-
-    - If use this method to setup GraphStorm environment, please replace the argument ``--ssh-port`` of in launch commands in GraphStorm's tutorials from 2222 with **22**.
-
-    - If use this method to setup GraphStorm environment, you may need to replace the ``python3`` command with ``python``, depending on your Python versions.
 
 .. _setup_docker:
 
@@ -122,13 +121,14 @@ Please use the following command to build a Docker image from source:
 
     cd /path-to-graphstorm/docker/
 
-    bash /path-to-graphstorm/docker/build_docker_oss4local.sh /path-to-graphstorm/ docker-name docker-tag
+    bash /path-to-graphstorm/docker/build_docker_oss4local.sh /path-to-graphstorm/ image-name image-tag device
 
-There are three arguments of the ``build_docker_oss4local.sh``:
+There are four positional arguments for ``build_docker_oss4local.sh``:
 
 1. **path-to-graphstorm** (**required**), is the absolute path of the "graphstorm" folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
-2. **docker-name** (optional), is the assigned name of the to be built Docker image. Default is ``graphstorm``.
-3. **docker-tag** (optional), is the assigned tag name of the to be built docker image. Default is ``local``.
+2. **image-name** (optional), is the assigned name of the to be built Docker image. Default is ``graphstorm``.
+3. **image-tag** (optional), is the assigned tag prefix of the Docker image. Default is ``local``.
+4. **device** (optional), is the intended device for the docker image. This ges suffixed to ``image-tag``. Default is ``gpu``, can also build a ``cpu`` image.
 
 If Docker requires you to run it as a root user and you don't want to preface all docker commands with sudo, you can check the solution available `here <https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user>`_.
 
@@ -138,22 +138,28 @@ You can use the below command to check if the new Docker image is created succes
 
     docker image ls
 
-If the build succeeds, there should be a new Docker image, named *<docker-name>:<docker-tag>*, e.g., ``graphstorm:local``.
+If the build succeeds, there should be a new Docker image, named *<docker-name>:<docker-tag>*, e.g., ``graphstorm:local-gpu``.
+
+To push the image to ECR you can use the `push_gsf_container.sh` script.
+It takes 4 positional arguments,  `image-name` `image-tag-device`, `region`, and `account`.
+For example to push the local GPU image to the us-west-2 on AWS account `1234567890` use:
+
+.. code-block:: bash
+
+    bash docker/push_gsf_container.sh graphstorm local-gpu us-west-2 1234567890
+
+
 
 Create a GraphStorm Container
 ..............................
 
 First, you need to create a GraphStorm container based on the Docker image built in the previous step.
 
-.. note::
-
-    If you are preparing the environment to run GraphStorm in a distributed setting, specific instruction for running a Docker image with the NFS folder is given in :ref:`this section<distributed-cluster>`.
-
 Run the following command:
 
 .. code:: bash
 
-    nvidia-docker run --network=host -v /dev/shm:/dev/shm/ -d --name test graphstorm:local
+    nvidia-docker run --network=host -v /dev/shm:/dev/shm/ -d --name test graphstorm:local-gpu service ssh restart
 
 This command will create a GraphStorm container, named ``test`` and run the container as a daemon.
 
@@ -168,3 +174,7 @@ If succeeds, the command prompt will change to the container's, like
 .. code-block:: console
 
     root@<ip-address>:/#
+
+.. note::
+
+    If you are preparing the environment to run GraphStorm in a distributed setting, specific instruction for running a Docker image with the NFS folder is given in the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>`.

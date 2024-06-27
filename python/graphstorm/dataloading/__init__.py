@@ -34,11 +34,9 @@ from .dataloading import (FastGSgnnLinkPredictionDataLoader,
 from .dataloading import (GSgnnEdgeDataLoaderBase,
                           GSgnnLinkPredictionDataLoaderBase,
                           GSgnnNodeDataLoaderBase)
+from .dataloading import GSgnnMultiTaskDataLoader
 
-from .dataset import GSgnnEdgeTrainData, GSgnnLPTrainData
-from .dataset import GSgnnEdgeInferData
-from .dataset import GSgnnNodeTrainData
-from .dataset import GSgnnNodeInferData
+from .dataset import GSgnnData
 
 from .dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                           BUILTIN_LP_JOINT_NEG_SAMPLER,

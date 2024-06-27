@@ -3,13 +3,12 @@ cd ../../
 
 set -ex
 
-python3 -m pip install --upgrade prospector pip
-yes | pip3 install astroid==v3.0.0
-FORCE_CUDA=1 python3 -m pip install -e '.[test]'  --no-build-isolation
+pip install pylint==2.17.5
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/data/*.py
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/distributed/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/dataloading/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/gconstruct/
+pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/gpartition/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/config/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/eval/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/model/

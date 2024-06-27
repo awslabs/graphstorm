@@ -46,7 +46,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
     model : GSgnnNodeModel
         The GNN model for node prediction.
     topk_model_to_save : int
-        The top K model to save.
+        The top K model to save. Default is 1.
 
     Example
     -------
@@ -54,15 +54,15 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
     .. code:: python
 
         from graphstorm.dataloading import GSgnnNodeDataLoader
-        from graphstorm.dataset import GSgnnNodeTrainData
+        from graphstorm.dataset import GSgnnData
         from graphstorm.model.node_gnn import GSgnnNodeModel
         from graphstorm.trainer import GSgnnNodePredictionTrainer
 
-        my_dataset = GSgnnNodeTrainData(
-            "my_graph", "/path/to/part_config", "my_node_type")
+        my_dataset = GSgnnData("/path/to/part_config")
         target_idx = {"my_node_type": target_nodes_tensor}
         my_data_loader = GSgnnNodeDataLoader(
-            my_dataset, target_idx, fanout=[10], batch_size=1024, device='cpu')
+            my_dataset, target_idx, fanout=[10], batch_size=1024,
+            label_field="label", node_feats="feat")
         my_model = GSgnnNodeModel(alpha_l2norm=0.0)
 
         trainer =  GSgnnNodePredictionTrainer(my_model, topk_model_to_save=1)
@@ -107,7 +107,8 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         save_model_path : str
             The path where the model is saved.
         save_model_frequency : int
-            The number of iteration to train the model before saving the model.
+            The number of iteration to train the model before saving the model. Default is -1,
+            meaning only save model after each epoch.
         save_perf_results_path : str
             The path of the file where the performance results are saved.
         freeze_input_layer_epochs: int
@@ -170,10 +171,15 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                 total_steps += 1
 
                 if not isinstance(input_nodes, dict):
-                    assert len(g.ntypes) == 1
+                    # This happens on a homogeneous graph.
+                    assert len(g.ntypes) == 1, \
+                        "The graph should be a homogeneous graph, " \
+                        f"but it has multiple node types {g.ntypes}"
                     input_nodes = {g.ntypes[0]: input_nodes}
-                input_feats = data.get_node_feats(input_nodes, device)
-                lbl = data.get_labels(seeds, device)
+                nfeat_fields = train_loader.node_feat_fields
+                label_field = train_loader.label_field
+                input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
+                lbl = data.get_node_feats(seeds, label_field, device)
                 rt_profiler.record('train_node_feats')
 
                 blocks = [block.to(device) for block in blocks]
@@ -262,7 +268,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                        'peak_RAM_mem_alloc_MB': \
                            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024,
                        'best validation iteration': \
-                           self.evaluator.best_iter_num[self.evaluator.metric[0]],
+                           self.evaluator.best_iter_num[self.evaluator.metric_list[0]],
                        'best model path': \
                            self.get_best_model_path() if save_model_path is not None else None}
             self.log_params(output)
@@ -297,7 +303,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         teval = time.time()
         sys_tracker.check('before prediction')
 
-        metric = set(self.evaluator.metric)
+        metric = set(self.evaluator.metric_list)
         need_proba = metric.intersection({'roc_auc', 'per_class_roc_auc', 'precision_recall'})
         need_label_pred = metric.intersection({'accuracy', 'f1_score', 'per_class_f1_score'})
         assert len(need_proba) == 0 or len(need_label_pred) == 0, \

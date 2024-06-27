@@ -27,6 +27,11 @@ from dgl.dataloading import DistDataLoader
 from dgl.dataloading import EdgeCollator
 from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
 
+from ..utils import get_device, is_distributed, get_backend
+from .utils import (verify_label_field,
+                    verify_node_feat_fields,
+                    verify_edge_feat_fields)
+
 from .sampler import (LocalUniform,
                       JointUniform,
                       GlobalUniform,
@@ -97,81 +102,6 @@ class _ReconstructedNeighborSampler():
         input_nodes = {ntype: block.srcnodes[ntype].data[dgl.NID] for ntype in block.srctypes}
         return block, input_nodes
 
-class GSgnnEdgeDataLoaderBase():
-    """ The base dataloader class for edge tasks.
-
-    If users want to customize the dataloader for edge prediction tasks
-    they should extend this base class by implementing the special methods
-    `__iter__` and `__next__`.
-
-    Parameters
-    ----------
-    dataset : GSgnnEdgeData
-        The dataset for the edge task.
-    target_idx : dict of Tensors
-        The target edge IDs.
-    fanout : list or dict of lists
-        The fanout for each GNN layer.
-    """
-    def __init__(self, dataset, target_idx, fanout):
-        self._data = dataset
-        self._target_eidx = target_idx
-        self._fanout = fanout
-
-    def __iter__(self):
-        """ Returns an iterator object
-        """
-
-    def __next__(self):
-        """ Return a mini-batch data for the edge task.
-
-        A mini-batch comprises three objects: the input node IDs,
-        the target edges and the subgraph blocks for message passing.
-
-        Returns
-        -------
-        dict of Tensors : the input node IDs of the mini-batch.
-        DGLGraph : the target edges.
-        list of DGLGraph : the subgraph blocks for message passing.
-        """
-
-    def __len__(self):
-        """ Return the length (number of mini-batches) of the data loader
-
-        Returns
-        int: length
-        """
-
-    @property
-    def data(self):
-        """ The dataset of this dataloader.
-
-        Returns
-        -------
-        GSgnnEdgeData : The dataset of the dataloader.
-        """
-        return self._data
-
-    @property
-    def target_eidx(self):
-        """ Target edge idx for prediction
-
-        Returns
-        -------
-        dict of Tensors : the target edge IDs.
-        """
-        return self._target_eidx
-
-    @property
-    def fanout(self):
-        """ The fan out of each GNN layers
-
-        Returns
-        -------
-        list or a dict of list : the fanouts for each GNN layer.
-        """
-        return self._fanout
-
 class MultiLayerNeighborSamplerForReconstruct(dgl.dataloading.BlockSampler):
     """ A wrapper of MultiLayerNeighborSampler
 
@@ -218,6 +148,150 @@ class MultiLayerNeighborSamplerForReconstruct(dgl.dataloading.BlockSampler):
             blocks.insert(0, block)
         return input_nodes, seed_nodes, blocks
 
+class GSgnnEdgeDataLoaderBase():
+    """ The base dataloader class for edge tasks.
+
+    If users want to customize the dataloader for edge prediction tasks
+    they should extend this base class by implementing the special methods
+    `__iter__` and `__next__`.
+
+    Parameters
+    ----------
+    dataset : GSgnnData
+        The dataset for the edge task.
+    target_idx : dict of Tensors
+        The target edge IDs.
+    fanout : list or dict of lists
+        The fanout for each GNN layer.
+    label_field: str or dict of str
+        Label field of the edge task.
+    node_feats: str, or dist of list of str
+        Node features.
+        str: All the nodes have the same feature name.
+        list of string: All the nodes have the same list of features.
+        dist of list of string: Each node type have different set of node features.
+        Default: None
+    edge_feats: str, or dist of list of str
+        Edge features.
+        str: All the edges have the same feature name.
+        list of string: All the edges have the same list of features.
+        dist of list of string: Each edge type have different set of edge features.
+        Default: None
+    decoder_edge_feats: str or dict of list of str
+        Edge features used in decoder.
+        str: All the edges have the same feature name.
+        list of string: All the edges have the same list of features.
+        dist of list of string: Each edge type have different set of edge features.
+        Default: None
+    """
+    def __init__(self, dataset, target_idx, fanout,
+                 label_field, node_feats=None, edge_feats=None, decoder_edge_feats=None):
+        self._data = dataset
+        self._target_eidx = target_idx
+        self._fanout = fanout
+        verify_label_field(label_field)
+        verify_node_feat_fields(node_feats)
+        verify_edge_feat_fields(edge_feats)
+        verify_edge_feat_fields(decoder_edge_feats)
+        self._label_field = label_field
+        self._node_feats = node_feats
+        self._edge_feats = edge_feats
+        self._decoder_edge_feats = decoder_edge_feats
+
+    def __iter__(self):
+        """ Returns an iterator object
+        """
+
+    def __next__(self):
+        """ Return a mini-batch data for the edge task.
+
+        A mini-batch comprises three objects: the input node IDs,
+        the target edges and the subgraph blocks for message passing.
+
+        Returns
+        -------
+        dict of Tensors : the input node IDs of the mini-batch.
+        DGLGraph : the target edges.
+        list of DGLGraph : the subgraph blocks for message passing.
+        """
+
+    def __len__(self):
+        """ Return the length (number of mini-batches) of the data loader
+
+        Returns
+        int: length
+        """
+
+    @property
+    def data(self):
+        """ The dataset of this dataloader.
+
+        Returns
+        -------
+        GSgnnData : The dataset of the dataloader.
+        """
+        return self._data
+
+    @property
+    def target_eidx(self):
+        """ Target edge idx for prediction
+
+        Returns
+        -------
+        dict of Tensors : the target edge IDs.
+        """
+        return self._target_eidx
+
+    @property
+    def fanout(self):
+        """ The fan out of each GNN layers
+
+        Returns
+        -------
+        list or a dict of list : the fanouts for each GNN layer.
+        """
+        return self._fanout
+
+    @property
+    def label_field(self):
+        """ The label field
+
+        Returns
+        -------
+        str: Label fields in the graph.
+        """
+        return self._label_field
+
+    @property
+    def node_feat_fields(self):
+        """ Node features
+
+        Returns
+        -------
+        str or dict of list of str: Node feature fields in the graph.
+        """
+        return self._node_feats
+
+    @property
+    def edge_feat_fields(self):
+        """ Edge features
+
+        Returns
+        -------
+        str or dict of list of str: Node feature fields in the graph.
+        """
+        return self._edge_feats
+
+    @property
+    def decoder_edge_feat_fields(self):
+        """ Edge features for edge decoder.
+
+        Returns
+        -------
+        str or dict of list of str: Node feature fields in the graph.
+        """
+        return self._decoder_edge_feats
+
 class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
     """ The minibatch dataloader for edge prediction
 
@@ -227,7 +301,7 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
 
     Parameters
     ------------
-    dataset: GSgnnEdgeData
+    dataset: GSgnnData
         The GraphStorm edge dataset
     target_idx : dict of Tensors
         The target edges for prediction
@@ -235,8 +309,26 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
         Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
     batch_size: int
         Batch size
-    device: torch.device
-        the device trainer is running on.
+    label_field: str or dict of str
+        Label field of the edge task.
+    node_feats: str, or dist of list of str
+        Node features.
+        str: All the nodes have the same feature name.
+        list of string: All the nodes have the same list of features.
+        dist of list of string: Each node type have different set of node features.
+        Default: None
+    edge_feats: str, or dist of list of str
+        Edge features.
+        str: All the edges have the same feature name.
+        list of string: All the edges have the same list of features.
+        dist of list of string: Each edge type have different set of edge features.
+        Default: None
+    decoder_edge_feats: str or dict of list of str
+        Edge features used in decoder.
+        str: All the edges have the same feature name.
+        list of string: All the edges have the same list of features.
+        dist of list of string: Each edge type have different set of edge features.
+        Default: None
     train_task : bool
         Whether or not for training.
     reverse_edge_types_map: dict
@@ -258,23 +350,29 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
 
     .. code:: python
 
-        from graphstorm.dataloading import GSgnnEdgeTrainData
+        from graphstorm.dataloading import GSgnnData
         from graphstorm.dataloading import GSgnnEdgeDataLoader
         from graphstorm.trainer import GSgnnEdgePredictionTrainer
 
-        ep_data = GSgnnEdgeTrainData(...)
-        ep_dataloader = GSgnnEdgeDataLoader(ep_data, target_idx, fanout=[15, 10], batch_size=128)
+        ep_data = GSgnnData(...)
+        target_idx = ep_data.get_edge_train_set(...)
+        ep_dataloader = GSgnnEdgeDataLoader(
+            ep_data, target_idx,
+            fanout=[15, 10], batch_size=128,
+            label_field=config.label_field)
         ep_trainer = GSgnnEdgePredictionTrainer(...)
         ep_trainer.fit(ep_dataloader, num_epochs=10)
     """
-    def __init__(self, dataset, target_idx, fanout, batch_size, device='cpu',
+    def __init__(self, dataset, target_idx, fanout, batch_size,
+                 label_field, node_feats=None, edge_feats=None,
+                 decoder_edge_feats=None,
                  train_task=True, reverse_edge_types_map=None,
                  remove_target_edge_type=True,
                  exclude_training_targets=False,
                  construct_feat_ntype=None,
                  construct_feat_fanout=5):
-        super().__init__(dataset, target_idx, fanout)
-        self._device = device
+        super().__init__(dataset, target_idx, fanout,
+                         label_field, node_feats, edge_feats, decoder_edge_feats)
         if remove_target_edge_type:
             assert reverse_edge_types_map is not None, \
                     "To remove target etype, the reversed etype should be provided."
@@ -313,6 +411,18 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
             sampler = MultiLayerNeighborSamplerForReconstruct(sampler,
                     dataset, construct_feat_ntype, construct_feat_fanout)
         # edge loader
+        if train_task:
+            # gloo support cpu all_reduce
+            # so it can run trim_data on CPU
+            # while nccl does not support it.
+            device = get_device() \
+                if is_distributed() and get_backend() == "nccl" else th.device('cpu')
+            if isinstance(target_idxs, dict):
+                for etype in target_idxs:
+                    target_idxs[etype] = trim_data(target_idxs[etype], device)
+            else:
+                target_idxs = trim_data(target_idxs, device)
+
         exclude_val = 'reverse_types' if exclude_training_targets else None
         loader = dgl.dataloading.DistEdgeDataLoader(g,
                                                     target_idxs,
@@ -381,17 +491,40 @@ class GSgnnLinkPredictionDataLoaderBase():
 
     Parameters
     ----------
-    dataset: GSgnnEdgeData
+    dataset: GSgnnData
         The GraphStorm edge dataset
     target_idx : dict of Tensors
         The target edges for prediction
     fanout: list of int or dict of list
         Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
+    node_feats: str, or dist of list of str
+        Node features.
+        str: All the nodes have the same feature name.
+        list of string: All the nodes have the same list of features.
+        dist of list of string: Each node type have different set of node features.
+        Default: None
+    edge_feats: str, or dist of list of str
+        Edge features.
+        str: All the edges have the same feature name.
+        list of string: All the edges have the same list of features.
+        dist of list of string: Each edge type have different set of edge features.
+        Default: None
+    pos_graph_edge_feats: str or dist of list of str
+        The field of the edge features used by positive graph in link prediction.
+        For example edge weight.
+        Default: None
     """
-    def __init__(self, dataset, target_idx, fanout):
+    def __init__(self, dataset, target_idx, fanout,
+                 node_feats=None, edge_feats=None, pos_graph_edge_feats=None):
         self._dataset = dataset
         self._target_idx = target_idx
         self._fanout = fanout
+        verify_node_feat_fields(node_feats)
+        verify_edge_feat_fields(edge_feats)
+        verify_edge_feat_fields(pos_graph_edge_feats)
+        self._node_feats = node_feats
+        self._edge_feats = edge_feats
+        self._pos_graph_edge_feats = pos_graph_edge_feats
 
     def __iter__(self):
         """ Returns an iterator object
@@ -427,7 +560,7 @@ class GSgnnLinkPredictionDataLoaderBase():
 
         Returns
         -------
-        GSgnnEdgeData : The dataset of the dataloader.
+        GSgnnData : The dataset of the dataloader.
         """
         return self._dataset
 
@@ -451,6 +584,36 @@ class GSgnnLinkPredictionDataLoaderBase():
         """
         return self._target_idx
 
+    @property
+    def node_feat_fields(self):
+        """ Node features
+
+        Returns
+        -------
+        str or dict of list of str: Node feature fields in the graph.
+        """
+        return self._node_feats
+
+    @property
+    def edge_feat_fields(self):
+        """ Edge features
+
+        Returns
+        -------
+        str or dict of list of str: Node feature fields in the graph.
+        """
+        return self._edge_feats
+
+    @property
+    def pos_graph_feat_fields(self):
+        """ Get edge feature fields of positive graphs
+
+        Returns
+        -------
+        str or dict of list of str: Node feature fields in the graph.
+        """
+        return self._pos_graph_edge_feats
+
 class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
     """ Link prediction minibatch dataloader
 
@@ -462,7 +625,7 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
 
     Argument
     --------
-    dataset: GSgnnEdgeData
+    dataset: GSgnnData
         The GraphStorm edge dataset
     target_idx : dict of Tensors
         The target edges for prediction
@@ -472,8 +635,22 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
         Batch size
     num_negative_edges: int
         The number of negative edges per positive edge
-    device: torch.device
-        the device trainer is running on.
+    node_feats: str, or dist of list of str
+        Node features.
+        str: All the nodes have the same feature name.
+        list of string: All the nodes have the same list of features.
+        dist of list of string: Each node type have different set of node features.
+        Default: None
+    edge_feats: str, or dist of list of str
+        Edge features.
+        str: All the edges have the same feature name.
+        list of string: All the edges have the same list of features.
+        dist of list of string: Each edge type have different set of edge features.
+        Default: None
+    pos_graph_edge_feats: str or dist of list of str
+        The field of the edge features used by positive graph in link prediction.
+        For example edge weight.
+        Default: None
     train_task : bool
         Whether or not for training.
     reverse_edge_types_map: dict
@@ -501,30 +678,32 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
 
     .. code:: python
 
-        from graphstorm.dataloading import GSgnnEdgeTrainData
+        from graphstorm.dataloading import GSgnnData
         from graphstorm.dataloading import GSgnnLinkPredictionDataLoader
         from graphstorm.trainer import GSgnnLinkPredictionTrainer
 
-        lp_data = GSgnnEdgeTrainData(...)
+        lp_data = GSgnnData(...)
+        target_idx = lp_data.get_edge_train_set(...)
         lp_dataloader = GSgnnLinkPredictionDataLoader(lp_data, target_idx, fanout=[15, 10],
                                                     num_negative_edges=10, batch_size=128)
         lp_trainer = GSgnnLinkPredictionTrainer(...)
         lp_trainer.fit(lp_dataloader, num_epochs=10)
     """
-    def __init__(self, dataset, target_idx, fanout, batch_size, num_negative_edges, device='cpu',
+    def __init__(self, dataset, target_idx, fanout, batch_size, num_negative_edges,
+                 node_feats=None, edge_feats=None, pos_graph_edge_feats=None,
                  train_task=True, reverse_edge_types_map=None, exclude_training_targets=False,
                  edge_mask_for_gnn_embeddings='train_mask',
                  construct_feat_ntype=None, construct_feat_fanout=5,
                  edge_dst_negative_field=None,
                  num_hard_negs=None):
-        super().__init__(dataset, target_idx, fanout)
-        self._device = device
+        super().__init__(dataset, target_idx, fanout, node_feats,
+                         edge_feats, pos_graph_edge_feats)
         for etype in target_idx:
             assert etype in dataset.g.canonical_etypes, \
                     "edge type {} does not exist in the graph".format(etype)
 
         self.dataloader = self._prepare_dataloader(dataset, target_idx, fanout,
-                num_negative_edges, batch_size, device,
+                num_negative_edges, batch_size,
                 train_task=train_task,
                 exclude_training_targets=exclude_training_targets,
                 reverse_edge_types_map=reverse_edge_types_map,
@@ -540,7 +719,7 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
         return negative_sampler
 
     def _prepare_dataloader(self, dataset, target_idxs, fanout,
-                            num_negative_edges, batch_size, device, train_task=True,
+                            num_negative_edges, batch_size, train_task=True,
                             exclude_training_targets=False, reverse_edge_types_map=None,
                             edge_mask_for_gnn_embeddings=None, construct_feat_ntype=None,
                             construct_feat_fanout=5, edge_dst_negative_field=None,
@@ -573,6 +752,11 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
 
         # edge loader
         if train_task:
+            # gloo support cpu all_reduce
+            # so it can run trim_data on CPU
+            # while nccl does not support it.
+            device = get_device() \
+                if is_distributed() and get_backend() == "nccl" else th.device('cpu')
             if isinstance(target_idxs, dict):
                 for etype in target_idxs:
                     target_idxs[etype] = trim_data(target_idxs[etype], device)
@@ -653,7 +837,7 @@ class FastGSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
     """
 
     def _prepare_dataloader(self, dataset, target_idxs, fanout,
-                            num_negative_edges, batch_size, device, train_task=True,
+                            num_negative_edges, batch_size, train_task=True,
                             exclude_training_targets=False, reverse_edge_types_map=None,
                             edge_mask_for_gnn_embeddings=None, construct_feat_ntype=None,
                             construct_feat_fanout=5, edge_dst_negative_field=None,
@@ -686,6 +870,11 @@ class FastGSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
 
         # edge loader
         if train_task:
+            # gloo support cpu all_reduce
+            # so it can run trim_data on CPU
+            # while nccl does not support it.
+            device = get_device() \
+                if is_distributed() and get_backend() == "nccl" else th.device('cpu')
             if isinstance(target_idxs, dict):
                 for etype in target_idxs:
                     target_idxs[etype] = trim_data(target_idxs[etype], device)
@@ -750,12 +939,10 @@ class AllEtypeDistEdgeDataLoader(DistDataLoader):
             Target edge ids
         graph_sampler:
             Graph neighbor sampler
-        device: str:
-            Device
         kwargs: list
             Other arguments
     """
-    def __init__(self, g, eids, graph_sampler, device=None, **kwargs):
+    def __init__(self, g, eids, graph_sampler, **kwargs):
         collator_kwargs = {}
         dataloader_kwargs = {}
         _collator_arglist = inspect.getfullargspec(EdgeCollator).args
@@ -765,10 +952,6 @@ class AllEtypeDistEdgeDataLoader(DistDataLoader):
             else:
                 dataloader_kwargs[k] = v
 
-        if device is None:
-            # for the distributed case default to the CPU
-            device = 'cpu'
-        assert device == 'cpu', 'Only cpu is supported in the case of a DistGraph.'
         self.collator = EdgeCollator(g, eids, graph_sampler, **collator_kwargs)
         _remove_kwargs_dist(dataloader_kwargs)
         super().__init__(eids,
@@ -776,7 +959,6 @@ class AllEtypeDistEdgeDataLoader(DistDataLoader):
                          **dataloader_kwargs)
 
         self._reinit_dataset()
-        self.device = device
 
     def _reinit_dataset(self):
         """ Reinitialize the dataset
@@ -899,7 +1081,7 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
     """
 
     def _prepare_dataloader(self, dataset, target_idxs, fanout, num_negative_edges,
-                            batch_size, device, train_task=True,
+                            batch_size, train_task=True,
                             exclude_training_targets=False,
                             reverse_edge_types_map=None,
                             edge_mask_for_gnn_embeddings=None,
@@ -931,6 +1113,11 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
 
         # edge loader
         if train_task:
+            # gloo support cpu all_reduce
+            # so it can run trim_data on CPU
+            # while nccl does not support it.
+            device = get_device() \
+                if is_distributed() and get_backend() == "nccl" else th.device('cpu')
             if isinstance(target_idxs, dict):
                 for etype in target_idxs:
                     target_idxs[etype] = trim_data(target_idxs[etype], device)
@@ -977,7 +1164,7 @@ class GSgnnAllEtypeLPJointNegDataLoader(GSgnnAllEtypeLinkPredictionDataLoader):
         negative_sampler = JointUniform(num_negative_edges)
         return negative_sampler
 
-class GSgnnLinkPredictionTestDataLoader():
+class GSgnnLinkPredictionTestDataLoader(GSgnnLinkPredictionDataLoaderBase):
     """ Link prediction minibatch dataloader for validation and test.
     In order to efficiently compute positive and negative scores for
     link prediction tasks, GSgnnLinkPredictionTestDataLoader is designed
@@ -987,7 +1174,7 @@ class GSgnnLinkPredictionTestDataLoader():
 
     Parameters
     -----------
-    dataset: GSgnnEdgeData
+    dataset: GSgnnData
         The GraphStorm edge dataset
     target_idx : dict of Tensors
         The target edges for prediction
@@ -1003,16 +1190,33 @@ class GSgnnLinkPredictionTestDataLoader():
         When test is huge, using fixed_test_size
         can save validation and test time.
         Default: None.
+    node_feats: str, or dist of list of str
+        Node features.
+        str: All the nodes have the same feature name.
+        list of string: All the nodes have the same list of features.
+        dist of list of string: Each node type have different set of node features.
+        Default: None
+    edge_feats: str, or dist of list of str
+        Edge features.
+        str: All the edges have the same feature name.
+        list of string: All the edges have the same list of features.
+        dist of list of string: Each edge type have different set of edge features.
+        Default: None
+    pos_graph_edge_feats: str or dist of list of str
+        The field of the edge features used by positive graph in link prediction.
+        For example edge weight.
+        Default: None
     """
     def __init__(self, dataset, target_idx, batch_size, num_negative_edges,
-                 fanout=None, fixed_test_size=None):
-        self._data = dataset
-        self._fanout = fanout
+                 fanout=None, fixed_test_size=None,
+                 node_feats=None, edge_feats=None,
+                 pos_graph_edge_feats=None):
+        super().__init__(dataset, target_idx, fanout, node_feats,
+                         edge_feats, pos_graph_edge_feats)
         for etype in target_idx:
             assert etype in dataset.g.canonical_etypes, \
                     "edge type {} does not exist in the graph".format(etype)
         self._batch_size = batch_size
-        self._target_idx = target_idx
         self._fixed_test_size = {}
         for etype, t_idx in target_idx.items():
             self._fixed_test_size[etype] = fixed_test_size \
@@ -1051,7 +1255,7 @@ class GSgnnLinkPredictionTestDataLoader():
     def _next_data(self, etype):
         """ Get postive edges for the next iteration for a specific edge type
         """
-        g = self._data.g
+        g = self.data.g
         current_pos = self._current_pos[etype]
         end_of_etype = current_pos + self._batch_size >= self._fixed_test_size[etype]
 
@@ -1074,6 +1278,12 @@ class GSgnnLinkPredictionTestDataLoader():
 
         # return pos, neg pairs
         return cur_iter, self._neg_sample_type
+
+    def __len__(self):
+        num_iters = 0
+        for _, test_size in self._fixed_test_size.items():
+            num_iters += math.ceil(test_size / self._batch_size)
+        return num_iters
 
     @property
     def fanout(self):
@@ -1098,7 +1308,7 @@ class GSgnnLinkPredictionPredefinedTestDataLoader(GSgnnLinkPredictionTestDataLoa
 
     Parameters
     -----------
-    dataset: GSgnnEdgeData
+    dataset: GSgnnData
         The GraphStorm edge dataset
     target_idx : dict of Tensors
         The target edges for prediction
@@ -1114,13 +1324,35 @@ class GSgnnLinkPredictionPredefinedTestDataLoader(GSgnnLinkPredictionTestDataLoa
         Default: None.
     fixed_edge_dst_negative_field: str or list of str
         The feature field(s) that store the fixed negative set for each edge.
+    node_feats: str, or dist of list of str
+        Node features.
+        str: All the nodes have the same feature name.
+        list of string: All the nodes have the same list of features.
+        dist of list of string: Each node type have different set of node features.
+        Default: None
+    edge_feats: str, or dist of list of str
+        Edge features.
+        str: All the edges have the same feature name.
+        list of string: All the edges have the same list of features.
+        dist of list of string: Each edge type have different set of edge features.
+        Default: None
+    pos_graph_edge_feats: str or dist of list of str
+        The field of the edge features used by positive graph in link prediction.
+        For example edge weight.
+        Default: None
     """
     def __init__(self, dataset, target_idx, batch_size, fixed_edge_dst_negative_field,
-                 fanout=None, fixed_test_size=None):
+                 fanout=None, fixed_test_size=None,
+                 node_feats=None, edge_feats=None,
+                 pos_graph_edge_feats=None):
         self._fixed_edge_dst_negative_field = fixed_edge_dst_negative_field
         super().__init__(dataset, target_idx, batch_size,
                         num_negative_edges=0, # num_negative_edges is not used
-                        fanout=fanout, fixed_test_size=fixed_test_size)
+                        fanout=fanout,
+                        fixed_test_size=fixed_test_size,
+                        node_feats=node_feats,
+                        edge_feats=edge_feats,
+                        pos_graph_edge_feats=pos_graph_edge_feats)
 
     def _prepare_negative_sampler(self, _):
         negative_sampler = GSFixedEdgeDstNegativeSampler(self._fixed_edge_dst_negative_field)
@@ -1130,7 +1362,7 @@ class GSgnnLinkPredictionPredefinedTestDataLoader(GSgnnLinkPredictionTestDataLoa
     def _next_data(self, etype):
         """ Get postive edges for the next iteration for a specific edge type
         """
-        g = self._data.g
+        g = self.data.g
         current_pos = self._current_pos[etype]
         end_of_etype = current_pos + self._batch_size >= self._fixed_test_size[etype]
 
@@ -1152,17 +1384,38 @@ class GSgnnNodeDataLoaderBase():
 
     Parameters
     ----------
-    dataset : GSgnnNodeData
+    dataset : GSgnnData
         The dataset for the node task.
     target_idx : dict of Tensors
         The target node IDs.
     fanout : list or dict of lists
         The fanout for each GNN layer.
+    label_field: str or dict of str
+        Label field of the node task.
+    node_feats: str, or dist of list of str
+        Node features.
+        str: All the nodes have the same feature name.
+        list of string: All the nodes have the same list of features.
+        dist of list of string: Each node type have different set of node features.
+        Default: None
+    edge_feats: str, or dist of list of str
+        Edge features.
+        str: All the edges have the same feature name.
+        list of string: All the edges have the same list of features.
+        dist of list of string: Each edge type have different set of edge features.
+        Default: None
     """
-    def __init__(self, dataset, target_idx, fanout):
+    def __init__(self, dataset, target_idx, fanout,
+                 label_field, node_feats=None, edge_feats=None):
         self._data = dataset
         self._target_idx = target_idx
         self._fanout = fanout
+        verify_label_field(label_field)
+        verify_node_feat_fields(node_feats)
+        verify_edge_feat_fields(edge_feats)
+        self._label_field = label_field
+        self._node_feats = node_feats
+        self._edge_feats = edge_feats
 
     def __iter__(self):
         """ Returns an iterator object
@@ -1194,7 +1447,7 @@ class GSgnnNodeDataLoaderBase():
 
         Returns
         -------
-        GSgnnNodeData : The dataset of the dataloader.
+        GSgnnData : The dataset of the dataloader.
         """
         return self._data
 
@@ -1218,6 +1471,36 @@ class GSgnnNodeDataLoaderBase():
         """
         return self._fanout
 
+    @property
+    def label_field(self):
+        """ The label field
+
+        Returns
+        -------
+        str: Label fields in the graph.
+        """
+        return self._label_field
+
+    @property
+    def node_feat_fields(self):
+        """ Node features
+
+        Returns
+        -------
+        str or dict of list of str: Node feature fields in the graph.
+        """
+        return self._node_feats
+
+    @property
+    def edge_feat_fields(self):
+        """ Edge features
+
+        Returns
+        -------
+        str or dict of list of str: Node feature fields in the graph.
+        """
+        return self._edge_feats
+
 class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     """ Minibatch dataloader for node tasks
 
@@ -1227,16 +1510,29 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
 
     Parameters
     ----------
-    dataset: GSgnnNodeData
+    dataset: GSgnnData
         The GraphStorm dataset
     target_idx : dict of Tensors
         The target nodes for prediction
     fanout: list of int or dict of list
         Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
+    label_field: str
+        Label field of the node task.
+        (TODO:xiangsx) Support list of str for single dataloader multiple node tasks.
+    node_feats: str, list of str or dist of list of str
+        Node features.
+        str: All the nodes have the same feature name.
+        list of string: All the nodes have the same list of features.
+        dist of list of string: Each node type have different set of node features.
+        Default: None
+    edge_feats: str, list of str or dist of list of str
+        Edge features.
+        str: All the edges have the same feature name.
+        list of string: All the edges have the same list of features.
+        dist of list of string: Each edge type have different set of edge features.
+        Default: None
     batch_size: int
         Batch size
-    device: torch.device
-        the device trainer is running on.
     train_task : bool
         Whether or not for training.
     construct_feat_ntype : list of str
@@ -1252,18 +1548,27 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
 
     .. code:: python
 
-        from graphstorm.dataloading import GSgnnNodeTrainData
+        from graphstorm.dataloading import GSgnnData
         from graphstorm.dataloading import GSgnnNodeDataLoader
         from graphstorm.trainer import GSgnnNodePredictionTrainer
 
-        np_data = GSgnnNodeTrainData(...)
-        np_dataloader = GSgnnNodeDataLoader(np_data, target_idx, fanout=[15, 10], batch_size=128)
+        np_data = GSgnnData(...)
+        target_idx = np_data.get_node_train_set(...)
+        np_dataloader = GSgnnNodeDataLoader(np_data, target_idx, fanout=[15, 10],
+                                            batch_size=128,
+                                            label_field="label",
+                                            node_feats="feat")
         np_trainer = GSgnnNodePredictionTrainer(...)
         np_trainer.fit(np_dataloader, num_epochs=10)
     """
-    def __init__(self, dataset, target_idx, fanout, batch_size, device, train_task=True,
+    def __init__(self, dataset, target_idx, fanout, batch_size,
+                 label_field, node_feats=None, edge_feats=None,
+                 train_task=True,
                  construct_feat_ntype=None, construct_feat_fanout=5):
-        super().__init__(dataset, target_idx, fanout)
+        super().__init__(dataset, target_idx, fanout,
+                         label_field=label_field,
+                         node_feats=node_feats,
+                         edge_feats=edge_feats)
         assert isinstance(target_idx, dict)
         for ntype in target_idx:
             assert ntype in dataset.g.ntypes, \
@@ -1273,16 +1578,21 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
                                                    fanout,
                                                    batch_size,
                                                    train_task,
-                                                   device,
                                                    construct_feat_ntype=construct_feat_ntype,
                                                    construct_feat_fanout=construct_feat_fanout)
 
     def _prepare_dataloader(self, dataset, target_idx, fanout, batch_size,
-            train_task, device, construct_feat_ntype=None, construct_feat_fanout=5):
+            train_task, construct_feat_ntype=None, construct_feat_fanout=5):
         g = dataset.g
+
         if construct_feat_ntype is None:
             construct_feat_ntype = []
         if train_task:
+            # gloo support cpu all_reduce
+            # so it can run trim_data on CPU
+            # while nccl does not support it.
+            device = get_device() \
+                if is_distributed() and get_backend() == "nccl" else th.device('cpu')
             for ntype in target_idx:
                 target_idx[ntype] = trim_data(target_idx[ntype], device)
         # for validation and test, there is no need to trim data
@@ -1315,7 +1625,7 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
 
     Parameters
     ----------
-    dataset: GSgnnNodeData
+    dataset: GSgnnData
         The GraphStorm dataset
     target_idx : dict of Tensors
         The target nodes for prediction
@@ -1325,14 +1635,36 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
         Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
     batch_size: int
         Batch size, the sum of labeled and unlabeled nodes
-    device: torch.device
-        the device trainer is running on.
+    label_field: str
+        Label field of the node task.
+        (TODO:xiangsx) Support list of str for single dataloader multiple node tasks.
+    node_feats: str, list of str or dist of list of str
+        Node features.
+        str: All the nodes have the same feature name.
+        list of string: All the nodes have the same list of features.
+        dist of list of string: Each node type have different set of node features.
+        Default: None
+    edge_feats: str, list of str or dist of list of str
+        Edge features.
+        str: All the edges have the same feature name.
+        list of string: All the edges have the same list of features.
+        dist of list of string: Each edge type have different set of edge features.
+        Default: None
     train_task : bool
         Whether or not for training.
+    construct_feat_ntype : list of str
+        The node types that requires to construct node features.
+    construct_feat_fanout : int
+        The fanout required to construct node features.
     """
-    def __init__(self, dataset, target_idx, unlabeled_idx, fanout, batch_size, device,
-                 train_task=True, construct_feat_ntype=None, construct_feat_fanout=5):
-        super().__init__(dataset, target_idx, fanout, batch_size // 2, device,
+    def __init__(self, dataset, target_idx, unlabeled_idx, fanout,
+                 batch_size, label_field,
+                 node_feats=None, edge_feats=None, train_task=True,
+                 construct_feat_ntype=None, construct_feat_fanout=5):
+        super().__init__(dataset, target_idx, fanout, batch_size // 2,
+                         label_field=label_field,
+                         node_feats=node_feats,
+                         edge_feats=edge_feats,
                          train_task=train_task, construct_feat_ntype=construct_feat_ntype,
                          construct_feat_fanout=construct_feat_fanout)
         # loader for unlabeled nodes:
@@ -1341,7 +1673,6 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
                                                    fanout,
                                                    batch_size // 2,
                                                    train_task,
-                                                   device,
                                                    construct_feat_ntype=construct_feat_ntype,
                                                    construct_feat_fanout=construct_feat_fanout)
 
@@ -1360,6 +1691,139 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
         # an End of Iter error will stop the dataloader.
         return min(self.dataloader.expected_idxs,
                    self.unlabeled_dataloader.expected_idxs)
+
+
+####################### Multi-task Dataloader ####################
+class GSgnnMultiTaskDataLoader:
+    r""" DataLoader designed for multi-task learning
+
+    Parameters
+    ----------
+    dataset: GSgnnData
+        The GraphStorm dataset
+    task_infos: list of TaskInfo
+        Task meta information
+    task_dataloaders: list of GsgnnDataLoader
+        A list of task dataloaders
+    """
+    def __init__(self, dataset, task_infos, task_dataloaders):
+        assert len(task_infos) == len(task_dataloaders), \
+            "Number of task_infos should match number of task dataloaders"
+        # check dataloaders
+        lens = []
+        for task_info, dataloader in zip(task_infos, task_dataloaders):
+            # For evaluation and testing, we allow some of the val_dataloaders or test_dataloaders
+            # to be empty (None).
+            assert isinstance(dataloader, (GSgnnEdgeDataLoaderBase,
+                                           GSgnnLinkPredictionDataLoaderBase,
+                                           GSgnnNodeDataLoaderBase)) or dataloader is None, \
+                "The task data loader should be an instance of GSgnnEdgeDataLoaderBase, " \
+                "GSgnnLinkPredictionDataLoaderBase or GSgnnNodeDataLoaderBase" \
+                f"But get {type(dataloader)}"
+            num_iters = len(dataloader) if dataloader is not None else 0
+            lens.append(num_iters)
+            logging.debug("Task %s has number of iterations of %d",
+                          task_info, num_iters)
+
+        self._len = max(lens)
+        logging.info("Set the number of iterations to %d, which is the length " \
+                     "of the largest task in the multi-task learning.", self._len)
+        self._data = dataset
+        self._task_infos = task_infos
+        self._dataloaders = task_dataloaders # one dataloader for each task
+        self._reset_loader()
+
+    def _reset_loader(self):
+        """ reset the dataloaders
+        """
+        for dataloader in self._dataloaders:
+            if dataloader is not None:
+                iter(dataloader)
+        self._num_iters = 0
+
+    def __iter__(self):
+        self._reset_loader()
+        return self
+
+    def __len__(self):
+        return self._len
+
+    def __next__(self):
+        self._num_iters += 1
+        # End of iterating all the dataloaders
+        if self._num_iters == self._len:
+            raise StopIteration
+
+        # call __next__ of each dataloader
+        mini_batches = []
+        for task_info, dataloader in zip(self._task_infos, self._dataloaders):
+            if dataloader is None:
+                # The dataloader is None
+                logging.warning("The dataloader of %s is None. "
+                                "Please check whether the coresponding "
+                                "train/val/test mask(s) are missing."
+                                "If you are calling iter(mt_dataloader) for validation "
+                                "or testing, we suggest you to use "
+                                "mt_dataloader.dataloaders to get task specific "
+                                "dataloaders and call the corresponding evaluators "
+                                "task by task", task_info.task_id)
+                mini_batches.append((task_info, None))
+                continue
+
+            try:
+                mini_batch = next(dataloader)
+            except StopIteration:
+                load = iter(dataloader)
+                # we assume dataloader __iter__ will return itself.
+                assert load is dataloader, \
+                    "We assume the return value of __iter__() function " \
+                    "of each task dataloader is itself."
+                mini_batch = next(dataloader)
+
+            if task_info.dataloader is None:
+                task_info.dataloader = dataloader
+            else:
+                assert task_info.dataloader is dataloader, \
+                    "Each task in multi-task learning should have a fixed dataloader."
+            mini_batches.append((task_info, mini_batch))
+        return mini_batches
+
+    @property
+    def data(self):
+        """ The dataset of this dataloader.
+
+        Returns
+        -------
+        GSgnnData : The dataset of the dataloader.
+        """
+        return self._data
+
+    @property
+    def dataloaders(self):
+        """Get the list of dataloaders
+        """
+        # useful for conducting validation scores and test scores.
+        return self._dataloaders
+
+    @property
+    def task_infos(self):
+        """Get the list of task_infos
+        """
+        # useful for conducting validation scores and test scores.
+        return self._task_infos
+
+    @property
+    def fanout(self):
+        """ The fanout of each GNN layers of each dataloader
+
+        Returns
+        -------
+        list of list or list of dict of list : the fanouts for each GNN layer.
+        """
+        fanouts = [dataloader.fanout if dataloader is not None \
+                   else None for dataloader in self.dataloaders]
+        return fanouts
+
 
 ####################### Distillation #############################
 
@@ -1469,8 +1933,6 @@ class DistillDataloaderGenerator:
         HuggingFace Tokenizer.
     max_seq_len : int
         Maximum sequence length.
-    device : str
-        Device name.
     batch_size : int
         How many samples per batch to load.
     collate_fn : func
@@ -1482,14 +1944,12 @@ class DistillDataloaderGenerator:
         self,
         tokenizer,
         max_seq_len,
-        device,
         batch_size=1,
         collate_fn=None,
     ):
         self.batch_size = batch_size
         self.tokenizer = tokenizer
         self.max_seq_len = max_seq_len
-        self.device = device
         self.collate_fn = collate_fn
 
     def _data_len_sync(self, data):
@@ -1506,7 +1966,7 @@ class DistillDataloaderGenerator:
         -------
         GSDistillData : The pytorch dataset for a trainer after the sync.
         """
-        num_data = th.tensor(len(data), dtype=th.int64, device=self.device)
+        num_data = th.tensor(len(data), dtype=th.int64, device=get_device())
         dist.all_reduce(num_data, op=dist.ReduceOp.MIN)
         min_size = num_data.item()
         select_index = th.randperm(len(data))[:min_size].tolist()
@@ -1530,7 +1990,7 @@ class DistillDataloaderGenerator:
         if not isinstance(input_files, (list, tuple)):
             input_files = [input_files]
 
-        data = GSDistillData(input_files, self.tokenizer, self.max_seq_len, self.device)
+        data = GSDistillData(input_files, self.tokenizer, self.max_seq_len)
 
         # do all_reduce here:
         if is_train:

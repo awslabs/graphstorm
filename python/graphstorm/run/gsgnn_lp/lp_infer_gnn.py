@@ -15,20 +15,21 @@
 
     Inference script for link prediction tasks with GNN
 """
+import logging
 
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnLinkPredictionInferrer
 from graphstorm.eval import GSgnnMrrLPEvaluator
-from graphstorm.dataloading import GSgnnEdgeInferData
+from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import (GSgnnLinkPredictionTestDataLoader,
                                     GSgnnLinkPredictionJointTestDataLoader,
                                     GSgnnLinkPredictionPredefinedTestDataLoader)
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.utils import (
-    setup_device,
+    get_device,
     get_lm_ntypes,
     use_wholegraph,
 )
@@ -41,37 +42,36 @@ def main(config_args):
 
     use_wg_feats = use_wholegraph(config.part_config)
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
+                  local_rank=config.local_rank,
                   use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
-    device = setup_device(config.local_rank)
 
-    infer_data = GSgnnEdgeInferData(config.graph_name,
-                                    config.part_config,
-                                    eval_etypes=config.eval_etype,
-                                    node_feat_field=config.node_feat_name,
-                                    decoder_edge_feat=config.decoder_edge_feat,
-                                    lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
+    infer_data = GSgnnData(config.part_config,
+                           node_feat_field=config.node_feat_name,
+                           edge_feat_field=config.edge_feat_name,
+                           lm_feat_ntypes=get_lm_ntypes(config.node_lm_configs))
     model = gs.create_builtin_lp_gnn_model(infer_data.g, config, train_task=False)
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
     infer = GSgnnLinkPredictionInferrer(model)
-    infer.setup_device(device=device)
+    infer.setup_device(device=get_device())
     if not config.no_validation:
+        infer_idxs = infer_data.get_edge_test_set(config.eval_etype)
         infer.setup_evaluator(
-            GSgnnMrrLPEvaluator(config.eval_frequency,
-                                infer_data,
-                                config.num_negative_edges_eval,
-                                config.lp_decoder_type))
-        assert len(infer_data.test_idxs) > 0, "There is not test data for evaluation."
+            GSgnnMrrLPEvaluator(config.eval_frequency))
+        assert len(infer_idxs) > 0, "There is not test data for evaluation."
+    else:
+        infer_idxs = infer_data.get_edge_infer_set(config.eval_etype)
     tracker = gs.create_builtin_task_tracker(config)
     infer.setup_task_tracker(tracker)
     # We only support full-graph inference for now.
     if config.eval_etypes_negative_dstnode is not None:
         # The negatives used in evaluation is fixed.
         dataloader = GSgnnLinkPredictionPredefinedTestDataLoader(
-            infer_data, infer_data.test_idxs,
+            infer_data, infer_idxs,
             batch_size=config.eval_batch_size,
             fixed_edge_dst_negative_field=config.eval_etypes_negative_dstnode,
-            fanout=config.eval_fanout)
+            fanout=config.eval_fanout,
+            node_feats=config.node_feat_name)
     else:
         if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
             test_dataloader_cls = GSgnnLinkPredictionTestDataLoader
@@ -82,10 +82,11 @@ def main(config_args):
                 'Supported test negative samplers include '
                 f'[{BUILTIN_LP_UNIFORM_NEG_SAMPLER}, {BUILTIN_LP_JOINT_NEG_SAMPLER}]')
 
-        dataloader = test_dataloader_cls(infer_data, infer_data.test_idxs,
+        dataloader = test_dataloader_cls(infer_data, infer_idxs,
             batch_size=config.eval_batch_size,
             num_negative_edges=config.num_negative_edges_eval,
-            fanout=config.eval_fanout)
+            fanout=config.eval_fanout,
+            node_feats=config.node_feat_name)
     infer.infer(infer_data, dataloader,
                 save_embed_path=config.save_embed_path,
                 edge_mask_for_gnn_embeddings=None if config.no_validation else \
@@ -104,5 +105,8 @@ if __name__ == '__main__':
     arg_parser=generate_parser()
 
     # Ignore unknown args to make script more robust to input arguments
-    gs_args, _ = arg_parser.parse_known_args()
+    gs_args, unknown_args = arg_parser.parse_known_args()
+    logging.warning("Unknown arguments for command "
+                    "graphstorm.run.gs_link_prediction: %s",
+                    unknown_args)
     main(gs_args)

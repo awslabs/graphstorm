@@ -25,7 +25,8 @@ from torch import nn
 from dgl.nn.functional import edge_softmax
 from ..config import BUILDIN_GNN_BATCH_NORM, BUILDIN_GNN_LAYER_NORM, BUILTIN_GNN_NORM
 from .ngnn_mlp import NGNNMLP
-from .gnn_encoder_base import GraphConvEncoder
+from .gnn_encoder_base import (GraphConvEncoder,
+                               GSgnnGNNEncoderInterface)
 
 
 class HGTLayer(nn.Module):
@@ -182,6 +183,21 @@ class HGTLayer(nn.Module):
 
         # Dropout
         self.drop = nn.Dropout(dropout)
+        self.warn_msg = set()
+
+    def warning_once(self, warn_msg):
+        """ Print same warning msg only once
+
+        Parameters
+        ----------
+        warn_msg: str
+            Warning message
+        """
+        if warn_msg in self.warn_msg:
+            # Skip printing warning
+            return
+        self.warn_msg.add(warn_msg)
+        logging.warning(warn_msg)
 
     def forward(self, g, h):
         """Forward computation
@@ -254,9 +270,10 @@ class HGTLayer(nn.Module):
                         else:
                             trans_out = trans_out * alpha + self.a_linears[k](h[k]) * (1-alpha)
                     else:                       # Nodes not really in destination side.
-                        logging.warning("Warning. Graph convolution returned empty " + \
-                          f"dictionary for nodes in type: {str(k)}. Please check your data" + \
-                          f" for no in-degree nodes in type: {str(k)}.")
+                        warn_msg = "Warning. Graph convolution returned empty " \
+                            f"dictionary for nodes in type: {str(k)}. Please check your data" \
+                            f" for no in-degree nodes in type: {str(k)}."
+                        self.warning_once(warn_msg)
                         # So add psudo self-loop for the destination nodes with its own feature.
                         dst_h = self.a_linears[k](h[k][:g.num_dst_nodes(k)])
                         trans_out = self.drop(dst_h)
@@ -280,7 +297,7 @@ class HGTLayer(nn.Module):
             return new_h
 
 
-class HGTEncoder(GraphConvEncoder):
+class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
     r"""Heterogenous graph transformer (HGT) encoder
 
     The HGTEncoder employs several HGTLayers as its encoding mechanism.
@@ -314,10 +331,10 @@ class HGTEncoder(GraphConvEncoder):
         from graphstorm.model.hgt_encoder import HGTEncoder
         from graphstorm.model.edge_decoder import MLPEdgeDecoder
         from graphstorm.model import GSgnnEdgeModel, GSNodeEncoderInputLayer
-        from graphstorm.dataloading import GSgnnNodeTrainData
+        from graphstorm.dataloading import GSgnnData
         from graphstorm.model import do_full_graph_inference
 
-        np_data = GSgnnNodeTrainData(...)
+        np_data = GSgnnData(...)
 
         model = GSgnnEdgeModel(alpha_l2norm=0)
         feat_size = get_node_feat_size(np_data.g, 'feat')
@@ -374,6 +391,14 @@ class HGTEncoder(GraphConvEncoder):
                                     activation=F.relu,
                                     dropout=dropout,
                                     norm=norm))
+
+    def skip_last_selfloop(self):
+        # HGT does not have explicit self-loop
+        pass
+
+    def reset_last_selfloop(self):
+        # HGT does not have explicit self-loop
+        pass
 
     def forward(self, blocks, h):
         """Forward computation

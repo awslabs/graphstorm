@@ -173,6 +173,15 @@ objects:
          assign to the validation set [0.0, 1.0).
       -  ``test``: The percentage of the data with available labels to
          assign to the test set [0.0, 1.0).
+   -  ``custom_split_filenames`` (JSON object, optional): Specifies the customized
+      training/validation/test mask. Once it is defined, GSProcessing will ignore
+      the ``split_rate``.
+      -  ``train``: Path of the training mask parquet file such that each line contains
+    the original ID for node tasks, or the pair [source_id, destination_id] for edge tasks.
+      -  ``val``: Path of the validation mask parquet file such that each line contains
+    the original ID for node tasks, or the pair [source_id, destination_id] for edge tasks.
+      -  ``test``: Path of the test mask parquet file such that each line contains
+    the original ID for node tasks, or the pair [source_id, destination_id] for edge tasks.
 
 -  ``features`` (List of JSON objects, optional)\ **:** Describes
    the set of features for the current edge type. See the :ref:`features-object` section for details.
@@ -391,6 +400,8 @@ arguments.
          - ``rank-gauss``: Normalize each value using Rank-Gauss normalization. Rank-gauss first ranks all values,
            converts the ranks to the -1/1 range, and applies the `inverse of the error function <https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.erfinv.html>`_ to make the values conform
            to a Gaussian distribution shape. This transformation only supports a single column as input.
+      - ``out_dtype`` (Optional): Specify the data type of the transformed feature.
+        Currently we only support ``float32`` and ``float64`` .
       - ``epsilon``: Only relevant for ``rank-gauss``, this epsilon value is added to the denominator
         to avoid infinite values during normalization.
 -  ``multi-numerical``
@@ -406,6 +417,8 @@ arguments.
       - ``separator`` (String, optional): Same as for ``no-op`` transformation, used to separate numerical
         values in CSV input. If the input data are in Parquet format, each value in the
         column is assumed to be an array of floats.
+      - ``out_dtype`` (Optional): Specify the data type of the transformed feature.
+        Currently we only support ``float32`` and ``float64`` .
 
 -  ``bucket-numerical``
 

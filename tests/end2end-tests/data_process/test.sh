@@ -36,6 +36,9 @@ python3 $GS_HOME/tests/end2end-tests/data_process/compare_graphs.py --graph-path
 
 error_and_exit $?
 
+rm -fr /tmp/test_out
+rm -fr /tmp/test_out1
+
 # Test the DistDGL graph format.
 echo "********* Test the DistDGL graph format ********"
 python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_data_transform.conf --num-processes 2 --output-dir /tmp/test_partition2 --graph-name test --output-conf-file /tmp/test_data/test_data_transform_new.conf
@@ -71,6 +74,62 @@ error_and_exit $?
 python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph_dir /tmp/test_out --conf_file /tmp/test_data/test_data_transform_new.conf --graph-format DGL
 
 python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph-format DistDGL --graph_dir /tmp/test_out --conf_file /tmp/test_data/test_data_transform_new.conf
+
+rm -fr /tmp/test_out
+
+# Test customize mask name
+echo "********* Test the DistDGL graph format with customize mask ********"
+python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_data_transform_custom_mask.conf --num-processes 2 --output-dir /tmp/test_partition --graph-name test --output-conf-file /tmp/test_data/test_data_transform_custom_mask_new.conf
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/data_process/test_custom_mask_data.py --graph-format DistDGL --graph_dir /tmp/test_partition --conf_file /tmp/test_data/test_data_transform_custom_mask_new.conf
+
+error_and_exit $?
+
+rm -fr /tmp/test_partition
+
+python3 $GS_HOME/tests/end2end-tests/data_process/multitask_data_gen.py
+
+# Test multi-task support
+echo "********* Test the DGL graph format with multi mask support ********"
+python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/multitask_test_data/test_multitask_data_transform.conf --num-processes 2 --output-dir /tmp/multitask_test_out --graph-name test --output-format DGL --output-conf-file /tmp/multitask_test_data/test_multitask_data_transform_new.conf
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/data_process/test_multitask_data.py --graph_dir /tmp/multitask_test_out --conf_file /tmp/multitask_test_data/test_multitask_data_transform_new.conf --graph-format DGL
+
+error_and_exit $?
+
+# Test the generated config.
+echo "********* Test using the generated config with multi mask support *********"
+python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/multitask_test_data/test_multitask_data_transform_new.conf --num-processes 4 --output-dir /tmp/multitask_test_out1 --graph-name test --output-format DGL
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/data_process/compare_graphs.py --graph-path1 /tmp/multitask_test_out/test.dgl --graph-path2 /tmp/multitask_test_out1/test.dgl
+
+error_and_exit $?
+rm /tmp/multitask_test_data/test_multitask_data_transform_new.conf
+
+echo "********* Test the DistDGL graph format with multi mask support ********"
+python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/multitask_test_data/test_multitask_data_transform.conf --num-processes 2 --output-dir /tmp/test_partition --graph-name test --output-conf-file /tmp/multitask_test_data/test_multitask_data_transform_new.conf --add-reverse-edges
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/data_process/test_multitask_data.py --graph-format DistDGL --graph_dir /tmp/test_partition --conf_file /tmp/multitask_test_data/test_multitask_data_transform_new.conf --with-reverse-edge True
+
+error_and_exit $?
+
+echo "********* Test the DistDGL graph format with multi mask support from saved config ********"
+python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/multitask_test_data/test_multitask_data_transform_new.conf --num-processes 2 --output-dir /tmp/test_partition2 --graph-name test --add-reverse-edges
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/data_process/test_multitask_data.py --graph-format DistDGL --graph_dir /tmp/test_partition2 --conf_file /tmp/multitask_test_data/test_multitask_data_transform_new.conf --with-reverse-edge True
+
+error_and_exit $?
+
 
 echo "********* Test the remap edge predictions *********"
 python3 $GS_HOME/tests/end2end-tests/data_process/gen_edge_predict_remap_test.py --output /tmp/ep_remap/
@@ -317,3 +376,97 @@ python3 $GS_HOME/tests/end2end-tests/data_process/check_emb_remap.py --remap-out
 error_and_exit $?
 
 rm -fr /tmp/em_remap/
+
+# Test remap for multi-task learning with out shared fs
+echo "********* Test the remap multi-task predictions w/o shared fs *********"
+python3 $GS_HOME/tests/end2end-tests/data_process/gen_multi_task_remap_test.py --output /tmp/mt_remap/
+
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/mt_remap/id_mapping/ --logging-level debug --cf /tmp/mt_remap/task.yaml --preserve-input True --rank 0 --world-size 2 --with-shared-fs False
+
+error_and_exit $?
+
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/mt_remap/id_mapping/ --logging-level debug --cf /tmp/mt_remap/task.yaml --preserve-input True --rank 1 --world-size 2 --with-shared-fs False
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/data_process/check_edge_predict_remap.py --remap-output /tmp/mt_remap/predict/edge_classification-n0_access_n1-test_ec0/ --test-etypes "n0,access,n1"
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/data_process/check_edge_predict_remap.py --remap-output /tmp/mt_remap/predict/edge_classification-n1_access_n0-test_ec1/ --test-etypes "n1,access,n0"
+
+error_and_exit $?
+
+cnt=$(ls /tmp/mt_remap/predict/edge_classification-n0_access_n1-test_ec0/n0_access_n1/src_nids-*.pt | wc -l)
+if test $cnt == 2
+then
+    echo "src_nids-xxx.pt must exist."
+    exit -1
+fi
+
+cnt=$(ls /tmp/mt_remap/predict/edge_classification-n0_access_n1-test_ec0/n0_access_n1/dst_nids-*.pt | wc -l)
+if test $cnt == 2
+then
+    echo "dst_nids-xxx.pt must exist."
+    exit -1
+fi
+
+cnt=$(ls /tmp/mt_remap/predict/edge_classification-n0_access_n1-test_ec0/n0_access_n1/predict-*.pt | wc -l)
+if test $cnt == 2
+then
+    echo "predict-xxx.pt must exist."
+    exit -1
+fi
+
+cnt=$(ls /tmp/mt_remap/predict/edge_classification-n1_access_n0-test_ec1/n1_access_n0/src_nids-*.pt | wc -l)
+if test $cnt == 2
+then
+    echo "src_nids-xxx.pt must exist."
+    exit -1
+fi
+
+cnt=$(ls /tmp/mt_remap/predict/edge_classification-n1_access_n0-test_ec1/n1_access_n0/dst_nids-*.pt | wc -l)
+if test $cnt == 2
+then
+    echo "dst_nids-xxx.pt must exist."
+    exit -1
+fi
+
+cnt=$(ls /tmp/mt_remap/predict/edge_classification-n1_access_n0-test_ec1/n1_access_n0/predict-*.pt | wc -l)
+if test $cnt == 2
+then
+    echo "predict-xxx.pt must exist."
+    exit -1
+fi
+
+python3 $GS_HOME/tests/end2end-tests/data_process/check_node_predict_remap.py --remap-output /tmp/mt_remap/predict/node_classification-n0-test_nc1/ --test-ntypes "n0"
+
+error_and_exit $?
+
+rm -fr /tmp/mt_remap/
+
+# Test remap for multi-task learning with shared fs
+echo "********* Test the remap multi-task predictions with shared fs *********"
+python3 $GS_HOME/tests/end2end-tests/data_process/gen_multi_task_remap_test.py --output /tmp/mt_remap/
+
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/mt_remap/id_mapping/ --logging-level debug --cf /tmp/mt_remap/task.yaml --preserve-input True --rank 0 --world-size 2 --with-shared-fs True
+
+error_and_exit $?
+
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/mt_remap/id_mapping/ --logging-level debug --cf /tmp/mt_remap/task.yaml --preserve-input True --rank 1 --world-size 2 --with-shared-fs True
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/data_process/check_edge_predict_remap.py --remap-output /tmp/mt_remap/predict/edge_classification-n0_access_n1-test_ec0/ --test-etypes "n0,access,n1"
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/data_process/check_edge_predict_remap.py --remap-output /tmp/mt_remap/predict/edge_classification-n1_access_n0-test_ec1/ --test-etypes "n1,access,n0"
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/data_process/check_node_predict_remap.py --remap-output /tmp/mt_remap/predict/node_classification-n0-test_nc1/ --test-ntypes "n0"
+
+error_and_exit $?
+
+rm -fr /tmp/mt_remap/

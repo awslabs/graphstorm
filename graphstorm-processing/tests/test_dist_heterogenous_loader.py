@@ -28,6 +28,7 @@ import pytest
 
 from graphstorm_processing.graph_loaders.dist_heterogeneous_loader import (
     DistHeterogeneousGraphLoader,
+    HeterogeneousLoaderConfig,
     NODE_MAPPING_INT,
     NODE_MAPPING_STR,
 )
@@ -46,12 +47,39 @@ from graphstorm_processing.constants import (
     MIN_VALUE,
     MAX_VALUE,
     VALUE_COUNTS,
+    TRANSFORMATIONS_FILENAME,
 )
 
 pytestmark = pytest.mark.usefixtures("spark")
 _ROOT = os.path.abspath(os.path.dirname(__file__))
 LABEL_COL = "label"
 NUM_DATAPOINTS = 10000
+
+NODE_CLASS_GRAPHINFO_UPDATES = {
+    "nfeat_size": {
+        "user": {
+            "age": 1,
+            "attention_mask": 16,
+            "input_ids": 16,
+            "token_type_ids": 16,
+            "multi": 2,
+            "state": 3,
+        }
+    },
+    "efeat_size": {},
+    "etype_label": [],
+    "etype_label_property": [],
+    "ntype_label": ["user"],
+    "ntype_label_property": ["gender"],
+    "task_type": "node_class",
+    "label_map": {"male": 0, "female": 1},
+    "label_properties": {
+        "user": {
+            "COLUMN_NAME": "gender",
+            "VALUE_COUNTS": {"male": 3, "female": 1, "null": 1},
+        }
+    },
+}
 
 
 @pytest.fixture(autouse=True, name="tempdir")
@@ -99,16 +127,21 @@ def no_label_data_configs_fixture():
 def dghl_loader_fixture(spark, data_configs_with_label, tempdir) -> DistHeterogeneousGraphLoader:
     """Create a re-usable loader that includes labels"""
     input_path = os.path.join(_ROOT, "resources/small_heterogeneous_graph")
+    loader_config = HeterogeneousLoaderConfig(
+        add_reverse_edges=True,
+        data_configs=data_configs_with_label,
+        enable_assertions=True,
+        graph_name="small_heterogeneous_graph",
+        input_prefix=input_path,
+        local_input_path=input_path,
+        local_metadata_output_path=tempdir,
+        num_output_files=1,
+        output_prefix=tempdir,
+        precomputed_transformations={},
+    )
     dhgl = DistHeterogeneousGraphLoader(
         spark,
-        local_input_path=input_path,
-        local_output_path=tempdir,
-        output_prefix=tempdir,
-        input_prefix=input_path,
-        data_configs=data_configs_with_label,
-        num_output_files=1,
-        add_reverse_edges=True,
-        enable_assertions=True,
+        loader_config=loader_config,
     )
     return dhgl
 
@@ -119,16 +152,21 @@ def dghl_loader_no_label_fixture(
 ) -> DistHeterogeneousGraphLoader:
     """Create a re-usable loader without labels"""
     input_path = os.path.join(_ROOT, "resources/small_heterogeneous_graph")
+    loader_config = HeterogeneousLoaderConfig(
+        add_reverse_edges=True,
+        data_configs=no_label_data_configs,
+        enable_assertions=True,
+        graph_name="small_heterogeneous_graph",
+        input_prefix=input_path,
+        local_input_path=input_path,
+        local_metadata_output_path=tempdir,
+        num_output_files=1,
+        output_prefix=tempdir,
+        precomputed_transformations={},
+    )
     dhgl = DistHeterogeneousGraphLoader(
         spark,
-        local_input_path=input_path,
-        local_output_path=tempdir,
-        output_prefix=tempdir,
-        input_prefix=input_path,
-        data_configs=no_label_data_configs,
-        num_output_files=1,
-        add_reverse_edges=True,
-        enable_assertions=True,
+        loader_config,
     )
     return dhgl
 
@@ -139,16 +177,21 @@ def dghl_loader_no_reverse_edges_fixture(
 ) -> DistHeterogeneousGraphLoader:
     """Create a re-usable loader that doesn't produce reverse edegs"""
     input_path = os.path.join(_ROOT, "resources/small_heterogeneous_graph")
+    loader_config = HeterogeneousLoaderConfig(
+        add_reverse_edges=False,
+        data_configs=data_configs_with_label,
+        enable_assertions=True,
+        graph_name="small_heterogeneous_graph",
+        input_prefix=input_path,
+        local_input_path=input_path,
+        local_metadata_output_path=tempdir,
+        num_output_files=1,
+        output_prefix=tempdir,
+        precomputed_transformations={},
+    )
     dhgl = DistHeterogeneousGraphLoader(
         spark,
-        local_input_path=input_path,
-        local_output_path=tempdir,
-        output_prefix=tempdir,
-        input_prefix=input_path,
-        data_configs=data_configs_with_label,
-        num_output_files=1,
-        add_reverse_edges=False,
-        enable_assertions=True,
+        loader_config,
     )
     return dhgl
 
@@ -184,9 +227,12 @@ def verify_integ_test_output(
     expected_node_counts = {"director": 3, "genre": 2, "movie": 4, "user": 5}
     # TODO: The following Parquet reads assume there's only one file in the output
     for node_type in metadata["node_type"]:
-        nrows = pq.ParquetFile(
-            os.path.join(loader.output_path, metadata["raw_id_mappings"][node_type]["data"][0])
-        ).metadata.num_rows
+        nrows = pq.read_table(
+            os.path.join(
+                loader.output_path,
+                os.path.dirname(metadata["raw_id_mappings"][node_type]["data"][0]),
+            )
+        ).num_rows
         assert nrows == expected_node_counts[node_type]
 
     expected_edge_counts = {
@@ -199,9 +245,11 @@ def verify_integ_test_output(
     }
 
     for edge_type in metadata["edge_type"]:
-        nrows = pq.ParquetFile(
-            os.path.join(loader.output_path, metadata["edges"][edge_type]["data"][0])
-        ).metadata.num_rows
+        nrows = pq.read_table(
+            os.path.join(
+                loader.output_path, os.path.dirname(metadata["edges"][edge_type]["data"][0])
+            )
+        ).num_rows
         assert nrows == expected_edge_counts[edge_type]
 
     shared_expected_graphinfo = {
@@ -238,32 +286,7 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
     ) as mfile:
         metadata = json.load(mfile)
 
-    graphinfo_updates = {
-        "nfeat_size": {
-            "user": {
-                "age": 1,
-                "attention_mask": 16,
-                "input_ids": 16,
-                "token_type_ids": 16,
-                "multi": 2,
-            }
-        },
-        "efeat_size": {},
-        "etype_label": [],
-        "etype_label_property": [],
-        "ntype_label": ["user"],
-        "ntype_label_property": ["gender"],
-        "task_type": "node_class",
-        "label_map": {"male": 0, "female": 1},
-        "label_properties": {
-            "user": {
-                "COLUMN_NAME": "gender",
-                "VALUE_COUNTS": {"male": 3, "female": 1, "null": 1},
-            }
-        },
-    }
-
-    verify_integ_test_output(metadata, dghl_loader, graphinfo_updates)
+    verify_integ_test_output(metadata, dghl_loader, NODE_CLASS_GRAPHINFO_UPDATES)
 
     expected_node_data = {
         "user": {
@@ -273,6 +296,7 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
             "test_mask",
             "age",
             "multi",
+            "state",
             "input_ids",
             "attention_mask",
             "token_type_ids",
@@ -281,6 +305,14 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
 
     for node_type in metadata["node_data"]:
         assert metadata["node_data"][node_type].keys() == expected_node_data[node_type]
+
+    with open(
+        os.path.join(dghl_loader.output_path, TRANSFORMATIONS_FILENAME), "r", encoding="utf-8"
+    ) as transformation_file:
+        transformations_dict = json.load(transformation_file)
+
+        assert "user" in transformations_dict["node_features"]
+        assert "state" in transformations_dict["node_features"]["user"]
 
 
 def test_load_dist_hgl_without_labels(
@@ -528,8 +560,8 @@ def test_create_split_files_from_rates(
     non_missing_data_points = NUM_DATAPOINTS - missing_data_points
     edges_df = create_edges_df(spark, missing_data_points)
 
-    output_dicts = dghl_loader._create_split_files_from_rates(
-        edges_df, LABEL_COL, split_rates, os.path.join(tempdir, "sample_masks"), seed=42
+    output_dicts = dghl_loader._create_split_files(
+        edges_df, LABEL_COL, split_rates, os.path.join(tempdir, "sample_masks"), None, seed=42
     )
 
     train_mask_df, test_mask_df, val_mask_df = read_masks_from_disk(
@@ -559,8 +591,8 @@ def test_create_split_files_from_rates_empty_col(
     edges_df = create_edges_df(spark, 0).drop(LABEL_COL)
     split_rates = SplitRates(0.8, 0.1, 0.1)
 
-    output_dicts = dghl_loader._create_split_files_from_rates(
-        edges_df, "", split_rates, os.path.join(tempdir, "sample_masks"), seed=42
+    output_dicts = dghl_loader._create_split_files(
+        edges_df, "", split_rates, os.path.join(tempdir, "sample_masks"), None, seed=42
     )
 
     train_mask_df, test_mask_df, val_mask_df = read_masks_from_disk(
@@ -680,3 +712,95 @@ def test_update_label_properties_multilabel(
 
     assert user_properties[COLUMN_NAME] == "multi"
     assert user_properties[VALUE_COUNTS] == {str(i): 1 for i in range(1, 11)}
+
+
+def test_node_custom_label(spark, dghl_loader: DistHeterogeneousGraphLoader, tmp_path):
+    """Test using custom label splits for nodes"""
+    data = [(i,) for i in range(1, 11)]
+
+    # Create DataFrame
+    nodes_df = spark.createDataFrame(data, ["orig"])
+
+    train_df = spark.createDataFrame([(i,) for i in range(1, 6)], ["mask_id"])
+    val_df = spark.createDataFrame([(i,) for i in range(6, 9)], ["mask_id"])
+    test_df = spark.createDataFrame([(i,) for i in range(9, 11)], ["mask_id"])
+
+    train_df.repartition(1).write.parquet(f"{tmp_path}/train.parquet")
+    val_df.repartition(1).write.parquet(f"{tmp_path}/val.parquet")
+    test_df.repartition(1).write.parquet(f"{tmp_path}/test.parquet")
+    config_dict = {
+        "column": "orig",
+        "type": "classification",
+        "split_rate": {"train": 0.8, "val": 0.1, "test": 0.1},
+        "custom_split_filenames": {
+            "train": f"{tmp_path}/train.parquet",
+            "valid": f"{tmp_path}/val.parquet",
+            "test": f"{tmp_path}/test.parquet",
+            "column": ["mask_id"],
+        },
+    }
+    dghl_loader.input_prefix = ""
+    label_configs = [NodeLabelConfig(config_dict)]
+    label_metadata_dicts = dghl_loader._process_node_labels(label_configs, nodes_df, "orig")
+
+    assert label_metadata_dicts.keys() == {"train_mask", "test_mask", "val_mask", "orig"}
+
+    train_mask_df, test_mask_df, val_mask_df = read_masks_from_disk(
+        spark, dghl_loader, label_metadata_dicts
+    )
+
+    train_total_ones = train_mask_df.agg(F.sum("train_mask")).collect()[0][0]
+    val_total_ones = val_mask_df.agg(F.sum("val_mask")).collect()[0][0]
+    test_total_ones = test_mask_df.agg(F.sum("test_mask")).collect()[0][0]
+    assert train_total_ones == 5
+    assert val_total_ones == 3
+    assert test_total_ones == 2
+
+
+def test_edge_custom_label(spark, dghl_loader: DistHeterogeneousGraphLoader, tmp_path):
+    """Test using custom label splits for edges"""
+    data = [(i, j) for i in range(1, 4) for j in range(11, 14)]
+    # Create DataFrame
+    edges_df = spark.createDataFrame(data, ["src_str_id", "dst_str_id"])
+
+    train_df = spark.createDataFrame(
+        [(i, j) for i in range(1, 2) for j in range(11, 14)], ["mask_src_id", "mask_dst_id"]
+    )
+    val_df = spark.createDataFrame(
+        [(i, j) for i in range(2, 3) for j in range(11, 14)], ["mask_src_id", "mask_dst_id"]
+    )
+    test_df = spark.createDataFrame(
+        [(i, j) for i in range(3, 4) for j in range(11, 14)], ["mask_src_id", "mask_dst_id"]
+    )
+
+    train_df.repartition(1).write.parquet(f"{tmp_path}/train.parquet")
+    val_df.repartition(1).write.parquet(f"{tmp_path}/val.parquet")
+    test_df.repartition(1).write.parquet(f"{tmp_path}/test.parquet")
+    config_dict = {
+        "column": "",
+        "type": "link_prediction",
+        "custom_split_filenames": {
+            "train": f"{tmp_path}/train.parquet",
+            "valid": f"{tmp_path}/val.parquet",
+            "test": f"{tmp_path}/test.parquet",
+            "column": ["mask_src_id", "mask_dst_id"],
+        },
+    }
+    dghl_loader.input_prefix = ""
+    label_configs = [EdgeLabelConfig(config_dict)]
+    label_metadata_dicts = dghl_loader._process_edge_labels(
+        label_configs, edges_df, "src_str_id:to:dst_str_id", ""
+    )
+
+    assert label_metadata_dicts.keys() == {"train_mask", "test_mask", "val_mask"}
+
+    train_mask_df, test_mask_df, val_mask_df = read_masks_from_disk(
+        spark, dghl_loader, label_metadata_dicts
+    )
+
+    train_total_ones = train_mask_df.agg(F.sum("train_mask")).collect()[0][0]
+    val_total_ones = val_mask_df.agg(F.sum("val_mask")).collect()[0][0]
+    test_total_ones = test_mask_df.agg(F.sum("test_mask")).collect()[0][0]
+    assert train_total_ones == 3
+    assert val_total_ones == 3
+    assert test_total_ones == 3

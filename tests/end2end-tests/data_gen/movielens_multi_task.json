@@ -1,0 +1,84 @@
+{
+    "version": "gconstruct-v0.1",
+    "nodes": [
+    {
+            "node_id_col":  "id",
+            "node_type":    "user",
+            "format":       {"name": "hdf5"},
+            "files":        "/data/ml-100k/user.hdf5",
+            "features":     [
+                   {
+                           "feature_col":  "feat"
+                   }
+            ]
+    },
+    {
+            "node_id_col":  "id",
+            "node_type":    "movie",
+            "format":       {"name": "parquet"},
+            "files":        "/data/ml-100k/movie.parquet",
+            "features":     [
+                {
+                        "feature_col":  "title",
+                        "transform":    {
+                                "name": "bert_hf",
+                                "bert_model": "bert-base-uncased",
+                                "max_seq_length": 16
+                        }
+                }
+            ],
+            "labels":	[
+                {
+                    "label_col":	"label",
+                    "task_type":	"classification",
+                    "split_pct":	[0.8, 0.1, 0.1],
+                    "mask_field_names": ["train_mask_c0",
+                            "val_mask_c0",
+                            "test_mask_c0"]
+                },
+                {
+                    "label_col":	"label2",
+                    "task_type":	"classification",
+                    "split_pct":	[0.7, 0.2, 0.1],
+                    "mask_field_names": ["train_mask_c1",
+                            "val_mask_c1",
+                            "test_mask_c1"]
+                }
+            ]
+    }
+    ],
+    "edges": [
+    {
+        "source_id_col":    "src_id",
+        "dest_id_col":      "dst_id",
+        "relation":         ["user", "rating", "movie"],
+        "format":           {"name": "parquet"},
+        "files":        "/data/ml-100k/edges.parquet",
+        "labels":	[
+            {
+                "label_col":	"rate_class",
+                "task_type":	"classification",
+                "split_pct":	[0.1, 0.1, 0.1],
+                "mask_field_names": ["train_mask_field_c",
+                            "val_mask_field_c",
+                            "test_mask_field_c"]
+            },
+            {
+                "label_col":	"rate",
+                "task_type":	"regression",
+                "split_pct":	[0.1, 0.1, 0.1],
+                "mask_field_names": ["train_mask_field_r",
+                            "val_mask_field_r",
+                            "test_mask_field_r"]
+            },
+            {
+                "task_type":	"link_prediction",
+                "split_pct":	[0.1, 0.1, 0.1],
+                "mask_field_names": ["train_mask_field_lp",
+                            "val_mask_field_lp",
+                            "test_mask_field_lp"]
+            }
+        ]
+    }
+    ]
+}

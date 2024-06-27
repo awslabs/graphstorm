@@ -23,40 +23,44 @@ from graphstorm.gconstruct.file_io import read_data_parquet
 from numpy.testing import assert_equal
 
 def main(args):
-
+    test_ntypes = args.test_ntypes
     predict_path = args.remap_output
     ntype0 = "n0"
     ntype1 = "n1"
 
-    ntype0_pred_path = os.path.join(predict_path, ntype0)
-    data = read_data_parquet(
-        os.path.join(ntype0_pred_path, "pred.predict-00000_00000.parquet"),
-        data_fields=["pred", "nid"])
+    if ntype0 in test_ntypes:
+        ntype0_pred_path = os.path.join(predict_path, ntype0)
+        data = read_data_parquet(
+            os.path.join(ntype0_pred_path, "pred.predict-00000_00000.parquet"),
+            data_fields=["pred", "nid"])
 
-    assert_equal(data["pred"][:,0].astype("str"), data["nid"])
-    assert_equal(data["pred"][:,1].astype("str"), data["nid"])
-    data = read_data_parquet(
-        os.path.join(ntype0_pred_path, "pred.predict-00001_00000.parquet"),
-        data_fields=["pred", "nid"])
-    assert_equal(data["pred"][:,0].astype("str"), data["nid"])
-    assert_equal(data["pred"][:,1].astype("str"), data["nid"])
+        assert_equal(data["pred"][:,0].astype("str"), data["nid"])
+        assert_equal(data["pred"][:,1].astype("str"), data["nid"])
+        data = read_data_parquet(
+            os.path.join(ntype0_pred_path, "pred.predict-00001_00000.parquet"),
+            data_fields=["pred", "nid"])
+        assert_equal(data["pred"][:,0].astype("str"), data["nid"])
+        assert_equal(data["pred"][:,1].astype("str"), data["nid"])
 
-    ntype1_pred_path = os.path.join(predict_path, ntype1)
-    data = read_data_parquet(
-        os.path.join(ntype1_pred_path, "pred.predict-00000_00000.parquet"),
-        data_fields=["pred", "nid"])
-    assert_equal(data["pred"][:,0].astype("str"), data["nid"])
-    assert_equal(data["pred"][:,1].astype("str"), data["nid"])
-    data = read_data_parquet(
-        os.path.join(ntype1_pred_path, "pred.predict-00001_00000.parquet"),
-        data_fields=["pred", "nid"])
-    assert_equal(data["pred"][:,0].astype("str"), data["nid"])
-    assert_equal(data["pred"][:,1].astype("str"), data["nid"])
+    if ntype1 in test_ntypes:
+        ntype1_pred_path = os.path.join(predict_path, ntype1)
+        data = read_data_parquet(
+            os.path.join(ntype1_pred_path, "pred.predict-00000_00000.parquet"),
+            data_fields=["pred", "nid"])
+        assert_equal(data["pred"][:,0].astype("str"), data["nid"])
+        assert_equal(data["pred"][:,1].astype("str"), data["nid"])
+        data = read_data_parquet(
+            os.path.join(ntype1_pred_path, "pred.predict-00001_00000.parquet"),
+            data_fields=["pred", "nid"])
+        assert_equal(data["pred"][:,0].astype("str"), data["nid"])
+        assert_equal(data["pred"][:,1].astype("str"), data["nid"])
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Check edge prediction remapping")
     argparser.add_argument("--remap-output", type=str, required=True,
                            help="Path to save the generated data")
+    argparser.add_argument("--test-ntypes", type=str, nargs="+", default=["n0", "n1"],
+                           help="ntypes with prediction results")
 
     args = argparser.parse_args()
 

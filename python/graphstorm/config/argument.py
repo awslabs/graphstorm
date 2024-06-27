@@ -40,6 +40,7 @@ from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from .config import BUILTIN_TASK_EDGE_REGRESSION
 from .config import (BUILTIN_TASK_LINK_PREDICTION,
                      LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL)
+from .config import BUILTIN_TASK_RECONSTRUCT_NODE_FEAT
 from .config import BUILTIN_GNN_NORM
 from .config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
 from .config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
@@ -55,6 +56,8 @@ from .config import (GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS,
 
 from .config import (GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_EMBED_LAYER,
                      GRAPHSTORM_MODEL_DECODER_LAYER, GRAPHSTORM_MODEL_LAYER_OPTIONS)
+from .config import get_mttask_id
+from .config import TaskInfo
 
 from ..utils import TORCH_MAJOR_VER, get_log_level, get_graph_name
 
@@ -146,6 +149,12 @@ class GSConfig:
         self.yaml_paths = cmd_args.yaml_config_file
         # Load all arguments from yaml config
         configuration = self.load_yaml_config(cmd_args.yaml_config_file)
+
+        multi_task_config = None
+        if 'multi_task_learning' in configuration['gsf']:
+            multi_task_config = configuration['gsf']['multi_task_learning']
+            del configuration['gsf']['multi_task_learning']
+
         self.set_attributes(configuration)
         # Override class attributes using command-line arguments
         self.override_arguments(cmd_args)
@@ -159,6 +168,12 @@ class GSConfig:
                 logging.debug("Overriding Argument: %s", arg_key)
         # We do argument check as early as possible to prevent config bugs.
         self.handle_argument_conflicts()
+
+        # parse multi task learning config and save it into self._multi_tasks
+        if multi_task_config is not None:
+            self._parse_multi_tasks(multi_task_config)
+        else:
+            self._multi_tasks = None
 
     def set_attributes(self, configuration):
         """Set class attributes from 2nd level arguments in yaml config"""
@@ -219,6 +234,317 @@ class GSConfig:
             for key, val in udf_family.items():
                 setattr(self, key, val)
 
+    def set_task_attributes(self, configuration):
+        """ Set graph task specific attributes
+
+            This function is called when GSConfig is used to
+            store graph task specific information in multi-task learning.
+
+            .. code:: python
+
+                task_info = GSConfig.__new__(GSConfig)
+                task_info.set_task_attributes(task_config)
+
+                target_ntype = task_info.target_ntype
+
+            By reusing GSConfig object, we can use the same code base
+            for single task learning and multi-task learning.
+
+        Parameters
+        ----------
+        configuration: dict
+            Task specific config
+        """
+        for key, val in configuration.items():
+            setattr(self, f"_{key}", val)
+
+    def _parse_general_task_config(self, task_config):
+        """ Parse the genral task info
+
+        Parameters
+        ----------
+        task_config: dict
+            Task config
+        """
+        if "mask_fields" in task_config:
+            mask_fields = task_config["mask_fields"]
+            assert len(mask_fields) == 3, \
+                "The mask_fileds should be a list as [train-mask, validation-mask, test-mask], " \
+                f"but get {mask_fields}"
+        else:
+            mask_fields = (None, None, None)
+
+        task_weight = task_config["task_weight"] \
+            if "task_weight" in task_config else 1.0
+        assert task_weight > 0, f"task_weight should be larger than 0, but get {task_weight}"
+
+        batch_size = self.batch_size \
+            if "batch_size" not in task_config else task_config["batch_size"]
+        return mask_fields, task_weight, batch_size
+
+    def _parse_node_classification_task(self, task_config):
+        """ Parse the node classification task info
+
+        Parameters
+        ----------
+        task_config: dict
+            Node classification task config
+        """
+        task_type = BUILTIN_TASK_NODE_CLASSIFICATION
+        mask_fields, task_weight, batch_size = \
+            self._parse_general_task_config(task_config)
+        task_config["batch_size"] = batch_size
+
+        task_info = GSConfig.__new__(GSConfig)
+        task_info.set_task_attributes(task_config)
+        setattr(task_info, "_task_type", task_type)
+        task_info.verify_node_class_arguments()
+
+        target_ntype = task_info.target_ntype
+        label_field = task_info.label_field
+
+        task_id = get_mttask_id(task_type=task_type,
+                                ntype=target_ntype,
+                                label=label_field)
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
+        setattr(task_info, "task_weight", task_weight)
+
+        return TaskInfo(task_type=task_type,
+                        task_id=task_id,
+                        task_config=task_info)
+
+    def _parse_node_regression_task(self, task_config):
+        """ Parse the node regression task info
+
+        Parameters
+        ----------
+        task_config: dict
+            Node regression task config
+        """
+        task_type = BUILTIN_TASK_NODE_REGRESSION
+        mask_fields, task_weight, batch_size = \
+            self._parse_general_task_config(task_config)
+        task_config["batch_size"] = batch_size
+
+        task_info = GSConfig.__new__(GSConfig)
+        task_info.set_task_attributes(task_config)
+        setattr(task_info, "_task_type", task_type)
+        task_info.verify_node_regression_arguments()
+
+        target_ntype = task_info.target_ntype
+        label_field = task_info.label_field
+
+        task_id = get_mttask_id(task_type=task_type,
+                                ntype=target_ntype,
+                                label=label_field)
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
+        setattr(task_info, "task_weight", task_weight)
+
+        return TaskInfo(task_type=task_type,
+                        task_id=task_id,
+                        task_config=task_info)
+
+    def _parse_edge_classification_task(self, task_config):
+        """ Parse the edge classification task info
+
+        Parameters
+        ----------
+        task_config: dict
+            Edge classification task config
+        """
+        task_type = BUILTIN_TASK_EDGE_CLASSIFICATION
+        mask_fields, task_weight, batch_size = \
+            self._parse_general_task_config(task_config)
+        task_config["batch_size"] = batch_size
+
+        task_info = GSConfig.__new__(GSConfig)
+        task_info.set_task_attributes(task_config)
+        setattr(task_info, "_task_type", task_type)
+        task_info.verify_edge_class_arguments()
+
+        target_etype = task_info.target_etype
+        label_field = task_info.label_field
+
+        task_id = get_mttask_id(task_type=task_type,
+                                etype=target_etype,
+                                label=label_field)
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
+        setattr(task_info, "task_weight", task_weight)
+        return TaskInfo(task_type=task_type,
+                        task_id=task_id,
+                        task_config=task_info)
+
+    def _parse_edge_regression_task(self, task_config):
+        """ Parse the edge regression task info
+
+        Parameters
+        ----------
+        task_config: dict
+            Edge regression task config
+        """
+        task_type = BUILTIN_TASK_EDGE_REGRESSION
+        mask_fields, task_weight, batch_size = \
+            self._parse_general_task_config(task_config)
+        task_config["batch_size"] = batch_size
+
+        task_info = GSConfig.__new__(GSConfig)
+        task_info.set_task_attributes(task_config)
+        setattr(task_info, "_task_type", task_type)
+        task_info.verify_edge_regression_arguments()
+
+        target_etype = task_info.target_etype
+        label_field = task_info.label_field
+
+        task_id = get_mttask_id(task_type=task_type,
+                                etype=target_etype,
+                                label=label_field)
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
+        setattr(task_info, "task_weight", task_weight)
+        return TaskInfo(task_type=task_type,
+                        task_id=task_id,
+                        task_config=task_info)
+
+    def _parse_link_prediction_task(self, task_config):
+        """ Parse the link prediction task info
+
+        Parameters
+        ----------
+        task_config: dict
+           Link prediction task config
+        """
+        task_type = BUILTIN_TASK_LINK_PREDICTION
+        mask_fields, task_weight, batch_size = \
+            self._parse_general_task_config(task_config)
+        task_config["batch_size"] = batch_size
+
+        task_info = GSConfig.__new__(GSConfig)
+        task_info.set_task_attributes(task_config)
+        setattr(task_info, "_task_type", task_type)
+        task_info.verify_link_prediction_arguments()
+
+        train_etype = task_info.train_etype
+        task_id = get_mttask_id(
+            task_type=task_type,
+            etype=train_etype if train_etype is not None else "ALL_ETYPE")
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
+        setattr(task_info, "task_weight", task_weight)
+        return TaskInfo(task_type=task_type,
+                        task_id=task_id,
+                        task_config=task_info)
+
+    def _parse_reconstruct_node_feat(self, task_config):
+        """ Parse the reconstruct node feature task info
+
+        Parameters
+        ----------
+        task_config: dict
+            Reconstruct node feature task config
+        """
+        task_type = BUILTIN_TASK_RECONSTRUCT_NODE_FEAT
+        mask_fields, task_weight, batch_size = \
+            self._parse_general_task_config(task_config)
+        task_config["batch_size"] = batch_size
+
+        task_info = GSConfig.__new__(GSConfig)
+        task_info.set_task_attributes(task_config)
+        setattr(task_info, "_task_type", task_type)
+        task_info.verify_node_feat_reconstruct_arguments()
+
+        target_ntype = task_info.target_ntype
+        label_field = task_info.reconstruct_nfeat_name
+
+        task_id = get_mttask_id(task_type=task_type,
+                                ntype=target_ntype,
+                                label=label_field)
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
+        setattr(task_info, "task_weight", task_weight)
+
+        return TaskInfo(task_type=task_type,
+                        task_id=task_id,
+                        task_config=task_info)
+
+    def _parse_multi_tasks(self, multi_task_config):
+        """ Parse multi-task configuration
+
+        The Yaml config for multi-task learning looks like:
+
+        .. code-block:: yaml
+            multi_task_learning:
+              - node_classification:
+                target_ntype: "movie"
+                label_field: "label"
+                mask_fields:
+                  - "train_mask_field_nc"
+                  - "val_mask_field_nc"
+                  - "test_mask_field_nc"
+                task_weight: 1.0
+                eval_metric:
+                  - "accuracy"
+              - edge_classification:
+                target_etype:
+                  - "user,rating,movie"
+                label_field: "rate"
+                multilabel: false
+                mask_fields:
+                  - "train_mask_field_ec"
+                  - "val_mask_field_ec"
+                  - "test_mask_field_ec"
+                task_weight: 0.5 # weight of the task
+              - link_prediction:
+                num_negative_edges: 4
+                num_negative_edges_eval: 100
+
+
+        Parameters
+        ----------
+        multi_task_config: list
+            A list of configs for multiple tasks.
+        """
+        assert len(multi_task_config) > 1, \
+            "There must be at least two tasks"
+
+        tasks = []
+        for task_config in multi_task_config:
+            assert isinstance(task_config, dict) and len(task_config) == 1, \
+                "When defining multiple tasks for " \
+                "training, define one task each time."
+
+            if "node_classification" in task_config:
+                task = self._parse_node_classification_task(
+                    task_config["node_classification"])
+            elif "node_regression" in task_config:
+                task = self._parse_node_regression_task(
+                    task_config["node_regression"])
+            elif "edge_classification" in task_config:
+                task = self._parse_edge_classification_task(
+                    task_config["edge_classification"])
+            elif "edge_regression" in task_config:
+                task = self._parse_edge_regression_task(
+                    task_config["edge_regression"])
+            elif "link_prediction" in task_config:
+                task = self._parse_link_prediction_task(
+                    task_config["link_prediction"])
+            elif "reconstruct_node_feat" in task_config:
+                task = self._parse_reconstruct_node_feat(
+                    task_config["reconstruct_node_feat"])
+            else:
+                raise ValueError(f"Invalid task type in multi-task learning {task_config}.")
+            tasks.append(task)
+        logging.debug("Multi-task learning with %d tasks", len(tasks))
+        self._multi_tasks = tasks
+
     def load_yaml_config(self, yaml_path):
         """Helper function to load a yaml config file"""
         with open(yaml_path, "r", encoding='utf-8') as stream:
@@ -242,6 +568,80 @@ class GSConfig:
 
                 # for basic attributes
                 setattr(self, f"_{arg_key}", arg_val)
+
+    def verify_node_feat_reconstruct_arguments(self):
+        """Verify the correctness of arguments for node feature reconstruction tasks.
+        """
+        _ = self.target_ntype
+        _ = self.batch_size
+        _ = self.eval_metric
+        _ = self.reconstruct_nfeat_name
+
+    def verify_node_class_arguments(self):
+        """ Verify the correctness of arguments for node classification tasks.
+        """
+        _ = self.target_ntype
+        _ = self.batch_size
+        _ = self.eval_metric
+        _ = self.label_field
+        _ = self.num_classes
+        _ = self.multilabel
+        _ = self.multilabel_weights
+        _ = self.imbalance_class_weights
+
+    def verify_node_regression_arguments(self):
+        """ Verify the correctness of arguments for node regression tasks.
+        """
+        _ = self.target_ntype
+        _ = self.batch_size
+        _ = self.eval_metric
+        _ = self.label_field
+
+    def verify_edge_class_arguments(self):
+        """ Verify the correctness of arguments for edge classification tasks.
+        """
+        _ = self.target_etype
+        _ = self.batch_size
+        _ = self.eval_metric
+        _ = self.label_field
+        _ = self.num_classes
+        _ = self.multilabel
+        _ = self.multilabel_weights
+        _ = self.imbalance_class_weights
+        _ = self.decoder_type
+        _ = self.num_decoder_basis
+        _ = self.decoder_edge_feat
+
+    def verify_edge_regression_arguments(self):
+        """ Verify the correctness of arguments for edge regression tasks.
+        """
+        _ = self.target_etype
+        _ = self.batch_size
+        _ = self.eval_metric
+        _ = self.label_field
+        _ = self.decoder_type
+        _ = self.num_decoder_basis
+        _ = self.decoder_edge_feat
+
+    def verify_link_prediction_arguments(self):
+        """ Verify the correctness of arguments for link prediction tasks.
+        """
+        _ = self.target_etype
+        _ = self.batch_size
+        _ = self.eval_metric
+        _ = self.train_etype
+        _ = self.eval_etype
+        _ = self.train_negative_sampler
+        _ = self.eval_negative_sampler
+        _ = self.num_negative_edges
+        _ = self.num_negative_edges_eval
+        _ = self.reverse_edge_types_map
+        _ = self.exclude_training_targets
+        _ = self.lp_loss_func
+        _ = self.lp_decoder_type
+        _ = self.gamma
+        _ = self.report_eval_per_type
+
 
     def verify_arguments(self, is_train):
         """ Verify the correctness of arguments.
@@ -352,7 +752,7 @@ class GSConfig:
         _ = self.log_report_frequency
 
         _ = self.task_type
-        # For classification tasks.
+        # For classification/regression tasks.
         if self.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_EDGE_CLASSIFICATION]:
             _ = self.label_field
             _ = self.num_classes
@@ -368,6 +768,7 @@ class GSConfig:
                               BUILTIN_TASK_LINK_PREDICTION] and is_train:
             _ = self.exclude_training_targets
             _ = self.reverse_edge_types_map
+        # For link prediction tasks.
         if self.task_type == BUILTIN_TASK_LINK_PREDICTION:
             _ = self.gamma
             _ = self.lp_decoder_type
@@ -403,7 +804,7 @@ class GSConfig:
                 self._turn_off_gradient_checkpoint("GLEM model")
         # TODO(xiangsx): Add more check
 
-    ###################### Environment Info ######################
+###################### Environment Info ######################
     @property
     def save_perf_results_path(self):
         """ Save performance flag
@@ -752,6 +1153,14 @@ class GSConfig:
             else:
                 raise RuntimeError("Only support input activate flag 'none' for None "
                                    "and 'relu' for torch.nn.functional.relu")
+        return None
+
+    @property
+    def edge_feat_name(self):
+        """ User defined edge feature name
+
+        Not used by GraphStorm, reserved for future usage.
+        """
         return None
 
     @property
@@ -1686,9 +2095,16 @@ class GSConfig:
     def remove_target_edge_type(self):
         """ Whether to remove the training target edge type for message passing.
 
-            Will set the fanout of training target edge type as zero
+            Will set the fanout of training target edge type as zero. Only used
+            with edge classification.
 
-            Only used with edge classification
+            If the edge classification is to predict the existence of an edge between
+            two nodes, we should remove the target edge in the message passing to
+            avoid information leak.
+            If it's to predict some attributes associated with an edge, we may not need
+            to remove the target edge.
+            Since we don't know what to predict, to be safe, we should remove the target
+            edge in message passing by default.
         """
         # pylint: disable=no-member
         if hasattr(self, "_remove_target_edge_type"):
@@ -1697,6 +2113,10 @@ class GSConfig:
 
         # By default, remove training target etype during
         # message passing to avoid information leakage
+        logging.warning("remove_target_edge_type is set to True by default. "
+                        "If your edge classification task is not predicting "
+                        "the existence of the target edge, we suggest you to "
+                        "set it to False.")
         return True
 
     @property
@@ -2172,7 +2592,7 @@ class GSConfig:
             else:
                 eval_metric = ["accuracy"]
         elif self.task_type in [BUILTIN_TASK_NODE_REGRESSION, \
-            BUILTIN_TASK_EDGE_REGRESSION]:
+            BUILTIN_TASK_EDGE_REGRESSION, BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
             if hasattr(self, "_eval_metric"):
                 if isinstance(self._eval_metric, str):
                     eval_metric = self._eval_metric.lower()
@@ -2195,7 +2615,10 @@ class GSConfig:
                         "should be a string or a list of string"
                     # no eval_metric
             else:
-                eval_metric = ["rmse"]
+                if self.task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT:
+                    eval_metric = ["mse"]
+                else:
+                    eval_metric = ["rmse"]
         elif self.task_type == BUILTIN_TASK_LINK_PREDICTION:
             if hasattr(self, "_eval_metric"):
                 if isinstance(self._eval_metric, str):
@@ -2276,6 +2699,24 @@ class GSConfig:
             return self._num_ffn_layers_in_decoder
         # Set default mlp layer number between gnn layer to 0
         return 0
+
+    ################## Reconstruct node feats ###############
+    @property
+    def reconstruct_nfeat_name(self):
+        """ node feature name for reconstruction
+        """
+        assert hasattr(self, "_reconstruct_nfeat_name"), \
+            "reconstruct_nfeat_name must be provided under reconstruct_node_feat task "
+        return self._reconstruct_nfeat_name
+
+    ################## Multi task learning ##################
+    @property
+    def multi_tasks(self):
+        """ Tasks in multi-task learning
+        """
+        assert hasattr(self, "_multi_tasks"), \
+            "multi_task_learning must be set in the task config"
+        return self._multi_tasks
 
 def _add_initialization_args(parser):
     group = parser.add_argument_group(title="initialization")

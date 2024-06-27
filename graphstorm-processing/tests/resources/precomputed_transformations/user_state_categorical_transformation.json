@@ -1,0 +1,19 @@
+{
+    "node_features": {
+        "user": {
+            "state": {
+                "transformation_name": "DistCategoryTransformation",
+                "string_indexer_labels_arrays": [["wa", "ca", "ny"]],
+                "cols": ["state"],
+                "per_col_label_to_one_hot_idx": {
+                    "state": {
+                        "wa": 0,
+                        "ca": 1,
+                        "ny": 2
+                    }
+                }
+            }
+        }
+    },
+    "edge_features": {}
+}

@@ -47,7 +47,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     model : GSgnnEdgeModel
         The GNN model for edge prediction.
     topk_model_to_save : int
-        The top K model to save.
+        The top K model to save. Default is 1.
 
     Example
     -------
@@ -55,12 +55,11 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     .. code:: python
 
         from graphstorm.dataloading import GSgnnEdgeDataLoader
-        from graphstorm.dataset import GSgnnEdgeData
+        from graphstorm.dataset import GSgnnData
         from graphstorm.model import GSgnnEdgeModel
         from graphstorm.trainer import GSgnnEdgePredictionTrainer
 
-        my_dataset = GSgnnEdgeTrainData(
-            "my_graph", "/path/to/part_config", train_etypes="edge_type")
+        my_dataset = GSgnnData("/path/to/part_config")
         target_idx = {"edge_type": target_edges_tensor}
         my_data_loader = GSgnnEdgeDataLoader(
             my_dataset, target_idx, fanout=[10], batch_size=1024)
@@ -70,7 +69,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
         trainer.fit(my_data_loader, num_epochs=2)
     """
-    def __init__(self, model, topk_model_to_save):
+    def __init__(self, model, topk_model_to_save=1):
         super(GSgnnEdgePredictionTrainer, self).__init__(model, topk_model_to_save)
         assert isinstance(model, GSgnnEdgeModelInterface) and isinstance(model, GSgnnModelBase), \
                 "The input model is not an edge model. Please implement GSgnnEdgeModelBase."
@@ -80,7 +79,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             test_loader=None,
             use_mini_batch_infer=True,
             save_model_path=None,
-            save_model_frequency=None,
+            save_model_frequency=-1,
             save_perf_results_path=None,
             freeze_input_layer_epochs=0,
             max_grad_norm=None,
@@ -108,7 +107,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         save_model_path : str
             The path where the model is saved.
         save_model_frequency : int
-            The number of iteration to train the model before saving the model.
+            The number of iteration to train the model before saving the model. Default is -1,
+            meaning only save model after each epoch.
         save_perf_results_path : str
             The path of the file where the performance results are saved.
         freeze_input_layer_epochs: int
@@ -170,14 +170,16 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 if not isinstance(input_nodes, dict):
                     assert len(batch_graph.ntypes) == 1
                     input_nodes = {batch_graph.ntypes[0]: input_nodes}
-                input_feats = data.get_node_feats(input_nodes, device)
+                nfeat_fields = train_loader.node_feat_fields
+                input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
 
-                if data.decoder_edge_feat is not None:
+                if train_loader.decoder_edge_feat_fields is not None:
                     input_edges = {etype: batch_graph.edges[etype].data[dgl.EID] \
                             for etype in batch_graph.canonical_etypes}
-                    edge_decoder_feats = data.get_edge_feats(input_edges,
-                                                             data.decoder_edge_feat,
-                                                             device)
+                    edge_decoder_feats = \
+                        data.get_edge_feats(input_edges,
+                                            train_loader.decoder_edge_feat_fields,
+                                            device)
                     edge_decoder_feats = {etype: feat.to(th.float32) \
                         for etype, feat in edge_decoder_feats.items()}
                 else:
@@ -186,11 +188,15 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
                 # retrieving seed edge id from the graph to find labels
                 # TODO(zhengda) expand code for multiple edge types
-                assert len(batch_graph.etypes) == 1
+                assert len(batch_graph.etypes) == 1, \
+                    "Edge classification/regression tasks only support " \
+                    "conducting prediction on one edge type."
                 target_etype = batch_graph.canonical_etypes[0]
                 # TODO(zhengda) the data loader should return labels directly.
                 seeds = batch_graph.edges[target_etype[1]].data[dgl.EID]
-                lbl = data.get_labels({target_etype: seeds}, device)
+
+                label_field = train_loader.label_field
+                lbl = data.get_edge_feats({target_etype: seeds}, label_field, device)
                 blocks = [block.to(device) for block in blocks]
                 batch_graph = batch_graph.to(device)
                 rt_profiler.record('train_graph2GPU')
@@ -283,7 +289,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                        'peak_RAM_mem_alloc_MB': \
                            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024,
                        'best validation iteration': \
-                           self.evaluator.best_iter_num[self.evaluator.metric[0]],
+                           self.evaluator.best_iter_num[self.evaluator.metric_list[0]],
                        'best model path': \
                            self.get_best_model_path() if save_model_path is not None else \
                                "No model is saved, please set save_model_path"}
@@ -319,7 +325,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         test_start = time.time()
         sys_tracker.check('start prediction')
 
-        metric = set(self.evaluator.metric)
+        metric = set(self.evaluator.metric_list)
         need_proba = metric.intersection({'roc_auc', 'per_class_roc_auc', 'precision_recall'})
         need_label_pred = metric.intersection({'accuracy', 'f1_score', 'per_class_f1_score'})
         assert len(need_proba) == 0 or len(need_label_pred) == 0, \

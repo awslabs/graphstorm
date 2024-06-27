@@ -30,6 +30,12 @@ from graphstorm.config import GSConfig
 from graphstorm.config.config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
                                       BUILTIN_LP_LOSS_LOGSIGMOID_RANKING,
                                       BUILTIN_LP_LOSS_CONTRASTIVELOSS)
+from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
+                               BUILTIN_TASK_NODE_REGRESSION,
+                               BUILTIN_TASK_EDGE_CLASSIFICATION,
+                               BUILTIN_TASK_EDGE_REGRESSION,
+                               BUILTIN_TASK_LINK_PREDICTION,
+                               BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
 from graphstorm.config.config import GRAPHSTORM_LP_EMB_L2_NORMALIZATION
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
@@ -1587,7 +1593,304 @@ def test_id_mapping_file():
             assert config.node_id_mapping_file == part_path
             assert config.edge_id_mapping_file == part_path
 
+def create_dummy_nc_config():
+    return {
+        "target_ntype": "a",
+        "label_field": "label_c",
+        "multilabel": True,
+        "num_classes": 20,
+        "eval_metric": ["F1_score", "precision_recall", "ROC_AUC"],
+        "multilabel_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2",
+        "imbalance_class_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2",
+        "batch_size": 20,
+        "task_weight": 1,
+        "mask_fields": ["class_train_mask", "class_eval_mask", "class_test_mask"]
+    }
+
+def create_dummy_nr_config():
+    return {
+        "target_ntype": "a",
+        "label_field": "label_r",
+        "task_weight": 0.5,
+        "mask_fields": ["reg_train_mask", "reg_eval_mask", "reg_test_mask"]
+    }
+
+def create_dummy_ec_config():
+    return {
+        "target_etype": ["query,match,asin"],
+        "reverse_edge_types_map": [],
+        "label_field": "label_ec",
+        "multilabel": True,
+        "num_classes": 4,
+        "num_decoder_basis": 4,
+        "remove_target_edge_type": False,
+        "decoder_type": "MLPDecoder",
+        "decoder_edge_feat": ["feat"],
+        "eval_metric": ["precision_recall"],
+        "multilabel_weights": "1,2,3,1",
+        "imbalance_class_weights": "1,2,3,1",
+        "batch_size": 20,
+        "task_weight": 1,
+        "mask_fields": ["ec_train_mask", "ec_eval_mask", "ec_test_mask"]
+    }
+
+def create_dummy_er_config():
+    return {
+        "target_etype": ["query,match-2,asin"],
+        "label_field": "label_er",
+        "eval_metric": ["mse"],
+        "decoder_edge_feat": ["query,match-2,asin:feat0,feat1"],
+        "task_weight": 1,
+        "mask_fields": ["er_train_mask", "er_eval_mask", "er_test_mask"]
+    }
+
+def create_dummy_lp_config():
+    return {
+        "train_negative_sampler": BUILTIN_LP_JOINT_NEG_SAMPLER,
+        "num_negative_edges": 4,
+        "num_negative_edges_eval": 100,
+        "train_etype": ["query,exactmatch,asin"],
+        "eval_etype": ["query,exactmatch,asin"],
+        "exclude_training_targets": True,
+        "reverse_edge_types_map": ["query,exactmatch,rev-exactmatch,asin"],
+        "gamma": 2.0,
+        "lp_loss_func": BUILTIN_LP_LOSS_CROSS_ENTROPY,
+        "lp_embed_normalizer": GRAPHSTORM_LP_EMB_L2_NORMALIZATION,
+        "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
+        "eval_metric": "MRR",
+        "lp_edge_weight_for_loss": ["weight"],
+        "task_weight": 1,
+        "mask_fields": ["lp_train_mask", "lp_eval_mask", "lp_test_mask"]
+    }
+
+def create_dummy_lp_config2():
+    return {
+        "lp_loss_func": BUILTIN_LP_LOSS_CONTRASTIVELOSS,
+        "lp_decoder_type": BUILTIN_LP_DISTMULT_DECODER,
+        "task_weight": 2,
+        "mask_fields": ["lp2_train_mask", "lp2_eval_mask", "lp2_test_mask"],
+        "exclude_training_targets": False
+    }
+
+def create_dummy_nfr_config():
+    return {
+        "target_ntype": "a",
+        "reconstruct_nfeat_name": "rfeat",
+        "task_weight": 0.5,
+        "mask_fields": ["nfr_train_mask", "nfr_eval_mask", "nfr_test_mask"]
+    }
+
+def create_dummy_nfr_config2():
+    return {
+        "target_ntype": "a",
+        "reconstruct_nfeat_name": "rfeat",
+        "mask_fields": ["nfr_train_mask", "nfr_eval_mask", "nfr_test_mask"],
+        "eval_metric": "rmse"
+    }
+
+def create_multi_task_config(tmp_path, file_name):
+    yaml_object = create_dummpy_config_obj()
+    yaml_object["gsf"]["basic"] = {
+        "backend": "gloo",
+    }
+    yaml_object["gsf"]["hyperparam"] = {
+        "batch_size": 64,
+        "eval_batch_size": 128,
+    }
+    yaml_object['gsf']["multi_task_learning"] = [
+        {
+            BUILTIN_TASK_NODE_CLASSIFICATION : create_dummy_nc_config()
+        },
+        {
+            BUILTIN_TASK_NODE_REGRESSION : create_dummy_nr_config()
+        },
+        {
+            BUILTIN_TASK_EDGE_CLASSIFICATION : create_dummy_ec_config()
+        },
+        {
+            BUILTIN_TASK_EDGE_REGRESSION : create_dummy_er_config()
+
+        },
+        {
+            BUILTIN_TASK_LINK_PREDICTION : create_dummy_lp_config()
+        },
+        {
+            BUILTIN_TASK_LINK_PREDICTION : create_dummy_lp_config2()
+        },
+        {
+            BUILTIN_TASK_RECONSTRUCT_NODE_FEAT: create_dummy_nfr_config()
+        },
+        {
+            BUILTIN_TASK_RECONSTRUCT_NODE_FEAT: create_dummy_nfr_config2()
+        }
+    ]
+
+    with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+def test_multi_task_config():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        create_multi_task_config(Path(tmpdirname), 'multi_task_test')
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'multi_task_test_default.yaml'), local_rank=0)
+        config = GSConfig(args)
+
+        assert len(config.multi_tasks) == 8
+        nc_config = config.multi_tasks[0]
+        assert nc_config.task_type == BUILTIN_TASK_NODE_CLASSIFICATION
+        assert nc_config.task_id == f"{BUILTIN_TASK_NODE_CLASSIFICATION}-a-label_c"
+        nc_config = nc_config.task_config
+        assert nc_config.task_weight == 1
+        assert nc_config.train_mask == "class_train_mask"
+        assert nc_config.val_mask == "class_eval_mask"
+        assert nc_config.test_mask == "class_test_mask"
+        assert nc_config.target_ntype == "a"
+        assert nc_config.label_field == "label_c"
+        assert nc_config.multilabel == True
+        assert nc_config.num_classes == 20
+        assert len(nc_config.eval_metric) == 3
+        assert nc_config.eval_metric[0] == "f1_score"
+        assert nc_config.eval_metric[1] == "precision_recall"
+        assert nc_config.eval_metric[2] == "roc_auc"
+        assert nc_config.imbalance_class_weights.tolist() == [1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2]
+        assert nc_config.multilabel_weights.tolist() == [1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2]
+        assert nc_config.batch_size == 20
+
+        nr_config = config.multi_tasks[1]
+        assert nr_config.task_type == BUILTIN_TASK_NODE_REGRESSION
+        assert nr_config.task_id == f"{BUILTIN_TASK_NODE_REGRESSION}-a-label_r"
+        nr_config = nr_config.task_config
+        assert nr_config.task_weight == 0.5
+        assert nr_config.train_mask == "reg_train_mask"
+        assert nr_config.val_mask == "reg_eval_mask"
+        assert nr_config.test_mask == "reg_test_mask"
+        assert nr_config.target_ntype == "a"
+        assert nr_config.label_field == "label_r"
+        assert len(nr_config.eval_metric) == 1
+        assert nr_config.eval_metric[0] == "rmse"
+        assert nr_config.batch_size == 64
+
+        ec_config = config.multi_tasks[2]
+        assert ec_config.task_type == BUILTIN_TASK_EDGE_CLASSIFICATION
+        assert ec_config.task_id == f"{BUILTIN_TASK_EDGE_CLASSIFICATION}-query_match_asin-label_ec"
+        ec_config = ec_config.task_config
+        assert ec_config.task_weight == 1
+        assert ec_config.train_mask == "ec_train_mask"
+        assert ec_config.val_mask == "ec_eval_mask"
+        assert ec_config.test_mask == "ec_test_mask"
+        assert ec_config.target_etype[0] == ("query", "match", "asin")
+        assert ec_config.label_field == "label_ec"
+        assert ec_config.multilabel == True
+        assert ec_config.num_classes == 4
+        assert ec_config.num_decoder_basis == 4
+        assert ec_config.remove_target_edge_type == False
+        assert ec_config.decoder_type == "MLPDecoder"
+        assert ec_config.decoder_edge_feat == "feat"
+        assert len(ec_config.eval_metric) == 1
+        assert ec_config.eval_metric[0] == "precision_recall"
+        assert ec_config.batch_size == 20
+        assert ec_config.imbalance_class_weights.tolist() == [1,2,3,1]
+        assert ec_config.multilabel_weights.tolist() == [1,2,3,1]
+
+        er_config = config.multi_tasks[3]
+        assert er_config.task_type == BUILTIN_TASK_EDGE_REGRESSION
+        assert er_config.task_id == f"{BUILTIN_TASK_EDGE_REGRESSION}-query_match-2_asin-label_er"
+        er_config = er_config.task_config
+        assert er_config.task_weight == 1
+        assert er_config.train_mask == "er_train_mask"
+        assert er_config.val_mask == "er_eval_mask"
+        assert er_config.test_mask == "er_test_mask"
+        assert er_config.target_etype[0] == ("query", "match-2", "asin")
+        assert er_config.label_field == "label_er"
+        assert len(er_config.eval_metric) == 1
+        assert er_config.eval_metric[0] == "mse"
+        assert len(er_config.decoder_edge_feat) == 1
+        assert er_config.decoder_edge_feat[("query","match-2","asin")] == ["feat0", "feat1"]
+        assert er_config.batch_size == 64
+        assert er_config.remove_target_edge_type == True
+        assert er_config.decoder_type == "DenseBiDecoder"
+        assert er_config.num_decoder_basis == 2
+
+        lp_config = config.multi_tasks[4]
+        assert lp_config.task_type == BUILTIN_TASK_LINK_PREDICTION
+        assert lp_config.task_id == f"{BUILTIN_TASK_LINK_PREDICTION}-query_exactmatch_asin"
+        lp_config = lp_config.task_config
+        assert lp_config.task_weight == 1
+        assert lp_config.train_mask == "lp_train_mask"
+        assert lp_config.val_mask == "lp_eval_mask"
+        assert lp_config.test_mask == "lp_test_mask"
+        assert lp_config.train_negative_sampler == BUILTIN_LP_JOINT_NEG_SAMPLER
+        assert lp_config.num_negative_edges == 4
+        assert lp_config.num_negative_edges_eval == 100
+        assert len(lp_config.train_etype) == 1
+        assert lp_config.train_etype[0] == ("query", "exactmatch", "asin")
+        assert len(lp_config.eval_etype) == 1
+        assert lp_config.eval_etype[0] == ("query", "exactmatch", "asin")
+        assert lp_config.exclude_training_targets == True
+        assert len(lp_config.reverse_edge_types_map) == 1
+        assert lp_config.reverse_edge_types_map[("query", "exactmatch","asin")] == \
+            ("asin", "rev-exactmatch","query")
+        assert lp_config.gamma == 2.0
+        assert lp_config.lp_loss_func == BUILTIN_LP_LOSS_CROSS_ENTROPY
+        assert lp_config.lp_embed_normalizer == GRAPHSTORM_LP_EMB_L2_NORMALIZATION
+        assert lp_config.lp_decoder_type == BUILTIN_LP_DOT_DECODER
+        assert len(lp_config.eval_metric) == 1
+        assert lp_config.eval_metric[0] == "mrr"
+        assert lp_config.lp_edge_weight_for_loss == "weight"
+
+        lp_config = config.multi_tasks[5]
+        assert lp_config.task_type == BUILTIN_TASK_LINK_PREDICTION
+        assert lp_config.task_id == f"{BUILTIN_TASK_LINK_PREDICTION}-ALL_ETYPE"
+        lp_config = lp_config.task_config
+        assert lp_config.task_weight == 2
+        assert lp_config.train_mask == "lp2_train_mask"
+        assert lp_config.val_mask == "lp2_eval_mask"
+        assert lp_config.test_mask == "lp2_test_mask"
+        assert lp_config.train_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER
+        assert lp_config.num_negative_edges == 16
+        assert lp_config.train_etype == None
+        assert lp_config.eval_etype == None
+        assert lp_config.exclude_training_targets == False
+        assert len(lp_config.reverse_edge_types_map) == 0
+        assert lp_config.gamma == 12.0
+        assert lp_config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS
+        assert lp_config.lp_embed_normalizer == GRAPHSTORM_LP_EMB_L2_NORMALIZATION
+        assert lp_config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER
+        assert len(lp_config.eval_metric) == 1
+        assert lp_config.eval_metric[0] == "mrr"
+        assert config.lp_edge_weight_for_loss == None
+        assert config.model_select_etype == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
+
+        nfr_config = config.multi_tasks[6]
+        assert nfr_config.task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT
+        assert nfr_config.task_id == f"{BUILTIN_TASK_RECONSTRUCT_NODE_FEAT}-a-rfeat"
+        nfr_config = nfr_config.task_config
+        assert nfr_config.task_weight == 0.5
+        assert nfr_config.train_mask == "nfr_train_mask"
+        assert nfr_config.val_mask == "nfr_eval_mask"
+        assert nfr_config.test_mask == "nfr_test_mask"
+        assert nfr_config.target_ntype == "a"
+        assert nfr_config.reconstruct_nfeat_name == "rfeat"
+        assert len(nfr_config.eval_metric) == 1
+        assert nfr_config.eval_metric[0] == "mse"
+        assert nfr_config.batch_size == 64
+
+        nfr_config = config.multi_tasks[7]
+        assert nfr_config.task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT
+        assert nfr_config.task_id == f"{BUILTIN_TASK_RECONSTRUCT_NODE_FEAT}-a-rfeat"
+        nfr_config = nfr_config.task_config
+        assert nfr_config.task_weight == 1.0
+        assert nfr_config.train_mask == "nfr_train_mask"
+        assert nfr_config.val_mask == "nfr_eval_mask"
+        assert nfr_config.test_mask == "nfr_test_mask"
+        assert nfr_config.target_ntype == "a"
+        assert nfr_config.reconstruct_nfeat_name == "rfeat"
+        assert len(nfr_config.eval_metric) == 1
+        assert nfr_config.eval_metric[0] == "rmse"
+        assert nfr_config.batch_size == 64
+
 if __name__ == '__main__':
+    test_multi_task_config()
     test_id_mapping_file()
     test_load_basic_info()
     test_gnn_info()

@@ -14,16 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import Dict, List, Optional, Sequence
+from collections import defaultdict
+from typing import List, Optional, Sequence
+from functools import partial
 
 import numpy as np
+import pandas as pd
 
-from pyspark.sql import DataFrame, functions as F
-from pyspark.sql.functions import when
-from pyspark.sql.types import ArrayType, FloatType, StringType
 from pyspark.ml.feature import StringIndexer, OneHotEncoder
 from pyspark.ml.functions import vector_to_array
 from pyspark.ml.linalg import Vectors
+from pyspark.sql import DataFrame, functions as F, SparkSession
+from pyspark.sql.functions import when
+from pyspark.sql.types import ArrayType, FloatType, StringType
+from pyspark.sql.types import IntegerType
 
 from graphstorm_processing.constants import (
     MAX_CATEGORIES_PER_FEATURE,
@@ -40,8 +44,12 @@ class DistCategoryTransformation(DistributedTransformation):
     Transforms categorical features into a vector of one-hot-encoded values.
     """
 
-    def __init__(self, cols: List[str]) -> None:
-        super().__init__(cols)
+    def __init__(
+        self, cols: list[str], spark: SparkSession, json_representation: Optional[dict] = None
+    ) -> None:
+        if not json_representation:
+            json_representation = {}
+        super().__init__(cols, spark, json_representation)
 
     @staticmethod
     def get_transformation_name() -> str:
@@ -49,9 +57,11 @@ class DistCategoryTransformation(DistributedTransformation):
 
     def apply(self, input_df: DataFrame) -> DataFrame:
         processed_col_names = []
-        for col in self.cols:
-            processed_col_names.append(col + "_processed")
-            distinct_category_counts = input_df.groupBy(col).count()  # type: DataFrame
+        top_categories_per_col: dict[str, list] = {}
+
+        for current_col in self.cols:
+            processed_col_names.append(current_col + "_processed")
+            distinct_category_counts = input_df.groupBy(current_col).count()  # type: DataFrame
             num_distinct_categories = distinct_category_counts.count()
 
             # Conditionally replace rare categories with single placeholder
@@ -60,17 +70,23 @@ class DistCategoryTransformation(DistributedTransformation):
                     MAX_CATEGORIES_PER_FEATURE - 1
                 )
                 top_categories_set = {row[0] for row in top_categories}
+                top_categories_per_col[current_col] = list(top_categories_set)
                 # TODO: Ideally we don't want to use withColumn in a loop
                 input_df = input_df.withColumn(
-                    col,
-                    when(input_df[col].isin(top_categories_set), input_df[col]).otherwise(
-                        RARE_CATEGORY
-                    ),
+                    current_col,
+                    when(
+                        input_df[current_col].isin(top_categories_set), input_df[current_col]
+                    ).otherwise(RARE_CATEGORY),
                 )
+            else:
+                top_categories_per_col[current_col] = [
+                    x[current_col] for x in distinct_category_counts.select(current_col).collect()
+                ]
 
             # Replace empty string cols with None
             input_df = input_df.withColumn(
-                col, when(input_df[col] == "", None).otherwise(input_df[col])
+                current_col,
+                when(input_df[current_col] == "", None).otherwise(input_df[current_col]),
             )
 
         # We first convert the strings to float indexes
@@ -105,7 +121,160 @@ class DistCategoryTransformation(DistributedTransformation):
             ]
         )
 
+        # Structure: {column_name: {category_string: index_value, ...}. ...}
+        per_col_label_to_one_hot_idx: dict[str, dict[str, int]] = {}
+
+        # To get the transformed values for each value in each col
+        # we need to create a DataFrame with the top categories for the current
+        # col, then fill in the rest of the values with placeholders
+        # and pass the generated DF through the one-hot encoder
+        for current_col, processed_col in zip(self.cols, processed_col_names):
+            other_cols = [x for x in self.cols if x != current_col]
+            top_str_categories_list = top_categories_per_col[current_col]
+            # Spark doesn't include missing/unknown values in the vector
+            # representation, just uses the all-zeroes vector for them,
+            # so we remove instances of None from the list of strings to model
+            if None in top_str_categories_list:
+                top_str_categories_list.remove(None)
+
+            # Each col might have different number of top categories, we need one DF per col
+            num_current_col_cats = len(top_str_categories_list)
+            # We don't care about values for the other cols in this iteration,
+            # just fill with empty string
+            placeholder_vals = [""] * num_current_col_cats
+            placeholder_cols = [placeholder_vals for _ in range(len(self.cols) - 1)]
+            current_col_unique_vals = [list(top_str_categories_list)]
+            # We need to create a DF where all cols have num_rows == num_current_col_cats
+            # and the current col needs to be the first col in the DF.
+            vals_dict = dict(
+                zip([current_col] + other_cols, current_col_unique_vals + placeholder_cols)
+            )
+
+            # One hot encoder expects a DF with all cols that were used to train it
+            # so we use the top-MAX_CATEGORIES_PER_FEATURE values for the current col,
+            # and the placeholders for the rest
+            top_str_categories_df = self.spark.createDataFrame(pd.DataFrame(vals_dict))
+            top_indexed_categories_df = str_indexer_model.transform(top_str_categories_df)
+
+            # For the current col, get the one-hot index for each of its category strings
+            # by passing the top-k values DF through the one-hot encoder model
+            per_col_label_to_one_hot_idx[current_col] = {
+                x[current_col]: int(x[processed_col])
+                for x in one_hot_encoder_model.transform(top_indexed_categories_df).collect()
+            }
+
+        # see get_json_representation() docstring for structure
+        self.json_representation = {
+            "string_indexer_labels_arrays": str_indexer_model.labelsArray,
+            "cols": self.cols,
+            "per_col_label_to_one_hot_idx": per_col_label_to_one_hot_idx,
+            "transformation_name": self.get_transformation_name(),
+        }
+
         return dense_vector_features
+
+    def apply_precomputed_transformation(self, input_df: DataFrame) -> DataFrame:
+
+        # List of StringIndexerModel labelsArray lists, each one containing the strings
+        # for one column. See docs for pyspark.ml.feature.StringIndexerModel.labelsArray
+        labels_arrays: list[list[str]] = self.json_representation["string_indexer_labels_arrays"]
+        # More verbose representation of the mapping from string to one hot index location,
+        # for each column in the input.
+        per_col_label_to_one_hot_idx: dict[str, dict[str, int]] = self.json_representation[
+            "per_col_label_to_one_hot_idx"
+        ]
+        # The list of cols the transformation was originally applied to.
+        precomputed_cols: list[str] = self.json_representation["cols"]
+
+        # Assertions to ensure correctness of representation
+        assert set(precomputed_cols) == set(self.cols), (
+            f"Mismatched columns in precomputed transformation: "
+            f"pre-computed cols: {sorted(precomputed_cols)}, "
+            f"columns in current config: {sorted(self.cols)}, "
+            f"different items: {set(precomputed_cols).symmetric_difference(set(self.cols))}"
+        )
+        for col_labels, col in zip(labels_arrays, precomputed_cols):
+            for idx, label in enumerate(col_labels):
+                assert idx == per_col_label_to_one_hot_idx[col][label], (
+                    "Mismatch between Spark labelsArray and pre-computed array index "
+                    f"for col {col}, string: {label}, "
+                    f"{idx} != {per_col_label_to_one_hot_idx[col][label]}"
+                )
+
+        # For each column in the transformation, we create a defaultdict
+        # with each unique value as keys, and the one-hot vector encoding
+        # of the value as value. Values not in the dict get the all zeroes (missing)
+        # vector
+        # Do this for each column in the transformation and return the resulting DF
+
+        # We need to define these outside the loop to avoid
+        # https://pylint.readthedocs.io/en/latest/user_guide/messages/warning/cell-var-from-loop.html
+        def replace_col_in_row(val: str, str_to_vec: dict):
+            return str_to_vec[val]
+
+        def create_zeroes_list(vec_size: int):
+            return [0] * vec_size
+
+        transformed_df = None
+        already_transformed_cols = []
+        remaining_cols = list(self.cols)
+
+        for col_idx, current_col in enumerate(precomputed_cols):
+            vector_size = len(labels_arrays[col_idx])
+            # Mapping from string to one-hot vector,
+            # with all-zeroes default for unknown/missing values
+            string_to_vector = defaultdict(partial(create_zeroes_list, vector_size))
+
+            string_to_one_hot_idx = per_col_label_to_one_hot_idx[current_col]
+
+            # Populate the one-hot vectors for known strings
+            for string_val, one_hot_idx in string_to_one_hot_idx.items():
+                one_hot_vec = [0] * vector_size
+                one_hot_vec[one_hot_idx] = 1
+                string_to_vector[string_val] = one_hot_vec
+
+            # UDF that replaces strings values with their one-hot encoding (ohe)
+            replace_cur_col = partial(replace_col_in_row, str_to_vec=string_to_vector)
+            replace_cur_col_udf = F.udf(replace_cur_col, ArrayType(IntegerType()))
+
+            partial_df = transformed_df if transformed_df else input_df
+
+            transformed_col = f"{current_col}_ohe"
+            remaining_cols.remove(current_col)
+            # We maintain only the already transformed cols, and the ones yet to be transformed
+            transformed_df = partial_df.select(
+                replace_cur_col_udf(F.col(current_col)).alias(transformed_col),
+                *remaining_cols,
+                *already_transformed_cols,
+            ).drop(current_col)
+            already_transformed_cols.append(transformed_col)
+
+        assert transformed_df
+        transformed_df = transformed_df.select(*already_transformed_cols).toDF(*self.cols)
+
+        return transformed_df
+
+    def get_json_representation(self) -> dict:
+        """Representation of the single-category transformation for one or more columns.
+
+        Returns
+        -------
+        dict
+            Structure:
+            string_indexer_labels_array:
+                tuple[tuple[str]], outer tuple has num_cols elements,
+                each inner tuple has num_cats elements, each str is a category string.
+                Spark uses this to represent the one-hot index for each category, its
+                position in the inner tuple is the one-hot-index position for the string.
+                Categories are sorted by their frequency in the data.
+            cols:
+                list[str], with num_cols elements
+            per_col_label_to_one_hot_idx:
+                dict[str, dict[str, int]], with num_cols elements, each with num_categories elements
+            transformation_name:
+                str, will be 'DistCategoryTransformation'
+        """
+        return self.json_representation
 
 
 class DistMultiCategoryTransformation(DistributedTransformation):
@@ -135,7 +304,7 @@ class DistMultiCategoryTransformation(DistributedTransformation):
         if self.separator in SPECIAL_CHARACTERS:
             self.separator = f"\\{self.separator}"
 
-        self.value_map = {}  # type: Dict[str, int]
+        self.value_map: dict[str, int] = {}
 
     @staticmethod
     def get_transformation_name() -> str:

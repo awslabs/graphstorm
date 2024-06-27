@@ -23,6 +23,7 @@ Welcome to the GraphStorm Documentation and Tutorials
    gs-processing/usage/example
    gs-processing/usage/distributed-processing-setup
    gs-processing/usage/amazon-sagemaker
+   gs-processing/usage/emr
    gs-processing/usage/emr-serverless
    gs-processing/developer/input-configuration
 
@@ -42,6 +43,8 @@ Welcome to the GraphStorm Documentation and Tutorials
    :glob:
 
    notebooks/Notebook_0_Data_Prepare
+   notebooks/Notebook_1_NC_Pipeline
+   notebooks/Notebook_2_LP_Pipeline
 
 .. toctree::
    :maxdepth: 1
@@ -53,6 +56,7 @@ Welcome to the GraphStorm Documentation and Tutorials
    advanced/language-models
    advanced/advanced-usages
    advanced/advanced-wholegraph
+   advanced/multi-task-learning
 
 .. toctree::
    :maxdepth: 1

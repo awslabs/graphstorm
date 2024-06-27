@@ -373,8 +373,7 @@ def multiprocessing_exec_no_return(tasks, num_proc, exec_func):
             function to execute.
     """
     if num_proc > 1 and len(tasks) > 1:
-        if num_proc > len(tasks):
-            num_proc = len(tasks)
+        num_proc = min(len(tasks), num_proc)
         processes = []
         manager = multiprocessing.Manager()
         task_queue = manager.Queue()
@@ -938,6 +937,9 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
         part_method = "None" if num_partitions == 1 else "metis"
 
     balance_ntypes = {}
+    # Only handle the single task case with the default mask names as
+    # train_mask, val_mask and test_mask.
+    # TODO: Support balance training set for multi-task learning.
     for ntype in node_data:
         balance_arr = th.zeros(g.number_of_nodes(ntype), dtype=th.int8)
         balance_tag = 1

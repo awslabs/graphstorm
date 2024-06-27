@@ -41,7 +41,8 @@
                             "name": "numerical",
                             "kwargs": {
                                 "normalizer": "none",
-                                "imputer": "mean"
+                                "imputer": "mean",
+                                "out_dtype": "float64"
                             }
                         }
                     },
@@ -56,15 +57,21 @@
                             }
                         }
                     },
-                     {
+                    {
                         "column": "occupation",
                         "transformation": {
                             "name": "huggingface",
                             "kwargs": {
                                 "action": "tokenize_hf",
                                 "hf_model": "bert-base-uncased",
-                                "max_seq_length":16
+                                "max_seq_length": 16
                             }
+                        }
+                    },
+                    {
+                        "column": "state",
+                        "transformation": {
+                            "name": "categorical"
                         }
                     }
                 ],

@@ -15,8 +15,10 @@
 
     Builtin configs
 """
+import dataclasses
+import typing
 
-BUILTIN_GNN_ENCODER = ["gat", "rgat", "rgcn", "sage", "hgt"]
+BUILTIN_GNN_ENCODER = ["gat", "rgat", "rgcn", "sage", "hgt", "gatv2"]
 BUILTIN_ENCODER = ["lm", "mlp"] + BUILTIN_GNN_ENCODER
 SUPPORTED_BACKEND = ["gloo", "nccl"]
 
@@ -51,6 +53,7 @@ BUILTIN_TASK_EDGE_CLASSIFICATION = "edge_classification"
 BUILTIN_TASK_EDGE_REGRESSION = "edge_regression"
 BUILTIN_TASK_LINK_PREDICTION = "link_prediction"
 BUILTIN_TASK_COMPUTE_EMB = "compute_emb"
+BUILTIN_TASK_RECONSTRUCT_NODE_FEAT = "reconstruct_node_feat"
 
 LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL = "ALL"
 
@@ -58,7 +61,8 @@ SUPPORTED_TASKS  = [BUILTIN_TASK_NODE_CLASSIFICATION, \
     BUILTIN_TASK_NODE_REGRESSION, \
     BUILTIN_TASK_EDGE_CLASSIFICATION, \
     BUILTIN_TASK_LINK_PREDICTION, \
-    BUILTIN_TASK_EDGE_REGRESSION]
+    BUILTIN_TASK_EDGE_REGRESSION, \
+    BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]
 
 EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY = "consecutive_increase"
 EARLY_STOP_AVERAGE_INCREASE_STRATEGY = "average_increase"
@@ -73,3 +77,70 @@ BUILTIN_LP_DOT_DECODER = "dot_product"
 BUILTIN_LP_DISTMULT_DECODER = "distmult"
 
 SUPPORTED_LP_DECODER = [BUILTIN_LP_DOT_DECODER, BUILTIN_LP_DISTMULT_DECODER]
+
+################ Task info data classes ############################
+def get_mttask_id(task_type, ntype=None, etype=None, label=None):
+    """ Generate task ID for multi-task learning tasks.
+        The ID is composed of the task type, the node type
+        or the edge type(s) and the label of a task.
+
+    Parameters
+    ----------
+    task_type: str
+        Task type.
+    ntype: str
+        Node type.
+    etype: str, tuple or list of tuple
+        Edge type. It can be "ALL_ETYPE" meaning all the etypes.
+        It can be a tuple representing an edge type.
+        It can be a list of tuples representing a list of edge types.
+    label: str
+        Label name.
+
+    Return
+    ------
+    str: Task ID.
+    """
+    task_id = [task_type]
+    if ntype is not None:
+        task_id.append(ntype) # node task
+    if etype is not None:
+        if isinstance(etype, str):
+            task_id.append(etype)
+        elif isinstance(etype, tuple):
+            task_id.append("_".join(etype))
+        elif isinstance(etype, list): # a list of etypes
+            task_id.append("__".join(["_".join(et) for et in etype]))
+        else:
+            raise TypeError(f"Unknown etype format: {etype}. Must be a string " \
+                            "or a tuple of strings or a list of tuples of strings.")
+    if label is not None:
+        task_id.append(label)
+
+    return "-".join(task_id)
+
+@dataclasses.dataclass
+class TaskInfo:
+    """Information of a training task in multi-task learning
+
+    Parameters
+    ----------
+    task_type: str
+        Task type.
+    task_id: str
+        Task id. Unique id for each task.
+    batch_size: int
+        Batch size of the current task.
+    mask_fields: list
+        Train/validation/test mask fields.
+    dataloader:
+        Task dataloader.
+    eval_metric: list
+        Evaluation metrics
+    task_weight: float
+        Weight of the task in final loss.
+    """
+    task_type : str
+    task_id : str
+    task_config : typing.Any = None
+    dataloader : typing.Any = None # dataloder

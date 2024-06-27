@@ -19,6 +19,7 @@ from pathlib import Path
 import os
 import shutil
 import sys
+from ast import literal_eval
 from typing import Callable, List
 
 from numpy.testing import assert_array_equal
@@ -28,6 +29,7 @@ from pyarrow import parquet as pq
 
 from graphstorm_processing.repartition_files import ParquetRepartitioner
 from graphstorm_processing import repartition_files
+from graphstorm_processing.constants import FilesystemType
 
 _ROOT = os.path.abspath(os.path.dirname(__file__))
 DUMMY_PREFIX = "s3://dummy_bucket/dummy_prefix"
@@ -35,7 +37,7 @@ TEMP_DATA_PREFIX = os.path.join(_ROOT, "resources/repartitioning/generated_parqu
 
 
 def create_feature_table(col_name: str, num_rows: int, feature_start_val: int) -> pa.Table:
-    """Creates a PyArrow table with a sinle column of integer values.
+    """Creates a PyArrow table with a single column of integer values.
 
     For example passing `num_rows` 5 and `feature_start_val` 5 will
     return a table with 5 rows, containing [5, 6, 7, 8, 9] as values
@@ -64,8 +66,8 @@ def create_feature_table(col_name: str, num_rows: int, feature_start_val: int) -
 def create_parquet_files_fixture():
     """This fixture creates all the Parquet files that are needed by the tests in this module.
 
-    We create files for a graph with 1 edge type, 1 edge label, and 2 edge features,
-    with 50 edges.
+    We create files for a graph with 1 edge type, 1 edge label, 2 edge features,
+    with 50 edges. We also include 1 node type with 1 node feature.
 
     Each file source is represented using 5 parquet files, named part-[00000-00004].parquet.
     The files are created such that the most frequent row count between them is
@@ -91,7 +93,7 @@ def create_parquet_files_fixture():
 
     # The edge structure files will have different row count from all data files.
     edges_rows = [8, 8, 8, 8, 18]
-    # For edge data files, the label will have a different row count from the rest
+    # For edge and node data files, the label will have a different row count from the rest
     # and [10, 10, 10, 10, 10] will be the most frequent row count, so all other
     # files will be re-partitioned to match that.
     per_file_rows = [
@@ -118,21 +120,33 @@ def create_parquet_files_fixture():
         for col_name, generated_rows in zip(col_names, per_file_rows):
             edge_data_counts = metadata_dict["edge_data"][meta_etype][col_name]["row_counts"]
             assert edge_data_counts == generated_rows
+    # Do the same for the node files
+    for col_name, generated_rows in zip(col_names, per_file_rows):
+        edge_data_counts = metadata_dict["node_data"]["src"][col_name]["row_counts"]
+        assert edge_data_counts == generated_rows
 
     # Generate data and write edge data files to disk
     for row_distribution, col_name in zip(per_file_rows, col_names):
         total_rows = 0
-        feat_path = os.path.join(
+        edge_feat_path = os.path.join(
             TEMP_DATA_PREFIX,
             "edge_data",
             f"dummy_type-{col_name}",
             "parquet",
         )
-        os.makedirs(feat_path)
+        node_feat_path = os.path.join(
+            TEMP_DATA_PREFIX,
+            "node_data",
+            f"src-{col_name}",
+            "parquet",
+        )
+        os.makedirs(edge_feat_path)
+        os.makedirs(node_feat_path)
         for i, row_count in enumerate(row_distribution):
             feat_part = create_feature_table(col_name, row_count, total_rows)
             filename = f"part-{str(i).zfill(5)}.parquet"
-            pq.write_table(feat_part, os.path.join(feat_path, filename))
+            pq.write_table(feat_part, os.path.join(edge_feat_path, filename))
+            pq.write_table(feat_part, os.path.join(node_feat_path, filename))
             total_rows += row_count
 
     # Generate edge structure files
@@ -173,7 +187,7 @@ def test_repartition_functions(desired_counts: List[int], partition_function_nam
     """Test the repartition functions, streaming and in-memory"""
     assert sum(desired_counts) == 50
 
-    my_partitioner = ParquetRepartitioner(TEMP_DATA_PREFIX, filesystem_type="local")
+    my_partitioner = ParquetRepartitioner(TEMP_DATA_PREFIX, filesystem_type=FilesystemType.LOCAL)
 
     metadata_path = os.path.join(TEMP_DATA_PREFIX, "partitioned_metadata.json")
 
@@ -333,6 +347,7 @@ def test_collect_frequencies_for_data_counts():
         "edge_class",
         "link_predict",
         "link_prediction",
+        "node_class",
     ],
 )
 def test_repartition_files_integration(monkeypatch, task_type):
@@ -345,7 +360,7 @@ def test_repartition_files_integration(monkeypatch, task_type):
                 "repartition_files.py",
                 "--input-prefix",
                 TEMP_DATA_PREFIX,
-                "--metadata-file-name",
+                "--input-metadata-file-name",
                 "partitioned_metadata.json",
                 "--updated-metadata-file-name",
                 "updated_row_counts_metadata.json",
@@ -396,6 +411,33 @@ def test_repartition_files_integration(monkeypatch, task_type):
                     expected_counts, edge_feature_dict["data"]
                 ):
                     absolute_feature_filepath = os.path.join(TEMP_DATA_PREFIX, feature_filepath)
+                    filemeta = pq.read_metadata(absolute_feature_filepath)
+                    file_rows = filemeta.num_rows
                     assert (
-                        expected_count == pq.read_metadata(absolute_feature_filepath).num_rows
+                        expected_count == file_rows
                     ), f"Count mismatch for {feature_name}, {absolute_feature_filepath}"
+                    # Ensure the flat array has the correct metadata embedded
+                    if feature_name == "label" and task_type not in {
+                        "link_predict",
+                        "link_prediction",
+                    }:
+                        arrow_meta = filemeta.schema.to_arrow_schema().metadata
+                        bshape = arrow_meta.get(b"shape", None)
+                        shape = tuple(literal_eval(bshape.decode()))
+                        assert shape == (file_rows,)
+
+        # Do the same for node data
+        for feature_name, node_feature_dict in new_metadata_dict["node_data"]["src"].items():
+            assert node_feature_dict["row_counts"] == expected_counts
+            for expected_count, feature_filepath in zip(expected_counts, node_feature_dict["data"]):
+                absolute_feature_filepath = os.path.join(TEMP_DATA_PREFIX, feature_filepath)
+                filemeta = pq.read_metadata(absolute_feature_filepath)
+                file_rows = filemeta.num_rows
+                assert (
+                    expected_count == file_rows
+                ), f"Count mismatch for {feature_name}, {absolute_feature_filepath}"
+                if feature_name == "label":
+                    arrow_meta = filemeta.schema.to_arrow_schema().metadata
+                    bshape = arrow_meta.get(b"shape", None)
+                    shape = tuple(literal_eval(bshape.decode()))
+                    assert shape == (file_rows,)
