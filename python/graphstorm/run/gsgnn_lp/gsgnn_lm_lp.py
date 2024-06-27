@@ -15,8 +15,8 @@
 
     GSgnn pure gpu link prediction.
 """
-
 import os
+import logging
 
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
@@ -182,5 +182,8 @@ if __name__ == '__main__':
     arg_parser=generate_parser()
 
     # Ignore unknown args to make script more robust to input arguments
-    gs_args, _ = arg_parser.parse_known_args()
+    gs_args, unknown_args = arg_parser.parse_known_args()
+    logging.warning("Unknown arguments for command "
+                    "graphstorm.run.gs_link_prediction: %s",
+                    unknown_args)
     main(gs_args)
