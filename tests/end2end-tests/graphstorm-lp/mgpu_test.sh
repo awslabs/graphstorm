@@ -611,6 +611,7 @@ python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_l
 error_and_exit $?
 
 rm -fr /data/gsgnn_lp_ml_wg_dot/
+rm /tmp/train_log.txt
 
 
 echo "=================== test save model and do evaluation behaviors ==================="
