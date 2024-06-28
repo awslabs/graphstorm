@@ -88,6 +88,20 @@ then
     exit -1
 fi
 
+cnt=$(ls -l /data/gsgnn_lp_ml_dot/emb/user | grep parquet | wc -l)
+if test $cnt != $NUM_TRAINERS
+then
+    echo "The number of remapped user embeddings $cnt is not equal to the number of trainers $NUM_TRAINERS"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_lp_ml_dot/emb/movie | grep parquet | wc -l)
+if test $cnt != $NUM_TRAINERS
+then
+    echo "The number of remapped movie embeddings $cnt is not equal to the number of trainers $NUM_TRAINERS"
+    exit -1
+fi
+
 best_epoch_dot=$(grep "successfully save the model to" /tmp/train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
 echo "The best model is saved in epoch $best_epoch_dot"
 
@@ -175,6 +189,20 @@ cnt=$(grep "Best Iteration" /tmp/log.txt | wc -l)
 if test $cnt -lt 1
 then
     echo "We use SageMaker task tracker, we should have Best Iteration"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_lp_ml_dot/infer-emb/user | grep parquet | wc -l)
+if test $cnt != $NUM_INFO_TRAINERS
+then
+    echo "The number of remapped user embeddings $cnt is not equal to the number of inferers $NUM_INFO_TRAINERS"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_lp_ml_dot/infer-emb/movie | grep parquet | wc -l)
+if test $cnt != $NUM_INFO_TRAINERS
+then
+    echo "The number of remapped movie embeddings $cnt is not equal to the number of inferers $NUM_INFO_TRAINERS"
     exit -1
 fi
 

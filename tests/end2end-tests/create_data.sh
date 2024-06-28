@@ -40,6 +40,7 @@ python3 -m graphstorm.gconstruct.construct_graph \
 	--output-dir movielen_100k_lp_train_val_1p_4t \
 	--graph-name movie-lens-100k \
 	--add-reverse-edges
+cp -R /data/ml-100k/raw_id_mappings/ movielen_100k_lp_train_val_1p_4t/
 
 # movielens link prediction - hard negative and fixed negative for inference
 rm -Rf /data/movielen_100k_lp_train_val_hard_neg_1p_4t
