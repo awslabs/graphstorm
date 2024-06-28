@@ -572,12 +572,9 @@ error_and_exit $?
 save_model_cnts=$(grep "successfully save the model to" /tmp/train_log.txt | wc -l)
 do_eval_cnts=$(grep "Best Validation" /tmp/train_log.txt | wc -l)
 
-echo "NP Save model counts: "$save_model_cnts
-echo "NP Evaluation counts: "$do_eval_cnts
-
-if test $save_model_cnts != $do_eval_cnts
+if [ $save_model_cnts != 2 ] || [ $do_eval_cnts != 2 ]
 then
-    echo "The number of save models $save_model_cnts is not equal to the do evaluation $do_eval_cnts."
+    echo "The number of save models is not equal to the number of do evaluation and not equal to 2, but got $save_model_cnts and $do_eval_cnts."
     exit -1
 fi
 
@@ -591,12 +588,9 @@ error_and_exit $?
 save_model_cnts=$(grep "successfully save the model to" /tmp/train_log.txt | wc -l)
 do_eval_cnts=$(grep "Best Validation accuracy:" /tmp/train_log.txt | wc -l)
 
-echo "NP Save model counts: "$save_model_cnts
-echo "NP Evaluation counts: "$do_eval_cnts
-
-if test $save_model_cnts != $do_eval_cnts
+if [ $save_model_cnts != 2 ] || [ $do_eval_cnts != 2 ]
 then
-    echo "The number of save models $save_model_cnts is not equal to the do evaluation $do_eval_cnts."
+    echo "The number of save models is not equal to the number of do evaluation and not equal to 2, but got $save_model_cnts and $do_eval_cnts."
     exit -1
 fi
 
@@ -610,12 +604,15 @@ error_and_exit $?
 save_model_cnts=$(grep "successfully save the model to" /tmp/train_log.txt | wc -l)
 do_eval_cnts=$(grep "Best Validation accuracy:" /tmp/train_log.txt | wc -l)
 
-echo "NP Save model counts: "$save_model_cnts
-echo "NP Evaluation counts: "$do_eval_cnts
-
-if test $save_model_cnts < $do_eval_cnts
+if [ $save_model_cnts != 2 ]
 then
-    echo "The number of save models $save_model_cnts is not less than the number of do evaluation $do_eval_cnts."
+    echo "The number of save models is not equal 2, but got $save_model_cnts."
+    exit -1
+fi
+
+if [ $do_eval_cnts != 4 ]
+then
+    echo "The number of do evaluation is not equal to 4, but got $do_eval_cnts."
     exit -1
 fi
 

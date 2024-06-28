@@ -290,12 +290,9 @@ error_and_exit $?
 save_model_cnts=$(grep "successfully save the model to" /tmp/train_log.txt | wc -l)
 do_eval_cnts=$(grep "Best Validation" /tmp/train_log.txt | wc -l)
 
-echo "EP Save model counts: "$save_model_cnts
-echo "EP Evaluation counts: "$do_eval_cnts
-
-if test $save_model_cnts != $do_eval_cnts
+if [ $save_model_cnts != 3 ] || [ $do_eval_cnts != 3 ]
 then
-    echo "The number of save models $save_model_cnts is not equal to the do evaluation $do_eval_cnts."
+    echo "The number of save models is not equal to the number of do evaluation and not equal to 3, but got $save_model_cnts and $do_eval_cnts."
     exit -1
 fi
 
@@ -309,12 +306,9 @@ error_and_exit $?
 save_model_cnts=$(grep "successfully save the model to" /tmp/train_log.txt | wc -l)
 do_eval_cnts=$(grep "Best Validation" /tmp/train_log.txt | wc -l)
 
-echo "EP Save model counts: "$save_model_cnts
-echo "EP Evaluation counts: "$do_eval_cnts
-
-if test $save_model_cnts != $do_eval_cnts
+if [ $save_model_cnts != 3 ] || [ $do_eval_cnts != 3 ]
 then
-    echo "The number of save models $save_model_cnts is not equal to the do evaluation $do_eval_cnts."
+    echo "The number of save models is not equal to the number of do evaluation and not equal to 3, but got $save_model_cnts and $do_eval_cnts."
     exit -1
 fi
 
@@ -328,12 +322,15 @@ error_and_exit $?
 save_model_cnts=$(grep "successfully save the model to" /tmp/train_log.txt | wc -l)
 do_eval_cnts=$(grep "Best Validation" /tmp/train_log.txt | wc -l)
 
-echo "EP Save model counts: "$save_model_cnts
-echo "EP Evaluation counts: "$do_eval_cnts
-
-if test $save_model_cnts < $do_eval_cnts
+if [ $save_model_cnts != 3 ]
 then
-    echo "The number of save models $save_model_cnts is not less than the number of do evaluation $do_eval_cnts."
+    echo "The number of save models is not equal 3, but got $save_model_cnts."
+    exit -1
+fi
+
+if [ $do_eval_cnts != 5 ]
+then
+    echo "The number of do evaluation is not equal to 5, but got $do_eval_cnts."
     exit -1
 fi
 
