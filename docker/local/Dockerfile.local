@@ -41,7 +41,7 @@ RUN pip install \
     scipy==1.13.0 \
     && rm -rf /root/.cache
 
-ARG DGL_VERSION=2.2.1
+ARG DGL_VERSION=2.3.0
 ARG DGL_CUDA_VERSION=121
 ARG OGB_VERSION=1.3.6
 ARG TORCH_VERSION=2.3
