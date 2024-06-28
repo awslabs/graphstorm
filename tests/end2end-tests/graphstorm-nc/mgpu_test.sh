@@ -561,3 +561,61 @@ rm /tmp/train_log.txt
 rm -fr /data/gsgnn_wg_nc_ml_text/
 
 rm -fr /tmp/*
+
+echo "=================== test save model and do evaluation behaviors ==================="
+
+echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, no-topk save model, no eval frequency"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --node-feat-name movie:title user:feat --batch-size 64 --save-model-path /data/gsgnn_nc_ml_text/ --save-model-frequency 5 --num-epochs 1 --logging-file /tmp/train_log.txt
+
+error_and_exit $?
+
+save_model_cnts=$(grep "successfully save the model to" /tmp/train_log.txt | wc -l)
+do_eval_cnts=$(grep "Best Validation" /tmp/train_log.txt | wc -l)
+
+if [ $save_model_cnts != 2 ] || [ $do_eval_cnts != 2 ]
+then
+    echo "The number of save models is not equal to the number of do evaluation and not equal to 2, but got $save_model_cnts and $do_eval_cnts."
+    exit -1
+fi
+
+rm /tmp/train_log.txt
+
+echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch,, no-topk save model, eval less frequently but divisible by save model frequency"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --node-feat-name movie:title user:feat --batch-size 64 --save-model-path /data/gsgnn_nc_ml_text/ --save-model-frequency 5 --eval-frequency 10  --num-epochs 1 --logging-file /tmp/train_log.txt
+
+error_and_exit $?
+
+save_model_cnts=$(grep "successfully save the model to" /tmp/train_log.txt | wc -l)
+do_eval_cnts=$(grep "Best Validation accuracy:" /tmp/train_log.txt | wc -l)
+
+if [ $save_model_cnts != 2 ] || [ $do_eval_cnts != 2 ]
+then
+    echo "The number of save models is not equal to the number of do evaluation and not equal to 2, but got $save_model_cnts and $do_eval_cnts."
+    exit -1
+fi
+
+rm /tmp/train_log.txt
+
+echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch,, no-topk save model, eval more frequently"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --node-feat-name movie:title user:feat --batch-size 64 --save-model-path /data/gsgnn_nc_ml_text/ --save-model-frequency 5 --eval-frequency 3  --num-epochs 1 --logging-file /tmp/train_log.txt
+
+error_and_exit $?
+
+save_model_cnts=$(grep "successfully save the model to" /tmp/train_log.txt | wc -l)
+do_eval_cnts=$(grep "Best Validation accuracy:" /tmp/train_log.txt | wc -l)
+
+if [ $save_model_cnts != 2 ]
+then
+    echo "The number of save models is not equal 2, but got $save_model_cnts."
+    exit -1
+fi
+
+if [ $do_eval_cnts != 4 ]
+then
+    echo "The number of do evaluation is not equal to 4, but got $do_eval_cnts."
+    exit -1
+fi
+
+rm /tmp/train_log.txt
+
+rm -fr /tmp/*

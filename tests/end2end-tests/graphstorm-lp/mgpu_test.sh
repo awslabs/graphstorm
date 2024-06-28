@@ -639,4 +639,63 @@ python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_l
 error_and_exit $?
 
 rm -fr /data/gsgnn_lp_ml_wg_dot/
+rm /tmp/train_log.txt
+
+
+echo "=================== test save model and do evaluation behaviors ==================="
+
+echo "**************dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, inference: full-graph, negative_sampler: localuniform, exclude_training_targets: true, test_negative_sampler: uniform, no-topk save model, no eval frequency"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '5' --num-layers 1 --use-mini-batch-infer false --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie --batch-size 128  --save-model-frequency 10 --save-model-path /data/gsgnn_lp_ml_ns_lu/  --num-epochs 1 --logging-file /tmp/train_log.txt
+
+error_and_exit $?
+
+save_model_cnts=$(grep "successfully save the model to" /tmp/train_log.txt | wc -l)
+do_eval_cnts=$(grep "Best Validation" /tmp/train_log.txt | wc -l)
+
+if [ $save_model_cnts != 3 ] || [ $do_eval_cnts != 3 ]
+then
+    echo "The number of save models is not equal to the number of do evaluation and not equal to 3, but got $save_model_cnts and $do_eval_cnts."
+    exit -1
+fi
+
+rm /tmp/train_log.txt
+
+echo "**************dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, inference: full-graph, negative_sampler: localuniform, exclude_training_targets: true, test_negative_sampler: uniform, no-topk save model, eval less frequently but divisible by save model frequency"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '5' --num-layers 1 --use-mini-batch-infer false --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie --batch-size 128 --save-model-frequency 10 --eval-frequency 20 --save-model-path /data/gsgnn_lp_ml_ns_lu/  --num-epochs 1 --logging-file /tmp/train_log.txt
+
+error_and_exit $?
+
+save_model_cnts=$(grep "successfully save the model to" /tmp/train_log.txt | wc -l)
+do_eval_cnts=$(grep "Best Validation" /tmp/train_log.txt | wc -l)
+
+if [ $save_model_cnts != 3 ] || [ $do_eval_cnts != 3 ]
+then
+    echo "The number of save models is not equal to the number of do evaluation and not equal to 3, but got $save_model_cnts and $do_eval_cnts."
+    exit -1
+fi
+
+rm /tmp/train_log.txt
+
+echo "**************dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, inference: full-graph, negative_sampler: localuniform, exclude_training_targets: true, test_negative_sampler: uniform, no-topk save model, eval more frequently"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '5' --num-layers 1 --use-mini-batch-infer false --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie --batch-size 128 --save-model-frequency 10 --eval-frequency 5 --save-model-path /data/gsgnn_lp_ml_ns_lu/  --num-epochs 1 --logging-file /tmp/train_log.txt
+
+error_and_exit $?
+
+save_model_cnts=$(grep "successfully save the model to" /tmp/train_log.txt | wc -l)
+do_eval_cnts=$(grep "Best Validation" /tmp/train_log.txt | wc -l)
+
+if [ $save_model_cnts != 3 ]
+then
+    echo "The number of save models is not equal 3, but got $save_model_cnts."
+    exit -1
+fi
+
+if [ $do_eval_cnts != 5 ]
+then
+    echo "The number of do evaluation is not equal to 5, but got $do_eval_cnts."
+    exit -1
+fi
+
+rm /tmp/train_log.txt
+
 rm -fr /tmp/*

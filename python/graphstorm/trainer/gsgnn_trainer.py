@@ -324,6 +324,25 @@ class GSgnnTrainer():
         if model_layer_to_load == GRAPHSTORM_MODEL_ALL_LAYERS:
             self._optimizer.load_opt_state(model_path, self._model.device)
 
+    def can_do_validation(self, val_dataloader):
+        """ A unified method to judge if a trainer can do model evaluation
+
+        Parameters
+        ----------
+        val_dataloader: Dataloader
+            GraphStorm Dataloader for validation
+
+        Return
+        -------
+        True or False
+            Whether do model validation.
+        """
+        # check if have evaluator or if have validation dataloader
+        if self.evaluator is None or val_dataloader is None:
+            return False
+        else:
+            return True
+
     @property
     def evaluator(self):
         """ The evaluator associated with the trainer.
