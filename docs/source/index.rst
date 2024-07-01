@@ -14,18 +14,24 @@ Welcome to the GraphStorm Documentation and Tutorials
    configuration/index
 
 .. toctree::
-   :maxdepth: 1
-   :caption: Distributed Processing
+   :maxdepth: 2
+   :caption: Command Line Interface User Guide
    :hidden:
    :glob:
 
-   gs-processing/gs-processing-getting-started
-   gs-processing/usage/example
-   gs-processing/usage/distributed-processing-setup
-   gs-processing/usage/amazon-sagemaker
-   gs-processing/usage/emr
-   gs-processing/usage/emr-serverless
-   gs-processing/developer/input-configuration
+.. toctree::
+   :maxdepth: 1
+   :caption: Distributed Graph Construction
+   :hidden:
+   :glob:
+
+   cli/gs-processing/gs-processing-getting-started
+   cli/gs-processing/usage/example
+   cli/gs-processing/usage/distributed-processing-setup
+   cli/gs-processing/usage/amazon-sagemaker
+   cli/gs-processing/usage/emr
+   cli/gs-processing/usage/emr-serverless
+   cli/gs-processing/developer/input-configuration
 
 .. toctree::
    :maxdepth: 1
@@ -33,11 +39,11 @@ Welcome to the GraphStorm Documentation and Tutorials
    :hidden:
    :glob:
 
-   scale/distributed
-   scale/sagemaker
+   cli/scale/distributed
+   cli/scale/sagemaker
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Programming User Guide
    :hidden:
    :glob:
@@ -45,18 +51,6 @@ Welcome to the GraphStorm Documentation and Tutorials
    notebooks/Notebook_0_Data_Prepare
    notebooks/Notebook_1_NC_Pipeline
    notebooks/Notebook_2_LP_Pipeline
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Advanced Topics
-   :hidden:
-   :glob:
-
-   advanced/own-models
-   advanced/language-models
-   advanced/advanced-usages
-   advanced/advanced-wholegraph
-   advanced/multi-task-learning
 
 .. toctree::
    :maxdepth: 1
@@ -70,6 +64,18 @@ Welcome to the GraphStorm Documentation and Tutorials
    api/graphstorm.inference
    api/graphstorm.model
    api/graphstorm.trainer
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Advanced Topics
+   :hidden:
+   :glob:
+
+   advanced/own-models
+   advanced/language-models
+   advanced/advanced-usages
+   advanced/advanced-wholegraph
+   advanced/multi-task-learning
 
 GraphStorm is a graph machine learning (GML) framework designed for enterprise use cases. It simplifies the development, training and deployment of GML models on industry-scale graphs (measured in billons of nodes and edges) by providing scalable training and inference pipelines of GML models. GraphStorm comes with a collection of built-in GML models, allowing users to train a GML model with a single command, eliminating the need to write any code. Moreover, GraphStorm provides a wide range of configurations to customiz model implementations and training pipelines, enhancing model performance. In addition, GraphStorm offers a programming interface that enables users to train custom GML models in a distributed manner. Users can bring their own model implementations and leverage the GraphStorm training pipeline for scalability.
 
