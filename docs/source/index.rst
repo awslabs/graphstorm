@@ -36,7 +36,6 @@ Welcome to the GraphStorm Documentation and Tutorials
 .. toctree::
    :maxdepth: 2
    :caption: Programming Interface User Guide
-   :hidden:
    :titlesonly:
    :glob:
 
@@ -44,7 +43,7 @@ Welcome to the GraphStorm Documentation and Tutorials
    api/references/index
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Advanced Topics
    :hidden:
    :glob:
