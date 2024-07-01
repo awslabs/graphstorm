@@ -36,6 +36,7 @@ Welcome to the GraphStorm Documentation and Tutorials
 .. toctree::
    :maxdepth: 2
    :caption: Programming Interface User Guide
+   :hidden:
    :titlesonly:
    :glob:
 
