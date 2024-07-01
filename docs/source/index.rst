@@ -14,24 +14,27 @@ Welcome to the GraphStorm Documentation and Tutorials
    configuration/index
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Command Line Interface User Guide
+   :maxdepth: 1
+   :caption: Distributed Processing
    :hidden:
-   :titlesonly:
    :glob:
 
-   # cli/graph-construction
-   cli/gs-processing/gs-processing-getting-started
-   cli/gs-processing/usage/example
-   cli/gs-processing/usage/distributed-processing-setup
-   cli/gs-processing/usage/amazon-sagemaker
-   cli/gs-processing/usage/emr
-   cli/gs-processing/usage/emr-serverless
-   cli/gs-processing/developer/input-configuration
+   gs-processing/gs-processing-getting-started
+   gs-processing/usage/example
+   gs-processing/usage/distributed-processing-setup
+   gs-processing/usage/amazon-sagemaker
+   gs-processing/usage/emr
+   gs-processing/usage/emr-serverless
+   gs-processing/developer/input-configuration
 
-   # cli/model-training-inference
-   cli/scale/distributed
-   cli/scale/sagemaker
+.. toctree::
+   :maxdepth: 1
+   :caption: Distributed Training
+   :hidden:
+   :glob:
+
+   scale/distributed
+   scale/sagemaker
 
 .. toctree::
    :maxdepth: 2
