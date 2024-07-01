@@ -60,7 +60,7 @@ def parse_args():
         "--worker-count",
         type=int,
         required=True,
-        help="Number of worker (core) instances. Required",
+        help="Number of worker instances. Required",
     )
     parser.add_argument(
         "--instance-type",
@@ -74,7 +74,7 @@ def parse_args():
     )
     parser.add_argument(
         "--service-role",
-        default="EMR_DefaultRole",
+        default="EMR_DefaultRole_V2",
         help="EMR service role to use for the EMR cluster. Defaults to EMR_DefaultRole.",
     )
     parser.add_argument(

@@ -143,7 +143,7 @@ using the above Python script.
     S3_ENTRY_POINT="s3://${OUTPUT_BUCKET}/emr-scripts/distributed_executor.py"
     aws s3 cp "${PATH_TO_ENTRYPOINT}" ${S3_ENTRY_POINT}
 
-    OUTPUT_PREFIX="s3://${OUTPUT_BUCKET}/gsprocessing/emr/${GRAPH_NAME}/"
+    OUTPUT_PREFIX="s3://${OUTPUT_BUCKET}/gsprocessing/emr/${GRAPH_NAME}"
 
     python "${SCRIPT_DIR}/submit_gsp_emr_step.py" \
         --entry-point-s3 ${S3_ENTRY_POINT} \
