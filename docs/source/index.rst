@@ -40,10 +40,8 @@ Welcome to the GraphStorm Documentation and Tutorials
    :titlesonly:
    :glob:
 
-   api/index
-   .. notebooks/Notebook_0_Data_Prepare
-   .. notebooks/Notebook_1_NC_Pipeline
-   .. notebooks/Notebook_2_LP_Pipeline
+   api/notebooks/index
+   api/references/index
 
 .. toctree::
    :maxdepth: 1
