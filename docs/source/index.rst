@@ -19,28 +19,28 @@ Welcome to the GraphStorm Documentation and Tutorials
    :hidden:
    :glob:
 
-.. toctree::
-   :maxdepth: 1
-   :caption: Distributed Graph Construction
-   :hidden:
-   :glob:
+   .. toctree::
+      :maxdepth: 1
+      :caption: Distributed Graph Construction
+      :hidden:
+      :glob:
 
-   cli/gs-processing/gs-processing-getting-started
-   cli/gs-processing/usage/example
-   cli/gs-processing/usage/distributed-processing-setup
-   cli/gs-processing/usage/amazon-sagemaker
-   cli/gs-processing/usage/emr
-   cli/gs-processing/usage/emr-serverless
-   cli/gs-processing/developer/input-configuration
+      cli/gs-processing/gs-processing-getting-started
+      cli/gs-processing/usage/example
+      cli/gs-processing/usage/distributed-processing-setup
+      cli/gs-processing/usage/amazon-sagemaker
+      cli/gs-processing/usage/emr
+      cli/gs-processing/usage/emr-serverless
+      cli/gs-processing/developer/input-configuration
 
-.. toctree::
-   :maxdepth: 1
-   :caption: Distributed Training
-   :hidden:
-   :glob:
+   .. toctree::
+      :maxdepth: 1
+      :caption: Distributed Training
+      :hidden:
+      :glob:
 
-   cli/scale/distributed
-   cli/scale/sagemaker
+      cli/scale/distributed
+      cli/scale/sagemaker
 
 .. toctree::
    :maxdepth: 2
