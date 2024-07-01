@@ -3,7 +3,7 @@ Welcome to the GraphStorm Documentation and Tutorials
 =======================================================
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Get Started
    :hidden:
    :glob:
@@ -17,53 +17,33 @@ Welcome to the GraphStorm Documentation and Tutorials
    :maxdepth: 2
    :caption: Command Line Interface User Guide
    :hidden:
+   :titlesonly:
    :glob:
 
-   .. toctree::
-      :maxdepth: 1
-      :caption: Distributed Graph Construction
-      :hidden:
-      :glob:
+   # cli/graph-construction
+   cli/gs-processing/gs-processing-getting-started
+   cli/gs-processing/usage/example
+   cli/gs-processing/usage/distributed-processing-setup
+   cli/gs-processing/usage/amazon-sagemaker
+   cli/gs-processing/usage/emr
+   cli/gs-processing/usage/emr-serverless
+   cli/gs-processing/developer/input-configuration
 
-      cli/gs-processing/gs-processing-getting-started
-      cli/gs-processing/usage/example
-      cli/gs-processing/usage/distributed-processing-setup
-      cli/gs-processing/usage/amazon-sagemaker
-      cli/gs-processing/usage/emr
-      cli/gs-processing/usage/emr-serverless
-      cli/gs-processing/developer/input-configuration
-
-   .. toctree::
-      :maxdepth: 1
-      :caption: Distributed Training
-      :hidden:
-      :glob:
-
-      cli/scale/distributed
-      cli/scale/sagemaker
+   # cli/model-training-inference
+   cli/scale/distributed
+   cli/scale/sagemaker
 
 .. toctree::
    :maxdepth: 2
-   :caption: Programming User Guide
+   :caption: Programming Interface User Guide
    :hidden:
+   :titlesonly:
    :glob:
 
-   notebooks/Notebook_0_Data_Prepare
-   notebooks/Notebook_1_NC_Pipeline
-   notebooks/Notebook_2_LP_Pipeline
-
-.. toctree::
-   :maxdepth: 1
-   :caption: API Reference
-   :hidden:
-   :glob:
-
-   api/graphstorm
-   api/graphstorm.dataloading
-   api/graphstorm.eval
-   api/graphstorm.inference
-   api/graphstorm.model
-   api/graphstorm.trainer
+   api/index
+   .. notebooks/Notebook_0_Data_Prepare
+   .. notebooks/Notebook_1_NC_Pipeline
+   .. notebooks/Notebook_2_LP_Pipeline
 
 .. toctree::
    :maxdepth: 1
