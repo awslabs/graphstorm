@@ -77,7 +77,7 @@ inline policy:
     ]
     }
 
-Launch an EMR cluster with GSProcessing step
+Launch an AWS EMR cluster with GSProcessing step
 --------------------------------------------
 
 Once our roles are set up, that is we have an EMR EC2 instance role,
@@ -99,7 +99,7 @@ and how to
 `run Spark applications with Docker on Amazon EMR <https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-docker.html>`_.
 
 To launch a GSProcessing job with EMR on EC2 we will use the ``graphstorm-processing/scripts/submit_gsp_emr_step.py`` Python
-script that uses ``boto3`` to launch a cluster and corresponding GSProcessing job as a step.
+script that uses ``boto3`` to launch a cluster and the corresponding GSProcessing job as a step.
 The script has four required arguments:
 
 * ``--entry-point-s3``: We need to upload the GSProcessing entry point,
@@ -107,7 +107,7 @@ The script has four required arguments:
   on S3 from which our leader instance will be able to read it from.
 * ``--gsp-arguments``: Here we pass all the arguments to the entry point as one space-separated
   string. To ensure they are parsed as one string, enclose these in double quotes, e.g.
-  ``"--input-config gsp-config.json --input-prefix s3://my-bucket/raw-data [...]"``.
+  ``--gsp-arguments "--input-config gsp-config.json --input-prefix s3://my-bucket/raw-data [...]"``.
 * ``--instance-type``: The instance type to use for our cluster. Our script only supports
   a uniform instance types currently.
 * ``--worker-count``: Number of worker instances to launch for the cluster.
