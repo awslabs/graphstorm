@@ -72,7 +72,7 @@ Once successfully set up the GraphStorm Docker running environment,
 - read the :ref:`GraphStorm Training and Inference Configurations<configurations-run>` to learn the various configurations provided by GraphStorm that can help to achieve the best performance.
 
 Scale to Giant Graphs
----------------------------------
+----------------------
 
 For users who wish to train and run infernece on very large graphs,
 
@@ -80,8 +80,13 @@ For users who wish to train and run infernece on very large graphs,
 - follow the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>` tutorial to use GraphStorm in the Distributed mode.
 - follow the :ref:`Use GraphStorm on SageMaker<distributed-sagemaker>` tutorial to use GraphStorm in the Distribute mode based on Amazon SageMaker.
 
+Use GraphStorm APIs
+---------------------
+
+For users who wish to customize the components of GraphStorm, e.g., training/inference pipelines and model components, follow the :ref:`GraphStorm API Programming Example Notebooks<programming-examples>` to explore the internal machinisms about GraphStorm, to learn how to use GraphStorm APIs to reproduce pipelines, and customize GraphStorm components for specific requirements.
+
 Advanced Topics
---------------------
+----------------
 
 - For users who want to use their own GML models in GraphStorm, follow the :ref:`Use Your Own GNN Models<use-own-models>` tutorial to learn the programming interfaces and the steps of how to modify users' own models.
 - For users who want to leverage language models on nodes with text features, follow the :ref:`Use Language Model in GraphStorm<language_models>` tutorial to learn how to leverage BERT models to use text as node features in GraphStorm.

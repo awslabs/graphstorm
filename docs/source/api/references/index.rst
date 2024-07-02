@@ -1,5 +1,5 @@
-API Reference
-==============
+Application Programming Interface Reference
+============================================
 
 .. toctree::
    :maxdepth: 2
