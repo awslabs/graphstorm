@@ -67,8 +67,8 @@ For beginners, please first start with the :ref:`Setup GraphStorm with pip Packa
 
 Once successfully set up the GraphStorm running environment,
 
-- follow the :ref:`GraphStorm Standalone Mode Quick-Start Tutorial<quick-start-standalone>` to use GraphStorm Command Line Interfaces (CLIs) to run exampless based on GraphStorm built-in data and models, hence getting familiar with GraphStorm's usage of training and inference.
-- follow the :ref:`Use Your Own Graph Data Tutorial<use-own-data>` to prepare your own graph data for using GraphStorm.
+- follow the :ref:`GraphStorm Standalone Mode Quick-Start Tutorial<quick-start-standalone>` to use GraphStorm Command Line Interfaces (CLIs) to run exampless based on GraphStorm built-in data and models, hence getting familiar with GraphStorm CLIs for training and inference.
+- follow the :ref:`Use Your Own Graph Data Tutorial<use-own-data>` to prepare your own graph data for using GraphStorm CLIs.
 - read the :ref:`GraphStorm Training and Inference Configurations<configurations-run>` to learn the various configurations provided by GraphStorm for CLIs that can help to achieve the best performance.
 
 Scale to Giant Graphs
@@ -84,7 +84,7 @@ For users who wish to train and run infernece on very large graphs,
 Use GraphStorm APIs
 ---------------------
 
-For users who wish to customize GraphStorm for their specific needs, follow the :ref:`GraphStorm API Programming Example Notebooks<programming-examples>` to explore GraphStorm APIs, learn how to use GraphStorm APIs to reproduce CLIs pipelines, and then customize GraphStorm components for specific requirements. Users can find the details of GraphStorm APIs in :ref:`API Reference<api-reference>` documentations.
+For users who wish to customize GraphStorm for their specific needs, follow the :ref:`GraphStorm API Programming Example Notebooks<programming-examples>` to explore GraphStorm APIs, learn how to use GraphStorm APIs to reproduce CLIs pipelines, and then customize GraphStorm components for specific requirements. Users can find the details of GraphStorm APIs in the :ref:`API Reference<api-reference>` documentations.
 
 Advanced Topics
 ----------------
@@ -92,6 +92,8 @@ Advanced Topics
 - For users who want to use their own GML models in GraphStorm, follow the :ref:`Use Your Own GNN Models<use-own-models>` tutorial to learn the programming interfaces and the steps of how to modify users' own models.
 - For users who want to leverage language models on nodes with text features, follow the :ref:`Use Language Model in GraphStorm<language_models>` tutorial to learn how to leverage BERT models to use text as node features in GraphStorm.
 - There are various usages of GraphStorm to both speed up training process and help to boost model performance. Users can find these usages in the :ref:`Advanced Usages<advanced_usages>` page.
+- GraphStorm team has been working with NVIDIA team to integrate the NVIDIA's WholeGraph library into GraphStorm for speed-up of feature copy. Users can follow the :ref:`Use WholeGraph in GraphStorm<advanced_wholegraph>` tutorial to know more details.
+- In v0.3, GraphStorm releases an experimental feature to support multi-task learning on the same graph, allowing users to define multiple training targets on different nodes and edges within a single training loop. Users can check the :ref:`Multi-task Learning in GraphStorm<multi_task_learning>` tutorial to know more details.
 
 Contribution
 -------------
