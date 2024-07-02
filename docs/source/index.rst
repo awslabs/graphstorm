@@ -63,19 +63,20 @@ GraphStorm is a graph machine learning (GML) framework designed for enterprise u
 Getting Started
 ----------------
 
-For beginners, please first start with the :ref:`GraphStorm Docker environment setup<setup>`. This tutorial covers how to set up a Docker environment and build a GraphStorm Docker image, which serves as the Standalone running environment for GraphStorm. We are working on supporting more running environments for GraphStorm.
+For beginners, please first start with the :ref:` Setup GraphStorm with pip Packages<setup_pip>`. This tutorial covers how to set up a GraphStorm Standalone mode environment for quick start. 
 
-Once successfully set up the GraphStorm Docker running environment,
+Once successfully set up the GraphStorm running environment,
 
-- follow the :ref:`GraphStorm Standalone Mode Quick-Start Tutorial<quick-start-standalone>` to run examples using GraphStorm built-in data and models, hence getting familiar with GraphStorm's usage of training and inference.
+- follow the :ref:`GraphStorm Standalone Mode Quick-Start Tutorial<quick-start-standalone>` to use GraphStorm Command Line Interfaces (CLIs) to run exampless based on GraphStorm built-in data and models, hence getting familiar with GraphStorm's usage of training and inference.
 - follow the :ref:`Use Your Own Graph Data Tutorial<use-own-data>` to prepare your own graph data for using GraphStorm.
-- read the :ref:`GraphStorm Training and Inference Configurations<configurations-run>` to learn the various configurations provided by GraphStorm that can help to achieve the best performance.
+- read the :ref:`GraphStorm Training and Inference Configurations<configurations-run>` to learn the various configurations provided by GraphStorm for CLIs that can help to achieve the best performance.
 
 Scale to Giant Graphs
 ----------------------
 
 For users who wish to train and run infernece on very large graphs,
 
+- follow the :ref:`Setup GraphStorm Docker Environment<setup_docker>` tutorial to create GraphStorm dockers for distributed runtime environments.
 - follow the :ref:`Use GraphStorm Distributed Data Processing<gs-processing>` tutorial to process and construction large graphs in the Distributed mode.
 - follow the :ref:`Use GraphStorm in a Distributed Cluster<distributed-cluster>` tutorial to use GraphStorm in the Distributed mode.
 - follow the :ref:`Use GraphStorm on SageMaker<distributed-sagemaker>` tutorial to use GraphStorm in the Distribute mode based on Amazon SageMaker.
@@ -83,7 +84,7 @@ For users who wish to train and run infernece on very large graphs,
 Use GraphStorm APIs
 ---------------------
 
-For users who wish to customize the components of GraphStorm, e.g., training/inference pipelines and model components, follow the :ref:`GraphStorm API Programming Example Notebooks<programming-examples>` to explore the internal machinisms about GraphStorm, to learn how to use GraphStorm APIs to reproduce pipelines, and customize GraphStorm components for specific requirements.
+For users who wish to customize GraphStorm for their specific needs, follow the :ref:`GraphStorm API Programming Example Notebooks<programming-examples>` to explore GraphStorm APIs, learn how to use GraphStorm APIs to reproduce CLIs pipelines, and then customize GraphStorm components for specific requirements. Users can find the details of GraphStorm APIs in :ref:`API Reference<api-reference>` documentations.
 
 Advanced Topics
 ----------------
