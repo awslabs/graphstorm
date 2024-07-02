@@ -57,7 +57,7 @@ def parse_args():
     )
     parser.add_argument("--timeout-hours", type=int, default=1)
     parser.add_argument(
-        "--worker-count",
+        "--instance-count",
         type=int,
         required=True,
         help="Number of worker instances. Required",
@@ -127,7 +127,7 @@ def main():
     image_tag = args.gsp_image_tag
     timeout_hours = args.timeout_hours
     instance_type = args.instance_type
-    core_instance_count = args.worker_count
+    core_instance_count = args.instance_count
 
     s3_entry_point = args.entry_point_s3
 

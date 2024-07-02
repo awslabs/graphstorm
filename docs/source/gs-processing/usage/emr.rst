@@ -110,7 +110,7 @@ The script has four required arguments:
   ``--gsp-arguments "--input-config gsp-config.json --input-prefix s3://my-bucket/raw-data [...]"``.
 * ``--instance-type``: The instance type to use for our cluster. Our script only supports
   a uniform instance types currently.
-* ``--worker-count``: Number of worker instances to launch for the cluster.
+* ``--instance-count``: Number of worker instances to launch for the cluster.
 
 Run ``python graphstorm-processing/scripts/submit_gsp_emr_step.py --help`` for more optional arguments.
 
@@ -136,7 +136,8 @@ using the above Python script.
     GENERATE_REVERSE="true"
 
 
-    # We assume this script is saved in the same path as submit_gsp_emr_step.py
+    # We assume this script is saved in the same path as submit_gsp_emr_step.py,
+    # that is graphstorm-processing/scripts
     SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
     # Upload the entry point to S3
     PATH_TO_ENTRYPOINT="$SCRIPT_DIR/../graphstorm_processing/distributed_executor.py"
