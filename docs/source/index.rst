@@ -63,7 +63,7 @@ GraphStorm is a graph machine learning (GML) framework designed for enterprise u
 Getting Started
 ----------------
 
-For beginners, please first start with the :ref:` Setup GraphStorm with pip Packages<setup_pip>`. This tutorial covers how to set up a GraphStorm Standalone mode environment for quick start. 
+For beginners, please first start with the :ref:`Setup GraphStorm with pip Packages<setup_pip>`. This tutorial covers how to set up a GraphStorm Standalone mode environment for quick start. 
 
 Once successfully set up the GraphStorm running environment,
 
