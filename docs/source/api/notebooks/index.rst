@@ -9,7 +9,7 @@ These notebooks all use the same ACM data as discussed in the :ref:`User Your Ow
 
 The `Notebook 1` provides an example that demonstrate how to reproduce the node classification training and inference pipeline that is identical as the :ref:`Step 3: Launch training and inference scripts on your own graphs<launch_training_oyog>` does. While the `Notebook 2` provides another example that use the same dataset, but conduct a link prediction training and inference pipeline. 
 
-These two examples utilize GraphStorm APIs, such as `GraphStorm`, `GSgnnDataset`, `GSgnnNodeDataLoader`, `GSgnnNodePredictionTrainer`, and `GSgnnNodePredictionInferrer`, to form the training and infernece pipeline. In terms of the GNN models, users can refer to the `demo_model.py <./demo_models.py>`_ file in which all models are created by using GraphStorm APIs.
+These two examples utilize GraphStorm APIs, such as ``GraphStorm``, ``GSgnnDataset``, ``GSgnnNodeDataLoader``, ``GSgnnNodePredictionTrainer``, and ``GSgnnNodePredictionInferrer``, to form the training and infernece pipeline. In terms of the GNN models, users can refer to the `demo_model.py <./demo_models.py>`_ file in which all models are created by using GraphStorm APIs.
 
 More notebooks will be released.
 
