@@ -1,0 +1,78 @@
+# TODO: Pin image version
+FROM public.ecr.aws/amazoncorretto/amazoncorretto:17 as base
+
+ENV PYTHON_VERSION=3.9.18
+
+# Python won’t try to write .pyc or .pyo files on the import of source modules
+# Force stdin, stdout and stderr to be totally unbuffered. Good for logging
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONIOENCODING=UTF-8
+
+ENV PYENV_ROOT="${HOME}/.pyenv"
+ENV PATH="${PYENV_ROOT}/shims:${PYENV_ROOT}/bin:${PATH}"
+
+ENV PYSPARK_DRIVER_PYTHON=${PYENV_ROOT}/shims/python
+ENV PYSPARK_PYTHON=${PYENV_ROOT}/shims/python
+
+# pyenv and Spark/YARN dependencies
+RUN yum erase -y openssl-devel && \
+    yum install -y \
+        bzip2-devel\
+        gcc \
+        git \
+        headless \
+        hostname \
+        java-17-amazon-corretto-headless \
+        libffi-devel \
+        make \
+        ncurses-devel \
+        openssl11-devel \
+        readline-devel \
+        sqlite-devel \
+        sudo \
+        tar \
+        xz-devel && \
+        rm -rf /var/cache/yum
+
+# Install Python through pyenv
+RUN git clone https://github.com/pyenv/pyenv.git ${PYENV_ROOT} --single-branch && \
+    pyenv install ${PYTHON_VERSION} && \
+    pyenv global ${PYTHON_VERSION}
+
+FROM base AS runtime
+
+WORKDIR /usr/lib/spark/code/
+
+
+# Install GSProcessing requirements to pyenv Python
+COPY requirements.txt requirements.txt
+# Use --mount=type=cache,target=/root/.cache when Buildkit CI issue is fixed:
+# https://github.com/moby/buildkit/issues/1512
+RUN pip3 install -r /usr/lib/spark/code/requirements.txt \
+    && rm -rf /root/.cache
+
+# Install Huggingface model cache if it is necessary
+# This needs to happen after the transformers library has been installed above
+ARG MODEL=""
+ENV HF_HOME=/usr/lib/spark/.cache/huggingface/hub
+RUN if [ -z "${MODEL}" ]; then \
+        echo "Skip installing model cache"; \
+else \
+        echo "Installing model cache for $MODEL" && \
+        python3 -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('${MODEL}')"; \
+        python3 -c "from transformers import AutoModel; AutoModel.from_pretrained('${MODEL}')"; \
+fi
+
+# We use this file as an indicator of the execution environment
+RUN touch /usr/lib/spark/code/EMR_EXECUTION
+
+# GSProcessing codebase
+COPY code/ /usr/lib/spark/code/
+
+FROM runtime AS prod
+RUN python3 -m pip install --no-deps /usr/lib/spark/code/graphstorm_processing-*.whl && \
+    rm /usr/lib/spark/code/graphstorm_processing-*.whl && rm -rf /root/.cache
+
+FROM runtime AS test
+RUN python3 -m pip install --no-deps /usr/lib/spark/code/graphstorm-processing/ && rm -rf /root/.cache
