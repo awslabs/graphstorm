@@ -125,8 +125,8 @@ You can find detailed instructions on creating a VPC for EMR Serverless in the A
 
 .. code-block:: bash
 
-    bash docker/build_gsprocessing_image.sh --environment sagemaker --model-name bert-base-uncased
-    bash docker/build_gsprocessing_image.sh --environment emr-serverless --model-name bert-base-uncased
+    bash docker/build_gsprocessing_image.sh --environment sagemaker --hf-model bert-base-uncased
+    bash docker/build_gsprocessing_image.sh --environment emr-serverless --hf-model bert-base-uncased
 
 Support for arm64 architecture
 ------------------------------
