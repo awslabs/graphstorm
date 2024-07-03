@@ -5,7 +5,7 @@ Distributed Graph Construction
 Graphstorm offers options to do distributed graph construction in clusters.
 
 .. toctree::
-  :maxdepth: 1
+  :maxdepth: 2
   :titlesonly:
 
    gs-processing/gs-processing-prerequisites-index.rst
