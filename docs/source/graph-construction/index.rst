@@ -5,7 +5,7 @@ Distributed Graph Construction
 Following documents show how to do distributed graph construction in clusters.
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Distributed Graph Construction
    :hidden:
    :glob:
