@@ -19,11 +19,9 @@ Welcome to the GraphStorm Documentation and Tutorials
    :hidden:
    :glob:
 
-   gs-processing/gs-processing-getting-started
-   gs-processing/usage/example
-   gs-processing/usage/distributed-processing-setup
-   gs-processing/usage/aws-infra.rst
+   gs-processing/gs-processing-prerequisites-index.rst
    gs-processing/developer/input-configuration
+   gs-processing/usage/aws-infra-index.rst
 
 .. toctree::
    :maxdepth: 1
