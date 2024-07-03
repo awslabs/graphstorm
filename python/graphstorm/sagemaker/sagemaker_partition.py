@@ -24,15 +24,20 @@ import socket
 import time
 import subprocess
 from threading import Thread, Event
+from typing import List
 
-import numpy as np
 import boto3
+import botocore
+import numpy as np
 import sagemaker
+from joblib import Parallel, delayed # pylint: disable=wrong-import-order
 
 from graphstorm.sagemaker import utils
 from .s3_utils import download_data_from_s3, upload_file_to_s3
-from .sm_partition_algorithm import (SageMakerRandomPartitioner,
-                                  SageMakerPartitionerConfig)
+from .sm_partition_algorithm import (
+    SageMakerPartitionerConfig,
+    SageMakerRandomPartitioner,
+    )
 
 DGL_TOOL_PATH = "/root/dgl/tools"
 
@@ -110,8 +115,8 @@ def launch_build_dglgraph(
     return thread
 
 
-def download_graph(graph_data_s3, graph_config, world_size,
-        local_rank, local_path, sagemaker_session):
+def parallel_download_graph(graph_data_s3, graph_config, world_size,
+        local_rank, local_path, region):
     """ download graph structure data
 
     Parameters
@@ -126,77 +131,81 @@ def download_graph(graph_data_s3, graph_config, world_size,
         Path to store graph data
     local_path: str
         directory path under which the data will be downloaded
-    sagemaker_session: sagemaker.session.Session
-        sagemaker_session to run download
+    region: str
+        AWS region
 
     Return
     ------
     local_path: str
         Local path to downloaded graph data
     """
+    s3_client = boto3.client(
+        "s3",
+        config=botocore.config.Config(max_pool_connections=150),
+        region_name=region
+    )
+    def download_file_locally(relative_filepath: str) -> None:
+        file_s3_path = os.path.join(graph_data_s3, relative_filepath.strip('./'))
+        logging.debug("Download %s from %s",
+            relative_filepath, file_s3_path)
+        local_dir = local_path \
+            if len(relative_filepath.rpartition('/')) <= 1 else \
+            os.path.join(local_path, relative_filepath.rpartition('/')[0])
+        if not os.path.exists(local_dir):
+            os.makedirs(local_dir, exist_ok=True)
+        # TODO: If using joblib processes, we'll need to remove the
+        # SM session from the closure because it can't be pickled
+        bucket = file_s3_path.split('/')[2]
+        key = '/'.join(file_s3_path.split('/')[3:])
+        s3_client.download_file(
+            bucket,
+            key,
+            os.path.join(local_dir, relative_filepath.rpartition('/')[2])
+        )
 
-    # download edge info
+    def get_local_file_list(file_list: List[str]) -> List[str]:
+        """
+        Get the list of local files from the list of remote files.
+        """
+        # TODO: Use dgl.tools.distpartitioning.utils.generate_read_list
+        # once we move the code over from DGL
+        local_file_idxs = np.array_split(np.arange(len(file_list)), world_size)
+        local_read_list = [file_list[i] for i in local_file_idxs[local_rank]]
+        return local_read_list
+
     edges = graph_config["edges"]
-    for etype, edge_data in edges.items():
-        if local_rank == 0:
-            logging.info("Downloading edge structure for edge type '%s'", etype)
-        edge_file_list = edge_data["data"]
-        read_list = np.array_split(np.arange(len(edge_file_list)), world_size)
-        for i, efile in enumerate(edge_file_list):
-            # TODO: Only download round-robin if ParMETIS will run, skip otherwise
-            # Download files both in round robin and sequential assignment
-            if i % world_size == local_rank or i in read_list[local_rank]:
-                efile = edge_file_list[i]
-                file_s3_path = os.path.join(graph_data_s3, efile.strip('./'))
-                logging.debug("Download %s from %s",
-                    efile, file_s3_path)
-                local_dir = local_path \
-                    if len(efile.rpartition('/')) <= 1 else \
-                    os.path.join(local_path, efile.rpartition('/')[0])
-                download_data_from_s3(file_s3_path, local_dir,
-                    sagemaker_session=sagemaker_session)
+    # We create a pool of workers and re-use it at every step
+    with Parallel(n_jobs=min(16, os.cpu_count() or 16), prefer='threads') as parallel:
+        # download edge structures
+        for etype, edge_data in edges.items():
+            if local_rank == 0:
+                logging.info("Downloading edge structure for edge type '%s'", etype)
+            # TODO: If using ParMETIS also download edge structures in round-robin assignment
+            local_efile_list = get_local_file_list(edge_data["data"])
+            parallel(delayed(
+                download_file_locally)(efile) for efile in local_efile_list)
 
-        # download node feature
+        # download node features
         node_data = graph_config["node_data"]
         for ntype, ndata in node_data.items():
-            for feat_name, feat_data in ndata.items():
+            for nfeat_name, nfeat_data in ndata.items():
                 if local_rank == 0:
                     logging.info("Downloading node feature '%s' of node type '%s'",
-                    feat_name, ntype)
-                num_files = len(feat_data["data"])
-                # TODO: Use dgl.tools.distpartitioning.utils.generate_read_list
-                # once we move the code over from DGL
-                read_list = np.array_split(np.arange(num_files), world_size)
-                for i in read_list[local_rank].tolist():
-                    nf_file = feat_data["data"][i]
-                    file_s3_path = os.path.join(graph_data_s3, nf_file.strip('./'))
-                    logging.debug("Download %s from %s",
-                        nf_file, file_s3_path)
-                    local_dir = local_path \
-                        if len(nf_file.rpartition('/')) <= 1 else \
-                        os.path.join(local_path, nf_file.rpartition('/')[0])
-                    download_data_from_s3(file_s3_path, local_dir,
-                        sagemaker_session=sagemaker_session)
+                    nfeat_name, ntype)
+                local_nfeature_list = get_local_file_list(nfeat_data["data"])
+                parallel(delayed(
+                    download_file_locally)(nfeature_file) for nfeature_file in local_nfeature_list)
 
-        # download edge feature
+        # download edge features
         edge_data = graph_config["edge_data"]
         for e_feat_type, edata in edge_data.items():
-            for feat_name, feat_data in edata.items():
+            for efeat_name, efeat_data in edata.items():
                 if local_rank == 0:
-                    logging.info("Downloading edge feature '%s' of '%s'",
-                        feat_name, e_feat_type)
-                num_files = len(feat_data["data"])
-                read_list = np.array_split(np.arange(num_files), world_size)
-                for i in read_list[local_rank].tolist():
-                    ef_file = feat_data["data"][i]
-                    file_s3_path = os.path.join(graph_data_s3, ef_file.strip('./'))
-                    logging.debug("Download %s from %s",
-                        ef_file, file_s3_path)
-                    local_dir = local_path \
-                        if len(ef_file.rpartition('/')) <= 1 else \
-                        os.path.join(local_path, ef_file.rpartition('/')[0])
-                    download_data_from_s3(file_s3_path, local_dir,
-                        sagemaker_session=sagemaker_session)
+                    logging.info("Downloading edge feature '%s' of edge type '%s'",
+                        efeat_name, e_feat_type)
+                local_efeature_list = get_local_file_list(efeat_data["data"])
+                parallel(delayed(
+                    download_file_locally)(efeature_file) for efeature_file in local_efeature_list)
 
     return local_path
 
@@ -215,8 +224,13 @@ def run_partition(job_config: PartitionJobConfig):
     metadata_filename = job_config.metadata_filename
     skip_partitioning = job_config.skip_partitioning == 'true'
 
-    with open("/opt/ml/config/resourceconfig.json", "r", encoding="utf-8") as f:
-        sm_env = json.load(f)
+    # Get env from either processing job or training job
+    try:
+        with open("/opt/ml/config/resourceconfig.json", "r", encoding="utf-8") as f:
+            sm_env = json.load(f)
+    except FileNotFoundError:
+        sm_env = json.loads(os.environ['SM_TRAINING_ENV'])
+
     hosts = sm_env['hosts']
     current_host = sm_env['current_host']
     world_size = len(hosts)
@@ -291,13 +305,13 @@ def run_partition(job_config: PartitionJobConfig):
 
     logging.info("Downloading graph data from %s into %s",
         graph_data_s3, tmp_data_path)
-    graph_data_path = download_graph(
+    graph_data_path = parallel_download_graph(
         graph_data_s3,
         graph_config,
         world_size,
         host_rank,
         tmp_data_path,
-        sagemaker_session)
+        os.environ['AWS_REGION'])
 
     partition_config = SageMakerPartitionerConfig(
         metadata_file=meta_info_file,
@@ -362,7 +376,7 @@ def run_partition(job_config: PartitionJobConfig):
             build_dglgraph_task.join()
             err_code = state_q.get()
             if err_code != 0:
-                raise RuntimeError("build dglgrah failed")
+                raise RuntimeError("build dglgraph failed")
 
         task_end = Event()
         thread = Thread(target=utils.keep_alive,
@@ -386,5 +400,23 @@ def run_partition(job_config: PartitionJobConfig):
     # All instances (leader+workers) upload local DGL objects to S3
     upload_file_to_s3(s3_dglgraph_output, dglgraph_output, sagemaker_session)
     logging.info("Rank %s completed all tasks, exiting...", host_rank)
+
+    # Leader instance copies raw_id_mappings from input to dist_graph output on S3
+    # using aws cli, usually much faster than using boto3
+    if host_rank == 0:
+        raw_id_mappings_s3_path = os.path.join(graph_data_s3, "raw_id_mappings")
+        # Copy raw_id_mappings from input to dist_graph output on S3
+        subprocess.call([
+            "aws", "configure", "set", "default.s3.max_concurrent_requests", "150"])
+        subprocess.check_call(
+            [
+                "aws",
+                "s3",
+                "sync",
+                "--only-show-errors",
+                "--region",
+                os.environ["AWS_REGION"],
+                raw_id_mappings_s3_path,
+                f"{s3_dglgraph_output}/raw_id_mappings"])
 
     sock.close()

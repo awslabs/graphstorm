@@ -31,12 +31,7 @@ from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
                                     GSgnnMultiTaskDataLoader)
-from graphstorm.eval import (GSgnnClassificationEvaluator,
-                             GSgnnRegressionEvaluator,
-                             GSgnnRconstructFeatRegScoreEvaluator,
-                             GSgnnPerEtypeMrrLPEvaluator,
-                             GSgnnMrrLPEvaluator,
-                             GSgnnMultiTaskEvaluator)
+from graphstorm.eval import GSgnnMultiTaskEvaluator
 from graphstorm.model.multitask_gnn import GSgnnMultiTaskSharedEncoderModel
 from graphstorm.trainer import GSgnnMultiTaskLearningTrainer
 from graphstorm.model.utils import save_full_node_embeddings
@@ -152,13 +147,13 @@ def create_task_val_dataloader(task, config, train_data):
         return None
     # All tasks share the same input encoder, so the node feats must be same.
     node_feats = config.node_feat_name
+    # All tasks share the same GNN model, so the fanout should be the global fanout
+    fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
     if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
         eval_ntype = task_config.eval_target_ntype \
             if task_config.eval_target_ntype is not None \
             else task_config.target_ntype
         val_idxs = train_data.get_node_val_set(eval_ntype, mask=task_config.val_mask)
-        # All tasks share the same GNN model, so the fanout should be the global fanout
-        fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
         if len(val_idxs) > 0:
             # TODO(xiangsx): Support construct feat
             return GSgnnNodeDataLoader(train_data,
@@ -170,8 +165,6 @@ def create_task_val_dataloader(task, config, train_data):
                                        label_field=task_config.label_field)
     elif task.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
         val_idxs = train_data.get_edge_val_set(task_config.target_etype, mask=task_config.val_mask)
-        # All tasks share the same GNN model, so the fanout should be the global fanout
-        fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
         if len(val_idxs) > 0:
             # TODO(xiangsx): Support construct feat
             return GSgnnEdgeDataLoader(train_data,
@@ -187,8 +180,6 @@ def create_task_val_dataloader(task, config, train_data):
     elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
         val_idxs = train_data.get_edge_val_set(task_config.eval_etype, mask=task_config.val_mask)
         dataloader_cls = gs.get_builtin_lp_eval_dataloader_class(task_config)
-        # All tasks share the same GNN model, so the fanout should be the global fanout
-        fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
         if len(val_idxs) > 0:
             # TODO(xiangsx): Support construct feat
             if task_config.eval_etypes_negative_dstnode is not None:
@@ -212,8 +203,6 @@ def create_task_val_dataloader(task, config, train_data):
             if task_config.eval_target_ntype is not None \
             else task_config.target_ntype
         val_idxs = train_data.get_node_val_set(eval_ntype, mask=task_config.val_mask)
-        # All tasks share the same GNN model, so the fanout should be the global fanout
-        fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
         if len(val_idxs) > 0:
             # TODO(xiangsx): Support construct feat
             return GSgnnNodeDataLoader(train_data,
@@ -248,13 +237,14 @@ def create_task_test_dataloader(task, config, train_data):
         return None
     # All tasks share the same input encoder, so the node feats must be same.
     node_feats = config.node_feat_name
+    # All tasks share the same GNN model, so the fanout should be the global fanout
+    fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
+
     if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
         eval_ntype = task_config.eval_target_ntype \
             if task_config.eval_target_ntype is not None \
             else task_config.target_ntype
         test_idxs = train_data.get_node_test_set(eval_ntype, mask=task_config.test_mask)
-        # All tasks share the same GNN model, so the fanout should be the global fanout
-        fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
         if len(test_idxs) > 0:
             # TODO(xiangsx): Support construct feat
             return GSgnnNodeDataLoader(train_data,
@@ -269,8 +259,6 @@ def create_task_test_dataloader(task, config, train_data):
         test_idxs = train_data.get_edge_test_set(
             task_config.target_etype,
             mask=task_config.test_mask)
-        # All tasks share the same GNN model, so the fanout should be the global fanout
-        fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
         if len(test_idxs) > 0:
             # TODO(xiangsx): Support construct feat
             return GSgnnEdgeDataLoader(train_data,
@@ -286,8 +274,6 @@ def create_task_test_dataloader(task, config, train_data):
     elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
         test_idxs = train_data.get_edge_test_set(task_config.eval_etype, mask=task_config.val_mask)
         dataloader_cls = gs.get_builtin_lp_eval_dataloader_class(task_config)
-        # All tasks share the same GNN model, so the fanout should be the global fanout
-        fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
         if len(test_idxs) > 0:
             # TODO(xiangsx): Support construct feat
             if task_config.eval_etypes_negative_dstnode is not None:
@@ -311,8 +297,6 @@ def create_task_test_dataloader(task, config, train_data):
             if task_config.eval_target_ntype is not None \
             else task_config.target_ntype
         test_idxs = train_data.get_node_test_set(eval_ntype, mask=task_config.test_mask)
-        # All tasks share the same GNN model, so the fanout should be the global fanout
-        fanout = config.eval_fanout if task_config.use_mini_batch_infer else []
         if len(test_idxs) > 0:
             # TODO(xiangsx): Support construct feat
             return GSgnnNodeDataLoader(train_data,
@@ -322,80 +306,6 @@ def create_task_test_dataloader(task, config, train_data):
                                        train_task=False,
                                        node_feats=node_feats,
                                        label_field=task_config.reconstruct_nfeat_name)
-    return None
-
-def create_evaluator(task):
-    """ Create task specific evaluators
-
-    Parameters
-    ----------
-    task: TaskInfo
-        Task info.
-
-    Return
-    ------
-    Evaluators
-    """
-    config = task.task_config
-    if task.task_type in [BUILTIN_TASK_NODE_CLASSIFICATION]:
-        multilabel = config.multilabel[config.eval_target_ntype] \
-            if isinstance(config.multilabel, dict) else config.multilabel
-        return GSgnnClassificationEvaluator(config.eval_frequency,
-                                            config.eval_metric,
-                                            multilabel,
-                                            config.use_early_stop,
-                                            config.early_stop_burnin_rounds,
-                                            config.early_stop_rounds,
-                                            config.early_stop_strategy)
-    elif task.task_type in [BUILTIN_TASK_NODE_REGRESSION]:
-        return GSgnnRegressionEvaluator(config.eval_frequency,
-                                        config.eval_metric,
-                                        config.use_early_stop,
-                                        config.early_stop_burnin_rounds,
-                                        config.early_stop_rounds,
-                                        config.early_stop_strategy)
-    elif task.task_type in [BUILTIN_TASK_EDGE_CLASSIFICATION]:
-        return GSgnnClassificationEvaluator(config.eval_frequency,
-                                            config.eval_metric,
-                                            config.multilabel,
-                                            config.use_early_stop,
-                                            config.early_stop_burnin_rounds,
-                                            config.early_stop_rounds,
-                                            config.early_stop_strategy)
-
-    elif task.task_type in [BUILTIN_TASK_EDGE_REGRESSION]:
-        return GSgnnRegressionEvaluator(config.eval_frequency,
-                                        config.eval_metric,
-                                        config.use_early_stop,
-                                        config.early_stop_burnin_rounds,
-                                        config.early_stop_rounds,
-                                        config.early_stop_strategy)
-    elif task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
-        assert len(config.eval_metric) == 1, \
-        "GraphStorm doees not support computing multiple metrics at the same time."
-        if config.report_eval_per_type:
-            return GSgnnPerEtypeMrrLPEvaluator(
-                eval_frequency=config.eval_frequency,
-                major_etype=config.model_select_etype,
-                use_early_stop=config.use_early_stop,
-                early_stop_burnin_rounds=config.early_stop_burnin_rounds,
-                early_stop_rounds=config.early_stop_rounds,
-                early_stop_strategy=config.early_stop_strategy)
-        else:
-            return GSgnnMrrLPEvaluator(
-                eval_frequency=config.eval_frequency,
-                use_early_stop=config.use_early_stop,
-                early_stop_burnin_rounds=config.early_stop_burnin_rounds,
-                early_stop_rounds=config.early_stop_rounds,
-                early_stop_strategy=config.early_stop_strategy)
-    elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
-        return GSgnnRconstructFeatRegScoreEvaluator(
-            config.eval_frequency,
-            config.eval_metric,
-            config.use_early_stop,
-            config.early_stop_burnin_rounds,
-            config.early_stop_rounds,
-            config.early_stop_strategy)
     return None
 
 def main(config_args):
@@ -449,7 +359,7 @@ def main(config_args):
                 logging.warning("Task %s does not have validation and test sets.", task.task_id)
             else:
                 task_evaluators[task.task_id] = \
-                    create_evaluator(task)
+                    gs.create_evaluator(task)
 
     train_dataloader = GSgnnMultiTaskDataLoader(train_data, tasks, train_dataloaders)
     val_dataloader = GSgnnMultiTaskDataLoader(train_data, tasks, val_dataloaders)
@@ -539,5 +449,8 @@ if __name__ == '__main__':
     arg_parser = generate_parser()
 
     # Ignore unknown args to make script more robust to input arguments
-    gs_args, _ = arg_parser.parse_known_args()
+    gs_args, unknown_args = arg_parser.parse_known_args()
+    logging.warning("Unknown arguments for command "
+                    "graphstorm.run.gs_multi_task_learning: %s",
+                    unknown_args)
     main(gs_args)

@@ -66,6 +66,7 @@ class ExecutionEnv(Enum):
     LOCAL = 1
     SAGEMAKER = 2
     EMR_SERVERLESS = 3
+    EMR_ON_EC2 = 4
 
 
 ################# Supported filesystem types#############

@@ -278,4 +278,62 @@ python3 check_infer.py --train-embout /data/gsgnn_wg_ec/emb/ --infer-embout /dat
 error_and_exit $?
 
 rm -fr /data/gsgnn_wg_ec/
+
+
+echo "=================== test save model and do evaluation behaviors ==================="
+
+echo "**************dataset: Generated multilabel MovieLens EC, RGCN layer: 1, node feat: generated feature, inference: full graph, exclude-training-targets: True, no-topk save model, no eval frequency"
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 5 --node-feat-name movie:title user:feat --use-mini-batch-infer false  --save-model-path /data/gsgnn_ec/ --batch-size 64  --save-model-frequency 20 --num-epochs 1 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --backend nccl
+
+error_and_exit $?
+
+save_model_cnts=$(grep "successfully save the model to" /tmp/train_log.txt | wc -l)
+do_eval_cnts=$(grep "Best Validation" /tmp/train_log.txt | wc -l)
+
+if [ $save_model_cnts != 3 ] || [ $do_eval_cnts != 3 ]
+then
+    echo "The number of save models is not equal to the number of do evaluation and not equal to 3, but got $save_model_cnts and $do_eval_cnts."
+    exit -1
+fi
+
+rm /tmp/train_log.txt
+
+echo "**************dataset: Generated multilabel MovieLens EC, RGCN layer: 1, node feat: generated feature, inference: full graph, exclude-training-targets: True, no-topk save model, eval less frequently but divisible by save model frequency"
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 5 --node-feat-name movie:title user:feat --use-mini-batch-infer false  --save-model-path /data/gsgnn_ec/ --batch-size 64 --save-model-frequency 20 --eval-frequency 40 --num-epochs 1 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --backend nccl
+
+error_and_exit $?
+
+save_model_cnts=$(grep "successfully save the model to" /tmp/train_log.txt | wc -l)
+do_eval_cnts=$(grep "Best Validation" /tmp/train_log.txt | wc -l)
+
+if [ $save_model_cnts != 3 ] || [ $do_eval_cnts != 3 ]
+then
+    echo "The number of save models is not equal to the number of do evaluation and not equal to 3, but got $save_model_cnts and $do_eval_cnts."
+    exit -1
+fi
+
+rm /tmp/train_log.txt
+
+echo "**************dataset: Generated multilabel MovieLens EC, RGCN layer: 1, node feat: generated feature, inference: full graph, exclude-training-targets: True, no-topk save model, eval more frequently"
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_label_ec/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --multilabel true --num-classes 5 --node-feat-name movie:title user:feat --use-mini-batch-infer false  --save-model-path /data/gsgnn_ec/ --batch-size 64 --save-model-frequency 20 --eval-frequency 10 --num-epochs 1 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --backend nccl
+
+error_and_exit $?
+
+save_model_cnts=$(grep "successfully save the model to" /tmp/train_log.txt | wc -l)
+do_eval_cnts=$(grep "Best Validation" /tmp/train_log.txt | wc -l)
+
+if [ $save_model_cnts != 3 ]
+then
+    echo "The number of save models is not equal 3, but got $save_model_cnts."
+    exit -1
+fi
+
+if [ $do_eval_cnts != 5 ]
+then
+    echo "The number of do evaluation is not equal to 5, but got $do_eval_cnts."
+    exit -1
+fi
+
+rm /tmp/train_log.txt
+
 rm -fr /tmp/*
