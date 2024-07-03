@@ -902,7 +902,6 @@ def main(args, gs_config_args):
     ntypes += [etype[0] for etype in pred_etypes] + \
         [etype[2] for etype in pred_etypes]
     ntypes += pred_ntypes
-
     if len(ntypes) == 0:
         # Nothing to remap
         logging.warning("No nodes to remap, skipping remapping edge/node "
