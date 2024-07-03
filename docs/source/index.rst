@@ -15,13 +15,11 @@ Welcome to the GraphStorm Documentation and Tutorials
 
 .. toctree::
    :maxdepth: 1
-   :caption: Distributed Processing
+   :caption: Graph Construction
    :hidden:
    :glob:
 
-   gs-processing/gs-processing-prerequisites-index.rst
-   gs-processing/developer/input-configuration
-   gs-processing/usage/aws-infra-index.rst
+   graph-construction/index.rst
 
 .. toctree::
    :maxdepth: 1
