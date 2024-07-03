@@ -14,7 +14,7 @@ Welcome to the GraphStorm Documentation and Tutorials
    configuration/index
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 3
    :caption: Graph Construction
    :hidden:
    :glob:
