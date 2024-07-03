@@ -1,9 +1,8 @@
 ==============================
-GraphStorm Graph Construction
+Distributed Graph Construction
 ==============================
 
-Graphstorm offers different options for Graph Construction. Following documents shows how to build graph
-with single machines or multiple machines.
+Following documents show how to do distributed graph construction in clusters.
 
 .. toctree::
    :maxdepth: 1
