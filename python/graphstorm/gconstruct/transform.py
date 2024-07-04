@@ -642,8 +642,8 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
 
         assert not np.any(self._max_val == self._min_val), \
             f"At least one element of Max Val {self._max_val} " \
-            f"and Min Val {self._min_val} is equal for feature {self._feat_name}. " \
-            "This will cause divide by zero error"
+            f"and Min Val {self._min_val} is equal for feature {self.feat_name}. " \
+            "This will cause divide-by-zero error"
 
         if isinstance(feats, ExtMemArrayWrapper):
             # TODO(xiangsx): This is not memory efficient.
