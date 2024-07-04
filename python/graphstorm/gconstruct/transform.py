@@ -361,9 +361,9 @@ class BucketTransform(FeatTransform):
     def __init__(self, col_name, feat_name, bucket_cnt,
                  bucket_range, slide_window_size=0, out_dtype=None):
         assert bucket_cnt is not None, \
-            "bucket count must be provided for bucket feature transform"
+            f"bucket count must be provided for bucket feature transform of feature {feat_name}"
         assert bucket_range is not None and len(bucket_range) == 2, \
-            "bucket range must be provided for bucket feature transform"
+            f"bucket range must be provided for bucket feature transform of feature {feat_name}"
         self.bucket_cnt = bucket_cnt
         self.bucket_range = bucket_range
         self.slide_window_size = slide_window_size
@@ -452,7 +452,8 @@ class CategoricalTransform(TwoPhaseFeatTransform):
             return {}
 
         assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
-            "Feature of CategoricalTransform must be numpy array or ExtMemArray"
+            f"Feature of CategoricalTransform must be a numpy " \
+            f"array or ExtMemArray for feature {self.feat_name}"
         if isinstance(feats, ExtMemArrayWrapper):
             # TODO(xiangsx): This is not memory efficient.
             # It will load all data into main memory.
@@ -463,12 +464,12 @@ class CategoricalTransform(TwoPhaseFeatTransform):
             return {self.feat_name: np.unique(feats.astype(str))}
         else:
             assert feats.dtype.type is np.str_, \
-                    "We can only convert strings to multiple categorical values with separaters."
+                "We can only convert strings to multiple categorical values with separaters." \
+                f"for feature {self.feat_name}"
             vals = []
             for feat in feats:
                 vals.extend(feat.split(self._separator))
             return {self.feat_name: np.unique(vals)}
-
 
     def update_info(self, info):
         # We already have the mapping.
@@ -557,7 +558,8 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
 
     def pre_process(self, feats):
         assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
-            "Feature of NumericalMinMaxTransform must be numpy array or ExtMemArray"
+            f"Feature {self.feat_name} of NumericalMinMaxTransform " \
+            "must be numpy array or ExtMemArray"
 
         # The max and min of $val = (val-min) / (max-min)$ is pre-defined
         # in the transform_conf, return max_val and min_val directly
@@ -580,7 +582,9 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
                 feats = feats.astype(np.float32)
             except: # pylint: disable=bare-except
                 raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
-        assert len(feats.shape) <= 2, "Only support 1D fp feature or 2D fp feature"
+        assert len(feats.shape) <= 2, \
+            "Only support 1D fp feature or 2D fp feature, " \
+            f"but get {len(feats.shape)}D feature for {self.feat_name}"
 
         if self._max_val is None:
             max_val = np.amax(feats, axis=0) if len(feats.shape) == 2 \
@@ -633,7 +637,8 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         np.array
         """
         assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
-            "Feature of NumericalMinMaxTransform must be numpy array or ExtMemArray"
+            f"Feature {self._feat_name} of NumericalMinMaxTransform " \
+            "must be numpy array or ExtMemArray"
 
         assert not np.any(self._max_val == self._min_val), \
             f"At least one element of Max Val {self._max_val} " \
@@ -762,7 +767,8 @@ class Tokenizer(FeatTransform):
         att_masks = []
         type_ids = []
         for s in strs:
-            assert isinstance(s, str), "The input of the tokenizer has to be a string."
+            assert isinstance(s, str), \
+                "The input of the tokenizer has to be a string for feature {self.feat_name}."
             t = self.tokenizer(s, max_length=self.max_seq_length,
                                truncation=True, padding='max_length', return_tensors='pt')
             tokens.append(t['input_ids'])
@@ -983,7 +989,8 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
             dict: {feature_name: feats_statistics}
         """
         assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
-            "Feature of HardEdgeNegativeTransform must be numpy array or ExtMemArray"
+            f"Feature {self.feat_name} of HardEdgeNegativeTransform " \
+            "must be numpy array or ExtMemArray"
 
         if self._separator is None:
             # It is possible that the input is a
@@ -995,7 +1002,8 @@ class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
                 max_dim = feats.shape[1]
         else:
             assert len(feats.shape) == 1 or feats.shape[1] == 1, \
-                "When a separator is given, the input feats must be a list of strings."
+                "When a separator is given, the input feats " \
+                f"of {self.feat_name} must be a list of strings."
 
             feats = feats.astype(str)
             max_dim = 0
