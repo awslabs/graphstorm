@@ -219,15 +219,18 @@ def compute_hit_at_classification(preds, labels, k=100):
         k: int
             Hit@K
     """
-    print(preds)
-    print(labels)
-    assert len(preds.shape) <= 2 and len(labels.shape) <= 2, \
+    assert len(preds.shape) == 2 \
+        and preds.shape[1] == 2 \
+        and len(labels.shape) == 1, \
         "Computing hit@K for classification only works for binary classification tasks." \
-        "The preds and labels must be 1D tensors or " \
-        "2D tensors with the second dimension as 1"
+        "The preds must be a 2D tensor with the second dimension of 2. " \
+        "The labels must be a 1D tensor or a 2D tensor with the second dimension of 1"
 
-    if len(preds.shape) == 2:
-        preds = th.sequeeze(preds)
+    # preds is a 2D tensor storing
+    # [probability of label 0, probability of label 1]
+    # 0 means negative, 1 means positive.
+    # We compute hit@K for positive labels
+    preds = preds[:,1]
     if len(labels.shape) == 2:
         labels = th.sequeeze(labels)
     sort_idx = th.argsort(preds, descending=True)
