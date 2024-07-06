@@ -392,8 +392,11 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
                  target_etype,
                  dropout=0,
                  regression=False,
-                 num_ffn_layers=2):
+                 num_ffn_layers=2,
+                 norm="layer"):
         self.feat_dim = feat_dim
+        self.norm = norm
+        print(f"MLPEFeatEdgeDecoder use {norm} norm")
         super(MLPEFeatEdgeDecoder, self).__init__(h_dim=h_dim,
                                                   out_dim=out_dim,
                                                   multilabel=multilabel,
@@ -412,6 +415,21 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
         self.nn_decoder = nn.Parameter(th.randn(self.h_dim * 2, self.h_dim))
         # [edge_feat] @ W -> h_dim
         self.feat_decoder = nn.Parameter(th.randn(self.feat_dim, self.h_dim))
+        self.nn_decoder_norm = None
+        self.feat_decoder_norm = None
+        self.combine_norm = None
+        if self.norm == "batch":
+            self.feat_decoder_norm = nn.BatchNorm1d(self.h_dim)
+            self.nn_decoder_norm = nn.BatchNorm1d(self.h_dim)
+            self.combine_norm = nn.BatchNorm1d(self.h_dim)
+        elif self.norm == "layer":
+            self.feat_decoder_norm = nn.LayerNorm(self.h_dim)
+            self.nn_decoder_norm = nn.LayerNorm(self.h_dim)
+            self.combine_norm = nn.LayerNorm(self.h_dim)
+        else:
+            self.feat_decoder_norm = None
+            self.nn_decoder_norm = None
+            self.combine_norm = None
 
         # ngnn before combine layer
         self.ngnn_mlp = NGNNMLP(self.h_dim * 2, self.h_dim * 2,
@@ -462,10 +480,14 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
             # [src_emb | dest_emb] @ W -> h_dim
             h = th.cat([ufeat, ifeat], dim=1)
             nn_h = th.matmul(h, self.nn_decoder)
+            if self.nn_decoder_norm is not None:
+                nn_h = self.nn_decoder_norm(nn_h)
             nn_h = self.relu(nn_h)
             nn_h = self.dropout(nn_h)
             # [edge_feat] @ W -> h_dim
             feat_h = th.matmul(efeat, self.feat_decoder)
+            if self.feat_decoder_norm is not None:
+                nn_h = self.feat_decoder_norm(nn_h)
             feat_h = self.relu(feat_h)
             feat_h = self.dropout(feat_h)
             # [nn_h | feat_h] @ W -> h_dim
@@ -473,6 +495,8 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
             if self.num_ffn_layers > 0:
                 combine_h = self.ngnn_mlp(combine_h)
             combine_h = th.matmul(combine_h, self.combine_decoder)
+            if self.combine_norm is not None:
+                nn_h = self.combine_norm(nn_h)
             combine_h = self.relu(combine_h)
             out = th.matmul(combine_h, self.decoder)
 

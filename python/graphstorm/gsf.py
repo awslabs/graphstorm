@@ -454,7 +454,8 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                 multilabel=config.multilabel,
                 target_etype=target_etype,
                 dropout=config.dropout,
-                num_ffn_layers=config.num_ffn_layers_in_decoder)
+                num_ffn_layers=config.num_ffn_layers_in_decoder,
+                norm=config.decoder_norm)
         else:
             assert False, f"decoder {decoder_type} is not supported."
         loss_func = ClassifyLossFunc(config.multilabel,
