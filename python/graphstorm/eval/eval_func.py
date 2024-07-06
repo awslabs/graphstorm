@@ -67,19 +67,23 @@ class ClassificationMetrics:
         for eval_metric in eval_metric_list:
             if eval_metric.startswith(SUPPORTED_HIT_AT_METRICS):
                 k = int(eval_metric[len(SUPPORTED_HIT_AT_METRICS)+1:])
-                self.metric_comparator["hit_at_k"] = operator.le
-                self.metric_function["hit_at_k"] = \
+                self.metric_comparator[eval_metric] = operator.le
+                self.metric_function[eval_metric] = \
                     partial(compute_hit_at_classification, k=k)
-                self.metric_eval_function["accuracy"] = \
+                self.metric_eval_function[eval_metric] = \
                     partial(compute_hit_at_classification, k=k)
+        print(self.metric_eval_function)
 
     def assert_supported_metric(self, metric):
         """ check if the given metric is supported.
         """
         if metric.startswith(SUPPORTED_HIT_AT_METRICS):
-            return
-        assert metric in self.supported_metrics, \
-            f"Metric {metric} not supported for classification"
+            assert metric[len(SUPPORTED_HIT_AT_METRICS)+1:].isdigit(), \
+                            "hit_at_k evaluation metric for classification " \
+                            f"must end with an integer, but get {metric}"
+        else:
+            assert metric in self.supported_metrics, \
+                f"Metric {metric} not supported for classification"
 
     def init_best_metric(self, metric):
         """
