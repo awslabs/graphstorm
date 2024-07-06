@@ -207,7 +207,7 @@ def labels_to_one_hot(labels, total_labels):
         one_hot[i,label]=1
     return one_hot
 
-def compute_hit_at_classification(preds, labels, hit=100):
+def compute_hit_at_classification(preds, labels, k=100):
     """ Compute hit@k for classification tasks
 
         Parameters
@@ -216,13 +216,13 @@ def compute_hit_at_classification(preds, labels, hit=100):
             A 1-D tensor for single-label classification.
         labels : tensor
             A 1-D tensor for single-label classification.
-        hit: int
+        k: int
             Hit@K
     """
     assert len(preds.shape) == 1 and len(labels.shape) == 1, \
         "Computing hit@K for classification only works for binary classification tasks."
     sort_idx = th.argsort(preds, descending=True)
-    hit_idx = sort_idx[:hit]
+    hit_idx = sort_idx[:k]
     hit_labels = labels[hit_idx]
     return th.sum(hit_labels)
 
