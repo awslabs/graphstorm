@@ -24,15 +24,16 @@ import torch as th
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import precision_recall_curve, auc, classification_report
 
+SUPPORTED_HIT_AT_METRICS = 'hit_at'
 SUPPORTED_CLASSIFICATION_METRICS = {'accuracy', 'precision_recall', \
-    'roc_auc', 'f1_score', 'per_class_f1_score', 'per_class_roc_auc'}
+    'roc_auc', 'f1_score', 'per_class_f1_score', 'per_class_roc_auc', SUPPORTED_HIT_AT_METRICS}
 SUPPORTED_REGRESSION_METRICS = {'rmse', 'mse', 'mae'}
 SUPPORTED_LINK_PREDICTION_METRICS = {"mrr"}
 
 class ClassificationMetrics:
     """ object that compute metrics for classification tasks.
     """
-    def __init__(self, multilabel):
+    def __init__(self, eval_metric_list, multilabel):
         self.supported_metrics = SUPPORTED_CLASSIFICATION_METRICS
         self.multilabel = multilabel
 
@@ -63,9 +64,20 @@ class ClassificationMetrics:
         self.metric_eval_function["per_class_f1_score"] = compute_per_class_f1_score
         self.metric_eval_function["per_class_roc_auc"] = compute_per_class_roc_auc
 
+        for eval_metric in eval_metric_list:
+            if eval_metric.startswith(SUPPORTED_HIT_AT_METRICS):
+                k = int(eval_metric[len(SUPPORTED_HIT_AT_METRICS)+1:])
+                self.metric_comparator["hit_at_k"] = operator.le
+                self.metric_function["hit_at_k"] = \
+                    partial(compute_hit_at_classification, k=k)
+                self.metric_eval_function["accuracy"] = \
+                    partial(compute_hit_at_classification, k=k)
+
     def assert_supported_metric(self, metric):
         """ check if the given metric is supported.
         """
+        if metric.startswith(SUPPORTED_HIT_AT_METRICS):
+            return
         assert metric in self.supported_metrics, \
             f"Metric {metric} not supported for classification"
 
@@ -194,6 +206,26 @@ def labels_to_one_hot(labels, total_labels):
     for i, label in enumerate(labels):
         one_hot[i,label]=1
     return one_hot
+
+def compute_hit_at_classification(preds, labels, hit=100):
+    """ Compute hit@k for classification tasks
+
+        Parameters
+        ----------
+        preds : tensor
+            A 1-D tensor for single-label classification.
+        labels : tensor
+            A 1-D tensor for single-label classification.
+        hit: int
+            Hit@K
+    """
+    assert len(preds.shape) == 1 and len(labels.shape) == 1, \
+        "Computing hit@K for classification only works for binary classification tasks."
+    sort_idx = th.argsort(preds, descending=True)
+    hit_idx = sort_idx[:hit]
+    hit_labels = labels[hit_idx]
+    return th.sum(hit_labels)
+
 
 def eval_roc_auc(logits,labels):
     ''' Compute roc_auc score.
@@ -437,7 +469,7 @@ def compute_per_class_roc_auc(y_preds, y_targets):
         Returns
         -------
         A dictionary of auc_roc scores, including average auc_roc score, and score for each class.
-    
+
     """
     assert len(y_preds.shape) == 2 and y_preds.shape[1] >= 2, 'ERROR: the given prediction ' + \
                                                               'should be a 2D tensor and the ' + \
@@ -493,7 +525,7 @@ def compute_precision_recall_auc(y_preds, y_targets, weights=None):
         weights: List of weights with the same number of classes in labels.
         Returns
         -------
-        float: The precision_recall_auc score.   
+        float: The precision_recall_auc score.
     """
     y_true = y_targets.cpu().numpy()
     y_pred = y_preds.cpu().numpy()

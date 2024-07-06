@@ -481,7 +481,8 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterf
         self._best_val_score = {}
         self._best_test_score = {}
         self._best_iter = {}
-        self.metrics_obj = ClassificationMetrics(multilabel=self._multilabel)
+        self.metrics_obj = ClassificationMetrics(eval_metric_list,
+                                                 multilabel=self._multilabel)
 
         for metric in self.metric_list:
             self.metrics_obj.assert_supported_metric(metric=metric)
