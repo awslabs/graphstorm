@@ -7,7 +7,7 @@ Besides the Command Line Interfaces (CLIs), GraphStorm releases a set of Applica
 
 These notebooks all use the same ACM data as discussed in the :ref:`User Your Own Data Tutorial<use-own-data>`. Users create the required dataset and explore details of it by running the **Notebook 0: Data Prepare** notebook.
 
-The **Notebook 1** provides an example that demonstrate how to reproduce the node classification training and inference pipeline that is identical as the :ref:`Step 3: Launch training and inference scripts on your own graphs<launch_training_oyog>` does. While the **Notebook 2** provides another example that use the same dataset, but conduct a link prediction training and inference pipeline. 
+The **Notebook 1** provides an example that demonstrate how to reproduce the node classification training and inference pipeline that is identical as the :ref:`Step 3: Launch training and inference scripts on your own graphs<launch_training_oyog>` does. While the **Notebook 2** provides another example that use the same dataset, but conduct pipelines for link prediction training and inference. 
 
 These two examples utilize GraphStorm APIs, such as ``GraphStorm``, ``GSgnnDataset``, ``GSgnnNodeDataLoader``, ``GSgnnNodePredictionTrainer``, and ``GSgnnNodePredictionInferrer``, to form the training and infernece pipeline. In terms of the GNN models, users can refer to the `demo_model.py <https://github.com/awslabs/graphstorm/blob/main/docs/source/notebooks/demo_models.py>`_ file in which all models are created by using GraphStorm APIs.
 
