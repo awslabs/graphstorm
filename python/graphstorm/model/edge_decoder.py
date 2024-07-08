@@ -393,7 +393,7 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
                  dropout=0,
                  regression=False,
                  num_ffn_layers=2,
-                 norm="layer"):
+                 norm=None):
         self.feat_dim = feat_dim
         self.norm = norm
         print(f"MLPEFeatEdgeDecoder use {norm} norm")
