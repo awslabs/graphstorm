@@ -501,7 +501,7 @@ def create_node_class_config(tmp_path, file_name):
     # test eval metric
     yaml_object["gsf"]["node_classification"] = {
         "num_classes": 20,
-        "eval_metric": ["F1_score", "precision_recall", "ROC_AUC"],
+        "eval_metric": ["F1_score", "precision_recall", "ROC_AUC", "hit_at_10"],
         "imbalance_class_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2",
     }
     with open(os.path.join(tmp_path, file_name+"_metric2.yaml"), "w") as f:
@@ -522,6 +522,26 @@ def create_node_class_config(tmp_path, file_name):
     }
 
     with open(os.path.join(tmp_path, file_name+"_fail_metric1.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # test eval_metric hit_at_ten is an error.
+    # should be hit_at_10
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 20,
+        "eval_metric": "hit_at_ten"
+    }
+
+    with open(os.path.join(tmp_path, file_name+"_fail_metric2.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # test eval_metric hit_at_ten is an error.
+    # should be hit_at_10
+    yaml_object["gsf"]["node_classification"] = {
+        "num_classes": 20,
+        "eval_metric": ["F1_score", "hit_at_ten"]
+    }
+
+    with open(os.path.join(tmp_path, file_name+"_fail_metric3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     # test eval metric and multi-label
@@ -649,10 +669,11 @@ def test_node_class_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_metric2.yaml'), local_rank=0)
         config = GSConfig(args)
-        assert len(config.eval_metric) == 3
+        assert len(config.eval_metric) == 4
         assert config.eval_metric[0] == "f1_score"
         assert config.eval_metric[1] == "precision_recall"
         assert config.eval_metric[2] == "roc_auc"
+        assert config.eval_metric[3] == "hit_at_10"
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -665,6 +686,16 @@ def test_node_class_info():
         assert config.num_classes == 20
         check_failure(config, "eval_metric")
         check_failure(config, "multilabel_weights")
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric2.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert config.num_classes == 20
+        check_failure(config, "eval_metric")
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric3.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert config.num_classes == 20
+        check_failure(config, "eval_metric")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_ml_w1.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -811,7 +842,7 @@ def create_edge_class_config(tmp_path, file_name):
         "target_etype": ["query,match,asin", "query,click,asin"],
         "reverse_edge_types_map": ["query,match,rev-match,asin", "query,click,rev-click,asin"],
         "num_classes": 4,
-        "eval_metric": ["Per_class_f1_score", "Precision_Recall"],
+        "eval_metric": ["Per_class_f1_score", "Precision_Recall", "hit_at_20"],
         "decoder_edge_feat": ["query,match,asin:feat0,feat1"]
     }
 
@@ -839,6 +870,15 @@ def create_edge_class_config(tmp_path, file_name):
         "decoder_edge_feat": ["query,no-match,asin::feat0,feat1"]
     }
     with open(os.path.join(tmp_path, file_name+"_fail2.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    # eval metric hit_at_one will cause failure
+    yaml_object["gsf"]["edge_classification"] = {
+        "target_etype": ["query,match,asin"],
+        "num_classes": 4,
+        "eval_metric": ["hit_at_one", "rmse"]
+    }
+    with open(os.path.join(tmp_path, file_name+"_fail3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
 def test_edge_class_info():
@@ -880,9 +920,10 @@ def test_edge_class_info():
              ("asin","rev-match","query")
         assert config.reverse_edge_types_map[("query","click","asin")] == \
              ("asin","rev-click","query")
-        assert len(config.eval_metric) == 2
+        assert len(config.eval_metric) == 3
         assert config.eval_metric[0] == "per_class_f1_score"
         assert config.eval_metric[1] == "precision_recall"
+        assert config.eval_metric[2] == "hit_at_20"
         assert len(config.decoder_edge_feat) == 1
         assert config.decoder_edge_feat[("query","match","asin")] == ["feat0", "feat1"]
 
@@ -901,6 +942,11 @@ def test_edge_class_info():
         check_failure(config, "target_etype")
         check_failure(config, "eval_metric")
         check_failure(config, "decoder_edge_feat")
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test_fail3.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert config.target_etype[0] == ("query", "match", "asin")
+        check_failure(config, "eval_metric")
 
 def create_lp_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
