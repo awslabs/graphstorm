@@ -3,7 +3,7 @@
 API Reference
 ================
 
-The released APIs include the necessary components that can build GraphStorm training and inference pipelines. For examples about , please refer to the :ref:`API Programming Examples<programming-examples>`.
+The released APIs include the necessary components that can build GraphStorm models, training and inference pipelines. For examples about how to use these APIs, please refer to the :ref:`API Programming Examples<programming-examples>`.
 
 .. toctree::
    :maxdepth: 2
