@@ -46,6 +46,7 @@ gsf:
         task_weight: 1.0
         eval_metric:
           - "accuracy"
+          - "hit_at_3"
     - node_classification:
         target_ntype: "movie"
         label_field: "label2"
