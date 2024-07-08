@@ -72,7 +72,6 @@ class ClassificationMetrics:
                     partial(compute_hit_at_classification, k=k)
                 self.metric_eval_function[eval_metric] = \
                     partial(compute_hit_at_classification, k=k)
-        print(self.metric_eval_function)
 
     def assert_supported_metric(self, metric):
         """ check if the given metric is supported.
