@@ -21,5 +21,5 @@ enabling scalable and efficient processing using AWS resources.
   :titlesonly:
 
   gs-processing-getting-started.rst
-  usage/example.rst
   usage/distributed-processing-setup.rst
+  usage/example.rst
