@@ -2,7 +2,7 @@
 Running distributed processing jobs on AWS Infra
 ================================================
 
-After successfully building the appropriate Docker image and pushing to the Amazon ECR,
+After successfully building the appropriate Docker image and pushing it to Amazon ECR,
 you can now initiate GSProcessing jobs utilizing AWS resources.
 
 We support running GSProcessing jobs on different AWS execution environments including: Amazon SageMaker, EMR Serverless, and EMR on EC2.
