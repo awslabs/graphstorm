@@ -10,10 +10,10 @@ partitioning and training pipeline of GraphStorm.
 
 We use PySpark to achieve horizontal parallelism, allowing us to scale to graphs with billions of nodes and edges.
 
-The following documents outline essential prerequisites and provide a detailed guide to using GSProcessing
-effectively. The first document initiates GSProcessing, offering a step-by-step walkthrough to get you started.
-The second document provides a comprehensive example, showcasing the full workflow of GSProcessing.
-Finally, the third document demonstrates how to set up and configure distributed resources,
+The following sections outline essential prerequisites and provide a detailed guide to using GSProcessing
+effectively. The first section provides an introduction to GSProcessing, how to install it locally and a quick example of its input configuration.
+The second section provides a comprehensive example, showcasing the full workflow of GSProcessing using a toy graph that we process locally.
+Finally, the third section demonstrates how to set up GSProcessing for distributed processing,
 enabling scalable and efficient processing using AWS resources.
 
 .. toctree::

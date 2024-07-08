@@ -5,7 +5,7 @@ Running distributed processing jobs on AWS Infra
 After successfully installing the necessary dependencies for GSProcessing and
 configuring the input parameters, you can now initiate GSProcessing jobs utilizing AWS resources.
 
-We support to run GSProcessing jobs on different AWS Infras including: sagemaker, emr-serverless, emr
+We support running GSProcessing jobs on different AWS execution environments including: Amazon SageMaker, EMR Serverless, and EMR on EC2.
 
 
 Running distributed jobs on Amazon SageMaker:
