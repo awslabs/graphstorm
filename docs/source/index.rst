@@ -67,7 +67,7 @@ For beginners, please first start with the :ref:`Setup GraphStorm with pip Packa
 
 Once successfully set up the GraphStorm running environment,
 
-- follow the :ref:`GraphStorm Standalone Mode Quick-Start Tutorial<quick-start-standalone>` to use GraphStorm Command Line Interfaces (CLIs) to run exampless based on GraphStorm built-in data and models, hence getting familiar with GraphStorm CLIs for training and inference.
+- follow the :ref:`GraphStorm Standalone Mode Quick-Start Tutorial<quick-start-standalone>` to use GraphStorm Command Line Interfaces (CLIs) to run examples based on GraphStorm built-in data and models, hence getting familiar with GraphStorm CLIs for training and inference.
 - follow the :ref:`Use Your Own Graph Data Tutorial<use-own-data>` to prepare your own graph data for using GraphStorm CLIs.
 - read the :ref:`GraphStorm Training and Inference Configurations<configurations-run>` to learn the various configurations provided by GraphStorm for CLIs that can help to achieve the best performance.
 
