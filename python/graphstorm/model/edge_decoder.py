@@ -383,6 +383,12 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
         If this is true then we perform regression
     dropout: float
         Dropout
+    num_ffn_layers: int, optional
+        Number of free-forward layers added to the decoder
+        Default: 0
+    norm : str, optional
+        Normalization Method.
+        Default: None
     """
     def __init__(self,
                  h_dim,
@@ -392,7 +398,7 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
                  target_etype,
                  dropout=0,
                  regression=False,
-                 num_ffn_layers=2,
+                 num_ffn_layers=0,
                  norm=None):
         self.feat_dim = feat_dim
         self.norm = norm

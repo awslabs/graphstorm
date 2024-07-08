@@ -33,12 +33,16 @@ class EntityClassifier(GSLayer):
         Whether this is multi-label classification.
     dropout : float
         The dropout
+    norm : str, optional
+        Normalization Method. (Reversed for complex entity classifier implementation)
+        Default: None
     '''
     def __init__(self,
                  in_dim,
                  num_classes,
                  multilabel,
-                 dropout=0):
+                 dropout=0,
+                 norm=None):
         super(EntityClassifier, self).__init__()
         self._in_dim = in_dim
         self._num_classes = num_classes
@@ -48,6 +52,8 @@ class EntityClassifier(GSLayer):
                                 gain=nn.init.calculate_gain('relu'))
         # TODO(zhengda): The dropout is not used here.
         self.dropout = nn.Dropout(dropout)
+        # TODO(xiangsx): The norm is not used here.
+        self.norm = norm
 
     def forward(self, inputs):
         ''' The forward function.
@@ -116,17 +122,23 @@ class EntityRegression(GSLayer):
         The dropout
     out_dim: int
         The output dimension size
+    norm : str, optional
+        Normalization Method. (Reversed for complex entity classifier implementation)
+        Default: None
     '''
     def __init__(self,
                  h_dim,
                  dropout=0,
-                 out_dim=1):
+                 out_dim=1,
+                 norm=None):
         super(EntityRegression, self).__init__()
         self.h_dim = h_dim
         self.decoder = nn.Parameter(th.Tensor(h_dim, out_dim))
         nn.init.xavier_uniform_(self.decoder)
         # TODO(zhengda): The dropout is not used.
         self.dropout = nn.Dropout(dropout)
+        # TODO(xiangsx): The norm is not used here.
+        self.norm = norm
 
     def forward(self, inputs):
         ''' The forward function.
