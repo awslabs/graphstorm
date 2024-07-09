@@ -7,4 +7,4 @@ Graph Construction
    :maxdepth: 2
    :glob:
 
-    gs-processing/index/gs-processing-index.rst
+   gs-processing/index/gs-processing-index.rst
