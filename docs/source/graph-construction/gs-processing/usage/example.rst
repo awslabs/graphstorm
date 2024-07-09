@@ -293,8 +293,8 @@ you to focus on model development. In particular you can follow the GraphStorm d
 
 
 To run GSProcessing jobs on Amazon SageMaker we'll need to follow
-:doc:`/gs-processing/usage/distributed-processing-setup` to set up our environment
-and :doc:`/gs-processing/usage/amazon-sagemaker` to execute the job.
+:doc:`distributed-processing-setup` to set up our environment
+and :doc:`amazon-sagemaker` to execute the job.
 
 
 .. rubric:: Footnotes
