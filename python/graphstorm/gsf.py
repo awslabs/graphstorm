@@ -480,7 +480,6 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                                      target_etype=target_etype,
                                      dropout_rate=dropout,
                                      regression=True,
-                                     num_ffn_layers=config.num_ffn_layers_in_decoder,
                                      norm=config.decoder_norm)
         elif decoder_type == "MLPDecoder":
             decoder = MLPEdgeDecoder(decoder_input_dim,
