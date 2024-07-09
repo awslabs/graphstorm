@@ -330,8 +330,8 @@ General Configurations
     - Yaml: ``eval_metric:``
         | ``- accuracy``
         | ``- precision_recall``
-        | ``- top_at_10``
-    - Argument: ``--eval-metric accuracy precision_recall top_at_10``
+        | ``- hit_at_10``
+    - Argument: ``--eval-metric accuracy precision_recall hit_at_10``
     - Default value:
             - For classification tasks, the default value is ``accuracy``.
             - For regression tasks, the default value is ``rmse``.
