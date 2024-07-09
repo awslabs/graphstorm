@@ -22,3 +22,4 @@ The final section explains how to deploy your GSProcessing job into AWS infrastr
    gs-processing-prerequisites-index.rst
    ../developer/input-configuration
    aws-infra-index.rst
+   ../usage/example.rst

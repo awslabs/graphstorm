@@ -13,4 +13,3 @@ Finally, the third section provides a comprehensive example, showcasing the full
 
   ../gs-processing-getting-started.rst
   ../usage/distributed-processing-setup.rst
-  ../usage/example.rst
