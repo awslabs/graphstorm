@@ -303,3 +303,4 @@ and :doc:`/gs-processing/usage/amazon-sagemaker` to execute the job.
 .. [#f1] Note that this is just a hint to the Spark engine, and it's
     not guaranteed that the number of output partitions will always match
     the requested value.
+.. [#f2] This doc will be future extended to include a partition example.
