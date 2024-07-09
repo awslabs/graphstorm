@@ -200,7 +200,7 @@ class EntityRegression(GSLayer):
     def in_dims(self):
         """ The number of input dimensions.
         """
-        return self.h_dim
+        return self._h_dim
 
     @property
     def out_dims(self):
