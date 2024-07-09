@@ -223,10 +223,11 @@ def compute_hit_at_classification(preds, labels, k=100):
             Hit@K
     """
     assert len(preds.shape) == 2 \
-        and preds.shape[1] == 2 \
-        and len(labels.shape) == 1, \
+        and preds.shape[1] == 2, \
         "Computing hit@K for classification only works for binary classification tasks." \
-        "The preds must be a 2D tensor with the second dimension of 2. " \
+        "The preds must be a 2D tensor with the second dimension of 2. "
+
+    assert len(labels.shape) == 1 or (len(labels.shape) == 2 and labels.shape[1] == 1), \
         "The labels must be a 1D tensor or a 2D tensor with the second dimension of 1"
 
     # preds is a 2D tensor storing
@@ -235,7 +236,7 @@ def compute_hit_at_classification(preds, labels, k=100):
     # We compute hit@K for positive labels
     preds = preds[:,1]
     if len(labels.shape) == 2:
-        labels = th.sequeeze(labels)
+        labels = th.squeeze(labels)
     sort_idx = th.argsort(preds, descending=True)
     hit_idx = sort_idx[:k]
     hit_labels = labels[hit_idx]

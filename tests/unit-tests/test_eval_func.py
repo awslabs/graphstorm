@@ -443,13 +443,19 @@ def test_ClassificationMetrics():
 
 def test_compute_hit_at_classification():
     preds = th.arange(100) / 102
-    # preds = [probe_of_0, probe_of_1]
+    # preds is in a format as [probe_of_0, probe_of_1]
     preds = th.stack([preds, 1-preds]).T
-    labels = th.zeros((100,))
+    labels = th.zeros((100,)) # 1D label tensor
+    labels2 = th.zeros((100,1)) # 2D label tensor
     labels[0] = 1
     labels[2] = 1
     labels[4] = 1
     labels[11] = 1
+
+    labels2[0][0] = 1
+    labels2[2][0] = 1
+    labels2[4][0] = 1
+    labels2[11][0] = 1
 
     hit_at = compute_hit_at_classification(preds, labels, 5)
     assert hit_at == 3
@@ -461,6 +467,7 @@ def test_compute_hit_at_classification():
     shuff_idx = th.randperm(100)
     preds = preds[shuff_idx]
     labels = labels[shuff_idx]
+    labels2 = labels2[shuff_idx]
 
     hit_at = compute_hit_at_classification(preds, labels, 5)
     assert hit_at == 3
@@ -468,6 +475,13 @@ def test_compute_hit_at_classification():
     assert hit_at == 3
     hit_at = compute_hit_at_classification(preds, labels, 20)
     assert hit_at == 4
+    hit_at = compute_hit_at_classification(preds, labels2, 5)
+    assert hit_at == 3
+    hit_at = compute_hit_at_classification(preds, labels2, 10)
+    assert hit_at == 3
+    hit_at = compute_hit_at_classification(preds, labels2, 20)
+    assert hit_at == 4
+
 
 if __name__ == '__main__':
     test_ClassificationMetrics()
