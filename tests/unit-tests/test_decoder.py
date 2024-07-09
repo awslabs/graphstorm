@@ -481,7 +481,7 @@ def test_MLPEFeatEdgeDecoder(h_dim, feat_dim, out_dim, num_ffn_layers):
         pred = out.argmax(dim=1)
         assert_almost_equal(prediction.cpu().numpy(), pred.cpu().numpy())
 
-@pytest.mark.parametrize("h_dim", [16, 64])
+@pytest.mark.parametrize("in_dim", [16, 64])
 @pytest.mark.parametrize("out_dim", [1, 8])
 def test_EntityRegression(in_dim, out_dim):
     decoder = EntityRegression(h_dim=in_dim)
