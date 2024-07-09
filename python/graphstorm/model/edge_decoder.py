@@ -480,7 +480,7 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
             self.feat_decoder_norm = None
             self.nn_decoder_norm = None
             self.combine_norm = None
-        logging.debug(f"MLPEFeatEdgeDecoder with decoder {self.norm} norm")
+        logging.debug("MLPEFeatEdgeDecoder with decoder %s norm", self.norm)
 
         nn.init.xavier_uniform_(self.nn_decoder,
                                 gain=nn.init.calculate_gain('relu'))
