@@ -122,7 +122,8 @@ class EntityRegression(GSLayer):
                  dropout=0,
                  out_dim=1):
         super(EntityRegression, self).__init__()
-        self.h_dim = h_dim
+        self._h_dim = h_dim
+        self._out_dim = out_dim
         self.decoder = nn.Parameter(th.Tensor(h_dim, out_dim))
         nn.init.xavier_uniform_(self.decoder)
         # TODO(zhengda): The dropout is not used.
@@ -166,10 +167,10 @@ class EntityRegression(GSLayer):
     def in_dims(self):
         """ The number of input dimensions.
         """
-        return self.h_dim
+        return self._h_dim
 
     @property
     def out_dims(self):
         """ The number of output dimensions.
         """
-        return 1
+        return self._out_dim
