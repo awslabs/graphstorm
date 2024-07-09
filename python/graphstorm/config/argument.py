@@ -3025,7 +3025,8 @@ def _add_edge_classification_args(parser):
     group.add_argument('--decoder-type', type=str, default=argparse.SUPPRESS,
                        help="Decoder type can either be  DenseBiDecoder or "
                             "MLPDecoder to specify the model decoder")
-    group.add_argument("--decoder-norm", type=str, default=argparse.SUPPRESS, help="decoder norm type")
+    group.add_argument("--decoder-norm", type=str, default=argparse.SUPPRESS,
+                       help="decoder norm type")
 
     group.add_argument(
             "--remove-target-edge-type",
