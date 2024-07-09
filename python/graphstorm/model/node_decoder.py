@@ -65,7 +65,7 @@ class EntityClassifier(GSLayer):
         self.dropout = nn.Dropout(self._dropout)
         if self._norm is not None:
             logging.warning("Embedding normalization (batch norm or layer norm) "
-                            "is not supported in DenseBiDecoder")
+                            "is not supported in EntityClassifier")
 
     def forward(self, inputs):
         ''' The forward function.
