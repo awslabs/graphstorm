@@ -92,6 +92,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         self._alpha_l2norm = alpha_l2norm
         self._task_pool = {}
         self._decoder = nn.ModuleDict()
+        self._loss_fn = nn.ModuleDict()
         self._warn_printed = False
 
     def add_task(self, task_id, task_type,
@@ -117,6 +118,8 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         logging.info("Setup task %s", task_id)
         self._task_pool[task_id] = (task_type, loss_func)
         self._decoder[task_id] = decoder
+        # add loss func in nn module
+        self._loss_fn[task_id] = loss_func
 
     @property
     def alpha_l2norm(self):
