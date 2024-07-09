@@ -18,7 +18,7 @@ Running distributed jobs on `Amazon SageMaker <https://docs.aws.amazon.com/sagem
   :maxdepth: 1
   :titlesonly:
 
-  amazon-sagemaker.rst
+  ../usage/amazon-sagemaker.rst
 
 Running distributed jobs on `EMR Serverless <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/emr-serverless.html>`_:
 
@@ -26,7 +26,7 @@ Running distributed jobs on `EMR Serverless <https://docs.aws.amazon.com/emr/lat
   :maxdepth: 1
   :titlesonly:
 
-  emr-serverless.rst
+  ../usage/emr-serverless.rst
 
 Running distributed jobs on `EMR on EC2 <https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-what-is-emr.html>`_:
 
@@ -34,4 +34,4 @@ Running distributed jobs on `EMR on EC2 <https://docs.aws.amazon.com/emr/latest/
   :maxdepth: 1
   :titlesonly:
 
-  emr.rst
+  ../usage/emr.rst
