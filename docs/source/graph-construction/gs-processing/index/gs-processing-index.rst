@@ -16,7 +16,7 @@ The second section offers examples on drafting a configuration file for a GSProc
 The final section explains how to deploy your GSProcessing job into AWS infrastructure.
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :glob:
 
    gs-processing-prerequisites-index.rst
