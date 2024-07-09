@@ -313,7 +313,8 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
             decoder = EntityClassifier(decoder_input_dim,
                                        config.num_classes,
                                        config.multilabel,
-                                       dropout=dropout)
+                                       dropout=dropout,
+                                       norm=config.decoder_norm)
             loss_func = ClassifyLossFunc(config.multilabel,
                                          config.multilabel_weights,
                                          config.imbalance_class_weights)
@@ -324,13 +325,15 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                 decoder[ntype] = EntityClassifier(decoder_input_dim,
                                                   config.num_classes[ntype],
                                                   config.multilabel[ntype],
-                                                  dropout=dropout)
+                                                  dropout=dropout,
+                                                  norm=config.decoder_norm)
                 loss_func[ntype] = ClassifyLossFunc(config.multilabel[ntype],
                                                 config.multilabel_weights[ntype],
                                                 config.imbalance_class_weights[ntype])
     elif config.task_type == BUILTIN_TASK_NODE_REGRESSION:
         decoder  = EntityRegression(decoder_input_dim,
-                                    dropout=dropout)
+                                    dropout=dropout,
+                                    norm=config.decoder_norm)
         loss_func = RegressionLossFunc()
     else:
         raise ValueError('unknown node task: {}'.format(config.task_type))
@@ -586,6 +589,10 @@ def create_builtin_lp_decoder(g, decoder_input_dim, config, train_task):
     decoder: The node task decoder(s)
     loss_func: The loss function(s)
     """
+    if config.decoder_norm is not None:
+        # TODO: Support decoder norm for lp decoders when required.
+        logging.warning("Decoder norm (batch norm or layer norm) is not supported"
+                        "for link prediction decoders.")
     if config.lp_decoder_type == BUILTIN_LP_DOT_DECODER:
         # if the training set only contains one edge type or it is specified in the arguments,
         # we use dot product as the score function.

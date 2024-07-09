@@ -16,6 +16,7 @@
     Decoders for edge predictions.
 """
 import abc
+import logging
 import numpy as np
 import torch as th
 from torch import nn
@@ -115,6 +116,9 @@ class DenseBiDecoder(GSEdgeDecoder):
         The target etype for prediction
     regression : bool
         Whether this is true then we perform regression
+    norm : str, optional
+        Normalization Method. (Reversed for complex DenseBiDecoder child class.)
+        Default: None
     """
     def __init__(self,
                  in_units,
@@ -123,7 +127,8 @@ class DenseBiDecoder(GSEdgeDecoder):
                  target_etype,
                  num_basis=2,
                  dropout_rate=0.0,
-                 regression=False):
+                 regression=False,
+                 norm=None):
         super().__init__()
 
         basis_out = in_units if regression else num_classes
@@ -136,6 +141,11 @@ class DenseBiDecoder(GSEdgeDecoder):
         self.combine_basis = nn.Linear(self._num_basis, basis_out, bias=False)
         self.reset_parameters()
         self.regression = regression
+        # TODO(xiangsx): The norm is not used here.
+        self.norm = norm
+        if norm is not None:
+            logging.warning("Embedding normalization (batch norm or layer norm) "
+                            "is not supported in DenseBiDecoder")
         # TODO support multi target etypes
         # In the future we can accept both tuple and list of tuple
         assert isinstance(target_etype, tuple) and len(target_etype) == 3, \
@@ -242,6 +252,12 @@ class MLPEdgeDecoder(GSEdgeDecoder):
         If this is true then we perform regression
     dropout: float
         Dropout
+    num_ffn_layers: int, optional
+        Number of free-forward layers added to the decoder
+        Default: 0
+    norm : str, optional
+        Normalization Method. The Norm is used after ffn_layers if any.
+        Default: None
     """
     def __init__(self,
                  h_dim,
@@ -251,7 +267,8 @@ class MLPEdgeDecoder(GSEdgeDecoder):
                  num_hidden_layers=1,
                  dropout=0,
                  regression=False,
-                 num_ffn_layers=0):
+                 num_ffn_layers=0,
+                 norm=None):
         super(MLPEdgeDecoder, self).__init__()
         self.h_dim = h_dim
         self.multilabel = multilabel
@@ -260,6 +277,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
         self.dropout = dropout
         self.num_hidden_layers = num_hidden_layers
         self.num_ffn_layers = num_ffn_layers
+        self.norm = norm
         # TODO support multi target etypes
         # In the future we can accept both tuple and list of tuple
         assert isinstance(target_etype, tuple) and len(target_etype) == 3, \
@@ -276,6 +294,13 @@ class MLPEdgeDecoder(GSEdgeDecoder):
                                 self.num_ffn_layers,
                                 th.nn.functional.relu,
                                 self.dropout)
+        self.ngnn_norm = None
+        if self.norm == "batch":
+            self.ngnn_norm = nn.BatchNorm1d(self.h_dim * 2)
+        elif self.norm == "layer":
+            self.ngnn_norm = nn.LayerNorm(self.h_dim * 2)
+        else:
+            self.ngnn_norm = None
 
         # Here we assume the source and destination nodes have the same dimension.
         self.decoder = nn.Parameter(th.randn(self.h_dim * 2, self.out_dim))
@@ -309,6 +334,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
             h = th.cat([ufeat, ifeat], dim=1)
             if self.num_ffn_layers > 0:
                 h = self.ngnn_mlp(h)
+                h = self.ngnn_norm(h)
             out = th.matmul(h, self.decoder)
         return out
 
@@ -387,7 +413,8 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
         Number of free-forward layers added to the decoder
         Default: 0
     norm : str, optional
-        Normalization Method.
+        Normalization Method. The Norm is used after edge feature decoder,
+        ffn_layers if any and combine decoder.
         Default: None
     """
     def __init__(self,
@@ -402,7 +429,6 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
                  norm=None):
         self.feat_dim = feat_dim
         self.norm = norm
-        print(f"MLPEFeatEdgeDecoder use {norm} norm")
         super(MLPEFeatEdgeDecoder, self).__init__(h_dim=h_dim,
                                                   out_dim=out_dim,
                                                   multilabel=multilabel,
@@ -421,21 +447,6 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
         self.nn_decoder = nn.Parameter(th.randn(self.h_dim * 2, self.h_dim))
         # [edge_feat] @ W -> h_dim
         self.feat_decoder = nn.Parameter(th.randn(self.feat_dim, self.h_dim))
-        self.nn_decoder_norm = None
-        self.feat_decoder_norm = None
-        self.combine_norm = None
-        if self.norm == "batch":
-            self.feat_decoder_norm = nn.BatchNorm1d(self.h_dim)
-            self.nn_decoder_norm = nn.BatchNorm1d(self.h_dim)
-            self.combine_norm = nn.BatchNorm1d(self.h_dim)
-        elif self.norm == "layer":
-            self.feat_decoder_norm = nn.LayerNorm(self.h_dim)
-            self.nn_decoder_norm = nn.LayerNorm(self.h_dim)
-            self.combine_norm = nn.LayerNorm(self.h_dim)
-        else:
-            self.feat_decoder_norm = None
-            self.nn_decoder_norm = None
-            self.combine_norm = None
 
         # ngnn before combine layer
         self.ngnn_mlp = NGNNMLP(self.h_dim * 2, self.h_dim * 2,
@@ -448,6 +459,25 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
         self.decoder = nn.Parameter(th.randn(self.h_dim, self.out_dim))
         self.dropout = nn.Dropout(self.dropout)
 
+        self.nn_decoder_norm = None
+        self.feat_decoder_norm = None
+        self.combine_norm = None
+        self.ngnn_norm = None
+        if self.norm == "batch":
+            self.feat_decoder_norm = nn.BatchNorm1d(self.h_dim)
+            self.nn_decoder_norm = nn.BatchNorm1d(self.h_dim)
+            self.combine_norm = nn.BatchNorm1d(self.h_dim)
+            self.ngnn_norm = nn.BatchNorm1d(self.h_dim * 2)
+        elif self.norm == "layer":
+            self.feat_decoder_norm = nn.LayerNorm(self.h_dim)
+            self.nn_decoder_norm = nn.LayerNorm(self.h_dim)
+            self.combine_norm = nn.LayerNorm(self.h_dim)
+            self.ngnn_norm = nn.LayerNorm(self.h_dim * 2)
+        else:
+            self.feat_decoder_norm = None
+            self.nn_decoder_norm = None
+            self.combine_norm = None
+            self.ngnn_norm = None
 
         nn.init.xavier_uniform_(self.nn_decoder,
                                 gain=nn.init.calculate_gain('relu'))
@@ -500,6 +530,7 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
             combine_h = th.cat([nn_h, feat_h], dim=1)
             if self.num_ffn_layers > 0:
                 combine_h = self.ngnn_mlp(combine_h)
+                combine_h = self.ngnn_norm(combine_h)
             combine_h = th.matmul(combine_h, self.combine_decoder)
             if self.combine_norm is not None:
                 nn_h = self.combine_norm(nn_h)

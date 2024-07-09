@@ -15,6 +15,8 @@
 
     Node prediction decoders.
 """
+import logging
+
 import torch as th
 from torch import nn
 
@@ -34,7 +36,7 @@ class EntityClassifier(GSLayer):
     dropout : float
         The dropout
     norm : str, optional
-        Normalization Method. (Reversed for complex entity classifier implementation)
+        Normalization Method. (Reversed for complex entity classifier implementation.)
         Default: None
     '''
     def __init__(self,
@@ -54,6 +56,9 @@ class EntityClassifier(GSLayer):
         self.dropout = nn.Dropout(dropout)
         # TODO(xiangsx): The norm is not used here.
         self.norm = norm
+        if norm is not None:
+            logging.warning("Embedding normalization (batch norm or layer norm) "
+                            "is not supported in DenseBiDecoder")
 
     def forward(self, inputs):
         ''' The forward function.
@@ -139,6 +144,9 @@ class EntityRegression(GSLayer):
         self.dropout = nn.Dropout(dropout)
         # TODO(xiangsx): The norm is not used here.
         self.norm = norm
+        if norm is not None:
+            logging.warning("Embedding normalization (batch norm or layer norm) "
+                            "is not supported in EntityRegression")
 
     def forward(self, inputs):
         ''' The forward function.
