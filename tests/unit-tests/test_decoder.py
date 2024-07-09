@@ -449,12 +449,14 @@ def test_MLPEFeatEdgeDecoder(h_dim, feat_dim, out_dim, num_ffn_layers):
         "n1": th.randn(g.num_nodes("n1"), h_dim)
     }
     efeat = {target_etype: th.randn(g.num_edges(target_etype), feat_dim)}
+    norm = None
     decoder = MLPEFeatEdgeDecoder(h_dim,
                                   feat_dim,
                                   out_dim,
                                   multilabel=False,
                                   target_etype=target_etype,
-                                  num_ffn_layers=num_ffn_layers)
+                                  num_ffn_layers=num_ffn_layers,
+                                  norm=norm)
     with th.no_grad():
         decoder.eval()
         output = decoder(g, encoder_feat, efeat)
@@ -480,6 +482,42 @@ def test_MLPEFeatEdgeDecoder(h_dim, feat_dim, out_dim, num_ffn_layers):
         pred = out.argmax(dim=1)
         assert_almost_equal(prediction.cpu().numpy(), pred.cpu().numpy())
 
+    norm = "layer"
+    decoder = MLPEFeatEdgeDecoder(h_dim,
+                                  feat_dim,
+                                  out_dim,
+                                  multilabel=False,
+                                  target_etype=target_etype,
+                                  num_ffn_layers=num_ffn_layers,
+                                  norm=norm)
+    with th.no_grad():
+        decoder.eval()
+        output = decoder(g, encoder_feat, efeat)
+        u, v = g.edges(etype=target_etype)
+        ufeat = encoder_feat["n0"][u]
+        ifeat = encoder_feat["n1"][v]
+        h = th.cat([ufeat, ifeat], dim=1)
+        nn_h = th.matmul(h, decoder.nn_decoder)
+        nn_h = decoder.nn_decoder_norm(nn_h)
+        nn_h = decoder.relu(nn_h)
+
+        feat_h = th.matmul(efeat[target_etype], decoder.feat_decoder)
+        feat_h = decoder.feat_decoder_norm(feat_h)
+        feat_h = decoder.relu(feat_h)
+        combine_h = th.cat([nn_h, feat_h], dim=1)
+        if num_ffn_layers > 0:
+            combine_h = decoder.ngnn_mlp(combine_h)
+        combine_h = th.matmul(combine_h, decoder.combine_decoder)
+        combine_h = decoder.combine_norm(combine_h)
+        combine_h = decoder.relu(combine_h)
+        out = th.matmul(combine_h, decoder.decoder)
+
+        assert_almost_equal(output.cpu().numpy(), out.cpu().numpy())
+
+        prediction = decoder.predict(g, encoder_feat, efeat)
+        pred = out.argmax(dim=1)
+        assert_almost_equal(prediction.cpu().numpy(), pred.cpu().numpy())
+
 if __name__ == '__main__':
     test_LinkPredictContrastiveDistMultDecoder(32, 8, 16, "cpu")
     test_LinkPredictContrastiveDistMultDecoder(16, 32, 32, "cuda:0")
@@ -491,5 +529,5 @@ if __name__ == '__main__':
     test_LinkPredictDotDecoder(16, 8, 1, "cpu")
     test_LinkPredictDotDecoder(16, 32, 32, "cuda:0")
 
-    test_MLPEFeatEdgeDecoder(16,8,2)
-    test_MLPEFeatEdgeDecoder(16,32,2)
+    test_MLPEFeatEdgeDecoder(16,8,2,0)
+    test_MLPEFeatEdgeDecoder(16,32,2,2)

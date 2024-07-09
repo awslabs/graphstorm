@@ -49,14 +49,21 @@ class EntityClassifier(GSLayer):
         self._in_dim = in_dim
         self._num_classes = num_classes
         self._multilabel = multilabel
-        self.decoder = nn.Parameter(th.Tensor(in_dim, num_classes))
+        self._dropout = dropout
+        # TODO(xiangsx): The norm is not used here.
+        self._norm = norm
+
+        self._init_model()
+
+    def _init_model(self):
+        """ Init decoder model
+        """
+        self.decoder = nn.Parameter(th.Tensor(self._in_dim, self._num_classes))
         nn.init.xavier_uniform_(self.decoder,
                                 gain=nn.init.calculate_gain('relu'))
         # TODO(zhengda): The dropout is not used here.
-        self.dropout = nn.Dropout(dropout)
-        # TODO(xiangsx): The norm is not used here.
-        self.norm = norm
-        if norm is not None:
+        self.dropout = nn.Dropout(self._dropout)
+        if self._norm is not None:
             logging.warning("Embedding normalization (batch norm or layer norm) "
                             "is not supported in DenseBiDecoder")
 
@@ -137,14 +144,21 @@ class EntityRegression(GSLayer):
                  out_dim=1,
                  norm=None):
         super(EntityRegression, self).__init__()
-        self.h_dim = h_dim
-        self.decoder = nn.Parameter(th.Tensor(h_dim, out_dim))
+        self._h_dim = h_dim
+        self._out_dim = out_dim
+        self._dropout = dropout
+        # TODO(xiangsx): The norm is not used here.
+        self._norm = norm
+
+        self._init_model()
+
+    def _init_model(self):
+        self.decoder = nn.Parameter(th.Tensor(self._h_dim, self._out_dim))
         nn.init.xavier_uniform_(self.decoder)
         # TODO(zhengda): The dropout is not used.
-        self.dropout = nn.Dropout(dropout)
-        # TODO(xiangsx): The norm is not used here.
-        self.norm = norm
-        if norm is not None:
+        self.dropout = nn.Dropout(self._dropout)
+
+        if self._norm is not None:
             logging.warning("Embedding normalization (batch norm or layer norm) "
                             "is not supported in EntityRegression")
 
@@ -192,4 +206,4 @@ class EntityRegression(GSLayer):
     def out_dims(self):
         """ The number of output dimensions.
         """
-        return 1
+        return self._out_dim

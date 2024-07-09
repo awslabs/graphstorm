@@ -131,27 +131,37 @@ class DenseBiDecoder(GSEdgeDecoder):
                  norm=None):
         super().__init__()
 
-        basis_out = in_units if regression else num_classes
-        self._in_units = in_units
-        self._num_classes = num_classes
-        self._multilabel = multilabel
-        self._num_basis = num_basis
-        self.dropout = nn.Dropout(dropout_rate)
-        self.basis_para = nn.Parameter(th.randn(num_basis, in_units, in_units))
-        self.combine_basis = nn.Linear(self._num_basis, basis_out, bias=False)
-        self.reset_parameters()
+        self.in_units = in_units
+        self.num_classes = num_classes
+        self.multilabel = multilabel
+        self.num_basis = num_basis
         self.regression = regression
+        self.dropout = dropout_rate
         # TODO(xiangsx): The norm is not used here.
         self.norm = norm
-        if norm is not None:
-            logging.warning("Embedding normalization (batch norm or layer norm) "
-                            "is not supported in DenseBiDecoder")
         # TODO support multi target etypes
         # In the future we can accept both tuple and list of tuple
         assert isinstance(target_etype, tuple) and len(target_etype) == 3, \
             "Target etype must be a tuple of a canonical etype."
         self.target_etype = target_etype
-        if regression:
+
+        self._init_model()
+
+    def _init_model(self):
+        """ Init decoder model
+        """
+        if self.norm is not None:
+            logging.warning("Embedding normalization (batch norm or layer norm) "
+                            "is not supported in DenseBiDecoder")
+        basis_out = self.in_units if self.regression else self.num_classes
+
+        self.dropout = nn.Dropout(self.dropout)
+        self.basis_para = nn.Parameter(
+            th.randn(self.num_basis, self.in_units, self.in_units))
+        self.combine_basis = nn.Linear(self.num_basis, basis_out, bias=False)
+        self.reset_parameters()
+
+        if self.regression:
             self.regression_head = nn.Linear(basis_out, 1, bias=True)
 
     def reset_parameters(self):
@@ -189,7 +199,7 @@ class DenseBiDecoder(GSEdgeDecoder):
             out = self.combine_basis(out)
             if self.regression:
                 out = self.regression_head(out)
-            elif self._multilabel:
+            elif self.multilabel:
                 out = (th.sigmoid(out) > .5).long()
             else:  # not multilabel
                 out = out.argmax(dim=1)
@@ -206,7 +216,7 @@ class DenseBiDecoder(GSEdgeDecoder):
             out = self.combine_basis(out)
             if self.regression:
                 out = self.regression_head(out)
-            elif self._multilabel:
+            elif self.multilabel:
                 out = th.sigmoid(out)
             else:
                 out = th.softmax(out, 1)
@@ -220,7 +230,7 @@ class DenseBiDecoder(GSEdgeDecoder):
         -------
         int : the number of input dimensions.
         """
-        return self._in_units
+        return self.in_units
 
     @property
     def out_dims(self):
@@ -230,7 +240,7 @@ class DenseBiDecoder(GSEdgeDecoder):
         -------
         int : the number of output dimensions.
         """
-        return 1 if self.regression else self._num_classes
+        return 1 if self.regression else self.num_classes
 
 
 class MLPEdgeDecoder(GSEdgeDecoder):
@@ -256,7 +266,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
         Number of free-forward layers added to the decoder
         Default: 0
     norm : str, optional
-        Normalization Method. The Norm is used after ffn_layers if any.
+        Normalization Method. (Reversed for complex MLPEdgeDecoder child class.)
         Default: None
     """
     def __init__(self,
@@ -277,6 +287,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
         self.dropout = dropout
         self.num_hidden_layers = num_hidden_layers
         self.num_ffn_layers = num_ffn_layers
+        # TODO(xiangsx): The norm is not used here.
         self.norm = norm
         # TODO support multi target etypes
         # In the future we can accept both tuple and list of tuple
@@ -289,18 +300,14 @@ class MLPEdgeDecoder(GSEdgeDecoder):
     def _init_model(self):
         """ Init decoder model
         """
+        if self.norm is not None:
+            logging.warning("Embedding normalization (batch norm or layer norm) "
+                            "is not supported in MLPEdgeDecoder")
         # ngnn layer
         self.ngnn_mlp = NGNNMLP(self.h_dim * 2, self.h_dim * 2,
                                 self.num_ffn_layers,
                                 th.nn.functional.relu,
                                 self.dropout)
-        self.ngnn_norm = None
-        if self.norm == "batch":
-            self.ngnn_norm = nn.BatchNorm1d(self.h_dim * 2)
-        elif self.norm == "layer":
-            self.ngnn_norm = nn.LayerNorm(self.h_dim * 2)
-        else:
-            self.ngnn_norm = None
 
         # Here we assume the source and destination nodes have the same dimension.
         self.decoder = nn.Parameter(th.randn(self.h_dim * 2, self.out_dim))
@@ -334,7 +341,6 @@ class MLPEdgeDecoder(GSEdgeDecoder):
             h = th.cat([ufeat, ifeat], dim=1)
             if self.num_ffn_layers > 0:
                 h = self.ngnn_mlp(h)
-                h = self.ngnn_norm(h)
             out = th.matmul(h, self.decoder)
         return out
 
@@ -428,14 +434,14 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
                  num_ffn_layers=0,
                  norm=None):
         self.feat_dim = feat_dim
-        self.norm = norm
         super(MLPEFeatEdgeDecoder, self).__init__(h_dim=h_dim,
                                                   out_dim=out_dim,
                                                   multilabel=multilabel,
                                                   target_etype=target_etype,
                                                   dropout=dropout,
                                                   regression=regression,
-                                                  num_ffn_layers=num_ffn_layers)
+                                                  num_ffn_layers=num_ffn_layers,
+                                                  norm=norm)
 
     def _init_model(self):
         """ Init decoder model
@@ -462,22 +468,18 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
         self.nn_decoder_norm = None
         self.feat_decoder_norm = None
         self.combine_norm = None
-        self.ngnn_norm = None
         if self.norm == "batch":
             self.feat_decoder_norm = nn.BatchNorm1d(self.h_dim)
             self.nn_decoder_norm = nn.BatchNorm1d(self.h_dim)
             self.combine_norm = nn.BatchNorm1d(self.h_dim)
-            self.ngnn_norm = nn.BatchNorm1d(self.h_dim * 2)
         elif self.norm == "layer":
             self.feat_decoder_norm = nn.LayerNorm(self.h_dim)
             self.nn_decoder_norm = nn.LayerNorm(self.h_dim)
             self.combine_norm = nn.LayerNorm(self.h_dim)
-            self.ngnn_norm = nn.LayerNorm(self.h_dim * 2)
         else:
             self.feat_decoder_norm = None
             self.nn_decoder_norm = None
             self.combine_norm = None
-            self.ngnn_norm = None
 
         nn.init.xavier_uniform_(self.nn_decoder,
                                 gain=nn.init.calculate_gain('relu'))
@@ -523,17 +525,16 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
             # [edge_feat] @ W -> h_dim
             feat_h = th.matmul(efeat, self.feat_decoder)
             if self.feat_decoder_norm is not None:
-                nn_h = self.feat_decoder_norm(nn_h)
+                feat_h = self.feat_decoder_norm(feat_h)
             feat_h = self.relu(feat_h)
             feat_h = self.dropout(feat_h)
             # [nn_h | feat_h] @ W -> h_dim
             combine_h = th.cat([nn_h, feat_h], dim=1)
             if self.num_ffn_layers > 0:
                 combine_h = self.ngnn_mlp(combine_h)
-                combine_h = self.ngnn_norm(combine_h)
             combine_h = th.matmul(combine_h, self.combine_decoder)
             if self.combine_norm is not None:
-                nn_h = self.combine_norm(nn_h)
+                combine_h = self.combine_norm(combine_h)
             combine_h = self.relu(combine_h)
             out = th.matmul(combine_h, self.decoder)
 
