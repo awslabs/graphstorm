@@ -15,7 +15,7 @@ Welcome to the GraphStorm Documentation and Tutorials
 
 .. toctree::
    :maxdepth: 3
-   :caption: Graph Construction
+   :caption: Command Line Interface User Guide
    :hidden:
    :glob:
 
