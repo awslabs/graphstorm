@@ -313,6 +313,7 @@ class DistributedExecutor:
         )
 
         repartition_start = time.perf_counter()
+        updated_metadata = {}
         if all_match:
             logging.info(
                 "All file row counts match, applying Parquet metadata modification on Spark leader."
