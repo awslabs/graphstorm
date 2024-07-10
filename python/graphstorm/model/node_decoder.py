@@ -15,6 +15,8 @@
 
     Node prediction decoders.
 """
+import logging
+
 import torch as th
 from torch import nn
 
@@ -33,21 +35,37 @@ class EntityClassifier(GSLayer):
         Whether this is multi-label classification.
     dropout : float
         The dropout
+    norm : str, optional
+        Normalization Method. (Reserved for complex entity classifier implementation.)
+        Default: None
     '''
     def __init__(self,
                  in_dim,
                  num_classes,
                  multilabel,
-                 dropout=0):
+                 dropout=0,
+                 norm=None):
         super(EntityClassifier, self).__init__()
         self._in_dim = in_dim
         self._num_classes = num_classes
         self._multilabel = multilabel
-        self.decoder = nn.Parameter(th.Tensor(in_dim, num_classes))
+        self._dropout = dropout
+        # TODO(xiangsx): The norm is not used here.
+        self._norm = norm
+
+        self._init_model()
+
+    def _init_model(self):
+        """ Init decoder model
+        """
+        self.decoder = nn.Parameter(th.Tensor(self._in_dim, self._num_classes))
         nn.init.xavier_uniform_(self.decoder,
                                 gain=nn.init.calculate_gain('relu'))
         # TODO(zhengda): The dropout is not used here.
-        self.dropout = nn.Dropout(dropout)
+        self.dropout = nn.Dropout(self._dropout)
+        if self._norm is not None:
+            logging.warning("Embedding normalization (batch norm or layer norm) "
+                            "is not supported in EntityClassifier")
 
     def forward(self, inputs):
         ''' The forward function.
@@ -116,18 +134,33 @@ class EntityRegression(GSLayer):
         The dropout
     out_dim: int
         The output dimension size
+    norm : str, optional
+        Normalization Method. (Reserved for complex entity classifier implementation)
+        Default: None
     '''
     def __init__(self,
                  h_dim,
                  dropout=0,
-                 out_dim=1):
+                 out_dim=1,
+                 norm=None):
         super(EntityRegression, self).__init__()
         self._h_dim = h_dim
         self._out_dim = out_dim
-        self.decoder = nn.Parameter(th.Tensor(h_dim, out_dim))
+        self._dropout = dropout
+        # TODO(xiangsx): The norm is not used here.
+        self._norm = norm
+
+        self._init_model()
+
+    def _init_model(self):
+        self.decoder = nn.Parameter(th.Tensor(self._h_dim, self._out_dim))
         nn.init.xavier_uniform_(self.decoder)
         # TODO(zhengda): The dropout is not used.
-        self.dropout = nn.Dropout(dropout)
+        self.dropout = nn.Dropout(self._dropout)
+
+        if self._norm is not None:
+            logging.warning("Embedding normalization (batch norm or layer norm) "
+                            "is not supported in EntityRegression")
 
     def forward(self, inputs):
         ''' The forward function.

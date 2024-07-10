@@ -690,6 +690,7 @@ class GSConfig:
             _ = self.max_grad_norm
             _ = self.grad_norm_type
             _ = self.gnn_norm
+            _ = self.decoder_norm
             _ = self.sparse_optimizer_lr
             _ = self.num_epochs
             _ = self.save_model_path
@@ -2711,6 +2712,18 @@ class GSConfig:
         # Set default mlp layer number between gnn layer to 0
         return 0
 
+    @property
+    def decoder_norm(self):
+        """ Normalization (Batch or Layer)
+        """
+        # pylint: disable=no-member
+        if not hasattr(self, "_decoder_norm"):
+            return None
+        assert self._decoder_norm in BUILTIN_GNN_NORM, \
+            "Normalization type must be one of batch or layer"
+
+        return self._decoder_norm
+
     ################## Reconstruct node feats ###############
     @property
     def reconstruct_nfeat_name(self):
@@ -3012,6 +3025,8 @@ def _add_edge_classification_args(parser):
     group.add_argument('--decoder-type', type=str, default=argparse.SUPPRESS,
                        help="Decoder type can either be  DenseBiDecoder or "
                             "MLPDecoder to specify the model decoder")
+    group.add_argument("--decoder-norm", type=str, default=argparse.SUPPRESS,
+                       help="decoder norm type")
 
     group.add_argument(
             "--remove-target-edge-type",
