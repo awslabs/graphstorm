@@ -117,7 +117,7 @@ class DenseBiDecoder(GSEdgeDecoder):
     regression : bool
         Whether this is true then we perform regression
     norm : str, optional
-        Normalization Method. (Reversed for complex DenseBiDecoder child class.)
+        Normalization Method. (Reserved for complex DenseBiDecoder child class.)
         Default: None
     """
     def __init__(self,
@@ -266,7 +266,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
         Number of free-forward layers added to the decoder
         Default: 0
     norm : str, optional
-        Normalization Method. (Reversed for complex MLPEdgeDecoder child class.)
+        Normalization Method. (Reserved for complex MLPEdgeDecoder child class.)
         Default: None
     """
     def __init__(self,
@@ -476,10 +476,7 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
             self.feat_decoder_norm = nn.LayerNorm(self.h_dim)
             self.nn_decoder_norm = nn.LayerNorm(self.h_dim)
             self.combine_norm = nn.LayerNorm(self.h_dim)
-        else:
-            self.feat_decoder_norm = None
-            self.nn_decoder_norm = None
-            self.combine_norm = None
+
         logging.debug("MLPEFeatEdgeDecoder with decoder %s norm", self.norm)
 
         nn.init.xavier_uniform_(self.nn_decoder,

@@ -36,7 +36,7 @@ class EntityClassifier(GSLayer):
     dropout : float
         The dropout
     norm : str, optional
-        Normalization Method. (Reversed for complex entity classifier implementation.)
+        Normalization Method. (Reserved for complex entity classifier implementation.)
         Default: None
     '''
     def __init__(self,
@@ -135,7 +135,7 @@ class EntityRegression(GSLayer):
     out_dim: int
         The output dimension size
     norm : str, optional
-        Normalization Method. (Reversed for complex entity classifier implementation)
+        Normalization Method. (Reserved for complex entity classifier implementation)
         Default: None
     '''
     def __init__(self,
