@@ -89,7 +89,7 @@ To check if Java is installed you can use.
 Example
 -------
 
-See the provided :doc:`usage/example` for an example of how to start with tabular
+See the provided :ref:`example<distributed_construction_example>` for an example of how to start with tabular
 data and convert them into a graph representation before partitioning and
 training with GraphStorm.
 
@@ -126,7 +126,7 @@ partitioning pipeline.
 See `this guide <https://graphstorm.readthedocs.io/en/latest/scale/sagemaker.html>`_
 for more details on how to use GraphStorm distributed partitioning and training on SageMaker.
 
-See :doc:`usage/example` for a detailed walkthrough of using GSProcessing to
+See :ref:`example<distributed_construction_example>` for a detailed walkthrough of using GSProcessing to
 wrangle data into a format that's ready to be consumed by the GraphStorm
 distributed training pipeline.
 
@@ -137,10 +137,10 @@ Running on AWS resources
 GSProcessing supports Amazon SageMaker, EMR on EC2, and EMR Serverless as execution environments.
 To run distributed jobs on AWS resources we will have to build a Docker image
 and push it to the Amazon Elastic Container Registry, which we cover in
-:doc:`usage/distributed-processing-setup`. We can then run either a SageMaker Processing
-job which we describe in :doc:`usage/amazon-sagemaker`, an EMR on EC2 job which
-we describe in :doc:`usage/emr`, or an EMR Serverless
-job that is covered in :doc:`usage/emr-serverless`.
+:ref:`distributed processing setup<gsprocessing_distributed_setup>`. We can then run either a SageMaker Processing
+job which we describe in :ref:`running GSProcessing on SageMaker<gsprocessing_sagemaker>`, an EMR on EC2 job which
+we describe in :ref:`running GSProcessing on EMR<gsprocessing_emr_ec2>`, or an EMR Serverless
+job that is covered in :ref:`running GSProcessing on EMR Serverless<gsprocessing_emr_serverless>`.
 
 
 Input configuration
@@ -148,7 +148,7 @@ Input configuration
 
 GSProcessing supports both the GConstruct JSON configuration format,
 as well as its own GSProcessing config. You can learn about the
-GSProcessing JSON configuration in :doc:`developer/input-configuration`.
+GSProcessing JSON configuration in :ref:`GSProcessing Input Configuration<input_configuration>`.
 
 Re-applying feature transformations to new data
 -----------------------------------------------
@@ -170,7 +170,7 @@ Currently, we only support re-applying transformations for categorical features.
 Developer guide
 ---------------
 
-To get started with developing the package refer to :doc:`developer/developer-guide`.
+To get started with developing the package refer to :ref:`developer guide<developer_guide>`.
 
 
 .. rubric:: Footnotes
@@ -178,4 +178,4 @@ To get started with developing the package refer to :doc:`developer/developer-gu
 .. [#f1] DGL expects that every file produced for a single node/edge type
     has matching row counts, which is something that Spark cannot guarantee.
     We use the re-partitioning script to fix this where needed in the produced
-    output. See :doc:`usage/row-count-alignment` for details.
+    output. See :ref:`row count alignment<row_count_alignment>` for details.
