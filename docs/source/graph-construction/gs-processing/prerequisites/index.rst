@@ -19,5 +19,5 @@ The second section demonstrates how to set up GSProcessing for distributed proce
   :maxdepth: 1
   :titlesonly:
 
-  ../gs-processing-getting-started.rst
-  ../usage/distributed-processing-setup.rst
+  gs-processing-getting-started.rst
+  distributed-processing-setup.rst
