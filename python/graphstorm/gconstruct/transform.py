@@ -676,9 +676,16 @@ class RankGaussTransform(GlobalProcessFeatTransform):
         Default: None, we will not do data type casting.
     epsilon: float
         Epsilon for normalization.
+    uniquify: bool
+        When uniquify is set to True, GraphStorm will
+        deduplicate the input features before computing the
+        rank gauss norm on the input features.
+        Note: Set it to True will make feature processing slower.
+        Default: False.
     """
-    def __init__(self, col_name, feat_name, out_dtype=None, epsilon=None):
+    def __init__(self, col_name, feat_name, out_dtype=None, epsilon=None, uniquify=False):
         self._epsilon = epsilon if epsilon is not None else 1e-6
+        self._uniquify = uniquify
         out_dtype = np.float32 if out_dtype is None else out_dtype
         super(RankGaussTransform, self).__init__(col_name, feat_name, out_dtype)
 
@@ -709,40 +716,33 @@ class RankGaussTransform(GlobalProcessFeatTransform):
 
             return {self.feat_name: feats}
 
-    """
     def after_merge_transform(self, feats):
         # The feats can be a numpy array or a numpy memmaped object
         # Get ranking information.
         if isinstance(feats, ExtMemArrayWrapper):
             feats = feats.to_numpy()
-        feats = feats.argsort(axis=0).argsort(axis=0)
-        feat_range = len(feats) - 1
-        # norm to [-1, 1]
-        feats = (feats / feat_range - 0.5) * 2
-        feats = np.clip(feats, -1 + self._epsilon, 1 - self._epsilon)
-        feats = erfinv(feats)
 
-        return self.as_out_dtype(feats)
-    """
+        if self._uniquify:
+            uni_feats, indices = np.unique(feats, axis=0, return_inverse=True)
 
-    def after_merge_transform(self, feats):
-        # The feats can be a numpy array or a numpy memmaped object
-        # Get ranking information.
-        if isinstance(feats, ExtMemArrayWrapper):
-            feats = feats.to_numpy()
-        uni_feats, indices = np.unique(feats, axis=0, return_inverse=True)
+            uni_feats = uni_feats.argsort(axis=0).argsort(axis=0)
+            if len(uni_feats) == 1:
+                logging.warning(f"features of {self.feat_name} are identical."
+                                "Will return all 0s")
+                return self.as_out_dtype(np.zeros(feats.shape))
 
-        uni_feats = uni_feats.argsort(axis=0).argsort(axis=0)
-        if len(uni_feats) == 1:
-            logging.warning(f"features of {self.feat_name} are identical."
-                            "Will return all 0s")
-            return self.as_out_dtype(np.zeros(feats.shape))
-
-        feat_range = len(uni_feats) - 1
-        uni_feats = (uni_feats / feat_range - 0.5) * 2
-        uni_feats = np.clip(uni_feats, -1 + self._epsilon, 1 - self._epsilon)
-        uni_feats = erfinv(uni_feats)
-        feats = uni_feats[indices]
+            feat_range = len(uni_feats) - 1
+            uni_feats = (uni_feats / feat_range - 0.5) * 2
+            uni_feats = np.clip(uni_feats, -1 + self._epsilon, 1 - self._epsilon)
+            uni_feats = erfinv(uni_feats)
+            feats = uni_feats[indices]
+        else:
+            feats = feats.argsort(axis=0).argsort(axis=0)
+            feat_range = len(feats) - 1
+            # norm to [-1, 1]
+            feats = (feats / feat_range - 0.5) * 2
+            feats = np.clip(feats, -1 + self._epsilon, 1 - self._epsilon)
+            feats = erfinv(feats)
 
         return self.as_out_dtype(feats)
 
@@ -1188,10 +1188,12 @@ def parse_feat_ops(confs, input_data_format=None):
                                                      out_dtype=out_dtype, transform_conf=conf)
             elif conf['name'] == 'rank_gauss':
                 epsilon = conf['epsilon'] if 'epsilon' in conf else None
+                uniquify = conf['uniquify'] if 'uniquify' in conf else False
                 transform = RankGaussTransform(feat['feature_col'],
                                                feat_name,
                                                out_dtype=out_dtype,
-                                               epsilon=epsilon)
+                                               epsilon=epsilon,
+                                               uniquify=uniquify)
             elif conf['name'] == 'to_categorical':
                 separator = conf['separator'] if 'separator' in conf else None
                 # TODO: Not support categorical feature transformation on multiple columns.
