@@ -1,3 +1,5 @@
+..  _row_count_alignment:
+
 Row count alignment
 ===================
 

@@ -48,7 +48,7 @@ Apart from the data, GSProcessing also requires a configuration file that descri
 data and the transformations we will need to apply to the features and any encoding needed for
 labels.
 We support both the `GConstruct configuration format <https://graphstorm.readthedocs.io/en/latest/configuration/configuration-gconstruction.html#configuration-json-explanations>`_
-, and the library's own GSProcessing format, described in :doc:`/gs-processing/developer/input-configuration`.
+, and the library's own GSProcessing format, described in :ref:`GSProcessing Input Configuration<input_configuration>`.
 
 .. note::
     We expect end users to only provide a GConstruct configuration file,
@@ -61,7 +61,7 @@ We support both the `GConstruct configuration format <https://graphstorm.readthe
     as we do with GConstruct.
 
 For a detailed description of all the entries of the GSProcessing configuration file see
-:doc:`/gs-processing/developer/input-configuration`.
+:ref:`GSProcessing Input Configuration<input_configuration>`.
 
 .. _gsp-relative-paths:
 
@@ -196,7 +196,7 @@ we can run the step as a separate job:
     gs-repartition --input-prefix /tmp/gsprocessing-example/
 
 For more details on the re-partitioning step see
-:doc:`row-count-alignment`.
+:ref:`row count alignment<row_count_alignment>`.
 
 .. _gsp-examining-output:
 
@@ -294,7 +294,7 @@ you to focus on model development. In particular you can follow the GraphStorm d
 
 To run GSProcessing jobs on Amazon SageMaker we'll need to follow
 :ref:`GSProcessing distributed setup<gsprocessing_distributed_setup>` to set up our environment
-and :doc:`amazon-sagemaker` to execute the job.
+and :ref:`Running GSProcessing on SageMaker<gsprocessing_sagemaker>` to execute the job.
 
 
 .. rubric:: Footnotes

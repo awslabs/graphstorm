@@ -1,3 +1,5 @@
+.. _gsprocessing_sagemaker:
+
 Running distributed jobs on Amazon SageMaker
 ============================================
 
