@@ -8,4 +8,4 @@ Graphstorm offers various methods to build graphs on both single machines and di
    :maxdepth: 2
    :glob:
 
-   gs-processing/index/gs-processing-index.rst
+   gs-processing/index.rst

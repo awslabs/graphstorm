@@ -16,7 +16,7 @@ The final section shows an example to quick start GSProcessing.
    :maxdepth: 1
    :glob:
 
-   gs-processing-prerequisites-index.rst
-   ../developer/input-configuration
-   aws-infra-index.rst
-   ../usage/example.rst
+   prerequisites/index.rst
+   input-configuration.rst
+   aws-infra/aws-infra-index.rst
+   example.rst
