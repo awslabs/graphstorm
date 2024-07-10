@@ -1,3 +1,5 @@
+.. _gsprocessing_emr_ec2:
+
 Running distributed jobs on EMR on EC2
 ======================================
 

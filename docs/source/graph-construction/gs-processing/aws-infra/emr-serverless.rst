@@ -1,3 +1,5 @@
+.. _gsprocessing_emr_serverless:
+
 Running distributed jobs on EMR Serverless
 ==========================================
 
