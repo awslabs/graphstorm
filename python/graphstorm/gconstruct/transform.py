@@ -727,8 +727,8 @@ class RankGaussTransform(GlobalProcessFeatTransform):
 
             uni_feats = uni_feats.argsort(axis=0).argsort(axis=0)
             if len(uni_feats) == 1:
-                logging.warning(f"features of {self.feat_name} are identical."
-                                "Will return all 0s")
+                logging.warning("features of %s are identical. Will return all 0s",
+                                self.feat_name)
                 return self.as_out_dtype(np.zeros(feats.shape))
 
             feat_range = len(uni_feats) - 1
