@@ -13,7 +13,8 @@ We use PySpark to achieve horizontal parallelism, allowing us to scale to graphs
 The following sections provide guidance on effectively utilizing GSProcessing.
 The first section details the execution environment setup for GSProcessing.
 The second section offers examples on drafting a configuration file for a GSProcessing job.
-The final section explains how to deploy your GSProcessing job with AWS infrastructure.
+The third section explains how to deploy your GSProcessing job with AWS infrastructure.
+The final section shows an example to quick start GSProcessing.
 
 .. toctree::
    :maxdepth: 2
