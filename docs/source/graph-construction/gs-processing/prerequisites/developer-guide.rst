@@ -1,4 +1,4 @@
-.. _developer_guide:
+.. _gsprocessing_developer_guide:
 
 Developer Guide
 ---------------

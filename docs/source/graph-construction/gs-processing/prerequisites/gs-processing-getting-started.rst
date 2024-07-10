@@ -170,7 +170,7 @@ Currently, we only support re-applying transformations for categorical features.
 Developer guide
 ---------------
 
-To get started with developing the package refer to :ref:`developer guide<developer_guide>`.
+To get started with developing the package refer to :ref:`developer guide<gsprocessing_developer_guide>`.
 
 
 .. rubric:: Footnotes
