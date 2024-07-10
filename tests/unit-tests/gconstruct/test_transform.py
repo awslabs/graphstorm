@@ -566,6 +566,39 @@ def test_rank_gauss_transform(input_dtype, out_dtype):
         assert trans_feat.dtype != np.float16
         assert_almost_equal(feat, trans_feat, decimal=4)
 
+    feat_0 = np.random.rand(100,2).astype(input_dtype)
+    feat_trans_0 = transform(feat_0)['test']
+    feat_1 = np.ones((100,2)).astype(input_dtype)
+    feat_trans_1 = transform(feat_1)['test']
+    assert feat_trans_0.dtype == np.float32
+    assert feat_trans_1.dtype == np.float32
+    transform = RankGaussTransform("test", "test", out_dtype=out_dtype, epsilon=eps, uniquify=True)
+
+    def rank_gauss(feat):
+        lower = -1 + eps
+        upper = 1 - eps
+        range = upper - lower
+        i = np.argsort(feat, axis=0)
+        j = np.argsort(i, axis=0)
+        j_range = len(j) - 1
+        divider = j_range / range
+        feat = j / divider
+        feat = feat - upper
+        return erfinv(feat)
+
+    feat = np.concatenate([feat_0, feat_1])
+    feat = rank_gauss(feat[:101])
+    feat = feat[np.concatenate([np.arange(100), np.array([100]*100)])]
+    new_feat = np.concatenate([feat_trans_0, feat_trans_1])
+    trans_feat = transform.after_merge_transform(new_feat)
+
+    if out_dtype is not None:
+        assert trans_feat.dtype == np.float16
+        assert_almost_equal(feat.astype(np.float16), trans_feat, decimal=3)
+    else:
+        assert trans_feat.dtype != np.float16
+        assert_almost_equal(feat, trans_feat, decimal=4)
+
 def test_custom_node_label_processor():
     train_idx = np.arange(0, 10)
     val_idx = np.arange(10, 15)
