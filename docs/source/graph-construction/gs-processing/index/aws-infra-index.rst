@@ -2,9 +2,9 @@
 Running distributed processing jobs on AWS Infra
 ================================================
 
-After successfully building the appropriate Docker image and pushing it to
+After successfully building the Docker image and pushing it to
 `Amazon ECR <https://docs.aws.amazon.com/ecr/>`_,
-you can now initiate GSProcessing jobs utilizing AWS resources.
+you can now initiate GSProcessing jobs with AWS resources.
 
 We support running GSProcessing jobs on different AWS execution environments including:
 `Amazon SageMaker <https://docs.aws.amazon.com/sagemaker/>`_,
