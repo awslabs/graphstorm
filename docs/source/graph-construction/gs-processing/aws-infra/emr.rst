@@ -3,7 +3,7 @@
 Running distributed jobs on EMR on EC2
 ======================================
 
-Once the :doc:`distributed processing setup <distributed-processing-setup>` is complete,
+Once the :ref:`distributed processing setup<gsprocessing_distributed_setup>` is complete,
 and we have built and pushed an EMR image tagged as ``graphstorm-processing-emr``, we can
 set up our execution environment for EMR. If you're not familiar with EMR
 we suggest going through its
@@ -193,7 +193,7 @@ successfully, we can run:
 We should see the file ``updated_row_counts_metadata.json`` in the output,
 which means our data are ready for distributed partitioning.
 
-If the re-partitioning failed, we can run a separate job, see :doc:`row-count-alignment`
+If the re-partitioning failed, we can run a separate job, see :ref:`row count alignment<row_count_alignment>`
 for details.
 
 Run distributed partitioning and training on Amazon SageMaker

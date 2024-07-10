@@ -262,7 +262,7 @@ Launch a SageMaker Processing job using the example scripts.
 ------------------------------------------------------------
 
 Once the setup is complete, you can follow the
-:doc:`SageMaker Processing job guide <amazon-sagemaker>`
+:ref:`SageMaker Processing job guide<gsprocessing_distributed_setup>`
 to launch your distributed processing job using Amazon SageMaker resources.
 
 Launch an EMR Serverless job using the example scripts.
@@ -273,5 +273,5 @@ as an execution environment to allow you to scale to even larger datasets
 (recommended when your graph has 30B+ edges).
 Its setup is more involved than Amazon SageMaker, so we only recommend
 it for experienced AWS users.
-Follow the :doc:`EMR Serverless job guide <emr-serverless>`
+Follow the :ref:`EMR Serverless job guide<gsprocessing_emr_serverless>`
 to launch your distributed processing job using EMR Serverless resources.

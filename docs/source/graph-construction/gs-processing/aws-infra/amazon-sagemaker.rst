@@ -3,7 +3,7 @@
 Running distributed jobs on Amazon SageMaker
 ============================================
 
-Once the :doc:`Amazon SageMaker Setup<gsprocessing_distributed_setup>` is complete, we can
+Once the :ref:`Amazon SageMaker Setup<gsprocessing_distributed_setup>` is complete, we can
 use the Amazon SageMaker launch scripts to launch distributed processing
 jobs that use AWS resources.
 

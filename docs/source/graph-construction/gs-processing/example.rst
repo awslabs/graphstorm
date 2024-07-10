@@ -1,3 +1,5 @@
+.. _distributed_construction_example:
+
 GraphStorm Processing Example
 =============================
 
