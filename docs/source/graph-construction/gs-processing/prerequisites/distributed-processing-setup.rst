@@ -1,3 +1,5 @@
+.. _gsprocessing_distributed_setup:
+
 GraphStorm Processing Distributed Setup
 =======================================
 
