@@ -139,7 +139,7 @@ To run distributed jobs on AWS resources we will have to build a Docker image
 and push it to the Amazon Elastic Container Registry, which we cover in
 :ref:`distributed processing setup<gsprocessing_distributed_setup>`. We can then run either a SageMaker Processing
 job which we describe in :ref:`running GSProcessing on SageMaker<gsprocessing_sagemaker>`, an EMR on EC2 job which
-we describe in :ref:`running GSProcessing on EMR<gsprocessing_emr_ec2>`, or an EMR Serverless
+we describe in :ref:`running GSProcessing on EMR EC2<gsprocessing_emr_ec2>`, or an EMR Serverless
 job that is covered in :ref:`running GSProcessing on EMR Serverless<gsprocessing_emr_serverless>`.
 
 
