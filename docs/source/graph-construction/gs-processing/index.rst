@@ -18,5 +18,5 @@ The final section shows an example to quick start GSProcessing.
 
    prerequisites/index.rst
    input-configuration.rst
-   aws-infra/aws-infra-index.rst
+   aws-infra/index.rst
    example.rst
