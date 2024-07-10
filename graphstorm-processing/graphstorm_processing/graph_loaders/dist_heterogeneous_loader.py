@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from time import perf_counter
 from typing import Any, Dict, Optional, Set, Tuple
 
+from pyspark import RDD
 from pyspark.sql import Row, SparkSession, DataFrame, functions as F
 from pyspark.sql.types import (
     StructType,
@@ -1916,7 +1917,7 @@ class DistHeterogeneousGraphLoader(object):
         return train_mask_df, val_mask_df, test_mask_df
 
     def _create_split_files_custom_split(
-        self, input_df: DataFrame, custom_split_file: str
+        self, input_df: DataFrame, custom_split_file: CustomSplit
     ) -> tuple[DataFrame, DataFrame, DataFrame]:
         """
         Creates the train/val/test mask dataframe based on custom split files.
@@ -1925,9 +1926,11 @@ class DistHeterogeneousGraphLoader(object):
         ----------
         input_df: DataFrame
             Input dataframe for which we will create split masks.
-        custom_split_file: Optional[CustomSplit]
+        custom_split_file: CustomSplit
             A CustomSplit object including path to the custom split files for
             training/validation/test.
+        mask_type: str
+            The type of mask to create, value can be train, val or test.
 
         Returns
         -------
@@ -1937,7 +1940,7 @@ class DistHeterogeneousGraphLoader(object):
 
         # custom node/edge label
         # create custom mask dataframe for one of the types: train, val, test
-        def process_custom_mask_df(input_df, split_file, mask_type):
+        def process_custom_mask_df(input_df: DataFrame, split_file: CustomSplit, mask_type: str):
             if mask_type == "train":
                 file_path = split_file.train
             elif mask_type == "val":
