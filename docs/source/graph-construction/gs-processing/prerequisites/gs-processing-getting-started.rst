@@ -148,7 +148,7 @@ Input configuration
 
 GSProcessing supports both the GConstruct JSON configuration format,
 as well as its own GSProcessing config. You can learn about the
-GSProcessing JSON configuration in :ref:`GSProcessing Input Configuration<input_configuration>`.
+GSProcessing JSON configuration in :ref:`GSProcessing Input Configuration<gsprocessing_input_configuration>`.
 
 Re-applying feature transformations to new data
 -----------------------------------------------

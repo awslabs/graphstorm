@@ -50,7 +50,7 @@ Apart from the data, GSProcessing also requires a configuration file that descri
 data and the transformations we will need to apply to the features and any encoding needed for
 labels.
 We support both the `GConstruct configuration format <https://graphstorm.readthedocs.io/en/latest/configuration/configuration-gconstruction.html#configuration-json-explanations>`_
-, and the library's own GSProcessing format, described in :ref:`GSProcessing Input Configuration<input_configuration>`.
+, and the library's own GSProcessing format, described in :ref:`GSProcessing Input Configuration<gsprocessing_input_configuration>`.
 
 .. note::
     We expect end users to only provide a GConstruct configuration file,
@@ -63,7 +63,7 @@ We support both the `GConstruct configuration format <https://graphstorm.readthe
     as we do with GConstruct.
 
 For a detailed description of all the entries of the GSProcessing configuration file see
-:ref:`GSProcessing Input Configuration<input_configuration>`.
+:ref:`GSProcessing Input Configuration<gsprocessing_input_configuration>`.
 
 .. _gsp-relative-paths:
 

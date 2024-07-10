@@ -11,7 +11,7 @@ partitioning and training pipeline of GraphStorm.
 We use PySpark to achieve horizontal parallelism, allowing us to scale to graphs with billions of nodes and edges.
 
 .. warning::
-    We now only support running GSProcessing on AWS Infras including `Amazon SageMaker <https://docs.aws.amazon.com/sagemaker/>`_, `EMR Serverless <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/emr-serverless.html>`_, and `EMR on EC2 <https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-what-is-emr.html>`_.
+    So far, GraphStorm now only supports running GSProcessing on AWS Infras including `Amazon SageMaker <https://docs.aws.amazon.com/sagemaker/>`_, `EMR Serverless <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/emr-serverless.html>`_, and `EMR on EC2 <https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-what-is-emr.html>`_.
 
 The following sections outline essential prerequisites and provide a detailed guide to use 
 GSProcessing.
