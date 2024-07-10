@@ -1807,38 +1807,41 @@ class DummyLPDecoder(nn.Module):
     def forward(self, g, h, e_h=None):
         return h
 
+class DummyPredLoss(nn.Module):
+    def forward(self, logits, labels):
+        return logits - labels
+
+class DummyLPPredLoss(nn.Module):
+    def forward(self, pos_score, neg_score):
+        return pos_score["n0"] + neg_score["n0"]
 
 def test_multi_task_forward():
     mt_model = GSgnnMultiTaskSharedEncoderModel(0.1)
 
-    def pred_los_func(logits, labels):
-        return logits - labels
-    def pred_lp_loss_func(pos_score, neg_score):
-        return pos_score["n0"] + neg_score["n0"]
     mt_model.add_task("nc_task",
                       BUILTIN_TASK_NODE_CLASSIFICATION,
                       DummyNCDecoder(),
-                      pred_los_func)
+                      DummyPredLoss())
 
     mt_model.add_task("nr_task",
                       BUILTIN_TASK_NODE_REGRESSION,
                       DummyNRDecoder(),
-                      pred_los_func)
+                      DummyPredLoss())
 
     mt_model.add_task("ec_task",
                       BUILTIN_TASK_EDGE_CLASSIFICATION,
                       DummyECDecoder(),
-                      pred_los_func)
+                      DummyPredLoss())
 
     mt_model.add_task("er_task",
                       BUILTIN_TASK_EDGE_REGRESSION,
                       DummyERDecoder(),
-                      pred_los_func)
+                      DummyPredLoss())
 
     mt_model.add_task("lp_task",
                       BUILTIN_TASK_LINK_PREDICTION,
                       DummyLPDecoder(),
-                      pred_lp_loss_func)
+                      DummyLPPredLoss())
 
     @patch.object(GSgnnMultiTaskSharedEncoderModel, 'comput_input_embed')
     @patch.object(GSgnnMultiTaskSharedEncoderModel, 'compute_embed_step')
@@ -1946,34 +1949,30 @@ def test_multi_task_forward():
 def test_multi_task_predict():
     mt_model = GSgnnMultiTaskSharedEncoderModel(0.1)
 
-    def pred_los_func(logits, labels):
-        return logits - labels
-    def pred_lp_loss_func(pos_score, neg_score):
-        return pos_score["n0"] + neg_score["n0"]
     mt_model.add_task("nc_task",
                       BUILTIN_TASK_NODE_CLASSIFICATION,
                       DummyNCDecoder(),
-                      pred_los_func)
+                      DummyPredLoss())
 
     mt_model.add_task("nr_task",
                       BUILTIN_TASK_NODE_REGRESSION,
                       DummyNRDecoder(),
-                      pred_los_func)
+                      DummyPredLoss())
 
     mt_model.add_task("ec_task",
                       BUILTIN_TASK_EDGE_CLASSIFICATION,
                       DummyECDecoder(),
-                      pred_los_func)
+                      DummyPredLoss())
 
     mt_model.add_task("er_task",
                       BUILTIN_TASK_EDGE_REGRESSION,
                       DummyERDecoder(),
-                      pred_los_func)
+                      DummyPredLoss())
 
     mt_model.add_task("lp_task",
                       BUILTIN_TASK_LINK_PREDICTION,
                       DummyLPDecoder(),
-                      pred_lp_loss_func)
+                      DummyLPPredLoss())
 
     @patch.object(GSgnnMultiTaskSharedEncoderModel, 'comput_input_embed')
     @patch.object(GSgnnMultiTaskSharedEncoderModel, 'compute_embed_step')
@@ -2090,39 +2089,35 @@ def test_multi_task_predict():
 def test_multi_task_mini_batch_predict():
     mt_model = GSgnnMultiTaskSharedEncoderModel(0.1)
 
-    def pred_los_func(logits, labels):
-        return logits - labels
-    def pred_lp_loss_func(pos_score, neg_score):
-        return pos_score["n0"] + neg_score["n0"]
     mt_model.add_task("nc_task",
                       BUILTIN_TASK_NODE_CLASSIFICATION,
                       DummyNCDecoder(),
-                      pred_los_func)
+                      DummyPredLoss())
 
     mt_model.add_task("nr_task",
                       BUILTIN_TASK_NODE_REGRESSION,
                       DummyNRDecoder(),
-                      pred_los_func)
+                      DummyPredLoss())
 
     mt_model.add_task("ec_task",
                       BUILTIN_TASK_EDGE_CLASSIFICATION,
                       DummyECDecoder(),
-                      pred_los_func)
+                      DummyPredLoss())
 
     mt_model.add_task("er_task",
                       BUILTIN_TASK_EDGE_REGRESSION,
                       DummyERDecoder(),
-                      pred_los_func)
+                      DummyPredLoss())
 
     mt_model.add_task("lp_task",
                       BUILTIN_TASK_LINK_PREDICTION,
                       DummyLPDecoder(),
-                      pred_lp_loss_func)
+                      DummyLPPredLoss())
 
     mt_model.add_task("nfr_task",
                       BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
                       DummyLPDecoder(),
-                      pred_lp_loss_func)
+                      DummyLPPredLoss())
 
     tast_info_nc = TaskInfo(task_type=BUILTIN_TASK_NODE_CLASSIFICATION,
                             task_id='nc_task',
