@@ -16,4 +16,4 @@ The second section includes instructions on how to run GPartition with `Amazon E
    :glob:
 
    sagemaker.rst
-   ec2-cluster.rst
+   ec2-clusters.rst
