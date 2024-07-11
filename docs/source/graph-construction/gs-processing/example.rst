@@ -1,3 +1,5 @@
+.. _distributed_construction_example:
+
 GraphStorm Processing Example
 =============================
 
@@ -48,7 +50,7 @@ Apart from the data, GSProcessing also requires a configuration file that descri
 data and the transformations we will need to apply to the features and any encoding needed for
 labels.
 We support both the `GConstruct configuration format <https://graphstorm.readthedocs.io/en/latest/configuration/configuration-gconstruction.html#configuration-json-explanations>`_
-, and the library's own GSProcessing format, described in :doc:`/gs-processing/developer/input-configuration`.
+, and the library's own GSProcessing format, described in :ref:`GSProcessing Input Configuration<gsprocessing_input_configuration>`.
 
 .. note::
     We expect end users to only provide a GConstruct configuration file,
@@ -61,7 +63,7 @@ We support both the `GConstruct configuration format <https://graphstorm.readthe
     as we do with GConstruct.
 
 For a detailed description of all the entries of the GSProcessing configuration file see
-:doc:`/gs-processing/developer/input-configuration`.
+:ref:`GSProcessing Input Configuration<gsprocessing_input_configuration>`.
 
 .. _gsp-relative-paths:
 
@@ -196,7 +198,7 @@ we can run the step as a separate job:
     gs-repartition --input-prefix /tmp/gsprocessing-example/
 
 For more details on the re-partitioning step see
-:doc:`row-count-alignment`.
+:ref:`row count alignment<row_count_alignment>`.
 
 .. _gsp-examining-output:
 
@@ -293,8 +295,8 @@ you to focus on model development. In particular you can follow the GraphStorm d
 
 
 To run GSProcessing jobs on Amazon SageMaker we'll need to follow
-:doc:`/gs-processing/usage/distributed-processing-setup` to set up our environment
-and :doc:`/gs-processing/usage/amazon-sagemaker` to execute the job.
+:ref:`GSProcessing distributed setup<gsprocessing_distributed_setup>` to set up our environment
+and :ref:`Running GSProcessing on SageMaker<gsprocessing_sagemaker>` to execute the job.
 
 
 .. rubric:: Footnotes
@@ -303,3 +305,4 @@ and :doc:`/gs-processing/usage/amazon-sagemaker` to execute the job.
 .. [#f1] Note that this is just a hint to the Spark engine, and it's
     not guaranteed that the number of output partitions will always match
     the requested value.
+.. [#f2] This doc will be future extended to include a partition example.
