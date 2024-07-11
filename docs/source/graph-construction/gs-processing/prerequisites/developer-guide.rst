@@ -3,9 +3,9 @@
 Developer Guide
 ---------------
 
-The doc guides provides instructions to help developers set up their environment and start contributing within the correct format.
-The doc first includes steps to set up the local development environment with ``poetry``.
-It then guides developers on how to use linters and type checkers to ensure code quality.
+The document provides instructions to developers set up their environment and start contributing correctly.
+It includes steps for setting up the local development environment with poetry,
+followed by guidelines on using linters and type checkers to ensure code quality.
 
 
 The steps we recommend are:
