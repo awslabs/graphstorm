@@ -3,9 +3,10 @@
 Developer Guide
 ---------------
 
-The doc is a guidance for developers only.
-The project is set up using ``poetry`` to make easier for developers to
-jump into the project.
+The doc guides provides instructions to help developers set up their environment and start contributing within the correct format.
+The doc first includes steps to set up the local development environment with ``poetry``.
+It then guides developers on how to use linters and type checkers to ensure code quality.
+
 
 The steps we recommend are:
 
