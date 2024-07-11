@@ -313,6 +313,7 @@ class DistributedExecutor:
         )
 
         repartition_start = time.perf_counter()
+        updated_metadata = {}
         if all_match:
             logging.info(
                 "All file row counts match, applying Parquet metadata modification on Spark leader."
@@ -327,7 +328,7 @@ class DistributedExecutor:
                 try:
                     # Upload existing output files before trying to re-partition
                     if self.filesystem_type == FilesystemType.S3:
-                        self._upload_output_files(loader, force=True)
+                        self._upload_output_files(self.loader, force=True)
                     updated_metadata = repartition_files(graph_meta_dict, repartitioner)
                 except Exception as e:  # pylint: disable=broad-exception-caught
                     # If an error happens during re-partition, we don't want to fail the entire
