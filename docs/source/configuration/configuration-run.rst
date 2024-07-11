@@ -216,6 +216,11 @@ GraphStorm provides a set of parameters to control training hyper-parameters.
     - Yaml: ``num_ffn_layers_in_decoder: 1``
     - Argument: ``--num-ffn-layers-in-decoder 1``
     - Default value: ``0``
+- **decoder_norm**: Graphstorm provides this argument as an option to define the norm type for the task decoders. Please note, it only accepts ``batch`` and ``layer`` for batchnorm and layernorm respectively. By default, it is set to 'none'. Note: all the built-in classification and regression decoders accept ``norm`` as one of their input arguments to define the norm type, but only ``MLPEFeatEdgeDecoder`` implements layer/batch norm between its layers.
+
+    - Yaml: ``decoder_norm: batch``
+    - Argument: ``--decoder-norm batch``
+    - Default value: ``none``
 - **input_activate**: Graphstorm provides this argument as an option to change the activation function in the input layer. Please note, it only accepts 'relu' and 'none'.
 
     - Yaml: ``input_activate: relu``
@@ -325,12 +330,13 @@ General Configurations
     - Yaml: ``task_type: node_classification``
     - Argument: ``--task-type node_classification``
     - Default value: This parameter must be provided by user.
-- **eval_metric**: Evaluation metric used during evaluation. The input can be a string specifying the evaluation metric to report or a list of strings specifying a list of evaluation metrics to report. The first evaluation metric is treated as the major metric and is used to choose the best trained model. The supported evaluation metrics of classification tasks include ``accuracy``, ``precision_recall``, ``roc_auc``, ``f1_score``, ``per_class_f1_score``. The supported evaluation metrics of regression tasks include ``rmse``, ``mse`` and ``mae``. The supported evaluation metrics of link prediction tasks include ``mrr``.
+- **eval_metric**: Evaluation metric used during evaluation. The input can be a string specifying the evaluation metric to report or a list of strings specifying a list of evaluation metrics to report. The first evaluation metric is treated as the major metric and is used to choose the best trained model. The supported evaluation metrics of classification tasks include ``accuracy``, ``precision_recall``, ``roc_auc``, ``f1_score``, ``per_class_f1_score``, ``hit_at_k``. To be noted, ``hit_at_k`` only works with binary classification tasks. The ``k`` of ``hit_at_k`` can be any positive integer, for example ``hit_at_10`` or ``hit_at_100``. The term ``hit_at_k`` refers to the number of true positives among the top ``k`` predictions with the highest confidence scores. The supported evaluation metrics of regression tasks include ``rmse``, ``mse`` and ``mae``. The supported evaluation metrics of link prediction tasks include ``mrr``.
 
     - Yaml: ``eval_metric:``
         | ``- accuracy``
         | ``- precision_recall``
-    - Argument: ``--eval-metric accuracy precision_recall``
+        | ``- hit_at_10``
+    - Argument: ``--eval-metric accuracy precision_recall hit_at_10``
     - Default value:
             - For classification tasks, the default value is ``accuracy``.
             - For regression tasks, the default value is ``rmse``.

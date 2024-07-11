@@ -53,20 +53,22 @@ def create_spark_session(
         The SparkSession.
 
     """
-    # Set up Spark cluster config
-    bootstraper = Bootstrapper()
-
-    processing_job_config = bootstraper.load_processing_job_config()
-    instance_type_info = bootstraper.load_instance_type_info()
-
     spark_builder = (
         SparkSession.builder.appName("GSProcessing")
         .config("spark.hadoop.validateOutputSpecs", "false")
         .config("spark.logConf", "true")
     )
 
-    if execution_env != ExecutionEnv.EMR_SERVERLESS:
-        spark_builder = _configure_spark_env(
+    if execution_env == ExecutionEnv.SAGEMAKER or execution_env == ExecutionEnv.LOCAL:
+        # Set up Spark cluster config
+        bootstraper = Bootstrapper()
+
+        processing_job_config = bootstraper.load_processing_job_config()
+        instance_type_info = bootstraper.load_instance_type_info()
+
+        # For SM and local we set the driver/executor memory according to
+        # the CPU and RAM resources detected on the driver, since we are running on metal
+        spark_builder = _configure_spark_env_memory(
             spark_builder, processing_job_config, instance_type_info
         )
 
@@ -117,7 +119,7 @@ def create_spark_session(
     return spark
 
 
-def _configure_spark_env(
+def _configure_spark_env_memory(
     spark_builder: SparkSession.Builder,
     processing_job_config: Optional[dict],
     instance_type_info: Optional[dict],
@@ -126,9 +128,9 @@ def _configure_spark_env(
         instance_type = processing_job_config["ProcessingResources"]["ClusterConfig"][
             "InstanceType"
         ].replace("ml.", "")
-        instance_type_info = instance_type_info[instance_type]
-        instance_mem_mb = instance_type_info["MemoryInfo"]["SizeInMiB"]
-        instance_cores = instance_type_info["VCpuInfo"]["DefaultVCpus"]
+        instance_type_details = instance_type_info[instance_type]
+        instance_mem_mb = instance_type_details["MemoryInfo"]["SizeInMiB"]
+        instance_cores = instance_type_details["VCpuInfo"]["DefaultVCpus"]
         logging.info(
             "Detected instance type: %s with total memory: %d MiB and total cores: %d",
             instance_type,
@@ -139,7 +141,7 @@ def _configure_spark_env(
         instance_mem_mb = int(psutil.virtual_memory().total / (1024 * 1024))
         instance_cores = psutil.cpu_count(logical=True)
         logging.info(
-            "Configuring Spark execution env. Found total memory: %d MiB and total cores: %d",
+            "Configuring Spark execution env using psutil values. Found total memory: %d MiB and total cores: %d",
             instance_mem_mb,
             instance_cores,
         )

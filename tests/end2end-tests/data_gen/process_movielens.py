@@ -16,12 +16,14 @@
     Graphstorm package.
 """
 #!/usr/bin/env python
-
+import os
 import pandas
 import numpy as np
 import h5py
 import pyarrow.parquet as pq
 import pyarrow as pa
+
+from graphstorm.gconstruct.id_map import IdMap
 
 # process user data
 user = pandas.read_csv('/data/ml-100k/u.user', delimiter='|', header=None,
@@ -42,6 +44,7 @@ for x, y in zip(np.arange(len(occupation)), occupation):
     occ_one_hot[x,y] = 1
 
 feat = np.concatenate([age, gender, occ_one_hot], axis=1)
+num_users = feat.shape[0]
 
 with h5py.File("/data/ml-100k/user.hdf5", "w") as f:
     ids = user['id']
@@ -66,6 +69,14 @@ for i in range(labels.shape[0]):
     label_list.append(np.nonzero(labels[i])[0][0])
 labels = np.array(label_list)
 ids = np.array(movie[0])
+
+user_ids = np.arange(num_users).astype(str)
+user_id_map = IdMap(user_ids)
+map_prefix = os.path.join("/data/ml-100k/", "raw_id_mappings", "user")
+user_id_map.save(map_prefix)
+movie_id_map = IdMap(ids.astype(str))
+map_prefix = os.path.join("/data/ml-100k/", "raw_id_mappings", "movie")
+movie_id_map.save(map_prefix)
 
 def write_data_parquet(data, data_file):
     arr_dict = {}

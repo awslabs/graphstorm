@@ -57,7 +57,7 @@ def apply_transform(
                 f"than expected {tokenizer.model_max_length}"
             )
         # Define the schema of your return type
-        schema = StructType(
+        tokenize_schema = StructType(
             [
                 StructField("input_ids", ArrayType(IntegerType())),
                 StructField("attention_mask", ArrayType(IntegerType())),
@@ -66,7 +66,7 @@ def apply_transform(
         )
 
         # Define UDF
-        @udf(returnType=schema)
+        @udf(returnType=tokenize_schema)
         def tokenize(text):
             # Check if text is a string
             if not isinstance(text, str):
@@ -98,7 +98,7 @@ def apply_transform(
         )
     elif action == HUGGINGFACE_EMB:
         # Define the schema of your return type
-        schema = ArrayType(FloatType())
+        embedding_schema = ArrayType(FloatType())
 
         if th.cuda.is_available():
             gpu = (
@@ -123,7 +123,7 @@ def apply_transform(
         lm_model = lm_model.to(device)
 
         # Define UDF
-        @udf(returnType=schema)
+        @udf(returnType=embedding_schema)
         def lm_emb(text):
             # Check if text is a string
             if not isinstance(text, str):
@@ -139,7 +139,7 @@ def apply_transform(
             )
             token_type_ids = outputs.get("token_type_ids")
             if token_type_ids is None:
-                token_type_ids = torch.zeros_like(outputs["input_ids"], dtype=torch.int8)
+                token_type_ids = th.zeros_like(outputs["input_ids"], dtype=th.int8)
             with th.no_grad():
                 lm_outputs = lm_model(
                     input_ids=outputs["input_ids"].to(device),

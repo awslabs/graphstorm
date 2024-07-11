@@ -44,6 +44,7 @@ class DistSingleLabelTransformation(DistributedTransformation):
         self.spark = spark
 
     def apply(self, input_df: DataFrame) -> DataFrame:
+        assert self.spark
         processed_col_name = self.label_column + "_processed"
 
         str_indexer = StringIndexer(

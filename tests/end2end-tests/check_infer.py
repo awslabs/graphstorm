@@ -78,7 +78,7 @@ if __name__ == '__main__':
             data = read_data_parquet(os.path.join(ntype_emb_path, f),
                                      data_fields=["emb", "nid"])
             train_remaped_emb.append(data["emb"])
-            train_remaped_nids.append(data["nid"])
+            train_remaped_nids.append(data["nid"].astype(int))
         train_remaped_emb = np.concatenate(train_remaped_emb)
         train_remaped_nids = np.concatenate(train_remaped_nids)
 
@@ -106,7 +106,7 @@ if __name__ == '__main__':
             data = read_data_parquet(os.path.join(ntype_emb_path, f),
                                      data_fields=["emb", "nid"])
             infer_remaped_emb.append(data["emb"])
-            infer_remaped_nids.append(data["nid"])
+            infer_remaped_nids.append(data["nid"].astype(int))
         infer_remaped_emb = np.concatenate(infer_remaped_emb)
         infer_remaped_nids = np.concatenate(infer_remaped_nids)
 
