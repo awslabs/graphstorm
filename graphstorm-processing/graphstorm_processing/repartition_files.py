@@ -325,7 +325,9 @@ class ParquetRepartitioner:
             for idx in range(len(desired_counts))
         ]
         with Parallel(
-            n_jobs=min(NUM_WRITE_THREADS, os.cpu_count()), verbose=self.verbosity, prefer="threads"
+            n_jobs=min(NUM_WRITE_THREADS, os.cpu_count() or 16),
+            verbose=self.verbosity,
+            prefer="threads",
         ) as parallel:
             parallel(
                 delayed(self.write_parquet_to_relative_path)(

@@ -56,6 +56,7 @@ class DistCategoryTransformation(DistributedTransformation):
         return "DistCategoryTransformation"
 
     def apply(self, input_df: DataFrame) -> DataFrame:
+        assert self.spark
         processed_col_names = []
         top_categories_per_col: dict[str, list] = {}
 
@@ -216,14 +217,16 @@ class DistCategoryTransformation(DistributedTransformation):
             return [0] * vec_size
 
         transformed_df = None
-        already_transformed_cols = []
+        already_transformed_cols: list[str] = []
         remaining_cols = list(self.cols)
 
         for col_idx, current_col in enumerate(precomputed_cols):
             vector_size = len(labels_arrays[col_idx])
             # Mapping from string to one-hot vector,
             # with all-zeroes default for unknown/missing values
-            string_to_vector = defaultdict(partial(create_zeroes_list, vector_size))
+            string_to_vector: dict[str, list[int]] = defaultdict(
+                partial(create_zeroes_list, vector_size)
+            )
 
             string_to_one_hot_idx = per_col_label_to_one_hot_idx[current_col]
 

@@ -128,9 +128,9 @@ def _configure_spark_env_memory(
         instance_type = processing_job_config["ProcessingResources"]["ClusterConfig"][
             "InstanceType"
         ].replace("ml.", "")
-        instance_type_info = instance_type_info[instance_type]
-        instance_mem_mb = instance_type_info["MemoryInfo"]["SizeInMiB"]
-        instance_cores = instance_type_info["VCpuInfo"]["DefaultVCpus"]
+        instance_type_details = instance_type_info[instance_type]
+        instance_mem_mb = instance_type_details["MemoryInfo"]["SizeInMiB"]
+        instance_cores = instance_type_details["VCpuInfo"]["DefaultVCpus"]
         logging.info(
             "Detected instance type: %s with total memory: %d MiB and total cores: %d",
             instance_type,
