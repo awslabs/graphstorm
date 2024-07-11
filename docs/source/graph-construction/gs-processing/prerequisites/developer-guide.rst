@@ -3,6 +3,7 @@
 Developer Guide
 ---------------
 
+The doc is a guidance for developers only.
 The project is set up using ``poetry`` to make easier for developers to
 jump into the project.
 
