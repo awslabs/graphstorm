@@ -30,6 +30,7 @@ ENV PATH="/opt/gs-venv/bin:$PATH"
 # Install GraphStorm dependencies
 RUN pip install \
     boto3==1.34.89 \
+    numpy==1.26.4 \
     botocore==1.34.89 \
     h5py==3.11.0 \
     networkx==3.1 \
