@@ -3,7 +3,7 @@
 Developer Guide
 ---------------
 
-The document provides instructions to developers set up their environment and start contributing correctly.
+The document helps developers set up their environment and start contributing correctly.
 It includes steps for setting up the local development environment with poetry,
 followed by guidelines on using linters and type checkers to ensure code quality.
 
