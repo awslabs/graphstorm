@@ -27,7 +27,6 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
 RUN python3.9 -m venv /opt/gs-venv
 ENV PATH="/opt/gs-venv/bin:$PATH"
 
-# Please downgrade the numpy version when using torch <= 2.2
 # Install GraphStorm dependencies
 RUN pip install \
     boto3==1.34.89 \
