@@ -2,3 +2,132 @@
 Running partition jobs on SageMaker
 ===================================
 
+Once the :ref:`distributed processing setup<gsprocessing_distributed_setup>` is complete,
+we can use Amazon SageMaker launch scripts to launch distributed processing jobs with AWS resources.
+To demonstrate the usage of GSProcessing on Amazon SageMaker, we will execute the same output in the
+`:ref: Running GSProcessing on Amazon SageMaker<gsprocessing_sagemaker_output>`.
+
+Build the docker image for partition jobs on SageMaker
+------------------------------------------------------
+GPartition job on SageMaker uses SageMaker's **BYOC** (Bring Your Own Container) mode.
+
+Step 1: Build a SageMaker-compatible Docker image
+...................................................
+
+.. note::
+    * Please make sure your account has access key (AK) and security access key (SK) configured to authenticate accesses to AWS services.
+    * For more details of Amazon ECR operation via CLI, users can refer to the `Using Amazon ECR with the AWS CLI document <https://docs.aws.amazon.com/AmazonECR/latest/userguide/getting-started-cli.html>`_.
+
+First, in a Linux machine, configure a Docker environment by following the `Docker documentation <https://docs.docker.com/get-docker/>`_ suggestions.
+
+In order to use the SageMaker base Docker image, users need to use the following command to authenticate to pull SageMaker images.
+
+.. code-block:: bash
+
+    aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 763104351884.dkr.ecr.us-east-1.amazonaws.com
+
+Then, clone GraphStorm source code, and build a GraphStorm SageMaker compatible Docker image from source with commands:
+
+.. code-block:: bash
+
+    git clone https://github.com/awslabs/graphstorm.git
+
+    cd /path-to-graphstorm/docker/
+
+    bash /path-to-graphstorm/docker/build_docker_sagemaker.sh /path-to-graphstorm/ <DEVICE_TYPE> <IMAGE_NAME> <IMAGE_TAG>
+
+The ``build_docker_sagemaker.sh`` script takes four arguments:
+
+1. **path-to-graphstorm** (**required**), is the absolute path of the ``graphstorm`` folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
+2. **DEVICE_TYPE** (optional), is the intended device type of the to-be built Docker image. There are two options: ``cpu`` for building CPU-compatible images, and ``gpu`` for building Nvidia GPU-compatible images. Default is ``gpu``.
+3. **IMAGE_NAME** (optional), is the assigned name of the to-be built Docker image. Default is ``graphstorm``.
+
+.. warning::
+    In order to upload the GraphStorm SageMaker Docker image to Amazon ECR, users need to define the <IMAGE_NAME> to include the ECR URI string, **<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/**, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm``.
+
+4. **IMAGE_TAG** (optional), is the assigned tag name of the to-be built Docker image. Default is ``sm-<DEVICE_TYPE>``,
+   that is, ``sm-gpu`` for GPU images, ``sm-cpu`` for CPU images.
+
+Once the ``build_docker_sagemaker.sh`` command completes successfully, there will be a Docker image, named ``<IMAGE_NAME>:<IMAGE_TAG>``,
+such as ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm-gpu``, in the local repository, which could be listed by running:
+
+.. code-block:: bash
+
+    docker image ls
+
+.. _upload_sagemaker_docker:
+
+Step 2: Upload Docker Images to Amazon ECR Repository
+.......................................................
+Because SageMaker relies on Amazon ECR to access customers' own Docker images, users need to upload Docker images built in the Step 1 to their own ECR repository.
+
+The following command will authenticate the user account to access to user's ECR repository via AWS CLI.
+
+.. code-block:: bash
+
+    aws ecr get-login-password --region <REGION> | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com
+
+Please replace the `<REGION>` and `<AWS_ACCOUNT_ID>` with your own account information and be consistent with the values used in the **Step 1**.
+
+In addition, users need to create an ECR repository at the specified `<REGION>` with the name as `<IMAGE_NAME>` **WITHOUT** the ECR URI string, e.g., ``graphstorm``.
+
+And then use the below command to push the built GraphStorm Docker image to users' own ECR repository.
+
+.. code-block:: bash
+
+    docker push <IMAGE_NAME>:<IMAGE_TAG>
+
+Please replace the `<IMAGE_NAME>` and `<IMAGE_TAG>` with the actual Docker image name and tag, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm-gpu``.
+
+Launch the partition job on Amazon SageMaker
+---------------------------------------------
+
+For this example we'll use a same size SageMaker cluster with 2 ``ml.t3.xlarge`` instances
+as in `:ref: the GSProcessing Example<gsprocessing_sagemaker_output>`. In this tutorial, we assume the data is already ready on AWS S3 bucket.
+For large graph, users can select larger instance type and more instances in number.
+
+Install dependencies
+.....................
+To run GraphStorm with the Amazon SageMaker service, users should set up an instance with the SageMaker library installed and GraphStorm's SageMaker tools copied.
+
+1. Use the below command to install SageMaker.
+
+.. code-block:: bash
+
+    pip install sagemaker
+
+2. Copy GraphStorm SageMaker tools. Users can clone the GraphStorm repository using the following command or copy the `sagemaker folder <https://github.com/awslabs/graphstorm/tree/main/sagemaker>`_ to the instance.
+
+.. code-block:: bash
+
+    git clone https://github.com/awslabs/graphstorm.git
+
+Launch graph partitioning task
+...............................
+Users can use the following command to launch partition jobs.
+
+.. code:: bash
+
+   python launch/launch_partition.py \
+       --graph-data-s3 ${DATASET_S3_PATH} \
+       --num-parts ${NUM_PARTITIONS} \
+       --instance-count ${NUM_INSTANCES} \
+       --output-data-s3 ${OUTPUT_PATH} \
+       --instance-type ${INSTANCE_TYPE} \
+       --image-url ${IMAGE_URI} \
+       --region ${REGION} \
+       --role ${ROLE}  \
+       --entry-point "run/partition_entry.py" \
+       --metadata-filename ${METADATA_FILE} \
+       --log-level INFO \
+       --partition-algorithm ${ALGORITHM}
+
+.. warning::
+    The ``NUM_INSTANCES`` should be a multiple of ``NUM_PARTITIONS`` here.
+
+Running the above will take the dataset after GSProcessing
+from ``${DATASET_S3_PATH}`` as input and create a DistDGL graph with
+``${NUM_PARTITIONS}`` under the output path, ``${OUTPUT_PATH}``.
+Currently we only support ``random`` as the partitioning algorithm.
+
+

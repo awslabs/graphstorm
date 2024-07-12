@@ -9,7 +9,7 @@ GPartition offers to handle massive graph data in distributed clusters on AWS In
 dgl `distributed graph partitioning pipeline <https://docs.dgl.ai/en/latest/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_.
 
 The first section includes instructions on how to run GPartition on `Amazon SageMaker <https://docs.aws.amazon.com/sagemaker/>`_.
-The second section includes instructions on how to run GPartition with `Amazon EC2 clusters <https://docs.aws.amazon.com/AmazonECS/latest/developerguide/clusters.html>`_.
+The second section includes instructions on how to run GPartition on `Amazon EC2 clusters <https://docs.aws.amazon.com/AmazonECS/latest/developerguide/clusters.html>`_.
 
 .. toctree::
    :maxdepth: 1
