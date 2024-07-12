@@ -14,18 +14,12 @@ Welcome to the GraphStorm Documentation and Tutorials
    configuration/index
 
 .. toctree::
-   :maxdepth: 1
-   :caption: Distributed Processing
+   :maxdepth: 3
+   :caption: Command Line Interface User Guide
    :hidden:
    :glob:
 
-   gs-processing/gs-processing-getting-started
-   gs-processing/usage/example
-   gs-processing/usage/distributed-processing-setup
-   gs-processing/usage/amazon-sagemaker
-   gs-processing/usage/emr
-   gs-processing/usage/emr-serverless
-   gs-processing/developer/input-configuration
+   graph-construction/index.rst
 
 .. toctree::
    :maxdepth: 1

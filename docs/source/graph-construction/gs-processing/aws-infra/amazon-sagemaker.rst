@@ -1,7 +1,9 @@
+.. _gsprocessing_sagemaker:
+
 Running distributed jobs on Amazon SageMaker
 ============================================
 
-Once the :doc:`Amazon SageMaker setup <distributed-processing-setup>` is complete, we can
+Once the :ref:`Amazon SageMaker Setup<gsprocessing_distributed_setup>` is complete, we can
 use the Amazon SageMaker launch scripts to launch distributed processing
 jobs that use AWS resources.
 
@@ -24,7 +26,7 @@ of up to 20 instances, allowing you to scale your processing to massive graphs,
 using larger instances like ``ml.r5.24xlarge``.
 
 Since we're now executing on AWS, we'll need access to an execution role
-for SageMaker and the ECR image URI we created in :doc:`distributed-processing-setup`.
+for SageMaker and the ECR image URI we created in :ref:`GSProcessing distributed setup<gsprocessing_distributed_setup>`.
 For instructions on how to create an execution role for SageMaker
 see the `AWS SageMaker documentation <https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-roles.html#sagemaker-roles-create-execution-role>`_.
 
@@ -75,7 +77,7 @@ enough to fit in the memory of the Spark leader.
 For large graphs you will
 want to launch that step as a separate job on an instance with more memory to avoid memory errors.
 `ml.r5` instances should allow you to re-partition graph data with billions of nodes and edges.
-For more details on the re-partitioning step see :doc:`row-count-alignment`.
+For more details on the re-partitioning step see :ref:`row count alignment<row_count_alignment>`.
 
 To run the re-partition job as a separate job use:
 

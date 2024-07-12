@@ -1,4 +1,4 @@
-..  _input-configuration:
+..  _gsprocessing_input_configuration:
 
 GraphStorm Processing Input Configuration
 =========================================

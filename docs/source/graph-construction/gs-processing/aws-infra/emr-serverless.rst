@@ -1,7 +1,9 @@
+.. _gsprocessing_emr_serverless:
+
 Running distributed jobs on EMR Serverless
 ==========================================
 
-Once the :doc:`distributed processing setup <distributed-processing-setup>` is complete,
+Once the :ref:`distributed processing setup<gsprocessing_distributed_setup>` is complete,
 and we have built and pushed an EMR Serverless image tagged as ``graphstorm-processing-emr-serverless``, we can
 set up our execution environment for EMR Serverless (EMR-S). If you're not familiar with EMR-S
 we suggest going through its `introductory documentation <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/emr-serverless.html>`_
@@ -99,7 +101,7 @@ from the image you just created. GSProcessing version ``0.2.2`` uses ``emr-6.13.
 base image, so we need to ensure our application uses the same release.
 
 Additionally, if it is required to use text feature transformation with Huggingface model, it is suggested to download the model cache inside the emr-serverless
-docker image: :doc:`distributed-processing-setup` to save cost and time. Please note that the maximum size for docker images in EMR Serverless is limited to 5GB:
+docker image: :ref:`GSProcessing Distributed Setup<gsprocessing_distributed_setup>` to save cost and time. Please note that the maximum size for docker images in EMR Serverless is limited to 5GB:
 `EMR Serverless Considerations and Limitations
 <https://docs.aws.amazon.com/emr/latest/EMR-Serverless-UserGuide/application-custom-image.html#considerations>`_.
 
@@ -160,7 +162,7 @@ With all the setup complete we should now have the following:
 * An EMR-S application that uses our custom image.
 * An execution role that our EMR-S jobs will use when we launch them.
 
-To launch the same example job as we demonstrate in the :doc:`SageMaker Processing job guide <amazon-sagemaker>`
+To launch the same example job as we demonstrate in the :ref:`SageMaker Processing job guide<gsprocessing_sagemaker>`
 you can use the following ``bash`` snippet. Note that we use ``jq`` to wrangle JSON data,
 which you can download from its `official website <https://jqlang.github.io/jq/download/>`_,
 install using your package manager, or by running ``pip install jq``.
@@ -239,7 +241,7 @@ on an instance with S3 access (where we installed GSProcessing):
     gs-repartition --input-prefix ${OUTPUT_PREFIX}
 
 Or if your data are too large for the re-partitioning job to run locally, you can
-launch a SageMaker job as below after following the :doc:`distributed processing setup <distributed-processing-setup>`
+launch a SageMaker job as below after following the :ref:`distributed processing setup<gsprocessing_distributed_setup>`
 and building the GSProcessing SageMaker ECR image:
 
 .. code-block:: bash
@@ -261,7 +263,7 @@ Note that ``${OUTPUT_PREFIX}`` here will need to match the value assigned when l
 the EMR-S job, i.e. ``"s3://${OUTPUT_BUCKET}/gsprocessing/emr-s/small-graph/4files/"``
 
 For more details on the re-partitioning step see
-:doc:`row-count-alignment`.
+:ref:`row count alignment<row_count_alignment>`.
 
 Examine the output
 ------------------

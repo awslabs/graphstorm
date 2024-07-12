@@ -64,6 +64,7 @@ from ..utils import TORCH_MAJOR_VER, get_log_level, get_graph_name
 from ..eval import SUPPORTED_CLASSIFICATION_METRICS
 from ..eval import SUPPORTED_REGRESSION_METRICS
 from ..eval import SUPPORTED_LINK_PREDICTION_METRICS
+from ..eval import SUPPORTED_HIT_AT_METRICS
 
 from ..dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from ..dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
@@ -689,6 +690,7 @@ class GSConfig:
             _ = self.max_grad_norm
             _ = self.grad_norm_type
             _ = self.gnn_norm
+            _ = self.decoder_norm
             _ = self.sparse_optimizer_lr
             _ = self.num_epochs
             _ = self.save_model_path
@@ -2571,19 +2573,29 @@ class GSConfig:
             if hasattr(self, "_eval_metric"):
                 if isinstance(self._eval_metric, str):
                     eval_metric = self._eval_metric.lower()
-                    assert eval_metric in SUPPORTED_CLASSIFICATION_METRICS, \
-                        f"Classification evaluation metric should be " \
-                        f"in {SUPPORTED_CLASSIFICATION_METRICS}" \
-                        f"but get {self._eval_metric}"
+                    if eval_metric.startswith(SUPPORTED_HIT_AT_METRICS):
+                        assert eval_metric[len(SUPPORTED_HIT_AT_METRICS)+1:].isdigit(), \
+                            "hit_at_k evaluation metric for classification " \
+                            f"must end with an integer, but get {eval_metric}"
+                    else:
+                        assert eval_metric in SUPPORTED_CLASSIFICATION_METRICS, \
+                            f"Classification evaluation metric should be " \
+                            f"in {SUPPORTED_CLASSIFICATION_METRICS}" \
+                            f"but get {self._eval_metric}"
                     eval_metric = [eval_metric]
                 elif isinstance(self._eval_metric, list) and len(self._eval_metric) > 0:
                     eval_metric = []
                     for metric in self._eval_metric:
                         metric = metric.lower()
-                        assert metric in SUPPORTED_CLASSIFICATION_METRICS, \
-                            f"Classification evaluation metric should be " \
-                            f"in {SUPPORTED_CLASSIFICATION_METRICS}" \
-                            f"but get {self._eval_metric}"
+                        if metric.startswith(SUPPORTED_HIT_AT_METRICS):
+                            assert metric[len(SUPPORTED_HIT_AT_METRICS)+1:].isdigit(), \
+                                "hit_at_k evaluation metric for classification " \
+                                f"must end with an integer, but get {eval_metric}"
+                        else:
+                            assert metric in SUPPORTED_CLASSIFICATION_METRICS, \
+                                f"Classification evaluation metric should be " \
+                                f"in {SUPPORTED_CLASSIFICATION_METRICS}" \
+                                f"but get {self._eval_metric}"
                         eval_metric.append(metric)
                 else:
                     assert False, "Classification evaluation metric " \
@@ -2699,6 +2711,18 @@ class GSConfig:
             return self._num_ffn_layers_in_decoder
         # Set default mlp layer number between gnn layer to 0
         return 0
+
+    @property
+    def decoder_norm(self):
+        """ Normalization (Batch or Layer)
+        """
+        # pylint: disable=no-member
+        if not hasattr(self, "_decoder_norm"):
+            return None
+        assert self._decoder_norm in BUILTIN_GNN_NORM, \
+            "Normalization type must be one of batch or layer"
+
+        return self._decoder_norm
 
     ################## Reconstruct node feats ###############
     @property
@@ -3001,6 +3025,8 @@ def _add_edge_classification_args(parser):
     group.add_argument('--decoder-type', type=str, default=argparse.SUPPRESS,
                        help="Decoder type can either be  DenseBiDecoder or "
                             "MLPDecoder to specify the model decoder")
+    group.add_argument("--decoder-norm", type=str, default=argparse.SUPPRESS,
+                       help="decoder norm type")
 
     group.add_argument(
             "--remove-target-edge-type",

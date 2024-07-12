@@ -438,6 +438,41 @@ def check_feat_ops_rank_gauss():
     trans_feat = np.sort(trans_feat, axis=0)
     rev_trans_feat = np.flip(trans_feat, axis=0)
     assert np.all(trans_feat + rev_trans_feat == 0)
+    num_unique_feat = np.unique(trans_feat, axis=0)
+    assert len(num_unique_feat) == 200
+
+    data7_0 = {
+        "test1": np.zeros((100,2)).astype(np.float32)
+    }
+    data7_1 = {
+        "test1": np.ones((100,2)).astype(np.float32)
+    }
+    feat_op7 = [
+        {
+            "feature_col": "test1",
+            "feature_name": "test7",
+            "transform": {
+                "name": 'rank_gauss',
+                "epsilon": 1e-5,
+                "uniquify": True
+            },
+        },
+    ]
+    (res, _, _, _) = parse_feat_ops(feat_op7)
+    assert len(res) == 1
+    assert res[0].col_name == feat_op7[0]["feature_col"]
+    assert res[0].feat_name == feat_op7[0]["feature_name"]
+    proc_res7_0 = process_features(data7_0, res)
+    proc_res7_1 = process_features(data7_1, res)
+    new_feat = np.concatenate([proc_res7_0["test7"], proc_res7_1["test7"]])
+    trans_feat = res[0].after_merge_transform(new_feat)
+    assert trans_feat.dtype == np.float32
+    # sum of gauss rank should be zero
+    trans_feat = np.sort(trans_feat, axis=0)
+    rev_trans_feat = np.flip(trans_feat, axis=0)
+    assert np.all(trans_feat + rev_trans_feat == 0)
+    num_unique_feat = np.unique(trans_feat, axis=0)
+    assert len(num_unique_feat) == 2
 
 def check_feat_ops_categorical():
     feat_op7 = [
@@ -2053,7 +2088,8 @@ def test_multicolumn(ext_mem_path):
         "feature_col": "test1",
         "feature_name": "test3",
         "transform":{
-            "name": "rank_gauss"
+            "name": "rank_gauss",
+            "epsilon": 1e-7
         }
     }]
     (res, _, _, _) = parse_feat_ops(feat_rg_single1)
@@ -2067,6 +2103,7 @@ def test_multicolumn(ext_mem_path):
         "feature_name": "test3",
         "transform":{
             "name": "rank_gauss",
+            "uniquify": True
         }
     }]
     (res, _, _, _) = parse_feat_ops(feat_rg_single2)

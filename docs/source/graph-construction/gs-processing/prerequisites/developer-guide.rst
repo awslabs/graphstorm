@@ -1,8 +1,12 @@
+.. _gsprocessing_developer_guide:
+
 Developer Guide
 ---------------
 
-The project is set up using ``poetry`` to make easier for developers to
-jump into the project.
+The document helps developers set up their environment for development.
+It includes steps for setting up the local development environment with poetry,
+followed by guidelines on using linters and type checkers to ensure code quality.
+
 
 The steps we recommend are:
 

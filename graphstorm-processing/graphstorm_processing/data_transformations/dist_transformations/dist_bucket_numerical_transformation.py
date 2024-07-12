@@ -75,7 +75,7 @@ class DistBucketNumericalTransformation(DistributedTransformation):
         epsilon = bucket_size / 10
 
         # TODO: Test if pyspark.ml.feature.Bucketizer covers our requirements and is faster
-        def determine_bucket_membership(value: float) -> List[int]:
+        def determine_bucket_membership(value: float) -> list[float]:
             # Create value range, value -> [value - slide/2, value + slide/2]
             high_val = value + self.slide_window_size / 2
             low_val = value - self.slide_window_size / 2
