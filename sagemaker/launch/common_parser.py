@@ -15,7 +15,8 @@ SUPPORTED_TASKS = {
     "node_regression",
     "edge_classification",
     "edge_regression",
-    "link_prediction"
+    "link_prediction",
+    "multi_task"
 }
 
 SUPPORTED_INFER_TASKS = {
@@ -24,7 +25,8 @@ SUPPORTED_INFER_TASKS = {
     "edge_classification",
     "edge_regression",
     "link_prediction",
-    "comput_emb"
+    "comput_emb",
+    "multi_task"
 }
 
 def get_common_parser() -> argparse.ArgumentParser:
