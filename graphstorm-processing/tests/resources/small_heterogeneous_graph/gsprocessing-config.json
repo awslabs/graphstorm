@@ -58,6 +58,17 @@
                         }
                     },
                     {
+                        "column": "multi",
+                        "name": "no-op-truncated",
+                        "transformation": {
+                            "name": "no-op",
+                            "kwargs": {
+                                "separator": "|",
+                                "truncate_dim": 1
+                            }
+                        }
+                    },
+                    {
                         "column": "occupation",
                         "transformation": {
                             "name": "huggingface",

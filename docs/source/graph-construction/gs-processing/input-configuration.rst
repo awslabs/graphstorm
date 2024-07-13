@@ -23,7 +23,7 @@ The GSProcessing input data configuration has two top-level objects:
 .. code-block:: json
 
    {
-     "version": "gsprocessing-v1.0",
+     "version": "gsprocessing-v0.3.1",
      "graph": {}
    }
 
@@ -380,6 +380,12 @@ arguments.
          split the values in the column and create a vector column
          output. Example: for a separator ``'|'`` the CSV value
          ``1|2|3`` would be transformed to a vector, ``[1, 2, 3]``.
+      - ``truncate_dim`` (Integer, optional): Relevant for vector inputs.
+        Allows you to truncate the input vector to the first ``truncate_dim``
+        values, which can be useful when your inputs are `Matryoshka representation
+        learning embeddings <https://arxiv.org/abs/2205.13147>`_.
+      - ``out_dtype`` (String, Optional): Specify the data type of the transformed feature.
+        Currently we only support ``float32`` and ``float64`` .
 -  ``numerical``
 
    -  Transforms a numerical column using a missing data imputer and an
@@ -400,7 +406,7 @@ arguments.
          - ``rank-gauss``: Normalize each value using Rank-Gauss normalization. Rank-gauss first ranks all values,
            converts the ranks to the -1/1 range, and applies the `inverse of the error function <https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.erfinv.html>`_ to make the values conform
            to a Gaussian distribution shape. This transformation only supports a single column as input.
-      - ``out_dtype`` (Optional): Specify the data type of the transformed feature.
+      - ``out_dtype`` (String, Optional): Specify the data type of the transformed feature.
         Currently we only support ``float32`` and ``float64`` .
       - ``epsilon``: Only relevant for ``rank-gauss``, this epsilon value is added to the denominator
         to avoid infinite values during normalization.

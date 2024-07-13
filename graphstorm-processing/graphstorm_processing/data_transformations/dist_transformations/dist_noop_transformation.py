@@ -14,7 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List, Optional
+import warnings
+from typing import Optional
+
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
@@ -35,16 +37,24 @@ class NoopTransformation(DistributedTransformation):
 
     Parameters
     ----------
-    cols : List[str]
+    cols : list[str]
         The list of columns to parse as floats or lists of float
     separator : Optional[str], optional
         Optional separator to use to split the string, by default None
     out_dtype: str
         The output feature dtype
+    truncate_dim: int
+        When provided, will truncate the output float-vector feature to the specified dimension.
+        This is useful when the feature is a multi-dimensional vector and we only need
+        a subset of the dimensions, e.g. for Matryoshka Representation Learning embeddings.
     """
 
     def __init__(
-        self, cols: List[str], out_dtype: str = TYPE_FLOAT32, separator: Optional[str] = None
+        self,
+        cols: list[str],
+        out_dtype: str = TYPE_FLOAT32,
+        separator: Optional[str] = None,
+        truncate_dim: Optional[int] = None,
     ) -> None:
         super().__init__(cols)
         # TODO: Support multiple cols?
@@ -55,6 +65,18 @@ class NoopTransformation(DistributedTransformation):
         # escape special chars to be used as separators
         if self.separator in SPECIAL_CHARACTERS:
             self.separator = f"\\{self.separator}"
+        self.truncate_dim = truncate_dim
+
+    def _truncate_vector_df(self, input_df: DataFrame) -> DataFrame:
+        """Truncates every vector in the input DF to the specified dimension."""
+        assert self.truncate_dim is not None
+        return input_df.select(
+            [
+                # SQL array indexes start at 1
+                F.slice(F.col(column), 1, self.truncate_dim).alias(column)
+                for column in self.cols
+            ]
+        )
 
     def apply(self, input_df: DataFrame) -> DataFrame:
         """
@@ -72,13 +94,18 @@ class NoopTransformation(DistributedTransformation):
                     f"Unsupported array type {col_datatype.elementType} "
                     f"for column {self.cols[0]}"
                 )
-            return input_df
+            if self.truncate_dim:
+                return self._truncate_vector_df(input_df)
+            else:
+                return input_df
         elif isinstance(col_datatype, NumericType):
+            if self.truncate_dim is not None:
+                warnings.warn(f"Trying use {self.truncate_dim=} on a DataFrame of scalars!")
             return input_df
 
         # Otherwise we'll try to convert the values from list of strings to list of Doubles
 
-        def str_list_to_float_vec(string_list: Optional[List[str]]) -> Optional[List[float]]:
+        def str_list_to_float_vec(string_list: Optional[list[str]]) -> Optional[list[float]]:
             if string_list:
                 return [float(x) for x in string_list]
             return None
@@ -95,14 +122,16 @@ class NoopTransformation(DistributedTransformation):
                     for column in self.cols
                 ]
             )
-            return input_df
         else:
-            return input_df.select(
+            input_df = input_df.select(
                 [
                     F.col(column).cast(DTYPE_MAP[self.out_dtype]).alias(column)
                     for column in self.cols
                 ]
             )
+
+        if self.truncate_dim:
+            return self._truncate_vector_df(input_df)
 
     @staticmethod
     def get_transformation_name() -> str:
