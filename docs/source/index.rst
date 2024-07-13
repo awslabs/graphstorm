@@ -57,7 +57,7 @@ GraphStorm is a graph machine learning (GML) framework designed for enterprise u
 Getting Started
 ----------------
 
-For beginners, please first start with the :ref:`Setup GraphStorm with pip Packages<setup_pip>`. This tutorial covers how to set up a GraphStorm Standalone mode environment for quick start. 
+For beginners, please first start with the :ref:`Setup GraphStorm with pip Packages<setup_pip>`. This tutorial covers how to set up a GraphStorm Standalone mode environment for quick start.
 
 Once successfully set up the GraphStorm running environment,
 
@@ -85,7 +85,7 @@ Advanced Topics
 
 - For users who want to use their own GML models in GraphStorm, follow the :ref:`Use Your Own GNN Models<use-own-models>` tutorial to learn the programming interfaces and the steps of how to modify users' own models.
 - For users who want to leverage language models on nodes with text features, follow the :ref:`Use Language Model in GraphStorm<language_models>` tutorial to learn how to leverage BERT models to use text as node features in GraphStorm.
-- There are various usages of GraphStorm to both speed up training process and help to boost model performance. Users can find these usages in the :ref:`Advanced Usages<advanced_usages>` page.
+- There are various usages of GraphStorm to both speed up training process and help to boost model performance for link prediction tasks. Users can find these usages in the :ref:`Link Prediction Learning in GraphStorm<_link_prediction_usage>` page.
 - GraphStorm team has been working with NVIDIA team to integrate the NVIDIA's WholeGraph library into GraphStorm for speed-up of feature copy. Users can follow the :ref:`Use WholeGraph in GraphStorm<advanced_wholegraph>` tutorial to know more details.
 - In v0.3, GraphStorm releases an experimental feature to support multi-task learning on the same graph, allowing users to define multiple training targets on different nodes and edges within a single training loop. Users can check the :ref:`Multi-task Learning in GraphStorm<multi_task_learning>` tutorial to know more details.
 
