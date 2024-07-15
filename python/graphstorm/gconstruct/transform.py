@@ -916,13 +916,18 @@ class Noop(FeatTransform):
         The name of the column that contains the feature.
     feat_name : str
         The feature name used in the constructed graph.
-    out_dtype:
+    out_dtype : str
         The dtype of the transformed feature.
         Default: None, we will not do data type casting.
+    truncate_dim : int
+        When provided, will truncate the output float-vector feature to the specified dimension.
+        This is useful when the feature is a multi-dimensional vector and we only need
+        a subset of the dimensions, e.g. for Matryoshka Representation Learning embeddings.
     """
-    def __init__(self, col_name, feat_name, out_dtype=None):
+    def __init__(self, col_name, feat_name, out_dtype=None, truncate_dim=None):
         out_dtype = np.float32 if out_dtype is None else out_dtype
         super(Noop, self).__init__(col_name, feat_name, out_dtype)
+        self.truncate_dim = truncate_dim
 
     def call(self, feats):
         """ This transforms the features.
@@ -941,6 +946,12 @@ class Noop(FeatTransform):
         assert np.issubdtype(feats.dtype, np.integer) \
                 or np.issubdtype(feats.dtype, np.floating), \
                 f"The feature {self.feat_name} has to be integers or floats."
+        if self.truncate_dim is not None:
+            if isinstance(feats, np.ndarray):
+                feats = feats[:, :self.truncate_dim]
+            else:
+                assert isinstance(feats, ExtMemArrayWrapper)
+                feats = feats.to_numpy()[:, :self.truncate_dim]
         return {self.feat_name: feats}
 
 class HardEdgeNegativeTransform(TwoPhaseFeatTransform):
@@ -1148,7 +1159,12 @@ def parse_feat_ops(confs, input_data_format=None):
 
         out_dtype = _get_output_dtype(feat['out_dtype']) if 'out_dtype' in feat else None
         if 'transform' not in feat:
-            transform = Noop(feat['feature_col'], feat_name, out_dtype=out_dtype)
+            transform = Noop(
+                feat['feature_col'],
+                feat_name,\
+                out_dtype=out_dtype,
+                truncate_dim=feat.get('truncate_dim', None)
+            )
         else:
             conf = feat['transform']
             assert 'name' in conf, "'name' must be defined in the transformation field."
