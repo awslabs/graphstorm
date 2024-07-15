@@ -46,17 +46,17 @@ class RgcnNCModel(GSgnnNodeModel):
     Arguments
     ----------
     g: DistGraph
-        A DGL DistGraph
+        A DGL DistGraph.
     num_hid_layers: int
-        The number of gnn layers
+        The number of gnn layers.
     node_feat_field: dict of list of strings
-        The list features for each node type to be used in the model
+        The list features for each node type to be used in the model.
     hid_size: int
         The dimension of hidden layers.
     num_classes: int
-        The target number of classes for classification
+        The target number of classes for classification.
     multilabel: boolean
-        Indicator of if this is a multilabel task
+        Indicator of if this is a multilabel task.
     """
     def __init__(self,
                  g,
@@ -99,7 +99,7 @@ class RgcnNCModel(GSgnnNodeModel):
 class RgatNCModel(GSgnnNodeModel):
     """ A simple RGAT model for node classification using Graphstorm APIs
 
-    This RGCN model extends GraphStorm's GSgnnNodeModel, and it has the standard GraphStorm
+    This RGAT model extends GraphStorm's GSgnnNodeModel, and it has the standard GraphStorm
     model architecture:
     1. an input layer that converts input node features to the embeddings with hidden dimensions
     2. a GNN encoder layer that performs the message passing work
@@ -112,17 +112,19 @@ class RgatNCModel(GSgnnNodeModel):
     Arguments
     ----------
     g: DistGraph
-        A DGL DistGraph
+        A DGL DistGraph.
+    num_heads: int
+        The number of attention heads.
     num_hid_layers: int
-        The number of gnn layers
+        The number of gnn layers.
     node_feat_field: dict of list of strings
-        The list features for each node type to be used in the model
+        The list features for each node type to be used in the model.
     hid_size: int
         The dimension of hidden layers.
     num_classes: int
-        The target number of classes for classification
+        The target number of classes for classification.
     multilabel: boolean
-        Indicator of if this is a multilabel task
+        Indicator of if this is a multilabel task.
     """
     def __init__(self,
                  g,
@@ -179,13 +181,13 @@ class RgcnLPModel(GSgnnLinkPredictionModel):
     Arguments
     ----------
     g: DistGraph
-        a DGL DistGraph
+        A DGL DistGraph.
     num_hid_layers: int
-        the number of gnn layers
+        The number of gnn layers.
     node_feat_field: dict of list of strings
-        The list features for each node type to be used in the model
+        The list features for each node type to be used in the model.
     hid_size: int
-        the dimension of hidden layers.
+        The dimension of hidden layers.
     """
     def __init__(self,
                  g,
@@ -236,15 +238,15 @@ class HgtLPModel(GSgnnLinkPredictionModel):
     Arguments
     ----------
     g: DistGraph
-        a DGL DistGraph
+        A DGL DistGraph.
     num_heads: int
-        the number of attention heads
+        The number of attention heads.
     num_hid_layers: int
-        the number of gnn layers
+        The number of gnn layers.
     node_feat_field: dict of list of strings
-        The list features for each node type to be used in the model
+        The list features for each node type to be used in the model.
     hid_size: int
-        the dimension of hidden layers.
+        The dimension of hidden layers.
     """
     def __init__(self,
                  g,
