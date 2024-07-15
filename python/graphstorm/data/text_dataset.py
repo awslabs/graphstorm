@@ -28,8 +28,8 @@ def local_tokenize(inputs):
      -------
     Dictionary of tokens
     """
-    bert_model_name, max_seq_length, val = inputs
-    tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
+    lm_model_name, max_seq_length, val = inputs
+    tokenizer = AutoTokenizer.from_pretrained(lm_model_name)
     sub_tokens = tokenizer(val,  max_length=max_seq_length,
                            truncation=True, padding=True, return_tensors='pt')
 
@@ -73,7 +73,7 @@ class GSgnnTextDataset(GSgnnDataset):
         self._g = None
         raise NotImplementedError
 
-    def tokenize_text(self, max_seq_length=128, bert_model_name='bert-base-uncased',
+    def tokenize_text(self, max_seq_length=128, lm_model_name='bert-base-uncased',
                       num_workers=32):
         """ Tokenize the raw text feature.
 
@@ -86,15 +86,15 @@ class GSgnnTextDataset(GSgnnDataset):
         ----------
         max_seq_length: int
             max sequency length
-        bert_model_name: str
-            Huggingface bert model name
+        lm_model_name: str
+            Huggingface lm model name
         num_workers: int
             max parallelism
         Returns
         ---------
         A dictionary of tokenized text data from differnt node types.
         """
-        print("Using for tokenizer "+bert_model_name)
+        print("Using for tokenizer "+lm_model_name)
         limit = num_workers
         pool = multiprocessing.Pool(processes=multiprocessing.cpu_count()
             if multiprocessing.cpu_count() < limit else limit)
@@ -105,7 +105,7 @@ class GSgnnTextDataset(GSgnnDataset):
 
                 tasks = [values[x:x+chunksize] for x in range(0, len(values), chunksize)]
                 print("Tokenizing: {}:{}/{}".format(key, len(values), len(tasks)))
-                outputs = pool.map(local_tokenize, [(bert_model_name, max_seq_length, task)
+                outputs = pool.map(local_tokenize, [(lm_model_name, max_seq_length, task)
                                                     for task in tasks])
 
                 input_ids = []

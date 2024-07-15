@@ -9,29 +9,25 @@ lm_model:
 gsf:
   basic:
     backend: gloo
-    num_gpus: 2
     ip_config: ip_list.txt
     part_config: test_multilabel_ec_1p_4t/multilabel-ec-test.json
     verbose: false
-    debug: false
   gnn:
     model_encoder_type: rgcn
     fanout: "4"
-    n_layers: 1
-    n_hidden: 128
+    num_layers: 1
+    hidden_size: 128
   input:
     restore_model_path: /data/gsgnn_ec/
   output:
     save_embed_path: /data/gsgnn_ec/infer-emb/
-    save_predict_path: /data/gsgnn_ec/prediction/
+    save_prediction_path: /data/gsgnn_ec/prediction/
   hyperparam:
-    eval_batch_size: 1024
-    bert_infer_bs: 128
     no_validation: false
   rgcn:
-    n_bases: -1
+    num_bases: -1
     use_self_loop: true
-    sparse_lr: 1e-2
+    sparse_optimizer_lr: 1e-2
     use_node_embeddings: false
   edge_classification:
     target_etype:

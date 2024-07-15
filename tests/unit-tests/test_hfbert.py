@@ -13,19 +13,15 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import torch as th
-
 from transformers import AutoTokenizer
-
-from graphstorm.model.lm_model import init_lm_model
-from graphstorm.model.lm_model import BUILTIN_HF_BERT
-from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, TOKEN_TID_IDX, VALID_LEN
-
 from numpy.testing import assert_almost_equal
-
 import pytest
 
 from util import create_tokens
+from graphstorm.model.lm_model import init_lm_model
+from graphstorm.model.lm_model import BUILTIN_HF_BERT
+from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, TOKEN_TID_IDX, VALID_LEN
+# pylint: disable=redefined-outer-name line-too-long missing-function-docstring
 
 def comput_bert(lm_model, input_ids, attention_masks, token_type_ids=None):
     lm_model.lm_model.eval()
@@ -39,12 +35,23 @@ def comput_bert(lm_model, input_ids, attention_masks, token_type_ids=None):
 @pytest.mark.parametrize("num_train", [0, 10, -1])
 @pytest.mark.parametrize("input_ntypes", [["n1", "n2", "n3"], ["n1"]])
 @pytest.mark.parametrize("generate_tid", [True, False])
-def test_hfbert_wrapper(num_train, input_ntypes, generate_tid):
+@pytest.mark.parametrize("lm_type, bert_model_name",[
+    (BUILTIN_HF_BERT, "bert-base-uncased"),
+    ("roberta", "roberta-base"),
+    ("albert", "albert-base-v1"),
+    ("camembert", "camembert-base"),
+    ("ernie", "nghuyong/ernie-1.0-base-zh"),
+    ("ibert", "kssteven/ibert-roberta-base"),
+    ("mega", "mnaylor/mega-base-wikitext"),
+    ("mpnet", "microsoft/mpnet-base"),
+    ("nezha", "sijunhe/nezha-cn-base"),
+    ("qdqbert", "bert-base-uncased"),
+    ("roc_bert", "weiweishi/roc-bert-base-zh")])
+def test_hfbert_wrapper(num_train, input_ntypes, generate_tid, lm_type, bert_model_name):
     device='cuda:0'
-    bert_model_name = "bert-base-uncased"
     max_seq_length = 32
     num_nodes = [100, 50, 1]
-    lm_model = init_lm_model({"lm_type": BUILTIN_HF_BERT,
+    lm_model = init_lm_model({"lm_type": lm_type,
                               "model_name": bert_model_name,
                               "gradient_checkpoint": True}, num_train=num_train)
     lm_model = lm_model.to(device)
@@ -153,12 +160,13 @@ def test_hfbert_wrapper_profile():
     assert prof_static_flops > 0
 
 if __name__ == '__main__':
-    test_hfbert_wrapper(0, ["n1", "n2", "n3"], False)
-    test_hfbert_wrapper(10, ["n1", "n2", "n3"], False)
-    test_hfbert_wrapper(-1, ["n1", "n2", "n3"], False)
+    lm_type, bert_model_name = BUILTIN_HF_BERT, "bert-base-uncased"
+    test_hfbert_wrapper(0, ["n1", "n2", "n3"], False, lm_type, bert_model_name)
+    test_hfbert_wrapper(10, ["n1", "n2", "n3"], False, lm_type, bert_model_name)
+    test_hfbert_wrapper(-1, ["n1", "n2", "n3"], False, lm_type, bert_model_name)
 
-    test_hfbert_wrapper(0, ["n1", "n2", "n3"], True)
-    test_hfbert_wrapper(10, ["n1", "n2", "n3"], True)
-    test_hfbert_wrapper(-1, ["n1", "n2", "n3"], True)
-    test_hfbert_wrapper(10, ["n1"], False)
+    test_hfbert_wrapper(0, ["n1", "n2", "n3"], True, lm_type, bert_model_name)
+    test_hfbert_wrapper(10, ["n1", "n2", "n3"], True, lm_type, bert_model_name)
+    test_hfbert_wrapper(-1, ["n1", "n2", "n3"], True, lm_type, bert_model_name)
+    test_hfbert_wrapper(10, ["n1"], False, lm_type, bert_model_name)
     test_hfbert_wrapper_profile()

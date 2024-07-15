@@ -15,3 +15,8 @@ __pycache__/
 # used by the container build
 /code
 /container
+
+# Sphinx documentation
+docs/build/
+docs/source/_build
+docs/source/generated

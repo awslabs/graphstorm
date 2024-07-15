@@ -17,7 +17,8 @@
 """
 import torch as th
 
-from ..data.utils import alltoallv_nccl, alltoallv_cpu
+from ..utils import get_backend, is_distributed
+from ..data.utils import alltoallv_cpu, alltoallv_nccl
 
 def calc_distmult_pos_score(h_emb, t_emb, r_emb, device=None):
     """ Calculate DistMulti Score for positive pairs
@@ -233,7 +234,9 @@ def calc_ranking(pos_score, neg_score):
     _, indices = th.sort(scores, dim=1, descending=True)
     indices = th.nonzero(indices == 0)
     rankings = indices[:, 1].view(-1) + 1
-    rankings = rankings.cpu().detach()
+    rankings = rankings.detach()
+    if is_distributed() and get_backend() == "gloo":
+        rankings = rankings.cpu() # Save GPU memory
 
     return rankings
 
@@ -275,10 +278,8 @@ def gen_mrr_score(ranking):
         -------
         link prediction eval metrics: list of dict
     """
-    logs = []
-    for rank in ranking:
-        logs.append(1.0 / rank)
-    metrics = {"mrr": th.tensor(sum(log for log in logs) / len(logs))}
+    logs = th.div(1.0, ranking)
+    metrics = {"mrr": th.tensor(th.div(th.sum(logs),len(logs)))}
     return metrics
 
 
@@ -300,13 +301,13 @@ def broadcast_data(rank, world_size, data_tensor):
         return data_tensor
 
     # exchange the data size of each trainer
-    if th.distributed.get_backend() == "gloo":
+    if get_backend() == "gloo":
         device = "cpu"
-    elif th.distributed.get_backend() == "nccl":
-        assert data_tensor.is_cuda
+    elif get_backend() == "nccl":
+        data_tensor = data_tensor.cuda()
         device = data_tensor.device
     else:
-        assert False, f"backend {th.distributed.get_backend()} not supported."
+        assert False, f"backend {get_backend()} not supported."
 
     data_size = th.zeros((world_size,), dtype=th.int64, device=device)
     data_size[rank] = data_tensor.shape[0]
@@ -317,11 +318,10 @@ def broadcast_data(rank, world_size, data_tensor):
         dtype=data_tensor.dtype,
         device=device) for size in data_size]
     data_tensors = [data_tensor for _ in data_size]
-    if th.distributed.get_backend() == "gloo":
+    if get_backend() == "gloo":
         alltoallv_cpu(rank, world_size, gather_list, data_tensors)
-    else: #th.distributed.get_backend() == "nccl"
-        alltoallv_nccl(rank, world_size, gather_list, data_tensors)
-
+    else: #get_backend() == "nccl"
+        alltoallv_nccl(gather_list, data_tensors)
 
     data_tensor = th.cat(gather_list, dim=0)
     return data_tensor

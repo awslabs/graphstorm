@@ -17,8 +17,9 @@
 """
 import abc
 import torch as th
-
 from .gnn import GSgnnModel, GSgnnModelBase
+from .utils import normalize_node_embs
+from ..eval.utils import calc_ranking
 
 class GSgnnLinkPredictionModelInterface:
     """ The interface for GraphStorm link prediction model.
@@ -27,7 +28,7 @@ class GSgnnLinkPredictionModelInterface:
     """
     @abc.abstractmethod
     def forward(self, blocks, pos_graph, neg_graph,
-        node_feats, edge_feats, input_nodes=None):
+        node_feats, edge_feats, pos_edge_feats=None, neg_edge_feats=None, input_nodes=None):
         """ The forward function for link prediction.
 
         This method is used for training. It takes a mini-batch, including
@@ -54,8 +55,9 @@ class GSgnnLinkPredictionModelInterface:
         The loss of prediction.
         """
 
-class GSgnnLinkPredictionModelBase(GSgnnModelBase,  # pylint: disable=abstract-method
-                                   GSgnnLinkPredictionModelInterface):
+# pylint: disable=abstract-method
+class GSgnnLinkPredictionModelBase(GSgnnLinkPredictionModelInterface,
+                                   GSgnnModelBase):
     """ The base class for link-prediction GNN
 
     When a user wants to define a link prediction GNN model and train the model
@@ -64,21 +66,37 @@ class GSgnnLinkPredictionModelBase(GSgnnModelBase,  # pylint: disable=abstract-m
     `save_model`, `restore_model` and `create_optimizer`.
     """
 
+    def normalize_node_embs(self, embs):
+        """ By default do nothing.
+
+            One can implement his/her own node normalization method or call
+            .utils.normalize_node_embs to leverage the builtin normalization
+            methods.
+        """
+        return embs
 
 class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
     """ GraphStorm GNN model for link prediction
 
-    Parameters
-    ----------
-    alpha_l2norm : float
-        The alpha for L2 normalization.
+        Parameters
+        ----------
+        alpha_l2norm : float
+            The alpha for L2 normalization.
+        embed_norm_method: str
+            Node embedding normalization method
     """
-    def __init__(self, alpha_l2norm):
+    def __init__(self, alpha_l2norm, embed_norm_method=None):
         super(GSgnnLinkPredictionModel, self).__init__()
         self.alpha_l2norm = alpha_l2norm
+        self.embed_norm_method = embed_norm_method
 
+    def normalize_node_embs(self, embs):
+        return normalize_node_embs(embs, self.embed_norm_method)
+
+    # pylint: disable=unused-argument
     def forward(self, blocks, pos_graph,
-        neg_graph, node_feats, _, input_nodes=None):
+        neg_graph, node_feats, edge_feats,
+        pos_edge_feats=None, neg_edge_feats=None, input_nodes=None):
         """ The forward function for link prediction.
 
         This model doesn't support edge features for now.
@@ -89,12 +107,18 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
             # GNN message passing
-            encode_embs = self.compute_embed_step(blocks, node_feats)
+            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
+
+        # Call emb normalization.
+        encode_embs = self.normalize_node_embs(encode_embs)
 
         # TODO add w_relation in calculating the score. The current is only valid for
         # homogenous graph.
-        pos_score = self.decoder(pos_graph, encode_embs)
-        neg_score = self.decoder(neg_graph, encode_embs)
+        pos_score = self.decoder(pos_graph, encode_embs, pos_edge_feats)
+        neg_score = self.decoder(neg_graph, encode_embs, neg_edge_feats)
+        assert pos_score.keys() == neg_score.keys(), \
+            "Positive scores and Negative scores must have edges of same" \
+            f"edge types, but get {pos_score.keys()} and {neg_score.keys()}"
         pred_loss = self.loss_func(pos_score, neg_score)
 
         # add regularization loss to all parameters to avoid the unused parameter errors
@@ -109,9 +133,12 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
 def lp_mini_batch_predict(model, emb, loader, device):
     """ Perform mini-batch prediction.
 
-        This function follows full-grain GNN embedding inference.
+        This function follows full-graph GNN embedding inference.
         After having the GNN embeddings, we need to perform mini-batch
         computation to make predictions on the GNN embeddings.
+
+        Note: callers should call model.eval() before calling this function
+        and call model.train() after when doing training.
 
         Parameters
         ----------
@@ -126,23 +153,57 @@ def lp_mini_batch_predict(model, emb, loader, device):
 
         Returns
         -------
-        dict of (list, list):
-            Return a dictionary of edge type to
-            (positive scores, negative scores)
+        rankings: dict of tensors
+            Rankings of positive scores in format of {etype: ranking}
     """
     decoder = model.decoder
+    return run_lp_mini_batch_predict(decoder,
+                                     emb,
+                                     loader,
+                                     device)
+
+def run_lp_mini_batch_predict(decoder, emb, loader, device):
+    """ Perform mini-batch link prediction with the given decoder.
+
+        This function follows full-graph GNN embedding inference.
+        After having the GNN embeddings, we need to perform mini-batch
+        computation to make predictions on the GNN embeddings.
+
+        Note: callers should call model.eval() before calling this function
+        and call model.train() after when doing training.
+
+        Parameters
+        ----------
+        decoder : LinkPredictNoParamDecoder or LinkPredictLearnableDecoder
+            The GraphStorm link prediction decoder model
+        emb : dict of Tensor
+            The GNN embeddings
+        loader : GSgnnEdgeDataLoader
+            The GraphStorm dataloader
+        device: th.device
+            Device used to compute test scores
+
+        Returns
+        -------
+        rankings: dict of tensors
+            Rankings of positive scores in format of {etype: ranking}
+    """
     with th.no_grad():
-        scores = {}
+        ranking = {}
         for pos_neg_tuple, neg_sample_type in loader:
             score = \
                 decoder.calc_test_scores(
                     emb, pos_neg_tuple, neg_sample_type, device)
             for canonical_etype, s in score.items():
-                # We do not concatenate pos scores/neg scores
-                # into a single pos score tensor/neg score tensor
-                # to avoid unnecessary data copy.
-                if canonical_etype in scores:
-                    scores[canonical_etype].append(s)
+                # We do not concatenate rankings into a single
+                # ranking tensor to avoid unnecessary data copy.
+                pos_score, neg_score = s
+                if canonical_etype in ranking:
+                    ranking[canonical_etype].append(calc_ranking(pos_score, neg_score))
                 else:
-                    scores[canonical_etype] = [s]
-    return scores
+                    ranking[canonical_etype] = [calc_ranking(pos_score, neg_score)]
+
+        rankings = {}
+        for canonical_etype, rank in ranking.items():
+            rankings[canonical_etype] = th.cat(rank, dim=0)
+    return rankings

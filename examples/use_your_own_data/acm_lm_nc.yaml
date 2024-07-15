@@ -1,0 +1,45 @@
+---
+version: 1.0
+lm_model:
+  node_lm_models:
+    -
+      lm_type: bert
+      model_name: "bert-base-uncased"
+      gradient_checkpoint: true
+      node_types:
+        - paper
+        - author
+        - subject
+gsf:
+  basic:
+    model_encoder_type: rgcn
+    backend: gloo
+    verbose: false
+  gnn:
+    fanout: "50,50"
+    num_layers: 2
+    hidden_size: 256
+    use_mini_batch_infer: false
+  input:
+    restore_model_path: null
+  output:
+    save_model_path: /tmp/acm_nc/models
+    save_embeds_path: /tmp/acm_nc/embeds
+  hyperparam:
+    dropout: 0.
+    lr: 0.0001
+    lm_tune_lr: 0.0001
+    num_epochs: 300
+    batch_size: 1024
+    wd_l2norm: 0
+    alpha_l2norm: 0.
+  rgcn:
+    num_bases: -1
+    use_self_loop: true
+    sparse_optimizer_lr: 1e-2
+    use_node_embeddings: false
+  node_classification:
+    target_ntype: "paper"
+    label_field: "label"
+    multilabel: false
+    num_classes: 14

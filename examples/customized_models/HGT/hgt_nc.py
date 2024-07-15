@@ -8,15 +8,15 @@ import torch.nn.functional as F
 import dgl.function as fn
 
 import graphstorm as gs
-# from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm import model as gsmodel
 from graphstorm.trainer import GSgnnNodePredictionTrainer
-from graphstorm.inference import GSgnnNodePredictionInfer
-from graphstorm.dataloading import GSgnnNodeTrainData, GSgnnNodeInferData
+from graphstorm.inference import GSgnnNodePredictionInferrer
+from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import GSgnnNodeDataLoader
-from graphstorm.eval import GSgnnAccEvaluator
+from graphstorm.eval import GSgnnClassificationEvaluator
 from graphstorm.tracker import GSSageMakerTaskTracker
+from graphstorm.utils import get_device
 
 from dgl.nn.functional import edge_softmax
 
@@ -27,7 +27,7 @@ class HGTLayer(nn.Module):
                  out_dim,           # output dimension
                  node_dict,         # node type and id in order, e.g., {'author': 0, 'paper': 1, 'subject': 2}
                  edge_dict,         # edge type and id in order, e.g., {'writing': 0, 'cited': 1, 'citing': 2}
-                 n_heads,           # number of attention heads
+                 num_heads,           # number of attention heads
                  dropout = 0.2,     # dropout rate, defaut is 0.2
                  use_norm = False   # Use normalization or not, default is False
                  ):
@@ -38,8 +38,8 @@ class HGTLayer(nn.Module):
         self.edge_dict     = edge_dict
         self.num_ntypes    = len(node_dict)
         self.num_etypes    = len(edge_dict)
-        self.n_heads       = n_heads
-        self.d_k           = out_dim // n_heads
+        self.num_heads       = num_heads
+        self.d_k           = out_dim // num_heads
         self.sqrt_dk       = math.sqrt(self.d_k)
         self.use_norm    = use_norm
 
@@ -57,9 +57,9 @@ class HGTLayer(nn.Module):
             if use_norm:
                 self.norms.append(nn.LayerNorm(out_dim))
 
-        self.relation_pri   = nn.Parameter(torch.ones(self.num_etypes, self.n_heads))
-        self.relation_att   = nn.Parameter(torch.Tensor(self.num_etypes, n_heads, self.d_k, self.d_k))
-        self.relation_msg   = nn.Parameter(torch.Tensor(self.num_etypes, n_heads, self.d_k, self.d_k))
+        self.relation_pri   = nn.Parameter(torch.ones(self.num_etypes, self.num_heads))
+        self.relation_att   = nn.Parameter(torch.Tensor(self.num_etypes, num_heads, self.d_k, self.d_k))
+        self.relation_msg   = nn.Parameter(torch.Tensor(self.num_etypes, num_heads, self.d_k, self.d_k))
         self.skip           = nn.Parameter(torch.ones(self.num_ntypes))
         self.drop           = nn.Dropout(dropout)
 
@@ -81,9 +81,9 @@ class HGTLayer(nn.Module):
                 v_linear = self.v_linears[node_dict[srctype]]
                 q_linear = self.q_linears[node_dict[dsttype]]
 
-                k = k_linear(h[srctype]).view(-1, self.n_heads, self.d_k)
-                v = v_linear(h[srctype]).view(-1, self.n_heads, self.d_k)
-                q = q_linear(h[dsttype][:sub_graph.num_dst_nodes()]).view(-1, self.n_heads, self.d_k)
+                k = k_linear(h[srctype]).view(-1, self.num_heads, self.d_k)
+                v = v_linear(h[srctype]).view(-1, self.num_heads, self.d_k)
+                q = q_linear(h[dsttype][:sub_graph.num_dst_nodes()]).view(-1, self.num_heads, self.d_k)
 
                 e_id = self.edge_dict[(srctype, etype, dsttype)]
 
@@ -144,18 +144,20 @@ class HGT(gsmodel.GSgnnNodeModelBase):
                                     #   0 means featureless nodes
                  n_hid,             # hidden dimension
                  n_out,             # output dimension
-                 n_layers,          # number of gnn layers
-                 n_heads,           # number of attention
-                 predict_ntype,     # the node type to be predict
+                 num_layers,          # number of gnn layers
+                 num_heads,           # number of attention
+                 target_ntype,     # the node type to be predict
                  use_norm = True,   # use normalization or not, default is True
-                 alpha_l2norm = 0
+                 alpha_l2norm = 0,
+                 lr = 0.001
                  ):
         super(HGT, self).__init__()
         self.node_dict = node_id_dict
         self.edge_dict = edge_id_dict
-        self.n_layers = n_layers
-        self.predict_ntype=predict_ntype
+        self.num_layers = num_layers
+        self.target_ntype=target_ntype
         self.alpha_l2norm = alpha_l2norm
+        self.lr = lr
 
         # set adapt weights according to node id and feature dimension dictionary
         self.adapt_ws = nn.ModuleDict()
@@ -174,12 +176,12 @@ class HGT(gsmodel.GSgnnNodeModelBase):
 
         # hgt layers
         self.gcs = nn.ModuleList()
-        for _ in range(n_layers):
+        for _ in range(num_layers):
             self.gcs.append(HGTLayer(n_hid,
                                      n_hid,
                                      node_id_dict,
                                      edge_id_dict,
-                                     n_heads,
+                                     num_heads,
                                      use_norm = use_norm))
         # output layer for classification
         self.out = nn.Linear(n_hid, n_out)
@@ -187,23 +189,29 @@ class HGT(gsmodel.GSgnnNodeModelBase):
         # use GSF components
         self._loss_fn = gsmodel.ClassifyLossFunc(multilabel=False)
 
-    def forward(self, blocks, node_feats, edge_feats, labels, epoch=-1, total_steps=-1):
+    def forward(self, blocks, node_feats, edge_feats, labels, input_nodes):
+        # input layer
         h = {}
         for ntype in blocks[0].ntypes:
             if self.adapt_ws[ntype] is None:
                 n_id = self.node_dict[ntype]
                 emb_id = self.ntype_id_map[n_id]
-                embeding = self.ntype_embed(torch.Tensor([emb_id]).long().to('cuda'))
+                device = self.ntype_embed.device
+                embeding = self.ntype_embed(torch.Tensor([emb_id]).long().to(device))
                 n_embed = embeding.expand(blocks[0].num_nodes(ntype), -1)
             else:
                 n_embed = self.adapt_ws[ntype](node_feats[ntype])
 
             h[ntype] = F.gelu(n_embed)
-
-        for i in range(self.n_layers):
+        # gnn layers
+        for i in range(self.num_layers):
             h = self.gcs[i](blocks[i], h)
+        # output layer
+        for ntype, emb in h.items():
+            h[ntype] = self.out(emb)
 
-        pred_loss = self._loss_fn(h[self.predict_ntype], labels[self.predict_ntype])
+        # prediction loss computation
+        pred_loss = self._loss_fn(h[self.target_ntype], labels[self.target_ntype])
 
         reg_loss = torch.tensor(0.).to(pred_loss.device)
         # L2 regularization of dense parameters
@@ -214,23 +222,31 @@ class HGT(gsmodel.GSgnnNodeModelBase):
 
         return pred_loss + reg_loss
 
-    def predict(self, blocks, node_feats, _):
+    def predict(self, blocks, node_feats, _, input_nodes, return_proba):
+        # input layer
         h = {}
         for ntype in blocks[0].ntypes:
             if self.adapt_ws[ntype] is None:
                 n_id = self.node_dict[ntype]
                 emb_id = self.ntype_id_map[n_id]
-                embeding = self.ntype_embed(torch.Tensor([emb_id]).long().to('cuda'))
+                device = self.ntype_embed.device
+                embeding = self.ntype_embed(torch.Tensor([emb_id]).long().to(device))
                 n_embed = embeding.expand(blocks[0].num_nodes(ntype), -1)
             else:
                 n_embed = self.adapt_ws[ntype](node_feats[ntype])
 
             h[ntype] = F.gelu(n_embed)
-
-        for i in range(self.n_layers):
+        # gnn layers
+        for i in range(self.num_layers):
             h = self.gcs[i](blocks[i], h)
+        # output layer
+        for ntype, emb in h.items():
+            h[ntype] = self.out(emb)
 
-        return h[self.predict_ntype].argmax(dim=1), h[self.predict_ntype]
+        if return_proba:
+            return h[self.target_ntype].argmax(dim=1), torch.softmax(h[self.target_ntype], 1)
+        else:
+            return h[self.target_ntype].argmax(dim=1), h[self.target_ntype]
 
     def restore_model(self, restore_model_path):
         pass
@@ -238,14 +254,15 @@ class HGT(gsmodel.GSgnnNodeModelBase):
     def save_model(self, model_path):
         pass
 
-    def create_optimizer(self, lr=0.001):
+    def create_optimizer(self):
         # Here we don't set up an optimizer for sparse embeddings.
-        return torch.optim.Adam(self.parameters(), lr=lr)
+        return torch.optim.Adam(self.parameters(), lr=self.lr)
 
 
 def main(args):
-    gs.initialize(ip_config=args.ip_config, backend="gloo")
     config = GSConfig(args)
+    gs.initialize(ip_config=args.ip_config, backend="gloo",
+                  local_rank=config.local_rank)
 
     # Process node_feat_field to define GraphStorm dataset
     node_feat_fields = {}
@@ -255,11 +272,7 @@ def main(args):
         node_feat_fields[node_type] = feat_names.split(',')
 
     # Define the GraphStorm training dataset
-    train_data = GSgnnNodeTrainData(config.graph_name,
-                                    config.part_config,
-                                    train_ntypes=config.predict_ntype,
-                                    node_feat_field=node_feat_fields,
-                                    label_field=config.label_field)
+    train_data = GSgnnData(config.part_config)
 
     # Create input arguments for the HGT model
     node_dict = {}
@@ -281,90 +294,114 @@ def main(args):
     # Define the HGT model
     model = HGT(node_dict, edge_dict,
                 n_inp_dict=nfeat_dims,
-                n_hid=config.n_hidden,
+                n_hid=config.hidden_size,
                 n_out=config.num_classes,
-                n_layers=num_layers,
-                n_heads=args.num_heads,
-                predict_ntype=config.predict_ntype,
+                num_layers=num_layers,
+                num_heads=args.num_heads,
+                target_ntype=config.target_ntype,
                 use_norm=True,
-                alpha_l2norm=config.alpha_l2norm)
+                alpha_l2norm=config.alpha_l2norm,
+                lr=config.lr)
 
     # Create a trainer for the node classification task.
-    trainer = GSgnnNodePredictionTrainer(model, gs.get_rank(), topk_model_to_save=1)
-    trainer.setup_cuda(dev_id=gs.get_rank())
-    device = 'cuda:%d' % trainer.dev_id
+    trainer = GSgnnNodePredictionTrainer(model, topk_model_to_save=config.topk_model_to_save)
+    trainer.setup_device(device=get_device())
 
+    train_idxs = train_data.get_node_train_set(config.target_ntype)
     # Define the GraphStorm train dataloader
-    dataloader = GSgnnNodeDataLoader(train_data, train_data.train_idxs, fanout=config.fanout,
-                                     batch_size=config.batch_size, device=device, train_task=True)
+    dataloader = GSgnnNodeDataLoader(train_data, train_idxs, fanout=config.fanout,
+                                     batch_size=config.batch_size,
+                                     node_feats=node_feat_fields,
+                                     label_field=config.label_field,
+                                     train_task=True)
 
+    eval_ntype = config.eval_target_ntype
+    val_idxs = train_data.get_node_val_set(eval_ntype)
+    test_idxs = train_data.get_node_test_set(eval_ntype)
     # Optional: Define the evaluation dataloader
-    eval_dataloader = GSgnnNodeDataLoader(train_data, train_data.val_idxs,fanout=config.fanout,
-                                          batch_size=config.eval_batch_size, device=device,
+    eval_dataloader = GSgnnNodeDataLoader(train_data, val_idxs, fanout=config.fanout,
+                                          batch_size=config.eval_batch_size,
+                                          node_feats=node_feat_fields,
+                                          label_field=config.label_field,
                                           train_task=False)
 
     # Optional: Define the evaluation dataloader
-    test_dataloader = GSgnnNodeDataLoader(train_data, train_data.test_idxs,fanout=config.fanout,
-                                          batch_size=config.eval_batch_size, device=device,
+    test_dataloader = GSgnnNodeDataLoader(train_data, test_idxs, fanout=config.fanout,
+                                          batch_size=config.eval_batch_size,
+                                          node_feats=node_feat_fields,
+                                          label_field=config.label_field,
                                           train_task=False)
 
     # Optional: set up a evaluator
-    evaluator = GSgnnAccEvaluator(config.evaluation_frequency,
-                                  config.eval_metric,
-                                  config.multilabel,
-                                  config.enable_early_stop,
-                                  config.call_to_consider_early_stop,
-                                  config.window_for_early_stop,
-                                  config.early_stop_strategy)
+    evaluator = GSgnnClassificationEvaluator(config.eval_frequency,
+                                             config.eval_metric,
+                                             config.multilabel,
+                                             config.use_early_stop,
+                                             config.early_stop_burnin_rounds,
+                                             config.early_stop_rounds,
+                                             config.early_stop_strategy)
     trainer.setup_evaluator(evaluator)
     # Optional: set up a task tracker to show the progress of training.
-    tracker = GSSageMakerTaskTracker(config, gs.get_rank())
+    tracker = GSSageMakerTaskTracker(config.eval_frequency)
     trainer.setup_task_tracker(tracker)
 
     # Start the training process.
-    trainer.fit(train_loader=dataloader, n_epochs=config.n_epochs,
+    trainer.fit(train_loader=dataloader,
+                num_epochs=config.num_epochs,
                 val_loader=eval_dataloader,
                 test_loader=test_dataloader,
                 save_model_path=config.save_model_path,
-                mini_batch_infer=True)
+                use_mini_batch_infer=True)
 
     # After training, get the best model from the trainer.
     best_model_path = trainer.get_best_model_path()
-    # TODO(zhengda) the model path has to be in a shared filesystem.
     model.restore_model(best_model_path)
 
     # Create a dataset for inference.
-    infer_data = GSgnnNodeInferData(config.graph_name, config.part_config,
-                                    eval_ntypes=config.predict_ntype,
-                                    node_feat_field=node_feat_fields,
-                                    label_field=config.label_field)
+    infer_data = GSgnnData(config.part_config)
 
     # Create an inference for a node task.
-    infer = GSgnnNodePredictionInfer(model, gs.get_rank())
-    infer.setup_cuda(dev_id=gs.get_rank())
+    infer = GSgnnNodePredictionInferrer(model)
+    infer.setup_device(device=get_device())
     infer.setup_evaluator(evaluator)
     infer.setup_task_tracker(tracker)
-    dataloader = GSgnnNodeDataLoader(infer_data, infer_data.test_idxs,
-                                    fanout=config.fanout, batch_size=100, device=device,
+    infer_idxs = infer_data.get_node_infer_set(eval_ntype)
+    dataloader = GSgnnNodeDataLoader(infer_data,infer_idxs,
+                                    fanout=config.fanout, batch_size=100,
+                                    node_feats=node_feat_fields,
+                                    label_field=config.label_field,
                                     train_task=False)
 
     # Run inference on the inference dataset and save the GNN embeddings in the specified path.
-    infer.infer(dataloader, save_embed_path=config.save_embed_path, mini_batch_infer=True)
+    infer.infer(dataloader, save_embed_path=config.save_embed_path,
+                save_prediction_path=config.save_prediction_path,
+                use_mini_batch_infer=True)
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Training HGT model with the GraphStorm Framework")
     argparser.add_argument("--yaml-config-file", type=str, required=True,
                            help="The GraphStorm YAML configuration file path.")
-    argparser.add_argument("--ip-config", type=str, required=True,
-                           help="The IP config file for the cluster.")
     argparser.add_argument("--node-feat", type=str, required=True,
                            help="The name of the node features. \
                                  Format is nodetype1:featname1,featname2-nodetype2:featname1,...")
     argparser.add_argument("--num-heads", type=int, default=4,
                            help="The number of heads for HGT's self-attention module")
-    argparser.add_argument("--local_rank", type=int,
-                           help="The rank of the trainer. MUST have this argument!!")
-    args = argparser.parse_args()
+    argparser.add_argument("--part-config", type=str, required=True,
+                           help="The partition config file. \
+                                 For customized models, MUST have this argument!!")
+    argparser.add_argument("--ip-config", type=str, required=True,
+                           help="The IP config file for the cluster. \
+                                 For customized models, MUST have this argument!!")
+    argparser.add_argument("--verbose",
+                           type=lambda x: (str(x).lower() in ['true', '1']),
+                           default=argparse.SUPPRESS,
+                          help="Print more information. \
+                                For customized models, MUST have this argument!!")
+    argparser.add_argument("--local-rank", type=int,
+                           help="The rank of the trainer. \
+                                 For customized models, MUST have this argument!!")
 
+    # Ignore unknown args to make script more robust to input arguments
+    args, _ = argparser.parse_known_args()
     print(args)
     main(args)

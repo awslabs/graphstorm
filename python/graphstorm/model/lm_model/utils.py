@@ -19,9 +19,11 @@ from .hf_bert import wrap_hf_bert
 from .hf_bert import load_hfbert_model
 
 BUILTIN_HF_BERT = "bert"
-BUILTIN_LM_MODELS = [BUILTIN_HF_BERT]
+BUILTIN_LM_MODELS = [
+    "bert", "roberta", "albert", "camembert", "ernie", "ibert", "luke", "mega", "mpnet", "nezha", 
+    "qdqbert","roc_bert"]
 
-def init_lm_model(lm_config, num_train=0, lm_infer_batchszie=16, profile=False):
+def init_lm_model(lm_config, num_train=0, lm_infer_batch_size=16, profile=False):
     """ Init language model
 
     Parameters
@@ -30,7 +32,7 @@ def init_lm_model(lm_config, num_train=0, lm_infer_batchszie=16, profile=False):
         Language model config.
     num_train: int
         Number of trainable texts.
-    lm_infer_batchszie: int
+    lm_infer_batch_size: int
         Batch size used in lm model inference
     profile: bool
         If True, provide LM forward/backward profiling.
@@ -40,9 +42,9 @@ def init_lm_model(lm_config, num_train=0, lm_infer_batchszie=16, profile=False):
 
     """
     lm_model_type = lm_config["lm_type"]
-    if lm_model_type == BUILTIN_HF_BERT:
+    if lm_model_type in BUILTIN_LM_MODELS:
         bert_model = load_hfbert_model(lm_config)
-        lm_model = wrap_hf_bert(bert_model, num_train, lm_infer_batchszie, profile)
+        lm_model = wrap_hf_bert(bert_model, num_train, lm_infer_batch_size, profile)
     else:
         assert lm_model_type in BUILTIN_LM_MODELS, \
             f"Unsupported builtin language model {lm_model_type}"

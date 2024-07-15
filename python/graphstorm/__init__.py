@@ -15,10 +15,12 @@
 
     Graphstorm package.
 """
-__version__ = "0.1"
+__version__ = "0.3"
 
-from .utils import get_rank
-from .gsf import initialize, get_feat_size
+from . import gsf
+from . import utils
+from .utils import get_rank, get_world_size
+from .gsf import initialize, get_node_feat_size
 from .gsf import create_builtin_node_gnn_model
 from .gsf import create_builtin_edge_gnn_model
 from .gsf import create_builtin_task_tracker
@@ -26,3 +28,12 @@ from .gsf import create_builtin_lp_gnn_model
 from .gsf import create_builtin_lp_model
 from .gsf import create_builtin_edge_model
 from .gsf import create_builtin_node_model
+from .gsf import (create_task_decoder,
+                  create_evaluator)
+
+from .gsf import (create_builtin_node_decoder,
+                  create_builtin_edge_decoder,
+                  create_builtin_lp_decoder,
+                  create_builtin_reconstruct_nfeat_decoder)
+from .gsf import (get_builtin_lp_train_dataloader_class,
+                  get_builtin_lp_eval_dataloader_class)

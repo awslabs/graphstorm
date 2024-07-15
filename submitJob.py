@@ -35,6 +35,18 @@ job_type_info = {
     'CI-LINT-PUSH': {
         'job_definition': 'graphstorm-definition-lint',
         'job_queue': 'graphstorm-queue-lint',
+    },
+    'CI-CPU-CHECK-PUSH': {
+        'job_definition': 'graphstorm-definition-check',
+        'job_queue': 'graphstorm-queue-lint',
+    },
+    'CI-CPU-CHECK': {
+        'job_definition': 'graphstorm-definition-check',
+        'job_queue': 'graphstorm-queue-lint',
+    },
+    'CI-GSProcessing-CHECK': {
+        'job_definition': 'graphstorm-gsprocessing-definition',
+        'job_queue': 'graphstorm-queue-v2',
     }
 }
 
@@ -51,7 +63,7 @@ parser.add_argument('--command', help='command to run', type=str,
                     default='git rev-parse HEAD | tee stdout.log')
 parser.add_argument('--wait', help='block wait until the job completes. '
                     'Non-zero exit code if job fails.', action='store_true')
-parser.add_argument('--timeout', help='job timeout in seconds', default=3600, type=int)
+parser.add_argument('--timeout', help='job timeout in seconds', default=10800, type=int)
 
 parser.add_argument('--source-ref',
                     help='ref in Graphstorm main github. e.g. master, refs/pull/500/head',

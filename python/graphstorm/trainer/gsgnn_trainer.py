@@ -16,64 +16,67 @@
     GraphStorm trainer base
 """
 import os
-import psutil
-import torch as th
+import logging
 
 from ..model import GSOptimizer
+from ..model import GSgnnModel, GSgnnModelBase
 from ..model.utils import TopKList
 from ..model.utils import remove_saved_models as remove_gsgnn_models
 from ..model.utils import save_model_results_json
+from ..config import GRAPHSTORM_MODEL_ALL_LAYERS
+from ..tracker import GSSageMakerTaskTracker
+from ..utils import barrier, get_rank, is_distributed
 
 class GSgnnTrainer():
     """ Generic GSgnn trainer.
+
+    This class is used as a mixin for classes that implement trainers
+    for various learning tasks at the node and edge level.
+
+    It contains functions that can be used in the implementing classes'
+    `fit` and `eval` functions.
+
+    To implement your own trainers, extend this class and add implementations
+    for the `fit` and `eval` functions.
 
     Parameters
     ----------
     model : GSgnnModel
         The GNN model.
-    rank : int
-        The rank.
     topk_model_to_save : int
         The top K model to save.
     """
-    def __init__(self, model, rank, topk_model_to_save=1):
+    def __init__(self, model, topk_model_to_save=1):
         super(GSgnnTrainer, self).__init__()
         self._model = model
         optimizer = model.create_optimizer()
         assert optimizer is not None, "The model cannot provide an optimizer"
         if not isinstance(optimizer, GSOptimizer):
-            if rank == 0:
-                print("Warining: the optimizer is not GSOptimizer. "
-                        + "Convert it to GSOptimizer.")
+            if get_rank() == 0:
+                logging.warning("the optimizer is not GSOptimizer. Convert it to GSOptimizer.")
             optimizer = GSOptimizer([optimizer])
         self._optimizer = optimizer
-        self._rank = rank
-        self._dev_id = -1
         self._evaluator = None
-        self._task_tracker = None
         self._best_model_path = None
 
         assert topk_model_to_save >= 0
         self._topklist = TopKList(topk_model_to_save)    # A list to store the top k best
                                                         # perf epoch+iteration for
                                                         # saving/removing models.
+        self._task_tracker = None
 
-    def setup_cuda(self, dev_id):
-        """ Set up the CUDA device of this trainer.
+    def setup_device(self, device):
+        """ Set up the device of this trainer.
 
         The CUDA device is set up based on the local rank.
 
         Parameters
         ----------
-        dev_id : int
-            The device ID for model training.
+        device :
+            The device for model training.
         """
-        # setup cuda env
-        use_cuda = th.cuda.is_available()
-        assert use_cuda, "Only support GPU training"
-        th.cuda.set_device(dev_id)
-        self._dev_id = dev_id
-        self._model = self._model.to(self.dev_id)
+        self._device = device
+        self._model = self._model.to(self.device)
         self._optimizer.move_to_device(self._model.device)
 
     def setup_task_tracker(self, task_tracker):
@@ -84,15 +87,22 @@ class GSgnnTrainer():
         task_tracker : GSTaskTracker
             The task tracker
         """
-        if self.evaluator is not None:
-            self.evaluator.setup_task_tracker(task_tracker)
         self._task_tracker = task_tracker
 
     def setup_evaluator(self, evaluator):
-        """ Set the evaluator
+        """ Setup the evaluator
+
+        If the evaluator has its own task tracker, just setup the evaluator. But if the evaluator
+        has no task tracker, will use this Trainer's task tracker to setup the evaluator. When there
+        is no self task tracker, will create a new one by using the given evaluator's evaluation
+        frequency.
         """
-        if self.task_tracker is not None:
+        if evaluator.task_tracker is None:
+            if self.task_tracker is None:
+                self.setup_task_tracker(GSSageMakerTaskTracker(evaluator.eval_frequency))
+
             evaluator.setup_task_tracker(self.task_tracker)
+
         self._evaluator = evaluator
 
     def log_metric(self, metric_name, metric_value, step):
@@ -176,7 +186,7 @@ class GSgnnTrainer():
         best_val_score = self.evaluator.best_val_score
         best_test_score = self.evaluator.best_test_score
         best_iter_num = self.evaluator.best_iter_num
-        self.task_tracker.log_iter_metrics(self.evaluator.metric,
+        self.task_tracker.log_iter_metrics(self.evaluator.metric_list,
                 train_score=train_score, val_score=val_score,
                 test_score=test_score, best_val_score=best_val_score,
                 best_test_score=best_test_score, best_iter_num=best_iter_num,
@@ -185,14 +195,18 @@ class GSgnnTrainer():
     def save_model(self, model, epoch, i, save_model_path):
         '''Save the model for a certain iteration in an epoch.
         '''
-        th.distributed.barrier()
-        if save_model_path is not None and self.rank == 0:
+        barrier()
+        if save_model_path is not None:
+            module = model.module if is_distributed() else model
+            assert isinstance(module, (GSgnnModel, GSgnnModelBase)), \
+                "Please make sure the model derives from GSgnnModel or GSgnnModelBase, " \
+                "which provides a scalable model saving implementation."
             save_model_path = self._gen_model_path(save_model_path, epoch, i)
-            model.module.save_model(save_model_path)
+            module.save_model(save_model_path)
             self.optimizer.save_opt_state(save_model_path)
 
-        # wait for rank0 to save the model and/or embeddings
-        th.distributed.barrier()
+        # make sure each trainer finishes its own model saving task.
+        barrier()
 
     def remove_saved_model(self, epoch, i, save_model_path):
         """ remove previously saved model, which may not be the best K performed or other reasons.
@@ -207,14 +221,15 @@ class GSgnnTrainer():
         save_model_path : str
             The path where the model is saved.
         """
-        if save_model_path is not None and self.rank == 0:
+        if save_model_path is not None and get_rank() == 0:
             # construct model path
             saved_model_path = self._gen_model_path(save_model_path, epoch, i)
 
             # remove the folder that contains saved model files.
             remove_status = remove_gsgnn_models(saved_model_path)
             if remove_status == 0:
-                print(f'Successfully removed the saved model files in {saved_model_path}')
+                logging.debug('Successfully removed the saved model files in %s',
+                              saved_model_path)
 
     def save_topk_models(self, model, epoch, i, val_score, save_model_path):
         """ Based on the given val_score, decided if save the current model trained in the i_th
@@ -254,6 +269,7 @@ class GSgnnTrainer():
                 self.remove_saved_model(return_epoch, return_i, save_model_path)
 
             # save this epoch and iteration's model and node embeddings
+            # All trainers will sync in save_model before start saving a model.
             self.save_model(model, epoch, i, save_model_path)
 
             # If this is the best model
@@ -288,41 +304,44 @@ class GSgnnTrainer():
                                 test_model_performance=test_model_performance,
                                 save_perf_results_path=save_perf_results_path)
 
-    def print_info(self, epoch, i, num_input_nodes, compute_time):
-        ''' Print basic information during training
-
-        Parameters:
-        epoch: int
-            The epoch number
-        i: int
-            The current iteration
-        num_input_nodes: int
-            number of input nodes
-        compute_time: tuple of ints
-            A tuple of (forward time and backward time)
-        '''
-        gnn_forward_time, back_time = compute_time
-        device = 'cuda:%d' % self.dev_id
-
-        print("Epoch {:05d} | Batch {:03d} | GPU Mem reserved: {:.4f} MB | Peak Mem: {:.4f} MB".
-                format(epoch, i,
-                    th.cuda.memory_reserved(device) / 1024 / 1024,
-                    th.cuda.max_memory_allocated(device) / 1024 /1024))
-        print('Epoch {:05d} | Batch {:03d} | RAM memory {} used | Avg input nodes per iter {}'.
-                format(epoch, i, psutil.virtual_memory(), num_input_nodes))
-        print('Epoch {:05d} | Batch {:03d} | forward {:05f} | Backward {:05f}'.format(
-            epoch, i, gnn_forward_time, back_time))
-
-    def restore_model(self, model_path):
+    def restore_model(self, model_path, model_layer_to_load=None):
         """ Restore a GNN model and the optimizer.
 
         Parameters
         ----------
         model_path : str
             The path where the model and the optimizer state has been saved.
+        model_layer_to_load: list of str
+            list of model layers to load. Supported layers include
+            'gnn', 'embed', 'decoder'
         """
-        self._model.restore_model(model_path)
-        self._optimizer.load_opt_state(model_path, self._model.device)
+        self._model.restore_model(model_path, model_layer_to_load)
+
+        # If we only load part of a saved model for model fine-tuning,
+        # we do not load optimizer states as the model states of
+        # two models (pre-training and fine-tuning) are not 100%
+        # compatible.
+        if model_layer_to_load == GRAPHSTORM_MODEL_ALL_LAYERS:
+            self._optimizer.load_opt_state(model_path, self._model.device)
+
+    def can_do_validation(self, val_dataloader):
+        """ A unified method to judge if a trainer can do model evaluation
+
+        Parameters
+        ----------
+        val_dataloader: Dataloader
+            GraphStorm Dataloader for validation
+
+        Return
+        -------
+        True or False
+            Whether do model validation.
+        """
+        # check if have evaluator or if have validation dataloader
+        if self.evaluator is None or val_dataloader is None:
+            return False
+        else:
+            return True
 
     @property
     def evaluator(self):
@@ -343,13 +362,7 @@ class GSgnnTrainer():
         return self._task_tracker
 
     @property
-    def dev_id(self):
+    def device(self):
         """ The device associated with the trainer.
         """
-        return self._dev_id
-
-    @property
-    def rank(self):
-        """ The rank of the trainer.
-        """
-        return self._rank
+        return self._device

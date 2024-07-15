@@ -17,14 +17,19 @@
     node regression, edge classification and edge regression.
 """
 
-import dgl
-import numpy as np
-import torch as th
 import argparse
 import time
+import numpy as np
+import torch as th
+
+import dgl
+from dgl.distributed.constants import DEFAULT_NTYPE
+from dgl.distributed.constants import DEFAULT_ETYPE
+
 from graphstorm.data import OGBTextFeatDataset
 from graphstorm.data import MovieLens100kNCDataset
 from graphstorm.data import ConstructedGraphDataset
+from graphstorm.gconstruct.utils import save_maps
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Partition DGL graphs for node and edge classification "
@@ -34,60 +39,70 @@ if __name__ == '__main__':
                            help="dataset to use")
     argparser.add_argument("--filepath", type=str, default=None)
     # node arguments
-    argparser.add_argument('--predict_ntype', type=str, help='The node type for making prediction'
+    argparser.add_argument('--target-ntype', type=str, help='The node type for making prediction'
                            + 'Currently only support one node type.')
-    argparser.add_argument('--ntask_type', type=str, default='classification', nargs='?',
+    argparser.add_argument('--ntask-type', type=str, default='classification', nargs='?',
                            choices=['classification', 'regression'],
                            help='The node prediction type. Only support either \"classsification\" or '
                                 '\"regression\". Default is \"classification\"')
-    argparser.add_argument('--nlabel_field', type=str, help='The field that stores label on nodes.'
+    argparser.add_argument('--nlabel-field', type=str, help='The field that stores label on nodes.'
                            + 'The format is \"nodetype:label\", e.g., paper:subject')
     # edge arguments
-    argparser.add_argument('--predict_etype', type=str, help='The canonical edge type for making '
+    argparser.add_argument('--target-etype', type=str, help='The canonical edge type for making '
                            + 'prediction. The format is \"scr_ntype,etype,dst_ntype\". '
                            + 'Currently only support one edge type.')
-    argparser.add_argument('--etask_type', type=str, default='classification',nargs='?',
+    argparser.add_argument('--etask-type', type=str, default='classification',nargs='?',
                            choices=['classification', 'regression'],
                            help='The edge prediction type. Only support either \"classsification\" or '
                                 '\"regression\". Default is \"classification\"')
-    argparser.add_argument('--elabel_field', type=str, help='The field that stores label on edges.'
+    argparser.add_argument('--elabel-field', type=str, help='The field that stores label on edges.'
                            + 'The format is \"srcnodetype,etype,dstnodetype:label\", e.g., '
                            + '\"user,review,movie:stars\".')
     # label split arguments
-    argparser.add_argument("--generate_new_node_split", type=lambda x:(str(x).lower() in ['true', '1']),
+    argparser.add_argument("--generate-new-node-split", type=lambda x:(str(x).lower() in ['true', '1']),
                            default=False, help="If we are splitting the data from scatch we should "
                            + "not do it by default.")
-    argparser.add_argument("--generate_new_edge_split", type=lambda x:(str(x).lower() in ['true', '1']),
+    argparser.add_argument("--generate-new-edge-split", type=lambda x:(str(x).lower() in ['true', '1']),
                            default=False, help="If we are splitting the data from scatch we should "
                            + "not do it by default.")
-    argparser.add_argument('--train_pct', type=float, default=0.8,
+    argparser.add_argument("--no-split", type=lambda x:(str(x).lower() in ['true', '1']),
+                           default=False, help="Remove the train/valid/test mask."
+                           "Used when testing inference.")
+    argparser.add_argument('--train-pct', type=float, default=0.8,
                            help='The pct of train nodes/edges. Should be > 0 and < 1, and only work in '
                                 + 'generating new split')
-    argparser.add_argument('--val_pct', type=float, default=0.1,
+    argparser.add_argument('--val-pct', type=float, default=0.1,
                            help='The pct of validation nodes/edges. Should be > 0 and < 1, and only work in '
                                 + 'generating new split')
     # graph modification arguments
-    argparser.add_argument('--undirected', action='store_true',
+    argparser.add_argument('--add-reverse-edges', action='store_true',
                            help='turn the graph into an undirected graph.')
-    argparser.add_argument('--retain_original_features',  type=lambda x: (str(x).lower() in ['true', '1']),
+    argparser.add_argument('--retain-original-features',  type=lambda x: (str(x).lower() in ['true', '1']),
                            default=True, help= "If true we will use the original features either wise we "
                                                "will use the tokenized title or abstract"
                                                 "for the ogbn datasets")
     # partition arguments
-    argparser.add_argument('--num_parts', type=int, default=4,
+    argparser.add_argument('--num-parts', type=int, default=4,
                            help='number of partitions')
-    argparser.add_argument('--part_method', type=str, default='metis',
+    argparser.add_argument('--part-method', type=str, default='metis',
                            help='the partition method')
-    argparser.add_argument('--balance_train', action='store_true',
+    argparser.add_argument('--balance-train', action='store_true',
                            help='balance the training size in each partition.')
-    argparser.add_argument('--balance_edges', action='store_true',
+    argparser.add_argument('--balance-edges', action='store_true',
                            help='balance the number of edges in each partition.')
-    argparser.add_argument('--num_trainers_per_machine', type=int, default=1,
+    argparser.add_argument('--num-trainers-per-machine', type=int, default=1,
                            help='the number of trainers per machine. The trainer ids are stored\
                                 in the node feature \'trainer_id\'')
+    argparser.add_argument('--is-homo', action='store_true', help='if user wants to '
+                                'start a partition on homogeneous graph')
     # output arguments
     argparser.add_argument('--output', type=str, default='data',
                            help='The output directory to store the partitioned results.')
+    # bert model name if any
+    argparser.add_argument('--lm-model-name', type=str, default='bert-base-uncased',
+                           help='lm model use to encode text feature if any')
+    argparser.add_argument('--max-seq-length', type=int, default=128,
+                           help="maximum sequence length when tokenizing text data")
 
     args = argparser.parse_args()
     print(args)
@@ -98,13 +113,19 @@ if __name__ == '__main__':
     # load graph data
     if args.dataset == 'ogbn-arxiv':
         dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
-                                     retain_original_features=args.retain_original_features)
+                                     retain_original_features=args.retain_original_features,
+                                     max_sequence_length=args.max_seq_length,
+                                     lm_model_name=args.lm_model_name)
     elif args.dataset == 'ogbn-products':
         dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
-                                     retain_original_features=args.retain_original_features)
+                                     retain_original_features=args.retain_original_features,
+                                     max_sequence_length=args.max_seq_length,
+                                     lm_model_name=args.lm_model_name)
     elif args.dataset == 'ogbn-papers100m':
         dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
-                                     retain_original_features=args.retain_original_features)
+                                     retain_original_features=args.retain_original_features,
+                                     max_sequence_length=args.max_seq_length,
+                                     lm_model_name=args.lm_model_name)
     elif args.dataset == 'movie-lens-100k':
         dataset = MovieLens100kNCDataset(args.filepath)
     elif args.dataset == 'movie-lens-100k-text':
@@ -120,20 +141,20 @@ if __name__ == '__main__':
         "The sum of train and validation percentages should NOT larger than 1."
 
     # predict node types and edge types check. At least one argument should be given.
-    pred_ntypes = args.predict_ntype.split(',') if args.predict_ntype is not None else None
+    pred_ntypes = args.target_ntype.split(',') if args.target_ntype is not None else None
     if pred_ntypes is None:
         try:
-            pred_ntypes = [dataset.predict_category]
+            pred_ntypes = [dataset.predict_category] if not args.is_homo else [DEFAULT_NTYPE]
         except:
             pass
-    pred_etypes = [tuple(args.predict_etype.split(','))] if args.predict_etype is not None else None
+    pred_etypes = [tuple(args.target_etype.split(','))] if args.target_etype is not None else None
     if pred_etypes is None:
         try:
-            pred_etypes = [dataset.target_etype]
+            pred_etypes = [dataset.target_etype] if not args.is_homo else [DEFAULT_ETYPE]
         except:
             pass
     assert pred_ntypes is not None or pred_etypes is not None, \
-        "For partition graph datasets, you must provide predict_ntype or predict_etype, or both"
+        "For partition graph datasets, you must provide target_ntype or target_etype, or both"
     if pred_ntypes is not None:
         assert len(pred_ntypes) == 1, "We currently only support one node type prediction."
     if pred_etypes is not None:
@@ -187,7 +208,7 @@ if __name__ == '__main__':
             raise NotImplementedError('Currently only support either edge classification or '
                                       + 'edge regression ...')
     # add reverse edges
-    if args.undirected:
+    if args.add_reverse_edges:
         print("Creating reverse edges ...")
         edges = {}
         for src_ntype, etype, dst_ntype in g.canonical_etypes:
@@ -233,7 +254,7 @@ if __name__ == '__main__':
                 g.nodes[ntype].data['test_mask'] = test_mask
         else:
             raise Exception('There is no predicted node type to split. Please set the '
-                            +'predict_ntype argument ......')
+                            +'target_ntype argument ......')
 
     # Split train/val/test sets for each predicted node type
     if args.generate_new_edge_split:
@@ -260,7 +281,26 @@ if __name__ == '__main__':
                 g.edges[etype].data['test_mask'] = test_mask
         else:
             raise Exception('There is no predicted edge type to split. Please set the '
-                            +'predict_etype argument ......')
+                            +'target_etype argument ......')
+
+    if args.no_split:
+        if pred_ntypes is not None:
+            for ntype in pred_ntypes:
+                if 'train_mask' in g.nodes[ntype].data:
+                    del g.nodes[ntype].data['train_mask']
+                if 'val_mask' in g.nodes[ntype].data:
+                    del g.nodes[ntype].data['val_mask']
+                if 'test_mask' in g.nodes[ntype].data:
+                    del g.nodes[ntype].data['test_mask']
+
+        if pred_etypes is not None:
+            for etype in pred_etypes:
+                if 'train_mask' in g.edges[etype].data:
+                    del g.edges[etype].data['train_mask']
+                if 'val_mask' in g.edges[etype].data:
+                    del g.edges[etype].data['val_mask']
+                if 'test_mask' in g.edges[etype].data:
+                    del g.edges[etype].data['test_mask']
 
     # Output general graph information
     print(f'load {args.dataset} takes {time.time() - start:.3f} seconds')
@@ -279,14 +319,14 @@ if __name__ == '__main__':
     # Output split information if predicted node/edge types specified
     if pred_ntypes is not None:
         for ntype in pred_ntypes:
-            train_total = th.sum(g.nodes[ntype].data['train_mask'])
+            train_total = th.sum(g.nodes[ntype].data['train_mask']) if 'train_mask' in g.nodes[ntype].data else 0
             val_total = th.sum(g.nodes[ntype].data['val_mask']) if 'val_mask' in g.nodes[ntype].data else 0
             test_total = th.sum(g.nodes[ntype].data['test_mask']) if 'test_mask' in g.nodes[ntype].data else 0
             print(f'\ntraining target node type: \'{ntype}\', '
                   + f'train: {train_total}, valid: {val_total}, test: {test_total}')
     if pred_etypes is not None:
         for etype in pred_etypes:
-            train_total = th.sum(g.edges[etype].data['train_mask'])
+            train_total = th.sum(g.edges[etype].data['train_mask']) if 'train_mask' in g.edges[etype].data else 0
             val_total = th.sum(g.edges[etype].data['val_mask']) if 'val_mask' in g.edges[etype].data else 0
             test_total = th.sum(g.edges[etype].data['test_mask']) if 'test_mask' in g.edges[etype].data else 0
             print(f'\ntraining target edge type: \'{etype}\', '
@@ -297,8 +337,20 @@ if __name__ == '__main__':
     else:
         balance_ntypes = None
 
-    dgl.distributed.partition_graph(g, args.dataset, args.num_parts, args.output,
-                                    part_method=args.part_method,
-                                    balance_ntypes=balance_ntypes,
-                                    balance_edges=args.balance_edges,
-                                    num_trainers_per_machine=args.num_trainers_per_machine)
+    mapping = \
+        dgl.distributed.partition_graph(g, args.dataset, args.num_parts, args.output,
+                                        part_method=args.part_method,
+                                        balance_ntypes=balance_ntypes,
+                                        balance_edges=args.balance_edges,
+                                        num_trainers_per_machine=args.num_trainers_per_machine,
+                                        return_mapping=True)
+
+    new_node_mapping, new_edge_mapping = mapping
+
+    # the new_node_mapping contains per entity type on the ith row
+    # the original node id for the ith node.
+    save_maps(args.output, "node_mapping", new_node_mapping)
+    # the new_edge_mapping contains per edge type on the ith row
+    # the original edge id for the ith edge.
+    save_maps(args.output, "edge_mapping", new_edge_mapping)
+

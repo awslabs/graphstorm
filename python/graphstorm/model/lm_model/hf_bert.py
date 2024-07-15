@@ -16,43 +16,32 @@
     Huggingface bert support
 """
 import time
-import inspect
 
 import numpy as np
 import torch as th
 from torch import nn
 
-from transformers import BertModel, BertConfig
+from transformers import AutoModel, AutoConfig, PreTrainedModel
 
 from .lm_model import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN, TOKEN_TID_IDX
 from .lm_model import GSFLanguageModelWrapper
 
-def load_hfbert_model(bert_configs):
-    """ Load huggingface bert model
+def load_hfbert_model(bert_configs: dict):
+    """ Load huggingface LM model
     """
     model_name = bert_configs["model_name"]
-    gradient_checkpointing = bert_configs["gradient_checkpoint"]
-    signature = inspect.signature(BertConfig.__init__)
-    hidden_dropout_prob = bert_configs["hidden_dropout_prob"] \
-        if "hidden_dropout_prob" in bert_configs \
-        else signature.parameters['hidden_dropout_prob'].default
-    attention_probs_dropout_prob = bert_configs["attention_probs_dropout_prob"] \
-        if "attention_probs_dropout_prob" in bert_configs \
-        else signature.parameters['attention_probs_dropout_prob'].default
-    config = BertConfig.from_pretrained(model_name,
-                                        gradient_checkpointing=gradient_checkpointing,
-                                        hidden_dropout_prob=hidden_dropout_prob,
-                                        attention_probs_dropout_prob=attention_probs_dropout_prob)
+    config = AutoConfig.from_pretrained(
+        model_name, **{key: val for key, val in bert_configs.items() if key != 'model_name'})
 
-    lm_model = BertModel.from_pretrained(model_name, config=config)
+    lm_model = AutoModel.from_pretrained(model_name, config=config)
     return lm_model
 
 class HFBertWrapper(GSFLanguageModelWrapper):
-    """ Wrap huggingface BertModel.
+    """ Wrap huggingface PreTrainedModel.
 
     Parameters
     ----------
-    bert_model: transformers.BertModel
+    bert_model: transformers.PreTrainedModel
         Huggingface Bert.
     num_train: int
         Number of trainable texts
@@ -64,16 +53,16 @@ class HFBertWrapper(GSFLanguageModelWrapper):
     def __init__(self,
                  lm_model,
                  num_train,
-                 lm_infer_batchszie=32,
+                 lm_infer_batch_size=32,
                  profile=False):
         super(HFBertWrapper, self).__init__(
             lm_model, num_train,
             lm_model.config.hidden_size, [TOKEN_IDX, ATT_MASK_IDX, VALID_LEN, TOKEN_TID_IDX],
-            lm_infer_batchszie, profile)
+            lm_infer_batch_size, profile)
 
         self.origin_num_train = self.num_train
-        assert isinstance(self.lm_model, BertModel), \
-            "Language model must be transformers.BertModel"
+        assert isinstance(self.lm_model, PreTrainedModel), \
+            "Language model must be transformers.PreTrainedModel"
         if self.profile:
             if isinstance(lm_model, nn.parallel.DistributedDataParallel):
                 self.num_params = np.sum([param.numel() \
@@ -190,10 +179,10 @@ class HFBertWrapper(GSFLanguageModelWrapper):
                 attention_mask = att_mask.reshape((1, -1)) < valid_len.reshape((-1, 1))
 
             input_ids.append(input_id)
-            attention_masks.append(attention_mask)
+            attention_masks.append(attention_mask.long())
             if TOKEN_TID_IDX in input_lm_feats[ntype]:
                 token_tid = input_lm_feats[ntype][TOKEN_TID_IDX].to(dev)
-                token_tids.append(token_tid)
+                token_tids.append(token_tid.long())
 
         input_ids = th.cat(input_ids, dim=0)
         attention_masks = th.cat(attention_masks, dim=0)
@@ -247,11 +236,11 @@ class HFBertWrapper(GSFLanguageModelWrapper):
         return out_embs
 
 def wrap_hf_bert(bert_model, num_train=0, bert_infer_bs=32, profile=False):
-    """ Wrap huggingface BertModel.
+    """ Wrap huggingface PreTrainedModel.
 
     Parameters
     ----------
-    bert_model: transformers.BertModel
+    bert_model: transformers.PreTrainedModel
         Huggingface Bert.
     num_train: int
         Number of trainable texts
@@ -260,6 +249,6 @@ def wrap_hf_bert(bert_model, num_train=0, bert_infer_bs=32, profile=False):
     profile: bool
         If True, compute flops statistics.
     """
-    assert isinstance(bert_model, BertModel), "Must be huggingface bert"
+    assert isinstance(bert_model, PreTrainedModel), "Must be huggingface PreTrainedModel"
     # create Bert model wrapper.
     return HFBertWrapper(bert_model, num_train, bert_infer_bs, profile)

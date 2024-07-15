@@ -3,45 +3,34 @@ version: 1.0
 gsf:
   basic:
     model_encoder_type: rgcn
-    graph_name: acm
     backend: gloo
-    num_gpus: 4
-    ip_config: ip_list.txt
-    part_config: /data/acm_nc/acm.json
     verbose: false
-    mixed_precision: false
-    no_validation: false
-    mp_opt_level: O2
-    train_nodes: 10
-    debug: false
     alpha_l2norm: 0.
   gnn:
     fanout: "50,50"
-    n_layers: 2
-    n_hidden: 256
-    mini_batch_infer: false
+    num_layers: 2
+    hidden_size: 256
+    use_mini_batch_infer: false
   input:
     restore_model_path: null
   output:
-    save_model_path: /data/outputs
-    save_embeds_path: /data/outputs
+    topk_model_to_save: 7
+    save_model_path: /tmp/outputs
+    save_embeds_path: /tmp/outputs
+    save_prediction_path: /tmp/outputs
   hyperparam:
     dropout: 0.
     lr: 0.0001
-    bert_tune_lr: 0.0001
-    n_epochs: 200
+    num_epochs: 200
     batch_size: 1024
-    eval_batch_size: 1024
-    bert_infer_bs: 128
     wd_l2norm: 0
   rgcn:
-    n_bases: -1
+    num_bases: -1
     use_self_loop: true
-    use_dot_product: true
-    sparse_lr: 1e-2
+    sparse_optimizer_lr: 1e-2
     use_node_embeddings: false
   node_classification:
-    predict_ntype: "paper"
+    target_ntype: "paper"
     label_field: "label"
     multilabel: false
     num_classes: 14

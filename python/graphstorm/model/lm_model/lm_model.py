@@ -48,12 +48,12 @@ class GSFLanguageModelWrapper(nn.Module):
                  num_train,
                  lm_output_size,
                  lm_fnames,
-                 lm_infer_batchszie=32,
+                 lm_infer_batch_size=32,
                  profile=False):
         super(GSFLanguageModelWrapper, self).__init__()
         self.lm_model = lm_model
         self.num_train = num_train
-        self.infer_bs = lm_infer_batchszie
+        self.infer_bs = lm_infer_batch_size
         self.profile = profile
 
         self.num_params = -1

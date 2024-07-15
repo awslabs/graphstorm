@@ -3,17 +3,15 @@ version: 1.0
 gsf:
   basic:
     backend: gloo
-    num_gpus: 4
     ip_config: ip_list.txt
     part_config: movielen_100k_er_1p_4t/movie-lens-100k.json
     verbose: false
-    debug: false
   gnn:
     model_encoder_type: rgcn
     fanout: "4"
-    n_layers: 1
-    n_hidden: 128
-    mini_batch_infer: true
+    num_layers: 1
+    hidden_size: 128
+    use_mini_batch_infer: true
   input:
     restore_model_path: null
   output:
@@ -21,13 +19,10 @@ gsf:
     save_embed_path: null
   hyperparam:
     batch_size: 64
-    eval_batch_size: 1024
-    bert_infer_bs: 128
     no_validation: false
   rgcn:
-    n_bases: -1
+    num_bases: -1
     use_self_loop: true
-    use_dot_product: true
     use_node_embeddings: false
   edge_classification:
     target_etype:

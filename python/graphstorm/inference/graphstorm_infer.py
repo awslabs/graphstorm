@@ -13,44 +13,36 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
-    Infererence framework.
+    Inference framework.
 """
-import torch as th
+from ..tracker import GSSageMakerTaskTracker
 
-class GSInfer():
-    """ Generic GSgnn infer.
-
+class GSInferrer():
+    """ Generic GSgnn Inferrer.
 
     Parameters
     ----------
     model : GSgnnNodeModel
         The GNN model for node prediction.
-    rank : int
-        The rank.
     """
-    def __init__(self, model, rank):
+    def __init__(self, model):
         self._model = model
-        self._rank = rank
-        self._dev_id = -1
+        self._device = -1
         self._evaluator = None
         self._task_tracker = None
 
-    def setup_cuda(self, dev_id):
-        """ Set up the CUDA device of this trainer.
+    def setup_device(self, device):
+        """ Set up the device for the inferrer.
 
         The CUDA device is set up based on the local rank.
 
         Parameters
         ----------
-        dev_id : int
-            The device ID for model training.
+        device :
+            The device for inferrer.
         """
-        # setup cuda env
-        use_cuda = th.cuda.is_available()
-        assert use_cuda, "Only support GPU training"
-        th.cuda.set_device(dev_id)
-        self._dev_id = dev_id
-        self._model = self._model.to(self.dev_id)
+        self._device = device
+        self._model = self._model.to(self.device)
 
     def setup_task_tracker(self, task_tracker):
         """ Set the task tracker.
@@ -60,15 +52,22 @@ class GSInfer():
         task_tracker : GSTaskTracker
             The task tracker
         """
-        if self.evaluator is not None:
-            self.evaluator.setup_task_tracker(task_tracker)
         self._task_tracker = task_tracker
 
     def setup_evaluator(self, evaluator):
-        """ Set the evaluator
+        """ Setup the evaluator
+
+        If the evaluator has its own task tracker, just setup the evaluator. But if the evaluator
+        has no task tracker, will use this Trainer's task tracker to setup the evaluator. When there
+        is no self task tracker, will create a new one by using the given evaluator's evaluation
+        frequency.
         """
-        if self.task_tracker is not None:
+        if evaluator.task_tracker is None:
+            if self.task_tracker is None:
+                self.setup_task_tracker(GSSageMakerTaskTracker(evaluator.eval_frequency))
+
             evaluator.setup_task_tracker(self.task_tracker)
+
         self._evaluator = evaluator
 
     def log_print_metrics(self, val_score, test_score, dur_eval, total_steps, train_score=None):
@@ -94,32 +93,30 @@ class GSInfer():
         best_val_score = self.evaluator.best_val_score
         best_test_score = self.evaluator.best_test_score
         best_iter_num = self.evaluator.best_iter_num
-        self.task_tracker.log_iter_metrics(self.evaluator.metric,
-                train_score=train_score, val_score=val_score,
-                test_score=test_score, best_val_score=best_val_score,
-                best_test_score=best_test_score, best_iter_num=best_iter_num,
-                eval_time=dur_eval, total_steps=total_steps)
+        self.task_tracker.log_iter_metrics(self.evaluator.metric_list,
+                                           train_score=train_score,
+                                           val_score=val_score,
+                                           test_score=test_score,
+                                           best_val_score=best_val_score,
+                                           best_test_score=best_test_score,
+                                           best_iter_num=best_iter_num,
+                                           eval_time=dur_eval,
+                                           total_steps=total_steps)
 
     @property
     def evaluator(self):
-        """ Get the evaluator associated with the inference.
+        """ Get the evaluator associated with the inferrer.
         """
         return self._evaluator
 
     @property
     def task_tracker(self):
-        """ Get the task tracker associated with the inference.
+        """ Get the task tracker associated with the inferrer.
         """
         return self._task_tracker
 
     @property
-    def dev_id(self):
-        """ Get the device ID associated with the inference.
+    def device(self):
+        """ The device associated with the inferrer.
         """
-        return self._dev_id
-
-    @property
-    def rank(self):
-        """ Get the rank the inference.
-        """
-        return self._rank
+        return self._device

@@ -28,22 +28,46 @@ echo "Test GraphStorm edge regression"
 date
 
 echo "**************dataset: Test edge regression, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_ep.py --cf ml_er.yaml --num-gpus 1 --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --n-epochs 1"
+python3 -m graphstorm.run.gs_edge_regression --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_er.yaml --num-epochs 1
 
 error_and_exit $?
 
+echo "**************dataset: Test edge regression, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, no test"
+python3 -m graphstorm.run.gs_edge_regression --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_er_no_test_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_er.yaml  --num-epochs 1 --logging-file /tmp/train_log.txt
+
+error_and_exit $?
+
+bst_cnt=$(grep "Best Test rmse: N/A" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "Test set is empty we should have Best Test rmse: N/A"
+    exit -1
+fi
+
+rm /tmp/train_log.txt
+
 echo "**************dataset: Test edge regression, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, eval_metric: mse"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_ep.py --cf ml_er.yaml --num-gpus 1 --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --eval-metric mse --n-epochs 1"
+python3 -m graphstorm.run.gs_edge_regression --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_er.yaml --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --eval-metric mse --num-epochs 1 --decoder-norm batch
+
+error_and_exit $?
+
+echo "**************dataset: Test edge regression, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, eval_metric: mae"
+python3 -m graphstorm.run.gs_edge_regression --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_er.yaml --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --eval-metric mae --num-epochs 1 --decoder-norm layer
 
 error_and_exit $?
 
 echo "**************dataset: Test edge regression, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: full-graph"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_ep.py --cf ml_er.yaml --num-gpus 1 --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --mini-batch-infer false --n-epochs 1"
+python3 -m graphstorm.run.gs_edge_regression --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_er.yaml --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --use-mini-batch-infer false --num-epochs 1
 
 error_and_exit $?
 
 echo "**************dataset: Test edge regression, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: full-graph, save model and emb"
-python3 $DGL_HOME/tools/launch.py --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num_trainers $NUM_TRAINERS --num_servers 1 --num_samplers 0 --part_config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip_config ip_list.txt --ssh_port 2222 "python3 gsgnn_ep.py --cf ml_er.yaml --num-gpus 1 --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --mini-batch-infer false --save-model-path ./model/er_model/ --topk-model-to-save 3 --save-embed-path ./model/ml-emb/ --n-epochs 1"
+python3 -m graphstorm.run.gs_edge_regression --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_er.yaml --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --use-mini-batch-infer false --save-model-path ./model/er_model/ --topk-model-to-save 3 --save-embed-path ./model/ml-emb/ --num-epochs 1 --save-model-frequency 1000
+
+error_and_exit $?
+
+echo "**************dataset: Test edge regression, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, Backend nccl"
+python3 -m graphstorm.run.gs_edge_regression --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_er.yaml --num-epochs 1 --node-feat-name movie:title user:feat --backend nccl
 
 error_and_exit $?
 

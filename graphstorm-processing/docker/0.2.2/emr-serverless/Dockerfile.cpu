@@ -1,0 +1,70 @@
+ARG ARCH=x86_64
+FROM public.ecr.aws/emr-serverless/spark/emr-6.13.0:20230906-${ARCH} as base
+FROM base as runtime
+
+USER root
+ENV PYTHON_VERSION=3.9.18
+
+# Python won’t try to write .pyc or .pyo files on the import of source modules
+# Force stdin, stdout and stderr to be totally unbuffered. Good for logging
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONIOENCODING=UTF-8
+
+# Set up pyenv
+ENV PYENV_ROOT="${HOME}/.pyenv"
+ENV PATH="${PYENV_ROOT}/shims:${PYENV_ROOT}/bin:${PATH}"
+ENV PYSPARK_DRIVER_PYTHON=${PYENV_ROOT}/shims/python
+ENV PYSPARK_PYTHON=${PYENV_ROOT}/shims/python
+
+# TODO: These can probably all go to another builder stage?
+RUN yum erase -y openssl-devel && \
+    yum install -y \
+        bzip2-devel\
+        gcc \
+        git \
+        libffi-devel \
+        ncurses-devel \
+        openssl11-devel \
+        readline-devel \
+        sqlite-devel \
+        sudo \
+        xz-devel && \
+        rm -rf /var/cache/yum
+RUN git clone https://github.com/pyenv/pyenv.git ${PYENV_ROOT} --single-branch && \
+    pyenv install ${PYTHON_VERSION} && \
+    pyenv global ${PYTHON_VERSION}
+
+WORKDIR /usr/lib/spark/code/
+
+# Install GSProcessing requirements to pyenv Python
+COPY requirements.txt requirements.txt
+# Use --mount=type=cache,target=/root/.cache when Buildkit CI issue is fixed:
+# https://github.com/moby/buildkit/issues/1512
+RUN pip install --no-cache-dir -r /usr/lib/spark/code/requirements.txt \
+    && rm -rf /root/.cache
+
+# GSProcessing codebase
+COPY code/ /usr/lib/spark/code/
+
+# Install Huggingface model cache if it is necessary
+ARG MODEL=""
+ENV TRANSFORMERS_CACHE=/home/hadoop/.cache/huggingface/hub
+RUN if [ -z "${MODEL}" ]; then \
+        echo "Skip installing model cache"; \
+else \
+        echo "Installing model cache for $MODEL" && \
+        python3 -c "from transformers import AutoTokenizer; AutoTokenizer.from_pretrained('${MODEL}')"; \
+        python3 -c "from transformers import AutoModel; AutoModel.from_pretrained('${MODEL}')"; \
+fi
+
+FROM runtime AS prod
+RUN python -m pip install --no-deps /usr/lib/spark/code/graphstorm_processing-*.whl && \
+    rm /usr/lib/spark/code/graphstorm_processing-*.whl && rm -rf /root/.cache
+
+FROM runtime AS test
+RUN python -m pip install --no-deps /usr/lib/spark/code/graphstorm-processing/ mock && \
+    rm -rf /root/.cache
+
+USER hadoop:hadoop
+WORKDIR /home/hadoop

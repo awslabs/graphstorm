@@ -1,123 +1,178 @@
 date
 GS_HOME=$(pwd)
+export PYTHONPATH=$GS_HOME/python/
 mkdir -p /data
 cd /data
 cp -R /storage/ml-100k /data
 
-python3 /$GS_HOME/python/graphstorm/data/tools/preprocess_movielens.py \
-    --input_path ml-100k --output_path movielen-data
-rm -fr ml-json
+# Generate movielens dataset in gconstruct input format
+python3 $GS_HOME/tests/end2end-tests/data_gen/process_movielens.py
 
-python3 /$GS_HOME/python/graphstorm/data/tools/preprocess_movielens.py \
-    --input_path ml-100k --output_path ml-json --num_split_files 6
+# movielens node classification with balanced training set - used in both single and multi gpu tests
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_train_val_1p_4t \
+	--graph-name movie-lens-100k \
+	--add-reverse-edges
 
-# movielens node class with balanced training set
-export PYTHONPATH=$GS_HOME/python/
-python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
-	--filepath /data \
-	--predict_ntype movie \
-	--undirected \
-	--num_trainers_per_machine 4 \
-	--output movielen_100k_train_val_1p_4t \
-	--generate_new_node_split true \
-	--balance_train \
-	--balance_edges \
-	--num_parts 1
+# movielens node classification removing test mask
+rm -Rf /data/movielen_100k_train_notest_1p_4t
+cp -R /data/movielen_100k_train_val_1p_4t /data/movielen_100k_train_notest_1p_4t
+python3 $GS_HOME/tests/end2end-tests/data_gen/remove_test_mask.py --dataset movielen_100k_train_notest_1p_4t --remove_node_mask true
 
-export PYTHONPATH=$GS_HOME/python/
-python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k-text \
-	--filepath /data \
-	--predict_ntype movie \
-	--undirected \
-	--num_trainers_per_machine 4 \
-	--output movielen_100k_text_train_val_1p_4t \
-	--generate_new_node_split true \
-	--balance_train \
-	--balance_edges \
-	--num_parts 1
+# movielens node classification inference
+rm -Rf /data/movielen_100k_infer_val_1p_4t
+cp -R /data/movielen_100k_train_val_1p_4t /data/movielen_100k_infer_val_1p_4t
 
-# movielens link prediction
-export PYTHONPATH=$GS_HOME/python/
-python3 /$GS_HOME/tools/partition_graph_lp.py --dataset movie-lens-100k \
-	--filepath /data \
-	--predict_etype "user,rating,movie" \
-	--num_trainers_per_machine 4 \
-	--output movielen_100k_lp_train_val_1p_4t \
-	--balance_train \
-	--balance_edges \
-	--train_pct 0.1 \
-	--val_pct 0.1 \
-	--num_parts 1
+# movielens node classification with text features - used in multi-gpu test, 4 trainers
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_text.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_text_train_val_1p_4t \
+	--graph-name movie-lens-100k-text \
+	--add-reverse-edges
 
-# movielens link prediction with text features
-export PYTHONPATH=$GS_HOME/python/
-python3 /$GS_HOME/tools/partition_graph_lp.py --dataset movie-lens-100k-text  \
-	--filepath /data \
-	--predict_etype "user,rating,movie" \
-	--num_trainers_per_machine 4 \
-	--output movielen_100k_text_lp_train_val_1p_4t \
-	--balance_train \
-	--balance_edges \
-	--train_pct 0.1 \
-	--val_pct 0.1 \
-	--num_parts 1
+# movielens link prediction - used in both single and multi gpu tests
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_lp.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_lp_train_val_1p_4t \
+	--graph-name movie-lens-100k \
+	--add-reverse-edges
+cp -R /data/ml-100k/raw_id_mappings/ movielen_100k_lp_train_val_1p_4t/
 
-# movielens node class
-export PYTHONPATH=$GS_HOME/python/
+# movielens link prediction - hard negative and fixed negative for inference
+rm -Rf /data/movielen_100k_lp_train_val_hard_neg_1p_4t
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_lp_hard.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_lp_train_val_hard_neg_1p_4t \
+	--graph-name movie-lens-100k \
+	--add-reverse-edges
+
+# movielens link prediction removing test mask
+rm -Rf /data/movielen_100k_lp_train_no_test_1p_4t
+cp -R /data/movielen_100k_lp_train_val_1p_4t /data/movielen_100k_lp_train_no_test_1p_4t
+python3 $GS_HOME/tests/end2end-tests/data_gen/remove_test_mask.py --dataset movielen_100k_lp_train_no_test_1p_4t --remove_node_mask false
+
+# movielens link prediction with text features - used in multi-gpu test, 4 trainers
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_text.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_text_lp_train_val_1p_4t \
+	--graph-name movie-lens-100k-text \
+	--add-reverse-edges
+
+# movielens link prediction without data split - used in single-gpu tests only
 rm -Rf movielen_no_edata_100k_train_val_1p_4t
 cp -R movielen_100k_lp_train_val_1p_4t movielen_no_edata_100k_train_val_1p_4t
 python3 /$GS_HOME/tests/end2end-tests/data_gen/remove_mask.py --dataset movielen_no_edata_100k_train_val_1p_4t --remove_node_mask 0
 
-# movielens edge regression
-export PYTHONPATH=$GS_HOME/python/
-python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
-	--filepath /data \
-    --elabel_field "user,rating,movie:rate" \
-    --predict_etype "user,rating,movie" \
-    --etask_type "regression" \
-	--num_trainers_per_machine 4 \
-	--output movielen_100k_er_1p_4t \
-	--balance_train \
-	--balance_edges \
-	--generate_new_edge_split true \
-	--train_pct 0.1 \
-	--val_pct 0.1 \
-	--num_parts 1
+# movielens link prediction with two edge types
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_2etype_lp.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_lp_2etype_train_val_1p_4t \
+	--graph-name movie-lens-100k \
+	--add-reverse-edges
 
-# dummy data Edge Classification
-export PYTHONPATH=$GS_HOME/python/
-python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k \
-	--filepath /data \
-    --elabel_field "user,rating,movie:rate" \
-    --predict_etype "user,rating,movie" \
-    --etask_type "classification" \
-	--num_trainers_per_machine 4 \
-	--output movielen_100k_ec_1p_4t \
-	--balance_train \
-	--balance_edges \
-	--generate_new_edge_split true \
-	--train_pct 0.1 \
-	--val_pct 0.1 \
-	--num_parts 1
+# movielens edge regression - used in both single and multi gpu tests
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_er.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_er_1p_4t \
+	--graph-name movie-lens-100k \
+	--add-reverse-edges
+
+# movielens edge regression removing test mask
+rm -Rf /data/movielen_100k_er_no_test_1p_4t
+cp -R /data/movielen_100k_er_1p_4t /data/movielen_100k_er_no_test_1p_4t
+python3 $GS_HOME/tests/end2end-tests/data_gen/remove_test_mask.py --dataset movielen_100k_er_no_test_1p_4t --remove_node_mask false
+
+#movielens edge regression - inference
+rm -Rf /data/movielen_100k_er_infer_1p_4t
+cp -R /data/movielen_100k_er_1p_4t /data/movielen_100k_er_infer_1p_4t
+
+# movielens edge classification - used in both single and multi-gpu tests
+rm -Rf /data/movielen_100k_ec_1p_4t
+cp -R /data/movielen_100k_train_val_1p_4t /data/movielen_100k_ec_1p_4t
+
+rm -Rf /data/movielen_100k_ec_no_test_1p_4t
+cp -R /data/movielen_100k_ec_1p_4t /data/movielen_100k_ec_no_test_1p_4t
+python3 $GS_HOME/tests/end2end-tests/data_gen/remove_test_mask.py --dataset movielen_100k_ec_no_test_1p_4t --remove_node_mask false
+
+# movielens edge classification - inference
+rm -Rf /data/movielen_100k_multi_label_ec_infer
+cp -R /data/movielen_100k_ec_1p_4t /data/movielen_100k_multi_label_ec_infer
 
 # Create data for edge classification with text features
-export PYTHONPATH=$GS_HOME/python/
-python3 /$GS_HOME/tools/partition_graph.py --dataset movie-lens-100k-text \
-	--filepath /data \
-    --elabel_field "user,rating,movie:rate" \
-    --predict_etype "user,rating,movie" \
-    --etask_type "classification" \
-	--num_trainers_per_machine 4 \
-	--output movielen_100k_ec_1p_4t_text \
-	--balance_train \
-	--balance_edges \
-	--generate_new_edge_split true \
-	--train_pct 0.1 \
-	--val_pct 0.1 \
-	--num_parts 1
+rm -Rf /data/movielen_100k_ec_1p_4t_text
+cp -R /data/movielen_100k_text_train_val_1p_4t /data/movielen_100k_ec_1p_4t_text
 
+# movielens edge classification without data split - used in both single and multi-gpu tests
 rm -Rf /data/movielen_100k_multi_label_ec
 cp -R /data/movielen_100k_ec_1p_4t /data/movielen_100k_multi_label_ec
 python3 $GS_HOME/tests/end2end-tests/data_gen/gen_multilabel.py --path /data/movielen_100k_multi_label_ec --node_class false --field rate
 
+# Create data for graph-aware fine-tuning BERT model
+python3 -m graphstorm.gconstruct.construct_graph --conf-file $GS_HOME/tests/end2end-tests/test_data_config/movielens_user_feat_movie_token.json --num-processes 1 --output-dir /data/movielen_100k_lp_user_feat_movie_token_1p --graph-name ml --add-reverse-edges --num-parts 1
+
+# For Custom GNN test
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_custom.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_custom_train_val_1p_4t \
+	--graph-name movie-lens-100k \
+	--add-reverse-edges
+
+# For tests using lm-encoder - node classification and edge classification
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_lm_encoder.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_lm_encoder_train_val_1p_4t \
+	--graph-name movie-lens-100k-text \
+	--add-reverse-edges
+
+# For tests using lm-encoder on movies - node classification and edge classification
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_movie_lm_encoder.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_movie_lm_encoder_train_val_1p_4t \
+	--graph-name movie-lens-100k-text \
+	--add-reverse-edges
+
+# roberta as the LM:
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_roberta_encoder.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_roberta_encoder_train_val_1p_4t \
+	--graph-name movie-lens-100k-text \
+	--add-reverse-edges
+
+# For tests using lm-encoder - link prediction
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_lm_encoder_lp.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_lm_encoder_lp_train_val_1p_4t \
+	--graph-name movie-lens-100k-text \
+	--add-reverse-edges
+
+# movielens with labels on both user and movie nodes
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_multi_target_ntypes.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_multi_target_ntypes_train_val_1p_4t \
+	--graph-name movie-lens-100k \
+	--add-reverse-edges
+
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_multi_task.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_multi_task_train_val_1p_4t \
+	--graph-name movie-lens-100k \
+	--add-reverse-edges
+
 date
+
+echo 'Done'

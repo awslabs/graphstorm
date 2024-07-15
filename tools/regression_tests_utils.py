@@ -42,9 +42,9 @@ def save_model_results_in_s3(path, graph_name, task_type):
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser("Regression tests checker")
-    argparser.add_argument("--graph_name", type=str, required=True, help="The name of the graph dataset")
+    argparser.add_argument("--graph-name", type=str, required=True, help="The name of the graph dataset")
     argparser.add_argument("--filepath", type=str, default=None, help='The path of the regression_results json file.')
-    argparser.add_argument('--task_type', type=str, required=True,
+    argparser.add_argument('--task-type', type=str, required=True,
                            help='The type of the task.')
     args = argparser.parse_args()
     save_model_results_in_s3(args.filepath, args.graph_name, args.task_type)

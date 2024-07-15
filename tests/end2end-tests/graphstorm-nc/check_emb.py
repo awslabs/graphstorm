@@ -41,26 +41,12 @@ if __name__ == '__main__':
                 node_map[ntype] += r[1] - r[0]
 
     # multiple node types
-    files = os.listdir(args.emb_path)
-    if len(node_map) > 1:
-        for ntype, num_nodes in node_map.items():
-            ntype_files = []
-            for file in files:
-                if file.startswith(ntype):
-                    ntype_files.append(file)
-            print(ntype_files)
-            ntype_files.sort()
+    for ntype, num_nodes in node_map.items():
+        ntype_files = os.listdir(os.path.join(args.emb_path, ntype))
 
-            # Only work with torch 1.13+
-            feats = [th.load(os.path.join(args.emb_path, nfile), weights_only=True) \
-                for nfile in ntype_files]
-            feats = th.cat(feats, dim=0)
-            assert feats.shape[0] == num_nodes
-            assert feats.shape[1] == args.emb_size
-    else:
-        files.sort()
         # Only work with torch 1.13+
-        feats = [th.load(nfile, weights_only=True) for nfile in files]
+        feats = [th.load(os.path.join(os.path.join(args.emb_path, ntype), nfile),
+                         weights_only=True) for nfile in ntype_files]
         feats = th.cat(feats, dim=0)
-        assert feats.shape[0] == node_map.values()[0]
+        assert feats.shape[0] == num_nodes
         assert feats.shape[1] == args.emb_size

@@ -22,14 +22,13 @@ class GSTaskTrackerAbc():
 
         Parameters
         ----------
-        config: GSConfig
-            Configurations. Users can add their own configures in the yaml config file.
-        rank: int
-            Task rank
+        log_report_frequency: int
+            The frequency of reporting model performance metrics through task_tracker. 
+            The frequency is defined by using number of iterations, i.e., every N iterations
+            the evaluation metrics will be reported.
     """
-    def __init__(self, config, rank):
-        self._rank = rank
-        self._report_frequency = config.log_report_frequency # Can be None if not provided
+    def __init__(self, log_report_frequency):
+        self._report_frequency = log_report_frequency # Can be None if not provided
 
     @abc.abstractmethod
     def log_metric(self, metric_name, metric_value, step, force_report=False):
@@ -149,7 +148,7 @@ class GSTaskTrackerAbc():
         # By default do nothing
 
     @property
-    def rank(self):
-        """ Task rank in a distributed training/inference cluster
+    def log_report_frequency(self):
+        """ Log output report frequency
         """
-        return self._rank
+        return self._report_frequency

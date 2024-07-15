@@ -22,8 +22,11 @@ from .eval_func import ClassificationMetrics, RegressionMetrics, LinkPredictionM
 from .eval_func import SUPPORTED_CLASSIFICATION_METRICS
 from .eval_func import SUPPORTED_REGRESSION_METRICS
 from .eval_func import SUPPORTED_LINK_PREDICTION_METRICS
+from .eval_func import SUPPORTED_HIT_AT_METRICS
 
-from .evaluator import GSgnnLPEvaluator
-from .evaluator import GSgnnMrrLPEvaluator
-from .evaluator import GSgnnAccEvaluator
-from .evaluator import GSgnnRegressionEvaluator
+from .evaluator import (GSgnnMrrLPEvaluator,
+                        GSgnnPerEtypeMrrLPEvaluator,
+                        GSgnnClassificationEvaluator,
+                        GSgnnRegressionEvaluator,
+                        GSgnnRconstructFeatRegScoreEvaluator,
+                        GSgnnMultiTaskEvaluator)

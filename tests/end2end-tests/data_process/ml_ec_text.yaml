@@ -1,0 +1,57 @@
+---
+version: 1.0
+lm_model:
+  node_lm_models:
+    -
+      lm_type: bert
+      model_name: "bert-base-uncased"
+      gradient_checkpoint: true
+      node_types:
+        - movie
+gsf:
+  basic:
+    backend: gloo
+    ip_config: ip_list.txt
+    part_config: movielen_100k_ec_2p_4t/movie-lens-100k.json
+    verbose: false
+    save_perf_results_path: null
+  lm:
+    lm_train_nodes: 10
+    lm_infer_batch_size: 32
+    freeze_lm_encoder_epochs: 0
+  gnn:
+    model_encoder_type: rgcn
+    fanout: "4"
+    num_layers: 1
+    hidden_size: 128
+    mini_batch_infer: true
+  input:
+    restore_model_path: null
+  output:
+    save_model_path: null
+    save_embed_path: null
+  hyperparam:
+    dropout: 0.
+    lr: 0.001
+    lm_tune_lr: 0.0001
+    num_epochs: 3
+    batch_size: 64
+    eval_batch_size: 1024
+    wd_l2norm: 0
+    no_validation: false
+    eval_frequency: 1000
+  rgcn:
+    num_bases: -1
+    use_self_loop: true
+    sparse_optimizer_lr: 1e-2
+    use_node_embeddings: false
+  edge_classification:
+    target_etype:
+      - "user,rating,movie"
+    reverse_edge_types_map:
+      - "user,rating,rating-rev,movie"
+    label_field: "rate"
+    multilabel: false
+    num_classes: 6
+    num_decoder_basis: 32
+    exclude_training_targets: false

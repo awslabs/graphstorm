@@ -15,6 +15,9 @@
 
     SageMaker task tracker
 """
+import numbers
+import logging
+
 from .graphstorm_tracker import GSTaskTrackerAbc
 
 class GSSageMakerTaskTracker(GSTaskTrackerAbc):
@@ -22,10 +25,11 @@ class GSSageMakerTaskTracker(GSTaskTrackerAbc):
 
         Parameters
         ----------
-        config: GSConfig
-            Configurations. Users can add their own configures in the yaml config file.
-        rank: int
-            Task rank
+        log_report_frequency: int
+            The frequency of reporting model performance metrics through task_tracker. 
+            The frequency is defined by using number of iterations, i.e., every N iterations
+            the evaluation metrics will be reported.
+
     """
 
     def _do_report(self, step):
@@ -54,7 +58,12 @@ class GSSageMakerTaskTracker(GSTaskTrackerAbc):
         """
         if force_report or self._do_report(step):
             if metric_value is not None:
-                print(f"Step {step} | {metric_name}: {metric_value:.4f}")
+                if isinstance(metric_value, str):
+                    logging.info("Step %d | %s: %s", step, metric_name, metric_value)
+                elif isinstance(metric_value, numbers.Number):
+                    logging.info("Step %d | %s: %.4f", step, metric_name, metric_value)
+                else:
+                    logging.info("Step %d | %s: %s", step, metric_name, str(metric_value))
 
     def log_train_metric(self, metric_name, metric_value, step, force_report=False):
         """ Log train metric
@@ -167,7 +176,7 @@ class GSSageMakerTaskTracker(GSTaskTrackerAbc):
             Average forward time
         """
         # {'Name': 'Mean Forward Time', 'Regex': 'Mean forward time: ([0-9\\.]+)'}
-        print(f"Mean forward time: {forward_time:.4f}")
+        logging.info("Mean forward time: %.4f.", forward_time)
 
     def log_mean_backward_time(self, backward_time):
         """ Log average backward time
@@ -178,7 +187,7 @@ class GSSageMakerTaskTracker(GSTaskTrackerAbc):
             Average backward time
         """
         # {'Name': 'Mean Backward Time', 'Regex': 'Mean backward time: ([0-9\\.]+)'}
-        print(f"Mean backword time: {backward_time:.4f}")
+        logging.info("Mean backword time: %.4f.", backward_time)
 
     def log_train_time(self, train_time):
         """ Log total training time
@@ -189,7 +198,7 @@ class GSSageMakerTaskTracker(GSTaskTrackerAbc):
             Total trianing time
         """
         # 'Name': 'Train Time', 'Regex': 'Total train Time: ([0-9\\.]+)'
-        print(f"Total train Time: {train_time:.4f}")
+        logging.info("Total train Time: %.4f.", train_time)
 
     def log_valid_time(self, valid_time):
         """ Log total validation time
@@ -200,10 +209,10 @@ class GSSageMakerTaskTracker(GSTaskTrackerAbc):
             Total validation time
         """
         # 'Name': 'Validation Time', 'Regex': 'Total validatoin Time: ([0-9\\.]+)'
-        print(f"Total validatoin Time: {valid_time:.4f}")
+        logging.info("Total validatoin Time: %.4f.", valid_time)
 
     def log_param(self, param_name, param_value):
-        print(f"{param_name}: {param_value}")
+        logging.info("%s: %s", param_name, str(param_value))
 
     def log_iter_metrics(self, eval_metrics, val_score, test_score,
         best_val_score, best_test_score, best_iter_num, train_score=None,
@@ -281,4 +290,4 @@ class GSSageMakerTaskTracker(GSTaskTrackerAbc):
         self.log_best_valid(metric, best_val_score, total_steps, force_report=True)
         self.log_best_test(metric, best_test_score, total_steps, force_report=True)
         self.log_best_iter(metric, best_iter_num, total_steps, force_report=True)
-        print(f" Eval time: {dur_eval:.4f}, Evaluation step: {total_steps:.4f}")
+        logging.info(" Eval time: %.4f, Evaluation step: %d.", dur_eval, total_steps)

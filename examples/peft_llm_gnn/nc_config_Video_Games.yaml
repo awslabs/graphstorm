@@ -1,0 +1,42 @@
+lm_model:
+  node_lm_models:
+    -
+      lm_type: opt
+      model_name: facebook/opt-2.7b
+      node_types:
+        - item
+gsf:
+  basic:
+    backend: nccl
+    verbose: false
+  gnn:
+    model_encoder_type: rgcn
+    fanout: "5,5"
+    hidden_size: 768
+    num_layers: 2
+    use_mini_batch_infer: true
+  hyperparam:
+    batch_size: 8
+    dropout: 0.0
+    eval_batch_size: 4
+    lr: 0.0001
+    num_epochs: 10
+    wd_l2norm: 1.0e-06
+  input:
+    restore_model_path: null
+  output:
+    save_model_path: null
+    save_embed_path: null
+    topk_model_to_save: 3
+  node_classification:
+    eval_metric:
+    - accuracy
+    label_field: pt_lvl3
+    multilabel: false
+    node_feat_name:
+    - item:bert_h
+    num_classes: 23
+    target_ntype: item
+  rgcn:
+    num_bases: -1
+    use_self_loop: true

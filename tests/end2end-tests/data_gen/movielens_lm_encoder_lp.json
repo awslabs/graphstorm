@@ -1,0 +1,55 @@
+{
+    "version": "gconstruct-v0.1",
+    "nodes": [
+            {
+                    "node_id_col":  "id",
+                    "node_type":    "user",
+                    "format":       {"name": "parquet"},
+                    "files":        "/data/ml-100k/users.parquet",
+                    "features":     [
+                           {
+                                   "feature_col":  "feat"
+                           },
+                           {
+                                "feature_col": "occupation",
+                                "transform":{
+                                    "name": "tokenize_hf",
+                                    "bert_model": "bert-base-uncased",
+                                    "max_seq_length": 128
+                                }
+                           }
+                    ]
+            },
+            {
+                    "node_id_col":  "id",
+                    "node_type":    "movie",
+                    "format":       {"name": "parquet"},
+                    "files":        "/data/ml-100k/movie.parquet",
+                    "features":     [
+                           {
+                                   "feature_col":  "title",
+                                   "transform":    {
+                                           "name": "tokenize_hf",
+                                           "bert_model": "bert-base-uncased",
+                                           "max_seq_length": 128
+                                   }
+                           }
+                    ]
+            }
+    ],
+    "edges": [
+            {
+                    "source_id_col":    "src_id",
+                    "dest_id_col":      "dst_id",
+                    "relation":         ["user", "rating", "movie"],
+                    "format":           {"name": "parquet"},
+                    "files":        "/data/ml-100k/edges.parquet",
+                    "labels":	[
+                        {
+                                "task_type":	"link_prediction",
+                                "split_pct":	[0.01, 0.01, 0.01]
+                        }
+                    ]
+            }
+    ]
+}

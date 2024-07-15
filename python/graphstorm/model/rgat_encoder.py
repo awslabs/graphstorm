@@ -15,19 +15,53 @@
 
     RGAT layer implementation
 """
+import logging
 
 import torch as th
 from torch import nn
 import torch.nn.functional as F
 import dgl.nn as dglnn
 
-from .gnn_encoder_base import GraphConvEncoder
+from .ngnn_mlp import NGNNMLP
+from .gnn_encoder_base import (GraphConvEncoder,
+                               GSgnnGNNEncoderInterface)
+
 
 class RelationalAttLayer(nn.Module):
-    r"""Relational graph attention layer.
+    r"""Relational graph attention layer from `
+    Relational Graph Attention Networks <https://arxiv.org/abs/1904.05811>`__.
 
-    For inner relation message aggregation we use multi-head attention network.
-    For cross relation message we just use average
+    For the GATConv on each relation type:
+    .. math::
+        h_i^{(l+1)} = \sum_{j\in \mathcal{N}(i)} \alpha_{i,j} W^{(l)} h_j^{(l)}
+
+    where :math:`\alpha_{ij}` is the attention score between node :math:`i` and
+    node :math:`j`:
+
+    .. math::
+        \alpha_{ij}^{l} &= \mathrm{softmax_i} (e_{ij}^{l})
+
+        e_{ij}^{l} &= \mathrm{LeakyReLU}\left(\vec{a}^T [W h_{i} \| W h_{j}]\right)
+
+    Note:
+    -----
+    * For inner relation message aggregation we use multi-head attention network.
+    * For cross relation message we just use average.
+
+    Examples:
+    ----------
+
+    .. code:: python
+
+        # suppose graph and input_feature are ready
+        from graphstorm.model.rgat_encoder import RelationalAttLayer
+
+        layer = RelationalAttLayer(
+                h_dim, h_dim, g.canonical_etypes,
+                num_heads, activation, self_loop,
+                dropout, num_ffn_layers_in_gnn,
+                fnn_activation, norm)
+        h = layer(g, input_feature)
 
     Parameters
     ----------
@@ -37,7 +71,7 @@ class RelationalAttLayer(nn.Module):
         Output feature size.
     rel_names : list[str]
         Relation names.
-    n_heads : int
+    num_heads : int
         Number of attention heads
     bias : bool, optional
         True if bias is added. Default: True
@@ -47,17 +81,26 @@ class RelationalAttLayer(nn.Module):
         True to include self loop message. Default: False
     dropout : float, optional
         Dropout rate. Default: 0.0
+    num_ffn_layers_in_gnn: int, optional
+        Number of layers of ngnn between gnn layers
+    ffn_actication: torch.nn.functional
+        Activation Method for ngnn
+    norm : str, optional
+        Normalization Method. Default: None
     """
     def __init__(self,
                  in_feat,
                  out_feat,
                  rel_names,
-                 n_heads,
+                 num_heads,
                  *,
                  bias=True,
                  activation=None,
                  self_loop=False,
-                 dropout=0.0):
+                 dropout=0.0,
+                 num_ffn_layers_in_gnn=0,
+                 fnn_activation=F.relu,
+                 norm=None):
         super(RelationalAttLayer, self).__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
@@ -67,9 +110,27 @@ class RelationalAttLayer(nn.Module):
         self.self_loop = self_loop
 
         self.conv = dglnn.HeteroGraphConv({
-                rel : dglnn.GATConv(in_feat, out_feat // n_heads, n_heads, bias=False)
+                rel : dglnn.GATConv(in_feat, out_feat // num_heads, num_heads, bias=False)
                 for rel in rel_names
             })
+
+        # get the node types
+        ntypes = set()
+        for rel in rel_names:
+            ntypes.add(rel[0])
+            ntypes.add(rel[2])
+
+        # normalization
+        self.norm = None
+        if activation is None and norm is not None:
+            raise ValueError("Cannot set gnn norm layer when activation layer is None")
+        if norm == "batch":
+            self.norm = nn.ParameterDict({ntype:nn.BatchNorm1d(out_feat) for ntype in ntypes})
+        elif norm == "layer":
+            self.norm = nn.ParameterDict({ntype:nn.LayerNorm(out_feat) for ntype in ntypes})
+        else:
+            # by default we don't apply any normalization
+            self.norm = None
 
         # bias
         if bias:
@@ -82,7 +143,28 @@ class RelationalAttLayer(nn.Module):
             nn.init.xavier_uniform_(self.loop_weight,
                                     gain=nn.init.calculate_gain('relu'))
 
+        # ngnn
+        self.num_ffn_layers_in_gnn = num_ffn_layers_in_gnn
+        self.ngnn_mlp = NGNNMLP(out_feat, out_feat,
+                                     num_ffn_layers_in_gnn, fnn_activation, dropout)
+
+        # dropout
         self.dropout = nn.Dropout(dropout)
+        self.warn_msg = set()
+
+    def warning_once(self, warn_msg):
+        """ Print same warning msg only once
+
+        Parameters
+        ----------
+        warn_msg: str
+            Warning message
+        """
+        if warn_msg in self.warn_msg:
+            # Skip printing warning
+            return
+        self.warn_msg.add(warn_msg)
+        logging.warning(warn_msg)
 
     # pylint: disable=invalid-name
     def forward(self, g, inputs):
@@ -111,39 +193,52 @@ class RelationalAttLayer(nn.Module):
         hs = self.conv(g, inputs_src)
 
         def _apply(ntype, h):
+            # handle the case when len(h) is 0
+            if h.shape[0] == 0:
+                return h.reshape((0, self.out_feat))
             if self.self_loop:
                 h = h + th.matmul(inputs_dst[ntype], self.loop_weight)
             if self.bias:
                 h = h + self.h_bias
+            if self.norm:
+                h = self.norm[ntype](h)
             if self.activation:
                 h = self.activation(h)
+            if self.num_ffn_layers_in_gnn > 0:
+                h = self.ngnn_mlp(h)
             return self.dropout(h)
 
         for k, _ in inputs.items():
             if g.number_of_dst_nodes(k) > 0:
                 if k not in hs:
-                    print("Warning. Graph convolution returned empty dictionary, "
-                          f"for node with type: {str(k)}")
-                    for _, in_v in inputs_src.items():
-                        device = in_v.device
-                    hs[k] = th.zeros((g.number_of_dst_nodes(k), self.out_feat), device=device)
+                    warn_msg = "Warning. Graph convolution returned empty " \
+                        f"dictionary for nodes in type: {str(k)}. Please check your data" \
+                        f" for no in-degree nodes in type: {str(k)}."
+                    self.warning_once(warn_msg)
+                    hs[k] = th.zeros((g.number_of_dst_nodes(k),
+                                      self.out_feat),
+                                     device=inputs[k].device)
                     # TODO the above might fail if the device is a different GPU
                 else:
                     hs[k] = hs[k].view(hs[k].shape[0], hs[k].shape[1] * hs[k].shape[2])
 
         return {ntype : _apply(ntype, h) for ntype, h in hs.items()}
 
-class RelationalGATEncoder(GraphConvEncoder):
+class RelationalGATEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
     r"""Relational graph attention encoder
 
+    The RelationalGATEncoder employs several RelationalAttLayers as its encoding mechanism.
+    The RelationalGATEncoder should be designated as the model's encoder within Graphstorm.
+
     Parameters
+    -----------
     g : DGLHeteroGraph
         Input graph.
     h_dim: int
         Hidden dimension size
     out_dim: int
         Output dimension size
-    n_heads: int
+    num_heads: int
         Number of heads
     num_hidden_layers: int
         Num hidden layers
@@ -153,27 +248,74 @@ class RelationalGATEncoder(GraphConvEncoder):
         Self loop
     last_layer_act: bool
         Whether add activation at the last layer
+    num_ffn_layers_in_gnn: int
+        Number of ngnn gnn layers between GNN layers
+    norm : str, optional
+        Normalization Method. Default: None
+
+    Examples:
+    ----------
+
+    .. code:: python
+
+        # Build model and do full-graph inference on RelationalGATEncoder
+        from graphstorm import get_node_feat_size
+        from graphstorm.model.rgat_encoder import RelationalGATEncoder
+        from graphstorm.model.node_decoder import EntityClassifier
+        from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
+        from graphstorm.dataloading import GSgnnData
+        from graphstorm.model import do_full_graph_inference
+
+        np_data = GSgnnData(...)
+
+        model = GSgnnNodeModel(alpha_l2norm=0)
+        feat_size = get_node_feat_size(np_data.g, 'feat')
+        encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+                                          dropout=0,
+                                          use_node_embeddings=True)
+        model.set_node_input_encoder(encoder)
+
+        gnn_encoder = RelationalGATEncoder(g, 4, 4,
+                                           num_heads=2,
+                                           num_hidden_layers=1,
+                                           dropout=0,
+                                           use_self_loop=True,
+                                           norm=norm)
+        model.set_gnn_encoder(gnn_encoder)
+        model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
+
+        h = do_full_graph_inference(model, np_data)
     """
     def __init__(self,
                  g,
-                 h_dim, out_dim, n_heads,
+                 h_dim, out_dim, num_heads,
                  num_hidden_layers=1,
                  dropout=0,
                  use_self_loop=True,
-                 last_layer_act=False):
+                 last_layer_act=False,
+                 num_ffn_layers_in_gnn=0,
+                 norm=None):
         super(RelationalGATEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
-        self.n_heads = n_heads
+        self.num_heads = num_heads
         # h2h
         for _ in range(num_hidden_layers):
             self.layers.append(RelationalAttLayer(
                 h_dim, h_dim, g.canonical_etypes,
-                self.n_heads, activation=F.relu, self_loop=use_self_loop,
-                dropout=dropout))
+                self.num_heads, activation=F.relu, self_loop=use_self_loop,
+                dropout=dropout, num_ffn_layers_in_gnn=num_ffn_layers_in_gnn,
+                fnn_activation=F.relu, norm=norm))
         # h2o
         self.layers.append(RelationalAttLayer(
             h_dim, out_dim, g.canonical_etypes,
-            self.n_heads, activation=F.relu if last_layer_act else None,
-            self_loop=use_self_loop))
+            self.num_heads, activation=F.relu if last_layer_act else None,
+            self_loop=use_self_loop, norm=norm if last_layer_act else None))
+
+    def skip_last_selfloop(self):
+        self.last_selfloop = self.layers[-1].self_loop
+        self.layers[-1].self_loop = False
+
+    def reset_last_selfloop(self):
+        self.layers[-1].self_loop = self.last_selfloop
 
     def forward(self, blocks, h):
         """Forward computation
@@ -184,6 +326,12 @@ class RelationalGATEncoder(GraphConvEncoder):
             Sampled subgraph in DGL MFG
         h: dict[str, torch.Tensor]
             Input node feature for each node type.
+
+        Returns
+        ----------
+        h: dict[str, torch.Tensor]
+            Output node feature for each node type.
+
         """
         for layer, block in zip(self.layers, blocks):
             h = layer(block, h)

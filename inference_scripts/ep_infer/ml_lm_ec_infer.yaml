@@ -12,28 +12,24 @@ lm_model:
 gsf:
   basic:
     backend: gloo
-    num_gpus: 4
     ip_config: ip_list.txt
     part_config: movielen_100k_ec_2p_4t/movie-lens-100k.json
     verbose: false
-    debug: false
     save_perf_results_path: null
   lm:
     lm_train_nodes: 10
-    lm_infer_batchszie: 32
+    lm_infer_batch_size: 32
     freeze_lm_encoder_epochs: 0
   gnn:
     model_encoder_type: lm
-    n_hidden: 128
-    mini_batch_infer: true
+    hidden_size: 128
+    use_mini_batch_infer: true
   input:
     restore_model_path: null
   output:
     save_model_path: null
     save_embed_path: null
   hyperparam:
-    eval_batch_size: 1024
-    bert_infer_bs: 128
     no_validation: false
   edge_classification:
     target_etype:

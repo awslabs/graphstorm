@@ -12,22 +12,20 @@ lm_model:
 gsf:
   basic:
     backend: gloo
-    num_gpus: 4
     ip_config: ip_list.txt
     part_config: movielen_100k_ec_2p_4t/movie-lens-100k.json
     verbose: false
-    debug: false
     save_perf_results_path: null
   lm:
     lm_train_nodes: 10
-    lm_infer_batchszie: 32
+    lm_infer_batch_size: 32
     freeze_lm_encoder_epochs: 0
   gnn:
     model_encoder_type: rgcn
     fanout: "4"
-    n_layers: 1
-    n_hidden: 128
-    mini_batch_infer: true
+    num_layers: 1
+    hidden_size: 128
+    use_mini_batch_infer: true
   input:
     restore_model_path: null
   output:
@@ -36,19 +34,16 @@ gsf:
   hyperparam:
     dropout: 0.
     lr: 0.001
-    bert_tune_lr: 0.0001
-    n_epochs: 3
+    lm_tune_lr: 0.0001
+    num_epochs: 3
     batch_size: 64
-    eval_batch_size: 1024
-    bert_infer_bs: 128
     wd_l2norm: 0
     no_validation: false
-    evaluation_frequency: 1000
+    eval_frequency: 1000
   rgcn:
-    n_bases: -1
+    num_bases: -1
     use_self_loop: true
-    use_dot_product: true
-    sparse_lr: 1e-2
+    sparse_optimizer_lr: 1e-2
     use_node_embeddings: false
   edge_classification:
     target_etype:
@@ -57,6 +52,6 @@ gsf:
       - "user,rating,rating-rev,movie"
     label_field: "rate"
     multilabel: false
-    num_classes: 6
+    num_classes: 5
     num_decoder_basis: 32
     exclude_training_targets: false
