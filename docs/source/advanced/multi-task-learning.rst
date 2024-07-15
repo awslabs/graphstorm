@@ -279,7 +279,7 @@ edge classification and edge regression) will be saved into different sub-direct
 
 Run Model Training on SageMaker
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-GraphStorm supports to run multi-task training on :ref:`SageMaker<distributed-sagemaker>` as following:
+GraphStorm supports running multi-task training on :ref:`SageMaker<distributed-sagemaker>` as following:
 
 .. code-block:: bash
 
