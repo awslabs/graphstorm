@@ -104,7 +104,6 @@ class NoopTransformation(DistributedTransformation):
             return input_df
 
         # Otherwise we'll try to convert the values from list of strings to list of Doubles
-
         def str_list_to_float_vec(string_list: Optional[list[str]]) -> Optional[list[float]]:
             if string_list:
                 return [float(x) for x in string_list]
@@ -116,14 +115,14 @@ class NoopTransformation(DistributedTransformation):
 
         if self.separator:
             # Split up string into vector of floats
-            input_df = input_df.select(
+            vector_df = input_df.select(
                 [
                     strvec_to_float_vec_udf(F.split(F.col(column), self.separator)).alias(column)
                     for column in self.cols
                 ]
             )
         else:
-            input_df = input_df.select(
+            vector_df = input_df.select(
                 [
                     F.col(column).cast(DTYPE_MAP[self.out_dtype]).alias(column)
                     for column in self.cols
@@ -131,7 +130,9 @@ class NoopTransformation(DistributedTransformation):
             )
 
         if self.truncate_dim:
-            return self._truncate_vector_df(input_df)
+            return self._truncate_vector_df(vector_df)
+        else:
+            return vector_df
 
     @staticmethod
     def get_transformation_name() -> str:
