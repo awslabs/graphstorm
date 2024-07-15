@@ -380,7 +380,7 @@ arguments.
          split the values in the column and create a vector column
          output. Example: for a separator ``'|'`` the CSV value
          ``1|2|3`` would be transformed to a vector, ``[1, 2, 3]``.
-      - ``truncate_dim`` (Integer, optional): Relevant for vector inputs.
+      - ``truncate_dim`` (Integer, Optional): Relevant for vector inputs.
         Allows you to truncate the input vector to the first ``truncate_dim``
         values, which can be useful when your inputs are `Matryoshka representation
         learning embeddings <https://arxiv.org/abs/2205.13147>`_.
