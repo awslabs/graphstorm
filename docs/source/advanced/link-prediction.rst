@@ -10,11 +10,12 @@ and training efficiency standpoints.
 
 Optimizing model performance
 ----------------------------
-GraphStorm incorporates three ways of improving the model performance of link
-prediction. Firstly, to avoid information leak in model training. Secondly, to
-better handle heterogeneous graphs, GraphStorm provides two ways to compute link
-prediction scores: dot product and DistMult. Thirdly, GraphStorm provides two
-options to compute training losses, i.e., cross entropy loss, and contrastive loss. The following sub-sections provide more details.
+GraphStorm incorporates three ways of improving model performance of link
+prediction. Firstly, GraphStorm avoids information leak in model training.
+Secondly, to better handle heterogeneous graphs, GraphStorm provides two ways
+to compute link prediction scores: dot product and DistMult.
+Thirdly, GraphStorm provides two options to compute training losses, i.e.,
+cross entropy loss and contrastive loss. The following sub-sections provide more details.
 
 Prevent Information Leakage in Link Prediction
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -31,15 +32,22 @@ Computing Link Prediction Scores
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 GraphStorm provides two ways to compute link prediction scores: Dot Product and DistMult.
 
-* **Dot Product**: .. math:: score = sum(head_emb * tail_emb), where the ``head_emb`` is the node embedding of the head node and the ``tail_emb`` is the node embedding of the tail node.
+* **Dot Product**:
+    .. math:: score = sum(head_emb * tail_emb)
+    where the ``head_emb`` is the node embedding of the head node and
+    the ``tail_emb`` is the node embedding of the tail node.
 
-* **DistMult**: .. math:: score = sum(head_emb * relation_emb * tail_emb), where the ``head_emb`` is the node embedding of the head node, the ``tail_emb`` is the node embedding of the tail node and the ``relation_emb`` is the relation embedding of the specific edge type.
+* **DistMult**:
+    .. math:: score = sum(head_emb * relation_emb * tail_emb)
+    where the ``head_emb`` is the node embedding of the head node,
+    the ``tail_emb`` is the node embedding of the tail node and
+    the ``relation_emb`` is the relation embedding of the specific edge type.
 
 Link Prediction Loss Functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 GraphStorm provides three options to compute training losses:
 
-* **Cross Entropy Loss**: The cross entropy loss turns a link prediction task into a binary classification task. We treat positive edges as 1 and negative edges as 0. The loss of edge ``e`` is as follows:
+* **Cross Entropy Loss**: The cross entropy loss turns a link prediction task into a binary classification task. We treat positive edges as 1 and negative edges as 0. The loss of an edge ``e`` is as follows:
 
     .. math::
 
@@ -49,7 +57,7 @@ GraphStorm provides three options to compute training losses:
 
     where ``y`` is 1 when ``e`` is a positive edge and 0 when it is a negative edge. ``score`` is the score number of ``e`` computed by the score function.
 
-* **Weighted Cross Entropy Loss**: The weighted cross entropy loss is similar to **Cross Entropy Loss** except that it allows users to set a weight for each positive edge. The loss function of ``e`` is as follows:
+* **Weighted Cross Entropy Loss**: The weighted cross entropy loss is similar to **Cross Entropy Loss** except that it allows users to set a weight for each positive edge. The loss function of an edge ``e`` is as follows:
 
     .. math::
 
@@ -57,7 +65,7 @@ GraphStorm provides three options to compute training losses:
             loss = - w_{e} \left[ y \cdot \log score + (1 - y) \cdot \log (1 - score) \right]
         \end{eqnarray}
 
-    where ``y`` is 1 when ``e`` is a positive edge and 0 when it is a negative edge. $score$ is the score number of $e$ computed by the score function, ``w_e`` is the weight of  ``e``  and is defined as
+    where ``y`` is 1 when ``e`` is a positive edge and 0 when it is a negative edge. ``score$``is the score number of ``e`` computed by the score function, ``w_e`` is the weight of ``e`` and is defined as
 
     .. math::
 
@@ -75,30 +83,73 @@ GraphStorm provides three options to compute training losses:
 * **Contrastive Loss**: The contrastive loss compels the representations of connected nodes to be similar while forcing the representations of disconnected nodes remains dissimilar. In the implementation, we use the score computed by the score function to represent the distance between nodes. When computing the loss, we group one positive edge with the $N$ negative edges corresponding to it.The loss function is as follows:
 
     .. math::
+        loss = -log(\dfrac{exp(pos\_score)}{\sum_{1=0}^N exp(score_i)})
 
-        \begin{eqnarray}
-            loss = -log(\dfrac{exp(pos\_score)}{\sum_{1=0}^N exp(score_i)})
-
-        \end{eqnarray}
     where ``pos\_score`` is the score of the positive edge. ``score_i`` is the score of the i-th edge. In total, there are $N+1$ edges, within which there is 1 positive edge and N negative edges.
 
 Selecting the Negative Sampler
 ------------------------------
 GraphStorm provides a wide list of negative samplers:
 
-* **Uniform negative sampling**: Given ``N`` training edges under edge type ``(src\_t, rel\_t, dst\_t)`` and the number of negatives set to $K$, uniform negative sampling randomly samples $K$ nodes from ``dst\_t`` for each training edge. It corrupts the training edge to form $K$ negative edges by replacing its destination node with sampled negative nodes. In total, it will sample $N * K$ negative nodes.
+* **Uniform negative sampling**: Given ``N`` training edges under edge type ``(src\_t, rel\_t, dst\_t)`` and the number of negatives set to K, uniform negative sampling randomly samples K nodes from ``dst\_t`` for each training edge. It corrupts the training edge to form K negative edges by replacing its destination node with sampled negative nodes. In total, it will sample N * K negative nodes.
 
-* **Joint negative sampling**: Given ``N`` training edges under edge type ``(src\_t, rel\_t, dst\_t)`` and the number of negatives set to $K$, joint negative sampling randomly samples $K$ nodes from ``dst\_t`` for every $K$ training edges. For these $K$ training edges, it corrupts each edge to form $K$ negative edges by replacing its destination node with the same set of negative nodes. In total, it only needs to sample $N$ negative nodes. (We suppose $N$ is dividable by $K$ for simplicity.)
+    * ``uniform``: Uniformly sample K negative edges for each positive edge.
+
+    * ``fast_uniform``: same as ``uniform`` except that the sampled subgraphs
+    will not exclude edges with ``val_mask`` and ``test_mask``.
+
+    * ``all_etype_uniform``: same as ``uniform``, but it ensures that each
+    training edge type appears in every mini-batch.
+
+* **Local joint negative sampling**: Local uniform negative sampling samples negative edges in the same way as uniform negative sampling except that all the negative nodes are sampled from the local graph partition.
+
+    * ``localuniform``: Uniformly sample K negative edges for each positive edge.
+    However the negative nodes are sampled from the local graph partition
+    instead of being sampled globally.
+
+    * ``fast_localuniform``: same as ``localuniform`` except that the sampled subgraphs
+    will not exclude edges with ``val_mask`` and ``test_mask``.
+
+* **Joint negative sampling**: Given ``N`` training edges under edge type ``(src\_t, rel\_t, dst\_t)`` and the number of negatives set to K, joint negative sampling randomly samples K nodes from ``dst\_t`` for every K training edges. For these K training edges, it corrupts each edge to form K negative edges by replacing its destination node with the same set of negative nodes. In total, it only needs to sample $N$ negative nodes. (We suppose N is dividable by K for simplicity.)
+
+    * ``joint``: Sample K negative nodes for every K positive edges.
+    The K positive edges will share the same set of negative nodes
+
+    * ``fast_joint``: same as ``joint`` except that the sampled subgraphs
+    will not exclude edges with ``val_mask`` and ``test_mask``.
+
+    * ``all_etype_joint``: same as ``joint``, but it ensures that each
+    training edge type appears in every mini-batch.
 
 * **Local joint negative sampling**: Local joint negative sampling samples negative edges in the same way as joint negative sampling except that all the negative nodes are sampled from the local graph partition.
 
-* **In-batch negative sampling**: In-batch negative sampling creates negative edges by exchanging destination nodes between training edges. For example, suppose there are three training edges (u_1, v_1), (u_2, v_2), (u_3, v_3), In-batch negative sampling will create two negative edges (u_1, v_2) and (u_1, v_3) for (u_1, v_1), two negative edges (u_2, v_1) and (u_2, v_3) for (u_2, v_2) and two negative edges (u_3, v_1) and (u_3, v_2) for (u_3, v_3). If the batch size is smaller than the number of negatives, either of the above three negative sampling methods can be used to sample extra negative edges.
+    * ``localjoint``: Sample K negative nodes for every K positive edges.
+    However the negative nodes are sampled from the local graph partition
+    instead of being sampled globally.
+
+    * ``fast_localjoint``: same as ``localjoint`` except that the sampled subgraphs
+    will not exclude edges with ``val_mask`` and ``test_mask``.
+
+* **In-batch negative sampling**: In-batch negative sampling creates negative edges by exchanging destination nodes between training edges. For example, suppose there are three training edges ``(u_1, v_1), (u_2, v_2), (u_3, v_3)``, In-batch negative sampling will create two negative edges ``(u_1, v_2)`` and ``(u_1, v_3)`` for ``(u_1, v_1)``, two negative edges ``(u_2, v_1)`` and ``(u_2, v_3)`` for ``(u_2, v_2)`` and two negative edges ``(u_3, v_1)`` and ``(u_3, v_2)`` for ``(u_3, v_3)``. If the batch size is smaller than the number of negatives, either of the above three negative sampling methods can be used to sample extra negative edges.
+
+    * ``inbatch_joint``: In-batch joint negative sampling.
 
 Speedup Link Prediction Training
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-GraphStorm relies on ``dgl.dataloading.MultiLayerNeighborSampler`` and ``train_mask`` to avoid sampling validation and test edges during training. Basically, it only samples edges with ``train_mask`` set to be `True`. However, the implementation is not efficient. To speedup graph sampling during link prediction training, GraphStorm provides four link prediction dataloaders (i.e., ``fast_uniform``, ``fast_joint``, ``fast_localuniform`` and ``fast_localjoint``) with more efficient implementation but less precise neighbor sampling behavior.
-
-To be more specific, these dataloaders will do neighbor sampling regardless of any masks in the beginning, and later remove edges with  ``val_mask`` or ``test_mask`` set to be `True`. In theory, a sampled subgraph may have less neighbor nodes than expected as some of them would be removed. However, with a graph having hundreds of millions of edges (or more) and small validation and test sets, e.g., each with less than 10% edges, the impact is negligible.
+GraphStorm relies on ``dgl.dataloading.MultiLayerNeighborSampler`` and
+``train_mask`` to avoid sampling validation and test edges during training.
+Basically, it only samples edges with ``train_mask`` set to be `True`. However,
+the implementation is not efficient. To speedup graph sampling during link
+prediction training, GraphStorm provides four link prediction dataloaders
+(i.e., ``fast_uniform``, ``fast_joint``, ``fast_localuniform`` and
+``fast_localjoint``) with more efficient implementation but less precise
+neighbor sampling behavior. To be more specific, these dataloaders will do
+neighbor sampling regardless of any masks in the beginning, and later remove
+edges with  ``val_mask`` or ``test_mask`` set to be `True`. In theory, a sampled
+subgraph may have less neighbor nodes than expected as some of them would be
+removed. However, with a graph having hundreds of millions of edges (or more)
+and small validation and test sets, e.g., each with less than 10% edges, the
+impact is negligible.
 
 With DGL 1.0.4, ``fast_localuniform`` dataloader can speedup 2.4X over ``localuniform`` dataloader on training a 2 layer RGCN on MAG dataset on four g5.48x instances.
 
