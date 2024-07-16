@@ -34,14 +34,18 @@ GraphStorm provides two ways to compute link prediction scores: Dot Product and 
 
 * **Dot Product**: The Dot Product score function is as:
 
-    .. math:: score = sum(head_emb * tail_emb)
+    .. math::
+        \begin{eqnarray}
+            score = sum(head\_emb * tail\_emb)
+        \end{eqnarray}
 
     where the ``head_emb`` is the node embedding of the head node and
     the ``tail_emb`` is the node embedding of the tail node.
 
 * **DistMult**: The DistMult score function is as:
 
-    .. math:: score = sum(head_emb * relation_emb * tail_emb)
+    .. math::
+        score = sum(head\_emb * relation\_emb * tail\_emb)
 
     where the ``head_emb`` is the node embedding of the head node,
     the ``tail_emb`` is the node embedding of the tail node and
@@ -54,7 +58,6 @@ GraphStorm provides three options to compute training losses:
 * **Cross Entropy Loss**: The cross entropy loss turns a link prediction task into a binary classification task. We treat positive edges as 1 and negative edges as 0. The loss of an edge ``e`` is as:
 
     .. math::
-
         \begin{eqnarray}
             loss = - y \cdot \log score + (1 - y) \cdot \log (1 - score)
         \end{eqnarray}
@@ -64,7 +67,6 @@ GraphStorm provides three options to compute training losses:
 * **Weighted Cross Entropy Loss**: The weighted cross entropy loss is similar to **Cross Entropy Loss** except that it allows users to set a weight for each positive edge. The loss function of an edge ``e`` is as:
 
     .. math::
-
         \begin{eqnarray}
             loss = - w_{e} \left[ y \cdot \log score + (1 - y) \cdot \log (1 - score) \right]
         \end{eqnarray}
@@ -72,7 +74,6 @@ GraphStorm provides three options to compute training losses:
     where ``y`` is 1 when ``e`` is a positive edge and 0 when it is a negative edge. ``score$``is the score number of ``e`` computed by the score function, ``w_e`` is the weight of ``e`` and is defined as
 
     .. math::
-
         \begin{eqnarray}
         w_{e} = \left \{
         \begin{array}{lc}
@@ -87,15 +88,15 @@ GraphStorm provides three options to compute training losses:
 * **Contrastive Loss**: The contrastive loss compels the representations of connected nodes to be similar while forcing the representations of disconnected nodes remains dissimilar. In the implementation, we use the score computed by the score function to represent the distance between nodes. When computing the loss, we group one positive edge with the $N$ negative edges corresponding to it.The loss function is as follows:
 
     .. math::
-        loss = -log(\dfrac{exp(pos\_score)}{\sum_{1=0}^N exp(score_i)})
+        loss = -log(\dfrac{exp(pos_score)}{\sum_{1=0}^N exp(score_i)})
 
-    where ``pos\_score`` is the score of the positive edge. ``score_i`` is the score of the i-th edge. In total, there are $N+1$ edges, within which there is 1 positive edge and N negative edges.
+    where ``pos_score`` is the score of the positive edge. ``score_i`` is the score of the i-th edge. In total, there are $N+1$ edges, within which there is 1 positive edge and N negative edges.
 
 Selecting the Negative Sampler
 ------------------------------
 GraphStorm provides a wide list of negative samplers:
 
-* **Uniform negative sampling**: Given ``N`` training edges under edge type ``(src\_t, rel\_t, dst\_t)`` and the number of negatives set to K, uniform negative sampling randomly samples K nodes from ``dst\_t`` for each training edge. It corrupts the training edge to form K negative edges by replacing its destination node with sampled negative nodes. In total, it will sample N * K negative nodes.
+* **Uniform negative sampling**: Given ``N`` training edges under edge type ``(src_t, rel_t, dst_t)`` and the number of negatives set to K, uniform negative sampling randomly samples K nodes from ``dst_t`` for each training edge. It corrupts the training edge to form K negative edges by replacing its destination node with sampled negative nodes. In total, it will sample N * K negative nodes.
 
     * ``uniform``: Uniformly sample K negative edges for each positive edge.
 
@@ -114,7 +115,7 @@ GraphStorm provides a wide list of negative samplers:
     * ``fast_localuniform``: same as ``localuniform`` except that the sampled subgraphs
     will not exclude edges with ``val_mask`` and ``test_mask``. Please see the details in :ref:`speedup_lp_training_label`.
 
-* **Joint negative sampling**: Given ``N`` training edges under edge type ``(src\_t, rel\_t, dst\_t)`` and the number of negatives set to K, joint negative sampling randomly samples K nodes from ``dst\_t`` for every K training edges. For these K training edges, it corrupts each edge to form K negative edges by replacing its destination node with the same set of negative nodes. In total, it only needs to sample $N$ negative nodes. (We suppose N is dividable by K for simplicity.)
+* **Joint negative sampling**: Given ``N`` training edges under edge type ``(src_t, rel_t, dst_t)`` and the number of negatives set to K, joint negative sampling randomly samples K nodes from ``dst_t`` for every K training edges. For these K training edges, it corrupts each edge to form K negative edges by replacing its destination node with the same set of negative nodes. In total, it only needs to sample $N$ negative nodes. (We suppose N is dividable by K for simplicity.)
 
     * ``joint``: Sample K negative nodes for every K positive edges.
     The K positive edges will share the same set of negative nodes
