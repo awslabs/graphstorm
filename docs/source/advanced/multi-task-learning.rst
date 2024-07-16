@@ -276,3 +276,45 @@ You can use the same command line `graphstorm.run.gs_multi_task_learning` to run
 
 The prediction results of each prediction tasks (node classification, node regression,
 edge classification and edge regression) will be saved into different sub-directories under PATH_TO_OUTPUT. The sub-directories are prefixed with the `<task_type>_<node/edge_type>_<label_name>`.
+
+Run Model Training on SageMaker
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+GraphStorm supports running multi-task training on :ref:`SageMaker<distributed-sagemaker>` as following:
+
+.. code-block:: bash
+
+    python3 launch/launch_train.py \
+        --image-url <AMAZON_ECR_IMAGE_URI> \
+        --region <REGION> \
+        --entry-point run/train_entry.py \
+        --role <ROLE_ARN> \
+        --graph-data-s3 s3://<PATH_TO_DATA> \
+        --graph-name <GRAPH_NAME> \
+        --task-type multi_task \
+        --yaml-s3 s3://<PATH_TO_TRAINING_CONFIG> \
+        --model-artifact-s3 s3://<PATH_TO_SAVE_TRAINED_MODEL>/ \
+        --instance-count <INSTANCE_COUNT> \
+        --instance-type <INSTANCE_TYPE>
+
+Run Model Inference on SageMaker
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+GraphStorm supports to run multi-task inference on :ref:`SageMaker<distributed-sagemaker>` as following:
+
+.. code-block:: bash
+
+    python3 launch/launch_infer.py \
+        --image-url <AMAZON_ECR_IMAGE_URI> \
+        --region <REGION> \
+        --entry-point run/infer_entry.py \
+        --role <ROLE_ARN> \
+        --graph-data-s3 s3://<PATH_TO_DATA> \
+        --yaml-s3 s3://<PATH_TO_TRAINING_CONFIG> \
+        --model-artifact-s3 s3://<PATH_TO_SAVE_TRAINED_MODEL>/ \
+        --raw-node-mappings-s3 s3://<PATH_TO_DATA>/raw_id_mappings \
+        --output-emb-s3 s3://<PATH_TO_SAVE_GENERATED_NODE_EMBEDDING>/ \
+        --output-prediction-s3 s3://<PATH_TO_SAVE_PREDICTION_RESULTS> \
+        --graph-name <GRAPH_NAME> \
+        --task-type multi_task \
+        --instance-count <INSTANCE_COUNT> \
+        --instance-type <INSTANCE_TYPE>
+
