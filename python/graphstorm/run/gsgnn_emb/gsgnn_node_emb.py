@@ -16,6 +16,7 @@
     GSgnn pure gpu generate embeddings.
 """
 import logging
+from dgl.distributed.constants import DEFAULT_NTYPE
 
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
@@ -31,7 +32,6 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                GRAPHSTORM_MODEL_EMBED_LAYER,
                                GRAPHSTORM_MODEL_GNN_LAYER,
                                GRAPHSTORM_MODEL_DECODER_LAYER)
-from dgl.distributed.constants import DEFAULT_NTYPE
 from graphstorm.inference import GSgnnEmbGenInferer
 from graphstorm.utils import get_lm_ntypes
 from graphstorm.model.multitask_gnn import GSgnnMultiTaskSharedEncoderModel
@@ -101,7 +101,8 @@ def main(config_args):
 
     if config.multi_tasks:
         if config.target_ntype and config.target_ntype != DEFAULT_NTYPE:
-            infer_ntypes = config.target_ntype if isinstance(config.target_ntype, list) else [config.target_ntype]
+            infer_ntypes = config.target_ntype \
+                if isinstance(config.target_ntype, list) else [config.target_ntype]
         else:
             # infer_ntypes = None means all node types.
             infer_ntypes = None
@@ -110,14 +111,16 @@ def main(config_args):
         # infer ntypes must be sorted for node embedding saving
         if task_type == BUILTIN_TASK_LINK_PREDICTION:
             if config.target_ntype and config.target_ntype != DEFAULT_NTYPE:
-                infer_ntypes = config.target_ntype if isinstance(config.target_ntype, list) else [config.target_ntype]
+                infer_ntypes = config.target_ntype \
+                    if isinstance(config.target_ntype, list) else [config.target_ntype]
             else:
                 infer_ntypes = None
         elif task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
             infer_ntypes = [config.target_ntype]
         elif task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
             if config.target_ntype and config.target_ntype != DEFAULT_NTYPE:
-                infer_ntypes = config.target_ntype if isinstance(config.target_ntype, list) else [config.target_ntype]
+                infer_ntypes = config.target_ntype \
+                    if isinstance(config.target_ntype, list) else [config.target_ntype]
             else:
                 infer_ntypes = set()
                 for etype in config.target_etype:
