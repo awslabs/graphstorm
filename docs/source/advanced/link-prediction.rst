@@ -32,13 +32,17 @@ Computing Link Prediction Scores
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 GraphStorm provides two ways to compute link prediction scores: Dot Product and DistMult.
 
-* **Dot Product**:
+* **Dot Product**: The Dot Product score function is as:
+
     .. math:: score = sum(head_emb * tail_emb)
+
     where the ``head_emb`` is the node embedding of the head node and
     the ``tail_emb`` is the node embedding of the tail node.
 
-* **DistMult**:
+* **DistMult**: The DistMult score function is as:
+
     .. math:: score = sum(head_emb * relation_emb * tail_emb)
+
     where the ``head_emb`` is the node embedding of the head node,
     the ``tail_emb`` is the node embedding of the tail node and
     the ``relation_emb`` is the relation embedding of the specific edge type.
@@ -47,7 +51,7 @@ Link Prediction Loss Functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 GraphStorm provides three options to compute training losses:
 
-* **Cross Entropy Loss**: The cross entropy loss turns a link prediction task into a binary classification task. We treat positive edges as 1 and negative edges as 0. The loss of an edge ``e`` is as follows:
+* **Cross Entropy Loss**: The cross entropy loss turns a link prediction task into a binary classification task. We treat positive edges as 1 and negative edges as 0. The loss of an edge ``e`` is as:
 
     .. math::
 
@@ -57,7 +61,7 @@ GraphStorm provides three options to compute training losses:
 
     where ``y`` is 1 when ``e`` is a positive edge and 0 when it is a negative edge. ``score`` is the score number of ``e`` computed by the score function.
 
-* **Weighted Cross Entropy Loss**: The weighted cross entropy loss is similar to **Cross Entropy Loss** except that it allows users to set a weight for each positive edge. The loss function of an edge ``e`` is as follows:
+* **Weighted Cross Entropy Loss**: The weighted cross entropy loss is similar to **Cross Entropy Loss** except that it allows users to set a weight for each positive edge. The loss function of an edge ``e`` is as:
 
     .. math::
 
@@ -108,7 +112,7 @@ GraphStorm provides a wide list of negative samplers:
     instead of being sampled globally.
 
     * ``fast_localuniform``: same as ``localuniform`` except that the sampled subgraphs
-    will not exclude edges with ``val_mask`` and ``test_mask``.
+    will not exclude edges with ``val_mask`` and ``test_mask``. Please see the details in :ref:`speedup_lp_training_label`.
 
 * **Joint negative sampling**: Given ``N`` training edges under edge type ``(src\_t, rel\_t, dst\_t)`` and the number of negatives set to K, joint negative sampling randomly samples K nodes from ``dst\_t`` for every K training edges. For these K training edges, it corrupts each edge to form K negative edges by replacing its destination node with the same set of negative nodes. In total, it only needs to sample $N$ negative nodes. (We suppose N is dividable by K for simplicity.)
 
@@ -117,6 +121,7 @@ GraphStorm provides a wide list of negative samplers:
 
     * ``fast_joint``: same as ``joint`` except that the sampled subgraphs
     will not exclude edges with ``val_mask`` and ``test_mask``.
+    Please see the details in :ref:`speedup_lp_training_label`.
 
     * ``all_etype_joint``: same as ``joint``, but it ensures that each
     training edge type appears in every mini-batch.
@@ -133,6 +138,8 @@ GraphStorm provides a wide list of negative samplers:
 * **In-batch negative sampling**: In-batch negative sampling creates negative edges by exchanging destination nodes between training edges. For example, suppose there are three training edges ``(u_1, v_1), (u_2, v_2), (u_3, v_3)``, In-batch negative sampling will create two negative edges ``(u_1, v_2)`` and ``(u_1, v_3)`` for ``(u_1, v_1)``, two negative edges ``(u_2, v_1)`` and ``(u_2, v_3)`` for ``(u_2, v_2)`` and two negative edges ``(u_3, v_1)`` and ``(u_3, v_2)`` for ``(u_3, v_3)``. If the batch size is smaller than the number of negatives, either of the above three negative sampling methods can be used to sample extra negative edges.
 
     * ``inbatch_joint``: In-batch joint negative sampling.
+
+.. _speedup_lp_training_label:
 
 Speedup Link Prediction Training
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
