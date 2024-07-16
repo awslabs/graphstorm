@@ -31,6 +31,7 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                GRAPHSTORM_MODEL_EMBED_LAYER,
                                GRAPHSTORM_MODEL_GNN_LAYER,
                                GRAPHSTORM_MODEL_DECODER_LAYER)
+from dgl.distributed.constants import DEFAULT_NTYPE
 from graphstorm.inference import GSgnnEmbGenInferer
 from graphstorm.utils import get_lm_ntypes
 from graphstorm.model.multitask_gnn import GSgnnMultiTaskSharedEncoderModel
@@ -99,21 +100,30 @@ def main(config_args):
     emb_generator.setup_device(device=get_device())
 
     if config.multi_tasks:
-        # infer_ntypes = None means all node types.
-        infer_ntypes = None
+        if config.target_ntype and config.target_ntype != DEFAULT_NTYPE:
+            infer_ntypes = config.target_ntype if isinstance(config.target_ntype, list) else [config.target_ntype]
+        else:
+            # infer_ntypes = None means all node types.
+            infer_ntypes = None
     else:
         task_type = config.task_type
         # infer ntypes must be sorted for node embedding saving
         if task_type == BUILTIN_TASK_LINK_PREDICTION:
-            infer_ntypes = None
+            if config.target_ntype and config.target_ntype != DEFAULT_NTYPE:
+                infer_ntypes = config.target_ntype if isinstance(config.target_ntype, list) else [config.target_ntype]
+            else:
+                infer_ntypes = None
         elif task_type in {BUILTIN_TASK_NODE_REGRESSION, BUILTIN_TASK_NODE_CLASSIFICATION}:
             infer_ntypes = [config.target_ntype]
         elif task_type in {BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION}:
-            infer_ntypes = set()
-            for etype in config.target_etype:
-                infer_ntypes.add(etype[0])
-                infer_ntypes.add(etype[2])
-            infer_ntypes = sorted(list(infer_ntypes))
+            if config.target_ntype and config.target_ntype != DEFAULT_NTYPE:
+                infer_ntypes = config.target_ntype if isinstance(config.target_ntype, list) else [config.target_ntype]
+            else:
+                infer_ntypes = set()
+                for etype in config.target_etype:
+                    infer_ntypes.add(etype[0])
+                    infer_ntypes.add(etype[2])
+                infer_ntypes = sorted(list(infer_ntypes))
         else:
             raise TypeError("Not supported for task type: ", task_type)
 
