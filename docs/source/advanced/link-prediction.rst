@@ -66,14 +66,14 @@ GraphStorm provides three options to compute training losses:
 
     .. math::
         \begin{eqnarray}
-            loss = - w_e \left[ y \cdot \log score + (1 - y) \cdot \log (1 - score) \right]
+            loss = - w\_e \left[ y \cdot \log score + (1 - y) \cdot \log (1 - score) \right]
         \end{eqnarray}
 
-    where ``y`` is 1 when ``e`` is a positive edge and 0 when it is a negative edge. ``score``is the score value of ``e`` computed by the score function, ``w_e`` is the weight of ``e`` and is defined as
+    where ``y`` is 1 when ``e`` is a positive edge and 0 when it is a negative edge. ``score`` is the score value of ``e`` computed by the score function, ``w_e`` is the weight of ``e`` and is defined as
 
     .. math::
         \begin{eqnarray}
-        w_e = \left \{
+        w\_e = \left \{
         \begin{array}{lc}
             1,  & \text{ if } e \in G, \\
             0,  & \text{ if } e \notin G
@@ -86,9 +86,9 @@ GraphStorm provides three options to compute training losses:
 * **Contrastive Loss**: The contrastive loss compels the representations of connected nodes to be similar while forcing the representations of disconnected nodes remains dissimilar. In the implementation, we use the score computed by the score function to represent the distance between nodes. When computing the loss, we group one positive edge with the ``N`` negative edges corresponding to it.The loss function is as follows:
 
     .. math::
-        loss = -log(\dfrac{exp(pos_score)}{\sum_{i=0}^N exp(score\_i)})
+        loss = -log(\dfrac{exp(pos\_score)}{\sum_{i=0}^N exp(score\_i)})
 
-    where ``pos_score`` is the score of the positive edge. ``score_i`` is the score of the i-th edge. In total, there are $N+1$ edges, within which there is 1 positive edge and ``N`` negative edges.
+    where ``pos_score`` is the score of the positive edge. ``score_i`` is the score of the i-th edge. In total, there are ``N+1`` edges, within which there is 1 positive edge and ``N`` negative edges.
 
 Selecting the Negative Sampler
 ------------------------------
@@ -167,7 +167,7 @@ For example, given an edge (``src_pos``, ``dst_pos``) and its hard negative dest
 
 The hard negatives are stored as edge features of the target edge type.
 Users can provide the hard negatives for each edge type through ``train_etypes_negative_dstnode`` in the training config yaml.
-For example, the following yaml block defines the hard negatives for edge type (``src_type``,``rel_type0``,``dst_type``) as the edge feature ``negative_nid_field_0`` and the hard negatives for edge type ``(src_type,rel_type1,dst_type)`` as the edge feature ``negative_nid_field_1``.
+For example, the following yaml block defines the hard negatives for edge type ``(src_type,rel_type0,dst_type)`` as the edge feature ``negative_nid_field_0`` and the hard negatives for edge type ``(src_type,rel_type1,dst_type)`` as the edge feature ``negative_nid_field_1``.
 
   .. code-block:: yaml
 
@@ -176,7 +176,7 @@ For example, the following yaml block defines the hard negatives for edge type (
       - src_type,rel_type1,dst_type:negative_nid_field_1
 
 Users can also define the number of hard negatives to sample for each edge type during training though ``num_train_hard_negatives`` in the training config yaml.
-For example, the following yaml block defines the number of hard negatives for edge type (``src_type``,``rel_type0``,``dst_type``) is 5 and the number of hard negatives for edge type (``src_type``,``rel_type1``,``dst_type``) is 10.
+For example, the following yaml block defines the number of hard negatives for edge type ``(src_type,rel_type0,dst_type)`` is 5 and the number of hard negatives for edge type ``(src_type,rel_type1,dst_type)`` is 10.
 
   .. code-block:: yaml
 
