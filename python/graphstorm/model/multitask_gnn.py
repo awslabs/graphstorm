@@ -96,6 +96,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         self._node_embed_norm_method = {}
         self._warn_printed = False
 
+    # pylint: disable = arguments-differ
     def normalize_node_embs(self, task_id, embs):
         """ Normalize node embeddings when needed.
 
