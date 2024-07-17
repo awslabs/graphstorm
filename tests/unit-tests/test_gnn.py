@@ -1850,7 +1850,7 @@ def test_multi_task_forward():
                       mock_compute_emb,
                       mock_input_embed):
 
-        def normalize_size_effect_func(embs):
+        def normalize_size_effect_func(task_id, embs):
             return embs
 
         def compute_side_effect_func(blocks, node_feats, input_nodes):
@@ -1981,7 +1981,7 @@ def test_multi_task_predict():
                       mock_compute_emb,
                       mock_input_embed):
 
-        def normalize_size_effect_func(embs):
+        def normalize_size_effect_func(task_id, embs):
             return embs
 
         def compute_side_effect_func(blocks, node_feats, input_nodes):
