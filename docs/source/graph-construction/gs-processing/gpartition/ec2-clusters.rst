@@ -3,7 +3,7 @@ Running partition jobs on EC2 Clusters
 ======================================
 
 Once the :ref:`distributed processing setup<gsprocessing_distributed_setup>` is complete,
-we can start the partition jobs. In summary this doc will provide instructions on how to setup the EC2 clusters and
+you can start the partition jobs. In summary this doc will provide instructions on how to setup the EC2 cluster and
 start GPartition jobs on EC2 cluster.
 
 Create a GraphStorm Cluster
@@ -14,6 +14,24 @@ Setup the instance of a cluster
 A cluster contains several instances each of which can run GraphStorm Docker container.
 
 To create such a cluster, in one instance, please follow the :ref:`Environment Setup <setup_docker>` description to setup GraphStorm Docker container environment, and use a Docker management system, e.g., AWS ECR, to upload the Docker image built in the instance to a Docker repository and pull it to the rest of the instances in the cluster.
+
+If you are planning to use **parmetis** algorithm, please prepare your docker container by instructions here:
+
+.. code-block:: bash
+
+    git clone https://github.com/awslabs/graphstorm.git
+
+    cd /path-to-graphstorm/docker/
+
+    bash /path-to-graphstorm/docker/build_docker_parmetis.sh /path-to-graphstorm/ image-name image-tag
+
+There are four positional arguments for ``build_docker_oss4local.sh``:
+
+1. **path-to-graphstorm** (**required**), is the absolute path of the "graphstorm" folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
+2. **image-name** (optional), is the assigned name of the to be built Docker image. Default is ``graphstorm``.
+3. **image-tag** (optional), is the assigned tag prefix of the Docker image. Default is ``local``.
+
+The other stuff should remain the same.
 
 If there is no such Docker manangement system available in your environment, in **each** instance of the cluster, follow the :ref:`Environment Setup <setup_docker>` description to build a GraphStorm Docker image, and start the image as a container. Then exchange the ssh key from inside of one GraphStorm Docker containers to the rest containers in the cluster, i.e., copy the keys from the ``/root/.ssh/id_rsa.pub`` from one container to ``/root/.ssh/authorized_keys`` in containers on all other containers.
 
@@ -29,14 +47,14 @@ After setting up a shared file system, we can keep all partitioned graph data in
 
 Create GraphStorm container by mounting the NFS folder
 .......................................................
-In each instance, use the following command to start a GraphStorm Docker container and run it as a backend daemon.
+In each instance, use the following command to start a GraphStorm Docker container and run it as a backend daemon on cpu.
 
 .. code-block:: shell
 
-    nvidia-docker run -v /path_to_data/:/data \
+    docker run -v /path_to_data/:/data \
                       -v /dev/shm:/dev/shm \
                       --network=host \
-                      -d --name test graphstorm:local-gpu service ssh restart
+                      -d --name test graphstorm:local-cpu service ssh restart
 
 This command mount the shared ``/path_to_data/`` folder to each container's ``/data/`` folder by which GraphStorm codes can access graph data and save training and inference outcomes.
 
@@ -47,7 +65,7 @@ Collect the IP list
 ......................
 The GraphStorm Docker containers use SSH on port ``2222`` to communicate with each other. Users need to collect all IP addresses of the three instances and put them into a text file, e.g., ``/data/ip_list.txt``, which is like:
 
-.. figure:: ../../../tutorial/distributed_ips.png
+.. figure:: ../../../../tutorial/distributed_ips.png
     :align: center
 
 .. note:: If possible, use **private IP addresses**, insteand of public IP addresses. Public IP addresses may have additional port constraints, which cause communication issues.
@@ -82,13 +100,6 @@ For distributed training, users also need to make sure ports under 65536 is open
 Launch GPartition Job
 ----------------------
 
-Prepare docker image
-....................
-
-For ``random`` algorithm, please refer to :ref:`GraphStorm Docker environment setup<setup_docker>` to prepare your environment.
-
-For ``parmetis`` algorithm, please follow the following instructions:
-
 Now we can ssh into the leader node of the EC2 cluster, and start GPartition process with the following command:
 
 .. code:: bash
@@ -101,5 +112,7 @@ Now we can ssh into the leader node of the EC2 cluster, and start GPartition pro
         --partition-algorithm ${ALGORITHM} \
         --ip-list ${IP_CONFIG} \
         --do-dispatch
+
+.. note:: Please make sure the both ${LOCAL_INPUT_DATAPATH} and ${LOCAL_OUTPUT_DATAPATH} are located on the shared filesystem.
 
 Currently we support both ``random`` and ``parmetis`` as the partitioning algorithm.

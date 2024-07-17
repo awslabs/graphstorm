@@ -3,7 +3,7 @@ Running partition jobs on SageMaker
 ===================================
 
 Once the :ref:`distributed processing setup<gsprocessing_distributed_setup>` is complete,
-we can use Amazon SageMaker launch scripts to launch distributed processing jobs with AWS resources.
+you can use Amazon SageMaker launch scripts to launch distributed processing jobs with AWS resources.
 To demonstrate the usage of GSProcessing on Amazon SageMaker, we will execute the same output in the
 `:ref: Running GSProcessing on Amazon SageMaker<gsprocessing_sagemaker_output>`.
 
@@ -39,7 +39,7 @@ Then, clone GraphStorm source code, and build a GraphStorm SageMaker compatible 
 The ``build_docker_sagemaker.sh`` script takes four arguments:
 
 1. **path-to-graphstorm** (**required**), is the absolute path of the ``graphstorm`` folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
-2. **DEVICE_TYPE** (optional), is the intended device type of the to-be built Docker image. There are two options: ``cpu`` for building CPU-compatible images, and ``gpu`` for building Nvidia GPU-compatible images. Default is ``gpu``.
+2. **DEVICE_TYPE**, is the intended device type of the to-be built Docker image. Please specify ``cpu`` for building CPU-compatible images for partition job.
 3. **IMAGE_NAME** (optional), is the assigned name of the to-be built Docker image. Default is ``graphstorm``.
 
 .. warning::
