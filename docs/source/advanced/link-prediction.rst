@@ -60,20 +60,20 @@ GraphStorm provides three options to compute training losses:
             loss = - y \cdot \log score + (1 - y) \cdot \log (1 - score)
         \end{eqnarray}
 
-    where ``y`` is 1 when ``e`` is a positive edge and 0 when it is a negative edge. ``score`` is the score number of ``e`` computed by the score function.
+    where ``y`` is 1 when ``e`` is a positive edge and 0 when it is a negative edge. ``score`` is the score value of ``e`` computed by the score function.
 
 * **Weighted Cross Entropy Loss**: The weighted cross entropy loss is similar to **Cross Entropy Loss** except that it allows users to set a weight for each positive edge. The loss function of an edge ``e`` is as:
 
     .. math::
         \begin{eqnarray}
-            loss = - w_{e} \left[ y \cdot \log score + (1 - y) \cdot \log (1 - score) \right]
+            loss = - w_e \left[ y \cdot \log score + (1 - y) \cdot \log (1 - score) \right]
         \end{eqnarray}
 
-    where ``y`` is 1 when ``e`` is a positive edge and 0 when it is a negative edge. ``score$``is the score number of ``e`` computed by the score function, ``w_e`` is the weight of ``e`` and is defined as
+    where ``y`` is 1 when ``e`` is a positive edge and 0 when it is a negative edge. ``score``is the score value of ``e`` computed by the score function, ``w_e`` is the weight of ``e`` and is defined as
 
     .. math::
         \begin{eqnarray}
-        w_{e} = \left \{
+        w_e = \left \{
         \begin{array}{lc}
             1,  & \text{ if } e \in G, \\
             0,  & \text{ if } e \notin G
@@ -83,20 +83,20 @@ GraphStorm provides three options to compute training losses:
 
     where ``G`` is the training graph.
 
-* **Contrastive Loss**: The contrastive loss compels the representations of connected nodes to be similar while forcing the representations of disconnected nodes remains dissimilar. In the implementation, we use the score computed by the score function to represent the distance between nodes. When computing the loss, we group one positive edge with the $N$ negative edges corresponding to it.The loss function is as follows:
+* **Contrastive Loss**: The contrastive loss compels the representations of connected nodes to be similar while forcing the representations of disconnected nodes remains dissimilar. In the implementation, we use the score computed by the score function to represent the distance between nodes. When computing the loss, we group one positive edge with the ``N`` negative edges corresponding to it.The loss function is as follows:
 
     .. math::
-        loss = -log(\dfrac{exp(pos_score)}{\sum_{1=0}^N exp(score_i)})
+        loss = -log(\dfrac{exp(pos_score)}{\sum_{i=0}^N exp(score\_i)})
 
-    where ``pos_score`` is the score of the positive edge. ``score_i`` is the score of the i-th edge. In total, there are $N+1$ edges, within which there is 1 positive edge and N negative edges.
+    where ``pos_score`` is the score of the positive edge. ``score_i`` is the score of the i-th edge. In total, there are $N+1$ edges, within which there is 1 positive edge and ``N`` negative edges.
 
 Selecting the Negative Sampler
 ------------------------------
 GraphStorm provides a wide list of negative samplers:
 
-* **Uniform negative sampling**: Given ``N`` training edges under edge type ``(src_t, rel_t, dst_t)`` and the number of negatives set to K, uniform negative sampling randomly samples K nodes from ``dst_t`` for each training edge. It corrupts the training edge to form K negative edges by replacing its destination node with sampled negative nodes. In total, it will sample N * K negative nodes.
+* **Uniform negative sampling**: Given ``N`` training edges under edge type ``(src_t, rel_t, dst_t)`` and the number of negatives set to ``K``, uniform negative sampling randomly samples ``K`` nodes from ``dst_t`` for each training edge. It corrupts the training edge to form ``K`` negative edges by replacing its destination node with sampled negative nodes. In total, it will sample ``N * K`` negative nodes.
 
-    * ``uniform``: Uniformly sample K negative edges for each positive edge.
+    * ``uniform``: Uniformly sample ``K`` negative edges for each positive edge.
 
     * ``fast_uniform``: same as ``uniform`` except that the sampled subgraphs
     will not exclude edges with ``val_mask`` and ``test_mask``.
@@ -104,19 +104,19 @@ GraphStorm provides a wide list of negative samplers:
     * ``all_etype_uniform``: same as ``uniform``, but it ensures that each
     training edge type appears in every mini-batch.
 
-* **Local joint negative sampling**: Local uniform negative sampling samples negative edges in the same way as uniform negative sampling except that all the negative nodes are sampled from the local graph partition.
+* **Local uniform negative sampling**: Local uniform negative sampling samples negative edges in the same way as uniform negative sampling except that all the negative nodes are sampled from the local graph partition.
 
-    * ``localuniform``: Uniformly sample K negative edges for each positive edge.
+    * ``localuniform``: Uniformly sample ``K`` negative edges for each positive edge.
     However the negative nodes are sampled from the local graph partition
     instead of being sampled globally.
 
     * ``fast_localuniform``: same as ``localuniform`` except that the sampled subgraphs
     will not exclude edges with ``val_mask`` and ``test_mask``. Please see the details in :ref:`speedup_lp_training_label`.
 
-* **Joint negative sampling**: Given ``N`` training edges under edge type ``(src_t, rel_t, dst_t)`` and the number of negatives set to K, joint negative sampling randomly samples K nodes from ``dst_t`` for every K training edges. For these K training edges, it corrupts each edge to form K negative edges by replacing its destination node with the same set of negative nodes. In total, it only needs to sample $N$ negative nodes. (We suppose N is dividable by K for simplicity.)
+* **Joint negative sampling**: Given ``N`` training edges under edge type ``(src_t, rel_t, dst_t)`` and the number of negatives set to ``K``, joint negative sampling randomly samples ``K`` nodes from ``dst_t`` for every ``K`` training edges. For these ``K`` training edges, it corrupts each edge to form ``K`` negative edges by replacing its destination node with the same set of negative nodes. In total, it only needs to sample $N$ negative nodes. (We suppose ``N`` is dividable by ``K`` for simplicity.)
 
-    * ``joint``: Sample K negative nodes for every K positive edges.
-    The K positive edges will share the same set of negative nodes
+    * ``joint``: Sample ``K`` negative nodes for every ``K`` positive edges.
+    The ``K`` positive edges will share the same set of negative nodes
 
     * ``fast_joint``: same as ``joint`` except that the sampled subgraphs
     will not exclude edges with ``val_mask`` and ``test_mask``.
@@ -127,7 +127,7 @@ GraphStorm provides a wide list of negative samplers:
 
 * **Local joint negative sampling**: Local joint negative sampling samples negative edges in the same way as joint negative sampling except that all the negative nodes are sampled from the local graph partition.
 
-    * ``localjoint``: Sample K negative nodes for every K positive edges.
+    * ``localjoint``: Sample ``K`` negative nodes for every ``K`` positive edges.
     However the negative nodes are sampled from the local graph partition
     instead of being sampled globally.
 
@@ -161,13 +161,13 @@ With DGL 1.0.4, ``fast_localuniform`` dataloader can speedup 2.4X over ``localun
 
 Hard Negative sampling
 -----------------------
-GraphStorm provides support for users to define hard negative edges for a positive edge during Link Prediction Training.
+GraphStorm provides support for users to define hard negative edges for a positive edge during Link Prediction training.
 Currently, hard negative edges are constructed by replacing the destination nodes of edges with pre-defined hard negatives.
-For example, given an edge (``src_pos``, ``dst_pos``) and its hard negative destination nodes ``hard_0`` and ``hand_1``, GraphStorm will construct two hard negative edges, i.e., (``src_pos``, ``hard_0``) and (``src_pos``, ``hand_1``).
+For example, given an edge (``src_pos``, ``dst_pos``) and its hard negative destination nodes ``hard_0`` and ``hard_1``, GraphStorm will construct two hard negative edges, i.e., (``src_pos``, ``hard_0``) and (``src_pos``, ``hard_1``).
 
 The hard negatives are stored as edge features of the target edge type.
 Users can provide the hard negatives for each edge type through ``train_etypes_negative_dstnode`` in the training config yaml.
-For example, the following yaml block defines the hard negatives for edge type (``src_type``,``rel_type0``,``dst_type``) as the edge feature ``negative_nid_field_0`` and the hard negatives for edge type (``src_type``,``rel_type1``,``dst_type``) as the edge feature ``negative_nid_field_1``.
+For example, the following yaml block defines the hard negatives for edge type (``src_type``,``rel_type0``,``dst_type``) as the edge feature ``negative_nid_field_0`` and the hard negatives for edge type ``(src_type,rel_type1,dst_type)`` as the edge feature ``negative_nid_field_1``.
 
   .. code-block:: yaml
 
@@ -192,7 +192,7 @@ In general, GraphStorm covers following cases:
 - **Case 2** ``num_train_hard_negatives`` is smaller than ``num_negative_edges``. GraphStorm will randomly sample ``num_train_hard_negatives`` hard negative nodes from the hard negative set and then randomly sample ``num_negative_edges - num_train_hard_negatives`` negative nodes.
 - **Case 3** GraphStorm supports cases when some edges do not have enough hard negatives provided by users. For example, the expected ``num_train_hard_negatives`` is 10, but an edge only have 5 hard negatives. In certain cases, GraphStorm will use all the hard negatives first and then randomly sample negative nodes to fulfill the requirement of ``num_train_hard_negatives``. Then GraphStorm will go back to **Case 1** or **Case 2**.
 
-** Preparing graph data for hard negative sampling **
+**Preparing graph data for hard negative sampling**
 
 The gconstruct pipeline of GraphStorm provides support to load hard negative data from raw input.
 Hard destination negatives can be defined through ``edge_dst_hard_negative`` transformation.
