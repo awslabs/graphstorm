@@ -348,7 +348,16 @@ def main(config_args):
                                                     train_data.g,
                                                     encoder_out_dims,
                                                     train_task=True)
-        model.add_task(task.task_id, task.task_type, decoder, loss_func)
+        # For link prediction, lp_embed_normalizer may be used
+        # TODO(xiangsx): add embed norm for other task types.
+        node_embed_norm_method = config.lp_embed_normalizer \
+            if task.task_type in [BUILTIN_TASK_LINK_PREDICTION] \
+            else None
+        model.add_task(task.task_id,
+                       task.task_type,
+                       decoder,
+                       loss_func,
+                       node_embed_norm_method)
         if not config.no_validation:
             if val_loader is None:
                 logging.warning("The training data do not have validation set.")

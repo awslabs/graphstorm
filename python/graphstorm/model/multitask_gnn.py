@@ -32,7 +32,7 @@ from .gnn_encoder_base import GSgnnGNNEncoderInterface
 from .node_gnn import run_node_mini_batch_predict
 from .edge_gnn import run_edge_mini_batch_predict
 from .lp_gnn import run_lp_mini_batch_predict
-
+from .utils import normalize_node_embs
 
 class GSgnnMultiTaskModelInterface:
     """ The interface for GraphStorm multi-task learning.
@@ -95,8 +95,31 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         self._loss_fn = nn.ModuleDict()
         self._warn_printed = False
 
+    def normalize_node_embs(self, task_id, embs):
+        """ Normalize node embeddings when needed.
+
+            Normalize_node_embs should be called in forward() and predict()
+
+        Parameters
+        ----------
+        task_id: str
+            Task ID.
+        embs: dict of Tensors
+            A dict of node embeddings.
+
+        Returns
+        -------
+        dict of Tensors:
+            Normalized node embeddings.
+        """
+        if self._node_embed_norm_method[task_id] is not None:
+            return normalize_node_embs(embs, self._node_embed_norm_method[task_id])
+        else:
+            return embs
+
     def add_task(self, task_id, task_type,
-                 decoder, loss_func):
+                 decoder, loss_func,
+                 embed_norm_method=None):
         """ Add a task into the multi-task pool
 
         Parameters
@@ -112,6 +135,8 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
             Task decoder.
         loss_func: func
             Loss function.
+        embed_norm_method: str
+            Node embedding normalization method
         """
         assert task_id not in self._task_pool, \
             f"Task {task_id} already exists"
@@ -120,6 +145,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         self._decoder[task_id] = decoder
         # add loss func in nn module
         self._loss_fn[task_id] = loss_func
+        self._node_embed_norm_method[task_id] = embed_norm_method
 
     @property
     def alpha_l2norm(self):
@@ -277,7 +303,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
                 encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
 
         # Call emb normalization.
-        encode_embs = self.normalize_node_embs(encode_embs)
+        encode_embs = self.normalize_node_embs(task_id, encode_embs)
 
         if task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
             labels = decoder_data
@@ -353,7 +379,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
             encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
 
         # Call emb normalization.
-        encode_embs = self.normalize_node_embs(encode_embs)
+        encode_embs = self.normalize_node_embs(task_id, encode_embs)
 
         task_type, _ = self.task_pool[task_id]
         task_decoder = self.decoder[task_id]
