@@ -102,7 +102,7 @@ For distributed training, users also need to make sure ports under 65536 is open
 Launch GPartition Job
 ----------------------
 
-Now we can ssh into the leader node of the EC2 cluster, and start GPartition process with the following command:
+Now we can ssh into the **leader node** of the EC2 cluster, and start GPartition process with the following command:
 
 .. code:: bash
 

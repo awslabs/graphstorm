@@ -5,7 +5,7 @@ Running partition jobs on SageMaker
 Once the :ref:`distributed processing setup<gsprocessing_distributed_setup>` is complete,
 you can use Amazon SageMaker launch scripts to launch distributed processing jobs with AWS resources.
 To demonstrate the usage of GSProcessing on Amazon SageMaker, we will execute the same output in the
-`:ref: Running GSProcessing on Amazon SageMaker<gsprocessing_sagemaker_output>`.
+`:ref: GSProcessing Output<gsprocessing_sagemaker_output>`.
 
 Build the docker image for partition jobs on SageMaker
 ------------------------------------------------------

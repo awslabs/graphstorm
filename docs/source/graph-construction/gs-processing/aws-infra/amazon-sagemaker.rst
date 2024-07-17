@@ -103,6 +103,7 @@ vCPU count. If setting it yourself a good value to use is
 utilization of the cluster resources. For EMR serverless, equivalently set
 to ``num_executors * num_cores_per_executor * 2``
 
+.. _gsprocessing_sagemaker_output:
 
 Examine the output
 ------------------
