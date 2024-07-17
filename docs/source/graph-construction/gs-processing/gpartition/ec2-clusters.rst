@@ -15,25 +15,27 @@ A cluster contains several instances each of which can run GraphStorm Docker con
 
 To create such a cluster, in one instance, please follow the :ref:`Environment Setup <setup_docker>` description to setup GraphStorm Docker container environment, and use a Docker management system, e.g., AWS ECR, to upload the Docker image built in the instance to a Docker repository and pull it to the rest of the instances in the cluster.
 
-If you are planning to use **parmetis** algorithm, please prepare your docker container by instructions here:
-
-.. code-block:: bash
-
-    git clone https://github.com/awslabs/graphstorm.git
-
-    cd /path-to-graphstorm/docker/
-
-    bash /path-to-graphstorm/docker/build_docker_parmetis.sh /path-to-graphstorm/ image-name image-tag
-
-There are four positional arguments for ``build_docker_oss4local.sh``:
-
-1. **path-to-graphstorm** (**required**), is the absolute path of the "graphstorm" folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
-2. **image-name** (optional), is the assigned name of the to be built Docker image. Default is ``graphstorm``.
-3. **image-tag** (optional), is the assigned tag prefix of the Docker image. Default is ``local``.
-
-The other stuff should remain the same.
-
 If there is no such Docker manangement system available in your environment, in **each** instance of the cluster, follow the :ref:`Environment Setup <setup_docker>` description to build a GraphStorm Docker image, and start the image as a container. Then exchange the ssh key from inside of one GraphStorm Docker containers to the rest containers in the cluster, i.e., copy the keys from the ``/root/.ssh/id_rsa.pub`` from one container to ``/root/.ssh/authorized_keys`` in containers on all other containers.
+
+.. note::
+
+    If you are planning to use **parmetis** algorithm, please prepare your docker container by instructions here:
+
+    .. code-block:: bash
+
+        git clone https://github.com/awslabs/graphstorm.git
+
+        cd /path-to-graphstorm/docker/
+
+        bash /path-to-graphstorm/docker/build_docker_parmetis.sh /path-to-graphstorm/ image-name image-tag
+
+    There are four positional arguments for ``build_docker_parmetis.sh``:
+
+    1. **path-to-graphstorm** (**required**), is the absolute path of the "graphstorm" folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
+    2. **image-name** (optional), is the assigned name of the to be built Docker image. Default is ``graphstorm``.
+    3. **image-tag** (optional), is the assigned tag prefix of the Docker image. Default is ``local``.
+
+    The other stuff should remain the same.
 
 Setup of a shared file system for the cluster
 ...............................................
