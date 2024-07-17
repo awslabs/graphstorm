@@ -238,6 +238,7 @@ python3 -m graphstorm.run.gs_gen_node_embedding --workspace $GS_HOME/training_sc
 error_and_exit $?
 
 cnt=$(ls /data/gsgnn_lp_ml_dot/save-emb/ | wc -l)
+cnt=$[cnt - 1]
 if test $cnt -ne 1
 then
     echo "It should only generate node embedding on one node type"
