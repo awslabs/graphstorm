@@ -349,7 +349,8 @@ def main(config_args):
                                                     encoder_out_dims,
                                                     train_task=True)
         # For link prediction, lp_embed_normalizer may be used
-        # TODO(xiangsx): add embed norm for other task types.
+        # TODO(xiangsx): add embed normalizer for other task types
+        # in the future.
         node_embed_norm_method = task.task_config.lp_embed_normalizer \
             if task.task_type in [BUILTIN_TASK_LINK_PREDICTION] \
             else None

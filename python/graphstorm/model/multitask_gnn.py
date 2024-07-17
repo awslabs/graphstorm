@@ -146,7 +146,6 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         self._decoder[task_id] = decoder
         # add loss func in nn module
         self._loss_fn[task_id] = loss_func
-        print(f"{task_id} {embed_norm_method}")
         self._node_embed_norm_method[task_id] = embed_norm_method
 
     @property
