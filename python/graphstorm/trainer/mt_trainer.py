@@ -641,6 +641,12 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                 # For link prediction, do evaluation task
                 # by task.
                 lp_test_embs = gen_embs(edge_mask=task_info.task_config.train_mask)
+                # normalize the node embedding if needed.
+                # we can do inplace normalization as embeddings are generated
+                # per lp task.
+                lp_test_embs = model.normalize_task_node_embs(task_info.task_id,
+                                                              lp_test_embs,
+                                                              inplace=True)
 
                 decoder = model.task_decoders[task_info.task_id]
                 val_scores = run_lp_mini_batch_predict(decoder,
