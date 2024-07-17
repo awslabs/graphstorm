@@ -83,7 +83,7 @@ Launch the partition job on Amazon SageMaker
 ---------------------------------------------
 
 For this example we'll use a same size SageMaker cluster with 2 ``ml.t3.xlarge`` instances
-as in `:ref: the GSProcessing Example<gsprocessing_sagemaker_output>`. In this tutorial, we assume the data is already ready on AWS S3 bucket.
+as in :ref: `GSProcessing Example<gsprocessing_sagemaker_output>`. In this tutorial, we assume the data is already ready on AWS S3 bucket.
 For large graph, users can select larger instance type and more instances in number.
 
 Install dependencies
