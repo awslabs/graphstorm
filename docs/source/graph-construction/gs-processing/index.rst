@@ -11,7 +11,7 @@ The first section details the execution environment setup for GSProcessing.
 The second section offers examples on drafting a configuration file for a GSProcessing job.
 The third section explains how to deploy your GSProcessing job with AWS infrastructure.
 The forth section includes how to do partition based on the previous GSProcessing result.
-The final section shows an example to quick start GSProcessing.
+The final section shows an example to quick start GSProcessing and GPartition.
 
 .. toctree::
    :maxdepth: 1
