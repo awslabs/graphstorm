@@ -519,7 +519,6 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             params += list(self.node_input_encoder.get_general_dense_parameters())
         # TODO(zhengda) we need to test a model with encoders on edge data.
         if self.edge_input_encoder is not None:
-            assert False, "edge_input_encoder not supported"
             params += list(self.edge_input_encoder.get_general_dense_parameters())
         if self.decoder is not None and isinstance(self.decoder, nn.Module):
             params += list(self.decoder.parameters())
@@ -538,7 +537,6 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
                 "node_input_encoder must be a GSNodeInputLayer"
             params += list(self.node_input_encoder.get_lm_dense_parameters())
         if self.edge_input_encoder is not None:
-            assert False, "edge_input_encoder not supported"
             params += list(self.edge_input_encoder.get_lm_dense_parameters())
 
         return params

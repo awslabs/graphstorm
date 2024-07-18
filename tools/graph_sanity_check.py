@@ -199,7 +199,10 @@ def verify_feats(feat, error_prefix):
     larger_1 = (feat > 1.0).any().item()
     small_minus_1 = (feat < -1.0).any().item()
     if larger_1 or small_minus_1:
+        max_val = th.max(feat)
+        min_val = th.min(feat)
         warn_msg = f"WARNING: {error_prefix} There are some value out of the range of [-1, 1]. " \
+                f"We get [{max_val}: {min_val}]" \
                 "It won't cause any error, but it is recommended to normalize the feature."
     return err_msg, warn_msg
 

@@ -225,7 +225,7 @@ class LinkPredictContrastiveLossFunc(GSLayer):
         loss of <src, dst>, we follow the following equation:
 
             .. math::
-            loss = -log(exp(pos\_score)/\sum_{1=0}^N exp(score_i))
+            loss = -log(exp(pos\_score)/\sum_{i=0}^N exp(score_i))
 
         where score includes both positive score of <src, dst> and
         negative scores of <src, neg_dst0>, ... <src, neg_dstk>
