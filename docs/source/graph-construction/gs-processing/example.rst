@@ -13,23 +13,27 @@ Install example dependencies
 
 To run the local example you will need to install the GSProcessing and GraphStorm
 library to your Python environment, and you'll need to clone the
-GraphStorm repository to get access to the data.
+GraphStorm repository to get access to the data. And you will need to clone the dgl tool.
 
 Follow the :ref:`gsp-installation-ref` guide to install the GSProcessing library.
-And follow the :ref:`Setup GraphStorm with pip Packages<setup_pip>` to install the GraphStorm library.
 
-You can clone the repository using
+To install the GPartition library:
 
 .. code-block:: bash
-
+    pip install graphstorm
+    pip install pydantic
+    pip install torch==2.1.0 --index-url https://download.pytorch.org/whl/cpu
+    pip install dgl==1.1.3 -f https://data.dgl.ai/wheels-internal/repo.html
     git clone https://github.com/awslabs/graphstorm.git
+    cd graphstorm
+    git clone --branch v2.3.0 https://github.com/dmlc/dgl.git
 
 You can then navigate to the ``graphstorm-processing/`` directory
 that contains the relevant data:
 
 .. code-block:: bash
 
-    cd ./graphstorm/graphstorm-processing/
+    cd ./graphstorm-processing/
 
 
 Expected file inputs and configuration
@@ -39,7 +43,7 @@ The example will include both GSProcessing as the first step and GPartition as t
 
 GSProcessing expects the input files to be in a specific format that will allow
 us to perform the processing and prepare the data for partitioning and training.
-GPartition can handle the output for the GSProcessing.
+GPartition can handle the output by the GSProcessing.
 
 The data files are expected to be:
 
@@ -297,13 +301,14 @@ you can use the following command to run the processing job locally:
 .. code:: bash
 
     echo 127.0.0.1 > ip_list.txt
-    python3 python/graphstorm/gpartition/dist_partition_graph.py
+    python3 -m graphstorm.gpartition.dist_partition_graph \
         --input-path /tmp/gsprocessing-example/ \
         --metadata-filename updated_row_counts_metadata.json \
         --output-path /tmp/gpartition-example/ \
-        --num-parts 2 \
+        --num-parts 1 \
+        --dgl-tool-path ./dgl/tools \
         --partition-algorithm random \
-        --ip-list ip_list.txt \
+        --ip-config ip_list.txt \
         --do-dispatch
 
 Examining the job output for GPartition
@@ -316,6 +321,15 @@ Once the partition jobs are done, you can examine the outputs they created.
     $ cd /tmp/gpartition-example
     $ ls -l
 
+    dist_graph/
+        -   metadata.json
+        -   part0/
+    partition_assignment/
+        -   director.txt
+        -   genre.txt
+        -   movie.txt
+        -   partition_meta.json
+        -   user.txt
 
 .. rubric:: Footnotes
 
