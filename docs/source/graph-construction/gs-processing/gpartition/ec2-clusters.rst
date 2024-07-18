@@ -115,6 +115,8 @@ Now we can ssh into the **leader node** of the EC2 cluster, and start GPartition
         --ip-list ${IP_CONFIG} \
         --do-dispatch
 
-.. note:: Please make sure the both ${LOCAL_INPUT_DATAPATH} and ${LOCAL_OUTPUT_DATAPATH} are located on the shared filesystem.
+.. warning::
+    1. Please make sure the both ${LOCAL_INPUT_DATAPATH} and ${LOCAL_OUTPUT_DATAPATH} are located on the shared filesystem.
+    2. The num of instances in the cluster should be a multiple of ``NUM_PARTITIONS`` here.
 
 Currently we support both ``random`` and ``parmetis`` as the partitioning algorithm.
