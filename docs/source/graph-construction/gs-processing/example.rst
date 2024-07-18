@@ -1,9 +1,9 @@
 .. _distributed_construction_example:
 
-GraphStorm Processing Example
-=============================
+GraphStorm Distributed Construction Example
+===========================================
 
-To demonstrate how to use the library locally we will
+To demonstrate how to use distributed graph construction locally we will
 use the same example data as we use in our
 unit tests, which you can find in the project's repository,
 under ``graphstorm/graphstorm-processing/tests/resources/small_heterogeneous_graph``.
@@ -11,11 +11,12 @@ under ``graphstorm/graphstorm-processing/tests/resources/small_heterogeneous_gra
 Install example dependencies
 ----------------------------
 
-To run the local example you will need to install the GSProcessing
+To run the local example you will need to install the GSProcessing and GraphStorm
 library to your Python environment, and you'll need to clone the
 GraphStorm repository to get access to the data.
 
 Follow the :ref:`gsp-installation-ref` guide to install the GSProcessing library.
+And follow the :ref:`Setup GraphStorm with pip Packages<setup_pip>` to install the GraphStorm library.
 
 You can clone the repository using
 
@@ -34,8 +35,11 @@ that contains the relevant data:
 Expected file inputs and configuration
 --------------------------------------
 
+The example will include both GSProcessing as the first step and GPartition as the second step.
+
 GSProcessing expects the input files to be in a specific format that will allow
 us to perform the processing and prepare the data for partitioning and training.
+GPartition can handle the output for the GSProcessing.
 
 The data files are expected to be:
 
@@ -202,8 +206,8 @@ For more details on the re-partitioning step see
 
 .. _gsp-examining-output:
 
-Examining the job output
-------------------------
+Examining the job output for GSProcessing
+------------------------------------------
 
 Once the processing and re-partitioning jobs are done,
 we can examine the outputs they created. The output will be
@@ -281,22 +285,36 @@ in an ``edge_data`` directory.
     for node id 1 etc.
 
 
-At this point you can use the DGL distributed partitioning pipeline
-to partition your data, as described in the
-`DGL documentation <https://docs.dgl.ai/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_
-.
+Run a GPartition job locally
+------------------------------
+While :ref:`GPartition<gpartition_index>` is designed for distributed cluster,
+you can run GPartition job locally for the example. Once you have :ref:`Setup GraphStorm with pip Packages<setup_pip>` and
+completed previous GSProcessing example, you can proceed to run the GPartition example.
 
-To simplify the process of partitioning and training, without the need
-to manage your own infrastructure, we recommend using GraphStorm's
-`SageMaker wrappers <https://graphstorm.readthedocs.io/en/latest/scale/sagemaker.html>`_
-that do all the hard work for you and allow
-you to focus on model development. In particular you can follow the GraphStorm documentation to run
-`distributed partitioning on SageMaker <https://github.com/awslabs/graphstorm/tree/main/sagemaker#launch-graph-partitioning-task>`_.
+Assuming our working directory is ``graphstorm``
+you can use the following command to run the processing job locally:
 
+.. code:: bash
 
-To run GSProcessing jobs on Amazon SageMaker we'll need to follow
-:ref:`GSProcessing distributed setup<gsprocessing_distributed_setup>` to set up our environment
-and :ref:`Running GSProcessing on SageMaker<gsprocessing_sagemaker>` to execute the job.
+    echo 127.0.0.1 > ip_list.txt
+    python3 python/graphstorm/gpartition/dist_partition_graph.py
+        --input-path /tmp/gsprocessing-example/ \
+        --metadata-filename updated_row_counts_metadata.json \
+        --output-path /tmp/gpartition-example/ \
+        --num-parts 2 \
+        --partition-algorithm random \
+        --ip-list ip_list.txt \
+        --do-dispatch
+
+Examining the job output for GPartition
+------------------------------------------
+
+Once the partition jobs are done, you can examine the outputs they created.
+
+.. code-block:: bash
+
+    $ cd /tmp/gpartition-example
+    $ ls -l
 
 
 .. rubric:: Footnotes
@@ -305,4 +323,3 @@ and :ref:`Running GSProcessing on SageMaker<gsprocessing_sagemaker>` to execute 
 .. [#f1] Note that this is just a hint to the Spark engine, and it's
     not guaranteed that the number of output partitions will always match
     the requested value.
-.. [#f2] This doc will be future extended to include a partition example.

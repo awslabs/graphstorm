@@ -1,3 +1,5 @@
+.. _gpartition_index:
+
 ===================================
 Running partition jobs on AWS Infra
 ===================================
