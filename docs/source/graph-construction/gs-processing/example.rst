@@ -293,8 +293,8 @@ in an ``edge_data`` directory.
 Run a GPartition job locally
 ------------------------------
 While :ref:`GPartition<gpartition_index>` is designed for distributed cluster,
-you can run GPartition job locally for the example. Once you have :ref:`Setup GraphStorm with pip Packages<setup_pip>` and
-completed previous GSProcessing example, you can proceed to run the GPartition example.
+you can run GPartition job locally for the example. Once you have completed :ref:`Setup GraphStorm with pip Packages<setup_pip>`
+and previous GSProcessing example, you can proceed to run the GPartition example.
 
 Assuming our working directory is ``graphstorm``
 you can use the following command to run the processing job locally:

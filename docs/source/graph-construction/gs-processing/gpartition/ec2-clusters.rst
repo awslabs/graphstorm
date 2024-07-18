@@ -106,17 +106,17 @@ Now we can ssh into the **leader node** of the EC2 cluster, and start GPartition
 
 .. code:: bash
 
-    python3 python/graphstorm/gpartition/dist_partition_graph.py
+    python3 -m graphstorm.gpartition.dist_partition_graph
         --input-path ${LOCAL_INPUT_DATAPATH} \
         --metadata-filename ${METADATA_FILE} \
         --output-path ${LOCAL_OUTPUT_DATAPATH} \
         --num-parts ${NUM_PARTITIONS} \
         --partition-algorithm ${ALGORITHM} \
-        --ip-list ${IP_CONFIG} \
+        --ip-config ${IP_CONFIG} \
         --do-dispatch
 
 .. warning::
     1. Please make sure the both ``LOCAL_INPUT_DATAPATH`` and ``LOCAL_OUTPUT_DATAPATH`` are located on the shared filesystem.
     2. The num of instances in the cluster should be a multiple of ``NUM_PARTITIONS`` here.
 
-Currently we support both ``random`` and ``parmetis`` as the partitioning algorithm.
+Currently we support both ``random`` and ``parmetis`` as the partitioning algorithm for ec2 clusters.

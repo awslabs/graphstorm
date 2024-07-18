@@ -128,6 +128,6 @@ Users can use the following command to launch partition jobs.
 Running the above will take the dataset after GSProcessing
 from ``${DATASET_S3_PATH}`` as input and create a DistDGL graph with
 ``${NUM_PARTITIONS}`` under the output path, ``${OUTPUT_PATH}``.
-Currently we only support ``random`` as the partitioning algorithm.
+Currently we only support ``random`` as the partitioning algorithm for sagemaker.
 
 
