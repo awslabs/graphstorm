@@ -20,6 +20,7 @@ Follow the :ref:`gsp-installation-ref` guide to install the GSProcessing library
 To install the GPartition library:
 
 .. code-block:: bash
+
     pip install graphstorm
     pip install pydantic
     pip install torch==2.1.0 --index-url https://download.pytorch.org/whl/cpu
