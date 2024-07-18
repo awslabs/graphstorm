@@ -13,7 +13,7 @@ Install example dependencies
 
 To run the local example you will need to install the GSProcessing and GraphStorm
 library to your Python environment, and you'll need to clone the
-GraphStorm repository to get access to the data. And you will need to clone the dgl tool.
+GraphStorm repository to get access to the data, and dgl tool for GPartition.
 
 Follow the :ref:`gsp-installation-ref` guide to install the GSProcessing library.
 
@@ -27,7 +27,7 @@ To install the GPartition library:
     pip install dgl==1.1.3 -f https://data.dgl.ai/wheels-internal/repo.html
     git clone https://github.com/awslabs/graphstorm.git
     cd graphstorm
-    git clone --branch v2.3.0 https://github.com/dmlc/dgl.git
+    git clone --branch v1.1.3 https://github.com/dmlc/dgl.git
 
 You can then navigate to the ``graphstorm-processing/`` directory
 that contains the relevant data:
@@ -40,7 +40,7 @@ that contains the relevant data:
 Expected file inputs and configuration
 --------------------------------------
 
-The example will include both GSProcessing as the first step and GPartition as the second step.
+The example will include GSProcessing as the first step and GPartition as the second step.
 
 GSProcessing expects the input files to be in a specific format that will allow
 us to perform the processing and prepare the data for partitioning and training.
@@ -323,14 +323,33 @@ Once the partition jobs are done, you can examine the outputs they created.
     $ ls -l
 
     dist_graph/
-        -   metadata.json
-        -   part0/
+        metadata.json
+        |- part0/
+            edge_feat.dgl
+            graph.dgl
+            node_feat.dgl
+            orig_eids.dgl
+            orig_nids.dgl
     partition_assignment/
-        -   director.txt
-        -   genre.txt
-        -   movie.txt
-        -   partition_meta.json
-        -   user.txt
+        director.txt
+        genre.txt
+        movie.txt
+        partition_meta.json
+        user.txt
+
+We have a few directories containing partitioned graph ready for training and inference.
+
+* ``metadata.json``: This file contains metadata about the distributed DGL graph. The files under
+``dist_graph`` should be ready for the training/inference pipeline.
+* ``part0``: As we only specify 1 partition in the previous command, so we only have one part here.
+There are five kinds of data here:
+    * ``edge_feat.dgl``: The partitioned edge features for part 0 stored in binary format.
+    * ``graph.dgl``: The graph structure data for part 0 stored in binary format.
+    * ``node_feat.dgl``: The node features data for part 0 stored in binary format.
+    * ``orig_eids.dgl``: The mapping for edges between raw edge IDs and graph's edge IDs.
+    * ``orig_nids.dgl``: The mapping for nodes between raw node IDs and graph's node IDs.
+*``partition_assignment``: This directory should contain different partition results for different node types,
+the results can resued for the : `dgl dispatch pipeline <https://docs.dgl.ai/en/latest/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_
 
 .. rubric:: Footnotes
 
