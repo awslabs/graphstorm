@@ -296,7 +296,7 @@ While :ref:`GPartition<gpartition_index>` is designed for distributed cluster,
 you can run GPartition job locally for the example. Once you have completed :ref:`Setup GraphStorm with pip Packages<setup_pip>`
 and previous GSProcessing example, you can proceed to run the GPartition example.
 
-Assuming our working directory is ``graphstorm``
+Assuming your working directory is ``graphstorm``,
 you can use the following command to run the processing job locally:
 
 .. code:: bash
@@ -315,7 +315,7 @@ you can use the following command to run the processing job locally:
 Examining the job output for GPartition
 ------------------------------------------
 
-Once the partition jobs are done, you can examine the outputs they created.
+Once the partition job is done, you can examine the outputs they created.
 
 .. code-block:: bash
 
@@ -337,7 +337,7 @@ Once the partition jobs are done, you can examine the outputs they created.
         partition_meta.json
         user.txt
 
-We have a few directories containing partitioned graph ready for training and inference.
+Now there are a few directories containing partitioned graph ready for training and inference.
 
 * ``metadata.json``: This file contains metadata about the distributed DGL graph. The files under
 ``dist_graph`` should be ready for the training/inference pipeline.
@@ -348,8 +348,8 @@ There are five kinds of data here:
     * ``node_feat.dgl``: The node features data for part 0 stored in binary format.
     * ``orig_eids.dgl``: The mapping for edges between raw edge IDs and graph's edge IDs.
     * ``orig_nids.dgl``: The mapping for nodes between raw node IDs and graph's node IDs.
-*``partition_assignment``: This directory should contain different partition results for different node types,
-the results can resued for the : `dgl dispatch pipeline <https://docs.dgl.ai/en/latest/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_
+* ``partition_assignment``: This directory should contain different partition results for different node types,
+the results can reused for the : `dgl dispatch pipeline <https://docs.dgl.ai/en/latest/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_
 
 .. rubric:: Footnotes
 
