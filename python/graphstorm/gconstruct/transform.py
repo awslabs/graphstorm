@@ -1161,7 +1161,7 @@ def parse_feat_ops(confs, input_data_format=None):
         if 'transform' not in feat:
             transform = Noop(
                 feat['feature_col'],
-                feat_name,\
+                feat_name,
                 out_dtype=out_dtype,
                 truncate_dim=feat.get('truncate_dim', None)
             )
