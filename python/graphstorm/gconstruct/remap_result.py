@@ -707,7 +707,7 @@ def _parse_gs_config(config):
             pred_ntypes = pred_ntypes \
                 if isinstance(pred_ntypes, list) else [pred_ntypes]
 
-        return node_id_mapping, predict_dir, emb_dir, pred_ntypes, pred_etypes
+        return node_id_mapping, predict_dir, emb_dir, task_emb_dirs, pred_ntypes, pred_etypes
 
 def main(args, gs_config_args):
     """ main function

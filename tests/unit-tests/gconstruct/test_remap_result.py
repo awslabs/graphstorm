@@ -409,7 +409,7 @@ def test_parse_config():
         setattr(config, "_task_type", BUILTIN_TASK_NODE_CLASSIFICATION)
         setattr(config, "_target_ntype", target_ntype)
         setattr(config, "_multi_tasks", None)
-        node_id_mapping, predict_dir, emb_dir, pred_ntypes, pred_etypes = _parse_gs_config(config)
+        node_id_mapping, predict_dir, emb_dir, task_emb_dirs, pred_ntypes, pred_etypes = _parse_gs_config(config)
         assert node_id_mapping == os.path.join(tmpdirname, "raw_id_mappings")
         assert predict_dir == save_prediction_path
         assert emb_dir == save_embed_path
@@ -426,7 +426,7 @@ def test_parse_config():
         setattr(config, "_target_etype", target_etype)
         setattr(config, "_multi_tasks", None)
 
-        node_id_mapping, predict_dir, emb_dir, pred_ntypes, pred_etypes = _parse_gs_config(config)
+        node_id_mapping, predict_dir, emb_dir, task_emb_dirs, pred_ntypes, pred_etypes = _parse_gs_config(config)
         assert node_id_mapping == os.path.join(tmpdirname, "raw_id_mappings")
         assert predict_dir == save_prediction_path
         assert emb_dir == save_embed_path
@@ -480,7 +480,7 @@ def test_parse_config():
         setattr(config, "_save_prediction_path", save_prediction_path)
         setattr(config, "_save_embed_path", save_embed_path)
         config._parse_multi_tasks(multi_task_config)
-        node_id_mapping, predict_dir, emb_dir, pred_ntypes, pred_etypes = _parse_gs_config(config)
+        node_id_mapping, predict_dir, emb_dir, task_emb_dirs, pred_ntypes, pred_etypes = _parse_gs_config(config)
 
         assert node_id_mapping == os.path.join(tmpdirname, "raw_id_mappings")
         assert isinstance(predict_dir, tuple)
@@ -505,7 +505,7 @@ def test_parse_config():
         setattr(config, "_part_config", part_path)
         setattr(config, "_save_embed_path", save_embed_path)
         config._parse_multi_tasks(multi_task_config)
-        node_id_mapping, predict_dir, emb_dir, pred_ntypes, pred_etypes = _parse_gs_config(config)
+        node_id_mapping, predict_dir, emb_dir, task_emb_dirs, pred_ntypes, pred_etypes = _parse_gs_config(config)
         assert node_id_mapping == os.path.join(tmpdirname, "raw_id_mappings")
         assert isinstance(predict_dir, tuple)
         node_predict_dirs, edge_predict_dirs = predict_dir
@@ -520,7 +520,7 @@ def test_parse_config():
         config = GSConfig.__new__(GSConfig)
         setattr(config, "_part_config", part_path)
         config._parse_multi_tasks(multi_task_config)
-        node_id_mapping, predict_dir, emb_dir, pred_ntypes, pred_etypes = _parse_gs_config(config)
+        node_id_mapping, predict_dir, emb_dir, task_emb_dirs, pred_ntypes, pred_etypes = _parse_gs_config(config)
         assert predict_dir is None
         assert emb_dir is None
 
