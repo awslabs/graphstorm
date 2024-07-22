@@ -1,7 +1,7 @@
 .. _distributed_construction_example:
 
 GraphStorm Distributed Graph Construction Example
-===========================================
+=================================================
 
 To demonstrate how to use distributed graph construction locally we will
 use the same example data as we use in our
