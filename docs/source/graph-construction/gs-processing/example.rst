@@ -315,7 +315,7 @@ you can use the following command to run the processing job locally:
 Examining the job output of GPartition
 --------------------------------------
 
-Once the partition job is done, you can examine the outputs they created.
+Once the partition job is done, you can examine the outputs it has created.
 
 .. code-block:: bash
 
