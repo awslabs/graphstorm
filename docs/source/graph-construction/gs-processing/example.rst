@@ -1,6 +1,6 @@
 .. _distributed_construction_example:
 
-GraphStorm Distributed Construction Example
+GraphStorm Distributed Graph Construction Example
 ===========================================
 
 To demonstrate how to use distributed graph construction locally we will
@@ -44,7 +44,7 @@ The example will include GSProcessing as the first step and GPartition as the se
 
 GSProcessing expects the input files to be in a specific format that will allow
 us to perform the processing and prepare the data for partitioning and training.
-GPartition can handle the output by the GSProcessing.
+GPartition then takes the output of GSProcessing to produce graph files ready for training.
 
 The data files are expected to be:
 
@@ -291,8 +291,8 @@ in an ``edge_data`` directory.
 
 
 Run a GPartition job locally
-------------------------------
-While :ref:`GPartition<gpartition_index>` is designed for distributed cluster,
+---------------------------
+While :ref:`GPartition<gpartition_index>` is designed to run on a multi-machine cluster,
 you can run GPartition job locally for the example. Once you have completed previous installation
 and GSProcessing example, you can proceed to run the GPartition example.
 
@@ -312,15 +312,15 @@ you can use the following command to run the processing job locally:
         --ip-config ip_list.txt \
         --do-dispatch
 
-Examining the job output for GPartition
-------------------------------------------
+Examining the job output of GPartition
+--------------------------------------
 
 Once the partition job is done, you can examine the outputs they created.
 
 .. code-block:: bash
 
     $ cd /tmp/gpartition-example
-    $ ls -l
+    $ ls -ltR
 
     dist_graph/
         metadata.json

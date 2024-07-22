@@ -53,7 +53,7 @@ such as ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm-gpu``, in t
 
 .. code-block:: bash
 
-    docker image ls
+    docker images graphstorm
 
 .. _upload_sagemaker_docker:
 

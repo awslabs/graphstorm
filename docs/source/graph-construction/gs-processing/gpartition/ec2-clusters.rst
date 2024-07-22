@@ -13,9 +13,9 @@ Setup the instance of a cluster
 .......................................
 A cluster contains several instances each of which can run GraphStorm Docker container.
 
-To create such a cluster, in one instance, please follow the :ref:`Environment Setup <setup_docker>` description to setup GraphStorm Docker container environment, and use a Docker management system, e.g., AWS ECR, to upload the Docker image built in the instance to a Docker repository and pull it to the rest of the instances in the cluster.
+To create such a cluster please follow the :ref:`Environment Setup <setup_docker>`. The guide shows you how to build GraphStorm Docker images, and use a Docker container registry, e.g. AWS ECR, to upload the GraphStorm image to an ECR repository and pull it on the instances in the cluster.
 
-If there is no such Docker manangement system available in your environment, in **each** instance of the cluster, follow the :ref:`Environment Setup <setup_docker>` description to build a GraphStorm Docker image, and start the image as a container. Then exchange the ssh key from inside of one GraphStorm Docker containers to the rest containers in the cluster, i.e., copy the keys from the ``/root/.ssh/id_rsa.pub`` from one container to ``/root/.ssh/authorized_keys`` in containers on all other containers.
+If you can't access a Docker registry from your environment, in **each** instance of the cluster, follow the :ref:`Environment Setup <setup_docker>` description to build a GraphStorm Docker image, and start the image as a container. Then exchange the ssh key from inside of one GraphStorm Docker containers to the rest containers in the cluster, i.e., copy the keys from the ``/root/.ssh/id_rsa.pub`` from one container to ``/root/.ssh/authorized_keys`` in containers on all other containers.
 
 .. note::
 
@@ -92,7 +92,7 @@ In the container environment, users can check the connectivity with the command 
 
     ssh 172.38.12.143 -o StrictHostKeyChecking=no -p 2222
 
-If succeeds, you should login to the container in the ``<ip-in-the-cluster>`` instance.
+If successful, you should login to the container in the ``<ip-in-the-cluster>`` instance.
 
 If not, please make sure there is no restriction of exposing port 2222.
 
