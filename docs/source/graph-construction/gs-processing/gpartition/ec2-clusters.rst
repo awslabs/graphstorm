@@ -10,7 +10,7 @@ Create a GraphStorm Cluster
 ----------------------------
 
 Setup the instance of a cluster
-.......................................
+................................
 A cluster contains several instances each of which can run GraphStorm Docker container.
 
 To create such a cluster please follow the :ref:`Environment Setup <setup_docker>`. The guide shows you how to build GraphStorm Docker images, and use a Docker container registry, e.g. AWS ECR, to upload the GraphStorm image to an ECR repository and pull it on the instances in the cluster.
@@ -65,7 +65,7 @@ Setup the IP address file and check port status
 
 Collect the IP list
 ......................
-The GraphStorm Docker containers use SSH on port ``2222`` to communicate with each other. Users need to collect all IP addresses of the three instances and put them into a text file, e.g., ``/data/ip_list.txt``, which is like:
+The GraphStorm Docker containers use SSH on port ``2222`` to communicate with each other. Users need to collect all IP addresses of all the instances and put them into a text file, e.g., ``/data/ip_list.txt``, which is like:
 
 .. figure:: ../../../../../tutorial/distributed_ips.png
     :align: center
