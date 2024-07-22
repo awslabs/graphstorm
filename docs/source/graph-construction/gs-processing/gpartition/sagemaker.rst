@@ -88,7 +88,7 @@ For large graph, users can select larger instance type and more instances in num
 
 Install dependencies
 .....................
-To run GraphStorm with the Amazon SageMaker service, users should set up an instance with the SageMaker library installed and GraphStorm's SageMaker tools copied.
+To run GraphStorm with the Amazon SageMaker service, users should install SageMaker library and copy GraphStorm's SageMaker tools.
 
 1. Use the below command to install SageMaker.
 
