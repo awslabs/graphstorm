@@ -211,7 +211,7 @@ For more details on the re-partitioning step see
 
 .. _gsp-examining-output:
 
-Examining the job output for GSProcessing
+Examining the job output of GSProcessing
 ------------------------------------------
 
 Once the processing and re-partitioning jobs are done,
@@ -293,11 +293,11 @@ in an ``edge_data`` directory.
 Run a GPartition job locally
 ---------------------------
 While :ref:`GPartition<gpartition_index>` is designed to run on a multi-machine cluster,
-you can run GPartition job locally for the example. Once you have completed previous installation
-and GSProcessing example, you can proceed to run the GPartition example.
+you can run GPartition job locally for the example. Once you have completed the installation
+and GSProcessing example, you can proceed to run the GPartition.
 
 Assuming your working directory is ``graphstorm``,
-you can use the following command to run the processing job locally:
+you can use the following command to run the partition job locally:
 
 .. code:: bash
 
@@ -337,20 +337,20 @@ Once the partition job is done, you can examine the outputs it has created.
         partition_meta.json
         user.txt
 
-Now there are a few directories containing partitioned graph ready for training and inference.
+There are a few directories containing partitioned graph ready for training and inference.
 
 * ``metadata.json``: This file contains metadata about the distributed DGL graph. The files under
 ``dist_graph`` should be ready for the training/inference pipeline.
 
-* ``part0``: As we only specify 1 partition in the previous command, so we only have one part here.
-There are five kinds of data here:
-    * ``edge_feat.dgl``: The partitioned edge features for part 0 stored in binary format.
+* ``part0``: As we only specify 1 partition in the previous command, so we only have one part folder here.
+There are five data here:
+    * ``edge_feat.dgl``: The edge features for part 0 stored in binary format.
     * ``graph.dgl``: The graph structure data for part 0 stored in binary format.
     * ``node_feat.dgl``: The node features data for part 0 stored in binary format.
-    * ``orig_eids.dgl``: The mapping for edges between raw edge IDs and graph's edge IDs.
-    * ``orig_nids.dgl``: The mapping for nodes between raw node IDs and graph's node IDs.
+    * ``orig_eids.dgl``: The mapping for edges between raw edge IDs and the partitioned graph edge IDs.
+    * ``orig_nids.dgl``: The mapping for nodes between raw node IDs and the partitioned graph node IDs.
 
-* ``partition_assignment``: This directory should contain different partition results for different node types,
+``partition_assignment``: This directory contains different partition results for different node types,
 the results can reused for the : `dgl dispatch pipeline <https://docs.dgl.ai/en/latest/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_
 
 .. rubric:: Footnotes

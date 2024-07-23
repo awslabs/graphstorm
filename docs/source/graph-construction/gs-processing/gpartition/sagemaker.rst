@@ -4,7 +4,7 @@ Running partition jobs on SageMaker
 
 Once the :ref:`distributed processing setup<gsprocessing_distributed_setup>` is complete,
 you can use Amazon SageMaker launch scripts to launch distributed processing jobs with AWS resources.
-To demonstrate the usage of GSProcessing on Amazon SageMaker, we will execute the same output in the
+To demonstrate the usage of GSProcessing on Amazon SageMaker, we will execute the same output as in 
 :ref:`GSProcessing Output<gsp-examining-output>` .
 
 Build the docker image for partition jobs on SageMaker
@@ -59,7 +59,7 @@ such as ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm-gpu``, in t
 
 Step 2: Upload Docker Images to Amazon ECR Repository
 .......................................................
-Because SageMaker relies on Amazon ECR to access customers' own Docker images, users need to upload Docker images built in the Step 1 to their own ECR repository.
+Because SageMaker relies on Amazon ECR to access customers' own Docker images, users need to upload the Docker images built in the Step 1 to their own ECR repository.
 
 The following command will authenticate the user account to access to user's ECR repository via AWS CLI.
 
@@ -71,7 +71,7 @@ Please replace the `<REGION>` and `<AWS_ACCOUNT_ID>` with your own account infor
 
 In addition, users need to create an ECR repository at the specified `<REGION>` with the name as `<IMAGE_NAME>` **WITHOUT** the ECR URI string, e.g., ``graphstorm``.
 
-And then use the below command to push the built GraphStorm Docker image to users' own ECR repository.
+And then use the following command to push the built GraphStorm Docker image to users' own ECR repository.
 
 .. code-block:: bash
 
@@ -82,9 +82,9 @@ Please replace the `<IMAGE_NAME>` and `<IMAGE_TAG>` with the actual Docker image
 Launch the partition job on Amazon SageMaker
 ---------------------------------------------
 
-For this example we'll use a same size SageMaker cluster with 2 ``ml.t3.xlarge`` instances
-as in :ref:`GSProcessing Example<gsp-examining-output>`. In this tutorial, we assume the data is already ready on AWS S3 bucket.
-For large graph, users can select larger instance type and more instances in number.
+For this example, we'll use a SageMaker cluster with 2 ``ml.t3.xlarge`` instances
+ In this tutorial, we assume the data is already ready on an AWS S3 bucket.
+For large graph, users can choose larger instances or more instances.
 
 Install dependencies
 .....................

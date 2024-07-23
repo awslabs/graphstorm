@@ -2,16 +2,16 @@
 Running partition jobs on EC2 Clusters
 ======================================
 
-Once the :ref:`distributed processing setup<gsprocessing_distributed_setup>` is complete,
-you can start the partition jobs. In summary this doc will provide instructions on how to setup the EC2 cluster and
-start GPartition jobs on EC2 cluster.
+Once the :ref:`distributed processing setup<gsprocessing_distributed_setup>` is completed,
+users can start the partition jobs. This doc will provide instructions on how to setup an EC2 cluster and
+start GPartition jobs on an EC2 cluster.
 
 Create a GraphStorm Cluster
 ----------------------------
 
-Setup the instance of a cluster
+Setup instances of a cluster
 ................................
-A cluster contains several instances each of which can run GraphStorm Docker container.
+A cluster contains several instances, each of which runs a GraphStorm Docker container.
 
 To create such a cluster please follow the :ref:`Environment Setup <setup_docker>`. The guide shows you how to build GraphStorm Docker images, and use a Docker container registry, e.g. AWS ECR, to upload the GraphStorm image to an ECR repository and pull it on the instances in the cluster.
 
@@ -19,7 +19,7 @@ If you can't access a Docker registry from your environment, in **each** instanc
 
 .. note::
 
-    If you are planning to use **parmetis** algorithm, please prepare your docker container by instructions here:
+    If you are planning to use **parmetis** algorithm, please prepare your docker container using instructions here:
 
     .. code-block:: bash
 
@@ -37,7 +37,7 @@ If you can't access a Docker registry from your environment, in **each** instanc
 
     The other stuff should remain the same.
 
-Setup of a shared file system for the cluster
+Setup a shared file system for the cluster
 ...............................................
 A cluster requires a shared file system, such as NFS or EFS, mounted to each instance in the cluster, in which all GraphStorm containers in the cluster can share data files, and save model artifacts and prediction results.
 
@@ -45,7 +45,7 @@ A cluster requires a shared file system, such as NFS or EFS, mounted to each ins
 
 For an AWS EC2 cluster, users can also use EFS as the shared file system. Please follow 1) `the instruction of creating EFS <https://docs.aws.amazon.com/efs/latest/ug/gs-step-two-create-efs-resources.html>`_; 2) `the instruction of installing an EFS client <https://docs.aws.amazon.com/efs/latest/ug/installing-amazon-efs-utils.html>`_; and 3) `the instructions of mounting the EFS filesystem <https://docs.aws.amazon.com/efs/latest/ug/efs-mount-helper.html>`_ to set up EFS.
 
-After setting up a shared file system, we can keep all partitioned graph data in the shared folder. Then mount the data folder to the ``/path_to_data/`` of each instances in the cluster so that all GraphStorm containers in the cluster can access these partitioned graph data easily.
+After setting up a shared file system, we can keep all partitioned graph data in a shared folder. Then mount the data folder to the ``/path_to_data/`` of each instances in the cluster so that all GraphStorm containers in the cluster can access these partitioned graph data.
 
 Create GraphStorm container by mounting the NFS folder
 .......................................................
@@ -119,4 +119,4 @@ Now we can ssh into the **leader node** of the EC2 cluster, and start GPartition
     1. Please make sure the both ``LOCAL_INPUT_DATAPATH`` and ``LOCAL_OUTPUT_DATAPATH`` are located on the shared filesystem.
     2. The num of instances in the cluster should be a multiple of ``NUM_PARTITIONS`` here.
 
-Currently we support both ``random`` and ``parmetis`` as the partitioning algorithm for ec2 clusters.
+Currently we support both ``random`` and ``parmetis`` as the partitioning algorithm for EC2 clusters.
