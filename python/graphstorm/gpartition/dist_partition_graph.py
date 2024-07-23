@@ -165,9 +165,11 @@ def main():
             dirs_exist_ok=True,
         )
 
-
-    logging.info('Partition assignment and DGL graph creation took %f seconds',
+    if args.partition_assignment_only:
+        logging.info('Partition assignment and DGL graph creation took %f seconds',
                  time.time() - start)
+    else:
+        logging.info('Partition assignment took %f seconds', time.time() - start)
 
 def parse_args() -> argparse.Namespace:
     """Parses arguments for the script"""
