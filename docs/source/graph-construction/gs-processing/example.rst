@@ -351,7 +351,7 @@ There are five data here:
 ``dist_graph`` should be ready for the training/inference pipeline.
 
 ``partition_assignment``: This directory contains different partition results for different node types,
-the results can reused for the : `dgl dispatch pipeline <https://docs.dgl.ai/en/latest/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_
+which can reused for the : `dgl dispatch pipeline <https://docs.dgl.ai/en/latest/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_
 
 .. rubric:: Footnotes
 
