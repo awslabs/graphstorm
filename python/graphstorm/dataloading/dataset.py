@@ -264,7 +264,7 @@ class GSgnnData():
 
     @property
     def graph_name(self):
-        """ The distributed graph's name.
+        """ The distributed graph's name extracted from the given part_config JSON file.
         """
         return self._graph_name
 
@@ -276,7 +276,7 @@ class GSgnnData():
 
     @property
     def edge_feat_field(self):
-        """ The given fields of edge features given in initialization.
+        """ The fields of edge features given in initialization.
         """
         return self._edge_feat_field
 
@@ -871,7 +871,7 @@ class GSgnnData():
         return idxs
 
     def get_edge_infer_set(self, etypes=None, mask="test_mask", reverse_edge_types_map=None):
-        """ Get inference set edges for the given edge types under the given mask..
+        """ Get inference set edges for the given edge types under the given mask.
 
         If the mask exists in ``g.edges[etype].data``, the inference set
         is collected based on the mask.

@@ -1380,7 +1380,7 @@ class GSgnnNodeDataLoaderBase():
 
     If users want to customize the dataloader for node prediction tasks
     they should extend this base class by implementing the special methods
-    `__iter__` and `__next__`.
+    ``__iter__``, ``__next__``, and ``__len__``.
 
     Parameters
     ----------
