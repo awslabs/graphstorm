@@ -1385,7 +1385,7 @@ class GSgnnNodeDataLoaderBase():
     Parameters
     ----------
     dataset : GSgnnData
-        The dataset for the node task.
+        The graph data for the node task.
     target_idx : dict of Tensors
         The target node IDs.
     fanout : list or dict of lists
@@ -1394,10 +1394,10 @@ class GSgnnNodeDataLoaderBase():
         Label field name of the target node type.
     node_feats: str, or dist of list of str
         Node feature fileds.
-            str: All nodes have the same feature name.
-            list of string: All the nodes have the same list of features.
-            dist of list of string: Each node type have different set of node features.
-            Default: None.
+        - str: All nodes have the same feature name.
+        - list of string: All the nodes have the same list of features.
+        - dist of list of string: Each node type have different set of node features.
+        Default: None.
     edge_feats: str, or dist of list of str
         Edge feature fields.
             str: All the edges have the same feature name.
