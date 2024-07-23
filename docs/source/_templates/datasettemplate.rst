@@ -8,4 +8,4 @@
 .. autoclass:: {{ name }}
     :show-inheritance:
     :members:
-    :exclude-members: has_node_lm_feats
+    :member-order: bysource
