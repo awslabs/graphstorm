@@ -29,7 +29,7 @@ If you can't access a Docker registry from your environment, in **each** instanc
 
         bash /path-to-graphstorm/docker/build_docker_parmetis.sh /path-to-graphstorm/ image-name image-tag
 
-    There are four positional arguments for ``build_docker_parmetis.sh``:
+    There are three positional arguments for ``build_docker_parmetis.sh``:
 
     1. **path-to-graphstorm** (**required**), is the absolute path of the "graphstorm" folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
     2. **image-name** (optional), is the assigned name of the to be built Docker image. Default is ``graphstorm``.
