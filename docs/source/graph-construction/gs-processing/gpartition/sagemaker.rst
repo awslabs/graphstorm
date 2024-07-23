@@ -26,6 +26,9 @@ In order to use the SageMaker base Docker image, users need to use the following
 
     aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 763104351884.dkr.ecr.us-east-1.amazonaws.com
 
+.. note::
+    You must login to access the `DLC image <https://github.com/aws/deep-learning-containers/blob/master/available_images.md>`_ repository before pulling the image. For region other than ``us-east-1``, please refer to `available region <https://docs.aws.amazon.com/sagemaker/latest/dg-ecr-paths/sagemaker-algo-docker-registry-paths.html>`_
+
 Then, clone GraphStorm source code, and build a GraphStorm SageMaker compatible Docker image from source with commands:
 
 .. code-block:: bash
@@ -36,7 +39,7 @@ Then, clone GraphStorm source code, and build a GraphStorm SageMaker compatible 
 
     bash /path-to-graphstorm/docker/build_docker_sagemaker.sh /path-to-graphstorm/ <DEVICE_TYPE> <IMAGE_NAME> <IMAGE_TAG>
 
-The ``build_docker_sagemaker.sh`` script takes four arguments:
+The ``build_docker_sagemaker.sh`` script takes three arguments:
 
 1. **path-to-graphstorm** (**required**), is the absolute path of the ``graphstorm`` folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
 2. **DEVICE_TYPE**, is the intended device type of the to-be built Docker image. Please specify ``cpu`` for building CPU-compatible images for partition job.

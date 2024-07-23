@@ -10,7 +10,7 @@ Create a GraphStorm Cluster
 ----------------------------
 
 Setup instances of a cluster
-................................
+.............................
 A cluster contains several instances, each of which runs a GraphStorm Docker container.
 
 To create such a cluster please follow the :ref:`Environment Setup <setup_docker>`. The guide shows you how to build GraphStorm Docker images, and use a Docker container registry, e.g. AWS ECR, to upload the GraphStorm image to an ECR repository and pull it on the instances in the cluster.
@@ -35,7 +35,7 @@ If you can't access a Docker registry from your environment, in **each** instanc
     2. **image-name** (optional), is the assigned name of the to be built Docker image. Default is ``graphstorm``.
     3. **image-tag** (optional), is the assigned tag prefix of the Docker image. Default is ``local``.
 
-    The other stuff should remain the same.
+    The other stuff remains the same.
 
 Setup a shared file system for the cluster
 ...............................................
@@ -95,8 +95,6 @@ In the container environment, users can check the connectivity with the command 
 If successful, you should login to the container in the ``<ip-in-the-cluster>`` instance.
 
 If not, please make sure there is no restriction of exposing port 2222.
-
-For distributed training, users also need to make sure ports under 65536 is open for DistDGL to use.
 
 
 Launch GPartition Job

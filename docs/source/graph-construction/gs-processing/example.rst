@@ -337,10 +337,7 @@ Once the partition job is done, you can examine the outputs it has created.
         partition_meta.json
         user.txt
 
-There are a few directories containing partitioned graph ready for training and inference.
-
-* ``metadata.json``: This file contains metadata about the distributed DGL graph. The files under
-``dist_graph`` should be ready for the training/inference pipeline.
+The ``dist_graph`` folder contains partitioned graph ready for training and inference.
 
 * ``part0``: As we only specify 1 partition in the previous command, so we only have one part folder here.
 There are five data here:
@@ -349,6 +346,9 @@ There are five data here:
     * ``node_feat.dgl``: The node features data for part 0 stored in binary format.
     * ``orig_eids.dgl``: The mapping for edges between raw edge IDs and the partitioned graph edge IDs.
     * ``orig_nids.dgl``: The mapping for nodes between raw node IDs and the partitioned graph node IDs.
+
+* ``metadata.json``: This file contains metadata about the distributed DGL graph. The files under
+``dist_graph`` should be ready for the training/inference pipeline.
 
 ``partition_assignment``: This directory contains different partition results for different node types,
 the results can reused for the : `dgl dispatch pipeline <https://docs.dgl.ai/en/latest/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_
