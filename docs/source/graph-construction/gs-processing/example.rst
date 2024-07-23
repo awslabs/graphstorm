@@ -315,7 +315,7 @@ you can use the following command to run the partition job locally:
 Examining the job output of GPartition
 --------------------------------------
 
-Once the partition job is done, you can examine the outputs it has created.
+Once the partition job is done, you can examine the outputs.
 
 .. code-block:: bash
 
@@ -339,7 +339,7 @@ Once the partition job is done, you can examine the outputs it has created.
 
 The ``dist_graph`` folder contains partitioned graph ready for training and inference.
 
-* ``part0``: As we only specify 1 partition in the previous command, so we only have one part folder here.
+* ``part0``: As we only specify 1 partition in the previous command, we have one part folder here.
 There are five data here:
     * ``edge_feat.dgl``: The edge features for part 0 stored in binary format.
     * ``graph.dgl``: The graph structure data for part 0 stored in binary format.

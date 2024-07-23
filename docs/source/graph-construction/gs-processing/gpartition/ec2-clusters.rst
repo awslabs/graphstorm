@@ -19,7 +19,7 @@ If you can't access a Docker registry from your environment, in **each** instanc
 
 .. note::
 
-    If you are planning to use **parmetis** algorithm, please prepare your docker container using instructions here:
+    If you are planning to use **parmetis** algorithm, please prepare your docker container using the following instructions:
 
     .. code-block:: bash
 
@@ -38,7 +38,7 @@ If you can't access a Docker registry from your environment, in **each** instanc
     The other stuff remains the same.
 
 Setup a shared file system for the cluster
-...............................................
+...........................................
 A cluster requires a shared file system, such as NFS or EFS, mounted to each instance in the cluster, in which all GraphStorm containers in the cluster can share data files, and save model artifacts and prediction results.
 
 `Here <https://github.com/dmlc/dgl/tree/master/examples/pytorch/graphsage/dist#step-0-setup-a-distributed-file-system>`_ is the instruction of setting up NFS for a cluster provided by DGL. As the steps of setup of an NFS could be various for different systems, we suggest users to look for additional information about NFS setting. Here are some available resources: `NFS tutorial <https://www.digitalocean.com/community/tutorials/how-to-set-up-an-nfs-mount-on-ubuntu-22-04>`_ by DigitalOcean, `NFS document <https://ubuntu.com/server/docs/service-nfs>`_ for Ubuntu, `NFS guide <https://www.linode.com/docs/guides/using-an-nfs-server-on-ubuntu2004/>`_ by Linode, `NFS tutorial <https://www.tecmint.com/how-to-setup-nfs-server-in-linux/>`_ at Tecmint, and `NFS guide <https://www.howtoforge.com/how-to-install-nfs-server-and-client-on-ubuntu-22-04/>`_ by HowtoForge.
