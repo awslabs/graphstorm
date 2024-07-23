@@ -142,7 +142,7 @@ def main():
                  part_end - part_start,
     )
 
-    if args.partition_assignment_only:
+    if not args.partition_assignment_only:
         run_build_dglgraph(
             args.input_path,
             part_assignment_dir,
@@ -165,7 +165,7 @@ def main():
             dirs_exist_ok=True,
         )
 
-    if args.partition_assignment_only:
+    if not args.partition_assignment_only:
         logging.info('Partition assignment and DGL graph creation took %f seconds',
                  time.time() - start)
     else:
@@ -191,7 +191,7 @@ def parse_args() -> argparse.Namespace:
     argparser.add_argument("--ip-config", type=str,
                            help=("A file storing a list of IPs, one line for "
                                 "each instance of the partition cluster."))
-    argparser.add_argument("--partition-assignment-only", action='store_false',
+    argparser.add_argument("--partition-assignment-only", action='store_true',
                            help="Only generate partition assignment, do not build DGL graph")
     argparser.add_argument("--logging-level", type=str, default="info",
                            help="The logging level. The possible values: debug, info, warning, \
