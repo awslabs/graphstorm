@@ -1378,7 +1378,7 @@ class GSgnnLinkPredictionPredefinedTestDataLoader(GSgnnLinkPredictionTestDataLoa
 class GSgnnNodeDataLoaderBase():
     """ The base dataloader class for node tasks.
 
-    If users want to customize the dataloader for node prediction tasks
+    If users want to customize dataloaders for their node prediction tasks,
     they should extend this base class by implementing the special methods
     ``__iter__``, ``__next__``, and ``__len__``.
 
@@ -1391,19 +1391,19 @@ class GSgnnNodeDataLoaderBase():
     fanout : list or dict of lists
         The fanout for each GNN layer.
     label_field: str or dict of str
-        Label field of the node task.
+        Label field name of the target node type.
     node_feats: str, or dist of list of str
-        Node features.
-        str: All the nodes have the same feature name.
-        list of string: All the nodes have the same list of features.
-        dist of list of string: Each node type have different set of node features.
-        Default: None
+        Node feature fileds.
+            str: All nodes have the same feature name.
+            list of string: All the nodes have the same list of features.
+            dist of list of string: Each node type have different set of node features.
+            Default: None.
     edge_feats: str, or dist of list of str
-        Edge features.
-        str: All the edges have the same feature name.
-        list of string: All the edges have the same list of features.
-        dist of list of string: Each edge type have different set of edge features.
-        Default: None
+        Edge feature fields.
+            str: All the edges have the same feature name.
+            list of string: All the edges have the same list of features.
+            dist of list of string: Each edge type have different set of edge features.
+            Default: None.
     """
     def __init__(self, dataset, target_idx, fanout,
                  label_field, node_feats=None, edge_feats=None):
@@ -1418,14 +1418,14 @@ class GSgnnNodeDataLoaderBase():
         self._edge_feats = edge_feats
 
     def __iter__(self):
-        """ Returns an iterator object
+        """ Returns an iterator object.
         """
 
     def __next__(self):
-        """ Return a mini-batch data for the node task.
+        """ Return a mini-batch data for node tasks.
 
-        A mini-batch comprises three objects: the input node IDs of the mini-batch,
-        the target nodes and the subgraph blocks for message passing.
+        A mini-batch comprises three objects: 1) the input node IDs of the mini-batch,
+        2) the target nodes, and 3) the subgraph blocks for message passing.
 
         Returns
         -------
@@ -1435,7 +1435,7 @@ class GSgnnNodeDataLoaderBase():
         """
 
     def __len__(self):
-        """ Return the length (number of mini-batches) of the data loader
+        """ Return the length (number of mini-batches) of the dataloader.
 
         Returns
         int: length
@@ -1443,7 +1443,7 @@ class GSgnnNodeDataLoaderBase():
 
     @property
     def data(self):
-        """ The dataset of this dataloader.
+        """ The data of this dataloader given in class initialization.
 
         Returns
         -------
@@ -1453,7 +1453,7 @@ class GSgnnNodeDataLoaderBase():
 
     @property
     def target_nidx(self):
-        """ Target edge idx for prediction
+        """ Target edge idx for prediction given in class initialization.
 
         Returns
         -------
@@ -1463,7 +1463,7 @@ class GSgnnNodeDataLoaderBase():
 
     @property
     def fanout(self):
-        """ The fan out of each GNN layers
+        """ The fan out of each GNN layers given in class initialization.
 
         Returns
         -------
@@ -1473,31 +1473,31 @@ class GSgnnNodeDataLoaderBase():
 
     @property
     def label_field(self):
-        """ The label field
+        """ The label field given in class initialization.
 
         Returns
         -------
-        str: Label fields in the graph.
+        str: Label fields given in class initialization..
         """
         return self._label_field
 
     @property
     def node_feat_fields(self):
-        """ Node features
+        """ Node features fileds given in class initialization.
 
         Returns
         -------
-        str or dict of list of str: Node feature fields in the graph.
+        str or dict of list of str: Node feature fields given in class initialization..
         """
         return self._node_feats
 
     @property
     def edge_feat_fields(self):
-        """ Edge features
+        """ Edge features fields given in class initialization.
 
         Returns
         -------
-        str or dict of list of str: Node feature fields in the graph.
+        str or dict of list of str: Edge feature fields given in class initialization..
         """
         return self._edge_feats
 
