@@ -4,7 +4,7 @@ Running partition jobs on EC2 Clusters
 
 Once the :ref:`distributed processing setup<gsprocessing_distributed_setup>` is completed,
 users can start the partition jobs. This doc will provide instructions on how to setup an EC2 cluster and
-start GPartition jobs on an EC2 cluster.
+start GSPartition jobs on an EC2 cluster.
 
 Create a GraphStorm Cluster
 ----------------------------
@@ -97,10 +97,10 @@ If successful, you should login to the container in the ``<ip-in-the-cluster>`` 
 If not, please make sure there is no restriction of exposing port 2222.
 
 
-Launch GPartition Job
-----------------------
+Launch GSPartition Job
+-----------------------
 
-Now we can ssh into the **leader node** of the EC2 cluster, and start GPartition process with the following command:
+Now we can ssh into the **leader node** of the EC2 cluster, and start GSPartition process with the following command:
 
 .. code:: bash
 

@@ -9,7 +9,7 @@ To demonstrate the usage of GSProcessing on Amazon SageMaker, we will execute th
 
 Build the docker image for partition jobs on SageMaker
 ------------------------------------------------------
-GPartition job on SageMaker uses SageMaker's **BYOC** (Bring Your Own Container) mode.
+GSPartition job on SageMaker uses SageMaker's **BYOC** (Bring Your Own Container) mode.
 
 Step 1: Build a SageMaker-compatible Docker image
 ...................................................
@@ -20,14 +20,15 @@ Step 1: Build a SageMaker-compatible Docker image
 
 First, in a Linux machine, configure a Docker environment by following the `Docker documentation <https://docs.docker.com/get-docker/>`_ suggestions.
 
-In order to use the SageMaker base Docker image, users need to use the following command to authenticate to pull SageMaker images.
+In order to use the SageMaker base Docker image, users need to refer the `DLC image command <https://github.com/aws/deep-learning-containers/blob/master/available_images.md>`_
+to retrieve the specific docker image command. For example,
 
 .. code-block:: bash
 
     aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 763104351884.dkr.ecr.us-east-1.amazonaws.com
 
 .. note::
-    You must login to access the `DLC image <https://github.com/aws/deep-learning-containers/blob/master/available_images.md>`_ repository before pulling the image. For region other than ``us-east-1``, please refer to `available region <https://docs.aws.amazon.com/sagemaker/latest/dg-ecr-paths/sagemaker-algo-docker-registry-paths.html>`_
+    For region other than ``us-east-1``, please refer to `available region <https://docs.aws.amazon.com/sagemaker/latest/dg-ecr-paths/sagemaker-algo-docker-registry-paths.html>`_
 
 Then, clone GraphStorm source code, and build a GraphStorm SageMaker compatible Docker image from source with commands:
 
