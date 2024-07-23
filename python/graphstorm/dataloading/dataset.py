@@ -258,7 +258,7 @@ class GSgnnData():
 
     @property
     def g(self):
-        """ The distributed graph loaded using information from the part_config JSON file.
+        """ The distributed graph loaded using information in the given part_config JSON file.
         """
         return self._g
 
