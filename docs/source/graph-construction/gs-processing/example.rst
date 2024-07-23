@@ -13,11 +13,11 @@ Install example dependencies
 
 To run the local example you will need to install the GSProcessing and GraphStorm
 library to your Python environment, and you'll need to clone the
-GraphStorm repository to get access to the data, and dgl tool for GPartition.
+GraphStorm repository to get access to the data, and dgl tool for GSPartition.
 
 Follow the :ref:`gsp-installation-ref` guide to install the GSProcessing library.
 
-To install the GPartition library:
+To install the GSPartition library:
 
 .. code-block:: bash
 
@@ -40,11 +40,11 @@ that contains the relevant data:
 Expected file inputs and configuration
 --------------------------------------
 
-The example will include GSProcessing as the first step and GPartition as the second step.
+The example will include GSProcessing as the first step and GSPartition as the second step.
 
 GSProcessing expects the input files to be in a specific format that will allow
 us to perform the processing and prepare the data for partitioning and training.
-GPartition then takes the output of GSProcessing to produce graph files ready for training.
+GSPartition then takes the output of GSProcessing to produce graph files ready for training.
 
 The data files are expected to be:
 
@@ -290,11 +290,11 @@ in an ``edge_data`` directory.
     for node id 1 etc.
 
 
-Run a GPartition job locally
----------------------------
-While :ref:`GPartition<gpartition_index>` is designed to run on a multi-machine cluster,
-you can run GPartition job locally for the example. Once you have completed the installation
-and GSProcessing example, you can proceed to run the GPartition.
+Run a GSPartition job locally
+------------------------------
+While :ref:`GSPartition<gspartition_index>` is designed to run on a multi-machine cluster,
+you can run GSPartition job locally for the example. Once you have completed the installation
+and GSProcessing example, you can proceed to run the GSPartition.
 
 Assuming your working directory is ``graphstorm``,
 you can use the following command to run the partition job locally:
@@ -305,21 +305,21 @@ you can use the following command to run the partition job locally:
     python3 -m graphstorm.gpartition.dist_partition_graph \
         --input-path /tmp/gsprocessing-example/ \
         --metadata-filename updated_row_counts_metadata.json \
-        --output-path /tmp/gpartition-example/ \
+        --output-path /tmp/gspartition-example/ \
         --num-parts 1 \
         --dgl-tool-path ./dgl/tools \
         --partition-algorithm random \
         --ip-config ip_list.txt \
         --do-dispatch
 
-Examining the job output of GPartition
+Examining the job output of GSPartition
 --------------------------------------
 
 Once the partition job is done, you can examine the outputs.
 
 .. code-block:: bash
 
-    $ cd /tmp/gpartition-example
+    $ cd /tmp/gspartition-example
     $ ls -ltR
 
     dist_graph/
