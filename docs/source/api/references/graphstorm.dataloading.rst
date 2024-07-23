@@ -44,5 +44,8 @@ DataLoaders
     :template: dataloadertemplate.rst
 
     GSgnnNodeDataLoader
+    GSgnnNodeSemiSupDataLoader
     GSgnnEdgeDataLoader
     GSgnnLinkPredictionDataLoader
+    GSgnnLinkPredictionTestDataLoader
+    GSgnnLinkPredictionPredefinedTestDataLoader
