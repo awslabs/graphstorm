@@ -142,7 +142,7 @@ def main():
                  part_end - part_start,
     )
 
-    if args.do_dispatch:
+    if args.partition_assignment_only:
         run_build_dglgraph(
             args.input_path,
             part_assignment_dir,
@@ -189,7 +189,8 @@ def parse_args() -> argparse.Namespace:
     argparser.add_argument("--ip-config", type=str,
                            help=("A file storing a list of IPs, one line for "
                                 "each instance of the partition cluster."))
-    argparser.add_argument("--do-dispatch", action='store_true')
+    argparser.add_argument("--partition-assignment-only", action='store_false',
+                           help="Only generate partition assignment, do not build DGL graph")
     argparser.add_argument("--logging-level", type=str, default="info",
                            help="The logging level. The possible values: debug, info, warning, \
                                    error. The default value is info.")
