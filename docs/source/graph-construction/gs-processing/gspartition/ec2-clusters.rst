@@ -11,15 +11,15 @@ Create a GraphStorm Cluster
 
 Setup instances of a cluster
 .............................
-A cluster contains several instances, each of which runs a GraphStorm Docker container.
+A cluster contains several instances, each of which runs a GraphStorm Docker container. Before creating a cluster, we recommend to
+follow the :ref:`Environment Setup <setup_docker>`. The guide shows you how to build GraphStorm Docker images, and use a Docker container registry,
+e.g. `AWS ECR<https://docs.aws.amazon.com/ecr/>`_ , to upload the GraphStorm image to an ECR repository and pull it on the instances in the cluster.
 
-To create such a cluster please follow the :ref:`Environment Setup <setup_docker>`. The guide shows you how to build GraphStorm Docker images, and use a Docker container registry, e.g. AWS ECR, to upload the GraphStorm image to an ECR repository and pull it on the instances in the cluster.
-
-If you can't access a Docker registry from your environment, in **each** instance of the cluster, follow the :ref:`Environment Setup <setup_docker>` description to build a GraphStorm Docker image, and start the image as a container. Then exchange the ssh key from inside of one GraphStorm Docker containers to the rest containers in the cluster, i.e., copy the keys from the ``/root/.ssh/id_rsa.pub`` from one container to ``/root/.ssh/authorized_keys`` in containers on all other containers.
+If you can't access a Docker registry from your environment, in **each** instance of the cluster, follow the :ref:`Environment Setup <setup_docker>` description to build a GraphStorm Docker image, and start the image as a container.
 
 .. note::
 
-    If you are planning to use **parmetis** algorithm, please prepare your docker container using the following instructions:
+    If you are planning to use **parmetis** algorithm, please prepare your docker image using the following instructions:
 
     .. code-block:: bash
 
@@ -37,16 +37,16 @@ If you can't access a Docker registry from your environment, in **each** instanc
 
 Setup a shared file system for the cluster
 ...........................................
-A cluster requires a shared file system, such as NFS or EFS, mounted to each instance in the cluster, in which all GraphStorm containers in the cluster can share data files, and save model artifacts and prediction results.
+A cluster requires a shared file system, such as NFS or `EFS<https://docs.aws.amazon.com/efs/>`_, mounted to each instance in the cluster, in which all GraphStorm containers in the cluster can share data files, and save model artifacts and prediction results.
 
-`Here <https://github.com/dmlc/dgl/tree/master/examples/pytorch/graphsage/dist#step-0-setup-a-distributed-file-system>`_ is the instruction of setting up NFS for a cluster provided by DGL. As the steps of setup of an NFS could be various for different systems, we suggest users to look for additional information about NFS setting. Here are some available resources: `NFS tutorial <https://www.digitalocean.com/community/tutorials/how-to-set-up-an-nfs-mount-on-ubuntu-22-04>`_ by DigitalOcean, `NFS document <https://ubuntu.com/server/docs/service-nfs>`_ for Ubuntu, `NFS guide <https://www.linode.com/docs/guides/using-an-nfs-server-on-ubuntu2004/>`_ by Linode, `NFS tutorial <https://www.tecmint.com/how-to-setup-nfs-server-in-linux/>`_ at Tecmint, and `NFS guide <https://www.howtoforge.com/how-to-install-nfs-server-and-client-on-ubuntu-22-04/>`_ by HowtoForge.
+`Here <https://github.com/dmlc/dgl/tree/master/examples/pytorch/graphsage/dist#step-0-setup-a-distributed-file-system>`_ is the instruction of setting up NFS for a cluster. As the steps of setting an NFS could be various on different systems, we suggest users to look for additional information about NFS setting. Here are some available resources: `NFS tutorial <https://www.digitalocean.com/community/tutorials/how-to-set-up-an-nfs-mount-on-ubuntu-22-04>`_ by DigitalOcean, `NFS document <https://ubuntu.com/server/docs/service-nfs>`_ for Ubuntu.
 
 For an AWS EC2 cluster, users can also use EFS as the shared file system. Please follow 1) `the instruction of creating EFS <https://docs.aws.amazon.com/efs/latest/ug/gs-step-two-create-efs-resources.html>`_; 2) `the instruction of installing an EFS client <https://docs.aws.amazon.com/efs/latest/ug/installing-amazon-efs-utils.html>`_; and 3) `the instructions of mounting the EFS filesystem <https://docs.aws.amazon.com/efs/latest/ug/efs-mount-helper.html>`_ to set up EFS.
 
 After setting up a shared file system, we can keep all partitioned graph data in a shared folder. Then mount the data folder to the ``/path_to_data/`` of each instances in the cluster so that all GraphStorm containers in the cluster can access these partitioned graph data.
 
-Create GraphStorm container by mounting the NFS folder
-.......................................................
+Run a GraphStorm Container
+...........................
 In each instance, use the following command to start a GraphStorm Docker container and run it as a backend daemon on cpu.
 
 .. code-block:: shell
@@ -56,7 +56,7 @@ In each instance, use the following command to start a GraphStorm Docker contain
                       --network=host \
                       -d --name test graphstorm:local-cpu service ssh restart
 
-This command mounts the shared ``/path_to_data/`` folder to each container's ``/data/`` folder by which GraphStorm codes can access graph data and save training and inference outcomes.
+This command mounts the shared ``/path_to_data/`` folder to a container's ``/data/`` folder by which GraphStorm codes can access graph data and save training and inference outcomes.
 
 Setup the IP address file and check port status
 ----------------------------------------------------------
@@ -68,13 +68,13 @@ The GraphStorm Docker containers use SSH on port ``2222`` to communicate with ea
 .. figure:: ../../../../../tutorial/distributed_ips.png
     :align: center
 
-.. note:: If possible, use **private IP addresses**, insteand of public IP addresses. Public IP addresses may have additional port constraints, which cause communication issues.
+.. note:: We recommend to use **private IP addresses** on AWS EC2 cluster to avoid any possible port constraints.
 
-Put this file into container's ``/data/`` folder.
+Put the IP list file into container's ``/data/`` folder.
 
 Check port
 ................
-The GraphStorm Docker container uses port ``2222`` to **ssh** to containers running on other machines without passwords. Please make sure all host instances do not use this port.
+The GraphStorm Docker container uses port ``2222`` to **ssh** to containers running on other machines without password. Please make sure the port is not used by other processes.
 
 Users also need to make sure the port ``2222`` is open for **ssh** commands.
 
@@ -84,6 +84,8 @@ Pick one instance and run the following command to connect to the GraphStorm Doc
 
     docker container exec -it test /bin/bash
 
+Users need to exchange the ssh key from inside each of GraphStorm Docker container to
+the rest containers in the cluster: copy the keys from the ``/root/.ssh/id_rsa.pub`` from one container to ``/root/.ssh/authorized_keys`` in containers on all other containers.
 In the container environment, users can check the connectivity with the command ``ssh <ip-in-the-cluster> -o StrictHostKeyChecking=no -p 2222``. Please replace the ``<ip-in-the-cluster>`` with the real IP address from the ``ip_list.txt`` file above, e.g.,
 
 .. code-block:: bash

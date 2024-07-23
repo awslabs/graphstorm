@@ -44,7 +44,7 @@ The example will include GSProcessing as the first step and GSPartition as the s
 
 GSProcessing expects the input files to be in a specific format that will allow
 us to perform the processing and prepare the data for partitioning and training.
-GSPartition then takes the output of GSProcessing to produce graph files ready for training.
+GSPartition then takes the output of GSProcessing to produce graph data ready for training.
 
 The data files are expected to be:
 
@@ -294,7 +294,7 @@ Run a GSPartition job locally
 ------------------------------
 While :ref:`GSPartition<gspartition_index>` is designed to run on a multi-machine cluster,
 you can run GSPartition job locally for the example. Once you have completed the installation
-and GSProcessing example, you can proceed to run the GSPartition.
+and GSProcessing example described in the previous section, you can proceed to run the GSPartition.
 
 Assuming your working directory is ``graphstorm``,
 you can use the following command to run the partition job locally:
@@ -312,8 +312,12 @@ you can use the following command to run the partition job locally:
         --ip-config ip_list.txt \
         --do-dispatch
 
+The command above will first do graph partitioning to determine the ownership for each partition and save the results.
+Then it will do data dispatching to physically assign the partitions to graph data and dispatch them to each machine.
+Finally it will generate the graph data ready for training/evaluation.
+
 Examining the job output of GSPartition
---------------------------------------
+---------------------------------------
 
 Once the partition job is done, you can examine the outputs.
 
