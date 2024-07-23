@@ -21,7 +21,7 @@ Step 1: Build a SageMaker-compatible Docker image
 First, in a Linux machine, configure a Docker environment by following the `Docker documentation <https://docs.docker.com/get-docker/>`_ suggestions.
 
 In order to use the SageMaker base Docker image, users need to refer the `DLC image command <https://github.com/aws/deep-learning-containers/blob/master/available_images.md>`_
-to retrieve the specific docker image command. For example,
+to retrieve the specific docker image command. For example:
 
 .. code-block:: bash
 
@@ -85,9 +85,8 @@ Please replace the `<IMAGE_NAME>` and `<IMAGE_TAG>` with the actual Docker image
 
 Launch the partition job on Amazon SageMaker
 ---------------------------------------------
-
-For this example, we'll use a SageMaker cluster with 2 ``ml.t3.xlarge`` instances
- In this tutorial, we assume the data is already ready on an AWS S3 bucket.
+For this example, we'll use a SageMaker cluster with 2 ``ml.t3.xlarge`` instances.
+We assume the data is already ready on an AWS S3 bucket.
 For large graph, users can choose larger instances or more instances.
 
 Install dependencies
