@@ -17,7 +17,7 @@ GraphStorm repository to get access to the data, and dgl tool for GSPartition.
 
 Follow the :ref:`gsp-installation-ref` guide to install the GSProcessing library.
 
-To install the GSPartition library:
+To run GSPartition job, you can install the dependencies as following:
 
 .. code-block:: bash
 
