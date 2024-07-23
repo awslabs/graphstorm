@@ -160,24 +160,24 @@ class GSgnnData():
     Parameters
     ----------
     part_config : str
-        The path of the partition configuration file.
+        The path of the partition configuration JSON file.
     node_feat_field: str or dict of list of str
-        The fields of the node features that will be encoded by GSNodeInputLayer.
+        The fields of the node features that will be encoded by ``GSNodeInputLayer``.
         It's a dict if different node types have
         different feature names.
-        Default: None
+        Default: None.
     edge_feat_field : str or dict of list of str
-        The fields of the edge features.
+        The fields of the edge features to be encoded by later released ``GSEdgeInputLayer``.
         It's a dict if different edge types have
         different feature names.
         This argument is reserved by future usage.
-        Default: None
+        Default: None.
     lm_feat_ntypes : list of str
         The node types that contains text features.
-        Default: None
+        Default: None.
     lm_feat_etypes : list of tuples
         The edge types that contains text features.
-        Default: None
+        Default: None.
     """
 
     def __init__(self, part_config, node_feat_field=None, edge_feat_field=None,
@@ -258,13 +258,13 @@ class GSgnnData():
 
     @property
     def g(self):
-        """ The distributed graph.
+        """ The distributed graph loaded using information from the part_config JSON file.
         """
         return self._g
 
     @property
     def graph_name(self):
-        """ The distributed graph name.
+        """ The distributed graph's name.
         """
         return self._graph_name
 
