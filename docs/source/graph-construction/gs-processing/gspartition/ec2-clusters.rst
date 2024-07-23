@@ -56,7 +56,7 @@ In each instance, use the following command to start a GraphStorm Docker contain
                       --network=host \
                       -d --name test graphstorm:local-cpu service ssh restart
 
-This command mount the shared ``/path_to_data/`` folder to each container's ``/data/`` folder by which GraphStorm codes can access graph data and save training and inference outcomes.
+This command mounts the shared ``/path_to_data/`` folder to each container's ``/data/`` folder by which GraphStorm codes can access graph data and save training and inference outcomes.
 
 Setup the IP address file and check port status
 ----------------------------------------------------------
