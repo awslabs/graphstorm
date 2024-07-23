@@ -35,8 +35,6 @@ If you can't access a Docker registry from your environment, in **each** instanc
     2. **image-name** (optional), is the assigned name of the to be built Docker image. Default is ``graphstorm``.
     3. **image-tag** (optional), is the assigned tag prefix of the Docker image. Default is ``local``.
 
-    The other stuff remains the same.
-
 Setup a shared file system for the cluster
 ...........................................
 A cluster requires a shared file system, such as NFS or EFS, mounted to each instance in the cluster, in which all GraphStorm containers in the cluster can share data files, and save model artifacts and prediction results.
