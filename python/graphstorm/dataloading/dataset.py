@@ -155,7 +155,7 @@ def prepare_batch_edge_input(g, input_edges,
     return feat
 
 class GSgnnData():
-    """ The GraphStorm data
+    """ The GraphStorm data class.
 
     Parameters
     ----------
@@ -264,18 +264,20 @@ class GSgnnData():
 
     @property
     def graph_name(self):
-        """ The graph name
+        """ The distributed graph name.
         """
         return self._graph_name
 
     @property
     def node_feat_field(self):
-        """The field of node feature"""
+        """ The fields of node features given in initialization.
+        """
         return self._node_feat_field
 
     @property
     def edge_feat_field(self):
-        """the field of edge feature"""
+        """ The given fields of edge features given in initialization.
+        """
         return self._edge_feat_field
 
     def _check_node_feats(self, node_feat_field):
@@ -308,7 +310,7 @@ class GSgnnData():
 
         Returns
         -------
-        bool : whether the node type has features.
+        bool : Whether the node type has features.
         """
         if isinstance(self.node_feat_field, str):
             return True
@@ -323,11 +325,11 @@ class GSgnnData():
         Parameters
         ----------
         etype : (str, str, str)
-            The canonical edge type
+            The canonical edge type.
 
         Returns
         -------
-        bool : whether the edge type has features
+        bool : Whether the edge type has features.
         """
         if isinstance(self.edge_feat_field, str):
             return True
@@ -342,11 +344,11 @@ class GSgnnData():
         Parameters
         ----------
         ntype : str
-            The node type
+            The node type.
 
         Returns
         -------
-        bool : whether the node type has features.
+        bool : Whether the node type has text features.
         """
         return ntype in self._lm_feat_ntypes
 
@@ -356,23 +358,23 @@ class GSgnnData():
         Parameters
         ----------
         etype : (str, str, str)
-            The edge type
+            The edge type.
 
         Returns
         -------
-        bool : whether the node type has features.
+        bool : Whether the edge type has text features.
         """
         return etype in self._lm_feat_etypes
 
     def get_node_feats(self, input_nodes, nfeat_fields, device='cpu'):
-        """ Get the node features
+        """ Get the node features of the given input nodes' feature fields.
 
         Parameters
         ----------
         input_nodes : Tensor or dict of Tensors
-            The input node IDs
-        nfeat_fields : str or dict of list
-            The node features to collect from graph
+            The input node IDs.
+        nfeat_fields : str or dict of [str ...]
+            The node feature fields to be extracted.
         device : Pytorch device
             The device where the returned node features are stored.
 
@@ -390,14 +392,14 @@ class GSgnnData():
                                    feat_field=nfeat_fields)
 
     def get_edge_feats(self, input_edges, efeat_fields, device='cpu'):
-        """ Get the edge features
+        """ Get the edge features of the given input edges' feature fields.
 
         Parameters
         ----------
         input_edges : Tensor or dict of Tensors
-            The input edge IDs
+            The input edge IDs.
         efeat_fields: str or dict of [str ..]
-            The edge data fields that stores the edge features to retrieve
+            The edge feature fields to be extracted.
         device : Pytorch device
             The device where the returned edge features are stored.
 
@@ -473,15 +475,15 @@ class GSgnnData():
         return masks
 
     def get_unlabeled_node_set(self, train_idxs, mask="train_mask"):
-        """ Collect nodes not used for training.
+        """ Get node indexes not having the given mask in the training set.
 
         Parameters
         __________
-        train_idxs: dict
+        train_idxs: dict of Tensor
             The training set.
         mask: str or list of str
-            The node feature field storing the training mask.
-            Default: "train_mask"
+            The node feature fields storing the training mask.
+            Default: "train_mask".
 
         Returns
         -------
@@ -510,19 +512,19 @@ class GSgnnData():
         return unlabeled_idxs
 
     def get_node_train_set(self, ntypes, mask="train_mask"):
-        """ Get node training set for nodes of ntypes.
+        """ Get training set nodes for the given node types under the given mask.
 
         Parameters
         __________
         ntypes: str or list of str
             Node types to get the training set.
         mask: str or list of str
-            The node feature field storing the training mask.
-            Default: "train_mask"
+            The node feature fields storing the training mask.
+            Default: "train_mask".
 
         Returns
         -------
-        dict of Tensors : The returned training node indexes
+        dict of Tensors : The returned training node indexes.
         """
         g = self._g
         pb = g.get_partition_book()
@@ -584,19 +586,19 @@ class GSgnnData():
         return idxs, num_data
 
     def get_node_val_set(self, ntypes, mask="val_mask"):
-        """ Get node validation set for nodes of ntypes.
+        """ Get validation set nodes for the given node types under the given mask.
 
         Parameters
         __________
         ntypes: str or list of str
             Node types to get the validation set.
         mask: str or list of str
-            The node feature field storing the validation mask.
-            Default: "val_mask"
+            The node feature fields storing the validation mask.
+            Default: "val_mask".
 
         Returns
         -------
-        dict of Tensors : The returned validation node indexes
+        dict of Tensors : The returned validation node indexes.
         """
         idxs, num_data = self._get_node_set(ntypes, mask)
         logging.info('part %d, val %d', get_rank(), num_data)
@@ -604,19 +606,19 @@ class GSgnnData():
         return idxs
 
     def get_node_test_set(self, ntypes, mask="test_mask"):
-        """ Get node test set for nodes of ntypes.
+        """ Get test set nodes for the given node types under the given mask.
 
         Parameters
         __________
         ntypes: str or list of str
             Node types to get the test set.
         mask: str or list of str
-            The node feature field storing the test mask.
-            Default: "test_mask"
+            The node feature fields storing the test mask.
+            Default: "test_mask".
 
         Returns
         -------
-        dict of Tensors : The returned test node indexes
+        dict of Tensors : The returned test node indexes.
         """
         idxs, num_data = self._get_node_set(ntypes, mask)
         logging.info('part %d, test %d', get_rank(), num_data)
@@ -624,19 +626,19 @@ class GSgnnData():
         return idxs
 
     def get_node_infer_set(self, ntypes, mask="test_mask"):
-        """ Get node set for inference.
+        """ Get inference node set for the given node types under the given mask.
 
-        If the mask exists in g.nodes[ntype].data, the inference set
+        If the mask exists in ``g.nodes[ntype].data``, the inference set
         is collected based on the mask.
-        If not, the entire node set are treated as the inference set.
+        If not exist, the entire node set are treated as the inference set.
 
         Parameters
         __________
         ntypes: str or list of str
             Node types to get the inference set.
         mask: str or list of str
-            The node feature field storing the inference mask.
-            Default: "test_mask"
+            The node feature fields storing the inference mask.
+            Default: "test_mask".
 
         Returns
         -------
@@ -738,20 +740,20 @@ class GSgnnData():
 
     def get_edge_train_set(self, etypes=None, mask="train_mask",
                            reverse_edge_types_map=None):
-        """ Get edge training set for edges of etypes.
+        """ Get training set edges for the given edge types under the given mask.
 
         Parameters
         __________
         etypes: list of str
             List of edge types to get the training set.
             If set to None, all the edge types are included.
-            Default: None
+            Default: None.
         mask: str or list of str
-            The edge feature field storing the training mask.
-            Default: "train_mask"
-        reverse_edge_types_map: dict
-            A map for reverse edge type.
-            Default: None
+            The edge feature fields storing the training mask.
+            Default: "train_mask".
+        reverse_edge_types_map: dict of tupeles
+            A map for reverse edge types in the format of {(edge type):(reversed edge type)}.
+            Default: None.
 
         Returns
         -------
@@ -820,7 +822,7 @@ class GSgnnData():
 
     def get_edge_val_set(self, etypes=None, mask="val_mask",
                          reverse_edge_types_map=None):
-        """ Get edge validation set for edges of etypes.
+        """ Get validation set edges for the given edge types under the given mask.
 
         Parameters
         __________
@@ -829,13 +831,14 @@ class GSgnnData():
             If set to None, all the edge types are included.
         mask: str or list of str
             The edge feature field storing the val mask.
-            Default: "val_mask"
+            Default: "val_mask".
         reverse_edge_types_map: dict
-            A map for reverse edge type.
+            A map for reverse edge types in the format of {(edge type):(reversed edge type)}.
+            Default: None.
 
         Returns
         -------
-        dict of Tensors : The returned validation edge indexes
+        dict of Tensors : The returned validation edge indexes.
         """
         idxs, num_data = self._get_edge_set(etypes, mask, reverse_edge_types_map)
         logging.info('part %d, val %d', get_rank(), num_data)
@@ -844,7 +847,7 @@ class GSgnnData():
 
     def get_edge_test_set(self, etypes=None, mask="test_mask",
                           reverse_edge_types_map=None):
-        """ Get edge test set for edges of etypes.
+        """ Get test set edges for the given edge types under the given mask.
 
         Parameters
         __________
@@ -853,9 +856,10 @@ class GSgnnData():
             If set to None, all the edge types are included.
         mask: str or list of str
             The edge feature field storing the test mask.
-            Default: "test_mask"
+            Default: "test_mask".
         reverse_edge_types_map: dict
-            A map for reverse edge type.
+            A map for reverse edge types in the format of {(edge type):(reversed edge type)}.
+            Default: None.
 
         Returns
         -------
@@ -867,27 +871,28 @@ class GSgnnData():
         return idxs
 
     def get_edge_infer_set(self, etypes=None, mask="test_mask", reverse_edge_types_map=None):
-        """ Get edge set for inference.
+        """ Get inference set edges for the given edge types under the given mask..
 
-        If the mask exists in g.edges[etype].data, the inference set
+        If the mask exists in ``g.edges[etype].data``, the inference set
         is collected based on the mask.
-        If not, the entire edge set are treated as the inference set.
+        If not exist, the entire edge set are treated as the inference set.
 
         Parameters
         __________
         etypes: list of str
             List of edge types to get the inference set.
             If set to None, all the edge types are included.
-            Default: None
+            Default: None.
         mask: str or list of str
             The edge feature field storing the inference mask.
-            Default: "test_mask"
+            Default: "test_mask".
         reverse_edge_types_map: dict
-            A map for reverse edge type.
+            A map for reverse edge types in the format of {(edge type):(reversed edge type)}.
+            Default: None.
 
         Returns
         -------
-        dict of Tensors : The returned inference edge indexes
+        dict of Tensors : The returned inference edge indexes.
         """
         g = self._g
         pb = g.get_partition_book()
