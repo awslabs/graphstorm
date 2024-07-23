@@ -16,7 +16,7 @@ by creating an output that includes edge and node data, transformation details, 
 * **RUN GSPartition**: Use GSPartition to partition the processed data into graph files suitable for distributed training.
 The result here should be ready for GraphStorm Distributed Training.
 
-.. figure:: ../../../../../tutorial/distributed_construction.png
+.. figure:: ../../../../tutorial/distributed_construction.png
     :align: center
 
 The following sections provide guidance on doing distributed graph construction.
