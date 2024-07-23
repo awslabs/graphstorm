@@ -7,5 +7,6 @@
 
 .. autoclass:: {{ name }}
     :show-inheritance:
+    :members:
     :exclude-members: get_edge_infer_set
     .. :members: prepare_data, get_node_feats, get_edge_feats, get_labels, get_node_feat_size
