@@ -1,7 +1,25 @@
 .. _apidataloading:
 
-graphstorm.dataloading
-==========================
+graphstorm.dataloading.dataset
+===============================
+
+    GraphStorm dataset provides one unified dataset, i.e., ``GSgnnData`` for all graph machine
+    learning tasks supported. Users can build a ``GSgnnData`` by giving the path of the JSON file
+    created by the :ref:`GraphStorm Graph Construction<Graph Construction>`` operations. The ``GSgnnData``
+    will load the related graph artifacts specified in the JSON file, and provides a set of APIs
+    for users to extract information of the graph data.
+
+.. currentmodule:: graphstorm.dataloading
+
+.. autosummary::
+    :toctree: ../generated/
+    :nosignatures:
+    :template: datasettemplate.rst
+
+    GSgnnData
+
+graphstorm.dataloading.dataloading
+==================================
 
     GraphStorm dataloading module includes a unified graph Data and a set of different
     DataLoaders for different graph machine learning tasks.
@@ -22,16 +40,6 @@ Base DataLoaders
     GSgnnNodeDataLoaderBase
     GSgnnEdgeDataLoaderBase
     GSgnnLinkPredictionDataLoaderBase
-
-DataSets
-------------
-
-.. autosummary::
-    :toctree: ../generated/
-    :nosignatures:
-    :template: datasettemplate.rst
-
-    GSgnnData
 
 DataLoaders
 ------------
