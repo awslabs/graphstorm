@@ -1390,20 +1390,24 @@ class GSgnnNodeDataLoaderBase():
         The target node IDs.
     fanout : list or dict of lists
         The fanout for each GNN layer.
-    label_field: str or dict of str
-        Label field name of the target node type.
+    label_field: str, or dict of str
+        Label field name of the target node types.
     node_feats: str, or dist of list of str
         Node feature fileds.
-        - str: All nodes have the same feature name.
-        - list of string: All the nodes have the same list of features.
-        - dist of list of string: Each node type have different set of node features.
+
+            - str: All nodes have the same feature name.
+            - list of string: All the nodes have the same list of features.
+            - dist of list of string: Each node type have different set of node features.
+
         Default: None.
     edge_feats: str, or dist of list of str
         Edge feature fields.
-            str: All the edges have the same feature name.
-            list of string: All the edges have the same list of features.
-            dist of list of string: Each edge type have different set of edge features.
-            Default: None.
+
+            - str: All the edges have the same feature name.
+            - list of string: All the edges have the same list of features.
+            - dist of list of string: Each edge type have different set of edge features.
+
+        Default: None.
     """
     def __init__(self, dataset, target_idx, fanout,
                  label_field, node_feats=None, edge_feats=None):
@@ -1438,26 +1442,27 @@ class GSgnnNodeDataLoaderBase():
         """ Return the length (number of mini-batches) of the dataloader.
 
         Returns
+        -------
         int: length
         """
 
     @property
     def data(self):
-        """ The data of this dataloader given in class initialization.
+        """ The data of the dataloader given in class initialization.
 
         Returns
         -------
-        GSgnnData : The dataset of the dataloader.
+        GSgnnData : The data of the dataloader.
         """
         return self._data
 
     @property
     def target_nidx(self):
-        """ Target edge idx for prediction given in class initialization.
+        """ Target edge indexes for prediction given in class initialization.
 
         Returns
         -------
-        dict of Tensors : the target edge IDs.
+        dict of Tensors : the target edge indexes.
         """
         return self._target_idx
 
@@ -1467,7 +1472,7 @@ class GSgnnNodeDataLoaderBase():
 
         Returns
         -------
-        list or a dict of list : the fanouts for each GNN layer.
+        list or a dict of list : the fanouts for each GNN layer given in class initialization.
         """
         return self._fanout
 
@@ -1477,7 +1482,7 @@ class GSgnnNodeDataLoaderBase():
 
         Returns
         -------
-        str: Label fields given in class initialization..
+        str, or dict of str: Label fields given in class initialization..
         """
         return self._label_field
 
@@ -1487,7 +1492,7 @@ class GSgnnNodeDataLoaderBase():
 
         Returns
         -------
-        str or dict of list of str: Node feature fields given in class initialization..
+        str, or dict of list of str: Node feature fields given in class initialization..
         """
         return self._node_feats
 
@@ -1497,7 +1502,7 @@ class GSgnnNodeDataLoaderBase():
 
         Returns
         -------
-        str or dict of list of str: Edge feature fields given in class initialization..
+        str, or dict of list of str: Edge feature fields given in class initialization..
         """
         return self._edge_feats
 
