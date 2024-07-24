@@ -1393,7 +1393,7 @@ class GSgnnNodeDataLoaderBase():
     label_field: str, or dict of str
         Label field name of the target node types.
     node_feats: str, or dist of list of str
-        Node feature fileds.
+        Node feature fileds in three possible formats:
 
             - str: All nodes have the same feature name.
             - list of string: All the nodes have the same list of features.
@@ -1401,7 +1401,7 @@ class GSgnnNodeDataLoaderBase():
 
         Default: None.
     edge_feats: str, or dist of list of str
-        Edge feature fields.
+        Edge feature fileds in three possible formats:
 
             - str: All the edges have the same feature name.
             - list of string: All the edges have the same list of features.
@@ -1509,39 +1509,42 @@ class GSgnnNodeDataLoaderBase():
         return self._edge_feats
 
 class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
-    """ Minibatch dataloader for node tasks
+    """ Minibatch dataloader for node tasks.
 
-    GSgnnNodeDataLoader samples GraphStorm node dataset into an iterable over mini-batches of
-    samples including target nodes and sampled neighbor nodes, which will be used by GraphStorm
+    ``GSgnnNodeDataLoader`` samples GraphStorm data into an iterable over mini-batches of
+    samples, including target nodes and sampled neighbor nodes, which will be used by GraphStorm
     Trainers and Inferrers.
 
     Parameters
     ----------
     dataset: GSgnnData
-        The GraphStorm dataset
+        The GraphStorm data.
     target_idx : dict of Tensors
-        The target nodes for prediction
-    fanout: list of int or dict of list
+        The target node indexes for prediction.
+    fanout: list of int, or dict of list
         Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
     label_field: str
         Label field of the node task.
-        (TODO:xiangsx) Support list of str for single dataloader multiple node tasks.
     node_feats: str, list of str or dist of list of str
-        Node features.
-        str: All the nodes have the same feature name.
-        list of string: All the nodes have the same list of features.
-        dist of list of string: Each node type have different set of node features.
-        Default: None
+        Node feature fileds in three possible formats:
+
+            - str: All the nodes have the same feature name.
+            - list of string: All the nodes have the same list of features.
+            - dist of list of string: Each node type have different set of node features.
+
+        Default: None.
     edge_feats: str, list of str or dist of list of str
-        Edge features.
-        str: All the edges have the same feature name.
-        list of string: All the edges have the same list of features.
-        dist of list of string: Each edge type have different set of edge features.
-        Default: None
+        Edge feature fileds in three possible formats:
+
+            - str: All the edges have the same feature name.
+            - list of string: All the edges have the same list of features.
+            - dist of list of string: Each edge type have different set of edge features.
+
+        Default: None.
     batch_size: int
-        Batch size
+        Mini-batch size.
     train_task : bool
-        Whether or not for training.
+        Whether or not is the dataloader for training.
     construct_feat_ntype : list of str
         The node types that requires to construct node features.
     construct_feat_fanout : int
@@ -1621,10 +1624,11 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
         return self.dataloader.__next__()
 
     def __len__(self):
-        # Follow
-        # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
-        # In DGL, DistDataLoader.expected_idxs is the length (number of batches)
-        # of the datalaoder.
+        """ Follow
+        https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
+        In DGL, DistDataLoader.expected_idxs is the length (number of batches)
+        of the datalaoder.
+        """
         return self.dataloader.expected_idxs
 
 class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
