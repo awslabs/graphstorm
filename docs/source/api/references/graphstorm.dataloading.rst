@@ -47,3 +47,4 @@ DataLoaders
     GSgnnLinkPredictionDataLoader
     GSgnnLinkPredictionTestDataLoader
     GSgnnLinkPredictionPredefinedTestDataLoader
+    GSgnnMultiTaskDataLoader
