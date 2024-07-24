@@ -1388,7 +1388,7 @@ class GSgnnNodeDataLoaderBase():
         The graph data for the node task.
     target_idx : dict of Tensors
         The target node IDs.
-    fanout : list or dict of lists
+    fanout : list of int, or dict of lists
         The fanout for each GNN layer.
     label_field: str, or dict of str
         Label field name of the target node types.
@@ -1542,7 +1542,7 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
 
         Default: None.
     batch_size: int
-        Mini-batch size.
+        Minibatch size.
     train_task : bool
         Whether or not is the dataloader for training.
     construct_feat_ntype : list of str
@@ -1632,41 +1632,44 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
         return self.dataloader.expected_idxs
 
 class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
-    """ Semisupervised Minibatch dataloader for node tasks
+    """ Semi-supervised minibatch dataloader for node tasks.
 
     Parameters
     ----------
     dataset: GSgnnData
-        The GraphStorm dataset
+        The GraphStorm data.
     target_idx : dict of Tensors
-        The target nodes for prediction
+        The target node indexes for prediction.
     unlabeled_idx : dict of Tensors
-        The unlabeled nodes for semi-supervised training
-    fanout: list of int or dict of list
+        The unlabeled node indexes for semi-supervised training.
+    fanout: list of int, or dict of list
         Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
     batch_size: int
-        Batch size, the sum of labeled and unlabeled nodes
+        Minibatch size, the sum of labeled and unlabeled nodes
     label_field: str
         Label field of the node task.
-        (TODO:xiangsx) Support list of str for single dataloader multiple node tasks.
-    node_feats: str, list of str or dist of list of str
-        Node features.
-        str: All the nodes have the same feature name.
-        list of string: All the nodes have the same list of features.
-        dist of list of string: Each node type have different set of node features.
+    node_feats: str, list of str, or dist of list of str
+        Node feature fileds in three possible formats:
+
+            - str: All the nodes have the same feature name.
+            - list of string: All the nodes have the same list of features.
+            - dist of list of string: Each node type have different set of node features.
+
         Default: None
-    edge_feats: str, list of str or dist of list of str
-        Edge features.
-        str: All the edges have the same feature name.
-        list of string: All the edges have the same list of features.
-        dist of list of string: Each edge type have different set of edge features.
+    edge_feats: str, list of str, or dist of list of str
+        Edge features fileds in three possible formats:
+
+            - str: All the edges have the same feature name.
+            - list of string: All the edges have the same list of features.
+            - dist of list of string: Each edge type have different set of edge features.
+
         Default: None
     train_task : bool
-        Whether or not for training.
+        Whether or not is the dataloader for training.
     construct_feat_ntype : list of str
         The node types that requires to construct node features.
     construct_feat_fanout : int
-        The fanout required to construct node features.
+        The fanout that requires to construct node features.
     """
     def __init__(self, dataset, target_idx, unlabeled_idx, fanout,
                  batch_size, label_field,
