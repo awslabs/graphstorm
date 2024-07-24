@@ -117,7 +117,7 @@ class MultiLayerNeighborSamplerForReconstruct(dgl.dataloading.BlockSampler):
     construct_feat_ntype : list of str
         The node types that requires to construct node features.
     construct_feat_fanout : int
-        The fanout required to construct node features.
+        The fanout that requires to construct node features.
     """
     def __init__(self, sampler, dataset, construct_feat_ntype, construct_feat_fanout):
         super().__init__()
@@ -358,13 +358,13 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
     construct_feat_ntype : list of str
         The node types that requires to construct node features.
     construct_feat_fanout : int
-        The fanout required to construct node features.
+        The fanout that requires to construct node features.
 
     Examples
     ------------
     To train a 2-layer GNN for edge prediction on a set of edges ``target_idx`` on
-    a graph where each nodes takes messages from 15 neighbors on the first layer
-    and 10 neighbors on the second.
+    a graph where each edge (source and destination node pair) takes messages from 15 
+    neighbors on the first layer and 10 neighbors on the second.
 
     .. code:: python
 
@@ -461,29 +461,13 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
         return self.dataloader.__next__()
 
     def __len__(self):
-        # Follow
-        # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
-        # In DGL, DistDataLoader.expected_idxs is the length (number of batches)
-        # of the datalaoder.
+        """
+        Follow
+        https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116.
+        In DGL, ``DistDataLoader.expected_idxs`` is the length (number of batches)
+        of the datalaoder.
+        """
         return self.dataloader.expected_idxs
-
-    @property
-    def data(self):
-        """ The dataset of this dataloader.
-        """
-        return self._data
-
-    @property
-    def target_eidx(self):
-        """ Target edge idx for prediction
-        """
-        return self._target_eidx
-
-    @property
-    def fanout(self):
-        """ The fan out of each GNN layers
-        """
-        return self._fanout
 
 ################ Minibatch DataLoader (Link Prediction) #######################
 
@@ -682,7 +666,7 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
     construct_feat_ntype : list of str
         The node types that requires to construct node features.
     construct_feat_fanout : int
-        The fanout required to construct node features.
+        The fanout that requires to construct node features.
     edge_dst_negative_field: str or dict of str
         The feature field(s) that store the hard negative edges for each edge type.
     num_hard_negs: int or dict of int
@@ -804,7 +788,7 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
 
     def __len__(self):
         # Follow
-        # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
+        # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116.
         # In DGL, DistDataLoader.expected_idxs is the length (number of batches)
         # of the datalaoder.
         return self.dataloader.expected_idxs
@@ -1165,7 +1149,7 @@ class GSgnnAllEtypeLinkPredictionDataLoader(GSgnnLinkPredictionDataLoader):
 
     def __len__(self):
         # Follow
-        # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
+        # https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116.
         # In DGL, DistDataLoader.expected_idxs is the length (number of batches)
         # of the datalaoder.
         # AllEtypeDistEdgeDataLoader is a child class of DistDataLoader.
@@ -1567,12 +1551,12 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     construct_feat_ntype : list of str
         The node types that requires to construct node features.
     construct_feat_fanout : int
-        The fanout required to construct node features.
+        The fanout that requires to construct node features.
 
     Examples
     ----------
     To train a 2-layer GNN for node classification on a set of nodes ``target_idx`` on
-    a graph where each nodes takes messages from 15 neighbors on the first layer
+    a graph where each node takes messages from 15 neighbors on the first layer
     and 10 neighbors on the second.
 
     .. code:: python
@@ -1644,8 +1628,8 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
 
     def __len__(self):
         """ Follow the
-        https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
-        in DGL, ``DistDataLoader.expected_idxs`` is the length (number of batches)
+        https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116.
+        In DGL, ``DistDataLoader.expected_idxs`` is the length (number of batches)
         of the datalaoder.
         """
         return self.dataloader.expected_idxs
@@ -1718,8 +1702,8 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
     def __len__(self):
         """
         Follow the 
-        https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116
-        in DGL, ``DistDataLoader.expected_idxs`` is the length (number of batches)
+        https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116.
+        In DGL, ``DistDataLoader.expected_idxs`` is the length (number of batches)
         of the datalaoder. As it uses two dataloader, either one throws an End of Iter error 
         will stop the dataloader.
         """
