@@ -1,4 +1,4 @@
-.. _graph_construct:
+.. _graph_construction:
 
 ==================
 Graph Construction

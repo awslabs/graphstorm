@@ -5,7 +5,7 @@ graphstorm.dataloading.dataset
 
     GraphStorm dataset provides one unified dataset, i.e., ``GSgnnData`` for all graph machine
     learning tasks supported. Users can build a ``GSgnnData`` by giving the path of the JSON file
-    created by the :ref:`GraphStorm Graph Construction<Graph Construction>`` operations. The ``GSgnnData``
+    created by the :ref:`GraphStorm Graph Construction<graph_construction>`` operations. The ``GSgnnData``
     will load the related graph artifacts specified in the JSON file, and provides a set of APIs
     for users to extract information of the graph data.
 
