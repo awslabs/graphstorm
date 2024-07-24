@@ -192,7 +192,7 @@ def parse_args() -> argparse.Namespace:
                            help=("A file storing a list of IPs, one line for "
                                 "each instance of the partition cluster."))
     argparser.add_argument("--partition-assignment-only", action='store_true',
-                           help="Only generate partition assignment, do not build DGL graph")
+                           help="Only generate partition assignments for nodes, the process will not build the partitioned DGL graph")
     argparser.add_argument("--logging-level", type=str, default="info",
                            help="The logging level. The possible values: debug, info, warning, \
                                    error. The default value is info.")
