@@ -1433,9 +1433,11 @@ class GSgnnNodeDataLoaderBase():
 
         Returns
         -------
-        dict of Tensors : the input node IDs of the mini-batch.
-        dict of Tensors : the target node IDs.
-        list of DGLGraph : the subgraph blocks for message passing.
+
+            - dict of Tensors : the input node IDs of the mini-batch.
+            - dict of Tensors : the target node IDs.
+            - list of DGLGraph : the subgraph blocks for message passing.
+
         """
 
     def __len__(self):
