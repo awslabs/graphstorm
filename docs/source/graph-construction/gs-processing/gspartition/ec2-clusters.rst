@@ -12,10 +12,9 @@ Create a GraphStorm Cluster
 Setup instances of a cluster
 .............................
 A cluster contains several instances, each of which runs a GraphStorm Docker container. Before creating a cluster, we recommend to
-follow the :ref:`Environment Setup <setup_docker>`. The guide shows you how to build GraphStorm Docker images, and use a Docker container registry,
-e.g. `AWS ECR<https://docs.aws.amazon.com/ecr/>`_ , to upload the GraphStorm image to an ECR repository and pull it on the instances in the cluster.
-
-If you can't access a Docker registry from your environment, in **each** instance of the cluster, follow the :ref:`Environment Setup <setup_docker>` description to build a GraphStorm Docker image, and start the image as a container.
+follow the :ref:`Environment Setup <setup_docker>`. The guide shows how to build GraphStorm Docker images, and use a Docker container registry,
+e.g. `AWS ECR<https://docs.aws.amazon.com/ecr/>`_ , to upload the GraphStorm image to an ECR repository, pull it on the instances in the cluster,
+and finally start the image as a container.
 
 .. note::
 
@@ -43,7 +42,7 @@ A cluster requires a shared file system, such as NFS or `EFS<https://docs.aws.am
 
 For an AWS EC2 cluster, users can also use EFS as the shared file system. Please follow 1) `the instruction of creating EFS <https://docs.aws.amazon.com/efs/latest/ug/gs-step-two-create-efs-resources.html>`_; 2) `the instruction of installing an EFS client <https://docs.aws.amazon.com/efs/latest/ug/installing-amazon-efs-utils.html>`_; and 3) `the instructions of mounting the EFS filesystem <https://docs.aws.amazon.com/efs/latest/ug/efs-mount-helper.html>`_ to set up EFS.
 
-After setting up a shared file system, we can keep all partitioned graph data in a shared folder. Then mount the data folder to the ``/path_to_data/`` of each instances in the cluster so that all GraphStorm containers in the cluster can access these partitioned graph data.
+After setting up a shared file system, we can keep all graph data in a shared folder. Then mount the data folder to the ``/path_to_data/`` of each instances in the cluster so that all GraphStorm containers in the cluster can access the graph data.
 
 Run a GraphStorm Container
 ...........................
@@ -56,7 +55,7 @@ In each instance, use the following command to start a GraphStorm Docker contain
                       --network=host \
                       -d --name test graphstorm:local-cpu service ssh restart
 
-This command mounts the shared ``/path_to_data/`` folder to a container's ``/data/`` folder by which GraphStorm codes can access graph data and save training and inference outcomes.
+This command mounts the shared ``/path_to_data/`` folder to a container's ``/data/`` folder by which GraphStorm codes can access graph data and save the partition result.
 
 Setup the IP address file and check port status
 ----------------------------------------------------------
@@ -114,6 +113,7 @@ Now we can ssh into the **leader node** of the EC2 cluster, and start GSPartitio
 
 .. warning::
     1. Please make sure the both ``LOCAL_INPUT_DATAPATH`` and ``LOCAL_OUTPUT_DATAPATH`` are located on the shared filesystem.
-    2. The num of instances in the cluster should be a multiple of ``NUM_PARTITIONS`` here.
+    2. The number of instances in the cluster should match the number of ``NUM_PARTITIONS`` exactly.
+    3. For users who only want to generate partition assignments instead of the partitioned DGL graph, please add ``--partition-assignment-only`` flag.
 
 Currently we support both ``random`` and ``parmetis`` as the partitioning algorithm for EC2 clusters.
