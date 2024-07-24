@@ -168,24 +168,24 @@ class GSgnnEdgeDataLoaderBase():
     node_feats: str, or dict of list of str
         Node feature fileds in three possible formats:
 
-            - string: All the nodes have the same feature name.
-            - list of string: All the nodes have the same list of features.
+            - string: All nodes have the same feature name.
+            - list of string: All nodes have the same list of features.
             - dict of list of string: Each node type have different set of node features.
 
         Default: None.
     edge_feats: str, or dict of list of str
         Edge feature fileds in three possible formats:
 
-            - string: All the edges have the same feature name.
-            - list of string: All the edges have the same list of features.
+            - string: All edges have the same feature name.
+            - list of string: All edges have the same list of features.
             - dict of list of string: Each edge type have different set of edge features.
 
         Default: None.
     decoder_edge_feats: str, or dict of list of str
         Edge feature fileds used in decoder in three possible formats:
 
-            - string: All the edges have the same feature name.
-            - list of string: All the edges have the same list of features.
+            - string: All edges have the same feature name.
+            - list of string: All edges have the same list of features.
             - dict of list of string: Each edge type have different set of edge features.
 
         Default: None.
@@ -326,24 +326,24 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
     node_feats: str, or dict of list of str
         Node feature fileds in three possible formats:
 
-            - string: All the nodes have the same feature name.
-            - list of string: All the nodes have the same list of features.
+            - string: All nodes have the same feature name.
+            - list of string: All nodes have the same list of features.
             - dict of list of string: Each node type have different set of node features.
 
         Default: None.
     edge_feats: str, or dict of list of str
         Edge features fileds in three possible formats:
 
-            - string: All the edges have the same feature name.
-            - list of string: All the edges have the same list of features.
+            - string: All edges have the same feature name.
+            - list of string: All edges have the same list of features.
             - dict of list of string: Each edge type have different set of edge features.
 
         Default: None.
     decoder_edge_feats: str, or dict of list of str
         Edge features used in decoder in three possible formats:
 
-            - string: All the edges have the same feature name.
-            - list of string: All the edges have the same list of features.
+            - string: All edges have the same feature name.
+            - list of string: All edges have the same list of features.
             - dict of list of string: Each edge type have different set of edge features.
 
         Default: None.
@@ -485,36 +485,40 @@ BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER = 'fast_localjoint'
 BUILTIN_LP_FIXED_NEG_SAMPLER = 'fixed'
 
 class GSgnnLinkPredictionDataLoaderBase():
-    """ The base class of link prediction dataloader.
+    """ The base dataloader class of link prediction tasks.
 
-    If users want to customize the dataloader for link prediction tasks
+    If users want to customize dataloaders for link prediction tasks,
     they should extend this base class by implementing the special methods
-    `__iter__` and `__next__`.
+    ``__iter__``, ``__next__``, and ``__len__``.
 
     Parameters
     ----------
     dataset: GSgnnData
-        The GraphStorm edge dataset
+        The GraphStorm data for link prediction tasks.
     target_idx : dict of Tensors
-        The target edges for prediction
-    fanout: list of int or dict of list
+        The target edge indexes for link prediction.
+    fanout: list of int, or dict of list
         Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
     node_feats: str, or dict of list of str
-        Node features.
-        string: All the nodes have the same feature name.
-        list of string: All the nodes have the same list of features.
-        dict of list of string: Each node type have different set of node features.
-        Default: None
+        Node feature fileds in three possible formats:
+
+            - string: All nodes have the same feature name.
+            - list of string: All nodes have the same list of features.
+            - dict of list of string: Each node type have different set of node features.
+
+        Default: None.
     edge_feats: str, or dict of list of str
-        Edge features.
-        string: All the edges have the same feature name.
-        list of string: All the edges have the same list of features.
-        dict of list of string: Each edge type have different set of edge features.
-        Default: None
-    pos_graph_edge_feats: str or dict of list of str
+        Edge feature fileds in three possible formats:
+
+            - string: All edges have the same feature name.
+            - list of string: All edges have the same list of features.
+            - dict of list of string: Each edge type have different set of edge features.
+
+        Default: None.
+    pos_graph_edge_feats: str, or dict of list of str
         The field of the edge features used by positive graph in link prediction.
-        For example edge weight.
-        Default: None
+        For example edge weights.
+        Default: None.
     """
     def __init__(self, dataset, target_idx, fanout,
                  node_feats=None, edge_feats=None, pos_graph_edge_feats=None):
@@ -529,7 +533,7 @@ class GSgnnLinkPredictionDataLoaderBase():
         self._pos_graph_edge_feats = pos_graph_edge_feats
 
     def __iter__(self):
-        """ Returns an iterator object
+        """ Returns an iterator object.
         """
 
     def __next__(self):
@@ -639,14 +643,14 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
         The number of negative edges per positive edge
     node_feats: str, or dict of list of str
         Node features.
-        string: All the nodes have the same feature name.
-        list of string: All the nodes have the same list of features.
+        string: All nodes have the same feature name.
+        list of string: All nodes have the same list of features.
         dict of list of string: Each node type have different set of node features.
         Default: None
     edge_feats: str, or dict of list of str
         Edge features.
-        string: All the edges have the same feature name.
-        list of string: All the edges have the same list of features.
+        string: All edges have the same feature name.
+        list of string: All edges have the same list of features.
         dict of list of string: Each edge type have different set of edge features.
         Default: None
     pos_graph_edge_feats: str or dict of list of str
@@ -1194,14 +1198,14 @@ class GSgnnLinkPredictionTestDataLoader(GSgnnLinkPredictionDataLoaderBase):
         Default: None.
     node_feats: str, or dict of list of str
         Node features.
-        string: All the nodes have the same feature name.
-        list of string: All the nodes have the same list of features.
+        string: All nodes have the same feature name.
+        list of string: All nodes have the same list of features.
         dict of list of string: Each node type have different set of node features.
         Default: None
     edge_feats: str, or dict of list of str
         Edge features.
-        string: All the edges have the same feature name.
-        list of string: All the edges have the same list of features.
+        string: All edges have the same feature name.
+        list of string: All edges have the same list of features.
         dict of list of string: Each edge type have different set of edge features.
         Default: None
     pos_graph_edge_feats: str or dict of list of str
@@ -1328,14 +1332,14 @@ class GSgnnLinkPredictionPredefinedTestDataLoader(GSgnnLinkPredictionTestDataLoa
         The feature field(s) that store the fixed negative set for each edge.
     node_feats: str, or dict of list of str
         Node features.
-        string: All the nodes have the same feature name.
-        list of string: All the nodes have the same list of features.
+        string: All nodes have the same feature name.
+        list of string: All nodes have the same list of features.
         dict of list of string: Each node type have different set of node features.
         Default: None
     edge_feats: str, or dict of list of str
         Edge features.
-        string: All the edges have the same feature name.
-        list of string: All the edges have the same list of features.
+        string: All edges have the same feature name.
+        list of string: All edges have the same list of features.
         dict of list of string: Each edge type have different set of edge features.
         Default: None
     pos_graph_edge_feats: str or dict of list of str
@@ -1387,9 +1391,9 @@ class GSgnnNodeDataLoaderBase():
     Parameters
     ----------
     dataset : GSgnnData
-        The graph data for the node task.
+        The GraphStorm data for node tasks.
     target_idx : dict of Tensors
-        The target node IDs.
+        The target node indexes.
     fanout : list of int, or dict of lists
         The fanout for each GNN layer.
     label_field: str, or dict of str
@@ -1398,15 +1402,15 @@ class GSgnnNodeDataLoaderBase():
         Node feature fileds in three possible formats:
 
             - string: All nodes have the same feature name.
-            - list of string: All the nodes have the same list of features.
+            - list of string: All nodes have the same list of features.
             - dict of list of string: Each node type have different set of node features.
 
         Default: None.
     edge_feats: str, or dict of list of str
         Edge feature fileds in three possible formats:
 
-            - string: All the edges have the same feature name.
-            - list of string: All the edges have the same list of features.
+            - string: All edges have the same feature name.
+            - list of string: All edges have the same list of features.
             - dict of list of string: Each edge type have different set of edge features.
 
         Default: None.
@@ -1437,7 +1441,7 @@ class GSgnnNodeDataLoaderBase():
         -------
 
             - dict of Tensors : the input node IDs of the mini-batch.
-            - dict of Tensors : the target node IDs.
+            - dict of Tensors : the target node indexes.
             - list of DGLGraph : the subgraph blocks for message passing.
 
         """
@@ -1531,16 +1535,16 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     node_feats: str, list of str or dict of list of str
         Node feature fileds in three possible formats:
 
-            - string: All the nodes have the same feature name.
-            - list of string: All the nodes have the same list of features.
+            - string: All nodes have the same feature name.
+            - list of string: All nodes have the same list of features.
             - dict of list of string: Each node type have different set of node features.
 
         Default: None.
     edge_feats: str, list of str or dict of list of str
         Edge feature fileds in three possible formats:
 
-            - string: All the edges have the same feature name.
-            - list of string: All the edges have the same list of features.
+            - string: All edges have the same feature name.
+            - list of string: All edges have the same list of features.
             - dict of list of string: Each edge type have different set of edge features.
 
         Default: None.
@@ -1654,16 +1658,16 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
     node_feats: str, list of str, or dict of list of str
         Node feature fileds in three possible formats:
 
-            - string: All the nodes have the same feature name.
-            - list of string: All the nodes have the same list of features.
+            - string: All nodes have the same feature name.
+            - list of string: All nodes have the same list of features.
             - dict of list of string: Each node type have different set of node features.
 
         Default: None
     edge_feats: str, list of str, or dict of list of str
         Edge feature fileds in three possible formats:
 
-            - string: All the edges have the same feature name.
-            - list of string: All the edges have the same list of features.
+            - string: All edges have the same feature name.
+            - list of string: All edges have the same list of features.
             - dict of list of string: Each edge type have different set of edge features.
 
         Default: None
