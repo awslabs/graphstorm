@@ -110,8 +110,7 @@ Now we can ssh into the **leader node** of the EC2 cluster, and start GSPartitio
         --output-path ${LOCAL_OUTPUT_DATAPATH} \
         --num-parts ${NUM_PARTITIONS} \
         --partition-algorithm ${ALGORITHM} \
-        --ip-config ${IP_CONFIG} \
-        --do-dispatch
+        --ip-config ${IP_CONFIG}
 
 .. warning::
     1. Please make sure the both ``LOCAL_INPUT_DATAPATH`` and ``LOCAL_OUTPUT_DATAPATH`` are located on the shared filesystem.

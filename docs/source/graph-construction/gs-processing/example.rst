@@ -309,8 +309,7 @@ you can use the following command to run the partition job locally:
         --num-parts 1 \
         --dgl-tool-path ./dgl/tools \
         --partition-algorithm random \
-        --ip-config ip_list.txt \
-        --do-dispatch
+        --ip-config ip_list.txt 
 
 The command above will first do graph partitioning to determine the ownership for each partition and save the results.
 Then it will do data dispatching to physically assign the partitions to graph data and dispatch them to each machine.
