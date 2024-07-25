@@ -4,8 +4,6 @@ Running partition jobs on SageMaker
 
 Once the :ref:`distributed processing setup<gsprocessing_distributed_setup>` is complete,
 you can use Amazon SageMaker launch scripts to launch distributed processing jobs with AWS resources.
-To demonstrate the usage of GSProcessing on Amazon SageMaker, we will execute the same output as in 
-:ref:`GSProcessing Output<gsp-examining-output>` .
 
 Build the docker image for partition jobs on SageMaker
 ------------------------------------------------------
@@ -50,10 +48,10 @@ The ``build_docker_sagemaker.sh`` script takes three arguments:
     In order to upload the GraphStorm SageMaker Docker image to Amazon ECR, users need to define the <IMAGE_NAME> to include the ECR URI string, **<AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/**, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm``.
 
 4. **IMAGE_TAG** (optional), is the assigned tag name of the to-be built Docker image. Default is ``sm-<DEVICE_TYPE>``,
-   that is, ``sm-gpu`` for GPU images, ``sm-cpu`` for CPU images.
+   that is, ``sm-cpu`` for CPU images.
 
 Once the ``build_docker_sagemaker.sh`` command completes successfully, there will be a Docker image, named ``<IMAGE_NAME>:<IMAGE_TAG>``,
-such as ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm-gpu``, in the local repository, which could be listed by running:
+such as ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm-cpu``, in the local repository, which could be listed by running:
 
 .. code-block:: bash
 
