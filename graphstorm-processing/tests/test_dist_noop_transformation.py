@@ -77,6 +77,30 @@ def test_noop_floatvector_transformation(spark: SparkSession, check_df_schema):
     assert_array_equal(expected_values, transformed_values)
 
 
+def test_noop_floatvector_truncation(spark: SparkSession, check_df_schema):
+    """No-op transformation for numerical vector columns with truncation"""
+    data = [([[10, 20]]), ([[30, 40]]), ([[50, 60]]), ([[70, 80]]), ([[90, 100]])]
+
+    col_name = "feat"
+    schema = StructType([StructField("feat", ArrayType(IntegerType(), True), True)])
+    vec_df = spark.createDataFrame(data, schema=schema)
+
+    noop_transfomer = NoopTransformation(
+        [col_name],
+        truncate_dim=1,
+    )
+
+    transformed_df = noop_transfomer.apply(vec_df)
+
+    expected_values = [[10], [30], [50], [70], [90]]
+
+    check_df_schema(transformed_df)
+
+    transformed_values = [row[col_name] for row in transformed_df.collect()]
+
+    assert_array_equal(expected_values, transformed_values)
+
+
 def test_noop_largegint_transformation(spark: SparkSession, check_df_schema):
     """No-op transformation for long numerical columns"""
     large_int = 4 * 10**18
