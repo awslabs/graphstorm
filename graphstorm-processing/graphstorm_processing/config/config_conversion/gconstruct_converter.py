@@ -81,9 +81,8 @@ class GConstructConfigConverter(ConfigConverter):
             except KeyError as exc:
                 raise KeyError(f"A required key was missing from label input {label}") from exc
             except AssertionError as exc:
-                raise AssertionError(
-                    f"GSProcessing currently do not support to construct labels for multi-task learning"
-                ) from exc
+                raise AssertionError(f"GSProcessing currently do not support to "
+                                     f"construct labels for multi-task learning")
         return labels_list
 
     @staticmethod
