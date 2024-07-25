@@ -227,6 +227,7 @@ class GSgnnEdgeDataLoaderBase():
         """ Return the length (number of mini-batches) of the data loader.
 
         Returns
+        -------
         int: length
         """
 
@@ -466,6 +467,10 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
         https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116.
         In DGL, ``DistDataLoader.expected_idxs`` is the length (number of batches)
         of the dataloader.
+
+        Returns:
+        --------
+        int: The length (number of batches) of the dataloader.
         """
         return self.dataloader.expected_idxs
 
@@ -560,6 +565,7 @@ class GSgnnLinkPredictionDataLoaderBase():
         """ Return the length (number of mini-batches) of the data loader.
 
         Returns
+        -------
         int: length
         """
 
@@ -805,6 +811,10 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
         https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116.
         In DGL, ``DistDataLoader.expected_idxs`` is the length (number of batches)
         of the dataloader.
+
+        Returns:
+        --------
+        int: The length (number of batches) of the dataloader.
         """
         return self.dataloader.expected_idxs
 
@@ -1358,7 +1368,7 @@ class GSgnnLinkPredictionPredefinedTestDataLoader(GSgnnLinkPredictionTestDataLoa
             - dict of list of string: Each edge type have different set of edge features.
 
         Default: None.
-    pos_graph_edge_feats: str or dict of list of str
+    pos_graph_edge_feats: str, or dict of list of str
         The edge feature fields used by positive graph in link prediction.
         For example edge weight.
         Default: None.
@@ -1651,6 +1661,10 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
         https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116.
         In DGL, ``DistDataLoader.expected_idxs`` is the length (number of batches)
         of the dataloader.
+
+        Returns:
+        --------
+        int: The length (number of batches) of the dataloader.
         """
         return self.dataloader.expected_idxs
 
@@ -1726,6 +1740,10 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
         In DGL, ``DistDataLoader.expected_idxs`` is the length (number of batches)
         of the dataloader. As it uses two dataloader, either one throws an End of Iter error 
         will stop the dataloader.
+
+        Returns:
+        --------
+        int: The length (number of batches) of the dataloader.
         """
         return min(self.dataloader.expected_idxs,
                    self.unlabeled_dataloader.expected_idxs)
