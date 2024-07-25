@@ -209,11 +209,11 @@ class DistributedExecutor:
             self.precomputed_transformations = {}
 
         if "version" in dataset_config_dict:
-            config_version = dataset_config_dict["version"]
-            if config_version == "gsprocessing-v1.0":
+            config_version: str = dataset_config_dict["version"]
+            if config_version.startswith("gsprocessing"):
                 logging.info("Parsing config file as GSProcessing config")
                 self.gsp_config_dict = dataset_config_dict["graph"]
-            elif config_version == "gconstruct-v1.0":
+            elif config_version.startswith("gconstruct"):
                 logging.info("Parsing config file as GConstruct config")
                 converter = GConstructConfigConverter()
                 self.gsp_config_dict = converter.convert_to_gsprocessing(dataset_config_dict)[
