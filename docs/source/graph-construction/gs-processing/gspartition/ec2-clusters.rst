@@ -113,7 +113,7 @@ Now we can ssh into the **leader node** of the EC2 cluster, and start GSPartitio
 
 .. warning::
     1. Please make sure the both ``LOCAL_INPUT_DATAPATH`` and ``LOCAL_OUTPUT_DATAPATH`` are located on the shared filesystem.
-    2. The number of instances in the cluster should match the number of ``NUM_PARTITIONS`` exactly.
+    2. The number of instances in the cluster should be equal to ``NUM_PARTITIONS``.
     3. For users who only want to generate partition assignments instead of the partitioned DGL graph, please add ``--partition-assignment-only`` flag.
 
 Currently we support both ``random`` and ``parmetis`` as the partitioning algorithm for EC2 clusters.

@@ -126,7 +126,7 @@ Users can use the following command to launch partition jobs.
        --partition-algorithm ${ALGORITHM}
 
 .. warning::
-    The ``NUM_INSTANCES`` should exact of ``NUM_PARTITIONS`` here.
+    The ``NUM_INSTANCES`` should be equal to ``NUM_PARTITIONS`` here.
 
 Running the above will take the dataset after GSProcessing
 from ``${DATASET_S3_PATH}`` as input and create a DistDGL graph with
