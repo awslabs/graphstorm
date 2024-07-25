@@ -18,8 +18,18 @@ import math
 from typing import Any
 from collections.abc import Mapping
 
-from .converter_base import ConfigConverter
+from .converter_base import ConfigConverter, ConfigChecker
 from .meta_configuration import NodeConfig, EdgeConfig
+
+
+class GConstructConfigChecker(ConfigChecker):
+    """The Config Sanity Checker for GConstruct Config for GSProcessing
+
+    Parameters
+    ----------
+    data: GConstruct Config including nodes and edge config
+    ----------
+    """
 
 
 class GConstructConfigConverter(ConfigConverter):
@@ -50,7 +60,9 @@ class GConstructConfigConverter(ConfigConverter):
             return []
         for label in labels:
             try:
-                assert "mask_field_names" not in label
+                assert "mask_field_names" not in label, \
+                    (f"GSProcessing currently do not support to "
+                     f"construct labels for multi-task learning")
                 label_column = label["label_col"] if "label_col" in label else ""
                 label_type = label["task_type"]
                 label_dict = {"column": label_column, "type": label_type}
@@ -74,6 +86,8 @@ class GConstructConfigConverter(ConfigConverter):
                         "test": label_custom_split_filenames["test"],
                         "column": label_custom_split_filenames["column"],
                     }
+                    assert isinstance(label_dict["custom_split_filenames"]["train"], str), \
+                        "train file name should be a string"
                 if "separator" in label:
                     label_sep = label["separator"]
                     label_dict["separator"] = label_sep
@@ -81,8 +95,7 @@ class GConstructConfigConverter(ConfigConverter):
             except KeyError as exc:
                 raise KeyError(f"A required key was missing from label input {label}") from exc
             except AssertionError as exc:
-                raise AssertionError(f"GSProcessing currently do not support to "
-                                     f"construct labels for multi-task learning")
+                raise AssertionError(f"AssertionError caught: {exc}")
         return labels_list
 
     @staticmethod

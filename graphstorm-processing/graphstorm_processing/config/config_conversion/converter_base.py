@@ -21,6 +21,73 @@ from typing import Any
 from .meta_configuration import NodeConfig, EdgeConfig
 
 
+class ConfigChecker(abc.ABC):
+    """Base class for configuration sanity checker.
+
+    We use these sanity checker to do sanity check on the input config file.
+    """
+
+    @staticmethod
+    @abstractmethod
+    def check_nodes(nodes_entries: list[dict]) -> list[NodeConfig]:
+        """Do santity check on input node entries.
+
+        Parameters
+        ----------
+        nodes_entries : list[dict]
+            List of node entry dictionaries.
+
+        Returns
+        -------
+        bool
+            True if the input node entries are valid, False otherwise.
+        """
+
+    @staticmethod
+    @abstractmethod
+    def check_edges(edges_entries: list[dict]) -> list[EdgeConfig]:
+        """Do santity check on input edge entries.
+
+        Parameters
+        ----------
+        edges_entries : list[dict]
+            List of edge entry dictionaries.
+
+        Returns
+        -------
+        bool
+            True if the input edge entries are valid, False otherwise.
+        """
+
+    def convert_to_gsprocessing(self, input_dictionary: dict) -> dict:
+        """Take a graph configuration input dictionary and convert it to a GSProcessing-compatible
+        dictionary.
+
+        Parameters
+        ----------
+        input_dictionary : dict
+            Input graph configuration dictionary. Needs to provide two top-level
+            lists-of-dicts for the keys 'nodes' and 'edges'.
+
+        Returns
+        -------
+        dict
+            A graph description dictionary compatible with GSProcessing
+        """
+        # deal with corner case
+        if input_dictionary == {}:
+            return {"version": "gsprocessing-v1.0", "graph": {"nodes": [], "edges": []}}
+
+        nodes_entries: list[dict] = input_dictionary["nodes"]
+        edges_entries: list[dict] = input_dictionary["edges"]
+
+        node_valid: bool = self.check_nodes(nodes_entries)
+        edge_valid: bool = self.check_edges(edges_entries)
+
+        return gsprocessing_dict
+
+
+
 class ConfigConverter(abc.ABC):
     """Base class for configuration converters.
 
