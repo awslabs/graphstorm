@@ -776,7 +776,7 @@ def wrap_cmd_with_local_envvars(cmd: str, env_vars: str) -> str:
     return f"(export {env_vars}; {cmd})"
 
 
-def wrap_cmd_with_extra_envvars(cmd: str, env_vars: list[str]) -> str:
+def wrap_cmd_with_extra_envvars(cmd: str, env_vars: List[str]) -> str:
     """Wraps a CLI command with extra env vars
 
     Example:
