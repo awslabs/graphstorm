@@ -1537,7 +1537,7 @@ class GSgnnNodeDataLoaderBase():
 
         Returns
         -------
-        str, or dict of list of str: Edge feature fields, which is given in class initialization..
+        str, or dict of list of str: Edge feature fields, which is given in class initialization.
         """
         return self._edge_feats
 
