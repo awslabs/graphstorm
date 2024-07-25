@@ -50,6 +50,7 @@ class GConstructConfigConverter(ConfigConverter):
             return []
         for label in labels:
             try:
+                assert "mask_field_names" not in label
                 label_column = label["label_col"] if "label_col" in label else ""
                 label_type = label["task_type"]
                 label_dict = {"column": label_column, "type": label_type}
@@ -79,6 +80,10 @@ class GConstructConfigConverter(ConfigConverter):
                 labels_list.append(label_dict)
             except KeyError as exc:
                 raise KeyError(f"A required key was missing from label input {label}") from exc
+            except AssertionError as exc:
+                raise AssertionError(
+                    f"GSProcessing currently do not support to construct labels for multi-task learning"
+                ) from exc
         return labels_list
 
     @staticmethod
