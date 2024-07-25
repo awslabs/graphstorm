@@ -350,8 +350,7 @@ There are five data here:
     * ``orig_eids.dgl``: The mapping for edges between raw edge IDs and the partitioned graph edge IDs.
     * ``orig_nids.dgl``: The mapping for nodes between raw node IDs and the partitioned graph node IDs.
 
-* ``metadata.json``: This file contains metadata about the distributed DGL graph. The files under
-``dist_graph`` should be ready for the training/inference pipeline.
+* ``metadata.json``: This file contains metadata about the distributed DGL graph. 
 
 ``partition_assignment``: This directory contains different partition results for different node types,
 which can reused for the : `dgl dispatch pipeline <https://docs.dgl.ai/en/latest/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_
