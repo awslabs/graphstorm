@@ -1199,8 +1199,9 @@ class GSgnnLinkPredictionTestDataLoader(GSgnnLinkPredictionDataLoaderBase):
         Mini-batch size.
     num_negative_edges: int
         The number of negative edges per positive edge.
-    fanout: int
-        Evaluation fanout for computing node embedding.
+    fanout: list of int, or dict of list
+         Evaluation fanout for computing node embedding. If it's a dict, it indicates
+         the fanout for each edge type.
     fixed_test_size: int
         Fixed number of test data used in evaluation.
         If it is none, use the whole testset.
@@ -1308,8 +1309,8 @@ class GSgnnLinkPredictionTestDataLoader(GSgnnLinkPredictionDataLoaderBase):
 
 
 class GSgnnLinkPredictionJointTestDataLoader(GSgnnLinkPredictionTestDataLoader):
-    """ Link prediction mini-batch dataloader for validation and test
-        with joint negative sampler
+    """ Mini-batch dataloader for Link prediction validation and test set
+    with joint negative sampler.
     """
 
     def _prepare_negative_sampler(self, num_negative_edges):
@@ -1319,43 +1320,48 @@ class GSgnnLinkPredictionJointTestDataLoader(GSgnnLinkPredictionTestDataLoader):
         return negative_sampler
 
 class GSgnnLinkPredictionPredefinedTestDataLoader(GSgnnLinkPredictionTestDataLoader):
-    """ Link prediction mini-batch dataloader for validation and test
-        with predefined negatives.
+    """ Mini-batch dataloader for link prediction validation and test
+    with predefined negatives.
 
     Parameters
     -----------
     dataset: GSgnnData
-        The GraphStorm edge dataset
+        The GraphStorm data.
     target_idx : dict of Tensors
-        The target edges for prediction
+        The target edge indexes for link prediction.
     batch_size: int
-        Batch size
-    fanout: int
-        Evaluation fanout for computing node embedding
+        Mini-batch size.
+    fanout: list of int, or dict of list
+         Evaluation fanout for computing node embedding. If it's a dict, it indicates
+         the fanout for each edge type.
     fixed_test_size: int
         Fixed number of test data used in evaluation.
         If it is none, use the whole testset.
-        When test is huge, using fixed_test_size
+        When test is huge, using `fixed_test_size`
         can save validation and test time.
         Default: None.
-    fixed_edge_dst_negative_field: str or list of str
-        The feature field(s) that store the fixed negative set for each edge.
+    fixed_edge_dst_negative_field: str, or list of str
+        The feature fields that store the fixed negative set for each edge.
     node_feats: str, or dict of list of str
-        Node features.
-        string: All nodes have the same feature name.
-        list of string: All nodes have the same list of features.
-        dict of list of string: Each node type have different set of node features.
-        Default: None
+        Node feature fileds in three possible formats:
+
+            - string: All nodes have the same feature name.
+            - list of string: All nodes have the same list of features.
+            - dict of list of string: Each node type have different set of node features.
+
+        Default: None.
     edge_feats: str, or dict of list of str
-        Edge features.
-        string: All edges have the same feature name.
-        list of string: All edges have the same list of features.
-        dict of list of string: Each edge type have different set of edge features.
-        Default: None
+        Edge feature fileds in three possible formats:
+
+            - string: All edges have the same feature name.
+            - list of string: All edges have the same list of features.
+            - dict of list of string: Each edge type have different set of edge features.
+
+        Default: None.
     pos_graph_edge_feats: str or dict of list of str
-        The field of the edge features used by positive graph in link prediction.
+        The edge feature fields used by positive graph in link prediction.
         For example edge weight.
-        Default: None
+        Default: None.
     """
     def __init__(self, dataset, target_idx, batch_size, fixed_edge_dst_negative_field,
                  fanout=None, fixed_test_size=None,
