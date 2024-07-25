@@ -1517,7 +1517,7 @@ class GSgnnNodeDataLoaderBase():
 
         Returns
         -------
-        str, or dict of str: Label fields, which is given in class initialization..
+        str, or dict of str: Label fields, which is given in class initialization.
         """
         return self._label_field
 
