@@ -13,7 +13,7 @@ Setup instances of a cluster
 .............................
 A cluster contains several instances, each of which runs a GraphStorm Docker container. Before creating a cluster, we recommend to
 follow the :ref:`Environment Setup <setup_docker>`. The guide shows how to build GraphStorm Docker images, and use a Docker container registry,
-e.g. `AWS ECR<https://docs.aws.amazon.com/ecr/>`_ , to upload the GraphStorm image to an ECR repository, pull it on the instances in the cluster,
+e.g. `AWS ECR <https://docs.aws.amazon.com/ecr/>`_ , to upload the GraphStorm image to an ECR repository, pull it on the instances in the cluster,
 and finally start the image as a container.
 
 .. note::
@@ -36,7 +36,7 @@ and finally start the image as a container.
 
 Setup a shared file system for the cluster
 ...........................................
-A cluster requires a shared file system, such as NFS or `EFS<https://docs.aws.amazon.com/efs/>`_, mounted to each instance in the cluster, in which all GraphStorm containers in the cluster can share data files, and save model artifacts and prediction results.
+A cluster requires a shared file system, such as NFS or `EFS <https://docs.aws.amazon.com/efs/>`_, mounted to each instance in the cluster, in which all GraphStorm containers in the cluster can share data files, and save model artifacts and prediction results.
 
 `Here <https://github.com/dmlc/dgl/tree/master/examples/pytorch/graphsage/dist#step-0-setup-a-distributed-file-system>`_ is the instruction of setting up NFS for a cluster. As the steps of setting an NFS could be various on different systems, we suggest users to look for additional information about NFS setting. Here are some available resources: `NFS tutorial <https://www.digitalocean.com/community/tutorials/how-to-set-up-an-nfs-mount-on-ubuntu-22-04>`_ by DigitalOcean, `NFS document <https://ubuntu.com/server/docs/service-nfs>`_ for Ubuntu.
 
