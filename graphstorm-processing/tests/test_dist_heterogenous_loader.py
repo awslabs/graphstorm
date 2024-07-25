@@ -63,6 +63,7 @@ NODE_CLASS_GRAPHINFO_UPDATES = {
             "input_ids": 16,
             "token_type_ids": 16,
             "multi": 2,
+            "no-op-truncated": 1,
             "state": 3,
         }
     },
@@ -296,6 +297,7 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
             "test_mask",
             "age",
             "multi",
+            "no-op-truncated",
             "state",
             "input_ids",
             "attention_mask",
