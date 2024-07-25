@@ -24,12 +24,12 @@ from .meta_configuration import NodeConfig, EdgeConfig
 class ConfigChecker(abc.ABC):
     """Base class for configuration sanity checker.
 
-    We use these sanity checker to do sanity check on the input config file.
+    We use these sanity checker to do sanity check on the input gconstruct config file.
     """
 
     @staticmethod
     @abstractmethod
-    def check_nodes(nodes_entries: list[dict]) -> list[NodeConfig]:
+    def check_nodes(nodes_entries: list[dict]) -> bool:
         """Do santity check on input node entries.
 
         Parameters
@@ -45,7 +45,7 @@ class ConfigChecker(abc.ABC):
 
     @staticmethod
     @abstractmethod
-    def check_edges(edges_entries: list[dict]) -> list[EdgeConfig]:
+    def check_edges(edges_entries: list[dict]) -> bool:
         """Do santity check on input edge entries.
 
         Parameters
@@ -59,9 +59,8 @@ class ConfigChecker(abc.ABC):
             True if the input edge entries are valid, False otherwise.
         """
 
-    def convert_to_gsprocessing(self, input_dictionary: dict) -> dict:
-        """Take a graph configuration input dictionary and convert it to a GSProcessing-compatible
-        dictionary.
+    def sanity_check(self, input_dictionary: dict) -> bool:
+        """Take a graph configuration input dictionary and do sanity check.
 
         Parameters
         ----------
@@ -76,7 +75,7 @@ class ConfigChecker(abc.ABC):
         """
         # deal with corner case
         if input_dictionary == {}:
-            return {"version": "gsprocessing-v1.0", "graph": {"nodes": [], "edges": []}}
+            return True
 
         nodes_entries: list[dict] = input_dictionary["nodes"]
         edges_entries: list[dict] = input_dictionary["edges"]
@@ -84,7 +83,7 @@ class ConfigChecker(abc.ABC):
         node_valid: bool = self.check_nodes(nodes_entries)
         edge_valid: bool = self.check_edges(edges_entries)
 
-        return gsprocessing_dict
+        return node_valid and edge_valid
 
 
 
