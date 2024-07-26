@@ -113,10 +113,11 @@ class GConstructConfigConverter(ConfigConverter):
                 gsp_feat_dict["column"] = gconstruct_feat_dict["feature_col"]
             elif isinstance(gconstruct_feat_dict["feature_col"], list):
                 gsp_feat_dict["column"] = gconstruct_feat_dict["feature_col"][0]
-                assert "feature_name" in gconstruct_feat_dict, (
-                    "feature_name should be in the gconstruct "
-                    "feature field when feature_col is a list"
-                )
+                if len(gconstruct_feat_dict["feature_col"]) >= 2:
+                    assert "feature_name" in gconstruct_feat_dict, (
+                        "feature_name should be in the gconstruct "
+                        "feature field when feature_col is a list"
+                    )
             if "feature_name" in gconstruct_feat_dict:
                 gsp_feat_dict["name"] = gconstruct_feat_dict["feature_name"]
 
