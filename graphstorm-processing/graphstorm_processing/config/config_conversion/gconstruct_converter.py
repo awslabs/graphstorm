@@ -67,6 +67,11 @@ class GConstructConfigConverter(ConfigConverter):
                         }
                 else:
                     label_custom_split_filenames = label["custom_split_filenames"]
+                    if isinstance(label_custom_split_filenames["column"], list):
+                        assert len(label_custom_split_filenames["column"]) <= 2, (
+                            "Custom split filenames should have one column for node labels, "
+                            "and two columns for edges labels exactly"
+                        )
                     label_dict["custom_split_filenames"] = {
                         "train": label_custom_split_filenames["train"],
                         "valid": label_custom_split_filenames["valid"],
@@ -76,6 +81,11 @@ class GConstructConfigConverter(ConfigConverter):
                 if "separator" in label:
                     label_sep = label["separator"]
                     label_dict["separator"] = label_sep
+                # Not supported for multi-task config for GSProcessing
+                assert "mask_field_names" not in label, (
+                    "GSProcessing currently do not support to "
+                    "construct labels for multi-task learning"
+                )
                 labels_list.append(label_dict)
             except KeyError as exc:
                 raise KeyError(f"A required key was missing from label input {label}") from exc
@@ -103,6 +113,10 @@ class GConstructConfigConverter(ConfigConverter):
                 gsp_feat_dict["column"] = gconstruct_feat_dict["feature_col"]
             elif isinstance(gconstruct_feat_dict["feature_col"], list):
                 gsp_feat_dict["column"] = gconstruct_feat_dict["feature_col"][0]
+                assert "feature_name" in gconstruct_feat_dict, (
+                    "feature_name should be in the gconstruct "
+                    "feature field when feature_col is a list"
+                )
             if "feature_name" in gconstruct_feat_dict:
                 gsp_feat_dict["name"] = gconstruct_feat_dict["feature_name"]
 
@@ -183,9 +197,10 @@ class GConstructConfigConverter(ConfigConverter):
                 gsp_transformation_dict["name"] = "no-op"
 
             if "out_dtype" in gconstruct_feat_dict:
-                assert (
-                    gconstruct_feat_dict["out_dtype"] == "float32"
-                ), "GSProcessing currently only supports float32 features"
+                assert gconstruct_feat_dict["out_dtype"] in (
+                    "float32",
+                    "float64",
+                ), "GSProcessing currently only supports float32 or float64 features"
 
             gsp_feat_dict["transformation"] = gsp_transformation_dict
             gsp_feats_list.append(gsp_feat_dict)
