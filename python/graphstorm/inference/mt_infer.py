@@ -275,6 +275,11 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
                                        total_steps=0)
 
         if save_prediction_path is not None:
+            if predict_test_loader is None:
+                logging.warning("There is no prediction tasks."
+                                "Will skip saving prediction results.")
+                return
+
             logging.info("Saving prediction results")
             target_ntypes = set()
             task_infos = predict_test_loader.task_infos
@@ -342,3 +347,5 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
                     # There is no prediction results for link prediction
                     # and feature reconstruction
                     continue
+
+        return
