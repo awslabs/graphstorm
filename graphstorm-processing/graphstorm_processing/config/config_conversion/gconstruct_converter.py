@@ -215,6 +215,8 @@ class GConstructConfigConverter(ConfigConverter):
             node_type, node_col = n["node_type"], n["node_id_col"]
             # format
             node_format = n["format"]["name"]
+            assert node_format in ("parquet", "csv"), \
+                "GSProcessing only supports parquet files and csv files."
             if "separator" not in n["format"]:
                 node_separator = None
             else:
