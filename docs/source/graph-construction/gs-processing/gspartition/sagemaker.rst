@@ -84,8 +84,8 @@ Please replace the `<IMAGE_NAME>` and `<IMAGE_TAG>` with the actual Docker image
 Launch the partition job on Amazon SageMaker
 ---------------------------------------------
 For this example, we'll use a SageMaker cluster with 2 ``ml.t3.xlarge`` instances.
-We assume the data is already ready on an AWS S3 bucket.
-For large graph, users can choose larger instances or more instances.
+We assume the data is already on an AWS S3 bucket.
+For large graphs, users can choose larger instances or more instances.
 
 Install dependencies
 .....................

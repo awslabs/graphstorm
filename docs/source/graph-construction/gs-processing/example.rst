@@ -44,7 +44,7 @@ The example will include GSProcessing as the first step and GSPartition as the s
 
 GSProcessing expects the input files to be in a specific format that will allow
 us to perform the processing and prepare the data for partitioning and training.
-GSPartition then takes the output of GSProcessing to produce graph data ready for training.
+GSPartition then takes the output of GSProcessing to produce graph data in DistDGLGraph format for training or inference..
 
 The data files are expected to be:
 
@@ -313,7 +313,7 @@ you can use the following command to run the partition job locally:
 
 The command above will first do graph partitioning to determine the ownership for each partition and save the results.
 Then it will do data dispatching to physically assign the partitions to graph data and dispatch them to each machine.
-Finally it will generate the graph data ready for training/evaluation.
+Finally it will generate the graph data ready for training/inference.
 
 Examining the job output of GSPartition
 ---------------------------------------

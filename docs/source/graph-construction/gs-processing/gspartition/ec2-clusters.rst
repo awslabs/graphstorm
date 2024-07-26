@@ -4,7 +4,7 @@ Running partition jobs on EC2 Clusters
 
 Once the :ref:`distributed processing setup<gsprocessing_distributed_setup>` is completed,
 users can start the partition jobs. This doc will provide instructions on how to setup an EC2 cluster and
-start GSPartition jobs on an EC2 cluster.
+start GSPartition jobs on it.
 
 Create a GraphStorm Cluster
 ----------------------------
@@ -31,18 +31,18 @@ and finally start the image as a container.
     There are three positional arguments for ``build_docker_parmetis.sh``:
 
     1. **path-to-graphstorm** (**required**), is the absolute path of the "graphstorm" folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
-    2. **image-name** (optional), is the assigned name of the to be built Docker image. Default is ``graphstorm``.
+    2. **image-name** (optional), is the assigned name of the Docker image to be built . Default is ``graphstorm``.
     3. **image-tag** (optional), is the assigned tag prefix of the Docker image. Default is ``local``.
 
 Setup a shared file system for the cluster
 ...........................................
-A cluster requires a shared file system, such as NFS or `EFS <https://docs.aws.amazon.com/efs/>`_, mounted to each instance in the cluster, in which all GraphStorm containers in the cluster can share data files, and save model artifacts and prediction results.
+A cluster requires a shared file system, such as NFS or `EFS <https://docs.aws.amazon.com/efs/>`_, mounted to each instance in the cluster, in which all GraphStorm containers can share data files, save model artifacts and prediction results.
 
-`Here <https://github.com/dmlc/dgl/tree/master/examples/pytorch/graphsage/dist#step-0-setup-a-distributed-file-system>`_ is the instruction of setting up NFS for a cluster. As the steps of setting an NFS could be various on different systems, we suggest users to look for additional information about NFS setting. Here are some available resources: `NFS tutorial <https://www.digitalocean.com/community/tutorials/how-to-set-up-an-nfs-mount-on-ubuntu-22-04>`_ by DigitalOcean, `NFS document <https://ubuntu.com/server/docs/service-nfs>`_ for Ubuntu.
+`Here <https://github.com/dmlc/dgl/tree/master/examples/pytorch/graphsage/dist#step-0-setup-a-distributed-file-system>`_ is the instruction of setting up an NFS for a cluster. As the steps of setting an NFS could be various on different systems, we suggest users to look for additional information about NFS setting. Here are some available resources: `NFS tutorial <https://www.digitalocean.com/community/tutorials/how-to-set-up-an-nfs-mount-on-ubuntu-22-04>`_ by DigitalOcean, `NFS document <https://ubuntu.com/server/docs/service-nfs>`_ for Ubuntu.
 
 For an AWS EC2 cluster, users can also use EFS as the shared file system. Please follow 1) `the instruction of creating EFS <https://docs.aws.amazon.com/efs/latest/ug/gs-step-two-create-efs-resources.html>`_; 2) `the instruction of installing an EFS client <https://docs.aws.amazon.com/efs/latest/ug/installing-amazon-efs-utils.html>`_; and 3) `the instructions of mounting the EFS filesystem <https://docs.aws.amazon.com/efs/latest/ug/efs-mount-helper.html>`_ to set up EFS.
 
-After setting up a shared file system, we can keep all graph data in a shared folder. Then mount the data folder to the ``/path_to_data/`` of each instances in the cluster so that all GraphStorm containers in the cluster can access the graph data.
+After setting up a shared file system, we can keep all graph data in a shared folder. Then mount the data folder to the ``/path_to_data/`` of each instances in the cluster so that all GraphStorm containers can access the data.
 
 Run a GraphStorm Container
 ...........................
@@ -83,7 +83,7 @@ Pick one instance and run the following command to connect to the GraphStorm Doc
 
     docker container exec -it test /bin/bash
 
-Users need to exchange the ssh key from inside each of GraphStorm Docker container to
+Users need to exchange the ssh key from each of GraphStorm Docker container to
 the rest containers in the cluster: copy the keys from the ``/root/.ssh/id_rsa.pub`` from one container to ``/root/.ssh/authorized_keys`` in containers on all other containers.
 In the container environment, users can check the connectivity with the command ``ssh <ip-in-the-cluster> -o StrictHostKeyChecking=no -p 2222``. Please replace the ``<ip-in-the-cluster>`` with the real IP address from the ``ip_list.txt`` file above, e.g.,
 
@@ -91,7 +91,7 @@ In the container environment, users can check the connectivity with the command 
 
     ssh 172.38.12.143 -o StrictHostKeyChecking=no -p 2222
 
-If successful, you should login to the container in the ``<ip-in-the-cluster>`` instance.
+If successful, you should login to the container with ip 172.38.12.143.
 
 If not, please make sure there is no restriction of exposing port 2222.
 
