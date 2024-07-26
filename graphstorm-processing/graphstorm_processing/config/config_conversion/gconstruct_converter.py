@@ -264,6 +264,8 @@ class GConstructConfigConverter(ConfigConverter):
 
             # format
             edge_format = e["format"]["name"]
+            assert edge_format in ("parquet", "csv"), \
+                "GSProcessing only supports parquet files and csv files."
             if "separator" not in e["format"]:
                 edge_separator = None
             else:
