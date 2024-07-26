@@ -30,6 +30,7 @@ class GConstructConfigChecker(ConfigChecker):
     data: GConstruct Config including nodes and edge config
     ----------
     """
+
     @staticmethod
     def _check_label(labels: list[dict]) -> bool:
         """Santity Check on labels config
@@ -47,46 +48,53 @@ class GConstructConfigChecker(ConfigChecker):
         if labels in [[], [{}]]:
             return True
         for label in labels:
-            assert "label_col" in label and isinstance(label["label_col"], str), \
-                "label column name is required"
-            assert ("task_type" in label and
-                    label["task_type"] in ("classification", "regression", "link_prediction")), \
-                "task type is required, and should be one of classification, regression and link_prediction"
+            assert "label_col" in label and isinstance(
+                label["label_col"], str
+            ), "label column name is required"
+            assert "task_type" in label and label["task_type"] in (
+                "classification",
+                "regression",
+                "link_prediction",
+            ), "task type is required, and should be one of classification, regression and link_prediction"
 
             if "custom_split_filenames" not in label:
                 if "split_pct" in label:
                     label_splitrate = label["split_pct"]
                     if not label_splitrate:
                         label_splitrate = [0.8, 0.1, 0.1]
-                    assert (isinstance(label_splitrate, list) and
-                            all(isinstance(item, float) for item in label_splitrate) and
-                            len(label_splitrate) == 3), \
-                        "label split_pct should be a list of 3 float number"
+                    assert (
+                        isinstance(label_splitrate, list)
+                        and all(isinstance(item, float) for item in label_splitrate)
+                        and len(label_splitrate) == 3
+                    ), "label split_pct should be a list of 3 float number"
                     assert (
                         math.fsum(label_splitrate) == 1.0
                     ), "sum of the label split rate should be ==1.0"
                 else:
                     label_custom_split_filenames = label["custom_split_filenames"]
-                    assert (isinstance(label_custom_split_filenames["train"], str)
-                            or not label_custom_split_filenames["train"]), \
-                        "train file name should be a string"
-                    assert (isinstance(label_custom_split_filenames["valid"], str)
-                            or not label_custom_split_filenames["valid"]), \
-                        "valid file name should be a string"
-                    assert (isinstance(label_custom_split_filenames["test"], str)
-                            or not label_custom_split_filenames["test"]), \
-                        "test file name should be a string"
-                    assert (isinstance(label_custom_split_filenames["column"], str)
-                            or (isinstance(label_custom_split_filenames["column"], list)
-                                and len((label_custom_split_filenames["column"]) <= 2))), \
-                        "column name should be a string or a list"
+                    assert (
+                        isinstance(label_custom_split_filenames["train"], str)
+                        or not label_custom_split_filenames["train"]
+                    ), "train file name should be a string"
+                    assert (
+                        isinstance(label_custom_split_filenames["valid"], str)
+                        or not label_custom_split_filenames["valid"]
+                    ), "valid file name should be a string"
+                    assert (
+                        isinstance(label_custom_split_filenames["test"], str)
+                        or not label_custom_split_filenames["test"]
+                    ), "test file name should be a string"
+                    assert isinstance(label_custom_split_filenames["column"], str) or (
+                        isinstance(label_custom_split_filenames["column"], list)
+                        and len((label_custom_split_filenames["column"]) <= 2)
+                    ), "column name should be a string or a list"
                 if "separator" in label:
-                    assert isinstance(label["separator"], str), \
-                        "separator must be a string"
+                    assert isinstance(label["separator"], str), "separator must be a string"
             # Not supported for multi-task config for GSProcessing
-            assert "mask_field_names" not in label, \
-                (f"GSProcessing currently do not support to "
-                 f"construct labels for multi-task learning")
+            assert "mask_field_names" not in label, (
+                f"GSProcessing currently do not support to "
+                f"construct labels for multi-task learning"
+            )
         return True
 
     @staticmethod
@@ -105,14 +113,17 @@ class GConstructConfigChecker(ConfigChecker):
         if feats in [[], [{}]]:
             return True
         for gconstruct_feat_dict in feats:
-            assert isinstance(gconstruct_feat_dict["feature_col"], (str, list)), \
-                "feature_col should be either a string or a list"
+            assert isinstance(
+                gconstruct_feat_dict["feature_col"], (str, list)
+            ), "feature_col should be either a string or a list"
             if isinstance(gconstruct_feat_dict["feature_col"], list):
-                assert "feature_name" in gconstruct_feat_dict, \
-                    "feature_name must be specified if feature_col is a list"
+                assert (
+                    "feature_name" in gconstruct_feat_dict
+                ), "feature_name must be specified if feature_col is a list"
             if "feature_name" in gconstruct_feat_dict:
-                assert isinstance(gconstruct_feat_dict["feature_name"], str), \
-                    "feature_name should be either None or a string"
+                assert isinstance(
+                    gconstruct_feat_dict["feature_name"], str
+                ), "feature_name should be either None or a string"
 
             if "transform" in gconstruct_feat_dict:
                 gconstruct_transform_dict = gconstruct_feat_dict["transform"]
@@ -125,19 +136,23 @@ class GConstructConfigChecker(ConfigChecker):
                     ), "range should be in the gconstruct bucket feature transform field"
                     if "slide_window_size" in gconstruct_transform_dict:
                         slide_window_size = gconstruct_transform_dict["slide_window_size"]
-                        assert isinstance(slide_window_size, int), \
-                            (f"slide_window_size should be an int number for bucket feature transformation, "
-                             f"but get {slide_window_size}")
+                        assert isinstance(slide_window_size, int), (
+                            f"slide_window_size should be an int number for bucket feature transformation, "
+                            f"but get {slide_window_size}"
+                        )
                 elif gconstruct_transform_dict["name"] == "rank_gauss":
                     if "epsilon" in gconstruct_transform_dict:
                         epsilon = gconstruct_transform_dict["epsilon"]
-                        assert isinstance(epsilon, float), \
-                            f"epsilon should be a float number but get {epsilon}"
+                        assert isinstance(
+                            epsilon, float
+                        ), f"epsilon should be a float number but get {epsilon}"
                 elif gconstruct_transform_dict["name"] in ("tokenize_hf", "bert_hf"):
-                    assert "bert_model" in gconstruct_transform_dict, \
-                        "bert_model must be specified for LM"
-                    assert isinstance(gconstruct_transform_dict["max_seq_length"], int), \
-                        "max_seq_length must be specified for maximal sequence length"
+                    assert (
+                        "bert_model" in gconstruct_transform_dict
+                    ), "bert_model must be specified for LM"
+                    assert isinstance(
+                        gconstruct_transform_dict["max_seq_length"], int
+                    ), "max_seq_length must be specified for maximal sequence length"
                 # TODO: Add support for other common transformations here
                 else:
                     raise ValueError(
@@ -187,7 +202,7 @@ class GConstructConfigChecker(ConfigChecker):
             # labels
             if "labels" in e:
                 GConstructConfigChecker._check_label(e["labels"])
-                
+
         return True
 
 

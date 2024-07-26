@@ -69,7 +69,10 @@ from graphstorm_processing.graph_loaders.dist_heterogeneous_loader import (
     ProcessedGraphRepresentation,
 )
 from graphstorm_processing.config.config_parser import create_config_objects
-from graphstorm_processing.config.config_conversion import GConstructConfigConverter
+from graphstorm_processing.config.config_conversion import (
+    GConstructConfigConverter,
+    GConstructConfigChecker,
+)
 from graphstorm_processing.constants import TRANSFORMATIONS_FILENAME
 from graphstorm_processing.data_transformations import spark_utils, s3_utils
 from graphstorm_processing.repartition_files import (
@@ -215,6 +218,8 @@ class DistributedExecutor:
                 self.gsp_config_dict = dataset_config_dict["graph"]
             elif config_version.startswith("gconstruct"):
                 logging.info("Parsing config file as GConstruct config")
+                gconstruct_sanity_checker = GConstructConfigChecker()
+                gconstruct_sanity_checker.check_config(dataset_config_dict)
                 converter = GConstructConfigConverter()
                 self.gsp_config_dict = converter.convert_to_gsprocessing(dataset_config_dict)[
                     "graph"
@@ -222,6 +227,8 @@ class DistributedExecutor:
             else:
                 logging.warning("Unrecognized configuration file version name: %s", config_version)
                 try:
+                    gconstruct_sanity_checker = GConstructConfigChecker()
+                    gconstruct_sanity_checker.check_config(dataset_config_dict)
                     converter = GConstructConfigConverter()
                     self.gsp_config_dict = converter.convert_to_gsprocessing(dataset_config_dict)[
                         "graph"
@@ -236,6 +243,8 @@ class DistributedExecutor:
         else:
             # Older versions of GConstruct configs might be missing a version entry
             logging.warning("No configuration file version name, trying to parse as GConstruct...")
+            gconstruct_sanity_checker = GConstructConfigChecker()
+            gconstruct_sanity_checker.check_config(dataset_config_dict)
             converter = GConstructConfigConverter()
             self.gsp_config_dict = converter.convert_to_gsprocessing(dataset_config_dict)["graph"]
 

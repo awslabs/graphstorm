@@ -86,7 +86,6 @@ class ConfigChecker(abc.ABC):
         return True
 
 
-
 class ConfigConverter(abc.ABC):
     """Base class for configuration converters.
 
