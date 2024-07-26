@@ -9,5 +9,4 @@
     :show-inheritance:
     :members:
     :member-order: bysource
-    :special-members:
     :exclude-members: get_metric_comparator

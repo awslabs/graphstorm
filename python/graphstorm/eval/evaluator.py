@@ -109,80 +109,83 @@ def get_val_score_rank(val_score, val_perf_rank_list, comparator):
 
 
 class GSgnnPredictionEvalInterface():
-    """ Interface for prediction evaluation functions
+    """ Interface for Prediction evaluation function.
 
-    The interface set the two abstract methods for prediction classes, i.e., Classification
+    The interface set the two abstract methods for prediction tasks, i.e., Classification
     and Regression, which share the same input arguments.
     """
 
     @abc.abstractmethod
     def evaluate(self, val_pred, test_pred, val_labels, test_labels, total_iters):
-        """Evaluate validation and test sets for Prediciton tasks
+        """Evaluate Prediction results of validation and test sets.
 
-        GSgnnTrainers will call this function to do evalution in their eval() fuction.
+        ``GSgnnTrainers`` will call this function to do evalution in their ``eval()`` fuction.
 
-        Classification and regression evaluators should provide both predictions and labels in
-        validation and test sets.
+        Classification and regression evaluators should provide both predictions and labels of
+        validation and test sets to this method.
 
         Parameters
         ----------
         val_pred : tensor
-            The tensor stores the prediction results on the validation nodes.
+            The tensor stores the prediction results on the validation nodes or edges.
         test_pred : tensor
-            The tensor stores the prediction results on the test nodes.
+            The tensor stores the prediction results on the test nodes or edges.
         val_labels : tensor
-            The tensor stores the labels of the validation nodes.
+            The tensor stores the labels of the validation nodes or edges.
         test_labels : tensor
-            The tensor stores the labels of the test nodes.
+            The tensor stores the labels of the test nodes or edges.
         total_iters: int
-            The current interation number.
+            The current iteration number.
 
         Returns
         -----------
-        eval_score: float
-            Validation score
-        test_score: float
-            Test score
+        eval_score: dict
+            Validation scores of differnet metrics in the format of {metric: val_score}
+        test_score: dict
+            Test scores of different metrics in the format of {metric: test_score}.
         """
 
     @abc.abstractmethod
     def compute_score(self, pred, labels, train=True):
-        """ Compute evaluation score for Prediciton tasks
+        """ Compute Prediciton results evaluation score.
 
-        Classification and regression evaluators should provide both predictions and labels.
+        Classification and regression evaluators should provide both predictions and labels
+        to this method.
 
         Parameters
         ----------
-        pred:
-            Rediction result
-        labels:
-            Label
-        train: boolean
+        pred: tensor
+            The tensor stores the prediction results.
+        labels: tensor
+            The tensor stores the labels.
+        train: bool
             If in model training.
 
         Returns
         -------
-        Evaluation metric values: dict
+        dict: Evaluation scores of different metrics in the format of {metric: score}
         """
 
 
 class GSgnnLPRankingEvalInterface():
-    """ Interface for Link Prediction evaluation function using ranking methods
+    """ Interface for Link Prediction evaluation function using ranking methods.
 
-    The interface set the two abstract methods for Link Prediction classes that use ranking
-    method to compute evaluation metrics, such as "mrr" (Mean Reciprocal Rank).
+    The interface set the two abstract methods for Link Prediction evaluator classes that use
+    ranking method to compute evaluation metrics, such as "mrr" (Mean Reciprocal Rank).
 
     There are two methdos to be implemented if inherite this interface.
-    1. ``evaluate()`` method, which will be called by Trainers to provide ranking-based evaluation
-       results of validation and test sets during training process.
-    2. ``compute_score()`` method, which compute the scores for given rankings.
+    
+    - ``evaluate()`` method, which will be called by ``GSgnnTrainers`` to provide ranking-based
+       evaluation results of validation and test sets during training process.
+    - ``compute_score()`` method, which computes the scores for given rankings.
+
     """
 
     @abc.abstractmethod
     def evaluate(self, val_rankings, test_rankings, total_iters):
-        """Evaluate validation and test sets for Link Prediciton tasks
+        """Evaluate Link Prediciton results of validation and test sets.
 
-        GSgnnTrainers will call this function to do evalution in their eval() fuction.
+        ``GSgnnTrainers`` will call this function to do evalution in their ``eval()`` fuction.
 
         Link Prediction evaluators should provide the ranking of validation and test sets as
         input.
@@ -194,21 +197,21 @@ class GSgnnLPRankingEvalInterface():
         test_rankings: dict of tensors
             The rankings of testing edges for each edge type in format of {etype: ranking}.
         total_iters: int
-            The current interation number.
+            The current iteration number.
 
         Returns
         -----------
-        eval_score: float
+        eval_score: dict
             Validation score for each edge type in format of {etype: score}.
-        test_score: float
+        test_score: dict
             Test score for each edge type in format of {etype: score}.
         """
 
     @abc.abstractmethod
     def compute_score(self, rankings, train=True):
-        """ Compute evaluation score for Prediciton tasks
+        """ Compute Link Prediciton evaluation score.
 
-        Ranking-based link prediction evaluators should provide ranking values as input.
+        Ranking-based Link Prediction evaluators should provide ranking values as input.
 
         Parameters
         ----------
@@ -219,8 +222,7 @@ class GSgnnLPRankingEvalInterface():
 
         Returns
         -------
-        Evaluation metric values: dict
-            scores for each edge type.
+        dict: Ranking-based evaluation scores for each edge type in format of {etype: score}.
         """
 
 
