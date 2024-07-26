@@ -80,10 +80,10 @@ class ConfigChecker(abc.ABC):
         nodes_entries: list[dict] = input_dictionary["nodes"]
         edges_entries: list[dict] = input_dictionary["edges"]
 
-        node_valid: bool = self.check_nodes(nodes_entries)
-        edge_valid: bool = self.check_edges(edges_entries)
+        self.check_nodes(nodes_entries)
+        self.check_edges(edges_entries)
 
-        return node_valid and edge_valid
+        return True
 
 
 
