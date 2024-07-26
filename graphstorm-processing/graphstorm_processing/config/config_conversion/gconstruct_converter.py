@@ -55,8 +55,10 @@ class GConstructConfigChecker(ConfigChecker):
                 "classification",
                 "regression",
                 "link_prediction",
-            ), ("task type is required, and should be one of "
-                "classification, regression and link_prediction")
+            ), (
+                "task type is required, and should be one of "
+                "classification, regression and link_prediction"
+            )
 
             if "custom_split_filenames" not in label:
                 if "split_pct" in label:
