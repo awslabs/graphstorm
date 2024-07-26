@@ -160,6 +160,8 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
                 new_embs[key] = new_emb
             return new_embs
         else:
+            # If normalization method is None
+            # do nothing.
             return embs
 
     # pylint: disable = arguments-differ
@@ -522,7 +524,15 @@ def multi_task_mini_batch_predict(
         for dataloader, task_info in zip(dataloaders, task_infos):
             # normalize the node embedding if needed.
             # input emb is shared across different tasks
-            # so that we will not do inplace normalization.
+            # so that we can not do inplace normalization.
+            #
+            # Note(xiangsx): Currently node embedding normalization
+            # only supports link prediction tasks.
+            # model.normalize_task_node_embs does nothing
+            # for node and edge prediction tasks.
+            # TODO(xiangsx): Need a more memory efficient design when
+            # node embedding normalization supports node and edge
+            # prediction tasks.
             emb = model.normalize_task_node_embs(task_info.task_id, emb, inplace=False)
             if task_info.task_type in \
             [BUILTIN_TASK_NODE_CLASSIFICATION,

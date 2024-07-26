@@ -155,7 +155,7 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
         # before conducting prediction results.
         if save_embed_path is not None:
             logging.info("Saving node embeddings")
-            node_norm_method = model.node_embed_norm_methods
+            node_norm_methods = model.node_embed_norm_methods
             # Save the original embs first
             save_gsgnn_embeddings(g,
                                   save_embed_path,
@@ -163,7 +163,7 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
                                   node_id_mapping_file=node_id_mapping_file,
                                   save_embed_format=save_embed_format)
             barrier()
-            for task_id, _ in node_norm_method.items():
+            for task_id, _ in node_norm_methods.items():
                 normed_embs = model.normalize_task_node_embs(task_id, embs, inplace=False)
                 save_embed_path = os.path.join(save_embed_path, task_id)
                 save_gsgnn_embeddings(g,
