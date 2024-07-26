@@ -8,7 +8,7 @@ graphstorm.eval
     ``GSgnnClassificationEvaluator`` can provide evaluation for classification tasks. By
     default, it computes `accuracy` metric. Users can also specify other metrics such as
     `precision_recall`, `roc_auc`, `f1_score`, etc. Users can find all of the metrics for
-    different tasks in the :ref:`Evaluation metrics section<eval_metrics>`.
+    different tasks in the :ref:`Evaluation metrics <eval_metrics>` section.
 
     If users want to implement customized evaluators or evaluation methods, a best practice is to
     extend the base evaluator, i.e., the ``GSgnnBaseEvaluator``, and the corresponding evaluation
