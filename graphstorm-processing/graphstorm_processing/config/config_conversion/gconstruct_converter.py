@@ -55,7 +55,8 @@ class GConstructConfigChecker(ConfigChecker):
                 "classification",
                 "regression",
                 "link_prediction",
-            ), "task type is required, and should be one of classification, regression and link_prediction"
+            ), ("task type is required, and should be one of "
+                "classification, regression and link_prediction")
 
             if "custom_split_filenames" not in label:
                 if "split_pct" in label:
@@ -92,8 +93,8 @@ class GConstructConfigChecker(ConfigChecker):
                     assert isinstance(label["separator"], str), "separator must be a string"
             # Not supported for multi-task config for GSProcessing
             assert "mask_field_names" not in label, (
-                f"GSProcessing currently do not support to "
-                f"construct labels for multi-task learning"
+                "GSProcessing currently do not support to "
+                "construct labels for multi-task learning"
             )
         return True
 
@@ -137,8 +138,8 @@ class GConstructConfigChecker(ConfigChecker):
                     if "slide_window_size" in gconstruct_transform_dict:
                         slide_window_size = gconstruct_transform_dict["slide_window_size"]
                         assert isinstance(slide_window_size, int), (
-                            f"slide_window_size should be an int number for bucket feature transformation, "
-                            f"but get {slide_window_size}"
+                            f"slide_window_size should be an int number for "
+                            f"bucket feature transformation, but get {slide_window_size}"
                         )
                 elif gconstruct_transform_dict["name"] == "rank_gauss":
                     if "epsilon" in gconstruct_transform_dict:
