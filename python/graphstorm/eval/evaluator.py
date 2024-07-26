@@ -227,9 +227,9 @@ class GSgnnLPRankingEvalInterface():
 class GSgnnBaseEvaluator():
     """ Base class for Evaluators.
 
-    New base class in V0.3 to replace ``GSgnnInstanceEvaluator`` and ``GSgnnLPEvaluator``. This
-    class serves as the base for the built-in ``GSgnnClassificationEvaluator``,
-    ``GSgnnRegressionEvaluator``, ``GSgnnMrrLPEvaluator``, and ``GSgnnPerEtypeMrrLPEvaluator``.
+    This class serves as the base for built-in evaluator classes, like
+    ``GSgnnClassificationEvaluator``, ``GSgnnRegressionEvaluator``, ``GSgnnMrrLPEvaluator``,
+    ``GSgnnPerEtypeMrrLPEvaluator``, and ``GSgnnRconstructFeatRegScoreEvaluator``.
 
     In order to create customized Evaluators, users can inherite this class and the corresponding
     EvalInteface class, and then implement the two abstract methods, i.e., ``evaluate()``
@@ -240,16 +240,19 @@ class GSgnnBaseEvaluator():
     eval_frequency: int
         The frequency (# of iterations) of doing evaluation.
     eval_metric_list: list of string
-        Evaluation metric used during evaluation.
+        Evaluation metrics used for evaluation.
     use_early_stop: bool
         Set true to use early stop.
     early_stop_burnin_rounds: int
-        Burn-in rounds before start checking for the early stop condition.
+        Burn-in rounds (# of evaluations) before start checking for the early stop condition.
+        Default: 0.
     early_stop_rounds: int
-        The number of rounds for validation scores used to decide early stop.
+        The number of rounds (# of evaluations) for validation scores used to decide early stop.
+        Default: 3.
     early_stop_strategy: str
         The early stop strategy. GraphStorm supports two strategies:
-        1) consecutive_increase and 2) average_increase.
+        1) ``consecutive_increase``, and 2) ``average_increase``.
+        Default: ``average_increase``.
     """
     def __init__(self, eval_frequency, eval_metric_list,
                  use_early_stop=False,
@@ -279,28 +282,31 @@ class GSgnnBaseEvaluator():
         self._val_perf_rank_list = []
 
     def setup_task_tracker(self, task_tracker):
-        """ Setup evaluation tracker
+        """ Setup evaluation task tracker.
 
-            Parameters
-            ----------
-            task_tracker:
-                a task tracker
+        Parameters
+        ----------
+        task_tracker: GSSageMakerAbc
+            A GraphStorm task tracker.
         """
         self.tracker = task_tracker
 
     def do_eval(self, total_iters, epoch_end=False):
-        """ Decide whether to do the evaluation in current iteration or epoch
+        """ Decide whether to do the evaluation in current iteration or epoch.
+        
+        Return `True`, if the current iteration is larger than 0 and is a mutiple of the given
+        `eval_frequency`, or is the end of an epoch. Otherwise return `False`.
 
-            Parameters
-            ----------
-            total_iters: int
-                The total number of iterations has been taken.
-            epoch_end: bool
-                Whether it is the end of an epoch
+        Parameters
+        ----------
+        total_iters: int
+            The total number of iterations has been taken.
+        epoch_end: bool
+            Whether it is the end of an epoch
 
-            Returns
-            -------
-            Whether do evaluation: bool
+        Returns
+        -------
+        bool: Whether to do evaluation.
         """
         if epoch_end:
             return True
@@ -309,12 +315,16 @@ class GSgnnBaseEvaluator():
         return False
 
     def do_early_stop(self, val_score):
-        """ Decide whether to stop the training
+        """ Decide whether to stop the training early.
 
-            Parameters
-            ----------
-            val_score: float
-                Evaluation score
+        Parameters
+        ----------
+        val_score: dict of list
+            Dict of evaluation scores for one metric.
+
+        Returns
+        -------
+        bool: Whether to stop early.
         """
         if self._do_early_stop is False:
             return False
@@ -360,15 +370,18 @@ class GSgnnBaseEvaluator():
         return self.metrics_obj.metric_comparator[metric]
 
     def get_val_score_rank(self, val_score):
-        """
-        Get the rank of the given validation score by comparing its values to the existing value
-        list.
+        """ Get the rank of the given validation score by comparing its value to the
+        existing value list.
 
         Parameters
         ----------
-        val_score: dict
+        val_score: dict of list
             A dictionary whose key is the metric and the value is a score from evaluator's
             validation computation.
+            
+        Returns
+        --------
+        int: The rank of the given validation score.
         """
         val_score = list(val_score.values())[0]
 
@@ -381,56 +394,53 @@ class GSgnnBaseEvaluator():
 
     @property
     def metric_list(self):
-        """ evaluation metrics
+        """ Return the evaluation metric list, which is given in class initialization.
         """
         return self._metric_list
 
     @property
     def best_val_score(self):
-        """ Best validation score
+        """ Return the best validation score of the major metric stored in this evaluator.
         """
         return self._best_val_score
 
     @property
     def best_test_score(self):
-        """ Best test score
+        """ Return the best test score of the major metric stored in this evaluator.
         """
         return self._best_test_score
 
     @property
     def best_iter_num(self):
-        """ Best iteration number
+        """ Return the best iteration number when the best validation score was achieved.
         """
         return self._best_iter
 
     @property
     def history(self):
-        """ Evaluation history
+        """ Return a list of evaluation history of training.
 
-            Returns
-            -------
-            A list of evaluation history in training. The detailed contents of the list rely
-            on specific Evaluators. For example, ``GSgnnRegressionEvaluator`` and
-            ``GSgnnClassificationEvaluator`` add a tuple of validation and testing score as one
-            list element.
+        The detailed contents of the list rely on implementations of specific Evaluators.
+        For example, ``GSgnnRegressionEvaluator`` and ``GSgnnClassificationEvaluator`` both
+        use a tuple of validation and testing score as one list element.
         """
         return self._history
 
     @property
     def eval_frequency(self):
-        """ Evaluation frequency
+        """ Return the evaluation frequency, which is given in class initialization.
         """
         return self._eval_frequency
 
     @property
     def task_tracker(self):
-        """ Task tracker of this evaluator
+        """ Return the task tracker set from the setup_task_tracker() method.
         """
         return self.tracker
 
     @property
     def val_perf_rank_list(self):
-        """ validation performance rank list
+        """ Return the validation performance rank list.
         """
         return self._val_perf_rank_list
 
@@ -925,7 +935,6 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             return_metrics[metric] = return_metric.item()
 
         return return_metrics
-
 
 class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     """ The class for link prediction evaluation using Mrr metric and

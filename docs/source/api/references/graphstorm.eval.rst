@@ -42,3 +42,4 @@ Evaluators
     GSgnnRegressionEvaluator
     GSgnnMrrLPEvaluator
     GSgnnPerEtypeMrrLPEvaluator
+    GSgnnRconstructFeatRegScoreEvaluator
