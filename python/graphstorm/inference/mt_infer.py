@@ -163,7 +163,9 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
                                   node_id_mapping_file=node_id_mapping_file,
                                   save_embed_format=save_embed_format)
             barrier()
-            for task_id, _ in node_norm_methods.items():
+            for task_id, norm_method in node_norm_methods.items():
+                if norm_method is None:
+                    continue
                 normed_embs = model.normalize_task_node_embs(task_id, embs, inplace=False)
                 save_embed_path = os.path.join(save_embed_path, task_id)
                 save_gsgnn_embeddings(g,
