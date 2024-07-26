@@ -101,7 +101,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         self._task_pool = {}
         self._decoder = nn.ModuleDict()
         self._loss_fn = nn.ModuleDict()
-        self._node_embed_norm_method = {}
+        self._node_embed_norm_methods = {}
         self._warn_printed = False
 
     def normalize_task_node_embs(self, task_id, embs, inplace=False):
@@ -124,7 +124,8 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         dict of Tensors:
             Normalized node embeddings.
         """
-        if self._node_embed_norm_method[task_id] is not None:
+        if self._node_embed_norm_methods[task_id] is not None:
+            new_embs = {}
             rank = get_rank()
             world_size = get_world_size()
             for key, emb in embs.items():
@@ -133,29 +134,30 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
                     # embdding normalization concurrently. We need to split
                     # the task. (From full_graph_inference)
                     start, end = get_data_range(rank, world_size, len(emb))
-                    new_embs = emb if inplace else \
+                    new_emb = emb if inplace else \
                         create_dist_tensor(emb.shape,
                                            emb.dtype,
                                            name=f"{emb.name}_task_id",
                                            part_policy=emb.part_policy,
-                                           persistent=False)
+                                           persistent=True)
                 else:
                     # If emb is just a torch Tensor. do normalization directly.
                     # (From mini_batch_inference)
                     start, end = 0, len(emb)
-                    new_embs = emb if inplace else emb.empty_like(emb)
+                    new_emb = emb if inplace else th.clone(emb)
                 idx = start
                 while idx + 1024 < end:
-                    new_embs[idx:idx+1024] = \
+                    new_emb[idx:idx+1024] = \
                         self.minibatch_normalize_task_node_embs(
                             task_id,
                             {key:emb[idx:idx+1024]})[key]
                     idx += 1024
-                new_embs[idx:end] = \
+                new_emb[idx:end] = \
                     self.minibatch_normalize_task_node_embs(
                         task_id,
                         {key:emb[idx:end]})[key]
                 barrier()
+                new_embs[key] = new_emb
             return new_embs
         else:
             return embs
@@ -178,8 +180,8 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         dict of Tensors:
             Normalized node embeddings.
         """
-        if self._node_embed_norm_method[task_id] is not None:
-            return normalize_node_embs(embs, self._node_embed_norm_method[task_id])
+        if self._node_embed_norm_methods[task_id] is not None:
+            return normalize_node_embs(embs, self._node_embed_norm_methods[task_id])
         else:
             return embs
 
@@ -192,7 +194,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         dict of strings:
             Normalization methods
         """
-        return self._node_embed_norm_method
+        return self._node_embed_norm_methods
 
     def add_task(self, task_id, task_type,
                  decoder, loss_func,
@@ -222,7 +224,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         self._decoder[task_id] = decoder
         # add loss func in nn module
         self._loss_fn[task_id] = loss_func
-        self._node_embed_norm_method[task_id] = embed_norm_method
+        self._node_embed_norm_methods[task_id] = embed_norm_method
 
     @property
     def alpha_l2norm(self):
