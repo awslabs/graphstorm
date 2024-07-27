@@ -109,7 +109,7 @@ def get_val_score_rank(val_score, val_perf_rank_list, comparator):
 
 
 class GSgnnPredictionEvalInterface():
-    """ Interface for Prediction evaluation function.
+    """ Interface for Prediction evaluation functions.
 
     The interface set the two abstract methods for prediction tasks, i.e., Classification
     and Regression, which share the same input arguments.
@@ -140,14 +140,14 @@ class GSgnnPredictionEvalInterface():
         Returns
         -----------
         eval_score: dict
-            Validation scores of differnet metrics in the format of {metric: val_score}
+            Validation scores of differnet metrics in the format of {metric: val_score}.
         test_score: dict
             Test scores of different metrics in the format of {metric: test_score}.
         """
 
     @abc.abstractmethod
     def compute_score(self, pred, labels, train=True):
-        """ Compute Prediciton results evaluation score.
+        """ Compute evaluation score of Prediciton results.
 
         Classification and regression evaluators should provide both predictions and labels
         to this method.
@@ -163,7 +163,7 @@ class GSgnnPredictionEvalInterface():
 
         Returns
         -------
-        dict: Evaluation scores of different metrics in the format of {metric: score}
+        dict: Evaluation scores of different metrics in the format of {metric: score}.
         """
 
 
@@ -175,9 +175,9 @@ class GSgnnLPRankingEvalInterface():
 
     There are two methdos to be implemented if inherite this interface.
     
-    - ``evaluate()`` method, which will be called by ``GSgnnTrainers`` to provide ranking-based
-       evaluation results of validation and test sets during training process.
-    - ``compute_score()`` method, which computes the scores for given rankings.
+    1. ``evaluate()`` method, which will be called by ``GSgnnTrainers`` to provide ranking-based
+    evaluation results of validation and test sets during training process.
+    2. ``compute_score()`` method, which computes the scores for given rankings.
 
     """
 
