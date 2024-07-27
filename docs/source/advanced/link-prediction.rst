@@ -232,7 +232,7 @@ For example, the file storing hard negatives should look like the following:
 
 .. code-block:: yaml
 
-    src_id   | dst_id   | hard_neg
+      src    |   dst    | hard_neg
     "src_0"  | "dst_0"  | ["dst_10", "dst_11"]
     "src_0"  | "dst_1"  | ["dst_5"]
     ...
@@ -243,7 +243,7 @@ For example, the file storing hard negatives should look like the following:
 
 .. code-block:: yaml
 
-    src_id   | dst_id  | hard_neg
+      src    |   dst    | hard_neg
     "src_0"  | "dst_0" | "dst_10;dst_11"
     "src_0"  | "dst_1" | "dst_5"
     ...
