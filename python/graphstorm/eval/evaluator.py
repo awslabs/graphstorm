@@ -168,17 +168,17 @@ class GSgnnPredictionEvalInterface():
 
 
 class GSgnnLPRankingEvalInterface():
-    """ Interface for Link Prediction evaluation function using ranking methods.
+    """ Interface for Link Prediction evaluation functions using ranking methods.
 
-    The interface set the two abstract methods for Link Prediction evaluator classes that use
-    ranking method to compute evaluation metrics, such as "mrr" (Mean Reciprocal Rank).
+    The interface sets two abstract methods for Link Prediction evaluator classes that use
+    ranking method to compute evaluation metrics, such as **`mrr`** (Mean Reciprocal Rank).
 
     There are two methdos to be implemented if inherite this interface.
-    
+
     1. ``evaluate()`` method, which will be called by ``GSgnnTrainers`` to provide ranking-based
     evaluation results of validation and test sets during training process.
-    2. ``compute_score()`` method, which computes the scores for given rankings.
 
+    2. ``compute_score()`` method, which computes the scores for given rankings.
     """
 
     @abc.abstractmethod
@@ -188,7 +188,7 @@ class GSgnnLPRankingEvalInterface():
         ``GSgnnTrainers`` will call this function to do evalution in their ``eval()`` fuction.
 
         Link Prediction evaluators should provide the ranking of validation and test sets as
-        input.
+        input to this method.
 
         Parameters
         ----------
@@ -211,7 +211,8 @@ class GSgnnLPRankingEvalInterface():
     def compute_score(self, rankings, train=True):
         """ Compute Link Prediciton evaluation score.
 
-        Ranking-based Link Prediction evaluators should provide ranking values as input.
+        Ranking-based Link Prediction evaluators should provide ranking values as input
+        to this method.
 
         Parameters
         ----------
