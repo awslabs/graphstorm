@@ -507,7 +507,9 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterf
             self._best_iter[metric] = 0
 
     def evaluate(self, val_pred, test_pred, val_labels, test_labels, total_iters):
+        """ Compute classificaton metric scores on validation and test sets.
 
+        """
         # exchange preds and labels between runners
         local_rank = get_rank()
         world_size = get_world_size()
