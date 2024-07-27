@@ -35,7 +35,8 @@ from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_EDGE_CLASSIFICATION,
                       BUILTIN_TASK_EDGE_REGRESSION,
                       BUILTIN_TASK_LINK_PREDICTION,
-                      BUILTIN_TASK_COMPUTE_EMB)
+                      BUILTIN_TASK_COMPUTE_EMB,
+                      BUILTIN_TASK_MULTI_TASK)
 from .utils import (download_yaml_config,
                     download_graph,
                     keep_alive,
@@ -101,6 +102,8 @@ def launch_infer_task(task_type, num_gpus, graph_config,
         cmd = "graphstorm.run.gs_link_prediction"
     elif task_type == BUILTIN_TASK_COMPUTE_EMB:
         cmd = "graphstorm.run.gs_gen_node_embedding"
+    elif task_type == BUILTIN_TASK_MULTI_TASK:
+        cmd = "graphstorm.run.gs_multi_task_learning"
     else:
         raise RuntimeError(f"Unsupported task type {task_type}")
 
