@@ -509,6 +509,26 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterf
     def evaluate(self, val_pred, test_pred, val_labels, test_labels, total_iters):
         """ Compute classificaton metric scores on validation and test sets.
 
+        Parameters
+        ----------
+        val_pred : tensor
+            The tensor stores the prediction results on the validation nodes or edges.
+        test_pred : tensor
+            The tensor stores the prediction results on the test nodes or edges.
+        val_labels : tensor
+            The tensor stores the labels of the validation nodes or edges.
+        test_labels : tensor
+            The tensor stores the labels of the test nodes or edges.
+        total_iters: int
+            The current iteration number.
+
+        Returns
+        -----------
+        eval_score: dict
+            Validation scores of differnet classification metrics in the format of
+            {metric: val_score}.
+        test_score: dict
+            Test scores of different classification metrics in the format of {metric: test_score}.
         """
         # exchange preds and labels between runners
         local_rank = get_rank()
@@ -536,20 +556,20 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterf
         return val_score, test_score
 
     def compute_score(self, pred, labels, train=True):
-        """ Compute evaluation score
+        """ Compute classification evaluation score
 
-            Parameters
-            ----------
-            pred:
-                Rediction result
-            labels:
-                Label
-            train: boolean
-                If in model training.
+        Parameters
+        ----------
+        pred: tensor
+            The tensor stores the prediction results.
+        labels: tensor
+            The tensor stores the labels.
+        train: bool
+            If in model training.
 
-            Returns
-            -------
-            Evaluation metric values: dict
+        Returns
+        -------
+        dict: Evaluation scores of different classification metrics in the format of {metric: score}.
         """
         results = {}
         for metric in self.metric_list:
@@ -570,14 +590,15 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterf
 
     @property
     def multilabel(self):
-        """ Indicator of if using mutliple labels
+        """ Return if this is a multi-label classification task, which is given in class
+        initialization.
         """
         return self._multilabel
 
 class GSgnnRegressionEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface):
-    """ Regression Evaluator.
+    """ Evaluator for regression tasks.
 
-    GS built-in evaluator for regression task. It uses "rmse" as the default eval metric.
+    A built-in evaluator for regression tasks. It uses ``rmse`` as the default evaluation metric.
 
     Parameters
     ----------
@@ -586,14 +607,17 @@ class GSgnnRegressionEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface)
     eval_metric_list: list of string
         Evaluation metric used during evaluation. Default: ["rmse"].
     use_early_stop: bool
-        Set true to use early stop.
+        Set true to use early stop. Default: False.
     early_stop_burnin_rounds: int
-        Burn-in rounds before start checking for the early stop condition.
+        Burn-in rounds (# of evaluations) before start checking for the early stop condition.
+        Default: 0.
     early_stop_rounds: int
-        The number of rounds for validation scores used to decide early stop.
+        The number of rounds (# of evaluations) for validation scores used to decide early stop.
+        Default: 3.
     early_stop_strategy: str
         The early stop strategy. GraphStorm supports two strategies:
-        1) consecutive_increase and 2) average_increase.
+        1) ``consecutive_increase``, and 2) ``average_increase``.
+        Default: ``average_increase``.
     """
     def __init__(self, eval_frequency,
                  eval_metric_list=None,
@@ -619,26 +643,28 @@ class GSgnnRegressionEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface)
             self._best_iter[metric] = 0
 
     def evaluate(self, val_pred, test_pred, val_labels, test_labels, total_iters):
-        """ Compute scores on validation and test predictions.
+        """ Compute regression scores on validation and test sets.
 
-            Parameters
-            ----------
-            val_pred : tensor
-                The tensor stores the prediction results on the validation nodes.
-            test_pred : tensor
-                The tensor stores the prediction results on the test nodes.
-            val_labels : tensor
-                The tensor stores the labels of the validation nodes.
-            test_labels : tensor
-                The tensor stores the labels of the test nodes.
-            total_iters: int
-                The current interation number.
-            Returns
-            -----------
-            float
-                Validation MSE
-            float
-                Test MSE
+        Parameters
+        ----------
+        val_pred : tensor
+            The tensor stores the prediction results on the validation nodes or edges.
+        test_pred : tensor
+            The tensor stores the prediction results on the test nodes or edges.
+        val_labels : tensor
+            The tensor stores the labels of the validation nodes or edges.
+        test_labels : tensor
+            The tensor stores the labels of the test nodes or edges.
+        total_iters: int
+            The current iteration number.
+
+        Returns
+        -----------
+        eval_score: dict
+            Validation scores of differnet regression metrics in the format of
+            {metric: val_score}.
+        test_score: dict
+            Test scores of different regression metrics in the format of {metric: test_score}.
         """
         # exchange preds and labels between runners
         local_rank = get_rank()
@@ -666,20 +692,20 @@ class GSgnnRegressionEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface)
         return val_score, test_score
 
     def compute_score(self, pred, labels, train=True):
-        """ Compute evaluation score
+        """ Compute regression evaluation score
 
-            Parameters
-            ----------
-            pred:
-                Rediction result
-            labels:
-                Label
-            train: boolean
-                If in model training.
+        Parameters
+        ----------
+        pred: tensor
+            The tensor stores the prediction results.
+        labels: tensor
+            The tensor stores the labels.
+        train: bool
+            If in model training.
 
-            Returns
-            -------
-            Evaluation metric values: dict
+        Returns
+        -------
+        dict: Evaluation scores of different regression metrics in the format of {metric: score}.
         """
         scores = {}
         for metric in self.metric_list:
