@@ -449,12 +449,12 @@ class GSgnnBaseEvaluator():
 
 
 class GSgnnClassificationEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface):
-    """Classification evaluator
+    """ Evaluator for classification tasks.
 
-    GS built-in evaluator for classification task. It uses "accuracy" as the default eval metric,
-    and sets the multilabel to be False.
+    A built-in evaluator for classification task. It uses ``accuracy`` as the default evaluation
+    metric.
 
-    It replacees the ``GSgnnAccEvaluator`` since v0.3.
+    This class replaces the ``GSgnnAccEvaluator`` since v0.3.
 
     Parameters
     ----------
@@ -465,14 +465,17 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterf
     multilabel: bool
         If set to true, the task is a multi-label classification task. Default: False.
     use_early_stop: bool
-        Set true to use early stop.
+        Set true to use early stop. Default: False.
     early_stop_burnin_rounds: int
-        Burn-in rounds before start checking for the early stop condition.
+        Burn-in rounds (# of evaluations) before start checking for the early stop condition.
+        Default: 0.
     early_stop_rounds: int
-        The number of rounds for validation scores used to decide early stop.
+        The number of rounds (# of evaluations) for validation scores used to decide early stop.
+        Default: 3.
     early_stop_strategy: str
         The early stop strategy. GraphStorm supports two strategies:
-        1) consecutive_increase and 2) average_increase.
+        1) ``consecutive_increase``, and 2) ``average_increase``.
+        Default: ``average_increase``.
     """
     def __init__(self, eval_frequency,
                  eval_metric_list=None,
@@ -504,27 +507,7 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterf
             self._best_iter[metric] = 0
 
     def evaluate(self, val_pred, test_pred, val_labels, test_labels, total_iters):
-        """ Compute scores on validation and test predictions.
 
-            Parameters
-            ----------
-            val_pred : tensor
-                The tensor stores the prediction results on the validation nodes.
-            test_pred : tensor
-                The tensor stores the prediction results on the test nodes.
-            val_labels : tensor
-                The tensor stores the labels of the validation nodes.
-            test_labels : tensor
-                The tensor stores the labels of the test nodes.
-            total_iters: int
-                The current interation number.
-            Returns
-            -----------
-            float
-                Validation Score
-            float
-                Test Score
-        """
         # exchange preds and labels between runners
         local_rank = get_rank()
         world_size = get_world_size()
