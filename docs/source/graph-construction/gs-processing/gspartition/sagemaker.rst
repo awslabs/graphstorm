@@ -13,7 +13,7 @@ Step 1: Build a SageMaker-compatible Docker image
 ...................................................
 
 .. note::
-    * Please make sure your account has access key (AK) and security access key (SK) configured to authenticate accesses to AWS services.
+    * Please make sure your account has access key (AK) and security access key (SK) configured to authenticate accesses to AWS services, users can refer to `example policy <https://docs.aws.amazon.com/AmazonECR/latest/userguide/security_iam_id-based-policy-examples.html#security_iam_id-based-policy-examples-access-one-bucket>`_.
     * For more details of Amazon ECR operation via CLI, users can refer to the `Using Amazon ECR with the AWS CLI document <https://docs.aws.amazon.com/AmazonECR/latest/userguide/getting-started-cli.html>`_.
 
 First, in a Linux machine, configure a Docker environment by following the `Docker documentation <https://docs.docker.com/get-docker/>`_ suggestions.
