@@ -36,11 +36,11 @@ Then, clone GraphStorm source code, and build a GraphStorm SageMaker compatible 
 
     cd /path-to-graphstorm/docker/
 
-    bash /path-to-graphstorm/docker/build_docker_sagemaker.sh /path-to-graphstorm/ <DEVICE_TYPE> <IMAGE_NAME> <IMAGE_TAG>
+    bash build_docker_sagemaker.sh ../ <DEVICE_TYPE> <IMAGE_NAME> <IMAGE_TAG>
 
 The ``build_docker_sagemaker.sh`` script takes three arguments:
 
-1. **path-to-graphstorm** (**required**), is the absolute path of the ``graphstorm`` folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
+1. **path-to-graphstorm** (**required**), is the path of the ``graphstorm`` folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
 2. **DEVICE_TYPE**, is the intended device type of the to-be built Docker image. Please specify ``cpu`` for building CPU-compatible images for partition job.
 3. **IMAGE_NAME** (optional), is the assigned name of the to-be built Docker image. Default is ``graphstorm``.
 

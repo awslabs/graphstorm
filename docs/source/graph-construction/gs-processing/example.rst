@@ -294,7 +294,7 @@ Run a GSPartition job locally
 ------------------------------
 While :ref:`GSPartition<gspartition_index>` is designed to run on a multi-machine cluster,
 you can run GSPartition job locally for the example. Once you have completed the installation
-and GSProcessing example described in the previous section, you can proceed to run the GSPartition.
+and the GSProcessing example described in the previous section, you can proceed to run the GSPartition step.
 
 Assuming your working directory is ``graphstorm``,
 you can use the following command to run the partition job locally:
@@ -343,7 +343,7 @@ Once the partition job is done, you can examine the outputs.
 The ``dist_graph`` folder contains partitioned graph ready for training and inference.
 
 * ``part0``: As we only specify 1 partition in the previous command, we have one part folder here.
-There are five data here:
+There are five files for the partition
     * ``edge_feat.dgl``: The edge features for part 0 stored in binary format.
     * ``graph.dgl``: The graph structure data for part 0 stored in binary format.
     * ``node_feat.dgl``: The node features data for part 0 stored in binary format.

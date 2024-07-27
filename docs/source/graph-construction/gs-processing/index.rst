@@ -11,7 +11,7 @@ datasets, and GSPartition will process these structured datasets to create multi
 Here is an overview of the workflow for distributed graph construction:
 
 * **Prepare input data**: GraphStorm Distributed Construction accepts tabular files in parquet/CSV format.
-* **Run GSProcessing**: Use GSProcessing to process the input data. This step prepares the data for partitioning including edge and node data, transformation details, and mappings.
+* **Run GSProcessing**: Use GSProcessing to process the input data. This step prepares the data for partitioning including edge and node data, transformation details, and node id mappings.
 * **Run GSPartition**: Use GSPartition to partition the processed data into graph files suitable for distributed training. 
 
 .. figure:: ../../../../tutorial/distributed_construction.png
