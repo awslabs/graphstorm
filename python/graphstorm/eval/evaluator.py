@@ -111,8 +111,15 @@ def get_val_score_rank(val_score, val_perf_rank_list, comparator):
 class GSgnnPredictionEvalInterface():
     """ Interface for Prediction evaluation functions.
 
-    The interface set the two abstract methods for prediction tasks, i.e., Classification
-    and Regression, which share the same input arguments.
+    The interface set the two abstract methods for prediction tasks, i.e., **Classification**
+    and **Regression**, which share the same input arguments.
+
+    There are two methdos to be implemented if inherite this interface.
+
+    1. ``evaluate()`` method, which will be called by ``GSgnnTrainers`` to provide evaluation
+    results of validation and test sets during training process.
+
+    2. ``compute_score()`` method, which computes the scores for given predictions and labels.
     """
 
     @abc.abstractmethod
@@ -171,7 +178,7 @@ class GSgnnLPRankingEvalInterface():
     """ Interface for Link Prediction evaluation functions using ranking methods.
 
     The interface sets two abstract methods for Link Prediction evaluator classes that use
-    ranking method to compute evaluation metrics, such as **`mrr`** (Mean Reciprocal Rank).
+    ranking method to compute evaluation metrics, such as ``mrr`` (Mean Reciprocal Rank).
 
     There are two methdos to be implemented if inherite this interface.
 
@@ -228,14 +235,14 @@ class GSgnnLPRankingEvalInterface():
 
 
 class GSgnnBaseEvaluator():
-    """ Base class for Evaluators.
+    """ Base class for GraphStorm Evaluators.
 
-    This class serves as the base for built-in evaluator classes, like
+    This class serves as the base for GraphStorm built-in evaluator classes, like
     ``GSgnnClassificationEvaluator``, ``GSgnnRegressionEvaluator``, ``GSgnnMrrLPEvaluator``,
     ``GSgnnPerEtypeMrrLPEvaluator``, and ``GSgnnRconstructFeatRegScoreEvaluator``.
 
     In order to create customized Evaluators, users can inherite this class and the corresponding
-    EvalInteface class, and then implement the two abstract methods, i.e., ``evaluate()``
+    EvalInteface class, and then implement their two abstract methods, i.e., ``evaluate()``
     and ``compute_score()`` accordingly.
 
     Parameters
