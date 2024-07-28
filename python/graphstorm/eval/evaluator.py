@@ -116,8 +116,8 @@ class GSgnnPredictionEvalInterface():
 
     There are two methdos to be implemented if inherite this interface.
 
-    1. ``evaluate()`` method, which will be called by ``GSgnnTrainers`` to provide evaluation
-    results of validation and test sets during training process.
+    1. ``evaluate()`` method, which will be called by ``GSgnnTrainer``s in their ``eval()``
+    fuction to provide evaluation results of validation and test sets during training process.
 
     2. ``compute_score()`` method, which computes the scores for given predictions and labels.
     """
@@ -126,10 +126,8 @@ class GSgnnPredictionEvalInterface():
     def evaluate(self, val_pred, test_pred, val_labels, test_labels, total_iters):
         """Evaluate Prediction results of validation and test sets.
 
-        ``GSgnnTrainers`` will call this function to do evalution in their ``eval()`` fuction.
-
-        Classification and regression evaluators should provide both predictions and labels of
-        validation and test sets to this method.
+        **Classification** and **regression** evaluators should provide both predictions
+        and labels of validation and test sets to this method.
 
         Parameters
         ----------
@@ -182,8 +180,9 @@ class GSgnnLPRankingEvalInterface():
 
     There are two methdos to be implemented if inherite this interface.
 
-    1. ``evaluate()`` method, which will be called by ``GSgnnTrainers`` to provide ranking-based
-    evaluation results of validation and test sets during training process.
+    1. ``evaluate()`` method, which will be called by ``GSgnnTrainer``s in their ``eval()``
+    fuction to provide ranking-based evaluation results of validation and test sets during
+    training process.
 
     2. ``compute_score()`` method, which computes the scores for given rankings.
     """
@@ -194,7 +193,7 @@ class GSgnnLPRankingEvalInterface():
 
         ``GSgnnTrainers`` will call this function to do evalution in their ``eval()`` fuction.
 
-        Link Prediction evaluators should provide the ranking of validation and test sets as
+        **Link Prediction** evaluators should provide the ranking of validation and test sets as
         input to this method.
 
         Parameters
