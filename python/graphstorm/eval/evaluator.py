@@ -973,7 +973,7 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
 
 class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     """ Evaluator for Link Prediction tasks using ``mrr`` as metric,  and
-        return per edge type ``mrr`` score.
+    return per edge type ``mrr`` score.
 
     Parameters
     ----------
