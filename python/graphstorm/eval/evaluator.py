@@ -116,7 +116,7 @@ class GSgnnPredictionEvalInterface():
 
     There are two methdos to be implemented if inherite this interface.
 
-    1. ``evaluate()`` method, which will be called by ``GSgnnTrainer`` in their ``eval()``
+    1. ``evaluate()`` method, which will be called by different **Trainers** in their ``eval()``
     fuction to provide evaluation results of validation and test sets during training process.
 
     2. ``compute_score()`` method, which computes the scores for given predictions and labels.
@@ -154,8 +154,8 @@ class GSgnnPredictionEvalInterface():
     def compute_score(self, pred, labels, train=True):
         """ Compute evaluation score of Prediciton results.
 
-        Classification and regression evaluators should provide both predictions and labels
-        to this method.
+        **Classification** and **regression** evaluators should provide both predictions
+        and labels to this method.
 
         Parameters
         ----------
@@ -180,7 +180,7 @@ class GSgnnLPRankingEvalInterface():
 
     There are two methdos to be implemented if inherite this interface.
 
-    1. ``evaluate()`` method, which will be called by ``GSgnnTrainer`` in their ``eval()``
+    1. ``evaluate()`` method, which will be called by different **Trainer** in their ``eval()``
     fuction to provide ranking-based evaluation results of validation and test sets during
     training process.
 
@@ -564,7 +564,7 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterf
         return val_score, test_score
 
     def compute_score(self, pred, labels, train=True):
-        """ Compute classification evaluation score
+        """ Compute classification evaluation score.
 
         Parameters
         ----------
@@ -702,7 +702,7 @@ class GSgnnRegressionEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface)
         return val_score, test_score
 
     def compute_score(self, pred, labels, train=True):
-        """ Compute regression evaluation score
+        """ Compute regression evaluation score.
 
         Parameters
         ----------
@@ -832,17 +832,18 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     A built-in evaluator for Link Prediction tasks. It uses ``mrr`` as the default eval metric,
     which implements the ``GSgnnLPRankingEvalInterface``.
 
-    To create a customized LP evaluator that use evaluation metric other than "mrr", users might
-    need to 1) define a new evaluation interface if the evaluation method requires different input
-    arguments; 2) inherite the new evaluation interface in a customized LP evaluator; 3) define
-    a customized LP trainer/inferrer to call the customized LP evaluator.
+    To create a customized Link Prediction evaluator that use evaluation metric other than ``mrr``
+    , users might need to 1) define a new evaluation interface if the evaluation method requires
+    different input arguments; 2) inherite the new evaluation interface in a customized Link
+    Prediction evaluator; 3) define a customized Link Prediction Trainer/Inferrer to call the
+    customized Link Prediction evaluator.
 
     Parameters
     ----------
     eval_frequency: int
         The frequency (number of iterations) of doing evaluation.
     eval_metric_list: list of string
-        Evaluation metrics used during evaluation. Default: ['mrr'].
+        Evaluation metrics used during evaluation. Default: ["mrr"].
     use_early_stop: bool
         Set true to use early stop. Default: False.
     early_stop_burnin_rounds: int
@@ -941,7 +942,7 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         Returns
         -------
         return_metrics: dict
-            Evaluation "mrr" score of in the format of {"mrr": score}.
+            Evaluation ``mrr`` score of in the format of {"mrr": score}.
         """
         # We calculate global mrr, etype is ignored.
         ranking = []
@@ -977,14 +978,14 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
 
 class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     """ Evaluator for Link Prediction tasks using ``mrr`` as metric,  and
-    return per edge type ``mrr`` score.
+    return per edge type ``mrr`` scores.
 
     Parameters
     ----------
     eval_frequency: int
         The frequency (number of iterations) of doing evaluation.
     eval_metric_list: list of string
-        Evaluation metrics used during evaluation. Default: ['mrr'].
+        Evaluation metrics used during evaluation. Default: ["mrr"].
     major_etype: tuple
         A canonical edge type used for selecting the best model. Default: will use the summation
         of ``mrr`` values of all edge types.
@@ -1029,8 +1030,8 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
             self._best_iter[metric] = 0
 
     def evaluate(self, val_rankings, test_rankings, total_iters):
-        """ `GSgnnLinkPredictionTrainer` and `GSgnnLinkPredictionInferrer` will call this function
-        to compute validation and test ``mrr`` scores.
+        """ ``GSgnnLinkPredictionTrainer`` and ``GSgnnLinkPredictionInferrer`` will call this
+        function to compute validation and test ``mrr`` scores.
 
         Parameters
         ----------
@@ -1046,11 +1047,11 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
         Returns
         -----------
         val_score: dict of dict
-            Validation ``mrr`` score in the format of  {"mrr": val_score}. If the ``val_ranking`` is
-            None, return {"mrr": "N/A"}.
+            Validation ``mrr`` score in the format of  {"mrr": {etype: val_score}}. If the
+            ``val_ranking`` is None, return {"mrr": "N/A"}.
         test_score: dict of dict
-            Test ``mrr`` score in the format of {"mrr": test_score}. If the ``test_ranking`` is
-            None, return {"mrr": "N/A"}.
+            Test ``mrr`` score in the format of {"mrr": {etype: test_score}}. If the
+            ``test_ranking`` is None, return {"mrr": "N/A"}.
 
         """
         with th.no_grad():
@@ -1094,9 +1095,8 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
         Returns
         -------
         return_metrics: dict of dict
-            Evaluation ``mrr`` score per edge type in the format of {"mrr": {etype: score}}.
+            Per edge type evaluation ``mrr`` score in the format of {"mrr": {etype: score}}.
         """
-        # We calculate global mrr, etype is ignored.
         # User can develop its own per etype MRR evaluator
         per_etype_metrics = {}
         for etype, ranking in rankings.items():
@@ -1146,13 +1146,14 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
 
         Parameters
         ----------
-        val_score: dict
-            A dict in the format of {metric: score}.
+        val_score: dict of list
+            A dict in the format of {metric: score_list}. The first value in ``major_etype``
+            the score_list will be used to get rank value.
 
         Returns
         --------
         rank: int
-            The rank of given score.
+            The rank of the first value in the score_list of the given ``major_etype``.
         """
         val_score = list(val_score.values())[0]
         val_score = self._get_major_score(val_score)
