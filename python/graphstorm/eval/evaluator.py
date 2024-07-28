@@ -745,10 +745,11 @@ class GSgnnRegressionEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface)
 class GSgnnRconstructFeatRegScoreEvaluator(GSgnnRegressionEvaluator):
     """ Evaluator for feature reconstruction tasks using regression scores.
 
-    A built-in evalutor for feature reconstruction tasks. It uses ``mse`` and
-    ``rmse`` as evaluation metrics.
+    A built-in evalutor for feature reconstruction tasks. It uses ``mse`` or ``rmse`` as
+    evaluation metrics.
+    
     This evaluator requires the prediction results to be a 2D float tensor and
-    the label also to be a 2D float tensor.
+    the label also to be a 2D float tensor, which stores the original features.
 
     Parameters
     ----------
@@ -788,14 +789,14 @@ class GSgnnRconstructFeatRegScoreEvaluator(GSgnnRegressionEvaluator):
             early_stop_strategy)
 
     def compute_score(self, pred, labels, train=True):
-        """ Compute evaluation score
+        """ Compute feature reconstruction evaluation scores.
 
         Parameters
         ----------
         pred: 2D tensor
             The 2D tensor stores the prediction results.
         labels: 2D tensor
-            The 2D tensor stores the labels.
+            The 2D tensor stores the labels, which stores the original features.
         train: bool
             If in model training.
 
@@ -1142,18 +1143,19 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
 
     def get_val_score_rank(self, val_score):
         """ Get the rank of the given ``major_etype`` validation score by comparing its value
-        to the existing value list.
+        to the existing value list. If use the default ``major_etype``, will use the summation
+        of values of all edge types to get the rank.
 
         Parameters
         ----------
-        val_score: dict of list
-            A dict in the format of {metric: score_list}. The first value in ``major_etype``
-            the score_list will be used to get rank value.
+        val_score: dict of dict
+            A dict in the format of {"mrr": {etype: score}.
 
         Returns
         --------
         rank: int
-            The rank of the first value in the score_list of the given ``major_etype``.
+            The rank of the score of the given ``major_etype``. If use the default ``major_etype``,
+            will return the rank of the summation of values of all edge types.
         """
         val_score = list(val_score.values())[0]
         val_score = self._get_major_score(val_score)
