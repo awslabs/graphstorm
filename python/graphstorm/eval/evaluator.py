@@ -116,7 +116,7 @@ class GSgnnPredictionEvalInterface():
 
     There are two methdos to be implemented if inherite this interface.
 
-    1. ``evaluate()`` method, which will be called by ``GSgnnTrainer``s in their ``eval()``
+    1. ``evaluate()`` method, which will be called by ``GSgnnTrainer`` in their ``eval()``
     fuction to provide evaluation results of validation and test sets during training process.
 
     2. ``compute_score()`` method, which computes the scores for given predictions and labels.
@@ -180,7 +180,7 @@ class GSgnnLPRankingEvalInterface():
 
     There are two methdos to be implemented if inherite this interface.
 
-    1. ``evaluate()`` method, which will be called by ``GSgnnTrainer``s in their ``eval()``
+    1. ``evaluate()`` method, which will be called by ``GSgnnTrainer`` in their ``eval()``
     fuction to provide ranking-based evaluation results of validation and test sets during
     training process.
 
@@ -190,8 +190,6 @@ class GSgnnLPRankingEvalInterface():
     @abc.abstractmethod
     def evaluate(self, val_rankings, test_rankings, total_iters):
         """Evaluate Link Prediciton results of validation and test sets.
-
-        ``GSgnnTrainers`` will call this function to do evalution in their ``eval()`` fuction.
 
         **Link Prediction** evaluators should provide the ranking of validation and test sets as
         input to this method.
