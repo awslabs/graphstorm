@@ -342,7 +342,7 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
 
         Default: None.
     decoder_edge_feats: str, or dict of list of str
-        Edge features used in decoder in three possible formats:
+        Edge features used in edge decoders in three possible formats:
 
             - string: All edges have the same feature name.
             - list of string: All edges have the same list of features.
