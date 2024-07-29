@@ -117,7 +117,7 @@ class MultiLayerNeighborSamplerForReconstruct(dgl.dataloading.BlockSampler):
     construct_feat_ntype : list of str
         The node types that requires to construct node features.
     construct_feat_fanout : int
-        The fanout that requires to construct node features.
+        The fanout used when constructing node features for feature-less nodes.
     """
     def __init__(self, sampler, dataset, construct_feat_ntype, construct_feat_fanout):
         super().__init__()
@@ -685,7 +685,7 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
     construct_feat_ntype : list of str
         The node types that requires to construct node features.
     construct_feat_fanout : int
-        The fanout that requires to construct node features.
+        The fanout used when constructing node features for feature-less nodes.
     edge_dst_negative_field: str, or dict of str
         The feature fields that store the hard negative edges for each edge type.
     num_hard_negs: int, or dict of int
@@ -1582,7 +1582,7 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     construct_feat_ntype : list of str
         The node types that requires to construct node features.
     construct_feat_fanout : int
-        The fanout that requires to construct node features.
+        The fanout used when constructing node features for feature-less nodes.
 
     Examples
     ----------
@@ -1707,7 +1707,7 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
     construct_feat_ntype : list of str
         The node types that requires to construct node features.
     construct_feat_fanout : int
-        The fanout that requires to construct node features.
+        The fanout used when constructing node features for feature-less nodes.
     """
     def __init__(self, dataset, target_idx, unlabeled_idx, fanout,
                  batch_size, label_field,
