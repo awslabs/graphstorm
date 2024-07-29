@@ -606,7 +606,7 @@ class GSgnnData():
         return idxs
 
     def get_node_test_set(self, ntypes, mask="test_mask"):
-        """ Get test set nodes for the given node types under the given mask.
+        """ Get the test set for the given node types under the given mask.
 
         Parameters
         __________
