@@ -822,7 +822,7 @@ class GSgnnData():
 
     def get_edge_val_set(self, etypes=None, mask="val_mask",
                          reverse_edge_types_map=None):
-        """ Get validation set edges for the given edge types under the given mask.
+        """ Get the validation set for the given edge types under the given mask.
 
         Parameters
         __________
