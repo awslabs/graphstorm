@@ -309,7 +309,7 @@ class GSgnnEdgeDataLoaderBase():
 class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
     """ The mini-batch dataloader for edge prediction tasks.
 
-    ``GSgnnEdgeDataLoader`` samples GraphStorm data edges into an iterable over mini-batches
+    ``GSgnnEdgeDataLoader`` samples target edges into an iterable over mini-batches
     of samples. Both source and destination nodes are included in the ``batch_graph``, which
     will be used by GraphStorm Trainers and Inferrers.
 
