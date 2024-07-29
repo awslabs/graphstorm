@@ -162,7 +162,7 @@ class GSgnnEdgeDataLoaderBase():
     target_idx : dict of Tensors
         The target edge indexes for prediction.
     fanout : list or dict of lists
-        The fanout for each GNN layer. If it's a dict, it indicates the fanout for each edge type.
+        The fanout for each GNN layer. If it's a dict of lists, it indicates the fanout for each edge type.
     label_field: str or dict of str
         Label field of the edge task.
     node_feats: str, or dict of list of str
