@@ -360,7 +360,7 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
     construct_feat_ntype : list of str
         The node types that requires to construct node features.
     construct_feat_fanout : int
-        The fanout that requires to construct node features.
+        The fanout used when constructing node features for feature-less nodes.
 
     Examples
     ------------
