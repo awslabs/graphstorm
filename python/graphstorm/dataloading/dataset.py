@@ -512,7 +512,7 @@ class GSgnnData():
         return unlabeled_idxs
 
     def get_node_train_set(self, ntypes, mask="train_mask"):
-        """ Get training set nodes for the given node types under the given mask.
+        """ Get the training set for the given node types under the given mask.
 
         Parameters
         __________
