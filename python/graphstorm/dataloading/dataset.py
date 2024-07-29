@@ -586,7 +586,7 @@ class GSgnnData():
         return idxs, num_data
 
     def get_node_val_set(self, ntypes, mask="val_mask"):
-        """ Get validation set nodes for the given node types under the given mask.
+        """ Get the validation set for the given node types under the given mask.
 
         Parameters
         __________
