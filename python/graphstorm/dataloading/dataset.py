@@ -167,10 +167,9 @@ class GSgnnData():
         different feature names.
         Default: None.
     edge_feat_field : str or dict of list of str
-        The fields of the edge features to be encoded by later released ``GSEdgeInputLayer``.
-        It's a dict if different edge types have
-        different feature names.
-        This argument is reserved by future usage.
+        The fields of the edge features. It's a dict, if different edge types have
+        different feature names. This argument is reserved for future usage when the
+        ``GSEdgeInputLayer`` is implemented.
         Default: None.
     lm_feat_ntypes : list of str
         The node types that contains text features.
@@ -367,7 +366,8 @@ class GSgnnData():
         return etype in self._lm_feat_etypes
 
     def get_node_feats(self, input_nodes, nfeat_fields, device='cpu'):
-        """ Get the node features of the given input nodes. The feature fields are defined in ``nfeat_fields``.
+        """ Get the node features of the given input nodes. The feature fields are defined
+        in ``nfeat_fields``.
 
         Parameters
         ----------
@@ -392,7 +392,8 @@ class GSgnnData():
                                    feat_field=nfeat_fields)
 
     def get_edge_feats(self, input_edges, efeat_fields, device='cpu'):
-        """ Get the edge features of the given input edges' feature fields.
+        """ Get the edge features of the given input edges. The feature fields are defined
+        in ``efeat_fields``.
 
         Parameters
         ----------

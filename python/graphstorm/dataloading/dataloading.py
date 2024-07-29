@@ -320,7 +320,8 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
     target_idx : dict of Tensors
         The target edge indexes for prediction.
     fanout: list of int, or dict of list
-        Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
+        Neighbor sampling fanout. If it's a dict of list, it indicates the fanout for each
+        edge type.
     batch_size: int
         Mini-batch size.
     label_field: str or dict of str
@@ -504,7 +505,8 @@ class GSgnnLinkPredictionDataLoaderBase():
     target_idx : dict of Tensors
         The target edge indexes for link prediction.
     fanout: list of int, or dict of list
-        Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
+        Neighbor sampling fanout. If it's a dict of list, it indicates the fanout for each
+        edge type.
     node_feats: str, or dict of list of str
         Node feature fileds in three possible formats:
 
@@ -647,7 +649,8 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
     target_idx : dict of Tensors
         The target edge indexes for prediction.
     fanout: list of int, or dict of list
-        Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
+        Neighbor sampling fanout. If it's a dict of list, it indicates the fanout for each
+        edge type.
     batch_size: int
         Mini-batch size.
     num_negative_edges: int
@@ -1211,8 +1214,8 @@ class GSgnnLinkPredictionTestDataLoader(GSgnnLinkPredictionDataLoaderBase):
     num_negative_edges: int
         The number of negative edges per positive edge.
     fanout: list of int, or dict of list
-         Evaluation fanout for computing node embedding. If it's a dict of list, it indicates
-         the fanout for each edge type.
+        Neighbor sampling fanout. If it's a dict of list, it indicates the fanout for each
+        edge type.
     fixed_test_size: int
         Fixed number of test data used in evaluation.
         If it is none, use the whole testset.
@@ -1343,8 +1346,8 @@ class GSgnnLinkPredictionPredefinedTestDataLoader(GSgnnLinkPredictionTestDataLoa
     batch_size: int
         Mini-batch size.
     fanout: list of int, or dict of list
-         Evaluation fanout for computing node embedding. If it's a dict of list, it indicates
-         the fanout for each edge type.
+        Neighbor sampling fanout. If it's a dict of list, it indicates the fanout for each
+        edge type.
     fixed_test_size: int
         Fixed number of test data used in evaluation.
         If it is none, use the whole testset.
@@ -1556,7 +1559,8 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     target_idx : dict of Tensors
         The target node indexes for prediction.
     fanout: list of int, or dict of list
-        Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
+        Neighbor sampling fanout. If it's a dict of list, it indicates the fanout for each
+        edge type.
     label_field: str
         Label field of the node task.
     node_feats: str, list of str or dict of list of str
@@ -1681,7 +1685,8 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
     unlabeled_idx : dict of Tensors
         The unlabeled node indexes for semi-supervised training.
     fanout: list of int, or dict of list
-        Neighbor sample fanout. If it's a dict, it indicates the fanout for each edge type.
+        Neighbor sampling fanout. If it's a dict of list, it indicates the fanout for each
+        edge type.
     batch_size: int
         Mini-batch size, the sum of labeled and unlabeled nodes
     label_field: str
