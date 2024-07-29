@@ -7,7 +7,7 @@ graphstorm.dataloading.dataset
     machine learning tasks. Users can build a ``GSgnnData`` object by giving the path of
     the JSON file created by the :ref:`GraphStorm Graph Construction<graph_construction>`
     operations. The ``GSgnnData`` will load the related graph artifacts specified in the JSON
-    file, and provides a set of APIs for users to extract information of the graph data for
+    file. It provides a set of APIs for users to extract information of the graph data for
     model training and inference.
 
 .. currentmodule:: graphstorm.dataloading
