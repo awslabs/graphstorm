@@ -21,7 +21,7 @@ The following sections provide guidance on doing distributed graph construction.
 The first section details the execution environment setup for GSProcessing.
 The second section offers examples on drafting a configuration file for a GSProcessing job.
 The third section explains how to deploy your GSProcessing job with AWS infrastructure.
-The fourth section includes how to do partition with the GSProcessing output.
+The fourth section includes how to do GSPartition with the GSProcessing output.
 The final section shows an example to quickly start GSProcessing and GSPartition.
 
 .. toctree::
