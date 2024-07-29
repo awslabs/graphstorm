@@ -367,7 +367,7 @@ class GSgnnData():
         return etype in self._lm_feat_etypes
 
     def get_node_feats(self, input_nodes, nfeat_fields, device='cpu'):
-        """ Get the node features of the given input nodes' feature fields.
+        """ Get the node features of the given input nodes. The feature fields are defined in ``nfeat_fields``.
 
         Parameters
         ----------
@@ -512,7 +512,7 @@ class GSgnnData():
         return unlabeled_idxs
 
     def get_node_train_set(self, ntypes, mask="train_mask"):
-        """ Get training set nodes for the given node types under the given mask.
+        """ Get the training set for the given node types under the given mask.
 
         Parameters
         __________
@@ -586,7 +586,7 @@ class GSgnnData():
         return idxs, num_data
 
     def get_node_val_set(self, ntypes, mask="val_mask"):
-        """ Get validation set nodes for the given node types under the given mask.
+        """ Get the validation set for the given node types under the given mask.
 
         Parameters
         __________
@@ -606,7 +606,7 @@ class GSgnnData():
         return idxs
 
     def get_node_test_set(self, ntypes, mask="test_mask"):
-        """ Get test set nodes for the given node types under the given mask.
+        """ Get the test set for the given node types under the given mask.
 
         Parameters
         __________
@@ -740,7 +740,7 @@ class GSgnnData():
 
     def get_edge_train_set(self, etypes=None, mask="train_mask",
                            reverse_edge_types_map=None):
-        """ Get training set edges for the given edge types under the given mask.
+        """ Get the training set for the given edge types under the given mask.
 
         Parameters
         __________
@@ -822,7 +822,7 @@ class GSgnnData():
 
     def get_edge_val_set(self, etypes=None, mask="val_mask",
                          reverse_edge_types_map=None):
-        """ Get validation set edges for the given edge types under the given mask.
+        """ Get the validation set for the given edge types under the given mask.
 
         Parameters
         __________
@@ -847,7 +847,7 @@ class GSgnnData():
 
     def get_edge_test_set(self, etypes=None, mask="test_mask",
                           reverse_edge_types_map=None):
-        """ Get test set edges for the given edge types under the given mask.
+        """ Get the test set for the given edge types under the given mask.
 
         Parameters
         __________
@@ -871,7 +871,7 @@ class GSgnnData():
         return idxs
 
     def get_edge_infer_set(self, etypes=None, mask="test_mask", reverse_edge_types_map=None):
-        """ Get inference set edges for the given edge types under the given mask.
+        """ Get the inference set for the given edge types under the given mask.
 
         If the mask exists in ``g.edges[etype].data``, the inference set
         is collected based on the mask.

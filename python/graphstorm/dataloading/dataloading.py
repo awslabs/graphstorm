@@ -342,7 +342,7 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
 
         Default: None.
     decoder_edge_feats: str, or dict of list of str
-        Edge features used in decoder in three possible formats:
+        Edge features used in edge decoders in three possible formats:
 
             - string: All edges have the same feature name.
             - list of string: All edges have the same list of features.
@@ -491,7 +491,7 @@ BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER = 'fast_localjoint'
 BUILTIN_LP_FIXED_NEG_SAMPLER = 'fixed'
 
 class GSgnnLinkPredictionDataLoaderBase():
-    """ The base dataloader class of link prediction tasks.
+    """ The base dataloader class for link prediction tasks.
 
     If users want to customize dataloaders for link prediction tasks,
     they should extend this base class by implementing the special methods
@@ -673,7 +673,7 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
         For example edge weight.
         Default: None.
     train_task : bool
-        Whether or not is the dataloader for training.
+        Whether or not it is a dataloader for training.
     reverse_edge_types_map: dict
         A map for reverse edge type.
     exclude_training_targets: bool
@@ -1211,7 +1211,7 @@ class GSgnnLinkPredictionTestDataLoader(GSgnnLinkPredictionDataLoaderBase):
     num_negative_edges: int
         The number of negative edges per positive edge.
     fanout: list of int, or dict of list
-         Evaluation fanout for computing node embedding. If it's a dict, it indicates
+         Evaluation fanout for computing node embedding. If it's a dict of list, it indicates
          the fanout for each edge type.
     fixed_test_size: int
         Fixed number of test data used in evaluation.
@@ -1578,7 +1578,7 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     batch_size: int
         Mini-batch size.
     train_task : bool
-        Whether or not is the dataloader for training.
+        Whether or not it is the dataloader for training.
     construct_feat_ntype : list of str
         The node types that requires to construct node features.
     construct_feat_fanout : int
@@ -1703,7 +1703,7 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
 
         Default: None
     train_task : bool
-        Whether or not is the dataloader for training.
+        Whether or not it is the dataloader for training.
     construct_feat_ntype : list of str
         The node types that requires to construct node features.
     construct_feat_fanout : int
