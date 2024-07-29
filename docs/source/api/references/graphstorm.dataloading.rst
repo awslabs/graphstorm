@@ -26,7 +26,7 @@ graphstorm.dataloading.dataloading
     different graph machine learning tasks.
 
     If users would like to customize DataLoaders, please extend those dataloader base 
-    classes in the **Base DataLoaders** section and customize their abstract methods.
+    classes in the **Base DataLoaders** section and customize their abstract functions.
 
 .. currentmodule:: graphstorm.dataloading
 
