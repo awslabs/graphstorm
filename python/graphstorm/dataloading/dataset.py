@@ -367,7 +367,7 @@ class GSgnnData():
         return etype in self._lm_feat_etypes
 
     def get_node_feats(self, input_nodes, nfeat_fields, device='cpu'):
-        """ Get the node features of the given input nodes' feature fields.
+        """ Get the node features of the given input nodes. The feature fields are defined in ``nfeat_fields``.
 
         Parameters
         ----------
