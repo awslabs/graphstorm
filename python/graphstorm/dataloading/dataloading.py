@@ -491,7 +491,7 @@ BUILTIN_FAST_LP_LOCALJOINT_NEG_SAMPLER = 'fast_localjoint'
 BUILTIN_LP_FIXED_NEG_SAMPLER = 'fixed'
 
 class GSgnnLinkPredictionDataLoaderBase():
-    """ The base dataloader class of link prediction tasks.
+    """ The base dataloader class for link prediction tasks.
 
     If users want to customize dataloaders for link prediction tasks,
     they should extend this base class by implementing the special methods
