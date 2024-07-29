@@ -740,7 +740,7 @@ class GSgnnData():
 
     def get_edge_train_set(self, etypes=None, mask="train_mask",
                            reverse_edge_types_map=None):
-        """ Get training set edges for the given edge types under the given mask.
+        """ Get the training set for the given edge types under the given mask.
 
         Parameters
         __________
