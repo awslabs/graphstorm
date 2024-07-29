@@ -847,7 +847,7 @@ class GSgnnData():
 
     def get_edge_test_set(self, etypes=None, mask="test_mask",
                           reverse_edge_types_map=None):
-        """ Get test set edges for the given edge types under the given mask.
+        """ Get the test set for the given edge types under the given mask.
 
         Parameters
         __________
