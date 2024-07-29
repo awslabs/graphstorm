@@ -1578,7 +1578,7 @@ class GSgnnNodeDataLoader(GSgnnNodeDataLoaderBase):
     batch_size: int
         Mini-batch size.
     train_task : bool
-        Whether or not is the dataloader for training.
+        Whether or not it is the dataloader for training.
     construct_feat_ntype : list of str
         The node types that requires to construct node features.
     construct_feat_fanout : int
