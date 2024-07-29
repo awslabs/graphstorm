@@ -1211,7 +1211,7 @@ class GSgnnLinkPredictionTestDataLoader(GSgnnLinkPredictionDataLoaderBase):
     num_negative_edges: int
         The number of negative edges per positive edge.
     fanout: list of int, or dict of list
-         Evaluation fanout for computing node embedding. If it's a dict, it indicates
+         Evaluation fanout for computing node embedding. If it's a dict of list, it indicates
          the fanout for each edge type.
     fixed_test_size: int
         Fixed number of test data used in evaluation.
