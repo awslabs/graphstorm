@@ -3,7 +3,7 @@ Running partition jobs on EC2 Clusters
 ======================================
 
 Once the :ref:`distributed processing setup<gsprocessing_distributed_setup>` is completed,
-users can start the partition jobs. This doc will provide instructions on how to setup an EC2 cluster and
+users can start the partition jobs. This tutorial will provide instructions on how to setup an EC2 cluster and
 start GSPartition jobs on it.
 
 Create a GraphStorm Cluster
@@ -44,7 +44,7 @@ For an AWS EC2 cluster, users can also use EFS as the shared file system. Please
 
 After setting up a shared file system, we can keep all graph data in a shared folder. Then mount the data folder to the ``/path_to_data/`` of each instances in the cluster so that all GraphStorm containers can access the data.
 
-Run a GraphStorm Container
+Run a GraphStorm container
 ...........................
 In each instance, use the following command to start a GraphStorm Docker container and run it as a backend daemon on cpu.
 
@@ -57,11 +57,11 @@ In each instance, use the following command to start a GraphStorm Docker contain
 
 This command mounts the shared ``/path_to_data/`` folder to a container's ``/data/`` folder by which GraphStorm codes can access graph data and save the partition result.
 
-Setup the IP address file and check port status
+Setup the IP Address File and Check Port Status
 ----------------------------------------------------------
 
-Collect the IP list
-......................
+Collect the IP address list
+...........................
 The GraphStorm Docker containers use SSH on port ``2222`` to communicate with each other. Users need to collect all IP addresses of all the instances and put them into a text file, e.g., ``/data/ip_list.txt``, which is like:
 
 .. figure:: ../../../../../tutorial/distributed_ips.png
@@ -96,7 +96,7 @@ If successful, you should login to the container with ip 172.38.12.143.
 If not, please make sure there is no restriction of exposing port 2222.
 
 
-Launch GSPartition Job
+Launch GSPartition Jobs
 -----------------------
 
 Now we can ssh into the **leader node** of the EC2 cluster, and start GSPartition process with the following command:

@@ -1,19 +1,23 @@
 .. _distributed_construction_example:
 
-GraphStorm Distributed Graph Construction Example
-=================================================
+A GraphStorm Distributed Graph Construction Example
+===================================================
+
+GraphStorm's distributed graph construction is involved with multiple steps.
+To help users better understand these steps, we provide an example of distributed graph construction,
+which can run locally in one instance.
 
 To demonstrate how to use distributed graph construction locally we will
 use the same example data as we use in our
 unit tests, which you can find in the project's repository,
 under ``graphstorm/graphstorm-processing/tests/resources/small_heterogeneous_graph``.
 
-Install example dependencies
-----------------------------
+Install dependencies
+--------------------
 
 To run the local example you will need to install the GSProcessing and GraphStorm
 library to your Python environment, and you'll need to clone the
-GraphStorm repository to get access to the data, and dgl tool for GSPartition.
+GraphStorm repository to get access to the data, and DGL tool for GSPartition.
 
 Follow the :ref:`gsp-installation-ref` guide to install the GSProcessing library.
 
@@ -306,7 +310,7 @@ you can use the following command to run the partition job locally:
         --input-path /tmp/gsprocessing-example/ \
         --metadata-filename updated_row_counts_metadata.json \
         --output-path /tmp/gspartition-example/ \
-        --num-parts 1 \
+        --num-parts 2 \
         --dgl-tool-path ./dgl/tools \
         --partition-algorithm random \
         --ip-config ip_list.txt 
@@ -352,8 +356,8 @@ There are five files for the partition
 
 * ``metadata.json``: This file contains metadata about the distributed DGL graph.
 
-``partition_assignment``: This directory contains different partition results for different node types,
-which can reused for the : `dgl dispatch pipeline <https://docs.dgl.ai/en/latest/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_
+The ``partition_assignment`` directory contains different partition results for different node types,
+which can reused for the `dgl dispatch pipeline <https://docs.dgl.ai/en/latest/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_
 
 .. rubric:: Footnotes
 

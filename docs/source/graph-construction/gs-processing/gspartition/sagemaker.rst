@@ -1,16 +1,16 @@
-===================================
-Running partition jobs on SageMaker
-===================================
+==========================================
+Running partition jobs on Amazon SageMaker
+==========================================
 
 Once the :ref:`distributed processing setup<gsprocessing_distributed_setup>` is complete,
 you can use Amazon SageMaker launch scripts to launch distributed processing jobs with AWS resources.
 
-Build the docker image for partition jobs on SageMaker
-------------------------------------------------------
-GSPartition job on SageMaker uses SageMaker's **BYOC** (Bring Your Own Container) mode.
+Build the Docker Image for Partition Jobs on Amazon SageMaker
+-------------------------------------------------------------
+GSPartition job on Amazon SageMaker uses its SageMaker's **BYOC** (Bring Your Own Container) mode.
 
-Step 1: Build a SageMaker-compatible Docker image
-...................................................
+Step 1: Build an Amazon SageMaker-compatible Docker image
+..........................................................
 
 .. note::
     * Please make sure your account has access key (AK) and security access key (SK) configured to authenticate accesses to AWS services, users can refer to `example policy <https://docs.aws.amazon.com/AmazonECR/latest/userguide/security_iam_id-based-policy-examples.html#security_iam_id-based-policy-examples-access-one-bucket>`_.
@@ -18,8 +18,8 @@ Step 1: Build a SageMaker-compatible Docker image
 
 First, in a Linux machine, configure a Docker environment by following the `Docker documentation <https://docs.docker.com/get-docker/>`_ suggestions.
 
-In order to use the SageMaker base Docker image, users need to refer the `DLC image command <https://github.com/aws/deep-learning-containers/blob/master/available_images.md>`_
-to retrieve the specific docker image command. For example:
+In order to use the Amazon SageMaker base Docker image, users need to refer the `DLC image command <https://github.com/aws/deep-learning-containers/blob/master/available_images.md>`_
+to find the specific Docker image commands. For example, below is the command for user authentication to access the Amazon SageMaker base Docker image.
 
 .. code-block:: bash
 
@@ -28,7 +28,7 @@ to retrieve the specific docker image command. For example:
 .. note::
     For region other than ``us-east-1``, please refer to `available region <https://docs.aws.amazon.com/sagemaker/latest/dg-ecr-paths/sagemaker-algo-docker-registry-paths.html>`_
 
-Then, clone GraphStorm source code, and build a GraphStorm SageMaker compatible Docker image from source with commands:
+Secondly, clone GraphStorm source code, and build a GraphStorm SageMaker compatible Docker image from source with commands:
 
 .. code-block:: bash
 
@@ -38,7 +38,7 @@ Then, clone GraphStorm source code, and build a GraphStorm SageMaker compatible 
 
     bash build_docker_sagemaker.sh ../ <DEVICE_TYPE> <IMAGE_NAME> <IMAGE_TAG>
 
-The ``build_docker_sagemaker.sh`` script takes three arguments:
+The ``build_docker_sagemaker.sh`` script takes four arguments:
 
 1. **path-to-graphstorm** (**required**), is the path of the ``graphstorm`` folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
 2. **DEVICE_TYPE**, is the intended device type of the to-be built Docker image. Please specify ``cpu`` for building CPU-compatible images for partition job.
@@ -59,9 +59,9 @@ such as ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm-cpu``, in t
 
 .. _upload_sagemaker_docker:
 
-Step 2: Upload Docker Images to Amazon ECR Repository
+Step 2: Upload Docker images to Amazon ECR repository
 .......................................................
-Because SageMaker relies on Amazon ECR to access customers' own Docker images, users need to upload the Docker images built in the Step 1 to their own ECR repository.
+Because Amazon SageMaker relies on Amazon ECR to access customers' own Docker images, users need to upload the Docker images built in the Step 1 to their own ECR repository.
 
 The following command will authenticate the user account to access to user's ECR repository via AWS CLI.
 
@@ -81,17 +81,17 @@ And then use the following command to push the built GraphStorm Docker image to 
 
 Please replace the `<IMAGE_NAME>` and `<IMAGE_TAG>` with the actual Docker image name and tag, e.g., ``888888888888.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sm-gpu``.
 
-Launch the partition job on Amazon SageMaker
+Launch the Partition Job on Amazon SageMaker
 ---------------------------------------------
-For this example, we'll use a SageMaker cluster with 2 ``ml.t3.xlarge`` instances.
+For this example, we'll use an Amazon SageMaker cluster with 2 ``ml.t3.xlarge`` instances.
 We assume the data is already on an AWS S3 bucket.
 For large graphs, users can choose larger instances or more instances.
 
 Install dependencies
 .....................
-To run GraphStorm with the Amazon SageMaker service, users should install SageMaker library and copy GraphStorm's SageMaker tools.
+To run GraphStorm with the Amazon SageMaker service, users should install the Amazon SageMaker library and copy GraphStorm's SageMaker tools.
 
-1. Use the below command to install SageMaker.
+1. Use the below command to install Amazon SageMaker.
 
 .. code-block:: bash
 
@@ -124,7 +124,7 @@ Users can use the following command to launch partition jobs.
        --partition-algorithm ${ALGORITHM}
 
 .. warning::
-    The ``NUM_INSTANCES`` should be equal to ``NUM_PARTITIONS`` here.
+    The ``NUM_INSTANCES`` should be equal to the ``NUM_PARTITIONS`` here.
 
 Running the above will take the dataset after GSProcessing
 from ``${DATASET_S3_PATH}`` as input and create a DistDGL graph with
