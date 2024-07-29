@@ -1343,7 +1343,7 @@ class GSgnnLinkPredictionPredefinedTestDataLoader(GSgnnLinkPredictionTestDataLoa
     batch_size: int
         Mini-batch size.
     fanout: list of int, or dict of list
-         Evaluation fanout for computing node embedding. If it's a dict, it indicates
+         Evaluation fanout for computing node embedding. If it's a dict of list, it indicates
          the fanout for each edge type.
     fixed_test_size: int
         Fixed number of test data used in evaluation.
