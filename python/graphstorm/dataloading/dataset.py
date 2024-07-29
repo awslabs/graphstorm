@@ -871,7 +871,7 @@ class GSgnnData():
         return idxs
 
     def get_edge_infer_set(self, etypes=None, mask="test_mask", reverse_edge_types_map=None):
-        """ Get inference set edges for the given edge types under the given mask.
+        """ Get the inference set for the given edge types under the given mask.
 
         If the mask exists in ``g.edges[etype].data``, the inference set
         is collected based on the mask.
