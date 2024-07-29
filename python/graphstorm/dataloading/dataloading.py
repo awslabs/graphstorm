@@ -673,7 +673,7 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
         For example edge weight.
         Default: None.
     train_task : bool
-        Whether or not is the dataloader for training.
+        Whether or not it is a dataloader for training.
     reverse_edge_types_map: dict
         A map for reverse edge type.
     exclude_training_targets: bool
