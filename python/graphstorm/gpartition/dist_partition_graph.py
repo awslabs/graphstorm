@@ -142,7 +142,7 @@ def main():
                  part_end - part_start,
     )
 
-    if args.do_dispatch:
+    if not args.partition_assignment_only:
         run_build_dglgraph(
             args.input_path,
             part_assignment_dir,
@@ -165,9 +165,11 @@ def main():
             dirs_exist_ok=True,
         )
 
-
-    logging.info('Partition assignment and DGL graph creation took %f seconds',
+    if not args.partition_assignment_only:
+        logging.info('Partition assignment and DGL graph creation took %f seconds',
                  time.time() - start)
+    else:
+        logging.info('Partition assignment took %f seconds', time.time() - start)
 
 def parse_args() -> argparse.Namespace:
     """Parses arguments for the script"""
@@ -189,7 +191,9 @@ def parse_args() -> argparse.Namespace:
     argparser.add_argument("--ip-config", type=str,
                            help=("A file storing a list of IPs, one line for "
                                 "each instance of the partition cluster."))
-    argparser.add_argument("--do-dispatch", action='store_true')
+    argparser.add_argument("--partition-assignment-only", action='store_true',
+                           help="Only generate partition assignments for nodes, \
+                                 the process will not build the partitioned DGL graph")
     argparser.add_argument("--logging-level", type=str, default="info",
                            help="The logging level. The possible values: debug, info, warning, \
                                    error. The default value is info.")

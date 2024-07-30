@@ -19,6 +19,7 @@ import abc
 import logging
 import torch as th
 from torch import nn
+import dgl
 
 from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_NODE_REGRESSION,
@@ -32,7 +33,14 @@ from .gnn_encoder_base import GSgnnGNNEncoderInterface
 from .node_gnn import run_node_mini_batch_predict
 from .edge_gnn import run_edge_mini_batch_predict
 from .lp_gnn import run_lp_mini_batch_predict
-
+from .utils import LazyDistTensor
+from .utils import normalize_node_embs, get_data_range
+from ..utils import (
+    get_rank,
+    get_world_size,
+    barrier,
+    create_dist_tensor
+)
 
 class GSgnnMultiTaskModelInterface:
     """ The interface for GraphStorm multi-task learning.
@@ -93,10 +101,108 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         self._task_pool = {}
         self._decoder = nn.ModuleDict()
         self._loss_fn = nn.ModuleDict()
+        self._node_embed_norm_methods = {}
         self._warn_printed = False
 
+    def normalize_task_node_embs(self, task_id, embs, inplace=False):
+        """ Normalize node embeddings when needed.
+
+            normalize_task_node_embs should be called when embs stores embeddings
+            of every node.
+
+        Parameters
+        ----------
+        task_id: str
+            Task ID.
+        embs: dict of Tensors
+            A dict of node embeddings.
+        inplace: bool
+            Whether to do inplace normalization.
+
+        Returns
+        -------
+        new_embs: dict of Tensors
+            Normalized node embeddings.
+        """
+        if self._node_embed_norm_methods[task_id] is not None:
+            new_embs = {}
+            rank = get_rank()
+            world_size = get_world_size()
+            for key, emb in embs.items():
+                if isinstance(emb, (dgl.distributed.DistTensor, LazyDistTensor)):
+                    # If emb is a distributed tensor, multiple processes are doing
+                    # embdding normalization concurrently. We need to split
+                    # the task. (From full_graph_inference)
+                    start, end = get_data_range(rank, world_size, len(emb))
+                    new_emb = emb if inplace else \
+                        create_dist_tensor(emb.shape,
+                                           emb.dtype,
+                                           name=f"{emb.name}_task_id",
+                                           part_policy=emb.part_policy,
+                                           persistent=True)
+                else:
+                    # If emb is just a torch Tensor. do normalization directly.
+                    # (From mini_batch_inference)
+                    start, end = 0, len(emb)
+                    new_emb = emb if inplace else th.clone(emb)
+                idx = start
+                while idx + 1024 < end:
+                    new_emb[idx:idx+1024] = \
+                        self.minibatch_normalize_task_node_embs(
+                            task_id,
+                            {key:emb[idx:idx+1024]})[key]
+                    idx += 1024
+                new_emb[idx:end] = \
+                    self.minibatch_normalize_task_node_embs(
+                        task_id,
+                        {key:emb[idx:end]})[key]
+                barrier()
+                new_embs[key] = new_emb
+            return new_embs
+        else:
+            # If normalization method is None
+            # do nothing.
+            new_embs = embs
+            return new_embs
+
+    # pylint: disable = arguments-differ
+    def minibatch_normalize_task_node_embs(self, task_id, embs):
+        """ Normalize node embeddings when needed for a mini-batch.
+
+            minibatch_normalize_task_node_embs should be called in
+            forward() and predict().
+
+        Parameters
+        ----------
+        task_id: str
+            Task ID.
+        embs: dict of Tensors
+            A dict of node embeddings.
+
+        Returns
+        -------
+        embs: dict of Tensors
+            Normalized node embeddings.
+        """
+        if self._node_embed_norm_methods[task_id] is not None:
+            return normalize_node_embs(embs, self._node_embed_norm_methods[task_id])
+        else:
+            return embs
+
+    @property
+    def node_embed_norm_methods(self):
+        """ Get per task node embedding normalization method
+
+        Returns
+        -------
+        dict of strings:
+            Normalization methods
+        """
+        return self._node_embed_norm_methods
+
     def add_task(self, task_id, task_type,
-                 decoder, loss_func):
+                 decoder, loss_func,
+                 embed_norm_method=None):
         """ Add a task into the multi-task pool
 
         Parameters
@@ -112,6 +218,8 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
             Task decoder.
         loss_func: func
             Loss function.
+        embed_norm_method: str
+            Node embedding normalization method.
         """
         assert task_id not in self._task_pool, \
             f"Task {task_id} already exists"
@@ -120,6 +228,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         self._decoder[task_id] = decoder
         # add loss func in nn module
         self._loss_fn[task_id] = loss_func
+        self._node_embed_norm_methods[task_id] = embed_norm_method
 
     @property
     def alpha_l2norm(self):
@@ -277,7 +386,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
                 encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
 
         # Call emb normalization.
-        encode_embs = self.normalize_node_embs(encode_embs)
+        encode_embs = self.minibatch_normalize_task_node_embs(task_id, encode_embs)
 
         if task_type in [BUILTIN_TASK_NODE_CLASSIFICATION, BUILTIN_TASK_NODE_REGRESSION]:
             labels = decoder_data
@@ -353,7 +462,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
             encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
 
         # Call emb normalization.
-        encode_embs = self.normalize_node_embs(encode_embs)
+        encode_embs = self.minibatch_normalize_task_node_embs(task_id, encode_embs)
 
         task_type, _ = self.task_pool[task_id]
         task_decoder = self.decoder[task_id]
@@ -415,6 +524,18 @@ def multi_task_mini_batch_predict(
     res = {}
     with th.no_grad():
         for dataloader, task_info in zip(dataloaders, task_infos):
+            # normalize the node embedding if needed.
+            # input emb is shared across different tasks
+            # so that we can not do inplace normalization.
+            #
+            # Note(xiangsx): Currently node embedding normalization
+            # only supports link prediction tasks.
+            # model.normalize_task_node_embs does nothing
+            # for node and edge prediction tasks.
+            # TODO(xiangsx): Need a more memory efficient design when
+            # node embedding normalization supports node and edge
+            # prediction tasks.
+            emb = model.normalize_task_node_embs(task_info.task_id, emb, inplace=False)
             if task_info.task_type in \
             [BUILTIN_TASK_NODE_CLASSIFICATION,
              BUILTIN_TASK_NODE_REGRESSION,

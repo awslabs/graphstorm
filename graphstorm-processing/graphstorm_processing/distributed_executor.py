@@ -209,11 +209,11 @@ class DistributedExecutor:
             self.precomputed_transformations = {}
 
         if "version" in dataset_config_dict:
-            config_version = dataset_config_dict["version"]
-            if config_version == "gsprocessing-v1.0":
+            config_version: str = dataset_config_dict["version"]
+            if config_version.startswith("gsprocessing"):
                 logging.info("Parsing config file as GSProcessing config")
                 self.gsp_config_dict = dataset_config_dict["graph"]
-            elif config_version == "gconstruct-v1.0":
+            elif config_version.startswith("gconstruct"):
                 logging.info("Parsing config file as GConstruct config")
                 converter = GConstructConfigConverter()
                 self.gsp_config_dict = converter.convert_to_gsprocessing(dataset_config_dict)[
@@ -573,10 +573,10 @@ def main():
         format="[GSPROCESSING] %(asctime)s %(levelname)-8s %(message)s",
     )
 
-    # Determine if we're running within a SageMaker container
+    # Determine execution environment
     if os.path.exists("/opt/ml/config/processingjobconfig.json"):
         execution_env = ExecutionEnv.SAGEMAKER
-    elif os.path.exists("/emr-serverless-config.json"):
+    elif os.path.exists("/usr/lib/spark/code/EMR_SERVERLESS_EXECUTION"):
         execution_env = ExecutionEnv.EMR_SERVERLESS
     elif os.path.exists("/usr/lib/spark/code/EMR_EXECUTION"):
         execution_env = ExecutionEnv.EMR_ON_EC2

@@ -348,7 +348,17 @@ def main(config_args):
                                                     train_data.g,
                                                     encoder_out_dims,
                                                     train_task=True)
-        model.add_task(task.task_id, task.task_type, decoder, loss_func)
+        # For link prediction, lp_embed_normalizer may be used
+        # TODO(xiangsx): add embed normalizer for other task types
+        # in the future.
+        node_embed_norm_method = task.task_config.lp_embed_normalizer \
+            if task.task_type in [BUILTIN_TASK_LINK_PREDICTION] \
+            else None
+        model.add_task(task.task_id,
+                       task.task_type,
+                       decoder,
+                       loss_func,
+                       embed_norm_method=node_embed_norm_method)
         if not config.no_validation:
             if val_loader is None:
                 logging.warning("The training data do not have validation set.")
@@ -419,7 +429,14 @@ def main(config_args):
                                                         train_data.g,
                                                         encoder_out_dims,
                                                         train_task=True)
-            model.add_task(task.task_id, task.task_type, decoder, loss_func)
+            node_embed_norm_method = task.task_config.lp_embed_normalizer \
+                if task.task_type in [BUILTIN_TASK_LINK_PREDICTION] \
+                else None
+            model.add_task(task.task_id,
+                           task.task_type,
+                           decoder,
+                           loss_func,
+                           embed_norm_method=node_embed_norm_method)
         best_model_path = trainer.get_best_model_path()
         # TODO(zhengda) the model path has to be in a shared filesystem.
         model.restore_model(best_model_path)
@@ -432,12 +449,28 @@ def main(config_args):
         embeddings = do_full_graph_inference(model, train_data, fanout=config.eval_fanout,
                                              task_tracker=tracker)
 
+        # Save the original embs first
         save_full_node_embeddings(
             train_data.g,
             config.save_embed_path,
             embeddings,
             node_id_mapping_file=config.node_id_mapping_file,
             save_embed_format=config.save_embed_format)
+
+        node_norm_methods = model.node_embed_norm_methods
+        # save normalized embeddings
+        for task_id, norm_method in node_norm_methods.items():
+            if norm_method is None:
+                continue
+            normed_embs = model.normalize_task_node_embs(task_id, embeddings, inplace=False)
+            save_embed_path = os.path.join(config.save_embed_path, task_id)
+            save_full_node_embeddings(
+                train_data.g,
+                save_embed_path,
+                normed_embs,
+                node_id_mapping_file=config.node_id_mapping_file,
+                save_embed_format=config.save_embed_format)
+
 
 def generate_parser():
     """ Generate an argument parser
