@@ -24,17 +24,17 @@ date
 pwd
 
 echo "**************local docker image for cpu"
-bash ./build_docker_oss4local.sh ~/graphstorm/ graphstorm latest cpu
+bash ./build_docker_oss4local.sh /graphstorm/ graphstorm latest cpu
 
 error_and_exit $?
 
 echo "**************local docker image for cpu, Parmetis container for EC2 Clusters"
-bash ./build_docker_parmetis.sh ~/graphstorm/ graphstorm parmetis-cpu
+bash ./build_docker_parmetis.sh /graphstorm/ graphstorm parmetis-cpu
 
 error_and_exit $?
 
 echo "**************local docker image for cpu, SageMaker"
-bash ./build_docker_sagemaker.sh ~/graphstorm cpu
+bash ./build_docker_sagemaker.sh /graphstorm cpu
 
 error_and_exit $?
 

@@ -24,12 +24,12 @@ date
 pwd
 
 echo "**************local docker image for gpu"
-bash ./build_docker_oss4local.sh ~/graphstorm/ graphstorm latest gpu
+bash ./build_docker_oss4local.sh /graphstorm/ graphstorm latest gpu
 
 error_and_exit $?
 
 echo "**************local docker image for gpu, SageMaker"
-bash ./build_docker_sagemaker.sh ~/graphstorm gpu
+bash ./build_docker_sagemaker.sh /graphstorm gpu
 
 error_and_exit $?
 
