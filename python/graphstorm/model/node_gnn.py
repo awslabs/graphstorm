@@ -89,7 +89,8 @@ class GSgnnNodeModelInterface:
             The GNN embeddings.
         """
 
-class GSgnnNodeModelBase(GSgnnNodeModelInterface, GSgnnModelBase):
+# pylint: disable=abstract-method
+class GSgnnNodeModelBase(GSgnnModelBase, GSgnnNodeModelInterface):
     """ GraphStorm base GNN model class for node prediction tasks.
     
     This base class extends GraphStorm ``GSgnnModelBase`` and ``GSgnnNodeModelInterface``.
