@@ -737,6 +737,9 @@ def main(args, gs_config_args):
         id_mapping_path = args.node_id_mapping
         predict_dir = args.prediction_dir
         node_emb_dir = args.node_emb_dir
+        # We do not handle the case when there are task specific embeddings
+        # in multi-task learning, if remap_result is called alone.
+        # Users need to clean up the node_emb_dir themselves.
         task_emb_dirs = []
         pred_etypes = args.pred_etypes
         pred_ntypes = args.pred_ntypes
@@ -787,6 +790,24 @@ def main(args, gs_config_args):
 
         else: # There is no shared file system
             emb_names = os.listdir(node_emb_dir)
+            # In single task learning, the node embed dir looks like:
+            # emb_dir/
+            #     ntype0
+            #     ntype1
+            #     ...
+            #     emb_info.json
+            #
+            # In multi-task learning, the node embed dir looks like:
+            # emb_dir/
+            #     ntype0
+            #     ntype1
+            #     ...
+            #     emb_info.json
+            #     task_id0/
+            #     task_id1/
+            #     ...
+            # We need to exclude both emb_info.json and task_id directories,
+            # when we are collecting node types with node embeddings.
             emb_names = [e_name for e_name in emb_names \
                 if e_name not in task_emb_dirs + ["emb_info.json"]]
 

@@ -694,7 +694,7 @@ cnt=$(ls -l /data/gsgnn_mt/emb/ | wc -l)
 cnt=$[cnt - 1]
 if test $cnt != 3
 then
-    echo "The number of saved embs $cnt is not equal to 3. Two for movie and user and One for link-prediction-subtask normalized embedding."
+    echo "The number of saved embs $cnt is not equal to 3. Should have two for movie and user and One for link-prediction-subtask normalized embedding."
 fi
 
 echo "**************[Multi-task] dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference with test"
@@ -706,7 +706,7 @@ cnt=$(ls -l /data/gsgnn_mt/infer-emb/ | wc -l)
 cnt=$[cnt - 2]
 if test $cnt != 4
 then
-     echo "The number of saved embs $cnt is not equal to 3. Two for movie and user and One for link-prediction-subtask normalized embedding."
+     echo "The number of saved embs $cnt is not equal to 3. Should have two for movie and user and One for link-prediction-subtask normalized embedding."
 fi
 
 python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_mt/emb/ --infer-embout /data/gsgnn_mt/infer-emb/

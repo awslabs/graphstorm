@@ -121,7 +121,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
 
         Returns
         -------
-        dict of Tensors:
+        new_embs: dict of Tensors
             Normalized node embeddings.
         """
         if self._node_embed_norm_methods[task_id] is not None:
@@ -162,13 +162,15 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         else:
             # If normalization method is None
             # do nothing.
-            return embs
+            new_embs = embs
+            return new_embs
 
     # pylint: disable = arguments-differ
     def minibatch_normalize_task_node_embs(self, task_id, embs):
         """ Normalize node embeddings when needed for a mini-batch.
 
-            minibatch_normalize_task_node_embs should be called in forward() and predict()
+            minibatch_normalize_task_node_embs should be called in
+            forward() and predict().
 
         Parameters
         ----------
@@ -179,7 +181,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
 
         Returns
         -------
-        dict of Tensors:
+        embs: dict of Tensors
             Normalized node embeddings.
         """
         if self._node_embed_norm_methods[task_id] is not None:
@@ -217,7 +219,7 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         loss_func: func
             Loss function.
         embed_norm_method: str
-            Node embedding normalization method
+            Node embedding normalization method.
         """
         assert task_id not in self._task_pool, \
             f"Task {task_id} already exists"
