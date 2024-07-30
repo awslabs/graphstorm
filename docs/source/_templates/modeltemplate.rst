@@ -9,4 +9,3 @@
     :show-inheritance:
     :members:
     :member-order: bysource
-    :special-members:

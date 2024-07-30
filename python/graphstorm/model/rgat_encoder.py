@@ -32,6 +32,7 @@ class RelationalAttLayer(nn.Module):
     Attention Networks <https://arxiv.org/abs/1904.05811>`_.
 
     For the GATConv on each relation type:
+
     .. math::
 
         h_i^{(l+1)} = \sum_{j\in \mathcal{N}(i)} \alpha_{i,j} W^{(l)} h_j^{(l)}

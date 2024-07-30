@@ -28,16 +28,17 @@ from ..utils import is_distributed, get_rank, is_wholegraph
 class GSgnnNodeModelInterface:
     """ The interface for GraphStorm node prediction model.
 
-    This interface defines two main methods for training and inference.
+    This interface defines two main methods, ``forward()`` for training and ``predict()``
+    for inference. Node GNN models should inherite this interface and implement the two
+    methods.
     """
     @abc.abstractmethod
-    def forward(self, blocks, node_feats, edge_feats,
-        labels, input_nodes=None):
+    def forward(self, blocks, node_feats, edge_feats, labels, input_nodes=None):
         """ The forward function for node prediction.
 
-        This method is used for training. It takes a mini-batch, including
-        the graph structure, node features, edge features and node labels and
-        computes the loss of the model in the mini-batch.
+        This method is used for training. It takes blocks (containing the graph structure),
+        node features, edge features, and node labels of a mini-batch as input, and
+        computes the loss of the model in the mini-batch as the return value.
 
         Parameters
         ----------
@@ -54,12 +55,16 @@ class GSgnnNodeModelInterface:
 
         Returns
         -------
-        The loss of prediction.
+        float: The loss of prediction in this mini-batch.
         """
 
     @abc.abstractmethod
     def predict(self, blocks, node_feats, edge_feats, input_nodes, return_proba):
         """ Make prediction on the nodes with GNN.
+
+        This method is used for inference. It takes blocks (containing the graph structure),
+        node features, edge features, and input node of a mini-batch as input, and
+        computes the predictions of the input nodes.
 
         Parameters
         ----------
@@ -72,36 +77,37 @@ class GSgnnNodeModelInterface:
         input_nodes: dict of Tensors
             The input nodes of a mini-batch.
         return_proba : bool
-            Whether or not to return all the predicted results or only the maximum one
+            Whether or not to return the predicted results or only the argmax ones in
+            classification models.
 
         Returns
         -------
         Tensor or dict of Tensor:
-            GNN prediction results. Return all the results when return_proba is true
-            otherwise return the maximum result.
+            GNN prediction results. Return all the results when ``return_proba`` is True
+            otherwise return the argmax results.
         Tensor or dict of Tensor:
             The GNN embeddings.
         """
 
 # pylint: disable=abstract-method
-class GSgnnNodeModelBase(GSgnnNodeModelInterface,
-                         GSgnnModelBase):
-    """ The base class for node-prediction GNN
-
-    When a user wants to define a node prediction GNN model and train the model
-    in GraphStorm, the model class needs to inherit from this base class.
-    A user needs to implement some basic methods including `forward`, `predict`,
-    `save_model`, `restore_model` and `create_optimizer`.
+class GSgnnNodeModelBase(GSgnnNodeModelInterface, GSgnnModelBase):
+    """ GraphStorm base GNN model class for node prediction tasks.
+    
+    This base class extends GraphStorm ``GSgnnModelBase`` and ``GSgnnNodeModelInterface``.
+    When users want to define a node prediction GNN model and train the model
+    in GraphStorm, the model class needs to inherit from this base class, and implement
+    the required methods including ``forward()``, ``predict()`, ``save_model()``,
+    ``restore_model()`` and ``create_optimizer()``.
     """
 
 
 class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
-    """ GraphStorm GNN model for node prediction tasks
+    """ GraphStorm GNN model for node prediction tasks.
 
     Parameters
     ----------
     alpha_l2norm : float
-        The alpha for L2 normalization.
+        The alpha value for L2 normalization.
     """
     def __init__(self, alpha_l2norm):
         super(GSgnnNodeModel, self).__init__()
@@ -110,7 +116,25 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
     def forward(self, blocks, node_feats, _, labels, input_nodes=None):
         """ The forward function for node prediction.
 
-        This GNN model doesn't support edge features for now.
+        This method is used for training. It takes a mini-batch, including
+        the graph structure, node features, and node labels and
+        computes the loss of the model in the mini-batch.
+
+        Parameters
+        ----------
+        blocks : list of DGLBlock
+            The message passing graph for computing GNN embeddings.
+        node_feats : dict of Tensors
+            The input node features of the message passing graphs.
+        _ : This GNN model doesn't support edge features for now.
+        labels: dict of Tensor
+            The labels of the predicted nodes.
+        input_nodes: dict of Tensors
+            The input nodes of a mini-batch.
+
+        Returns
+        -------
+        The loss of prediction.
         """
         alpha_l2norm = self.alpha_l2norm
         if blocks is None or len(blocks) == 0:

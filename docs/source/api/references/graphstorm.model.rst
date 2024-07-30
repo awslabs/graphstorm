@@ -30,8 +30,10 @@ graphstorm.model
     the ``forward(self, blocks, h)`` function, which will be called by GraphStorm GNN model
     classes within their own ``forward()`` function.
 
-    For examples of how to use these GraphStorm APIs, please refer to :ref:`GraphStorm API
-    Programming Examples <programming-examples>`.
+    For examples of how to use these GraphStorm APIs to form training/inference pipeliens,
+    to switch different GNN encoders to implement various GNN models, and to build a customized
+    GNN encodeers, please refer to these :ref:`GraphStorm API Programming Examples
+     <programming-examples>`.
 
 .. currentmodule:: graphstorm.model
 
@@ -44,8 +46,11 @@ Base GNN models
     :template: modeltemplate.rst
 
     GSgnnNodeModelBase
+    GSgnnNodeModelInterface
     GSgnnEdgeModelBase
+    GSgnnEdgeModelInterface
     GSgnnLinkPredictionModelBase
+    GSgnnLinkPredictionModelInterface
 
 Input Layer
 ----------------
