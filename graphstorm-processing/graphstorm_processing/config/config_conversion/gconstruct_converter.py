@@ -134,7 +134,7 @@ class GConstructConfigConverter(ConfigConverter):
                         "imputer": "none",
                     }
 
-                    if gconstruct_transform_dict.get("out_dtype") in ["float32", "float64"]:
+                    if gconstruct_transform_dict.get("out_dtype") in VALID_OUTDTYPE:
                         gsp_transformation_dict["kwargs"]["out_dtype"] = gconstruct_transform_dict[
                             "out_dtype"
                         ]
