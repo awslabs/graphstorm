@@ -99,8 +99,6 @@ class GSgnnNodeModelBase(GSgnnNodeModelInterface, GSgnnModelBase):
     the required methods including ``forward()``, ``predict()``, ``save_model()``,
     ``restore_model()`` and ``create_optimizer()``.
     """
-    def __init__(self):
-        super(GSgnnNodeModelBase).__init__()
 
 
 class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
