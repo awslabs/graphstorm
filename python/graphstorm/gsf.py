@@ -127,16 +127,16 @@ def initialize(ip_config=None, backend='gloo', local_rank=0, use_wholegraph=Fals
     ----------
     ip_config: str
         File path of the IP address file, e.g., `/tmp/ip_list.txt`
-        Default: None
+        Default: None.
     backend: str
         Torch distributed backend, e.g., ``gloo`` or ``nccl``.
-        Default: 'gloo'
+        Default: ``gloo``.
     local_rank: int
         The local rank of the current process.
-        Default: 0
+        Default: 0.
     use_wholegraph: bool
         Whether to use wholegraph for feature transfer.
-        Default: False
+        Default: False.
     """
     # We need to use socket for communication in DGL 0.8. The tensorpipe backend has a bug.
     # This problem will be fixed in the future.
@@ -154,10 +154,9 @@ def initialize(ip_config=None, backend='gloo', local_rank=0, use_wholegraph=Fals
     sys_tracker.check(f"setup device on {device}")
 
 def get_node_feat_size(g, node_feat_names):
-    """ Get the overall feature size of the node types and feature names given by the
-    ``node_feat_names`` in the input graph. In case when one node type has multiple
-    features, the returned feature size will be the sum of sizes of these features in that
-    node type.
+    """ Get the overall feature size of the node types and feature names specified in the
+    ``node_feat_names``. In case when one node type has multiple features, the returned
+    feature size will be the sum of sizes of these features in that node type.
 
     Parameters
     ----------
@@ -165,12 +164,13 @@ def get_node_feat_size(g, node_feat_names):
         A DGL distributed graph.
     node_feat_names : str, or dict of list of str
         The node feature names. A string means all nodes have the same feature name; while
-        dict of list of string means each node type has different node feature names.
+        a dict of list of string means each node type has different node feature names.
 
     Returns
     -------
     node_feat_size: dict of int
-        The feature size for the node types and feature names given by the ``node_feat_names``.
+        The feature size for the node types and feature names specified in the
+        ``node_feat_names``.
     """
     node_feat_size = {}
     for ntype in g.ntypes:
