@@ -89,12 +89,11 @@ class GSgnnNodeModelInterface:
             The GNN embeddings.
         """
 
-# pylint: disable=abstract-method
 class GSgnnNodeModelBase(GSgnnNodeModelInterface, GSgnnModelBase):
     """ GraphStorm base GNN model class for node prediction tasks.
     
     This base class extends GraphStorm ``GSgnnModelBase`` and ``GSgnnNodeModelInterface``.
-    When users want to define a node prediction GNN model and train the model
+    When users want to define a customized node prediction GNN model and train the model
     in GraphStorm, the model class needs to inherit from this base class, and implement
     the required methods including ``forward()``, ``predict()`, ``save_model()``,
     ``restore_model()`` and ``create_optimizer()``.
@@ -116,9 +115,9 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
     def forward(self, blocks, node_feats, _, labels, input_nodes=None):
         """ The forward function for node prediction.
 
-        This method is used for training. It takes a mini-batch, including
-        the graph structure, node features, and node labels and
-        computes the loss of the model in the mini-batch.
+        This method is used for training. It takes blocks (containing the graph structure),
+        node features, and node labels of a mini-batch as input, and
+        computes the loss of the model in the mini-batch as the return value.
 
         Parameters
         ----------
@@ -126,7 +125,7 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
             The message passing graph for computing GNN embeddings.
         node_feats : dict of Tensors
             The input node features of the message passing graphs.
-        _ : This GNN model doesn't support edge features for now.
+        _ : This GNN node model doesn't support edge features for now.
         labels: dict of Tensor
             The labels of the predicted nodes.
         input_nodes: dict of Tensors
@@ -134,7 +133,8 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
 
         Returns
         -------
-        The loss of prediction.
+        total_loss: float
+            The loss of prediction in this mini-batch.
         """
         alpha_l2norm = self.alpha_l2norm
         if blocks is None or len(blocks) == 0:
@@ -174,7 +174,8 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
             reg_loss += d_para.square().sum()
 
         # weighted addition to the total loss
-        return pred_loss + alpha_l2norm * reg_loss
+        total_loss = pred_loss + alpha_l2norm * reg_loss
+        return total_loss
 
     def predict(self, blocks, node_feats, _, input_nodes, return_proba):
         """ Make prediction on the nodes with GNN.
