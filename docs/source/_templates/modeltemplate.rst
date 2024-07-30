@@ -7,4 +7,6 @@
 
 .. autoclass:: {{ name }}
     :show-inheritance:
-    :members: forward, save_model, restore_model, predict, create_optimizer
+    :members:
+    :member-order: bysource
+    :special-members:
