@@ -180,11 +180,11 @@ def prepare_link_predict_mini_batch(data, task_info, mini_batch, device):
     nfeat_fields = task_info.dataloader.node_feat_fields
     node_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
 
-    if task_info.dataloader.pos_graph_feat_fields is not None:
+    if task_info.dataloader.pos_graph_edge_feat_fields is not None:
         input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
             for etype in pos_graph.canonical_etypes}
         pos_graph_feats = data.get_edge_feats(input_edges,
-                                                task_info.dataloader.pos_graph_feat_fields,
+                                                task_info.dataloader.pos_graph_edge_feat_fields,
                                                 device)
     else:
         pos_graph_feats = None
