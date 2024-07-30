@@ -236,8 +236,8 @@ class DistNumericalTransformation(DistributedTransformation):
     def __init__(
         self,
         cols: Sequence[str],
-        normalizer: str,
-        imputer: str,
+        normalizer: str = "none",
+        imputer: str = "none",
         out_dtype: str = TYPE_FLOAT32,
         epsilon: float = 1e-6,
     ) -> None:
@@ -290,9 +290,9 @@ class DistMultiNumericalTransformation(DistNumericalTransformation):
     def __init__(
         self,
         cols: Sequence[str],
-        separator: Optional[str],
-        normalizer: str,
-        imputer: str,
+        separator: Optional[str] = None,
+        normalizer: str = "none",
+        imputer: str = "none",
         out_dtype: str = TYPE_FLOAT32,
     ) -> None:
         assert (
