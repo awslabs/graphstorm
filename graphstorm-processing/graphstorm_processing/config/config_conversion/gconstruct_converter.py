@@ -85,7 +85,7 @@ class GConstructConfigConverter(ConfigConverter):
                     label_dict["separator"] = label_sep
                 # Not supported for multi-task config for GSProcessing
                 assert "mask_field_names" not in label, (
-                    "GSProcessing currently do not support to "
+                    "GSProcessing currently cannot "
                     "construct labels for multi-task learning"
                 )
                 labels_list.append(label_dict)
