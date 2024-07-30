@@ -40,7 +40,8 @@ from ..config import (GSConfig,
                       BUILTIN_TASK_EDGE_CLASSIFICATION,
                       BUILTIN_TASK_EDGE_REGRESSION,
                       BUILTIN_TASK_NODE_CLASSIFICATION,
-                      BUILTIN_TASK_NODE_REGRESSION)
+                      BUILTIN_TASK_NODE_REGRESSION,
+                      BUILTIN_TASK_LINK_PREDICTION)
 
 GS_OUTPUT_FORMAT_PARQUET = "parquet"
 GS_OUTPUT_FORMAT_CSV = "csv"
@@ -655,16 +656,28 @@ def _parse_gs_config(config):
     node_id_mapping = os.path.join(os.path.dirname(part_config), "raw_id_mappings")
     predict_dir = config.save_prediction_path
     emb_dir = config.save_embed_path
+    task_emb_dirs = []
 
     pred_ntypes = []
     pred_etypes = []
     if config.multi_tasks is not None:
         node_predict_dirs = []
         edge_predict_dirs = []
-        if predict_dir is None:
-            return node_id_mapping, None, emb_dir, pred_ntypes, pred_etypes
         # multi-task setting
         tasks = config.multi_tasks
+
+        for task in tasks:
+            task_config = task.task_config
+            task_id = task.task_id
+            if task.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+                if task_config.lp_embed_normalizer is not None:
+                    # There are link prediction node embedding normalizer
+                    # Need to handled the normalized embeddings.
+                    task_emb_dirs.append(task_id)
+
+        if predict_dir is None:
+            return node_id_mapping, None, emb_dir, task_emb_dirs, pred_ntypes, pred_etypes
+
         for task in tasks:
             task_config = task.task_config
             task_id = task.task_id
@@ -681,7 +694,7 @@ def _parse_gs_config(config):
                 edge_predict_dirs.append(pred_path)
 
         predict_dir = (node_predict_dirs, edge_predict_dirs)
-        return node_id_mapping, predict_dir, emb_dir, pred_ntypes, pred_etypes
+        return node_id_mapping, predict_dir, emb_dir, task_emb_dirs, pred_ntypes, pred_etypes
     else:
         task_type = config.task_type
         if task_type in (BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION):
@@ -694,7 +707,7 @@ def _parse_gs_config(config):
             pred_ntypes = pred_ntypes \
                 if isinstance(pred_ntypes, list) else [pred_ntypes]
 
-        return node_id_mapping, predict_dir, emb_dir, pred_ntypes, pred_etypes
+        return node_id_mapping, predict_dir, emb_dir, task_emb_dirs, pred_ntypes, pred_etypes
 
 def main(args, gs_config_args):
     """ main function
@@ -714,7 +727,7 @@ def main(args, gs_config_args):
         gs_args, _ = gs_parser.parse_known_args(gs_config_args)
         config = GSConfig(gs_args)
         config.verify_arguments(False)
-        id_mapping_path, predict_dir, node_emb_dir, pred_ntypes, pred_etypes = \
+        id_mapping_path, predict_dir, node_emb_dir, task_emb_dirs, pred_ntypes, pred_etypes = \
             _parse_gs_config(config)
     else:
         # Case 2: remap_result is called alone.
@@ -724,6 +737,10 @@ def main(args, gs_config_args):
         id_mapping_path = args.node_id_mapping
         predict_dir = args.prediction_dir
         node_emb_dir = args.node_emb_dir
+        # We do not handle the case when there are task specific embeddings
+        # in multi-task learning, if remap_result is called alone.
+        # Users need to clean up the node_emb_dir themselves.
+        task_emb_dirs = []
         pred_etypes = args.pred_etypes
         pred_ntypes = args.pred_ntypes
         if pred_etypes is not None:
@@ -773,7 +790,26 @@ def main(args, gs_config_args):
 
         else: # There is no shared file system
             emb_names = os.listdir(node_emb_dir)
-            emb_names = [e_name for e_name in emb_names if e_name != "emb_info.json"]
+            # In single task learning, the node embed dir looks like:
+            # emb_dir/
+            #     ntype0
+            #     ntype1
+            #     ...
+            #     emb_info.json
+            #
+            # In multi-task learning, the node embed dir looks like:
+            # emb_dir/
+            #     ntype0
+            #     ntype1
+            #     ...
+            #     emb_info.json
+            #     task_id0/
+            #     task_id1/
+            #     ...
+            # We need to exclude both emb_info.json and task_id directories,
+            # when we are collecting node types with node embeddings.
+            emb_names = [e_name for e_name in emb_names \
+                if e_name not in task_emb_dirs + ["emb_info.json"]]
 
             emb_ntypes = emb_names
     else:
@@ -961,6 +997,21 @@ def main(args, gs_config_args):
                            with_shared_fs,
                            output_func)
         files_to_remove += emb_files_to_remove
+
+        for task_emb_dir in task_emb_dirs:
+            task_emb_dir = os.path.join(node_emb_dir, task_emb_dir)
+            # We need to do ID remapping for node embeddings
+            emb_files_to_remove = \
+                remap_node_emb(emb_ntypes,
+                               task_emb_dir,
+                               task_emb_dir,
+                               out_chunk_size,
+                               num_proc,
+                               rank,
+                               world_size,
+                               with_shared_fs,
+                               output_func)
+            files_to_remove += emb_files_to_remove
 
     if len(pred_etypes) > 0:
         if isinstance(predict_dir, tuple):
