@@ -4,18 +4,18 @@ graphstorm.model
 ===================
 
     GraphStorm provides a set of Graph Neural Network (GNN) modules. By combining them
-    in proper ways, users can build various GNN models for different tasks.
+    in proper ways, users can build various GraphStorm GNN models for different tasks.
 
     A GraphStorm GNN model normally contains four components:
 
     * Input layer: an input encoder that converts input node/edge features into embeddings
       with the given hidden dimensions. The output of an input layer will become the input of
-      the GNN layer, or the decoder layer if no need of GNN computation.
-    * GNN layer: a GNN encoders that performs the message passing computation. The outputs of
-      a GNN layer are embeddings of nodes that wil be used in the decoder layer.
+      the GNN layer, or the decoder layer if no need of message passing computation.
+    * GNN layer (Optional): a GNN encoders that performs the message passing computation. 
+      The outputs of a GNN layer are embeddings of nodes that wil be used in the decoder layer.
     * Decoder layer: a task specific module that converts results from either a GNN layer or 
-      an input layer for different GML tasks, e.g., classification, regression, or
-      link prediction.
+      an input layer into loss values for different GML tasks, e.g., classification, regression,
+      or link prediction.
     * Model optimizer: GraphStorm model classes have a built-in model optimizer, which should
       be initialized during model object construction.
 
@@ -52,7 +52,7 @@ Input Layer
 .. autosummary::
     :toctree: ../generated/
     :nosignatures:
-    :template: classtemplate.rst
+    :template: modeltemplate.rst
 
     GSNodeEncoderInputLayer
     GSLMNodeEncoderInputLayer
@@ -63,7 +63,7 @@ GNN Layer
 .. autosummary::
     :toctree: ../generated/
     :nosignatures:
-    :template: classtemplate.rst
+    :template: modeltemplate.rst
 
     RelationalGCNEncoder
     RelGraphConvLayer
