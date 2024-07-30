@@ -90,7 +90,7 @@ class GSgnnNodeModelInterface:
         """
 
 # pylint: disable=abstract-method
-class GSgnnNodeModelBase(GSgnnModelBase, GSgnnNodeModelInterface):
+class GSgnnNodeModelBase(GSgnnNodeModelInterface, GSgnnModelBase):
     """ GraphStorm base GNN model class for node prediction tasks.
     
     This base class extends GraphStorm ``GSgnnModelBase`` and ``GSgnnNodeModelInterface``.
