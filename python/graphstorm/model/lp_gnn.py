@@ -56,8 +56,7 @@ class GSgnnLinkPredictionModelInterface:
         """
 
 # pylint: disable=abstract-method
-class GSgnnLinkPredictionModelBase(GSgnnLinkPredictionModelInterface,
-                                   GSgnnModelBase):
+class GSgnnLinkPredictionModelBase(GSgnnModelBase, GSgnnLinkPredictionModelInterface):
     """ The base class for link-prediction GNN
 
     When a user wants to define a link prediction GNN model and train the model

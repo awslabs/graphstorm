@@ -93,8 +93,7 @@ class GSgnnEdgeModelInterface:
         """
 
 # pylint: disable=abstract-method
-class GSgnnEdgeModelBase(GSgnnEdgeModelInterface,
-                         GSgnnModelBase):
+class GSgnnEdgeModelBase(GSgnnModelBase, GSgnnEdgeModelInterface):
     """ The base class for edge-prediction GNN
 
     When a user wants to define an edge prediction GNN model and train the model
