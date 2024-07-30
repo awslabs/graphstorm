@@ -83,7 +83,7 @@ Decoder Layer
 .. autosummary::
     :toctree: ../generated/
     :nosignatures:
-    :template: classtemplate.rst
+    :template: modeltemplate.rst
 
     EntityClassifier
     EntityRegression
