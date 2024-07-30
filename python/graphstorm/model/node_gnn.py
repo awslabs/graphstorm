@@ -96,7 +96,7 @@ class GSgnnNodeModelBase(GSgnnModelBase, GSgnnNodeModelInterface):
     This base class extends GraphStorm ``GSgnnModelBase`` and ``GSgnnNodeModelInterface``.
     When users want to define a customized node prediction GNN model and train the model
     in GraphStorm, the model class needs to inherit from this base class, and implement
-    the required methods including ``forward()``, ``predict()`, ``save_model()``,
+    the required methods including ``forward()``, ``predict()``, ``save_model()``,
     ``restore_model()`` and ``create_optimizer()``.
     """
     def __init__(self):
