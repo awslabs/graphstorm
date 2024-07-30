@@ -9,4 +9,4 @@
     :show-inheritance:
     :members:
     :member-order: bysource
-    :inherited-members: torch.nn.Module
+

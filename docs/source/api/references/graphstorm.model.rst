@@ -45,6 +45,7 @@ Base GNN models
     :nosignatures:
     :template: modeltemplate.rst
 
+    GSgnnModelBase
     GSgnnNodeModelBase
     GSgnnNodeModelInterface
     GSgnnEdgeModelBase
