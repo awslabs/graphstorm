@@ -4,7 +4,7 @@ Distributed Graph Construction
 
 Beyond single-machine graph construction, distributed graph construction offers enhanced scalability
 and efficiency. This process involves two main steps: GraphStorm Distributed Data Processing (GSProcessing)
-and GraphStorm Distributed Data Partitioning (GSPartition). GSProcessing will preprocess the raw data into structured
+and GraphStorm Distributed Graph Partitioning (GSPartition). GSProcessing will preprocess the raw data into structured
 datasets, and GSPartition will process these structured datasets to create multiple partitions in
 `DGL format <https://docs.dgl.ai/en/latest/api/python/dgl.DGLGraph.html>`_.
 

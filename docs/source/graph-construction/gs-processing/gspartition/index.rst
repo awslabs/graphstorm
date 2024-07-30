@@ -4,7 +4,7 @@
 Running partition jobs on AWS Infra
 ===================================
 
-GraphStorm Distributed Data Partition (GSPartition) allows users to do distributed partition on preprocessed graph data
+GraphStorm Distributed Graph Partition (GSPartition) allows users to do distributed partition on preprocessed graph data
 prepared by :ref:`GSProcessing<gs-processing>`. To enable distributed training, the preprocessed input data must be converted to a partitioned graph representation.
 GSPartition allows user to handle massive graph data in distributed clusters. GSPartition is built on top of the
 dgl `distributed graph partitioning pipeline <https://docs.dgl.ai/en/latest/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_.
