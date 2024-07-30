@@ -200,10 +200,8 @@ class GConstructConfigConverter(ConfigConverter):
                 gsp_transformation_dict["name"] = "no-op"
 
             if "out_dtype" in gconstruct_feat_dict:
-                assert gconstruct_feat_dict["out_dtype"] in (
-                    "float32",
-                    "float64",
-                ), "GSProcessing currently only supports float32 or float64 features"
+                assert gconstruct_feat_dict["out_dtype"] in VALID_OUTDTYPE, \
+                    "GSProcessing currently only supports float32 or float64 features"
 
             gsp_feat_dict["transformation"] = gsp_transformation_dict
             gsp_feats_list.append(gsp_feat_dict)
