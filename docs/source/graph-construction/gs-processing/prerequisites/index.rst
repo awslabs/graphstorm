@@ -1,3 +1,5 @@
+.. _gsprocessing_prerequisites_index:
+
 ===============================================
 Distributed GraphStorm Processing
 ===============================================
