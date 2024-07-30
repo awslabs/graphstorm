@@ -85,8 +85,7 @@ class GConstructConfigConverter(ConfigConverter):
                     label_dict["separator"] = label_sep
                 # Not supported for multi-task config for GSProcessing
                 assert "mask_field_names" not in label, (
-                    "GSProcessing currently cannot "
-                    "construct labels for multi-task learning"
+                    "GSProcessing currently cannot " "construct labels for multi-task learning"
                 )
                 labels_list.append(label_dict)
             except KeyError as exc:
@@ -200,8 +199,9 @@ class GConstructConfigConverter(ConfigConverter):
                 gsp_transformation_dict["name"] = "no-op"
 
             if "out_dtype" in gconstruct_feat_dict:
-                assert gconstruct_feat_dict["out_dtype"] in VALID_OUTDTYPE, \
-                    "GSProcessing currently only supports float32 or float64 features"
+                assert (
+                    gconstruct_feat_dict["out_dtype"] in VALID_OUTDTYPE
+                ), "GSProcessing currently only supports float32 or float64 features"
 
             gsp_feat_dict["transformation"] = gsp_transformation_dict
             gsp_feats_list.append(gsp_feat_dict)
@@ -216,8 +216,9 @@ class GConstructConfigConverter(ConfigConverter):
             node_type, node_col = n["node_type"], n["node_id_col"]
             # format
             node_format = n["format"]["name"]
-            assert node_format in SUPPORTED_FILE_TYPES, \
-                "GSProcessing only supports parquet files and csv files."
+            assert (
+                node_format in SUPPORTED_FILE_TYPES
+            ), "GSProcessing only supports parquet files and csv files."
             if "separator" not in n["format"]:
                 node_separator = None
             else:
@@ -267,8 +268,9 @@ class GConstructConfigConverter(ConfigConverter):
 
             # format
             edge_format = e["format"]["name"]
-            assert edge_format in SUPPORTED_FILE_TYPES, \
-                "GSProcessing only supports parquet files and csv files."
+            assert (
+                edge_format in SUPPORTED_FILE_TYPES
+            ), "GSProcessing only supports parquet files and csv files."
             if "separator" not in e["format"]:
                 edge_separator = None
             else:
