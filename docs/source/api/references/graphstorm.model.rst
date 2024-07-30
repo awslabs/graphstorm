@@ -11,32 +11,32 @@ graphstorm.model
     * Input layer: an input encoder that converts input node/edge features into embeddings
       with the given hidden dimensions. The output of an input layer will become the input of
       the GNN layer, or the decoder layer if no need of message passing computation.
-    * GNN layer (Optional): a GNN encoders that performs the message passing computation. 
+    * GNN layer (Optional): a GNN encoder that performs the message passing computation. 
       The outputs of a GNN layer are embeddings of nodes that wil be used in the decoder layer.
     * Decoder layer: a task specific module that converts results from either a GNN layer or 
       an input layer into loss values for different GML tasks, e.g., classification, regression,
       or link prediction.
     * Model optimizer: GraphStorm model classes have a built-in model optimizer, which should
-      be initialized during model object construction.
+      be initialized during GraphStorm GNN model object construction.
 
-    Currently GraphStorm releases the APIs of the three layers.
+    Currently GraphStorm releases the APIs of the Input, GNN, and Decoder layers.
 
-    If users would like to implement their own GNN models, a best practice is to extend the
-    a base model class and its corresponding interface, e.g., ``GSgnnModelBase`` and
-    ``GSgnnNodeModelInterface``, and implement the required abstract methods.
+    If users would like to implement their own GNN models, a best practice is to extend a base
+    GNN model class and its corresponding interface, e.g., ``GSgnnNodeModelBase`` and
+    ``GSgnnNodeModelInterface``, and implement the required methods.
 
     If users just want to build their own message passing methods, a best practice is to create
     their own GNN encoders by extending the ``GraphConvEncoder`` base class, and implementing
-    the ``forward(self, blocks, h)`` function, which will be called by GraphStorm model classes
-    within their own ``forward()`` function.
+    the ``forward(self, blocks, h)`` function, which will be called by GraphStorm GNN model
+    classes within their own ``forward()`` function.
 
-    For examples of how to use the GraphStorm APIs, please refer to GraphStorm :ref:`API
+    For examples of how to use these GraphStorm APIs, please refer to :ref:`GraphStorm API
     Programming Examples <programming-examples>`.
 
 .. currentmodule:: graphstorm.model
 
-Base models
-------------
+Base GNN models
+---------------
 
 .. autosummary::
     :toctree: ../generated/

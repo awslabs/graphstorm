@@ -28,11 +28,12 @@ from .gnn_encoder_base import (GraphConvEncoder,
 
 
 class RelationalAttLayer(nn.Module):
-    r"""Relational graph attention layer from `
-    Relational Graph Attention Networks <https://arxiv.org/abs/1904.05811>`__.
+    r"""Relational graph attention layer from `Relational Graph
+    Attention Networks <https://arxiv.org/abs/1904.05811>`_.
 
     For the GATConv on each relation type:
     .. math::
+
         h_i^{(l+1)} = \sum_{j\in \mathcal{N}(i)} \alpha_{i,j} W^{(l)} h_j^{(l)}
 
     where :math:`\alpha_{ij}` is the attention score between node :math:`i` and
