@@ -23,7 +23,7 @@ graphstorm.model
 
     If users would like to implement their own GNN models, a best practice is to extend a base
     GNN model class and its corresponding interface, e.g., ``GSgnnNodeModelBase`` and
-    ``GSgnnNodeModelInterface``, and implement the required methods.
+    ``GSgnnNodeModelInterface``, and implement the required abstract methods.
 
     If users just want to build their own message passing methods, a best practice is to create
     their own GNN encoders by extending the ``GraphConvEncoder`` base class, and implementing
