@@ -457,7 +457,7 @@ class GSgnnModelBase(nn.Module):
         """ Preparing input layer for training or inference.
         
         The input layer can pre-compute node features in the preparing step
-        if needed. For example pre-compute all BERT embeddings
+        if needed, e.g., pre-compute all BERT embeddings.
 
             Default: do nothing
 

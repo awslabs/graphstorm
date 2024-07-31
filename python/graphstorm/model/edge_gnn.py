@@ -96,10 +96,11 @@ class GSgnnEdgeModelInterface:
 class GSgnnEdgeModelBase(GSgnnModelBase, GSgnnEdgeModelInterface):
     """ The base class for edge-prediction GNN
 
-    When a user wants to define an edge prediction GNN model and train the model
-    in GraphStorm, the model class needs to inherit from this base class.
-    A user needs to implement some basic methods including `forward`, `predict`,
-    `save_model`, `restore_model` and `create_optimizer`.
+    This base class extends GraphStorm ``GSgnnModelBase`` and ``GSgnnEdgeModelInterface``.
+    When users want to define a customized edge prediction GNN model and train the model
+    in GraphStorm, the model class needs to inherit from this base class, and implement
+    the required methods including ``forward()``, ``predict()``, ``save_model()``,
+    ``restore_model()`` and ``create_optimizer()``.
     """
 
 class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):

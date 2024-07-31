@@ -59,10 +59,11 @@ class GSgnnLinkPredictionModelInterface:
 class GSgnnLinkPredictionModelBase(GSgnnModelBase, GSgnnLinkPredictionModelInterface):
     """ The base class for link-prediction GNN
 
-    When a user wants to define a link prediction GNN model and train the model
-    in GraphStorm, the model class needs to inherit from this base class.
-    A user needs to implement some basic methods including `forward`, `predict`,
-    `save_model`, `restore_model` and `create_optimizer`.
+    This base class extends GraphStorm ``GSgnnModelBase`` and
+    ``GSgnnLinkPredictionModelInterface``. When users want to define a customized link
+    prediction GNN model and train the model in GraphStorm, the model class needs to
+    inherit from this base class, and implement the required methods including ``forward()``,
+    ``predict()``, ``save_model()``, ``restore_model()`` and ``create_optimizer()``.
     """
 
     def normalize_node_embs(self, embs):
