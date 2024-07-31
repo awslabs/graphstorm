@@ -32,8 +32,8 @@ graphstorm.model
 
     For examples of how to use these GraphStorm APIs to form training/inference pipeliens,
     to switch different GNN encoders to implement various GNN models, and to build a customized
-    GNN encodeers, please refer to these :ref:`GraphStorm API Programming Examples
-     <programming-examples>`.
+    GNN encodeers, please refer to these
+    :ref:`GraphStorm API Programming Examples <programming-examples>`.
 
 .. currentmodule:: graphstorm.model
 
