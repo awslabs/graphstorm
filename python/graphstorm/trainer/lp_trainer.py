@@ -108,8 +108,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         save_model_path : str
             The path where the model is saved.
         save_model_frequency : int
-            The number of iteration to train the model before saving the model. Default is -1,
-            meaning only save model after each epoch.
+            The number of iterations to train the model before saving to disk.
+            When > 0, we save a model every `save_model_frequency` iterations.
+            Default is -1, meaning only save a model after each epoch.
         save_perf_results_path : str
             The path of the file where the performance results are saved.
         edge_mask_for_gnn_embeddings : str
@@ -306,7 +307,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
 
         Parameters
         ----------
-        model : Pytorch model
+        model : GSgnnModel
             The GNN model.
         data : GSgnnData
             The training dataset

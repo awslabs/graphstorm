@@ -29,10 +29,11 @@ from ..model.node_gnn import node_mini_batch_predict
 from ..utils import sys_tracker, get_rank, barrier
 
 class GSgnnNodePredictionInferrer(GSInferrer):
-    """ Node classification/regression inferrer.
+    """ Node classification/regression inference wrapper.
 
-    This is a high-level inferrer wrapper that can be used directly
-    to do node classification/regression model inference.
+    This is a high-level inference wrapper that can be used directly
+    to evaluate the model, generate node embeddings, and compute
+    inference results for nodes with target node type.
 
     Parameters
     ----------
@@ -45,13 +46,13 @@ class GSgnnNodePredictionInferrer(GSInferrer):
               node_id_mapping_file=None,
               return_proba=True,
               save_embed_format="pytorch"):
-        """ Do inference
+        """ Do node inference.
 
         The inference does three things:
 
         1. (Optional) Evaluate the model performance on a test set if given.
         2. Generate node embeddings.
-        3. Comput inference results for nodes with target node type.
+        3. Generate predictions for nodes with target node type.
 
         Parameters
         ----------

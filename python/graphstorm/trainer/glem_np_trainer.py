@@ -37,7 +37,7 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
     GLEM framework [1].
 
     GLEM will iteratively train a GNN and a Language Model in
-    turn, allowing it to make better use of textual information
+    turn, allowing it to make better use of text information
     in the graph.
 
     The input `model` needs to be an instance of `model.node_glem.GLEM`
@@ -47,10 +47,10 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
     Parameters
     ----------
     model : GSgnnNodeModel
-        The GNN model for node prediction. Need to be an instance of
+        The GNN model for node prediction. Needs to be an instance of
         `model.node_glem.GLEM`.
     topk_model_to_save : int
-        The top K model to save.
+        The top K model to save. Default is 1.
 
     Example
     -------
@@ -115,7 +115,9 @@ class GLEMNodePredictionTrainer(GSgnnNodePredictionTrainer):
         save_model_path : str
             The path where the model is saved.
         save_model_frequency : int
-            The number of iteration to train the model before saving the model.
+            The number of iterations to train the model before saving to disk.
+            When > 0, we save a model every `save_model_frequency` iterations.
+            Default is -1, meaning only save a model after each epoch.
         save_perf_results_path : str
             The path of the file where the performance results are saved.
         freeze_input_layer_epochs: int

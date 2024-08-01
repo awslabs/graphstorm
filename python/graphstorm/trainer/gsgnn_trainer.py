@@ -169,8 +169,6 @@ class GSgnnTrainer():
 
         Parameters
         ----------
-        train_score: dict
-            Training score
         val_score: dict
             Validation score
         test_score: dict
@@ -179,6 +177,8 @@ class GSgnnTrainer():
             Total evaluation time
         total_steps: int
             The corresponding step/iteration
+        train_score: dict
+            Training score. Default is None.
         """
         if self.task_tracker is None:
             return
@@ -193,8 +193,19 @@ class GSgnnTrainer():
                 eval_time=dur_eval, total_steps=total_steps)
 
     def save_model(self, model, epoch, i, save_model_path):
-        '''Save the model for a certain iteration in an epoch.
-        '''
+        """Save the model to disk.
+
+        Parameters
+        ----------
+        model : GSgnnModel
+            The model to save.
+        epoch : int
+            The epoch that is being saved.
+        i : int
+            The iteration that is being saved.
+        save_model_path : str
+            Directory under which the model will be saved.
+        """
         barrier()
         if save_model_path is not None:
             module = model.module if is_distributed() else model
@@ -209,15 +220,18 @@ class GSgnnTrainer():
         barrier()
 
     def remove_saved_model(self, epoch, i, save_model_path):
-        """ remove previously saved model, which may not be the best K performed or other reasons.
-            This function will remove the entire folder.
+        """ Remove previously saved model.
+
+        Used to remove the saved model files when they are
+        worse than the current top K models.
+        This function will remove the entire folder.
 
         Parameters
         ----------
         epoch: int
-            The number of training epoch.
+            The epoch of the saved model
         i: int
-            The number of iteration in a training epoch.
+            The iteration of the saved model.
         save_model_path : str
             The path where the model is saved.
         """
@@ -232,21 +246,23 @@ class GSgnnTrainer():
                               saved_model_path)
 
     def save_topk_models(self, model, epoch, i, val_score, save_model_path):
-        """ Based on the given val_score, decided if save the current model trained in the i_th
-            iteration and the epoch_th epoch.
+        """ Save the top K models.
+
+        This function will save the current model if it is one of the top K models based on
+        the val score provided.
 
         Parameters
         ----------
-        model : pytorch model
+        model : GSgnnModel
             The GNN model.
         epoch: int
-            The number of training epoch.
+            The epoch of the model.
         i: int
-            The number of iteration in a training epoch.
+            The iteratation number within the epoch for the model.
         val_score: dict or None
-            A dictionary contains scores from evaluator's validation function. It could be None
-            that means there is either no evluator or not do validation. In that case, just set
-            the score rank as 1st to save all models or the last k models.
+            A dictionary that contains scores from an evaluator's validation function. If None
+            that means there is either no evaluator or no validation was performed.
+            In that case, just set the score rank as 1st to save all models or the last k models.
         save_model_path : str
             The path where the model is saved.
         """
@@ -312,8 +328,9 @@ class GSgnnTrainer():
         model_path : str
             The path where the model and the optimizer state has been saved.
         model_layer_to_load: list of str
-            list of model layers to load. Supported layers include
-            'gnn', 'embed', 'decoder'
+            List of model layers to load. Supported layers include
+            'gnn', 'embed', 'decoder'. Default is None, which loads
+            all layers.
         """
         self._model.restore_model(model_path, model_layer_to_load)
 

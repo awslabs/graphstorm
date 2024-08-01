@@ -107,8 +107,9 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         save_model_path : str
             The path where the model is saved.
         save_model_frequency : int
-            The number of iteration to train the model before saving the model. Default is -1,
-            meaning only save model after each epoch.
+            The number of iterations to train the model before saving to disk.
+            When > 0, we save a model every `save_model_frequency` iterations.
+            Default is -1, meaning only save a model after each epoch.
         save_perf_results_path : str
             The path of the file where the performance results are saved.
         freeze_input_layer_epochs: int
@@ -306,7 +307,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
     def eval(self, model, val_loader, test_loader, use_mini_batch_infer, total_steps,
              return_proba=True):
-        """ do the model evaluation using validation and test sets
+        """Do the model evaluation using validation and test sets
 
         Parameters
         ----------
@@ -321,7 +322,8 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         total_steps: int
             Total number of iterations.
         return_proba: bool
-            Whether to return all the predictions or the maximum prediction.
+            When true will request probabilities from the model. This is needed when
+            the metrics include one of 'roc_auc', 'per_class_roc_auc', 'precision_recall'.
 
         Returns
         -------

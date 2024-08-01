@@ -332,7 +332,9 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
         save_model_path : str
             The path where the model is saved.
         save_model_frequency : int
-            The number of iteration to train the model before saving the model.
+            The number of iterations to train the model before saving to disk.
+            When > 0, we save a model every `save_model_frequency` iterations.
+            Default is -1, meaning only save a model after each epoch.
         save_perf_results_path : str
             The path of the file where the performance results are saved.
             TODO(xiangsx): Add support for saving performance results on disk.
@@ -492,7 +494,7 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
 
         Parameters
         ----------
-        model : Pytorch model
+        model : GSGnnModel
             The GNN model.
         data : GSgnnData
             The training dataset
@@ -505,7 +507,8 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
         use_mini_batch_infer: bool
             Whether do mini-batch inference
         return_proba: bool
-            Whether to return all the predictions or the maximum prediction.
+            When true will request probabilities from the model. This is needed when
+            the metrics include one of 'roc_auc', 'per_class_roc_auc', 'precision_recall'.
 
         Returns
         -------

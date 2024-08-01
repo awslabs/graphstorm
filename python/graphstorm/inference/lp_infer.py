@@ -27,10 +27,10 @@ from ..model.lp_gnn import lp_mini_batch_predict
 from ..utils import sys_tracker, get_rank, barrier
 
 class GSgnnLinkPredictionInferrer(GSInferrer):
-    """ Link prediction inferrer.
+    """ Link prediction inference wrapper.
 
-    This is a high-level inferrer wrapper that can be used directly
-    to do link prediction model inference.
+    This is a high-level inference wrapper that can be used directly
+    to evaluate link prediction performance and generate node embeddings.
 
     Parameters
     ----------
@@ -45,7 +45,7 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
             node_id_mapping_file=None,
             save_embed_format="pytorch",
             infer_batch_size=1024):
-        """ Do inference
+        """ Perform link prediction inference
 
         The inference can do two things:
 
@@ -75,7 +75,7 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
             Specify the inference batch size when computing node embeddings
             with mini batch inference.
         """
-        sys_tracker.check('start inferencing')
+        sys_tracker.check('start inference')
         self._model.eval()
         if use_mini_batch_infer:
             embs = do_mini_batch_inference(self._model, data, batch_size=infer_batch_size,

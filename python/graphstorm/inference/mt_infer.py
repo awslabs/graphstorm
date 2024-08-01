@@ -41,10 +41,11 @@ from ..model.edge_decoder import LinkPredictDistMultDecoder
 from ..utils import sys_tracker, get_rank, barrier
 
 class GSgnnMultiTaskLearningInferrer(GSInferrer):
-    """ Multi task inferrer.
+    """ Multi task inference wrapper.
 
-    This is a high-level inferrer wrapper that can be used directly
-    to do multi task model inference.
+    This is a high-level inference wrapper that can be used directly
+    to generate multi task predictions, evaluate model performance, and
+    generate node embeddings.
 
     Parameters
     ----------
@@ -65,12 +66,12 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
               return_proba=True,
               save_embed_format="pytorch",
               infer_batch_size=1024):
-        """ Do inference
+        """ Perform multi-task inference.
 
         The inference can do three things:
 
         1. Generate node embeddings.
-        2. Comput inference results for each tasks
+        2. Compute inference results for each tasks
         3. (Optional) Evaluate the model performance on a test set if given.
 
         Parameters

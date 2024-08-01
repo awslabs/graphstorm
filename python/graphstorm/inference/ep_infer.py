@@ -27,15 +27,15 @@ from ..model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predic
 from ..utils import sys_tracker, get_rank, barrier
 
 class GSgnnEdgePredictionInferrer(GSInferrer):
-    """ Edge classification/regression inferrer.
+    """ Edge classification/regression inference wrapper.
 
-    This is a high-level inferrer wrapper that can be used directly
-    to do edge classification/regression model inference.
+    This is a high-level inference wrapper that can be used directly
+    to produce edge classification/regression predictions and embeddings.
 
     Parameters
     ----------
     model : GSgnnNodeModel
-        The GNN model for node prediction.
+        The GNN model for edge prediction.
     """
 
     # pylint: disable=unused-argument
@@ -51,7 +51,7 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
 
         1. (Optional) Evaluate the model performance on a test set if given.
         2. Generate node embeddings.
-        3. Comput inference results for edges with target edge type.
+        3. Generate predictions for edges with target edge type.
 
         Parameters
         ----------
@@ -81,7 +81,7 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
             assert save_embed_path is None, \
                 "Unable to save the node embeddings when using mini batch inference." \
                 "It is not guaranteed that mini-batch prediction will cover all the nodes."
-        sys_tracker.check('start inferencing')
+        sys_tracker.check('start inference')
         self._model.eval()
 
         if use_mini_batch_infer:
