@@ -1,3 +1,5 @@
+.. _graph_construction:
+
 ==================
 Graph Construction
 ==================

@@ -26,6 +26,7 @@ import numpy as np
 from numpy.testing import assert_equal, assert_almost_equal
 
 from graphstorm.config import GSConfig
+from graphstorm.config.config import get_mttask_id
 from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
@@ -409,13 +410,14 @@ def test_parse_config():
         setattr(config, "_task_type", BUILTIN_TASK_NODE_CLASSIFICATION)
         setattr(config, "_target_ntype", target_ntype)
         setattr(config, "_multi_tasks", None)
-        node_id_mapping, predict_dir, emb_dir, pred_ntypes, pred_etypes = _parse_gs_config(config)
+        node_id_mapping, predict_dir, emb_dir, task_emb_dirs, pred_ntypes, pred_etypes = _parse_gs_config(config)
         assert node_id_mapping == os.path.join(tmpdirname, "raw_id_mappings")
         assert predict_dir == save_prediction_path
         assert emb_dir == save_embed_path
         assert len(pred_ntypes) == 1
         assert pred_ntypes[0] == target_ntype
         assert len(pred_etypes) == 0
+        assert len(task_emb_dirs) == 0
 
         target_etype = ["n0,r0,n1"]
         config = GSConfig.__new__(GSConfig)
@@ -426,13 +428,14 @@ def test_parse_config():
         setattr(config, "_target_etype", target_etype)
         setattr(config, "_multi_tasks", None)
 
-        node_id_mapping, predict_dir, emb_dir, pred_ntypes, pred_etypes = _parse_gs_config(config)
+        node_id_mapping, predict_dir, emb_dir, task_emb_dirs, pred_ntypes, pred_etypes = _parse_gs_config(config)
         assert node_id_mapping == os.path.join(tmpdirname, "raw_id_mappings")
         assert predict_dir == save_prediction_path
         assert emb_dir == save_embed_path
         assert len(pred_ntypes) == 0
         assert len(pred_etypes) == 1
         assert pred_etypes[0] == ["n0", "r0", "n1"]
+        assert len(task_emb_dirs) == 0
 
         # multi-task config
         multi_task_config = [
@@ -470,9 +473,10 @@ def test_parse_config():
                 "link_prediction" : {
                     "num_negative_edges": 4,
                     "batch_size": 128,
-                    "exclude_training_targets": False
+                    "exclude_training_targets": False,
+                    "lp_embed_normalizer": "l2_norm"
                 }
-            }
+            },
         ]
 
         config = GSConfig.__new__(GSConfig)
@@ -480,7 +484,7 @@ def test_parse_config():
         setattr(config, "_save_prediction_path", save_prediction_path)
         setattr(config, "_save_embed_path", save_embed_path)
         config._parse_multi_tasks(multi_task_config)
-        node_id_mapping, predict_dir, emb_dir, pred_ntypes, pred_etypes = _parse_gs_config(config)
+        node_id_mapping, predict_dir, emb_dir, task_emb_dirs, pred_ntypes, pred_etypes = _parse_gs_config(config)
 
         assert node_id_mapping == os.path.join(tmpdirname, "raw_id_mappings")
         assert isinstance(predict_dir, tuple)
@@ -498,14 +502,20 @@ def test_parse_config():
         assert len(pred_etypes) == 2
         assert pred_etypes[0] == ['n0', 'r0', 'r1']
         assert pred_etypes[1] == ['n0', 'r0', 'r2']
+        print(task_emb_dirs)
+        assert len(task_emb_dirs) == 1
+        assert task_emb_dirs[0] == get_mttask_id(
+            task_type="link_prediction",
+            etype="ALL_ETYPE")
 
         # there is no predict path
         # it will use emb_path
+        multi_task_config[4]["link_prediction"].pop("lp_embed_normalizer")
         config = GSConfig.__new__(GSConfig)
         setattr(config, "_part_config", part_path)
         setattr(config, "_save_embed_path", save_embed_path)
         config._parse_multi_tasks(multi_task_config)
-        node_id_mapping, predict_dir, emb_dir, pred_ntypes, pred_etypes = _parse_gs_config(config)
+        node_id_mapping, predict_dir, emb_dir, task_emb_dirs, pred_ntypes, pred_etypes = _parse_gs_config(config)
         assert node_id_mapping == os.path.join(tmpdirname, "raw_id_mappings")
         assert isinstance(predict_dir, tuple)
         node_predict_dirs, edge_predict_dirs = predict_dir
@@ -515,12 +525,13 @@ def test_parse_config():
         assert node_predict_dirs[1] == os.path.join(save_embed_path, config.multi_tasks[1].task_id)
         assert edge_predict_dirs[0] == os.path.join(save_embed_path, config.multi_tasks[2].task_id)
         assert edge_predict_dirs[1] == os.path.join(save_embed_path, config.multi_tasks[3].task_id)
+        assert len(task_emb_dirs) == 0
 
         # there is no predict path and emb path
         config = GSConfig.__new__(GSConfig)
         setattr(config, "_part_config", part_path)
         config._parse_multi_tasks(multi_task_config)
-        node_id_mapping, predict_dir, emb_dir, pred_ntypes, pred_etypes = _parse_gs_config(config)
+        node_id_mapping, predict_dir, emb_dir, task_emb_dirs, pred_ntypes, pred_etypes = _parse_gs_config(config)
         assert predict_dir is None
         assert emb_dir is None
 
