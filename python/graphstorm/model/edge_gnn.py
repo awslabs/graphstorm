@@ -30,7 +30,9 @@ from ..utils import barrier, is_distributed, get_rank, is_wholegraph
 class GSgnnEdgeModelInterface:
     """ The interface for GraphStorm edge prediction model.
 
-    This interface defines two main methods for training and inference.
+    This interface defines two main methods: ``forward()`` for training and ``predict()``
+    for inference. Edge GNN models should inherite this interface and implement the two
+    methods.
     """
     @abc.abstractmethod
     def forward(self, blocks, target_edges, node_feats, edge_feats,
@@ -94,7 +96,7 @@ class GSgnnEdgeModelInterface:
 
 # pylint: disable=abstract-method
 class GSgnnEdgeModelBase(GSgnnModelBase, GSgnnEdgeModelInterface):
-    """ The base class for edge-prediction GNN
+    """ GraphStorm base GNN model class for edge prediction tasks.
 
     This base class extends GraphStorm ``GSgnnModelBase`` and ``GSgnnEdgeModelInterface``.
     When users want to define a customized edge prediction GNN model and train the model

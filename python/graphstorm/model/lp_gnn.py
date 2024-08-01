@@ -24,7 +24,9 @@ from ..eval.utils import calc_ranking
 class GSgnnLinkPredictionModelInterface:
     """ The interface for GraphStorm link prediction model.
 
-    This interface defines two main methods for training and inference.
+    This interface defines two main method: ``forward()`` for training and ``predict()``
+    for inference. Link prediction GNN models should inherite this interface and implement
+    the two methods.
     """
     @abc.abstractmethod
     def forward(self, blocks, pos_graph, neg_graph,

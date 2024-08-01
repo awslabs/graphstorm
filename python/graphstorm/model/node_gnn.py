@@ -28,7 +28,7 @@ from ..utils import is_distributed, get_rank, is_wholegraph
 class GSgnnNodeModelInterface:
     """ The interface for GraphStorm node prediction model.
 
-    This interface defines two main methods, ``forward()`` for training and ``predict()``
+    This interface defines two main methods: ``forward()`` for training and ``predict()``
     for inference. Node GNN models should inherite this interface and implement the two
     methods.
     """
@@ -60,7 +60,7 @@ class GSgnnNodeModelInterface:
 
     @abc.abstractmethod
     def predict(self, blocks, node_feats, edge_feats, input_nodes, return_proba):
-        """ Make prediction on the nodes with GNN.
+        """ Make prediction on the input nodes.
 
         This method is used for inference. It takes blocks (containing the graph structure),
         node features, edge features, and input node of a mini-batch as input, and
@@ -77,15 +77,15 @@ class GSgnnNodeModelInterface:
         input_nodes: dict of Tensors
             The input nodes of a mini-batch.
         return_proba : bool
-            Whether or not to return the predicted results or only the argmax ones in
+            Whether to return the predicted results, or only return the argmax ones in
             classification models.
 
         Returns
         -------
-        Tensor or dict of Tensor:
-            GNN prediction results. Return all the results when ``return_proba`` is True
-            otherwise return the argmax results.
-        Tensor or dict of Tensor:
+        Tensor, or dict of Tensor:
+            GNN prediction results. Return results of all dimensions when ``return_proba``
+            is True, otherwise return the argmax results.
+        Tensor, or dict of Tensor:
             The GNN embeddings.
         """
 
