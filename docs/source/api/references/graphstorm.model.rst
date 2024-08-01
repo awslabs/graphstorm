@@ -71,18 +71,18 @@ GNN Layer
     :nosignatures:
     :template: modeltemplate.rst
 
-    RelationalGCNEncoder
     RelGraphConvLayer
-    RelationalGATEncoder
+    RelationalGCNEncoder
     RelationalAttLayer
-    HGTEncoder
+    RelationalGATEncoder
     HGTLayer
-    SAGEEncoder
+    HGTEncoder
     SAGEConv
-    GATEncoder
+    SAGEEncoder
     GATConv
-    GATv2Encoder
+    GATEncoder
     GATv2Conv
+    GATv2Encoder
 
 Decoder Layer
 ----------------
