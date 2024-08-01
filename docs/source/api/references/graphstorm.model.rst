@@ -13,7 +13,7 @@ graphstorm.model
       the GNN layer, or the decoder layer if no need of message passing computation.
     * GNN layer (Optional): a GNN encoder that performs the message passing computation. 
       The outputs of a GNN layer are embeddings of nodes that wil be used in the decoder layer.
-    * Decoder layer: a task specific module that converts results from either a GNN layer or 
+    * Decoder layer: a task specific decoder that converts results from either a GNN layer or 
       an input layer into loss values for different GML tasks, e.g., classification, regression,
       or link prediction.
     * Model optimizer: GraphStorm model classes have a built-in model optimizer, which should
