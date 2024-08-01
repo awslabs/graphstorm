@@ -585,7 +585,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
     def unfreeze(self):
         """ Disable LM caching.
         
-        If ``num_train`` > 0, and not use LM cache, clear existing LM cache.
+        If ``num_train > 0``, and not use LM cache, clear existing LM cache.
         """
         if self.num_train > 0:
             self.use_cache = False
@@ -808,7 +808,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
     def unfreeze(self):
         """ Disable LM caching.
         
-        If ``num_train`` > 0, and not use LM cache, clear existing LM cache.
+        If ``num_train > 0``, and not use LM cache, clear existing LM cache.
         """
         if self.num_train > 0:
             self.use_cache = False

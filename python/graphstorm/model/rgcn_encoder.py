@@ -34,10 +34,10 @@ class RelGraphConvLayer(nn.Module):
 
     A generic module for computing convolution on heterogeneous graphs.
 
-    The relational graph convolution layer applies GraphConv on the relation graphs,
+    The relational graph convolution layer applies GraphConv on the heterogeneous graphs,
     which reads the features from source nodes and writes the updated ones to destination nodes.
     If multiple relations have the same destination node types, their results
-    are aggregated by the specified method. If the relation graph has no edge,
+    are aggregated by the specified method. If the heterogeneous graph has no edge,
     the corresponding module will not be called.
 
     Mathematically for the GraphConv it is defined as follows:
@@ -50,18 +50,10 @@ class RelGraphConvLayer(nn.Module):
     (i.e.,  :math:`c_{ji} = \sqrt{|\mathcal{N}(j)|}\sqrt{|\mathcal{N}(i)|}`),
     and :math:`\sigma` is an activation function.
 
-    If a weight tensor on each edge is provided, the weighted graph convolution is defined as:
-
-    .. math::
-      h_i^{(l+1)} = \sigma(b^{(l)} + \sum_{j\in\mathcal{N}(i)}\frac{e_{ji}}{c_{ji}}h_j^{(l)}W^{(l)})
-
-    where :math:`e_{ji}` is the scalar weight on the edge from node :math:`j` to node :math:`i`.
-    This is NOT equivalent to the weighted graph convolutional network formulation in the paper.
-
     Note:
-    -----
-    * In the RelGraphConvLayer, the implementation select 'right' or the default option for the norm
-    to divide the aggregated messages by each node's in-degrees, which is equivalent to averaging
+    ******
+    * The implementation of ``RelGraphConvLayer`` selects `right` as the norm to divide the
+    aggregated messages by each node's in-degrees, which is equivalent to averaging
     the received messages.
 
     Examples:
