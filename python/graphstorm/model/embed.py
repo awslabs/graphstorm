@@ -164,7 +164,7 @@ class GSNodeInputLayer(GSLayer):  # pylint: disable=abstract-method
 
 
 class GSNodeEncoderInputLayer(GSNodeInputLayer):
-    """The node encoder input layer for all nodes in a heterogeneous graph.
+    """ The node encoder input layer for all nodes in a heterogeneous graph.
 
     The input layer adds a linear layer on nodes with node features and the linear layer
     projects the node features into a specified dimension. 
