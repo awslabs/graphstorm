@@ -24,18 +24,17 @@ from ..eval.utils import calc_ranking
 class GSgnnLinkPredictionModelInterface:
     """ The interface for GraphStorm link prediction model.
 
-    This interface defines two main method: ``forward()`` for training and ``predict()``
-    for inference. Link prediction GNN models should inherite this interface and implement
-    the two methods.
+    This interface defines one method: ``forward()`` for training. Link prediction GNN models
+    should inherite this interface and implement this method.
     """
     @abc.abstractmethod
     def forward(self, blocks, pos_graph, neg_graph,
         node_feats, edge_feats, pos_edge_feats=None, neg_edge_feats=None, input_nodes=None):
         """ The forward function for link prediction.
 
-        This method is used for training. It takes a mini-batch, including
-        the graph structure, node features and edge features and
-        computes the loss of the model in the mini-batch.
+        This method is used for training. It takes blocks (containing the graph structure),
+        node features, and edge features of a mini-batch as inputs, and
+        computes the loss of the model in the mini-batch as the return value.
 
         Parameters
         ----------
@@ -46,20 +45,20 @@ class GSgnnLinkPredictionModelInterface:
         neg_graph : a DGLGraph
             The graph that contains the negative edges.
         node_feats : dict of Tensors
-            The input node features of the message passing graphs.
+            The input node features of the message passing graph.
         edge_feats : dict of Tensors
-            The input edge features of the message passing graphs.
+            The input edge features of the message passing graph.
         input_nodes: dict of Tensors
             The input nodes of a mini-batch.
 
         Returns
         -------
-        The loss of prediction.
+        float: The loss of prediction of this mini-batch.
         """
 
 # pylint: disable=abstract-method
 class GSgnnLinkPredictionModelBase(GSgnnModelBase, GSgnnLinkPredictionModelInterface):
-    """ The base class for link-prediction GNN
+    """ GraphStorm GNN model base class for link-prediction tasks.
 
     This base class extends GraphStorm ``GSgnnModelBase`` and
     ``GSgnnLinkPredictionModelInterface``. When users want to define a customized link

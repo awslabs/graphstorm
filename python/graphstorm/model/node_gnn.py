@@ -37,7 +37,7 @@ class GSgnnNodeModelInterface:
         """ The forward function for node prediction.
 
         This method is used for training. It takes blocks (containing the graph structure),
-        node features, edge features, and node labels of a mini-batch as input, and
+        node features, edge features, and node labels of a mini-batch as inputs, and
         computes the loss of the model in the mini-batch as the return value.
 
         Parameters
@@ -45,17 +45,17 @@ class GSgnnNodeModelInterface:
         blocks : list of DGLBlock
             The message passing graph for computing GNN embeddings.
         node_feats : dict of Tensors
-            The input node features of the message passing graphs.
+            The input node features of the message passing graph.
         edge_feats : dict of Tensors
-            The input edge features of the message passing graphs.
+            The input edge features of the message passing graph.
         labels: dict of Tensor
             The labels of the predicted nodes.
         input_nodes: dict of Tensors
-            The input nodes of a mini-batch.
+            The input nodes of the mini-batch.
 
         Returns
         -------
-        float: The loss of prediction in this mini-batch.
+        float: The loss of prediction of this mini-batch.
         """
 
     @abc.abstractmethod
@@ -71,11 +71,11 @@ class GSgnnNodeModelInterface:
         blocks : list of DGLBlock
             The message passing graph for computing GNN embeddings.
         node_feats : dict of Tensors
-            The node features of the message passing graphs.
+            The node features of the message passing graph.
         edge_feats : dict of Tensors
-            The edge features of the message passing graphs.
+            The edge features of the message passing graph.
         input_nodes: dict of Tensors
-            The input nodes of a mini-batch.
+            The input nodes of the mini-batch.
         return_proba : bool
             Whether to return the predicted results, or only return the argmax ones in
             classification models.
@@ -91,7 +91,7 @@ class GSgnnNodeModelInterface:
 
 # pylint: disable=abstract-method
 class GSgnnNodeModelBase(GSgnnNodeModelInterface, GSgnnModelBase):
-    """ GraphStorm base GNN model class for node prediction tasks.
+    """ GraphStorm GNN model base class for node prediction tasks.
 
     This base class extends GraphStorm ``GSgnnModelBase`` and ``GSgnnNodeModelInterface``.
     When users want to define a customized node prediction GNN model and train the model
