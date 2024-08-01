@@ -569,15 +569,15 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
         """ Generate LM cache.
 
         The LM cache is used in the following cases:
-        1) No need to fine-tune LMs, i.e., ``num_train`` == 0.
+        
+        1. No need to fine-tune LMs, i.e., ``num_train`` == 0.
            In this case, only generate lm_emb_cache once before model training.
-
-        2) GNN warm up when ``lm_freeze_epochs`` > 0 (controlled by trainer).
+        2. GNN warm up when ``lm_freeze_epochs`` > 0 (controlled by trainer).
            Generate the emb_cache before model training. In the first ``lm_freeze_epochs``
            epochs, the number of nodes with text features for LM embedding will be set to 0,
            and the LM cache will not be refreshed.
-        
-        3) if ``num_train`` > 0, no emb_cache is used unless Case 2.
+        3. if ``num_train`` > 0, no emb_cache is used unless Case 2.
+
         """
         self.lm_emb_cache.update_cache(self.lm_infer_batch_size, use_fp16=self.use_fp16)
         self.use_cache = True
@@ -792,15 +792,15 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         """ Generate LM cache.
 
         The LM cache is used in the following cases:
-        1) No need to fine-tune LMs, i.e., ``num_train`` == 0.
-           In this case, only generate lm_emb_cache once before model training.
 
-        2) GNN warm up when ``lm_freeze_epochs`` > 0 (controlled by trainer).
+        1. No need to fine-tune LMs, i.e., ``num_train`` == 0.
+           In this case, only generate lm_emb_cache once before model training.
+        2. GNN warm up when ``lm_freeze_epochs`` > 0 (controlled by trainer).
            Generate the emb_cache before model training. In the first ``lm_freeze_epochs``
            epochs, the number of nodes with text features for LM embedding will be set to 0,
            and the LM cache will not be refreshed.
-        
-        3) if ``num_train`` > 0, no emb_cache is used unless Case 2.
+        3. if ``num_train`` > 0, no emb_cache is used unless Case 2.
+
         """
         self.lm_emb_cache.update_cache(self.lm_infer_batch_size, use_fp16=self.use_fp16)
         self.use_cache = True
