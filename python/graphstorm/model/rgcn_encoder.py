@@ -77,7 +77,7 @@ class RelGraphConvLayer(nn.Module):
         Input feature size.
     out_feat: int
         Output feature size.
-    rel_names: listof tuple
+    rel_names: list of tuple
         Relation type list in the format of [('src_ntyp1', 'etype1', 'dst_ntype1`), ...].
     num_bases: int
         Number of bases. If is none, use number of relations. Default: None.

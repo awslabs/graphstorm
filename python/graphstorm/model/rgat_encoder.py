@@ -71,7 +71,7 @@ class RelationalAttLayer(nn.Module):
         Input feature size.
     out_feat: int
         Output feature size.
-    rel_names: listof tuple
+    rel_names: list of tuple
         Relation type list in the format of [('src_ntyp1', 'etype1', 'dst_ntype1`), ...].
     num_heads: int
         Number of attention heads.
@@ -246,7 +246,7 @@ class RelationalGATEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         Number of hidden layers. Total GNN layers is equal to ``num_hidden_layers + 1``.
         Default: 1.
     dropout: float
-        Dropout rate. Default 0.
+        Dropout rate. Default: 0.
     use_self_loop: bool
         Whether to add selfloop. Default: True.
     last_layer_act: callable
