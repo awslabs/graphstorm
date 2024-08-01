@@ -52,9 +52,9 @@ class RelGraphConvLayer(nn.Module):
 
     Note:
     ******
-    * The implementation of ``RelGraphConvLayer`` selects `right` as the norm to divide the
-    aggregated messages by each node's in-degrees, which is equivalent to averaging
-    the received messages.
+    * The implementation of ``RelGraphConvLayer`` selects `right` as the norm, which divides
+      the aggregated messages by each node's in-degrees, equivalent to averaging the received
+      messages.
 
     Examples:
     ----------
@@ -65,8 +65,8 @@ class RelGraphConvLayer(nn.Module):
         from graphstorm.model.rgcn_encoder import RelGraphConvLayer
 
         layer = RelGraphConvLayer(
-                h_dim, h_dim, g.canonical_etypes,
-                num_bases, activation, self_loop,
+                in_feat=h_dim, out_feat=h_dim, rel_names=g.canonical_etypes,
+                num_bases=num_bases, self_loop,
                 dropout, num_ffn_layers_in_gnn,
                 ffn_activation, norm)
         h = layer(g, input_feature)
@@ -77,26 +77,26 @@ class RelGraphConvLayer(nn.Module):
         Input feature size.
     out_feat : int
         Output feature size.
-    rel_names : list[str]
-        Relation names.
+    rel_names : listof tuple
+        Relation type list in the format of [('src_ntyp1', 'etype1', 'dst_ntype1`), ...].
     num_bases : int
         Number of bases. If is none, use number of relations. Default: None.
-    weight : bool, optional
-        True if a linear layer is applied after message passing. Default: True
-    bias : bool, optional
-        True if bias is added. Default: True
-    activation : callable, optional
-        Activation function. Default: None
-    self_loop : bool, optional
-        True to include self loop message. Default: False
-    dropout : float, optional
-        Dropout rate. Default: 0.0
-    num_ffn_layers_in_gnn: int, optional
-        Number of layers of ngnn between gnn layers
+    weight : bool
+        Whether to apply a linear layer after message passing. Default: True.
+    bias : bool
+        Whether to add bias. Default: True.
+    activation : callable
+        Activation function. Default: None.
+    self_loop : bool
+        Whether to include self loop message. Default: False.
+    dropout : float
+        Dropout rate. Default: 0.
+    num_ffn_layers_in_gnn: int
+        Number of fnn layers between gnn layers. Default: 0.
     ffn_actication: torch.nn.functional
-        Activation Method for ngnn
-    norm : str, optional
-        Normalization Method. Default: None
+        Activation for ffn. Default: relu.
+    norm : str
+        Normalization methods. Options:``batch`` and ``layer``. Default: None.
     """
     def __init__(self,
                  in_feat,
@@ -179,7 +179,7 @@ class RelGraphConvLayer(nn.Module):
         Parameters
         ----------
         warn_msg: str
-            Warning message
+            Warning message.
         """
         if warn_msg in self.warn_msg:
             # Skip printing warning
@@ -189,18 +189,18 @@ class RelGraphConvLayer(nn.Module):
 
     # pylint: disable=invalid-name
     def forward(self, g, inputs):
-        """Forward computation
+        """ RGCN layer forward computation.
 
         Parameters
         ----------
-        g : DGLHeteroGraph
-            Input graph.
-        inputs : dict[str, torch.Tensor]
-            Node feature for each node type.
+        g: DGLHeteroGraph
+            Input DGL heterogenous graph.
+        inputs: dict of Tensor
+            Node features for each node type in the format of {ntype: tensor}.
+
         Returns
         -------
-        dict[str, torch.Tensor]
-            New node features for each node type.
+        dict of Tensor: New node features for each node type in the format of {ntype: tensor}.
         """
         g = g.local_var()
         if self.use_weight:
@@ -272,25 +272,26 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
     Parameters
     ----------
     g : DistGraph
-        The distributed graph object.
+        The distributed distributed graph.
     h_dim : int
-        Hidden dimension
+        Hidden dimension.
     out_dim : int
-        Output dimension
+        Output dimension.
     num_bases: int
         Number of bases.
     num_hidden_layers : int
-        Number of hidden layers. Total GNN layers is equal to num_hidden_layers + 1. Default 1
+        Number of hidden layers. Total GNN layers is equal to num_hidden_layers + 1.
+        Default: 1.
     dropout : float
-        Dropout. Default 0.
+        Dropout rate. Default 0.
     use_self_loop : bool
-        Whether to add selfloop. Default True
-    last_layer_act : torch.function
-        Activation for the last layer. Default None
+        Whether to add selfloop. Default: True.
+    last_layer_act : callable
+        Activation for the last layer. Default: None.
     num_ffn_layers_in_gnn: int
-        Number of ngnn gnn layers between GNN layers
-    norm : str, optional
-        Normalization Method. Default: None
+        Number of fnn layers layers between GNN layers. Default: 0.
+    norm : str
+        Normalization methods. Options:``batch`` and ``layer``. Default: None.
 
     Examples:
     ----------
@@ -315,13 +316,12 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         model.set_node_input_encoder(encoder)
 
         gnn_encoder = RelationalGCNEncoder(g, 4, 4,
-                                           num_heads=2,
                                            num_hidden_layers=1,
                                            dropout=0,
                                            use_self_loop=True,
-                                           norm=norm)
+                                           norm="batch")
         model.set_gnn_encoder(gnn_encoder)
-        model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
+        model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 2, False))
 
         h = do_full_graph_inference(model, np_data)
     """
@@ -363,19 +363,19 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
 
     # TODO(zhengda) refactor this to support edge features.
     def forward(self, blocks, h):
-        """Forward computation
+        """ RGCN encoder forward computation.
 
         Parameters
         ----------
         blocks: DGL MFGs
-            Sampled subgraph in DGL MFG
-        h: dict[str, torch.Tensor]
-            Input node feature for each node type.
+            Sampled subgraph in DGL MFG format.
+        h: dict of Tensor
+            Input node features for each node type in the format of {ntype: tensor}.
 
         Returns
         ----------
-        h: dict[str, torch.Tensor]
-            Output node feature for each node type.
+        h: dict of Tensor
+            Output node features for each node type in the format of {ntype: tensor}.
         """
         for layer, block in zip(self.layers, blocks):
             h = layer(block, h)
