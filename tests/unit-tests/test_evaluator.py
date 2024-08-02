@@ -22,6 +22,7 @@ from numpy.testing import assert_equal, assert_almost_equal
 import dgl
 
 from graphstorm.eval import (GSgnnMrrLPEvaluator,
+                             GSgnnHitsLPEvaluator,
                              GSgnnPerEtypeMrrLPEvaluator,
                              GSgnnClassificationEvaluator,
                              GSgnnRegressionEvaluator,
@@ -64,6 +65,21 @@ def gen_mrr_lp_eval_data():
     test_neg_scores = th.rand((10,10))
 
     return config, etypes, (val_pos_scores, val_neg_scores), (test_pos_scores, test_neg_scores)
+
+def gen_hits_lp_eval_data():
+    config = Dummy({
+            "eval_frequency": 100,
+            "eval_metric_list": ["hit_at_1", "hit_at_5", "hit_at_10", "hit_at_20", "hit_at_100", "hit_at_200"],
+            "use_early_stop": False,
+        })
+
+    etypes = [("n0", "r0", "n1"), ("n0", "r1", "n1")]
+
+    preds = th.rand((100, 2))
+    labels = th.randint(2, (100,))
+
+    return config, etypes, preds, labels
+
 
 def test_mrr_per_etype_lp_evaluation():
     # system heavily depends on th distributed
@@ -134,7 +150,7 @@ def test_mrr_per_etype_lp_evaluation():
         _, indices = th.sort(scores, descending=True)
         ranking = th.nonzero(indices == 0) + 1
         rank0.append(ranking.cpu().detach())
-        rank0.append(ranking.cpu().detach())
+        # rank0.append(ranking.cpu().detach())
         scores = th.cat([val_pos, val_neg1])
         _, indices = th.sort(scores, descending=True)
         ranking = th.nonzero(indices == 0) + 1
@@ -220,7 +236,7 @@ def test_mrr_lp_evaluator():
         _, indices = th.sort(scores, descending=True)
         ranking = th.nonzero(indices == 0) + 1
         rank.append(ranking.cpu().detach())
-        rank.append(ranking.cpu().detach())
+        # rank.append(ranking.cpu().detach())
         scores = th.cat([val_pos, val_neg1])
         _, indices = th.sort(scores, descending=True)
         ranking = th.nonzero(indices == 0) + 1
@@ -325,6 +341,137 @@ def test_mrr_lp_evaluator():
     # eval_frequency is 0
     lp = GSgnnMrrLPEvaluator(config3.eval_frequency,
                           use_early_stop=config3.use_early_stop)
+    assert lp.do_eval(120, epoch_end=True) is True
+    assert lp.do_eval(200) is False
+
+    th.distributed.destroy_process_group()
+
+def test_hits_lp_evaluator():
+    # system heavily depends on th distributed
+    dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
+        master_ip='127.0.0.1', master_port='12346')
+    th.distributed.init_process_group(backend="gloo",
+                                      init_method=dist_init_method,
+                                      world_size=1,
+                                      rank=0)
+
+    # test default settings
+    lp = GSgnnHitsLPEvaluator(eval_frequency=100)
+    assert lp.metric_list == ["hit_at_100"]
+
+    # test given settings
+    config, etypes, preds, labels = gen_hits_lp_eval_data()
+    lp = GSgnnHitsLPEvaluator(config.eval_frequency, eval_metric_list=config.eval_metric_list,
+                              use_early_stop=config.use_early_stop)
+    assert lp.metric_list == config.eval_metric_list
+
+    result = lp.compute_score(preds, labels, True)
+
+    for metric in lp.metric_list:
+        k = int(metric[7:])
+        assert_equal(result[metric],
+                     th.div(th.sum(labels[th.argsort(preds[:, 1], descending=True)[:k]]), th.sum(labels)).item())
+
+    # test evaluate
+    @patch.object(GSgnnHitsLPEvaluator, 'compute_score')
+    def check_evaluate(mock_compute_score):
+        lp = GSgnnHitsLPEvaluator(config.eval_frequency,
+                                  eval_metric_list=["hit_at_1", "hit_at_10"],
+                                  use_early_stop=config.use_early_stop)
+
+        mock_compute_score.side_effect = [
+            {"hit_at_1": 0.6, "hit_at_10": 0.9},
+            {"hit_at_1": 0.7, "hit_at_10": 0.75},
+            {"hit_at_1": 0.65, "hit_at_10": 0.8},
+            {"hit_at_1": 0.76, "hit_at_10": 0.76},
+            {"hit_at_1": 0.76, "hit_at_10": 0.78},
+            {"hit_at_1": 0.8, "hit_at_10": 0.85}
+        ]
+
+        val_score, test_score = lp.evaluate(th.rand((10, 2)), th.rand((10, 2)), th.randint(2, (10,)), th.randint(2, (10,)), 100)
+        mock_compute_score.assert_called()
+        assert val_score["hit_at_1"] == 0.6 and val_score["hit_at_10"] == 0.9
+        assert test_score["hit_at_1"] == 0.7 and test_score["hit_at_10"] == 0.75
+
+        val_score, test_score = lp.evaluate(th.rand((10, 2)), th.rand((10, 2)), th.randint(2, (10,)),
+                                                  th.randint(2, (10,)), 200)
+        mock_compute_score.assert_called()
+        assert val_score["hit_at_1"] == 0.65 and val_score["hit_at_10"] == 0.8
+        assert test_score["hit_at_1"] == 0.76 and test_score["hit_at_10"] == 0.76
+
+        val_score, test_score = lp.evaluate(th.rand((10, 2)), th.rand((10, 2)), th.randint(2, (10,)),
+                                                  th.randint(2, (10,)), 300)
+        mock_compute_score.assert_called()
+        assert val_score["hit_at_1"] == 0.76 and val_score["hit_at_10"] == 0.78
+        assert test_score["hit_at_1"] == 0.8 and test_score["hit_at_10"] == 0.85
+
+        assert lp.best_val_score["hit_at_1"] == 0.76 and lp.best_val_score["hit_at_10"] == 0.9
+        assert lp.best_test_score["hit_at_1"] == 0.8 and lp.best_test_score["hit_at_10"] == 0.75
+        assert lp.best_iter_num["hit_at_1"] == 300 and lp.best_iter_num["hit_at_10"] == 100
+
+    # check GSgnnHitsLPEvaluator.evaluate()
+    check_evaluate()
+
+    # test evaluate
+    @patch.object(GSgnnHitsLPEvaluator, 'compute_score')
+    def check_evaluate_no_test(mock_compute_score):
+        lp = GSgnnHitsLPEvaluator(config.eval_frequency,
+                                 eval_metric_list=["hit_at_1", "hit_at_10"],
+                                 use_early_stop=config.use_early_stop)
+
+        mock_compute_score.side_effect = [
+            {"hit_at_1": 0.7, "hit_at_10": 0.9},
+            {"hit_at_1": "N/A", "hit_at_10": "N/A"},
+            {"hit_at_1": 0.78, "hit_at_10": 0.88},
+            {"hit_at_1": "N/A", "hit_at_10": "N/A"},
+            {"hit_at_1": 0.77, "hit_at_10": 0.88},
+            {"hit_at_1": "N/A", "hit_at_10": "N/A"},
+        ]
+
+        val_score, test_score = lp.evaluate(th.rand((10, 2)), None, th.randint(2, (10,)), th.randint(2, (10,)), 100)
+        mock_compute_score.assert_called()
+        assert val_score["hit_at_1"] == 0.7 and val_score["hit_at_10"] == 0.9
+        assert test_score["hit_at_1"] == "N/A" and test_score["hit_at_10"] == "N/A"
+
+        val_score, test_score = lp.evaluate(th.rand((10, 2)), None, th.randint(2, (10,)), th.randint(2, (10,)), 200)
+        mock_compute_score.assert_called()
+        assert val_score["hit_at_1"] == 0.78 and val_score["hit_at_10"] == 0.88
+        assert test_score["hit_at_1"] == "N/A" and test_score["hit_at_10"] == "N/A"
+
+        val_score, test_score = lp.evaluate(th.rand((10, 2)), None, th.randint(2, (10,)), th.randint(2, (10,)), 300)
+        mock_compute_score.assert_called()
+        assert val_score["hit_at_1"] == 0.77 and val_score["hit_at_10"] == 0.88
+        assert test_score["hit_at_1"] == "N/A" and test_score["hit_at_10"] == "N/A"
+
+        assert lp.best_val_score["hit_at_1"] == 0.78 and lp.best_val_score["hit_at_10"] == 0.9
+        assert lp.best_test_score["hit_at_1"] == "N/A" and lp.best_test_score["hit_at_10"] == "N/A"
+        assert lp.best_iter_num["hit_at_1"] == 200 and lp.best_iter_num["hit_at_10"] == 100
+
+    check_evaluate_no_test()
+
+    # check GSgnnHitsLPEvaluator.do_eval()
+    # train_data.do_validation True
+    # config.no_validation False
+    lp = GSgnnHitsLPEvaluator(config.eval_frequency,
+                              eval_metric_list=["hit_at_1", "hit_at_10"],
+                              use_early_stop=config.use_early_stop)
+    assert lp.do_eval(120, epoch_end=True) is True
+    assert lp.do_eval(200) is True
+    assert lp.do_eval(0) is True
+    assert lp.do_eval(1) is False
+
+    config3 = Dummy({
+            "eval_frequency": 0,
+            "eval_metric_list": ["hit_at_1", "hit_at_10"],
+            "use_early_stop": False,
+        })
+
+    # train_data.do_validation True
+    # config.no_validation False
+    # eval_frequency is 0
+    lp = GSgnnHitsLPEvaluator(config3.eval_frequency,
+                              eval_metric_list=["hit_at_1", "hit_at_10"],
+                              use_early_stop=config3.use_early_stop)
     assert lp.do_eval(120, epoch_end=True) is True
     assert lp.do_eval(200) is False
 
@@ -1010,3 +1157,5 @@ if __name__ == '__main__':
     test_get_val_score_rank()
 
     test_classification_evaluator()
+
+    test_hits_lp_evaluator()
