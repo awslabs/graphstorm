@@ -104,7 +104,7 @@ class DenseBiDecoder(GSEdgeDecoder):
     Parameters
     ----------
     in_units: int
-        The input dimension size.
+        The input dimension size. It is the dimension for both source and destinatioin node embeddings.
     num_classes: int
         Number of classes, if set for classification task.
     multilabel: bool
@@ -116,7 +116,7 @@ class DenseBiDecoder(GSEdgeDecoder):
     target_etype: tuple of str
         The target etype for prediction in the format of (src_ntype, etype, dst_ntype).
     regression: bool
-        Whether this decoder is for regression task or not. Default: False.
+        Whether this decoder is for regression tasks. Default: False.
     norm: str
         Normalization methods. Not used, but reserved for complex DenseBiDecoder child class
         implementation. Default: None.
@@ -291,30 +291,32 @@ class DenseBiDecoder(GSEdgeDecoder):
 
 
 class MLPEdgeDecoder(GSEdgeDecoder):
-    """ MLP based edge classificaiton/regression decoder
+    """ MLP based decoder for edge prediction tasks.
 
     Parameters
     ----------
     h_dim: int
-        The input dim of decoder. It is the dim of source or destinatioin node embeddings.
+        The input dimension size. It is the dimension for both source and destinatioin
+        node embeddings.
     out_dim: int
-        Output dim. e.g., number of classes
+        Output dimension size. If this decoder is set for edge regression, the output
+        dimension should be ``1``.
     multilabel: bool
-        Whether this is a multilabel classification.
+        Whether this decoder is for multilabel edge classification.
     target_etype: tuple of str
-        Target etype for prediction
+        The target etype for prediction in the format of (src_ntype, etype, dst_ntype).
     num_hidden_layers: int
-        Number of layers
-    regression: Bool
-        If this is true then we perform regression
+        Number of MLP layers. Default: 1.
     dropout: float
         Dropout
-    num_ffn_layers: int, optional
-        Number of free-forward layers added to the decoder
-        Default: 0
-    norm: str, optional
-        Normalization Method. (Reserved for complex MLPEdgeDecoder child class.)
-        Default: None
+    regression: bool
+        Whether this decoder is for regression tasks. Default: False.
+    num_ffn_layers: int
+        Number of FFN layers added to the decoder. Default: 0
+    norm: str
+        Normalization methods. Not used, but reserved for complex MLPEdgeDecoder child class
+        implementation. Default: None.
+
     """
     def __init__(self,
                  h_dim,
@@ -393,6 +395,23 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
+        """ MLP edge decoder forward computation.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results.
+        """
         out = self._compute_logits(g, h)
 
         if self.regression:
@@ -401,6 +420,23 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
     # pylint: disable=unused-argument
     def predict(self, g, h, e_h=None):
+        """ MLP edge decoder predict computation.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results.
+        """
         out = self._compute_logits(g, h)
 
         if self.regression:
@@ -413,6 +449,25 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
     # pylint: disable=unused-argument
     def predict_proba(self, g, h, e_h=None):
+        """ MLP edge decoder predict computation and return the normalized
+        prediction results if this decoder is set for edge classification.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results. If this decoder is set for edge classification, return the
+            normalized prediction results.
+        """
         out = self._compute_logits(g, h)
 
         if self.regression:
@@ -425,21 +480,14 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
     @property
     def in_dims(self):
-        """ The number of input dimensions.
-
-        Returns
-        -------
-        int: the number of input dimensions.
+        """ Return the input dimension size, which is given in class initialization.
         """
         return self.h_dim
 
     @property
     def out_dims(self):
-        """ The number of output dimensions.
-
-        Returns
-        -------
-        int: the number of output dimensions.
+        """ Return the output dimension size. If this decoder is set for edge regression,
+        will return ``1``.
         """
         return 1 if self.regression else self.out_dim
 
