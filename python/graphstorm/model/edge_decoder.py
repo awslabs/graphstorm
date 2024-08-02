@@ -174,6 +174,23 @@ class DenseBiDecoder(GSEdgeDecoder):
 
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
+        """ Dense bi-linear edge decoder forward computation.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results.
+        """
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
             src_type, _, dest_type = self.target_etype
@@ -191,6 +208,23 @@ class DenseBiDecoder(GSEdgeDecoder):
 
     # pylint: disable=unused-argument
     def predict(self, g, h, e_h=None):
+        """ Dense bi-linear edge decoder predict computation.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results.
+        """
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
             src_type, _, dest_type = self.target_etype
@@ -208,6 +242,25 @@ class DenseBiDecoder(GSEdgeDecoder):
 
     # pylint: disable=unused-argument
     def predict_proba(self, g, h, e_h=None):
+        """ Dense bi-linear edge decoder predict computation and return the normalized
+        prediction results if this decoder is set for edge classification.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results. If this decoder is set for edge classification, return the
+            normalized prediction results.
+        """
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
             src_type, _, dest_type = self.target_etype
@@ -225,21 +278,14 @@ class DenseBiDecoder(GSEdgeDecoder):
 
     @property
     def in_dims(self):
-        """ The number of input dimensions.
-
-        Returns
-        -------
-        int: the number of input dimensions.
+        """ Return the input dimension size, which is given in class initialization.
         """
         return self.in_units
 
     @property
     def out_dims(self):
-        """ The number of output dimensions.
-
-        Returns
-        -------
-        int: the number of output dimensions.
+        """ Return the output dimension size. If this decoder is set for edge regression,
+        will return ``1``.
         """
         return 1 if self.regression else self.num_classes
 

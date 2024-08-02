@@ -91,14 +91,14 @@ class EntityClassifier(GSLayer):
 
         Returns
         --------
-        Tensor: argmax of the predicted results, or the maximum of the prediction results
+        Tensor: argmax of the prediction results, or the maximum of the prediction results
         if ``multilabel`` is ``True``.
         """
         logits = th.matmul(inputs, self.decoder)
         return (th.sigmoid(logits) > .5).long() if self._multilabel else logits.argmax(dim=1)
 
     def predict_proba(self, inputs):
-        """ Node classification decoder predict computation and return normalized predicted
+        """ Node classification decoder predict computation and return normalized prediction
         results.
 
         Parameters
@@ -108,7 +108,7 @@ class EntityClassifier(GSLayer):
 
         Returns
         -------
-        Tensor: normalized predicted results.
+        Tensor: normalized prediction results.
         """
         logits = th.matmul(inputs, self.decoder)
         return th.sigmoid(logits) if self._multilabel else th.softmax(logits, 1)
@@ -166,7 +166,7 @@ class EntityRegression(GSLayer):
 
     def forward(self, inputs):
         """ Node regression decoder forward computation.
-        
+
         Parameters
         ----------
         inputs: Tensor
@@ -174,7 +174,7 @@ class EntityRegression(GSLayer):
 
         Returns
         -------
-        Tensor: the predicted results.        
+        Tensor: the prediction results.
         """
         return th.matmul(inputs, self.decoder)
 
@@ -188,7 +188,7 @@ class EntityRegression(GSLayer):
 
         Returns
         -------
-        Tensor: the predicted results.
+        Tensor: the prediction results.
         """
         return th.matmul(inputs, self.decoder)
 
@@ -203,7 +203,7 @@ class EntityRegression(GSLayer):
 
         Returns
         -------
-        Tensor: the predicted results.
+        Tensor: the prediction results.
         """
         return self.predict(inputs)
 
