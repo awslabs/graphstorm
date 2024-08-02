@@ -29,7 +29,7 @@ from .gnn_encoder_base import (GraphConvEncoder,
 
 class RelationalAttLayer(nn.Module):
     r"""Relational graph attention layer from `Relational Graph
-    Attention Networks <https://arxiv.org/abs/1904.05811>`_.
+    Attention Networks <https://arxiv.org/abs/1904.05811>`__.
 
     For the GATConv on each relation type:
 
@@ -272,7 +272,7 @@ class RelationalGATEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         np_data = GSgnnData(...)
 
         model = GSgnnNodeModel(alpha_l2norm=0)
-        feat_size = get_node_feat_size(np_data.g, 'feat')
+        feat_size = get_node_feat_size(np_data.g, "feat")
         encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                           dropout=0,
                                           use_node_embeddings=True)

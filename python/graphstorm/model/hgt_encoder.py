@@ -30,8 +30,8 @@ from .gnn_encoder_base import (GraphConvEncoder,
 
 
 class HGTLayer(nn.Module):
-    """Heterogenous graph transformer (HGT) layer  from `Heterogeneous Graph Transformer
-    <https://arxiv.org/abs/2003.01332>`__.
+    """Heterogenous graph transformer (HGT) layer  from `Heterogeneous Graph
+    Transformer <https://arxiv.org/abs/2003.01332>`__.
 
     Given a graph :math:`G(V, E)` and input node features :math:`H^{(l-1)}` in the :math:`l-1`
     layer, it computes the new node features in the :math:`l` layer as follows:
@@ -339,7 +339,7 @@ class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         np_data = GSgnnData(...)
 
         model = GSgnnEdgeModel(alpha_l2norm=0)
-        feat_size = get_node_feat_size(np_data.g, 'feat')
+        feat_size = get_node_feat_size(np_data.g, "feat")
         encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                           dropout=0,
                                           use_node_embeddings=True)
@@ -351,7 +351,7 @@ class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
                                  num_hidden_layers=1,
                                  num_heads=2,
                                  dropout=0.0,
-                                 norm=“layer”,
+                                 norm="layer",
                                  num_ffn_layers_in_gnn=0)
         model.set_gnn_encoder(gnn_encoder)
         model.set_decoder(MLPEdgeDecoder(model.gnn_encoder.out_dims,
