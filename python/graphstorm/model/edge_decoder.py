@@ -722,9 +722,10 @@ class LinkPredictNoParamDecoder(GSLayerNoParam):
     # pylint: disable=arguments-differ
     @abc.abstractmethod
     def forward(self, g, h, e_h=None):
-        """Forward function.
+        """Link prediction decoder Forward function.
 
         This computes the edge score on every edge type.
+
         Parameters
         ----------
         g: DGLGraph
@@ -768,13 +769,38 @@ class LinkPredictLearnableDecoder(GSLayer):
         """
 
 class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
-    """ Link prediction decoder with the score function of dot product
+    """ Decoder for link prediction using the dot product as the score function.
+
+    Parameters
+    ----------
+    in_dim: int
+        The input dimension size. It is the dimension for both source and destinatioin
+        node embeddings.
     """
     def __init__(self, in_dim):
         self._in_dim = in_dim
 
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
+        """ Link prediction dot product decoder forward function.
+
+        This function computes the edge score on every edge type.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        scores: Tensor
+            The scores for edges of each edge type in the input graph.
+        """
         with g.local_scope():
             scores = {}
 
@@ -792,32 +818,34 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
             return scores
 
     def calc_test_scores(self, emb, pos_neg_tuple, neg_sample_type, device):
-        """ Compute scores for positive edges and negative edges
+        """ Compute scores for positive edges and negative edges.
 
         Parameters
         ----------
         emb: dict of Tensor
-            Node embeddings.
+            Node embeddings in the format of {ntype: emb}.
         pos_neg_tuple: dict of tuple
             Positive and negative edges stored in a tuple:
-            tuple(positive source, negative source,
-            postive destination, negatve destination).
-            The positive edges: (positive source, positive desitnation)
-            The negative edges: (positive source, negative desitnation) and
-                                (negative source, positive desitnation)
-        neg_sample_type: str
-            Describe how negative samples are sampled.
-                Uniform: For each positive edge, we sample K negative edges
-                Joint: For one batch of positive edges, we sample
-                       K negative edges
-        device: th.device
-            Device used to compute scores
+            tuple(positive source, negative source, postive destination, negatve destination).
 
-        Return
-        ------
-        Dict of (Tensor, Tensor)
-            Return a dictionary of edge type to
-            (positive scores, negative scores)
+            * The positive edges: (positive source, positive desitnation)
+            * The negative edges: (positive source, negative desitnation) and
+              (negative source, positive desitnation)
+
+        neg_sample_type: str
+            Describe how negative samples are sampled. There are two options:
+
+            * ``Uniform``: For each positive edge, we sample K negative edges.
+            * ``Joint``: For one batch of positive edges, we sample K negative edges.
+
+        device: th.device
+            Device used to compute scores.
+
+        Returns
+        --------
+        scores: dict of tuple
+            Return a dictionary of edge type's positive scores and negative scores in the format
+            of {(src_ntype, etype, dst_ntype): (pos_scores, neg_scores)}
         """
         assert isinstance(pos_neg_tuple, dict) and len(pos_neg_tuple) == 1, \
             "DotDecoder is only applicable to link prediction task with " \
@@ -905,43 +933,42 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
 
     @property
     def in_dims(self):
-        """ The number of input dimensions.
-
-        Returns
-        -------
-        int: the number of input dimensions.
+        """ Return the input dimension size, which is given in class initialization.
         """
         return self._in_dim
 
     @property
     def out_dims(self):
-        """ The number of output dimensions.
-
-        Returns
-        -------
-        int: the number of output dimensions.
+        """ Return ``1`` for link prediction tasks.
         """
         return 1
 
 class LinkPredictContrastiveDotDecoder(LinkPredictDotDecoder):
-    """ Link prediction decoder designed for contrastive loss
-        with the score function of dot product.
+    """ Decoder for link prediction designed for contrastive loss
+        using the dot product as the score function.
 
-        Note: This class is specifically implemented for contrastive loss
-        This may also be used by other pair-wise loss functions for link
-        prediction tasks.
+    Note:
+    -----
+    This class is specifically implemented for contrastive loss. But
+    it could also be used by other pair-wise loss functions for link
+    prediction tasks.
 
-        TODO(xiang): Develop a better solution for supporting pair-wise
-        loss functions in link prediction tasks. The
-        LinkPredictContrastiveDotDecoder is implemented based on the
-        assumption that the same decoder.forward will be called twice
-        with a positive graph and negative graph respectively. And
-        the positive and negative graphs are compatible. We can simply
-        sort the edges in postive and negative graphs to create <pos, neg>
-        pairs. This implementation makes strong assumption of the correlation
-        between the Dataloader, Decoder and the Loss function. We should
-        find a better implementation.
+    Parameters
+    ----------
+    in_dim: int
+        The input dimension size. It is the dimension for both source and destinatioin
+        node embeddings.
     """
+    # TODO(xiang): Develop a better solution for supporting pair-wise
+    # loss functions in link prediction tasks. The
+    # LinkPredictContrastiveDotDecoder is implemented based on the
+    # assumption that the same decoder.forward will be called twice
+    # with a positive graph and negative graph respectively. And
+    # the positive and negative graphs are compatible. We can simply
+    # sort the edges in postive and negative graphs to create <pos, neg>
+    # pairs. This implementation makes strong assumption of the correlation
+    # between the Dataloader, Decoder and the Loss function. We should
+    # find a better implementation.
 
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
