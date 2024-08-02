@@ -56,7 +56,7 @@ class RelationalAttLayer(nn.Module):
     .. code:: python
 
         # suppose graph and input_feature are ready
-        from graphstorm.model.rgat_encoder import RelationalAttLayer
+        from graphstorm.model import RelationalAttLayer
 
         layer = RelationalAttLayer(
                 in_feat=h_dim, out_feat=h_dim, rel_names=g.canonical_etypes,
@@ -263,8 +263,8 @@ class RelationalGATEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
 
         # Build model and do full-graph inference on RelationalGATEncoder
         from graphstorm import get_node_feat_size
-        from graphstorm.model.rgat_encoder import RelationalGATEncoder
-        from graphstorm.model.node_decoder import EntityClassifier
+        from graphstorm.model import RelationalGATEncoder
+        from graphstorm.model import EntityClassifier
         from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
         from graphstorm.dataloading import GSgnnData
         from graphstorm.model import do_full_graph_inference

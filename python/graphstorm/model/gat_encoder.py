@@ -30,6 +30,8 @@ class GATConv(nn.Module):
     r""" Graph attention layer from `Graph Attention Network
     <https://arxiv.org/pdf/1710.10903.pdf>`__.
 
+    The message passing formulas of ``GATConv`` are:
+
     .. math::
         h_i^{(l+1)} = \sum_{j\in \mathcal{N}(i)} \alpha_{i,j} W^{(l)} h_j^{(l)}
 
@@ -43,7 +45,7 @@ class GATConv(nn.Module):
 
     Note:
     -----
-    * ``GATEConv`` is only effective on homogeneous graphs, not like other conv implementations.
+    * ``GATEConv`` is only effective on homogeneous graphs.
 
     Examples:
     ----------
@@ -51,7 +53,7 @@ class GATConv(nn.Module):
     .. code:: python
 
         # suppose graph and input_feature are ready
-        from graphstorm.model.gat_encoder import GATConv
+        from graphstorm.model import GATConv
 
         layer = GATConv(h_dim, h_dim, num_heads, num_ffn_layers_in_gnn)
         h = layer(g, input_feature)
@@ -148,8 +150,8 @@ class GATEncoder(GraphConvEncoder):
 
         # Build model and do full-graph inference on GATEncoder
         from graphstorm import get_node_feat_size
-        from graphstorm.model.gat_encoder import GATEncoder
-        from graphstorm.model.node_decoder import EntityClassifier
+        from graphstorm.model import GATEncoder
+        from graphstorm.model import EntityClassifier
         from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
         from graphstorm.dataloading import GSgnnData
         from graphstorm.model import do_full_graph_inference

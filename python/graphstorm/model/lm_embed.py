@@ -695,7 +695,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         from graphstorm.dataloading import GSgnnData
         np_data = GSgnnData(...)
         model = GSgnnNodeModel(...)
-        feat_size = get_node_feat_size(np_data.g, 'feat')
+        feat_size = get_node_feat_size(np_data.g, "feat")
         node_lm_configs = [
             {
                 "lm_type": "bert",

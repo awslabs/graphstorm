@@ -28,6 +28,8 @@ class SAGEConv(nn.Module):
     r"""GraphSage Convolutional layer from `Inductive Representation Learning on
     Large Graphs <https://arxiv.org/pdf/1706.02216.pdf>`__.
 
+    The message passing formulas of ``SAGEConv`` are:
+
     .. math::
         h_{\mathcal{N}(i)}^{(l+1)} &= \mathrm{aggregate}
         \left(\{h_{j}^{l}, \forall j \in \mathcal{N}(i) \}\right)
@@ -39,7 +41,7 @@ class SAGEConv(nn.Module):
 
     Note:
     -----
-    * ``SAGEConv`` is only effective on homogeneous graphs, not like other conv implementations.
+    * ``SAGEConv`` is only effective on homogeneous graphs.
 
     Examples:
     ----------
@@ -47,7 +49,7 @@ class SAGEConv(nn.Module):
     .. code:: python
 
         # suppose graph and input_feature are ready
-        from graphstorm.model.sage_encoder import SAGEConv
+        from graphstorm.model import SAGEConv
 
         layer = SAGEConv(h_dim, h_dim, aggregator_type,
                          bias, activation, dropout,
@@ -172,8 +174,8 @@ class SAGEEncoder(GraphConvEncoder):
 
         # Build model and do full-graph inference on SAGEEncoder
         from graphstorm import get_node_feat_size
-        from graphstorm.model.sage_encoder import SAGEEncoder
-        from graphstorm.model.node_decoder import EntityClassifier
+        from graphstorm.model import SAGEEncoder
+        from graphstorm.model import EntityClassifier
         from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
         from graphstorm.dataloading import GSgnnData
         from graphstorm.model import do_full_graph_inference

@@ -80,7 +80,7 @@ class HGTLayer(nn.Module):
     .. code:: python
 
         # suppose graph and input_feature are ready
-        from graphstorm.model.hgt_encoder import HGTLayer
+        from graphstorm.model import HGTLayer
 
         layer = HGTLayer(hid_dim, out_dim, g.ntypes, g.canonical_etypes,
                          num_heads, activation, dropout, norm)
@@ -330,8 +330,8 @@ class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
 
         # Build model and do full-graph inference on HGTEncoder
         from graphstorm import get_node_feat_size
-        from graphstorm.model.hgt_encoder import HGTEncoder
-        from graphstorm.model.edge_decoder import MLPEdgeDecoder
+        from graphstorm.model import HGTEncoder
+        from graphstorm.model import MLPEdgeDecoder
         from graphstorm.model import GSgnnEdgeModel, GSNodeEncoderInputLayer
         from graphstorm.dataloading import GSgnnData
         from graphstorm.model import do_full_graph_inference

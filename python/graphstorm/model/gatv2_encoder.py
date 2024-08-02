@@ -30,6 +30,8 @@ class GATv2Conv(nn.Module):
     r""" GATv2 Convolutional layer from `How Attentive are Graph Attention Networks?
     <https://arxiv.org/pdf/2105.14491.pdf>`__.
 
+    The message passing formulas of ``GATv2Conv`` are:
+
     .. math::
         h_i^{(l+1)} = \sum_{j\in \mathcal{N}(i)} \alpha_{ij}^{(l)} W^{(l)}_{right} h_j^{(l)}
 
@@ -44,7 +46,7 @@ class GATv2Conv(nn.Module):
 
     Note:
     -----
-    * ``GATv2Conv`` is only effective on homogeneous graphs, not like other conv implementations.
+    * ``GATv2Conv`` is only effective on homogeneous graphs.
 
     Examples:
     ----------
@@ -52,7 +54,7 @@ class GATv2Conv(nn.Module):
     .. code:: python
 
         # suppose graph and input_feature are ready
-        from graphstorm.model.gat_encoder import GATv2Conv
+        from graphstorm.model import GATv2Conv
 
         layer = GATv2Conv(h_dim, h_dim, num_heads, num_ffn_layers_in_gnn)
         h = layer(g, input_feature)
@@ -149,8 +151,8 @@ class GATv2Encoder(GraphConvEncoder):
 
         # Build model and do full-graph inference on GATv2Encoder
         from graphstorm import get_node_feat_size
-        from graphstorm.model.gat_encoder import GATv2Encoder
-        from graphstorm.model.node_decoder import EntityClassifier
+        from graphstorm.model import GATv2Encoder
+        from graphstorm.model import EntityClassifier
         from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
         from graphstorm.dataloading import GSgnnData
         from graphstorm.model import do_full_graph_inference
@@ -158,7 +160,7 @@ class GATv2Encoder(GraphConvEncoder):
         np_data = GSgnnData(...)
 
         model = GSgnnNodeModel(alpha_l2norm=0)
-        feat_size = get_node_feat_size(np_data.g, 'feat')
+        feat_size = get_node_feat_size(np_data.g, "feat")
         encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                           dropout=0,
                                           use_node_embeddings=True)

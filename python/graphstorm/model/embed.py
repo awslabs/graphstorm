@@ -214,7 +214,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         np_data = GSgnnData(...)
 
         model = GSgnnEdgeModel(alpha_l2norm=0)
-        feat_size = get_node_feat_size(np_data.g, 'feat')
+        feat_size = get_node_feat_size(np_data.g, "feat")
         encoder = GSNodeEncoderInputLayer(g, feat_size, 
                                           embed_size=4,
                                           use_node_embeddings=True)

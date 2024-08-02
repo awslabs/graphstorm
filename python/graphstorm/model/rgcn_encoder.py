@@ -62,7 +62,7 @@ class RelGraphConvLayer(nn.Module):
     .. code:: python
 
         # suppose graph and input_feature are ready
-        from graphstorm.model.rgcn_encoder import RelGraphConvLayer
+        from graphstorm.model import RelGraphConvLayer
 
         layer = RelGraphConvLayer(
                 in_feat=h_dim, out_feat=h_dim, rel_names=g.canonical_etypes,
@@ -80,7 +80,7 @@ class RelGraphConvLayer(nn.Module):
     rel_names: list of tuple
         Relation type list in the format of [('src_ntyp1', 'etype1', 'dst_ntype1`), ...].
     num_bases: int
-        Number of bases. If is none, use number of relations. Default: None.
+        Number of bases. If is None, use number of relation types. Default: None.
     weight: bool
         Whether to apply a linear layer after message passing. Default: True.
     bias: bool
@@ -279,7 +279,7 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
     out_dim: int
         Output dimension.
     num_bases: int
-        Number of bases.
+        Number of bases. If is None, use number of relation types. Default: None.
     num_hidden_layers: int
         Number of hidden layers. Total GNN layers is equal to ``num_hidden_layers + 1``.
         Default: 1.
@@ -301,8 +301,8 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
 
         # Build model and do full-graph inference on RelationalGCNEncoder
         from graphstorm import get_node_feat_size
-        from graphstorm.model.rgcn_encoder import RelationalGCNEncoder
-        from graphstorm.model.node_decoder import EntityClassifier
+        from graphstorm.model import RelationalGCNEncoder
+        from graphstorm.model import EntityClassifier
         from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
         from graphstorm.dataloading import GSgnnData
         from graphstorm.model import do_full_graph_inference
