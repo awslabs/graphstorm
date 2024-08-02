@@ -44,11 +44,11 @@ class GSEdgeDecoder(GSLayer):
 
         Parameters
         ----------
-        g : DGLGraph
+        g: DGLGraph
             The target edge graph
-        h : dict of Tensors
+        h: dict of Tensors
             The dictionary containing the embeddings
-        e_h : dict of tensors
+        e_h: dict of tensors
             The dictionary containing the edge features for g.
         Returns
         -------
@@ -64,16 +64,16 @@ class GSEdgeDecoder(GSLayer):
 
         Parameters
         ----------
-        g : DGLBlock
+        g: DGLBlock
             The minibatch graph
-        h : dict of Tensors
+        h: dict of Tensors
             The dictionary containing the embeddings
-        e_h : dict of tensors
+        e_h: dict of tensors
             The dictionary containing the edge features for g.
 
         Returns
         -------
-        Tensor : the maximum score of each edge.
+        Tensor: the maximum score of each edge.
         """
 
     @abc.abstractmethod
@@ -82,43 +82,44 @@ class GSEdgeDecoder(GSLayer):
 
         Parameters
         ----------
-        g : DGLBlock
+        g: DGLBlock
             The minibatch graph
-        h : dict of Tensors
+        h: dict of Tensors
             The dictionary containing the embeddings
-        e_h : dict of tensors
+        e_h: dict of tensors
             The dictionary containing the edge features for g.
 
         Returns
         -------
-        Tensor : all the scores of each edge.
+        Tensor: all the scores of each edge.
         """
 
 class DenseBiDecoder(GSEdgeDecoder):
-    r"""Dense bi-linear decoder.
-    Dense implementation of the bi-linear decoder used in GCMC. Suitable when
-    the graph can be efficiently represented by a pair of arrays (one for source
-    nodes; one for destination nodes).
+    r""" Dense bi-linear decoder for edge prediction tasks.
+
+    ``DenseBiDecoder`` is the dense implementation of the bi-linear decoder used in GCMC.
+    Suitable when the graph can be efficiently represented by a pair of lists (one for source
+    node list and one for destination node list).
 
     Parameters
     ----------
-    in_units : int
-        The input node feature size
-    num_classes : int
-        Number of classes.
-    multilabel : bool
-        Whether this is a multilabel classification.
-    num_basis : int, optional
-        Number of basis. (Default: 2)
-    dropout_rate : float, optional
-        Dropout raite (Default: 0.0)
-    target_etype : tuple of str
-        The target etype for prediction
-    regression : bool
-        Whether this is true then we perform regression
-    norm : str, optional
-        Normalization Method. (Reserved for complex DenseBiDecoder child class.)
-        Default: None
+    in_units: int
+        The input dimension size.
+    num_classes: int
+        Number of classes, if set for classification task.
+    multilabel: bool
+        Whether this is a multi-label classification decoder.
+    num_basis: int
+        Number of basis. Default: 2.
+    dropout_rate: float
+        Dropout rate. Default: 0.
+    target_etype: tuple of str
+        The target etype for prediction in the format of (src_ntype, etype, dst_ntype).
+    regression: bool
+        Whether this decoder is for regression task or not. Default: False.
+    norm: str
+        Normalization methods. Not used, but reserved for complex DenseBiDecoder child class
+        implementation. Default: None.
     """
     def __init__(self,
                  in_units,
@@ -228,7 +229,7 @@ class DenseBiDecoder(GSEdgeDecoder):
 
         Returns
         -------
-        int : the number of input dimensions.
+        int: the number of input dimensions.
         """
         return self.in_units
 
@@ -238,7 +239,7 @@ class DenseBiDecoder(GSEdgeDecoder):
 
         Returns
         -------
-        int : the number of output dimensions.
+        int: the number of output dimensions.
         """
         return 1 if self.regression else self.num_classes
 
@@ -248,24 +249,24 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
     Parameters
     ----------
-    h_dim : int
+    h_dim: int
         The input dim of decoder. It is the dim of source or destinatioin node embeddings.
-    out_dim : int
+    out_dim: int
         Output dim. e.g., number of classes
-    multilabel : bool
+    multilabel: bool
         Whether this is a multilabel classification.
-    target_etype : tuple of str
+    target_etype: tuple of str
         Target etype for prediction
     num_hidden_layers: int
         Number of layers
-    regression : Bool
+    regression: Bool
         If this is true then we perform regression
     dropout: float
         Dropout
     num_ffn_layers: int, optional
         Number of free-forward layers added to the decoder
         Default: 0
-    norm : str, optional
+    norm: str, optional
         Normalization Method. (Reserved for complex MLPEdgeDecoder child class.)
         Default: None
     """
@@ -323,9 +324,9 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
             Parameters
             ----------
-            g : DGLBlock
+            g: DGLBlock
                 The minibatch graph
-            h : dict of Tensors
+            h: dict of Tensors
                 The dictionary containing the embeddings
             Returns
             -------
@@ -382,7 +383,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
         Returns
         -------
-        int : the number of input dimensions.
+        int: the number of input dimensions.
         """
         return self.h_dim
 
@@ -392,7 +393,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
         Returns
         -------
-        int : the number of output dimensions.
+        int: the number of output dimensions.
         """
         return 1 if self.regression else self.out_dim
 
@@ -401,24 +402,24 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
 
     Parameters
     ----------
-    h_dim : int
+    h_dim: int
         The input dim of decoder. It is the dim of source or destinatioin node embeddings.
-    feat_dim : int
+    feat_dim: int
         The input dim of edge features which are used with NN output.
-    out_dim : int
+    out_dim: int
         Output dim. e.g., number of classes
-    multilabel : bool
+    multilabel: bool
         Whether this is a multilabel classification.
-    target_etype : tuple of str
+    target_etype: tuple of str
         Target etype for prediction
-    regression : Bool
+    regression: Bool
         If this is true then we perform regression
     dropout: float
         Dropout
     num_ffn_layers: int, optional
         Number of free-forward layers added to the decoder
         Default: 0
-    norm : str, optional
+    norm: str, optional
         Normalization Method. The Norm is used after edge feature decoder,
         ffn_layers if any and combine decoder.
         Default: None
@@ -496,9 +497,9 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
 
             Parameters
             ----------
-            g : DGLBlock
+            g: DGLBlock
                 The minibatch graph
-            h : dict of Tensors
+            h: dict of Tensors
                 The dictionary containing the embeddings
             Returns
             -------
@@ -583,11 +584,11 @@ class LinkPredictNoParamDecoder(GSLayerNoParam):
         This computes the edge score on every edge type.
         Parameters
         ----------
-        g : DGLGraph
+        g: DGLGraph
             The target edge graph
-        h : dict of Tensors
+        h: dict of Tensors
             The dictionary containing the node embeddings
-        e_h : dict of tensors
+        e_h: dict of tensors
             The dictionary containing the edge features for g.
 
         Returns
@@ -609,11 +610,11 @@ class LinkPredictLearnableDecoder(GSLayer):
         This computes the edge score on every edge type.
         Parameters
         ----------
-        g : DGLGraph
+        g: DGLGraph
             The target edge graph
-        h : dict of Tensors
+        h: dict of Tensors
             The dictionary containing the node embeddings
-        e_h : dict of tensors
+        e_h: dict of tensors
             The dictionary containing the edge features for g.
 
         Returns
@@ -765,7 +766,7 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
 
         Returns
         -------
-        int : the number of input dimensions.
+        int: the number of input dimensions.
         """
         return self._in_dim
 
@@ -775,7 +776,7 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
 
         Returns
         -------
-        int : the number of output dimensions.
+        int: the number of output dimensions.
         """
         return 1
 
@@ -838,11 +839,11 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
 
     Parameters
     ----------
-    etypes : list of tuples
+    etypes: list of tuples
         The canonical edge types of the graph
-    h_dim : int
+    h_dim: int
         The hidden dimension
-    gamma : float
+    gamma: float
         The gamma value for initialization
     """
     def __init__(self,
@@ -864,7 +865,7 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
 
         Parameters
         ----------
-        etype : str
+        etype: str
             The edge type.
         """
         i = self.etype2rid[etype]
@@ -1032,7 +1033,7 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
 
         Returns
         -------
-        int : the number of input dimensions.
+        int: the number of input dimensions.
         """
         return self.h_dim
 
@@ -1042,7 +1043,7 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
 
         Returns
         -------
-        int : the number of output dimensions.
+        int: the number of output dimensions.
         """
         return 1
 
