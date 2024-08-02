@@ -1,41 +1,54 @@
 .. _distributed_construction_example:
 
-GraphStorm Processing Example
-=============================
+A GraphStorm Distributed Graph Construction Example
+===================================================
 
-To demonstrate how to use the library locally we will
+GraphStorm's distributed graph construction is involved with multiple steps.
+To help users better understand these steps, we provide an example of distributed graph construction,
+which can run locally in one instance.
+
+To demonstrate how to use distributed graph construction locally we will
 use the same example data as we use in our
 unit tests, which you can find in the project's repository,
 under ``graphstorm/graphstorm-processing/tests/resources/small_heterogeneous_graph``.
 
-Install example dependencies
-----------------------------
+Install dependencies
+--------------------
 
-To run the local example you will need to install the GSProcessing
+To run the local example you will need to install the GSProcessing and GraphStorm
 library to your Python environment, and you'll need to clone the
-GraphStorm repository to get access to the data.
+GraphStorm repository to get access to the data, and DGL tool for GSPartition.
 
 Follow the :ref:`gsp-installation-ref` guide to install the GSProcessing library.
 
-You can clone the repository using
+To run GSPartition job, you can install the dependencies as following:
 
 .. code-block:: bash
 
+    pip install graphstorm
+    pip install pydantic
+    pip install torch==2.1.0 --index-url https://download.pytorch.org/whl/cpu
+    pip install dgl==1.1.3 -f https://data.dgl.ai/wheels-internal/repo.html
     git clone https://github.com/awslabs/graphstorm.git
+    cd graphstorm
+    git clone --branch v1.1.3 https://github.com/dmlc/dgl.git
 
 You can then navigate to the ``graphstorm-processing/`` directory
 that contains the relevant data:
 
 .. code-block:: bash
 
-    cd ./graphstorm/graphstorm-processing/
+    cd ./graphstorm-processing/
 
 
 Expected file inputs and configuration
 --------------------------------------
 
+The example will include GSProcessing as the first step and GSPartition as the second step.
+
 GSProcessing expects the input files to be in a specific format that will allow
 us to perform the processing and prepare the data for partitioning and training.
+GSPartition then takes the output of GSProcessing to produce graph data in DistDGLGraph format for training or inference..
 
 The data files are expected to be:
 
@@ -202,8 +215,8 @@ For more details on the re-partitioning step see
 
 .. _gsp-examining-output:
 
-Examining the job output
-------------------------
+Examining the job output of GSProcessing
+------------------------------------------
 
 Once the processing and re-partitioning jobs are done,
 we can examine the outputs they created. The output will be
@@ -281,23 +294,70 @@ in an ``edge_data`` directory.
     for node id 1 etc.
 
 
-At this point you can use the DGL distributed partitioning pipeline
-to partition your data, as described in the
-`DGL documentation <https://docs.dgl.ai/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_
-.
+Run a GSPartition job locally
+------------------------------
+While :ref:`GSPartition<gspartition_index>` is designed to run on a multi-machine cluster,
+you can run GSPartition job locally for the example. Once you have completed the installation
+and the GSProcessing example described in the previous section, you can proceed to run the GSPartition step.
 
-To simplify the process of partitioning and training, without the need
-to manage your own infrastructure, we recommend using GraphStorm's
-`SageMaker wrappers <https://graphstorm.readthedocs.io/en/latest/scale/sagemaker.html>`_
-that do all the hard work for you and allow
-you to focus on model development. In particular you can follow the GraphStorm documentation to run
-`distributed partitioning on SageMaker <https://github.com/awslabs/graphstorm/tree/main/sagemaker#launch-graph-partitioning-task>`_.
+Assuming your working directory is ``graphstorm``,
+you can use the following command to run the partition job locally:
 
+.. code:: bash
 
-To run GSProcessing jobs on Amazon SageMaker we'll need to follow
-:ref:`GSProcessing distributed setup<gsprocessing_distributed_setup>` to set up our environment
-and :ref:`Running GSProcessing on SageMaker<gsprocessing_sagemaker>` to execute the job.
+    echo 127.0.0.1 > ip_list.txt
+    python3 -m graphstorm.gpartition.dist_partition_graph \
+        --input-path /tmp/gsprocessing-example/ \
+        --metadata-filename updated_row_counts_metadata.json \
+        --output-path /tmp/gspartition-example/ \
+        --num-parts 2 \
+        --dgl-tool-path ./dgl/tools \
+        --partition-algorithm random \
+        --ip-config ip_list.txt 
 
+The command above will first do graph partitioning to determine the ownership for each partition and save the results.
+Then it will do data dispatching to physically assign the partitions to graph data and dispatch them to each machine.
+Finally it will generate the graph data ready for training/inference.
+
+Examining the job output of GSPartition
+---------------------------------------
+
+Once the partition job is done, you can examine the outputs.
+
+.. code-block:: bash
+
+    $ cd /tmp/gspartition-example
+    $ ls -ltR
+
+    dist_graph/
+        metadata.json
+        |- part0/
+            edge_feat.dgl
+            graph.dgl
+            node_feat.dgl
+            orig_eids.dgl
+            orig_nids.dgl
+    partition_assignment/
+        director.txt
+        genre.txt
+        movie.txt
+        partition_meta.json
+        user.txt
+
+The ``dist_graph`` folder contains partitioned graph ready for training and inference.
+
+* ``part0``: As we only specify 1 partition in the previous command, we have one part folder here.
+There are five files for the partition
+    * ``edge_feat.dgl``: The edge features for part 0 stored in binary format.
+    * ``graph.dgl``: The graph structure data for part 0 stored in binary format.
+    * ``node_feat.dgl``: The node features data for part 0 stored in binary format.
+    * ``orig_eids.dgl``: The mapping for edges between raw edge IDs and the partitioned graph edge IDs.
+    * ``orig_nids.dgl``: The mapping for nodes between raw node IDs and the partitioned graph node IDs.
+
+* ``metadata.json``: This file contains metadata about the distributed DGL graph.
+
+The ``partition_assignment`` directory contains different partition results for different node types,
+which can reused for the `dgl dispatch pipeline <https://docs.dgl.ai/en/latest/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_
 
 .. rubric:: Footnotes
 
@@ -305,4 +365,3 @@ and :ref:`Running GSProcessing on SageMaker<gsprocessing_sagemaker>` to execute 
 .. [#f1] Note that this is just a hint to the Spark engine, and it's
     not guaranteed that the number of output partitions will always match
     the requested value.
-.. [#f2] This doc will be future extended to include a partition example.

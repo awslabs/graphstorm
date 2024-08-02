@@ -2,7 +2,6 @@ sphinx==7.1.2
 sphinx-rtd-theme==1.3.0
 nbsphinx
 pandoc
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==1.13.1+cpu
+torch>=2.2.0
 -f https://data.dgl.ai/wheels-internal/repo.html
 dgl==1.0.4

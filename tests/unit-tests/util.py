@@ -108,6 +108,12 @@ class DummyGSgnnMTModel(DummyGSgnnModel, GSgnnMultiTaskModelInterface):
         super(DummyGSgnnMTModel, self).__init__(encoder_model, has_sparse)
         self._decoders = decoders
 
+    @property
+    def node_embed_norm_methods(self):
+        return {}
+
+    def normalize_task_node_embs(self, task_id, embs, inplace=False):
+        return embs
 
     def forward(self, task_mini_batches):
         pass
