@@ -722,7 +722,7 @@ class LinkPredictNoParamDecoder(GSLayerNoParam):
     # pylint: disable=arguments-differ
     @abc.abstractmethod
     def forward(self, g, h, e_h=None):
-        """Link prediction decoder Forward function.
+        """Link prediction decoder forward function.
 
         This computes the edge score on every edge type.
 
@@ -749,9 +749,10 @@ class LinkPredictLearnableDecoder(GSLayer):
     # pylint: disable=arguments-differ
     @abc.abstractmethod
     def forward(self, g, h, e_h=None):
-        """Forward function.
+        """Link prediction decoder forward function.
 
         This computes the edge score on every edge type.
+
         Parameters
         ----------
         g: DGLGraph
@@ -784,12 +785,12 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
     def forward(self, g, h, e_h=None):
         """ Link prediction dot product decoder forward function.
 
-        This function computes the edge score on every edge type.
+        This function computes the edge scores on all edge types of the input graph.
 
         Parameters
         ----------
         g: DGLGraph
-            The graph of target edges.
+            The input graph.
         h: dict of Tensor
             The input node embeddings in the format of {ntype: emb}.
         e_h: dict of Tensor
@@ -798,8 +799,9 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
 
         Returns
         -------
-        scores: Tensor
-            The scores for edges of each edge type in the input graph.
+        scores: dict of Tensor
+            The scores for edges of all edge types in the input graph in the format of
+            {(src_ntype, etype, dst_ntype): score}.
         """
         with g.local_scope():
             scores = {}
@@ -944,8 +946,8 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
         return 1
 
 class LinkPredictContrastiveDotDecoder(LinkPredictDotDecoder):
-    """ Decoder for link prediction designed for contrastive loss
-        using the dot product as the score function.
+    """ Decoder for link prediction designed for contrastive loss by
+    using the dot product as the score function.
 
     Note:
     -----
@@ -1005,16 +1007,18 @@ class LinkPredictContrastiveDotDecoder(LinkPredictDotDecoder):
             return scores
 
 class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
-    """ Link prediction decoder with the score function of DistMult
+    """ Decoder for link prediction using the DistMult as the score function.
 
     Parameters
     ----------
     etypes: list of tuples
-        The canonical edge types of the graph
+        The canonical edge types of the graph in the format of
+        [(src_ntype1, etype1, dst_ntype1), ...]
     h_dim: int
-        The hidden dimension
+        The input dimension size. It is the dimension for both source and destinatioin
+        node embeddings.
     gamma: float
-        The gamma value for initialization
+        The gamma value for model weight initialization. Default: 40.
     """
     def __init__(self,
                  etypes,
@@ -1031,24 +1035,54 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
         self.relids = th.arange(self.num_rels)
 
     def get_relemb(self, etype):
-        """retrieve trained embedding of the given edge type
+        """ Retrieve trained embedding of the given edge type.
 
         Parameters
         ----------
-        etype: str
-            The edge type.
+        etype: tuple
+            An edge type in the format of (src_ntype, etype, dst_ntype).
+
+        Returns
+        -------
+        Tensor: the output embeddings of the given edge type.
         """
         i = self.etype2rid[etype]
         assert self.trained_rels[i] > 0, 'The relation {} is not trained'.format(etype)
         return self._w_relation(th.tensor(i).to(self._w_relation.weight.device))
 
     def get_relembs(self):
-        """retrieve all edges' trained embedding and edge type id mapping
+        """retrieve all edge types' trained weights and the edge type ID mapping.
+
+        Returns
+        -------
+        dict of Tensor: the trained weights of all edge types.
+        dict of int: edge type ID mapping in the format of
+        {((src_ntype1, etype1, dst_ntype1)): id}
         """
         return self._w_relation.weight, self.etype2rid
 
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
+        """Link prediction decoder forward functionusing the DistMult as the score function.
+
+        This computes the edge score on every edge type.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The input graph.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        scores: dict of Tensor
+            The scores for edges of all edge types in the input graph in the format of
+            {(src_ntype, etype, dst_ntype): score}.
+        """
         with g.local_scope():
             scores = {}
 
@@ -1072,32 +1106,34 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
             return scores
 
     def calc_test_scores(self, emb, pos_neg_tuple, neg_sample_type, device):
-        """ Compute scores for positive edges and negative edges
+        """ Compute scores for positive edges and negative edges.
 
         Parameters
         ----------
         emb: dict of Tensor
-            Node embeddings.
+            Node embeddings in the format of {ntype: emb}.
         pos_neg_tuple: dict of tuple
             Positive and negative edges stored in a tuple:
-            tuple(positive source, negative source,
-            postive destination, negatve destination).
-            The positive edges: (positive source, positive desitnation)
-            The negative edges: (positive source, negative desitnation) and
-                                (negative source, positive desitnation)
-        neg_sample_type: str
-            Describe how negative samples are sampled.
-                Uniform: For each positive edge, we sample K negative edges
-                Joint: For one batch of positive edges, we sample
-                       K negative edges
-        device: th.device
-            Device used to compute scores
+            tuple(positive source, negative source, postive destination, negatve destination).
 
-        Return
-        ------
-        Dict of (Tensor, Tensor)
-            Return a dictionary of edge type to
-            (positive scores, negative scores)
+            * The positive edges: (positive source, positive desitnation)
+            * The negative edges: (positive source, negative desitnation) and
+              (negative source, positive desitnation)
+
+        neg_sample_type: str
+            Describe how negative samples are sampled. There are two options:
+
+            * ``Uniform``: For each positive edge, we sample K negative edges.
+            * ``Joint``: For one batch of positive edges, we sample K negative edges.
+
+        device: th.device
+            Device used to compute scores.
+
+        Returns
+        --------
+        scores: dict of tuple
+            Return a dictionary of edge type's positive scores and negative scores in the format
+            of {(src_ntype, etype, dst_ntype): (pos_scores, neg_scores)}
         """
         assert isinstance(pos_neg_tuple, dict), \
             "DistMulti is only applicable to heterogeneous graphs." \
@@ -1199,21 +1235,13 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
 
     @property
     def in_dims(self):
-        """ The number of input dimensions.
-
-        Returns
-        -------
-        int: the number of input dimensions.
+        """ Return the input dimension size, which is given in class initialization.
         """
         return self.h_dim
 
     @property
     def out_dims(self):
-        """ The number of output dimensions.
-
-        Returns
-        -------
-        int: the number of output dimensions.
+        """ Return ``1`` for link prediction tasks.
         """
         return 1
 

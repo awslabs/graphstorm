@@ -97,8 +97,8 @@ Decoder Layer
     MLPEdgeDecoder
     MLPEFeatEdgeDecoder
     LinkPredictDotDecoder
+    LinkPredictContrastiveDotDecoder
     LinkPredictDistMultDecoder
     LinkPredictWeightedDotDecoder
     LinkPredictWeightedDistMultDecoder
-    LinkPredictContrastiveDotDecoder
     LinkPredictContrastiveDistMultDecoder
