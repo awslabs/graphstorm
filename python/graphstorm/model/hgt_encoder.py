@@ -30,7 +30,7 @@ from .gnn_encoder_base import (GraphConvEncoder,
 
 
 class HGTLayer(nn.Module):
-    """Heterogenous graph transformer (HGT) layer  from `Heterogeneous Graph
+    r"""Heterogenous graph transformer (HGT) layer from `Heterogeneous Graph
     Transformer <https://arxiv.org/abs/2003.01332>`__.
 
     Given a graph :math:`G(V, E)` and input node features :math:`H^{(l-1)}` in the :math:`l-1`
