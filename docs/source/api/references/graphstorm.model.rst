@@ -100,5 +100,3 @@ Decoder Layer
     LinkPredictContrastiveDotDecoder
     LinkPredictDistMultDecoder
     LinkPredictContrastiveDistMultDecoder
-    .. LinkPredictWeightedDistMultDecoder
-    .. LinkPredictWeightedDotDecoder
