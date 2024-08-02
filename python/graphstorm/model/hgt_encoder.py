@@ -321,7 +321,7 @@ class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
     norm: str
         Normalization methods. Options:``batch`` and ``layer``. Default: ``layer``.
     num_ffn_layers_in_gnn: int
-        Number of fnn layers layers between GNN layers. Default: 0.
+        Number of fnn layers between GNN layers. Default: 0.
 
     Examples:
     ----------

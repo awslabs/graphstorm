@@ -252,7 +252,7 @@ class RelationalGATEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
     last_layer_act: callable
         Activation for the last layer. Default: None.
     num_ffn_layers_in_gnn: int
-        Number of fnn layers layers between GNN layers. Default: 0.
+        Number of fnn layers between GNN layers. Default: 0.
     norm: str
         Normalization methods. Options:``batch`` and ``layer``. Default: None.
 

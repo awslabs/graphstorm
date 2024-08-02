@@ -27,11 +27,23 @@ from .gnn_encoder_base import GraphConvEncoder
 
 
 class GATConv(nn.Module):
-    r"""GAT Convolutional layer
+    r""" Graph attention layer from `Graph Attention Network
+    <https://arxiv.org/pdf/1710.10903.pdf>`__.
+
+    .. math::
+        h_i^{(l+1)} = \sum_{j\in \mathcal{N}(i)} \alpha_{i,j} W^{(l)} h_j^{(l)}
+
+    where :math:`\alpha_{ij}` is the attention score bewteen node :math:`i` and
+    node :math:`j`:
+
+    .. math::
+        \alpha_{ij}^{l} &= \mathrm{softmax_i} (e_{ij}^{l})
+
+        e_{ij}^{l} &= \mathrm{LeakyReLU}\left(\vec{a}^T [W h_{i} \| W h_{j}]\right)
 
     Note:
     -----
-    * GATEConv is only effective on the homogeneous graph, not like other conv implementation.
+    * ``GATEConv`` is only effective on homogeneous graphs, not like other conv implementations.
 
     Examples:
     ----------
@@ -46,17 +58,17 @@ class GATConv(nn.Module):
 
     Parameters
     ----------
-    in_feat : int
+    in_feat: int
         Input feature size.
-    out_feat : int
+    out_feat: int
         Output feature size.
-    num_heads : int
+    num_heads: int
         Number of heads in Multi-head attention.
-    activation : callable, optional
+    activation: callable, optional
         Activation function. Default: relu
-    dropout : float, optional
+    dropout: float, optional
         Dropout rate. Default: 0.0
-    bias : bool, optional
+    bias: bool, optional
         True if bias is added. Default: True
     num_ffn_layers_in_gnn: int, optional
         Number of layers of ngnn between gnn layers. Default: 0
@@ -83,18 +95,20 @@ class GATConv(nn.Module):
                                  num_ffn_layers_in_gnn, ffn_activation, dropout)
 
     def forward(self, g, inputs):
-        """Forward computation
+        """ GAT layer forward computation.
 
         Parameters
         ----------
-        g : DGLHeteroGraph
-            Input graph.
-        inputs : dict[DEFAULT_NTYPE, torch.Tensor]
-            Node feature for each node type.
+        g: DGLHeteroGraph
+            Input DGL heterogenous graph.
+        inputs: dict of Tensor
+            Node features for the default node type in the format of
+            {``DEFAULT_NTYPE``: tensor}.
+
         Returns
         -------
-        dict{DEFAULT_NTYPE, torch.Tensor}
-            New node features for each node type.
+        dict of Tensor: New node features for the default node type in the format of
+        {``DEFAULT_NTYPE``: tensor}.
         """
         # add self-loop during computation.
         src, dst = g.edges()
@@ -122,10 +136,10 @@ class GATConv(nn.Module):
         return {DEFAULT_NTYPE: h_conv}
 
 class GATEncoder(GraphConvEncoder):
-    r""" GAT Conv Encoder
+    r""" GAT Conv Encoder.
 
-    The GATEncoder employs several GATConv Layers as its encoding mechanism.
-    The GATEncoder should be designated as the model's encoder within Graphstorm.
+    The ``GATEncoder`` employs several ``GATConv`` Layers as its encoding mechanism.
+    The ``GATEncoder`` should be designated as the model's encoder within Graphstorm.
 
     Examples:
     ----------
@@ -143,7 +157,7 @@ class GATEncoder(GraphConvEncoder):
         np_data = GSgnnData(...)
 
         model = GSgnnNodeModel(alpha_l2norm=0)
-        feat_size = get_node_feat_size(np_data.g, 'feat')
+        feat_size = get_node_feat_size(np_data.g, "feat")
         encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                           dropout=0,
                                           use_node_embeddings=True)
@@ -158,22 +172,22 @@ class GATEncoder(GraphConvEncoder):
 
     Parameters
     ----------
-    h_dim : int
-        Hidden dimension
-    out_dim : int
-        Output dimension
-    num_heads : int
-        Number of multi-heads attention
-    num_hidden_layers : int
-        Number of hidden layers. Total GNN layers is equal to num_hidden_layers + 1. Default 1
-    dropout : float
-        Dropout. Default 0.
-    activation : callable, optional
-        Activation function. Default: None
-    last_layer_act: bool, optional
-        Whether call activation function in the last GNN layer. Default: False
-    num_ffn_layers_in_gnn: int, optional
-        Number of ngnn gnn layers between GNN layers. Default: 0
+    h_dim: int
+        Hidden dimension size.
+    out_dim: int
+        Output dimension size.
+    num_heads: int
+        Number of multi-heads attention heads.
+    num_hidden_layers: int
+        Number of hidden layers. Total GNN layers is equal to ``num_hidden_layers + 1``.
+    dropout: float
+        Dropout rate. Default: 0.
+    activation: torch.nn.functional
+        Activation function. Default: relu.
+    last_layer_act: bool
+        Whether to call activation function in the last GNN layer. Default: False.
+    num_ffn_layers_in_gnn: int
+        Number of fnn layers between GNN layers. Default: 0.
     """
     def __init__(self,
                  h_dim, out_dim,
@@ -197,14 +211,21 @@ class GATEncoder(GraphConvEncoder):
                                     dropout=dropout, bias=True))
 
     def forward(self, blocks, h):
-        """Forward computation
+        """ GAT encoder forward computation.
 
         Parameters
         ----------
         blocks: DGL MFGs
-            Sampled subgraph in DGL MFG
-        h: dict[DEFAULT_NTYPE, torch.Tensor]
-            Input node feature for each node type.
+            Sampled subgraph in DGL MFG format.
+        h: dict of Tensor
+            Node features for the default node type in the format of
+            {``DEFAULT_NTYPE``: tensor}.
+
+        Returns
+        -------
+        h: dict of Tensor
+            New node features for the default node type in the format of
+            {``DEFAULT_NTYPE``: tensor}.
         """
         for layer, block in zip(self.layers, blocks):
             h = layer(block, h)

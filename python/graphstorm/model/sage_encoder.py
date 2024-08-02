@@ -161,7 +161,7 @@ class SAGEEncoder(GraphConvEncoder):
     activation: torch.nn.functional
         Activation function. Default: relu.
     num_ffn_layers_in_gnn: int
-        Number of fnn layers layers between GNN layers. Default: 0.
+        Number of fnn layers between GNN layers. Default: 0.
     norm: str
         Normalization methods. Options:``batch`` and ``layer``. Default: None.
 
@@ -227,7 +227,7 @@ class SAGEEncoder(GraphConvEncoder):
         ----------
         blocks: DGL MFGs
             Sampled subgraph in DGL MFG format.
-        inputs: dict of Tensor
+        h: dict of Tensor
             Node features for the default node type in the format of
             {``DEFAULT_NTYPE``: tensor}.
 
