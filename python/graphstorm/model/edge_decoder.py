@@ -291,7 +291,7 @@ class DenseBiDecoder(GSEdgeDecoder):
 
 
 class MLPEdgeDecoder(GSEdgeDecoder):
-    """ MLP based decoder for edge prediction tasks.
+    """ MLP-based decoder for edge prediction tasks.
 
     Parameters
     ----------
@@ -308,7 +308,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
     num_hidden_layers: int
         Number of MLP layers. Default: 1.
     dropout: float
-        Dropout
+        Dropout rate. Default: 0.
     regression: bool
         Whether this decoder is for regression tasks. Default: False.
     num_ffn_layers: int
@@ -316,7 +316,6 @@ class MLPEdgeDecoder(GSEdgeDecoder):
     norm: str
         Normalization methods. Not used, but reserved for complex MLPEdgeDecoder child class
         implementation. Default: None.
-
     """
     def __init__(self,
                  h_dim,
@@ -395,7 +394,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
-        """ MLP edge decoder forward computation.
+        """ MLP-based edge decoder forward computation.
 
         Parameters
         ----------
@@ -420,7 +419,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
     # pylint: disable=unused-argument
     def predict(self, g, h, e_h=None):
-        """ MLP edge decoder predict computation.
+        """ MLP-based edge decoder predict computation.
 
         Parameters
         ----------
@@ -449,7 +448,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
     # pylint: disable=unused-argument
     def predict_proba(self, g, h, e_h=None):
-        """ MLP edge decoder predict computation and return the normalized
+        """ MLP-based edge decoder predict computation and return the normalized
         prediction results if this decoder is set for edge classification.
 
         Parameters
@@ -492,31 +491,31 @@ class MLPEdgeDecoder(GSEdgeDecoder):
         return 1 if self.regression else self.out_dim
 
 class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
-    """ MLP based edge classificaiton/regression decoder
+    """ MLP-based decoder for edge prediction tasks with edge features supported.
 
     Parameters
     ----------
     h_dim: int
-        The input dim of decoder. It is the dim of source or destinatioin node embeddings.
+        The input dimension size. It is the dimension for both source and destinatioin
+        node embeddings.
     feat_dim: int
-        The input dim of edge features which are used with NN output.
+        The input dimension size of edge features which are used for computing decoder output.
     out_dim: int
-        Output dim. e.g., number of classes
+        Output dimension size. If this decoder is set for edge regression, the output
+        dimension should be ``1``.
     multilabel: bool
-        Whether this is a multilabel classification.
+        Whether this decoder is for multilabel edge classification.
     target_etype: tuple of str
-        Target etype for prediction
-    regression: Bool
-        If this is true then we perform regression
+        The target etype for prediction in the format of (src_ntype, etype, dst_ntype).
     dropout: float
-        Dropout
-    num_ffn_layers: int, optional
-        Number of free-forward layers added to the decoder
-        Default: 0
-    norm: str, optional
-        Normalization Method. The Norm is used after edge feature decoder,
-        ffn_layers if any and combine decoder.
-        Default: None
+        Dropout rate. Default: 0.
+    regression: bool
+        Whether this decoder is for regression tasks. Default: False.
+    num_ffn_layers: int
+        Number of FFN layers added to the decoder. Default: 0
+    norm: str
+        Normalization methods. Not used, but reserved for complex MLPEFeatEdgeDecoder child
+        class implementation. Default: None.
     """
     def __init__(self,
                  h_dim,
@@ -635,6 +634,22 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
 
     # pylint: disable=signature-differs
     def forward(self, g, h, e_h):
+        """ MLP-based edge feature supported edge decoder forward computation.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results.
+        """
         out = self._compute_logits(g, h, e_h)
 
         if self.regression:
@@ -643,6 +658,22 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
 
     # pylint: disable=signature-differs
     def predict(self, g, h, e_h):
+        """ MLP-based edge feature supported edge decoder predict computation.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results.
+        """
         out = self._compute_logits(g, h, e_h)
 
         if self.regression:
@@ -655,6 +686,24 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
 
     # pylint: disable=signature-differs
     def predict_proba(self, g, h, e_h):
+        """ MLP-based edge feature supported edge decoder predict computation and return
+        the normalized prediction results if this decoder is set for edge classification.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results. If this decoder is set for edge classification, return the
+            normalized prediction results.
+        """
         out = self._compute_logits(g, h, e_h)
 
         if self.regression:
