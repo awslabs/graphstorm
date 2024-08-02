@@ -1369,10 +1369,18 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
             return scores
 
 class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
-    """Link prediction decoder with the score function of dot product
-       with edge weight.
+    """ Decoder for link prediction using the dot product with edge weight as the score
+    function.
 
-       When computing loss, edge weights are used to adjust the loss
+    When computing loss, edge weights are used to adjust the loss
+
+    Parameters
+    ----------
+    in_dim: int
+        The input dimension size. It is the dimension for both source and destinatioin
+        node embeddings.
+    edge_weight_fields: dict of str
+        
     """
     def __init__(self, in_dim, edge_weight_fields):
         self._edge_weight_fields = edge_weight_fields
