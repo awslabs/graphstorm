@@ -11,9 +11,10 @@ graphstorm
     >>> import graphstorm as gs
     >>> gs.initialize()
     >>> feat_size = gs.get_node_feat_size(g, node_feat_names={"author": "feat"})
-    >>> gs.get_rel_names_for_reconstruct(g,
-    >>>                                  reconstructed_embed_ntype=["paper"],
-    >>>                                  feat_size=feat_size)
+    >>> relation_names = gs.get_rel_names_for_reconstruct(
+    >>>                     g,
+    >>>                     reconstructed_embed_ntype=["paper"],
+    >>>                     feat_size=feat_size)
 
 .. autosummary::
     :toctree: ../generated/
