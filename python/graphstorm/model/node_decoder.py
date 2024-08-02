@@ -131,7 +131,7 @@ class EntityRegression(GSLayer):
     Parameters
     ----------
     h_dim: int
-        The hidden dimension size.
+        The input dimension size.
     dropout: float
         Dropout rate. Default: 0.
     out_dim: int
@@ -166,6 +166,15 @@ class EntityRegression(GSLayer):
 
     def forward(self, inputs):
         """ Node regression decoder forward computation.
+        
+        Parameters
+        ----------
+        inputs: Tensor
+            The input embeddings.
+
+        Returns
+        -------
+        Tensor: the predicted results.        
         """
         return th.matmul(inputs, self.decoder)
 
