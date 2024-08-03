@@ -39,7 +39,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
     provided by ``GSgnnTrainer`` to define two main functions: 
     
     * ``fit()``: performs the training for the model provided to this trainer
-    when the object is initialized, and;
+      when the object is initialized, and;
     * ``eval()``: evaluates the provided model against test and validation dataset.
 
     Example
@@ -129,6 +129,9 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             Default: 0.
         max_grad_norm: float
             A value used to clip the gradient, which can enhance training stability.
+             More explanation of this argument can be found
+            in `torch.nn.utils.clip_grad_norm_ <https://pytorch.org/docs/2.1/generated/
+            torch.nn.utils.clip_grad_norm_.html#torch.nn.utils.clip_grad_norm_>`__.
             Default: None.
         grad_norm_type: float
             Norm type for the gradient clip. More explanation of this argument can be found
