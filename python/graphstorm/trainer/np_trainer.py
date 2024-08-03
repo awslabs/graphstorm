@@ -327,7 +327,8 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
 
         Returns
         -------
-        float: validation score
+        val_score: dict
+            Validation scores of differnet metrics in the format of {metric: val_score}.
         """
         teval = time.time()
         sys_tracker.check('before prediction')
