@@ -797,7 +797,8 @@ class GSgnnRconstructFeatRegScoreEvaluator(GSgnnRegressionEvaluator):
         pred: 2D tensor
             The 2D tensor stores the prediction results.
         labels: 2D tensor
-            The 2D tensor stores the labels, which stores the original features.
+            The 2D tensor stores the labels that are the original node features as this is
+            a feature reconstruction task.
         train: bool
             If in model training.
 
