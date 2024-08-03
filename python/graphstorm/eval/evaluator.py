@@ -460,7 +460,7 @@ class GSgnnBaseEvaluator():
 class GSgnnClassificationEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface):
     """ Evaluator for classification tasks.
 
-    A built-in evaluator for classification task. It uses ``accuracy`` as the default evaluation
+    A built-in evaluator for classification tasks. It uses ``accuracy`` as the default evaluation
     metric.
 
     This class replaces the ``GSgnnAccEvaluator`` since v0.3.
