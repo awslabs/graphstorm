@@ -187,7 +187,7 @@ class GSgnnLPRankingEvalInterface():
 
     @abc.abstractmethod
     def evaluate(self, val_rankings, test_rankings, total_iters):
-        """Evaluate Link Prediciton results of validation and test sets.
+        """Evaluate Link Prediciton results on validation and test sets.
 
         **Link Prediction** evaluators should provide the ranking of validation and test sets as
         input to this method.
