@@ -10,7 +10,7 @@ graphstorm.eval
     ``roc_auc``, and ``f1_score`` in ``GSgnnClassificationEvaluator``.
     
     Users can find the information about metrics for different tasks in the :ref:`Evaluation
-    metrics <eval_metrics>` section.
+    Metrics <eval_metrics>` section.
 
     If users want to implement customized evaluators or evaluation methods, a best practice is to
     extend the base evaluator, i.e., the ``GSgnnBaseEvaluator``, and the corresponding evaluation
