@@ -112,9 +112,7 @@ class GSgnnPredictionEvalInterface():
     """ Interface for Prediction evaluation functions.
 
     The interface set the two abstract methods for prediction tasks, i.e., **Classification**
-    and **Regression**, which share the same input arguments.
-
-    There are two methdos to be implemented if inherite this interface.
+    and **Regression**, which should be implemented if inherit this interface.
 
     1. ``evaluate()`` method, which will be called by different **Trainers** in their ``eval()``
     fuction to provide evaluation results of validation and test sets during training process.
@@ -411,19 +409,22 @@ class GSgnnBaseEvaluator():
 
     @property
     def best_val_score(self):
-        """ Return the best validation score of the major metric stored in this evaluator.
+        """ Return the best validation score of metrics used in this evaluator in the format
+        of {metric: best_val_score}.
         """
         return self._best_val_score
 
     @property
     def best_test_score(self):
-        """ Return the best test score of the major metric stored in this evaluator.
+        """ Return the best test score of metrics used in this evaluator in the format
+        of {metric: best_test_score}.
         """
         return self._best_test_score
 
     @property
     def best_iter_num(self):
-        """ Return the best iteration number when the best validation score was achieved.
+        """ Return the best iteration number when the best validation score was achieved
+        for metrics used in this evaluator in the format of {metric: best_iter_num}.
         """
         return self._best_iter
 
