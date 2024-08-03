@@ -249,8 +249,8 @@ class GSgnnBaseEvaluator():
     use_early_stop: bool
         Set true to use early stop.
     early_stop_burnin_rounds: int
-        Burn-in rounds (number of evaluations) before starting to check for the early stop condition.
-        Default: 0.
+        Burn-in rounds (number of evaluations) before starting to check for the early stop
+        condition. Default: 0.
     early_stop_rounds: int
         The number of rounds (number of evaluations) for validation scores used to decide early
         stop. Default: 3.
@@ -476,8 +476,8 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterf
     use_early_stop: bool
         Set true to use early stop. Default: False.
     early_stop_burnin_rounds: int
-        Burn-in rounds (number of evaluations) before starting to check for the early stop condition.
-        Default: 0.
+        Burn-in rounds (number of evaluations) before starting to check for the early stop
+        condition. Default: 0.
     early_stop_rounds: int
         The number of rounds (number of evaluations) for validation scores used to decide early
         stop. Default: 3.
@@ -620,8 +620,8 @@ class GSgnnRegressionEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface)
     use_early_stop: bool
         Set true to use early stop. Default: False.
     early_stop_burnin_rounds: int
-        Burn-in rounds (number of evaluations) before starting to check for the early stop condition.
-        Default: 0.
+        Burn-in rounds (number of evaluations) before starting to check for the early stop
+        condition. Default: 0.
     early_stop_rounds: int
         The number of rounds (number of evaluations) for validation scores used to decide early
         stop. Default: 3.
@@ -761,8 +761,8 @@ class GSgnnRconstructFeatRegScoreEvaluator(GSgnnRegressionEvaluator):
     use_early_stop: bool
         Set true to use early stop. Default: False.
     early_stop_burnin_rounds: int
-        Burn-in rounds (number of evaluations) before starting to check for the early stop condition.
-        Default: 0.
+        Burn-in rounds (number of evaluations) before starting to check for the early stop
+        condition. Default: 0.
     early_stop_rounds: int
         The number of rounds (number of evaluations) for validation scores used to decide early
         stop. Default: 3.
@@ -850,8 +850,8 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     use_early_stop: bool
         Set true to use early stop. Default: False.
     early_stop_burnin_rounds: int
-        Burn-in rounds (number of evaluations) before starting to check for the early stop condition.
-        Default: 0.
+        Burn-in rounds (number of evaluations) before starting to check for the early stop
+        condition. Default: 0.
     early_stop_rounds: int
         The number of rounds (number of evaluations) for validation scores used to decide early
         stop. Default: 3.
@@ -995,8 +995,8 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
     use_early_stop: bool
         Set true to use early stop. Default: False.
     early_stop_burnin_rounds: int
-        Burn-in rounds (number of evaluations) before starting to check for the early stop condition.
-        Default: 0.
+        Burn-in rounds (number of evaluations) before starting to check for the early stop
+        condition. Default: 0.
     early_stop_rounds: int
         The number of rounds (number of evaluations) for validation scores used to decide early
         stop. Default: 3.
@@ -1157,8 +1157,8 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
         Returns
         --------
         rank: int
-            The rank of the score of the given ``major_etype``. If using the default ``major_etype``,
-            the rank will be the summation of values for all edge types.
+            The rank of the score of the given ``major_etype``. If using the default
+            ``major_etype``, the rank will be the summation of values for all edge types.
         """
         val_score = list(val_score.values())[0]
         val_score = self._get_major_score(val_score)
