@@ -834,11 +834,11 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     A built-in evaluator for Link Prediction tasks. It uses ``mrr`` as the default eval metric,
     which implements the ``GSgnnLPRankingEvalInterface``.
 
-    To create a customized Link Prediction evaluator that use an evaluation metric other than ``mrr``
-    , users might need to 1) define a new evaluation interface if the evaluation method requires
-    different input arguments; 2) inherite the new evaluation interface in a customized Link
-    Prediction evaluator; 3) define a customized Link Prediction Trainer/Inferrer to call the
-    customized Link Prediction evaluator.
+    To create a customized Link Prediction evaluator that use an evaluation metric other than
+    ``mrr``, users might need to 1) define a new evaluation interface if the evaluation method
+    requires different input arguments; 2) inherite the new evaluation interface in a
+    customized Link Prediction evaluator; 3) define a customized Link Prediction
+    Trainer/Inferrer to call the customized Link Prediction evaluator.
 
     Parameters
     ----------
@@ -1144,8 +1144,8 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
 
     def get_val_score_rank(self, val_score):
         """ Get the rank of the given ``major_etype`` validation score by comparing its value
-        to the existing historical values. If use the default ``major_etype``, will use the summation
-        of values of all edge types to get the rank.
+        to the existing historical values. If use the default ``major_etype``, will use the
+        summation of values of all edge types to get the rank.
 
         Parameters
         ----------
