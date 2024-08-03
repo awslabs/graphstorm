@@ -162,7 +162,7 @@ def get_node_feat_size(g, node_feat_names):
     g : DistGraph
         A DGL distributed graph.
     node_feat_names : str, or dict of list of str
-        The node feature names. A string means all nodes have the same feature name; while
+        The node feature names. A string indicates that all nodes share the same feature name, 
         a dict of list of string means each node type has different node feature names.
 
     Returns
