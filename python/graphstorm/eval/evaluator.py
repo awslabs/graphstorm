@@ -534,7 +534,7 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterf
         Returns
         -----------
         eval_score: dict
-            Validation scores of differnet classification metrics in the format of
+            Validation scores of different classification metrics in the format of
             {metric: val_score}.
         test_score: dict
             Test scores of different classification metrics in the format of {metric: test_score}.
