@@ -155,7 +155,7 @@ def initialize(ip_config=None, backend='gloo', local_rank=0, use_wholegraph=Fals
 
 def get_node_feat_size(g, node_feat_names):
     """ Get the overall feature size of each node type with feature names specified in the
-    ``node_feat_names``. In case when one node type has multiple features, the returned
+    ``node_feat_names``. If a node type has multiple features, the returned feature size will be the sum of the sizes of these features for that node type.
     feature size will be the sum of sizes of these features in that node type.
 
     Parameters
