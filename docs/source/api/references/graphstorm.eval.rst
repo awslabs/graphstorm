@@ -13,7 +13,7 @@ graphstorm.eval
     Metrics <eval_metrics>` section.
 
     If users want to implement customized evaluators or evaluation methods, a best practice is to
-    extend the base evaluator, i.e., the ``GSgnnBaseEvaluator``, and the corresponding evaluation
+    extend the base evaluator, i.e., ``GSgnnBaseEvaluator``, and the corresponding evaluation
     interfaces, e.g., ``GSgnnPredictionEvalInterface`` for prediction evaluation, and
     ``GSgnnLPRankingEvalInterface`` for ranking based link prediction evaluation, and then
     implement the abstract methods defined in those interface classes.
