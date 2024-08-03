@@ -115,7 +115,7 @@ class GSgnnPredictionEvalInterface():
     and **Regression**, which should be implemented if inherit this interface.
 
     1. ``evaluate()`` method, which will be called by different **Trainers** in their ``eval()``
-    fuction to provide evaluation results of validation and test sets during training process.
+    function to provide evaluation results of validation and test sets during training process.
 
     2. ``compute_score()`` method, which computes the scores for given predictions and labels.
     """
