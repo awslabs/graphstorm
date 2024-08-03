@@ -381,7 +381,7 @@ class GSgnnBaseEvaluator():
 
     def get_val_score_rank(self, val_score):
         """ Get the rank of the given validation score by comparing its value to the
-        existing value list.
+        historical values.
 
         Parameters
         ----------
