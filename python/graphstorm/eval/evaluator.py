@@ -1157,7 +1157,7 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
         Returns
         --------
         rank: int
-            The rank of the score of the given ``major_etype``. If use the default ``major_etype``,
+            The rank of the score of the given ``major_etype``. If using the default ``major_etype``,
             will return the rank of the summation of values of all edge types.
         """
         val_score = list(val_score.values())[0]
