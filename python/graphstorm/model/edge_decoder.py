@@ -104,7 +104,8 @@ class DenseBiDecoder(GSEdgeDecoder):
     Parameters
     ----------
     in_units: int
-        The input dimension size. It is the dimension for both source and destinatioin node embeddings.
+        The input dimension size. It is the dimension for both source and destinatioin node
+        embeddings.
     num_classes: int
         Number of classes, if set for classification task.
     multilabel: bool
