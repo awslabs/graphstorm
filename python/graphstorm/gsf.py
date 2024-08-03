@@ -223,7 +223,7 @@ def get_rel_names_for_reconstruct(g, reconstructed_embed_ntype, feat_size):
     Returns
     -------
     reconstruct_etypes: list of tuples
-        The edge types for reconstructing node features.
+        The edge types whose destination nodes required for reconstructing node features.
     """
     etypes = g.canonical_etypes
     reconstruct_etypes = []
