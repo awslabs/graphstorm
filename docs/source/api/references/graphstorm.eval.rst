@@ -3,8 +3,8 @@
 graphstorm.eval
 =======================
 
-    GraphStorm provides built-in evaluators for different Graph Machine Learning tasks.
-    Each evaluator can have multiple task specific metrics for model evaluation. For
+    GraphStorm provides built-in evaluators and interfaces for different Graph Machine Learning
+    tasks. Each evaluator can have multiple task specific metrics for model evaluation. For
     example, ``GSgnnClassificationEvaluator`` uses ``accuracy`` as its default 
     evaluation metric. However, users can also set other metrics, e.g., ``precision_recall``,
     ``roc_auc``, and ``f1_score`` in ``GSgnnClassificationEvaluator``.
@@ -12,8 +12,8 @@ graphstorm.eval
     Users can find the information about metrics for different tasks in the :ref:`Evaluation
     metrics <eval_metrics>` section.
 
-    If users want to implement customized evaluators or evaluation methods, a best practice is to
-    extend the base evaluator, i.e., the ``GSgnnBaseEvaluator``, and the corresponding evaluation
+    If users want to implement customized evaluators, a best practice is to extend the base
+    evaluator, i.e., the ``GSgnnBaseEvaluator``, and the corresponding evaluation
     interfaces, e.g., ``GSgnnPredictionEvalInterface`` for prediction evaluation, and
     ``GSgnnLPRankingEvalInterface`` for ranking based link prediction evaluation, and then
     implement the abstract methods defined in those interface classes.
