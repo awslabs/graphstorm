@@ -65,11 +65,11 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
 
     Parameters
     ----------
-    model : GSgnnNodeModelBase
+    model: GSgnnNodeModelBase
         The GNN model for node prediction, which could be a model class inherited from the
         ``GSgnnNodeModelBase``, or a model class that inherits both the ``GSgnnModelBase``
         and the ``GSgnnNodeModelInterface`` class.
-    topk_model_to_save : int
+    topk_model_to_save: int
         The top K model to be saved based on evaluation results. Default: 1.
     """
     def __init__(self, model, topk_model_to_save=1):
@@ -103,25 +103,25 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
 
         Parameters
         ----------
-        train_loader : GSgnnNodeDataLoader
+        train_loader: GSgnnNodeDataLoader
             Node dataloader for mini-batch sampling the training set and train the model.
-        num_epochs : int
+        num_epochs: int
             The max number of epochs used to train the model.
-        val_loader : GSgnnNodeDataLoader
+        val_loader: GSgnnNodeDataLoader
             Node dataloader for mini-batch sampling the validation set and computing
             validation scores. The validation scores are used for selecting top
             models. Default: None.
-        test_loader : GSgnnNodeDataLoader
+        test_loader: GSgnnNodeDataLoader
             Node dataloader for mini-batch sampling the test set and computing test
             scores. Default: None.
-        use_mini_batch_infer : bool
+        use_mini_batch_infer: bool
             Whether to use mini-batch for inference. Default: True.
-        save_model_path : str
+        save_model_path: str
             The path where trained model checkpoints are saved. Default: None.
-        save_model_frequency : int
+        save_model_frequency: int
             The number of iterations to train the model before saving a model checkpoint. 
             Default: -1, meaning only save model after each epoch.
-        save_perf_results_path : str
+        save_perf_results_path: str
             The path of the file where the performance results are saved. Default: None.
         freeze_input_layer_epochs: int
             The number of epochs to freeze the input layer from updating trainable
@@ -129,7 +129,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
             Default: 0.
         max_grad_norm: float
             A value used to clip the gradient, which can enhance training stability.
-             More explanation of this argument can be found
+            More explanation of this argument can be found
             in `torch.nn.utils.clip_grad_norm_ <https://pytorch.org/docs/2.1/generated/
             torch.nn.utils.clip_grad_norm_.html#torch.nn.utils.clip_grad_norm_>`__.
             Default: None.
@@ -302,22 +302,28 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
 
     def eval(self, model, val_loader, test_loader, use_mini_batch_infer, total_steps,
              return_proba=True):
-        """ do the model evaluation using validation and test sets
+        """ Do model evaluation using the validation set, or test set if provided.
 
         Parameters
         ----------
-        model : Pytorch model
-            The GNN model.
-        val_loader: GSNodeDataLoader
-            The dataloader for validation data
-        test_loader : GSNodeDataLoader
-            The dataloader for test data.
+        model: GSgnnNodeModelBase
+            The GNN model for node prediction, which could be a model class inherited from the
+            ``GSgnnNodeModelBase``, or a model class that inherits both the ``GSgnnModelBase``
+            and the ``GSgnnNodeModelInterface`` class.
+        val_loader: GSgnnNodeDataLoader
+            Node dataloader for mini-batch sampling the validation set and computing
+            validation scores. The validation scores are used for selecting top
+            models. Default: None.
+        test_loader: GSgnnNodeDataLoader
+            Node dataloader for mini-batch sampling the test set and computing test
+            scores. Default: None.
         use_mini_batch_infer: bool
-            Whether do mini-batch inference
+            Whether to use mini-batch for inference. Default: True.
         total_steps: int
-            Total number of iterations.
+            The total number of iterations.
         return_proba: bool
-            Whether to return all the predictions or the maximum prediction.
+            Whether to return the prediction results or the argmax results for
+            classification tasks.
 
         Returns
         -------
