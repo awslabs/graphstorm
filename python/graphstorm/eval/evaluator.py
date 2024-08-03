@@ -1152,7 +1152,7 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
         Parameters
         ----------
         val_score: dict of dict
-            A dict in the format of {"mrr": {etype: score}.
+            A dict in the format of {"mrr": {etype: score}}.
 
         Returns
         --------
