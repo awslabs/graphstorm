@@ -249,7 +249,7 @@ class GSgnnBaseEvaluator():
     use_early_stop: bool
         Set true to use early stop.
     early_stop_burnin_rounds: int
-        Burn-in rounds (number of evaluations) before start checking for the early stop condition.
+        Burn-in rounds (number of evaluations) before starting to check for the early stop condition.
         Default: 0.
     early_stop_rounds: int
         The number of rounds (number of evaluations) for validation scores used to decide early
