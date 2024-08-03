@@ -122,7 +122,7 @@ class GSgnnPredictionEvalInterface():
 
     @abc.abstractmethod
     def evaluate(self, val_pred, test_pred, val_labels, test_labels, total_iters):
-        """Evaluate Prediction results of validation and test sets.
+        """Evaluate Prediction results on validation and test sets.
 
         **Classification** and **regression** evaluators should provide both predictions
         and labels of validation and test sets to this method.
@@ -187,7 +187,7 @@ class GSgnnLPRankingEvalInterface():
 
     @abc.abstractmethod
     def evaluate(self, val_rankings, test_rankings, total_iters):
-        """Evaluate Link Prediciton results of validation and test sets.
+        """Evaluate Link Prediciton results on validation and test sets.
 
         **Link Prediction** evaluators should provide the ranking of validation and test sets as
         input to this method.
