@@ -834,7 +834,7 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     A built-in evaluator for Link Prediction tasks. It uses ``mrr`` as the default eval metric,
     which implements the ``GSgnnLPRankingEvalInterface``.
 
-    To create a customized Link Prediction evaluator that use evaluation metric other than ``mrr``
+    To create a customized Link Prediction evaluator that use an evaluation metric other than ``mrr``
     , users might need to 1) define a new evaluation interface if the evaluation method requires
     different input arguments; 2) inherite the new evaluation interface in a customized Link
     Prediction evaluator; 3) define a customized Link Prediction Trainer/Inferrer to call the
