@@ -373,7 +373,7 @@ class GSgnnBaseEvaluator():
             We treat the first metric in all evaluation metrics as the major metric, and return
             its corresponding comparator.
             
-            Internal use, and not release as a public API.
+            Internal use, and is not released as a public API.
         """
         assert self.metrics_obj is not None, "Evaluation metrics object should not be None."
         metric = self.metric_list[0]
