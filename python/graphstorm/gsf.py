@@ -216,7 +216,7 @@ def get_rel_names_for_reconstruct(g, reconstructed_embed_ntype, feat_size):
     g : DistGraph
         A DGL distributed graph.
     reconstructed_embed_ntype : list of str
-        The node types that require to reconstruct node features.
+        The node types for which node features need to be reconstructed.
     feat_size : dict of int
         The feature size on each node type in the format of {"ntype": size}.
 
