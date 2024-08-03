@@ -155,16 +155,15 @@ def initialize(ip_config=None, backend='gloo', local_rank=0, use_wholegraph=Fals
 
 def get_node_feat_size(g, node_feat_names):
     """ Get the overall feature size of each node type with feature names specified in the
-    ``node_feat_names``. In case when one node type has multiple features, the returned
-    feature size will be the sum of sizes of these features in that node type.
+    ``node_feat_names``. If a node type has multiple features, the returned feature size will be the sum of the sizes of these features for that node type.
 
     Parameters
     ----------
     g : DistGraph
         A DGL distributed graph.
     node_feat_names : str, or dict of list of str
-        The node feature names. A string means all nodes have the same feature name; while
-        a dict of list of string means each node type has different node feature names.
+        The node feature names. A string indicates that all nodes share the same feature name, 
+        while a dictionary with a list of strings indicates that each node type has different node feature names.
 
     Returns
     -------
@@ -217,7 +216,7 @@ def get_rel_names_for_reconstruct(g, reconstructed_embed_ntype, feat_size):
     g : DistGraph
         A DGL distributed graph.
     reconstructed_embed_ntype : list of str
-        The node types that require to reconstruct node features.
+        The node types for which node features need to be reconstructed.
     feat_size : dict of int
         The feature size on each node type in the format of {"ntype": size}.
 
