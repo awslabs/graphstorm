@@ -1144,7 +1144,7 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
 
     def get_val_score_rank(self, val_score):
         """ Get the rank of the given ``major_etype`` validation score by comparing its value
-        to the existing value list. If use the default ``major_etype``, will use the summation
+        to the existing historical values. If use the default ``major_etype``, will use the summation
         of values of all edge types to get the rank.
 
         Parameters
