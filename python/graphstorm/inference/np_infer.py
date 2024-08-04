@@ -73,10 +73,13 @@ class GSgnnNodePredictionInferrer(GSInferrer):
             graph partition algorithm. If is None, will not do node ID
             mapping.
             Default: None.
-        return_proba: bool
-            Whether to return all the predictions or the maximum prediction.
+        return_proba : bool
+            Whether to return the predicted results, or only return the argmax ones in
+            classification models.
         save_embed_format : str
-            Specify the format of saved embeddings.
+            Specify the data format of saved embeddings. Currently only support
+            PyTorch Tensor.
+            Default: "pytorch".
         """
         do_eval = self.evaluator is not None
         if do_eval:
