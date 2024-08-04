@@ -57,7 +57,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         target_idx = ep_data.get_edge_train_set([("src_ntype1", "etype1", "dst_ntype1)])
         train_loader = GSgnnEdgeDataLoader(
             ep_dataset, target_idx, fanout=[10], batch_size=1024,
-            label_field="label", node_feats="feat")
+            label_field="label", node_feats="feat", train_task=True)
         model = GSgnnEdgeModel(alpha_l2norm=0.0)
 
         trainer = GSgnnEdgePredictionTrainer(model)
@@ -90,7 +90,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             grad_norm_type=2.0):
         """ Fit function for edge prediction.
 
-        This function performs the training for the given node prediction model.
+        This function performs the training for the given edge prediction model.
         It iterates over the training batches provided by the ``train_loader``
         to compute the loss, and then performs the backwards step using trainer's
         own optimizer. 
@@ -104,16 +104,16 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
         Parameters
         ----------
-        train_loader: GSgnnNodeDataLoader
-            Node dataloader for mini-batch sampling the training set and train the model.
+        train_loader: GSgnnEdgeDataLoader
+            Edge dataloader for mini-batch sampling the training set and train the model.
         num_epochs: int
             The max number of epochs used to train the model.
-        val_loader: GSgnnNodeDataLoader
-            Node dataloader for mini-batch sampling the validation set and computing
+        val_loader: GSgnnEdgeDataLoader
+            Edge dataloader for mini-batch sampling the validation set and computing
             validation scores. The validation scores are used for selecting top
             models. Default: None.
-        test_loader: GSgnnNodeDataLoader
-            Node dataloader for mini-batch sampling the test set and computing test
+        test_loader: GSgnnEdgeDataLoader
+            Edge dataloader for mini-batch sampling the test set and computing test
             scores. Default: None.
         use_mini_batch_infer: bool
             Whether to use mini-batch for inference. Default: True.
@@ -328,16 +328,16 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
         Parameters
         ----------
-        model: GSgnnNodeModelBase
-            The GNN model for node prediction, which could be a model class inherited from the
-            ``GSgnnNodeModelBase``, or a model class that inherits both the ``GSgnnModelBase``
-            and the ``GSgnnNodeModelInterface`` class.
-        val_loader: GSgnnNodeDataLoader
-            Node dataloader for mini-batch sampling the validation set and computing
+        model: GSgnnEdgeModelBase
+            The GNN model for edge prediction, which could be a model class inherited from the
+            ``GSgnnEdgeModelBase``, or a model class that inherits both the ``GSgnnModelBase``
+            and the ``GSgnnEdgeModelInterface`` class.
+        val_loader: GSgnnEdgeDataLoader
+            Edge dataloader for mini-batch sampling the validation set and computing
             validation scores. The validation scores are used for selecting top
             models. Default: None.
-        test_loader: GSgnnNodeDataLoader
-            Node dataloader for mini-batch sampling the test set and computing test
+        test_loader: GSgnnEdgeDataLoader
+            Edge dataloader for mini-batch sampling the test set and computing test
             scores. Default: None.
         use_mini_batch_infer: bool
             Whether to use mini-batch for inference. Default: True.

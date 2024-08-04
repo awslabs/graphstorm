@@ -56,7 +56,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         target_idx = np_data.get_node_train_set('ntype1')
         train_loader = GSgnnNodeDataLoader(
             np_dataset, target_idx, fanout=[10], batch_size=1024,
-            label_field="label", node_feats="feat")
+            label_field="label", node_feats="feat", train_task=True)
         model = GSgnnNodeModel(alpha_l2norm=0.0)
 
         trainer = GSgnnNodePredictionTrainer(model)

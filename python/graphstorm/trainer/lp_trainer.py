@@ -35,23 +35,17 @@ from ..utils import sys_tracker, rt_profiler, print_mem, get_rank
 from ..utils import barrier, is_distributed
 
 class GSgnnLinkPredictionTrainer(GSgnnTrainer):
-    """ A trainer for link prediction
+    """ Trainer for link prediction tasks.
 
-    This is a high-level trainer wrapper that can be used
-    directly to train a link prediction model.
+    This is a high-level trainer wrapper that can be used directly to train
+    a link prediction model.
 
-    It makes use of the functions provided by `GSgnnTrainer`
-    to define two main functions: `fit` that performs the training
-    for the model that is provided when the object is created,
-    and `eval` that evaluates a provided model against test and
-    validation data.
+    ``GSgnnLinkPredictionTrainer`` inherits from ``GSgnnTrainer`` and use the functions
+    provided by ``GSgnnTrainer`` to define two main functions: 
 
-    Parameters
-    ----------
-    model : GSgnnLinkPredictionModel
-        The GNN model for link prediction.
-    topk_model_to_save : int
-        The top K model to save. Default is 1.
+    * ``fit()``: performs the training for the model provided to this trainer
+      when the object is initialized, and;
+    * ``eval()``: evaluates the provided model against test and validation dataset.
 
     Example
     -------
@@ -63,15 +57,25 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         from graphstorm.model import GSgnnLinkPredictionModel
         from graphstorm.trainer import GSgnnLinkPredictionTrainer
 
-        my_dataset = GSgnnData("/path/to/part_config")
-        target_idx = {"edge_type": target_edges_tensor}
-        my_data_loader = GSgnnLinkPredictionDataLoader(
-            my_dataset, target_idx, fanout=[10], batch_size=1024)
-        my_model = GSgnnLinkPredictionModel(alpha_l2norm=0.0)
+        lp_data = GSgnnData("...")
+        target_idx = lp_data.get_edge_train_set([("src_ntype1", "etype1", "dst_ntype1)])
+        train_loader = GSgnnLinkPredictionDataLoader(
+            lp_data, target_idx, fanout=[10], batch_size=1024,
+            num_negative_edges=10, node_feats="feat", train_task=True)
+        model = GSgnnLinkPredictionModel(alpha_l2norm=0.0)
 
-        trainer = GSgnnLinkPredictionTrainer(my_model, topk_model_to_save=1)
+        trainer = GSgnnLinkPredictionTrainer(model)
 
-        trainer.fit(my_data_loader, num_epochs=2)
+        trainer.fit(train_loader, num_epochs=2)
+
+    Parameters
+    ----------
+    model : GSgnnLinkPredictionModelBase
+        The GNN model for link prediction, which could be a model class inherited from the
+        ``GSgnnLinkPredictionModelBase``, or a model class that inherits both the
+        ``GSgnnModelBase`` and the ``GSgnnLinkPredictionModelInterface`` class.
+    topk_model_to_save : int
+        The top `K` model to be saved based on evaluation results. Default: 1.
     """
     def __init__(self, model, topk_model_to_save=1):
         super(GSgnnLinkPredictionTrainer, self).__init__(model, topk_model_to_save)
@@ -90,42 +94,61 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             freeze_input_layer_epochs=0,
             max_grad_norm=None,
             grad_norm_type=2.0):
-        """ The fit function for link prediction.
+        """ Fit function for link prediction.
+
+        This function performs the training for the given link prediction model.
+        It iterates over the training batches provided by the ``train_loader``
+        to compute the loss, and then performs the backwards step using trainer's
+        own optimizer. 
+
+        If an evaluator and a validation dataloader are added to this trainer, during
+        training, the trainer will perform model evaluation in three cases:
+
+        * At the end of each epoch.
+        * At the evaluation frequency (number of iterations) defined in the evaluator.
+        * Before saving a model checkpoint.
 
         Parameters
         ----------
-        train_loader : GSgnnLinkPredictionDataLoader
-            The mini-batch sampler for training.
-        num_epochs : int
-            The max number of epochs to train the model.
-        val_loader : GSgnnLinkPredictionDataLoader
-            The mini-batch sampler for computing validation scores. The validation scores
-            are used for selecting models.
-        test_loader : GSgnnLinkPredictionDataLoader
-            The mini-batch sampler for computing test scores.
-        use_mini_batch_infer : bool
-            Whether or not to use mini-batch inference.
-        save_model_path : str
-            The path where the model is saved.
-        save_model_frequency : int
-            The number of iteration to train the model before saving the model. Default is -1,
-            meaning only save model after each epoch.
-        save_perf_results_path : str
-            The path of the file where the performance results are saved.
+        train_loader: GSgnnLinkPredictionDataLoader
+            LinkPrediction dataloader for mini-batch sampling the training set and train the model.
+        num_epochs: int
+            The max number of epochs used to train the model.
+        val_loader: GSgnnLinkPredictionDataLoader
+            LinkPrediction dataloader for mini-batch sampling the validation set and computing
+            validation scores. The validation scores are used for selecting top
+            models. Default: None.
+        test_loader: GSgnnLinkPredictionDataLoader
+            LinkPrediction dataloader for mini-batch sampling the test set and computing test
+            scores. Default: None.
+        use_mini_batch_infer: bool
+            Whether to use mini-batch for inference. Default: True.
+        save_model_path: str
+            The path where trained model checkpoints are saved. Default: None.
+        save_model_frequency: int
+            The number of iterations to train the model before saving a model checkpoint. 
+            Default: -1, meaning only save model after each epoch.
+        save_perf_results_path: str
+            The path of the file where the performance results are saved. Default: None.
         edge_mask_for_gnn_embeddings : str
             The mask that indicates the edges used for computing GNN embeddings for model
-            evaluation. By default, we use the edges in the training graph to compute
-            GNN embeddings for evaluation.
+            evaluation. By default, it uses the edges in the training graph to compute
+            GNN embeddings for evaluation. Default: "train_mask".
         freeze_input_layer_epochs: int
-            Freeze input layer model for N epochs. This is commonly used when
-            the input layer contains language models.
-            Default: 0, no freeze.
+            The number of epochs to freeze the input layer from updating trainable
+            parameters. This is commonly used when the input layer contains language models.
+            Default: 0.
         max_grad_norm: float
-            Clip the gradient by the max_grad_norm to ensure stability.
-            Default: None, no clip.
+            A value used to clip the gradient, which can enhance training stability.
+            More explanation of this argument can be found
+            in `torch.nn.utils.clip_grad_norm_ <https://pytorch.org/docs/2.1/generated/
+            torch.nn.utils.clip_grad_norm_.html#torch.nn.utils.clip_grad_norm_>`__.
+            Default: None.
         grad_norm_type: float
-            Norm type for the gradient clip
-            Default: 2.0
+            Norm type for the gradient clip. More explanation of this argument can be found
+            in `torch.nn.utils.clip_grad_norm_ <https://pytorch.org/docs/2.1/generated/
+            torch.nn.utils.clip_grad_norm_.html#torch.nn.utils.clip_grad_norm_>`__.
+            Default: 2.0.
         """
         if not use_mini_batch_infer:
             assert isinstance(self._model, GSgnnModel), \
@@ -302,28 +325,35 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     def eval(self, model, data, val_loader, test_loader,
              total_steps, edge_mask_for_gnn_embeddings,
              use_mini_batch_infer=False):
-        """ do the model evaluation using validation and test sets
+        """ Do model evaluation using the validation set, or test set if provided.
 
         Parameters
         ----------
-        model : Pytorch model
-            The GNN model.
+        model : GSgnnLinkPredictionModelBase
+            The GNN model for link prediction, which could be a model class inherited from the
+            ``GSgnnLinkPredictionModelBase``, or a model class that inherits both the
+            ``GSgnnModelBase`` and the ``GSgnnLinkPredictionModelInterface`` class.
         data : GSgnnData
-            The training dataset
-        val_loader: GSNodeDataLoader
-            The dataloader for validation data
-        test_loader : GSNodeDataLoader
-            The dataloader for test data.
+            The ``GSgnnData`` associated with dataloaders.
+        val_loader: GSgnnLinkPredictionDataLoader
+            Link prediction dataloader for mini-batch sampling the validation set and computing
+            validation scores. The validation scores are used for selecting top
+            models. Default: None.
+        test_loader: GSgnnLinkPredictionDataLoader
+            Link prediction dataloader for mini-batch sampling the test set and computing test
+            scores. Default: None.
         total_steps: int
-            Total number of iterations.
+            The total number of iterations.
         edge_mask_for_gnn_embeddings : str
-            The mask that indicates the edges used for computing GNN embeddings.
+            The mask that indicates the edges used for computing GNN embeddings for model
+            evaluation.
         use_mini_batch_infer: bool
-            Whether do mini-batch inference when computing node embeddings
+            Whether to use mini-batch for inference. Default: True.
 
         Returns
         -------
-        float: validation score
+        val_score: dict
+            Validation scores of differnet metrics in the format of {metric: val_score}.
         """
         test_start = time.time()
         sys_tracker.check('before prediction')
