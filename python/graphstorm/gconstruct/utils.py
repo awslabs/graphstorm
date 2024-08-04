@@ -306,7 +306,24 @@ def multiprocessing_data_read(in_files, num_processes, user_parser, ext_mem_work
 
         return_dict = {}
         while len(return_dict) < num_files:
-            file_idx, vals= res_queue.get()
+            try:
+                file_idx, vals= res_queue.get(timeout=3600)
+            except queue.Empty:
+                # check whether every processes are alive
+                for proc in processes:
+                    if not proc.is_alive() and proc.exitcode < 0:
+                        raise RuntimeError("One of the work process crashed with %d."
+                                           "In most of cases, it is due to Out-of_memory."
+                                           "Please check your instance memory size "
+                                           "and the shared memory size.", proc.exitcode) from None
+                logging.warning("One of the processes has been processing the "
+                                "input data for more than one hour. This will "
+                                "not cause any error but please check whether "
+                                "the input data files are too large. "
+                                "We suggest you to spit the file(s) into "
+                                "smaller chunks.")
+                continue
+
             if not isinstance(vals, tuple):
                 logging.error("Processing file %d fails.", file_idx)
                 logging.error(vals)
