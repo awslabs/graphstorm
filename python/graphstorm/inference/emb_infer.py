@@ -30,8 +30,11 @@ class GSgnnEmbGenInferer(GSInferrer):
 
     Parameters
     ----------
-    model : GSgnnNodeModel
-        The GNN model with different task.
+    model : GSgnnModel
+        This model could be one of the built-in GraphStorm prediction models, i.e.,
+        ``GSgnnNodeModel``, ``GSgnnEdgeModel``, ``GSgnnLinkPredictionModel``, or model
+        classes that inherit them and ``GSgnnNodeModelBase``, ``GSgnnEdgeModelBase``,
+        ``GSgnnLinkPredictionModelBase``.
     """
     def infer(self, data, infer_ntypes, save_embed_path, eval_fanout,
             use_mini_batch_infer=False,

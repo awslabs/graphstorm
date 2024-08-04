@@ -118,7 +118,9 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         use_mini_batch_infer: bool
             Whether to use mini-batch for inference. Default: True.
         save_model_path: str
-            The path where trained model checkpoints are saved. Default: None.
+            The path where trained model checkpoints are saved. If is None, will not
+            save model checkpoints.
+            Default: None.
         save_model_frequency: int
             The number of iterations to train the model before saving a model checkpoint. 
             Default: -1, meaning only save model after each epoch.

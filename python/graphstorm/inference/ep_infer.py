@@ -27,15 +27,24 @@ from ..model.edge_gnn import edge_mini_batch_predict, edge_mini_batch_gnn_predic
 from ..utils import sys_tracker, get_rank, barrier
 
 class GSgnnEdgePredictionInferrer(GSInferrer):
-    """ Edge classification/regression inferrer.
+    """ Inferrer for edge prediction tasks.
 
     This is a high-level inferrer wrapper that can be used directly
-    to do edge classification/regression model inference.
+    to do edge prediction model inference.
+
+    ``GSgnnEdgePredictionInferrer`` inherits from the ``GSInferrer`` and use the functions
+    provided by ``GSInferrer`` to define the ``infer()`` method that performs three works:
+
+    * Generate node embeddings and save them.
+    * Comput inference results for edges with target edge type.
+    * (Optional) Evaluate the model performance on a test set if given.
 
     Parameters
     ----------
-    model : GSgnnNodeModel
-        The GNN model for node prediction.
+    model : GSgnnEdgeModelBase
+        The GNN model for edge prediction, which could be a model class inherited from the
+        ``GSgnnEdgeModelBase``, or a model class that inherits both the ``GSgnnModelBase``
+        and the ``GSgnnEdgeModelInterface`` class.
     """
 
     # pylint: disable=unused-argument
@@ -45,13 +54,7 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
             edge_id_mapping_file=None,
             return_proba=True,
             save_embed_format="pytorch"):
-        """ Do inference
-
-        The inference can do three things:
-
-        1. (Optional) Evaluate the model performance on a test set if given.
-        2. Generate node embeddings.
-        3. Comput inference results for edges with target edge type.
+        """ Do inference.
 
         Parameters
         ----------

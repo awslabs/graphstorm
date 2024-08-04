@@ -27,15 +27,23 @@ from ..model.lp_gnn import lp_mini_batch_predict
 from ..utils import sys_tracker, get_rank, barrier
 
 class GSgnnLinkPredictionInferrer(GSInferrer):
-    """ Link prediction inferrer.
+    """ Inferrer for link prediction tasks.
 
     This is a high-level inferrer wrapper that can be used directly
     to do link prediction model inference.
 
+    ``GSgnnLinkPredictionInferrer`` inherits from the ``GSInferrer`` and use the functions
+    provided by ``GSInferrer`` to define the ``infer()`` method that performs two works:
+
+    * Generate node embeddings and save them.
+    * (Optional) Evaluate the model performance on a test set if given.
+
     Parameters
     ----------
-    model : GSgnnNodeModel
-        The GNN model for node prediction.
+    model : GSgnnLinkPredictionModelBase
+        The GNN model for link prediction, which could be a model class inherited from the
+        ``GSgnnLinkPredictionModelBase``, or a model class that inherits both the
+        ``GSgnnModelBase`` and the ``GSgnnLinkPredictionModelInterface`` class.
     """
 
     # TODO(zhengda) We only support full-graph inference for now.
@@ -45,12 +53,7 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
             node_id_mapping_file=None,
             save_embed_format="pytorch",
             infer_batch_size=1024):
-        """ Do inference
-
-        The inference can do two things:
-
-        1. (Optional) Evaluate the model performance on a test set if given.
-        2. Generate node embeddings.
+        """ Do inference.
 
         Parameters
         ----------
