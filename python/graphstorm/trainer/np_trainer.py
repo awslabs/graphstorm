@@ -32,12 +32,12 @@ from ..utils import barrier, is_distributed, get_backend
 class GSgnnNodePredictionTrainer(GSgnnTrainer):
     """ Trainer for node prediction tasks.
 
-    This class is used to train models for node prediction tasks,
+    This trainer is used to train models for node prediction tasks,
     such as node classification and node regression.
 
     ``GSgnnNodePredictionTrainer`` inherits from ``GSgnnTrainer`` and use the functions
     provided by ``GSgnnTrainer`` to define two main functions: 
-    
+
     * ``fit()``: performs the training for the model provided to this trainer
       when the object is initialized, and;
     * ``eval()``: evaluates the provided model against test and validation dataset.
@@ -70,7 +70,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         ``GSgnnNodeModelBase``, or a model class that inherits both the ``GSgnnModelBase``
         and the ``GSgnnNodeModelInterface`` class.
     topk_model_to_save: int
-        The top K model to be saved based on evaluation results. Default: 1.
+        The top `K` model to be saved based on evaluation results. Default: 1.
     """
     def __init__(self, model, topk_model_to_save=1):
         super(GSgnnNodePredictionTrainer, self).__init__(model, topk_model_to_save)
