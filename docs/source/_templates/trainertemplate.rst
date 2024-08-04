@@ -10,4 +10,4 @@
     :members:
     :member-order: bysource
     :special-members: __iter__, __next__, __len__
-    :exclude-members: get_metric_comparator
+    :exclude-members:

@@ -23,4 +23,3 @@ Trainers
     GSgnnNodePredictionTrainer
     GSgnnEdgePredictionTrainer
     GSgnnLinkPredictionTrainer
-    GLEMNodePredictionTrainer
