@@ -31,13 +31,10 @@ from ..utils import sys_tracker, get_rank, barrier
 class GSgnnNodePredictionInferrer(GSInferrer):
     """ Inferrer for node prediction tasks.
 
-    This is a high-level inferrer wrapper that can be used directly
-    to do node prediction model inference.
-
     ``GSgnnNodePredictionInferrer`` inherits from the ``GSInferrer`` and use the functions
     provided by ``GSInferrer`` to define the ``infer()`` method that performs three works:
 
-    * Generate node embeddings and save them.
+    * Generate node embeddings and save to disk.
     * Comput inference results for nodes with target node type.
     * (Optional) Evaluate the model performance on a test set if given.
 

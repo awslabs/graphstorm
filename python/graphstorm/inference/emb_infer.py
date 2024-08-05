@@ -23,10 +23,12 @@ from ..utils import sys_tracker, get_rank, barrier
 
 
 class GSgnnEmbGenInferer(GSInferrer):
-    """ Embedding Generation inferrer.
+    """ Inferrer for embedding generation tasks.
 
-    This is a high-level inferrer wrapper that can be used directly
-    to generate embedding for inferer.
+    ``GSgnnEmbGenInferer`` inherits from the ``GSInferrer`` and use the functions
+    provided by ``GSInferrer`` to define the ``infer()`` method that performs one work:
+
+    * Generate node embeddings and save to disk.
 
     Parameters
     ----------
@@ -42,8 +44,6 @@ class GSgnnEmbGenInferer(GSInferrer):
             save_embed_format="pytorch",
             infer_batch_size=1024):
         """ Do Embedding Generating.
-
-        Generate node embeddings and save into disk.
 
         Parameters
         ----------
