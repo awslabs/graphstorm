@@ -314,7 +314,7 @@ def multiprocessing_data_read(in_files, num_processes, user_parser, ext_mem_work
                     if not proc.is_alive() and proc.exitcode < 0:
                         raise RuntimeError("One of the work process crashed with"
                                            f"{proc.exitcode}. In most of cases, it is "
-                                           "due to Out-of_memory. Please check your "
+                                           "due to out-of-memory. Please check your "
                                            "instance memory size and the shared memory "
                                            "size.") from None
                 logging.warning("One of the processes has been processing the "
