@@ -1086,7 +1086,9 @@ class DistHeterogeneousGraphLoader(object):
                 node_type_feature_metadata[feat_name] = node_feature_metadata_dict
 
                 feat_val = single_feature_df.take(1)[0].asDict().get(feat_name)
-                assert isinstance(feat_val, (list, numbers.Number))
+                assert isinstance(
+                    feat_val, (list, numbers.Number)
+                ), "We expect features to either be scalars or lists of scalars."
                 nfeat_size = 1 if isinstance(feat_val, numbers.Number) else len(feat_val)
                 ntype_feat_sizes.update({feat_name: nfeat_size})
 
@@ -1562,6 +1564,9 @@ class DistHeterogeneousGraphLoader(object):
                 edge_feature_metadata_dicts[feat_name] = edge_feature_metadata_dict
 
                 feat_val = single_feature_df.take(1)[0].asDict().get(feat_name, None)
+                assert isinstance(
+                    feat_val, (list, numbers.Number)
+                ), "We expect features to either be scalars or lists of scalars."
                 efeat_size = 1 if isinstance(feat_val, numbers.Number) else len(feat_val)
                 etype_feat_sizes.update({feat_name: efeat_size})
 
