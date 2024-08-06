@@ -1085,8 +1085,9 @@ class DistHeterogeneousGraphLoader(object):
                 }
                 node_type_feature_metadata[feat_name] = node_feature_metadata_dict
 
-                feat_val = single_feature_df.take(1)[0].asDict().get(feat_name, None)
-                nfeat_size = 1 if isinstance(feat_val, (int, float)) else len(feat_val)
+                feat_val = single_feature_df.take(1)[0].asDict().get(feat_name)
+                assert isinstance(feat_val, (list, numbers.Number))
+                nfeat_size = 1 if isinstance(feat_val, numbers.Number) else len(feat_val)
                 ntype_feat_sizes.update({feat_name: nfeat_size})
 
                 self.timers[f"{transformer.get_transformation_name()}-{node_type}-{feat_name}"] = (
