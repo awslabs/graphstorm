@@ -1065,7 +1065,7 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
 
         Returns
         -------
-        dict of Tensor: the trained weights of all edge types.
+        dict of Tensor: the trained weights (relation embeddings) of all edge types.
         dict of int: edge type ID mapping in the format of
         {((src_ntype1, etype1, dst_ntype1)): id}
         """
