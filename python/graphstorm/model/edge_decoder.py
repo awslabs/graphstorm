@@ -297,7 +297,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
     Parameters
     ----------
     h_dim: int
-        The input dimension size. It is the dimension for both source and destinatioin
+        The input dimension size. It is the dimension for both source and destination
         node embeddings.
     out_dim: int
         Output dimension size. If this decoder is set for edge regression, the output
