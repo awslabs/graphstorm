@@ -19,16 +19,8 @@ Welcome to the GraphStorm Documentation and Tutorials
    :hidden:
    :glob:
 
-   graph-construction/index.rst
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Distributed Training
-   :hidden:
-   :glob:
-
-   scale/distributed
-   scale/sagemaker
+   cli/graph-construction/index.rst
+   cli/model-training-inference/index.rst
 
 .. toctree::
    :maxdepth: 2
