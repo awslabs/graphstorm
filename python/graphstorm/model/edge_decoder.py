@@ -449,7 +449,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
     # pylint: disable=unused-argument
     def predict_proba(self, g, h, e_h=None):
-        """ MLP-based edge decoder predict computation and return the normalized
+        """ MLP-based edge decoder prediction computation and return the normalized
         prediction results if this decoder is set for edge classification.
 
         Parameters
@@ -1270,7 +1270,7 @@ class LinkPredictContrastiveDistMultDecoder(LinkPredictDistMultDecoder):
     # TODO(xiang): Develop a better solution for supporting pair-wise
     # loss functions in link prediction tasks. The
     # LinkPredictContrastiveDotDecoder is implemented based on the
-    # assumption that the same decoder.forward will be called twice
+    # assumption that the same decoder. Forward will be called twice
     # with a positive graph and negative graph respectively. And
     # the positive and negative graphs are compatible. We can simply
     # sort the edges in postive and negative graphs to create <pos, neg>

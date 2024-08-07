@@ -539,7 +539,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
                 "(--model-encoder-type lm)"
 
     def get_general_dense_parameters(self):
-        """  Get dense layers' model parameters of this node encoder input layer.
+        """ Get dense layers' model parameters of this node encoder input layer.
 
         Returns
         -------
@@ -651,7 +651,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
 
 
 class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
-    """The node encoder input layer with language model (LM) supported for all nodes
+    """ The node encoder input layer with language model (LM) supported for all nodes
     in a heterogeneous graph.
 
     This input layer treates node features in the same way as the ``GSNodeEncoderInputLayer``.
