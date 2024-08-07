@@ -1064,7 +1064,7 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
 
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
-        """ Link prediction decoder forward functionusing the DistMult as the score function.
+        """ Link prediction decoder forward function using the DistMult as the score function.
 
         This computes the edge score on every edge type.
 
