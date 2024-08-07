@@ -1,6 +1,6 @@
 .. single-machine-training-inference::
 
-Single Machine Model Training and Inference
---------------------------------------------
+Model Training and Inference on a Single Machine
+-------------------------------------------------
 
 (Under Construction)

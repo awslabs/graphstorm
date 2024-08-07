@@ -1,4 +1,5 @@
-==============================
+.. _distributed-gconstruction::
+
 Distributed Graph Construction
 ==============================
 
