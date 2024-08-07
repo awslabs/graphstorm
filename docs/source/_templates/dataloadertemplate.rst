@@ -7,4 +7,6 @@
 
 .. autoclass:: {{ name }}
     :show-inheritance:
-    :special-members: __iter__, __next__
+    :members:
+    :member-order: bysource
+    :special-members: __iter__, __next__, __len__

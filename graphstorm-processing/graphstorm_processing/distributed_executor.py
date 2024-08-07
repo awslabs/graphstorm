@@ -573,10 +573,10 @@ def main():
         format="[GSPROCESSING] %(asctime)s %(levelname)-8s %(message)s",
     )
 
-    # Determine if we're running within a SageMaker container
+    # Determine execution environment
     if os.path.exists("/opt/ml/config/processingjobconfig.json"):
         execution_env = ExecutionEnv.SAGEMAKER
-    elif os.path.exists("/emr-serverless-config.json"):
+    elif os.path.exists("/usr/lib/spark/code/EMR_SERVERLESS_EXECUTION"):
         execution_env = ExecutionEnv.EMR_SERVERLESS
     elif os.path.exists("/usr/lib/spark/code/EMR_EXECUTION"):
         execution_env = ExecutionEnv.EMR_ON_EC2
