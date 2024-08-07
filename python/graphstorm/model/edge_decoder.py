@@ -486,7 +486,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
     @property
     def out_dims(self):
-        """ Return the output dimension size. If this decoder is set for edge regression,
+        """ Return the output dimension size. If this decoder is for edge regression,
         will return ``1``.
         """
         return 1 if self.regression else self.out_dim
