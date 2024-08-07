@@ -244,7 +244,7 @@ class DenseBiDecoder(GSEdgeDecoder):
     # pylint: disable=unused-argument
     def predict_proba(self, g, h, e_h=None):
         """ Dense bi-linear edge decoder predict computation and return the normalized
-        prediction results if this decoder is set for edge classification.
+        prediction results if this decoder is for edge classification.
 
         Parameters
         ----------
@@ -259,7 +259,7 @@ class DenseBiDecoder(GSEdgeDecoder):
         Returns
         -------
         out: Tensor
-            The prediction results. If this decoder is set for edge classification, return the
+            The prediction results. If this decoder is for edge classification, return the
             normalized prediction results.
         """
         with g.local_scope():
@@ -285,7 +285,7 @@ class DenseBiDecoder(GSEdgeDecoder):
 
     @property
     def out_dims(self):
-        """ Return the output dimension size. If this decoder is set for edge regression,
+        """ Return the output dimension size. If this decoder is for edge regression,
         will return ``1``.
         """
         return 1 if self.regression else self.num_classes
@@ -300,7 +300,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
         The input dimension size. It is the dimension for both source and destination
         node embeddings.
     out_dim: int
-        Output dimension size. If this decoder is set for edge regression, the output
+        Output dimension size. If this decoder is for edge regression, the output
         dimension should be ``1``.
     multilabel: bool
         Whether this decoder is for multilabel edge classification.
@@ -450,7 +450,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
     # pylint: disable=unused-argument
     def predict_proba(self, g, h, e_h=None):
         """ MLP-based edge decoder prediction computation and return the normalized
-        prediction results if this decoder is set for edge classification.
+        prediction results if this decoder is for edge classification.
 
         Parameters
         ----------
@@ -465,7 +465,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
         Returns
         -------
         out: Tensor
-            The prediction results. If this decoder is set for edge classification, return the
+            The prediction results. If this decoder is for edge classification, return the
             normalized prediction results.
         """
         out = self._compute_logits(g, h)
@@ -486,7 +486,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
     @property
     def out_dims(self):
-        """ Return the output dimension size. If this decoder is set for edge regression,
+        """ Return the output dimension size. If this decoder is for edge regression,
         will return ``1``.
         """
         return 1 if self.regression else self.out_dim
@@ -502,7 +502,7 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
     feat_dim: int
         The input dimension size of edge features which are used for computing decoder output.
     out_dim: int
-        Output dimension size. If this decoder is set for edge regression, the output
+        Output dimension size. If this decoder is for edge regression, the output
         dimension should be ``1``.
     multilabel: bool
         Whether this decoder is for multilabel edge classification.
@@ -688,7 +688,7 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
     # pylint: disable=signature-differs
     def predict_proba(self, g, h, e_h):
         """ MLP-based edge feature supported edge decoder predict computation and return
-        the normalized prediction results if this decoder is set for edge classification.
+        the normalized prediction results if this decoder is for edge classification.
 
         Parameters
         ----------
@@ -702,7 +702,7 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
         Returns
         -------
         out: Tensor
-            The prediction results. If this decoder is set for edge classification, return the
+            The prediction results. If this decoder is for edge classification, return the
             normalized prediction results.
         """
         out = self._compute_logits(g, h, e_h)
