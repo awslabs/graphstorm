@@ -4,7 +4,7 @@ graphstorm.model
 ===================
 
     GraphStorm provides a set of Graph Neural Network (GNN) modules. By combining them
-    in proper ways, users can build various GraphStorm GNN models for different tasks.
+    in proper ways, users can build various GNN models for different tasks.
 
     A GraphStorm GNN model normally contains four components:
 
