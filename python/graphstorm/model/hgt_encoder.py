@@ -104,7 +104,7 @@ class HGTLayer(nn.Module):
     dropout: float
         Dropout rate. Default: 0.
     norm: str
-        Normalization methods. Options:``batch`` and ``layer``. Default: ``layer``.
+        Normalization methods. Options:``batch``, ``layer``, and ``None``. Default: ``layer``.
     num_ffn_layers_in_gnn: int
         Number of fnn layers between gnn layers. Default: 0.
     """
@@ -319,7 +319,7 @@ class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
     dropout: float
         Dropout rate. Default: 0.2.
     norm: str
-        Normalization methods. Options:``batch`` and ``layer``. Default: ``layer``.
+        Normalization methods. Options:``batch``, ``layer``, and ``None``. Default: ``layer``.
     num_ffn_layers_in_gnn: int
         Number of fnn layers between GNN layers. Default: 0.
 

@@ -76,7 +76,8 @@ class SAGEConv(nn.Module):
     ffn_actication: torch.nn.functional
         Activation for ffn. Default: relu.
     norm: str
-        Normalization methods. Options:``batch`` and ``layer``. Default: None.
+        Normalization methods. Options:``batch``, ``layer``, and ``None``. Default: None,
+        meaning no normalization.
     """
     def __init__(self,
                  in_feat,
@@ -165,7 +166,8 @@ class SAGEEncoder(GraphConvEncoder):
     num_ffn_layers_in_gnn: int
         Number of fnn layers between GNN layers. Default: 0.
     norm: str
-        Normalization methods. Options:``batch`` and ``layer``. Default: None.
+        Normalization methods. Options:``batch``, ``layer``, and ``None``. Default: None,
+        meaning no normalization.
 
     Examples:
     ----------
