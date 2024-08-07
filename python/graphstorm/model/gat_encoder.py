@@ -112,7 +112,9 @@ class GATConv(nn.Module):
         Returns
         -------
         dict of Tensor: New node features for the default node type in the format of
-        {``DEFAULT_NTYPE``: tensor}.
+        {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` could
+        be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
+        cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
         """
         # add self-loop during computation.
         src, dst = g.edges()
@@ -223,13 +225,17 @@ class GATEncoder(GraphConvEncoder):
             Sampled subgraph in DGL MFG format.
         h: dict of Tensor
             Node features for the default node type in the format of
-            {``DEFAULT_NTYPE``: tensor}.
+            {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` could
+            be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
+            cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
 
         Returns
         -------
         h: dict of Tensor
             New node features for the default node type in the format of
-            {``DEFAULT_NTYPE``: tensor}.
+            {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` could
+            be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
+            cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
         """
         for layer, block in zip(self.layers, blocks):
             h = layer(block, h)
