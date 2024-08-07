@@ -1052,7 +1052,7 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
         return self._w_relation(th.tensor(i).to(self._w_relation.weight.device))
 
     def get_relembs(self):
-        """retrieve all edge types' trained weights and the edge type ID mapping.
+        """ Retrieve all edge types' trained weights and the edge type ID mapping.
 
         Returns
         -------
