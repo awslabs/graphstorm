@@ -76,7 +76,11 @@ Similar as the documentations of distributed graph construction, the distributed
 GraphStorm APIs User Guide
 ---------------------------
 
-For users who wish to customize GraphStorm for their specific needs, follow the :ref:`GraphStorm API Programming Example Notebooks<programming-examples>` to explore GraphStorm APIs, learn how to use GraphStorm APIs to reproduce CLIs pipelines, and then customize GraphStorm components for specific requirements. Users can find the details of GraphStorm APIs in the :ref:`API Reference<api-reference>` documentations.
+The released GraphStorm APIs list the major components that can help users to develop GraphStorm-like GML pipelines, or customize components such as GNN models, training conctrolers for their specific needs.
+
+GraphStorm released a set of Jupter notebooks at :ref:`GraphStorm API Programming Example Notebooks<programming-examples>`. By running these notebooks, users can explore GraphStorm APIs, learn how to use GraphStorm APIs to reproduce CLIs pipelines, and then customize GraphStorm components for specific requirements. 
+
+Users can find the comprehensive descriptions of these GraphStorm APIs in the :ref:`API Reference<api-reference>` documentations. For unrelease APIs, we encourage users to read their source code. If users want to have more APIs formally released, please raise issues at the `GraphStorm GitHub Repository <https://github.com/awslabs/graphstorm/issues>`_.
 
 Advanced Topics
 ----------------
