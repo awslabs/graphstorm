@@ -200,7 +200,7 @@ class GSgnnModelBase(nn.Module):
         Parameters
         ----------
         restore_model_path : str
-            The path where the GNN model was stored.
+            The path where the model was stored.
         model_layer_to_load: list of str
             List of model layers to load. This arguement is used to indicate
             which model layer(s) are going to be restored from the model checkpoint.
