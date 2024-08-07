@@ -1,7 +1,7 @@
 .. _distributed-cluster:
 
-Use GraphStorm in a Distributed Cluster
-========================================
+Model Training and Inference on a Distributed Cluster
+======================================================
 GraphStorm can scale to the enterprise-level graphs in the distributed mode by using a cluster of instances. To leverage this capacity, there are four steps to follow:
 
 * Create a cluster with instances each of which can run GraphStorm Docker container.
