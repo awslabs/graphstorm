@@ -776,7 +776,7 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
     Parameters
     ----------
     in_dim: int
-        The input dimension size. It is the dimension for both source and destinatioin
+        The input dimension size. It is the dimension for both source and destination
         node embeddings.
     """
     def __init__(self, in_dim):
@@ -959,7 +959,7 @@ class LinkPredictContrastiveDotDecoder(LinkPredictDotDecoder):
     Parameters
     ----------
     in_dim: int
-        The input dimension size. It is the dimension for both source and destinatioin
+        The input dimension size. It is the dimension for both source and destination
         node embeddings.
     """
     # TODO(xiang): Develop a better solution for supporting pair-wise
@@ -1016,7 +1016,7 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
         The canonical edge types of the graph in the format of
         [(src_ntype1, etype1, dst_ntype1), ...]
     h_dim: int
-        The input dimension size. It is the dimension for both source and destinatioin
+        The input dimension size. It is the dimension for both source and destination
         node embeddings.
     gamma: float
         The gamma value for model weight initialization. Default: 40.
@@ -1262,7 +1262,7 @@ class LinkPredictContrastiveDistMultDecoder(LinkPredictDistMultDecoder):
         The canonical edge types of the graph in the format of
         [(src_ntype1, etype1, dst_ntype1), ...]
     h_dim: int
-        The input dimension size. It is the dimension for both source and destinatioin
+        The input dimension size. It is the dimension for both source and destination
         node embeddings.
     gamma: float
         The gamma value for model weight initialization. Default: 40.
@@ -1378,7 +1378,7 @@ class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
     Parameters
     ----------
     in_dim: int
-        The input dimension size. It is the dimension for both source and destinatioin
+        The input dimension size. It is the dimension for both source and destination
         node embeddings.
     edge_weight_fields: dict of str
         
