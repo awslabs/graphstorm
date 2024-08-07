@@ -1,8 +1,8 @@
 .. _graph_construction:
 
-===================
-Graph Construction
-===================
+==============================
+GraphStorm Graph Construction
+==============================
 
 Graphstorm offers various methods to build graphs on both a single machine and distributed clusters.
 
@@ -10,5 +10,5 @@ Graphstorm offers various methods to build graphs on both a single machine and d
    :maxdepth: 2
    :glob:
 
-   single-machine/index.rst
+   single-machine-gconstruction.rst
    distributed/index.rst
