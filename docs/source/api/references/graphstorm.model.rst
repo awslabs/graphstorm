@@ -21,7 +21,7 @@ graphstorm.model
 
     Currently GraphStorm releases the APIs of the Input, GNN, and Decoder layers.
 
-    If users would like to implement their own GNN models, a best practice is to extend a base
+    If users would like to implement their own GNN models, a suggested practice is to extend a base
     GNN model class and its corresponding interface, e.g., ``GSgnnNodeModelBase`` and
     ``GSgnnNodeModelInterface``, and implement the required abstract methods.
 
