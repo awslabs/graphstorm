@@ -828,12 +828,21 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
         emb: dict of Tensor
             Node embeddings in the format of {ntype: emb}.
         pos_neg_tuple: dict of tuple
-            Positive and negative edges stored in a tuple:
-            tuple(positive source, negative source, postive destination, negatve destination).
+            Positive and negative edges stored in a dict of tuple in the format of
+            {("src_ntype1", "etype1", "dst_ntype1" ): (pos_src_idx, neg_src_idx,
+            pos_dst_idx, neg_dst_idx)}.
+            
+            The `pos_src_idx` represents the postive source node indexes in the format
+            of Torch.Tensor. The `neg_src_idx` represents the negative source node indexes
+            in the format of Torch.Tensor. The `pos_dst_idx` represents the postive destination
+            node indexes in the format of Torch.Tensor. The `neg_dst_idx` represents the
+            negative destination node indexes in the format of Torch.Tensor.
 
-            * The positive edges: (positive source, positive desitnation)
-            * The negative edges: (positive source, negative desitnation) and
-              (negative source, positive desitnation)
+            We define positive and negative edges as: 
+
+            * The positive edges: (pos_src_idx, pos_dst_idx)
+            * The negative edges: (pos_src_idx, neg_dst_idx) and
+              (neg_src_idx, pos_dst_idx)
 
         neg_sample_type: str
             Describe how negative samples are sampled. There are two options:
@@ -1114,12 +1123,21 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
         emb: dict of Tensor
             Node embeddings in the format of {ntype: emb}.
         pos_neg_tuple: dict of tuple
-            Positive and negative edges stored in a tuple:
-            tuple(positive source, negative source, postive destination, negatve destination).
+            Positive and negative edges stored in a dict of tuple in the format of
+            {("src_ntype1", "etype1", "dst_ntype1" ): (pos_src_idx, neg_src_idx,
+            pos_dst_idx, neg_dst_idx)}.
+            
+            The `pos_src_idx` represents the postive source node indexes in the format
+            of Torch.Tensor. The `neg_src_idx` represents the negative source node indexes
+            in the format of Torch.Tensor. The `pos_dst_idx` represents the postive destination
+            node indexes in the format of Torch.Tensor. The `neg_dst_idx` represents the
+            negative destination node indexes in the format of Torch.Tensor.
 
-            * The positive edges: (positive source, positive desitnation)
-            * The negative edges: (positive source, negative desitnation) and
-              (negative source, positive desitnation)
+            We define positive and negative edges as: 
+
+            * The positive edges: (pos_src_idx, pos_dst_idx)
+            * The negative edges: (pos_src_idx, neg_dst_idx) and
+              (neg_src_idx, pos_dst_idx)
 
         neg_sample_type: str
             Describe how negative samples are sampled. There are two options:
