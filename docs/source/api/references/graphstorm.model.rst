@@ -32,7 +32,7 @@ graphstorm.model
 
     For examples of how to use these GraphStorm APIs to form training/inference pipelines,
     to switch different GNN encoders to implement various GNN models, and to build a customized
-    GNN encoders, please refer to these
+    GNN encoder, please refer to
     :ref:`GraphStorm API Programming Examples <programming-examples>`.
 
 .. currentmodule:: graphstorm.model
