@@ -68,7 +68,7 @@ class GSgnnEdgeModelInterface:
     @abc.abstractmethod
     def predict(self, blocks, target_edges, node_feats, edge_feats,
                 target_edge_feats, input_nodes, return_proba):
-        """ Make prediction on the taret edges.
+        """ Make prediction on the target edges.
 
         Parameters
         ----------
