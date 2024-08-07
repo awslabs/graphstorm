@@ -497,7 +497,7 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
     Parameters
     ----------
     h_dim: int
-        The input dimension size. It is the dimension for both source and destinatioin
+        The input dimension size. It is the dimension for both source and destination
         node embeddings.
     feat_dim: int
         The input dimension size of edge features which are used for computing decoder output.
