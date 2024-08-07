@@ -1,11 +1,10 @@
 .. _single-machine-gconstruction:
 
-==================================
 Single Machine Graph Construction
-==================================
+-----------------------------------
 
 `construct_graph.py <https://github.com/zhjwy9343/graphstorm/blob/main/python/graphstorm/gconstruct/construct_graph.py>`_ arguments
---------------------------------------------------------------------------------------------------------------------------------------
+***********************************************************************************************************************************
 
 * **-\-conf-file**: (**Required**) the path of the configuration JSON file.
 * **-\-num-processes**: the number of processes to process the data simulteneously. Default is 1. Increase this number can speed up data processing.
@@ -25,7 +24,7 @@ Single Machine Graph Construction
 .. _gconstruction-json:
 
 Configuration JSON Explanations
----------------------------------
+*********************************
 
 The JSON file that describes the graph data defines where to get node data and edge data to construct a graph. Below shows an example of such a JSON file. In the highest level, it contains three fields: ``version``, ``nodes`` and ``edges``.
 
