@@ -98,7 +98,7 @@ class DenseBiDecoder(GSEdgeDecoder):
     r""" Dense bi-linear decoder for edge prediction tasks.
 
     ``DenseBiDecoder`` is the dense implementation of the bi-linear decoder used in GCMC.
-    Suitable when the graph can be efficiently represented by a pair of lists (one for source
+    Suitable when the graph can be represented by a pair of lists (one for source
     node list and one for destination node list).
 
     Parameters
