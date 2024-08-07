@@ -105,7 +105,9 @@ class GATConv(nn.Module):
             Input DGL heterogenous graph.
         inputs: dict of Tensor
             Node features for the default node type in the format of
-            {``DEFAULT_NTYPE``: tensor}.
+            {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` could
+            be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
+            cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
 
         Returns
         -------
