@@ -10,7 +10,7 @@ graphstorm.model
 
     * Input layer: an input encoder that converts input node/edge features into embeddings
       with the given hidden dimensions. The output of an input layer will become the input of
-      the GNN layer, or the decoder layer if no need of message passing computation.
+      the GNN layer, or the decoder layer if GNN is not needed.
     * GNN layer (Optional): a GNN encoder that performs the message passing computation. 
       The outputs of a GNN layer are embeddings of nodes that wil be used in the decoder layer.
     * Decoder layer: a task specific decoder that converts results from either a GNN layer or 
