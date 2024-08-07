@@ -1277,7 +1277,7 @@ class LinkPredictContrastiveDistMultDecoder(LinkPredictDistMultDecoder):
     Parameters
     ----------
     etypes: list of tuples
-        The canonical edge types of the graph in the format of
+        The canonical edge types of the edges used during model training in the format of
         [(src_ntype1, etype1, dst_ntype1), ...]
     h_dim: int
         The input dimension size. It is the dimension for both source and destination
