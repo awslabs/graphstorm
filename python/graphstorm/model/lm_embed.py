@@ -539,7 +539,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
                 "(--model-encoder-type lm)"
 
     def get_general_dense_parameters(self):
-        """  Get dense layers' model parameters of this node encoder input layer.
+        """ Get dense layers' model parameters of this node encoder input layer.
 
         Returns
         -------
