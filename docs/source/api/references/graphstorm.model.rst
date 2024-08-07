@@ -6,7 +6,7 @@ graphstorm.model
     GraphStorm provides a set of Graph Neural Network (GNN) modules. By combining them
     in proper ways, users can build various GNN models for different tasks.
 
-    A GraphStorm GNN model normally contains four components:
+    A GNN model in GraphStorm normally contains four components:
 
     * Input layer: an input encoder that converts input node/edge features into embeddings
       with the given hidden dimensions. The output of an input layer will become the input of
