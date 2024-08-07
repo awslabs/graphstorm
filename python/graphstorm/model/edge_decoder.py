@@ -107,7 +107,7 @@ class DenseBiDecoder(GSEdgeDecoder):
         The input dimension size. It is the dimension for both source and destination node
         embeddings.
     num_classes: int
-        Number of classes, if set for classification task.
+        Number of classes. For classification tasks only.
     multilabel: bool
         Whether this is a multi-label classification decoder.
     num_basis: int
