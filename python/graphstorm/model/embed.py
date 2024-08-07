@@ -178,7 +178,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
     g: DistGraph
         The input DGL distributed graph.
     feat_size : dict of int
-        The original feat sizes of each node type in the format of {ntype: size}.
+        The original feat size of each node type in the format of {ntype: size}.
     embed_size : int
         The output embedding size.
     activation : callable
