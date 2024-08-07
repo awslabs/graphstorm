@@ -449,7 +449,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
     # pylint: disable=unused-argument
     def predict_proba(self, g, h, e_h=None):
-        """ MLP-based edge decoder predict computation and return the normalized
+        """ MLP-based edge decoder prediction computation and return the normalized
         prediction results if this decoder is set for edge classification.
 
         Parameters
