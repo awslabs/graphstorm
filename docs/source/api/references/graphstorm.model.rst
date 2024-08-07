@@ -25,7 +25,7 @@ graphstorm.model
     GNN model class and its corresponding interface, e.g., ``GSgnnNodeModelBase`` and
     ``GSgnnNodeModelInterface``, and implement the required abstract methods.
 
-    If users just want to build their own message passing methods, a best practice is to create
+    If users just want to build their own message passing methods, a suggested practice is to create
     their own GNN encoders by extending the ``GraphConvEncoder`` base class, and implement
     the ``forward(self, blocks, h)`` function, which will be called by GraphStorm GNN model
     classes within their own ``forward()`` function.
