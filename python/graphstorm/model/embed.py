@@ -169,7 +169,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
     The input layer adds a linear layer on nodes with node features and the linear layer
     projects the node features into a specified dimension. 
     It also adds learnable embeddings on nodes that do not have features. Users can add
-    learnable embeddings on the nodes with node features. In this case, the input layer
+    learnable embeddings on the nodes with node features by setting use_node_embeddings to True. In this case, the input layer
     combines the node features with the learnable embeddings and project them to the specified
     dimension.
 
