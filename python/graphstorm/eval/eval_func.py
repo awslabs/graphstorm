@@ -258,36 +258,36 @@ def compute_hit_at_classification(preds, labels, k=100):
     return th.sum(hit_labels)
 
 
-def compute_hit_at_link_prediction(preds, labels, k=100):
-    """ Compute hit@k for the link prediction task
+def compute_hit_at_link_prediction(ranking, k=100):
+    """ Compute hit@k for link prediction tasks
 
         Parameters
         ----------
-        preds : tensor
-            A 1-D tensor for link prediction.
-        labels : tensor
-            A 1-D tensor for link prediction.
+        ranking: tensor
+            ranking of each positive edge
         k: int
             Hit@K
+
+        Returns
+        -------
+        metric: float
     """
-    assert len(preds.shape) == 2 \
-        and preds.shape[1] == 2, \
-        "The preds must be a 2D tensor with the second dimension of 2. "
+    assert len(ranking.shape) == 1 or (len(ranking.shape) == 2 and ranking.shape[1] == 1), \
+        "The ranking must be a 1D tensor or a 2D tensor with the second dimension of 1. "
 
-    assert len(labels.shape) == 1 or (len(labels.shape) == 2 and labels.shape[1] == 1), \
-        "The labels must be a 1D tensor or a 2D tensor with the second dimension of 1"
+    if len(ranking.shape) == 2:
+        ranking = th.squeeze(ranking)
 
-    # preds is a 2D tensor storing
-    # [probability of label 0, probability of label 1]
-    # 0 means negative, 1 means positive.
-    # We compute hit@K for positive labels
-    preds = preds[:,1]
-    if len(labels.shape) == 2:
-        labels = th.squeeze(labels)
-    sort_idx = th.argsort(preds, descending=True)
-    hit_idx = sort_idx[:k]
-    hit_labels = labels[hit_idx]
-    return th.div(th.sum(hit_labels), th.sum(labels)).item()
+    metric = th.div(th.sum(ranking <= k), len(ranking))
+    return metric
+
+    # preds = preds[:,1]
+    # if len(labels.shape) == 2:
+    #     labels = th.squeeze(labels)
+    # sort_idx = th.argsort(preds, descending=True)
+    # hit_idx = sort_idx[:k]
+    # hit_labels = labels[hit_idx]
+    # return th.div(th.sum(hit_labels), th.sum(labels)).item()
 
 
 def eval_roc_auc(logits,labels):

@@ -27,6 +27,54 @@ error_and_exit () {
 df /dev/shm -h
 
 echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, exclude_training_targets: true, save model"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false  --use-node-embeddings true --eval-batch-size 1024 --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie  --save-model-path /data/gsgnn_lp_ml_dot/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_dot/emb/ --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --eval-metric hit_at_1 hit_at_3 hit_at_10 hit_at_50 hit_at_200
+
+error_and_exit $?
+
+# check prints
+cnt=$(grep "save_embed_path: /data/gsgnn_lp_ml_dot/emb/" /tmp/train_log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have save_embed_path"
+    exit -1
+fi
+
+cnt=$(grep "save_model_path: /data/gsgnn_lp_ml_dot/" /tmp/train_log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have save_model_path"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Test hit@k" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Test hit@k"
+    exit -1
+fi
+
+cnt=$(grep "| Test hit@k" /tmp/train_log.txt | wc -l)
+if test $cnt -lt $bst_cnt
+then
+    echo "We use SageMaker task tracker, we should have Test hit@k"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Validation hit@k" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Validation hit@k"
+    exit -1
+fi
+
+cnt=$(grep "Validation hit@k" /tmp/train_log.txt | wc -l)
+if test $cnt -lt $bst_cnt
+then
+    echo "We use SageMaker task tracker, we should have Validation hit@k"
+    exit -1
+fi
+
+echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, exclude_training_targets: true, save model"
 python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false  --use-node-embeddings true --eval-batch-size 1024 --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie  --save-model-path /data/gsgnn_lp_ml_dot/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_dot/emb/ --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True
 
 error_and_exit $?

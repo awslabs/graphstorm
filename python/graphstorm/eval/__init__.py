@@ -27,6 +27,7 @@ from .eval_func import SUPPORTED_HIT_AT_METRICS
 from .evaluator import (GSgnnMrrLPEvaluator,
                         GSgnnPerEtypeMrrLPEvaluator,
                         GSgnnHitsLPEvaluator,
+                        GSgnnPerEtypeHitsLPEvaluator,
                         GSgnnClassificationEvaluator,
                         GSgnnRegressionEvaluator,
                         GSgnnRconstructFeatRegScoreEvaluator,

@@ -516,76 +516,45 @@ def test_LinkPredictionMetrics():
     assert not pass_assert
 
 def test_compute_hit_at_link_prediction():
-    preds = th.arange(100) / 102
-    # preds is in a format as [probe_of_0, probe_of_1]
-    preds = th.stack([preds, 1 - preds]).T
-    labels = th.zeros((100,))  # 1D label tensor
-    labels2 = th.zeros((100, 1))  # 2D label tensor
-    labels[0] = 1
-    labels[2] = 1
-    labels[4] = 1
-    labels[11] = 1
-    labels[99] = 1
+    preds = 1 - th.arange(100) / 120    # preds for all positive and negative samples
+    # 1 indicates positive samples
+    idx_positive = th.zeros(100)
+    idx_positive[2] = 1
+    idx_positive[4] = 1
+    idx_positive[5] = 1
+    idx_positive[7] = 1
+    idx_positive[15] = 1
+    idx_positive[21] = 1
+    idx_positive[99] = 1
+    ranking = th.argsort(preds, descending=True)[idx_positive.bool()]
 
-    labels2[0][0] = 1
-    labels2[2][0] = 1
-    labels2[4][0] = 1
-    labels2[11][0] = 1
-    labels2[99][0] = 1
-
-    hit_at = compute_hit_at_link_prediction(preds, labels, 5)
-    assert hit_at == 3 / 5
-    hit_at = compute_hit_at_link_prediction(preds, labels, 10)
-    assert hit_at == 3 / 5
-    hit_at = compute_hit_at_link_prediction(preds, labels, 20)
-    assert hit_at == 4 / 5
-    hit_at = compute_hit_at_link_prediction(preds, labels, 100)
-    assert hit_at == 5 / 5
-    hit_at = compute_hit_at_link_prediction(preds, labels, 200)
-    assert hit_at == 5 / 5
-
-    shuff_idx = th.randperm(100)
-    preds = preds[shuff_idx]
-    labels = labels[shuff_idx]
-    labels2 = labels2[shuff_idx]
-
-    hit_at = compute_hit_at_link_prediction(preds, labels, 5)
-    assert hit_at == 3 / 5
-    hit_at = compute_hit_at_link_prediction(preds, labels, 10)
-    assert hit_at == 3 / 5
-    hit_at = compute_hit_at_link_prediction(preds, labels, 20)
-    assert hit_at == 4 / 5
-    hit_at = compute_hit_at_link_prediction(preds, labels, 100)
-    assert hit_at == 5 / 5
-    hit_at = compute_hit_at_link_prediction(preds, labels, 200)
-    assert hit_at == 5 / 5
-    hit_at = compute_hit_at_link_prediction(preds, labels2, 5)
-    assert hit_at == 3 / 5
-    hit_at = compute_hit_at_link_prediction(preds, labels2, 10)
-    assert hit_at == 3 / 5
-    hit_at = compute_hit_at_link_prediction(preds, labels2, 20)
-    assert hit_at == 4 / 5
-    hit_at = compute_hit_at_link_prediction(preds, labels2, 100)
-    assert hit_at == 5 / 5
-    hit_at = compute_hit_at_link_prediction(preds, labels2, 200)
-    assert hit_at == 5 / 5
+    hit_at = compute_hit_at_link_prediction(ranking, 5)
+    assert hit_at == 2 / 7
+    hit_at = compute_hit_at_link_prediction(ranking, 10)
+    assert hit_at == 4 / 7
+    hit_at = compute_hit_at_link_prediction(ranking, 20)
+    assert hit_at == 5 / 7
+    hit_at = compute_hit_at_link_prediction(ranking, 100)
+    assert hit_at == 7 / 7
+    hit_at = compute_hit_at_link_prediction(ranking, 200)
+    assert hit_at == 7 / 7
 
 if __name__ == '__main__':
     test_LinkPredictionMetrics()
     test_compute_hit_at_link_prediction()
 
-    test_ClassificationMetrics()
-    test_compute_hit_at_classification()
-
-    test_compute_mse()
-    test_compute_rmse()
-
-    test_eval_roc_auc()
-    test_compute_roc_auc()
-    test_compute_per_class_roc_auc()
-
-    test_compute_f1_score()
-
-    test_eval_acc()
-
-    test_compute_precision_recall_auc()
+    # test_ClassificationMetrics()
+    # test_compute_hit_at_classification()
+    #
+    # test_compute_mse()
+    # test_compute_rmse()
+    #
+    # test_eval_roc_auc()
+    # test_compute_roc_auc()
+    # test_compute_per_class_roc_auc()
+    #
+    # test_compute_f1_score()
+    #
+    # test_eval_acc()
+    #
+    # test_compute_precision_recall_auc()
