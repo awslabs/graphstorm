@@ -437,7 +437,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
     def get_sparse_params(self):
         """ Get the sparse parameters of this input layer.
 
-        This function is normally called by optimizers to update model parameters.
+        This function is normally called by optimizers to update sparse model parameters, i.e., learnable node embeddings.
 
         Returns
         -------
