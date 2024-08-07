@@ -71,14 +71,14 @@ The :ref:`GraphStorm Graph Construction<graph_construction>` documentations expl
 
 While the :ref:`GraphStorm Standalone Mode Quick-Start Tutorial<quick-start-standalone>` provides some information of using GraphStorm CLIs in a single machine, the :ref:`Model Training and Inference on a Single Machine <single-machine-training-inference>` documentation provides more detailed guidance. 
 
-Similar as the documentations of distributed graph construction, the distributed model training and inference user guide explains how to set up distributed environments and run GraphStorm model training and inference using a :ref:`Distributed Cluster <distributed-cluster>` or :ref:`Amazon SageMaker <distributed-sagemaker>`.
+Similar as the documentations of distributed graph construction, the distributed model training and inference user guide explains how to set up distributed environments and run GraphStorm model training and inference using a :ref:`Distributed Cluster <distributed-cluster>` or :ref:`Amazon SageMaker <distributed-sagemaker>` to deal with enterprise-level graphs.
 
 GraphStorm APIs User Guide
 ---------------------------
 
 The released GraphStorm APIs list the major components that can help users to develop GraphStorm-like GML pipelines, or customize components such as GNN models, training conctrolers for their specific needs.
 
-GraphStorm released a set of Jupter notebooks at :ref:`GraphStorm API Programming Example Notebooks<programming-examples>`. By running these notebooks, users can explore GraphStorm APIs, learn how to use GraphStorm APIs to reproduce CLIs pipelines, and then customize GraphStorm components for specific requirements. 
+To help users use these APIs, GraphStorm also released a set of Jupyter notebooks at :ref:`GraphStorm API Programming Example Notebooks<programming-examples>`. By running these notebooks, users can explore some APIs, learn how to use APIs to reproduce CLIs pipelines, and then customize GraphStorm components for specific requirements. 
 
 Users can find the comprehensive descriptions of these GraphStorm APIs in the :ref:`API Reference<api-reference>` documentations. For unrelease APIs, we encourage users to read their source code. If users want to have more APIs formally released, please raise issues at the `GraphStorm GitHub Repository <https://github.com/awslabs/graphstorm/issues>`_.
 
