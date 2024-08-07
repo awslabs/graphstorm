@@ -6,7 +6,6 @@ Single Machine Graph Construction
 Graph consturction command
 *****************************
 
-
 `construct_graph.py <https://github.com/zhjwy9343/graphstorm/blob/main/python/graphstorm/gconstruct/construct_graph.py>`_ arguments.
 
 * **-\-conf-file**: (**Required**) the path of the configuration JSON file.
