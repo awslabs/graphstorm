@@ -13,3 +13,4 @@ Graphstorm offers various methods to build graphs on both a single machine and d
    single-machine-training-inference
    distributed/cluster
    distributed/sagemaker
+   output-remapping

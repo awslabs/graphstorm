@@ -58,7 +58,7 @@ Once successfully set up the GraphStorm running environment,
 - follow the :ref:`Use Your Own Graph Data Tutorial<use-own-data>` to prepare your own graph data for using GraphStorm CLIs.
 - read the :ref:`GraphStorm Training and Inference Configurations<configurations-run>` to learn the various configurations provided by GraphStorm for CLIs that can help to achieve the best performance.
 
-Scale to Giant Graphs
+Use GraphStorm CLIs
 ----------------------
 
 For users who wish to train and run infernece on very large graphs,

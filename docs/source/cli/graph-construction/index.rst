@@ -10,5 +10,5 @@ Graphstorm offers various methods to build graphs on both a single machine and d
    :maxdepth: 2
    :glob:
 
-   single-machine-gconstruction.rst
+   single-machine-gconstruct.rst
    distributed/index.rst
