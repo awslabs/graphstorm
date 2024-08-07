@@ -3,8 +3,11 @@
 Single Machine Graph Construction
 -----------------------------------
 
-`construct_graph.py <https://github.com/zhjwy9343/graphstorm/blob/main/python/graphstorm/gconstruct/construct_graph.py>`_ arguments
-***********************************************************************************************************************************
+Graph consturction command
+*****************************
+
+
+`construct_graph.py <https://github.com/zhjwy9343/graphstorm/blob/main/python/graphstorm/gconstruct/construct_graph.py>`_ arguments.
 
 * **-\-conf-file**: (**Required**) the path of the configuration JSON file.
 * **-\-num-processes**: the number of processes to process the data simulteneously. Default is 1. Increase this number can speed up data processing.
