@@ -57,7 +57,7 @@ class LMModels(nn.Module):
     node_lm_configs:
         A list of language model configurations.
     num_train: int
-        The number of nodes with textual features used for LM embedding.
+        The number of nodes with textual features used for LM model finetuning in a mini-batch.
     lm_infer_batch_size: int
         Batch size used for computing text embeddings for static lm model
     """
