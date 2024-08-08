@@ -51,10 +51,8 @@ def main(config_args):
     infer = GSgnnLinkPredictionInferrer(model)
     infer.setup_device(device=get_device())
     # TODO: to create a generic evaluator for LP tasks
-    assert len(config.eval_metric) == 1 and config.eval_metric[0] == 'mrr' \
-           or len(config.eval_metric) >= 1 and all(
-        (x.startswith(SUPPORTED_HIT_AT_METRICS) for x in config.eval_metric)), \
-        "GraphStorm does not support computing MRR and Hit@K metrics at the same time."
+    logging.warning("GraphStorm does not support computing MRR and Hit@K metrics at the "
+                    "same time. If both metrics are given, only returns 'mrr'")
     if not config.no_validation:
         infer_idxs = infer_data.get_edge_test_set(config.eval_etype)
         if len(config.eval_metric) == 0 or 'mrr' in config.eval_metric:
