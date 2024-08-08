@@ -103,7 +103,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         Parameters
         ----------
         train_loader: GSgnnEdgeDataLoader
-            Edge dataloader for mini-batch sampling the training set and train the model.
+            Edge dataloader for mini-batch sampling the training set.
         num_epochs: int
             The max number of epochs used to train the model.
         val_loader: GSgnnEdgeDataLoader
