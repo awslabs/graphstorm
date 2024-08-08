@@ -229,7 +229,7 @@ class GSgnnModelBase(nn.Module):
         Parameters
         ----------
         restore_model_path : str
-            The path where the GNN model was stored.
+            The path where the model was stored.
         """
 
     @abc.abstractmethod
