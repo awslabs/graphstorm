@@ -90,7 +90,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
 
         This function performs the training for the given edge prediction model.
         It iterates over the training batches provided by the ``train_loader``
-        to compute the loss, and then performs the backwards step using trainer's
+        to compute the loss, and then performs the backward steps using trainer's
         own optimizer. 
 
         If an evaluator and a validation dataloader are added to this trainer, during
