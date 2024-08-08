@@ -657,8 +657,8 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
 
     This input layer treates node features in the same way as the ``GSNodeEncoderInputLayer``.
     In addition, the input layer adds LM layer on nodes with textual features and
-    generate LM embeddings using the LM model. The LM embeddings are then added as another node feature.
-    of node features.
+    generate LM embeddings using the LM model. The LM embeddings are then added as another type
+    of node feature.
 
     Parameters
     ----------
@@ -671,7 +671,9 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
     embed_size : int
         The output embedding size.
     num_train: int
-        The number of nodes with textual features used for LM model fine-tuning in a mini-batch. Default: 0.
+        The number of nodes with textual features used for LM model fine-tuning in a
+        mini-batch.
+        Default: 0.
     lm_infer_batch_size: int
         Batch size used for computing text embeddings for static LM model. Default: 16.
     activation : callable
