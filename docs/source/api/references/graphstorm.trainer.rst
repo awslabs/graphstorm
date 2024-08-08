@@ -3,11 +3,11 @@
 graphstorm.trainer
 =====================
 
-    GraphStorm Trainers assemble the distributed training pipeline for different tasks,
-    e.g., node classification and link prediction.
+    GraphStorm training modules assemble the distributed training pipeline for different
+    tasks, e.g., node classification and link prediction.
 
-    If possible, users should always use these Trainers to avoid handling the complexities
-    involved with the distributed data processing and model training.
+    If possible, users should always use these GraphStorm training modules to avoid handling
+    the complexities involved with the distributed data processing and model training.
 
 .. currentmodule:: graphstorm.trainer
 
