@@ -380,7 +380,7 @@ class GSgnnModelBase(nn.Module):
     def save_model(self, model_path):
         ''' Save a trained model.
 
-        When saving a GNN model, need to save both the dense parameters and sparse parameters.
+        When saving a model, need to save both the dense parameters and sparse parameters.
 
         Examples
         --------
