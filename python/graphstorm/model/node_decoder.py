@@ -82,7 +82,7 @@ class EntityClassifier(GSLayer):
         return th.matmul(inputs, self.decoder)
 
     def predict(self, inputs):
-        """ Node classification decoder predict computation.
+        """ Node classification prediction computation.
 
         Parameters
         ----------
