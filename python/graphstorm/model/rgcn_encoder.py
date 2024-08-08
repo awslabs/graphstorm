@@ -274,7 +274,7 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
     Parameters
     ----------
     g: DistGraph
-        The distributed distributed graph.
+        The distributed graph.
     h_dim: int
         Hidden dimension.
     out_dim: int
