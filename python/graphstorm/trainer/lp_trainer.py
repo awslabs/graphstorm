@@ -328,7 +328,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         model : GSgnnLinkPredictionModelBase
             The GNN model for link prediction, which could be a model class inherited from the
             ``GSgnnLinkPredictionModelBase``, or a model class that inherits both the
-            ``GSgnnModelBase`` and the ``GSgnnLinkPredictionModelInterface`` class.
+            ``GSgnnModelBase`` and the ``GSgnnLinkPredictionModelInterface``.
         data : GSgnnData
             The ``GSgnnData`` associated with dataloaders.
         val_loader: GSgnnLinkPredictionDataLoader
