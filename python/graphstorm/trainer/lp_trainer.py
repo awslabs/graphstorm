@@ -108,16 +108,13 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         Parameters
         ----------
         train_loader: GSgnnLinkPredictionDataLoader
-            LinkPrediction dataloader for mini-batch sampling the training set and train the model.
+            LinkPrediction dataloader for mini-batch sampling the training set.
         num_epochs: int
             The max number of epochs used to train the model.
         val_loader: GSgnnLinkPredictionDataLoader
-            LinkPrediction dataloader for mini-batch sampling the validation set and computing
-            validation scores. The validation scores are used for selecting top
-            models. Default: None.
+            LinkPrediction dataloader for mini-batch sampling the validation set. Default: None.
         test_loader: GSgnnLinkPredictionDataLoader
-            LinkPrediction dataloader for mini-batch sampling the test set and computing test
-            scores. Default: None.
+            LinkPrediction dataloader for mini-batch sampling the test set. Default: None.
         use_mini_batch_infer: bool
             Whether to use mini-batch for inference. Default: True.
         save_model_path: str
@@ -335,12 +332,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         data : GSgnnData
             The ``GSgnnData`` associated with dataloaders.
         val_loader: GSgnnLinkPredictionDataLoader
-            Link prediction dataloader for mini-batch sampling the validation set and computing
-            validation scores. The validation scores are used for selecting top
-            models. Default: None.
+            Link prediction dataloader for mini-batch sampling the validation set. Default: None.
         test_loader: GSgnnLinkPredictionDataLoader
-            Link prediction dataloader for mini-batch sampling the test set and computing test
-            scores. Default: None.
+            Link prediction dataloader for mini-batch sampling the test set. Default: None.
         total_steps: int
             The total number of iterations.
         edge_mask_for_gnn_embeddings : str

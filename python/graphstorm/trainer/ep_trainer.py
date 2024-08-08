@@ -107,12 +107,10 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
         num_epochs: int
             The max number of epochs used to train the model.
         val_loader: GSgnnEdgeDataLoader
-            Edge dataloader for mini-batch sampling the validation set and computing
-            validation scores. The validation scores are used for selecting top
-            models. Default: None.
+            Edge dataloader for mini-batch sampling the validation set.
+            Default: None.
         test_loader: GSgnnEdgeDataLoader
-            Edge dataloader for mini-batch sampling the test set and computing test
-            scores. Default: None.
+            Edge dataloader for mini-batch sampling the test set. Default: None.
         use_mini_batch_infer: bool
             Whether to use mini-batch for inference. Default: True.
         save_model_path: str
@@ -333,12 +331,9 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             ``GSgnnEdgeModelBase``, or a model class that inherits both the ``GSgnnModelBase``
             and the ``GSgnnEdgeModelInterface`` class.
         val_loader: GSgnnEdgeDataLoader
-            Edge dataloader for mini-batch sampling the validation set and computing
-            validation scores. The validation scores are used for selecting top
-            models. Default: None.
+            Edge dataloader for mini-batch sampling the validation set. Default: None.
         test_loader: GSgnnEdgeDataLoader
-            Edge dataloader for mini-batch sampling the test set and computing test
-            scores. Default: None.
+            Edge dataloader for mini-batch sampling the test set. Default: None.
         use_mini_batch_infer: bool
             Whether to use mini-batch for inference. Default: True.
         total_steps: int
