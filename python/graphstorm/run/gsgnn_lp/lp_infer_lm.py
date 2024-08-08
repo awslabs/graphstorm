@@ -33,13 +33,6 @@ from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.utils import get_device
 
-def assert_valid_eval_metric(eval_metric):
-    # TODO: to create a generic evaluator for LP tasks
-    assert len(eval_metric) == 1 and eval_metric[0] == 'mrr' \
-           or len(eval_metric) >= 1 and all(
-        [x.startswith(SUPPORTED_HIT_AT_METRICS) for x in eval_metric]), \
-        "GraphStorm does not support computing MRR and Hit@K metrics at the same time."
-
 def main(config_args):
     """ main function
     """
@@ -57,7 +50,11 @@ def main(config_args):
                         model_layer_to_load=config.restore_model_layers)
     infer = GSgnnLinkPredictionInferrer(model)
     infer.setup_device(device=get_device())
-    assert_valid_eval_metric(config.eval_metric)
+    # TODO: to create a generic evaluator for LP tasks
+    assert len(config.eval_metric) == 1 and config.eval_metric[0] == 'mrr' \
+           or len(config.eval_metric) >= 1 and all(
+        (x.startswith(SUPPORTED_HIT_AT_METRICS) for x in config.eval_metric)), \
+        "GraphStorm does not support computing MRR and Hit@K metrics at the same time."
     if not config.no_validation:
         infer_idxs = infer_data.get_edge_test_set(config.eval_etype)
         if len(config.eval_metric) == 0 or 'mrr' in config.eval_metric:
