@@ -307,7 +307,7 @@ class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
     Parameters
     -----------
     g: DistGraph
-        The distributed distributed graph.
+        The input distributed graph.
     hid_dim: int
         Hidden dimension size.
     out_dim: int
