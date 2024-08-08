@@ -25,8 +25,7 @@ from ..utils import sys_tracker, get_rank, barrier
 class GSgnnEmbGenInferer(GSInferrer):
     """ Inferrer for embedding generation tasks.
 
-    ``GSgnnEmbGenInferer`` inherits from the ``GSInferrer`` and use the functions
-    provided by ``GSInferrer`` to define the ``infer()`` method that performs one work:
+    ``GSgnnEmbGenInferer`` define the ``infer()`` method that performs one work:
 
     * Generate node embeddings and save to disk.
 
@@ -53,7 +52,7 @@ class GSgnnEmbGenInferer(GSInferrer):
             List of node types to compute embeddings in the format of
             [ntype1, ntype2, ...].
         save_embed_path : str
-            The path where the GNN embeddings will be saved. Must provide.
+            The path where the GNN embeddings will be saved.
         eval_fanout: list of int
             Neighbor sampling fanout of each GNN layers used in evaluation and inference.
         use_mini_batch_infer: bool
