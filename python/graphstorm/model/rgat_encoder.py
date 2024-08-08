@@ -182,7 +182,7 @@ class RelationalAttLayer(nn.Module):
 
         Returns
         -------
-        dict of Tensor: New node features for each node type in the format of {ntype: tensor}.
+        dict of Tensor: New node embeddings for each node type in the format of {ntype: tensor}.
         """
         g = g.local_var()
 
@@ -335,7 +335,7 @@ class RelationalGATEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         Returns
         ----------
         h: dict of Tensor
-            Output node features for each node type in the format of {ntype: tensor}.
+            Output node embeddings for each node type in the format of {ntype: tensor}.
         """
         for layer, block in zip(self.layers, blocks):
             h = layer(block, h)

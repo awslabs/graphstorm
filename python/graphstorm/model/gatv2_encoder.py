@@ -112,7 +112,7 @@ class GATv2Conv(nn.Module):
 
         Returns
         -------
-        dict of Tensor: New node features for the default node type in the format of
+        dict of Tensor: New node embeddings for the default node type in the format of
             {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` could
             be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
             cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
@@ -233,7 +233,7 @@ class GATv2Encoder(GraphConvEncoder):
         Returns
         -------
         h: dict of Tensor
-            Node features for the default node type in the format of
+            New node embeddings for the default node type in the format of
             {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` could
             be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
             cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.

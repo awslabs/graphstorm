@@ -128,7 +128,7 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
             The input node features of the message passing graphs.
         _ : This GNN node model doesn't support edge features for now.
         labels: dict of Tensor
-            The labels of the predicted nodes.
+            The labels of the predicted nodes in the format of {target_ntype: labels}.
         input_nodes: dict of Tensors
             The input nodes of a mini-batch.
 

@@ -213,7 +213,7 @@ class HGTLayer(nn.Module):
         Returns
         -------
         new_h: dict of Tensor
-            New node features for each node type in the format of {ntype: tensor}.
+            New node embeddings for each node type in the format of {ntype: tensor}.
         """
         # pylint: disable=no-member
         with g.local_scope():
@@ -415,7 +415,7 @@ class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         Returns
         ----------
         h: dict of Tensor
-            Output node features for each node type in the format of {ntype: tensor}.
+            New node embeddings for each node type in the format of {ntype: tensor}.
         """
         for layer, block in zip(self.layers, blocks):
             h = layer(block, h)

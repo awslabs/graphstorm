@@ -201,7 +201,7 @@ class RelGraphConvLayer(nn.Module):
 
         Returns
         -------
-        dict of Tensor: New node features for each node type in the format of {ntype: tensor}.
+        dict of Tensor: New node embeddings for each node type in the format of {ntype: tensor}.
         """
         g = g.local_var()
         if self.use_weight:
@@ -378,7 +378,7 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         Returns
         ----------
         h: dict of Tensor
-            Output node features for each node type in the format of {ntype: tensor}.
+            New node embeddings for each node type in the format of {ntype: tensor}.
         """
         for layer, block in zip(self.layers, blocks):
             h = layer(block, h)
