@@ -378,7 +378,7 @@ class GSgnnModelBase(nn.Module):
             logging.info('Time on load model: %.3f seconds', time.time() - start_load_t)
 
     def save_model(self, model_path):
-        ''' Save a GNN model.
+        ''' Save a trained model.
 
         When saving a GNN model, need to save both the dense parameters and sparse parameters.
 
