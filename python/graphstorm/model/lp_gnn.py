@@ -32,9 +32,12 @@ class GSgnnLinkPredictionModelInterface:
         node_feats, edge_feats, pos_edge_feats=None, neg_edge_feats=None, input_nodes=None):
         """ The forward function for link prediction.
 
-        This method is used for training. It takes blocks (containing the graph structure),
+        This method is used for training. It takes a list of DGL message flow graphs (MFGs),
         node features, and edge features of a mini-batch as inputs, and
-        computes the loss of the model in the mini-batch as the return value.
+        computes the loss of the model in the mini-batch as the return value. More
+        detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+        Overview
+        <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
 
         Parameters
         ----------

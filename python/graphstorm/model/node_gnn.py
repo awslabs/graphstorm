@@ -36,7 +36,7 @@ class GSgnnNodeModelInterface:
     def forward(self, blocks, node_feats, edge_feats, labels, input_nodes=None):
         """ The forward function for node prediction.
 
-        This method is used for training. It takes blocks (containing the graph structure),
+        This method is used for training. It takes a list of DGL message flow graphs (MFGs),
         node features, edge features, and node labels of a mini-batch as inputs, and
         computes the loss of the model in the mini-batch as the return value.
 
@@ -62,9 +62,11 @@ class GSgnnNodeModelInterface:
     def predict(self, blocks, node_feats, edge_feats, input_nodes, return_proba):
         """ Make prediction on the input nodes.
 
-        This method is used for inference. It takes blocks (containing the graph structure),
+        This method is used for inference. It takes a list of DGL message flow graphs (MFGs),
         node features, edge features, and input node of a mini-batch as input, and
-        computes the predictions of the input nodes.
+        computes the predictions of the input nodes. More detailed information about DGL MFG
+        can be found in `DGL Neighbor Sampling Overview
+        <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
 
         Parameters
         ----------
@@ -116,9 +118,12 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
     def forward(self, blocks, node_feats, _, labels, input_nodes=None):
         """ The forward function for node prediction.
 
-        This method is used for training. It takes blocks (containing the graph structure),
+        This method is used for training. It takes a list of DGL message flow graphs (MFGs),
         node features, and node labels of a mini-batch as inputs, and
-        computes the loss of the model in the mini-batch as the return value.
+        computes the loss of the model in the mini-batch as the return value. More
+        detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+        Overview
+        <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
 
         Parameters
         ----------
