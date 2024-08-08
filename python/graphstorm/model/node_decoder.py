@@ -179,7 +179,7 @@ class EntityRegression(GSLayer):
         return th.matmul(inputs, self.decoder)
 
     def predict(self, inputs):
-        """ Node regression decoder predict computation.
+        """ Node regression prediction computation.
 
         Parameters
         ----------
