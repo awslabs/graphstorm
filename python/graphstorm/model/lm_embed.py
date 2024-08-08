@@ -670,7 +670,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
     embed_size : int
         The output embedding size.
     num_train: int
-        The number of nodes with textual features used for LM embedding. Default: 0.
+        The number of nodes with textual features used for LM model fine-tuning in a mini-batch. Default: 0.
     lm_infer_batch_size: int
         Batch size used for computing text embeddings for static LM model. Default: 16.
     activation : callable
