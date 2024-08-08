@@ -560,7 +560,7 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
     def prepare(self, g):
         """ Preparing input layer for training or inference.
         
-        If the number of nodes for LM embedding, freeze this layer.
+        If the number of nodes for LM model finetuning is zero, freeze this layer.
         """
         if self.num_train == 0:
             self.freeze(g)
