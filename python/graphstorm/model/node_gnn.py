@@ -117,7 +117,7 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
         """ The forward function for node prediction.
 
         This method is used for training. It takes blocks (containing the graph structure),
-        node features, and node labels of a mini-batch as input, and
+        node features, and node labels of a mini-batch as inputs, and
         computes the loss of the model in the mini-batch as the return value.
 
         Parameters
