@@ -543,18 +543,18 @@ if __name__ == '__main__':
     test_LinkPredictionMetrics()
     test_compute_hit_at_link_prediction()
 
-    # test_ClassificationMetrics()
-    # test_compute_hit_at_classification()
-    #
-    # test_compute_mse()
-    # test_compute_rmse()
-    #
-    # test_eval_roc_auc()
-    # test_compute_roc_auc()
-    # test_compute_per_class_roc_auc()
-    #
-    # test_compute_f1_score()
-    #
-    # test_eval_acc()
-    #
-    # test_compute_precision_recall_auc()
+    test_ClassificationMetrics()
+    test_compute_hit_at_classification()
+
+    test_compute_mse()
+    test_compute_rmse()
+
+    test_eval_roc_auc()
+    test_compute_roc_auc()
+    test_compute_per_class_roc_auc()
+
+    test_compute_f1_score()
+
+    test_eval_acc()
+
+    test_compute_precision_recall_auc()

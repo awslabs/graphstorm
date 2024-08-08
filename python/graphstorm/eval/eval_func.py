@@ -264,13 +264,13 @@ def compute_hit_at_link_prediction(ranking, k=100):
         Parameters
         ----------
         ranking: tensor
-            ranking of each positive edge
+            A tensor for the ranking of positive edges
         k: int
             Hit@K
 
         Returns
         -------
-        metric: float
+        float: Hit at K score
     """
     assert len(ranking.shape) == 1 or (len(ranking.shape) == 2 and ranking.shape[1] == 1), \
         "The ranking must be a 1D tensor or a 2D tensor with the second dimension of 1. "
@@ -280,15 +280,6 @@ def compute_hit_at_link_prediction(ranking, k=100):
 
     metric = th.div(th.sum(ranking <= k), len(ranking))
     return metric
-
-    # preds = preds[:,1]
-    # if len(labels.shape) == 2:
-    #     labels = th.squeeze(labels)
-    # sort_idx = th.argsort(preds, descending=True)
-    # hit_idx = sort_idx[:k]
-    # hit_labels = labels[hit_idx]
-    # return th.div(th.sum(hit_labels), th.sum(labels)).item()
-
 
 def eval_roc_auc(logits,labels):
     ''' Compute roc_auc score.
