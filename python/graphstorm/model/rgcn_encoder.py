@@ -88,7 +88,7 @@ class RelGraphConvLayer(nn.Module):
     activation: callable
         Activation function. Default: None.
     self_loop: bool
-        Whether to include self loop message. Default: False.
+        Whether to include self loop message. Default: True.
     dropout: float
         Dropout rate. Default: 0.
     num_ffn_layers_in_gnn: int
@@ -108,7 +108,7 @@ class RelGraphConvLayer(nn.Module):
                  weight=True,
                  bias=True,
                  activation=None,
-                 self_loop=False,
+                 self_loop=True,
                  dropout=0.0,
                  num_ffn_layers_in_gnn=0,
                  ffn_activation=F.relu,
