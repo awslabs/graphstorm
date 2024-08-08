@@ -56,7 +56,7 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
         data: GSgnnData
             The GraphStorm dataset
         loader : GSgnnLinkPredictionTestDataLoader
-            Dataloader for link prediction task.
+            Link prediction dataloader for link prediction task.
         save_embed_path : str
             The path where the GNN embeddings will be saved.
         edge_mask_for_gnn_embeddings : str

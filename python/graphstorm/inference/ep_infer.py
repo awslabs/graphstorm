@@ -55,7 +55,7 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
         Parameters
         ----------
         loader : GSEdgeDataLoader
-            Dataloader for edge prediction task.
+            Edge dataloader for edge prediction task.
         save_embed_path : str
             The path where the GNN embeddings will be saved.
         save_prediction_path : str

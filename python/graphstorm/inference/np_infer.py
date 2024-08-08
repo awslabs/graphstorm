@@ -55,7 +55,7 @@ class GSgnnNodePredictionInferrer(GSInferrer):
         Parameters
         ----------
         loader : GSNodeDataLoader
-            Dataloader for node prediction task.
+            Node dataloader for node prediction task.
         save_embed_path : str
             The path where the GNN embeddings will be saved.
         save_prediction_path : str
