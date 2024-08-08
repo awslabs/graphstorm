@@ -2583,7 +2583,7 @@ class GSConfig:
                             f"in {SUPPORTED_CLASSIFICATION_METRICS}" \
                             f"but get {self._eval_metric}"
                     eval_metric = [eval_metric]
-                elif isinstance(self._eval_metric, list) and len(self._eval_metric) > 0:
+                elif isinstance(self._eval_metric, list):
                     eval_metric = []
                     for metric in self._eval_metric:
                         metric = metric.lower()
