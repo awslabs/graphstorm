@@ -83,7 +83,7 @@ class GSgnnNodeModelInterface:
         Returns
         -------
         Tensor, or dict of Tensor:
-            GNN prediction results. Return results of all dimensions when ``return_proba``
+            Prediction results. Return results of all dimensions when ``return_proba``
             is True, otherwise return the argmax results.
         Tensor, or dict of Tensor:
             The GNN embeddings.
