@@ -1,7 +1,7 @@
 .. _gsprocessing_prerequisites_index:
 
 ===============================================
-Distributed GraphStorm Processing
+Distributed Graph Processing
 ===============================================
 
 GraphStorm Distributed Data Processing (GSProcessing) allows you to process
@@ -26,3 +26,5 @@ The second section demonstrates how to set up GSProcessing for distributed proce
 
   gs-processing-getting-started.rst
   distributed-processing-setup.rst
+  aws-infra/index.rst
+  input-configuration.rst

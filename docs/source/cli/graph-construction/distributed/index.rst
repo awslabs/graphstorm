@@ -29,8 +29,6 @@ The final section shows an example to quickly start GSProcessing and GSPartition
    :maxdepth: 1
    :glob:
 
-   prerequisites/index.rst
-   input-configuration.rst
-   aws-infra/index.rst
+   gsprocessing/index.rst
    gspartition/index.rst
    example.rst
