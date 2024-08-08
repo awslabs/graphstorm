@@ -59,7 +59,7 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
         save_embed_path : str
             The path where the GNN embeddings will be saved.
         save_prediction_path : str
-            The path where the prediction results will be saved. If is None, will not
+            The path where the prediction results will be saved. If None, will not
             save the predictions.
             Default: None.
         use_mini_batch_infer: bool
