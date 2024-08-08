@@ -7,7 +7,7 @@ graphstorm.inference
     tasks, e.g., node classification, and link prediction.
 
     If possible, users should always use these GraphStorm inference modules to avoid handling
-    the complexities involved with the distributed data processing and model inference.
+    the complexities involved with the distributed data loading and model inference.
 
 .. currentmodule:: graphstorm.inference
 
