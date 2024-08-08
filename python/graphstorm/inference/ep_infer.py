@@ -33,7 +33,7 @@ class GSgnnEdgePredictionInferrer(GSInferrer):
     provided by ``GSInferrer`` to define the ``infer()`` method that performs three works:
 
     * Generate node embeddings and save to disk.
-    * Comput inference results for edges with target edge type.
+    * Compute inference results for edges with target edge type.
     * (Optional) Evaluate the model performance on a test set if given.
 
     Parameters
