@@ -177,7 +177,7 @@ Below shows an example that contains one node type and an edge type. For a real 
 Graph Partition
 ******************
 
-For users who are already familiar with DGL and know how to construct DGL graph, GraphStorm provides two graph partition tools to partition DGL graphs into the required input format for GraphStorm launch tool for training and inference.
+For users who are already familiar with DGL and know how to construct DGL graphs, GraphStorm provides two graph partition tools to partition DGL graphs into the required input format for GraphStorm launch tool for training and inference.
 
 * `partition_graph.py <https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph.py>`_: for Node/Edge Classification/Regress task graph partition.
 * `partition_graph_lp.py <https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph_lp.py>`_: for Link Prediction task graph partition.
