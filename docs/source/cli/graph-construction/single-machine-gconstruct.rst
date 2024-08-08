@@ -187,7 +187,7 @@ For users who are already familiar with DGL and know how to construct DGL graphs
 
 - **-\-dataset**: (**Required**) the graph dataset name defined for the saved DGL graph file.
 - **-\-filepath**: (**Required**) the file path of the saved DGL graph file.
-- **-\-target-ntype**: the node type for making prediction, required for node classification/regression tasks. This argument is associated with the node type having labels. Current GraphStorm supports **one** predict node type only.
+- **-\-target-ntype**: the node type for making prediction, required for node classification/regression tasks. This argument is associated with the node type having labels. Current GraphStorm supports **one** prediction node type only.
 - **-\-ntype-task**: the node type task to perform. Only support ``classification`` and ``regression`` so far. Default is ``classification``.
 - **-\-nlabel-field**: the field that stores labels on the predict node type, **required** if set the **target-ntype**. The format is ``nodetype:labelname``, e.g., `"paper:label"`.
 - **-\-target-etype**: the canonical edge type for making prediction, **required** for edge classification/regression tasks. This argument is associated with the edge type having labels. Current GraphStorm supports **one** predict edge type only. The format is ``src_ntype,etype,dst_ntype``, e.g., `"author,write,paper"`.
