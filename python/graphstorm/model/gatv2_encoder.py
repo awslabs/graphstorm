@@ -106,14 +106,14 @@ class GATv2Conv(nn.Module):
             Input DGL heterogenous graph.
         inputs: dict of Tensor
             Node features for the default node type in the format of
-            {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` could
+            {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` can
             be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
             cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
 
         Returns
         -------
         dict of Tensor: New node embeddings for the default node type in the format of
-            {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` could
+            {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` can
             be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
             cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
         """
@@ -229,7 +229,7 @@ class GATv2Encoder(GraphConvEncoder):
             <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
         h: dict of Tensor
             Node features for the default node type in the format of
-            {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` could
+            {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` can
             be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
             cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
 
@@ -237,7 +237,7 @@ class GATv2Encoder(GraphConvEncoder):
         -------
         h: dict of Tensor
             New node embeddings for the default node type in the format of
-            {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` could
+            {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` can
             be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
             cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
         """
