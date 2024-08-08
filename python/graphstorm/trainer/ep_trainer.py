@@ -119,7 +119,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
             Default: None.
         save_model_frequency: int
             The number of iterations to train the model before saving a model checkpoint. 
-            Default: -1, meaning only save model after each epoch.
+            Default: -1, meaning only save a model after each epoch.
         save_perf_results_path: str
             The path of the file where the performance results are saved. Default: None.
         freeze_input_layer_epochs: int
