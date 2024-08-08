@@ -33,11 +33,9 @@ from ..utils import barrier, is_distributed, get_backend
 class GSgnnEdgePredictionTrainer(GSgnnTrainer):
     """ Trainer for edge prediction tasks.
 
-    This trainer is used to train models for edge prediction tasks,
-    such as edge classification and edge regression.
-
-    ``GSgnnEdgePredictionTrainer`` inherits from ``GSgnnTrainer`` and use the functions
-    provided by ``GSgnnTrainer`` to define two main functions: 
+    ``GSgnnEdgePredictionTrainer`` is used to train models for edge prediction tasks,
+    such as edge classification and edge regression. ``GSgnnEdgePredictionTrainer``
+    define two main functions: 
 
     * ``fit()``: performs the training for the model provided to this trainer
       when the object is initialized, and;

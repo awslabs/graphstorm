@@ -29,8 +29,7 @@ from ..utils import sys_tracker, get_rank, barrier
 class GSgnnEdgePredictionInferrer(GSInferrer):
     """ Inferrer for edge prediction tasks.
 
-    ``GSgnnEdgePredictionInferrer`` inherits from the ``GSInferrer`` and use the functions
-    provided by ``GSInferrer`` to define the ``infer()`` method that performs three works:
+    ``GSgnnEdgePredictionInferrer`` defines the ``infer()`` method that performs three works:
 
     * Generate node embeddings and save to disk.
     * Compute inference results for edges with target edge type.

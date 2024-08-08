@@ -31,8 +31,7 @@ from ..utils import sys_tracker, get_rank, barrier
 class GSgnnNodePredictionInferrer(GSInferrer):
     """ Inferrer for node prediction tasks.
 
-    ``GSgnnNodePredictionInferrer`` inherits from the ``GSInferrer`` and use the functions
-    provided by ``GSInferrer`` to define the ``infer()`` method that performs three works:
+    ``GSgnnNodePredictionInferrer`` defines the ``infer()`` method that performs three works:
 
     * Generate node embeddings and save to disk.
     * Comput inference results for nodes with target node type.

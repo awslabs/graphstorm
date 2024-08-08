@@ -32,11 +32,9 @@ from ..utils import barrier, is_distributed, get_backend
 class GSgnnNodePredictionTrainer(GSgnnTrainer):
     """ Trainer for node prediction tasks.
 
-    This trainer is used to train models for node prediction tasks,
-    such as node classification and node regression.
-
-    ``GSgnnNodePredictionTrainer`` inherits from ``GSgnnTrainer`` and use the functions
-    provided by ``GSgnnTrainer`` to define two main functions: 
+    ``GSgnnNodePredictionTrainer`` is used to train models for node prediction tasks,
+    such as node classification and node regression. ``GSgnnNodePredictionTrainer``
+    defines two main functions: 
 
     * ``fit()``: performs the training for the model provided to this trainer
       when the object is initialized, and;

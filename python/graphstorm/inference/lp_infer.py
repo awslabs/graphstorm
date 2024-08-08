@@ -29,8 +29,7 @@ from ..utils import sys_tracker, get_rank, barrier
 class GSgnnLinkPredictionInferrer(GSInferrer):
     """ Inferrer for link prediction tasks.
 
-    ``GSgnnLinkPredictionInferrer`` inherits from the ``GSInferrer`` and use the functions
-    provided by ``GSInferrer`` to define the ``infer()`` method that performs two works:
+    ``GSgnnLinkPredictionInferrer`` defines the ``infer()`` method that performs two works:
 
     * Generate node embeddings and save to disk.
     * (Optional) Evaluate the model performance on a test set if given.

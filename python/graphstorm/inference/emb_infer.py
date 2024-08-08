@@ -25,7 +25,7 @@ from ..utils import sys_tracker, get_rank, barrier
 class GSgnnEmbGenInferer(GSInferrer):
     """ Inferrer for embedding generation tasks.
 
-    ``GSgnnEmbGenInferer`` define the ``infer()`` method that performs one work:
+    ``GSgnnEmbGenInferer`` defines the ``infer()`` method that performs one work:
 
     * Generate node embeddings and save to disk.
 

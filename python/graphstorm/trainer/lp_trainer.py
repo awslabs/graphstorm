@@ -37,11 +37,8 @@ from ..utils import barrier, is_distributed
 class GSgnnLinkPredictionTrainer(GSgnnTrainer):
     """ Trainer for link prediction tasks.
 
-    This is a high-level trainer wrapper that can be used directly to train
-    a link prediction model.
-
-    ``GSgnnLinkPredictionTrainer`` inherits from ``GSgnnTrainer`` and use the functions
-    provided by ``GSgnnTrainer`` to define two main functions: 
+    ``GSgnnLinkPredictionTrainer`` is a high-level trainer wrapper that can be used directly
+    to train a link prediction model. ``GSgnnLinkPredictionTrainer`` define two main functions:
 
     * ``fit()``: performs the training for the model provided to this trainer
       when the object is initialized, and;
