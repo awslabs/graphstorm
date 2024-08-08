@@ -243,7 +243,7 @@ class GSgnnModelBase(nn.Module):
 
         Example Implementation:
         ------------------------
-        The code below provides examplary implementation of this abstract method.
+        The code below provides an examplary implementation of this abstract method.
 
         .. code:: python
 
