@@ -61,8 +61,8 @@ def main(config_args):
             infer.setup_evaluator(
                 GSgnnMrrLPEvaluator(config.eval_frequency))
         else:
-            infer.setup_evaluator(
-                GSgnnHitsLPEvaluator(config.eval_frequency, eval_metric_list=config.eval_metric))
+            infer.setup_evaluator(GSgnnHitsLPEvaluator(
+                config.eval_frequency, eval_metric_list=config.eval_metric))
         assert len(infer_idxs) > 0, "There is not test data for evaluation."
     else:
         infer_idxs = infer_data.get_edge_infer_set(config.eval_etype)

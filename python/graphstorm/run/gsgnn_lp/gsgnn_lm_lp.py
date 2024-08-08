@@ -47,33 +47,33 @@ def get_evaluator(config):
     if config.report_eval_per_type:
         if 'mrr' in config.eval_metric:
             return GSgnnPerEtypeMrrLPEvaluator(eval_frequency=config.eval_frequency,
-                                               major_etype=config.model_select_etype,
-                                               use_early_stop=config.use_early_stop,
-                                               early_stop_burnin_rounds=config.early_stop_burnin_rounds,
-                                               early_stop_rounds=config.early_stop_rounds,
-                                               early_stop_strategy=config.early_stop_strategy)
+                                   major_etype=config.model_select_etype,
+                                   use_early_stop=config.use_early_stop,
+                                   early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                   early_stop_rounds=config.early_stop_rounds,
+                                   early_stop_strategy=config.early_stop_strategy)
         else:
             return GSgnnPerEtypeHitsLPEvaluator(eval_frequency=config.eval_frequency,
-                                                eval_metric_list=config.eval_metric,
-                                                major_etype=config.model_select_etype,
-                                                use_early_stop=config.use_early_stop,
-                                                early_stop_burnin_rounds=config.early_stop_burnin_rounds,
-                                                early_stop_rounds=config.early_stop_rounds,
-                                                early_stop_strategy=config.early_stop_strategy)
+                                    eval_metric_list=config.eval_metric,
+                                    major_etype=config.model_select_etype,
+                                    use_early_stop=config.use_early_stop,
+                                    early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                    early_stop_rounds=config.early_stop_rounds,
+                                    early_stop_strategy=config.early_stop_strategy)
     else:
         if 'mrr' in config.eval_metric:
             return GSgnnMrrLPEvaluator(eval_frequency=config.eval_frequency,
-                                       use_early_stop=config.use_early_stop,
-                                       early_stop_burnin_rounds=config.early_stop_burnin_rounds,
-                                       early_stop_rounds=config.early_stop_rounds,
-                                       early_stop_strategy=config.early_stop_strategy)
+                                   use_early_stop=config.use_early_stop,
+                                   early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                   early_stop_rounds=config.early_stop_rounds,
+                                   early_stop_strategy=config.early_stop_strategy)
         else:
             return GSgnnHitsLPEvaluator(eval_frequency=config.eval_frequency,
-                                        eval_metric_list=config.eval_metric,
-                                        use_early_stop=config.use_early_stop,
-                                        early_stop_burnin_rounds=config.early_stop_burnin_rounds,
-                                        early_stop_rounds=config.early_stop_rounds,
-                                        early_stop_strategy=config.early_stop_strategy)
+                                    eval_metric_list=config.eval_metric,
+                                    use_early_stop=config.use_early_stop,
+                                    early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                    early_stop_rounds=config.early_stop_rounds,
+                                    early_stop_strategy=config.early_stop_strategy)
 
 def main(config_args):
     """ main function
