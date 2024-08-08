@@ -21,7 +21,6 @@ import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnLinkPredictionInferrer
-from graphstorm.eval.eval_func import SUPPORTED_HIT_AT_METRICS
 from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnHitsLPEvaluator
 from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import (GSgnnLinkPredictionTestDataLoader,
