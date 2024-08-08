@@ -1,5 +1,5 @@
 ================================================
-Running distributed processing jobs on AWS Infra
+Running GSProcessing jobs on AWS Infra
 ================================================
 
 After successfully building the Docker image and pushing it to

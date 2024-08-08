@@ -1,7 +1,7 @@
 .. _gspartition_index:
 
 ===================================
-Running partition jobs on AWS Infra
+Distributed Graph Partition
 ===================================
 
 GraphStorm Distributed Graph Partition (GSPartition) allows users to do distributed partition on preprocessed graph data
