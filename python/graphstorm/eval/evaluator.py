@@ -1110,7 +1110,7 @@ class GSgnnHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     GS built-in evaluator for Link Prediction tasks. It uses "hit@k" as the default eval metric,
     which implements the `GSgnnLPRankingEvalInterface`.
 
-    To create a customized LP evaluator that use evaluation metric other than "hit_at_k", users might
+    To create a customized LP evaluator that use evaluation metric other than "hit@k", users might
     need to 1) define a new evaluation interface if the evaluation method requires different input
     arguments; 2) inherite the new evaluation interface in a customized LP evaluator; 3) define
     a customized LP trainer/inferrer to call the customized LP evaluator.
