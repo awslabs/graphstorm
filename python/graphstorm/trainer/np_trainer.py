@@ -66,7 +66,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
     model: GSgnnNodeModelBase
         The GNN model for node prediction, which could be a model class inherited from the
         ``GSgnnNodeModelBase``, or a model class that inherits both the ``GSgnnModelBase``
-        and the ``GSgnnNodeModelInterface`` class.
+        and the ``GSgnnNodeModelInterface``.
     topk_model_to_save: int
         The top `K` model to be saved based on evaluation results. Default: 1.
     """
