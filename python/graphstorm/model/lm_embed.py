@@ -795,7 +795,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         The LM cache is used in the following cases:
 
         1. No need to fine-tune LMs, i.e., ``num_train == 0``.
-           In this case, only generate  LM cache once before model training.
+           In this case, only generate LM cache once before model training.
         2. GNN warm up when ``lm_freeze_epochs > 0`` (controlled by trainer).
            Generate the emb_cache before model training. In the first ``lm_freeze_epochs``
            epochs, the number of nodes with text features for LM embedding will be set to 0,
