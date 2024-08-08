@@ -1107,8 +1107,8 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
 class GSgnnHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     """ Evaluator for Link Prediction tasks using ``hit@k`` as metric.
 
-    A built-in evaluator for Link Prediction tasks. It uses ``hit_at_100`` as the default eval metric,
-    which implements the ``GSgnnLPRankingEvalInterface``.
+    A built-in evaluator for Link Prediction tasks. It uses ``hit_at_100`` as the default
+    eval metric, which implements the ``GSgnnLPRankingEvalInterface``.
 
     To create a customized Link Prediction evaluator that use an evaluation metric other than
     ``hit_at_k``, users might need to 1) define a new evaluation interface if the evaluation method
@@ -1176,11 +1176,11 @@ class GSgnnHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         Returns
         -----------
         val_score: dict of float
-            Validation ``hit@k`` score in the format of  {"hit_at_k": val_score}. If the ``val_ranking``
-            is None, return {"hit_at_k": "N/A"}.
+            Validation ``hit@k`` score in the format of  {"hit_at_k": val_score}. If the
+            ``val_ranking`` is None, return {"hit_at_k": "N/A"}.
         test_score: dict of float
-            Test ``hit@k`` score in the format of {"hit_at_k": test_score}. If the ``test_ranking`` is
-            None, return {"hit_at_k": "N/A"}.
+            Test ``hit@k`` score in the format of {"hit_at_k": test_score}. If the
+            ``test_ranking`` is None, return {"hit_at_k": "N/A"}.
         """
         with th.no_grad():
             if test_rankings is not None:
@@ -1376,8 +1376,8 @@ class GSgnnPerEtypeHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfa
     def get_val_score_rank(self, val_score):
         """ Get the rank of the validation score of the ``major_etype`` initialized in class
         initialization by comparing its value to the existing historical values. If using
-        the default ``major_etype``, it will compute the rank as the summation of validation values of all
-        edge types.
+        the default ``major_etype``, it will compute the rank as the summation of validation
+        values of all edge types.
 
         Parameters
         ----------
