@@ -306,7 +306,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         model: GSgnnNodeModelBase
             The GNN model for node prediction, which could be a model class inherited from the
             ``GSgnnNodeModelBase``, or a model class that inherits both the ``GSgnnModelBase``
-            and the ``GSgnnNodeModelInterface`` class.
+            and the ``GSgnnNodeModelInterface``.
         val_loader: GSgnnNodeDataLoader
             Node dataloader for mini-batch sampling the validation set. Default: None.
         test_loader: GSgnnNodeDataLoader
