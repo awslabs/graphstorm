@@ -407,8 +407,11 @@ class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
 
         Parameters
         ----------
-        blocks: DGL MFGs
-            Sampled subgraph in DGL MFG format.
+        blocks: list of DGL MFGs
+            Sampled subgraph in the list of DGL message flow graph (MFG) format. More
+            detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+            Overview
+            <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
         h: dict of Tensor
             Input node features for each node type in the format of {ntype: tensor}.
 

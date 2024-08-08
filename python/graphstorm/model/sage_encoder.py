@@ -233,8 +233,11 @@ class SAGEEncoder(GraphConvEncoder):
 
         Parameters
         ----------
-        blocks: DGL MFGs
-            Sampled subgraph in DGL MFG format.
+        blocks: list of DGL MFGs
+            Sampled subgraph in the list of DGL message flow graph (MFG) format. More
+            detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+            Overview
+            <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
         h: dict of Tensor
             Node features for the default node type in the format of
             {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` could
