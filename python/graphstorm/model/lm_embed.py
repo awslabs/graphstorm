@@ -656,7 +656,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
 
     This input layer treates node features in the same way as the ``GSNodeEncoderInputLayer``.
     In addition, the input layer adds LM layer on nodes with textual features and
-    generate LM embeddings using the LM model. The LM embeddings are then added as one set
+    generate LM embeddings using the LM model. The LM embeddings are then added as another node feature.
     of node features.
 
     Parameters
