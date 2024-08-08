@@ -30,7 +30,7 @@ from pyspark.sql.types import (
     StringType,
     LongType,
 )
-from scipy.special import erfinv
+from scipy.special import erfinv  # pylint: disable=no-name-in-module
 
 from graphstorm_processing.data_transformations.dist_transformations import (
     DistNumericalTransformation,
@@ -57,6 +57,17 @@ def multi_num_df_without_missing_fixture(spark: SparkSession):
     data = [("1|10",), ("5|2",), ("3|2",), ("1|3",), ("5|2",)]
 
     schema = StructType([StructField("ratings", StringType(), True)])
+    df = spark.createDataFrame(data, schema=schema)
+
+    yield df
+
+
+@pytest.fixture(scope="function", name="multi_num_df_with_vectors")
+def multi_num_df_with_vectors_fixture(spark: SparkSession):
+    """Create a multi-numerical text DataFrame without missing data"""
+    data = [([1, 2],), ([3, 4],), ([5, 6],), ([7, 8],), ([9, 10],)]
+
+    schema = StructType([StructField("ratings", ArrayType(LongType()), True)])
     df = spark.createDataFrame(data, schema=schema)
 
     yield df
@@ -122,12 +133,11 @@ def test_numerical_transformation_without_transformation(input_df: DataFrame, ch
         assert row["salary"] == expected_salary
 
 
-@pytest.mark.parametrize("norm", ["min-max", "standard", "rank-gauss"])
 @pytest.mark.parametrize("out_dtype", ["float32", "float64"])
 def test_numerical_min_max_transformation_precision(
-    spark: SparkSession, check_df_schema, out_dtype, norm
+    spark: SparkSession, check_df_schema, out_dtype
 ):
-    """Test numerical transformation without any transformation applied"""
+    """Test min-max transformation with requested out_dtype"""
     # Adjust the number to be an integer
     high_precision_integer = 1.2345678901234562
     data = [(high_precision_integer,)]
@@ -144,13 +154,11 @@ def test_numerical_min_max_transformation_precision(
         field.dataType for field in transformed_df.schema.fields if field.name == "age"
     ][0]
     if out_dtype == "float32":
-        assert isinstance(
-            column_data_type, FloatType
-        ), f"The column 'age' is not of type FloatType."
+        assert isinstance(column_data_type, FloatType), "The column 'age' is not of type FloatType."
     elif out_dtype == "float64":
         assert isinstance(
             column_data_type, DoubleType
-        ), f"The column 'age' is not of type DoubleType."
+        ), "The column 'age' is not of type DoubleType."
 
 
 def test_numerical_transformation_with_median_imputer_and_std_norm(
@@ -341,14 +349,55 @@ def test_multi_numerical_transformation_with_array_input(spark: SparkSession, ch
         assert_array_almost_equal(row["feat"], expected_vector, decimal=3)
 
 
+def test_multinum_transform_default_args_vectors(
+    multi_num_df_with_vectors: DataFrame, check_df_schema
+):
+    """Test multi-num transformation, with default arguments, and vector DF input."""
+    col_name = "ratings"
+    dist_multi_numerical_transormation = DistMultiNumericalTransformation(cols=[col_name])
+
+    transformed_df = dist_multi_numerical_transormation.apply(multi_num_df_with_vectors)
+
+    check_df_schema(transformed_df)
+
+    transformed_rows = transformed_df.collect()
+
+    for i, row in zip(range(1, 10, 2), transformed_rows):
+        assert row[col_name][0] == float(i)
+        assert row[col_name][1] == float(i + 1)
+
+
+def test_singlenum_transform_default_args_vectors(
+    multi_num_df_with_vectors: DataFrame, check_df_schema
+):
+    """Test single-num transformation, with default arguments, and vector DF input."""
+
+    col_name = "ratings"
+    dist_multi_numerical_transormation = DistNumericalTransformation(cols=[col_name])
+
+    multi_num_df_single_val = multi_num_df_with_vectors.select(
+        F.slice(col_name, 1, 1).alias(col_name)
+    )
+
+    transformed_df = dist_multi_numerical_transormation.apply(multi_num_df_single_val)
+
+    check_df_schema(transformed_df)
+
+    transformed_rows = transformed_df.collect()
+
+    for i, row in zip(range(1, 10, 2), transformed_rows):
+        assert row[col_name][0] == float(i)
+
+
 def rank_gauss(feat, eps):
+    """RankGauss implementation for testing"""
     lower = -1 + eps
     upper = 1 - eps
-    range = upper - lower
+    value_range = upper - lower
     i = np.argsort(feat, axis=0)
     j = np.argsort(i, axis=0)
     j_range = len(j) - 1
-    divider = j_range / range
+    divider = j_range / value_range
     feat = j / divider
     feat = feat - upper
     return erfinv(feat)
@@ -356,6 +405,7 @@ def rank_gauss(feat, eps):
 
 @pytest.mark.parametrize("epsilon", [0.0, 1e-6])
 def test_rank_gauss(spark: SparkSession, check_df_schema, epsilon):
+    """Test rank-Gauss transformation for value correctness."""
     data = [(0.0,), (15.0,), (26.0,), (40.0,)]
 
     input_df = spark.createDataFrame(data, schema=["age"])
@@ -377,10 +427,11 @@ def test_rank_gauss(spark: SparkSession, check_df_schema, epsilon):
 
 @pytest.mark.parametrize("epsilon", [0.0, 1e-6])
 def test_rank_gauss_reshuffling(spark: SparkSession, check_df_schema, epsilon):
+    """Test rank-Gauss transformation results order with enforced shuffling."""
     # Create DF with 10k values
     random_values = np.random.rand(10**3, 1)
 
-    # Convert the array of values into a list of single-value lists
+    # Convert the array of values into a list of single-value tuples
     data = [(float(value),) for value in random_values]
     input_df = spark.createDataFrame(data, schema=["rand"])
     # repartition dataset

@@ -46,3 +46,4 @@ Evaluators
     GSgnnPerEtypeMrrLPEvaluator
     GSgnnHitsLPEvaluator
     GSgnnPerEtypeHitsLPEvaluator
+    GSgnnRconstructFeatRegScoreEvaluator
