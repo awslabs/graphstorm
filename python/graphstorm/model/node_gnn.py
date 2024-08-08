@@ -29,7 +29,7 @@ class GSgnnNodeModelInterface:
     """ The interface for GraphStorm node prediction model.
 
     This interface defines two main methods: ``forward()`` for training and ``predict()``
-    for inference. Node GNN models should inherite this interface and implement the two
+    for inference. Node models should inherite this interface and implement the two
     methods.
     """
     @abc.abstractmethod
