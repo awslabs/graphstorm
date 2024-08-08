@@ -102,7 +102,7 @@ class HGTLayer(nn.Module):
     activation: callable
         Activation function. Default: None.
     dropout: float
-        Dropout rate. Default: 0.
+        Dropout rate. Default: 0.2.
     norm: str
         Normalization methods. Options:``batch``, ``layer``, and ``None``. Default: ``layer``.
     num_ffn_layers_in_gnn: int
