@@ -124,7 +124,10 @@ def main(config_args):
     # Run inference on the inference dataset and save the GNN embeddings in the specified path.
     infer.infer(train_data, test_dataloader, save_embed_path=config.save_embed_path,
                 edge_mask_for_gnn_embeddings='train_mask',
-                use_mini_batch_infer=True, infer_batch_size=config.eval_batch_size)
+                use_mini_batch_infer=True, 
+                node_id_mapping_file=config.node_id_mapping_file,
+                save_embed_format=config.save_embed_format,
+                infer_batch_size=config.eval_batch_size)
 
 def generate_parser():
     """Generate an argument parser"""
