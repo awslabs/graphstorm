@@ -279,7 +279,7 @@ class GSgnnModelBase(nn.Module):
 
         Example Implementation:
         ------------------------
-        The code below provides examplary implementation of this abstract method.
+        The code below provides an examplary implementation of this abstract method.
 
         The implementation of save_sparse_model usually includes two steps:
 
