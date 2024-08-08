@@ -98,7 +98,7 @@ class EntityClassifier(GSLayer):
         return (th.sigmoid(logits) > .5).long() if self._multilabel else logits.argmax(dim=1)
 
     def predict_proba(self, inputs):
-        """ Node classification decoder predict computation and return normalized prediction
+        """ Node classification prediction computation and return normalized prediction
         results.
 
         Parameters
