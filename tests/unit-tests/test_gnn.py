@@ -152,7 +152,8 @@ def create_rgcn_node_model_with_reconstruct(data, reconstructed_embed_ntype,
                 + "probably because their neighbors don't have features."
     input_gnn = RelGraphConvLayer(4, 4,
                                   rel_names, len(rel_names),
-                                  activation=F.relu)
+                                  activation=F.relu,
+                                  self_loop=False)
     gnn_encoder = GNNEncoderWithReconstructedEmbed(gnn_encoder, input_gnn, rel_names)
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
