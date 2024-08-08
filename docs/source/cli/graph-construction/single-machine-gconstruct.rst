@@ -175,7 +175,7 @@ Below shows an example that contains one node type and an edge type. For a real 
 .. _configurations-partition:
 
 Graph Partition
-============================
+******************
 
 For users who are already familiar with DGL and know how to construct DGL graph, GraphStorm provides two graph partition tools to partition DGL graphs into the required input format for GraphStorm launch tool for training and inference.
 
@@ -183,7 +183,7 @@ For users who are already familiar with DGL and know how to construct DGL graph,
 * `partition_graph_lp.py <https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph_lp.py>`_: for Link Prediction task graph partition.
 
 `partition_graph.py <https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph.py>`_ arguments
----------------------------------------------------------------------------------------------------------------
+...........................................................................................................
 
 - **-\-dataset**: (**Required**) the graph dataset name defined for the saved DGL graph file.
 - **-\-filepath**: (**Required**) the file path of the saved DGL graph file.
@@ -207,7 +207,8 @@ For users who are already familiar with DGL and know how to construct DGL graph,
 - **-\-output**: (**Required**) the folder path that the partitioned DGL graph will be saved.
 
 `partition_graph_lp.py <https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph_lp.py>`_ arguments
-------------------------------------------------------------------------------------------------------------------------------------
+..................................................................................................................
+
 - **-\-dataset**: (**Required**) the graph name defined for the saved DGL graph file.
 - **-\-filepath**: (**Required**) the file path of the saved DGL graph file.
 - **-\-target-etypes**: (**Required**) the canonical edge type for making prediction.  GraphStorm supports **one** predict edge type only. The format is ``src_ntype,etype,dst_ntype``, e.g., `"author,write,paper"`.
