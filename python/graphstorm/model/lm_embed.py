@@ -798,7 +798,7 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
            In this case, only generate LM cache once before model training.
         2. GNN warm up when ``lm_freeze_epochs > 0`` (controlled by trainer).
            Generate the emb_cache before model training. In the first ``lm_freeze_epochs``
-           epochs, the number of nodes with text features for LM embedding will be set to 0,
+           epochs, the number of nodes with text features for LM fine-tuning will be set to 0,
            and the LM cache will not be refreshed.
         3. if ``num_train > 0``, no emb_cache is used unless Case 2.
 
