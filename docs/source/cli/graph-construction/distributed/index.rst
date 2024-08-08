@@ -1,4 +1,4 @@
-.. _distributed-gconstruction::
+.. _distributed-gconstruction:
 
 Distributed Graph Construction
 ==============================
@@ -15,7 +15,7 @@ Here is an overview of the workflow for distributed graph construction:
 * **Run GSProcessing**: Use GSProcessing to process the input data. This step prepares the data for partitioning including edge and node data, transformation details, and node id mappings.
 * **Run GSPartition**: Use GSPartition to partition the processed data into graph files suitable for distributed training. 
 
-.. figure:: ../../../../tutorial/distributed_construction.png
+.. figure:: ../../../../../tutorial/distributed_construction.png
     :align: center
 
 The following sections provide guidance on doing distributed graph construction.
