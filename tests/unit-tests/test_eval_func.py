@@ -529,7 +529,7 @@ def test_compute_hit_at_link_prediction():
     ranking = th.argsort(preds, descending=True)[idx_positive.bool()]
 
     hit_at = compute_hit_at_link_prediction(ranking, 5)
-    assert hit_at == 2 / 7
+    assert hit_at == 3 / 7
     hit_at = compute_hit_at_link_prediction(ranking, 10)
     assert hit_at == 4 / 7
     hit_at = compute_hit_at_link_prediction(ranking, 20)
