@@ -43,7 +43,7 @@ class GSgnnEmbGenInferer(GSInferrer):
             node_id_mapping_file=None,
             save_embed_format="pytorch",
             infer_batch_size=1024):
-        """ Do Embedding Generating.
+        """ Generate node embeddings and save to disk.
 
         Parameters
         ----------
