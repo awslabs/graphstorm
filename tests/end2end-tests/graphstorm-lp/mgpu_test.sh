@@ -46,7 +46,7 @@ then
     exit -1
 fi
 
-bst_cnt=$(grep "Best Test hit@1" /tmp/train_log.txt | wc -l)
+bst_cnt=$(grep "Best Test hit_at_1" /tmp/train_log.txt | wc -l)
 if test $bst_cnt -lt 1
 then
     echo "We use SageMaker task tracker, we should have Best Test hit@1"
