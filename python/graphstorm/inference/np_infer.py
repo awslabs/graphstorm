@@ -70,7 +70,7 @@ class GSgnnNodePredictionInferrer(GSInferrer):
             mapping.
             Default: None.
         return_proba : bool
-            Whether to return the predicted results, or only return the argmax ones in
+            Whether to return the predicted results, or only return the argmaxed ones in
             classification models.
         save_embed_format : str
             Specify the data format of saved embeddings. Currently only support
