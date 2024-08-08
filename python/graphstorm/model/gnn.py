@@ -348,7 +348,7 @@ class GSgnnModelBase(nn.Module):
         Parameters
         ----------
         restore_model_path : str
-            The path where the GNN model was stored.
+            The path where the model was stored.
         model_layer_to_load: list of str
             list of model layers to load. Supported layers include: "embed", "gnn",
             "decoder".
