@@ -3,27 +3,18 @@
 Distributed Graph Construction
 ==============================
 
-Beyond single-machine graph construction, distributed graph construction offers enhanced scalability
+Beyond single machine graph construction, distributed graph construction offers enhanced scalability
 and efficiency. This process involves two main steps: GraphStorm Distributed Data Processing (GSProcessing)
-and GraphStorm Distributed Graph Partitioning (GSPartition). GSProcessing will preprocess the raw data into structured
-datasets, and GSPartition will process these structured datasets to create multiple partitions in
-`DGL format <https://docs.dgl.ai/en/latest/api/python/dgl.DGLGraph.html>`_.
-
-Here is an overview of the workflow for distributed graph construction:
-
-* **Prepare input data**: GraphStorm Distributed Construction accepts tabular files in parquet/CSV format.
-* **Run GSProcessing**: Use GSProcessing to process the input data. This step prepares the data for partitioning including edge and node data, transformation details, and node id mappings.
-* **Run GSPartition**: Use GSPartition to partition the processed data into graph files suitable for distributed training. 
+and GraphStorm Distributed Graph Partitioning (GSPartition).The below diagram is an overview of the workflow for distributed graph construction.
 
 .. figure:: ../../../../../tutorial/distributed_construction.png
     :align: center
 
-The following sections provide guidance on doing distributed graph construction.
-The first section details the execution environment setup for GSProcessing.
-The second section offers examples on drafting a configuration file for a GSProcessing job.
-The third section explains how to deploy your GSProcessing job with AWS infrastructure.
-The fourth section includes how to do GSPartition with the GSProcessing output.
-The final section shows an example to quickly start GSProcessing and GSPartition.
+* **GSProcessing**: It accepts tabular files in parquet/CSV format, and prepares the raw data into structured datasets for partitioning, including edge and node data, transformation details, and node id mappings.
+* **GSPartition**: It will process these structured datasets to create multiple partitions in
+`DGL Distributed Graph <https://docs.dgl.ai/en/latest/api/python/dgl.distributed.html#distributed-graph>`_ for distributed model training and inference. 
+
+The following sections provide guidance on doing GSProcessing and GSPartition with an example that demonstrates the end-to-end distributed graph construction process.
 
 .. toctree::
    :maxdepth: 1
