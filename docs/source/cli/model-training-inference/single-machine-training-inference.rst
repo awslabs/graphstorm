@@ -1,4 +1,4 @@
-.. _single-machine-training-inference::
+.. _single-machine-training-inference:
 
 Model Training and Inference on a Single Machine
 -------------------------------------------------

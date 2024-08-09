@@ -1,6 +1,6 @@
-.. output-remapping::
+.. _output-remapping:
 
-GraphStorm Output Remapping
-----------------------------
+GraphStorm Output Node ID Remapping
+====================================
 
 (Under Construction)

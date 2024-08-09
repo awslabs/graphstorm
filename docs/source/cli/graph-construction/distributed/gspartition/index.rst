@@ -5,7 +5,9 @@ GraphStorm Distributed Graph Partition
 =======================================
 
 GraphStorm Distributed Graph Partition (GSPartition), which is built on top of the
-dgl `distributed graph partitioning pipeline <https://docs.dgl.ai/en/latest/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_, allows users to do distributed partition on the outputs of :ref:`GSProcessing<gs-processing>`. GSPartition consists of two steps: Graph Partitioning and Data Dispatching. Graph Partitioning step assigns each node to one partition and save the results as a set of files, called partition assignment. Data Dispatching step will physically partition the
+dgl `distributed graph partitioning pipeline <https://docs.dgl.ai/en/latest/guide/distributed-preprocessing.html#distributed-graph-partitioning-pipeline>`_, allows users to do distributed partition on the outputs of :ref:`GSProcessing<gs-processing>`. 
+
+GSPartition consists of two steps: Graph Partitioning and Data Dispatching. Graph Partitioning step assigns each node to one partition and save the results as a set of files, called partition assignment. Data Dispatching step will physically partition the
 graph data and dispatch them according to the partition assignment. It will generate the graph data in DGL distributed graph format, ready for GraphStorm distributed training and inference.
 
 .. note::
