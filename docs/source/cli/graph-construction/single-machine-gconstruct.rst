@@ -210,7 +210,7 @@ For users who are already familiar with DGL and know how to construct DGL graphs
 ..................................................................................................................
 - **-\-dataset**: (**Required**) the graph name defined for the saved DGL graph file.
 - **-\-filepath**: (**Required**) the file path of the saved DGL graph file.
-- **-\-target-etypes**: (**Required**) the canonical edge type for making prediction.  GraphStorm supports **one** predict edge type only. The format is ``src_ntype,etype,dst_ntype``, e.g., `"author,write,paper"`.
+- **-\-target-etypes**: (**Required**) the canonical edge types for making prediction. GraphStorm supports multiple predict edge types that are separated by a white space. The format is ``src_ntype1,etype1,dst_ntype1 src_ntype2,etype2,dst_ntype2``, e.g., `"author,write,paper paper,citing,paper"`.
 - **-\-train-pct**: a float value (\>0. and \<1.) with default value ``0.8``. If you want the partition script to split edges for training/validation/test sets, you can set this value to control the percentage of edges for training.
 - **-\-val-pct**: a float value (\>0. and \<1.) with default value ``0.1``. You can set this value to control the percentage of edges for validation. 
 
