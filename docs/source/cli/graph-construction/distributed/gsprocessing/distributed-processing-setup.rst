@@ -1,6 +1,6 @@
 .. _gsprocessing_distributed_setup:
 
-GraphStorm Processing Distributed Setup
+GSProcessing Distributed Setup
 =======================================
 
 In this guide we'll demonstrate how to prepare your environment to run

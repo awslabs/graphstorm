@@ -1,6 +1,6 @@
-======================================
-Running partition jobs on EC2 Clusters
-======================================
+===============================================
+Running partition jobs on Amazon EC2 Clusters
+===============================================
 
 Once the :ref:`distributed processing<gsprocessing_distributed_setup>` is completed,
 users can start the partition jobs. This tutorial will provide instructions on how to setup an EC2 cluster and
