@@ -23,10 +23,12 @@ from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.trainer import GSgnnLinkPredictionTrainer
 from graphstorm.dataloading import GSgnnData
-from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator
+from graphstorm.eval import (GSgnnMrrLPEvaluator, GSgnnPerEtypeMrrLPEvaluator,
+                             GSgnnHitsLPEvaluator, GSgnnPerEtypeHitsLPEvaluator)
 from graphstorm.model.utils import save_full_node_embeddings
 from graphstorm.model import do_full_graph_inference
 from graphstorm.utils import rt_profiler, sys_tracker, get_device
+from graphstorm.eval.eval_func import SUPPORTED_HIT_AT_METRICS
 
 def get_evaluator(config):
     """ Get evaluator according to config
@@ -36,21 +38,42 @@ def get_evaluator(config):
         config: GSConfig
             Configuration
     """
-    assert len(config.eval_metric) == 1, \
-        "GraphStorm doees not support computing multiple metrics at the same time."
+    # TODO: to create a generic evaluator for LP tasks
+    assert (len(config.eval_metric) == 1 and config.eval_metric[0] == 'mrr') \
+           or (len(config.eval_metric) >= 1
+               and all((x.startswith(SUPPORTED_HIT_AT_METRICS) for x in config.eval_metric))), \
+        "GraphStorm does not support computing MRR and Hit@K metrics at the same time."
+
     if config.report_eval_per_type:
-        return GSgnnPerEtypeMrrLPEvaluator(eval_frequency=config.eval_frequency,
-                                           major_etype=config.model_select_etype,
-                                           use_early_stop=config.use_early_stop,
-                                           early_stop_burnin_rounds=config.early_stop_burnin_rounds,
-                                           early_stop_rounds=config.early_stop_rounds,
-                                           early_stop_strategy=config.early_stop_strategy)
+        if 'mrr' in config.eval_metric:
+            return GSgnnPerEtypeMrrLPEvaluator(eval_frequency=config.eval_frequency,
+                                   major_etype=config.model_select_etype,
+                                   use_early_stop=config.use_early_stop,
+                                   early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                   early_stop_rounds=config.early_stop_rounds,
+                                   early_stop_strategy=config.early_stop_strategy)
+        else:
+            return GSgnnPerEtypeHitsLPEvaluator(eval_frequency=config.eval_frequency,
+                                    eval_metric_list=config.eval_metric,
+                                    major_etype=config.model_select_etype,
+                                    use_early_stop=config.use_early_stop,
+                                    early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                    early_stop_rounds=config.early_stop_rounds,
+                                    early_stop_strategy=config.early_stop_strategy)
     else:
-        return GSgnnMrrLPEvaluator(eval_frequency=config.eval_frequency,
-                                use_early_stop=config.use_early_stop,
-                                early_stop_burnin_rounds=config.early_stop_burnin_rounds,
-                                early_stop_rounds=config.early_stop_rounds,
-                                early_stop_strategy=config.early_stop_strategy)
+        if 'mrr' in config.eval_metric:
+            return GSgnnMrrLPEvaluator(eval_frequency=config.eval_frequency,
+                                   use_early_stop=config.use_early_stop,
+                                   early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                   early_stop_rounds=config.early_stop_rounds,
+                                   early_stop_strategy=config.early_stop_strategy)
+        else:
+            return GSgnnHitsLPEvaluator(eval_frequency=config.eval_frequency,
+                                    eval_metric_list=config.eval_metric,
+                                    use_early_stop=config.use_early_stop,
+                                    early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                    early_stop_rounds=config.early_stop_rounds,
+                                    early_stop_strategy=config.early_stop_strategy)
 
 def main(config_args):
     """ main function

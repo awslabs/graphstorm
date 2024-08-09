@@ -25,8 +25,9 @@ from graphstorm.eval.eval_func import (compute_mse,
                                        compute_f1_score,
                                        compute_precision_recall_auc,
                                        compute_per_class_roc_auc,
-                                       compute_hit_at_classification)
-from graphstorm.eval.eval_func import ClassificationMetrics
+                                       compute_hit_at_classification,
+                                       compute_hit_at_link_prediction)
+from graphstorm.eval.eval_func import ClassificationMetrics, LinkPredictionMetrics
 
 def test_compute_mse():
     pred64 = th.rand((100,1), dtype=th.float64)
@@ -482,8 +483,66 @@ def test_compute_hit_at_classification():
     hit_at = compute_hit_at_classification(preds, labels2, 20)
     assert hit_at == 4
 
+def test_LinkPredictionMetrics():
+    eval_metric_list = ["mrr", "hit_at_5", "hit_at_10"]
+    metric = LinkPredictionMetrics(eval_metric_list)
+
+    assert "mrr" in metric.metric_comparator
+    assert "mrr" in metric.metric_function
+    assert "mrr" in metric.metric_eval_function
+
+    assert "hit_at_5" in metric.metric_comparator
+    assert "hit_at_5" in metric.metric_function
+    assert "hit_at_5" in metric.metric_eval_function
+    assert "hit_at_10" in metric.metric_comparator
+    assert "hit_at_10" in metric.metric_function
+    assert "hit_at_10" in metric.metric_eval_function
+
+    signature = inspect.signature(metric.metric_function["hit_at_5"])
+    assert signature.parameters["k"].default == 5
+    signature = inspect.signature(metric.metric_function["hit_at_10"])
+    assert signature.parameters["k"].default == 10
+
+    metric.assert_supported_metric("mrr")
+    metric.assert_supported_metric("hit_at_5")
+    metric.assert_supported_metric("hit_at_10")
+
+    pass_assert = False
+    try:
+        metric.assert_supported_metric("hit_at_ten")
+        pass_assert = True
+    except:
+        pass_assert = False
+    assert not pass_assert
+
+def test_compute_hit_at_link_prediction():
+    preds = 1 - th.arange(100) / 120    # preds for all positive and negative samples
+    # 1 indicates positive samples
+    idx_positive = th.zeros(100)
+    idx_positive[2] = 1
+    idx_positive[4] = 1
+    idx_positive[5] = 1
+    idx_positive[7] = 1
+    idx_positive[15] = 1
+    idx_positive[21] = 1
+    idx_positive[99] = 1
+    ranking = th.argsort(preds, descending=True)[idx_positive.bool()]
+
+    hit_at = compute_hit_at_link_prediction(ranking, 5)
+    assert hit_at == 3 / 7
+    hit_at = compute_hit_at_link_prediction(ranking, 10)
+    assert hit_at == 4 / 7
+    hit_at = compute_hit_at_link_prediction(ranking, 20)
+    assert hit_at == 5 / 7
+    hit_at = compute_hit_at_link_prediction(ranking, 100)
+    assert hit_at == 7 / 7
+    hit_at = compute_hit_at_link_prediction(ranking, 200)
+    assert hit_at == 7 / 7
 
 if __name__ == '__main__':
+    test_LinkPredictionMetrics()
+    test_compute_hit_at_link_prediction()
+
     test_ClassificationMetrics()
     test_compute_hit_at_classification()
 
