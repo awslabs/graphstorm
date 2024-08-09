@@ -174,8 +174,8 @@ Below shows an example that contains one node type and an edge type. For a real 
 
 .. _configurations-partition:
 
-Graph Partition
-******************
+Graph Partition for DGL Graphs
+********************************
 
 For users who are already familiar with DGL and know how to construct DGL graphs, GraphStorm provides two graph partition tools to partition DGL graphs into the required input format for GraphStorm launch tool for training and inference.
 
