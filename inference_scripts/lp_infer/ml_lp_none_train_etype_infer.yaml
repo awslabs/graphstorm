@@ -23,3 +23,6 @@ gsf:
     lp_decoder_type: "dot_product"
     sparse_optimizer_lr: 1e-2
     use_node_embeddings: false
+  link_prediction:
+    num_negative_edges: 4
+    num_negative_edges_eval: 100
