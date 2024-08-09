@@ -44,7 +44,7 @@ class HFBertWrapper(GSFLanguageModelWrapper):
     bert_model: transformers.PreTrainedModel
         Huggingface Bert.
     num_train: int
-        Number of trainable texts
+        The number of nodes with textual features used for LM embedding.
     bert_infer_bs: int
         Batch size used for computing text embeddings for static bert
     profile: bool
@@ -243,7 +243,7 @@ def wrap_hf_bert(bert_model, num_train=0, bert_infer_bs=32, profile=False):
     bert_model: transformers.PreTrainedModel
         Huggingface Bert.
     num_train: int
-        Number of trainable texts
+        The number of nodes with textual features used for LM embedding.
     bert_infer_bs: int
         Batch size used for computing text embeddings for static bert
     profile: bool

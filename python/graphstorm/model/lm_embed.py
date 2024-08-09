@@ -57,7 +57,7 @@ class LMModels(nn.Module):
     node_lm_configs:
         A list of language model configurations.
     num_train: int
-        Number of trainable texts
+        The number of nodes with textual features used for LM model finetuning in a mini-batch.
     lm_infer_batch_size: int
         Batch size used for computing text embeddings for static lm model
     """
@@ -461,30 +461,30 @@ class LMCache:
         self._lm_emb_cache = {}
 
 class GSPureLMNodeInputLayer(GSNodeInputLayer):
-    """The input embedding layer with language model only for all nodes in a
-    heterogeneous graph.
+    """The node encoder input embedding layer with language model (LM) supported only.
 
-    The input layer only has the language model layer and each node type should
-    have text feature. The output dimension will be the same as the output
-    dimension of the language model.
+    This input layer only has the LM layer and requires all node types to
+    have textual features. The output dimension will be the same as the output
+    dimension of the LM.
 
-    Use GSLMNodeEncoderInputLayer if there are extra node features or a different
+    Use ``GSLMNodeEncoderInputLayer`` if there are extra node features or a different
     output dimension is required.
 
     Parameters
     ----------
     g: DistGraph
-        The distributed graph.
-    node_lm_configs:
+        The input DGL distributed graph.
+    node_lm_configs: LM config
         A list of language model configurations.
     num_train: int
-        Number of trainable texts. Default: 0
+        The number of nodes with textual features used for LM model finetuning in a 
+        mini-batch. Default: 0.
     lm_infer_batch_size: int
-        Batch size used for computing text embeddings for static lm model. Default: 16
+        Batch size used for computing text embeddings for static LM model. Default: 16.
     use_fp16 : bool
-        Use float16 to store LM embeddings. Default: True
+        Whether to use float16 to store LM embeddings. Default: True.
     cached_embed_path : str
-        The path where the LM embeddings are cached.
+        The path where the generated LM embeddings are cached.
 
     Examples:
     ----------
@@ -499,14 +499,15 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
                 "lm_type": "bert",
                 "model_name": "bert-base-uncased",
                 "gradient_checkpoint": True,
-                "node_types": ['a']
+                "node_types": ['ntype1', 'ntype2']
             }
         ]
         np_data = GSgnnData(...)
         model = GSgnnNodeModel(...)
         lm_train_nodes=10
-        encoder = GSPureLMNodeInputLayer(g=np_data.g, node_lm_configs=node_lm_configs,
-                                        num_train=lm_train_nodes)
+        encoder = GSPureLMNodeInputLayer(g=np_data.g,
+                                         node_lm_configs=node_lm_configs,
+                                         num_train=lm_train_nodes)
         model.set_node_input_encoder(encoder)
     """
     def __init__(self,
@@ -539,47 +540,53 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
                 "(--model-encoder-type lm)"
 
     def get_general_dense_parameters(self):
-        """ Get dense layers' parameters.
+        """ Get dense layers' model parameters of this node encoder input layer.
 
         Returns
         -------
-        list of Tensors: the dense parameters
+        empty list. There is no dense parameters in this type of input layer.
         """
         # There is no dense parameters
         return []
 
     def get_lm_dense_parameters(self):
-        """ get the language model related parameters
+        """ Get the language model related parameters.
 
         Returns
         -------
-        list of Tensors: the language model parameters.
+        list of Tensors: the language model related parameters.
         """
         return self._lm_models.parameters()
 
     def prepare(self, g):
-        # If there is no trainable nodes, freeze Bert layer.
+        """ Preparing input layer for training or inference.
+        
+        If the number of nodes for LM model finetuning is zero, freeze this layer.
+        """
         if self.num_train == 0:
             self.freeze(g)
 
     def freeze(self, _):
-        """ Generate Bert caching if needed
+        """ Generate LM cache.
+
+        The LM cache is used in the following cases:
+        
+        1. No need to fine-tune the LM, i.e., ``num_train == 0``.
+           In this case, only generate LM cache once before model training.
+        2. GNN warm up when ``lm_freeze_epochs > 0`` (controlled by trainer).
+           Generate the emb_cache before model training. In the first ``lm_freeze_epochs``
+           epochs, the number of nodes with text features for LM fine-tuning will be set to 0,
+           and the LM cache will not be refreshed.
+        3. if ``num_train > 0``, no emb_cache is used unless Case 2.
+
         """
-        # The lm_emb_cache is used in following cases:
-        # 1) We don't need to fine-tune Bert, i.e., train_nodes == 0.
-        #    In this case, we only generate bert lm_emb_cache once before model training.
-        #
-        # 2) GNN warnup when lm_freeze_epochs > 0 (controlled by trainer)
-        #    We generate the bert emb_cache before model training.
-        #    In the first lm_freeze_epochs epochs, the number of trainable text
-        #    nodes are set to 0 and the lm_emb_cache is not refreshed.
-        #
-        # 3) if train_nodes > 0, no emb_cache is used unless Case 2.
         self.lm_emb_cache.update_cache(self.lm_infer_batch_size, use_fp16=self.use_fp16)
         self.use_cache = True
 
     def unfreeze(self):
-        """ Disable Bert caching
+        """ Disable LM caching.
+        
+        If ``num_train > 0``, and not use LM cache, clear existing LM cache.
         """
         if self.num_train > 0:
             self.use_cache = False
@@ -588,32 +595,33 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
             self.lm_emb_cache.clear_cache()
 
     def require_cache_embed(self):
-        """ Whether to cache the embeddings for inference.
+        """ Ask to cache the embeddings for inference.
 
         Returns
         -------
-        Bool : return True to cache the embeddings for inference.
+        bool : return True to cache the embeddings for inference.
         """
         return True
 
     #pylint: disable=keyword-arg-before-vararg
     #pylint: disable=unused-argument
     def forward(self, input_feats, input_nodes):
-        """Forward computation
+        """ Input layer forward computation.
 
-        The forward function only computes the BERT embeddings and
-        ignore the input node features if there are node features.
+        The forward function only computes the LM embeddings and ignore the input node
+        features if there are node features.
 
         Parameters
         ----------
-        input_feats: dict
-            input features, ignored
-        input_nodes: dict
-            input node ids
+        input_feats: dict of Tensor
+            The input features in the format of {ntype: feats}.
+        input_nodes: dict of Tensor
+            The input node indexes in the format of {ntype: indexes}.
 
         Returns
         -------
-        a dict of Tensor: the node embeddings.
+        embs: a dict of Tensor
+            The projected node embeddings in the format of {ntype: emb}.
         """
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
 
@@ -629,56 +637,56 @@ class GSPureLMNodeInputLayer(GSNodeInputLayer):
 
     @property
     def in_dims(self):
-        """ The input feature size.
+        """ Return the LM embedding size.
 
-        The BERT embeddings are usually pre-computed as node features.
-        So we consider the BERT embedding size as input node feature size.
+        The LM embeddings are usually pre-computed as node features.
+        So here considers the LM embedding size as input node feature size.
         """
         return self._feat_size
 
     @property
     def out_dims(self):
+        """ Return the LM embedding size.
+        """
         return self._feat_size
 
+
 class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
-    """The input encoder layer with language model for all nodes in a heterogeneous graph.
+    """ The node encoder input layer with language model (LM) supported for all nodes
+    in a heterogeneous graph.
 
-    The input layer adds language model layer on nodes with textual node features and
-    generate LM embeddings using the LM model. The LM embeddings are then treated
-    as node features.
-
-    The input layer adds learnable embeddings on nodes if the nodes do not have features.
-    It adds a linear layer on nodes with node features and the linear layer
-    projects the node features to a specified dimension. A user can add learnable
-    embeddings on the nodes with node features. In this case, the input layer
-    combines the node features with the learnable embeddings and project them to
-    the specified dimension.
+    This input layer treates node features in the same way as the ``GSNodeEncoderInputLayer``.
+    In addition, the input layer adds LM layer on nodes with textual features and
+    generate LM embeddings using the LM model. The LM embeddings are then added as another type
+    of node feature.
 
     Parameters
     ----------
     g: DistGraph
-        The distributed graph
-    node_lm_configs:
+        The input DGL distributed graph
+    node_lm_configs: LM config
         A list of language model configurations.
     feat_size : dict of int
-        The original feat sizes of each node type
+        The original feat sizes of each node type in the format of {ntype: size}.
     embed_size : int
-        The embedding size
+        The output embedding size.
     num_train: int
-        Number of trainable texts. Default: 0
+        The number of nodes with textual features used for LM model fine-tuning in a
+        mini-batch.
+        Default: 0.
     lm_infer_batch_size: int
-        Batch size used for computing text embeddings for static lm model. Default: 16
-    activation : func
-        The activation function. Default: None
+        Batch size used for computing text embeddings for static LM model. Default: 16.
+    activation : callable
+        The activation function. Default: None.
     dropout : float
-        The dropout parameter. Default: 0.0
+        The dropout parameter. Default: 0.0.
     use_node_embeddings : bool
-        Whether we will use the node embeddings for individual nodes even when node features are
-        available. Default: False
+        Whether to use the node embeddings for individual nodes even when node features are
+        available. Default: False.
     use_fp16 : bool
-        Use float16 to store the BERT embeddings. Default: True
+        Whether to use float16 to store the BERT embeddings. Default: True.
     cached_embed_path : str
-        The path where the LM embeddings are cached.
+        The path where the generated LM embeddings are cached.
 
     Examples:
     ----------
@@ -690,11 +698,15 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         from graphstorm.dataloading import GSgnnData
         np_data = GSgnnData(...)
         model = GSgnnNodeModel(...)
-        feat_size = get_node_feat_size(np_data.g, 'feat')
-        node_lm_configs = [{"lm_type": "bert",
-                        "model_name": "bert-base-uncased",
-                        "gradient_checkpoint": True,
-                        "node_types": ['a']}]
+        feat_size = get_node_feat_size(np_data.g, "feat")
+        node_lm_configs = [
+            {
+                "lm_type": "bert",
+                "model_name": "bert-base-uncased",
+                "gradient_checkpoint": True,
+                "node_types": ['ntype1', 'ntype2']
+            }
+        ]
         lm_train_nodes=10
 
         encoder = GSLMNodeEncoderInputLayer(
@@ -750,11 +762,12 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         self._lm_models = lm_models
 
     def get_general_dense_parameters(self):
-        """ Get dense layers' parameters.
+        """ Get dense layers' model parameters of this node encoder input layer.
 
         Returns
         -------
-        list of Tensors: the dense parameters
+        params: list of Tensors
+            The dense layers' model parameters of this node encoder input layer.
         """
         params = list(self.proj_matrix.parameters()) \
             if self.proj_matrix is not None else []
@@ -762,37 +775,43 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
         return params
 
     def get_lm_dense_parameters(self):
-        """ get the language model related parameters
+        """ Get the language model related parameters.
 
         Returns
         -------
-        list of Tensors: the language model parameters.
+        list of Tensors: the language model related parameters.
         """
         return self._lm_models.parameters()
 
     def prepare(self, g):
-        # If there is no trainable nodes, freeze Bert layer.
+        """ Preparing input layer for training or inference.
+        
+        If the number of nodes for LM model fine-tuning is zero, freeze this layer.
+        """
         if self.num_train == 0:
             self.freeze(g)
 
     def freeze(self, _):
-        """ Generate Bert caching if needed
+        """ Generate LM cache.
+
+        The LM cache is used in the following cases:
+
+        1. No need to fine-tune LMs, i.e., ``num_train == 0``.
+           In this case, only generate LM cache once before model training.
+        2. GNN warm up when ``lm_freeze_epochs > 0`` (controlled by trainer).
+           Generate the emb_cache before model training. In the first ``lm_freeze_epochs``
+           epochs, the number of nodes with text features for LM fine-tuning will be set to 0,
+           and the LM cache will not be refreshed.
+        3. if ``num_train > 0``, no emb_cache is used unless Case 2.
+
         """
-        # The lm_emb_cache is used in following cases:
-        # 1) We don't need to fine-tune Bert, i.e., train_nodes == 0.
-        #    In this case, we only generate bert lm_emb_cache once before model training.
-        #
-        # 2) GNN warnup when lm_freeze_epochs > 0 (controlled by trainer)
-        #    We generate the bert emb_cache before model training.
-        #    In the first lm_freeze_epochs epochs, the number of trainable text
-        #    nodes are set to 0 and the lm_emb_cache is not refreshed.
-        #
-        # 3) if train_nodes > 0, no emb_cache is used unless Case 2.
         self.lm_emb_cache.update_cache(self.lm_infer_batch_size, use_fp16=self.use_fp16)
         self.use_cache = True
 
     def unfreeze(self):
-        """ Disable Bert caching
+        """ Disable LM caching.
+        
+        If ``num_train > 0``, and not use LM cache, clear existing LM cache.
         """
         if self.num_train > 0:
             self.use_cache = False
@@ -801,31 +820,31 @@ class GSLMNodeEncoderInputLayer(GSNodeEncoderInputLayer):
             self.lm_emb_cache.clear_cache()
 
     def require_cache_embed(self):
-        """ Whether to cache the embeddings for inference.
+        """ Ask to cache the embeddings for inference.
 
         Returns
         -------
-        Bool : return True to cache the embeddings for inference.
+        bool : return True to cache the embeddings for inference.
         """
         return True
 
     #pylint: disable=keyword-arg-before-vararg
     def forward(self, input_feats, input_nodes):
-        """Forward computation
+        """ Input layer forward computation.
 
-        The forward function computes the BERT embeddings and combine them with
-        the input node features.
+        The forward function computes the LM embeddings and combine them with
+        the input node features for further projection.
 
         Parameters
         ----------
-        input_feats: dict
-            input features
-        input_nodes: dict
-            input node ids
+        input_feats: dict of Tensor
+            The input features in the format of {ntype: feats}.
+        input_nodes: dict of Tensor
+            The input node indexes in the format of {ntype: indexes}.
 
         Returns
         -------
-        a dict of Tensor: the node embeddings.
+        a dict of Tensor: The projected node embeddings in the format of {ntype: emb}.
         """
         assert isinstance(input_feats, dict), 'The input features should be in a dict.'
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'

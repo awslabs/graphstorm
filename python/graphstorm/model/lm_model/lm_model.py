@@ -33,7 +33,7 @@ class GSFLanguageModelWrapper(nn.Module):
     lm_model:
         language model
     num_train: int
-        Number of trainable texts
+        The number of nodes with textual features used for LM embedding.
     bert_infer_bs: int
         Batch size used for computing text embeddings for static bert
     lm_output_size: int

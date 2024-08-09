@@ -27,15 +27,26 @@ from .gnn_encoder_base import GraphConvEncoder
 
 
 class GATv2Conv(nn.Module):
-    r"""GATv2 Convolutional layer
+    r""" GATv2 Convolutional layer from `How Attentive are Graph Attention Networks?
+    <https://arxiv.org/pdf/2105.14491.pdf>`__.
+
+    The message passing formulas of ``GATv2Conv`` are:
+
+    .. math::
+        h_i^{(l+1)} = \sum_{j\in \mathcal{N}(i)} \alpha_{ij}^{(l)} W^{(l)}_{right} h_j^{(l)}
+
+    where :math:`\alpha_{ij}` is the attention score bewteen node :math:`i` and
+    node :math:`j`:
+
+    .. math::
+        \alpha_{ij}^{(l)} &= \mathrm{softmax_i} (e_{ij}^{(l)})
+
+        e_{ij}^{(l)} &= {\vec{a}^T}^{(l)}\mathrm{LeakyReLU}\left(
+            W^{(l)}_{left} h_{i} + W^{(l)}_{right} h_{j}\right)
 
     Note:
     -----
-    * GATv2Conv is only effective on the homogeneous graph, not like other conv implementation.
-
-    The implementation follows dgl.nn.pytorch.conv.GATv2Conv:
-    `How Attentive are Graph Attention Networks?
-    <https://arxiv.org/pdf/2105.14491.pdf>`__
+    * ``GATv2Conv`` is only effective on homogeneous graphs.
 
     Examples:
     ----------
@@ -43,7 +54,7 @@ class GATv2Conv(nn.Module):
     .. code:: python
 
         # suppose graph and input_feature are ready
-        from graphstorm.model.gat_encoder import GATv2Conv
+        from graphstorm.model import GATv2Conv
 
         layer = GATv2Conv(h_dim, h_dim, num_heads, num_ffn_layers_in_gnn)
         h = layer(g, input_feature)
@@ -87,18 +98,24 @@ class GATv2Conv(nn.Module):
                                  num_ffn_layers_in_gnn, ffn_activation, dropout)
 
     def forward(self, g, inputs):
-        """Forward computation
+        """ GATv2 layer Forward computation.
 
         Parameters
         ----------
-        g : DGLHeteroGraph
-            Input graph.
-        inputs : dict[DEFAULT_NTYPE, torch.Tensor]
-            Node feature for each node type.
+        g: DGLHeteroGraph
+            Input DGL heterogenous graph.
+        inputs: dict of Tensor
+            Node features for the default node type in the format of
+            {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` can
+            be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
+            cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
+
         Returns
         -------
-        dict{DEFAULT_NTYPE, torch.Tensor}
-            New node features for each node type.
+        dict of Tensor: New node embeddings for the default node type in the format of
+            {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` can
+            be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
+            cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
         """
         # add self-loop during computation.
         src, dst = g.edges()
@@ -126,10 +143,10 @@ class GATv2Conv(nn.Module):
         return {DEFAULT_NTYPE: h_conv}
 
 class GATv2Encoder(GraphConvEncoder):
-    r""" GATv2 Conv Encoder
+    r""" GATv2 Conv Encoder.
 
-    The GATv2Encoder employs several GATv2Conv Layers as its encoding mechanism.
-    The GATv2Encoder should be designated as the model's encoder within Graphstorm.
+    The ``GATv2Encoder`` employs several ``GATv2Conv`` Layers as its encoding mechanism.
+    The ``GATv2Encoder`` should be designated as the model's encoder within Graphstorm.
 
     Examples:
     ----------
@@ -138,8 +155,8 @@ class GATv2Encoder(GraphConvEncoder):
 
         # Build model and do full-graph inference on GATv2Encoder
         from graphstorm import get_node_feat_size
-        from graphstorm.model.gat_encoder import GATv2Encoder
-        from graphstorm.model.node_decoder import EntityClassifier
+        from graphstorm.model import GATv2Encoder
+        from graphstorm.model import EntityClassifier
         from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
         from graphstorm.dataloading import GSgnnData
         from graphstorm.model import do_full_graph_inference
@@ -147,7 +164,7 @@ class GATv2Encoder(GraphConvEncoder):
         np_data = GSgnnData(...)
 
         model = GSgnnNodeModel(alpha_l2norm=0)
-        feat_size = get_node_feat_size(np_data.g, 'feat')
+        feat_size = get_node_feat_size(np_data.g, "feat")
         encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                           dropout=0,
                                           use_node_embeddings=True)
@@ -162,22 +179,22 @@ class GATv2Encoder(GraphConvEncoder):
 
     Parameters
     ----------
-    h_dim : int
-        Hidden dimension
-    out_dim : int
-        Output dimension
-    num_heads : int
-        Number of multi-heads attention
-    num_hidden_layers : int
-        Number of hidden layers. Total GNN layers is equal to num_hidden_layers + 1. Default 1
-    dropout : float
-        Dropout. Default 0.
-    activation : callable, optional
-        Activation function. Default: None
-    last_layer_act: bool, optional
-        Whether call activation function in the last GNN layer. Default: False
-    num_ffn_layers_in_gnn: int, optional
-        Number of ngnn gnn layers between GNN layers. Default: 0
+    h_dim: int
+        Hidden dimension size.
+    out_dim: int
+        Output dimension size.
+    num_heads: int
+        Number of multi-heads attention heads.
+    num_hidden_layers: int
+        Number of hidden layers. Total GNN layers is equal to ``num_hidden_layers + 1``.
+    dropout: float
+        Dropout rate. Default: 0.
+    activation: torch.nn.functional
+        Activation function. Default: relu.
+    last_layer_act: bool
+        Whether to call activation function in the last GNN layer. Default: False.
+    num_ffn_layers_in_gnn: int
+        Number of fnn layers between GNN layers. Default: 0.
     """
     def __init__(self,
                  h_dim, out_dim,
@@ -201,14 +218,28 @@ class GATv2Encoder(GraphConvEncoder):
                                     dropout=dropout, bias=True))
 
     def forward(self, blocks, h):
-        """Forward computation
+        """ GATv2 encoder forward computation.
 
         Parameters
         ----------
-        blocks: DGL MFGs
-            Sampled subgraph in DGL MFG
-        h: dict[DEFAULT_NTYPE, torch.Tensor]
-            Input node feature for each node type.
+        blocks: list of DGL MFGs
+            Sampled subgraph in the list of DGL message flow graphs (MFGs) format. More
+            detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+            Overview
+            <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
+        h: dict of Tensor
+            Node features for the default node type in the format of
+            {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` can
+            be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
+            cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
+
+        Returns
+        -------
+        h: dict of Tensor
+            New node embeddings for the default node type in the format of
+            {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` can
+            be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
+            cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
         """
         for layer, block in zip(self.layers, blocks):
             h = layer(block, h)

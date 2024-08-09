@@ -136,8 +136,11 @@ class GNNEncoderWithReconstructedEmbed(GraphConvEncoder):
 
         Parameters
         ----------
-        blocks: DGL MFGs
-            Sampled subgraph in DGL MFG
+        blocks: list of DGL MFGs
+            Sampled subgraph in the list of DGL message flow graph (MFG) format. More
+            detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+            Overview
+            <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
         h: dict[str, torch.Tensor]
             Input node feature for each node type.
         """
