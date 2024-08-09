@@ -219,6 +219,6 @@ For users who are already familiar with DGL and know how to construct DGL graphs
 
 - **-\-add-reverse-edges**: if add this argument, will add reverse edges to the given graphs.
 - **-\-train-graph-only**: boolean value to control if partition the training graph or not, default is ``true``.
-- **-\-retain-etypes**: the list of canonical edge type that will be retained before partitioning the graph. This might be helpful to remove noise edges in this application. Format example: ``—-retain-etypes query,clicks,asin query,adds,asin query,purchases,asin asin,rev-clicks,query``.
+- **-\-retain-etypes**: the list of canonical edge type that will be retained before partitioning the graph. This might be helpful to remove noisy edge types in a graph. Format example: ``—-retain-etypes query,clicks,asin query,adds,asin query,purchases,asin asin,rev-clicks,query``.
 - **-\-num-parts**: (**Required**) integer value that specifies partitions the DGL graph to be split. Remember this number because we will need to set it in the model training step.
 - **-\-output**: (**Required**) the folder path that the partitioned DGL graph will be saved.
