@@ -67,9 +67,9 @@ class GSEdgeDecoder(GSLayer):
         g: DGLGraph
             The graph that stores target edges to run edge prediction.
         h: dict of Tensors
-            The dictionary containing the node embeddings
+            The dictionary containing the node embeddings.
         e_h: dict of tensors
-            The dictionary containing the edge features for g.
+            The dictionary containing the edge features for the ``g``.
 
         Returns
         -------
@@ -83,11 +83,11 @@ class GSEdgeDecoder(GSLayer):
         Parameters
         ----------
         g: DGLGraph
-            The minibatch graph
+            The graph that stores target edges to run edge prediction.
         h: dict of Tensors
-            The dictionary containing the embeddings
+            The dictionary containing the node embeddings.
         e_h: dict of tensors
-            The dictionary containing the edge features for g.
+            The dictionary containing the edge features for the ``g``.
 
         Returns
         -------
