@@ -14,7 +14,7 @@ and save the results as a set of files called partition assignment. Data Dispatc
 graph data and dispatch them according to the partition assignment. It will generate the graph data in DGL format, ready for distributed training and inference.
 
 .. note::
-    GraphStorm currently only supports running GSPartition on AWS infrastructure, i.e., `Amazon SageMaker <https://docs.aws.amazon.com/sagemaker/>`_ and `Amazon EC2 clusters <https://docs.aws.amazon.com/AmazonECS/latest/developerguide/clusters.html>`_. But, users can create your own clusters easily by following the GSPartition tutorial on Amazon EC2.
+    GraphStorm currently only supports running GSPartition on AWS infrastructure, i.e., `Amazon SageMaker <https://docs.aws.amazon.com/sagemaker/>`_ and `Amazon EC2 clusters <https://docs.aws.amazon.com/AmazonECS/latest/developerguide/clusters.html>`_. But, users can easily create your own Linux clusters by following the GSPartition tutorial on Amazon EC2.
 
 The first section includes instructions on how to run GSPartition on `Amazon SageMaker <https://docs.aws.amazon.com/sagemaker/>`_.
 The second section includes instructions on how to run GSPartition on `Amazon EC2 clusters <https://docs.aws.amazon.com/AmazonECS/latest/developerguide/clusters.html>`_.
