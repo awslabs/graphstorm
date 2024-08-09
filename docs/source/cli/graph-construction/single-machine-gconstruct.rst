@@ -218,7 +218,7 @@ For users who are already familiar with DGL and know how to construct DGL graphs
     The sum of the **train-pct** and **val-pct** should less than 1. And the percentage of test edges is the result of 1-(train_pct + val_pct).
 
 - **-\-add-reverse-edges**: if add this argument, will add reverse edges to the given graphs.
-- **-\-train-graph-only**: boolean value to control if partition the training graph or not, default is ``true``.
+- **-\-train-graph-only**: boolean value to control if only use the train graph (edges with ``train_mask``) to create the graph for partition. Default is ``true``.
 - **-\-retain-etypes**: the list of canonical edge type that will be retained before partitioning the graph. This might be helpful to remove noise edges in this application. Format example: ``—-retain-etypes query,clicks,asin query,adds,asin query,purchases,asin asin,rev-clicks,query``.
 - **-\-num-parts**: (**Required**) an integer value that specifies the number of graph partitions to produce. Remember this number because we will need to set it in the model training step.
 - **-\-output**: (**Required**) the folder path that the partitioned DGL graph will be saved.
