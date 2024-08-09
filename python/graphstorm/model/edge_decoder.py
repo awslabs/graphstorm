@@ -82,7 +82,7 @@ class GSEdgeDecoder(GSLayer):
 
         Parameters
         ----------
-        g: DGLBlock
+        g: DGLGraph
             The minibatch graph
         h: dict of Tensors
             The dictionary containing the embeddings
