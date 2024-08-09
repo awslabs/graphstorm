@@ -148,6 +148,11 @@ class RegressionMetrics:
 
 class LinkPredictionMetrics:
     """ object that compute metrics for LP tasks.
+
+    Parameters
+    ----------
+    eval_metric_list: list of string
+        Evaluation metric(s) used during evaluation, for example, ["hit_at_10", "hit_at_100"].
     """
     def __init__(self, eval_metric_list=None):
         self.supported_metrics = SUPPORTED_LINK_PREDICTION_METRICS

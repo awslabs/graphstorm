@@ -1178,18 +1178,12 @@ class GSgnnHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     A built-in evaluator for Link Prediction tasks. It uses ``hit_at_100`` as the default
     eval metric, which implements the ``GSgnnLPRankingEvalInterface``.
 
-    To create a customized Link Prediction evaluator that use an evaluation metric other than
-    ``hit_at_k``, users might need to 1) define a new evaluation interface if the evaluation method
-    requires different input arguments; 2) inherite the new evaluation interface in a
-    customized Link Prediction evaluator; 3) define a customized Link Prediction
-    Trainer/Inferrer to call the customized Link Prediction evaluator.
-
     Parameters
     ----------
     eval_frequency: int
         The frequency (number of iterations) of doing evaluation.
     eval_metric_list: list of string
-        Evaluation metric(s) used during evaluation, for example ["hit_at_10", "hit_at_100"].
+        Evaluation metric(s) used during evaluation, for example, ["hit_at_10", "hit_at_100"].
         Default: ["hit_at_100"]
     use_early_stop: bool
         Set true to use early stop. Default: False.
@@ -1334,7 +1328,7 @@ class GSgnnPerEtypeHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfa
     eval_frequency: int
         The frequency (number of iterations) of doing evaluation.
     eval_metric_list: list of string
-        Evaluation metric(s) used during evaluation, for example ["hit_at_10", "hit_at_100"].
+        Evaluation metric(s) used during evaluation, for example, ["hit_at_10", "hit_at_100"].
         Default: ["hit_at_100"]
     major_etype: tuple
         A canonical edge type used for selecting the best model. Default: will use the summation
@@ -1399,7 +1393,6 @@ class GSgnnPerEtypeHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfa
         test_score: dict of dict of float
             Test ``hit@k`` score in the format of {"hit_at_k": {etype: test_score}}. If the
             ``test_ranking`` is None, return {"hit_at_k": "N/A"}.
-
         """
         with th.no_grad():
             if test_rankings is not None:
