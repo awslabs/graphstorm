@@ -64,7 +64,7 @@ Collect the IP address list
 ...........................
 The GraphStorm Docker containers use SSH on port ``2222`` to communicate with each other. Users need to collect all IP addresses of all the instances and put them into a text file, e.g., ``/data/ip_list.txt``, which is like:
 
-.. figure:: ../../../../../tutorial/distributed_ips.png
+.. figure:: ../../../../../../tutorial/distributed_ips.png
     :align: center
 
 .. note:: We recommend to use **private IP addresses** on AWS EC2 cluster to avoid any possible port constraints.
