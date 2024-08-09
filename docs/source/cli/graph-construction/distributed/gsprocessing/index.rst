@@ -15,7 +15,7 @@ The following sections outline essential prerequisites and provide a detailed gu
 GSProcessing.
 The first section provides an introduction to GSProcessing, how to install it locally and a quick example of its input configuration.
 The second section demonstrates how to set up GSProcessing for distributed processing, enabling scalable and efficient processing using AWS resources.
-The third section explains how to deploy your GSProcessing job with AWS infrastructure. The last section offers the details about generating a configuration file for GSProcessing jobs.
+The third section explains how to deploy GSProcessing job with AWS infrastructure. The last section offers the details about generating a configuration file for GSProcessing jobs.
 
 .. toctree::
   :maxdepth: 1
