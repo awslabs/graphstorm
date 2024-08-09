@@ -32,10 +32,8 @@ class GSgnnEmbGenInferer(GSInferrer):
     Parameters
     ----------
     model : GSgnnModel
-        This model could be one of the built-in GraphStorm prediction models, i.e.,
-        ``GSgnnNodeModel``, ``GSgnnEdgeModel``, ``GSgnnLinkPredictionModel``, or model
-        classes that inherit them and ``GSgnnNodeModelBase``, ``GSgnnEdgeModelBase``,
-        ``GSgnnLinkPredictionModelBase``.
+        A model classe that inherits one of ``GSgnnNodeModelBase``, ``GSgnnEdgeModelBase``,
+        ``GSgnnLinkPredictionModelBase`` classes.
     """
     def infer(self, data, infer_ntypes, save_embed_path, eval_fanout,
             use_mini_batch_infer=False,
@@ -74,6 +72,8 @@ class GSgnnEmbGenInferer(GSInferrer):
             "It requires save embed path for gs_gen_node_embedding"
 
         sys_tracker.check('start generating embedding')
+
+        # For valid model classes, please see the parent class description.
         self._model.eval()
 
         if use_mini_batch_infer:
