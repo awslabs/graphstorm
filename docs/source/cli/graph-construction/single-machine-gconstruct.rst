@@ -17,7 +17,7 @@ Graph consturction command
 * **-\-remap-node-id**: boolean value to decide whether to rename node IDs or not. Adding this argument will set it to be true, otherwise false.
 * **-\-add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Adding this argument will set it to be true, otherwise false.
 * **-\-output-format**: the format of constructed graph, options are ``DGL``,  ``DistDGL``.  Default is ``DistDGL``. It also accepts multiple graph formats at the same time separated by an space, for example ``--output-format "DGL DistDGL"``. The output format is explained in the :ref:`Output <output-format>` section below.
-* **-\-num-parts**: the number of partitions of the constructed graph. This is only valid if the output format is ``DistDGL``.
+* **-\-num-parts**: an integer value that specifies the number of graph partitions to produce. This is only valid if the output format is ``DistDGL``.
 * **-\-skip-nonexist-edges**: boolean value to decide whether skip edges whose endpoint nodes don't exist. Default is true.
 * **-\-ext-mem-workspace**: the directory where the tool can store data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
 * **-\-ext-mem-feat-size**: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.
@@ -220,5 +220,5 @@ For users who are already familiar with DGL and know how to construct DGL graphs
 - **-\-add-reverse-edges**: if add this argument, will add reverse edges to the given graphs.
 - **-\-train-graph-only**: boolean value to control if partition the training graph or not, default is ``true``.
 - **-\-retain-etypes**: the list of canonical edge type that will be retained before partitioning the graph. This might be helpful to remove noise edges in this application. Format example: ``—-retain-etypes query,clicks,asin query,adds,asin query,purchases,asin asin,rev-clicks,query``.
-- **-\-num-parts**: (**Required**) integer value that specifies partitions the DGL graph to be split. Remember this number because we will need to set it in the model training step.
+- **-\-num-parts**: (**Required**) an integer value that specifies the number of graph partitions to produce. Remember this number because we will need to set it in the model training step.
 - **-\-output**: (**Required**) the folder path that the partitioned DGL graph will be saved.
