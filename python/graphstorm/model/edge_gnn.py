@@ -48,8 +48,11 @@ class GSgnnEdgeModelInterface:
 
         Parameters
         ----------
-        blocks : list of DGLBlock
-            The message passing graph for computing GNN embeddings.
+        blocks: list of DGL MFGs
+            Sampled subgraph in the list of DGL message flow graph (MFG) format. More
+            detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+            Overview
+            <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
         target_edges : a DGLGraph
             The graph that stores target edges to run edge prediction.
         node_feats : dict of Tensors
@@ -75,8 +78,11 @@ class GSgnnEdgeModelInterface:
 
         Parameters
         ----------
-        blocks : list of DGLBlock
-            The message passing graph for computing GNN embeddings.
+        blocks: list of DGL MFGs
+            Sampled subgraph in the list of DGL message flow graph (MFG) format. More
+            detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+            Overview
+            <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
         target_edges : a DGLGraph
             The graph that stores target edges to run edge prediction.
         node_feats : dict of Tensors
@@ -88,14 +94,14 @@ class GSgnnEdgeModelInterface:
         input_nodes: dict of Tensors
             The input nodes of the mini-batch.
         return_proba : bool
-            Whether to return the predicted results, or only return the argmax ones in
+            Whether to return the predicted results, or only return the argmaxed ones in
             classification models.
 
         Returns
         -------
         Tensor, or dict of Tensor:
             GNN prediction results. Return results of all dimensions when ``return_proba``
-            is True, otherwise return the argmax results.
+            is True, otherwise return the argmaxed results.
         """
 
 # pylint: disable=abstract-method

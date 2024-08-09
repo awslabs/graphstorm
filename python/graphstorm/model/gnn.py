@@ -868,8 +868,11 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
 
         Parameters
         ----------
-        blocks : list of DGLBlock
-            The message flow graphs for computing GNN embeddings.
+        blocks: list of DGL MFGs
+            Sampled subgraph in the list of DGL message flow graph (MFG) format. More
+            detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+            Overview
+            <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
         input_feats : dict of Tensors
             The input node features.
         input_nodes : dict of Tensors

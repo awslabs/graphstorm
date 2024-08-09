@@ -41,8 +41,11 @@ class GSgnnLinkPredictionModelInterface:
 
         Parameters
         ----------
-        blocks : list of DGLBlock
-            The message passing graph for computing GNN embeddings.
+        blocks: list of DGL MFGs
+            Sampled subgraph in the list of DGL message flow graph (MFG) format. More
+            detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+            Overview
+            <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
         pos_graph : a DGLGraph
             The graph that contains the positive edges.
         neg_graph : a DGLGraph
