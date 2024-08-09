@@ -318,3 +318,18 @@ GraphStorm supports to run multi-task inference on :ref:`SageMaker<distributed-s
         --instance-count <INSTANCE_COUNT> \
         --instance-type <INSTANCE_TYPE>
 
+Multi-task Learning Output
+--------------------------
+
+Saved Node Embeddings
+~~~~~~~~~~~~~~~~~~~~~~
+When ``save_embed_path`` is provided in the training config or inference condig,
+GraphStorm will save the node embeddings in the corresponding path.
+In multi-task learning, xxx
+
+
+Saved Prediction Results
+~~~~~~~~~~~~~~~~~~~~~~~~~
+When ``save_prediction_path`` is provided in the inference condig,
+GraphStorm will save the prediction results in the corresponding path.
+In multi-task learning, xxx
