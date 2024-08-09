@@ -284,8 +284,8 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         rt_profiler.save_profile()
         print_mem(device)
         if get_rank() == 0 and self.evaluator is not None:
-            output = {'best_test_mrr': self.evaluator.best_test_score,
-                       'best_val_mrr':self.evaluator.best_val_score,
+            output = {'best_test_score': self.evaluator.best_test_score,
+                       'best_val_score':self.evaluator.best_val_score,
                        'peak_GPU_mem_alloc_MB': th.cuda.max_memory_allocated(device) / 1024 / 1024,
                        'peak_RAM_mem_alloc_MB': \
                            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024,

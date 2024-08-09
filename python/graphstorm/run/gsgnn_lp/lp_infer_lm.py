@@ -18,11 +18,12 @@
 """
 import logging
 
+
 import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnLinkPredictionInferrer
-from graphstorm.eval import GSgnnMrrLPEvaluator
+from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnHitsLPEvaluator
 from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import (GSgnnLinkPredictionTestDataLoader,
                                     GSgnnLinkPredictionJointTestDataLoader,
@@ -30,6 +31,7 @@ from graphstorm.dataloading import (GSgnnLinkPredictionTestDataLoader,
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.utils import get_device
+from graphstorm.eval.eval_func import SUPPORTED_HIT_AT_METRICS
 
 def main(config_args):
     """ main function
@@ -48,10 +50,19 @@ def main(config_args):
                         model_layer_to_load=config.restore_model_layers)
     infer = GSgnnLinkPredictionInferrer(model)
     infer.setup_device(device=get_device())
+    # TODO: to create a generic evaluator for LP tasks
+    if len(config.eval_metric) > 1 and ("mrr" in config.eval_metric) \
+            and any((x.startswith(SUPPORTED_HIT_AT_METRICS) for x in config.eval_metric)):
+        logging.warning("GraphStorm does not support computing MRR and Hit@K metrics at the "
+                        "same time. If both metrics are given, only 'mrr' is returned.")
     if not config.no_validation:
         infer_idxs = infer_data.get_edge_test_set(config.eval_etype)
-        infer.setup_evaluator(
-            GSgnnMrrLPEvaluator(config.eval_frequency))
+        if len(config.eval_metric) == 0 or 'mrr' in config.eval_metric:
+            infer.setup_evaluator(
+                GSgnnMrrLPEvaluator(config.eval_frequency))
+        else:
+            infer.setup_evaluator(GSgnnHitsLPEvaluator(
+                config.eval_frequency, eval_metric_list=config.eval_metric))
         assert len(infer_idxs) > 0, "There is not test data for evaluation."
     else:
         infer_idxs = infer_data.get_edge_infer_set(config.eval_etype)

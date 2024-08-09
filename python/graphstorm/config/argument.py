@@ -2635,19 +2635,29 @@ class GSConfig:
             if hasattr(self, "_eval_metric"):
                 if isinstance(self._eval_metric, str):
                     eval_metric = self._eval_metric.lower()
-                    assert eval_metric in SUPPORTED_LINK_PREDICTION_METRICS, \
-                        f"Link prediction evaluation metric should be " \
-                        f"in {SUPPORTED_LINK_PREDICTION_METRICS}" \
-                        f"but get {self._eval_metric}"
+                    if eval_metric.startswith(SUPPORTED_HIT_AT_METRICS):
+                        assert eval_metric[len(SUPPORTED_HIT_AT_METRICS) + 1:].isdigit(), \
+                            "hit_at_k evaluation metric for link prediction " \
+                            f"must end with an integer, but get {eval_metric}"
+                    else:
+                        assert eval_metric in SUPPORTED_LINK_PREDICTION_METRICS, \
+                            f"Link prediction evaluation metric should be " \
+                            f"in {SUPPORTED_LINK_PREDICTION_METRICS}" \
+                            f"but get {self._eval_metric}"
                     eval_metric = [eval_metric]
                 elif isinstance(self._eval_metric, list) and len(self._eval_metric) > 0:
                     eval_metric = []
                     for metric in self._eval_metric:
                         metric = metric.lower()
-                        assert metric in SUPPORTED_LINK_PREDICTION_METRICS, \
-                            f"Link prediction evaluation metric should be " \
-                            f"in {SUPPORTED_LINK_PREDICTION_METRICS}" \
-                            f"but get {self._eval_metric}"
+                        if metric.startswith(SUPPORTED_HIT_AT_METRICS):
+                            assert metric[len(SUPPORTED_HIT_AT_METRICS) + 1:].isdigit(), \
+                                "hit_at_k evaluation metric for link prediction " \
+                                f"must end with an integer, but get {metric}"
+                        else:
+                            assert metric in SUPPORTED_LINK_PREDICTION_METRICS, \
+                                f"Link prediction evaluation metric should be " \
+                                f"in {SUPPORTED_LINK_PREDICTION_METRICS}" \
+                                f"but get {self._eval_metric}"
                         eval_metric.append(metric)
                 else:
                     assert False, "Link prediction evaluation metric " \
