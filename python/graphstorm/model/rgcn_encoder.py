@@ -371,7 +371,7 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         Parameters
         ----------
         blocks: list of DGL MFGs
-            Sampled subgraph in the list of DGL message flow graph (MFG) format. More
+            Sampled subgraph in the list of DGL message flow graphs (MFGs) format. More
             detailed information about DGL MFG can be found in `DGL Neighbor Sampling
             Overview
             <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
