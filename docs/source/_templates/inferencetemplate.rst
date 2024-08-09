@@ -7,5 +7,6 @@
 
 .. autoclass:: {{ name }}
     :show-inheritance:
-    :members: setup_device, setup_evaluator, evaluator, device, infer
-
+    :members:
+    :member-order: bysource
+    :exclude-members:
