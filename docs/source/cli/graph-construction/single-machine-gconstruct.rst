@@ -216,7 +216,7 @@ For users who are already familiar with DGL and know how to construct DGL graphs
 - **-\-val-pct**: a float value (\>0. and \<1.) with default value ``0.1``. You can set this value to control the percentage of edges for validation. 
 
 .. Note:: 
-    The sum of the **train-pct** and **val-pct** should less than 1. And the percentage of test nodes/edges is the result of 1-(train_pct + val_pct).
+    The sum of the **train-pct** and **val-pct** should less than 1. And the percentage of test edges is the result of 1-(train_pct + val_pct).
 
 - **-\-add-reverse-edges**: if add this argument, will add reverse edges to the given graphs.
 - **-\-train-graph-only**: boolean value to control if partition the training graph or not, default is ``true``.
