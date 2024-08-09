@@ -1,8 +1,8 @@
 .. _gspartition_index:
 
-===================================
-Distributed Graph Partition
-===================================
+=======================================
+GraphStorm Distributed Graph Partition
+=======================================
 
 GraphStorm Distributed Graph Partition (GSPartition) allows users to do distributed partition on preprocessed graph data
 prepared by :ref:`GSProcessing<gs-processing>`. To enable distributed training, the preprocessed input data must be converted to a partitioned graph representation.
