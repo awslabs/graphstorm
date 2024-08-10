@@ -3,7 +3,7 @@
 graphstorm.inference
 ====================
 
-    GraphStorm nference modules assemble the distributed inference pipelines for different
+    GraphStorm inference modules assemble the distributed inference pipelines for different
     tasks, e.g., node classification, and link prediction.
 
     If possible, users should always use these GraphStorm inference modules to avoid handling
