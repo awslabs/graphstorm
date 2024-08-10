@@ -32,8 +32,10 @@ class GSgnnEmbGenInferer(GSInferrer):
     Parameters
     ----------
     model : GSgnnModel
-        A model classe that inherits one of ``GSgnnNodeModelBase``, ``GSgnnEdgeModelBase``,
-        ``GSgnnLinkPredictionModelBase`` classes.
+        This model should be a model class that inerits ``GSgnnModel``. It is suggested
+        to inherit from ``GSgnnNodeModelBase``, ``GSgnnEdgeModelBase``, or
+        ``GSgnnLinkPredictionModelBase`` for node, edge, and link prediction models,
+        repspectively. These bases define the necessary interfaces for each task type.
     """
     def infer(self, data, infer_ntypes, save_embed_path, eval_fanout,
             use_mini_batch_infer=False,
