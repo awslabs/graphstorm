@@ -3,7 +3,7 @@
 Single Machine Graph Construction
 -----------------------------------
 
-GraphStorm has a ``gconstruct.construct_graph`` module for graph construction in a signle machine with GraphStorm and other dependencies installed.
+GraphStorm has a ``gconstruct.construct_graph`` module for graph construction in a signle machine.
 
 Prerequisites
 **************
