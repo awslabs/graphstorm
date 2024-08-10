@@ -52,7 +52,7 @@ class GSgnnEmbGenInferer(GSInferrer):
         save_embed_path : str
             The path where the GNN embeddings will be saved.
         eval_fanout: list of int
-            Neighbor sampling fanout of each GNN layers used in evaluation and inference.
+            Neighbor sampling fanout of each GNN layer used in evaluation and inference.
         use_mini_batch_infer: bool
             Whether to use mini-batch for inference. Default: False.
         node_id_mapping_file: str
