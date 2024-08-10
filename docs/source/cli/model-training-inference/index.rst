@@ -4,7 +4,7 @@
 GraphStorm Model Training and Inference
 ========================================
 
-Once users convert your raw data into the partitioned DGL distributed graphs by using the :ref:`GraphStorm Graph Construction <graph_construction>` user guide, you can use Graphstorm CLIs to train GML models and do inference on a signle machine if there is one partition only, or on a distributed environment, such as a Linux cluster, for multiple partition graphs.
+Once your raw data are converted into partitioned DGL distributed graphs by using the :ref:`GraphStorm Graph Construction <graph_construction>` user guide, you can use Graphstorm CLIs to train GML models and do inference on a signle machine if there is one partition only, or on a distributed environment, such as a Linux cluster, for multiple partition graphs.
 
 This section provides guidelines of GraphStorm model training and inference on :ref:`signle machine <single-machine-training-inference>`, :ref:`distributed clusters <distributed-cluster>`, and :ref:`Amazon SageMaker <distributed-sagemaker>`.
 
