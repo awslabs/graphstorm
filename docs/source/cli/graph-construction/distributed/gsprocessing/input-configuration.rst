@@ -1,7 +1,7 @@
 ..  _gsprocessing_input_configuration:
 
-GraphStorm Processing Input Configuration
-=========================================
+GSProcessing Input Configuration
+================================
 
 GraphStorm Processing uses a JSON configuration file to
 parse and process the data into the format needed
