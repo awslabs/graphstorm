@@ -4,7 +4,7 @@
 GraphStorm Distributed Data Processing
 ========================================
 
-GraphStorm Distributed Data Processing (GSProcessing) enables the processing and preparation of massive graph data for training with GraphStorm. GSProcessing handles generating unique node IDs, encoding edge structure files, processing individual features, and preparing data for the distributed partitioning stage.
+GraphStorm Distributed Data Processing (GSProcessing) enables the processing and preparation of massive graph data for training with GraphStorm. GSProcessing handles generating unique node IDs, encoding edge structure files, processing individual features, and preparing data for the distributed partition stage.
 
 .. note::
 
