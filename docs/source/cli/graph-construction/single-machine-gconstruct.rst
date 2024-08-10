@@ -1,10 +1,12 @@
-.. _configurations-gconstruction:
+.. _single-machine-gconstruction:
 
-Graph Construction
-============================
+Single Machine Graph Construction
+-----------------------------------
 
-`construct_graph.py <https://github.com/zhjwy9343/graphstorm/blob/main/python/graphstorm/gconstruct/construct_graph.py>`_ arguments
---------------------------------------------------------------------------------------------------------------------------------------
+Graph consturction command
+*****************************
+
+`construct_graph.py <https://github.com/zhjwy9343/graphstorm/blob/main/python/graphstorm/gconstruct/construct_graph.py>`_ arguments.
 
 * **-\-conf-file**: (**Required**) the path of the configuration JSON file.
 * **-\-num-processes**: the number of processes to process the data simulteneously. Default is 1. Increase this number can speed up data processing.
@@ -15,7 +17,7 @@ Graph Construction
 * **-\-remap-node-id**: boolean value to decide whether to rename node IDs or not. Adding this argument will set it to be true, otherwise false.
 * **-\-add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Adding this argument will set it to be true, otherwise false.
 * **-\-output-format**: the format of constructed graph, options are ``DGL``,  ``DistDGL``.  Default is ``DistDGL``. It also accepts multiple graph formats at the same time separated by an space, for example ``--output-format "DGL DistDGL"``. The output format is explained in the :ref:`Output <output-format>` section below.
-* **-\-num-parts**: the number of partitions of the constructed graph. This is only valid if the output format is ``DistDGL``.
+* **-\-num-parts**: an integer value that specifies the number of graph partitions to produce. This is only valid if the output format is ``DistDGL``.
 * **-\-skip-nonexist-edges**: boolean value to decide whether skip edges whose endpoint nodes don't exist. Default is true.
 * **-\-ext-mem-workspace**: the directory where the tool can store data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
 * **-\-ext-mem-feat-size**: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.
@@ -24,7 +26,7 @@ Graph Construction
 .. _gconstruction-json:
 
 Configuration JSON Explanations
----------------------------------
+*********************************
 
 The JSON file that describes the graph data defines where to get node data and edge data to construct a graph. Below shows an example of such a JSON file. In the highest level, it contains three fields: ``version``, ``nodes`` and ``edges``.
 
@@ -169,3 +171,51 @@ Below shows an example that contains one node type and an edge type. For a real 
             }
         ]
     }
+
+.. _configurations-partition:
+
+Graph Partition for DGL Graphs
+********************************
+
+For users who are already familiar with DGL and know how to construct DGL graphs, GraphStorm provides two graph partition tools to partition DGL graphs into the required input format for GraphStorm launch tool for training and inference.
+
+* `partition_graph.py <https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph.py>`_: for Node/Edge Classification/Regress task graph partition.
+* `partition_graph_lp.py <https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph_lp.py>`_: for Link Prediction task graph partition.
+
+`partition_graph.py <https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph.py>`_ arguments
+...........................................................................................................
+
+- **-\-dataset**: (**Required**) the graph dataset name defined for the saved DGL graph file.
+- **-\-filepath**: (**Required**) the file path of the saved DGL graph file.
+- **-\-target-ntype**: the node type for making prediction, required for node classification/regression tasks. This argument is associated with the node type having labels. Current GraphStorm supports **one** prediction node type only.
+- **-\-ntype-task**: the node type task to perform. Only support ``classification`` and ``regression`` so far. Default is ``classification``.
+- **-\-nlabel-field**: the field that stores labels on the prediction node type, **required** if **target-ntype** is set. The format is ``nodetype:labelname``, e.g., `"paper:label"`.
+- **-\-target-etype**: the canonical edge type for making prediction, **required** for edge classification/regression tasks. This argument is associated with the edge type having labels. Current GraphStorm supports **one** prediction edge type only. The format is ``src_ntype,etype,dst_ntype``, e.g., `"author,write,paper"`.
+- **-\-etype-task**: the edge type task to perform. Only allow ``classification`` and ``regression`` so far. Default is ``classification``.
+- **-\-elabel-field**: the field that stores labels on the prediction edge type, required if **target-etype** is set. The format is ``src_ntype,etype,dst_ntype:labelname``, e.g., `"author,write,paper:label"`.
+- **-\-generate-new-node-split**: a boolean value, required if need the partition script to split nodes for training/validation/test sets. If this argument is set to ``true``, the **target-ntype** argument **must** also be set.
+- **-\-generate-new-edge-split**: a boolean value, required if need the partition script to split edges for training/validation/test sets. If this argument is set to ``true``, the **target-etype** argument **must** also be set.
+- **-\-train-pct**: a float value (\>0. and \<1.) with default value ``0.8``. If you want the partition script to split nodes/edges for training/validation/test sets, you can set this value to control the percentage of nodes/edges for training.
+- **-\-val-pct**: a float value (\>0. and \<1.) with default value ``0.1``. You can set this value to control the percentage of nodes/edges for validation. 
+
+.. Note::
+    The sum of the **train-pct** and **val-pct** should be less than 1. And the percentage of test nodes/edges is the result of 1-(train_pct + val_pct).
+
+- **-\-add-reverse-edges**: if add this argument, will add reverse edges to the given graph.
+- **-\-num-parts**: (**Required**) an integer value that specifies the number of graph partitions to produce. Remember this number because we will need to set it in the model training step.
+- **-\-output**: (**Required**) the folder path that the partitioned DGL graphs will be saved.
+
+`partition_graph_lp.py <https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph_lp.py>`_ arguments
+..................................................................................................................
+- **-\-dataset**: (**Required**) the graph name defined for the saved DGL graph file.
+- **-\-filepath**: (**Required**) the file path of the saved DGL graph file.
+- **-\-target-etypes**: (**Required**) the canonical edge types for making prediction. GraphStorm supports multiple predict edge types that are separated by a white space. The format is ``src_ntype1,etype1,dst_ntype1 src_ntype2,etype2,dst_ntype2``, e.g., `"author,write,paper paper,citing,paper"`.
+- **-\-train-pct**: a float value (\>0. and \<1.) with default value ``0.8``. If you want the partition script to split edges for training/validation/test sets, you can set this value to control the percentage of edges for training.
+- **-\-val-pct**: a float value (\>0. and \<1.) with default value ``0.1``. You can set this value to control the percentage of edges for validation. 
+
+.. Note:: 
+    The sum of the **train-pct** and **val-pct** should less than 1. And the percentage of test edges is the result of 1-(train_pct + val_pct).
+
+- **-\-add-reverse-edges**: if add this argument, will add reverse edges to the given graphs.
+- **-\-num-parts**: (**Required**) an integer value that specifies the number of graph partitions to produce. Remember this number because we will need to set it in the model training step.
+- **-\-output**: (**Required**) the folder path that the partitioned DGL graph will be saved.
