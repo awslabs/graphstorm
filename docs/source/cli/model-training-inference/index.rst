@@ -8,7 +8,7 @@ Once your raw data are converted into partitioned DGL distributed graphs by usin
 
 This section provides guidelines of GraphStorm model training and inference on :ref:`signle machine <single-machine-training-inference>`, :ref:`distributed clusters <distributed-cluster>`, and :ref:`Amazon SageMaker <distributed-sagemaker>`.
 
-In addition, there are two node ID mapping operations during the graph construction procedure, and these mapping results are saved in a certain folder by which GraphStorm inference pipelines will automatically use to remap prediction results' node IDs back to the original IDs. In case when such automatic remapping does not occure, users can do it mannually according to the :ref:`GraphStorm Output Node ID Remapping <output-remapping>` guideline.
+In addition, there are two node ID mapping operations during the graph construction procedure, and these mapping results are saved in a certain folder by which GraphStorm inference pipelines will automatically use to remap prediction results' node IDs back to the original IDs. In case when such automatic remapping does not occur, you can do it mannually according to the :ref:`GraphStorm Output Node ID Remapping <output-remapping>` guideline.
 
 .. toctree::
    :maxdepth: 2
