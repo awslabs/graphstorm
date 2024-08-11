@@ -3,32 +3,37 @@
 Single Machine Graph Construction
 -----------------------------------
 
+GraphStorm has a ``gconstruct.construct_graph`` module for graph construction in a signle machine.
+
+Prerequisites
+**************
+
+1. A machine with Linux operation system that has the proper CPU memory according to the raw data size.
+2. Following the :ref:`Setup GraphStorm with pip Packages <setup_pip>` guideline to install GraphStorm and its dependencies.
+
 Graph consturction command
-*****************************
+****************************
 
-`construct_graph.py <https://github.com/zhjwy9343/graphstorm/blob/main/python/graphstorm/gconstruct/construct_graph.py>`_ arguments.
+Users can run the ``gconstruct.construct_graph`` command by following the command template below.
 
-* **-\-conf-file**: (**Required**) the path of the configuration JSON file.
-* **-\-num-processes**: the number of processes to process the data simulteneously. Default is 1. Increase this number can speed up data processing.
-* **-\-num-processes-for-nodes**: the number of processes to process node data simulteneously. Increase this number can speed up node data processing.
-* **-\-num-processes-for-edges**: the number of processes to process edge data simulteneously. Increase this number can speed up edge data processing.
-* **-\-output-dir**: (**Required**) the path of the output data files.
-* **-\-graph-name**: (**Required**) the name assigned for the graph.
-* **-\-remap-node-id**: boolean value to decide whether to rename node IDs or not. Adding this argument will set it to be true, otherwise false.
-* **-\-add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Adding this argument will set it to be true, otherwise false.
-* **-\-output-format**: the format of constructed graph, options are ``DGL``,  ``DistDGL``.  Default is ``DistDGL``. It also accepts multiple graph formats at the same time separated by an space, for example ``--output-format "DGL DistDGL"``. The output format is explained in the :ref:`Output <output-format>` section below.
-* **-\-num-parts**: an integer value that specifies the number of graph partitions to produce. This is only valid if the output format is ``DistDGL``.
-* **-\-skip-nonexist-edges**: boolean value to decide whether skip edges whose endpoint nodes don't exist. Default is true.
-* **-\-ext-mem-workspace**: the directory where the tool can store data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
-* **-\-ext-mem-feat-size**: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.
-* **-\-output-conf-file**: The output file with the updated configurations that records the details of data transformation, e.g., convert to categorical value mappings, and max-min normalization ranges. If not specified, will save the updated configuration file in the **-\-output-dir** with name `data_transform_new.json`.
+.. code:: bash
+
+    python -m graphstorm.gconstruct.construct_graph \
+          --conf-file config.json \
+          --output-dir /a_path \
+          --num-parts 1 \
+          --graph-name a_name
+
+This template provides the actual Python command, and it also indicates the three required command arguments, i.e., a JSON file containing graph construction configurations, the directory for outputs, and a string as a name given to the constructed graph. The ``--num-parts`` whose default given value is ``1`` is also an important argument because it not only determines how many partitions to be constructed, also determines how many machines to be used in the GraphStorm model training and inference.
 
 .. _gconstruction-json:
 
 Configuration JSON Explanations
 *********************************
 
-The JSON file that describes the graph data defines where to get node data and edge data to construct a graph. Below shows an example of such a JSON file. In the highest level, it contains three fields: ``version``, ``nodes`` and ``edges``.
+The graph configuration JSON file is the key input argument. The file contains a JSON object that defines the overall graph schema in terms of node type and edge type. For each node and edge type, it defines where the node and edge data are stored and in what file format. When a type of node or edge has features, it could not only define which columns in the data table are features, but also define what feature transformation operations that GraphStorm supports will be used during graph construction. When a type of node or edge has labels, it could not only which columns in the data table are labels, but also define how to split the labels into the training, validation, and testing set.
+
+In the highest level, the JSON object contains three fields: ``version``, ``nodes`` and ``edges``.
 
 ``version``
 ...........
@@ -171,6 +176,25 @@ Below shows an example that contains one node type and an edge type. For a real 
             }
         ]
     }
+
+Arguments
+..........
+
+* **-\-conf-file**: (**Required**) the path of the configuration JSON file.
+* **-\-num-processes**: the number of processes to process the data simulteneously. Default is 1. Increase this number can speed up data processing.
+* **-\-num-processes-for-nodes**: the number of processes to process node data simulteneously. Increase this number can speed up node data processing.
+* **-\-num-processes-for-edges**: the number of processes to process edge data simulteneously. Increase this number can speed up edge data processing.
+* **-\-output-dir**: (**Required**) the path of the output data files.
+* **-\-graph-name**: (**Required**) the name assigned for the graph.
+* **-\-remap-node-id**: boolean value to decide whether to rename node IDs or not. Adding this argument will set it to be true, otherwise false.
+* **-\-add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Adding this argument will set it to be true, otherwise false.
+* **-\-output-format**: the format of constructed graph, options are ``DGL``,  ``DistDGL``.  Default is ``DistDGL``. It also accepts multiple graph formats at the same time separated by an space, for example ``--output-format "DGL DistDGL"``. The output format is explained in the :ref:`Output <output-format>` section below.
+* **-\-num-parts**: an integer value that specifies the number of graph partitions to produce. This is only valid if the output format is ``DistDGL``.
+* **-\-skip-nonexist-edges**: boolean value to decide whether skip edges whose endpoint nodes don't exist. Default is true.
+* **-\-ext-mem-workspace**: the directory where the tool can store data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
+* **-\-ext-mem-feat-size**: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.
+* **-\-output-conf-file**: The output file with the updated configurations that records the details of data transformation, e.g., convert to categorical value mappings, and max-min normalization ranges. If not specified, will save the updated configuration file in the **-\-output-dir** with name `data_transform_new.json`.
+
 
 .. _configurations-partition:
 
