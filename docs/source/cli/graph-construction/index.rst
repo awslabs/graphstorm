@@ -16,5 +16,6 @@ Many production-level enterprise graphs contain billions of nodes and edges, wit
    :maxdepth: 2
    :glob:
 
-   single-machine-gconstruct.rst
-   distributed/index.rst
+   raw_data
+   single-machine-gconstruct
+   distributed/index

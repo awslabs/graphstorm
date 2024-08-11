@@ -3,18 +3,16 @@
 Single Machine Graph Construction
 -----------------------------------
 
-GraphStorm has a ``gconstruct.construct_graph`` module for graph construction in a signle machine.
-
 Prerequisites
 **************
 
-1. A machine with Linux operation system that has the proper CPU memory according to the raw data size.
+1. A machine with Linux operation system that has proper CPU memory according to the raw data size.
 2. Following the :ref:`Setup GraphStorm with pip Packages <setup_pip>` guideline to install GraphStorm and its dependencies.
 
 Graph consturction command
 ****************************
 
-Users can run the ``gconstruct.construct_graph`` command by following the command template below.
+GraphStorm has a ``gconstruct.construct_graph`` module for graph construction in a signle machine. Users can run the ``gconstruct.construct_graph`` command by following the command template below.
 
 .. code:: bash
 
@@ -28,8 +26,8 @@ This template provides the actual Python command, and it also indicates the thre
 
 .. _gconstruction-json:
 
-Configuration JSON Explanations
-*********************************
+Configuration JSON Object Explanations
+**************************************
 
 The graph configuration JSON file is the key input argument. The file contains a JSON object that defines the overall graph schema in terms of node type and edge type. For each node and edge type, it defines where the node and edge data are stored and in what file format. When a type of node or edge has features, it could not only define which columns in the data table are features, but also define what feature transformation operations that GraphStorm supports will be used during graph construction. When a type of node or edge has labels, it could not only which columns in the data table are labels, but also define how to split the labels into the training, validation, and testing set.
 
