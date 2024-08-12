@@ -47,6 +47,8 @@ Foe edge split files, users need to provide both source node IDs and destination
 
 If there is no validation or testing set, users do not need to create the corresponding file(s).
 
+.. _simple-input-raw-data-example:
+
 A simple raw data example
 --------------------------
 To better help users to prepare the input raw data artifacts, this section provides a very simple raw data example.
