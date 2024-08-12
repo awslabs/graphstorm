@@ -25,7 +25,7 @@ GraphStorm requires each edge type to have it own table(s). It is suggested to h
 
 In the table for one edge type, there **must** be two columns. One column stores the IDs of source node type of the edge type, while another column stores the IDs of destination node type of the edge type. The source and destination node type should have their corresponding node tables. Same as node features and labels, edge features and labels could be stored in multiple columns.
 
-Label files (Optional)
+Label split files (Optional)
 -----------------------
 In some cases, users may want to control which nodes or edges should be used for training, validation, or testing. To achieve this goal, users can set the customized label split information in three JSON files or parquet files.
 
@@ -51,8 +51,7 @@ n1_2    NS       1
 n1_3    NS       1
 n1_4    NS       2
 =====  =======  =======
-
-``ntype1`` table includes three columns, i.e., `nid` for node IDs, `region` is a feature column with categorial values, and `class` is a classification label column with 3 classes.
+The ``ntype1`` table includes three columns, i.e., `nid` for node IDs, `region` is a feature column with categorial values, and `class` is a classification label column with 3 classes.
 
 ``ntype2`` node table
 .......................
@@ -63,10 +62,9 @@ n1_4    NS       2
 +--------+
 | eby    |
 +--------+
-| amz    |
+| app    |
 +--------+
-
-``ntype2`` table includes one column only, i.e., `domain`, functioning as node IDs.
+The ``ntype2`` table includes one column only, i.e., `domain`, functioning as node IDs.
 
 ``ntype3`` node table
 .......................
@@ -77,5 +75,37 @@ n_id    sals
 70      0.234    
 80      1.34    
 =====  =======
+The ``ntype3`` table includes two columns, i.e., `n_id` for node IDs, and `sals` is a feature column with numerical values.
 
-``ntype3`` table includes two columns, i.e., `n_id` for node IDs, and `sals` is a feature column with numerical values.
+``ntype1, etype1, ntype2`` edge table
+......................................
+=====  =======  =======
+nid    domain    cnt
+=====  =======  =======
+n1_1    gml       100
+n1_2    gml       1
+n1_3    eby       39
+n1_4    app       4700
+=====  =======  =======
+The ``ntype1, etype1, ntype2`` edge table include three columns, i.e., ``nid`` as the source node IDs, ``domain`` as the destination IDs, and ``cnt`` as the label field for regression task.
+
+``ntype1, etype2, ntype3`` edge table
+......................................
+=====  =======
+nid     n_id 
+=====  =======
+n1_1    60   
+n1_2    60   
+n1_3    70   
+n1_4    70   
+=====  =======
+The ``ntype1, etype2, ntype3`` edge table include two columns, i.e., ``nid`` as the source node IDs, ``n_id`` as the destination IDs.
+
+Node split files
+.................
+
+This example set customized node split files on the ``ntype1`` nodes for a node classification task.
+
+**train.json** contents
+
+.. code:: json
