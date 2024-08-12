@@ -5,7 +5,7 @@ Input Raw Data Explanations
 
 In order to use GraphStorm's graph construction pipeline both on a single machine and in a distributed environment, users should prepare their input raw data accroding to GraphStorm's requirements explained below.
 
-Data Tables
+Data tables
 ------------
 The main part of GraphStorm input raw data is composed of two sets of tables. One for nodes and one for edges. These data tables could be in one of three file formats: **csv** files, **parquet** files, or **HDF5** files. All of the three file formats store data in tables that contain headers, i.e., a list of column names, and values belonging to each column.
 
@@ -41,14 +41,14 @@ To better help users to prepare the input raw data artifacts, this section provi
 
 This simple raw data has three types of nodes, ``ntype1``, ``ntype2``, ``ntype3``, and two types of edges, ``ntype1, etype1, ntype2`` and ``ntype1, etype1, ntype3``.
 
-``ntype1``` node table
+``ntype1`` node table
 .......................
 
 =====  =======  =======
 nid    region    class
 =====  =======  =======
-n1_1  False  False
-n1_2   False  False
-n1_3 True   False
-n1_4   True   True
-=====  =====  =======
+n1_1   False    False
+n1_2   False    False
+n1_3   True     False
+n1_4   True     True
+=====  =======  =======
