@@ -1,7 +1,7 @@
 .. _input_raw_data:
 
-GraphStorm Input Raw Data Artifact Explanations
-================================================
+Input Raw Data Explanations
+=============================
 
 In order to use GraphStorm's graph construction pipeline both on a single machine and in a distributed environment, users should prepare their input raw data accroding to GraphStorm's requirements explained below.
 
@@ -37,3 +37,18 @@ If there is no validation or testing set, users do not need to create the corres
 
 A simple raw data example
 --------------------------
+To better help users to prepare the input raw data artifacts, this section provides a very simple raw data example.
+
+This simple raw data has three types of nodes, ``ntype1``, ``ntype2``, ``ntype3``, and two types of edges, ``ntype1, etype1, ntype2`` and ``ntype1, etype1, ntype3``.
+
+``ntype1``` node table
+.......................
+
+=====  =======  =======
+nid    region    class
+=====  =======  =======
+n1_1  False  False
+n1_2   False  False
+n1_3 True   False
+n1_4   True   True
+=====  =====  =======
