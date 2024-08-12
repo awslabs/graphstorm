@@ -52,15 +52,18 @@ n1_3    NS       1
 n1_4    NS       2
 =====  =======  =======
 
-``ntype1`` table include three columns, i.e., `nid` for node IDs, `region` is a feature column with categorial values, and `class` is a classification label column with 3 classes.
+``ntype1`` table includes three columns, i.e., `nid` for node IDs, `region` is a feature column with categorial values, and `class` is a classification label column with 3 classes.
 
 ``ntype2`` node table
 .......................
-===== 
-nid   
-===== 
-gml   
-eby   
-amz   
-app   
-===== 
++--------+
+| domain |   
++--------+
+| gml    |
+| eby    |
+| amz    |
+| app    |
++--------+
+
+``ntype2`` table includes one column only, i.e., `nid` for node IDs,
+
