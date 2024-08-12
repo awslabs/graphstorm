@@ -9,7 +9,10 @@ Data tables
 ------------
 The main part of GraphStorm input raw data is composed of two sets of tables. One for nodes and one for edges. These data tables could be in one of three file formats: **csv** files, **parquet** files, or **HDF5** files. All of the three file formats store data in tables that contain headers, i.e., a list of column names, and values belonging to each column.
 
-.. note:: If the number of rows is too large, it is suggested to split and store the data into mutliple tables that have the identical schema. Doing so could speed up the data reading process during graph construction if use multiple processing.
+.. note:: 
+    
+    * If the number of rows is too large, it is suggested to split and store the data into mutliple tables that have the identical schema. Doing so could speed up the data reading process during graph construction if use multiple processing.
+    * It is suggested to use **parquet** file format for its popularity and compressed file sizes. The **HDF5** format is only suggested data with large volume of high dimension features.
 
 Node tables
 ............
@@ -39,57 +42,57 @@ A simple raw data example
 --------------------------
 To better help users to prepare the input raw data artifacts, this section provides a very simple raw data example.
 
-This simple raw data has three types of nodes, ``ntype1``, ``ntype2``, ``ntype3``, and two types of edges, ``ntype1, etype1, ntype2`` and ``ntype1, etype1, ntype3``.
+This simple raw data has three types of nodes, ``paper``, ``subject``, ``author``, and two types of edges, ``paper, has, subject`` and ``paper, written-by, author``.
 
-``ntype1`` node table
+``paper`` node table
 .......................
-=====  =======  =======
-nid    region    class
-=====  =======  =======
-n1_1    NE       0
-n1_2    NS       1
-n1_3    NS       1
-n1_4    NS       2
-=====  =======  =======
-The ``ntype1`` table includes three columns, i.e., `nid` for node IDs, `region` is a feature column with categorial values, and `class` is a classification label column with 3 classes.
+=====  =======  ======= ===============
+nid     aff      class   abs
+=====  =======  ======= ===============
+n1_1    NE       0       chips are
+n1_2    MT       1       electricity
+n1_3    UL       1       prime numbers
+n1_4    TT       2       Questions are
+=====  =======  ======= ===============
+The ``paper`` table (``paper_nodes.parquet``) includes three columns, i.e., `nid` for node IDs, `aff` is a feature column with categorial values, `class` is a classification label column with 3 classes, and ``abs`` is a feature column with textual values.
 
-``ntype2`` node table
+``subject`` node table
 .......................
 +--------+
 | domain |   
 +========+
-| gml    |
+| eee    |
 +--------+
-| eby    |
+| mth    |
 +--------+
-| app    |
+| llm    |
 +--------+
-The ``ntype2`` table includes one column only, i.e., `domain`, functioning as node IDs.
+The ``subject`` table (``subject_nodes.parquet``) includes one column only, i.e., `domain`, functioning as node IDs.
 
-``ntype3`` node table
+``author`` node table
 .......................
 =====  =======
-n_id    sals
+n_id    hdx
 =====  =======
-60      0.75    
-70      0.234    
-80      1.34    
+60      0.75  
+70      25.34 
+80      1.34  
 =====  =======
-The ``ntype3`` table includes two columns, i.e., `n_id` for node IDs, and `sals` is a feature column with numerical values.
+The ``author`` table (``author_nodes.parquet``) includes two columns, i.e., `n_id` for node IDs, and `hdx` is a feature column with numerical values.
 
-``ntype1, etype1, ntype2`` edge table
+``paper, has, subject`` edge table
 ......................................
 =====  =======  =======
 nid    domain    cnt
 =====  =======  =======
-n1_1    gml       100
-n1_2    gml       1
-n1_3    eby       39
-n1_4    app       4700
+n1_1    eee       100
+n1_2    eee       1
+n1_3    mth       39
+n1_4    llm       4700
 =====  =======  =======
-The ``ntype1, etype1, ntype2`` edge table include three columns, i.e., ``nid`` as the source node IDs, ``domain`` as the destination IDs, and ``cnt`` as the label field for regression task.
+The ``paper, has, subject`` edge table (``paper_has_subject_edges.parquet``) include three columns, i.e., ``nid`` as the source node IDs, ``domain`` as the destination IDs, and ``cnt`` as the label field for a regression task.
 
-``ntype1, etype2, ntype3`` edge table
+``paper, written-by, author`` edge table
 ......................................
 =====  =======
 nid     n_id 
@@ -99,12 +102,12 @@ n1_2    60
 n1_3    70   
 n1_4    70   
 =====  =======
-The ``ntype1, etype2, ntype3`` edge table include two columns, i.e., ``nid`` as the source node IDs, ``n_id`` as the destination IDs.
+The ``paper, written-by, author`` edge table (``paper_written-by_author_edges.parquet``) include two columns, i.e., ``nid`` as the source node IDs, ``n_id`` as the destination IDs.
 
 Node split JSON files
 ......................
 
-This example sets customized node split files on the ``ntype1`` nodes for a node classification task in the JSON format. There are two nodes in the training set, one node for validation, and one node for testing.
+This example sets customized node split files on the ``paper`` nodes for a node classification task in the JSON format. There are two nodes in the training set, one node for validation, and one node for testing.
 
 **train.json** contents
 
@@ -128,16 +131,16 @@ This example sets customized node split files on the ``ntype1`` nodes for a node
 Edge split parquet files
 .........................
 
-This example sets customized edge split files on the ``ntype1, etype1, ntype2`` edges for an edge regression task in the parquet format. There are one in the training set, three edges for validation, and no edge for testing.
+This example sets customized edge split files on the ``paper, has, subject`` edges for an edge regression task in the parquet format. There are one in the training set, three edges for validation, and no edge for testing.
 
 **train.parquet** contents
 
 =====  =======
 nid    domain 
 =====  =======
-n1_1    gml   
-n1_2    gml   
-n1_4    app   
+n1_1    eee   
+n1_2    eee   
+n1_4    llm   
 =====  =======
 
 **val.parquet** contents
@@ -145,5 +148,5 @@ n1_4    app
 =====  =======
 nid    domain 
 =====  =======
-n1_3    eby   
+n1_3    mth   
 =====  =======

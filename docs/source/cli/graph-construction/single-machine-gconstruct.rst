@@ -30,27 +30,27 @@ This template provides the actual Python command, and it also indicates the thre
 Configuration JSON Object Explanations
 **************************************
 
-The graph configuration JSON file is the key input argument. The file contains a JSON object that defines the overall graph schema in terms of node type and edge type. For each node and edge type, it defines where the node and edge data are stored and in what file format. When a type of node or edge has features, it could not only define which columns in the data table are features, but also define what feature transformation operations that GraphStorm supports will be used during graph construction. When a type of node or edge has labels, it could not only which columns in the data table are labels, but also define how to split the labels into the training, validation, and testing set.
+The configuration JSON file is the **key** input argument for graph construction. The file contains a JSON object that defines the overall graph schema in terms of node type and edge type. For each node and edge type, it defines where the node and edge data are stored and in what file format. When a type of node or edge has features, it could not only define which columns in the data table are features, but also define what feature transformation operations that GraphStorm supports will be used during graph construction. When a type of node or edge has labels, it could not only which columns in the data table are labels, but also define how to split the labels into the training, validation, and testing set.
 
 In the highest level, the JSON object contains three fields: ``version``, ``nodes`` and ``edges``.
 
-``version``
-...........
+``version`` (**Optional**)
+..........................
 ``version`` marks the version of the configuration file schema, allowing its identification to be self-contained for downstream applications. The current (and expected) version is ``gconstruct-v0.1``.
 
-``nodes``
-...........
+``nodes`` (**Required**)
+........................
 ``nodes`` contains a list of node types and the information of a node type is stored in a dictionary. A node dictionary contains multiple fields and most fields are optional.
 
 * ``node_type``: (**Required**) specifies the node type. Think this as a name given to one type of nodes, e.g. `author` and `paper`.
 * ``files``: (**Required**) specifies the input files for the node data. There are multiple options to specify the input files. For a single input file, it contains the path of a single file. For multiple files, it contains the paths of files with a wildcard, or a list of file paths, e.g., `file_name*.parquet`.
-* ``format``: (**Required**) specifies the input file format. Currently, the pipeline supports three formats: ``parquet``, ``HDF5``, and ``JSON``. The value of this field is a dictionary, where the key is ``name`` and the value is either ``parquet`` or ``JSON``, e.g., `{"name":"JSON"}`. The detailed format information is specified in the format section.
+* ``format``: (**Required**) specifies the input file format. Currently, the pipeline supports three formats: ``csv``, ``parquet``, and ``HDF5``. The value of this field is a dictionary, where the key is ``name`` and the value is either ``csv``, ``parquet`` or ``JSON``, e.g., `{"name":"csv"}`. The detailed format information is specified in the :ref:`input format <input-format>` section.
 * ``node_id_col``: specifies the column name that contains the node IDs. This field is optional. If a node type contains multiple blocks to specify the node data, only one of the blocks require to specify the node ID column.
 * ``features`` is a list of dictionaries that define how to get features and transform features. This is optional. The format of a feature dictionary is defined :ref:`below <feat-format>`.
 * ``labels`` is a list of dictionaries that define where to get labels and how to split the data into training/validation/test set. This is optional. The format of a label dictionary is defined :ref:`below<label-format>`.
 
-``edges``
-...........
+``edges`` (**Required**)
+........................
 Similarly, ``edges`` contains a list of edge types and the information of an edge type is stored in a dictionary. An edge dictionary also contains the same fields of ``files``, ``format``, ``features`` and ``labels`` as ``nodes``. In addition, it contains the following fields:
 
 * ``source_id_col``: (**Required**) specifies the column name of the source node IDs.
@@ -79,7 +79,7 @@ Similarly, ``edges`` contains a list of edge types and the information of an edg
 
 Input formats
 ..............
-Currently, the graph construction pipeline supports three input formats: ``Parquet``, ``HDF5``, and ``JSON``.
+Currently, the graph construction pipeline supports three input formats: ``csv``, ``Parquet``, and ``HDF5``.
 
 For the Parquet format, each column defines a node/edge feature, label or node/edge IDs. For multi-dimensional features, currently the pipeline requires the features to be stored as a list of vectors. The pipeline will reconstruct multi-dimensional features and store them in a matrix.
 
@@ -163,7 +163,7 @@ Below shows an example that contains one node type and an edge type. For a real 
             {
                 "source_id_col":    "src_paper_id",
                 "dest_id_col":      "dest_paper_id",
-                "relation":         ["paper", "cite", "paer"],
+                "relation":         ["paper", "cite", "paper"],
                 "format":           {"name": "parquet"},
                 "files":            ["/tmp/edge_feat.parquet"],
                 "features":         [
