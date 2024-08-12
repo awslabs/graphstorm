@@ -43,12 +43,24 @@ This simple raw data has three types of nodes, ``ntype1``, ``ntype2``, ``ntype3`
 
 ``ntype1`` node table
 .......................
-
 =====  =======  =======
 nid    region    class
 =====  =======  =======
-n1_1   False    False
-n1_2   False    False
-n1_3   True     False
-n1_4   True     True
+n1_1    NE       0
+n1_2    NS       1
+n1_3    NS       1
+n1_4    NS       2
 =====  =======  =======
+
+``ntype1`` table include three columns, i.e., `nid` for node IDs, `region` is a feature column with categorial values, and `class` is a classification label column with 3 classes.
+
+``ntype2`` node table
+.......................
+===== 
+nid   
+===== 
+gml   
+eby   
+amz   
+app   
+===== 
