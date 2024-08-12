@@ -13,6 +13,11 @@ The main part of GraphStorm input raw data is composed of two sets of tables. On
     
     * If the number of rows is too large, it is suggested to split and store the data into mutliple tables that have the identical schema. Doing so could speed up the data reading process during graph construction if use multiple processing.
     * It is suggested to use **parquet** file format for its popularity and compressed file sizes. The **HDF5** format is only suggested for data with large volume of high dimension features.
+    * Users can also store columns in multiple tables, for example, puting "node IDs" and "feature_1" in "table1_1.parquet" and  "table1_2.parquet", and put "feature_2" in "table2_1.h5" and "table2_2.h5" with the same row order.
+
+.. warning:: 
+    
+    If users split both rows and columns into mutliple tables, to guarantee the consistent row order, users need to make sure that the sorted table file names of one set of columns will be same as table file names of another set of columns. For example, if one set of columns are stored in files with names like ``table_1.h5, table_2.h5, ..., table_9.h5, table_10.h5, table_11.h5``, they will be sorted by Linux OS like ``table_1.h5, table_10.h5, table_11.h5, table_2.h5, ..., table_9.h5``; meanwhile if the other set of columns are stored in file with names like ``table_001.h5, table_002.h5, ..., table_009.h5, table_010.h5, table_011.h5``, they will have the same order after sorted by Linux OS. The two different file name sort results will cause mismatch between node IDs and node features. Therefore, it is strongly suggested to use the ``_000*`` file name template, like ``table_001, table_002, ..., table_009, table_010, table_011, ..., table_100, table_101, ...``.  
 
 Node tables
 ............
@@ -47,6 +52,7 @@ This simple raw data has three types of nodes, ``paper``, ``subject``, ``author`
 ``paper`` node tables
 .......................
 The ``paper`` table (``paper_nodes.parquet``) includes three columns, i.e., `nid` for node IDs, `aff` is a feature column with categorial values, `class` is a classification label column with 3 classes, and ``abs`` is a feature column with textual values.
+
 =====  =======  ======= ===============
 nid     aff      class   abs
 =====  =======  ======= ===============
@@ -60,6 +66,7 @@ n1_4    TT       2       Questions are
 ``subject`` node table
 .......................
 The ``subject`` table (``subject_nodes.parquet``) includes one column only, i.e., `domain`, functioning as node IDs.
+
 +--------+
 | domain |   
 +========+
@@ -73,6 +80,7 @@ The ``subject`` table (``subject_nodes.parquet``) includes one column only, i.e.
 ``author`` node table
 .......................
 The ``author`` table (``author_nodes.parquet``) includes two columns, i.e., `n_id` for node IDs, and `hdx` is a feature column with numerical values.
+
 =====  =======
 n_id    hdx
 =====  =======
@@ -82,6 +90,7 @@ n_id    hdx
 =====  =======
 
 To demonstrate a useful case of **HDF5** file format, here the ``author`` nodes have a 2048 dimension embeddings pre-computed on a textual feature. They are stored in a seperated HDF5 file(``author_node_embeddings.h5``) as shown below.
+
 +----------------------------------------------------------------+
 |                             embedding                          |
 +================================================================+
@@ -97,6 +106,7 @@ To demonstrate a useful case of **HDF5** file format, here the ``author`` nodes 
 ``paper, has, subject`` edge table
 ......................................
 The ``paper, has, subject`` edge table (``paper_has_subject_edges.parquet``) include three columns, i.e., ``nid`` as the source node IDs, ``domain`` as the destination IDs, and ``cnt`` as the label field for a regression task.
+
 =====  =======  =======
 nid    domain    cnt
 =====  =======  =======
@@ -109,6 +119,7 @@ n1_4    llm       4700
 ``paper, written-by, author`` edge table
 ......................................
 The ``paper, written-by, author`` edge table (``paper_written-by_author_edges.parquet``) include two columns, i.e., ``nid`` as the source node IDs, ``n_id`` as the destination IDs.
+
 =====  =======
 nid     n_id 
 =====  =======
