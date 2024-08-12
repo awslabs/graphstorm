@@ -8,7 +8,7 @@ Prerequisites
 
 1. A machine with Linux operation system that has proper CPU memory according to the raw data size.
 2. Following the :ref:`Setup GraphStorm with pip Packages <setup_pip>` guideline to install GraphStorm and its dependencies.
-3. Following the :ref:`Input Raw Data Explanations <input_raw_data>` to generate the input raw data.
+3. Following the :ref:`Input Raw Data Explanations <input_raw_data>` guideline to generate the input raw data.
 
 Graph consturction command
 ****************************
@@ -43,15 +43,15 @@ In the highest level, the JSON object contains three fields: ``version``, ``node
 ``nodes`` contains a list of node types and the information of a node type is stored in a dictionary. A node dictionary contains multiple fields and most fields are optional.
 
 * ``node_type``: (**Required**) specifies the node type. Think this as a name given to one type of nodes, e.g. `author` and `paper`.
-* ``files``: (**Required**) specifies the input files for the node data. There are multiple options to specify the input files. For a single input file, it contains the path of a single file. For multiple files, it contains the paths of files with a wildcard, or a list of file paths, e.g., `file_name*.parquet`.
-* ``format``: (**Required**) specifies the input file format. Currently, the pipeline supports three formats: ``csv``, ``parquet``, and ``HDF5``. The value of this field is a dictionary, where the key is ``name`` and the value is either ``csv``, ``parquet`` or ``JSON``, e.g., `{"name":"csv"}`. The detailed format information is specified in the :ref:`input format <input-format>` section.
+* ``files``: (**Required**) specifies the input raw table files for the node type. There are multiple options to specify the input files. For a single input file, it contains the path of a single file. For multiple files, it could contain the paths of files with a wildcard, e.g., `file_name*.parquet`, or a list of file paths, e.g., [`file_name1.parquet`, `file_name10.parquet`, ...].
+* ``format``: (**Required**) specifies the input file format. Currently, the construction command supports three input file formats: ``csv``, ``parquet``, and ``HDF5``. The value of this field is a dictionary, where the key is ``name`` and the value is either ``csv``, ``parquet`` or ``JSON``, e.g., `{"name":"csv"}`. The detailed format information is specified in the :ref:`input format <input-format>` section below.
 * ``node_id_col``: specifies the column name that contains the node IDs. This field is optional. If a node type contains multiple blocks to specify the node data, only one of the blocks require to specify the node ID column.
 * ``features`` is a list of dictionaries that define how to get features and transform features. This is optional. The format of a feature dictionary is defined :ref:`below <feat-format>`.
 * ``labels`` is a list of dictionaries that define where to get labels and how to split the data into training/validation/test set. This is optional. The format of a label dictionary is defined :ref:`below<label-format>`.
 
 ``edges`` (**Required**)
 ........................
-Similarly, ``edges`` contains a list of edge types and the information of an edge type is stored in a dictionary. An edge dictionary also contains the same fields of ``files``, ``format``, ``features`` and ``labels`` as ``nodes``. In addition, it contains the following fields:
+Similarly, ``edges`` contains a list of edge types and the information of an edge type is stored in a dictionary. An edge dictionary also contains the same fields of ``files``, ``format``, ``features`` and ``labels`` as ``nodes``. In addition, it contains the following unique fields:
 
 * ``source_id_col``: (**Required**) specifies the column name of the source node IDs.
 * ``dest_id_col``: (**Required**) specifies the column name of the destination node IDs.
@@ -79,9 +79,9 @@ Similarly, ``edges`` contains a list of edge types and the information of an edg
 
 Input formats
 ..............
-Currently, the graph construction pipeline supports three input formats: ``csv``, ``Parquet``, and ``HDF5``.
+Currently, the graph construction pipeline supports three input file formats: ``csv``, ``parquet``, and ``HDF5``.
 
-For the Parquet format, each column defines a node/edge feature, label or node/edge IDs. For multi-dimensional features, currently the pipeline requires the features to be stored as a list of vectors. The pipeline will reconstruct multi-dimensional features and store them in a matrix.
+For the parquet format, each column defines a node/edge feature, label or node/edge IDs. For multi-dimensional features, currently the pipeline requires the features to be stored as a list of vectors. The pipeline will reconstruct multi-dimensional features and store them in a matrix.
 
 The HDF5 format is similar as the parquet format, but have larger capacity. Therefore suggest to use HDF5 format if users' data is large.
 
@@ -176,8 +176,8 @@ Below shows an example that contains one node type and an edge type. For a real 
         ]
     }
 
-Arguments
-..........
+Other arguments of the ``gconstruct.construct_graph`` command
+..............................................................
 
 * **-\-conf-file**: (**Required**) the path of the configuration JSON file.
 * **-\-num-processes**: the number of processes to process the data simulteneously. Default is 1. Increase this number can speed up data processing.

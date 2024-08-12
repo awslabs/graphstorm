@@ -12,7 +12,7 @@ The main part of GraphStorm input raw data is composed of two sets of tables. On
 .. note:: 
     
     * If the number of rows is too large, it is suggested to split and store the data into mutliple tables that have the identical schema. Doing so could speed up the data reading process during graph construction if use multiple processing.
-    * It is suggested to use **parquet** file format for its popularity and compressed file sizes. The **HDF5** format is only suggested data with large volume of high dimension features.
+    * It is suggested to use **parquet** file format for its popularity and compressed file sizes. The **HDF5** format is only suggested for data with large volume of high dimension features.
 
 Node tables
 ............
@@ -44,8 +44,9 @@ To better help users to prepare the input raw data artifacts, this section provi
 
 This simple raw data has three types of nodes, ``paper``, ``subject``, ``author``, and two types of edges, ``paper, has, subject`` and ``paper, written-by, author``.
 
-``paper`` node table
+``paper`` node tables
 .......................
+The ``paper`` table (``paper_nodes.parquet``) includes three columns, i.e., `nid` for node IDs, `aff` is a feature column with categorial values, `class` is a classification label column with 3 classes, and ``abs`` is a feature column with textual values.
 =====  =======  ======= ===============
 nid     aff      class   abs
 =====  =======  ======= ===============
@@ -54,10 +55,11 @@ n1_2    MT       1       electricity
 n1_3    UL       1       prime numbers
 n1_4    TT       2       Questions are
 =====  =======  ======= ===============
-The ``paper`` table (``paper_nodes.parquet``) includes three columns, i.e., `nid` for node IDs, `aff` is a feature column with categorial values, `class` is a classification label column with 3 classes, and ``abs`` is a feature column with textual values.
+
 
 ``subject`` node table
 .......................
+The ``subject`` table (``subject_nodes.parquet``) includes one column only, i.e., `domain`, functioning as node IDs.
 +--------+
 | domain |   
 +========+
@@ -67,10 +69,10 @@ The ``paper`` table (``paper_nodes.parquet``) includes three columns, i.e., `nid
 +--------+
 | llm    |
 +--------+
-The ``subject`` table (``subject_nodes.parquet``) includes one column only, i.e., `domain`, functioning as node IDs.
 
 ``author`` node table
 .......................
+The ``author`` table (``author_nodes.parquet``) includes two columns, i.e., `n_id` for node IDs, and `hdx` is a feature column with numerical values.
 =====  =======
 n_id    hdx
 =====  =======
@@ -78,10 +80,23 @@ n_id    hdx
 70      25.34 
 80      1.34  
 =====  =======
-The ``author`` table (``author_nodes.parquet``) includes two columns, i.e., `n_id` for node IDs, and `hdx` is a feature column with numerical values.
+
+To demonstrate a useful case of **HDF5** file format, here the ``author`` nodes have a 2048 dimension embeddings pre-computed on a textual feature. They are stored in a seperated HDF5 file(``author_node_embeddings.h5``) as shown below.
++----------------------------------------------------------------+
+|                             embedding                          |
++================================================================+
+| 0.2964, 0.0779, 1.2763, 2.8971, ..., -0.2564, 0.9060, -0.8740  |
++----------------------------------------------------------------+
+| 1.6941, -1.6765, 0.1862, -0.4449, ..., 0.6474, 0.2358, -0.5952 |
++----------------------------------------------------------------+
+| -0.8417, 2.5096, -0.0393, -0.8208, ..., 0.9894, 2.3389, 0.9778 |
++----------------------------------------------------------------+
+
+.. note:: The order of rows in the ``author_node_embeddings.h5`` file **MUST** be same as those in the ``author_nodes.parquet`` file, i.e., the first value row contains the embeddigns for the ``author`` node with ``n_id`` as ``60``, and the second value row is for ``author`` node with ``n_id`` as ``70``, and so on.
 
 ``paper, has, subject`` edge table
 ......................................
+The ``paper, has, subject`` edge table (``paper_has_subject_edges.parquet``) include three columns, i.e., ``nid`` as the source node IDs, ``domain`` as the destination IDs, and ``cnt`` as the label field for a regression task.
 =====  =======  =======
 nid    domain    cnt
 =====  =======  =======
@@ -90,10 +105,10 @@ n1_2    eee       1
 n1_3    mth       39
 n1_4    llm       4700
 =====  =======  =======
-The ``paper, has, subject`` edge table (``paper_has_subject_edges.parquet``) include three columns, i.e., ``nid`` as the source node IDs, ``domain`` as the destination IDs, and ``cnt`` as the label field for a regression task.
 
 ``paper, written-by, author`` edge table
 ......................................
+The ``paper, written-by, author`` edge table (``paper_written-by_author_edges.parquet``) include two columns, i.e., ``nid`` as the source node IDs, ``n_id`` as the destination IDs.
 =====  =======
 nid     n_id 
 =====  =======
@@ -102,11 +117,9 @@ n1_2    60
 n1_3    70   
 n1_4    70   
 =====  =======
-The ``paper, written-by, author`` edge table (``paper_written-by_author_edges.parquet``) include two columns, i.e., ``nid`` as the source node IDs, ``n_id`` as the destination IDs.
 
 Node split JSON files
 ......................
-
 This example sets customized node split files on the ``paper`` nodes for a node classification task in the JSON format. There are two nodes in the training set, one node for validation, and one node for testing.
 
 **train.json** contents
