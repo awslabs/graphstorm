@@ -104,8 +104,23 @@ The ``ntype1, etype2, ntype3`` edge table include two columns, i.e., ``nid`` as 
 Node split files
 .................
 
-This example set customized node split files on the ``ntype1`` nodes for a node classification task.
+This example sets customized node split files on the ``ntype1`` nodes for a node classification task. There are two nodes in the training set, one node for validation, and one node for testing.
 
 **train.json** contents
 
 .. code:: json
+
+    n1_2
+    n1_3
+
+**val.json** contents
+
+.. code:: json
+
+    n1_4
+
+**test.json** contents
+
+.. code:: json
+
+    n1_1
