@@ -16,6 +16,4 @@ These configurations and arguments include:
     :hidden:
     :glob:
 
-    configuration-gconstruction
-    configuration-partition
     configuration-run
