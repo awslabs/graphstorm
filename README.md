@@ -1,5 +1,5 @@
 ## GraphStorm
-| [Document and Tutorial Site](https://graphstorm.readthedocs.io/en/latest/) | [GraphStorm Paper](https://arxiv.org/abs/2406.06022) |
+| [Document and Tutorial Site](https://graphstorm.readthedocs.io/en/v0.3.1/) | [GraphStorm Paper](https://arxiv.org/abs/2406.06022) |
 
 GraphStorm is a graph machine learning (GML) framework for enterprise use cases.
 It simplifies the development, training and deployment of GML models for industry-scale graphs
