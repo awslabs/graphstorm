@@ -56,15 +56,26 @@ n1_4    NS       2
 
 ``ntype2`` node table
 .......................
-
 +--------+
 | domain |   
 +========+
 | gml    |
++--------+
 | eby    |
++--------+
 | amz    |
-| app    |
 +--------+
 
-``ntype2`` table includes one column only, i.e., `nid` for node IDs,
+``ntype2`` table includes one column only, i.e., `domain`, functioning as node IDs.
 
+``ntype3`` node table
+.......................
+=====  =======
+n_id    sals
+=====  =======
+60      0.75    
+70      0.234    
+80      1.34    
+=====  =======
+
+``ntype3`` table includes two columns, i.e., `n_id` for node IDs, and `sals` is a feature column with numerical values.
