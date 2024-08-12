@@ -9,15 +9,31 @@ Data Tables
 ------------
 The main part of GraphStorm input raw data is composed of two sets of tables. One for nodes and one for edges. These data tables could be in one of three file formats: **csv** files, **parquet** files, or **HDF5** files. All of the three file formats store data in tables that contain headers, i.e., a list of column names, and values belonging to each column.
 
-.. note:: If the number of rows is too large, it is suggested to split and store the data into mutliple tables that have the identical schema. Doing so could speed up the data reading process during graph construction when using multiple processing.
+.. note:: If the number of rows is too large, it is suggested to split and store the data into mutliple tables that have the identical schema. Doing so could speed up the data reading process during graph construction if use multiple processing.
 
 Node tables
 ............
-GraphStorm requires each node type has its own table(s). It is suggested to have one dedicated folder for each node type to store table(s).
+GraphStorm requires each node type to have its own table(s). It is suggested to have one folder for one node type to store table(s).
+
+In the table for one node type, there **must** be one column that stores the IDs of nodes. The IDs could be non-integers, such as strings or floats. GraphStorm will treat non-integer IDs as strings and convert them into interger IDs. 
+
+If this type of nodes have features, they could be stored in multiple columns each of which store one type of features. These features could be numerical, categorial, or textual data. Similarly, labels associated with this type of nodes could be stored in multiple columns each of which store one type of labels. 
 
 Edge tables
 ............
+GraphStorm requires each edge type to have it own table(s). It is suggested to have one folder for one edge type to store tables(s).
+
+In the table for one edge type, there **must** be two columns. One column stores the IDs of source node type of the edge type, while another column stores the IDs of destination node type of the edge type. The source and destination node type should have their corresponding node tables. Same as node features and labels, edge features and labels could be stored in multiple columns.
 
 Label files (Optional)
 -----------------------
+In some cases, users may want to control which nodes or edges should be used for training, validation, or testing. To achieve this goal, users can set the customized label split information in three JSON files or parquet files.
 
+For node split files, users just need to list the node IDs used for training in one file, node IDs used for validation in one file, and node IDs used for testing in another file. If use JSON files, put one node ID in one line. If use parquet files, place these node IDs in one column and assign a column name to it.
+
+Foe edge split files, users need to provide both source node IDs and destination node IDs in the split files. If use JSON files, put one edge as a JSON list with two elements, i.e., ``["source node ID", "destination node ID"]``, in one line. If use parquet files, place the source node IDs and destination node IDs into two columns, and assign column names to them.
+
+If there is no validation or testing set, users do not need to create the corresponding file(s).
+
+A simple raw data example
+--------------------------
