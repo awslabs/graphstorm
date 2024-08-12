@@ -22,8 +22,13 @@ class GSInferrer():
 
     Parameters
     ----------
-    model : GSgnnNodeModel
-        The GNN model for node prediction.
+    model : GSgnnModel
+        This model could be one of the internal GraphStorm GNN models, i.e.,
+        ``GSgnnNodeModel``, ``GSgnnEdgeModel``, ``GSgnnLinkPredictionModel``, or a model
+        class that inherit them.  
+        For customized GNN models, they should be the concrete implementation that inherits
+        one of the ``GSgnnNodeModelBase``, ``GSgnnEdgeModelBase``, and
+        ``GSgnnLinkPredictionModelBase`` classes.
     """
     def __init__(self, model):
         self._model = model

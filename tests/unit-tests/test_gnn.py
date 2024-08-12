@@ -31,6 +31,7 @@ import torch.nn.functional as F
 from numpy.testing import assert_almost_equal, assert_equal
 
 import dgl
+from dgl.distributed import DistTensor
 
 from graphstorm.config import GSConfig, TaskInfo
 from graphstorm.config import BUILTIN_LP_DOT_DECODER
@@ -39,7 +40,8 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_EDGE_CLASSIFICATION,
                                 BUILTIN_TASK_EDGE_REGRESSION,
                                 BUILTIN_TASK_LINK_PREDICTION,
-                                BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+                                BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                                GRAPHSTORM_LP_EMB_L2_NORMALIZATION)
 from graphstorm.model import GSNodeEncoderInputLayer, RelationalGCNEncoder
 from graphstorm.model import GSgnnNodeModel, GSgnnEdgeModel
 from graphstorm.model import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
@@ -150,7 +152,8 @@ def create_rgcn_node_model_with_reconstruct(data, reconstructed_embed_ntype,
                 + "probably because their neighbors don't have features."
     input_gnn = RelGraphConvLayer(4, 4,
                                   rel_names, len(rel_names),
-                                  activation=F.relu)
+                                  activation=F.relu,
+                                  self_loop=False)
     gnn_encoder = GNNEncoderWithReconstructedEmbed(gnn_encoder, input_gnn, rel_names)
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
@@ -1815,6 +1818,121 @@ class DummyLPPredLoss(nn.Module):
     def forward(self, pos_score, neg_score):
         return pos_score["n0"] + neg_score["n0"]
 
+def test_multi_task_norm_node_embs():
+    mt_model = GSgnnMultiTaskSharedEncoderModel(0.1)
+    mt_model.add_task("nc_task",
+                    BUILTIN_TASK_NODE_CLASSIFICATION,
+                    DummyNCDecoder(),
+                    DummyPredLoss(),
+                    "")
+    mt_model.add_task("nr_task",
+                    BUILTIN_TASK_NODE_REGRESSION,
+                    DummyNRDecoder(),
+                    DummyPredLoss(),
+                    GRAPHSTORM_LP_EMB_L2_NORMALIZATION)
+
+    mt_model.add_task("ec_task",
+                    BUILTIN_TASK_EDGE_CLASSIFICATION,
+                    DummyECDecoder(),
+                    DummyPredLoss(),
+                    "")
+
+    mt_model.add_task("er_task",
+                    BUILTIN_TASK_EDGE_REGRESSION,
+                    DummyERDecoder(),
+                    DummyPredLoss(),
+                    GRAPHSTORM_LP_EMB_L2_NORMALIZATION)
+
+    mt_model.add_task("lp_task",
+                    BUILTIN_TASK_LINK_PREDICTION,
+                    DummyLPDecoder(),
+                    DummyLPPredLoss(),
+                    "")
+
+    mt_model.add_task("lp_task2",
+                    BUILTIN_TASK_LINK_PREDICTION,
+                    DummyLPDecoder(),
+                    DummyLPPredLoss(),
+                    GRAPHSTORM_LP_EMB_L2_NORMALIZATION)
+
+    embs = {
+        "n0": th.rand((10,16)),
+        "n1": th.rand((20,16))
+    }
+    norm_embs = {
+        "n0": F.normalize(embs["n0"]),
+        "n1": F.normalize(embs["n1"])
+    }
+
+    new_embs = mt_model.normalize_task_node_embs("nc_task", embs, inplace=False)
+    assert_equal(embs["n0"].numpy(), new_embs["n0"].numpy())
+    assert_equal(embs["n1"].numpy(), new_embs["n1"].numpy())
+
+    new_embs = mt_model.normalize_task_node_embs("nr_task", embs, inplace=False)
+    assert_equal(norm_embs["n0"].numpy(), new_embs["n0"].numpy())
+    assert_equal(norm_embs["n1"].numpy(), new_embs["n1"].numpy())
+
+    new_embs = mt_model.normalize_task_node_embs("ec_task", embs, inplace=False)
+    assert_equal(embs["n0"].numpy(), new_embs["n0"].numpy())
+    assert_equal(embs["n1"].numpy(), new_embs["n1"].numpy())
+
+    new_embs = mt_model.normalize_task_node_embs("er_task", embs, inplace=False)
+    assert_equal(norm_embs["n0"].numpy(), new_embs["n0"].numpy())
+    assert_equal(norm_embs["n1"].numpy(), new_embs["n1"].numpy())
+
+    inplace_emb = {
+        "n0": th.clone(embs["n0"]),
+        "n1": th.clone(embs["n1"])
+    }
+    mt_model.normalize_task_node_embs("lp_task", inplace_emb, inplace=True)
+    assert_equal(embs["n0"].numpy(), inplace_emb["n0"].numpy())
+    assert_equal(embs["n1"].numpy(), inplace_emb["n1"].numpy())
+
+    mt_model.normalize_task_node_embs("lp_task2", inplace_emb, inplace=True)
+    assert_equal(norm_embs["n0"].numpy(), inplace_emb["n0"].numpy())
+    assert_equal(norm_embs["n1"].numpy(), inplace_emb["n1"].numpy())
+
+def test_multi_task_norm_node_embs_dist():
+    mt_model = GSgnnMultiTaskSharedEncoderModel(0.1)
+    mt_model.add_task("lp_task",
+                    BUILTIN_TASK_LINK_PREDICTION,
+                    DummyLPDecoder(),
+                    DummyLPPredLoss(),
+                    "")
+
+    mt_model.add_task("lp_task2",
+                    BUILTIN_TASK_LINK_PREDICTION,
+                    DummyLPDecoder(),
+                    DummyLPPredLoss(),
+                    GRAPHSTORM_LP_EMB_L2_NORMALIZATION)
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname, size="tiny")
+
+    embs = {}
+    norm_embs = {}
+    dist_embs = {}
+
+    for ntype in g.ntypes:
+        embs[ntype] = th.rand(g.number_of_nodes(ntype), 16)
+        norm_embs[ntype] = F.normalize(embs[ntype])
+        dist_embs[ntype] = DistTensor((g.number_of_nodes(ntype), 16),
+            dtype=th.float32, name=f'ntype-{ntype}',
+            part_policy=g.get_node_partition_policy(ntype))
+        dist_embs[ntype][th.arange(g.number_of_nodes(ntype))] = embs[ntype][:]
+
+    new_embs = mt_model.normalize_task_node_embs("lp_task", dist_embs, inplace=False)
+    for ntype in g.ntypes:
+        assert_equal(embs[ntype].numpy(), new_embs[ntype][th.arange(g.number_of_nodes(ntype))].numpy())
+
+    new_embs = mt_model.normalize_task_node_embs("lp_task2", dist_embs, inplace=False)
+    for ntype in g.ntypes:
+        assert_equal(norm_embs[ntype].numpy(), new_embs[ntype][th.arange(g.number_of_nodes(ntype))].numpy())
+
+    dgl.distributed.kvstore.close_kvstore()
+
+
 def test_multi_task_forward():
     mt_model = GSgnnMultiTaskSharedEncoderModel(0.1)
 
@@ -1850,7 +1968,7 @@ def test_multi_task_forward():
                       mock_compute_emb,
                       mock_input_embed):
 
-        def normalize_size_effect_func(embs):
+        def normalize_size_effect_func(task_id, embs):
             return embs
 
         def compute_side_effect_func(blocks, node_feats, input_nodes):
@@ -1981,7 +2099,7 @@ def test_multi_task_predict():
                       mock_compute_emb,
                       mock_input_embed):
 
-        def normalize_size_effect_func(embs):
+        def normalize_size_effect_func(task_id, embs):
             return embs
 
         def compute_side_effect_func(blocks, node_feats, input_nodes):
@@ -2315,6 +2433,8 @@ def test_gen_emb_for_nfeat_recon():
 if __name__ == '__main__':
     test_node_feat_reconstruct()
 
+    test_multi_task_norm_node_embs()
+    test_multi_task_norm_node_embs_dist()
     test_multi_task_forward()
     test_multi_task_predict()
     test_multi_task_mini_batch_predict()

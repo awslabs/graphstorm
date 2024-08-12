@@ -1,5 +1,5 @@
 ARG ARCH=x86_64
-FROM public.ecr.aws/emr-serverless/spark/emr-7.0.0:20240206-${ARCH} as base
+FROM public.ecr.aws/emr-serverless/spark/emr-7.1.0:20240528-${ARCH} as base
 
 USER root
 ENV PYTHON_VERSION=3.9.18
@@ -40,6 +40,8 @@ else \
         python3 -c "from transformers import AutoModel; AutoModel.from_pretrained('${MODEL}')"; \
 fi
 
+# We use this file as an indicator of the execution environment
+RUN touch /usr/lib/spark/code/EMR_SERVERLESS_EXECUTION
 
 # GSProcessing codebase
 COPY code/ /usr/lib/spark/code/

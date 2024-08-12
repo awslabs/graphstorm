@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 import abc
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping, Optional, Sequence
 
 from graphstorm_processing.constants import VALID_OUTDTYPE, TYPE_FLOAT32
 
@@ -89,18 +89,24 @@ class NoopFeatureConfig(FeatureConfig):
 
     Supported kwargs
     ----------------
+    out_dtype: str
+        Output feature dtype. Currently, we support ``float32`` and ``float64``.
+        Default is ``float32``
     separator: str
         When provided will treat the input as strings, split each value in the string using
         the separator, and convert the resulting list of floats into a float-vector feature.
+    truncate_dim: int
+        When provided, will truncate the output float-vector feature to the specified dimension.
+        This is useful when the feature is a multi-dimensional vector and we only need
+        a subset of the dimensions, e.g. for Matryoshka Representation Learning embeddings.
     """
 
     def __init__(self, config: Mapping):
         super().__init__(config)
 
-        self.value_separator = None
-        self.out_dtype = self._transformation_kwargs.get("out_dtype", TYPE_FLOAT32)
-        if self._transformation_kwargs:
-            self.value_separator = self._transformation_kwargs.get("separator")
+        self.out_dtype: str = self._transformation_kwargs.get("out_dtype", TYPE_FLOAT32)
+        self.value_separator: Optional[str] = self._transformation_kwargs.get("separator", None)
+        self.truncate_dim: Optional[int] = self._transformation_kwargs.get("truncate_dim", None)
 
         self._sanity_check()
 
@@ -111,3 +117,6 @@ class NoopFeatureConfig(FeatureConfig):
         assert (
             self.out_dtype in VALID_OUTDTYPE
         ), f"Unsupported output dtype, expected one of {VALID_OUTDTYPE}, got {self.out_dtype}"
+        assert self.truncate_dim is None or isinstance(
+            self.truncate_dim, int
+        ), f"truncate_dim should be an int or None, got {type(self.truncate_dim)}"

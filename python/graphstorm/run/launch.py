@@ -776,7 +776,7 @@ def wrap_cmd_with_local_envvars(cmd: str, env_vars: str) -> str:
     return f"(export {env_vars}; {cmd})"
 
 
-def wrap_cmd_with_extra_envvars(cmd: str, env_vars: list) -> str:
+def wrap_cmd_with_extra_envvars(cmd: str, env_vars: List[str]) -> str:
     """Wraps a CLI command with extra env vars
 
     Example:
@@ -795,8 +795,7 @@ def wrap_cmd_with_extra_envvars(cmd: str, env_vars: list) -> str:
     Returns:
         cmd_with_env_vars:
     """
-    env_vars = " ".join(env_vars)
-    return wrap_cmd_with_local_envvars(cmd, env_vars)
+    return wrap_cmd_with_local_envvars(cmd, " ".join(env_vars))
 
 GLOBAL_GROUP_ID = 0
 
@@ -873,6 +872,11 @@ def submit_remap_jobs(args, udf_command, hosts, run_local):
                                                      args.preserve_input)
 
         cmd = wrap_cmd_with_local_envvars(remap_dist_command, env_vars)
+        cmd = (
+            wrap_cmd_with_extra_envvars(cmd, args.extra_envs)
+            if len(args.extra_envs) > 0
+            else cmd
+        )
 
         cmd = "cd " + str(args.workspace) + "; " + cmd
         clients_cmd.append(cmd)

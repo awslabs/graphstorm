@@ -531,6 +531,14 @@ def test_noop_transform(out_dtype):
     else:
         assert norm_feats["test"].dtype == np.float32
 
+def test_noop_truncate():
+    transform = Noop("test", "test", truncate_dim=16)
+    feats = np.random.randn(100, 32).astype(np.float32)
+    trunc_feats = transform(feats)
+
+    assert trunc_feats["test"].shape[1] == 16
+
+
 @pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
 @pytest.mark.parametrize("out_dtype", [None, np.float16])
 def test_rank_gauss_transform(input_dtype, out_dtype):
@@ -1157,6 +1165,7 @@ if __name__ == '__main__':
     test_noop_transform(None)
     test_noop_transform(np.float16)
     test_noop_transform(np.float64)
+    test_noop_truncate()
     test_bucket_transform(None)
     test_bucket_transform(np.float16)
 

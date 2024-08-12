@@ -28,11 +28,13 @@ from .gnn_encoder_base import (GraphConvEncoder,
 
 
 class RelationalAttLayer(nn.Module):
-    r"""Relational graph attention layer from `
-    Relational Graph Attention Networks <https://arxiv.org/abs/1904.05811>`__.
+    r"""Relational graph attention layer from `Relational Graph
+    Attention Networks <https://arxiv.org/abs/1904.05811>`__.
 
     For the GATConv on each relation type:
+
     .. math::
+
         h_i^{(l+1)} = \sum_{j\in \mathcal{N}(i)} \alpha_{i,j} W^{(l)} h_j^{(l)}
 
     where :math:`\alpha_{ij}` is the attention score between node :math:`i` and
@@ -54,39 +56,40 @@ class RelationalAttLayer(nn.Module):
     .. code:: python
 
         # suppose graph and input_feature are ready
-        from graphstorm.model.rgat_encoder import RelationalAttLayer
+        from graphstorm.model import RelationalAttLayer
 
         layer = RelationalAttLayer(
-                h_dim, h_dim, g.canonical_etypes,
-                num_heads, activation, self_loop,
+                in_feat=h_dim, out_feat=h_dim, rel_names=g.canonical_etypes,
+                num_heads=4, self_loop,
                 dropout, num_ffn_layers_in_gnn,
                 fnn_activation, norm)
         h = layer(g, input_feature)
 
     Parameters
     ----------
-    in_feat : int
+    in_feat: int
         Input feature size.
-    out_feat : int
+    out_feat: int
         Output feature size.
-    rel_names : list[str]
-        Relation names.
-    num_heads : int
-        Number of attention heads
-    bias : bool, optional
-        True if bias is added. Default: True
-    activation : callable, optional
-        Activation function. Default: None
-    self_loop : bool, optional
-        True to include self loop message. Default: False
-    dropout : float, optional
-        Dropout rate. Default: 0.0
-    num_ffn_layers_in_gnn: int, optional
-        Number of layers of ngnn between gnn layers
+    rel_names: list of tuple
+        Relation type list in the format of [('src_ntyp1', 'etype1', 'dst_ntype1`), ...].
+    num_heads: int
+        Number of attention heads.
+    bias: bool
+        Whether to add bias. Default: True.
+    activation: callable
+        Activation function. Default: None.
+    self_loop: bool
+        Whether to include self loop message. Default: False.
+    dropout: float
+        Dropout rate. Default: 0.
+    num_ffn_layers_in_gnn: int
+        Number of fnn layers between gnn layers. Default: 0.
     ffn_actication: torch.nn.functional
-        Activation Method for ngnn
-    norm : str, optional
-        Normalization Method. Default: None
+        Activation for ffn. Default: relu.
+    norm: str
+        Normalization methods. Options:``batch``, ``layer``, and ``None``. Default: None,
+        meaning no normalization.
     """
     def __init__(self,
                  in_feat,
@@ -168,19 +171,18 @@ class RelationalAttLayer(nn.Module):
 
     # pylint: disable=invalid-name
     def forward(self, g, inputs):
-        """Forward computation
+        """ RGAT layer forward computation.
 
         Parameters
         ----------
-        g : DGLHeteroGraph
-            Input graph.
-        inputs : dict[str, torch.Tensor]
-            Node feature for each node type.
+        g: DGLHeteroGraph
+            Input DGL heterogenous graph.
+        inputs: dict of Tensor
+            Node features for each node type in the format of {ntype: tensor}.
 
         Returns
         -------
-        dict[str, torch.Tensor]
-            New node features for each node type.
+        dict of Tensor: New node embeddings for each node type in the format of {ntype: tensor}.
         """
         g = g.local_var()
 
@@ -225,33 +227,36 @@ class RelationalAttLayer(nn.Module):
         return {ntype : _apply(ntype, h) for ntype, h in hs.items()}
 
 class RelationalGATEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
-    r"""Relational graph attention encoder
+    """ Relational graph attention encoder.
 
-    The RelationalGATEncoder employs several RelationalAttLayers as its encoding mechanism.
-    The RelationalGATEncoder should be designated as the model's encoder within Graphstorm.
+    The ``RelationalGATEncoder`` employs several ``RelationalAttLayer`` as its encoding
+    mechanism. The ``RelationalGATEncoder`` should be designated as the model's encoder
+    within Graphstorm.
 
     Parameters
     -----------
-    g : DGLHeteroGraph
-        Input graph.
+    g: DistGraph
+        The distributed graph.
     h_dim: int
-        Hidden dimension size
+        Hidden dimension.
     out_dim: int
-        Output dimension size
+        Output dimension.
     num_heads: int
-        Number of heads
+        Number of attention heads.
     num_hidden_layers: int
-        Num hidden layers
+        Number of hidden layers. Total GNN layers is equal to ``num_hidden_layers + 1``.
+        Default: 1.
     dropout: float
-        Dropout
+        Dropout rate. Default: 0.
     use_self_loop: bool
-        Self loop
-    last_layer_act: bool
-        Whether add activation at the last layer
+        Whether to add selfloop. Default: True.
+    last_layer_act: callable
+        Activation for the last layer. Default: None.
     num_ffn_layers_in_gnn: int
-        Number of ngnn gnn layers between GNN layers
-    norm : str, optional
-        Normalization Method. Default: None
+        Number of fnn layers between GNN layers. Default: 0.
+    norm: str
+        Normalization methods. Options:``batch``, ``layer``, and ``None``. Default: None,
+        meaning no normalization.
 
     Examples:
     ----------
@@ -260,8 +265,8 @@ class RelationalGATEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
 
         # Build model and do full-graph inference on RelationalGATEncoder
         from graphstorm import get_node_feat_size
-        from graphstorm.model.rgat_encoder import RelationalGATEncoder
-        from graphstorm.model.node_decoder import EntityClassifier
+        from graphstorm.model import RelationalGATEncoder
+        from graphstorm.model import EntityClassifier
         from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
         from graphstorm.dataloading import GSgnnData
         from graphstorm.model import do_full_graph_inference
@@ -269,7 +274,7 @@ class RelationalGATEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         np_data = GSgnnData(...)
 
         model = GSgnnNodeModel(alpha_l2norm=0)
-        feat_size = get_node_feat_size(np_data.g, 'feat')
+        feat_size = get_node_feat_size(np_data.g, "feat")
         encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                           dropout=0,
                                           use_node_embeddings=True)
@@ -280,7 +285,7 @@ class RelationalGATEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
                                            num_hidden_layers=1,
                                            dropout=0,
                                            use_self_loop=True,
-                                           norm=norm)
+                                           norm="batch")
         model.set_gnn_encoder(gnn_encoder)
         model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
 
@@ -318,20 +323,22 @@ class RelationalGATEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         self.layers[-1].self_loop = self.last_selfloop
 
     def forward(self, blocks, h):
-        """Forward computation
+        """ RGAT encoder forward computation.
 
         Parameters
         ----------
-        blocks: DGL MFGs
-            Sampled subgraph in DGL MFG
-        h: dict[str, torch.Tensor]
-            Input node feature for each node type.
+        blocks: list of DGL MFGs
+            Sampled subgraph in the list of DGL message flow graphs (MFGs) format. More
+            detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+            Overview
+            <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
+        h: dict of Tensor
+            Input node features for each node type in the format of {ntype: tensor}.
 
         Returns
         ----------
-        h: dict[str, torch.Tensor]
-            Output node feature for each node type.
-
+        h: dict of Tensor
+            Output node embeddings for each node type in the format of {ntype: tensor}.
         """
         for layer, block in zip(self.layers, blocks):
             h = layer(block, h)

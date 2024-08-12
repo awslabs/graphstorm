@@ -25,8 +25,10 @@ from .gnn_encoder_base import GraphConvEncoder
 
 
 class SAGEConv(nn.Module):
-    r"""GraphSage Convolutional layerfrom `Inductive Representation Learning on
-    Large Graphs <https://arxiv.org/pdf/1706.02216.pdf>`__
+    r"""GraphSage Convolutional layer from `Inductive Representation Learning on
+    Large Graphs <https://arxiv.org/pdf/1706.02216.pdf>`__.
+
+    The message passing formulas of ``SAGEConv`` are:
 
     .. math::
         h_{\mathcal{N}(i)}^{(l+1)} &= \mathrm{aggregate}
@@ -37,18 +39,9 @@ class SAGEConv(nn.Module):
 
         h_{i}^{(l+1)} &= \mathrm{norm}(h_{i}^{(l+1)})
 
-    If a weight tensor on each edge is provided, the aggregation becomes:
-
-    .. math::
-        h_{\mathcal{N}(i)}^{(l+1)} = \mathrm{aggregate}
-        \left(\{e_{ji} h_{j}^{l}, \forall j \in \mathcal{N}(i) \}\right)
-
-    where :math:`e_{ji}` is the scalar weight on the edge from node :math:`j` to node :math:`i`.
-    Please make sure that :math:`e_{ji}` is broadcastable with :math:`h_j^{l}`.
-
     Note:
     -----
-    * SAGEConv is only effective on the homogeneous graph, not like other conv implementation.
+    * ``SAGEConv`` is only effective on homogeneous graphs.
 
     Examples:
     ----------
@@ -56,33 +49,35 @@ class SAGEConv(nn.Module):
     .. code:: python
 
         # suppose graph and input_feature are ready
-        from graphstorm.model.sage_encoder import SAGEConv
+        from graphstorm.model import SAGEConv
 
         layer = SAGEConv(h_dim, h_dim, aggregator_type,
-                                bias, activation, dropout,
-                                num_ffn_layers_in_gnn, norm)
+                         bias, activation, dropout,
+                         num_ffn_layers_in_gnn, norm)
         h = layer(g, input_feature)
 
     Parameters
     ----------
-    in_feat : int
+    in_feat: int
         Input feature size.
-    out_feat : int
+    out_feat: int
         Output feature size.
-    aggregator_type : str
-        One of mean, gcn, pool, lstm
-    bias : bool, optional
-        True if bias is added. Default: True
-    activation : callable, optional
-        Activation function. Default: None
-    dropout : float, optional
-        Dropout rate. Default: 0.0
-    num_ffn_layers_in_gnn: int, optional
-        Number of layers of ngnn between gnn layers
+    aggregator_type: str
+        Message aggregation type. Options: ``mean``, ``gcn``, ``pool``, ``lstm``.
+        Default: ``mean``.
+    bias: bool
+        Whether to add bias. Default: True.
+    dropout: float
+        Dropout rate. Default: 0.
+    activation: torch.nn.functional
+        Activation function. Default: relu.
+    num_ffn_layers_in_gnn: int
+        Number of fnn layers between gnn layers. Default: 0.
     ffn_actication: torch.nn.functional
-        Activation Method for ngnn
-    norm : str, optional
-        Normalization Method. Default: None
+        Activation for ffn. Default: relu.
+    norm: str
+        Normalization methods. Options:``batch``, ``layer``, and ``None``. Default: None,
+        meaning no normalization.
     """
     def __init__(self,
                  in_feat,
@@ -119,18 +114,24 @@ class SAGEConv(nn.Module):
                                  num_ffn_layers_in_gnn, ffn_activation, dropout)
 
     def forward(self, g, inputs):
-        """Forward computation
+        """ GraphSage layer forward computation.
 
         Parameters
         ----------
-        g : DGLHeteroGraph
-            Input graph.
-        inputs : dict[DEFAULT_NTYPE, torch.Tensor]
-            Node feature for each node type.
+        g: DGLHeteroGraph
+            Input DGL heterogenous graph.
+        inputs: dict of Tensor
+            Node features for the default node type in the format of
+            {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` can
+            be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
+            cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
+
         Returns
         -------
-        dict{DEFAULT_NTYPE, torch.Tensor}
-            New node features for each node type.
+        dict of Tensor: New node embeddings for the default node type in the format of
+            {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` can
+            be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
+            cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
         """
         g = g.local_var()
 
@@ -147,25 +148,30 @@ class SAGEConv(nn.Module):
 
 
 class SAGEEncoder(GraphConvEncoder):
-    r""" GraphSage Conv Encoder
+    r""" GraphSage Conv Encoder.
 
-    The SAGEEncoder employs several SAGEConv Layers as its encoding mechanism.
-    The SAGEEncoder should be designated as the model's encoder within Graphstorm.
+    The ``SAGEEncoder`` employs several ``SAGEConv`` Layers as its encoding mechanism.
+    The ``SAGEEncoder`` should be designated as the model's encoder within Graphstorm.
 
     Parameters
     ----------
-    h_dim : int
-        Hidden dimension
-    out_dim : int
-        Output dimension
-    num_hidden_layers : int
-        Number of hidden layers. Total GNN layers is equal to num_hidden_layers + 1. Default 1
-    dropout : float
-        Dropout. Default 0.
+    h_dim: int
+        Hidden dimension size.
+    out_dim: int
+        Output dimension size.
+    num_hidden_layers: int
+        Number of hidden layers. Total GNN layers is equal to ``num_hidden_layers + 1``.
+    dropout: float
+        Dropout rate. Default: 0.
+    aggregator_type: str
+        Message aggregation type. Options: ``mean``, ``gcn``, ``pool``, ``lstm``.
+    activation: torch.nn.functional
+        Activation function. Default: relu.
     num_ffn_layers_in_gnn: int
-        Number of ngnn gnn layers between GNN layers
-    norm : str, optional
-        Normalization Method. Default: None
+        Number of fnn layers between GNN layers. Default: 0.
+    norm: str
+        Normalization methods. Options:``batch``, ``layer``, and ``None``. Default: None,
+        meaning no normalization.
 
     Examples:
     ----------
@@ -174,8 +180,8 @@ class SAGEEncoder(GraphConvEncoder):
 
         # Build model and do full-graph inference on SAGEEncoder
         from graphstorm import get_node_feat_size
-        from graphstorm.model.sage_encoder import SAGEEncoder
-        from graphstorm.model.node_decoder import EntityClassifier
+        from graphstorm.model import SAGEEncoder
+        from graphstorm.model import EntityClassifier
         from graphstorm.model import GSgnnNodeModel, GSNodeEncoderInputLayer
         from graphstorm.dataloading import GSgnnData
         from graphstorm.model import do_full_graph_inference
@@ -183,7 +189,7 @@ class SAGEEncoder(GraphConvEncoder):
         np_data = GSgnnData(...)
 
         model = GSgnnNodeModel(alpha_l2norm=0)
-        feat_size = get_node_feat_size(np_data.g, 'feat')
+        feat_size = get_node_feat_size(np_data.g, "feat")
         encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                           dropout=0,
                                           use_node_embeddings=True)
@@ -192,8 +198,8 @@ class SAGEEncoder(GraphConvEncoder):
         gnn_encoder = SAGEEncoder(4, 4,
                                   num_hidden_layers=1,
                                   dropout=0,
-                                  aggregator_type='mean',
-                                  norm=norm)
+                                  aggregator_type="mean",
+                                  norm="batch")
         model.set_gnn_encoder(gnn_encoder)
         model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
 
@@ -223,14 +229,28 @@ class SAGEEncoder(GraphConvEncoder):
                                     num_ffn_layers_in_gnn=num_ffn_layers_in_gnn))
 
     def forward(self, blocks, h):
-        """Forward computation
+        """ GraphSage encoder forward computation.
 
         Parameters
         ----------
-        blocks: DGL MFGs
-            Sampled subgraph in DGL MFG
-        h: dict[DEFAULT_NTYPE, torch.Tensor]
-            Input node feature for each node type.
+        blocks: list of DGL MFGs
+            Sampled subgraph in the list of DGL message flow graphs (MFGs) format. More
+            detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+            Overview
+            <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
+        h: dict of Tensor
+            Node features for the default node type in the format of
+            {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` can
+            be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
+            cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
+
+        Returns
+        -------
+        h: dict of Tensor
+            New node embeddings for the default node type in the format of
+            {``dgl.DEFAULT_NTYPE``: tensor}. The definition of ``dgl.DEFAULT_NTYPE`` can
+            be found at `DGL official Github site <https://github.com/dmlc/dgl/blob/
+            cb4604aca2e9a79eb61827a71f1f781b70ceac83/python/dgl/distributed/constants.py#L8>`_.
         """
         for layer, block in zip(self.layers, blocks):
             h = layer(block, h)

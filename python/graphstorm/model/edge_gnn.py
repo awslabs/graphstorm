@@ -30,77 +30,89 @@ from ..utils import barrier, is_distributed, get_rank, is_wholegraph
 class GSgnnEdgeModelInterface:
     """ The interface for GraphStorm edge prediction model.
 
-    This interface defines two main methods for training and inference.
+    This interface defines two main methods: ``forward()`` for training and ``predict()``
+    for inference. Edge GNN models should inherite this interface and implement the two
+    methods.
     """
     @abc.abstractmethod
     def forward(self, blocks, target_edges, node_feats, edge_feats,
                 target_edge_feats, labels, input_nodes=None):
         """ The forward function for edge prediction.
 
-        This method is used for training. It takes a mini-batch, including
-        the graph structure, node features, edge features and edge labels and
-        computes the loss of the model in the mini-batch.
+        This method is used for training. It takes a list of DGL message flow graphs (MFGs),
+        node features, edge features, and edge labels of a mini-batch as inputs, and
+        computes the loss of the model in the mini-batch as the return value. More
+        detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+        Overview
+        <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
 
         Parameters
         ----------
-        blocks : list of DGLBlock
-            The message passing graph for computing GNN embeddings.
+        blocks: list of DGL MFGs
+            Sampled subgraph in the list of DGL message flow graph (MFG) format. More
+            detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+            Overview
+            <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
         target_edges : a DGLGraph
-            The graph where we store target edges to run edge classification.
+            The graph that stores target edges to run edge prediction.
         node_feats : dict of Tensors
-            The input node features of the message passing graphs.
+            The input node features of the message passing graph.
         edge_feats : dict of Tensors
-            The input edge features of the message passing graphs.
+            The input edge features of the message passing graph.
         target_edge_feats: dict of Tensors
-            The edge features of target_edges
+            The edge features of target edges
         labels: dict of Tensor
-            The labels of the predicted edges.
+            The labels of the target edges.
         input_nodes: dict of Tensors
-            The input nodes of a mini-batch.
+            The input nodes of the mini-batch.
 
         Returns
         -------
-        The loss of prediction.
+        float: The loss of prediction of this mini-batch.
         """
 
     @abc.abstractmethod
     def predict(self, blocks, target_edges, node_feats, edge_feats,
                 target_edge_feats, input_nodes, return_proba):
-        """ Make prediction on the edges.
+        """ Make prediction on the target edges.
 
         Parameters
         ----------
-        blocks : list of DGLBlock
-            The message passing graph for computing GNN embeddings.
+        blocks: list of DGL MFGs
+            Sampled subgraph in the list of DGL message flow graph (MFG) format. More
+            detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+            Overview
+            <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
         target_edges : a DGLGraph
-            The graph where we store target edges to run edge classification.
+            The graph that stores target edges to run edge prediction.
         node_feats : dict of Tensors
-            The node features of the message passing graphs.
+            The node features of the message passing graph.
         edge_feats : dict of Tensors
-            The edge features of the message passing graphs.
+            The edge features of the message passing graph.
         target_edge_feats: dict of Tensors
-            The edge features of target_edges
+            The edge features of target edges.
         input_nodes: dict of Tensors
-            The input nodes of a mini-batch.
+            The input nodes of the mini-batch.
         return_proba : bool
-            Whether or not to return all the predicted results or only the maximum one
+            Whether to return the predicted results, or only return the argmaxed ones in
+            classification models.
 
         Returns
         -------
-        Tensor or dict of Tensor:
-            the prediction results. Return all the results when return_proba
-            is true otherwise return the maximum value.
+        Tensor, or dict of Tensor:
+            GNN prediction results. Return results of all dimensions when ``return_proba``
+            is True, otherwise return the argmaxed results.
         """
 
 # pylint: disable=abstract-method
-class GSgnnEdgeModelBase(GSgnnEdgeModelInterface,
-                         GSgnnModelBase):
-    """ The base class for edge-prediction GNN
+class GSgnnEdgeModelBase(GSgnnModelBase, GSgnnEdgeModelInterface):
+    """ GraphStorm GNN model base class for edge prediction tasks.
 
-    When a user wants to define an edge prediction GNN model and train the model
-    in GraphStorm, the model class needs to inherit from this base class.
-    A user needs to implement some basic methods including `forward`, `predict`,
-    `save_model`, `restore_model` and `create_optimizer`.
+    This base class extends GraphStorm ``GSgnnModelBase`` and ``GSgnnEdgeModelInterface``.
+    When users want to define a customized edge prediction GNN model and train the model
+    in GraphStorm, the model class needs to inherit from this base class, and implement
+    the required methods including ``forward()``, ``predict()``, ``save_model()``,
+    ``restore_model()`` and ``create_optimizer()``.
     """
 
 class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):

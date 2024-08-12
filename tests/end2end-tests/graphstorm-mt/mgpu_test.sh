@@ -674,6 +674,65 @@ python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_m
 
 error_and_exit $?
 
-rm -fr /data/gsgnn_mt/infer-emb/
-rm -fr /data/gsgnn_mt/prediction/
+rm -fr /data/gsgnn_mt/
+rm -fr /tmp/infer_log.txt
+
+# Check the case when multi-task inference does not have any prediction tasks
+echo "**************[Multi-task] dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference: full-graph, with lp and reconstruct tasks only"
+python3 -m graphstorm.run.gs_multi_task_learning --workspace $GS_HOME/training_scripts/gsgnn_mt  --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_task_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp_rnf.yaml --save-model-path /data/gsgnn_mt/ --save-model-frequency 1000 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True
+
+error_and_exit $?
+
+echo "**************[Multi-task] dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference only with lp and reconstruct tasks only"
+python3 -m graphstorm.run.gs_multi_task_learning --inference --workspace $GS_HOME/inference_scripts/mt_infer  --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_task_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp_no_prediction.yaml --use-mini-batch-infer false  --save-embed-path /data/gsgnn_mt/infer-emb/ --restore-model-path /data/gsgnn_mt/epoch-2 --save-prediction-path /data/gsgnn_mt/prediction/ --logging-file /tmp/log.txt --preserve-input True --backend nccl
+
+error_and_exit $?
+
+if [ -f /data/gsgnn_mt/prediction/ ]; then
+    echo "The prediction result path should be empty"
+    exit -1
+fi
+rm -fr /tmp/log.txt
+
+echo "**************[Multi-task] dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference: full-graph, save model"
+python3 -m graphstorm.run.gs_multi_task_learning --workspace $GS_HOME/training_scripts/gsgnn_mt  --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_task_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_lp_norm.yaml --save-model-path /data/gsgnn_mt/ --save-model-frequency 1000 --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --use-mini-batch-infer False --save-embed-path /data/gsgnn_mt/emb/
+
+error_and_exit $?
+
+cnt=$(grep "save_embed_path: /data/gsgnn_mt/emb/" /tmp/train_log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have save_embed_path"
+    exit -1
+fi
+
+cnt=$(ls -l /data/gsgnn_mt/emb/ | wc -l)
+cnt=$[cnt - 1]
+if test $cnt != 3
+then
+    echo "The number of saved embs $cnt is not equal to 3. Should have two for movie and user and One for link-prediction-subtask normalized embedding."
+fi
+
+echo "**************[Multi-task] dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference with test"
+python3 -m graphstorm.run.gs_multi_task_learning --inference --workspace $GS_HOME/inference_scripts/mt_infer  --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_task_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_lp_norm_with_mask_infer.yaml --use-mini-batch-infer false  --save-embed-path /data/gsgnn_mt/infer-emb/ --restore-model-path /data/gsgnn_mt/epoch-2 --save-prediction-path /data/gsgnn_mt/prediction/ --logging-file /tmp/infer_log.txt --preserve-input True
+
+error_and_exit $?
+
+cnt=$(ls -l /data/gsgnn_mt/infer-emb/ | wc -l)
+cnt=$[cnt - 2]
+if test $cnt != 4
+then
+     echo "The number of saved embs $cnt is not equal to 3. Should have two for movie and user and One for link-prediction-subtask normalized embedding."
+fi
+
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_mt/emb/ --infer-embout /data/gsgnn_mt/infer-emb/
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_mt/emb/link_prediction-user_rating_movie --infer-embout /data/gsgnn_mt/infer-emb/link_prediction-user_rating_movie
+
+error_and_exit $?
+
+rm -fr /data/gsgnn_mt/
+rm -fr /tmp/train_log.txt
 rm -fr /tmp/infer_log.txt

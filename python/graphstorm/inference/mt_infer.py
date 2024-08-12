@@ -105,7 +105,8 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
         """
         do_eval = self.evaluator is not None
         sys_tracker.check('start inferencing')
-        self._model.eval()
+        model = self._model
+        model.eval()
 
         # All the tasks share the same GNN encoder so the fanouts are same
         # for different tasks.
@@ -133,13 +134,13 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
             # so the node embeddings are updated inplace.
             if use_mini_batch_infer:
                 embs = do_mini_batch_inference(
-                    self._model, data, batch_size=infer_batch_size,
+                    model, data, batch_size=infer_batch_size,
                     fanout=fanout,
                     edge_mask=edge_mask,
                     task_tracker=self.task_tracker)
             else:
                 embs = do_full_graph_inference(
-                    self._model, data,
+                    model, data,
                     fanout=fanout,
                     edge_mask=edge_mask,
                     task_tracker=self.task_tracker)
@@ -154,17 +155,29 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
         # before conducting prediction results.
         if save_embed_path is not None:
             logging.info("Saving node embeddings")
+            node_norm_methods = model.node_embed_norm_methods
+            # Save the original embs first
             save_gsgnn_embeddings(g,
                                   save_embed_path,
                                   embs,
                                   node_id_mapping_file=node_id_mapping_file,
                                   save_embed_format=save_embed_format)
             barrier()
+            for task_id, norm_method in node_norm_methods.items():
+                if norm_method is None:
+                    continue
+                normed_embs = model.normalize_task_node_embs(task_id, embs, inplace=False)
+                save_embed_path = os.path.join(save_embed_path, task_id)
+                save_gsgnn_embeddings(g,
+                                      save_embed_path,
+                                      normed_embs,
+                                      node_id_mapping_file=node_id_mapping_file,
+                                      save_embed_format=save_embed_format)
             sys_tracker.check('save embeddings')
 
             # save relation embedding if any for link prediction tasks
             if get_rank() == 0:
-                decoders = self._model.task_decoders
+                decoders = model.task_decoders
                 for task_id, decoder in decoders.items():
                     if isinstance(decoder, LinkPredictDistMultDecoder):
                         rel_emb_path = os.path.join(save_embed_path, task_id)
@@ -189,7 +202,7 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
             # and edge regression tasks.
             pre_results = \
                 multi_task_mini_batch_predict(
-                    self._model,
+                    model,
                     emb=embs,
                     dataloaders=predict_test_loader.dataloaders,
                     task_infos=predict_test_loader.task_infos,
@@ -213,9 +226,9 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
                     if skip_last_self_loop is True:
                         # Turn off the last layer GNN's self-loop
                         # to compute node embeddings.
-                        self._model.gnn_encoder.skip_last_selfloop()
+                        model.gnn_encoder.skip_last_selfloop()
                         new_embs = gen_embs()
-                        self._model.gnn_encoder.reset_last_selfloop()
+                        model.gnn_encoder.reset_last_selfloop()
                         return new_embs
                     else:
                         # If skip_last_self_loop is False
@@ -231,11 +244,11 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
                 # Note(xiangsx): In DistDGl, as we are using the
                 # same dist tensor, the node embeddings
                 # are updated inplace.
-                nfeat_embs = gen_emb_for_nfeat_reconstruct(self._model, nfrecon_gen_embs)
+                nfeat_embs = gen_emb_for_nfeat_reconstruct(model, nfrecon_gen_embs)
 
                 nfeat_recon_results = \
                     multi_task_mini_batch_predict(
-                        self._model,
+                        model,
                         emb=nfeat_embs,
                         dataloaders=dataloaders,
                         task_infos=task_infos,
@@ -258,8 +271,14 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
 
                     # For link prediction, do evaluation task by task.
                     lp_test_embs = gen_embs(edge_mask=task_info.task_config.train_mask)
+                    # normalize the node embedding if needed.
+                    # we can do inplace normalization as embeddings are generated
+                    # per lp task.
+                    lp_test_embs = model.normalize_task_node_embs(task_info.task_id,
+                                                                  lp_test_embs,
+                                                                  inplace=True)
 
-                    decoder = self._model.task_decoders[task_info.task_id]
+                    decoder = model.task_decoders[task_info.task_id]
                     ranking = run_lp_mini_batch_predict(decoder, lp_test_embs, dataloader, device)
                     pre_results[task_info.task_id] = ranking
 
@@ -275,6 +294,11 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
                                        total_steps=0)
 
         if save_prediction_path is not None:
+            if predict_test_loader is None:
+                logging.warning("There is no prediction tasks."
+                                "Will skip saving prediction results.")
+                return
+
             logging.info("Saving prediction results")
             target_ntypes = set()
             task_infos = predict_test_loader.task_infos
@@ -342,3 +366,5 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
                     # There is no prediction results for link prediction
                     # and feature reconstruction
                     continue
+
+        return

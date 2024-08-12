@@ -23,22 +23,22 @@ from torch import nn
 from .gs_layer import GSLayer
 
 class EntityClassifier(GSLayer):
-    ''' Classifier for node entities.
+    """ Decoder for node classification tasks.
 
     Parameters
     ----------
-    in_dim : int
-        The input dimension
-    num_classes : int
-        The number of classes to predict
-    multilabel : bool
-        Whether this is multi-label classification.
-    dropout : float
-        The dropout
-    norm : str, optional
-        Normalization Method. (Reserved for complex entity classifier implementation.)
-        Default: None
-    '''
+    in_dim: int
+        The input dimension size.
+    num_classes: int
+        The number of classes to predict.
+    multilabel: bool
+        Whether this is a multi-label classification decoder.
+    dropout: float
+        Dropout rate. Default: 0.
+    norm: str
+        Normalization methods. Not used, but reserved for complex node classifier
+        implementation. Default: None.
+    """
     def __init__(self,
                  in_dim,
                  num_classes,
@@ -68,76 +68,78 @@ class EntityClassifier(GSLayer):
                             "is not supported in EntityClassifier")
 
     def forward(self, inputs):
-        ''' The forward function.
+        ''' Node classification decoder forward computation.
 
         Parameters
         ----------
-        inputs : tensor
-            The input features
+        inputs: Tensor
+            The input embeddings.
 
         Returns
         -------
-        Tensor : the logits
+        Tensor: the prediction logits.
         '''
         return th.matmul(inputs, self.decoder)
 
     def predict(self, inputs):
-        """ Make prediction on input data.
+        """ Node classification prediction computation.
 
         Parameters
         ----------
-        inputs : tensor
-            The input features
+        inputs: Tensor
+            The input embeddings.
 
         Returns
-        -------
-        Tensor : maximum of the predicted results
+        --------
+        Tensor: argmax of the prediction results, or the maximum of the prediction results
+        if ``multilabel`` is ``True``.
         """
         logits = th.matmul(inputs, self.decoder)
         return (th.sigmoid(logits) > .5).long() if self._multilabel else logits.argmax(dim=1)
 
     def predict_proba(self, inputs):
-        """ Make prediction on input data.
+        """ Node classification prediction computation and return normalized prediction
+        results.
 
         Parameters
         ----------
-        inputs : tensor
-            The input features
+        inputs: Tensor
+            The input embeddings.
 
         Returns
         -------
-        Tensor : all normalized predicted results
+        Tensor: normalized prediction results.
         """
         logits = th.matmul(inputs, self.decoder)
         return th.sigmoid(logits) if self._multilabel else th.softmax(logits, 1)
 
     @property
     def in_dims(self):
-        """ The number of input dimensions.
+        """ Return the input dimension size, which is given in class initialization.
         """
         return self._in_dim
 
     @property
     def out_dims(self):
-        """ The number of output dimensions.
+        """ Return the output dimensions size, which is given in class initialization.
         """
         return self._num_classes
 
 class EntityRegression(GSLayer):
-    ''' Regression on entity nodes
+    """ Decoder for node regression tasks.
 
     Parameters
     ----------
-    h_dim : int
-        The hidden dimensions
-    dropout : float
-        The dropout
+    h_dim: int
+        The input dimension size.
+    dropout: float
+        Dropout rate. Default: 0.
     out_dim: int
-        The output dimension size
-    norm : str, optional
-        Normalization Method. (Reserved for complex entity classifier implementation)
-        Default: None
-    '''
+        The output dimension size. Default: 1 for regression tasks.
+    norm: str, optional
+        Normalization methods. Not used, but reserved for complex node regression
+        implementation. Default: None.
+    """
     def __init__(self,
                  h_dim,
                  dropout=0,
@@ -163,47 +165,56 @@ class EntityRegression(GSLayer):
                             "is not supported in EntityRegression")
 
     def forward(self, inputs):
-        ''' The forward function.
-        '''
-        return th.matmul(inputs, self.decoder)
-
-    def predict(self, inputs):
-        """ The prediction function.
+        """ Node regression decoder forward computation.
 
         Parameters
         ----------
-        inputs : tensor
-            The input features
+        inputs: Tensor
+            The input embeddings.
 
         Returns
         -------
-        Tensor : the predicted results
+        Tensor: the prediction results.
+        """
+        return th.matmul(inputs, self.decoder)
+
+    def predict(self, inputs):
+        """ Node regression prediction computation.
+
+        Parameters
+        ----------
+        inputs: Tensor
+            The input embeddings.
+
+        Returns
+        -------
+        Tensor: the prediction results.
         """
         return th.matmul(inputs, self.decoder)
 
     def predict_proba(self, inputs):
-        """ Make prediction on input data.
-            For regression task, it is same as predict
+        """ For node regression task, it returns the same results as the
+        ``predict()`` function.
 
         Parameters
         ----------
-        inputs : tensor
-            The input features
+        inputs: Tensor
+            The input embeddings.
 
         Returns
         -------
-        Tensor : all normalized predicted results
+        Tensor: the prediction results.
         """
         return self.predict(inputs)
 
     @property
     def in_dims(self):
-        """ The number of input dimensions.
+        """ Return the input dimension size, which is given in class initialization.
         """
         return self._h_dim
 
     @property
     def out_dims(self):
-        """ The number of output dimensions.
+        """ Return the output dimension size, which should be ``1`` for regression tasks.
         """
         return self._out_dim

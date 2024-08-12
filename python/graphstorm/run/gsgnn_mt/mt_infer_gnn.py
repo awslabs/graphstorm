@@ -218,7 +218,17 @@ def main(config_args):
             predict_dataloaders.append(data_loader)
             predict_tasks.append(task)
 
-        model.add_task(task.task_id, task.task_type, decoder, loss_func)
+        # For link prediction, lp_embed_normalizer may be used
+        # TODO(xiangsx): add embed normalizer for other task types
+        # in the future.
+        node_embed_norm_method = task.task_config.lp_embed_normalizer \
+            if task.task_type in [BUILTIN_TASK_LINK_PREDICTION] \
+            else None
+        model.add_task(task.task_id,
+                       task.task_type,
+                       decoder,
+                       loss_func,
+                       embed_norm_method=node_embed_norm_method)
 
     # Multi-task testing dataloader for node prediction and
     # edge prediction tasks.
