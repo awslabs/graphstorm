@@ -101,10 +101,10 @@ n1_4    70
 =====  =======
 The ``ntype1, etype2, ntype3`` edge table include two columns, i.e., ``nid`` as the source node IDs, ``n_id`` as the destination IDs.
 
-Node split files
-.................
+Node split JSON files
+......................
 
-This example sets customized node split files on the ``ntype1`` nodes for a node classification task. There are two nodes in the training set, one node for validation, and one node for testing.
+This example sets customized node split files on the ``ntype1`` nodes for a node classification task in the JSON format. There are two nodes in the training set, one node for validation, and one node for testing.
 
 **train.json** contents
 
@@ -124,3 +124,26 @@ This example sets customized node split files on the ``ntype1`` nodes for a node
 .. code:: json
 
     n1_1
+
+Edge split parquet files
+.........................
+
+This example sets customized edge split files on the ``ntype1, etype1, ntype2`` edges for an edge regression task in the parquet format. There are one in the training set, three edges for validation, and no edge for testing.
+
+**train.parquet** contents
+
+=====  =======
+nid    domain 
+=====  =======
+n1_1    gml   
+n1_2    gml   
+n1_4    app   
+=====  =======
+
+**val.parquet** contents
+
+=====  =======
+nid    domain 
+=====  =======
+n1_3    eby   
+=====  =======
