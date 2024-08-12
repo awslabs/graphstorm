@@ -13,11 +13,13 @@ The main part of GraphStorm input raw data is composed of two sets of tables. On
     
     * If the number of rows is too large, it is suggested to split and store the data into mutliple tables that have the identical schema. Doing so could speed up the data reading process during graph construction if use multiple processing.
     * It is suggested to use **parquet** file format for its popularity and compressed file sizes. The **HDF5** format is only suggested for data with large volume of high dimension features.
-    * Users can also store columns in multiple tables, for example, puting "node IDs" and "feature_1" in "table1_1.parquet" and  "table1_2.parquet", and put "feature_2" in "table2_1.h5" and "table2_2.h5" with the same row order.
+    * Users can also store columns in multiple sets of table files, for example, puting "node IDs" and "feature_1" in the set of "table1_1.parquet" file and  "table1_2.parquet" file, and put "feature_2" in another set of "table2_1.h5" file and "table2_2.h5" file with the same row order.
 
 .. warning:: 
     
-    If users split both rows and columns into mutliple tables, to guarantee the consistent row order, users need to make sure that the sorted table file names of one set of columns will be same as table file names of another set of columns. For example, if one set of columns are stored in files with names like ``table_1.h5, table_2.h5, ..., table_9.h5, table_10.h5, table_11.h5``, they will be sorted by Linux OS like ``table_1.h5, table_10.h5, table_11.h5, table_2.h5, ..., table_9.h5``; meanwhile if the other set of columns are stored in file with names like ``table_001.h5, table_002.h5, ..., table_009.h5, table_010.h5, table_011.h5``, they will have the same order after sorted by Linux OS. The two different file name sort results will cause mismatch between node IDs and node features. Therefore, it is strongly suggested to use the ``_000*`` file name template, like ``table_001, table_002, ..., table_009, table_010, table_011, ..., table_100, table_101, ...``.  
+    If users split both rows and columns into mutliple sets of table files, to guarantee the consistency of row order, users need to make sure that the sorted table file names of one set will be same as table file names of another set. For example, if some columns are stored in files with names like ``table_1.h5, table_2.h5, ..., table_9.h5, table_10.h5, table_11.h5``, they will be sorted by Linux OS like ``table_1.h5, table_10.h5, table_11.h5, table_2.h5, ..., table_9.h5``; meanwhile if the other columns are stored in file with names like ``table_001.h5, table_002.h5, ..., table_009.h5, table_010.h5, table_011.h5``, they will have the same order after sorted by Linux OS. The two different file name sorting results will cause mismatch between node IDs and node features. 
+    
+    Therefore, it is **strongly** suggested to use the ``_000*`` file name template, like ``table_001, table_002, ..., table_009, table_010, table_011, ..., table_100, table_101, ...``.
 
 Node tables
 ............
@@ -32,6 +34,8 @@ Edge tables
 GraphStorm requires each edge type to have it own table(s). It is suggested to have one folder for one edge type to store tables(s).
 
 In the table for one edge type, there **must** be two columns. One column stores the IDs of source node type of the edge type, while another column stores the IDs of destination node type of the edge type. The source and destination node type should have their corresponding node tables. Same as node features and labels, edge features and labels could be stored in multiple columns.
+
+.. _customized-split-labels:
 
 Label split files (Optional)
 -----------------------
