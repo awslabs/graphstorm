@@ -100,6 +100,14 @@ GraphStorm provides a set of transformation operations for different types of fe
   1. ``bert_model`` specifies the LM model used for embedding text. Users can choose any `HuggingFace LM models <https://huggingface.co/models>`_ from one of the following types: ``"bert", "roberta", "albert", "camembert", "ernie", "ibert", "luke", "mega", "mpnet", "nezha", "qdqbert","roc_bert"``. 
   2. ``max_seq_length`` specifies the maximal sequence length.
 
+  Example:
+
+  .. code:: json
+
+    "transform": {"name": "bert_hf",
+                  "bert_model": "roberta",
+                  "max_seq_length": 256},
+
 * **Numerical MAX_MIN transformation** normalizes numerical input features with `val = (val-min)/(max-min)`, where `val` is the feature value, `max` is the maximum value in the feature and `min` is the minimum value in the feature. The ``name`` field in the feature transformation dictionary is ``max_min_norm``. The dictionary can contain four optional fields: ``max_bound``, ``min_bound``, ``max_val`` and ``min_val``. 
 
   - ``max_bound`` specifies the maximum value allowed in the feature. Any number larger than ``max_bound`` will be set to ``max_bound``. Here, `max = min(np.amax(feats), ``max_bound``)`.
@@ -108,10 +116,52 @@ GraphStorm provides a set of transformation operations for different types of fe
   - ``min_val`` defines the `min` in the transformation formula.  When ``min_val`` is provided, `min` is always equal to ``min_val``.
   
   ``max_val`` and ``min_val`` are mainly used in the inference stage, where we want to use the same `max` and `min` values computed in the training stage to normalize inference data.
+
+  Example:
+
+  .. code:: json
+
+    "transform": {"name": "max_min_norm",
+                  "max_bound": 2.,
+                  "min_bound": -2.}
+
 * **Numerical Rank Gauss transformation** normalizes numerical input features with rank gauss normalization. It maps the numeric feature values to gaussian distribution based on ranking. The method follows the description in the normalization section of `the Porto Seguro's Safe Driver Prediction kaggle competition <https://www.kaggle.com/c/porto-seguro-safe-driver-prediction/discussion/44629#250927>`_. The ``name`` field in the feature transformation dictionary is ``rank_gauss``. The dict can contains two optional fields, i.e., ``epsilon`` which is used to avoid ``INF`` float during computation and ``uniquify`` which controls whether deduplicating input features before computing rank gauss norm.
+
+  Example:
+
+  .. code:: json
+
+    "transform": {"name": "rank_gauss"}
+                  "epsilon": 1e-5,
+                  "uniquify": True}
+
 * **Convert to categorical values** converts text data to categorial values. The ``name`` field is ``to_categorical``, and ``separator`` specifies how to split the string into multiple categorical values (this is only used to define multiple categorical values). If ``separator`` is not specified, the entire string is a categorical value. ``mapping`` (optional) is a dictionary that specifies how to map a string to an integer value that defines a categorical value.
+
+  Example:
+
+  .. code:: json
+
+    "transform": {"name": "to_categorical"},
+
 * **Numerical Bucket transformation** normalizes numerical input features with buckets. The input features are divided into one or multiple buckets. Each bucket stands for a range of floats. An input value can fall into one or more buckets depending on the transformation configuration. The ``name`` field in the feature transformation dictionary is ``bucket_numerical``. Users can to provide ``range`` and ``bucket_cnt`` fields, where ``range`` defines a numerical range, and ``bucket_cnt`` defines number of buckets among the range. All buckets will have same length, and each of them is left included. e.g, bucket ``[a, b)`` will include ``a``, but not ``b``. All input feature column data are categorized into respective buckets using this method. Any input data lower than the minimum value will be assigned to the first bucket, and any input data exceeding the maximum value will be assigned to the last bucket. For example, with ``range: [10,30]`` and ``bucket_cnt: 2``, input data ``1`` will fall into the bucket ``[10, 20]``, input data ``11`` will be mapped to ``[10, 20]``, input data ``21`` will be mapped to ``[20, 30]``, input data ``31`` will be mapped to ``[20, 30]``. Finally GraphStorm uses one-hot-encoding to encode the feature for each numerical bucket. If a user wants to make numeric values fall into more than one bucket, it is suggested to use the ``slide_window_size`` field. ``slide_window_size`` defines a number, e.g., ``s``. Then each value ``v`` will be transformed into a range from ``v - s/2`` through ``v + s/2`` , and assigns the value ``v`` to every bucket that the range covers.
+
+  Example:
+
+  .. code:: json
+
+    "transform": {"name": "bucket_numerical",
+                  "range": [10, 50],
+                  "bucket_cnt": 2,
+                  "slide_window_size": 10},
+
 * **No-op vector truncation (experimental)** truncates feature vectors to the length requested. The ``name`` field can be empty (e.g., ``{name: }``), and an integer ``truncate_dim`` value will determine the length of the output vector. This can be useful when experimenting with input features that were trained using `Matryoshka Representation Learning <https://arxiv.org/abs/2205.13147>`_.
+
+  Example:
+
+  .. code:: json
+
+    "transform": {"name": ,
+                  "truncate_dim": 24},
 
 .. _output-format:
 
