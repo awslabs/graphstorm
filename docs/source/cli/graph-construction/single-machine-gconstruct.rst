@@ -74,6 +74,7 @@ Similarly, ``edges`` contains a list of edge types and the information of an edg
 * ``label_col``: specifies the column name in the input file that contains the label. This has to be specified for ``classification`` and ``regression`` tasks. ``label_col`` is used as the label name.
 * ``split_pct``: specifies how to split the data into training/validation/test. If it's not specified, the data is split into 80% for training 10% for validation and 10% for testing. The pipeline constructs three additional vectors indicating the training/validation/test masks. For ``classification`` and ``regression`` tasks, the names of the mask tensors are ``train_mask``, ``val_mask`` and ``test_mask``.
 * ``custom_split_filenames``: specifies the customized training/validation/test mask. It has field named ``train``, ``valid``, and ``test`` to specify the path of the mask files. It is possible that one of the subfield here leaves empty and it will be treated as none. It will override the ``split_pct`` once provided. Refer to :ref:`Label split files <customized-split-labels>` for detailed explanations.
+* ``label_stats_type``: specifies 
 
 .. _feat-transform:
 
@@ -110,7 +111,7 @@ Outputs of the graph consturction command
 ............................................
 The graph construction command outputs two output formats: ``DistDGL`` and ``DGL`` specified by the argument **-\-output-format**. 
 
-If select ``DGL``, the output is an `DGLGraph <https://docs.dgl.ai/en/1.0.x/generated/dgl.save_graphs.html>`_ file, named `<graph_name>.dgl` under the folder specified by the **-\-output-dir** argument, where `<graph_name>` is the value of argument **-\-graph-name**.
+If select ``DGL``, the output is an `DGLGraph <https://docs.dgl.ai/en/1.0.x/generated/dgl.save_graphs.html>`_ file, named ``<graph_name>.dgl`` under the folder specified by the **-\-output-dir** argument, where `<graph_name>` is the value of argument **-\-graph-name**.
 
 If select ``DistDGL``, the output will be a partitioned `DistDGL graph <https://doc.dgl.ai/guide/distributed-preprocessing.html#partitioning-api>`_. It includes a JSON file, named `<graph_name>.json` that describes the meta-information of the partitioned graph, a set of ``part*`` folders under the folder specified by the **-\-output-dir** argument, where the `*` is the number specified by the **-\-num-parts** argument, and other files that contain related metadata information, e.g., node and edge ID mapping files, the new construction configuration JSON file that records the details of feature transformation operations.
 
@@ -121,15 +122,15 @@ If select ``DistDGL``, the output will be a partitioned `DistDGL graph <https://
 
       Outputs of the second mapping stage are two PyTorch tensor files, i.e., ``node_mapping.pt`` and ``edge_mapping.pt``, each of which maps the node and edge in the partitoined graph into the integer original node and edge id space. The node ID mapping is stored as a dictionary of 1D tensors whose key is the node type and value is a 1D tensor mapping between shuffled node IDs and the original node IDs. The edge ID mapping is stored as a dictionary of 1D tensors whose key is the edge type and value is a 1D tensor mapping between shuffled edge IDs and the original edge IDs.
 
-.. note:: These mapping files are important for mapping the training and inference outputs. Therefore, DO NOT move or delete them.
-
     - **New Construction Configuration JSON:**
       By default, GraphStorm will regenerate a construction configuration JSON file that copies the contents in the given JSON file specified by the **--conf-file** argument. In addition if there are transformations of features occurred, this newly generated JSON file will include some additional information. For example, if the original configuration JSON file requires to perform a **Convert to categorical values** transformation without giving the ``mapping`` dictionary, the newly generated configuration JSON file will add this ``mapping`` dictionary with the actual values and their mapping ids. This added information could help construct new graphs for fine-tunning saved models or doing inference with saved models.
 
       If users provide a value of the **-\-output-conf-file** argument, the newly generated configuration file will use this value as the file name. Otherwise GraphStorm will save the configuration JSON file in the **-\-output-dir** with name ``data_transform_new.json``.
 
-A Construct configuration JSON example
-.......................................
+.. note:: These mapping files are important for mapping the training and inference outputs. Therefore, DO NOT move or delete them.
+
+A construct configuration JSON example
+........................................
 
 Using the :ref:`simple raw data example <simple-input-raw-data-example>`, this section provides a construction configuration JSON example for demonstration. 
 
@@ -139,41 +140,98 @@ Using the :ref:`simple raw data example <simple-input-raw-data-example>`, this s
         "version": "gconstruct-v0.1",
         "nodes": [
             {
-                "node_id_col":  "paper_id",
+                "node_id_col":  "nid",
                 "node_type":    "paper",
                 "format":       {"name": "parquet"},
-                "files":        "/tmp/dummy/paper_nodes*.parquet",
+                "files":        "paper_nodes.parquet",
                 "features":     [
                     {
-                        "feature_col":  ["paper_title"],
-                        "feature_name": "title",
-                        "transform":    {"name": "tokenize_hf",
-                                         "bert": "huggingface-basic",
-                                         "max_seq_length": 512}
+                        "feature_col":  ["aff"],
+                        "feature_name": "aff_feat",
+                        "transform":    {"name": "to_categorical",
+                                         "mapping": {"NE": 0, "MT": 1,"UL": 2, "TT": 3,"UC": 4}}
+                    },
+                    {
+                        "feature_col":  "abs",
+                        "feature_name": "abs_bert",
+                        "out_dtype": "float32",
+                        "transform": {"name": "bert_hf",
+                                     "bert_model": "roberta",
+                                     "max_seq_length": 16}
                     },
                 ],
                 "labels":       [
                     {
-                        "label_col":    "labels",
+                        "label_col":    "class",
                         "task_type":    "classification",
-                        "split_pct":   [0.8, 0.2, 0.0],
+                        "custom_split_filenames": {
+                                            "train": "train.json",
+                                            "valid": "val.json",
+                                            "test":  "test.json"},
+                        "label_stats_type": "frequency_cnt",
                     },
                 ],
-            }
+            },
+            {
+                "node_id_col":  "domain",
+                "node_type":    "subject",
+                "format":       {"name": "parquet"},
+                "files":        "subject_nodes.parquet",
+            },
+            {
+                "node_id_col":  "n_id",
+                "node_type":    "author",
+                "format":       {"name": "parquet"},
+                "files":        "author_nodes.parquet",
+                "features":     [
+                    {
+                        "feature_col":  ["hdx"],
+                        "feature_name": "feat",
+                        "out_dtype": 'float16',
+                        "transform": {"name": "max_min_norm",
+                                      "max_bound": 1000.,
+                                      "min_val":   0.}
+                    },
+                ],
+            },
+            {
+                "node_type":    "author",
+                "format":       {"name": "hdf5"},
+                "files":        "author_node_embeddings.h5",
+                "features":     [
+                    {
+                        "feature_col":  ["embedding"],
+                        "feature_name": "embed",
+                        "out_dtype": 'float16',
+                    },
+                ],
+
+            },
         ],
         "edges": [
             {
-                "source_id_col":    "src_paper_id",
-                "dest_id_col":      "dest_paper_id",
-                "relation":         ["paper", "cite", "paper"],
+                "source_id_col":    "nid",
+                "dest_id_col":      "domain",
+                "relation":         ["paper", "has", "subject"],
                 "format":           {"name": "parquet"},
-                "files":            ["/tmp/edge_feat.parquet"],
-                "features":         [
+                "files":            ["paper_has_subject_edges.parquet"],
+                "labels":       [
                     {
-                        "feature_col":  ["citation_time"],
-                        "feature_name": "feat",
+                        "label_col": "cnt",
+                        "task_type": "regression",
+                        "custom_split_filenames": {
+                                            "train": "train_edges.json",
+                                            "valid": "val_edges.json",
+                                            },
                     },
-                ]
+                ],
+            },
+            {
+                "source_id_col":    "nid",
+                "dest_id_col":      "n_id",
+                "relation":         ["paper", "written-by", "author"],
+                "format":           {"name": "parquet"},
+                "files":            ["paper_written-by_author_edges.parquet"],
             }
         ]
     }

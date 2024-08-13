@@ -95,7 +95,7 @@ n_id    hdx
 80      1.34  
 =====  =======
 
-To demonstrate a useful case of **HDF5** file format, here the ``author`` nodes have a 2048 dimension embeddings pre-computed on a textual feature. They are stored in a seperated HDF5 file(``author_node_embeddings.h5``) as shown below.
+To demonstrate a useful case of **HDF5** file format, here the ``author`` nodes have a 2048 dimension embeddings pre-computed on a textual feature. They are stored in a seperated HDF5 file (``author_node_embeddings.h5``) as shown below.
 
 +----------------------------------------------------------------+
 |                             embedding                          |
@@ -107,7 +107,7 @@ To demonstrate a useful case of **HDF5** file format, here the ``author`` nodes 
 | -0.8417, 2.5096, -0.0393, -0.8208, ..., 0.9894, 2.3389, 0.9778 |
 +----------------------------------------------------------------+
 
-.. note:: The order of rows in the ``author_node_embeddings.h5`` file **MUST** be same as those in the ``author_nodes.parquet`` file, i.e., the first value row contains the embeddigns for the ``author`` node with ``n_id`` as ``60``, and the second value row is for ``author`` node with ``n_id`` as ``70``, and so on.
+.. note:: The order of rows in the ``author_node_embeddings.h5`` file **MUST** be same as those in the ``author_nodes.parquet`` file, i.e., the first value row contains the embeddings for the ``author`` node with ``n_id`` as ``60``, and the second value row is for ``author`` node with ``n_id`` as ``70``, and so on.
 
 ``paper, has, subject`` edge table
 ......................................
@@ -163,7 +163,7 @@ Edge split parquet files
 
 This example sets customized edge split files on the ``paper, has, subject`` edges for an edge regression task in the parquet format. There are one in the training set, three edges for validation, and no edge for testing.
 
-**train.parquet** contents
+**train_edges.parquet** contents
 
 =====  =======
 nid    domain 
@@ -173,7 +173,7 @@ n1_2    eee
 n1_4    llm   
 =====  =======
 
-**val.parquet** contents
+**val_edges.parquet** contents
 
 =====  =======
 nid    domain 
