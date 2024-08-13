@@ -371,10 +371,10 @@ Classification and Regression Task
     - Yaml: ``imbalance_class_weights: 0.1,0.2,0.3``
     - Argument: ``--imbalance-class-weights 0.1,0.2,0.3``
     - Default value: ``None``
-- **return_proba**: For classification task, this configuration determines whether to return probability estimates for each class or the maximum probable class. Set `true`` to return probability estimates and `false` to return the maximum probable class.
+- **return_proba**: For classification task, this configuration determines whether to return probability estimates for each class or the maximum probable class. Set true to return probability estimates and false to return the maximum probable class.
 
     - Yaml: ``return_proba: true``
-    - Argument: ``--return_proba true``
+    - Argument: ``--return-proba true``
     - Default value: ``true``
 - **save_prediction_path**: Path to save prediction results. This is used in node/edge classification/regression inference.
 
