@@ -28,7 +28,7 @@ SUPPORTED_HIT_AT_METRICS = 'hit_at'
 SUPPORTED_CLASSIFICATION_METRICS = {'accuracy', 'precision_recall', \
     'roc_auc', 'f1_score', 'per_class_f1_score', 'per_class_roc_auc', SUPPORTED_HIT_AT_METRICS}
 SUPPORTED_REGRESSION_METRICS = {'rmse', 'mse', 'mae'}
-SUPPORTED_LINK_PREDICTION_METRICS = {"mrr"}
+SUPPORTED_LINK_PREDICTION_METRICS = {"mrr", SUPPORTED_HIT_AT_METRICS}
 
 class ClassificationMetrics:
     """ object that compute metrics for classification tasks.
@@ -148,8 +148,13 @@ class RegressionMetrics:
 
 class LinkPredictionMetrics:
     """ object that compute metrics for LP tasks.
+
+    Parameters
+    ----------
+    eval_metric_list: list of string
+        Evaluation metric(s) used during evaluation, for example, ["hit_at_10", "hit_at_100"].
     """
-    def __init__(self):
+    def __init__(self, eval_metric_list=None):
         self.supported_metrics = SUPPORTED_LINK_PREDICTION_METRICS
 
         # This is the operator used to compare whether current value is better than the current best
@@ -164,11 +169,26 @@ class LinkPredictionMetrics:
         self.metric_eval_function = {}
         self.metric_eval_function["mrr"] = compute_mrr
 
+        if eval_metric_list:
+            for eval_metric in eval_metric_list:
+                if eval_metric.startswith(SUPPORTED_HIT_AT_METRICS):
+                    k = int(eval_metric[len(SUPPORTED_HIT_AT_METRICS) + 1:])
+                    self.metric_comparator[eval_metric] = operator.le
+                    self.metric_function[eval_metric] = \
+                        partial(compute_hit_at_link_prediction, k=k)
+                    self.metric_eval_function[eval_metric] = \
+                        partial(compute_hit_at_link_prediction, k=k)
+
     def assert_supported_metric(self, metric):
         """ check if the given metric is supported.
         """
-        assert metric in self.supported_metrics, \
-            f"Metric {metric} not supported for link prediction"
+        if metric.startswith(SUPPORTED_HIT_AT_METRICS):
+            assert metric[len(SUPPORTED_HIT_AT_METRICS) + 1:].isdigit(), \
+                "hit_at_k evaluation metric for link prediction " \
+                f"must end with an integer, but get {metric}"
+        else:
+            assert metric in self.supported_metrics, \
+                f"Metric {metric} not supported for link prediction"
 
     def init_best_metric(self, metric):
         """
@@ -242,6 +262,29 @@ def compute_hit_at_classification(preds, labels, k=100):
     hit_labels = labels[hit_idx]
     return th.sum(hit_labels)
 
+
+def compute_hit_at_link_prediction(ranking, k=100):
+    """ Compute hit@k for link prediction tasks
+
+        Parameters
+        ----------
+        ranking: tensor
+            A tensor for the ranking of positive edges
+        k: int
+            Hit@K
+
+        Returns
+        -------
+        float: Hit at K score
+    """
+    assert len(ranking.shape) == 1 or (len(ranking.shape) == 2 and ranking.shape[1] == 1), \
+        "The ranking must be a 1D tensor or a 2D tensor with the second dimension of 1. "
+
+    if len(ranking.shape) == 2:
+        ranking = th.squeeze(ranking)
+
+    metric = th.div(th.sum(ranking <= k), len(ranking))
+    return metric
 
 def eval_roc_auc(logits,labels):
     ''' Compute roc_auc score.
