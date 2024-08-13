@@ -238,7 +238,7 @@ For example, the file storing hard negatives should look like the following:
     ...
     "src_100"| "dst_41" | [dst0, dst_2]
 
-- **A single string** The ``feature_col`` stores strings instead of string arrays. (When the input format is ``Parquet`` or ``CSV``) In this case, a ``separator`` must be provided int the transformation definition to split the strings into node ids. The ``feature_col`` will be a 1D string list, for example ``["e0_hard_0;e0_hard_1", "e1_hard_1", ..., "en_hard_0;en_hard_1"]``. The string length, i.e., number of hard negatives, can vary from row to row. GraphStorm will automatically handle the case when some edges do not have enough hard negatives.
+- **A single string** The ``feature_col`` stores strings instead of string arrays (When the input format is ``Parquet`` or ``CSV``). In this case, a ``separator`` must be provided int the transformation definition to split the strings into node ids. The ``feature_col`` will be a 1D string list, for example ``["e0_hard_0;e0_hard_1", "e1_hard_1", ..., "en_hard_0;en_hard_1"]``. The string length, i.e., number of hard negatives, can vary from row to row. GraphStorm will automatically handle the case when some edges do not have enough hard negatives.
 For example, the file storing hard negatives should look like the following:
 
 .. code-block:: yaml
