@@ -15,7 +15,7 @@ Graph consturction command
 
 GraphStorm has a ``gconstruct.construct_graph`` module for graph construction in a signle machine. Users can run the ``gconstruct.construct_graph`` command by following the command template below.
 
-.. code:: bash
+.. code:: python
 
     python -m graphstorm.gconstruct.construct_graph \
           --conf-file config.json \
@@ -44,7 +44,7 @@ In the highest level, the JSON object contains three fields: ``version``, ``node
 
 * ``node_type``: (**Required**) specifies the node type. Think this as a name given to one type of nodes, e.g. `"author"` and `"paper"`.
 * ``files``: (**Required**) specifies the input raw table files for the node type. There are multiple options to specify the input files. For a single input file, it contains the path of a single file. For multiple files, it could contain the paths of files with a wildcard, e.g., `file_name*.parquet`, or a list of file paths, e.g., `["file_name001.parquet", "file_name002.parquet", ...]`.
-* ``format``: (**Required**) specifies the input file format. Currently, the construction command supports three input file formats: ``csv``, ``parquet``, and ``HDF5``. The value of this field is a dictionary, where the key is ``name`` and the value is either ``csv``, ``parquet`` or ``JSON``, e.g., `{"name":"csv"}`. The detailed format information could be found in the :ref:`Input Raw Data Explanations <input_raw_data>` guideline.
+* ``format``: (**Required**) specifies the input file format. Currently, the construction command supports three input file formats: ``csv``, ``parquet``, and ``HDF5``. The value of this field is a dictionary, where the key is ``name`` and the value is either ``csv``, ``parquet`` or ``HDF5``, e.g., `{"name":"csv"}`. The detailed format information could be found in the :ref:`Input Raw Data Explanations <input_raw_data>` guideline.
 * ``node_id_col``: specifies the column name that contains the node IDs. This field is optional. If not provided, the construction command will create node IDs according to the total number of rows and consider each row in the node table is a unique node. If user choose to store columns of a node type in multiple sets of tables, only one of the set of tables require to specify the node ID column.
 * ``features`` is a list of dictionaries that define how to get features and transform features. This is optional. The format of a feature dictionary is defined in the :ref:`Feature dictionary format <feat-format>` section below.
 * ``labels`` is a list of dictionaries that define where to get labels and how to split the labels into training/validation/test set. This is optional. The format of a label dictionary is defined :ref:`Label dictionary format <label-format>` section below.
@@ -74,7 +74,7 @@ Similarly, ``edges`` contains a list of edge types and the information of an edg
 * ``label_col``: specifies the column name in the input file that contains the label. This has to be specified for ``classification`` and ``regression`` tasks. ``label_col`` is also used as the label name.
 * ``split_pct``: specifies how to split the data into training/validation/test. If it's not specified, the data is split into 80% for training 10% for validation and 10% for testing. The pipeline constructs three additional vectors indicating the training/validation/test masks. For ``classification`` and ``regression`` tasks, the names of the mask tensors are ``train_mask``, ``val_mask`` and ``test_mask``.
 * ``custom_split_filenames``: specifies the customized training/validation/test mask. It has field named ``train``, ``valid``, and ``test`` to specify the path of the mask files. It is possible that one of the subfield here leaves empty and it will be treated as none. It will override the ``split_pct`` once provided. Refer to :ref:`Label split files <customized-split-labels>` for detailed explanations.
-* ``label_stats_type``: specifies 
+* ``label_stats_type``: specifies the statistic type used to summarize labels. So far, only support one value, i.e., ``frequency_cnt``.
 
 .. _feat-transform:
 
@@ -133,7 +133,7 @@ GraphStorm provides a set of transformation operations for different types of fe
 
     "transform": {"name": "rank_gauss",
                   "epsilon": 1e-5,
-                  "uniquify": True}
+                  "uniquify": True, }
 
 * **Convert to categorical values** converts text data to categorial values. The ``name`` field is ``to_categorical``, and ``separator`` specifies how to split the string into multiple categorical values (this is only used to define multiple categorical values). If ``separator`` is not specified, the entire string is a categorical value. ``mapping`` (optional) is a dictionary that specifies how to map a string to an integer value that defines a categorical value.
 
