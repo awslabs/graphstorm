@@ -131,7 +131,7 @@ GraphStorm provides a set of transformation operations for different types of fe
 
   .. code:: json
 
-    "transform": {"name": "rank_gauss"}
+    "transform": {"name": "rank_gauss",
                   "epsilon": 1e-5,
                   "uniquify": True}
 
@@ -192,7 +192,7 @@ A construct configuration JSON example
 
 Using the :ref:`simple raw data example <simple-input-raw-data-example>`, this section provides a construction configuration JSON example for demonstration. 
 
-.. code-block:: json
+.. code:: json
 
     {
         "version": "gconstruct-v0.1",
