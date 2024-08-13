@@ -187,12 +187,12 @@ If select ``DistDGL``, the output will be a partitioned `DistDGL graph <https://
 
 .. note:: These mapping files are important for mapping the training and inference outputs. Therefore, DO NOT move or delete them.
 
-A construct configuration JSON example
-........................................
+A construction configuration JSON example
+..........................................
 
 Using the :ref:`simple raw data example <simple-input-raw-data-example>`, this section provides a construction configuration JSON example for demonstration. 
 
-.. code:: json
+.. code:: yaml
 
     {
         "version": "gconstruct-v0.1",
@@ -319,7 +319,7 @@ A full argument list of the ``gconstruct.construct_graph`` command
 Graph Partition for DGL Graphs
 ********************************
 
-.. warning:: The two graph partition tools explained in this section were originally implemented for quick code debugging and are no longer maintained. It is **strongly** suggested to use the ``gconstruct.construct_graph`` command or the :ref:`Distributed Graph Construction <distributed-gconstruction>` guideline for graph construction.
+.. warning:: The two graph partition tools in this section were originally implemented for quick code debugging and are no longer maintained. It is **strongly** suggested to use the ``gconstruct.construct_graph`` command or the :ref:`Distributed Graph Construction <distributed-gconstruction>` guideline for graph construction.
 
 For users who are already familiar with DGL and know how to construct DGL graphs, GraphStorm provides two graph partition tools to split DGL graphs into the required input format for GraphStorm model training and inference.
 
