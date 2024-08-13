@@ -262,7 +262,9 @@ Other arguments of the ``gconstruct.construct_graph`` command
 Graph Partition for DGL Graphs
 ********************************
 
-For users who are already familiar with DGL and know how to construct DGL graphs, GraphStorm provides two graph partition tools to partition DGL graphs into the required input format for GraphStorm launch tool for training and inference.
+.. warning:: The two graph partition tools explained in this section were originally implemented for quick code debugging and are no longer maintained. It is **strongly** suggested to use the ``gconstruct.construct_graph`` command or the :ref:`Distributed Graph Construction <distributed-gconstruction>` guideline.
+
+For users who are already familiar with DGL and know how to construct DGL graphs, GraphStorm provides two graph partition tools to split DGL graphs into the required input format for GraphStorm model training and inference.
 
 * `partition_graph.py <https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph.py>`_: for Node/Edge Classification/Regress task graph partition.
 * `partition_graph_lp.py <https://github.com/awslabs/graphstorm/blob/main/tools/partition_graph_lp.py>`_: for Link Prediction task graph partition.
