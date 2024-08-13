@@ -558,7 +558,7 @@ class FastMultiLayerNeighborSampler(NeighborSampler):
         )
 
     def sample_blocks(self, g, seed_nodes, exclude_eids=None):
-        """Generates a list of blocks from the given seed nodes.
+        """Generates a list of DGL MFGs from the given seed nodes.
 
         This function must return a triplet where the first element is the input node IDs
         for the first GNN layer (a tensor or a dict of tensors for heterogeneous graphs),

@@ -31,7 +31,7 @@ def init_lm_model(lm_config, num_train=0, lm_infer_batch_size=16, profile=False)
     lm_config: dict
         Language model config.
     num_train: int
-        Number of trainable texts.
+        The number of nodes with textual features used for LM embedding.
     lm_infer_batch_size: int
         Batch size used in lm model inference
     profile: bool

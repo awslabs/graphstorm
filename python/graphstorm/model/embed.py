@@ -164,39 +164,43 @@ class GSNodeInputLayer(GSLayer):  # pylint: disable=abstract-method
 
 
 class GSNodeEncoderInputLayer(GSNodeInputLayer):
-    """The input encoder layer for all nodes in a heterogeneous graph.
+    """ The node encoder input layer for all nodes in a heterogeneous graph.
 
-    The input layer adds learnable embeddings on nodes if the nodes do not have features.
-    It adds a linear layer on nodes with node features and the linear layer projects the node
-    features to a specified dimension. A user can add learnable embeddings on the nodes
-    with node features. In this case, the input layer combines the node features with
-    the learnable embeddings and project them to the specified dimension.
+    The input layer adds a linear layer on nodes with node features and the linear layer
+    projects the node features into a specified dimension. 
+    It also adds learnable embeddings on nodes that do not have features. Users can add
+    learnable embeddings on the nodes with node features by setting ``use_node_embeddings``
+    to True. In this case, the input layer combines the node features with the learnable
+    embeddings and project them to the specified dimension.
 
     Parameters
     ----------
     g: DistGraph
-        The distributed graph
+        The input DGL distributed graph.
     feat_size : dict of int
-        The original feat sizes of each node type
+        The original feat size of each node type in the format of {ntype: size}.
     embed_size : int
-        The embedding size
-    activation : func
-        The activation function
+        The output embedding size.
+    activation : callable
+        The activation function applied to the output embeddigns. Default: None.
     dropout : float
-        The dropout parameter
+        The dropout parameter. Default: 0.
     use_node_embeddings : bool
-        Whether we will use learnable embeddings for individual nodes even when node features are
-        available.
+        Whether to use learnable embeddings for nodes even when node features are
+        available. Default: False.
     force_no_embeddings : list of str
-        The list node types that are forced to not have learnable embeddings.
-    num_ffn_layers_in_input: int, optional
-        Number of layers of feedforward neural network for each node type in the input layers
+        The list node types that are forced to not use learnable embeddings. Default:
+        None.
+    num_ffn_layers_in_input: int
+        (Optional) Number of layers of feedforward neural network for each node type
+        in the input layer. Default: 0.
     ffn_activation : callable
-        The activation function for the feedforward neural networks.
+        The activation function for the feedforward neural networks. Default: relu.
     cache_embed : bool
-        Whether or not to cache the embeddings.
+        Whether or not to cache the embeddings. Default: False.
     use_wholegraph_sparse_emb : bool
-        Whether or not to use WholeGraph to host embeddings for sparse updates.
+        Whether or not to use WholeGraph to host embeddings for sparse updates. Default:
+        False.
 
     Examples:
     ----------
@@ -210,9 +214,9 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         np_data = GSgnnData(...)
 
         model = GSgnnEdgeModel(alpha_l2norm=0)
-        feat_size = get_node_feat_size(np_data.g, 'feat')
-        encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
-                                          dropout=0,
+        feat_size = get_node_feat_size(np_data.g, "feat")
+        encoder = GSNodeEncoderInputLayer(g, feat_size, 
+                                          embed_size=4,
                                           use_node_embeddings=True)
         model.set_node_input_encoder(encoder)
     """
@@ -345,18 +349,19 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
                             num_ffn_layers_in_input, ffn_activation, dropout)
 
     def forward(self, input_feats, input_nodes):
-        """Forward computation
+        """ Input layer forward computation.
 
         Parameters
         ----------
-        input_feats: dict
-            input features
-        input_nodes: dict
-            input node ids
+        input_feats: dict of Tensor
+            The input features in the format of {ntype: feats}.
+        input_nodes: dict of Tensor
+            The input node indexes in the format of {ntype: indexes}.
 
         Returns
         -------
-        a dict of Tensor: the node embeddings.
+        embs: dict of Tensor
+            The projected node embeddings in the format of {ntype: emb}.
         """
         assert isinstance(input_feats, dict), 'The input features should be in a dict.'
         assert isinstance(input_nodes, dict), 'The input node IDs should be in a dict.'
@@ -419,22 +424,25 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
     def require_cache_embed(self):
         """ Whether to cache the embeddings for inference.
 
-        If the input encoder has heavy computations, such as BERT computations,
-        it should return True and the inference engine will cache the embeddings
-        from the input encoder.
+        If the input layer encoder includes heavy computations, such as BERT computations,
+        it should return ``True`` and the inference engine will cache the embeddings
+        from the input layer encoder.
 
         Returns
         -------
-        Bool : True if we need to cache the embeddings for inference.
+        bool : ``True`` if we need to cache the embeddings for inference.
         """
         return self.cache_embed
 
     def get_sparse_params(self):
-        """ get the sparse parameters.
+        """ Get the sparse parameters of this input layer.
+
+        This function is normally called by optimizers to update sparse model parameters,
+        i.e., learnable node embeddings.
 
         Returns
         -------
-        list of Tensors: the sparse embeddings.
+        list of Tensors: the sparse embeddings, or empty list if no sparse parameters.
         """
         if self.sparse_embeds is not None and len(self.sparse_embeds) > 0:
             return list(self.sparse_embeds.values())
@@ -443,19 +451,20 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
 
     @property
     def in_dims(self):
-        """ The input feature size.
+        """ Return the input feature size, which is given in class initialization.
         """
         return self.feat_size
 
     @property
     def out_dims(self):
-        """ The number of output dimensions.
+        """ Return the number of output dimensions, which is given in class initialization.
         """
         return self.embed_size
 
     @property
     def use_wholegraph_sparse_emb(self):
-        """ Whether or not to use WholeGraph to host embeddings for sparse updates.
+        """ Return whether or not to use WholeGraph to host embeddings for sparse updates,
+        which is given in class initialization.
         """
         return self._use_wholegraph_sparse_emb
 

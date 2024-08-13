@@ -150,35 +150,37 @@ class GSOptimizer():
                         state[k] = v.to(device)
 
 class GSgnnModelBase(nn.Module):
-    """ GraphStorm GNN model base class
+    """ GraphStorm GNN model base class.
 
     Any GNN model trained by GraphStorm should inherit from this class. It contains
-    some abstract methods that should be defined in the GNN model classes.
-    It also provides some utility methods.
+    some abstract methods that should be defined by the inherited classes. It also
+    provides some utility methods.
     """
 
     @abc.abstractmethod
     def restore_dense_model(self, restore_model_path,
                             model_layer_to_load=None):
-        """ Restore dense models, e.g., GNN, decoder, etc
+        """ Restore dense models, e.g., GNN Encoders, Decoders, etc.
 
         All model parameters except for learnable node embeddings, i.e.,
-        dgl.distributed.DistEmbedding, are restored by this function.
-        This fuction will go though all the sub NN models and load the corresponding
+        ``dgl.distributed.DistEmbedding``, are restored by this function.
+        This fuction will go though all the model layers and load the corresponding
         parameters from ``restore_model_path``.
 
-        In some cases, users can choose which sub NN model(s) to load by
+        In some cases, users can choose which model layer(s) to load by
         setting ``model_layer_to_load``. ``model_layer_to_load`` is
-        designed to indicate the names of NN model(s) that should be restored.
+        designed to indicate the names of model layer(s) that should be restored.
 
-        Example:
-        --------
-        To restore model parameters for a model with a node_input_encoder, a
-        GNN layer and a decoder:
+        Example Implementation:
+        ------------------------
+        The code below provides examplary implementation of this abstract method.
+
+        To restore model parameters for a model with all three layers of a GraphStorm GNN
+        model, including an input layer, a GNN layer and a decoder layer:
 
         .. code:: python
 
-            # suppose we are going to load all layers.
+            # suppose we are going to load all three layers.
             input_encoder = self.input_encoder
             gnn_model = self.gnn_model
             decoder = self.decoder
@@ -188,7 +190,7 @@ class GSgnnModelBase(nn.Module):
                                  weights_only=True)
 
             assert 'gnn' in checkpoint
-            assert 'input_encoder' in checkpoint
+            assert 'input' in checkpoint
             assert 'decoder' in checkpoint
 
             input_encoder.load_state_dict(checkpoint['input'], strict=False)
@@ -198,22 +200,24 @@ class GSgnnModelBase(nn.Module):
         Parameters
         ----------
         restore_model_path : str
-            The path where we can restore the model.
+            The path where the model was stored.
         model_layer_to_load: list of str
             List of model layers to load. This arguement is used to indicate
-            which NN model(s) are going to be restored from the model checkpoint.
-            Default: None
+            which model layer(s) are going to be restored from the model checkpoint.
+            Default: None.
         """
 
     @abc.abstractmethod
     def restore_sparse_model(self, restore_model_path):
-        """ Restore sparse models, e.g., learnable node embeddings
+        """ Restore sparse models, e.g., learnable node embeddings.
 
         Learnable node embeddings are restored by this function.
 
-        Example:
-        --------
-        To load sparse model parameters for a node_input_encoder
+        Example Implementation:
+        ------------------------
+        The code below provides examplary implementation of this abstract method.
+
+        To load sparse model parameters for a node_input_encoder:
 
         .. code:: python
 
@@ -225,20 +229,21 @@ class GSgnnModelBase(nn.Module):
         Parameters
         ----------
         restore_model_path : str
-            The path where we can restore the model.
+            The path where the model was stored.
         """
 
     @abc.abstractmethod
     def save_dense_model(self, model_path):
-        """Save dense models.
+        """Save dense models, e.g., GNN Encoders, Decoders, etc.
 
         All model parameters except for learnable node embeddings, i.e.,
-        dgl.distributed.DistEmbedding, are saved by this function.
-        This fuction should go though all the sub NN models and save the correspoinding
+        ``dgl.distributed.DistEmbedding``, are saved by this function.
+        This fuction should go though all model layers and save the correspoinding
         parameters under ``model_path``.
 
-        Example:
-        --------
+        Example Implementation:
+        ------------------------
+        The code below provides an examplary implementation of this abstract method.
 
         .. code:: python
 
@@ -260,20 +265,22 @@ class GSgnnModelBase(nn.Module):
         Parameters
         ----------
         model_path : str
-            The path where all model parameters and optimizer states are saved.
+            The path where all model parameters and optimizer states will be saved.
         """
 
     @abc.abstractmethod
     def save_sparse_model(self, model_path):
-        """Save sparse models, e.g., learnable node embeddings
+        """Save sparse models, e.g., learnable node embeddings.
 
         Learnable node embeddings are saved by this function. Saving learnable
         node embeddings only works when 1) the training task is run on a single machine
         or 2) the training task is running on a distributed environment with a
         shared file system.
 
-        Example:
-        --------
+        Example Implementation:
+        ------------------------
+        The code below provides an examplary implementation of this abstract method.
+
         The implementation of save_sparse_model usually includes two steps:
 
         Step 1: Create a path to save the learnable node embeddings.
@@ -298,18 +305,19 @@ class GSgnnModelBase(nn.Module):
         Parameters
         ----------
         model_path : str
-            The path where all model parameters and optimizer states are saved.
+            The path where all model sparse parameters will be saved.
         """
 
     def normalize_node_embs(self, embs):
         """ Normalize node embeddings when needed.
 
-            Normalize_node_embs should be called in forward() and predict()
+        Normalize_node_embs should be called in ``forward()`` and ``predict()`` functions.
+        By default, this method does no normalize the input embeddings, but simply return them.
 
         Parameters
         ----------
         embs: dict of Tensors
-            A dict of node embeddings.
+            A dict of node embeddings to be normalized.
 
         Returns
         -------
@@ -322,7 +330,7 @@ class GSgnnModelBase(nn.Module):
     def restore_model(self, restore_model_path, model_layer_to_load=None):
         """Restore saved checkpoints of a GNN model.
 
-        A user who implement this method should load the parameters of the GNN model.
+        Users who want to overwrite this method should load the parameters of the GNN model.
         This method does not need to load the optimizer state.
 
         Examples
@@ -340,10 +348,10 @@ class GSgnnModelBase(nn.Module):
         Parameters
         ----------
         restore_model_path : str
-            The path where we can restore the model.
+            The path where the model was stored.
         model_layer_to_load: list of str
-            list of model layers to load. Supported layers include
-            'gnn', 'embed', 'decoder'
+            list of model layers to load. Supported layers include: "embed", "gnn",
+            "decoder".
         """
         start_load_t = time.time()
         # Restore the model weights from a checkpoint saved previously.
@@ -370,9 +378,9 @@ class GSgnnModelBase(nn.Module):
             logging.info('Time on load model: %.3f seconds', time.time() - start_load_t)
 
     def save_model(self, model_path):
-        ''' Save the GNN model.
+        ''' Save a trained model.
 
-        When saving a GNN model, we need to save the dense parameters and sparse parameters.
+        When saving a model, need to save both the dense parameters and sparse parameters.
 
         Examples
         --------
@@ -389,7 +397,7 @@ class GSgnnModelBase(nn.Module):
         Parameters
         ----------
         model_path : str
-            The path where all model parameters and optimizer states are saved.
+            The path where all model parameters and optimizer states will be saved.
         '''
         start_save_t = time.time()
         # Only rank 0 save dense model parameters
@@ -411,8 +419,8 @@ class GSgnnModelBase(nn.Module):
     def create_optimizer(self):
         """Create the optimizer that optimizes the model.
 
-        A user who defines a model should also define the optimizer for this model.
-        By using this method, a user can define the optimization algorithm,
+        Users who want to customize a model should define a optimizer for this model.
+        By using this method, users can define their customized optimization algorithm,
         the learning rate as well as any other hyperparameters.
 
         A model may require multiple optimizers. For example, we should define
@@ -421,6 +429,7 @@ class GSgnnModelBase(nn.Module):
         optimizers.
 
         Example:
+        --------
 
         Case 1: if there is only one optimizer:
 
@@ -446,8 +455,9 @@ class GSgnnModelBase(nn.Module):
     #pylint: disable=unused-argument
     def prepare_input_encoder(self, train_data):
         """ Preparing input layer for training or inference.
-            The input layer can pre-compute node features in the preparing step
-            if needed. For example pre-compute all BERT embeddings
+        
+        The input layer can pre-compute node features in the preparing step
+        if needed, e.g., pre-compute all BERT embeddings.
 
             Default: do nothing
 
@@ -478,9 +488,9 @@ class GSgnnModelBase(nn.Module):
 
     @property
     def device(self):
-        """ The device where the model runs.
+        """ Return the device where the model runs.
 
-        Here we assume that all model parameters are on the same device.
+        This implementation assumes that all model parameters are on the same device.
         """
         return next(self.parameters()).device
 
@@ -858,8 +868,11 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
 
         Parameters
         ----------
-        blocks : list of DGLBlock
-            The message flow graphs for computing GNN embeddings.
+        blocks: list of DGL MFGs
+            Sampled subgraph in the list of DGL message flow graph (MFG) format. More
+            detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+            Overview
+            <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
         input_feats : dict of Tensors
             The input node features.
         input_nodes : dict of Tensors

@@ -126,7 +126,7 @@ class MultiLayerNeighborSamplerForReconstruct(dgl.dataloading.BlockSampler):
                 dataset, construct_feat_ntype, construct_feat_fanout)
 
     def sample_blocks(self, g, seed_nodes, exclude_eids=None):
-        """ Sample blocks for message passing.
+        """ Sample blocks (list of DGL MFGs) for message passing.
 
         Parameters
         ----------
@@ -139,7 +139,10 @@ class MultiLayerNeighborSamplerForReconstruct(dgl.dataloading.BlockSampler):
         -------
         dict of Tensors : the input node IDs.
         dict of Tensors : the seed node IDs.
-        list of DGLBlock : the blocks for message passing.
+        list of DGL MFGs : the list of DGL message flow graphs (MFGs) for message passing.
+            More detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+            Overview
+            <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
         """
         input_nodes, seed_nodes, blocks = \
                 self._sampler.sample_blocks(g, seed_nodes, exclude_eids)
@@ -213,14 +216,20 @@ class GSgnnEdgeDataLoaderBase():
         """ Return a mini-batch data for the edge task.
 
         A mini-batch comprises three objects: 1) the input node IDs,
-        2) the target edges, and 3) the subgraph blocks for message passing.
+        2) the target edges, and 3) the sampled subgraph in the list of DGL message flow
+        graph (MFG) format. More detailed information about DGL MFG can be found in `DGL
+        Neighbor Sampling Overview
+        <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
 
         Returns
         -------
 
             - dict of Tensors : the input node IDs of the mini-batch.
             - DGLGraph : the target edges.
-            - list of DGLGraph : the subgraph blocks for message passing.
+            - list of DGL MFGs : the list of DGL message flow graphs (MFGs) for message passing.
+              More detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+              Overview
+              <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
 
         """
 
@@ -552,7 +561,10 @@ class GSgnnLinkPredictionDataLoaderBase():
         - the input node IDs of the mini-batch.
         - the target positive edges for prediction.
         - the sampled negative edges for prediction.
-        - the subgraph blocks for message passing.
+        - the sampled subgraph in the list of DGL message flow graph (MFG) format.
+          More detailed information about DGL MFG can be found in `DGL Neighbor
+          Sampling Overview
+          <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
 
         Returns
         -------
@@ -560,7 +572,10 @@ class GSgnnLinkPredictionDataLoaderBase():
             - Tensor or dict of Tensors: the input nodes of a mini-batch.
             - DGLGraph: positive edges.
             - DGLGraph: negative edges.
-            - list of DGLGraph: subgraph blocks for message passing.
+            - list of DGL MFGs : the list of DGL message flow graphs (MFGs) for message passing.
+              More detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+              Overview
+              <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
         
         """
 
@@ -1465,14 +1480,20 @@ class GSgnnNodeDataLoaderBase():
         """ Return a mini-batch data for node tasks.
 
         A mini-batch comprises three objects: 1) the input node IDs of the mini-batch,
-        2) the target nodes, and 3) the subgraph blocks for message passing.
+        2) the target nodes, and 3) the sampled subgraph in the list of DGL message flow
+        graph (MFG) format. More detailed information about DGL MFG can be found in `DGL
+        Neighbor Sampling Overview
+        <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
 
         Returns
         -------
 
             - dict of Tensors : the input node IDs of the mini-batch.
             - dict of Tensors : the target node indexes.
-            - list of DGLGraph : the subgraph blocks for message passing.
+            - list of DGL MFGs : the list of DGL message flow graphs (MFGs) for message passing.
+              More detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+              Overview
+              <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
 
         """
 

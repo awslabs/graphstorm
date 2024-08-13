@@ -44,11 +44,11 @@ class GSEdgeDecoder(GSLayer):
 
         Parameters
         ----------
-        g : DGLGraph
-            The target edge graph
-        h : dict of Tensors
+        g: DGLGraph
+            The graph that stores target edges to run edge prediction.
+        h: dict of Tensors
             The dictionary containing the embeddings
-        e_h : dict of tensors
+        e_h: dict of tensors
             The dictionary containing the edge features for g.
         Returns
         -------
@@ -64,16 +64,16 @@ class GSEdgeDecoder(GSLayer):
 
         Parameters
         ----------
-        g : DGLBlock
-            The minibatch graph
-        h : dict of Tensors
-            The dictionary containing the embeddings
-        e_h : dict of tensors
-            The dictionary containing the edge features for g.
+        g: DGLGraph
+            The graph that stores target edges to run edge prediction.
+        h: dict of Tensors
+            The dictionary containing the node embeddings.
+        e_h: dict of tensors
+            The dictionary containing the edge features for the ``g``.
 
         Returns
         -------
-        Tensor : the maximum score of each edge.
+        Tensor: the maximum score of each edge.
         """
 
     @abc.abstractmethod
@@ -82,43 +82,45 @@ class GSEdgeDecoder(GSLayer):
 
         Parameters
         ----------
-        g : DGLBlock
-            The minibatch graph
-        h : dict of Tensors
-            The dictionary containing the embeddings
-        e_h : dict of tensors
-            The dictionary containing the edge features for g.
+        g: DGLGraph
+            The graph that stores target edges to run edge prediction.
+        h: dict of Tensors
+            The dictionary containing the node embeddings.
+        e_h: dict of tensors
+            The dictionary containing the edge features for the ``g``.
 
         Returns
         -------
-        Tensor : all the scores of each edge.
+        Tensor: all the scores of each edge.
         """
 
 class DenseBiDecoder(GSEdgeDecoder):
-    r"""Dense bi-linear decoder.
-    Dense implementation of the bi-linear decoder used in GCMC. Suitable when
-    the graph can be efficiently represented by a pair of arrays (one for source
-    nodes; one for destination nodes).
+    r""" Dense bi-linear decoder for edge prediction tasks.
+
+    ``DenseBiDecoder`` is the dense implementation of the bi-linear decoder used in GCMC.
+    Suitable when the graph can be represented by a pair of lists (one for source
+    node list and one for destination node list).
 
     Parameters
     ----------
-    in_units : int
-        The input node feature size
-    num_classes : int
-        Number of classes.
-    multilabel : bool
-        Whether this is a multilabel classification.
-    num_basis : int, optional
-        Number of basis. (Default: 2)
-    dropout_rate : float, optional
-        Dropout raite (Default: 0.0)
-    target_etype : tuple of str
-        The target etype for prediction
-    regression : bool
-        Whether this is true then we perform regression
-    norm : str, optional
-        Normalization Method. (Reserved for complex DenseBiDecoder child class.)
-        Default: None
+    in_units: int
+        The input dimension size. It is the dimension for both source and destination node.
+        embeddings.
+    num_classes: int
+        Number of classes. For classification tasks only.
+    multilabel: bool
+        Whether this is a multi-label classification decoder.
+    num_basis: int
+        Number of basis. Default: 2.
+    dropout_rate: float
+        Dropout rate. Default: 0.
+    target_etype: tuple of str
+        The target etype for prediction in the format of (src_ntype, etype, dst_ntype).
+    regression: bool
+        Whether this decoder is for regression tasks. Default: False.
+    norm: str
+        Normalization methods. Not used, but reserved for complex DenseBiDecoder child class
+        implementation. Default: None.
     """
     def __init__(self,
                  in_units,
@@ -173,6 +175,23 @@ class DenseBiDecoder(GSEdgeDecoder):
 
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
+        """ Dense bi-linear edge decoder forward computation.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results.
+        """
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
             src_type, _, dest_type = self.target_etype
@@ -190,6 +209,23 @@ class DenseBiDecoder(GSEdgeDecoder):
 
     # pylint: disable=unused-argument
     def predict(self, g, h, e_h=None):
+        """ Dense bi-linear edge decoder predict computation.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results.
+        """
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
             src_type, _, dest_type = self.target_etype
@@ -207,6 +243,25 @@ class DenseBiDecoder(GSEdgeDecoder):
 
     # pylint: disable=unused-argument
     def predict_proba(self, g, h, e_h=None):
+        """ Dense bi-linear edge decoder predict computation and return the normalized
+        prediction results if this decoder is for edge classification.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results. If this decoder is for edge classification, return the
+            normalized prediction results.
+        """
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
             src_type, _, dest_type = self.target_etype
@@ -224,50 +279,44 @@ class DenseBiDecoder(GSEdgeDecoder):
 
     @property
     def in_dims(self):
-        """ The number of input dimensions.
-
-        Returns
-        -------
-        int : the number of input dimensions.
+        """ Return the input dimension size, which is given in class initialization.
         """
         return self.in_units
 
     @property
     def out_dims(self):
-        """ The number of output dimensions.
-
-        Returns
-        -------
-        int : the number of output dimensions.
+        """ Return the output dimension size. If this decoder is for edge regression,
+        will return ``1``.
         """
         return 1 if self.regression else self.num_classes
 
 
 class MLPEdgeDecoder(GSEdgeDecoder):
-    """ MLP based edge classificaiton/regression decoder
+    """ MLP-based decoder for edge prediction tasks.
 
     Parameters
     ----------
-    h_dim : int
-        The input dim of decoder. It is the dim of source or destinatioin node embeddings.
-    out_dim : int
-        Output dim. e.g., number of classes
-    multilabel : bool
-        Whether this is a multilabel classification.
-    target_etype : tuple of str
-        Target etype for prediction
+    h_dim: int
+        The input dimension size. It is the dimension for both source and destination
+        node embeddings.
+    out_dim: int
+        Output dimension size. If this decoder is for edge regression, the output
+        dimension should be ``1``.
+    multilabel: bool
+        Whether this decoder is for multilabel edge classification.
+    target_etype: tuple of str
+        The target etype for prediction in the format of (src_ntype, etype, dst_ntype).
     num_hidden_layers: int
-        Number of layers
-    regression : Bool
-        If this is true then we perform regression
+        Number of MLP layers. Default: 1.
     dropout: float
-        Dropout
-    num_ffn_layers: int, optional
-        Number of free-forward layers added to the decoder
-        Default: 0
-    norm : str, optional
-        Normalization Method. (Reserved for complex MLPEdgeDecoder child class.)
-        Default: None
+        Dropout rate. Default: 0.
+    regression: bool
+        Whether this decoder is for regression tasks. Default: False.
+    num_ffn_layers: int
+        Number of FFN layers added to the decoder. Default: 0
+    norm: str
+        Normalization methods. Not used, but reserved for complex MLPEdgeDecoder child class
+        implementation. Default: None.
     """
     def __init__(self,
                  h_dim,
@@ -323,9 +372,9 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
             Parameters
             ----------
-            g : DGLBlock
+            g: DGLBlock
                 The minibatch graph
-            h : dict of Tensors
+            h: dict of Tensors
                 The dictionary containing the embeddings
             Returns
             -------
@@ -346,6 +395,23 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
+        """ MLP-based edge decoder forward computation.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results.
+        """
         out = self._compute_logits(g, h)
 
         if self.regression:
@@ -354,6 +420,23 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
     # pylint: disable=unused-argument
     def predict(self, g, h, e_h=None):
+        """ MLP-based edge decoder predict computation.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results.
+        """
         out = self._compute_logits(g, h)
 
         if self.regression:
@@ -366,6 +449,25 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
     # pylint: disable=unused-argument
     def predict_proba(self, g, h, e_h=None):
+        """ MLP-based edge decoder prediction computation and return the normalized
+        prediction results if this decoder is for edge classification.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results. If this decoder is for edge classification, return the
+            normalized prediction results.
+        """
         out = self._compute_logits(g, h)
 
         if self.regression:
@@ -378,50 +480,43 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
     @property
     def in_dims(self):
-        """ The number of input dimensions.
-
-        Returns
-        -------
-        int : the number of input dimensions.
+        """ Return the input dimension size, which is given in class initialization.
         """
         return self.h_dim
 
     @property
     def out_dims(self):
-        """ The number of output dimensions.
-
-        Returns
-        -------
-        int : the number of output dimensions.
+        """ Return the output dimension size. If this decoder is for edge regression,
+        will return ``1``.
         """
         return 1 if self.regression else self.out_dim
 
 class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
-    """ MLP based edge classificaiton/regression decoder
+    """ MLP-based decoder for edge prediction tasks with edge features supported.
 
     Parameters
     ----------
-    h_dim : int
-        The input dim of decoder. It is the dim of source or destinatioin node embeddings.
-    feat_dim : int
-        The input dim of edge features which are used with NN output.
-    out_dim : int
-        Output dim. e.g., number of classes
-    multilabel : bool
-        Whether this is a multilabel classification.
-    target_etype : tuple of str
-        Target etype for prediction
-    regression : Bool
-        If this is true then we perform regression
+    h_dim: int
+        The input dimension size. It is the dimension for both source and destination
+        node embeddings.
+    feat_dim: int
+        The input dimension size of edge features which are used for computing decoder output.
+    out_dim: int
+        Output dimension size. If this decoder is for edge regression, the output
+        dimension should be ``1``.
+    multilabel: bool
+        Whether this decoder is for multilabel edge classification.
+    target_etype: tuple of str
+        The target etype for prediction in the format of (src_ntype, etype, dst_ntype).
     dropout: float
-        Dropout
-    num_ffn_layers: int, optional
-        Number of free-forward layers added to the decoder
-        Default: 0
-    norm : str, optional
-        Normalization Method. The Norm is used after edge feature decoder,
-        ffn_layers if any and combine decoder.
-        Default: None
+        Dropout rate. Default: 0.
+    regression: bool
+        Whether this decoder is for regression tasks. Default: False.
+    num_ffn_layers: int
+        Number of FFN layers added to the decoder. Default: 0
+    norm: str
+        Normalization methods. Not used, but reserved for complex MLPEFeatEdgeDecoder child
+        class implementation. Default: None.
     """
     def __init__(self,
                  h_dim,
@@ -496,9 +591,9 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
 
             Parameters
             ----------
-            g : DGLBlock
+            g: DGLBlock
                 The minibatch graph
-            h : dict of Tensors
+            h: dict of Tensors
                 The dictionary containing the embeddings
             Returns
             -------
@@ -540,6 +635,22 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
 
     # pylint: disable=signature-differs
     def forward(self, g, h, e_h):
+        """ MLP-based edge feature supported edge decoder forward computation.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results.
+        """
         out = self._compute_logits(g, h, e_h)
 
         if self.regression:
@@ -548,6 +659,22 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
 
     # pylint: disable=signature-differs
     def predict(self, g, h, e_h):
+        """ MLP-based edge feature supported edge decoder predict computation.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results.
+        """
         out = self._compute_logits(g, h, e_h)
 
         if self.regression:
@@ -560,6 +687,24 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
 
     # pylint: disable=signature-differs
     def predict_proba(self, g, h, e_h):
+        """ MLP-based edge feature supported edge decoder predict computation and return
+        the normalized prediction results if this decoder is for edge classification.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results. If this decoder is for edge classification, return the
+            normalized prediction results.
+        """
         out = self._compute_logits(g, h, e_h)
 
         if self.regression:
@@ -578,16 +723,17 @@ class LinkPredictNoParamDecoder(GSLayerNoParam):
     # pylint: disable=arguments-differ
     @abc.abstractmethod
     def forward(self, g, h, e_h=None):
-        """Forward function.
+        """Link prediction decoder forward function.
 
         This computes the edge score on every edge type.
+
         Parameters
         ----------
-        g : DGLGraph
+        g: DGLGraph
             The target edge graph
-        h : dict of Tensors
+        h: dict of Tensors
             The dictionary containing the node embeddings
-        e_h : dict of tensors
+        e_h: dict of tensors
             The dictionary containing the edge features for g.
 
         Returns
@@ -604,16 +750,17 @@ class LinkPredictLearnableDecoder(GSLayer):
     # pylint: disable=arguments-differ
     @abc.abstractmethod
     def forward(self, g, h, e_h=None):
-        """Forward function.
+        """Link prediction decoder forward function.
 
         This computes the edge score on every edge type.
+
         Parameters
         ----------
-        g : DGLGraph
+        g: DGLGraph
             The target edge graph
-        h : dict of Tensors
+        h: dict of Tensors
             The dictionary containing the node embeddings
-        e_h : dict of tensors
+        e_h: dict of tensors
             The dictionary containing the edge features for g.
 
         Returns
@@ -624,13 +771,39 @@ class LinkPredictLearnableDecoder(GSLayer):
         """
 
 class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
-    """ Link prediction decoder with the score function of dot product
+    """ Decoder for link prediction using the dot product as the score function.
+
+    Parameters
+    ----------
+    in_dim: int
+        The input dimension size. It is the dimension for both source and destination
+        node embeddings.
     """
     def __init__(self, in_dim):
         self._in_dim = in_dim
 
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
+        """ Link prediction dot product decoder forward function.
+
+        This function computes the edge scores on all edge types of the input graph.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The input graph.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        scores: dict of Tensor
+            The scores for edges of all edge types in the input graph in the format of
+            {(src_ntype, etype, dst_ntype): score}.
+        """
         with g.local_scope():
             scores = {}
 
@@ -648,32 +821,43 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
             return scores
 
     def calc_test_scores(self, emb, pos_neg_tuple, neg_sample_type, device):
-        """ Compute scores for positive edges and negative edges
+        """ Compute scores for positive edges and negative edges.
 
         Parameters
         ----------
         emb: dict of Tensor
-            Node embeddings.
+            Node embeddings in the format of {ntype: emb}.
         pos_neg_tuple: dict of tuple
-            Positive and negative edges stored in a tuple:
-            tuple(positive source, negative source,
-            postive destination, negatve destination).
-            The positive edges: (positive source, positive desitnation)
-            The negative edges: (positive source, negative desitnation) and
-                                (negative source, positive desitnation)
-        neg_sample_type: str
-            Describe how negative samples are sampled.
-                Uniform: For each positive edge, we sample K negative edges
-                Joint: For one batch of positive edges, we sample
-                       K negative edges
-        device: th.device
-            Device used to compute scores
+            Positive and negative edges stored in a dict of tuple in the format of
+            {("src_ntype1", "etype1", "dst_ntype1" ): (pos_src_idx, neg_src_idx,
+            pos_dst_idx, neg_dst_idx)}.
+            
+            The `pos_src_idx` represents the postive source node indexes in the format
+            of Torch.Tensor. The `neg_src_idx` represents the negative source node indexes
+            in the format of Torch.Tensor. The `pos_dst_idx` represents the postive destination
+            node indexes in the format of Torch.Tensor. The `neg_dst_idx` represents the
+            negative destination node indexes in the format of Torch.Tensor.
 
-        Return
-        ------
-        Dict of (Tensor, Tensor)
-            Return a dictionary of edge type to
-            (positive scores, negative scores)
+            We define positive and negative edges as: 
+
+            * The positive edges: (pos_src_idx, pos_dst_idx)
+            * The negative edges: (pos_src_idx, neg_dst_idx) and
+              (neg_src_idx, pos_dst_idx)
+
+        neg_sample_type: str
+            Describe how negative samples are sampled. There are two options:
+
+            * ``Uniform``: For each positive edge, we sample K negative edges.
+            * ``Joint``: For one batch of positive edges, we sample K negative edges.
+
+        device: th.device
+            Device used to compute scores.
+
+        Returns
+        --------
+        scores: dict of tuple
+            Return a dictionary of edge type's positive scores and negative scores in the format
+            of {(src_ntype, etype, dst_ntype): (pos_scores, neg_scores)}
         """
         assert isinstance(pos_neg_tuple, dict) and len(pos_neg_tuple) == 1, \
             "DotDecoder is only applicable to link prediction task with " \
@@ -761,43 +945,42 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
 
     @property
     def in_dims(self):
-        """ The number of input dimensions.
-
-        Returns
-        -------
-        int : the number of input dimensions.
+        """ Return the input dimension size, which is given in class initialization.
         """
         return self._in_dim
 
     @property
     def out_dims(self):
-        """ The number of output dimensions.
-
-        Returns
-        -------
-        int : the number of output dimensions.
+        """ Return ``1`` for link prediction tasks.
         """
         return 1
 
 class LinkPredictContrastiveDotDecoder(LinkPredictDotDecoder):
-    """ Link prediction decoder designed for contrastive loss
-        with the score function of dot product.
+    """ Decoder for link prediction designed for contrastive loss by
+    using the dot product as the score function.
 
-        Note: This class is specifically implemented for contrastive loss
-        This may also be used by other pair-wise loss functions for link
-        prediction tasks.
+    Note:
+    -----
+    This class is specifically implemented for contrastive loss. But
+    it could also be used by other pair-wise loss functions for link
+    prediction tasks.
 
-        TODO(xiang): Develop a better solution for supporting pair-wise
-        loss functions in link prediction tasks. The
-        LinkPredictContrastiveDotDecoder is implemented based on the
-        assumption that the same decoder.forward will be called twice
-        with a positive graph and negative graph respectively. And
-        the positive and negative graphs are compatible. We can simply
-        sort the edges in postive and negative graphs to create <pos, neg>
-        pairs. This implementation makes strong assumption of the correlation
-        between the Dataloader, Decoder and the Loss function. We should
-        find a better implementation.
+    Parameters
+    ----------
+    in_dim: int
+        The input dimension size. It is the dimension for both source and destination
+        node embeddings.
     """
+    # TODO(xiang): Develop a better solution for supporting pair-wise
+    # loss functions in link prediction tasks. The
+    # LinkPredictContrastiveDotDecoder is implemented based on the
+    # assumption that the same decoder.forward will be called twice
+    # with a positive graph and negative graph respectively. And
+    # the positive and negative graphs are compatible. We can simply
+    # sort the edges in postive and negative graphs to create <pos, neg>
+    # pairs. This implementation makes strong assumption of the correlation
+    # between the Dataloader, Decoder and the Loss function. We should
+    # find a better implementation.
 
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
@@ -834,16 +1017,18 @@ class LinkPredictContrastiveDotDecoder(LinkPredictDotDecoder):
             return scores
 
 class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
-    """ Link prediction decoder with the score function of DistMult
+    """ Decoder for link prediction using the DistMult as the score function.
 
     Parameters
     ----------
-    etypes : list of tuples
-        The canonical edge types of the graph
-    h_dim : int
-        The hidden dimension
-    gamma : float
-        The gamma value for initialization
+    etypes: list of tuples
+        The canonical edge types of the graph in the format of
+        [(src_ntype1, etype1, dst_ntype1), ...]
+    h_dim: int
+        The input dimension size. It is the dimension for both source and destination
+        node embeddings.
+    gamma: float
+        The gamma value for model weight initialization. Default: 40.
     """
     def __init__(self,
                  etypes,
@@ -860,24 +1045,54 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
         self.relids = th.arange(self.num_rels)
 
     def get_relemb(self, etype):
-        """retrieve trained embedding of the given edge type
+        """ Retrieve trained embedding of the given edge type.
 
         Parameters
         ----------
-        etype : str
-            The edge type.
+        etype: tuple
+            An edge type in the format of (src_ntype, etype, dst_ntype).
+
+        Returns
+        -------
+        Tensor: the output embeddings of the given edge type.
         """
         i = self.etype2rid[etype]
         assert self.trained_rels[i] > 0, 'The relation {} is not trained'.format(etype)
         return self._w_relation(th.tensor(i).to(self._w_relation.weight.device))
 
     def get_relembs(self):
-        """retrieve all edges' trained embedding and edge type id mapping
+        """ Retrieve all edge types' trained weights and the edge type ID mapping.
+
+        Returns
+        -------
+        dict of Tensor: the trained weights (relation embeddings) of all edge types.
+        dict of int: edge type ID mapping in the format of
+        {((src_ntype1, etype1, dst_ntype1)): id}
         """
         return self._w_relation.weight, self.etype2rid
 
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
+        """ Link prediction decoder forward function using the DistMult as the score function.
+
+        This computes the edge score on every edge type.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The input graph.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        scores: dict of Tensor
+            The scores for edges of all edge types in the input graph in the format of
+            {(src_ntype, etype, dst_ntype): score}.
+        """
         with g.local_scope():
             scores = {}
 
@@ -901,32 +1116,43 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
             return scores
 
     def calc_test_scores(self, emb, pos_neg_tuple, neg_sample_type, device):
-        """ Compute scores for positive edges and negative edges
+        """ Compute scores for positive edges and negative edges.
 
         Parameters
         ----------
         emb: dict of Tensor
-            Node embeddings.
+            Node embeddings in the format of {ntype: emb}.
         pos_neg_tuple: dict of tuple
-            Positive and negative edges stored in a tuple:
-            tuple(positive source, negative source,
-            postive destination, negatve destination).
-            The positive edges: (positive source, positive desitnation)
-            The negative edges: (positive source, negative desitnation) and
-                                (negative source, positive desitnation)
-        neg_sample_type: str
-            Describe how negative samples are sampled.
-                Uniform: For each positive edge, we sample K negative edges
-                Joint: For one batch of positive edges, we sample
-                       K negative edges
-        device: th.device
-            Device used to compute scores
+            Positive and negative edges stored in a dict of tuple in the format of
+            {("src_ntype1", "etype1", "dst_ntype1" ): (pos_src_idx, neg_src_idx,
+            pos_dst_idx, neg_dst_idx)}.
+            
+            The `pos_src_idx` represents the postive source node indexes in the format
+            of Torch.Tensor. The `neg_src_idx` represents the negative source node indexes
+            in the format of Torch.Tensor. The `pos_dst_idx` represents the postive destination
+            node indexes in the format of Torch.Tensor. The `neg_dst_idx` represents the
+            negative destination node indexes in the format of Torch.Tensor.
 
-        Return
-        ------
-        Dict of (Tensor, Tensor)
-            Return a dictionary of edge type to
-            (positive scores, negative scores)
+            We define positive and negative edges as: 
+
+            * The positive edges: (pos_src_idx, pos_dst_idx)
+            * The negative edges: (pos_src_idx, neg_dst_idx) and
+              (neg_src_idx, pos_dst_idx)
+
+        neg_sample_type: str
+            Describe how negative samples are sampled. There are two options:
+
+            * ``Uniform``: For each positive edge, we sample K negative edges.
+            * ``Joint``: For one batch of positive edges, we sample K negative edges.
+
+        device: th.device
+            Device used to compute scores.
+
+        Returns
+        --------
+        scores: dict of tuple
+            Return a dictionary of edge type's positive scores and negative scores in the format
+            of {(src_ntype, etype, dst_ntype): (pos_scores, neg_scores)}
         """
         assert isinstance(pos_neg_tuple, dict), \
             "DistMulti is only applicable to heterogeneous graphs." \
@@ -1028,43 +1254,47 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
 
     @property
     def in_dims(self):
-        """ The number of input dimensions.
-
-        Returns
-        -------
-        int : the number of input dimensions.
+        """ Return the input dimension size, which is given in class initialization.
         """
         return self.h_dim
 
     @property
     def out_dims(self):
-        """ The number of output dimensions.
-
-        Returns
-        -------
-        int : the number of output dimensions.
+        """ Return ``1`` for link prediction tasks.
         """
         return 1
 
 class LinkPredictContrastiveDistMultDecoder(LinkPredictDistMultDecoder):
-    """ Link prediction decoder designed for contrastive loss
-        with the score function of DistMult.
+    """ Decoder for link prediction designed for contrastive loss
+        using the DistMult as the score function.
 
-        Note: This class is specifically implemented for contrastive loss
-        This may also be used by other pair-wise loss functions for link
-        prediction tasks.
+    Note:
+    ------
+    This class is specifically implemented for contrastive loss. But
+    it could also be used by other pair-wise loss functions for link
+    prediction tasks.
 
-        TODO(xiang): Develop a better solution for supporting pair-wise
-        loss functions in link prediction tasks. The
-        LinkPredictContrastiveDotDecoder is implemented based on the
-        assumption that the same decoder.forward will be called twice
-        with a positive graph and negative graph respectively. And
-        the positive and negative graphs are compatible. We can simply
-        sort the edges in postive and negative graphs to create <pos, neg>
-        pairs. This implementation makes strong assumption of the correlation
-        between the Dataloader, Decoder and the Loss function. We should
-        find a better implementation.
+    Parameters
+    ----------
+    etypes: list of tuples
+        The canonical edge types of the edges used during model training in the format of
+        [(src_ntype1, etype1, dst_ntype1), ...]
+    h_dim: int
+        The input dimension size. It is the dimension for both source and destination
+        node embeddings.
+    gamma: float
+        The gamma value for model weight initialization. Default: 40.
     """
+    # TODO(xiang): Develop a better solution for supporting pair-wise
+    # loss functions in link prediction tasks. The
+    # LinkPredictContrastiveDotDecoder is implemented based on the
+    # assumption that the same decoder. Forward will be called twice
+    # with a positive graph and negative graph respectively. And
+    # the positive and negative graphs are compatible. We can simply
+    # sort the edges in postive and negative graphs to create <pos, neg>
+    # pairs. This implementation makes strong assumption of the correlation
+    # between the Dataloader, Decoder and the Loss function. We should
+    # find a better implementation.
 
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
@@ -1158,10 +1388,18 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
             return scores
 
 class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
-    """Link prediction decoder with the score function of dot product
-       with edge weight.
+    """ Decoder for link prediction using the dot product with edge weight as the score
+    function.
 
-       When computing loss, edge weights are used to adjust the loss
+    When computing loss, edge weights are used to adjust the loss
+
+    Parameters
+    ----------
+    in_dim: int
+        The input dimension size. It is the dimension for both source and destination
+        node embeddings.
+    edge_weight_fields: dict of str
+        
     """
     def __init__(self, in_dim, edge_weight_fields):
         self._edge_weight_fields = edge_weight_fields
