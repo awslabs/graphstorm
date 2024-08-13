@@ -3,7 +3,6 @@
 GraphStorm Output
 =================
 
-
 .. _gs-output-embs:
 
 Saved Node Embeddings
@@ -53,6 +52,11 @@ The ``emb_info.json`` stores three informations:
   * ``format``: The format of the saved embeddings. By default, it is ``pytorch``.
   * ``emb_name``: A list of node types that have node embeddings saved. For example: ["ntype0", "ntype1"]
   * ``world_size``: The number of chunks (files) into which the node embeddings of a particular node type are divided. For instance, if world_size is set to 8, there will be 8 files for each set of node embeddings."
+
+**Note: The built-in GraphStorm training or inference pipeline
+(launched by GraphStorm CLI) will process the saved node embeddings
+to convert the integer node ids into the raw node ids, which are usually string node ids..**
+Details can be found in :ref:`GraphStorm Output Node ID Remapping<output-remapping>`
 
 .. _gs-output-predictions:
 
@@ -158,3 +162,8 @@ The ``result_info.json`` stores three informations:
   * ``format``: The format of the saved prediction results. By default, it is ``pytorch``.
   * ``etypes``: A list of edge types that have edge prediction results saved. For example: [("movie","rated-by","user"), ("user","watched","movie")]
   * ``world_size``: The number of chunks (files) into which the prediction results of a particular edge type are divided. For instance, if world_size is set to 8, there will be 8 files for each set of prediction results."
+
+**Note: The built-in GraphStorm inference pipeline
+(launched by GraphStorm CLI) will process the saved prediction results
+to convert the integer node ids into the raw node ids, which are usually string node ids.**
+Details can be found in :ref:`GraphStorm Output Node ID Remapping<output-remapping>`
