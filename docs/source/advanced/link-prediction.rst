@@ -215,7 +215,8 @@ The follwing example shows how to define a hard negative feature for edges with 
                     {
                         "feature_col": "hard_neg",
                         "feature_name": "hard_neg_feat",
-                        "transform": {"name": "edge_dst_hard_negative"},
+                        "transform": {"name": "edge_dst_hard_negative",
+                                                "separator": ";"},
                     }
                 ]
             }
