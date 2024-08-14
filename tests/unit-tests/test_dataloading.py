@@ -2407,33 +2407,77 @@ def run_dist_small_val_test(part_config, worker_rank, world_size):
                                       world_size=world_size,
                                       rank=worker_rank)
     dgl.distributed.initialize('')
-    np_data = GSgnnData(part_config=part_config)
-    ntype = 'n1'
+    gs_data = GSgnnData(part_config=part_config)
 
-    # val_mask has two labeled data
-    # each worker will get 1
-    assert th.sum(np_data._g.nodes[ntype].data['val_mask'][th.arange(np_data._g.num_nodes(ntype))]) == 2
-    idx = np_data.get_node_val_set(ntype, mask="val_mask")
-    assert len(idx) == 1
-    # test_mask has two labeled data
-    # each worker will get 1
-    assert th.sum(np_data._g.nodes[ntype].data['test_mask'][th.arange(np_data._g.num_nodes(ntype))]) == 2
-    idx = np_data.get_node_test_set(ntype, mask="test_mask")
-    assert len(idx) == 1
+    @patch("dgl.distributed.edge_split")
+    @patch("dgl.distributed.node_split")
+    def check_val_test(mock_node_split, mock_edge_split):
+        #######
+        # Node mask
+        total_idx = th.tensor([1,2,3,4])
+        split_ret = total_idx[:2] if worker_rank == 0 else total_idx[2:]
+        mock_node_split.side_effect = [split_ret, split_ret]
+        # Mocked val has 4 labeled data
+        # each worker will get 2
+        ntype = 'n1'
+        idx = gs_data.get_node_val_set(ntype, mask="val_mask")
+        assert len(idx[ntype]) == 2
+        # Mocked test has 4 labeled data
+        # each worker will get 2
+        idx = gs_data.get_node_test_set(ntype, mask="test_mask")
+        assert len(idx[ntype]) == 2
 
-    # val_mask2 has only 1 labeled data
-    # Thus, both worker 0 and worker 1 will
-    # take the same validation set.
-    idx = np_data.get_node_val_set(ntype, mask="val_mask2")
-    assert len(idx) == 1
-    assert th.nonzero(np_data._g.nodes[ntype].data['val_mask2'][th.arange(np_data._g.num_nodes(ntype))]).reshape(-1,)[0].item() == idx[ntype][0].item()
+        total_idx = th.tensor([1])
+        split_ret = total_idx[:1] if worker_rank == 0 else total_idx[1:1]
+        mock_node_split.side_effect = [split_ret, split_ret]
+        # Mocked val has only 1 labeled data
+        # Thus, both worker 0 and worker 1 will
+        # take the same validation set.
+        idx = gs_data.get_node_val_set(ntype, mask="val_mask2")
+        assert len(idx[ntype]) == 1
+        assert th.nonzero(gs_data._g.nodes[ntype].data['val_mask2'][th.arange(gs_data._g.num_nodes(ntype))]).reshape(-1,)[0].item() == idx[ntype][0].item()
 
-    # test_mask2 has only 1 labeled data
-    # Thus, both worker 0 and worker 1 will
-    # take the same test set.
-    idx = np_data.get_node_test_set(ntype, mask="test_mask2")
-    assert len(idx) == 1
-    assert th.nonzero(np_data._g.nodes[ntype].data['test_mask2'][th.arange(np_data._g.num_nodes(ntype))]).reshape(-1,)[0] == idx[ntype][0]
+        # Mocked test has only 1 labeled data
+        # Thus, both worker 0 and worker 1 will
+        # take the same test set.
+        idx = gs_data.get_node_test_set(ntype, mask="test_mask2")
+        assert len(idx[ntype]) == 1
+        assert th.nonzero(gs_data._g.nodes[ntype].data['test_mask2'][th.arange(gs_data._g.num_nodes(ntype))]).reshape(-1,)[0] == idx[ntype][0]
+
+        #######
+        # Edge mask
+        etype = ("n0", "r1", "n1")
+        total_idx = th.tensor([1,2,3,4])
+        split_ret = total_idx[:2] if worker_rank == 0 else total_idx[2:]
+        mock_edge_split.side_effect = [split_ret, split_ret]
+
+        # Mocked val has two labeled data
+        # each worker will get 1
+        idx = gs_data.get_edge_val_set(etype, mask="val_mask")
+        assert len(idx[etype]) == 2
+        # Mocked test has two labeled data
+        # each worker will get 1
+        idx = gs_data.get_edge_test_set(etype, mask="test_mask")
+        assert len(idx[etype]) == 2
+
+        total_idx = th.tensor([1])
+        split_ret = total_idx[:1] if worker_rank == 0 else total_idx[1:1]
+        mock_edge_split.side_effect = [split_ret, split_ret]
+        # Mocked val has only 1 labeled data
+        # Thus, both worker 0 and worker 1 will
+        # take the same validation set.
+        idx = gs_data.get_edge_val_set(etype, mask="val_mask2")
+        assert len(idx[etype]) == 1
+        assert th.nonzero(gs_data._g.edges[etype].data['val_mask2'][th.arange(gs_data._g.num_edges(etype))]).reshape(-1,)[0].item() == idx[etype][0].item()
+
+        # mocked test has only 1 labeled data
+        # Thus, both worker 0 and worker 1 will
+        # take the same test set.
+        idx = gs_data.get_edge_test_set(etype, mask="test_mask2")
+        assert len(idx[etype]) == 1
+        assert th.nonzero(gs_data._g.edges[etype].data['test_mask2'][th.arange(gs_data._g.num_edges(etype))]).reshape(-1,)[0] == idx[etype][0]
+
+    check_val_test()
 
     if worker_rank == 0:
         th.distributed.destroy_process_group()
