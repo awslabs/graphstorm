@@ -2399,7 +2399,64 @@ def test_GSgnnMultiTaskDataLoader():
         assert np.any(edge0_seeds_cnt.numpy() <= 1)
         assert np.any(edge0_seeds_cnt.numpy() >= 0)
 
+def run_dist_small_val_test(part_config, worker_rank, world_size):
+    dist_init_method = 'tcp://{master_ip}:{master_port}'.format(
+        master_ip='127.0.0.1', master_port='12345')
+    th.distributed.init_process_group(backend="gloo",
+                                      init_method=dist_init_method,
+                                      world_size=world_size,
+                                      rank=worker_rank)
+    dgl.distributed.initialize('')
+    np_data = GSgnnData(part_config=part_config)
+    ntype = 'n1'
+
+    # val_mask has two labeled data
+    # each worker will get 1
+    assert th.sum(np_data._g.nodes[ntype].data['val_mask'][th.arange(np_data._g.num_nodes(ntype))]) == 2
+    idx = np_data.get_node_val_set(ntype, mask="val_mask")
+    assert len(idx) == 1
+    # test_mask has two labeled data
+    # each worker will get 1
+    assert th.sum(np_data._g.nodes[ntype].data['test_mask'][th.arange(np_data._g.num_nodes(ntype))]) == 2
+    idx = np_data.get_node_test_set(ntype, mask="test_mask")
+    assert len(idx) == 1
+
+    # val_mask2 has only 1 labeled data
+    # Thus, both worker 0 and worker 1 will
+    # take the same validation set.
+    idx = np_data.get_node_val_set(ntype, mask="val_mask2")
+    assert len(idx) == 1
+    assert th.nonzero(np_data._g.nodes[ntype].data['val_mask2'][th.arange(np_data._g.num_nodes(ntype))]).reshape(-1,)[0].item() == idx[ntype][0].item()
+
+    # test_mask2 has only 1 labeled data
+    # Thus, both worker 0 and worker 1 will
+    # take the same test set.
+    idx = np_data.get_node_test_set(ntype, mask="test_mask2")
+    assert len(idx) == 1
+    assert th.nonzero(np_data._g.nodes[ntype].data['test_mask2'][th.arange(np_data._g.num_nodes(ntype))]).reshape(-1,)[0] == idx[ntype][0]
+
+    if worker_rank == 0:
+        th.distributed.destroy_process_group()
+
+def test_GSgnnTranData_small_val_test():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+
+        ctx = mp.get_context('spawn')
+        p0 = ctx.Process(target=run_dist_small_val_test,
+                            args=(part_config, 0, 2))
+        p1 = ctx.Process(target=run_dist_small_val_test,
+                        args=(part_config, 1, 2))
+
+        p0.start()
+        p1.start()
+        p0.join()
+        p1.join()
+        assert p0.exitcode == 0
+        assert p1.exitcode == 0
+
 if __name__ == '__main__':
+    test_GSgnnTranData_small_val_test()
     test_GSgnnLinkPredictionTestDataLoader(1, 1)
     test_GSgnnLinkPredictionTestDataLoader(10, 20)
     test_GSgnnMultiTaskDataLoader()

@@ -594,7 +594,7 @@ class GSgnnData():
                         # To avoid the error, force each trainer or
                         # inferencer to use the entire validation
                         # or test set.
-                        idx = th.nonzero(g.nodes[ntype].data[msk])
+                        idx = th.nonzero(g.nodes[ntype].data[msk]).reshape(-1,) # 1D tensor
                         idxs[ntype] = idx
 
                 logging.debug('part %d | ntype %s, mask %s | num nodes: %d',
