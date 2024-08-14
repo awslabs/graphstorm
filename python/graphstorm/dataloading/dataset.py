@@ -598,7 +598,7 @@ class GSgnnData():
                             th.arange(g.num_nodes(ntype))]).reshape(-1,) # 1D tensor
                         idxs[ntype] = idx
 
-                logging.debug('part %d | ntype %s, mask %s | num nodes: %d',
+                logging.debug('part %d | ntype %s, mask %s | val/test: %d',
                           get_rank(), ntype, msk, len(idx))
         return idxs, num_data
 
