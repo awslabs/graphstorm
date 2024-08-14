@@ -12,29 +12,29 @@ GraphStorm can support graph machine learning (GML) model training and inference
     * Users can set CLI configurations either in CLI arguments or the configuration YAML file sepcified by the **-\-cf** argument. But values set in CLI arguments will overwrite the values set in the YAML file.
     * This guide only exlains some configurations commonly used. For the detailed explanations of GraphStorm CLI configurations, please refer to the :ref:` Model Training and Inference Configurations<configurations-run>`.
 
-Node classification (NC) CLI for model training and inference
-..............................................................
+Common CLI template for model training and inference
+.......................................................
 
-An example NC model training CLI is like the command below. 
-
-.. code-block:: bash
-
-    python -m graphstorm.run.gs_node_classification \
-              --workspace /workspace_folder/ \
-              --num-trainers 1 \
-              --part-config data.json \
-              --cf nc.yaml \
-              --save-model-path model_path
-
-Inference command example:
-
+A GraphStorm model training and inference CLI is like the commands below. 
 
 .. code-block:: bash
 
-    python -m graphstorm.run.gs_node_classification \
-              --workspace /workspace_folder/ \
+    # Model training
+    python -m graphstorm.run.TASK_COMMAND \
+              --workspace workspace_folder/ \
               --num-trainers 1 \
               --part-config data.json \
-              --cf nc.yaml \
-              --save-model-path model_path
+              --cf config.yaml \
+              --save-model-path model_path/
+
+    # Model inference
+    python -m graphstorm.run.TASK_COMMAND \
+          --inference \
+          --workspace workspace_folder/ \
+          --num-trainers 1 \
+          --part-config data.json \
+          --cf config.yaml \
+          --restore-model-path model_path/ \
+          --save-prediction-path pred_path/
+
 
