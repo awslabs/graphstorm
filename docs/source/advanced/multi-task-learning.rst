@@ -395,24 +395,24 @@ The contents of  the ``save_embed_path`` in multi-task learning will look like f
                 ...
             emb_info.json
 
-In the above example both the link prediction task and the edge regression
+In the above example both the link prediction and edge regression tasks
 apply task specific normalization on node embeddings.
 
 **Note: The built-in GraphStorm training or inference pipeline
-(launched by GraphStorm CLI) will process each saved node embeddings
-to convert the integer node ids into the raw node ids, which are usually string node ids..**
+(launched by GraphStorm CLIs) will process each saved node embeddings
+to convert the integer node IDs into the raw node IDs, which are usually string node IDs..**
 Details can be found in :ref:`GraphStorm Output Node ID Remapping<output-remapping>`
 
 Saved Prediction Results
 ~~~~~~~~~~~~~~~~~~~~~~~~~
-When ``save_prediction_path`` is provided in the inference condig,
+When ``save_prediction_path`` is provided in the inference configuration,
 GraphStorm will save the prediction results in the corresponding path.
 In multi-task learning inference, each prediction task will have its prediction
 results saved separately under different sub-directories
 named with the
 corresponding task id. The output format of task specific prediction results
 follows the :ref:`GraphStorm saved prediction result format<gs-out-predictions>`.
-The ``save_prediction_path`` in multi-task learning will look like following:
+The contents of the ``save_prediction_path`` in multi-task learning will look like following:
 
 .. code-block:: bash
 
@@ -441,6 +441,6 @@ The ``save_prediction_path`` in multi-task learning will look like following:
         ...
 
 **Note: The built-in GraphStorm inference pipeline
-(launched by GraphStorm CLI) will process each saved prediction result
-to convert the integer node ids into the raw node ids, which are usually string node ids.**
+(launched by GraphStorm CLIs) will process each saved prediction result
+to convert the integer node IDs into the raw node IDs, which are usually string node IDs.**
 Details can be found in :ref:`GraphStorm Output Node ID Remapping<output-remapping>`
