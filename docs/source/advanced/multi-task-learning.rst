@@ -335,7 +335,7 @@ will also save the normalized node embeddings under ``save_embed_path``.
 The task specific node embeddings are saved separately under different sub-directories
 named with the corresponding task id. (A task id is formated as ``<task_type>-<ntype/etype(s)>-<label>``.
 For instance, the task id of a node classification task on the node type ``paper`` with the
-label filed ``venue`` will be ``node_classification-paper-venue``. As another example,
+label field ``venue`` will be ``node_classification-paper-venue``. As another example,
 the task id of a link prediction task on the edge type ``(paper, cite, paper)`` will be
 ``link_prediction-paper_cite_paper``
 and the task id of a edge regression task on the edge type ``(paper, cite, paper)`` with
