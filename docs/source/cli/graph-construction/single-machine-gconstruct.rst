@@ -173,6 +173,8 @@ If select ``DGL``, the output is an `DGLGraph <https://docs.dgl.ai/en/1.0.x/gene
 
 If select ``DistDGL``, the output will be a partitioned `DistDGL graph <https://doc.dgl.ai/guide/distributed-preprocessing.html#partitioning-api>`_. It includes a JSON file, named `<graph_name>.json` that describes the meta-information of the partitioned graph, a set of ``part*`` folders under the folder specified by the **-\-output-dir** argument, where the `*` is the number specified by the **-\-num-parts** argument, and other files that contain related metadata information, e.g., node and edge ID mapping files, the new construction configuration JSON file that records the details of feature transformation operations.
 
+.. _gs-id-mapping-files:
+
     - **Node and Edge Mapping Files:**
       There are two node/edge id mapping stages during graph construction. The first mapping occurs when GraphStorm converts the original user provided node ids into integer-based node ids, and the second mapping happends when graph partition operation shuffles these integer-based node ids to each partition with new node ids. Meanwhile, graph construction also saves two sets of node id mapping files as parts of its outputs.
 
