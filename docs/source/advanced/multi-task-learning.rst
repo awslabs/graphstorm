@@ -327,7 +327,7 @@ When ``save_embed_path`` is provided in the training configuration or the infere
 GraphStorm will save the node embeddings in the corresponding path.
 In multi-task learning, by default, GraphStorm will save the node embeddings
 produced by the GNN layer for every node type under the path specified by
-``save_embed_path``。 The output format follows the :ref:`GraphStorm saved node embeddings
+``save_embed_path``. The output format follows the :ref:`GraphStorm saved node embeddings
 format<gs-out-embs>`. Meanwhile, in multi-task learning, certain tasks might apply
 task specific normalization to node embeddings. For instance, a link prediction
 task might apply l2 normalization on each node embeddings. In certain cases, GraphStorm
