@@ -1,7 +1,7 @@
 .. _configurations-run:
 
-Training and Inference
-============================
+Model Training and Inference Configurations
+===========================================
 
 GraphStorm provides dozens of configurable parameters for users to control their training and inference tasks. This document provides detailed description of each configurable parameter. You can use YAML config file to define these parameters or you can use command line arguments to define and update these parameters. Specifically, GraphStorm parses yaml config file first. Then it parses arguments to overwrite parameters defined in the yaml file or add new parameters.
 
@@ -30,7 +30,7 @@ GraphStorm's `graphstorm.run.launch <https://github.com/awslabs/graphstorm/blob/
 ..  note:: Below configurations can be set either in a YAML configuration file or be added as arguments of launch command.
 
 Environment Configurations
--------------------------------------
+----------------------------
 - **backend**: (**Required**) PyTorch distributed backend, the suggested backend is gloo. Support backends include gloo and nccl
 
     - Yaml: ``backend: gloo``
