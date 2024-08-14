@@ -579,8 +579,23 @@ class GSgnnData():
                 idx = [] if idx is None else idx
                 num_data += len(idx)
                 # If there are validation/test data globally, we should add them to the dict.
-                if dist_sum(len(idx)) > 0:
-                    idxs[ntype] = idx
+                total_num_idx = dist_sum(len(idx))
+                if total_num_idx > 0:
+                    # The size of the validation or test set is larger
+                    # than the world size. Each validation/test dataloader
+                    # will not be empty
+                    if total_num_idx >= get_world_size():
+                        idxs[ntype] = idx
+                    else:
+                        # There is not enough validation or test data.
+                        # One or more validation/test dataloader will be
+                        # empty, which will cause an evaluation error.
+                        #
+                        # To avoid the error, force each trainer or
+                        # inferencer to use the entire validation
+                        # or test set.
+                        idx = th.nonzero(g.nodes[ntype].data[msk])
+                        idxs[ntype] = idx
 
                 logging.debug('part %d | ntype %s, mask %s | num nodes: %d',
                           get_rank(), ntype, msk, len(idx))
