@@ -22,8 +22,19 @@ An example NC model training CLI is like the command below.
     python -m graphstorm.run.gs_node_classification \
               --workspace /workspace_folder/ \
               --num-trainers 1 \
-              --num-servers 1 \
-              --part-config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
-              --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
-              --save-model-path /tmp/ogbn-arxiv-nc/models
+              --part-config data.json \
+              --cf nc.yaml \
+              --save-model-path model_path
+
+Inference command example:
+
+
+.. code-block:: bash
+
+    python -m graphstorm.run.gs_node_classification \
+              --workspace /workspace_folder/ \
+              --num-trainers 1 \
+              --part-config data.json \
+              --cf nc.yaml \
+              --save-model-path model_path
 
