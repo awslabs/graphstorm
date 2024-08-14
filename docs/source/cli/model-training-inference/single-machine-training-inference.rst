@@ -2,14 +2,12 @@
 
 Model Training and Inference on a Single Machine
 -------------------------------------------------
-
 While the :ref:`Standalone Mode Quick Start <quick-start-standalone>` tutorial introduces some basic concepts, commands, and steps of using GprahStorm CLIs in a single machine, this user guide provides more comprehensive description of the usage of GraphStorm CLIs in a single machine. In addition, the majority of the descriptions in this guide can be directly applied on :ref:`distributed clusters <distributed-cluster>`.
 
 GraphStorm can support graph machine learning (GML) model training and inference for common GML tasks, including node classification, node regression, edge classification, edge regression, and link prediction. For each task, GraphStorm provide a dedicatd CLI for model training and inference. These CLIs share the same command template and some configurations, while each CLI has its unique task-specific configurations.
 
 Task-specific CLI template for model training and inference
 ............................................................
-
 GraphStorm model training and inference CLIs like the commands below. 
 
 .. code-block:: bash
@@ -44,7 +42,7 @@ For a single machine the argument **-\--num-trainers** can configure how many GP
 
 The model training and inference CLIs use the **-\--part-config** argument to specify the partitioned graph data by giving the path of the `*.json` file generated from the :ref:`GraphStorm Graph Construction <graph_construction>`.
 
-While the CLIs could be very simple as the template demonstrated, users can use a YAML file to set various configurations that could make full use of the rich functions and features provided by GraphStorm. The YAML file will be specified to the **-\-cf** argument. GraphStorm has a set of `example YAML files<https://github.com/awslabs/graphstorm/tree/main/training_scripts>`_ available for reference.
+While the CLIs could be very simple as the template demonstrated, users can use a YAML file to set various configurations that could make full use of the rich functions and features provided by GraphStorm. The YAML file will be specified to the **-\-cf** argument. GraphStorm has a set of `example YAML files <https://github.com/awslabs/graphstorm/tree/main/training_scripts>`_ available for reference.
 
 .. note:: 
 
@@ -53,7 +51,6 @@ While the CLIs could be very simple as the template demonstrated, users can use 
 
 Task-agnostic CLI for model training and inference
 ...................................................
-
 While task-specific CLIs allow users to quickly perform GrphStorm built-in GNN models on the tasks supported, users may build their own GNN models like the :ref:`Use Your Own Models <use-own-models>` tutorial. For these customized models, users can use the task-agnostic CLI like the following template.
 
 .. code-block:: bash
