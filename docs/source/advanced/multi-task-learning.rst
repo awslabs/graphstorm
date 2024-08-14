@@ -342,7 +342,7 @@ and the task id of a edge regression task on the edge type ``(paper, cite, paper
 the label field ``year`` will be ``edge_regression-paper_cite_paper-year``).
 The output format of task specific node embeddings follows
 the :ref:`GraphStorm saved node embeddings format<gs-out-embs>`.
-The ``save_embed_path`` in multi-task learning will look like following:
+The contents of  the ``save_embed_path`` in multi-task learning will look like following:
 
 .. code-block:: bash
 
