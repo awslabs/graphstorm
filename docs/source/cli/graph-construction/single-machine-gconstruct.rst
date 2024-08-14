@@ -163,7 +163,7 @@ GraphStorm provides a set of transformation operations for different types of fe
     "transform": {"name": ,
                   "truncate_dim": 24},
 
-.. _output-format:
+.. _gcon-output-format:
 
 Outputs of the graph consturction command
 ............................................
@@ -307,7 +307,7 @@ A full argument list of the ``gconstruct.construct_graph`` command
 * **-\-graph-name**: (**Required**) the name assigned for the graph.
 * **-\-remap-node-id**: boolean value to decide whether to rename node IDs or not. Adding this argument will set it to be true, otherwise false.
 * **-\-add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Adding this argument will set it to be true, otherwise false.
-* **-\-output-format**: the format of constructed graph, options are ``DGL``,  ``DistDGL``.  Default is ``DistDGL``. It also accepts multiple graph formats at the same time separated by an space, for example ``--output-format "DGL DistDGL"``. The output format is explained in the :ref:`Output <output-format>` section above.
+* **-\-output-format**: the format of constructed graph, options are ``DGL``,  ``DistDGL``.  Default is ``DistDGL``. It also accepts multiple graph formats at the same time separated by an space, for example ``--output-format "DGL DistDGL"``. The output format is explained in the :ref:`Output <gcon-output-format>` section above.
 * **-\-num-parts**: an integer value that specifies the number of graph partitions to produce. This is only valid if the output format is ``DistDGL``.
 * **-\-skip-nonexist-edges**: boolean value to decide whether skip edges whose endpoint nodes don't exist. Default is true.
 * **-\-ext-mem-workspace**: the directory where the tool can store data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
