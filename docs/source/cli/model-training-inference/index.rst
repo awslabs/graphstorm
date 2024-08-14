@@ -19,5 +19,5 @@ In addition, there are two node ID mapping operations during the graph construct
    single-machine-training-inference
    distributed/cluster
    distributed/sagemaker
-   configurations-run
+   configuration-run
    output-remapping
