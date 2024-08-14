@@ -8,6 +8,8 @@ Once your raw data are converted into partitioned DGL distributed graphs by usin
 
 This section provides guidelines of GraphStorm model training and inference on :ref:`signle machine <single-machine-training-inference>`, :ref:`distributed clusters <distributed-cluster>`, and :ref:`Amazon SageMaker <distributed-sagemaker>`.
 
+GraphStorm CLIs requires less- or no-code operations for users to perform Graph Machine Learning (GML) tasks. In most cases, users only need to configure the parameters or arguments provided by GraphStorm to fulfill their GML tasks. Users can find the details of these configurations in the :ref:`Model Training and Inference Configurations<configurations-run>`.
+
 In addition, there are two node ID mapping operations during the graph construction procedure, and these mapping results are saved in a certain folder by which GraphStorm inference pipelines will automatically use to remap prediction results' node IDs back to the original IDs. In case when such automatic remapping does not occur, you can do it mannually according to the :ref:`GraphStorm Output Node ID Remapping <output-remapping>` guideline.
 
 .. toctree::
@@ -17,4 +19,5 @@ In addition, there are two node ID mapping operations during the graph construct
    single-machine-training-inference
    distributed/cluster
    distributed/sagemaker
+   configurations-run
    output-remapping

@@ -13,14 +13,14 @@ GraphStorm can support graph machine learning (GML) model training and inference
     * This guide only exlains some configurations commonly used. For the detailed explanations of GraphStorm CLI configurations, please refer to the :ref:` Model Training and Inference Configurations<configurations-run>`.
 
 Node classification (NC) CLI for model training and inference
-.........................................................
+..............................................................
 
-The NC model training CLI is
+An example NC model training CLI is like the command below. 
 
 .. code-block:: bash
 
     python -m graphstorm.run.gs_node_classification \
-              --workspace /tmp/ogbn-arxiv-nc \
+              --workspace /workspace_folder/ \
               --num-trainers 1 \
               --num-servers 1 \
               --part-config /tmp/ogbn_arxiv_nc_1p/ogbn-arxiv.json \
