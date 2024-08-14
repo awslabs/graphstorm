@@ -323,7 +323,7 @@ Multi-task Learning Output
 
 Saved Node Embeddings
 ~~~~~~~~~~~~~~~~~~~~~~
-When ``save_embed_path`` is provided in the training config or inference condig,
+When ``save_embed_path`` is provided in the training configuration or the inference configuration,
 GraphStorm will save the node embeddings in the corresponding path.
 In multi-task learning, by default, GraphStorm will save the node embeddings
 produced by the GNN layer for every node type under the path specified by
