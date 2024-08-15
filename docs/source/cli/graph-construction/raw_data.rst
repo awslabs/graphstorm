@@ -85,7 +85,7 @@ The ``subject`` table (``subject_nodes.parquet``) includes one column only, i.e.
 
 ``author`` node table
 .......................
-The ``author`` table (``author_nodes.parquet``) includes two columns, i.e., `n_id` for node IDs, and `hdx` is a feature column with numerical values.
+The ``author`` table (``author_nodes.parquet``) includes two columns, i.e., `n_id` for node IDs, and `hdx` as a feature column with numerical values.
 
 =====  =======
 n_id    hdx
