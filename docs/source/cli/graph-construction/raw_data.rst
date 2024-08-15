@@ -19,7 +19,7 @@ If certain type of nodes has features, the features could be stored in multiple 
 
 Edge tables
 ............
-GraphStorm requires each edge type to have it own table(s). It is suggested to have one folder for one edge type to store tables(s).
+GraphStorm requires each edge type to have its own table(s). It is suggested to have one folder for one edge type to store tables(s).
 
 In the table for one edge type, there **must** be two columns. One column stores the IDs of source node type of the edge type, while another column stores the IDs of destination node type of the edge type. The source and destination node type should have their corresponding node tables. Same as node features and labels, edge features and labels could be stored in multiple columns.
 
