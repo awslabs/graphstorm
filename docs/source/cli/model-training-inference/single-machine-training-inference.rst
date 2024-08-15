@@ -28,7 +28,7 @@ GraphStorm model training and inference CLIs like the commands below.
               --restore-model-path model_path/ \
               --save-prediction-path pred_path/
 
-In the above two CLIs, the ``TASK_COMMAND`` represents one of the five task-specific commands:
+In the above two templates, the ``TASK_COMMAND`` represents one of the five task-specific commands:
 
     * ``gs_node_classification`` for node classification tasks;
     * ``gs_node_regression`` for node regression tasks;
