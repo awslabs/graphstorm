@@ -15,7 +15,7 @@ GraphStorm requires each node type to have its own table(s). It is suggested to 
 
 In the table for one node type, there **must** be one column that stores the IDs of nodes. The IDs could be non-integers, such as strings. GraphStorm will treat non-integer IDs as strings and convert them into interger IDs. 
 
-If this type of nodes have features, they could be stored in multiple columns each of which store one type of features. These features could be numerical, categorial, or textual data. Similarly, labels associated with this type of nodes could be stored in multiple columns each of which store one type of labels. 
+If certain type of nodes has features, the features could be stored in multiple columns, each of which stores one type of features. These features could be numerical, categorial, or textual data. Similarly, training labels associated with certain type of nodes could be stored in multiple columns, each of which store one type of labels. 
 
 Edge tables
 ............
