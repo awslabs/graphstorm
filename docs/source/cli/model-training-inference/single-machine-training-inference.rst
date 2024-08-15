@@ -46,7 +46,7 @@ While the CLIs could be very simple as the template demonstrated, users can leve
 
 .. note:: 
 
-    * Users can set CLI configurations either in CLI arguments or the configuration YAML file. But values set in CLI arguments will overwrite the values of the same configurations set in the YAML file.
+    * Users can set CLI configurations either in CLI arguments or the configuration YAML file. But values set in CLI arguments will overwrite the values of the same configuration set in the YAML file.
     * This guide only explains a few commonly used configurations. For the detailed explanations of GraphStorm CLI configurations, please refer to the :ref:`Model Training and Inference Configurations <configurations-run>` section.
 
 Task-agnostic CLI for model training and inference
