@@ -51,7 +51,7 @@ While the CLIs could be very simple as the template demonstrated, users can leve
 
 Task-agnostic CLI for model training and inference
 ...................................................
-While task-specific CLIs allow users to quickly perform GML tasks supported by GraphStorm, users may build their own GNN models like described in the :ref:`Use Your Own Models <use-own-models>` tutorial. To put these customized models into GraphStorm model training and inference pipeline, users can use the task-agnostic CLI as shown in the examples below.
+While task-specific CLIs allow users to quickly perform GML tasks supported by GraphStorm, users may build their own GNN models as described in the :ref:`Use Your Own Models <use-own-models>` tutorial. To put these customized models into GraphStorm model training and inference pipeline, users can use the task-agnostic CLI as shown in the examples below.
 
 .. code-block:: bash
 
