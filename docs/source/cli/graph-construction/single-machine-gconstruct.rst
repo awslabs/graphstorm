@@ -8,12 +8,12 @@ Prerequisites
 
 1. A machine with Linux operation system that has proper CPU memory according to the raw data size.
 2. Following the :ref:`Setup GraphStorm with pip Packages <setup_pip>` guideline to install GraphStorm and its dependencies.
-3. Following the :ref:`Input Raw Data Explanations <input_raw_data>` guideline to generate the input raw data.
+3. Following the :ref:`Input Raw Data Explanations <input_raw_data>` guideline to prepare the input raw data.
 
 Graph consturction command
 ****************************
 
-GraphStorm has a ``gconstruct.construct_graph`` module for graph construction in a signle machine. Users can run the ``gconstruct.construct_graph`` command by following the command template below.
+GraphStorm provides a ``gconstruct.construct_graph`` module for graph construction in a signle machine. Users can run the ``gconstruct.construct_graph`` command by following the command template below.
 
 .. code:: python
 
@@ -30,7 +30,7 @@ This template provides the actual Python command, and it also indicates the thre
 Configuration JSON Object Explanations
 **************************************
 
-The configuration JSON file is the **key** input argument for graph construction. The file contains a JSON object that defines the overall graph schema in terms of node type and edge type. For each node and edge type, it defines where the node and edge data are stored and in what file format. When a type of node or edge has features, it could not only define which columns in the data table are features, but also define what feature transformation operations that GraphStorm supports will be used during graph construction. When a type of node or edge has labels, it could not only which columns in the data table are labels, but also define how to split the labels into the training, validation, and testing set.
+The configuration JSON file is the **key** input argument for graph construction. The file contains a JSON object that defines the overall graph schema in terms of node type and edge type. For each node and edge type, it defines where the node and edge data are stored and in what file format. When a type of node or edge has features, it defines which columns in the data table are features and what feature transformation operations will be used to encode the features. When a type of node or edge has labels, it defines which columns in the data table are labels and how to split the labels into the training, validation, and testing sets.
 
 In the highest level, the JSON object contains three fields: ``version``, ``nodes`` and ``edges``.
 
@@ -43,11 +43,11 @@ In the highest level, the JSON object contains three fields: ``version``, ``node
 ``nodes`` contains a list of node types and the information of a node type is stored in a dictionary. A node dictionary contains multiple fields and most fields are optional.
 
 * ``node_type``: (**Required**) specifies the node type. Think this as a name given to one type of nodes, e.g. `"author"` and `"paper"`.
-* ``files``: (**Required**) specifies the input raw table files for the node type. There are multiple options to specify the input files. For a single input file, it contains the path of a single file. For multiple files, it could contain the paths of files with a wildcard, e.g., `file_name*.parquet`, or a list of file paths, e.g., `["file_name001.parquet", "file_name002.parquet", ...]`.
+* ``files``: (**Required**) specifies the input files for the node type. There are multiple options to specify the input files. For a single input file, it contains the path of a single file. For multiple files, it could contain the paths of files with a wildcard, e.g., `file_name*.parquet`, or a list of file paths, e.g., `["file_name001.parquet", "file_name002.parquet", ...]`.
 * ``format``: (**Required**) specifies the input file format. Currently, the construction command supports three input file formats: ``csv``, ``parquet``, and ``HDF5``. The value of this field is a dictionary, where the key is ``name`` and the value is either ``csv``, ``parquet`` or ``HDF5``, e.g., `{"name":"csv"}`. The detailed format information could be found in the :ref:`Input Raw Data Explanations <input_raw_data>` guideline.
 * ``node_id_col``: specifies the column name that contains the node IDs. This field is optional. If not provided, the construction command will create node IDs according to the total number of rows and consider each row in the node table is a unique node. If user choose to store columns of a node type in multiple sets of tables, only one of the set of tables require to specify the node ID column.
 * ``features`` is a list of dictionaries that define how to get features and transform features. This is optional. The format of a feature dictionary is defined in the :ref:`Feature dictionary format <feat-format>` section below.
-* ``labels`` is a list of dictionaries that define where to get labels and how to split the labels into training/validation/test set. This is optional. The format of a label dictionary is defined :ref:`Label dictionary format <label-format>` section below.
+* ``labels`` is a list of dictionaries that define where to get labels and how to split the labels into training/validation/test set. This is optional. The format of a label dictionary is defined in the :ref:`Label dictionary format <label-format>` section below.
 
 ``edges`` (**Required**)
 ........................
@@ -71,7 +71,7 @@ Similarly, ``edges`` contains a list of edge types and the information of an edg
 **Label dictionary format**
 
 * ``task_type``: (**Required**) specifies the task defined on the nodes or edges. Currently, its value can be one of ``classification``, ``regression``, ``link_prediction``, and ``reconstruct_node_feat``.
-* ``label_col``: specifies the column name in the input file that contains the label. This has to be specified for ``classification`` and ``regression`` tasks. ``label_col`` is also used as the label name.
+* ``label_col``: specifies the column name in the input file that contains the labels. This has to be specified for ``classification`` and ``regression`` tasks. ``label_col`` is also used as the label name.
 * ``split_pct``: specifies how to split the data into training/validation/test. If it's not specified, the data is split into 80% for training 10% for validation and 10% for testing. The pipeline constructs three additional vectors indicating the training/validation/test masks. For ``classification`` and ``regression`` tasks, the names of the mask tensors are ``train_mask``, ``val_mask`` and ``test_mask``.
 * ``custom_split_filenames``: specifies the customized training/validation/test mask. It has field named ``train``, ``valid``, and ``test`` to specify the path of the mask files. It is possible that one of the subfield here leaves empty and it will be treated as none. It will override the ``split_pct`` once provided. Refer to :ref:`Label split files <customized-split-labels>` for detailed explanations.
 * ``label_stats_type``: specifies the statistic type used to summarize labels. So far, only support one value, i.e., ``frequency_cnt``.
@@ -84,7 +84,7 @@ GraphStorm provides a set of transformation operations for different types of fe
 
 * **HuggingFace tokenizer transformation** tokenizes text strings with a HuggingFace tokenizer. The ``name`` field in the feature transformation dictionary is ``tokenize_hf``. The dict should contain two additional fields.
 
-  1. ``bert_model`` specifies the LM model used for tokenization. Users can choose any `HuggingFace LM models <https://huggingface.co/models>`_ from one of the following types: ``"bert", "roberta", "albert", "camembert", "ernie", "ibert", "luke", "mega", "mpnet", "nezha", "qdqbert","roc_bert"``. 
+  1. ``bert_model`` specifies the LM model used for tokenization. Users can choose any `HuggingFace LM models <https://huggingface.co/models>`_ from one of the following types: ``"bert", "roberta", "albert", "camembert", "ernie", "ibert", "luke", "mega", "mpnet", "nezha", "qdqbert","roc_bert"``, such as ``"bert-base-uncased" and "roberta-base"``
   2. ``max_seq_length`` specifies the maximal sequence length.
 
   Example:
@@ -97,7 +97,7 @@ GraphStorm provides a set of transformation operations for different types of fe
 
 * **HuggingFace LM transformation** encodes text strings with a HuggingFace LM model.  The ``name`` field in the feature transformation dictionary is ``bert_hf``. The dict should contain two additional fields.
 
-  1. ``bert_model`` specifies the LM model used for embedding text. Users can choose any `HuggingFace LM models <https://huggingface.co/models>`_ from one of the following types: ``"bert", "roberta", "albert", "camembert", "ernie", "ibert", "luke", "mega", "mpnet", "nezha", "qdqbert","roc_bert"``. 
+  1. ``bert_model`` specifies the LM model used for embedding text. Users can choose any `HuggingFace LM models <https://huggingface.co/models>`_ from one of the following types: ``"bert", "roberta", "albert", "camembert", "ernie", "ibert", "luke", "mega", "mpnet", "nezha", "qdqbert","roc_bert"``, such as ``"bert-base-uncased" and "roberta-base"``
   2. ``max_seq_length`` specifies the maximal sequence length.
 
   Example:
@@ -135,7 +135,7 @@ GraphStorm provides a set of transformation operations for different types of fe
                   "epsilon": 1e-5,
                   "uniquify": True, }
 
-* **Convert to categorical values** converts text data to categorial values. The ``name`` field is ``to_categorical``, and ``separator`` specifies how to split the string into multiple categorical values (this is only used to define multiple categorical values). If ``separator`` is not specified, the entire string is a categorical value. ``mapping`` (optional) is a dictionary that specifies how to map a string to an integer value that defines a categorical value.
+* **Convert to categorical values** converts text data to categorial values. The ``name`` field is ``to_categorical``, and ``separator`` specifies how to split the string into multiple categorical values (this is only used to define multiple categorical values). If ``separator`` is not specified, the entire string is considered as a single categorical value. ``mapping`` (optional) is a dictionary that specifies how to map a string to an integer value that defines a categorical value. If ``mapping`` is provided, any string value which is not in the ``mapping`` will be ignored. The ``mapping`` field is mainly used in the inference stage when we want to keep the same categorical mapping as in the training stage.
 
   Example:
 
@@ -167,7 +167,7 @@ GraphStorm provides a set of transformation operations for different types of fe
 
 Outputs of the graph consturction command
 ............................................
-The graph construction command outputs two output formats: ``DistDGL`` and ``DGL`` specified by the argument **-\-output-format**. 
+The graph construction command outputs two formats: ``DistDGL`` or ``DGL`` specified by the argument **-\-output-format**. 
 
 If select ``DGL``, the output is an `DGLGraph <https://docs.dgl.ai/en/1.0.x/generated/dgl.save_graphs.html>`_ file, named ``<graph_name>.dgl`` under the folder specified by the **-\-output-dir** argument, where `<graph_name>` is the value of argument **-\-graph-name**.
 
@@ -302,7 +302,7 @@ A full argument list of the ``gconstruct.construct_graph`` command
 ...................................................................
 
 * **-\-conf-file**: (**Required**) the path of the configuration JSON file.
-* **-\-num-processes**: the number of processes to process the data simulteneously. Default is 1. Increase this number can speed up data processing.
+* **-\-num-processes**: the number of processes to process the data simulteneously. Default is 1. Increase this number can speed up data processing, but will also increase the CPU memory consumption.
 * **-\-num-processes-for-nodes**: the number of processes to process node data simulteneously. Increase this number can speed up node data processing.
 * **-\-num-processes-for-edges**: the number of processes to process edge data simulteneously. Increase this number can speed up edge data processing.
 * **-\-output-dir**: (**Required**) the path of the output data files.
@@ -312,7 +312,7 @@ A full argument list of the ``gconstruct.construct_graph`` command
 * **-\-output-format**: the format of constructed graph, options are ``DGL``,  ``DistDGL``.  Default is ``DistDGL``. It also accepts multiple graph formats at the same time separated by an space, for example ``--output-format "DGL DistDGL"``. The output format is explained in the :ref:`Output <gcon-output-format>` section above.
 * **-\-num-parts**: an integer value that specifies the number of graph partitions to produce. This is only valid if the output format is ``DistDGL``.
 * **-\-skip-nonexist-edges**: boolean value to decide whether skip edges whose endpoint nodes don't exist. Default is true.
-* **-\-ext-mem-workspace**: the directory where the tool can store data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
+* **-\-ext-mem-workspace**: the directory where the tool can store intermediate data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
 * **-\-ext-mem-feat-size**: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.
 * **-\-output-conf-file**: The output file with the updated configurations that records the details of data transformation, e.g., convert to categorical value mappings, and max-min normalization ranges. If not specified, will save the updated configuration file in the **-\-output-dir** with name `data_transform_new.json`.
 

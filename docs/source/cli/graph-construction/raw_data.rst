@@ -1,9 +1,9 @@
 .. _input_raw_data:
 
-Input Raw Data Explanations
+Input Raw Data Specification
 =============================
 
-In order to use GraphStorm's graph construction pipeline both on a single machine and in a distributed environment, users should prepare their input raw data accroding to GraphStorm's requirements explained below.
+In order to use GraphStorm's graph construction pipeline on a single machine or a distributed environment, users should prepare their input raw data accroding to GraphStorm's specifications explained below.
 
 Data tables
 ------------
@@ -13,19 +13,19 @@ Node tables
 ............
 GraphStorm requires each node type to have its own table(s). It is suggested to have one folder for one node type to store table(s).
 
-In the table for one node type, there **must** be one column that stores the IDs of nodes. The IDs could be non-integers, such as strings or floats. GraphStorm will treat non-integer IDs as strings and convert them into interger IDs. 
+In the table for one node type, there **must** be one column that stores the IDs of nodes. The IDs could be non-integers, such as strings. GraphStorm will treat non-integer IDs as strings and convert them into interger IDs. 
 
-If this type of nodes have features, they could be stored in multiple columns each of which store one type of features. These features could be numerical, categorial, or textual data. Similarly, labels associated with this type of nodes could be stored in multiple columns each of which store one type of labels. 
+If certain type of nodes has features, the features could be stored in multiple columns, each of which stores one type of features. These features could be numerical, categorial, or textual data. Similarly, training labels associated with certain type of nodes could be stored in multiple columns, each of which store one type of labels. 
 
 Edge tables
 ............
-GraphStorm requires each edge type to have it own table(s). It is suggested to have one folder for one edge type to store tables(s).
+GraphStorm requires each edge type to have its own table(s). It is suggested to have one folder for one edge type to store tables(s).
 
 In the table for one edge type, there **must** be two columns. One column stores the IDs of source node type of the edge type, while another column stores the IDs of destination node type of the edge type. The source and destination node type should have their corresponding node tables. Same as node features and labels, edge features and labels could be stored in multiple columns.
 
 .. note:: 
     
-    * If the number of rows is too large, it is suggested to split and store the data into mutliple tables that have the identical schema. Doing so could speed up the data reading process during graph construction if use multiple processing.
+    * If the number of rows is too large, it is suggested to split and store the data into mutliple table files that have the identical schema. Doing so could speed up the data reading process during graph construction if use multiple processing.
     * It is suggested to use **parquet** file format for its popularity and compressed file sizes. The **HDF5** format is only suggested for data with large volume of high dimension features.
     * Users can also store columns in multiple sets of table files, for example, puting "node IDs" and "feature_1" in the set of "table1_1.parquet" file and  "table1_2.parquet" file, and put "feature_2" in another set of "table2_1.h5" file and "table2_2.h5" file with the same row order.
 
@@ -51,7 +51,7 @@ If there is no validation or testing set, users do not need to create the corres
 
 A simple raw data example
 --------------------------
-To better help users to prepare the input raw data artifacts, this section provides a very simple raw data example.
+To better help users to prepare the input raw data artifacts, this section provides a simple example.
 
 This simple raw data has three types of nodes, ``paper``, ``subject``, ``author``, and two types of edges, ``paper, has, subject`` and ``paper, written-by, author``.
 
@@ -85,7 +85,7 @@ The ``subject`` table (``subject_nodes.parquet``) includes one column only, i.e.
 
 ``author`` node table
 .......................
-The ``author`` table (``author_nodes.parquet``) includes two columns, i.e., `n_id` for node IDs, and `hdx` is a feature column with numerical values.
+The ``author`` table (``author_nodes.parquet``) includes two columns, i.e., `n_id` for node IDs, and `hdx` as a feature column with numerical values.
 
 =====  =======
 n_id    hdx
@@ -95,7 +95,7 @@ n_id    hdx
 80      1.34  
 =====  =======
 
-To demonstrate a useful case of **HDF5** file format, here the ``author`` nodes have a 2048 dimension embeddings pre-computed on a textual feature. They are stored in a seperated HDF5 file (``author_node_embeddings.h5``) as shown below.
+The ``author`` nodes also have a 2048 dimension embeddings pre-computed on a textual feature stored as an **HDF5** file (``author_node_embeddings.h5``) as shown below.
 
 +----------------------------------------------------------------+
 |                             embedding                          |
@@ -111,7 +111,7 @@ To demonstrate a useful case of **HDF5** file format, here the ``author`` nodes 
 
 ``paper, has, subject`` edge table
 ......................................
-The ``paper, has, subject`` edge table (``paper_has_subject_edges.parquet``) include three columns, i.e., ``nid`` as the source node IDs, ``domain`` as the destination IDs, and ``cnt`` as the label field for a regression task.
+The ``paper, has, subject`` edge table (``paper_has_subject_edges.parquet``) includes three columns, i.e., ``nid`` as the source node IDs, ``domain`` as the destination IDs, and ``cnt`` as the label field for a regression task.
 
 =====  =======  =======
 nid    domain    cnt
@@ -124,7 +124,7 @@ n1_4    llm       4700
 
 ``paper, written-by, author`` edge table
 ......................................
-The ``paper, written-by, author`` edge table (``paper_written-by_author_edges.parquet``) include two columns, i.e., ``nid`` as the source node IDs, ``n_id`` as the destination IDs.
+The ``paper, written-by, author`` edge table (``paper_written-by_author_edges.parquet``) includes two columns, i.e., ``nid`` as the source node IDs, ``n_id`` as the destination IDs.
 
 =====  =======
 nid     n_id 
@@ -161,7 +161,7 @@ This example sets customized node split files on the ``paper`` nodes for a node 
 Edge split parquet files
 .........................
 
-This example sets customized edge split files on the ``paper, has, subject`` edges for an edge regression task in the parquet format. There are one in the training set, three edges for validation, and no edge for testing.
+This example sets customized edge split files on the ``paper, has, subject`` edges for an edge regression task in the parquet format. There are three edges in the training set, one edge for validation, and no edge for testing.
 
 **train_edges.parquet** contents
 
