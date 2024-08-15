@@ -95,7 +95,7 @@ n_id    hdx
 80      1.34  
 =====  =======
 
-To demonstrate a useful case of **HDF5** file format, here the ``author`` nodes have a 2048 dimension embeddings pre-computed on a textual feature. They are stored in a seperated HDF5 file (``author_node_embeddings.h5``) as shown below.
+The ``author`` nodes also have a 2048 dimension embeddings pre-computed on a textual feature stored as an **HDF5** file (``author_node_embeddings.h5``) as shown below.
 
 +----------------------------------------------------------------+
 |                             embedding                          |
