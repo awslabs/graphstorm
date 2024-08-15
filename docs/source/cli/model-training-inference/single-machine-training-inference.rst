@@ -1,10 +1,12 @@
 .. _single-machine-training-inference:
 
-Model Training and Inference in a Single Machine
+Model Training and Inference on a Single Machine
 -------------------------------------------------
-While the :ref:`Standalone Mode Quick Start <quick-start-standalone>` tutorial introduces some basic concepts, commands, and steps of using GprahStorm CLIs in a single machine, this user guide provides more detailed description of the usage of GraphStorm CLIs in a single machine. In addition, the majority of the descriptions in this guide can be directly applied to :ref:`model training and inference on distributed clusters <distributed-cluster>`.
+While the :ref:`Standalone Mode Quick Start <quick-start-standalone>` tutorial introduces some basic concepts, commands, and steps of using GprahStorm CLIs on a single machine, this user guide provides more detailed description of the usage of GraphStorm CLIs in a single machine. In addition, the majority of the descriptions in this guide can be directly applied to :ref:`model training and inference on distributed clusters <distributed-cluster>`.
 
-GraphStorm can support graph machine learning (GML) model training and inference for common GML tasks, including **node classification**, **node regression**, **edge classification**, **edge regression**, and **link prediction**. For each task, GraphStorm provide a dedicated CLI for model training and inference. These CLIs share the same command template and some configurations, while each CLI has its unique task-specific configurations. GraphStorm also has a task-agnostic CLI for users to run your customized models.
+GraphStorm can support graph machine learning (GML) model training and inference for common GML tasks, including **node classification**, **node regression**, **edge classification**, **edge regression**, and **link prediction**. Since the **multi-task learning** feature released in v0.3 is in experimental stage, documentations about this task will be released later when it is mature.
+
+For each task, GraphStorm provide a dedicated CLI for model training and inference. These CLIs share the same command template and some configurations, while each CLI has its unique task-specific configurations. GraphStorm also has a task-agnostic CLI for users to run your customized models.
 
 Task-specific CLI template for model training and inference
 ............................................................
