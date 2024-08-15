@@ -157,7 +157,7 @@ That's it! The command will initialize the training in all three GraphStorm cont
 
 Train a Large Graph (OGBN-Papers100M)
 --------------------------------------
-The previous sections demonstrates GraphStorm's distributed capability for a quick start. This section will use GraphStorm to train a large Graph data, i.e., `OGBN-Papers100M <https://ogb.stanford.edu/docs/nodeprop/#ogbn-papers100M>`_,  that can hardly train an RGCN model on it in a single machine. The steps of training this large graph is nearly the same as the above section, and only need a few additional operations.
+The previous sections demonstrates GraphStorm's distributed capability for a quick start. This section will use GraphStorm to train a large Graph data, i.e., `OGBN-Papers100M <https://ogb.stanford.edu/docs/nodeprop/#ogbn-papers100M>`_,  that can hardly train an RGCN model on a single machine. The steps of training this large graph is nearly the same as the above section, and only need a few additional operations.
 
 Create a GraphStorm Cluster
 ............................
