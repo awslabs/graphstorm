@@ -47,7 +47,7 @@ In the highest level, the JSON object contains three fields: ``version``, ``node
 * ``format``: (**Required**) specifies the input file format. Currently, the construction command supports three input file formats: ``csv``, ``parquet``, and ``HDF5``. The value of this field is a dictionary, where the key is ``name`` and the value is either ``csv``, ``parquet`` or ``HDF5``, e.g., `{"name":"csv"}`. The detailed format information could be found in the :ref:`Input Raw Data Explanations <input_raw_data>` guideline.
 * ``node_id_col``: specifies the column name that contains the node IDs. This field is optional. If not provided, the construction command will create node IDs according to the total number of rows and consider each row in the node table is a unique node. If user choose to store columns of a node type in multiple sets of tables, only one of the set of tables require to specify the node ID column.
 * ``features`` is a list of dictionaries that define how to get features and transform features. This is optional. The format of a feature dictionary is defined in the :ref:`Feature dictionary format <feat-format>` section below.
-* ``labels`` is a list of dictionaries that define where to get labels and how to split the labels into training/validation/test set. This is optional. The format of a label dictionary is defined :ref:`Label dictionary format <label-format>` section below.
+* ``labels`` is a list of dictionaries that define where to get labels and how to split the labels into training/validation/test set. This is optional. The format of a label dictionary is defined in the :ref:`Label dictionary format <label-format>` section below.
 
 ``edges`` (**Required**)
 ........................
