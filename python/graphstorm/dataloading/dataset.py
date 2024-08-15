@@ -597,6 +597,12 @@ class GSgnnData():
                         idx = th.nonzero(g.nodes[ntype].data[msk][ \
                             th.arange(g.num_nodes(ntype))]).reshape(-1,) # 1D tensor
                         idxs[ntype] = idx
+                        logging.warning("Since the total number of validation/test data"
+                                        "of %s, which is %d, is less than the number of "
+                                        "workers %d, we will force each worker to do "
+                                        "validation or testing on the entire "
+                                        "validation/test set.",
+                                        ntype, total_num_idx, get_world_size())
 
                 logging.debug('part %d | ntype %s, mask %s | val/test: %d',
                           get_rank(), ntype, msk, len(idx))
@@ -848,6 +854,12 @@ class GSgnnData():
                         idx = th.nonzero(g.edges[canonical_etype].data[msk][\
                             th.arange(g.num_edges(canonical_etype))]).reshape(-1,) # 1D tensor
                         idxs[canonical_etype] = idx
+                        logging.warning("Since the total number of validation/test data"
+                                        "of %s, which is %d, is less than the number of "
+                                        "workers %d, we will force each worker to do "
+                                        "validation or testing on the entire "
+                                        "validation/test set.",
+                                        canonical_etype, total_num_idx, get_world_size())
 
                 logging.debug('part %d | etype %s, mask %s | val/test: %d',
                               get_rank(), canonical_etype, msk, len(idx))
