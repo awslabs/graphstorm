@@ -20,4 +20,5 @@ In addition, there are two node ID mapping operations during the graph construct
    distributed/cluster
    distributed/sagemaker
    configuration-run
+   output
    output-remapping
