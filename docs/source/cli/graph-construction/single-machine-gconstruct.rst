@@ -302,7 +302,7 @@ A full argument list of the ``gconstruct.construct_graph`` command
 ...................................................................
 
 * **-\-conf-file**: (**Required**) the path of the configuration JSON file.
-* **-\-num-processes**: the number of processes to process the data simulteneously. Default is 1. Increase this number can speed up data processing.
+* **-\-num-processes**: the number of processes to process the data simulteneously. Default is 1. Increase this number can speed up data processing, but will also increase the CPU memory consumption.
 * **-\-num-processes-for-nodes**: the number of processes to process node data simulteneously. Increase this number can speed up node data processing.
 * **-\-num-processes-for-edges**: the number of processes to process edge data simulteneously. Increase this number can speed up edge data processing.
 * **-\-output-dir**: (**Required**) the path of the output data files.
