@@ -16,6 +16,13 @@ python3 -m graphstorm.gconstruct.construct_graph \
 	--graph-name movie-lens-100k \
 	--add-reverse-edges
 
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_small_val.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_train_small_val_1p_4t \
+	--graph-name movie-lens-100k \
+	--add-reverse-edges
+
 # movielens node classification removing test mask
 rm -Rf /data/movielen_100k_train_notest_1p_4t
 cp -R /data/movielen_100k_train_val_1p_4t /data/movielen_100k_train_notest_1p_4t

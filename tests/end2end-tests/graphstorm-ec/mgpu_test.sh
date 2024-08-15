@@ -336,4 +336,9 @@ fi
 
 rm /tmp/train_log.txt
 
+echo "**************dataset: Generated multilabel MovieLens EC, RGCN layer: 1, node feat: generated feature, inference: full graph, exclude-training-targets: True, tiny valset"
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_small_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --exclude-training-targets True --node-feat-name movie:title user:feat --use-mini-batch-infer false --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --backend nccl
+
+error_and_exit $?
+
 rm -fr /tmp/*
