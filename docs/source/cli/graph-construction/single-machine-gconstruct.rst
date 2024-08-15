@@ -135,7 +135,7 @@ GraphStorm provides a set of transformation operations for different types of fe
                   "epsilon": 1e-5,
                   "uniquify": True, }
 
-* **Convert to categorical values** converts text data to categorial values. The ``name`` field is ``to_categorical``, and ``separator`` specifies how to split the string into multiple categorical values (this is only used to define multiple categorical values). If ``separator`` is not specified, the entire string is a categorical value. ``mapping`` (optional) is a dictionary that specifies how to map a string to an integer value that defines a categorical value.
+* **Convert to categorical values** converts text data to categorial values. The ``name`` field is ``to_categorical``, and ``separator`` specifies how to split the string into multiple categorical values (this is only used to define multiple categorical values). If ``separator`` is not specified, the entire string is considered as a single categorical value. ``mapping`` (optional) is a dictionary that specifies how to map a string to an integer value that defines a categorical value. If ``mapping`` is provided, any string value which is not in the ``mapping`` will be ignored. The ``mapping`` field is mainly used in the inference stage when we want to keep the same categorical mapping as in the training stage.
 
   Example:
 
