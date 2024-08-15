@@ -167,7 +167,7 @@ GraphStorm provides a set of transformation operations for different types of fe
 
 Outputs of the graph consturction command
 ............................................
-The graph construction command outputs two output formats: ``DistDGL`` and ``DGL`` specified by the argument **-\-output-format**. 
+The graph construction command outputs two formats: ``DistDGL`` or ``DGL`` specified by the argument **-\-output-format**. 
 
 If select ``DGL``, the output is an `DGLGraph <https://docs.dgl.ai/en/1.0.x/generated/dgl.save_graphs.html>`_ file, named ``<graph_name>.dgl`` under the folder specified by the **-\-output-dir** argument, where `<graph_name>` is the value of argument **-\-graph-name**.
 
