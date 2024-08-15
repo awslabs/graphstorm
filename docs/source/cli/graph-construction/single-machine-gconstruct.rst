@@ -13,7 +13,7 @@ Prerequisites
 Graph consturction command
 ****************************
 
-GraphStorm has a ``gconstruct.construct_graph`` module for graph construction in a signle machine. Users can run the ``gconstruct.construct_graph`` command by following the command template below.
+GraphStorm provides a ``gconstruct.construct_graph`` module for graph construction in a signle machine. Users can run the ``gconstruct.construct_graph`` command by following the command template below.
 
 .. code:: python
 
