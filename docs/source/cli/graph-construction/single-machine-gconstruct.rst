@@ -8,7 +8,7 @@ Prerequisites
 
 1. A machine with Linux operation system that has proper CPU memory according to the raw data size.
 2. Following the :ref:`Setup GraphStorm with pip Packages <setup_pip>` guideline to install GraphStorm and its dependencies.
-3. Following the :ref:`Input Raw Data Explanations <input_raw_data>` guideline to generate the input raw data.
+3. Following the :ref:`Input Raw Data Explanations <input_raw_data>` guideline to prepare the input raw data.
 
 Graph consturction command
 ****************************
