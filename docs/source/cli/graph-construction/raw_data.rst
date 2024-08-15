@@ -124,7 +124,7 @@ n1_4    llm       4700
 
 ``paper, written-by, author`` edge table
 ......................................
-The ``paper, written-by, author`` edge table (``paper_written-by_author_edges.parquet``) include two columns, i.e., ``nid`` as the source node IDs, ``n_id`` as the destination IDs.
+The ``paper, written-by, author`` edge table (``paper_written-by_author_edges.parquet``) includes two columns, i.e., ``nid`` as the source node IDs, ``n_id`` as the destination IDs.
 
 =====  =======
 nid     n_id 
