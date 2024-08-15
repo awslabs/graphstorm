@@ -43,9 +43,9 @@ Label split files (Optional)
 -----------------------
 In some cases, users may want to control which nodes or edges should be used for training, validation, or testing. To achieve this goal, users can set the customized label split information in three JSON files or parquet files.
 
-For node split files, users just need to list the node IDs used for training in one file, node IDs used for validation in one file, and node IDs used for testing in another file. If use JSON files, put one node ID in one line. If use parquet files, place these node IDs in one column and assign a column name to it.
+For node split files, users just need to list the node IDs used for training in one file, node IDs used for validation in one file, and node IDs used for testing in another file. If use JSON files, put one node ID in one line like :ref:`this example <node-split-json>` below. If use parquet files, place these node IDs in one column and assign a column name to it.
 
-Foe edge split files, users need to provide both source node IDs and destination node IDs in the split files. If use JSON files, put one edge as a JSON list with two elements, i.e., ``["source node ID", "destination node ID"]``, in one line. If use parquet files, place the source node IDs and destination node IDs into two columns, and assign column names to them.
+Foe edge split files, users need to provide both source node IDs and destination node IDs in the split files. If use JSON files, put one edge as a JSON list with two elements, i.e., ``["source node ID", "destination node ID"]``, in one line. If use parquet files, place the source node IDs and destination node IDs into two columns, and assign column names to them  like :ref:`this example <edge-split-parquet>` below.
 
 If there is no validation or testing set, users do not need to create the corresponding file(s).
 
@@ -137,6 +137,8 @@ n1_3    70
 n1_4    70   
 =====  =======
 
+.. _node-split-json:
+
 Node split JSON files
 ......................
 This example sets customized node split files on the ``paper`` nodes for a node classification task in the JSON format. There are two nodes in the training set, one node for validation, and one node for testing.
@@ -159,6 +161,8 @@ This example sets customized node split files on the ``paper`` nodes for a node 
 .. code:: json
 
     n1_1
+
+.. _edge-split-parquet:
 
 Edge split parquet files
 .........................
