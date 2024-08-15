@@ -51,7 +51,7 @@ If there is no validation or testing set, users do not need to create the corres
 
 A simple raw data example
 --------------------------
-To better help users to prepare the input raw data artifacts, this section provides a very simple raw data example.
+To better help users to prepare the input raw data artifacts, this section provides a simple example.
 
 This simple raw data has three types of nodes, ``paper``, ``subject``, ``author``, and two types of edges, ``paper, has, subject`` and ``paper, written-by, author``.
 
