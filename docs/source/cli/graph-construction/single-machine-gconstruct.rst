@@ -23,7 +23,7 @@ GraphStorm provides a ``gconstruct.construct_graph`` module for graph constructi
           --num-parts 1 \
           --graph-name a_name
 
-This template provides the actual Python command, and it also indicates the three required command arguments, i.e., ``--conf-file`` specifies a JSON file containing graph construction configurations, ``--output-dir`` specifies the directory for outputs, and ``--graph-name`` specifies a string as a name given to the constructed graph. The ``--num-parts`` whose default given value is ``1`` is also an important argument because it not only determines how many partitions to be constructed, also determines how many machines to be used in the GraphStorm model training and inference.
+This template provides the actual Python command, and it also indicates the three required command arguments, i.e., ``--conf-file`` specifies a JSON file containing graph construction configurations, ``--output-dir`` specifies the directory for outputs, and ``--graph-name`` specifies a string as a name given to the constructed graph. The ``--num-parts`` whose default given value is ``1`` is also an important argument. It determines how many partitions to be constructed. In distrusted model training and inference, the number of machines is determined by the number of partitions.
 
 .. _gconstruction-json:
 
@@ -45,7 +45,7 @@ In the highest level, the JSON object contains three fields: ``version``, ``node
 * ``node_type``: (**Required**) specifies the node type. Think this as a name given to one type of nodes, e.g. `"author"` and `"paper"`.
 * ``files``: (**Required**) specifies the input files for the node type. There are multiple options to specify the input files. For a single input file, it contains the path of a single file. For multiple files, it could contain the paths of files with a wildcard, e.g., `file_name*.parquet`, or a list of file paths, e.g., `["file_name001.parquet", "file_name002.parquet", ...]`.
 * ``format``: (**Required**) specifies the input file format. Currently, the construction command supports three input file formats: ``csv``, ``parquet``, and ``HDF5``. The value of this field is a dictionary, where the key is ``name`` and the value is either ``csv``, ``parquet`` or ``HDF5``, e.g., `{"name":"csv"}`. The detailed format information could be found in the :ref:`Input Raw Data Explanations <input_raw_data>` guideline.
-* ``node_id_col``: specifies the column name that contains the node IDs. This field is optional. If not provided, the construction command will create node IDs according to the total number of rows and consider each row in the node table is a unique node. If user choose to store columns of a node type in multiple sets of tables, only one of the set of tables require to specify the node ID column.
+* ``node_id_col``: specifies the column name that contains the node IDs. This field is optional. If not provided, the construction command will create node IDs according to the total number of rows and consider each row in the node table is a unique node. If user choose to store columns of a node type in multiple sets of tables, only one of the set of tables require to specify the node ID column. For example of this multiple sets of tables, please refer to :ref:`the simple input data example <multi-set-table-examle>` document.
 * ``features`` is a list of dictionaries that define how to get features and transform features. This is optional. The format of a feature dictionary is defined in the :ref:`Feature dictionary format <feat-format>` section below.
 * ``labels`` is a list of dictionaries that define where to get labels and how to split the labels into training/validation/test set. This is optional. The format of a label dictionary is defined in the :ref:`Label dictionary format <label-format>` section below.
 
@@ -92,7 +92,7 @@ GraphStorm provides a set of transformation operations for different types of fe
   .. code:: json
 
     "transform": {"name": "tokenize_hf",
-                  "bert_model": "bert",
+                  "bert_model": "bert-base-uncased",
                   "max_seq_length": 16},
 
 * **HuggingFace LM transformation** encodes text strings with a HuggingFace LM model.  The ``name`` field in the feature transformation dictionary is ``bert_hf``. The dict should contain two additional fields.
@@ -105,7 +105,7 @@ GraphStorm provides a set of transformation operations for different types of fe
   .. code:: json
 
     "transform": {"name": "bert_hf",
-                  "bert_model": "roberta",
+                  "bert_model": "roberta-base",
                   "max_seq_length": 256},
 
 * **Numerical MAX_MIN transformation** normalizes numerical input features with `val = (val-min)/(max-min)`, where `val` is the feature value, `max` is the maximum value in the feature and `min` is the minimum value in the feature. The ``name`` field in the feature transformation dictionary is ``max_min_norm``. The dictionary can contain four optional fields: ``max_bound``, ``min_bound``, ``max_val`` and ``min_val``. 
@@ -169,9 +169,11 @@ Outputs of the graph consturction command
 ............................................
 The graph construction command outputs two formats: ``DistDGL`` or ``DGL`` specified by the argument **-\-output-format**. 
 
-If select ``DGL``, the output is an `DGLGraph <https://docs.dgl.ai/en/1.0.x/generated/dgl.save_graphs.html>`_ file, named ``<graph_name>.dgl`` under the folder specified by the **-\-output-dir** argument, where `<graph_name>` is the value of argument **-\-graph-name**.
+If select ``DGL``, the output includes an `DGLGraph <https://docs.dgl.ai/en/1.0.x/generated/dgl.save_graphs.html>`_ file, named ``<graph_name>.dgl`` under the folder specified by the **-\-output-dir** argument, where `<graph_name>` is the value of argument **-\-graph-name**.
 
-If select ``DistDGL``, the output will be a partitioned `DistDGL graph <https://doc.dgl.ai/guide/distributed-preprocessing.html#partitioning-api>`_. It includes a JSON file, named `<graph_name>.json` that describes the meta-information of the partitioned graph, a set of ``part*`` folders under the folder specified by the **-\-output-dir** argument, where the `*` is the number specified by the **-\-num-parts** argument, and other files that contain related metadata information, e.g., node and edge ID mapping files, the new construction configuration JSON file that records the details of feature transformation operations.
+If select ``DistDGL``, the output will be a partitioned `DistDGL graph <https://doc.dgl.ai/guide/distributed-preprocessing.html#partitioning-api>`_. It includes a JSON file, named `<graph_name>.json` that describes the meta-information of the partitioned graph, a set of ``part*`` folders under the folder specified by the **-\-output-dir** argument, where the `*` is the number specified by the **-\-num-parts** argument.
+
+Besides the graph data, the graph construction command also generate other files that contain related metadata information associated with the graph data, including a set of node and edge ID mapping files, a new construction configuration JSON file that records the details of feature transformation operations, and lable statistic summary files if required in the ``label_stats_type`` field.
 
 .. _gs-id-mapping-files:
 
@@ -187,12 +189,15 @@ If select ``DistDGL``, the output will be a partitioned `DistDGL graph <https://
 
       If users provide a value of the **-\-output-conf-file** argument, the newly generated configuration file will use this value as the file name. Otherwise GraphStorm will save the configuration JSON file in the **-\-output-dir** with name ``data_transform_new.json``.
 
+    - **Label Statistic Summary JSONs:**
+      If required in the ``label_stats_type`` field, the graph construction command will compute statistics of labels and save them in a ``node_label_stats.json`` or a ``edge_label_stats.json``. 
+
 .. note:: These mapping files are important for mapping the training and inference outputs. Therefore, DO NOT move or delete them.
 
 A construction configuration JSON example
 ..........................................
 
-Using the :ref:`simple raw data example <simple-input-raw-data-example>`, this section provides a construction configuration JSON example for demonstration. 
+This section provides a construction configuration JSON associated to the :ref:`simple raw data example <simple-input-raw-data-example>` as an example for refernece.
 
 .. code:: yaml
 
@@ -308,7 +313,7 @@ A full argument list of the ``gconstruct.construct_graph`` command
 * **-\-output-dir**: (**Required**) the path of the output data files.
 * **-\-graph-name**: (**Required**) the name assigned for the graph.
 * **-\-remap-node-id**: boolean value to decide whether to rename node IDs or not. Adding this argument will set it to be true, otherwise false.
-* **-\-add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Adding this argument will set it to be true, otherwise false.
+* **-\-add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Adding this argument sets it to true; otherwise, it defaults to false. It is **strongly** suggested to include this argument for graph construction, as some nodes in the original data may not have in-degrees, and thus cannot update their presentations by aggregating messages from them neighbors. Adding this arugment helps prevent this issue.
 * **-\-output-format**: the format of constructed graph, options are ``DGL``,  ``DistDGL``.  Default is ``DistDGL``. It also accepts multiple graph formats at the same time separated by an space, for example ``--output-format "DGL DistDGL"``. The output format is explained in the :ref:`Output <gcon-output-format>` section above.
 * **-\-num-parts**: an integer value that specifies the number of graph partitions to produce. This is only valid if the output format is ``DistDGL``.
 * **-\-skip-nonexist-edges**: boolean value to decide whether skip edges whose endpoint nodes don't exist. Default is true.

@@ -85,6 +85,8 @@ The ``subject`` table (``subject_nodes.parquet``) includes one column only, i.e.
 | llm    |
 +--------+
 
+.. _multi-set-table-examle:
+
 ``author`` node table
 .......................
 The ``author`` table (``author_nodes.parquet``) includes two columns, i.e., `n_id` for node IDs, and `hdx` as a feature column with numerical values.
