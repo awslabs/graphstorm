@@ -30,7 +30,7 @@ This template provides the actual Python command, and it also indicates the thre
 Configuration JSON Object Explanations
 **************************************
 
-The configuration JSON file is the **key** input argument for graph construction. The file contains a JSON object that defines the overall graph schema in terms of node type and edge type. For each node and edge type, it defines where the node and edge data are stored and in what file format. When a type of node or edge has features, it could not only define which columns in the data table are features, but also define what feature transformation operations that GraphStorm supports will be used during graph construction. When a type of node or edge has labels, it could not only which columns in the data table are labels, but also define how to split the labels into the training, validation, and testing set.
+The configuration JSON file is the **key** input argument for graph construction. The file contains a JSON object that defines the overall graph schema in terms of node type and edge type. For each node and edge type, it defines where the node and edge data are stored and in what file format. When a type of node or edge has features, it defines which columns in the data table are features and what feature transformation operations will be used to encode the features. When a type of node or edge has labels, it defines which columns in the data table are labels and how to split the labels into the training, validation, and testing sets.
 
 In the highest level, the JSON object contains three fields: ``version``, ``nodes`` and ``edges``.
 
