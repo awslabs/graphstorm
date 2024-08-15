@@ -111,7 +111,7 @@ The ``author`` nodes also have a 2048 dimension embeddings pre-computed on a tex
 
 ``paper, has, subject`` edge table
 ......................................
-The ``paper, has, subject`` edge table (``paper_has_subject_edges.parquet``) include three columns, i.e., ``nid`` as the source node IDs, ``domain`` as the destination IDs, and ``cnt`` as the label field for a regression task.
+The ``paper, has, subject`` edge table (``paper_has_subject_edges.parquet``) includes three columns, i.e., ``nid`` as the source node IDs, ``domain`` as the destination IDs, and ``cnt`` as the label field for a regression task.
 
 =====  =======  =======
 nid    domain    cnt
