@@ -25,7 +25,7 @@ In the table for one edge type, there **must** be two columns. One column stores
 
 .. note:: 
     
-    * If the number of rows is too large, it is suggested to split and store the data into mutliple tables that have the identical schema. Doing so could speed up the data reading process during graph construction if use multiple processing.
+    * If the number of rows is too large, it is suggested to split and store the data into mutliple table files that have the identical schema. Doing so could speed up the data reading process during graph construction if use multiple processing.
     * It is suggested to use **parquet** file format for its popularity and compressed file sizes. The **HDF5** format is only suggested for data with large volume of high dimension features.
     * Users can also store columns in multiple sets of table files, for example, puting "node IDs" and "feature_1" in the set of "table1_1.parquet" file and  "table1_2.parquet" file, and put "feature_2" in another set of "table2_1.h5" file and "table2_2.h5" file with the same row order.
 
