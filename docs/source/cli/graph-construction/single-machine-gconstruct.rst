@@ -97,7 +97,7 @@ GraphStorm provides a set of transformation operations for different types of fe
 
 * **HuggingFace LM transformation** encodes text strings with a HuggingFace LM model.  The ``name`` field in the feature transformation dictionary is ``bert_hf``. The dict should contain two additional fields.
 
-  1. ``bert_model`` specifies the LM model used for embedding text. Users can choose any `HuggingFace LM models <https://huggingface.co/models>`_ from one of the following types: ``"bert", "roberta", "albert", "camembert", "ernie", "ibert", "luke", "mega", "mpnet", "nezha", "qdqbert","roc_bert"``. 
+  1. ``bert_model`` specifies the LM model used for embedding text. Users can choose any `HuggingFace LM models <https://huggingface.co/models>`_ from one of the following types: ``"bert", "roberta", "albert", "camembert", "ernie", "ibert", "luke", "mega", "mpnet", "nezha", "qdqbert","roc_bert"``, such as ``"bert-base-uncased" and "roberta-base"``
   2. ``max_seq_length`` specifies the maximal sequence length.
 
   Example:
