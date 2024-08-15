@@ -31,8 +31,10 @@ In the table for one edge type, there **must** be two columns. One column stores
 
 .. warning:: 
     
-    If users split both rows and columns into mutliple sets of table files, to guarantee the consistency of row order, users need to make sure that the sorted table file names of one set will be same as table file names of another set. For example, if some columns are stored in files with names like ``table_1.h5, table_2.h5, ..., table_9.h5, table_10.h5, table_11.h5``, they will be sorted by Linux OS like ``table_1.h5, table_10.h5, table_11.h5, table_2.h5, ..., table_9.h5``; meanwhile if the other columns are stored in file with names like ``table_001.h5, table_002.h5, ..., table_009.h5, table_010.h5, table_011.h5``, they will have the same order after sorted by Linux OS. The two different file name sorting results will cause mismatch between node IDs and node features. 
+    If users split both rows and columns into mutliple sets of table files, they need to make sure that after files are sorted according to the file names, the order of the rows of each column will still keep the same.
     
+    Suppose the columns are split into two file sets. One set includes a list of files, i.e., ``table_1.h5, table_2.h5, ..., table_9.h5, table_10.h5, table_11.h5``, and another set also includes a list of files, i.e., ``table_001.h5, table_002.h5, ..., table_009.h5, table_010.h5, table_011.h5``. The order of rows in the two set of files is the same when using the original order of files in the two lists. However, after being sorted by Linux OS, we will get ``table_1.h5, table_10.h5, table_11.h5, table_2.h5, ..., table_9.h5`` for the first list, and get ``table_001.h5, table_002.h5, ..., table_009.h5, table_010.h5, table_011.h5`` for the second list. The order of files is different, which will cause mismatch between node IDs and node features.
+
     Therefore, it is **strongly** suggested to use the ``_000*`` file name template, like ``table_001, table_002, ..., table_009, table_010, table_011, ..., table_100, table_101, ...``.
 
 .. _customized-split-labels:
