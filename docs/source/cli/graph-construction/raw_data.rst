@@ -1,6 +1,6 @@
 .. _input_raw_data:
 
-Input Raw Data Explanations
+Input Raw Data Specification
 =============================
 
 In order to use GraphStorm's graph construction pipeline both on a single machine and in a distributed environment, users should prepare their input raw data accroding to GraphStorm's requirements explained below.
