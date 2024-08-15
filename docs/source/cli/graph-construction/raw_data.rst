@@ -161,7 +161,7 @@ This example sets customized node split files on the ``paper`` nodes for a node 
 Edge split parquet files
 .........................
 
-This example sets customized edge split files on the ``paper, has, subject`` edges for an edge regression task in the parquet format. There are one in the training set, three edges for validation, and no edge for testing.
+This example sets customized edge split files on the ``paper, has, subject`` edges for an edge regression task in the parquet format. There are three edges in the training set, one edge for validation, and no edge for testing.
 
 **train_edges.parquet** contents
 
