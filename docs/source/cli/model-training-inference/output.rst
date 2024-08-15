@@ -1,7 +1,7 @@
 .. _gs-output:
 
-GraphStorm Output
-=================
+GraphStorm Training and Inference Output
+========================================
 GraphStorm training pipeline can save both trained model checkpoints and node embeddings
 on disk. When ``save_model_path`` is provided in the training configuration,
 the trained model checkpoints will be saved in the corresponding path.
