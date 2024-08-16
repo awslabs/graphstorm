@@ -553,14 +553,14 @@ def multi_task_mini_batch_predict(
                                                     device,
                                                     return_proba,
                                                     return_label)
-                    assert labels is None or len(labels) == 1, \
+                    assert not labels or len(labels) == 1, \
                         "In multi-task learning, for each training task, " \
                         "we only support prediction on one node type." \
                         "For multiple node types, please treat them as " \
                         "different training tasks."
                     ntype = list(preds.keys())[0]
                     res[task_info.task_id] = (preds[ntype], labels[ntype] \
-                        if labels is not None else None)
+                        if labels else None)
             elif task_info.task_type in \
             [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
                 if dataloader is None:
@@ -576,14 +576,14 @@ def multi_task_mini_batch_predict(
                                                     device,
                                                     return_proba,
                                                     return_label)
-                    assert labels is None or len(labels) == 1, \
+                    assert not labels or len(labels) == 1, \
                         "In multi-task learning, for each training task, " \
                         "we only support prediction on one edge type." \
                         "For multiple edge types, please treat them as " \
                         "different training tasks."
                     etype = list(preds.keys())[0]
                     res[task_info.task_id] = (preds[etype], labels[etype] \
-                        if labels is not None else None)
+                        if labels else None)
             elif task_info.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
                 if dataloader is None:
                     # In cases when there is no validation or test set.
