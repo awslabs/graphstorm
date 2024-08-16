@@ -197,10 +197,57 @@ In general, GraphStorm covers following cases:
 The gconstruct pipeline of GraphStorm provides support to load hard negative data from raw input.
 Hard destination negatives can be defined through ``edge_dst_hard_negative`` transformation.
 The ``feature_col`` field of ``edge_dst_hard_negative`` must stores the raw node ids of hard destination nodes.
+The follwing example shows how to define a hard negative feature for edges with the relation ``(node1, relation1, node1)``:
+
+  .. code-block:: json
+
+    {
+        ...
+        "edges": [
+            ...
+            {
+                "source_id_col":    "src",
+                "dest_id_col":      "dst",
+                "relation": ("node1", "relation1", "node1"),
+                "format":   {"name": "parquet"},
+                "files":    "edge_data.parquet",
+                "features": [
+                    {
+                        "feature_col": "hard_neg",
+                        "feature_name": "hard_neg_feat",
+                        "transform": {"name": "edge_dst_hard_negative",
+                                                "separator": ";"},
+                    }
+                ]
+            }
+        ]
+    }
+
+The hard negative data is stored in the column named ``hard_neg`` in the ``edge_data.parquet`` file.
+The edge feature to store the hard negative will be ``hard_neg_feat``.
+
 GraphStorm accepts two types of hard negative inputs:
 
 - **An array of strings or integers** When the input format is ``Parquet``, the ``feature_col`` can store string or integer arrays. In this case, each row stores a string/integer array representing the hard negative node ids of the corresponding edge. For example, the ``feature_col`` can be a 2D string array, like ``[["e0_hard_0", "e0_hard_1"],["e1_hard_0"], ..., ["en_hard_0", "en_hard_1"]]`` or a 2D integer array (for integer node ids) like ``[[10,2],[3],...[4,12]]``. It is not required for each row to have the same dimension size. GraphStorm will automatically handle the case when some edges do not have enough pre-defined hard negatives.
+For example, the file storing hard negatives should look like the following:
 
-- **A single string** The ``feature_col`` stores strings instead of string arrays. (When the input format is ``Parquet`` or ``CSV``) In this case, a ``separator`` must be provided to split the strings into node ids. The ``feature_col`` will be a 1D string list, for example ``["e0_hard_0;e0_hard_1", "e1_hard_1", ..., "en_hard_0;en_hard_1"]``. The string length, i.e., number of hard negatives, can vary from row to row. GraphStorm will automatically handle the case when some edges do not have enough hard negatives.
+.. code-block:: yaml
+
+      src    |   dst    | hard_neg
+    "src_0"  | "dst_0"  | ["dst_10", "dst_11"]
+    "src_0"  | "dst_1"  | ["dst_5"]
+    ...
+    "src_100"| "dst_41" | [dst0, dst_2]
+
+- **A single string** The ``feature_col`` stores strings instead of string arrays (When the input format is ``Parquet`` or ``CSV``). In this case, a ``separator`` must be provided int the transformation definition to split the strings into node ids. The ``feature_col`` will be a 1D string list, for example ``["e0_hard_0;e0_hard_1", "e1_hard_1", ..., "en_hard_0;en_hard_1"]``. The string length, i.e., number of hard negatives, can vary from row to row. GraphStorm will automatically handle the case when some edges do not have enough hard negatives.
+For example, the file storing hard negatives should look like the following:
+
+.. code-block:: yaml
+
+      src    |   dst    | hard_neg
+    "src_0"  | "dst_0" | "dst_10;dst_11"
+    "src_0"  | "dst_1" | "dst_5"
+    ...
+    "src_100"| "dst_41"| "dst0;dst_2"
 
 GraphStorm will automatically translate the Raw Node IDs of hard negatives into Partition Node IDs in a DistDGL graph.
