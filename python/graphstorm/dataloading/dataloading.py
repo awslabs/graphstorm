@@ -85,9 +85,6 @@ class _ReconstructedNeighborSampler():
             self._fanout[etype] = fanout if etype in self._subg_etypes else 0
         assert len(self._subg_etypes) > 0, "The sampled edge types is empty."
 
-        # Temporary fix for dgl >= 2.3.0
-        self.prob = None
-
     def sample(self, seeds):
         """ Sample an additional hop for the input block.
 
@@ -127,6 +124,8 @@ class MultiLayerNeighborSamplerForReconstruct(dgl.dataloading.BlockSampler):
         self._sampler = sampler
         self._construct_feat_sampler = _ReconstructedNeighborSampler(
                 dataset, construct_feat_ntype, construct_feat_fanout)
+        # Temporary fix for dgl >= 2.3.0
+        self.prob = None
 
     def sample_blocks(self, g, seed_nodes, exclude_eids=None):
         """ Sample blocks (list of DGL MFGs) for message passing.
