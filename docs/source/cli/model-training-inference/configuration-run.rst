@@ -51,7 +51,7 @@ GraphStorm provides a set of parameters to config the GNN model structure (input
     - Yaml: ``model_encoder_type: rgcn``
     - Argument: ``--model-encoder-type rgcn``
     - Default value: This parameter must be provided by user.
-- **node_feat_name**: User defined feature name. It accepts two formats: a) `fname`, if a node has node features, the corresponding feature name will be fname; b) `ntype0:feat0 ntype1:featA ...`, different node types have different node feature name(s). In the example, "ntype0" has a node feature named "feat0" and "ntype1" has a node feature named "featA". Note: Characters `:` and ` ` are not allowed to be used in node feature names.  And in Yaml format, need to put each node's feature in a separated line that starts with a hyphon.
+- **node_feat_name**: User defined feature name. It accepts two formats: a) `fname`, if a node has node features, the corresponding feature name will be fname; b) `ntype0:feat0 ntype1:featA ...`, different node types have different node feature name(s). In the example, "ntype0" has a node feature named "feat0" and "ntype1" has a node feature named "featA".
 
     - Yaml: ``node_feat_name:``
                 | ``- "ntype1:featA"``
