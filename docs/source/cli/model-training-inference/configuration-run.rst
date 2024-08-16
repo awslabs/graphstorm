@@ -216,11 +216,6 @@ GraphStorm provides a set of parameters to control training hyper-parameters.
     - Yaml: ``num_ffn_layers_in_decoder: 1``
     - Argument: ``--num-ffn-layers-in-decoder 1``
     - Default value: ``0``
-- **decoder_norm**: Graphstorm provides this argument as an option to define the norm type for the task decoders. Please note, it only accepts ``batch`` and ``layer`` for batchnorm and layernorm respectively. By default, it is set to 'none'. Note: all the built-in classification and regression decoders accept ``norm`` as one of their input arguments to define the norm type, but only ``MLPEFeatEdgeDecoder`` implements layer/batch norm between its layers.
-
-    - Yaml: ``decoder_norm: batch``
-    - Argument: ``--decoder-norm batch``
-    - Default value: ``none``
 - **input_activate**: Graphstorm provides this argument as an option to change the activation function in the input layer. Please note, it only accepts 'relu' and 'none'.
 
     - Yaml: ``input_activate: relu``
@@ -371,10 +366,10 @@ Classification and Regression Task
     - Yaml: ``imbalance_class_weights: 0.1,0.2,0.3``
     - Argument: ``--imbalance-class-weights 0.1,0.2,0.3``
     - Default value: ``None``
-- **return_proba**: For classification task, this configuration determines whether to return probability estimates for each class or the maximum probable class. Set `true`` to return probability estimates and `false` to return the maximum probable class.
+- **return_proba**: For classification task, this configuration determines whether to return probability estimates for each class or the maximum probable class. Set true to return probability estimates and false to return the maximum probable class.
 
     - Yaml: ``return_proba: true``
-    - Argument: ``--return_proba true``
+    - Argument: ``--return-proba true``
     - Default value: ``true``
 - **save_prediction_path**: Path to save prediction results. This is used in node/edge classification/regression inference.
 
