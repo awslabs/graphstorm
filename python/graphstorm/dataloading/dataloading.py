@@ -86,7 +86,7 @@ class _ReconstructedNeighborSampler():
         assert len(self._subg_etypes) > 0, "The sampled edge types is empty."
 
         # Temporary fix for dgl >= 2.3.0
-        self.prop = None
+        self.prob = None
 
     def sample(self, seeds):
         """ Sample an additional hop for the input block.
