@@ -59,7 +59,7 @@ GraphStorm provides a set of parameters to config the GNN model structure (input
     - Argument: ``--node-feat-name "ntype0:feat0 ntype1:featA"``
     - Default value: If not provided, there will be no node features used by GraphStorm even graphs have node features attached.
 
-    .. Note::: Characters `:` and white space are not allowed to be used in node feature names.  And in Yaml format, need to put each node's feature in a separated line that starts with a hyphon.
+    .. Note:: Characters `:` and white space are not allowed to be used in node feature names.  And in Yaml format, need to put each node's feature in a separated line that starts with a hyphon.
 
 - **num_layers**: Number of GNN layers. Must be an integer larger than 0 if given. By default, it is set to 0, which means no GNN layers.
 
