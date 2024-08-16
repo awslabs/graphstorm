@@ -85,6 +85,9 @@ class _ReconstructedNeighborSampler():
             self._fanout[etype] = fanout if etype in self._subg_etypes else 0
         assert len(self._subg_etypes) > 0, "The sampled edge types is empty."
 
+        # Temporary fix for dgl >= 2.3.0
+        self.prop = None
+
     def sample(self, seeds):
         """ Sample an additional hop for the input block.
 
