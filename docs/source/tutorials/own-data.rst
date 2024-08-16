@@ -373,7 +373,7 @@ In terms of link prediction task, run the following command to partition the dat
            --target-etype paper,citing,paper \
            --output /tmp/acm_lp
 
-Please refer to :ref:`Graph Partition Configurations <configurations-partition>` to find more details of the arguments of the two partition tools.
+Please refer to :ref:`Graph Partition for DGL Graphs <configurations-partition>` guideline for more details of the arguments of the two partition tools.
 
 Step 2: Modify the YAML configuration file to include your own data's information
 -----------------------------------------------------------------------------------
