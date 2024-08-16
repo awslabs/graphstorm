@@ -43,27 +43,13 @@ python /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
 
 GraphStorm training relies on ssh to launch training jobs. The GraphStorm standalone mode uses ssh services in port 22.
 
-In addition, to run GraphStorm training in a single machine, users need to create a ``ip_list.txt`` file that contains one row as below, which will facilitate ssh communication to the machine itself.
-
-```127.0.0.1```
-
-Users can use the following command to create the simple ip_list.txt file.
-
-```
-touch /tmp/ip_list.txt
-echo 127.0.0.1 > /tmp/ip_list.txt
-```
-
 Third, run the below command to train an RGCN model to perform node classification on the partitioned arxiv graph.
 
 ```
 python -m graphstorm.run.gs_node_classification \
        --workspace /tmp/ogbn-arxiv-nc \
        --num-trainers 1 \
-       --num-servers 1 \
-       --num-samplers 0 \
        --part-config /tmp/ogbn_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json \
-       --ip-config  /tmp/ip_list.txt \
        --ssh-port 22 \
        --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
        --save-perf-results-path /tmp/ogbn-arxiv-nc/models
@@ -96,7 +82,6 @@ python -m graphstorm.run.gs_link_prediction \
        --num-servers 1 \
        --num-samplers 0 \
        --part-config /tmp/ogbn_mag_lp_train_val_1p_4t/ogbn-mag.json \
-       --ip-config /tmp/ip_list.txt \
        --ssh-port 22 \
        --cf /graphstorm/training_scripts/gsgnn_lp/mag_lp.yaml \
        --node-feat-name paper:feat \

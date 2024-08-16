@@ -318,3 +318,129 @@ GraphStorm supports to run multi-task inference on :ref:`SageMaker<distributed-s
         --instance-count <INSTANCE_COUNT> \
         --instance-type <INSTANCE_TYPE>
 
+Multi-task Learning Output
+--------------------------
+
+Saved Node Embeddings
+~~~~~~~~~~~~~~~~~~~~~~
+When ``save_embed_path`` is provided in the training configuration or the inference configuration,
+GraphStorm will save the node embeddings in the corresponding path.
+In multi-task learning, by default, GraphStorm will save the node embeddings
+produced by the GNN layer for every node type under the path specified by
+``save_embed_path``. The output format follows the :ref:`GraphStorm saved node embeddings
+format<gs-out-embs>`. Meanwhile, in multi-task learning, certain tasks might apply
+task specific normalization to node embeddings. For instance, a link prediction
+task might apply l2 normalization on each node embeddings. In certain cases, GraphStorm
+will also save the normalized node embeddings under the ``save_embed_path``.
+The task specific node embeddings are saved separately under different sub-directories
+named with the corresponding task id. (A task id is formated as ``<task_type>-<ntype/etype(s)>-<label>``.
+For instance, the task id of a node classification task on the node type ``paper`` with the
+label field ``venue`` will be ``node_classification-paper-venue``. As another example,
+the task id of a link prediction task on the edge type ``(paper, cite, paper)`` will be
+``link_prediction-paper_cite_paper``
+and the task id of a edge regression task on the edge type ``(paper, cite, paper)`` with
+the label field ``year`` will be ``edge_regression-paper_cite_paper-year``).
+The output format of task specific node embeddings follows
+the :ref:`GraphStorm saved node embeddings format<gs-out-embs>`.
+The contents of the ``save_embed_path`` in multi-task learning will look like following:
+
+.. code-block:: bash
+
+    emb_dir/
+        ntype0/
+            embed_nids-00000.pt
+            embed_nids-00001.pt
+            ...
+            embed-00000.pt
+            embed-00001.pt
+            ...
+        ntype1/
+            embed_nids-00000.pt
+            embed_nids-00001.pt
+            ...
+            embed-00000.pt
+            embed-00001.pt
+            ...
+        emb_info.json
+        link_prediction-paper_cite_paper/
+            ntype0/
+                embed_nids-00000.pt
+                embed_nids-00001.pt
+                ...
+                embed-00000.pt
+                embed-00001.pt
+                ...
+            ntype1/
+                embed_nids-00000.pt
+                embed_nids-00001.pt
+                ...
+                embed-00000.pt
+                embed-00001.pt
+                ...
+            emb_info.json
+        edge_regression-paper_cite_paper-year/
+            ntype0/
+                embed_nids-00000.pt
+                embed_nids-00001.pt
+                ...
+                embed-00000.pt
+                embed-00001.pt
+                ...
+            ntype1/
+                embed_nids-00000.pt
+                embed_nids-00001.pt
+                ...
+                embed-00000.pt
+                embed-00001.pt
+                ...
+            emb_info.json
+
+In the above example both the link prediction and edge regression tasks
+apply task specific normalization on node embeddings.
+
+**Note: The built-in GraphStorm training or inference pipeline
+(launched by GraphStorm CLIs) will process each saved node embeddings
+to convert the integer node IDs into the raw node IDs, which are usually string node IDs.**
+Details can be found in :ref:`GraphStorm Output Node ID Remapping<gs-output-remapping>`
+
+Saved Prediction Results
+~~~~~~~~~~~~~~~~~~~~~~~~~
+When ``save_prediction_path`` is provided in the inference configuration,
+GraphStorm will save the prediction results in the corresponding path.
+In multi-task learning inference, each prediction task will have its prediction
+results saved separately under different sub-directories
+named with the
+corresponding task id. The output format of task specific prediction results
+follows the :ref:`GraphStorm saved prediction result format<gs-out-predictions>`.
+The contents of the ``save_prediction_path`` in multi-task learning will look like following:
+
+.. code-block:: bash
+
+    prediction_dir/
+        edge_regression-paper_cite_paper-year/
+            paper_cite_paper/
+                predict-00000.pt
+                predict-00001.pt
+                ...
+                src_nids-00000.pt
+                src_nids-00001.pt
+                ...
+                dst_nids-00000.pt
+                dst_nids-00001.pt
+                ...
+            result_info.json
+        node_classification-paper-venue/
+            paper/
+                predict-00000.pt
+                predict-00001.pt
+                ...
+                predict_nids-00000.pt
+                predict_nids-00001.pt
+                ...
+            result_info.json
+        ...
+
+**Note: The built-in GraphStorm inference pipeline
+(launched by GraphStorm CLIs) will process each saved prediction result
+to convert the integer node IDs into the raw node IDs, which are usually string node IDs.**
+Details can be found in :ref:`GraphStorm Output Node ID Remapping<gs-output-remapping>`

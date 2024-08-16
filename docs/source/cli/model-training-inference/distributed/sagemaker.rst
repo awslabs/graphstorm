@@ -1,7 +1,8 @@
 .. _distributed-sagemaker:
 
-Use GraphStorm on SageMaker
-===================================
+Model Training and Inference on on SageMaker
+=============================================
+
 GraphStorm can run on Amazon Sagemaker to leverage SageMaker's ML DevOps capabilities.
 
 Prerequisites
