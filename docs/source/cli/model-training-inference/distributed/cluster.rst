@@ -1,7 +1,7 @@
 .. _distributed-cluster:
 
-Use GraphStorm in a Distributed Cluster
-========================================
+Model Training and Inference on a Distributed Cluster
+======================================================
 GraphStorm can scale to the enterprise-level graphs in the distributed mode by using a cluster of instances. To leverage this capacity, there are four steps to follow:
 
 * Create a cluster with instances each of which can run GraphStorm Docker container.
@@ -53,7 +53,7 @@ Collect the IP list
 ......................
 The GraphStorm Docker containers use SSH on port ``2222`` to communicate with each other. Users need to collect all IP addresses of the three instances and put them into a text file, e.g., ``/data/ip_list.txt``, which is like:
 
-.. figure:: ../../../tutorial/distributed_ips.png
+.. figure:: ../../../../../tutorial/distributed_ips.png
     :align: center
 
 .. note:: If possible, use **private IP addresses**, insteand of public IP addresses. Public IP addresses may have additional port constraints, which cause communication issues.
@@ -157,7 +157,7 @@ That's it! The command will initialize the training in all three GraphStorm cont
 
 Train a Large Graph (OGBN-Papers100M)
 --------------------------------------
-The previous sections demonstrates GraphStorm's distributed capability for a quick start. This section will use GraphStorm to train a large Graph data, i.e., `OGBN-Papers100M <https://ogb.stanford.edu/docs/nodeprop/#ogbn-papers100M>`_,  that can hardly train an RGCN model on it in a single machine. The steps of training this large graph is nearly the same as the above section, and only need a few additional operations.
+The previous sections demonstrates GraphStorm's distributed capability for a quick start. This section will use GraphStorm to train a large Graph data, i.e., `OGBN-Papers100M <https://ogb.stanford.edu/docs/nodeprop/#ogbn-papers100M>`_,  that can hardly train an RGCN model on a single machine. The steps of training this large graph is nearly the same as the above section, and only need a few additional operations.
 
 Create a GraphStorm Cluster
 ............................
