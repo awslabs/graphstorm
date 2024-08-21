@@ -1187,6 +1187,16 @@ def create_gnn_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"5.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    yaml_object["gsf"]["node_classification"] = {}
+    yaml_object["gsf"]["basic"] = {
+        "model_encoder_type": "rgat"
+    }
+    yaml_object["gsf"]["gnn"] = {
+        "node_feat_name": ["ntype0:feat_name, feat_name2 ", "ntype1: fname"],
+    }
+    with open(os.path.join(tmp_path, file_name+"6.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
     # config for check default value
     yaml_object["gsf"]["gnn"] = {
     }
@@ -1276,6 +1286,18 @@ def test_gnn_info():
                          local_rank=0)
         config = GSConfig(args)
         assert config.num_layers == 0 # lm model does not need n layers
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test6.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        assert len(config.node_feat_name) == 2
+        assert 'ntype0' in config.node_feat_name
+        assert 'ntype1' in config.node_feat_name
+        assert len(config.node_feat_name['ntype0']) == 2
+        assert "feat_name" in config.node_feat_name['ntype0']
+        assert "fname" in config.node_feat_name['ntype0']
+        assert config.node_feat_name['ntype1'] == ["fname"]
+        assert config.use_mini_batch_infer == True
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_default.yaml'),
                          local_rank=0)
