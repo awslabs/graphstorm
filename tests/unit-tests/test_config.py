@@ -1295,7 +1295,7 @@ def test_gnn_info():
         assert 'ntype1' in config.node_feat_name
         assert len(config.node_feat_name['ntype0']) == 2
         assert "feat_name" in config.node_feat_name['ntype0']
-        assert "fname" in config.node_feat_name['ntype0']
+        assert "feat_name2" in config.node_feat_name['ntype0']
         assert config.node_feat_name['ntype1'] == ["fname"]
         assert config.use_mini_batch_infer == True
 
