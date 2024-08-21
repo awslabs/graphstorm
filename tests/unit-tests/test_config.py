@@ -1187,6 +1187,8 @@ def create_gnn_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"5.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    # The config here should be the last,
+    # otherwise the following default test will have wrong config
     yaml_object["gsf"]["basic"] = {
         "model_encoder_type": "lm"
     }
