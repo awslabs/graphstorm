@@ -831,14 +831,14 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
             Positive and negative edges stored in a dict of tuple in the format of
             {("src_ntype1", "etype1", "dst_ntype1" ): (pos_src_idx, neg_src_idx,
             pos_dst_idx, neg_dst_idx)}.
-            
+
             The `pos_src_idx` represents the postive source node indexes in the format
             of Torch.Tensor. The `neg_src_idx` represents the negative source node indexes
             in the format of Torch.Tensor. The `pos_dst_idx` represents the postive destination
             node indexes in the format of Torch.Tensor. The `neg_dst_idx` represents the
             negative destination node indexes in the format of Torch.Tensor.
 
-            We define positive and negative edges as: 
+            We define positive and negative edges as:
 
             * The positive edges: (pos_src_idx, pos_dst_idx)
             * The negative edges: (pos_src_idx, neg_dst_idx) and
@@ -1126,14 +1126,14 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
             Positive and negative edges stored in a dict of tuple in the format of
             {("src_ntype1", "etype1", "dst_ntype1" ): (pos_src_idx, neg_src_idx,
             pos_dst_idx, neg_dst_idx)}.
-            
+
             The `pos_src_idx` represents the postive source node indexes in the format
             of Torch.Tensor. The `neg_src_idx` represents the negative source node indexes
             in the format of Torch.Tensor. The `pos_dst_idx` represents the postive destination
             node indexes in the format of Torch.Tensor. The `neg_dst_idx` represents the
             negative destination node indexes in the format of Torch.Tensor.
 
-            We define positive and negative edges as: 
+            We define positive and negative edges as:
 
             * The positive edges: (pos_src_idx, pos_dst_idx)
             * The negative edges: (pos_src_idx, neg_dst_idx) and
@@ -1182,7 +1182,7 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
                     rel_embedding = rel_embedding.reshape(
                         1, 1, rel_embedding.shape[-1])
                     neg_score = calc_distmult_pos_score(
-                        neg_src_emb, rel_embedding, pos_dst_emb, device)
+                        neg_src_emb, pos_dst_emb, rel_embedding, device)
                 elif neg_sample_type == BUILTIN_LP_JOINT_NEG_SAMPLER:
                     # joint sampled negative samples
                     assert len(pos_dst_emb.shape) == 2, \
@@ -1216,7 +1216,7 @@ class LinkPredictDistMultDecoder(LinkPredictLearnableDecoder):
                     rel_embedding = rel_embedding.reshape(
                         1, 1, rel_embedding.shape[-1])
                     neg_score = calc_distmult_pos_score(
-                        pos_src_emb, rel_embedding, neg_dst_emb, device)
+                        pos_src_emb, neg_dst_emb, rel_embedding, device)
                 elif neg_sample_type == BUILTIN_LP_JOINT_NEG_SAMPLER:
                     neg_dst_emb = emb[vtype][neg_dst]
                     # joint sampled negative samples
@@ -1399,7 +1399,7 @@ class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
         The input dimension size. It is the dimension for both source and destination
         node embeddings.
     edge_weight_fields: dict of str
-        
+
     """
     def __init__(self, in_dim, edge_weight_fields):
         self._edge_weight_fields = edge_weight_fields
