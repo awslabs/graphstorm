@@ -1113,12 +1113,13 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
                  etypes,
                  h_dim,
                  gamma=40.):
-        self.emb_dim = h_dim // 2
+        self.rel_dim = h_dim // 2
         super(LinkPredictRotatEDecoder, self).__init__(etypes, h_dim, gamma)
 
     def init_w_relation(self, gamma):
-        self._w_relation = nn.Embedding(self.num_rels, self.h_dim)
-        self.emb_init = gamma / self.h_dim
+        self.gamma = gamma
+        self._w_relation = nn.Embedding(self.num_rels, self.rel_dim)
+        self.emb_init = gamma / self.rel_dim
         nn.init.uniform_(self._w_relation.weight, -self.emb_init, self.emb_init)
 
 

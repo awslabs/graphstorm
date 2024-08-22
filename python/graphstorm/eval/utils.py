@@ -253,7 +253,7 @@ def calc_rotate_pos_score(h_emb, t_emb, r_emb, rel_emb_init, gamma, device=None)
     score = th.stack([re_score, im_score], dim=0)
     score = score.norm(dim=0)
 
-    return {'score': gamma - score.sum(-1)}
+    return gamma - score.sum(-1)
 
 def calc_rotate_neg_head_score(heads, tails, r_emb, num_chunks,
                                chunk_size, neg_sample_size,

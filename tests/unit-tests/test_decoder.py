@@ -27,10 +27,12 @@ from graphstorm.model import (LinkPredictDotDecoder,
                               EntityRegression,
                               MLPEFeatEdgeDecoder,
                               LinkPredictContrastiveDotDecoder,
-                              LinkPredictContrastiveDistMultDecoder)
+                              LinkPredictContrastiveDistMultDecoder,
+                              LinkPredictRotatEDecoder)
 from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                                     BUILTIN_LP_JOINT_NEG_SAMPLER)
-from graphstorm.eval.utils import calc_distmult_pos_score
+from graphstorm.eval.utils import (calc_distmult_pos_score,
+                                   calc_rotate_pos_score)
 from graphstorm.eval.utils import calc_dot_pos_score
 
 from numpy.testing import assert_equal
@@ -48,6 +50,103 @@ def _check_scores(score, pos_score, neg_scores, etype, num_neg, batch_size):
     assert_almost_equal(score[etype][0].cpu().numpy(), pos_score.cpu().numpy(), decimal=5)
     assert_almost_equal(score[etype][1].cpu().numpy(), neg_scores.cpu().numpy(), decimal=5)
 
+def check_calc_test_scores_rotate_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg, device):
+    neg_sample_type = BUILTIN_LP_UNIFORM_NEG_SAMPLER
+    emb = {
+        'a': th.rand((128, h_dim)),
+        'b': th.rand((128, h_dim)),
+    }
+
+    def gen_edge_pairs():
+        pos_src = th.randint(100, (num_pos,))
+        pos_dst = th.randint(100, (num_pos,))
+        neg_src = th.randint(128, (num_pos, num_neg))
+        neg_dst = th.randint(128, (num_pos, num_neg))
+        return (pos_src, neg_src, pos_dst, neg_dst)
+
+    with th.no_grad():
+        pos_neg_tuple = {
+            etypes[0]: gen_edge_pairs(),
+            etypes[1]: gen_edge_pairs(),
+        }
+        pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple[etypes[0]]
+        pos_neg_tuple[etypes[0]] = (pos_src, None, pos_dst, neg_dst)
+        pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple[etypes[1]]
+        pos_neg_tuple[etypes[1]] = (pos_src, neg_src, pos_dst, None)
+
+        score = decoder.calc_test_scores(emb, pos_neg_tuple, neg_sample_type, device)
+        pos_src, _, pos_dst, neg_dst = pos_neg_tuple[etypes[0]]
+        pos_src_emb = emb[etypes[0][0]][pos_src]
+        pos_dst_emb = emb[etypes[0][2]][pos_dst]
+        rel_emb = decoder.get_relemb(etypes[0])
+        pos_score = calc_rotate_pos_score(pos_src_emb, pos_dst_emb, rel_emb,
+            decoder.emb_init, decoder.gamma)
+        neg_scores = []
+        for i in range(pos_src.shape[0]):
+            pse = pos_src_emb[i]
+            neg_dst_emb = emb[etypes[0][2]][neg_dst[i]]
+            ns = calc_rotate_pos_score(pse, neg_dst_emb, rel_emb,
+                decoder.emb_init, decoder.gamma)
+            neg_scores.append(ns)
+        neg_scores = th.stack(neg_scores)
+        _check_scores(score, pos_score, neg_scores, etypes[0], num_neg, pos_src.shape[0])
+
+        pos_src, neg_src, pos_dst, _ = pos_neg_tuple[etypes[1]]
+        pos_src_emb = emb[etypes[1][0]][pos_src]
+        pos_dst_emb = emb[etypes[1][2]][pos_dst]
+        rel_emb = decoder.get_relemb(etypes[1])
+        pos_score = calc_rotate_pos_score(pos_src_emb, pos_dst_emb, rel_emb,
+            decoder.emb_init, decoder.gamma)
+        neg_scores = []
+        for i in range(pos_dst.shape[0]):
+            neg_src_emb = emb[etypes[1][0]][neg_src[i]]
+            pde = pos_dst_emb[i]
+            ns = calc_rotate_pos_score(neg_src_emb, pde, rel_emb,
+                decoder.emb_init, decoder.gamma)
+            neg_scores.append(ns)
+        neg_scores = th.stack(neg_scores)
+        _check_scores(score, pos_score, neg_scores, etypes[1], num_neg, pos_src.shape[0])
+
+        pos_neg_tuple = {
+            etypes[0]: gen_edge_pairs(),
+        }
+        score = decoder.calc_test_scores(emb, pos_neg_tuple, neg_sample_type, device)
+        pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple[etypes[0]]
+        pos_src_emb = emb[etypes[0][0]][pos_src]
+        pos_dst_emb = emb[etypes[0][2]][pos_dst]
+        rel_emb = decoder.get_relemb(etypes[0])
+        pos_score = calc_rotate_pos_score(pos_src_emb, pos_dst_emb, rel_emb,
+            decoder.emb_init, decoder.gamma)
+        neg_scores = []
+        for i in range(pos_src.shape[0]):
+            pse = pos_src_emb[i]
+            pde = pos_dst_emb[i]
+            neg_src_emb = emb[etypes[0][0]][neg_src[i]]
+            neg_dst_emb = emb[etypes[0][2]][neg_dst[i]]
+            # (num_neg, dim) * (dim) * (dim)
+            ns_0 = calc_rotate_pos_score(neg_src_emb, pde, rel_emb,
+                decoder.emb_init, decoder.gamma)
+            # (dim) * (dim) * (num_neg, dim)
+            ns_1 = calc_rotate_pos_score(pse, neg_dst_emb, rel_emb,
+                decoder.emb_init, decoder.gamma)
+            neg_scores.append(th.cat((ns_0, ns_1), dim=-1))
+        neg_scores = th.stack(neg_scores)
+        _check_scores(score, pos_score, neg_scores, etypes[0], num_neg*2, pos_src.shape[0])
+
+
+def check_calc_test_scores_rotate_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, device):
+    neg_sample_type = BUILTIN_LP_JOINT_NEG_SAMPLER
+    emb = {
+        'a': th.rand((128, h_dim)),
+        'b': th.rand((128, h_dim)),
+    }
+
+    def gen_edge_pairs():
+        pos_src = th.randint(100, (num_pos,))
+        pos_dst = th.randint(100, (num_pos,))
+        neg_src = th.randint(128, (num_neg,))
+        neg_dst = th.randint(128, (num_neg,))
+        return (pos_src, neg_src, pos_dst, neg_dst)
 
 def check_calc_test_scores_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg, device):
     neg_sample_type = BUILTIN_LP_UNIFORM_NEG_SAMPLER
@@ -341,6 +440,21 @@ def check_calc_test_scores_dot_joint_neg(decoder, etype, h_dim, num_pos, num_neg
 @pytest.mark.parametrize("num_pos", [8, 32])
 @pytest.mark.parametrize("num_neg", [1, 32])
 @pytest.mark.parametrize("device",["cpu","cuda:0"])
+def test_LinkPredictRotatEDecoder(h_dim, num_pos, num_neg, device):
+    th.manual_seed(0)
+    etypes = [('a', 'r1', 'b'), ('a', 'r2', 'b')]
+    decoder = LinkPredictRotatEDecoder(etypes, h_dim)
+    # mimic that decoder has been trained.
+    decoder.trained_rels[0] = 1
+    decoder.trained_rels[1] = 1
+
+    check_calc_test_scores_rotate_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg, device)
+    check_calc_test_scores_rotate_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, device)
+
+@pytest.mark.parametrize("h_dim", [16, 64])
+@pytest.mark.parametrize("num_pos", [8, 32])
+@pytest.mark.parametrize("num_neg", [1, 32])
+@pytest.mark.parametrize("device",["cpu","cuda:0"])
 def test_LinkPredictDistMultDecoder(h_dim, num_pos, num_neg, device):
     th.manual_seed(0)
     etypes = [('a', 'r1', 'b'), ('a', 'r2', 'b')]
@@ -530,6 +644,9 @@ def test_EntityRegression(in_dim, out_dim):
     assert decoder.out_dims == out_dim
 
 if __name__ == '__main__':
+    test_LinkPredictRotatEDecoder(16, 8, 1, "cpu")
+    test_LinkPredictRotatEDecoder(16, 32, 32, "cuda:0")
+
     test_EntityRegression(8, 1)
     test_EntityRegression(8, 8)
 
