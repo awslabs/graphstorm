@@ -34,8 +34,9 @@ from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                      BUILTIN_TASK_EDGE_REGRESSION,
                      BUILTIN_TASK_LINK_PREDICTION,
                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
-from .config import BUILTIN_LP_DOT_DECODER
-from .config import BUILTIN_LP_DISTMULT_DECODER
+from .config import (BUILTIN_LP_DOT_DECODER,
+                     BUILTIN_LP_DISTMULT_DECODER,
+                     BUILTIN_LP_ROTATE_DECODER)
 from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_LP_LOSS_CONTRASTIVELOSS)
 from .model.embed import GSNodeEncoderInputLayer
