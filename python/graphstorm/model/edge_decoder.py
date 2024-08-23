@@ -1096,7 +1096,7 @@ class LinkPredictMultiRelationLearnableDecoder(LinkPredictLearnableDecoder):
         return self._w_relation.weight, self.etype2rid
 
 class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
-    """ Decoder for link prediction using the RotatE as the score function.
+    r""" Decoder for link prediction using the RotatE as the score function.
 
         Score function of RotateE measures the angular distance between
         head and tail elements and is defined as:

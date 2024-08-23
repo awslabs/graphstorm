@@ -215,7 +215,7 @@ def calc_dot_neg_head_score(heads, tails, num_chunks, chunk_size,
     return th.bmm(tmp, heads)
 
 def calc_rotate_pos_score(h_emb, t_emb, r_emb, rel_emb_init, gamma, device=None):
-    """ Calculate RotatE Score for positive pairs
+    r""" Calculate RotatE Score for positive pairs
 
         Score function of RotateE measures the angular distance between
         head and tail elements and is defined as:
