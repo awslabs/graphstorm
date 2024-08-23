@@ -1486,11 +1486,6 @@ class LinkPredictDistMultDecoder(LinkPredictMultiRelationLearnableDecoder):
     gamma: float
         The gamma value for model weight initialization. Default: 40.
     """
-    def __init__(self,
-                 etypes,
-                 h_dim,
-                 gamma=40.):
-        super(LinkPredictDistMultDecoder, self).__init__(etypes, h_dim, gamma)
 
     def init_w_relation(self, gamma):
         self._w_relation = nn.Embedding(self.num_rels, self.h_dim)
