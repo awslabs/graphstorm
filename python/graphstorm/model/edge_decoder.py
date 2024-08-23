@@ -1258,8 +1258,8 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
                         "[number_of_negs, dimension size]"
                     neg_score = calc_rotate_neg_head_score(
                         neg_src_emb, pos_dst_emb, rel_embedding,
-                        self.emb_init, self.gamma,
                         1, pos_dst_emb.shape[0], neg_src_emb.shape[0],
+                        self.emb_init, self.gamma,
                         device)
                     # shape (batch_size, num_negs)
                     neg_score = neg_score.reshape(-1, neg_src_emb.shape[0])
@@ -1298,11 +1298,11 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
                         "[number_of_negs, dimension size]"
                     neg_score = calc_rotate_neg_tail_score(
                         pos_src_emb, neg_dst_emb, rel_embedding,
-                        self.emb_init, self.gamma,
                         1, pos_src_emb.shape[0], neg_dst_emb.shape[0],
+                        self.emb_init, self.gamma,
                         device)
                     # shape (batch_size, num_negs)
-                    neg_score = neg_score.reshape(-1, neg_src_emb.shape[0])
+                    neg_score = neg_score.reshape(-1, neg_dst_emb.shape[0])
                 else:
                     assert False, f"Unknow negative sample type {neg_sample_type}"
                 assert len(neg_score.shape) == 2
