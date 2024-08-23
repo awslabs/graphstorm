@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-
+import math
 import pytest
 
 import dgl
@@ -22,13 +22,12 @@ from numpy.testing import assert_almost_equal
 
 from graphstorm.model import (LinkPredictDotDecoder,
                               LinkPredictDistMultDecoder,
-                              LinkPredictWeightedDotDecoder,
-                              LinkPredictWeightedDistMultDecoder,
                               EntityRegression,
                               MLPEFeatEdgeDecoder,
                               LinkPredictContrastiveDotDecoder,
                               LinkPredictContrastiveDistMultDecoder,
-                              LinkPredictRotatEDecoder)
+                              LinkPredictRotatEDecoder,
+                              LinkPredictContrastiveRotatEDecoder)
 from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                                     BUILTIN_LP_JOINT_NEG_SAMPLER)
 from graphstorm.eval.utils import (calc_distmult_pos_score,
@@ -65,7 +64,6 @@ def _check_ranking(score, pos_score, neg_scores, etype, num_neg, batch_size):
     ranking = calc_ranking(pos_score.cpu(), neg_scores.cpu())
 
     assert_almost_equal(test_ranking.numpy(), ranking.numpy())
-    print(test_ranking)
 
 def check_calc_test_scores_rotate_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg, device):
     neg_sample_type = BUILTIN_LP_UNIFORM_NEG_SAMPLER
@@ -642,6 +640,37 @@ def test_LinkPredictContrastiveDistMultDecoder(h_dim, num_pos, num_neg, device):
     check_forward(decoder, etype, h_dim, num_pos, num_neg, comput_score, device)
 
 @pytest.mark.parametrize("h_dim", [16, 64])
+@pytest.mark.parametrize("num_pos", [8, 32])
+@pytest.mark.parametrize("num_neg", [1, 32])
+@pytest.mark.parametrize("device",["cpu", "cuda:0"])
+def test_LinkPredictContrastiveRotatEDecoder(h_dim, num_pos, num_neg, device):
+    th.manual_seed(1)
+    etype = ('a', 'r1', 'b')
+    gamma = 4.
+    decoder = LinkPredictContrastiveRotatEDecoder([etype], h_dim, gamma=gamma)
+    decoder.trained_rels[0] = 1 # trick the decoder
+    decoder = decoder.to(device)
+    rel_emb = decoder.get_relemb(etype).to(device)
+    emb_init = decoder.emb_init
+
+    def comput_score(src_emb, dst_emb):
+        re_head, im_head = th.chunk(src_emb, 2, dim=-1)
+        re_tail, im_tail = th.chunk(dst_emb, 2, dim=-1)
+
+        phase_rel = rel_emb / (emb_init / th.tensor(math.pi))
+        re_rel, im_rel = th.cos(phase_rel), th.sin(phase_rel)
+        re_score = re_head * re_rel - im_head * im_rel
+        im_score = re_head * im_rel + im_head * re_rel
+        re_score = re_score - re_tail
+        im_score = im_score - im_tail
+        score = th.stack([re_score, im_score], dim=0)
+        score = score.norm(dim=0)
+
+        return gamma - score.sum(-1)
+
+    check_forward(decoder, etype, h_dim, num_pos, num_neg, comput_score, device)
+
+@pytest.mark.parametrize("h_dim", [16, 64])
 @pytest.mark.parametrize("feat_dim", [8, 32])
 @pytest.mark.parametrize("out_dim", [2, 32])
 @pytest.mark.parametrize("num_ffn_layers", [0, 2])
@@ -735,6 +764,9 @@ def test_EntityRegression(in_dim, out_dim):
 if __name__ == '__main__':
     test_LinkPredictRotatEDecoder(16, 8, 1, "cpu")
     test_LinkPredictRotatEDecoder(16, 32, 32, "cuda:0")
+
+    test_LinkPredictContrastiveRotatEDecoder(32, 8, 16, "cpu")
+    test_LinkPredictContrastiveRotatEDecoder(16, 32, 32, "cuda:0")
 
     test_EntityRegression(8, 1)
     test_EntityRegression(8, 8)

@@ -1098,6 +1098,24 @@ class LinkPredictMultiRelationLearnableDecoder(LinkPredictLearnableDecoder):
 class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
     """ Decoder for link prediction using the RotatE as the score function.
 
+        Score function of RotateE measures the angular distance between
+        head and tail elements and is defined as:
+
+        .. math:
+
+            d_r(h, t)=\|h\circ r-t\|
+
+        Its score function is defined as:
+
+        .. math:
+
+            gamma - \|h\circ r-t\|^2
+
+        where gamma is a margin.
+
+        More detials please refer to https://arxiv.org/abs/1902.10197
+        or https://dglke.dgl.ai/doc/kg.html#rotatee.
+
     Parameters
     ----------
     etypes: list of tuples
@@ -1112,7 +1130,7 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
     def __init__(self,
                  etypes,
                  h_dim,
-                 gamma=40.):
+                 gamma=4.):
         self.rel_dim = h_dim // 2
         super(LinkPredictRotatEDecoder, self).__init__(etypes, h_dim, gamma)
 

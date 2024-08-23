@@ -217,7 +217,23 @@ def calc_dot_neg_head_score(heads, tails, num_chunks, chunk_size,
 def calc_rotate_pos_score(h_emb, t_emb, r_emb, rel_emb_init, gamma, device=None):
     """ Calculate RotatE Score for positive pairs
 
-        Following: https://arxiv.org/abs/1902.10197
+        Score function of RotateE measures the angular distance between
+        head and tail elements and is defined as:
+
+        .. math:
+
+            d_r(h, t)=\|h\circ r-t\|
+
+        Its score function is defined as:
+
+        .. math:
+
+            gamma - \|h\circ r-t\|^2
+
+        where gamma is a margin.
+
+        More detials please refer to https://arxiv.org/abs/1902.10197
+        or https://dglke.dgl.ai/doc/kg.html#rotatee.
 
         Parameters
         ----------

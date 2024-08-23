@@ -65,7 +65,10 @@ from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictContrastiveDotDecoder,
                                  LinkPredictContrastiveDistMultDecoder,
                                  LinkPredictWeightedDotDecoder,
-                                 LinkPredictWeightedDistMultDecoder)
+                                 LinkPredictWeightedDistMultDecoder,
+                                 LinkPredictRotatEDecoder,
+                                 LinkPredictContrastiveRotatEDecoder,
+                                 LinkPredictWeightedRotatEDecoder)
 from .dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                           BUILTIN_LP_JOINT_NEG_SAMPLER,BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER,
                           BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER,
@@ -155,7 +158,7 @@ def initialize(ip_config=None, backend='gloo', local_rank=0, use_wholegraph=Fals
 
 def get_node_feat_size(g, node_feat_names):
     """ Get the overall feature size of each node type with feature names specified in the
-    ``node_feat_names``. If a node type has multiple features, the returned feature size 
+    ``node_feat_names``. If a node type has multiple features, the returned feature size
     will be the sum of the sizes of these features for that node type.
 
     Parameters
@@ -163,7 +166,7 @@ def get_node_feat_size(g, node_feat_names):
     g : DistGraph
         A DGL distributed graph.
     node_feat_names : str, or dict of list of str
-        The node feature names. A string indicates that all nodes share the same feature name, 
+        The node feature names. A string indicates that all nodes share the same feature name,
         while a dictionary with a list of strings indicates that each node type has different node feature names.
 
     Returns
@@ -627,6 +630,22 @@ def create_builtin_lp_decoder(g, decoder_input_dim, config, train_task):
                                                          decoder_input_dim,
                                                          config.gamma,
                                                          config.lp_edge_weight_for_loss)
+    elif config.lp_decoder_type == BUILTIN_LP_ROTATE_DECODER:
+        if get_rank() == 0:
+            logging.debug("Using distmult objective for supervision")
+        if config.lp_edge_weight_for_loss is None:
+            decoder = LinkPredictContrastiveRotatEDecoder(g.canonical_etypes,
+                                                          decoder_input_dim,
+                                                          config.gamma) \
+                if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS else \
+                LinkPredictRotatEDecoder(g.canonical_etypes,
+                                         decoder_input_dim,
+                                         config.gamma)
+        else:
+            decoder = LinkPredictWeightedRotatEDecoder(g.canonical_etypes,
+                                                       decoder_input_dim,
+                                                       config.gamma,
+                                                       config.lp_edge_weight_for_loss)
     else:
         raise Exception(f"Unknow link prediction decoder type {config.lp_decoder_type}")
 
