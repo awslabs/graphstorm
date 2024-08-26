@@ -7,7 +7,7 @@ This folder provides example yaml configurations for multi-task learning tasks. 
 
   * ``ml_nc_ec_er_lp_with_mask_infer.yaml`` defines a multi-task learning task with 6 tasks: i/ a node classification on the ``movie`` nodes with the label field as ``label``, ii/ a node classification on the ``movie`` nodes with the label field as ``label2``, iii/ an edge classification task on the ``(user, rating, movie)`` edges with the field as ``rate_class``, iv/ an edge regression task on the ``(user, rating, movie)`` edges with the field as ``rate``, v/ a link prediction task on the ``(user, rating, movie)`` edges, and vi/ a node feature reconstruction task on the ``title`` feature of ``movie`` nodes. The tasks are associated with specific train/validation/test masks. It uses a single-layer RGCN model as its graph encoder.
 
-  * ``ml_nc_lp_norm_with_mask_infer.yaml`` defines a multi-task learning task with 2 self-supervised tasks: i/ a node classification on the ``movie`` nodes with the label field as ``label``, ii/ a link prediction task on ``(user, rating, movie)`` edges. It uses a single-layer RGCN model as its graph encoder. The output embedding of the second task will be normalized as it is using contrastive loss.
+  * ``ml_nc_lp_norm_with_mask_infer.yaml`` defines a multi-task learning task with 2 tasks: i/ a node classification on the ``movie`` nodes with the label field as ``label``, ii/ a link prediction task on ``(user, rating, movie)`` edges. It uses a single-layer RGCN model as its graph encoder. The output embedding of the second task will be normalized as it is using contrastive loss.
 
 You can find the corresponding training configurations in ``training_scripts/gsgnn_mt/README``.
 
