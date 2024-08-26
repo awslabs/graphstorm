@@ -1,4 +1,4 @@
-# ARXIV Link Prediction Example
+# Training script examples for Link Prediction
 This folder provides example yaml configurations for link prediction training tasks.
 The configurations include:
 
@@ -17,7 +17,6 @@ The configurations include:
   * ``mag_lp.yaml`` defines a link prediction task on ``(author, writes, paper)`` edges on a partitioned ogbn-mag dataset. It uses a 2-layer RGCN model as its graph encoder and a dot product decoder.
 
   * ``arxiv_lp.yaml`` defines a link prediction task on ``(node, interacts, node)`` edges on a partitioned ogbn-arxiv dataset. It uses a single-layer RGCN model as its graph encoder and a dot product decoder.
-
 
 The example inference configurations are in ``inference_scripts/lp_infer``.
 

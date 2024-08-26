@@ -3,11 +3,11 @@ This folder provides example yaml configurations for edge classification and reg
 
   * ``ml_ec_infer.yaml`` defines a edge classification task on the ``(user, rating, movie)`` edges. The target label field is ``rate``. It uses a single-layer RGCN model as its graph encoder.
 
-  * ``ml_ec_text_infer.yaml`` defines a edge classification task on the ``(user, rating, movie)`` edges. The target label field is ``rate``. It uses a single-layer RGCN model as its graph encoder.. The input node features of ``movie`` nodes and ``user`` nodes will be produced by a BERT model during inference.
+  * ``ml_ec_text_infer.yaml`` defines a edge classification task on the ``(user, rating, movie)`` edges. The target label field is ``rate``. It uses a single-layer RGCN model as its graph encoder. The input node features of ``movie`` nodes and ``user`` nodes will be produced by a BERT model during inference.
 
   * ``ml_lm_ec_infer.yaml`` defines a edge classification task on the ``(user, rating, movie)`` edges. The target label field is ``rate``. It uses a language model, i.e., the BERT model, as its graph encoder. The node features of ``movie`` nodes and ``user`` nodes are produced by the BERT model during inference.
 
-  * ``ml_er_infer.yaml``defines a edge regression task on the ``(user, rating, movie)`` edges. The target label field is ``rate``. It uses a single-layer RGCN model as its graph encoder..
+  * ``ml_er_infer.yaml``defines a edge regression task on the ``(user, rating, movie)`` edges. The target label field is ``rate``. It uses a single-layer RGCN model as its graph encoder.
 
 You can find the corresponding training configurations in ``training_scripts/gsgnn_ep/README``.
 
