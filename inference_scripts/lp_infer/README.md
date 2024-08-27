@@ -7,7 +7,7 @@ This folder provides example yaml configurations for link prediction inference t
 
   * ``ml_lm_lp_infer.yaml`` defines a link prediction task on the ``(user, rating, movie)`` edges. It uses a language model, i.e., the BERT model, as its graph encoder and uses a dot product decoder. The node features of ``movie`` nodes and ``user`` nodes are produced by the BERT model during inference.
 
-  * ``ml_lm_input_lp_infer.yaml``defines a link prediction task on the ``(user, rating, movie)`` edges. It uses a language model, i.e., the BERT model, plus an MLP layer as its graph encoder and a dot product decoder. The node features of ``movie`` nodes and ``user`` nodes are produced by the BERT model during inference.
+  * ``ml_lm_input_lp_infer.yaml``defines a link prediction task on the ``(user, rating, movie)`` edges. It uses a language model, i.e., the BERT model, plus an MLP layer as its graph encoder, and uses a dot product decoder. The node features of ``movie`` nodes and ``user`` nodes are produced by the BERT model during inference.
 
 You can find the corresponding training configurations in ``training_scripts/gsgnn_lp/README``.
 
