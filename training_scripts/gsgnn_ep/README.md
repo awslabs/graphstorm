@@ -6,7 +6,7 @@ The configurations include:
 
   * ``ml_er.yaml``defines an edge regression task on the ``(user, rating, movie)`` edges. The target label field is ``rate``. It uses a single-layer RGCN model as its graph encoder.
 
-  * ``ml_ec_homogeneous.yaml`` defines a edge classification task for a homogeneous graph. The target label field is ``rate``. It uses a single-layer GraphSage model as its graph encoder.
+  * ``ml_ec_homogeneous.yaml`` defines an edge classification task for a homogeneous graph. The target label field is ``rate``. It uses a single-layer GraphSage model as its graph encoder.
 
   * ``ml_ec_text.yaml`` defines a edge classification task on the ``(user, rating, movie)`` edges. The target label field is ``rate``. It uses a single-layer RGCN model as its graph encoder. In addition, the training task will do **LM-GNN co-training**. A BERT model, i.e., ``bert-base-uncased``, is used to compute the text embeddings of ``movie`` nodes and ``user`` nodes on the fly. During training, GraphStorm will randomly select 10 nodes for each mini-batch to participate the gradient computation to tune the BERT models. For more detials, please refer to https://graphstorm.readthedocs.io/en/v0.3.1/advanced/language-models.html#fine-tune-lms-on-graph-data.
 
