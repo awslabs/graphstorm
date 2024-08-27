@@ -13,7 +13,7 @@ You can find the corresponding training configurations in ``training_scripts/gsg
 
 The following example script shows how to launch a GraphStorm link prediction inference task.
 You may need to change the arguments according to your tasks.
-For more detials please refer to https://graphstorm.readthedocs.io/en/v0.3.1/cli/model-training-inference/index.html.
+For more detials please refer to https://graphstorm.readthedocs.io/en/latest/cli/model-training-inference/index.html.
 
 ```
 python3 -m graphstorm.run.gs_link_prediction \

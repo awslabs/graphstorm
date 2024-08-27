@@ -6,27 +6,27 @@ The configurations include:
 
   * ``ml_nr.yaml`` defines a node regression task on the ``user`` nodes. The target label field is ``age``. It uses a single-layer RGCN model as its graph encoder.
 
-  * ``ml_nc_homogeneous.yaml`` defines a node classification task a homogeneous graph. The target label field is ``label``. It uses a single-layer GraphSage model as its graph encoder.
+  * ``ml_nc_homogeneous.yaml`` defines a node classification task for a homogeneous graph. The target label field is ``label``. It uses a single-layer GraphSage model as its graph encoder.
 
-  * ``ml_nc_utext.yaml`` defines a node classification task on the ``movie`` nodes. The target label field is ``label``. It uses a single-layer RGCN model as its graph encoder. In addition, the training task will do **LM-GNN co-training**. A BERT model, i.e., ``bert-base-uncased``, is used to compute the text embeddings of ``movie`` nodes and ``user`` nodes on the fly. During training, GraphStorm will randomly select 10 nodes for each mini-batch to participate the gradient computation to tune the BERT models. For more detials, please refer to https://graphstorm.readthedocs.io/en/v0.3.1/advanced/language-models.html#fine-tune-lms-on-graph-data.
+  * ``ml_nc_utext.yaml`` defines a node classification task on the ``movie`` nodes. The target label field is ``label``. It uses a single-layer RGCN model as its graph encoder. In addition, the training task will do **LM-GNN co-training**. A BERT model, i.e., ``bert-base-uncased``, is used to compute the text embeddings of ``movie`` nodes and ``user`` nodes on the fly. During training, GraphStorm will randomly select 10 nodes for each mini-batch to participate the gradient computation to tune the BERT models. For more detials, please refer to https://graphstorm.readthedocs.io/en/latest/advanced/language-models.html#fine-tune-lms-on-graph-data.
 
-  * ``ml_nc_movie_utext.yaml`` defines a node classification task on the ``movie`` nodes. The target label field is ``label``. Similar to ``ml_nc_utext.yaml``, it also defines a LM-GNN co-training task. But only the the text embeddings of ``movie`` nodes are computed using the co-trained BERT model.
+  * ``ml_nc_movie_utext.yaml`` defines a node classification task on the ``movie`` nodes. The target label field is ``label``. Similar to ``ml_nc_utext.yaml``, it also defines a **LM-GNN co-training** task. But only the the text embeddings of ``movie`` nodes are computed using the co-trained BERT model.
 
-  * ``ml_nc_utext_roberta.yaml`` defines a node classification task on the ``movie`` nodes. The target label field is ``label``. Similar to ``ml_nc_utext.yaml``, it also defines a LM-GNN co-training task. But it uses a RoBERTa model instead of a BERT model.
+  * ``ml_nc_utext_roberta.yaml`` defines a node classification task on the ``movie`` nodes. The target label field is ``label``. Similar to ``ml_nc_utext.yaml``, it also defines a **LM-GNN co-training** task. But it uses a RoBERTa model instead of a BERT model.
 
-  * ``ml_nc_utext_glem.yaml`` defines a node classification task on the ``movie`` nodes. The target label field is ``label``. It defines a **GLEM-based LM-GNN co-training** task. For more detials, please refer to https://graphstorm.readthedocs.io/en/v0.3.1/advanced/language-models.html#auto-two-step-co-training-glem.
+  * ``ml_nc_utext_glem.yaml`` defines a node classification task on the ``movie`` nodes. The target label field is ``label``. It defines a **GLEM-based LM-GNN co-training** task. For more detials, please refer to https://graphstorm.readthedocs.io/en/latest/advanced/language-models.html#auto-two-step-co-training-glem.
 
   * ``ml_nc_multi_target_ntypes.yaml`` defines a node classification task with two training targets. One for ``moive`` nodes with the label field of ``label``. Another one for ``user`` nodes with the label fiedl of ``label``. It uses a single-layer RGCN model as its graph encoder.
 
   * ``ml_nc_multi_target_ntypes_multilabel.yaml`` defines a node classification task with two training targets. One for ``moive`` nodes with the label field of ``label``. Another one for ``user`` nodes with the label fiedl of ``label``. The classification tasks on both ``movie`` and ``user`` nodes are multilabel classification tasks. It uses a single-layer RGCN model as its graph encoder.
 
-  * ``arxiv_nc.yaml`` defines a node classification task on the ``node`` nodes. The target label field is ``labels``. It uses a 2-layer RGCN model as its graph encoder.
+  * ``arxiv_nc.yaml`` defines a node classification task on the ``node`` nodes on a partitioned ogbn-arxiv dataset. The target label field is ``labels``. It uses a 2-layer RGCN model as its graph encoder.
 
-The example inference configurations are in ``inference_scripts/np_infer``.
+The example inference configurations are in ``inference_scripts/np_infer/README``.
 
 The following example script shows how to launch a GraphStorm node classification training task.
 You may need to change the arguments according to your tasks.
-For more detials please refer to https://graphstorm.readthedocs.io/en/v0.3.1/cli/model-training-inference/index.html.
+For more detials please refer to https://graphstorm.readthedocs.io/en/latest/cli/model-training-inference/index.html.
 
 ```
 python3 -m graphstorm.run.gs_node_classification \
