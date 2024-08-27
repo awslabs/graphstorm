@@ -633,7 +633,7 @@ def create_builtin_lp_decoder(g, decoder_input_dim, config, train_task):
                                                          config.lp_edge_weight_for_loss)
     elif config.lp_decoder_type == BUILTIN_LP_ROTATE_DECODER:
         if get_rank() == 0:
-            logging.debug("Using distmult objective for supervision")
+            logging.debug("Using RotatE objective for supervision")
         if config.lp_edge_weight_for_loss is None:
             decoder = LinkPredictContrastiveRotatEDecoder(g.canonical_etypes,
                                                           decoder_input_dim,

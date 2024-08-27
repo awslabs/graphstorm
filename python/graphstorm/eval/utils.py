@@ -218,13 +218,13 @@ def calc_rotate_pos_score(h_emb, t_emb, r_emb, rel_emb_init, gamma, device=None)
     r""" Calculate RotatE Score for positive pairs
 
         Score function of RotateE measures the angular distance between
-        head and tail elements and is defined as:
+        head and tail elements. The angular distance is defined as:
 
         .. math:
 
             d_r(h, t)=\|h\circ r-t\|
 
-        Its score function is defined as:
+        The RotatE score function is defined as:
 
         .. math:
 
@@ -232,7 +232,7 @@ def calc_rotate_pos_score(h_emb, t_emb, r_emb, rel_emb_init, gamma, device=None)
 
         where gamma is a margin.
 
-        More detials please refer to https://arxiv.org/abs/1902.10197
+        For more detials please refer to https://arxiv.org/abs/1902.10197
         or https://dglke.dgl.ai/doc/kg.html#rotatee.
 
         Parameters
@@ -244,13 +244,14 @@ def calc_rotate_pos_score(h_emb, t_emb, r_emb, rel_emb_init, gamma, device=None)
         r_emb: th.Tensor
             Relation type embedding.
         rel_emb_init: float
-            The initial value used  to bound the relation embedding initialization.
+            The initial value used to bound the relation embedding initialization.
         gamma: float
             The gamma value used for shifting the optimization target.
 
         Return
         ------
-        RotatE score: th.Tensor
+        rotate_score: th.Tensor
+            The RotatE score.
     """
     if device is not None:
         r_emb = r_emb.to(device)
@@ -269,7 +270,8 @@ def calc_rotate_pos_score(h_emb, t_emb, r_emb, rel_emb_init, gamma, device=None)
     score = th.stack([re_score, im_score], dim=0)
     score = score.norm(dim=0)
 
-    return gamma - score.sum(-1)
+    rotate_score = gamma - score.sum(-1)
+    return rotate_score
 
 def calc_rotate_neg_head_score(heads, tails, r_emb, num_chunks,
                                chunk_size, neg_sample_size,
@@ -286,19 +288,20 @@ def calc_rotate_neg_head_score(heads, tails, r_emb, num_chunks,
         r_emb: th.Tensor
             Relation type embedding.
         num_chunks: int
-            Number of shared negative chunks
+            Number of shared negative chunks.
         chunk_size: int
-            Chunk size
+            Chunk size.
         neg_sample_size: int
-            Number of negative samples for each positive node
+            Number of negative samples for each positive node.
         rel_emb_init: float
-            The initial value used  to bound the relation embedding initialization.
+            The initial value used to bound the relation embedding initialization.
         gamma: float
             The gamma value used for shifting the optimization target.
 
         Return
         ------
-        RotatE score: th.Tensor
+        rotate_score: th.Tensor
+            The RotatE score.
     """
     if device is not None:
         r_emb = r_emb.to(device)
@@ -320,7 +323,8 @@ def calc_rotate_neg_head_score(heads, tails, r_emb, num_chunks,
     score = tmp - heads
     score = th.stack([score[..., :hidden_dim // 2],
                       score[..., hidden_dim // 2:]], dim=-1).norm(dim=-1)
-    return gamma - score.sum(-1)
+    rotate_score = gamma - score.sum(-1)
+    return rotate_score
 
 def calc_rotate_neg_tail_score(heads, tails, r_emb, num_chunks,
                                chunk_size, neg_sample_size,
@@ -337,19 +341,20 @@ def calc_rotate_neg_tail_score(heads, tails, r_emb, num_chunks,
         r_emb: th.Tensor
             Relation type embedding.
         num_chunks: int
-            Number of shared negative chunks
+            Number of shared negative chunks.
         chunk_size: int
-            Chunk size
+            Chunk size.
         neg_sample_size: int
-            Number of negative samples for each positive node
+            Number of negative samples for each positive node.
         rel_emb_init: float
-            The initial value used  to bound the relation embedding initialization.
+            The initial value used to bound the relation embedding initialization.
         gamma: float
             The gamma value used for shifting the optimization target.
 
         Return
         ------
-        RotatE score: th.Tensor
+        rotate_score: th.Tensor
+            The RotatE score.
     """
     if device is not None:
         r_emb = r_emb.to(device)
@@ -372,7 +377,8 @@ def calc_rotate_neg_tail_score(heads, tails, r_emb, num_chunks,
     score = th.stack([score[..., :hidden_dim // 2],
                       score[..., hidden_dim // 2:]], dim=-1).norm(dim=-1)
 
-    return gamma - score.sum(-1)
+    rotate_score = gamma - score.sum(-1)
+    return rotate_score
 
 def calc_ranking(pos_score, neg_score):
     """ Calculate ranking of positive scores among negative scores

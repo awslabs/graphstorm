@@ -1053,19 +1053,20 @@ class LinkPredictMultiRelationLearnableDecoder(LinkPredictLearnableDecoder):
     def init_w_relation(self, gamma):
         """ Initialize learnable relation embeddings.
 
-            For example:
+            An example:
 
             .. code:: python
 
                 def init_w_relation(self, gamma):
                     self._w_relation = nn.Embedding(self.num_rels, self.h_dim)
 
-                    nn.init.uniform_(self._w_relation.weight, -1.0, 1.0)
+                    emb_init = gamma / self.h_dim
+                    nn.init.uniform_(self._w_relation.weight, -emb_init, emb_init)
 
         Parameters
         ----------
         gamma: float
-            The gamma value for model weight initialization. Default: 40.
+            The gamma value for model weight initialization.
         """
 
     def get_relemb(self, etype):
@@ -1099,13 +1100,13 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
     r""" Decoder for link prediction using the RotatE as the score function.
 
         Score function of RotateE measures the angular distance between
-        head and tail elements and is defined as:
+        head and tail elements. The angular distance is defined as:
 
         .. math:
 
             d_r(h, t)=\|h\circ r-t\|
 
-        Its score function is defined as:
+        The RotatE score function is defined as:
 
         .. math:
 
@@ -1113,8 +1114,12 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
 
         where gamma is a margin.
 
-        More detials please refer to https://arxiv.org/abs/1902.10197
+        For more details, please refer to https://arxiv.org/abs/1902.10197
         or https://dglke.dgl.ai/doc/kg.html#rotatee.
+
+        Note: The relation embedding of RotatE has two parts,
+        one for real numbers and one for complex numbers.
+        Each has the dimension size as half of the input dimension size.
 
     Parameters
     ----------
@@ -1125,7 +1130,7 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
         The input dimension size. It is the dimension for both source and destination
         node embeddings.
     gamma: float
-        The gamma value for model initialization and score function. Default: 40.
+        The gamma value for model initialization and score function. Default: 4.
     """
     def __init__(self,
                  etypes,
@@ -1139,7 +1144,6 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
         self._w_relation = nn.Embedding(self.num_rels, self.rel_dim)
         self.emb_init = gamma / self.rel_dim
         nn.init.uniform_(self._w_relation.weight, -self.emb_init, self.emb_init)
-
 
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
@@ -1188,6 +1192,7 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
                 scores[canonical_etype] = scores_etype
 
             return scores
+
     def calc_test_scores(self, emb, pos_neg_tuple, neg_sample_type, device):
         """ Compute scores for positive edges and negative edges.
 
@@ -1225,11 +1230,11 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
         --------
         scores: dict of tuple
             Return a dictionary of edge type's positive scores and negative scores in the format
-            of {(src_ntype, etype, dst_ntype): (pos_scores, neg_scores)}
+            of {(src_ntype, etype, dst_ntype): (pos_scores, neg_scores)}.
         """
         assert isinstance(pos_neg_tuple, dict), \
             "RotatE is only applicable to heterogeneous graphs." \
-            "Otherwise please use dot product decoder"
+            "Otherwise please use dot product decoder."
         scores = {}
         for canonical_etype, (pos_src, neg_src, pos_dst, neg_dst) in pos_neg_tuple.items():
             utype, _, vtype = canonical_etype
@@ -1370,7 +1375,7 @@ class LinkPredictContrastiveRotatEDecoder(LinkPredictRotatEDecoder):
         The input dimension size. It is the dimension for both source and destination
         node embeddings.
     gamma: float
-        The gamma value for model weight initialization. Default: 40.
+        The gamma value for model weight initialization. Default: 4.
     """
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
@@ -1417,12 +1422,25 @@ class LinkPredictContrastiveRotatEDecoder(LinkPredictRotatEDecoder):
             return scores
 
 class LinkPredictWeightedRotatEDecoder(LinkPredictRotatEDecoder):
-    """Link prediction decoder with the score function of DistMult
+    """Link prediction decoder with the score function of RotatE
        with edge weight.
 
-       When computing loss, edge weights are used to adjust the loss
+       When computing loss, edge weights are used to adjust the loss.
+
+    Parameters
+    ----------
+    etypes: list of tuples
+        The canonical edge types of the graph in the format of
+        [(src_ntype1, etype1, dst_ntype1), ...]
+    h_dim: int
+        The input dimension size. It is the dimension for both source and destination
+        node embeddings.
+    gamma: float
+        The gamma value for model weight initialization. Default: 4.
+    edge_weight_fields: dict of str
+        The edge feature field(s) storing the edge weights.
     """
-    def __init__(self, etypes, h_dim, gamma=40., edge_weight_fields=None):
+    def __init__(self, etypes, h_dim, gamma=4., edge_weight_fields=None):
         self._edge_weight_fields = edge_weight_fields
         super(LinkPredictWeightedRotatEDecoder, self).__init__(etypes, h_dim, gamma)
 
@@ -1430,7 +1448,7 @@ class LinkPredictWeightedRotatEDecoder(LinkPredictRotatEDecoder):
     def forward(self, g, h, e_h):
         """Forward function.
 
-        This computes the DistMult score on every edge type.
+        This computes the RotatE score on every edge type.
         """
         with g.local_scope():
             scores = {}
@@ -1459,11 +1477,11 @@ class LinkPredictWeightedRotatEDecoder(LinkPredictRotatEDecoder):
                     weight = e_h[canonical_etype]
                     assert th.is_tensor(weight), \
                         "The edge weight for Link prediction must be a torch tensor." \
-                        "LinkPredictWeightedDistMultDecoder only accepts a single edge " \
+                        "LinkPredictWeightedRotatEDecoder only accepts a 1D edge " \
                         "feature as edge weight."
                     weight = weight.flatten()
                 else:
-                    # current etype does not has weight
+                    # current etype does not have weight
                     weight = th.ones((g.num_edges(canonical_etype),),
                                      device=scores_etype.device)
                 scores[canonical_etype] = (scores_etype,
@@ -1762,6 +1780,19 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
        with edge weight.
 
        When computing loss, edge weights are used to adjust the loss
+
+    Parameters
+    ----------
+    etypes: list of tuples
+        The canonical edge types of the graph in the format of
+        [(src_ntype1, etype1, dst_ntype1), ...]
+    h_dim: int
+        The input dimension size. It is the dimension for both source and destination
+        node embeddings.
+    gamma: float
+        The gamma value for model weight initialization. Default: 40.
+    edge_weight_fields: dict of str
+        The edge feature field(s) storing the edge weights.
     """
     def __init__(self, etypes, h_dim, gamma=40., edge_weight_fields=None):
         self._edge_weight_fields = edge_weight_fields
@@ -1820,7 +1851,7 @@ class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
         The input dimension size. It is the dimension for both source and destination
         node embeddings.
     edge_weight_fields: dict of str
-
+        The edge feature field(s) storing the edge weights.
     """
     def __init__(self, in_dim, edge_weight_fields):
         self._edge_weight_fields = edge_weight_fields
