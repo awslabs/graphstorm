@@ -1621,7 +1621,7 @@ class LinkPredictDistMultDecoder(LinkPredictMultiRelationLearnableDecoder):
                     rel_embedding = rel_embedding.reshape(
                         1, 1, rel_embedding.shape[-1])
                     neg_score = calc_distmult_pos_score(
-                        neg_src_emb, rel_embedding, pos_dst_emb, device)
+                        neg_src_emb, pos_dst_emb, rel_embedding, device)
                 elif neg_sample_type == BUILTIN_LP_JOINT_NEG_SAMPLER:
                     # joint sampled negative samples
                     assert len(pos_dst_emb.shape) == 2, \
@@ -1655,7 +1655,7 @@ class LinkPredictDistMultDecoder(LinkPredictMultiRelationLearnableDecoder):
                     rel_embedding = rel_embedding.reshape(
                         1, 1, rel_embedding.shape[-1])
                     neg_score = calc_distmult_pos_score(
-                        pos_src_emb, rel_embedding, neg_dst_emb, device)
+                        pos_src_emb, neg_dst_emb, rel_embedding, device)
                 elif neg_sample_type == BUILTIN_LP_JOINT_NEG_SAMPLER:
                     neg_dst_emb = emb[vtype][neg_dst]
                     # joint sampled negative samples

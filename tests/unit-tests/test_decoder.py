@@ -263,13 +263,13 @@ def check_calc_test_scores_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg,
         pos_src_emb = emb[etypes[0][0]][pos_src]
         pos_dst_emb = emb[etypes[0][2]][pos_dst]
         rel_emb = decoder.get_relemb(etypes[0])
-        pos_score = calc_distmult_pos_score(pos_src_emb, rel_emb, pos_dst_emb)
+        pos_score = calc_distmult_pos_score(pos_src_emb, pos_dst_emb, rel_emb)
         neg_scores = []
         for i in range(pos_src.shape[0]):
             pse = pos_src_emb[i]
             neg_dst_emb = emb[etypes[0][2]][neg_dst[i]]
             # (dim) * (dim) * (num_neg, dim)
-            ns = calc_distmult_pos_score(pse, rel_emb, neg_dst_emb)
+            ns = calc_distmult_pos_score(pse, neg_dst_emb, rel_emb)
             neg_scores.append(ns)
         neg_scores = th.stack(neg_scores)
         _check_scores(score, pos_score, neg_scores, etypes[0], num_neg, pos_src.shape[0])
@@ -278,13 +278,13 @@ def check_calc_test_scores_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg,
         pos_src_emb = emb[etypes[1][0]][pos_src]
         pos_dst_emb = emb[etypes[1][2]][pos_dst]
         rel_emb = decoder.get_relemb(etypes[1])
-        pos_score = calc_distmult_pos_score(pos_src_emb, rel_emb, pos_dst_emb)
+        pos_score = calc_distmult_pos_score(pos_src_emb, pos_dst_emb, rel_emb)
         neg_scores = []
         for i in range(pos_dst.shape[0]):
             neg_src_emb = emb[etypes[1][0]][neg_src[i]]
             pde = pos_dst_emb[i]
             # (num_neg, dim) * (dim) * (dim)
-            ns = calc_distmult_pos_score(neg_src_emb, rel_emb, pde)
+            ns = calc_distmult_pos_score(neg_src_emb, pde, rel_emb)
             neg_scores.append(ns)
         neg_scores = th.stack(neg_scores)
         _check_scores(score, pos_score, neg_scores, etypes[1], num_neg, pos_src.shape[0])
@@ -297,7 +297,7 @@ def check_calc_test_scores_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg,
         pos_src_emb = emb[etypes[0][0]][pos_src]
         pos_dst_emb = emb[etypes[0][2]][pos_dst]
         rel_emb = decoder.get_relemb(etypes[0])
-        pos_score = calc_distmult_pos_score(pos_src_emb, rel_emb, pos_dst_emb)
+        pos_score = calc_distmult_pos_score(pos_src_emb, pos_dst_emb, rel_emb)
         neg_scores = []
         for i in range(pos_src.shape[0]):
             pse = pos_src_emb[i]
@@ -305,9 +305,9 @@ def check_calc_test_scores_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg,
             neg_src_emb = emb[etypes[0][0]][neg_src[i]]
             neg_dst_emb = emb[etypes[0][2]][neg_dst[i]]
             # (num_neg, dim) * (dim) * (dim)
-            ns_0 = calc_distmult_pos_score(neg_src_emb, rel_emb, pde)
+            ns_0 = calc_distmult_pos_score(neg_src_emb, pde, rel_emb)
             # (dim) * (dim) * (num_neg, dim)
-            ns_1 = calc_distmult_pos_score(pse, rel_emb, neg_dst_emb)
+            ns_1 = calc_distmult_pos_score(pse, neg_dst_emb, rel_emb)
             neg_scores.append(th.cat((ns_0, ns_1), dim=-1))
         neg_scores = th.stack(neg_scores)
         _check_scores(score, pos_score, neg_scores, etypes[0], num_neg*2, pos_src.shape[0])
@@ -340,13 +340,13 @@ def check_calc_test_scores_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, d
         pos_src_emb = emb[etypes[0][0]][pos_src]
         pos_dst_emb = emb[etypes[0][2]][pos_dst]
         rel_emb = decoder.get_relemb(etypes[0])
-        pos_score = calc_distmult_pos_score(pos_src_emb, rel_emb, pos_dst_emb)
+        pos_score = calc_distmult_pos_score(pos_src_emb, pos_dst_emb, rel_emb)
         neg_scores = []
         for i in range(pos_src.shape[0]):
             pse = pos_src_emb[i]
             neg_dst_emb = emb[etypes[0][2]][neg_dst]
             # (dim) * (dim) * (num_neg, dim)
-            ns = calc_distmult_pos_score(pse, rel_emb, neg_dst_emb)
+            ns = calc_distmult_pos_score(pse, neg_dst_emb, rel_emb)
             neg_scores.append(ns)
         neg_scores = th.stack(neg_scores)
         _check_scores(score, pos_score, neg_scores, etypes[0], num_neg, pos_src.shape[0])
@@ -355,13 +355,13 @@ def check_calc_test_scores_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, d
         pos_src_emb = emb[etypes[1][0]][pos_src]
         pos_dst_emb = emb[etypes[1][2]][pos_dst]
         rel_emb = decoder.get_relemb(etypes[1])
-        pos_score = calc_distmult_pos_score(pos_src_emb, rel_emb, pos_dst_emb)
+        pos_score = calc_distmult_pos_score(pos_src_emb, pos_dst_emb, rel_emb)
         neg_scores = []
         for i in range(pos_dst.shape[0]):
             neg_src_emb = emb[etypes[1][0]][neg_src]
             pde = pos_dst_emb[i]
             # (num_neg, dim) * (dim) * (dim)
-            ns = calc_distmult_pos_score(neg_src_emb, rel_emb, pde)
+            ns = calc_distmult_pos_score(neg_src_emb, pde, rel_emb)
             neg_scores.append(ns)
         neg_scores = th.stack(neg_scores)
         _check_scores(score, pos_score, neg_scores, etypes[1], num_neg, pos_src.shape[0])
@@ -374,7 +374,7 @@ def check_calc_test_scores_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, d
         pos_src_emb = emb[etypes[0][0]][pos_src]
         pos_dst_emb = emb[etypes[0][2]][pos_dst]
         rel_emb = decoder.get_relemb(etypes[0])
-        pos_score = calc_distmult_pos_score(pos_src_emb, rel_emb, pos_dst_emb)
+        pos_score = calc_distmult_pos_score(pos_src_emb, pos_dst_emb, rel_emb)
         neg_scores = []
         for i in range(pos_src.shape[0]):
             pse = pos_src_emb[i]
@@ -382,9 +382,9 @@ def check_calc_test_scores_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, d
             neg_src_emb = emb[etypes[0][0]][neg_src]
             neg_dst_emb = emb[etypes[0][2]][neg_dst]
             # (num_neg, dim) * (dim) * (dim)
-            ns_0 = calc_distmult_pos_score(neg_src_emb, rel_emb, pde)
+            ns_0 = calc_distmult_pos_score(neg_src_emb, pde, rel_emb)
             # (dim) * (dim) * (num_neg, dim)
-            ns_1 = calc_distmult_pos_score(pse, rel_emb, neg_dst_emb)
+            ns_1 = calc_distmult_pos_score(pse, neg_dst_emb, rel_emb)
             neg_scores.append(th.cat((ns_0, ns_1), dim=-1))
         neg_scores = th.stack(neg_scores)
         _check_scores(score, pos_score, neg_scores, etypes[0], num_neg*2, pos_src.shape[0])
