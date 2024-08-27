@@ -4,7 +4,7 @@ The configurations include:
 
   * ``ml_ec.yaml`` defines an edge classification task on the ``(user, rating, movie)`` edges. The target label field is ``rate``. It uses a single-layer RGCN model as its graph encoder.
 
-  * ``ml_er.yaml``defines a edge regression task on the ``(user, rating, movie)`` edges. The target label field is ``rate``. It uses a single-layer RGCN model as its graph encoder.
+  * ``ml_er.yaml``defines an edge regression task on the ``(user, rating, movie)`` edges. The target label field is ``rate``. It uses a single-layer RGCN model as its graph encoder.
 
   * ``ml_ec_homogeneous.yaml`` defines a edge classification task for a homogeneous graph. The target label field is ``rate``. It uses a single-layer GraphSage model as its graph encoder.
 
