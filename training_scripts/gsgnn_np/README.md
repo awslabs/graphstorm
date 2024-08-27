@@ -14,7 +14,7 @@ The configurations include:
 
   * ``ml_nc_utext_roberta.yaml`` defines a node classification task on the ``movie`` nodes. The target label field is ``label``. Similar to ``ml_nc_utext.yaml``, it also defines a LM-GNN co-training task. But it uses a RoBERTa model instead of a BERT model.
 
-  * ``ml_nc_utext_glem.yaml`` defines a node classification task on the ``movie`` nodes. The target label field is ``label``. It defines a GLEM-based LM-GNN co-training task. For more detials, please refer to https://graphstorm.readthedocs.io/en/v0.3.1/advanced/language-models.html#auto-two-step-co-training-glem.
+  * ``ml_nc_utext_glem.yaml`` defines a node classification task on the ``movie`` nodes. The target label field is ``label``. It defines a **GLEM-based LM-GNN co-training** task. For more detials, please refer to https://graphstorm.readthedocs.io/en/v0.3.1/advanced/language-models.html#auto-two-step-co-training-glem.
 
   * ``ml_nc_multi_target_ntypes.yaml`` defines a node classification task with two training targets. One for ``moive`` nodes with the label field of ``label``. Another one for ``user`` nodes with the label fiedl of ``label``. It uses a single-layer RGCN model as its graph encoder.
 
