@@ -654,16 +654,16 @@ def test_LinkPredictContrastiveRotatEDecoder(h_dim, num_pos, num_neg, device):
     emb_init = decoder.emb_init
 
     def comput_score(src_emb, dst_emb):
-        re_head, im_head = th.chunk(src_emb, 2, dim=-1)
-        re_tail, im_tail = th.chunk(dst_emb, 2, dim=-1)
+        real_head, imag_head = th.chunk(src_emb, 2, dim=-1)
+        real_tail, imag_tail = th.chunk(dst_emb, 2, dim=-1)
 
         phase_rel = rel_emb / (emb_init / th.tensor(math.pi))
-        re_rel, im_rel = th.cos(phase_rel), th.sin(phase_rel)
-        re_score = re_head * re_rel - im_head * im_rel
-        im_score = re_head * im_rel + im_head * re_rel
-        re_score = re_score - re_tail
-        im_score = im_score - im_tail
-        score = th.stack([re_score, im_score], dim=0)
+        real_rel, imag_rel = th.cos(phase_rel), th.sin(phase_rel)
+        real_score = real_head * real_rel - imag_head * imag_rel
+        imag_score = real_head * imag_rel + imag_head * real_rel
+        real_score = real_score - real_tail
+        imag_score = imag_score - imag_tail
+        score = th.stack([real_score, imag_score], dim=0)
         score = score.norm(dim=0)
 
         return gamma - score.sum(-1)

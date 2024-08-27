@@ -258,16 +258,16 @@ def calc_rotate_pos_score(h_emb, t_emb, r_emb, rel_emb_init, gamma, device=None)
         h_emb = h_emb.to(device)
         t_emb = t_emb.to(device)
 
-    re_head, im_head = th.chunk(h_emb, 2, dim=-1)
-    re_tail, im_tail = th.chunk(t_emb, 2, dim=-1)
+    real_head, imag_head = th.chunk(h_emb, 2, dim=-1)
+    real_tail, imag_tail = th.chunk(t_emb, 2, dim=-1)
 
     phase_rel = r_emb / (rel_emb_init / th.tensor(math.pi))
-    re_rel, im_rel = th.cos(phase_rel), th.sin(phase_rel)
-    re_score = re_head * re_rel - im_head * im_rel
-    im_score = re_head * im_rel + im_head * re_rel
-    re_score = re_score - re_tail
-    im_score = im_score - im_tail
-    score = th.stack([re_score, im_score], dim=0)
+    real_rel, imag_rel = th.cos(phase_rel), th.sin(phase_rel)
+    real_score = real_head * real_rel - imag_head * imag_rel
+    imag_score = real_head * imag_rel + imag_head * real_rel
+    real_score = real_score - real_tail
+    imag_score = imag_score - imag_tail
+    score = th.stack([real_score, imag_score], dim=0)
     score = score.norm(dim=0)
 
     rotate_score = gamma - score.sum(-1)
@@ -308,8 +308,7 @@ def calc_rotate_neg_head_score(heads, tails, r_emb, num_chunks,
         heads = heads.to(device)
         tails = tails.to(device)
     hidden_dim = heads.shape[1]
-    emb_real = tails[..., :hidden_dim // 2]
-    emb_imag = tails[..., hidden_dim // 2:]
+    emb_real, emb_imag = th.chunk(tails, 2, dim=-1)
 
     phase_rel = r_emb / (rel_emb_init / th.tensor(math.pi))
     rel_real, rel_imag = th.cos(phase_rel), th.sin(phase_rel)
@@ -361,8 +360,7 @@ def calc_rotate_neg_tail_score(heads, tails, r_emb, num_chunks,
         heads = heads.to(device)
         tails = tails.to(device)
     hidden_dim = heads.shape[1]
-    emb_real = heads[..., :hidden_dim // 2]
-    emb_imag = heads[..., hidden_dim // 2:]
+    emb_real, emb_imag = th.chunk(heads, 2, dim=-1)
 
     phase_rel = r_emb / (rel_emb_init / th.tensor(math.pi))
     rel_real, rel_imag = th.cos(phase_rel), th.sin(phase_rel)
