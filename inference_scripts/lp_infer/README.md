@@ -1,7 +1,7 @@
 # Inference script examples for link prediction.
 This folder provides example yaml configurations for link prediction inference tasks. The configurations include:
 
-  * ``ml_lp_infer.yaml`` defines a link prediction task on the ``(user, rating, movie)`` edges. It uses a single-layer RGCN model as its graph encoder and a dot product decoder.
+  * ``ml_lp_infer.yaml`` defines a link prediction task on the ``(user, rating, movie)`` edges. It uses a single-layer RGCN model as its graph encoder and uses a dot product decoder.
 
   * ``ml_lp_text_infer.yaml`` defines a link prediction task on the ``(user, rating, movie)`` edges. It uses a single-layer RGCN model as its graph encoder and a dot product decoder. The input node features of ``movie`` nodes and ``user`` nodes will be produced by a BERT model during inference.
 
