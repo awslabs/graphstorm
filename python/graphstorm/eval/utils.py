@@ -15,6 +15,7 @@
 
     Utility functions for evaluation
 """
+import math
 import torch as th
 
 from ..utils import get_backend, is_distributed
@@ -212,6 +213,170 @@ def calc_dot_neg_head_score(heads, tails, num_chunks, chunk_size,
     heads = th.transpose(heads, 1, 2)
     tmp = tails.reshape(num_chunks, chunk_size, hidden_dim)
     return th.bmm(tmp, heads)
+
+def calc_rotate_pos_score(h_emb, t_emb, r_emb, rel_emb_init, gamma, device=None):
+    r""" Calculate RotatE Score for positive pairs
+
+        Score function of RotateE measures the angular distance between
+        head and tail elements. The angular distance is defined as:
+
+        .. math:
+
+            d_r(h, t)=\|h\circ r-t\|
+
+        The RotatE score function is defined as:
+
+        .. math:
+
+            gamma - \|h\circ r-t\|^2
+
+        where gamma is a margin.
+
+        For more detials please refer to https://arxiv.org/abs/1902.10197
+        or https://dglke.dgl.ai/doc/kg.html#rotatee.
+
+        Parameters
+        ----------
+        h_emb: th.Tensor
+            Head node embedding.
+        t_emb: th.Tensor
+            Tail node embedding.
+        r_emb: th.Tensor
+            Relation type embedding.
+        rel_emb_init: float
+            The initial value used to bound the relation embedding initialization.
+        gamma: float
+            The gamma value used for shifting the optimization target.
+
+        Return
+        ------
+        rotate_score: th.Tensor
+            The RotatE score.
+    """
+    if device is not None:
+        r_emb = r_emb.to(device)
+        h_emb = h_emb.to(device)
+        t_emb = t_emb.to(device)
+
+    real_head, imag_head = th.chunk(h_emb, 2, dim=-1)
+    real_tail, imag_tail = th.chunk(t_emb, 2, dim=-1)
+
+    phase_rel = r_emb / (rel_emb_init / th.tensor(math.pi))
+    real_rel, imag_rel = th.cos(phase_rel), th.sin(phase_rel)
+    real_score = real_head * real_rel - imag_head * imag_rel
+    imag_score = real_head * imag_rel + imag_head * real_rel
+    real_score = real_score - real_tail
+    imag_score = imag_score - imag_tail
+    score = th.stack([real_score, imag_score], dim=0)
+    score = score.norm(dim=0)
+
+    rotate_score = gamma - score.sum(-1)
+    return rotate_score
+
+def calc_rotate_neg_head_score(heads, tails, r_emb, num_chunks,
+                               chunk_size, neg_sample_size,
+                               rel_emb_init, gamma,
+                               device=None):
+    """ Calculate RotatE Score for negative pairs when head nodes are negative.
+
+        Parameters
+        ----------
+        h_emb: th.Tensor
+            Head node embedding.
+        t_emb: th.Tensor
+            Tail node embedding.
+        r_emb: th.Tensor
+            Relation type embedding.
+        num_chunks: int
+            Number of shared negative chunks.
+        chunk_size: int
+            Chunk size.
+        neg_sample_size: int
+            Number of negative samples for each positive node.
+        rel_emb_init: float
+            The initial value used to bound the relation embedding initialization.
+        gamma: float
+            The gamma value used for shifting the optimization target.
+
+        Return
+        ------
+        rotate_score: th.Tensor
+            The RotatE score.
+    """
+    if device is not None:
+        r_emb = r_emb.to(device)
+        heads = heads.to(device)
+        tails = tails.to(device)
+    hidden_dim = heads.shape[1]
+    emb_real, emb_imag = th.chunk(tails, 2, dim=-1)
+
+    phase_rel = r_emb / (rel_emb_init / th.tensor(math.pi))
+    rel_real, rel_imag = th.cos(phase_rel), th.sin(phase_rel)
+    # Rotate tail embeddings to head embeding space
+    real = emb_real * rel_real + emb_imag * rel_imag
+    imag = -emb_real * rel_imag + emb_imag * rel_real
+
+    emb_complex = th.cat((real, imag), dim=-1)
+    tmp = emb_complex.reshape(num_chunks, chunk_size, 1, hidden_dim)
+    heads = heads.reshape(num_chunks, 1, neg_sample_size, hidden_dim)
+    score = tmp - heads
+    score = th.stack([score[..., :hidden_dim // 2],
+                      score[..., hidden_dim // 2:]], dim=-1).norm(dim=-1)
+    rotate_score = gamma - score.sum(-1)
+    return rotate_score
+
+def calc_rotate_neg_tail_score(heads, tails, r_emb, num_chunks,
+                               chunk_size, neg_sample_size,
+                               rel_emb_init, gamma,
+                               device=None):
+    """ Calculate RotatE Score for negative pairs when tail nodes are negative.
+
+        Parameters
+        ----------
+        h_emb: th.Tensor
+            Head node embedding.
+        t_emb: th.Tensor
+            Tail node embedding.
+        r_emb: th.Tensor
+            Relation type embedding.
+        num_chunks: int
+            Number of shared negative chunks.
+        chunk_size: int
+            Chunk size.
+        neg_sample_size: int
+            Number of negative samples for each positive node.
+        rel_emb_init: float
+            The initial value used to bound the relation embedding initialization.
+        gamma: float
+            The gamma value used for shifting the optimization target.
+
+        Return
+        ------
+        rotate_score: th.Tensor
+            The RotatE score.
+    """
+    if device is not None:
+        r_emb = r_emb.to(device)
+        heads = heads.to(device)
+        tails = tails.to(device)
+    hidden_dim = heads.shape[1]
+    emb_real, emb_imag = th.chunk(heads, 2, dim=-1)
+
+    phase_rel = r_emb / (rel_emb_init / th.tensor(math.pi))
+    rel_real, rel_imag = th.cos(phase_rel), th.sin(phase_rel)
+    # Rotate head embeddings to tail embeding space
+    real = emb_real * rel_real - emb_imag * rel_imag
+    imag = emb_real * rel_imag + emb_imag * rel_real
+
+    emb_complex = th.cat((real, imag), dim=-1)
+    tmp = emb_complex.reshape(num_chunks, chunk_size, 1, hidden_dim)
+    tails = tails.reshape(num_chunks, 1, neg_sample_size, hidden_dim)
+    score = tmp - tails
+    score = th.stack([score[..., :hidden_dim // 2],
+                      score[..., hidden_dim // 2:]], dim=-1).norm(dim=-1)
+
+    rotate_score = gamma - score.sum(-1)
+    return rotate_score
 
 def calc_ranking(pos_score, neg_score):
     """ Calculate ranking of positive scores among negative scores
