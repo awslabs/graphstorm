@@ -68,7 +68,7 @@ GraphStorm provides three ways to compute link prediction scores: Dot Product, D
     within the range of ``(-gamma/(hidden_size/2), gamma/(hidden_size/2))``,
     where ``gamma`` and ``hidden_size`` are hyperparameters defined in
     :ref:`Model Configurations<configurations-model>`.
-    For more information about RotatE, please refer to https://dglke.dgl.ai/doc/kg.html#rotatee
+    To learn more information about RotatE, please refer to https://dglke.dgl.ai/doc/kg.html#rotatee.
 
 Link Prediction Loss Functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
