@@ -1046,27 +1046,22 @@ class LinkPredictMultiRelationLearnableDecoder(LinkPredictLearnableDecoder):
 
         # used to track whether a relation embedding is trained.
         self.trained_rels = np.zeros(self.num_rels)
-        self.init_w_relation(gamma)
+        self.gamma = gamma
+        self.init_w_relation()
 
     # pylint: disable=arguments-differ
     @abc.abstractmethod
-    def init_w_relation(self, gamma):
+    def init_w_relation(self):
         """ Initialize learnable relation embeddings.
 
             An example:
 
             .. code:: python
 
-                def init_w_relation(self, gamma):
+                def init_w_relation(self):
                     self._w_relation = nn.Embedding(self.num_rels, self.h_dim)
 
-                    emb_init = gamma / self.h_dim
-                    nn.init.uniform_(self._w_relation.weight, -emb_init, emb_init)
-
-        Parameters
-        ----------
-        gamma: float
-            The gamma value for model weight initialization.
+                    nn.init.uniform_(self._w_relation.weight, -1., 1.)
         """
 
     def get_relemb(self, etype):
@@ -1139,10 +1134,9 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
         self.rel_dim = h_dim // 2
         super(LinkPredictRotatEDecoder, self).__init__(etypes, h_dim, gamma)
 
-    def init_w_relation(self, gamma):
-        self.gamma = gamma
+    def init_w_relation(self):
         self._w_relation = nn.Embedding(self.num_rels, self.rel_dim)
-        self.emb_init = gamma / self.rel_dim
+        self.emb_init = self.gamma / self.rel_dim
         nn.init.uniform_(self._w_relation.weight, -self.emb_init, self.emb_init)
 
     # pylint: disable=unused-argument
@@ -1505,9 +1499,9 @@ class LinkPredictDistMultDecoder(LinkPredictMultiRelationLearnableDecoder):
         The gamma value for model weight initialization. Default: 40.
     """
 
-    def init_w_relation(self, gamma):
+    def init_w_relation(self):
         self._w_relation = nn.Embedding(self.num_rels, self.h_dim)
-        emb_init = gamma / self.h_dim
+        emb_init = self.gamma / self.h_dim
         nn.init.uniform_(self._w_relation.weight, -emb_init, emb_init)
 
     # pylint: disable=unused-argument
