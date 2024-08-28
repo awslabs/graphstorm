@@ -1097,13 +1097,13 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
         Score function of RotateE measures the angular distance between
         head and tail elements. The angular distance is defined as:
 
-        .. math:
+        .. math::
 
             d_r(h, t)=\|h\circ r-t\|
 
         The RotatE score function is defined as:
 
-        .. math:
+        .. math::
 
             gamma - \|h\circ r-t\|^2
 
