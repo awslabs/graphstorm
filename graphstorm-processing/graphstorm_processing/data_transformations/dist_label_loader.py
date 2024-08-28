@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 from dataclasses import dataclass
-from typing import Dict, List
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import FloatType
@@ -37,11 +36,22 @@ class SplitRates:
     val_rate: float
     test_rate: float
 
-    def tolist(self) -> List[float]:
+    def tolist(self) -> list[float]:
         """
         Return the split rates as a list of floats: [train_rate, val_rate, test_rate]
         """
         return [self.train_rate, self.val_rate, self.test_rate]
+
+    def todict(self) -> dict[str, float]:
+        """
+        Return the split rates as a dict of str to float:
+        {
+            "train": train_rate,
+            "val": val_rate,
+            "test": test_rate,
+        }
+        """
+        return {"train": self.train_rate, "val": self.val_rate, "test": self.test_rate}
 
     def __post_init__(self) -> None:
         """

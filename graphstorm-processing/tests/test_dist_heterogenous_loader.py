@@ -14,8 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Tuple
 import json
+import math
 import os
 import shutil
 import tempfile
@@ -52,7 +53,8 @@ from graphstorm_processing.constants import (
 
 pytestmark = pytest.mark.usefixtures("spark")
 _ROOT = os.path.abspath(os.path.dirname(__file__))
-LABEL_COL = "label"
+STR_LABEL_COL = "str_label"
+NUM_LABEL_COL = "num_label"
 NUM_DATAPOINTS = 10000
 
 NODE_CLASS_GRAPHINFO_UPDATES = {
@@ -486,8 +488,24 @@ def create_edges_df(spark: SparkSession, missing_data_points: int) -> DataFrame:
         ("src_id_val", "dst_id_val", "edge_feature_val", "")
     ] * missing_data_points
 
-    edge_columns = ["src", "dst", "feature", LABEL_COL]
+    edge_columns = ["src", "dst", "feature", STR_LABEL_COL]
     return spark.createDataFrame(edges_data, schema=edge_columns)
+
+
+def create_edges_df_num_label(spark: SparkSession, missing_data_points: int) -> DataFrame:
+    """Create an edges DF with a numeric and a string label for testing"""
+    edges_data = [("src_id_val", "dst_id_val", -1, "label_val_1")] * NUM_DATAPOINTS
+    edges_data[: (NUM_DATAPOINTS // 2)] = [("src_id_val", "dst_id_val", 1, "label_val_2")] * (
+        NUM_DATAPOINTS // 2
+    )
+
+    # Set certain number of datapoints to have missing label values
+    edges_data[:missing_data_points] = [("src_id_val", "dst_id_val", 0, "")] * missing_data_points
+
+    edge_columns = ["src", "dst", NUM_LABEL_COL, STR_LABEL_COL]
+    df = spark.createDataFrame(edges_data, schema=edge_columns)
+    df = df.withColumn(NUM_LABEL_COL, F.col(NUM_LABEL_COL).cast("float").alias(NUM_LABEL_COL))
+    return df
 
 
 def ensure_masks_are_correct(
@@ -495,7 +513,7 @@ def ensure_masks_are_correct(
     test_mask_df: DataFrame,
     val_mask_df: DataFrame,
     expected_data_points: int,
-    requested_rates: List[float],
+    requested_rates: dict[str, float],
 ):
     """Check the correctness of train/val/test maps"""
 
@@ -513,36 +531,39 @@ def ensure_masks_are_correct(
     assert train_mask_df.count() == test_mask_df.count() == val_mask_df.count() == NUM_DATAPOINTS
 
     # Ensure the total number of 1's sums to the number of expected datapoints
-    if sum(requested_rates) == 1.0:
+    if math.fsum(requested_rates.values()) == 1.0:
         assert sum_counts == expected_data_points
 
     # TODO: Can we tighten tolerance without causing inadvertent test failures?
     # Approximately check split ratio requested vs. actual +/- 0.1
-    assert_allclose(train_mask_sum / sum_counts, requested_rates[0], atol=0.1)
-    assert_allclose(val_mask_sum / sum_counts, requested_rates[1], atol=0.1)
-    assert_allclose(test_mask_sum / sum_counts, requested_rates[2], atol=0.1)
+    assert_allclose(train_mask_sum / sum_counts, requested_rates["train"], atol=0.1)
+    assert_allclose(val_mask_sum / sum_counts, requested_rates["val"], atol=0.1)
+    assert_allclose(test_mask_sum / sum_counts, requested_rates["test"], atol=0.1)
 
 
 def read_masks_from_disk(
-    spark: SparkSession, loader: DistHeterogeneousGraphLoader, output_dicts
+    spark: SparkSession,
+    loader: DistHeterogeneousGraphLoader,
+    output_dicts: dict,
+    mask_suffix: str = "",
 ) -> Tuple[DataFrame, DataFrame, DataFrame]:
     """Helper function to read mask DFs from disk"""
     train_mask_df = spark.read.parquet(
         *[
             os.path.join(loader.output_prefix, rel_path)
-            for rel_path in output_dicts["train_mask"]["data"]
+            for rel_path in output_dicts[f"train_mask{mask_suffix}"]["data"]
         ]
     )
     test_mask_df = spark.read.parquet(
         *[
             os.path.join(loader.output_prefix, rel_path)
-            for rel_path in output_dicts["test_mask"]["data"]
+            for rel_path in output_dicts[f"test_mask{mask_suffix}"]["data"]
         ]
     )
     val_mask_df = spark.read.parquet(
         *[
             os.path.join(loader.output_prefix, rel_path)
-            for rel_path in output_dicts["val_mask"]["data"]
+            for rel_path in output_dicts[f"val_mask{mask_suffix}"]["data"]
         ]
     )
 
@@ -563,7 +584,7 @@ def test_create_split_files_from_rates(
     edges_df = create_edges_df(spark, missing_data_points)
 
     output_dicts = dghl_loader._create_split_files(
-        edges_df, LABEL_COL, split_rates, os.path.join(tempdir, "sample_masks"), None, seed=42
+        edges_df, STR_LABEL_COL, split_rates, os.path.join(tempdir, "sample_masks"), None, seed=42
     )
 
     train_mask_df, test_mask_df, val_mask_df = read_masks_from_disk(
@@ -575,7 +596,7 @@ def test_create_split_files_from_rates(
         test_mask_df,
         val_mask_df,
         non_missing_data_points,
-        split_rates.tolist(),
+        split_rates.todict(),
     )
 
 
@@ -590,7 +611,7 @@ def test_create_split_files_from_rates_empty_col(
     spark: SparkSession, dghl_loader: DistHeterogeneousGraphLoader, tempdir
 ):
     """Test creating split files, even when label column is empty"""
-    edges_df = create_edges_df(spark, 0).drop(LABEL_COL)
+    edges_df = create_edges_df(spark, 0).drop(STR_LABEL_COL)
     split_rates = SplitRates(0.8, 0.1, 0.1)
 
     output_dicts = dghl_loader._create_split_files(
@@ -602,7 +623,7 @@ def test_create_split_files_from_rates_empty_col(
     )
 
     ensure_masks_are_correct(
-        train_mask_df, test_mask_df, val_mask_df, NUM_DATAPOINTS, split_rates.tolist()
+        train_mask_df, test_mask_df, val_mask_df, NUM_DATAPOINTS, split_rates.todict()
     )
 
 
@@ -611,12 +632,12 @@ def test_process_edge_labels_link_prediction(
 ):
     """Test processing link prediction edge labels"""
     edges_df = create_edges_df(spark, 0)
-    split_rates_list = [0.8, 0.1, 0.1]
+    split_rates = {"train": 0.8, "val": 0.1, "test": 0.1}
 
     config_dict = {
         "column": "",
         "type": "link_prediction",
-        "split_rate": {"train": 0.8, "val": 0.1, "test": 0.1},
+        "split_rate": split_rates,
     }
     label_configs = [EdgeLabelConfig(config_dict)]
 
@@ -631,8 +652,114 @@ def test_process_edge_labels_link_prediction(
         spark, dghl_loader, label_metadata_dicts
     )
 
+    ensure_masks_are_correct(train_mask_df, test_mask_df, val_mask_df, NUM_DATAPOINTS, split_rates)
+
+
+def test_process_edge_labels_multitask(
+    spark: SparkSession, dghl_loader: DistHeterogeneousGraphLoader
+):
+    """Test processing multi-task link prediction and regression edge labels"""
+    edges_df = create_edges_df_num_label(spark, 0)
+    lp_split_rates = {"train": 0.6, "val": 0.2, "test": 0.2}
+    reg_split_rates = {"train": 0.8, "val": 0.1, "test": 0.1}
+
+    lp_config_dict = {"column": "", "type": "link_prediction", "split_rate": lp_split_rates}
+    regression_config_dict = {
+        "column": NUM_LABEL_COL,
+        "type": "regression",
+    }
+    label_configs = [
+        EdgeLabelConfig(lp_config_dict),
+        EdgeLabelConfig(regression_config_dict),
+    ]
+
+    dghl_loader.is_multitask = True
+    label_metadata_dicts = dghl_loader._process_edge_labels(
+        label_configs, edges_df, "src:to:dst", "to"
+    )
+
+    # For multi-task link prediction and regression, each task should
+    # have its own masks, the LP task's masks should have the `_lp` suffix
+    # the other label should have the label's name, and we should have a entry
+    # for the regression label itself
+    assert label_metadata_dicts.keys() == {
+        "train_mask_lp",
+        "test_mask_lp",
+        "val_mask_lp",
+        f"train_mask_{NUM_LABEL_COL}",
+        f"test_mask_{NUM_LABEL_COL}",
+        f"val_mask_{NUM_LABEL_COL}",
+        NUM_LABEL_COL,
+    }
+
+    # Check LP mask correctness
+    train_mask_df, test_mask_df, val_mask_df = read_masks_from_disk(
+        spark, dghl_loader, label_metadata_dicts, mask_suffix="_lp"
+    )
     ensure_masks_are_correct(
-        train_mask_df, test_mask_df, val_mask_df, NUM_DATAPOINTS, split_rates_list
+        train_mask_df, test_mask_df, val_mask_df, NUM_DATAPOINTS, lp_split_rates
+    )
+    # Check regression mask correctness
+    train_mask_df, test_mask_df, val_mask_df = read_masks_from_disk(
+        spark, dghl_loader, label_metadata_dicts, mask_suffix=f"_{NUM_LABEL_COL}"
+    )
+    ensure_masks_are_correct(
+        train_mask_df, test_mask_df, val_mask_df, NUM_DATAPOINTS, reg_split_rates
+    )
+
+
+def test_process_node_labels_multitask(
+    spark: SparkSession, dghl_loader: DistHeterogeneousGraphLoader
+):
+    """Test processing multi-task link prediction and regression edge labels"""
+    nodes_df = create_edges_df_num_label(spark, 0)
+    class_split_rates = {"train": 0.6, "val": 0.2, "test": 0.2}
+    reg_split_rates = {"train": 0.8, "val": 0.1, "test": 0.1}
+
+    class_config_dict = {
+        "column": STR_LABEL_COL,
+        "type": "classification",
+        "split_rate": class_split_rates,
+    }
+    regression_config_dict = {
+        "column": NUM_LABEL_COL,
+        "type": "regression",
+    }
+    label_configs = [
+        NodeLabelConfig(class_config_dict),
+        NodeLabelConfig(regression_config_dict),
+    ]
+
+    dghl_loader.is_multitask = True
+    label_metadata_dicts = dghl_loader._process_node_labels(label_configs, nodes_df, "test_ntype")
+
+    # For multi-task node classification and regression, each task should
+    # have its own masks, with the label names as suffixes, as well as
+    # entries for each label column
+    assert label_metadata_dicts.keys() == {
+        f"train_mask_{STR_LABEL_COL}",
+        f"test_mask_{STR_LABEL_COL}",
+        f"val_mask_{STR_LABEL_COL}",
+        f"train_mask_{NUM_LABEL_COL}",
+        f"test_mask_{NUM_LABEL_COL}",
+        f"val_mask_{NUM_LABEL_COL}",
+        NUM_LABEL_COL,
+        STR_LABEL_COL,
+    }
+
+    # Check classification mask correctness
+    train_mask_df, test_mask_df, val_mask_df = read_masks_from_disk(
+        spark, dghl_loader, label_metadata_dicts, mask_suffix=f"_{STR_LABEL_COL}"
+    )
+    ensure_masks_are_correct(
+        train_mask_df, test_mask_df, val_mask_df, NUM_DATAPOINTS, class_split_rates
+    )
+    # Check regression mask correctness
+    train_mask_df, test_mask_df, val_mask_df = read_masks_from_disk(
+        spark, dghl_loader, label_metadata_dicts, mask_suffix=f"_{NUM_LABEL_COL}"
+    )
+    ensure_masks_are_correct(
+        train_mask_df, test_mask_df, val_mask_df, NUM_DATAPOINTS, reg_split_rates
     )
 
 

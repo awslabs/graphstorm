@@ -199,7 +199,8 @@ class DistHeterogeneousGraphLoader(object):
         # here and later output as a JSON file.
         self.column_substitutions: dict[str, str] = {}
         self.graph_info: dict[str, Any] = {}
-        # Structure:
+
+        # transformation_representations structure:
         # {
         #     "node_features": {
         #         "node_type1": {
@@ -219,6 +220,7 @@ class DistHeterogeneousGraphLoader(object):
         self.graph_name = loader_config.graph_name
         self.skip_train_masks = False
         self.pre_computed_transformations = loader_config.precomputed_transformations
+        self.is_multitask = False
 
     def process_and_write_graph_data(
         self, data_configs: Mapping[str, Sequence[StructureConfig]]
@@ -259,11 +261,12 @@ class DistHeterogeneousGraphLoader(object):
             self.skip_train_masks = True
 
         metadata_dict = self._initialize_metadata_dict(data_configs)
+        self.is_multitask = self._is_multitask(data_configs)
 
-        edge_configs = data_configs["edges"]  # type: Sequence[EdgeConfig]
+        edge_configs: Sequence[EdgeConfig] = data_configs["edges"]
 
         if "nodes" in data_configs:
-            node_configs = data_configs["nodes"]  # type: Sequence[NodeConfig]
+            node_configs: Sequence[NodeConfig] = data_configs["nodes"]
             missing_node_types = self._get_missing_node_types(edge_configs, node_configs)
             if len(missing_node_types) > 0:
                 logging.info(
@@ -1162,6 +1165,7 @@ class DistHeterogeneousGraphLoader(object):
                 node_type,
                 label_conf.label_column,
             )
+
             transformed_label = node_label_loader.process_label(nodes_df)
             self.graph_info["label_map"] = node_label_loader.label_map
 
@@ -1533,7 +1537,7 @@ class DistHeterogeneousGraphLoader(object):
             encoded features.
         """
         # TODO: Add unit tests for edge feature processing
-        edge_feature_metadata_dicts = {}
+        edge_type_feature_metadata = {}
         etype_feat_sizes = {}  # type: Dict[str, int]
         for feat_conf in feature_configs:
             logging.info(
@@ -1593,7 +1597,7 @@ class DistHeterogeneousGraphLoader(object):
                         single_feature_df,
                         feature_output_path,
                     )
-                    edge_feature_metadata_dicts[feat_name] = feat_meta
+                    edge_type_feature_metadata[feat_name] = feat_meta
                     etype_feat_sizes.update({feat_name: feat_size})
 
                 self.timers[f"{transformer.get_transformation_name()}-{edge_type}-{feat_name}"] = (
@@ -1603,7 +1607,7 @@ class DistHeterogeneousGraphLoader(object):
             # Unpersist and move on to next feature
             transformed_feature_df.unpersist()
 
-        return edge_feature_metadata_dicts, etype_feat_sizes
+        return edge_type_feature_metadata, etype_feat_sizes
 
     def _process_edge_labels(
         self,
@@ -1832,21 +1836,19 @@ class DistHeterogeneousGraphLoader(object):
         def create_metadata_entry(path_list):
             return {"format": {"name": FORMAT_NAME, "delimiter": DELIMITER}, "data": path_list}
 
-        def write_mask(kind: str, mask_df: DataFrame) -> Sequence[str]:
+        def write_mask(kind: str, mask_df: DataFrame, split_meta: dict):
+            mask_entry = (
+                f"{kind}_mask_{label_column or 'lp'}" if self.is_multitask else f"{kind}_mask"
+            )
             out_path_list = self._write_df(
                 mask_df.select(F.col(f"{kind}_mask").cast(ByteType()).alias(f"{kind}_mask")),
-                f"{output_path}-{kind}-mask",
+                f"{output_path}-{mask_entry}",
             )
-            return out_path_list
+            split_meta[mask_entry] = create_metadata_entry(out_path_list)
 
-        out_path_list = write_mask("train", train_mask_df)
-        split_metadata["train_mask"] = create_metadata_entry(out_path_list)
-
-        out_path_list = write_mask("val", val_mask_df)
-        split_metadata["val_mask"] = create_metadata_entry(out_path_list)
-
-        out_path_list = write_mask("test", test_mask_df)
-        split_metadata["test_mask"] = create_metadata_entry(out_path_list)
+        write_mask("train", train_mask_df, split_metadata)
+        write_mask("val", val_mask_df, split_metadata)
+        write_mask("test", test_mask_df, split_metadata)
 
         return split_metadata
 
@@ -1870,7 +1872,7 @@ class DistHeterogeneousGraphLoader(object):
             If an empty string, all rows in the input_df are included in one of train/val/test sets.
         split_rates: Optional[SplitRates]
             A SplitRates object indicating the train/val/test split rates.
-            If None, a default split rate of 0.9:0.05:0.05 is used.
+            If None, a default split rate of 0.8:0.1:0.1 is used.
         seed: Optional[int]
             An optional random seed for reproducibility.
 
@@ -1881,6 +1883,11 @@ class DistHeterogeneousGraphLoader(object):
         """
         if split_rates is None:
             split_rates = SplitRates(train_rate=0.8, val_rate=0.1, test_rate=0.1)
+            logging.info(
+                "Split rate not provided for label column '%s', using split rates: %s",
+                label_column,
+                split_rates.tolist(),
+            )
         else:
             # TODO: add support for sums <= 1.0, useful for large-scale link prediction
             if math.fsum(split_rates.tolist()) != 1.0:
@@ -1918,6 +1925,35 @@ class DistHeterogeneousGraphLoader(object):
         test_mask_df = int_group_df.select(F.col(group_col_name)[2].alias("test_mask"))
 
         return train_mask_df, val_mask_df, test_mask_df
+
+    @staticmethod
+    def _is_multitask(data_configs: Mapping[str, Sequence[StructureConfig]]) -> bool:
+        """Returns True when the input configuration contains more than one label.
+
+        Parameters
+        ----------
+        data_configs : Mapping[str, Sequence[StructureConfig]]
+            Input configuration for edges and nodes
+
+        Returns
+        -------
+        bool
+            True if the input config contains more than one label, False otherwise.
+        """
+        edge_configs: Sequence[EdgeConfig] = data_configs["edges"]
+
+        num_labels = 0
+        for edge_config in edge_configs:
+            if edge_config.label_configs:
+                num_labels += len(edge_config.label_configs)
+
+        if "nodes" in data_configs:
+            node_configs: Sequence[NodeConfig] = data_configs["nodes"]
+            for node_config in node_configs:
+                if node_config.label_configs:
+                    num_labels += len(node_config.label_configs)
+
+        return num_labels > 1
 
     def _create_split_files_custom_split(
         self, input_df: DataFrame, custom_split_file: CustomSplit

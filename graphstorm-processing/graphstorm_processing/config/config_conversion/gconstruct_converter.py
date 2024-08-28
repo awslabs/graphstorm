@@ -83,10 +83,7 @@ class GConstructConfigConverter(ConfigConverter):
                 if "separator" in label:
                     label_sep = label["separator"]
                     label_dict["separator"] = label_sep
-                # Not supported for multi-task config for GSProcessing
-                assert "mask_field_names" not in label, (
-                    "GSProcessing currently cannot " "construct labels for multi-task learning"
-                )
+
                 labels_list.append(label_dict)
             except KeyError as exc:
                 raise KeyError(f"A required key was missing from label input {label}") from exc
@@ -189,7 +186,6 @@ class GConstructConfigConverter(ConfigConverter):
                         "hf_model": gconstruct_transform_dict["bert_model"],
                         "max_seq_length": gconstruct_transform_dict["max_seq_length"],
                     }
-                # TODO: Add support for other common transformations here
                 else:
                     raise ValueError(
                         "Unsupported GConstruct transformation name: "

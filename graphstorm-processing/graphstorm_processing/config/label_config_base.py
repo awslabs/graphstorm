@@ -28,7 +28,6 @@ class LabelConfig(abc.ABC):
             self._label_column = config_dict["column"]
         else:
             self._label_column = ""
-            assert config_dict["type"] == "link_prediction"
         self._task_type: str = config_dict["type"]
         self._separator: Optional[str] = (
             config_dict["separator"] if "separator" in config_dict else None
@@ -37,7 +36,11 @@ class LabelConfig(abc.ABC):
         self._custom_split_filenames: Dict[str, list[str]] = {}
         self._split: Dict[str, float] = {}
         if "custom_split_filenames" not in config_dict:
-            self._split = config_dict["split_rate"]
+            # Get the custom split rate, or use the default 80/10/10 split
+            self._split = config_dict.get(
+                "split_rate",
+                {"train": 0.8, "val": 0.1, "test": 0.1},
+            )
         else:
             self._custom_split_filenames = config_dict["custom_split_filenames"]
 

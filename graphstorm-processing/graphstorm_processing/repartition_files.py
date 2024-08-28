@@ -826,6 +826,16 @@ def modify_flat_array_metadata(
     edge_data_meta: dict = metadata_dict.get("edge_data", {})
     node_data_meta: dict = metadata_dict.get("node_data", {})
 
+    def key_is_mask(key: str):
+        for mask in [
+            "train_mask",
+            "val_mask",
+            "test_mask",
+        ]:
+            if key.startswith(mask):
+                return True
+        return False
+
     if edge_data_meta:
         task_type = metadata_dict["graph_info"].get("task_type", "link_prediction")  # type: str
         edge_types_with_labels = metadata_dict["graph_info"]["etype_label"]  # type: List[str]
@@ -843,7 +853,7 @@ def modify_flat_array_metadata(
                         "['etype_label_property']` was empty."
                     )
 
-        for type_idx, (type_name, type_data_dict) in enumerate(edge_data_meta.items()):
+        for type_idx, (type_name, etype_data_dict) in enumerate(edge_data_meta.items()):
             _, relation, _ = type_name.split(":")
 
             if relation.endswith("-rev"):
@@ -870,12 +880,12 @@ def modify_flat_array_metadata(
 
                 # If the task is not link_prediction, we need to modify the label file's metadata
                 if task_type not in {"link_predict", "link_prediction"}:
-                    assert etype_label_property in type_data_dict, (
+                    assert etype_label_property in etype_data_dict, (
                         "When task is not link prediction, providing an 'etype_label_property' "
                         f"is required. Got task {task_type}, but {etype_label_property=}"
-                        f"was not in {type_data_dict=}"
+                        f"was not in {etype_data_dict=}"
                     )
-                    label_files = type_data_dict[etype_label_property]["data"]  # type: List[str]
+                    label_files: list[str] = etype_data_dict[etype_label_property]["data"]
                     logging.info(
                         "Modifying Parquet metadata for %d files of label '%s' of edge type '%s'",
                         len(label_files),
@@ -883,13 +893,13 @@ def modify_flat_array_metadata(
                         type_name,
                     )
                     repartitioner.modify_metadata_for_flat_arrays(label_files)
-                for mask in ["train_mask", "test_mask", "val_mask"]:
-                    if mask in type_data_dict:
-                        edge_mask_files = type_data_dict[mask]["data"]  # type: List[str]
+                for etype_data_entry_key, etype_data_entry_val in etype_data_dict.items():
+                    if key_is_mask(etype_data_entry_key):
+                        edge_mask_files: list[str] = etype_data_entry_val["data"]
                         logging.info(
                             "Modifying Parquet metadata for %d files of '%s' for edge type '%s'",
                             len(edge_mask_files),
-                            mask,
+                            etype_data_entry_key,
                             type_name,
                         )
                         repartitioner.modify_metadata_for_flat_arrays(edge_mask_files)
@@ -900,7 +910,7 @@ def modify_flat_array_metadata(
             ntype_label_property = metadata_dict["graph_info"]["ntype_label_property"][
                 0
             ]  #  type: str
-        for type_idx, (type_name, type_data_dict) in enumerate(node_data_meta.items()):
+        for type_idx, (type_name, ntype_data_dict) in enumerate(node_data_meta.items()):
             logging.info(
                 "Modifying Parquet metadata for node type '%s', %d/%d:",
                 type_name,
@@ -908,7 +918,7 @@ def modify_flat_array_metadata(
                 len(node_data_meta),
             )
             if type_name in node_types_with_labels:
-                node_label_files = type_data_dict[ntype_label_property]["data"]  # type: List[str]
+                node_label_files = ntype_data_dict[ntype_label_property]["data"]  # type: List[str]
                 logging.info(
                     "Modifying Parquet metadata for %d files of label '%s' of node type '%s'",
                     len(node_label_files),
@@ -916,13 +926,13 @@ def modify_flat_array_metadata(
                     type_name,
                 )
                 repartitioner.modify_metadata_for_flat_arrays(node_label_files)
-                for mask in ["train_mask", "test_mask", "val_mask"]:
-                    if mask in type_data_dict:
-                        node_mask_files = type_data_dict[mask]["data"]  # type: List[str]
+                for ntype_data_entry_key, ntype_data_entry_val in ntype_data_dict.items():
+                    if key_is_mask(ntype_data_entry_key):
+                        node_mask_files: list[str] = ntype_data_entry_val["data"]
                         logging.info(
                             "Modifying Parquet metadata for %d files of '%s' for node type '%s'",
                             len(node_mask_files),
-                            mask,
+                            ntype_data_entry_key,
                             type_name,
                         )
                         repartitioner.modify_metadata_for_flat_arrays(node_mask_files)
