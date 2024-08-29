@@ -1371,6 +1371,7 @@ class LinkPredictContrastiveRotatEDecoder(LinkPredictRotatEDecoder):
     gamma: float
         The gamma value for model weight initialization. Default: 4.
     """
+
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
         with g.local_scope():
