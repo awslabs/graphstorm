@@ -11,9 +11,10 @@ we suggest going through its
 to familiarize yourself with its concepts.
 
 In summary, we will launch an EMR cluster configured in a way that will allow
-us to run jobs with executors that use the GSProcessing EMR Docker image,
-and then launch our job using ``spark-submit`` from the
-cluster's leader node.
+us to run jobs with executors that use the GSProcessing EMR Docker image, and then launch our job through
+[EMR Step](https://docs.aws.amazon.com/emr/latest/ReleaseGuide/emr-spark-submit-step.html). For advanced users who
+want to launch GSProcessing job using ``spark-submit`` from the cluster's leader node, please check
+:ref:`Running distributed graph processing on customized EMR on EC2 clusters <gsprocessing_emr_ec2_customized_clusters>`.
 
 Follow EMR set-up
 -----------------
