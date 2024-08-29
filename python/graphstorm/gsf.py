@@ -333,6 +333,7 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                                              config.multilabel_weights,
                                              config.imbalance_class_weights)
             elif config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
+                assert config.num_classes == 2, "Focal loss only works with binary classification."
                 # set default value of alpha to 0.25 for focal loss
                 # set default value of gamma to 2. for focal loss
                 alpha = config.alpha if config.alpha is not None else 0.25

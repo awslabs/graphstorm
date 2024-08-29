@@ -1930,7 +1930,7 @@ def test_multi_task_config():
         assert lp_config.eval_etype == None
         assert lp_config.exclude_training_targets == False
         assert len(lp_config.reverse_edge_types_map) == 0
-        assert lp_config.gamma == 12.0
+        assert lp_config.gamma == None
         assert lp_config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS
         assert lp_config.lp_embed_normalizer == GRAPHSTORM_LP_EMB_L2_NORMALIZATION
         assert lp_config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER
