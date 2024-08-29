@@ -17,18 +17,33 @@ import pytest
 import torch as th
 
 from graphstorm.gsf import (create_builtin_node_decoder,
-                            create_builtin_edge_decoder)
+                            create_builtin_edge_decoder,
+                            create_builtin_lp_decoder)
 from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
                                BUILTIN_TASK_EDGE_REGRESSION,
+                               BUILTIN_LP_DOT_DECODER,
+                               BUILTIN_LP_DISTMULT_DECODER,
+                               BUILTIN_LP_ROTATE_DECODER,
                                BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
-                               BUILTIN_CLASS_LOSS_FOCAL)
+                               BUILTIN_CLASS_LOSS_FOCAL,
+                               BUILTIN_LP_LOSS_CROSS_ENTROPY,
+                               BUILTIN_LP_LOSS_CONTRASTIVELOSS)
 
 from graphstorm.model.node_decoder import (EntityClassifier,
                                            EntityRegression)
 from graphstorm.model.edge_decoder import (DenseBiDecoder,
-                                           MLPEdgeDecoder)
+                                           MLPEdgeDecoder,
+                                           LinkPredictDotDecoder,
+                                           LinkPredictDistMultDecoder,
+                                           LinkPredictContrastiveDotDecoder,
+                                           LinkPredictContrastiveDistMultDecoder,
+                                           LinkPredictWeightedDotDecoder,
+                                           LinkPredictWeightedDistMultDecoder,
+                                           LinkPredictRotatEDecoder,
+                                           LinkPredictContrastiveRotatEDecoder,
+                                           LinkPredictWeightedRotatEDecoder)
 
 from graphstorm.model.loss_func import (ClassifyLossFunc,
                                         RegressionLossFunc,
@@ -36,6 +51,8 @@ from graphstorm.model.loss_func import (ClassifyLossFunc,
                                         WeightedLinkPredictBCELossFunc,
                                         LinkPredictContrastiveLossFunc,
                                         FocalLossFunc)
+
+from data_utils import generate_dummy_hetero_graph
 
 class GSTestConfig:
     def __init__(self, dictionary):
@@ -261,7 +278,148 @@ def test_create_builtin_edge_decoder():
     assert isinstance(decoder, MLPEdgeDecoder)
     assert isinstance(loss_func, RegressionLossFunc)
 
+def test_create_builtin_lp_decoder():
+    g = generate_dummy_hetero_graph()
+    decoder_input_dim = 64
+    train_task=False
+
+    # dot-product + cross entropy
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_CROSS_ENTROPY,
+            "lp_edge_weight_for_loss": None,
+            "decoder_norm": None,
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictDotDecoder)
+    assert isinstance(loss_func, LinkPredictBCELossFunc)
+
+    # dot-product + cross entropy + edge weight
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_CROSS_ENTROPY,
+            "lp_edge_weight_for_loss": None,
+            "decoder_norm": None,
+            "lp_edge_weight_for_loss": "weight",
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictWeightedDotDecoder)
+    assert isinstance(loss_func, WeightedLinkPredictBCELossFunc)
+
+    # dot-product + contrastive loss
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_CONTRASTIVELOSS,
+            "lp_edge_weight_for_loss": None,
+            "decoder_norm": "l2norm",
+            "contrastive_loss_temperature": 1.0,
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictContrastiveDotDecoder)
+    assert isinstance(loss_func, LinkPredictContrastiveLossFunc)
+
+    # dist mult + cross entropy
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_DISTMULT_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_CROSS_ENTROPY,
+            "lp_edge_weight_for_loss": None,
+            "decoder_norm": None,
+            "gamma": None,
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictDistMultDecoder)
+    assert isinstance(loss_func, LinkPredictBCELossFunc)
+    assert decoder.gamma == 12.
+
+    # dist mult + cross entropy + edge weight
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_DISTMULT_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_CROSS_ENTROPY,
+            "lp_edge_weight_for_loss": None,
+            "decoder_norm": None,
+            "lp_edge_weight_for_loss": "weight",
+            "gamma": None,
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictWeightedDistMultDecoder)
+    assert isinstance(loss_func, WeightedLinkPredictBCELossFunc)
+    assert decoder.gamma == 12.
+
+    # dist mult + contrastive loss
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_DISTMULT_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_CONTRASTIVELOSS,
+            "lp_edge_weight_for_loss": None,
+            "decoder_norm": "l2norm",
+            "contrastive_loss_temperature": 1.0,
+            "gamma": 6.
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictContrastiveDistMultDecoder)
+    assert isinstance(loss_func, LinkPredictContrastiveLossFunc)
+    assert decoder.gamma == 6.
+
+    # rotate + cross entropy
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_ROTATE_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_CROSS_ENTROPY,
+            "lp_edge_weight_for_loss": None,
+            "decoder_norm": None,
+            "gamma": None,
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictRotatEDecoder)
+    assert isinstance(loss_func, LinkPredictBCELossFunc)
+    assert decoder.gamma == 12.
+
+    # rotate + cross entropy + edge weight
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_ROTATE_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_CROSS_ENTROPY,
+            "lp_edge_weight_for_loss": None,
+            "decoder_norm": None,
+            "lp_edge_weight_for_loss": "weight",
+            "gamma": None,
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictWeightedRotatEDecoder)
+    assert isinstance(loss_func, WeightedLinkPredictBCELossFunc)
+    assert decoder.gamma == 12.
+
+    # rotate + contrastive loss
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_ROTATE_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_CONTRASTIVELOSS,
+            "lp_edge_weight_for_loss": None,
+            "decoder_norm": "l2norm",
+            "contrastive_loss_temperature": 1.0,
+            "gamma": 6.
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictContrastiveRotatEDecoder)
+    assert isinstance(loss_func, LinkPredictContrastiveLossFunc)
+    assert decoder.gamma == 6.
+
 
 if __name__ == '__main__':
     test_create_builtin_node_decoder()
     test_create_builtin_edge_decoder()
+    test_create_builtin_lp_decoder()
