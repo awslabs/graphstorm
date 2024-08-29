@@ -18,6 +18,7 @@
 import torch as th
 from torch import nn
 import torch.nn.functional as F
+import torchvision
 
 from .gs_layer import GSLayer
 
@@ -70,6 +71,30 @@ class ClassifyLossFunc(GSLayer):
         int : the number of output dimensions.
         """
         return None
+
+class FocalLossFunc(GSLayer):
+    """ Focal loss function for classification.
+
+    See more details on https://pytorch.org/vision/main/_modules/torchvision/ops/focal_loss.html.
+
+    Parameters
+    ----------
+    alpha: float
+        Weighting factor in range (0,1) to balance
+        ositive vs negative examples or -1 for ignore. Default: ``0.25``.
+    gamma: float
+        Exponent of the modulating factor (1 - p_t) to
+        balance easy vs hard examples. Default: ``2``.
+    """
+    def __init__(self, alpha=0.25, gamma=2):
+        super(FocalLossFunc, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def forward(self, logits, labels):
+        loss = torchvision.ops.sigmoid_focal_loss(logits, labels, self.alpha, self.gamma, )
+
+        return loss.mean()
 
 class RegressionLossFunc(GSLayer):
     """ Loss function for regression

@@ -38,7 +38,9 @@ from .config import (BUILTIN_LP_DOT_DECODER,
                      BUILTIN_LP_DISTMULT_DECODER,
                      BUILTIN_LP_ROTATE_DECODER)
 from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
-                     BUILTIN_LP_LOSS_CONTRASTIVELOSS)
+                     BUILTIN_LP_LOSS_CONTRASTIVELOSS,
+                     BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
+                     BUILTIN_CLASS_LOSS_FOCAL)
 from .model.embed import GSNodeEncoderInputLayer
 from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from .model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
@@ -56,7 +58,8 @@ from .model.loss_func import (ClassifyLossFunc,
                               RegressionLossFunc,
                               LinkPredictBCELossFunc,
                               WeightedLinkPredictBCELossFunc,
-                              LinkPredictContrastiveLossFunc)
+                              LinkPredictContrastiveLossFunc,
+                              FocalLossFunc)
 from .model.node_decoder import EntityClassifier, EntityRegression
 from .model.edge_decoder import (DenseBiDecoder,
                                  MLPEdgeDecoder,
@@ -325,9 +328,15 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                                        config.multilabel,
                                        dropout=dropout,
                                        norm=config.decoder_norm)
-            loss_func = ClassifyLossFunc(config.multilabel,
-                                         config.multilabel_weights,
-                                         config.imbalance_class_weights)
+            if config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY:
+                loss_func = ClassifyLossFunc(config.multilabel,
+                                             config.multilabel_weights,
+                                             config.imbalance_class_weights)
+            elif config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
+                loss_func = FocalLossFunc(config.alpha, config.gamma)
+            else:
+                raise RuntimeError("Unknow classification loss %s",
+                                   config.class_loss_func)
         else:
             decoder = {}
             loss_func = {}
@@ -337,9 +346,16 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                                                   config.multilabel[ntype],
                                                   dropout=dropout,
                                                   norm=config.decoder_norm)
-                loss_func[ntype] = ClassifyLossFunc(config.multilabel[ntype],
-                                                config.multilabel_weights[ntype],
-                                                config.imbalance_class_weights[ntype])
+
+                if config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY:
+                    loss_func[ntype] = ClassifyLossFunc(config.multilabel[ntype],
+                                                        config.multilabel_weights[ntype],
+                                                        config.imbalance_class_weights[ntype])
+                elif config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
+                    loss_func[ntype] = FocalLossFunc(config.alpha, config.gamma)
+                else:
+                    raise RuntimeError("Unknow classification loss %s",
+                                    config.class_loss_func)
     elif config.task_type == BUILTIN_TASK_NODE_REGRESSION:
         decoder  = EntityRegression(decoder_input_dim,
                                     dropout=dropout,
@@ -473,9 +489,17 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                 norm=config.decoder_norm)
         else:
             assert False, f"decoder {decoder_type} is not supported."
-        loss_func = ClassifyLossFunc(config.multilabel,
-                                     config.multilabel_weights,
-                                     config.imbalance_class_weights)
+
+        if config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY:
+            loss_func = ClassifyLossFunc(config.multilabel,
+                                         config.multilabel_weights,
+                                         config.imbalance_class_weights)
+        elif config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL:
+            loss_func = FocalLossFunc(config.alpha, config.gamma)
+        else:
+            raise RuntimeError("Unknow classification loss %s",
+                                config.class_loss_func)
+
     elif config.task_type == BUILTIN_TASK_EDGE_REGRESSION:
         decoder_type = config.decoder_type
         dropout = config.dropout if train_task else 0
@@ -618,34 +642,40 @@ def create_builtin_lp_decoder(g, decoder_input_dim, config, train_task):
     elif config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER:
         if get_rank() == 0:
             logging.debug("Using distmult objective for supervision")
+
+        # default gamma for distmult is 12.
+        gamma = config.gamma if config.gamma is not None else 12.
         if config.lp_edge_weight_for_loss is None:
             decoder = LinkPredictContrastiveDistMultDecoder(g.canonical_etypes,
                                                             decoder_input_dim,
-                                                            config.gamma) \
+                                                            gamma) \
                 if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS else \
                 LinkPredictDistMultDecoder(g.canonical_etypes,
                                            decoder_input_dim,
-                                           config.gamma)
+                                           gamma)
         else:
             decoder = LinkPredictWeightedDistMultDecoder(g.canonical_etypes,
                                                          decoder_input_dim,
-                                                         config.gamma,
+                                                         gamma,
                                                          config.lp_edge_weight_for_loss)
     elif config.lp_decoder_type == BUILTIN_LP_ROTATE_DECODER:
         if get_rank() == 0:
             logging.debug("Using RotatE objective for supervision")
+
+        # default gamma for RotatE is 12.
+        gamma = config.gamma if config.gamma is not None else 12.
         if config.lp_edge_weight_for_loss is None:
             decoder = LinkPredictContrastiveRotatEDecoder(g.canonical_etypes,
                                                           decoder_input_dim,
-                                                          config.gamma) \
+                                                          gamma) \
                 if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS else \
                 LinkPredictRotatEDecoder(g.canonical_etypes,
                                          decoder_input_dim,
-                                         config.gamma)
+                                         gamma)
         else:
             decoder = LinkPredictWeightedRotatEDecoder(g.canonical_etypes,
                                                        decoder_input_dim,
-                                                       config.gamma,
+                                                       gamma,
                                                        config.lp_edge_weight_for_loss)
     else:
         raise Exception(f"Unknow link prediction decoder type {config.lp_decoder_type}")
