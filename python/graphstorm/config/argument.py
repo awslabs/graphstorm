@@ -2529,7 +2529,7 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_adversarial_temperature"):
-            assert self._lp_loss_func in [BUILTIN_LP_LOSS_CROSS_ENTROPY], \
+            assert self.lp_loss_func in [BUILTIN_LP_LOSS_CROSS_ENTROPY], \
                 f"adversarial_temperature only works with {BUILTIN_LP_LOSS_CROSS_ENTROPY}"
             return self._adversarial_temperature
         return None
