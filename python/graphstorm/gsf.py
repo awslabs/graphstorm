@@ -56,6 +56,8 @@ from .model.loss_func import (ClassifyLossFunc,
                               RegressionLossFunc,
                               LinkPredictBCELossFunc,
                               WeightedLinkPredictBCELossFunc,
+                              LinkPredictAdvBCELossFunc,
+                              WeightedLinkPredictAdvBCELossFunc,
                               LinkPredictContrastiveLossFunc)
 from .model.node_decoder import EntityClassifier, EntityRegression
 from .model.edge_decoder import (DenseBiDecoder,
@@ -654,9 +656,15 @@ def create_builtin_lp_decoder(g, decoder_input_dim, config, train_task):
         loss_func = LinkPredictContrastiveLossFunc(config.contrastive_loss_temperature)
     elif config.lp_loss_func == BUILTIN_LP_LOSS_CROSS_ENTROPY:
         if config.lp_edge_weight_for_loss is None:
-            loss_func = LinkPredictBCELossFunc()
+            if config.adversarial_temperature is None:
+                loss_func = LinkPredictBCELossFunc()
+            else:
+                loss_func = LinkPredictAdvBCELossFunc(config.adversarial_temperature)
         else:
-            loss_func = WeightedLinkPredictBCELossFunc()
+            if config.adversarial_temperature is None:
+                loss_func = WeightedLinkPredictBCELossFunc()
+            else:
+                loss_func = WeightedLinkPredictAdvBCELossFunc(config.adversarial_temperature)
     else:
         raise TypeError(f"Unknown link prediction loss function {config.lp_loss_func}")
 

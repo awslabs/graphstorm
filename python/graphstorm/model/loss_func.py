@@ -208,6 +208,117 @@ class WeightedLinkPredictBCELossFunc(GSLayer):
         """
         return None
 
+class LinkPredictAdvBCELossFunc(LinkPredictBCELossFunc):
+    """ BCE loss function for link prediction with adversarial
+        loss for negative samples.
+
+        .. math::
+
+            neg_loss = softmax(neg_score * adversarial_temperature) * neg_loss
+
+        Parameters
+        ----------
+        adversarial_temperature: float
+            Temperature value for adversarial loss.
+    """
+    def __init__(self, adversarial_temperature):
+        super(LinkPredictAdvBCELossFunc, self).__init__()
+        assert isinstance(adversarial_temperature, float), \
+            "The adversarial_temperature must be a float, but we get " \
+            f"{adversarial_temperature} with type {type(adversarial_temperature)}"
+        self.adversarial_temperature = adversarial_temperature
+
+    def _compute_loss(self, score, label):
+        """ Compute BCE loss
+        """
+        return -(label * th.log(F.sigmoid(score)) +
+            (1 - label) * th.log(1 - F.sigmoid(score)))
+
+    def _compute_adversarial_loss(self, score, label):
+        loss = self._compute_loss(score, label)
+        loss = th.sum(th.softmax(score * self.adversarial_temperature,
+                                 dim=-1).detach() * loss, dim=-1)
+        return loss
+
+    def forward(self, pos_score, neg_score):
+        """ The forward function.
+
+            Parameters
+            ----------
+            pos_score: dict of Tensor
+                The scores for positive edges of each edge type.
+            neg_score: dict of Tensor
+                The scores for negative edges of each edge type.
+        """
+        p_score = []
+        n_score = []
+        for key, p_s in pos_score.items():
+            n_s = neg_score[key]
+            p_score.append(p_s)
+            n_score.append(n_s)
+
+        p_score = th.cat(p_score)
+        n_score = th.cat(n_score)
+        p_labels = th.ones_like(p_score)
+        n_labels = th.zeros_like(n_score)
+
+        pos_loss = self._compute_loss(p_score, p_labels)
+        # adversarial negative loss
+        neg_loss = self._compute_adversarial_loss(n_score, n_labels)
+
+        pos_loss = th.mean(pos_loss)
+        neg_loss = th.mean(neg_loss)
+        loss = (neg_loss + pos_loss) / 2
+
+        return loss
+
+class WeightedLinkPredictAdvBCELossFunc(LinkPredictAdvBCELossFunc):
+    """ BCE loss function for link prediction with adversarial
+        loss for negative samples and weight on positive samples.
+    """
+
+    def forward(self, pos_score, neg_score):
+        """ The forward function.
+
+            Parameters
+            ----------
+            pos_score: dict of tuple of Tensor
+                The (scores, edge weight) for positive edges of each edge type.
+            neg_score: dict of tuple of Tensor
+                The (scores, edge weight) for negative edges of each edge type.
+        """
+        p_score = []
+        p_weight = []
+        n_score = []
+        for key, p_s in pos_score.items():
+            assert len(p_s) == 2, \
+                "Pos score must include score and weight " \
+                "Please use LinkPredictWeightedDistMultDecoder or " \
+                "LinkPredictWeightedDotDecoder"
+            n_s = neg_score[key]
+            p_s, p_w = p_s
+            n_s, _ = n_s # neg_weight is always all 1
+            p_score.append(p_s)
+            p_weight.append(p_w)
+            n_score.append(n_s)
+        p_score = th.cat(p_score)
+        p_weight = th.cat(p_weight)
+        n_score = th.cat(n_score)
+
+        p_labels = th.ones_like(p_score)
+        n_labels = th.zeros_like(n_score)
+
+        # positive loss multiply edge weight
+        pos_loss = self._compute_loss(p_score, p_labels)
+        pos_loss = pos_loss * p_weight
+        # adversarial negative loss
+        neg_loss = self._compute_adversarial_loss(n_score, n_labels)
+
+        pos_loss = th.mean(pos_loss)
+        neg_loss = th.mean(neg_loss)
+        loss = (neg_loss + pos_loss) / 2
+        return loss
+
 class LinkPredictContrastiveLossFunc(GSLayer):
     r""" Contrastive Loss function for link prediction.
 
