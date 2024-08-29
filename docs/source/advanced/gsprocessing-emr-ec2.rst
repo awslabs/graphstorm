@@ -3,8 +3,9 @@
 Running distributed graph processing on customized EMR on EC2 clusters
 =======================================================================
 
-For advanced users who wants to launch GSProcessing job through using ``spark-submit``
-from the cluster's leader node, GSProcessing provides another customized solution to setup
+For advanced users who want to launch GSProcessing job through ``spark-submit``
+from the cluster's leader node, :ref:`GSProcessing <gsprocessing_distributed_setup>`
+provides another customized solution to setup
 `EMR clusters <https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-plan-ec2-instances.html>`_.
 :ref:`distributed processing setup<gsprocessing_emr_ec2>`
 
