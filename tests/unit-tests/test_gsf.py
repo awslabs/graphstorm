@@ -16,14 +16,19 @@ import pytest
 
 import torch as th
 
-from graphstorm.gsf import create_builtin_node_decoder
+from graphstorm.gsf import (create_builtin_node_decoder,
+                            create_builtin_edge_decoder)
 from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
+                               BUILTIN_TASK_EDGE_CLASSIFICATION,
+                               BUILTIN_TASK_EDGE_REGRESSION,
                                BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
                                BUILTIN_CLASS_LOSS_FOCAL)
 
 from graphstorm.model.node_decoder import (EntityClassifier,
                                            EntityRegression)
+from graphstorm.model.edge_decoder import (DenseBiDecoder,
+                                           MLPEdgeDecoder)
 
 from graphstorm.model.loss_func import (ClassifyLossFunc,
                                         RegressionLossFunc,
@@ -40,6 +45,9 @@ class GSTestConfig:
 def test_create_builtin_node_decoder():
     g = None
     decoder_input_dim = 64
+    train_task=False
+
+    # node classification + cross entropy loss
     config = GSTestConfig(
         {
             "task_type": BUILTIN_TASK_NODE_CLASSIFICATION,
@@ -51,12 +59,12 @@ def test_create_builtin_node_decoder():
             "imbalance_class_weights": None
         }
     )
-    train_task=False
 
     decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
     assert isinstance(decoder, EntityClassifier)
     assert isinstance(loss_func, ClassifyLossFunc)
 
+    # node classification + focal loss with default params
     config = GSTestConfig(
         {
             "task_type": BUILTIN_TASK_NODE_CLASSIFICATION,
@@ -76,6 +84,7 @@ def test_create_builtin_node_decoder():
     assert loss_func.alpha == 0.25
     assert loss_func.gamma == 2.
 
+    # node classification + cross entropy loss for multiple node types
     config = GSTestConfig(
         {
             "target_ntype": ["n0", "n1"],
@@ -109,6 +118,7 @@ def test_create_builtin_node_decoder():
     assert isinstance(loss_func["n0"], ClassifyLossFunc)
     assert isinstance(loss_func["n1"], ClassifyLossFunc)
 
+    # node classification + focal loss with default params for multiple node types
     config = GSTestConfig(
         {
             "target_ntype": ["n0", "n1"],
@@ -127,8 +137,8 @@ def test_create_builtin_node_decoder():
             },
             "class_loss_func": BUILTIN_CLASS_LOSS_FOCAL,
             "decoder_norm": None,
-            "alpha": None,
-            "gamma": None,
+            "alpha": 0.3,
+            "gamma": 3.,
         }
     )
     decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
@@ -138,7 +148,10 @@ def test_create_builtin_node_decoder():
     assert isinstance(loss_func, dict)
     assert isinstance(loss_func["n0"], FocalLossFunc)
     assert isinstance(loss_func["n1"], FocalLossFunc)
+    assert loss_func["n0"].alpha == 0.3
+    assert loss_func["n0"].gamma == 3.
 
+    # node regression
     config = GSTestConfig(
         {
             "task_type": BUILTIN_TASK_NODE_REGRESSION,
@@ -150,5 +163,105 @@ def test_create_builtin_node_decoder():
     assert isinstance(loss_func, RegressionLossFunc)
 
 
+def test_create_builtin_edge_decoder():
+    g = None
+    decoder_input_dim = 64
+    train_task=False
+
+    # edge classification + cross entropy loss + DenseBiDecoder
+    config = GSTestConfig(
+        {
+            "task_type": BUILTIN_TASK_EDGE_CLASSIFICATION,
+            "target_etype": [("n0", "r0", "n1")],
+            "num_classes": 2,
+            "decoder_type": "DenseBiDecoder",
+            "num_decoder_basis": 2,
+            "multilabel": False,
+            "class_loss_func": BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
+            "decoder_norm": None,
+            "num_ffn_layers_in_decoder": 0,
+            "multilabel_weights": None,
+            "imbalance_class_weights": None,
+        }
+    )
+    decoder, loss_func = create_builtin_edge_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, DenseBiDecoder)
+    assert isinstance(loss_func, ClassifyLossFunc)
+
+    # edge classification + focal loss with default param + DenseBiDecoder
+    config = GSTestConfig(
+        {
+            "task_type": BUILTIN_TASK_EDGE_CLASSIFICATION,
+            "target_etype": [("n0", "r0", "n1")],
+            "num_classes": 2,
+            "decoder_type": "DenseBiDecoder",
+            "num_decoder_basis": 2,
+            "multilabel": False,
+            "class_loss_func": BUILTIN_CLASS_LOSS_FOCAL,
+            "decoder_norm": None,
+            "num_ffn_layers_in_decoder": 0,
+            "alpha": None,
+            "gamma": None,
+        }
+    )
+    decoder, loss_func = create_builtin_edge_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, DenseBiDecoder)
+    assert isinstance(loss_func, FocalLossFunc)
+    assert loss_func.alpha == 0.25
+    assert loss_func.gamma == 2.
+
+    # edge classification + focal loss + MLPDecoder
+    config = GSTestConfig(
+        {
+            "task_type": BUILTIN_TASK_EDGE_CLASSIFICATION,
+            "target_etype": [("n0", "r0", "n1")],
+            "num_classes": 2,
+            "decoder_type": "MLPDecoder",
+            "multilabel": False,
+            "class_loss_func": BUILTIN_CLASS_LOSS_FOCAL,
+            "decoder_norm": None,
+            "num_ffn_layers_in_decoder": 0,
+            "alpha": 0.3,
+            "gamma": 3.,
+        }
+    )
+    decoder, loss_func = create_builtin_edge_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, MLPEdgeDecoder)
+    assert isinstance(loss_func, FocalLossFunc)
+    assert loss_func.alpha == 0.3
+    assert loss_func.gamma == 3.
+
+    # edge regression + DenseBiDecoder
+    config = GSTestConfig(
+        {
+            "task_type": BUILTIN_TASK_EDGE_REGRESSION,
+            "target_etype": [("n0", "r0", "n1")],
+            "num_classes": 2,
+            "decoder_type": "DenseBiDecoder",
+            "num_decoder_basis": 2,
+            "decoder_norm": None,
+        }
+    )
+    decoder, loss_func = create_builtin_edge_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, DenseBiDecoder)
+    assert isinstance(loss_func, RegressionLossFunc)
+
+     # edge regression + MLPDecoder
+    config = GSTestConfig(
+        {
+            "task_type": BUILTIN_TASK_EDGE_REGRESSION,
+            "target_etype": [("n0", "r0", "n1")],
+            "num_classes": 2,
+            "decoder_type": "MLPDecoder",
+            "num_ffn_layers_in_decoder": 0,
+            "decoder_norm": None,
+        }
+    )
+    decoder, loss_func = create_builtin_edge_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, MLPEdgeDecoder)
+    assert isinstance(loss_func, RegressionLossFunc)
+
+
 if __name__ == '__main__':
     test_create_builtin_node_decoder()
+    test_create_builtin_edge_decoder()
