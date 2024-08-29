@@ -50,7 +50,7 @@ GraphStorm provides three ways to compute link prediction scores: Dot Product, D
     where the ``head_emb`` is the node embedding of the head node,
     the ``tail_emb`` is the node embedding of the tail node and
     the ``relation_emb`` is the relation embedding of the specific edge type.
-    The relation\_emb values are initialized from a uniform distribution
+    The ``relation_emb`` values are initialized from a uniform distribution
     within the range of ``(-gamma/hidden_size, gamma/hidden_size)``,
     where ``gamma`` and ``hidden_size`` are hyperparameters defined in
     :ref:`Model Configurations<configurations-model>`。
@@ -64,11 +64,11 @@ GraphStorm provides three ways to compute link prediction scores: Dot Product, D
     the ``tail_emb`` is the node embedding of the tail node,
     the ``relation_emb`` is the relation embedding of the specific edge type,
     and :math:`\circ` is the element-wise product.
-    The relation\_emb values are initialized from a uniform distribution
+    The ``relation_emb`` values are initialized from a uniform distribution
     within the range of ``(-gamma/(hidden_size/2), gamma/(hidden_size/2))``,
     where ``gamma`` and ``hidden_size`` are hyperparameters defined in
     :ref:`Model Configurations<configurations-model>`.
-    To learn more information about RotatE, please refer to https://dglke.dgl.ai/doc/kg.html#rotatee.
+    To learn more information about RotatE, please refer to `the DGLKE doc <https://dglke.dgl.ai/doc/kg.html#rotatee>`__.
 
 Link Prediction Loss Functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
