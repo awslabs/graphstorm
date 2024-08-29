@@ -1032,12 +1032,12 @@ class LinkPredictMultiRelationLearnableDecoder(LinkPredictLearnableDecoder):
         The input dimension size. It is the dimension for both source and destination
         node embeddings.
     gamma: float
-        The gamma value for model weight initialization. Default: 40.
+        The gamma value for model weight initialization. Default: 12.
     """
     def __init__(self,
                  etypes,
                  h_dim,
-                 gamma=40.):
+                 gamma=12.):
         super(LinkPredictMultiRelationLearnableDecoder, self).__init__()
         self.num_rels = len(etypes)
         self.h_dim = h_dim
@@ -1125,12 +1125,12 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
         The input dimension size. It is the dimension for both source and destination
         node embeddings.
     gamma: float
-        The gamma value for model initialization and score function. Default: 4.
+        The gamma value for model initialization and score function. Default: 12.
     """
     def __init__(self,
                  etypes,
                  h_dim,
-                 gamma=4.):
+                 gamma=12.):
         self.rel_dim = h_dim // 2
         super(LinkPredictRotatEDecoder, self).__init__(etypes, h_dim, gamma)
 
@@ -1430,11 +1430,11 @@ class LinkPredictWeightedRotatEDecoder(LinkPredictRotatEDecoder):
         The input dimension size. It is the dimension for both source and destination
         node embeddings.
     gamma: float
-        The gamma value for model weight initialization. Default: 4.
+        The gamma value for model weight initialization. Default: 12.
     edge_weight_fields: dict of str
         The edge feature field(s) storing the edge weights.
     """
-    def __init__(self, etypes, h_dim, gamma=4., edge_weight_fields=None):
+    def __init__(self, etypes, h_dim, gamma=12., edge_weight_fields=None):
         self._edge_weight_fields = edge_weight_fields
         super(LinkPredictWeightedRotatEDecoder, self).__init__(etypes, h_dim, gamma)
 
@@ -1784,11 +1784,11 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
         The input dimension size. It is the dimension for both source and destination
         node embeddings.
     gamma: float
-        The gamma value for model weight initialization. Default: 40.
+        The gamma value for model weight initialization. Default: 12.
     edge_weight_fields: dict of str
         The edge feature field(s) storing the edge weights.
     """
-    def __init__(self, etypes, h_dim, gamma=40., edge_weight_fields=None):
+    def __init__(self, etypes, h_dim, gamma=12., edge_weight_fields=None):
         self._edge_weight_fields = edge_weight_fields
         super(LinkPredictWeightedDistMultDecoder, self).__init__(etypes, h_dim, gamma)
 
