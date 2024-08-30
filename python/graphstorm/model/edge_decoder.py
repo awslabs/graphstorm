@@ -1353,7 +1353,7 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
         return 1
 
 class LinkPredictContrastiveRotatEDecoder(LinkPredictRotatEDecoder):
-    f""" Decoder for link prediction designed for contrastive loss
+    """ Decoder for link prediction designed for contrastive loss
         using the RotatE as the score function.
 
         Note:
