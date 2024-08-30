@@ -18,6 +18,8 @@
 
 import os
 import logging
+from importlib.metadata import version
+
 import numpy as np
 import dgl
 import torch as th
@@ -111,7 +113,13 @@ from .inference import (GSgnnLinkPredictionInferrer,
 
 from .tracker import get_task_tracker_class
 
-def initialize(ip_config=None, backend='gloo', local_rank=0, use_wholegraph=False):
+def initialize(
+        ip_config=None,
+        backend='gloo',
+        local_rank=0,
+        use_wholegraph=False,
+        use_graphbolt=False,
+    ):
     """ Initialize distributed training and inference context. For GraphStorm Standalone mode,
     no argument is needed. For Distributed mode, users need to provide an IP address list file.
 
@@ -141,10 +149,32 @@ def initialize(ip_config=None, backend='gloo', local_rank=0, use_wholegraph=Fals
     use_wholegraph: bool
         Whether to use wholegraph for feature transfer.
         Default: False.
+    use_graphbolt: bool
+        Whether to use GraphBolt graph representation.
+        Default: False.
     """
-    # We need to use socket for communication in DGL 0.8. The tensorpipe backend has a bug.
-    # This problem will be fixed in the future.
-    dgl.distributed.initialize(ip_config, net_type='socket')
+    dgl_version = version('dgl')
+    if int(dgl_version.split('.')[0]) > 1:
+        dgl.distributed.initialize(
+            ip_config,
+            net_type='socket',
+            use_graphbolt=use_graphbolt,
+        )
+    else:
+        if use_graphbolt:
+            logging.warning(
+                (
+                    "use_graphbolt was 'true' but but DGL version was %s. "
+                    "GraphBolt requires DGL version >= 2.x."
+                ),
+                dgl_version
+                )
+        # We need to use socket for communication in DGL 0.8. The tensorpipe backend has a bug.
+        # This problem will be fixed in the future.
+        dgl.distributed.initialize(
+            ip_config,
+            net_type='socket',
+        )
     assert th.cuda.is_available() or backend == "gloo", "Gloo backend required for a CPU setting."
     if ip_config is not None:
         th.distributed.init_process_group(backend=backend)
@@ -1032,4 +1062,3 @@ def create_evaluator(task_info):
             config.early_stop_rounds,
             config.early_stop_strategy)
     return None
-
