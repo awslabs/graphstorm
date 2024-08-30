@@ -1198,7 +1198,7 @@ class GSConfig:
                 assert isinstance(feat_info[1], str), \
                     f"Feature name of {ntype} should be a string not {feat_info[1]}"
                 # multiple features separated by ','
-                fname_dict[ntype] = feat_info[1].split(",")
+                fname_dict[ntype] = [item.strip() for item in feat_info[1].split(",")]
             return fname_dict
 
         # By default, return None which means there is no node feature

@@ -20,7 +20,7 @@ import time
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_relation_embeddings
-from ..model.edge_decoder import LinkPredictDistMultDecoder
+from ..model.edge_decoder import LinkPredictMultiRelationLearnableDecoder
 from ..model import do_full_graph_inference, do_mini_batch_inference
 from ..model.lp_gnn import lp_mini_batch_predict
 
@@ -117,6 +117,6 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
         # save relation embedding if any
         if get_rank() == 0:
             decoder = self._model.decoder
-            if isinstance(decoder, LinkPredictDistMultDecoder):
+            if isinstance(decoder, LinkPredictMultiRelationLearnableDecoder):
                 if save_embed_path is not None:
                     save_relation_embeddings(save_embed_path, decoder)

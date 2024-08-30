@@ -42,6 +42,8 @@ Environment Configurations
     - Argument: ``--verbose false``
     - Default value: ``false``
 
+.. _configurations-model:
+
 Model Configurations
 --------------------------------
 GraphStorm provides a set of parameters to config the GNN model structure (input layer, gnn layer, decoder layer, etc)
@@ -54,9 +56,9 @@ GraphStorm provides a set of parameters to config the GNN model structure (input
 - **node_feat_name**: User defined feature name. It accepts two formats: a) `fname`, if a node has node features, the corresponding feature name will be fname; b) `ntype0:feat0 ntype1:featA ...`, different node types have different node feature name(s). In the example, "ntype0" has a node feature named "feat0" and "ntype1" has a node feature named "featA".
 
     - Yaml: ``node_feat_name:``
-                | ``- "ntype1:featA"``
+                | ``- "ntype1:featA,featB"``
                 | ``- "ntype0:feat0"``
-    - Argument: ``--node-feat-name "ntype0:feat0 ntype1:featA"``
+    - Argument: ``--node-feat-name "ntype0:feat0 ntype1:featA,featB"``
     - Default value: If not provided, there will be no node features used by GraphStorm even graphs have node features attached.
 
     .. Note:: Characters ``:`` and white space are not allowed to be used in node feature names.  And in Yaml format, need to put each node's feature in a separated line that starts with a hyphon.
@@ -469,12 +471,12 @@ Link Prediction Task
     - Yaml: ``num_negative_edges_eval: 1000``
     - Argument: ``--num-negative-edges-eval 1000``
     - Default value: ``1000``
-- **lp_decoder_type**: Set the decoder type for loss function in Link Prediction tasks. Currently GraphStorm support  ``dot_product`` and ``DistMult``.
+- **lp_decoder_type**: Set the decoder type for loss function in Link Prediction tasks. Currently GraphStorm support  ``dot_product``, ``distmult`` and ``rotate``.
 
     - Yaml: ``lp_decoder_type: dot_product``
     - Argument: ``--lp-decoder-type dot_product``
     - Default value: ``dot_product``
-- **gamma**: Gamma for ``DistMult``. The margin value in the score function.
+- **gamma**: Gamma for ``distmult`` and ``rotate``. A hyperparameter used to control the relation embedding initialization and the margin value in the score functions. See detials in :ref:`Computing Link Prediction Scores<link-prediction-score-func>`。
 
     - Yaml: ``gamma: 10.0``
     - Argument: ``--gamma 10.0``
