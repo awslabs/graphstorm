@@ -1,6 +1,6 @@
 .. _gsprocessing_emr_ec2_customized_clusters:
 
-Running distributed graph processing on customized EMR on EC2 clusters
+Running distributed graph processing on customized EMR-on-EC2 clusters
 =======================================================================
 
 For advanced users who want to launch GSProcessing job through ``spark-submit``
