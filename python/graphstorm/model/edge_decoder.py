@@ -961,13 +961,13 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
 
 class LinkPredictContrastiveDotDecoder(LinkPredictDotDecoder):
     """ Decoder for link prediction designed for contrastive loss by
-    using the dot product as the score function.
+        using the dot product as the score function.
 
-    Note:
-    -----
-    This class is specifically implemented for contrastive loss. But
-    it could also be used by other pair-wise loss functions for link
-    prediction tasks.
+        Note:
+        -----
+        This class is specifically implemented for contrastive loss. But
+        it could also be used by other pair-wise loss functions for link
+        prediction tasks.
 
     Parameters
     ----------
@@ -1021,7 +1021,8 @@ class LinkPredictContrastiveDotDecoder(LinkPredictDotDecoder):
             return scores
 
 class LinkPredictMultiRelationLearnableDecoder(LinkPredictLearnableDecoder):
-    """ Decoder for link prediction with multiple relation types (relation embeddings).
+    """ Decoder for link prediction with multiple relation types
+        (relation embeddings).
 
     Parameters
     ----------
@@ -1141,9 +1142,10 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
 
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
-        """ Link prediction decoder forward function using the RotatE as the score function.
+        """ Link prediction decoder forward function using the RotatE
+            as the score function.
 
-        This computes the edge score on every edge type.
+            This computes the edge score on every edge type.
 
         Parameters
         ----------
@@ -1721,7 +1723,7 @@ class LinkPredictContrastiveDistMultDecoder(LinkPredictDistMultDecoder):
     """
     # TODO(xiang): Develop a better solution for supporting pair-wise
     # loss functions in link prediction tasks. The
-    # LinkPredictContrastiveDotDecoder is implemented based on the
+    # LinkPredictContrastiveDistMultDecoder is implemented based on the
     # assumption that the same decoder. Forward will be called twice
     # with a positive graph and negative graph respectively. And
     # the positive and negative graphs are compatible. We can simply
@@ -1835,8 +1837,8 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
             return scores
 
 class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
-    """ Decoder for link prediction using the dot product with edge weight as the score
-    function.
+    """ Decoder for link prediction using the dot product with edge weight
+        as the score function.
 
     When computing loss, edge weights are used to adjust the loss
 
