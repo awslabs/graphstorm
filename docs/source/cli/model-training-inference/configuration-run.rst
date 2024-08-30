@@ -42,6 +42,8 @@ Environment Configurations
     - Argument: ``--verbose false``
     - Default value: ``false``
 
+.. _configurations-model:
+
 Model Configurations
 --------------------------------
 GraphStorm provides a set of parameters to config the GNN model structure (input layer, gnn layer, decoder layer, etc)
@@ -469,12 +471,12 @@ Link Prediction Task
     - Yaml: ``num_negative_edges_eval: 1000``
     - Argument: ``--num-negative-edges-eval 1000``
     - Default value: ``1000``
-- **lp_decoder_type**: Set the decoder type for loss function in Link Prediction tasks. Currently GraphStorm support  ``dot_product`` and ``DistMult``.
+- **lp_decoder_type**: Set the decoder type for loss function in Link Prediction tasks. Currently GraphStorm support  ``dot_product``, ``distmult`` and ``rotate``.
 
     - Yaml: ``lp_decoder_type: dot_product``
     - Argument: ``--lp-decoder-type dot_product``
     - Default value: ``dot_product``
-- **gamma**: Gamma for ``DistMult``. The margin value in the score function.
+- **gamma**: Gamma for ``distmult`` and ``rotate``. A hyperparameter used to control the relation embedding initialization and the margin value in the score functions. See detials in :ref:`Computing Link Prediction Scores<link-prediction-score-func>`。
 
     - Yaml: ``gamma: 10.0``
     - Argument: ``--gamma 10.0``
