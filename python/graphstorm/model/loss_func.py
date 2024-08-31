@@ -75,6 +75,8 @@ class ClassifyLossFunc(GSLayer):
 class FocalLossFunc(GSLayer):
     """ Focal loss function for classification.
 
+    Copy from torchvision.ops.sigmoid_focal_loss.
+    Only with mean reduction.
     See more details on https://pytorch.org/vision/main/_modules/torchvision/ops/focal_loss.html.
 
     Parameters
@@ -94,10 +96,17 @@ class FocalLossFunc(GSLayer):
     def forward(self, logits, labels):
         # We need to reshape logits into a 1D float tensor
         # and cast labels into a float tensor.
-        loss = torchvision.ops.sigmoid_focal_loss(logits.squeeze(),
-                                                  labels.float(),
-                                                  self.alpha,
-                                                  self.gamma)
+        inputs = logits.squeeze()
+        targets = labels.float()
+
+        p = th.sigmoid(inputs)
+        ce_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction="none")
+        p_t = p * targets + (1 - p) * (1 - targets)
+        loss = ce_loss * ((1 - p_t) ** self.gamma)
+
+        if self.alpha >= 0:
+            alpha_t = self.alpha * targets + (1 - self.alpha) * (1 - targets)
+            loss = alpha_t * loss
 
         return loss.mean()
 

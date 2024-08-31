@@ -243,9 +243,9 @@ def compute_hit_at_classification(preds, labels, k=100):
             Hit@K
     """
     assert len(preds.shape) == 2 \
-        and preds.shape[1] == 2, \
+        and preds.shape[1] <= 2, \
         "Computing hit@K for classification only works for binary classification tasks." \
-        "The preds must be a 2D tensor with the second dimension of 2. "
+        "The preds must be a 2D tensor with the second dimension of 1 or 2. "
 
     assert len(labels.shape) == 1 or (len(labels.shape) == 2 and labels.shape[1] == 1), \
         "The labels must be a 1D tensor or a 2D tensor with the second dimension of 1"
@@ -254,7 +254,7 @@ def compute_hit_at_classification(preds, labels, k=100):
     # [probability of label 0, probability of label 1]
     # 0 means negative, 1 means positive.
     # We compute hit@K for positive labels
-    preds = preds[:,1]
+    preds = preds[:,1] if preds.shape[1] == 2 else preds.squeeze()
     if len(labels.shape) == 2:
         labels = th.squeeze(labels)
     sort_idx = th.argsort(preds, descending=True)

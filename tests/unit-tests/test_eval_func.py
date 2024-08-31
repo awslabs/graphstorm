@@ -446,6 +446,7 @@ def test_compute_hit_at_classification():
     preds = th.arange(100) / 102
     # preds is in a format as [probe_of_0, probe_of_1]
     preds = th.stack([preds, 1-preds]).T
+    preds2 = (1-preds).T
     labels = th.zeros((100,)) # 1D label tensor
     labels2 = th.zeros((100,1)) # 2D label tensor
     labels[0] = 1
@@ -465,8 +466,16 @@ def test_compute_hit_at_classification():
     hit_at = compute_hit_at_classification(preds, labels, 20)
     assert hit_at == 4
 
+    hit_at = compute_hit_at_classification(preds2, labels, 5)
+    assert hit_at == 3
+    hit_at = compute_hit_at_classification(preds2, labels, 10)
+    assert hit_at == 3
+    hit_at = compute_hit_at_classification(preds2, labels, 20)
+    assert hit_at == 4
+
     shuff_idx = th.randperm(100)
     preds = preds[shuff_idx]
+    preds2 = preds2[shuff_idx]
     labels = labels[shuff_idx]
     labels2 = labels2[shuff_idx]
 
@@ -481,6 +490,19 @@ def test_compute_hit_at_classification():
     hit_at = compute_hit_at_classification(preds, labels2, 10)
     assert hit_at == 3
     hit_at = compute_hit_at_classification(preds, labels2, 20)
+    assert hit_at == 4
+
+    hit_at = compute_hit_at_classification(preds2, labels, 5)
+    assert hit_at == 3
+    hit_at = compute_hit_at_classification(preds2, labels, 10)
+    assert hit_at == 3
+    hit_at = compute_hit_at_classification(preds2, labels, 20)
+    assert hit_at == 4
+    hit_at = compute_hit_at_classification(preds2, labels2, 5)
+    assert hit_at == 3
+    hit_at = compute_hit_at_classification(preds2, labels2, 10)
+    assert hit_at == 3
+    hit_at = compute_hit_at_classification(preds2, labels2, 20)
     assert hit_at == 4
 
 def test_LinkPredictionMetrics():
