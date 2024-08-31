@@ -446,7 +446,7 @@ def test_compute_hit_at_classification():
     preds = th.arange(100) / 102
     # preds is in a format as [probe_of_0, probe_of_1]
     preds = th.stack([preds, 1-preds]).T
-    preds2 = (1-preds).unsqueeze(dim=1)
+    preds2 = preds[:,1].unsqueeze(1)
     labels = th.zeros((100,)) # 1D label tensor
     labels2 = th.zeros((100,1)) # 2D label tensor
     labels[0] = 1
