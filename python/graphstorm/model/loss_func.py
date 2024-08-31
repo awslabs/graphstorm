@@ -92,7 +92,12 @@ class FocalLossFunc(GSLayer):
         self.gamma = gamma
 
     def forward(self, logits, labels):
-        loss = torchvision.ops.sigmoid_focal_loss(logits, labels, self.alpha, self.gamma, )
+        # We need to reshape logits into a 1D float tensor
+        # and cast labels into a float tensor.
+        loss = torchvision.ops.sigmoid_focal_loss(logits.squeeze(),
+                                                  labels.float(),
+                                                  self.alpha,
+                                                  self.gamma)
 
         return loss.mean()
 
