@@ -4,7 +4,7 @@ This folder contains the data processing and code to profile GraphStorm framewor
 ## MAG
 ### Process raw dataset into parquet files
 We first download the oag-2.1 MAG dataset from https://www.aminer.cn/oag-2-1 into raw_data/.
-The original data have affiliation data (`mag_affiliations.zip`), venue data (`mag_venues.zip`), 
+The original data have affiliation data (`mag_affiliations.zip`), venue data (`mag_venues.zip`),
 author data (`mag_authors_*.zip`), paper data (`mag_papers_*.zip`).
 
 After you unzip the above files, run the following notebook to generate the input for graph construction.
@@ -14,7 +14,7 @@ jupyter notebook MAG_parser_v0.2.ipynb
 
 ### Run gconstruct on process_data
 Once all the data are processed, run the following command to construct a graph
-for distributed GNN training in GraphStorm. 
+for distributed GNN training in GraphStorm.
 The command takes `MAG_construction_full.json` that specifies the
 input data for graph construction, constructs the graph,
 splits it into 4 partitions and saves the partitions to `MAG_full`.
@@ -134,3 +134,4 @@ In the following table, we show the performance of link prediction on the Amazon
 | link_prediction/lp_also_buy_1_layer_rgcn_dot_entropy_loss_joint_32_negative.yaml | Joint negative sampling with batch size of 32 with cross entropy loss | 0.380 | 1290.72 |
 | link_prediction/lp_also_buy_1_layer_rgcn_dot_entropy_loss_joint_4_negative.yaml | Joint negative sampling with batch size of 4 with cross entropy loss | 0.645 | 1288.53 |
 | link_prediction/lp_also_buy_1_layer_rgcn_dot_entropy_uniform_32_negative.yaml | Uniform negative sampling with batch size of 32 with cross entropy loss | 0.377 | 1746.68 |
+| link_prediction/lp_also_buy_1_layer_rgcn_dot_ adversarial_entropy_loss_joint_32_negative.yaml | Joint negative sampling with batch size of 32 with adversarial cross entropy loss | 0.8796 | N/A |

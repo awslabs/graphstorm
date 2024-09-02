@@ -485,6 +485,12 @@ Link Prediction Task
     - Argument: ``--lp-loss-func contrastive``
     - Default value: ``cross_entropy``
 
+- **adversarial_temperature**: Enable adversarial cross entropy loss and set the ``adversarial_temperature`` hyper-parameter. Only work when ``lp_loss_func`` is set to ``cross_entropy``. More detials can be found on the :ref:`Link Prediction Loss Functions<_link-prediction-loss>`.
+
+    - Yaml: ``adversarial_temperature: 1.0``
+    - Argument: ``adversarial-temperature 1.0``
+    - Default value: None
+
 - **lp_edge_weight_for_loss**: Edge feature field name for edge weight. The edge weight is used to rescale the positive edge loss for link prediction tasks.
 
     - Yaml: ``lp_edge_weight_for_loss:``
