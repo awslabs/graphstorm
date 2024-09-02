@@ -242,7 +242,10 @@ class DenseBiDecoder(GSEdgeDecoder):
             elif self.multilabel:
                 out = (th.sigmoid(out) > .5).long()
             else:  # not multilabel
-                out = out.argmax(dim=1)
+                if self.out_dim == 1:
+                    out = (th.sigmoid(out) > .5).long()
+                else:
+                    out = out.argmax(dim=1)
         return out
 
     # pylint: disable=unused-argument
@@ -278,7 +281,10 @@ class DenseBiDecoder(GSEdgeDecoder):
             elif self.multilabel:
                 out = th.sigmoid(out)
             else:
-                out = th.softmax(out, 1)
+                if self.out_dim == 1:
+                    out = th.sigmoid(out)
+                else:
+                    out = th.softmax(out, 1)
         return out
 
     @property
@@ -448,7 +454,10 @@ class MLPEdgeDecoder(GSEdgeDecoder):
         elif self.multilabel:
             out = (th.sigmoid(out) > .5).long()
         else:  # not multilabel
-            out = out.argmax(dim=1)
+            if self.out_dim == 1:
+                out = (th.sigmoid(out) > .5).long()
+            else:
+                out = out.argmax(dim=1)
         return out
 
     # pylint: disable=unused-argument
@@ -479,7 +488,10 @@ class MLPEdgeDecoder(GSEdgeDecoder):
         elif self.multilabel:
             out = th.sigmoid(out)
         else:
-            out = th.softmax(out, 1)
+            if self.out_dim == 1:
+                out = th.sigmoid(out)
+            else:
+                out = th.softmax(out, 1)
         return out
 
     @property
@@ -686,7 +698,10 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
         elif self.multilabel:
             out = (th.sigmoid(out) > .5).long()
         else:  # not multilabel
-            out = out.argmax(dim=1)
+            if self.out_dim == 1:
+                out = (th.sigmoid(out) > .5).long()
+            else:
+                out = out.argmax(dim=1)
         return out
 
     # pylint: disable=signature-differs
@@ -716,7 +731,10 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
         elif self.multilabel:
             out = th.sigmoid(out)
         else:
-            out = th.softmax(out, 1)
+            if self.out_dim == 1:
+                out = th.sigmoid(out)
+            else:
+                out = th.softmax(out, 1)
         return out
 
 ##################### Link Prediction Decoders #######################
