@@ -107,10 +107,10 @@ class FocalLossFunc(GSLayer):
         inputs = logits.squeeze()
         targets = labels.float()
 
-        p = th.sigmoid(inputs)
+        pred = th.sigmoid(inputs)
         ce_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction="none")
-        p_t = p * targets + (1 - p) * (1 - targets)
-        loss = ce_loss * ((1 - p_t) ** self.gamma)
+        pred_t = pred * targets + (1 - pred) * (1 - targets)
+        loss = ce_loss * ((1 - pred_t) ** self.gamma)
 
         if self.alpha >= 0:
             alpha_t = self.alpha * targets + (1 - self.alpha) * (1 - targets)
