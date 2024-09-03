@@ -18,7 +18,6 @@
 import torch as th
 from torch import nn
 import torch.nn.functional as F
-import torchvision
 
 from .gs_layer import GSLayer
 
@@ -94,6 +93,15 @@ class FocalLossFunc(GSLayer):
         self.gamma = gamma
 
     def forward(self, logits, labels):
+        """ The forward function.
+
+        Parameters
+        ----------
+        logits: torch.Tensor
+            The prediction results.
+        labels: torch.Tensor
+            The training labels.
+        """
         # We need to reshape logits into a 1D float tensor
         # and cast labels into a float tensor.
         inputs = logits.squeeze()
@@ -109,6 +117,26 @@ class FocalLossFunc(GSLayer):
             loss = alpha_t * loss
 
         return loss.mean()
+
+    @property
+    def in_dims(self):
+        """ The number of input dimensions.
+
+        Returns
+        -------
+        int : the number of input dimensions.
+        """
+        return None
+
+    @property
+    def out_dims(self):
+        """ The number of output dimensions.
+
+        Returns
+        -------
+        int : the number of output dimensions.
+        """
+        return None
 
 class RegressionLossFunc(GSLayer):
     """ Loss function for regression
