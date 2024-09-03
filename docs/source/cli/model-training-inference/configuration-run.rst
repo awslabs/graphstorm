@@ -45,7 +45,7 @@ Environment Configurations
   See https://docs.dgl.ai/stochastic_training/ for more details.
 
     - Yaml: ``use_graphbolt: true``
-    - Argument: ``--use_graphbolt true``
+    - Argument: ``--use-graphbolt true``
     - Default value: ``false``
 
 .. _configurations-model:
