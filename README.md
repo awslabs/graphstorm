@@ -1,4 +1,4 @@
-## GraphStorm - CI
+## GraphStorm
 | [Document and Tutorial Site](https://graphstorm.readthedocs.io/en/latest/) | [GraphStorm Paper](https://arxiv.org/abs/2406.06022) |
 
 GraphStorm is a graph machine learning (GML) framework for enterprise use cases.
