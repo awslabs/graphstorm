@@ -510,7 +510,7 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
             gamma = config.gamma if config.gamma is not None else 2.
             loss_func = FocalLossFunc(alpha, gamma)
         else:
-            raise RuntimeError("Unknow classification loss %s",
+            raise RuntimeError("Unknown classification loss %s",
                                 config.class_loss_func)
 
     elif config.task_type == BUILTIN_TASK_EDGE_REGRESSION:
