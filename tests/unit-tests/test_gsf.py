@@ -82,7 +82,7 @@ def test_create_builtin_node_decoder():
     config = GSTestConfig(
         {
             "task_type": BUILTIN_TASK_NODE_CLASSIFICATION,
-            "num_classes": 2,
+            "num_classes": 1,
             "multilabel": False,
             "class_loss_func": BUILTIN_CLASS_LOSS_FOCAL,
             "multilabel_weights": None,
@@ -138,8 +138,8 @@ def test_create_builtin_node_decoder():
             "target_ntype": ["n0", "n1"],
             "task_type": BUILTIN_TASK_NODE_CLASSIFICATION,
             "num_classes": {
-                "n0": 2,
-                "n1": 2
+                "n0": 1,
+                "n1": 1
             },
             "multilabel":  {
                 "n0": False,
@@ -207,7 +207,7 @@ def test_create_builtin_edge_decoder():
         {
             "task_type": BUILTIN_TASK_EDGE_CLASSIFICATION,
             "target_etype": [("n0", "r0", "n1")],
-            "num_classes": 2,
+            "num_classes": 1,
             "decoder_type": "DenseBiDecoder",
             "num_decoder_basis": 2,
             "multilabel": False,
@@ -229,7 +229,7 @@ def test_create_builtin_edge_decoder():
         {
             "task_type": BUILTIN_TASK_EDGE_CLASSIFICATION,
             "target_etype": [("n0", "r0", "n1")],
-            "num_classes": 2,
+            "num_classes": 1,
             "decoder_type": "MLPDecoder",
             "multilabel": False,
             "class_loss_func": BUILTIN_CLASS_LOSS_FOCAL,
