@@ -691,7 +691,7 @@ def create_builtin_lp_decoder(g, decoder_input_dim, config, train_task):
                                                        gamma,
                                                        config.lp_edge_weight_for_loss)
     else:
-        raise Exception(f"Unknow link prediction decoder type {config.lp_decoder_type}")
+        raise Exception(f"Unknown link prediction decoder type {config.lp_decoder_type}")
 
     if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS:
         loss_func = LinkPredictContrastiveLossFunc(config.contrastive_loss_temperature)
