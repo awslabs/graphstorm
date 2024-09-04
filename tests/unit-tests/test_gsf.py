@@ -12,9 +12,6 @@
 
     Unit tests for gsf.py
 """
-import pytest
-
-import torch as th
 
 from graphstorm.gsf import (create_builtin_node_decoder,
                             create_builtin_edge_decoder,
@@ -301,7 +298,6 @@ def test_create_builtin_lp_decoder():
         {
             "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
             "lp_loss_func": BUILTIN_LP_LOSS_CROSS_ENTROPY,
-            "lp_edge_weight_for_loss": None,
             "decoder_norm": None,
             "lp_edge_weight_for_loss": "weight",
         }
@@ -344,7 +340,6 @@ def test_create_builtin_lp_decoder():
         {
             "lp_decoder_type": BUILTIN_LP_DISTMULT_DECODER,
             "lp_loss_func": BUILTIN_LP_LOSS_CROSS_ENTROPY,
-            "lp_edge_weight_for_loss": None,
             "decoder_norm": None,
             "lp_edge_weight_for_loss": "weight",
             "gamma": None,
@@ -391,7 +386,6 @@ def test_create_builtin_lp_decoder():
         {
             "lp_decoder_type": BUILTIN_LP_ROTATE_DECODER,
             "lp_loss_func": BUILTIN_LP_LOSS_CROSS_ENTROPY,
-            "lp_edge_weight_for_loss": None,
             "decoder_norm": None,
             "lp_edge_weight_for_loss": "weight",
             "gamma": None,

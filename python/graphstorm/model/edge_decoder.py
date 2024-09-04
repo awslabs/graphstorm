@@ -242,7 +242,7 @@ class DenseBiDecoder(GSEdgeDecoder):
             elif self.multilabel:
                 out = (th.sigmoid(out) > .5).long()
             else:  # not multilabel
-                if self.out_dim == 1:
+                if self.out_dims == 1:
                     out = (th.sigmoid(out) > .5).long()
                 else:
                     out = out.argmax(dim=1)

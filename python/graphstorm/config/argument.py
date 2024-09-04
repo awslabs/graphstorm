@@ -2527,7 +2527,9 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_class_loss_func"):
-            assert self._class_loss_func in BUILTIN_CLASS_LOSS_FUNCTION
+            assert self._class_loss_func in BUILTIN_CLASS_LOSS_FUNCTION, \
+                f"Only support {BUILTIN_CLASS_LOSS_FUNCTION} " \
+                "loss functions for classification tasks"
             return self._class_loss_func
 
         return BUILTIN_CLASS_LOSS_CROSS_ENTROPY
