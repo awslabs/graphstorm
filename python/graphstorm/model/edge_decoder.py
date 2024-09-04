@@ -979,13 +979,13 @@ class LinkPredictDotDecoder(LinkPredictNoParamDecoder):
 
 class LinkPredictContrastiveDotDecoder(LinkPredictDotDecoder):
     """ Decoder for link prediction designed for contrastive loss by
-    using the dot product as the score function.
+        using the dot product as the score function.
 
-    Note:
-    -----
-    This class is specifically implemented for contrastive loss. But
-    it could also be used by other pair-wise loss functions for link
-    prediction tasks.
+        Note:
+        -----
+        This class is specifically implemented for contrastive loss. But
+        it could also be used by other pair-wise loss functions for link
+        prediction tasks.
 
     Parameters
     ----------
@@ -1039,7 +1039,8 @@ class LinkPredictContrastiveDotDecoder(LinkPredictDotDecoder):
             return scores
 
 class LinkPredictMultiRelationLearnableDecoder(LinkPredictLearnableDecoder):
-    """ Decoder for link prediction with multiple relation types (relation embeddings).
+    """ Decoder for link prediction with multiple relation types
+        (relation embeddings).
 
     Parameters
     ----------
@@ -1050,12 +1051,12 @@ class LinkPredictMultiRelationLearnableDecoder(LinkPredictLearnableDecoder):
         The input dimension size. It is the dimension for both source and destination
         node embeddings.
     gamma: float
-        The gamma value for model weight initialization. Default: 40.
+        The gamma value for model weight initialization. Default: 12.
     """
     def __init__(self,
                  etypes,
                  h_dim,
-                 gamma=40.):
+                 gamma=12.):
         super(LinkPredictMultiRelationLearnableDecoder, self).__init__()
         self.num_rels = len(etypes)
         self.h_dim = h_dim
@@ -1115,13 +1116,13 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
         Score function of RotateE measures the angular distance between
         head and tail elements. The angular distance is defined as:
 
-        .. math:
+        .. math::
 
             d_r(h, t)=\|h\circ r-t\|
 
         The RotatE score function is defined as:
 
-        .. math:
+        .. math::
 
             gamma - \|h\circ r-t\|^2
 
@@ -1143,12 +1144,12 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
         The input dimension size. It is the dimension for both source and destination
         node embeddings.
     gamma: float
-        The gamma value for model initialization and score function. Default: 4.
+        The gamma value for model initialization and score function. Default: 12.
     """
     def __init__(self,
                  etypes,
                  h_dim,
-                 gamma=4.):
+                 gamma=12.):
         self.rel_dim = h_dim // 2
         super(LinkPredictRotatEDecoder, self).__init__(etypes, h_dim, gamma)
 
@@ -1159,9 +1160,10 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
 
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
-        """ Link prediction decoder forward function using the RotatE as the score function.
+        """ Link prediction decoder forward function using the RotatE
+            as the score function.
 
-        This computes the edge score on every edge type.
+            This computes the edge score on every edge type.
 
         Parameters
         ----------
@@ -1372,11 +1374,11 @@ class LinkPredictContrastiveRotatEDecoder(LinkPredictRotatEDecoder):
     """ Decoder for link prediction designed for contrastive loss
         using the RotatE as the score function.
 
-    Note:
-    ------
-    This class is specifically implemented for contrastive loss. But
-    it could also be used by other pair-wise loss functions for link
-    prediction tasks.
+        Note:
+        ------
+        This class is specifically implemented for contrastive loss. But
+        it could also be used by other pair-wise loss functions for link
+        prediction tasks.
 
     Parameters
     ----------
@@ -1389,6 +1391,7 @@ class LinkPredictContrastiveRotatEDecoder(LinkPredictRotatEDecoder):
     gamma: float
         The gamma value for model weight initialization. Default: 4.
     """
+
     # pylint: disable=unused-argument
     def forward(self, g, h, e_h=None):
         with g.local_scope():
@@ -1448,11 +1451,11 @@ class LinkPredictWeightedRotatEDecoder(LinkPredictRotatEDecoder):
         The input dimension size. It is the dimension for both source and destination
         node embeddings.
     gamma: float
-        The gamma value for model weight initialization. Default: 4.
+        The gamma value for model weight initialization. Default: 12.
     edge_weight_fields: dict of str
         The edge feature field(s) storing the edge weights.
     """
-    def __init__(self, etypes, h_dim, gamma=4., edge_weight_fields=None):
+    def __init__(self, etypes, h_dim, gamma=12., edge_weight_fields=None):
         self._edge_weight_fields = edge_weight_fields
         super(LinkPredictWeightedRotatEDecoder, self).__init__(etypes, h_dim, gamma)
 
@@ -1738,7 +1741,7 @@ class LinkPredictContrastiveDistMultDecoder(LinkPredictDistMultDecoder):
     """
     # TODO(xiang): Develop a better solution for supporting pair-wise
     # loss functions in link prediction tasks. The
-    # LinkPredictContrastiveDotDecoder is implemented based on the
+    # LinkPredictContrastiveDistMultDecoder is implemented based on the
     # assumption that the same decoder. Forward will be called twice
     # with a positive graph and negative graph respectively. And
     # the positive and negative graphs are compatible. We can simply
@@ -1802,11 +1805,11 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
         The input dimension size. It is the dimension for both source and destination
         node embeddings.
     gamma: float
-        The gamma value for model weight initialization. Default: 40.
+        The gamma value for model weight initialization. Default: 12.
     edge_weight_fields: dict of str
         The edge feature field(s) storing the edge weights.
     """
-    def __init__(self, etypes, h_dim, gamma=40., edge_weight_fields=None):
+    def __init__(self, etypes, h_dim, gamma=12., edge_weight_fields=None):
         self._edge_weight_fields = edge_weight_fields
         super(LinkPredictWeightedDistMultDecoder, self).__init__(etypes, h_dim, gamma)
 
@@ -1852,8 +1855,8 @@ class LinkPredictWeightedDistMultDecoder(LinkPredictDistMultDecoder):
             return scores
 
 class LinkPredictWeightedDotDecoder(LinkPredictDotDecoder):
-    """ Decoder for link prediction using the dot product with edge weight as the score
-    function.
+    """ Decoder for link prediction using the dot product with edge weight
+        as the score function.
 
     When computing loss, edge weights are used to adjust the loss
 
