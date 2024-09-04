@@ -95,7 +95,7 @@ class EntityClassifier(GSLayer):
         if ``multilabel`` is ``True``.
         """
         logits = th.matmul(inputs, self.decoder)
-        if self.multilabel:
+        if self._multilabel:
             out = (th.sigmoid(logits) > .5).long()
         else:
             if self.out_dims == 1:
@@ -118,7 +118,7 @@ class EntityClassifier(GSLayer):
         Tensor: normalized prediction results.
         """
         logits = th.matmul(inputs, self.decoder)
-        if self.multilabel:
+        if self._multilabel:
             out = th.sigmoid(logits)
         else:
             if self.out_dims == 1:
