@@ -3,15 +3,15 @@
 
 ARG DEVICE=gpu
 
-FROM 763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-training:1.13.1-gpu-py39-cu117-ubuntu20.04-sagemaker as branch-gpu
+FROM 763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-training:2.3.0-gpu-py39-cu117-ubuntu20.04-sagemaker as branch-gpu
 ENV dev_type=GPU
 # Install DGL GPU version
-RUN pip3 install dgl==1.0.4+cu117 -f https://data.dgl.ai/wheels/cu117/repo.html && rm -rf /root/.cache
+RUN pip3 install dgl==2.4.0 -f https://data.dgl.ai/wheels/cu117/repo.html && rm -rf /root/.cache
 
-FROM 763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-training:1.13.1-cpu-py39-ubuntu20.04-sagemaker as branch-cpu
+FROM 763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-training:2.3.0-cpu-py39-ubuntu20.04-sagemaker as branch-cpu
 ENV dev_type=CPU
 # Install DGL CPU version
-RUN pip3 install dgl==1.0.4 -f https://data.dgl.ai/wheels-internal/repo.html && rm -rf /root/.cache
+RUN pip3 install dgl==2.4.0 -f https://data.dgl.ai/wheels-internal/repo.html && rm -rf /root/.cache
 
 FROM branch-${DEVICE} AS final
 
