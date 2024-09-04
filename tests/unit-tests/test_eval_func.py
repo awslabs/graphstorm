@@ -273,7 +273,12 @@ def test_eval_acc():
     labels = th.concat([th.zeros(50),th.ones(50)]).long()
     acc_1 = eval_acc(preds, labels)
 
-    # Normal case 2: preds 4D in logits.
+    # Normal case 2: preds 2D with the second dim as 1.
+    preds = th.unsqueeze(th.concat([th.zeros(25), th.ones(75)]).long(), 1)
+    labels = th.concat([th.zeros(50),th.ones(50)]).long()
+    acc_2 = eval_acc(preds, labels)
+
+    # Normal case 3: preds 4D in logits.
     preds = th.concat([th.tensor([0.75, 0.15, 0.2, 0.2]).repeat(25),
                        th.tensor([0.2, 0.75, 0.2, 0.05]).repeat(25),
                        th.tensor([0.2, 0.2, 0.75, 0.15]).repeat(25),
@@ -282,12 +287,13 @@ def test_eval_acc():
                         th.ones(25) + 1,
                         th.ones(25),
                         th.ones(25) + 2]).long()
-    acc_2 = eval_acc(preds, labels)
+    acc_3 = eval_acc(preds, labels)
 
     assert error_acc_1 == -1
     assert error_acc_2 == -1
     assert acc_1 == 0.75
-    assert acc_2 == 0.5
+    assert acc_2 == 0.75
+    assert acc_3 == 0.5
 
 def test_compute_precision_recall_auc():
     # GraphStorm inputs: preds are 1D or 2D, and labels are all 1D list.
