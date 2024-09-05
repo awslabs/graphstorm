@@ -58,6 +58,7 @@ GraphStorm provides four options to compute training losses:
 * **Cross Entropy Loss**: The cross entropy loss turns a link prediction task into a binary classification task. We treat positive edges as 1 and negative edges as 0. The loss of an edge ``e`` is as:
 
     .. math::
+
         \begin{eqnarray}
             loss = - y \cdot \log score + (1 - y) \cdot \log (1 - score)
         \end{eqnarray}
@@ -67,6 +68,7 @@ GraphStorm provides four options to compute training losses:
 * **Weighted Cross Entropy Loss**: The weighted cross entropy loss is similar to **Cross Entropy Loss** except that it allows users to set a weight for each positive edge. The loss function of an edge ``e`` is as:
 
     .. math::
+
         \begin{eqnarray}
             loss = - w\_e \left[ y \cdot \log score + (1 - y) \cdot \log (1 - score) \right]
         \end{eqnarray}
@@ -74,6 +76,7 @@ GraphStorm provides four options to compute training losses:
     where ``y`` is 1 when ``e`` is a positive edge and 0 when it is a negative edge. ``score`` is the score value of ``e`` computed by the score function, ``w_e`` is the weight of ``e`` and is defined as
 
     .. math::
+
         \begin{eqnarray}
         w\_e = \left \{
         \begin{array}{lc}
@@ -91,6 +94,7 @@ GraphStorm provides four options to compute training losses:
     The loss of positive edges is as:
 
     .. math::
+
         \begin{eqnarray}
             loss_{pos} = - \log score
         \end{eqnarray}
@@ -100,8 +104,10 @@ GraphStorm provides four options to compute training losses:
     The loss of negative edges is as:
 
     .. math::
+
         \begin{eqnarray}
-            loss_{neg} = \log (1 - score) \\
+            loss_{neg} = \log (1 - score)
+
             loss_{neg} = softmax(score * adversarial\_temperature) * loss_{neg}
         \end{eqnarray}
 
@@ -110,6 +116,7 @@ GraphStorm provides four options to compute training losses:
     The final loss is as:
 
     .. math::
+
         \begin{eqnarray}
             loss = (avg(loss_{pos}) + avg(loss_{neg})) / 2
         \end{eqnarray}
@@ -117,6 +124,7 @@ GraphStorm provides four options to compute training losses:
 * **Weighted Adversarial Cross Entropy Loss**  The weighted cross entropy loss is similar to **Adversarial Cross Entropy Loss** except that it allows users to set a weight for each positive edge. The loss function of a positive edge ``e`` is as:
 
     .. math::
+
         \begin{eqnarray}
             loss_{pos} = - w * \log score
         \end{eqnarray}
@@ -126,6 +134,7 @@ GraphStorm provides four options to compute training losses:
     The final loss is as:
 
     .. math::
+
         \begin{eqnarray}
             loss = (avg(loss_{pos}) + avg(loss_{neg})) / 2
         \end{eqnarray}
@@ -133,6 +142,7 @@ GraphStorm provides four options to compute training losses:
 * **Contrastive Loss**: The contrastive loss compels the representations of connected nodes to be similar while forcing the representations of disconnected nodes remains dissimilar. In the implementation, we use the score computed by the score function to represent the distance between nodes. When computing the loss, we group one positive edge with the ``N`` negative edges corresponding to it.The loss function is as follows:
 
     .. math::
+
         loss = -log(\dfrac{exp(pos\_score)}{\sum_{i=0}^N exp(score\_i)})
 
     where ``pos_score`` is the score of the positive edge. ``score_i`` is the score of the i-th edge. In total, there are ``N+1`` edges, within which there is 1 positive edge and ``N`` negative edges.
