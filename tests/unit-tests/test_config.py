@@ -1035,14 +1035,14 @@ def create_lp_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["link_prediction"] = {
-        "adversarial_temperature": 0.1, # eval metric must be string or list
+        "adversarial_temperature": 0.1,
     }
     with open(os.path.join(tmp_path, file_name+"_adv_temp.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["link_prediction"] = {
         "lp_loss_func": BUILTIN_LP_LOSS_CONTRASTIVELOSS,
-        "adversarial_temperature": 0.1, # eval metric must be string or list
+        "adversarial_temperature": 0.1,
     }
     with open(os.path.join(tmp_path, file_name+"_adv_temp_fail.yaml"), "w") as f:
         yaml.dump(yaml_object, f)

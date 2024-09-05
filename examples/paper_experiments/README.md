@@ -134,4 +134,4 @@ In the following table, we show the performance of link prediction on the Amazon
 | link_prediction/lp_also_buy_1_layer_rgcn_dot_entropy_loss_joint_32_negative.yaml | Joint negative sampling with batch size of 32 with cross entropy loss | 0.380 | 1290.72 |
 | link_prediction/lp_also_buy_1_layer_rgcn_dot_entropy_loss_joint_4_negative.yaml | Joint negative sampling with batch size of 4 with cross entropy loss | 0.645 | 1288.53 |
 | link_prediction/lp_also_buy_1_layer_rgcn_dot_entropy_uniform_32_negative.yaml | Uniform negative sampling with batch size of 32 with cross entropy loss | 0.377 | 1746.68 |
-| link_prediction/lp_also_buy_1_layer_rgcn_dot_ adversarial_entropy_loss_joint_32_negative.yaml | Joint negative sampling with batch size of 32 with adversarial cross entropy loss | 0.8796 | N/A |
+| link_prediction/lp_also_buy_1_layer_rgcn_dot_adversarial_entropy_loss_joint_32_negative.yaml | Joint negative sampling with batch size of 32 with adversarial cross entropy loss | 0.8796 | N/A |

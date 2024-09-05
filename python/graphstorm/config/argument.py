@@ -2525,7 +2525,7 @@ class GSConfig:
 
     @property
     def adversarial_temperature(self):
-        """ Temperature of link prediction adversarial cross entropy loss.
+        """ Temperature of adversarial cross entropy loss for link prediction tasks.
         """
         # pylint: disable=no-member
         if hasattr(self, "_adversarial_temperature"):
@@ -3109,7 +3109,7 @@ def _add_link_prediction_args(parser):
     group.add_argument("--contrastive-loss-temperature", type=float, default=argparse.SUPPRESS,
             help="Temperature of link prediction contrastive loss.")
     group.add_argument("--adversarial-temperature", type=float, default=argparse.SUPPRESS,
-            help="Temperature of link prediction adversarial cross entropy loss.")
+            help="Temperature of adversarial cross entropy loss for link prediction tasks.")
     group.add_argument("--lp-embed-normalizer", type=str, default=argparse.SUPPRESS,
             help="Normalization method used to normalize node embeddings in"
                  "link prediction. Supported methods "
