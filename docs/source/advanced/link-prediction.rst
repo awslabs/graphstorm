@@ -97,9 +97,10 @@ GraphStorm provides four options to compute training losses:
 
     .. math::
 
-        loss_{neg} &= \log (1 - score)
-
-        loss_{neg} &= \mathrm{softmax}(score * adversarial\_temperature) * loss_{neg}
+        \begin{gather*}
+        loss_{neg} = \log (1 - score) \\
+        loss_{neg} = \mathrm{softmax}(score * adversarial\_temperature) * loss_{neg}
+        \end{gather*}
 
     where ``score`` is the score value of the negative edges computed by the score function and ``adversarial_temperature`` is a hyper-parameter.
 
