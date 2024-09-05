@@ -16,7 +16,7 @@ provide their own model implementations and use GraphStorm training pipeline to 
 
 ## Get Started
 ### Installation
-GraphStorm is compatible to Python 3.8+. It requires PyTorch 1.13+, DGL 1.0 and transformers 4.3.0+. GraphStorm supports DGL only up to version 2.3.0.
+GraphStorm is compatible to Python 3.8+. It requires PyTorch 1.13+, DGL 1.0+ and transformers 4.3.0+. GraphStorm only supports DGL up to version 2.3.0.
 
 GraphStorm can be installed with pip and it can be used to train GNN models in a standalone mode. To run GraphStorm in a distributed environment, we recommend users to using [Docker](https://docs.docker.com/get-started/overview/) container to reduce envrionment setup efforts. A guideline to setup GraphStorm running environment can be found at [here](https://graphstorm.readthedocs.io/en/latest/install/env-setup.html#setup-graphstorm-docker-environment) and a full instruction on how to setup distributed training can be found [here](https://graphstorm.readthedocs.io/en/latest/cli/model-training-inference/distributed/cluster.html).
 
