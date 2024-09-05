@@ -114,5 +114,3 @@ To use multiple samplers on sagemaker please use PyTorch versions <= 1.12.
 
 ## License
 This project is licensed under the Apache-2.0 License.
-
-

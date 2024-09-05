@@ -15,7 +15,7 @@ Prerequisites
 
 1. **Linux OS**: The current version of GraphStorm supports Linux as the Operation System. We tested GraphStorm on both Ubuntu (22.04 or later version) and Amazon Linux 2.
 
-2. **Python3**: The current version of GraphStorm requires Python installed with the version larger than **3.7**.
+2. **Python3**: The current version of GraphStorm requires Python installed with the version larger than **3.8**.
 
 3. (Optional) GraphStorm supports **Nvidia GPUs** for using GraphStorm in GPU environments.
 
