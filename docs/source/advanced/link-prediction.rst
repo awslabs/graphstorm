@@ -107,7 +107,7 @@ GraphStorm provides four options to compute training losses:
 
     .. math::
 
-        loss = \left(\mathrm{avg}(loss_{pos}) + \mathrm{avg}(loss_{neg})\right) / 2
+        loss = \dfrac{\mathrm{avg}(loss_{pos}) + \mathrm{avg}(loss_{neg})}{2}
 
 * **Weighted Adversarial Cross Entropy Loss**  The weighted cross entropy loss is similar to **Adversarial Cross Entropy Loss** except that it allows users to set a weight for each positive edge. The loss function of a positive edge ``e`` is as:
 
@@ -121,13 +121,13 @@ GraphStorm provides four options to compute training losses:
 
     .. math::
 
-        loss = \left(\mathrm{avg}(loss_{pos}) + \mathrm{avg}(loss_{neg})\right) / 2
+        loss = \dfrac{\mathrm{avg}(loss_{pos}) + \mathrm{avg}(loss_{neg})}{2}
 
 * **Contrastive Loss**: The contrastive loss compels the representations of connected nodes to be similar while forcing the representations of disconnected nodes remains dissimilar. In the implementation, we use the score computed by the score function to represent the distance between nodes. When computing the loss, we group one positive edge with the ``N`` negative edges corresponding to it.The loss function is as follows:
 
     .. math::
 
-        loss = -log(\dfrac{exp(pos\_score)}{\sum_{i=0}^N \exp(score\_i)})
+        loss = -\log \left( \dfrac{\exp(pos\_score)}{\sum_{i=0}^N \exp(score\_i)} \right)
 
     where ``pos_score`` is the score of the positive edge. ``score_i`` is the score of the i-th edge. In total, there are ``N+1`` edges, within which there is 1 positive edge and ``N`` negative edges.
 
