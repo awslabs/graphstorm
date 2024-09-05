@@ -59,9 +59,7 @@ GraphStorm provides four options to compute training losses:
 
     .. math::
 
-        \begin{eqnarray}
-            loss = - y \cdot \log score + (1 - y) \cdot \log (1 - score)
-        \end{eqnarray}
+        loss = - y \cdot \log score + (1 - y) \cdot \log (1 - score)
 
     where ``y`` is 1 when ``e`` is a positive edge and 0 when it is a negative edge. ``score`` is the score value of ``e`` computed by the score function.
 
@@ -69,22 +67,18 @@ GraphStorm provides four options to compute training losses:
 
     .. math::
 
-        \begin{eqnarray}
-            loss = - w\_e \left[ y \cdot \log score + (1 - y) \cdot \log (1 - score) \right]
-        \end{eqnarray}
+        loss = - w\_e \left[ y \cdot \log score + (1 - y) \cdot \log (1 - score) \right]
 
     where ``y`` is 1 when ``e`` is a positive edge and 0 when it is a negative edge. ``score`` is the score value of ``e`` computed by the score function, ``w_e`` is the weight of ``e`` and is defined as
 
     .. math::
 
-        \begin{eqnarray}
         w\_e = \left \{
         \begin{array}{lc}
             1,  & \text{ if } e \in G, \\
             0,  & \text{ if } e \notin G
         \end{array}
         \right.
-        \end{eqnarray}
 
     where ``G`` is the training graph.
 
@@ -95,9 +89,7 @@ GraphStorm provides four options to compute training losses:
 
     .. math::
 
-        \begin{eqnarray}
-            loss_{pos} = - \log score
-        \end{eqnarray}
+        loss_{pos} = - \log score
 
     where ``score`` is the score value of the positive edges computed by the score function.
 
@@ -105,11 +97,9 @@ GraphStorm provides four options to compute training losses:
 
     .. math::
 
-        \begin{eqnarray}
-            loss_{neg} = \log (1 - score)
+        loss_{neg} = \log (1 - score)
 
-            loss_{neg} = softmax(score * adversarial\_temperature) * loss_{neg}
-        \end{eqnarray}
+        loss_{neg} = softmax(score * adversarial\_temperature) * loss_{neg}
 
     where ``score`` is the score value of the negative edges computed by the score function and ``adversarial_temperature`` is a hyper-parameter.
 
@@ -117,17 +107,13 @@ GraphStorm provides four options to compute training losses:
 
     .. math::
 
-        \begin{eqnarray}
-            loss = (avg(loss_{pos}) + avg(loss_{neg})) / 2
-        \end{eqnarray}
+        loss = (avg(loss_{pos}) + avg(loss_{neg})) / 2
 
 * **Weighted Adversarial Cross Entropy Loss**  The weighted cross entropy loss is similar to **Adversarial Cross Entropy Loss** except that it allows users to set a weight for each positive edge. The loss function of a positive edge ``e`` is as:
 
     .. math::
 
-        \begin{eqnarray}
-            loss_{pos} = - w * \log score
-        \end{eqnarray}
+        loss_{pos} = - w * \log score
 
     where ``score`` is the score value of the positive edges computed by the score function, ``w`` is the weight of each positive edge. The loss of the negative edges is the same as **Adversarial Cross Entropy Loss**.
 
@@ -135,9 +121,7 @@ GraphStorm provides four options to compute training losses:
 
     .. math::
 
-        \begin{eqnarray}
-            loss = (avg(loss_{pos}) + avg(loss_{neg})) / 2
-        \end{eqnarray}
+        loss = (avg(loss_{pos}) + avg(loss_{neg})) / 2
 
 * **Contrastive Loss**: The contrastive loss compels the representations of connected nodes to be similar while forcing the representations of disconnected nodes remains dissimilar. In the implementation, we use the score computed by the score function to represent the distance between nodes. When computing the loss, we group one positive edge with the ``N`` negative edges corresponding to it.The loss function is as follows:
 
