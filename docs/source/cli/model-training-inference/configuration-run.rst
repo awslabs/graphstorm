@@ -485,7 +485,7 @@ Link Prediction Task
     - Argument: ``--lp-loss-func contrastive``
     - Default value: ``cross_entropy``
 
-- **adversarial_temperature**: Enable adversarial cross entropy loss and set the ``adversarial_temperature`` hyper-parameter. Only work when ``lp_loss_func`` is set to ``cross_entropy``. More detials can be found on the :ref:`Link Prediction Loss Functions<_link-prediction-loss>`.
+- **adversarial_temperature**: Enable adversarial cross entropy loss and set the ``adversarial_temperature`` hyper-parameter. Only work when ``lp_loss_func`` is set to ``cross_entropy``. More detials can be found on the :ref:`Link Prediction Loss Functions<link_prediction_loss>`.
 
     - Yaml: ``adversarial_temperature: 1.0``
     - Argument: ``adversarial-temperature 1.0``
