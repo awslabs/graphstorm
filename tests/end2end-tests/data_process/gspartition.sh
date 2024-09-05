@@ -14,7 +14,9 @@ error_and_exit () {
 	fi
 }
 
-python3 $GS_HOME/tests/end2end-tests/data_process/data_gen.py
+echo "127.0.0.1" > /ip_list.txt
+
+cat ip_list.txt
 
 # Test the DGLGraph format.
 echo "********* Test the GSPartition *********"
