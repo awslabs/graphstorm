@@ -23,9 +23,8 @@ import torch as th
 from torch.utils.data import DataLoader
 import torch.distributed as dist
 
-from dgl.dataloading import DistDataLoader
-from dgl.dataloading import EdgeCollator
-from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
+from dgl.distributed import DistDataLoader
+from dgl.distributed.dist_dataloader import EdgeCollator, _remove_kwargs_dist
 
 from ..utils import get_device, is_distributed, get_backend
 from .utils import (verify_label_field,
