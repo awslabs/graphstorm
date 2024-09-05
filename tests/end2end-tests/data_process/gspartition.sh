@@ -16,7 +16,7 @@ error_and_exit () {
 
 echo "127.0.0.1" > /ip_list.txt
 
-cat ip_list.txt
+cat /ip_list.txt
 
 # Test the DGLGraph format.
 echo "********* Test the GSPartition *********"
