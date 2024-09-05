@@ -1,3 +1,6 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
 date
 GS_HOME=$(pwd)
 export PYTHONPATH=$GS_HOME/python/
@@ -46,7 +49,8 @@ python3 -m graphstorm.gconstruct.construct_graph \
 	--num-processes 1 \
 	--output-dir movielen_100k_lp_train_val_1p_4t \
 	--graph-name movie-lens-100k \
-	--add-reverse-edges
+	--add-reverse-edges \
+    --use-graphbolt true
 cp -R /data/ml-100k/raw_id_mappings/ movielen_100k_lp_train_val_1p_4t/
 
 # movielens link prediction - hard negative and fixed negative for inference

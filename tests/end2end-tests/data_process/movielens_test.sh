@@ -16,7 +16,7 @@ error_and_exit () {
 
 	if test $status -ne 0
 	then
-		exit -1
+		exit 1
 	fi
 }
 
@@ -27,6 +27,26 @@ python3 -m graphstorm.gconstruct.construct_graph --conf-file $GS_HOME/tests/end2
 
 error_and_exit $?
 
+echo "********* Test generating the GraphBolt graph format with GConstruct ********"
+
+python3 -m graphstorm.gconstruct.construct_graph \
+    --add-reverse-edges \
+    --conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_text.json \
+    --graph-name ml \
+    --num-processes 1 \
+    --output-dir /tmp/movielens_graphbolt \
+    --part-method random \
+    --use-graphbolt "true"
+
+error_and_exit $?
+
+# check if graphbolt representation was created
+if test -f /tmp/movielens_graphbolt/part0/fused_csc_sampling_graph.pt -ne 0
+then
+	echo "/tmp/movielens_graphbolt/part0/fused_csc_sampling_graph.pt must exist"
+	exit 1
+fi
+
 echo "********* Test the DistDGL graph format with BERT embeddings ********"
 python3 -m graphstorm.gconstruct.construct_graph --conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens.json --num-processes 1 --output-dir /tmp/movielens_bert_emb --graph-name ml --add-reverse-edges
 
@@ -36,13 +56,13 @@ error_and_exit $?
 if test -f /tmp/movielens_bert_emb/node_mapping.pt -ne 0
 then
 	echo "/tmp/movielens_bert_emb/node_mapping.pt must exist"
-	exit -1
+	exit 1
 fi
 
 if test -f /tmp/movielens_bert_emb/edge_mapping.pt -ne 0
 then
 	echo "/tmp/movielens_bert_emb/edge_mapping.pt must exist"
-	exit -1
+	exit 1
 fi
 
 echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: BERT embeddings, inference: mini-batch"
@@ -57,7 +77,7 @@ cnt=$(ls /tmp/movielens_bert_emb/emb/ | wc -l)
 if test $cnt -lt 2
 then
 	echo "Must have node embeddings for movie and user."
-	exit -1
+	exit 1
 fi
 
 echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: HF BERT, BERT nodes: movie, inference: mini-batch"

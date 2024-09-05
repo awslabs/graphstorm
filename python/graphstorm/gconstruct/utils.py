@@ -19,14 +19,17 @@
 import os
 import queue
 import gc
+import importlib.metadata
 import logging
 import copy
 import traceback
 import shutil
 import uuid
 
+
 import numpy as np
 import dgl
+from packaging import version
 import torch as th
 from torch import multiprocessing
 from torch.multiprocessing import Process
@@ -914,7 +917,7 @@ def load_maps(output_dir, fname):
     return th.load(map_file)
 
 def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_dir,
-                    part_method=None, save_mapping=True):
+                    part_method=None, save_mapping=True, use_graphbolt=False):
     """ Partition a graph
 
     This takes advantage of the graph partition function in DGL.
@@ -943,6 +946,11 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
     save_mapping: bool
         Whether to store the mappings for the edges and nodes after partition.
         Default: True
+    use_graphbolt: bool
+        Whether the convert the partitioned graph into the GraphBolt format
+        after partitioning.
+
+        .. versionadded:: 0.4.0
     """
     from dgl.distributed.graph_partition_book import _etype_tuple_to_str
     orig_id_name = "__gs_orig_id"
@@ -997,12 +1005,35 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
                  num_test != g.number_of_nodes(ntype)):
             balance_arr -= 1
         balance_ntypes[ntype] = balance_arr
-    mapping = \
-        dgl.distributed.partition_graph(g, graph_name, num_partitions, output_dir,
-                                        part_method=part_method,
-                                        balance_ntypes=balance_ntypes,
-                                        balance_edges=True,
-                                        return_mapping=save_mapping)
+    dgl_version = importlib.metadata.version("dgl")
+    if version.parse(dgl_version) >= version.parse("2.0.0"):
+        mapping = dgl.distributed.partition_graph(
+            g, graph_name, num_partitions, output_dir,
+            part_method=part_method,
+            balance_ntypes=balance_ntypes,
+            balance_edges=True,
+            return_mapping=save_mapping,
+            use_graphbolt=use_graphbolt,
+        )
+    else:
+        if use_graphbolt:
+            logging.warning(
+                (
+                    "use_graphbolt was 'true' but but DGL version was %s. "
+                    "GraphBolt requires DGL version >= 2.x."
+                ),
+                dgl_version
+            )
+
+        mapping = dgl.distributed.partition_graph(
+            g, graph_name, num_partitions, output_dir,
+            part_method=part_method,
+            balance_ntypes=balance_ntypes,
+            balance_edges=True,
+            return_mapping=save_mapping,
+        )
+
+
     sys_tracker.check('Graph partitioning')
 
     # If num_partitions is 1, node IDs are not shuffled.

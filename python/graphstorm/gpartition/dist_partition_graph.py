@@ -27,8 +27,12 @@ import time
 import shutil
 import subprocess
 import sys
+import importlib.metadata
 from typing import Dict
 from threading import Thread
+
+import dgl
+from packaging import version
 
 from graphstorm.gpartition import (
     ParMetisPartitionAlgorithm,
@@ -154,6 +158,26 @@ def main():
 
         logging.info("DGL graph building took %f sec", part_end - time.time())
 
+    if args.use_graphbolt:
+        dgl_version = importlib.metadata.version('dgl')
+        if version.parse(dgl_version) >= version.parse("2.0.0"):
+            # TODO: Use dgl.distributed.partition.gb_convert_single_dgl_partition()
+            # to run distributed conversion
+            logging.info("Converting partitions to GraphBolt format")
+            dgl.distributed.dgl_partition_to_graphbolt(
+                os.path.join(output_path, "dist_graph", "metadata.json"),
+                store_eids=True,
+                graph_formats="coo",
+            )
+        else:
+            logging.warning(
+                (
+                    "use_graphbolt was 'true' but but DGL version was %s. "
+                    "GraphBolt requires DGL version >= 2.x."
+                ),
+                dgl_version
+            )
+
     # Copy raw_id_mappings to dist_graph if they exist in the input
     raw_id_mappings_path = os.path.join(args.input_path, "raw_id_mappings")
 
@@ -197,6 +221,10 @@ def parse_args() -> argparse.Namespace:
     argparser.add_argument("--logging-level", type=str, default="info",
                            help="The logging level. The possible values: debug, info, warning, \
                                    error. The default value is info.")
+    argparser.add_argument("--use-graphbolt", type=lambda x: (str(x).lower() in ['true', '1']),
+                           default="false",
+                           help=("Whether to convert the partitioned data to the GraphBolt format "
+                               "after creating the DistDGL graph."))
 
     return argparser.parse_args()
 
