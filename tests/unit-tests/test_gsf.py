@@ -47,6 +47,8 @@ from graphstorm.model.loss_func import (ClassifyLossFunc,
                                         LinkPredictBCELossFunc,
                                         WeightedLinkPredictBCELossFunc,
                                         LinkPredictContrastiveLossFunc,
+                                        LinkPredictAdvBCELossFunc,
+                                        WeightedLinkPredictAdvBCELossFunc,
                                         FocalLossFunc)
 
 from data_utils import generate_dummy_hetero_graph
@@ -287,11 +289,26 @@ def test_create_builtin_lp_decoder():
             "lp_loss_func": BUILTIN_LP_LOSS_CROSS_ENTROPY,
             "lp_edge_weight_for_loss": None,
             "decoder_norm": None,
+            "adversarial_temperature": None,
         }
     )
     decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
     assert isinstance(decoder, LinkPredictDotDecoder)
     assert isinstance(loss_func, LinkPredictBCELossFunc)
+
+    # dot-product + cross entropy + adversarial
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_CROSS_ENTROPY,
+            "lp_edge_weight_for_loss": None,
+            "decoder_norm": None,
+            "adversarial_temperature": 1.0,
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictDotDecoder)
+    assert isinstance(loss_func, LinkPredictAdvBCELossFunc)
 
     # dot-product + cross entropy + edge weight
     config = GSTestConfig(
@@ -300,11 +317,26 @@ def test_create_builtin_lp_decoder():
             "lp_loss_func": BUILTIN_LP_LOSS_CROSS_ENTROPY,
             "decoder_norm": None,
             "lp_edge_weight_for_loss": "weight",
+            "adversarial_temperature": None,
         }
     )
     decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
     assert isinstance(decoder, LinkPredictWeightedDotDecoder)
     assert isinstance(loss_func, WeightedLinkPredictBCELossFunc)
+
+    # dot-product + cross entropy + edge weight + adversarial
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_CROSS_ENTROPY,
+            "decoder_norm": None,
+            "lp_edge_weight_for_loss": "weight",
+            "adversarial_temperature": 1.0,
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictWeightedDotDecoder)
+    assert isinstance(loss_func, WeightedLinkPredictAdvBCELossFunc)
 
     # dot-product + contrastive loss
     config = GSTestConfig(
@@ -328,6 +360,7 @@ def test_create_builtin_lp_decoder():
             "lp_edge_weight_for_loss": None,
             "decoder_norm": None,
             "gamma": None,
+            "adversarial_temperature": None,
         }
     )
     decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
@@ -343,6 +376,7 @@ def test_create_builtin_lp_decoder():
             "decoder_norm": None,
             "lp_edge_weight_for_loss": "weight",
             "gamma": None,
+            "adversarial_temperature": None,
         }
     )
     decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
@@ -374,6 +408,7 @@ def test_create_builtin_lp_decoder():
             "lp_edge_weight_for_loss": None,
             "decoder_norm": None,
             "gamma": None,
+            "adversarial_temperature": None,
         }
     )
     decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
@@ -389,6 +424,7 @@ def test_create_builtin_lp_decoder():
             "decoder_norm": None,
             "lp_edge_weight_for_loss": "weight",
             "gamma": None,
+            "adversarial_temperature": None,
         }
     )
     decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
