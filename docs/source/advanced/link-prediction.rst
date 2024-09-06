@@ -35,7 +35,7 @@ GraphStorm provides two ways to compute link prediction scores: Dot Product and 
 * **Dot Product**: The Dot Product score function is as:
 
     .. math::
-            score = sum(head\_emb * tail\_emb)
+            score = \mathrm{sum}(head\_emb * tail\_emb)
 
     where the ``head_emb`` is the node embedding of the head node and
     the ``tail_emb`` is the node embedding of the tail node.
@@ -43,7 +43,7 @@ GraphStorm provides two ways to compute link prediction scores: Dot Product and 
 * **DistMult**: The DistMult score function is as:
 
     .. math::
-        score = sum(head\_emb * relation\_emb * tail\_emb)
+        score = \mathrm{sum}(head\_emb * relation\_emb * tail\_emb)
 
     where the ``head_emb`` is the node embedding of the head node,
     the ``tail_emb`` is the node embedding of the tail node and
