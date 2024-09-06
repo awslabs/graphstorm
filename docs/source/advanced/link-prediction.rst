@@ -37,7 +37,7 @@ GraphStorm provides three ways to compute link prediction scores: Dot Product, D
 * **Dot Product**: The Dot Product score function is as:
 
     .. math::
-            score = sum(head\_emb * tail\_emb)
+        score = \mathrm{sum}(head\_emb * tail\_emb)
 
     where the ``head_emb`` is the node embedding of the head node and
     the ``tail_emb`` is the node embedding of the tail node.
@@ -45,7 +45,7 @@ GraphStorm provides three ways to compute link prediction scores: Dot Product, D
 * **DistMult**: The DistMult score function is as:
 
     .. math::
-        score = sum(head\_emb * relation\_emb * tail\_emb)
+        score = \mathrm{sum}(head\_emb * relation\_emb * tail\_emb)
 
     where the ``head_emb`` is the node embedding of the head node,
     the ``tail_emb`` is the node embedding of the tail node and
@@ -149,7 +149,7 @@ GraphStorm provides four options to compute training losses:
 
     .. math::
 
-        loss = -\log \left( \dfrac{\exp(pos\_score)}{\sum_{i=0}^N \exp(score\_i)} \right)
+        loss = -\log \left(\dfrac{\exp(pos\_score)}{\sum_{i=0}^N \exp(score\_i)} \right)
 
     where ``pos_score`` is the score of the positive edge. ``score_i`` is the score of the i-th edge. In total, there are ``N+1`` edges, within which there is 1 positive edge and ``N`` negative edges.
 
