@@ -1005,16 +1005,24 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
                  num_test != g.number_of_nodes(ntype)):
             balance_arr -= 1
         balance_ntypes[ntype] = balance_arr
-    dgl_version = importlib.metadata.version("dgl")
-    if version.parse(dgl_version) >= version.parse("2.0.0"):
-        mapping = dgl.distributed.partition_graph(
-            g, graph_name, num_partitions, output_dir,
-            part_method=part_method,
-            balance_ntypes=balance_ntypes,
-            balance_edges=True,
-            return_mapping=save_mapping,
-            use_graphbolt=use_graphbolt,
-        )
+
+
+    # Call DGL's partition graph, using the appropriate arg list
+    # for each version
+    dgl_version_str = importlib.metadata.version("dgl")
+    dgl_version = version.parse(dgl_version_str)
+    part_position_args = [
+        g, graph_name, num_partitions, output_dir,
+    ]
+    part_kwargs = {
+        'part_method': part_method,
+        'balance_ntypes': balance_ntypes,
+        'balance_edges': True,
+        'return_mapping': save_mapping,
+    }
+
+    if dgl_version >= version.parse("2.0.0"):
+        part_kwargs['use_graphbolt'] = use_graphbolt
     else:
         if use_graphbolt:
             logging.warning(
@@ -1024,14 +1032,7 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
                 ),
                 dgl_version
             )
-
-        mapping = dgl.distributed.partition_graph(
-            g, graph_name, num_partitions, output_dir,
-            part_method=part_method,
-            balance_ntypes=balance_ntypes,
-            balance_edges=True,
-            return_mapping=save_mapping,
-        )
+    mapping = dgl.distributed.partition_graph(*part_position_args, **part_kwargs)
 
 
     sys_tracker.check('Graph partitioning')
