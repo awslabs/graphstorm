@@ -1,0 +1,63 @@
+---
+version: 1.0
+gsf:
+  basic:
+    backend: gloo
+    verbose: false
+    save_perf_results_path: null
+    batch_size: 32
+    node_feat_name:
+      - user:feat
+      - movie:title
+  gnn:
+    model_encoder_type: rgcn
+    fanout: "4"
+    num_layers: 1
+    hidden_size: 32
+    use_mini_batch_infer: true
+  input:
+    restore_model_path: null
+  output:
+    save_model_path: null
+    save_embed_path: null
+  hyperparam:
+    dropout: 0.
+    lr: 0.001
+    lm_tune_lr: 0.0001
+    num_epochs: 3
+    wd_l2norm: 0
+    no_validation: false
+  rgcn:
+    num_bases: -1
+    use_self_loop: true
+    sparse_optimizer_lr: 1e-2
+    use_node_embeddings: false
+  multi_task_learning:
+    - link_prediction:
+        num_negative_edges: 4
+        num_negative_edges_eval: 100
+        train_negative_sampler: joint
+        eval_etype:
+          - "user,rating,movie"
+        train_etype:
+          - "user,rating,movie"
+        exclude_training_targets: true
+        reverse_edge_types_map:
+          - user,rating,rating-rev,movie
+        batch_size: 128 # will overwrite the global batch_size
+        mask_fields:
+          - "train_mask_field_lp"
+          - "val_mask_field_lp"
+          - null # empty means there is no test mask
+        task_weight: 1.0
+    - reconstruct_node_feat:
+        reconstruct_nfeat_name: "title"
+        target_ntype: "movie"
+        batch_size: 128
+        mask_fields:
+          - "train_mask_c0" # node classification mask 0
+          - "val_mask_c0"
+          - "test_mask_c0"
+        task_weight: 1.0
+        eval_metric:
+          - "mse"
