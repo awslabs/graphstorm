@@ -18,6 +18,8 @@
 
 import os
 import logging
+from importlib.metadata import version
+
 import numpy as np
 import dgl
 import torch as th
@@ -34,8 +36,9 @@ from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                      BUILTIN_TASK_EDGE_REGRESSION,
                      BUILTIN_TASK_LINK_PREDICTION,
                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
-from .config import BUILTIN_LP_DOT_DECODER
-from .config import BUILTIN_LP_DISTMULT_DECODER
+from .config import (BUILTIN_LP_DOT_DECODER,
+                     BUILTIN_LP_DISTMULT_DECODER,
+                     BUILTIN_LP_ROTATE_DECODER)
 from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_LP_LOSS_CONTRASTIVELOSS)
 from .model.embed import GSNodeEncoderInputLayer
@@ -65,7 +68,10 @@ from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictContrastiveDotDecoder,
                                  LinkPredictContrastiveDistMultDecoder,
                                  LinkPredictWeightedDotDecoder,
-                                 LinkPredictWeightedDistMultDecoder)
+                                 LinkPredictWeightedDistMultDecoder,
+                                 LinkPredictRotatEDecoder,
+                                 LinkPredictContrastiveRotatEDecoder,
+                                 LinkPredictWeightedRotatEDecoder)
 from .dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                           BUILTIN_LP_JOINT_NEG_SAMPLER,BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER,
                           BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER,
@@ -107,7 +113,13 @@ from .inference import (GSgnnLinkPredictionInferrer,
 
 from .tracker import get_task_tracker_class
 
-def initialize(ip_config=None, backend='gloo', local_rank=0, use_wholegraph=False):
+def initialize(
+        ip_config=None,
+        backend='gloo',
+        local_rank=0,
+        use_wholegraph=False,
+        use_graphbolt=False,
+    ):
     """ Initialize distributed training and inference context. For GraphStorm Standalone mode,
     no argument is needed. For Distributed mode, users need to provide an IP address list file.
 
@@ -137,10 +149,32 @@ def initialize(ip_config=None, backend='gloo', local_rank=0, use_wholegraph=Fals
     use_wholegraph: bool
         Whether to use wholegraph for feature transfer.
         Default: False.
+    use_graphbolt: bool
+        Whether to use GraphBolt graph representation.
+        Default: False.
     """
-    # We need to use socket for communication in DGL 0.8. The tensorpipe backend has a bug.
-    # This problem will be fixed in the future.
-    dgl.distributed.initialize(ip_config, net_type='socket')
+    dgl_version = version('dgl')
+    if int(dgl_version.split('.')[0]) > 1:
+        dgl.distributed.initialize(
+            ip_config,
+            net_type='socket',
+            use_graphbolt=use_graphbolt,
+        )
+    else:
+        if use_graphbolt:
+            logging.warning(
+                (
+                    "use_graphbolt was 'true' but but DGL version was %s. "
+                    "GraphBolt requires DGL version >= 2.x."
+                ),
+                dgl_version
+                )
+        # We need to use socket for communication in DGL 0.8. The tensorpipe backend has a bug.
+        # This problem will be fixed in the future.
+        dgl.distributed.initialize(
+            ip_config,
+            net_type='socket',
+        )
     assert th.cuda.is_available() or backend == "gloo", "Gloo backend required for a CPU setting."
     if ip_config is not None:
         th.distributed.init_process_group(backend=backend)
@@ -155,7 +189,7 @@ def initialize(ip_config=None, backend='gloo', local_rank=0, use_wholegraph=Fals
 
 def get_node_feat_size(g, node_feat_names):
     """ Get the overall feature size of each node type with feature names specified in the
-    ``node_feat_names``. If a node type has multiple features, the returned feature size 
+    ``node_feat_names``. If a node type has multiple features, the returned feature size
     will be the sum of the sizes of these features for that node type.
 
     Parameters
@@ -163,7 +197,7 @@ def get_node_feat_size(g, node_feat_names):
     g : DistGraph
         A DGL distributed graph.
     node_feat_names : str, or dict of list of str
-        The node feature names. A string indicates that all nodes share the same feature name, 
+        The node feature names. A string indicates that all nodes share the same feature name,
         while a dictionary with a list of strings indicates that each node type has different node feature names.
 
     Returns
@@ -627,6 +661,22 @@ def create_builtin_lp_decoder(g, decoder_input_dim, config, train_task):
                                                          decoder_input_dim,
                                                          config.gamma,
                                                          config.lp_edge_weight_for_loss)
+    elif config.lp_decoder_type == BUILTIN_LP_ROTATE_DECODER:
+        if get_rank() == 0:
+            logging.debug("Using RotatE objective for supervision")
+        if config.lp_edge_weight_for_loss is None:
+            decoder = LinkPredictContrastiveRotatEDecoder(g.canonical_etypes,
+                                                          decoder_input_dim,
+                                                          config.gamma) \
+                if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS else \
+                LinkPredictRotatEDecoder(g.canonical_etypes,
+                                         decoder_input_dim,
+                                         config.gamma)
+        else:
+            decoder = LinkPredictWeightedRotatEDecoder(g.canonical_etypes,
+                                                       decoder_input_dim,
+                                                       config.gamma,
+                                                       config.lp_edge_weight_for_loss)
     else:
         raise Exception(f"Unknow link prediction decoder type {config.lp_decoder_type}")
 
@@ -1012,4 +1062,3 @@ def create_evaluator(task_info):
             config.early_stop_rounds,
             config.early_stop_strategy)
     return None
-

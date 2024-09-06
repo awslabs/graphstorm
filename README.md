@@ -16,9 +16,9 @@ provide their own model implementations and use GraphStorm training pipeline to 
 
 ## Get Started
 ### Installation
-GraphStorm is compatible to Python 3.7+. It requires PyTorch 1.13+, DGL 1.0 and transformers 4.3.0+.
+GraphStorm is compatible to Python 3.8+. It requires PyTorch 1.13+, DGL 1.0+ and transformers 4.3.0+. GraphStorm only supports DGL up to version 2.3.0.
 
-GraphStorm can be installed with pip and it can be used to train GNN models in a standalone mode. To run GraphStorm in a distributed environment, we recommend users to using [Docker](https://docs.docker.com/get-started/overview/) container to reduce envrionment setup efforts. A guideline to setup GraphStorm running environment can be found at [here](https://graphstorm.readthedocs.io/en/latest/install/env-setup.html#setup-graphstorm-docker-environment) and a full instruction on how to setup distributed training can be found [here](https://graphstorm.readthedocs.io/en/latest/scale/distributed.html).
+GraphStorm can be installed with pip and it can be used to train GNN models in a standalone mode. To run GraphStorm in a distributed environment, we recommend users to using [Docker](https://docs.docker.com/get-started/overview/) container to reduce environment setup efforts. A guideline to setup GraphStorm running environment can be found at [here](https://graphstorm.readthedocs.io/en/latest/install/env-setup.html#setup-graphstorm-docker-environment) and a full instruction on how to setup distributed training can be found [here](https://graphstorm.readthedocs.io/en/latest/cli/model-training-inference/distributed/cluster.html).
 
 ### Run GraphStorm with OGB datasets
 
@@ -43,27 +43,13 @@ python /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
 
 GraphStorm training relies on ssh to launch training jobs. The GraphStorm standalone mode uses ssh services in port 22.
 
-In addition, to run GraphStorm training in a single machine, users need to create a ``ip_list.txt`` file that contains one row as below, which will facilitate ssh communication to the machine itself.
-
-```127.0.0.1```
-
-Users can use the following command to create the simple ip_list.txt file.
-
-```
-touch /tmp/ip_list.txt
-echo 127.0.0.1 > /tmp/ip_list.txt
-```
-
 Third, run the below command to train an RGCN model to perform node classification on the partitioned arxiv graph.
 
 ```
 python -m graphstorm.run.gs_node_classification \
        --workspace /tmp/ogbn-arxiv-nc \
        --num-trainers 1 \
-       --num-servers 1 \
-       --num-samplers 0 \
        --part-config /tmp/ogbn_arxiv_nc_train_val_1p_4t/ogbn-arxiv.json \
-       --ip-config  /tmp/ip_list.txt \
        --ssh-port 22 \
        --cf /graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
        --save-perf-results-path /tmp/ogbn-arxiv-nc/models
@@ -96,7 +82,6 @@ python -m graphstorm.run.gs_link_prediction \
        --num-servers 1 \
        --num-samplers 0 \
        --part-config /tmp/ogbn_mag_lp_train_val_1p_4t/ogbn-mag.json \
-       --ip-config /tmp/ip_list.txt \
        --ssh-port 22 \
        --cf /graphstorm/training_scripts/gsgnn_lp/mag_lp.yaml \
        --node-feat-name paper:feat \
@@ -129,5 +114,3 @@ To use multiple samplers on sagemaker please use PyTorch versions <= 1.12.
 
 ## License
 This project is licensed under the Apache-2.0 License.
-
-

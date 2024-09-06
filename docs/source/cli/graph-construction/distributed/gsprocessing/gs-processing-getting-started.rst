@@ -1,6 +1,6 @@
 .. _gs-processing:
 
-GraphStorm Processing Getting Started
+GSProcessing Getting Started
 =====================================
 
 .. _gsp-installation-ref:

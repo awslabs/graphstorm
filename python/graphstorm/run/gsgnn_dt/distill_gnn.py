@@ -33,7 +33,9 @@ def main(config_args):
     config = GSConfig(config_args)
     config.verify_arguments(True)
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
-                  local_rank=config.local_rank)
+                  local_rank=config.local_rank,
+                  use_graphbolt=config.use_graphbolt,
+    )
 
     # initiate model
     student_model = GSDistilledModel(lm_type=config.distill_lm_configs[0]["lm_type"],

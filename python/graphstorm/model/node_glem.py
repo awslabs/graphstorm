@@ -66,6 +66,7 @@ class GLEMOptimizer(GSOptimizer):
 class GLEM(GSgnnNodeModelBase):
     """
     GLEM model (https://arxiv.org/abs/2210.14709) for node-level tasks.
+
     Parameters
     ----------
     alpha_l2norm: float

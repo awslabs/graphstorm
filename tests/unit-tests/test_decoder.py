@@ -13,7 +13,7 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-
+import math
 import pytest
 
 import dgl
@@ -22,16 +22,18 @@ from numpy.testing import assert_almost_equal
 
 from graphstorm.model import (LinkPredictDotDecoder,
                               LinkPredictDistMultDecoder,
-                              LinkPredictWeightedDotDecoder,
-                              LinkPredictWeightedDistMultDecoder,
                               EntityRegression,
                               MLPEFeatEdgeDecoder,
                               LinkPredictContrastiveDotDecoder,
-                              LinkPredictContrastiveDistMultDecoder)
+                              LinkPredictContrastiveDistMultDecoder,
+                              LinkPredictRotatEDecoder,
+                              LinkPredictContrastiveRotatEDecoder)
 from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                                     BUILTIN_LP_JOINT_NEG_SAMPLER)
-from graphstorm.eval.utils import calc_distmult_pos_score
+from graphstorm.eval.utils import (calc_distmult_pos_score,
+                                   calc_rotate_pos_score)
 from graphstorm.eval.utils import calc_dot_pos_score
+from graphstorm.eval.utils import calc_ranking
 
 from numpy.testing import assert_equal
 
@@ -47,6 +49,190 @@ def _check_scores(score, pos_score, neg_scores, etype, num_neg, batch_size):
     assert score[etype][1].shape[1] == num_neg
     assert_almost_equal(score[etype][0].cpu().numpy(), pos_score.cpu().numpy(), decimal=5)
     assert_almost_equal(score[etype][1].cpu().numpy(), neg_scores.cpu().numpy(), decimal=5)
+
+def _check_ranking(score, pos_score, neg_scores, etype, num_neg, batch_size):
+    assert score[etype][0].shape[0] == batch_size
+    assert len(score[etype][0].shape) == 1
+    # neg scores
+    assert len(score[etype][1].shape) == 2
+    assert score[etype][1].shape[0] == batch_size
+    assert score[etype][1].shape[1] == num_neg
+
+    p_score = score[etype][0].cpu()
+    n_score = score[etype][1].cpu()
+    test_ranking = calc_ranking(p_score, n_score)
+    ranking = calc_ranking(pos_score.cpu(), neg_scores.cpu())
+
+    assert_almost_equal(test_ranking.numpy(), ranking.numpy())
+
+def check_calc_test_scores_rotate_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg, device):
+    neg_sample_type = BUILTIN_LP_UNIFORM_NEG_SAMPLER
+    emb = {
+        'a': th.rand((128, h_dim)),
+        'b': th.rand((128, h_dim)),
+    }
+
+    def gen_edge_pairs():
+        pos_src = th.randint(100, (num_pos,))
+        pos_dst = th.randint(100, (num_pos,))
+        neg_src = th.randint(128, (num_pos, num_neg))
+        neg_dst = th.randint(128, (num_pos, num_neg))
+        return (pos_src, neg_src, pos_dst, neg_dst)
+
+    with th.no_grad():
+        pos_neg_tuple = {
+            etypes[0]: gen_edge_pairs(),
+            etypes[1]: gen_edge_pairs(),
+        }
+        pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple[etypes[0]]
+        pos_neg_tuple[etypes[0]] = (pos_src, None, pos_dst, neg_dst)
+        pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple[etypes[1]]
+        pos_neg_tuple[etypes[1]] = (pos_src, neg_src, pos_dst, None)
+
+        score = decoder.calc_test_scores(emb, pos_neg_tuple, neg_sample_type, device)
+        pos_src, _, pos_dst, neg_dst = pos_neg_tuple[etypes[0]]
+        pos_src_emb = emb[etypes[0][0]][pos_src]
+        pos_dst_emb = emb[etypes[0][2]][pos_dst]
+        rel_emb = decoder.get_relemb(etypes[0])
+        pos_score = calc_rotate_pos_score(pos_src_emb, pos_dst_emb, rel_emb,
+            decoder.emb_init, decoder.gamma)
+        neg_scores = []
+        for i in range(pos_src.shape[0]):
+            pse = pos_src_emb[i]
+            neg_dst_emb = emb[etypes[0][2]][neg_dst[i]]
+            ns = calc_rotate_pos_score(pse, neg_dst_emb, rel_emb,
+                decoder.emb_init, decoder.gamma)
+            neg_scores.append(ns)
+        neg_scores = th.stack(neg_scores)
+        _check_scores(score, pos_score, neg_scores, etypes[0], num_neg, pos_src.shape[0])
+
+        pos_src, neg_src, pos_dst, _ = pos_neg_tuple[etypes[1]]
+        pos_src_emb = emb[etypes[1][0]][pos_src]
+        pos_dst_emb = emb[etypes[1][2]][pos_dst]
+        rel_emb = decoder.get_relemb(etypes[1])
+        pos_score = calc_rotate_pos_score(pos_src_emb, pos_dst_emb, rel_emb,
+            decoder.emb_init, decoder.gamma)
+        neg_scores = []
+        for i in range(pos_dst.shape[0]):
+            neg_src_emb = emb[etypes[1][0]][neg_src[i]]
+            pde = pos_dst_emb[i]
+            ns = calc_rotate_pos_score(neg_src_emb, pde, rel_emb,
+                decoder.emb_init, decoder.gamma)
+            neg_scores.append(ns)
+        neg_scores = th.stack(neg_scores)
+        _check_scores(score, pos_score, neg_scores, etypes[1], num_neg, pos_src.shape[0])
+
+        pos_neg_tuple = {
+            etypes[0]: gen_edge_pairs(),
+        }
+        score = decoder.calc_test_scores(emb, pos_neg_tuple, neg_sample_type, device)
+        pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple[etypes[0]]
+        pos_src_emb = emb[etypes[0][0]][pos_src]
+        pos_dst_emb = emb[etypes[0][2]][pos_dst]
+        rel_emb = decoder.get_relemb(etypes[0])
+        pos_score = calc_rotate_pos_score(pos_src_emb, pos_dst_emb, rel_emb,
+            decoder.emb_init, decoder.gamma)
+        neg_scores = []
+        for i in range(pos_src.shape[0]):
+            pse = pos_src_emb[i]
+            pde = pos_dst_emb[i]
+            neg_src_emb = emb[etypes[0][0]][neg_src[i]]
+            neg_dst_emb = emb[etypes[0][2]][neg_dst[i]]
+            # (num_neg, dim) * (dim) * (dim)
+            ns_0 = calc_rotate_pos_score(neg_src_emb, pde, rel_emb,
+                decoder.emb_init, decoder.gamma)
+            # (dim) * (dim) * (num_neg, dim)
+            ns_1 = calc_rotate_pos_score(pse, neg_dst_emb, rel_emb,
+                decoder.emb_init, decoder.gamma)
+            neg_scores.append(th.cat((ns_0, ns_1), dim=-1))
+        neg_scores = th.stack(neg_scores)
+        _check_scores(score, pos_score, neg_scores, etypes[0], num_neg*2, pos_src.shape[0])
+
+
+def check_calc_test_scores_rotate_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, device):
+    neg_sample_type = BUILTIN_LP_JOINT_NEG_SAMPLER
+    emb = {
+        'a': th.rand((128, h_dim)),
+        'b': th.rand((128, h_dim)),
+    }
+
+    def gen_edge_pairs():
+        pos_src = th.ones((num_pos,), dtype=int)
+        pos_dst = th.randint(100, (num_pos,))
+        neg_src = th.randint(128, (num_neg,))
+        neg_dst = th.randint(128, (num_neg,))
+        neg_src[neg_src==1] = 2
+        return (pos_src, neg_src, pos_dst, neg_dst)
+
+    with th.no_grad():
+        pos_neg_tuple = {
+            etypes[0]: gen_edge_pairs(),
+            etypes[1]: gen_edge_pairs(),
+        }
+        pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple[etypes[0]]
+        pos_neg_tuple[etypes[0]] = (pos_src, None, pos_dst, neg_dst)
+        pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple[etypes[1]]
+        pos_neg_tuple[etypes[1]] = (pos_src, neg_src, pos_dst, None)
+
+        score = decoder.calc_test_scores(emb, pos_neg_tuple, neg_sample_type, device)
+        pos_src, _, pos_dst, neg_dst = pos_neg_tuple[etypes[0]]
+        pos_src_emb = emb[etypes[0][0]][pos_src]
+        pos_dst_emb = emb[etypes[0][2]][pos_dst]
+        rel_emb = decoder.get_relemb(etypes[0])
+        pos_score = calc_rotate_pos_score(pos_src_emb, pos_dst_emb, rel_emb,
+            decoder.emb_init, decoder.gamma)
+        neg_scores = []
+        for i in range(pos_src.shape[0]):
+            pse = pos_src_emb[i]
+            neg_dst_emb = emb[etypes[0][2]][neg_dst]
+            # (dim) * (dim) * (num_neg, dim)
+            ns = calc_rotate_pos_score(pse, neg_dst_emb, rel_emb,
+                decoder.emb_init, decoder.gamma)
+            neg_scores.append(ns)
+        neg_scores = th.stack(neg_scores)
+        _check_ranking(score, pos_score, neg_scores, etypes[0], num_neg, pos_src.shape[0])
+
+        pos_src, neg_src, pos_dst, _ = pos_neg_tuple[etypes[1]]
+        pos_src_emb = emb[etypes[1][0]][pos_src]
+        pos_dst_emb = emb[etypes[1][2]][pos_dst]
+        rel_emb = decoder.get_relemb(etypes[1])
+        pos_score = calc_rotate_pos_score(pos_src_emb, pos_dst_emb, rel_emb,
+            decoder.emb_init, decoder.gamma)
+        neg_scores = []
+        for i in range(pos_dst.shape[0]):
+            neg_src_emb = emb[etypes[1][0]][neg_src]
+            pde = pos_dst_emb[i]
+            # (num_neg, dim) * (dim) * (dim)
+            ns = calc_rotate_pos_score(neg_src_emb, pde, rel_emb,
+                decoder.emb_init, decoder.gamma)
+            neg_scores.append(ns)
+        neg_scores = th.stack(neg_scores)
+        _check_ranking(score, pos_score, neg_scores, etypes[1], num_neg, pos_src.shape[0])
+
+        pos_neg_tuple = {
+            etypes[0]: gen_edge_pairs(),
+        }
+        score = decoder.calc_test_scores(emb, pos_neg_tuple, neg_sample_type, device)
+        pos_src, neg_src, pos_dst, neg_dst = pos_neg_tuple[etypes[0]]
+        pos_src_emb = emb[etypes[0][0]][pos_src]
+        pos_dst_emb = emb[etypes[0][2]][pos_dst]
+        rel_emb = decoder.get_relemb(etypes[0])
+        pos_score = calc_rotate_pos_score(pos_src_emb, pos_dst_emb, rel_emb,
+            decoder.emb_init, decoder.gamma)
+        neg_scores = []
+        for i in range(pos_src.shape[0]):
+            pse = pos_src_emb[i]
+            pde = pos_dst_emb[i]
+            neg_src_emb = emb[etypes[0][0]][neg_src]
+            neg_dst_emb = emb[etypes[0][2]][neg_dst]
+
+            ns_0 = calc_rotate_pos_score(neg_src_emb, pde, rel_emb,
+                decoder.emb_init, decoder.gamma)
+            ns_1 = calc_rotate_pos_score(pse, neg_dst_emb, rel_emb,
+                decoder.emb_init, decoder.gamma)
+            neg_scores.append(th.cat((ns_0, ns_1), dim=-1))
+        neg_scores = th.stack(neg_scores)
+        _check_ranking(score, pos_score, neg_scores, etypes[0], num_neg*2, pos_src.shape[0])
 
 
 def check_calc_test_scores_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg, device):
@@ -77,13 +263,13 @@ def check_calc_test_scores_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg,
         pos_src_emb = emb[etypes[0][0]][pos_src]
         pos_dst_emb = emb[etypes[0][2]][pos_dst]
         rel_emb = decoder.get_relemb(etypes[0])
-        pos_score = calc_distmult_pos_score(pos_src_emb, rel_emb, pos_dst_emb)
+        pos_score = calc_distmult_pos_score(pos_src_emb, pos_dst_emb, rel_emb)
         neg_scores = []
         for i in range(pos_src.shape[0]):
             pse = pos_src_emb[i]
             neg_dst_emb = emb[etypes[0][2]][neg_dst[i]]
             # (dim) * (dim) * (num_neg, dim)
-            ns = calc_distmult_pos_score(pse, rel_emb, neg_dst_emb)
+            ns = calc_distmult_pos_score(pse, neg_dst_emb, rel_emb)
             neg_scores.append(ns)
         neg_scores = th.stack(neg_scores)
         _check_scores(score, pos_score, neg_scores, etypes[0], num_neg, pos_src.shape[0])
@@ -92,13 +278,13 @@ def check_calc_test_scores_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg,
         pos_src_emb = emb[etypes[1][0]][pos_src]
         pos_dst_emb = emb[etypes[1][2]][pos_dst]
         rel_emb = decoder.get_relemb(etypes[1])
-        pos_score = calc_distmult_pos_score(pos_src_emb, rel_emb, pos_dst_emb)
+        pos_score = calc_distmult_pos_score(pos_src_emb, pos_dst_emb, rel_emb)
         neg_scores = []
         for i in range(pos_dst.shape[0]):
             neg_src_emb = emb[etypes[1][0]][neg_src[i]]
             pde = pos_dst_emb[i]
             # (num_neg, dim) * (dim) * (dim)
-            ns = calc_distmult_pos_score(neg_src_emb, rel_emb, pde)
+            ns = calc_distmult_pos_score(neg_src_emb, pde, rel_emb)
             neg_scores.append(ns)
         neg_scores = th.stack(neg_scores)
         _check_scores(score, pos_score, neg_scores, etypes[1], num_neg, pos_src.shape[0])
@@ -111,7 +297,7 @@ def check_calc_test_scores_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg,
         pos_src_emb = emb[etypes[0][0]][pos_src]
         pos_dst_emb = emb[etypes[0][2]][pos_dst]
         rel_emb = decoder.get_relemb(etypes[0])
-        pos_score = calc_distmult_pos_score(pos_src_emb, rel_emb, pos_dst_emb)
+        pos_score = calc_distmult_pos_score(pos_src_emb, pos_dst_emb, rel_emb)
         neg_scores = []
         for i in range(pos_src.shape[0]):
             pse = pos_src_emb[i]
@@ -119,9 +305,9 @@ def check_calc_test_scores_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg,
             neg_src_emb = emb[etypes[0][0]][neg_src[i]]
             neg_dst_emb = emb[etypes[0][2]][neg_dst[i]]
             # (num_neg, dim) * (dim) * (dim)
-            ns_0 = calc_distmult_pos_score(neg_src_emb, rel_emb, pde)
+            ns_0 = calc_distmult_pos_score(neg_src_emb, pde, rel_emb)
             # (dim) * (dim) * (num_neg, dim)
-            ns_1 = calc_distmult_pos_score(pse, rel_emb, neg_dst_emb)
+            ns_1 = calc_distmult_pos_score(pse, neg_dst_emb, rel_emb)
             neg_scores.append(th.cat((ns_0, ns_1), dim=-1))
         neg_scores = th.stack(neg_scores)
         _check_scores(score, pos_score, neg_scores, etypes[0], num_neg*2, pos_src.shape[0])
@@ -154,13 +340,13 @@ def check_calc_test_scores_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, d
         pos_src_emb = emb[etypes[0][0]][pos_src]
         pos_dst_emb = emb[etypes[0][2]][pos_dst]
         rel_emb = decoder.get_relemb(etypes[0])
-        pos_score = calc_distmult_pos_score(pos_src_emb, rel_emb, pos_dst_emb)
+        pos_score = calc_distmult_pos_score(pos_src_emb, pos_dst_emb, rel_emb)
         neg_scores = []
         for i in range(pos_src.shape[0]):
             pse = pos_src_emb[i]
             neg_dst_emb = emb[etypes[0][2]][neg_dst]
             # (dim) * (dim) * (num_neg, dim)
-            ns = calc_distmult_pos_score(pse, rel_emb, neg_dst_emb)
+            ns = calc_distmult_pos_score(pse, neg_dst_emb, rel_emb)
             neg_scores.append(ns)
         neg_scores = th.stack(neg_scores)
         _check_scores(score, pos_score, neg_scores, etypes[0], num_neg, pos_src.shape[0])
@@ -169,13 +355,13 @@ def check_calc_test_scores_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, d
         pos_src_emb = emb[etypes[1][0]][pos_src]
         pos_dst_emb = emb[etypes[1][2]][pos_dst]
         rel_emb = decoder.get_relemb(etypes[1])
-        pos_score = calc_distmult_pos_score(pos_src_emb, rel_emb, pos_dst_emb)
+        pos_score = calc_distmult_pos_score(pos_src_emb, pos_dst_emb, rel_emb)
         neg_scores = []
         for i in range(pos_dst.shape[0]):
             neg_src_emb = emb[etypes[1][0]][neg_src]
             pde = pos_dst_emb[i]
             # (num_neg, dim) * (dim) * (dim)
-            ns = calc_distmult_pos_score(neg_src_emb, rel_emb, pde)
+            ns = calc_distmult_pos_score(neg_src_emb, pde, rel_emb)
             neg_scores.append(ns)
         neg_scores = th.stack(neg_scores)
         _check_scores(score, pos_score, neg_scores, etypes[1], num_neg, pos_src.shape[0])
@@ -188,7 +374,7 @@ def check_calc_test_scores_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, d
         pos_src_emb = emb[etypes[0][0]][pos_src]
         pos_dst_emb = emb[etypes[0][2]][pos_dst]
         rel_emb = decoder.get_relemb(etypes[0])
-        pos_score = calc_distmult_pos_score(pos_src_emb, rel_emb, pos_dst_emb)
+        pos_score = calc_distmult_pos_score(pos_src_emb, pos_dst_emb, rel_emb)
         neg_scores = []
         for i in range(pos_src.shape[0]):
             pse = pos_src_emb[i]
@@ -196,9 +382,9 @@ def check_calc_test_scores_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, d
             neg_src_emb = emb[etypes[0][0]][neg_src]
             neg_dst_emb = emb[etypes[0][2]][neg_dst]
             # (num_neg, dim) * (dim) * (dim)
-            ns_0 = calc_distmult_pos_score(neg_src_emb, rel_emb, pde)
+            ns_0 = calc_distmult_pos_score(neg_src_emb, pde, rel_emb)
             # (dim) * (dim) * (num_neg, dim)
-            ns_1 = calc_distmult_pos_score(pse, rel_emb, neg_dst_emb)
+            ns_1 = calc_distmult_pos_score(pse, neg_dst_emb, rel_emb)
             neg_scores.append(th.cat((ns_0, ns_1), dim=-1))
         neg_scores = th.stack(neg_scores)
         _check_scores(score, pos_score, neg_scores, etypes[0], num_neg*2, pos_src.shape[0])
@@ -341,6 +527,21 @@ def check_calc_test_scores_dot_joint_neg(decoder, etype, h_dim, num_pos, num_neg
 @pytest.mark.parametrize("num_pos", [8, 32])
 @pytest.mark.parametrize("num_neg", [1, 32])
 @pytest.mark.parametrize("device",["cpu","cuda:0"])
+def test_LinkPredictRotatEDecoder(h_dim, num_pos, num_neg, device):
+    th.manual_seed(0)
+    etypes = [('a', 'r1', 'b'), ('a', 'r2', 'b')]
+    decoder = LinkPredictRotatEDecoder(etypes, h_dim, gamma=4.)
+    # mimic that decoder has been trained.
+    decoder.trained_rels[0] = 1
+    decoder.trained_rels[1] = 1
+
+    check_calc_test_scores_rotate_uniform_neg(decoder, etypes, h_dim, num_pos, num_neg, device)
+    check_calc_test_scores_rotate_joint_neg(decoder, etypes, h_dim, num_pos, num_neg, device)
+
+@pytest.mark.parametrize("h_dim", [16, 64])
+@pytest.mark.parametrize("num_pos", [8, 32])
+@pytest.mark.parametrize("num_neg", [1, 32])
+@pytest.mark.parametrize("device",["cpu","cuda:0"])
 def test_LinkPredictDistMultDecoder(h_dim, num_pos, num_neg, device):
     th.manual_seed(0)
     etypes = [('a', 'r1', 'b'), ('a', 'r2', 'b')]
@@ -439,6 +640,37 @@ def test_LinkPredictContrastiveDistMultDecoder(h_dim, num_pos, num_neg, device):
     check_forward(decoder, etype, h_dim, num_pos, num_neg, comput_score, device)
 
 @pytest.mark.parametrize("h_dim", [16, 64])
+@pytest.mark.parametrize("num_pos", [8, 32])
+@pytest.mark.parametrize("num_neg", [1, 32])
+@pytest.mark.parametrize("device",["cpu", "cuda:0"])
+def test_LinkPredictContrastiveRotatEDecoder(h_dim, num_pos, num_neg, device):
+    th.manual_seed(1)
+    etype = ('a', 'r1', 'b')
+    gamma = 4.
+    decoder = LinkPredictContrastiveRotatEDecoder([etype], h_dim, gamma=gamma)
+    decoder.trained_rels[0] = 1 # trick the decoder
+    decoder = decoder.to(device)
+    rel_emb = decoder.get_relemb(etype).to(device)
+    emb_init = decoder.emb_init
+
+    def comput_score(src_emb, dst_emb):
+        real_head, imag_head = th.chunk(src_emb, 2, dim=-1)
+        real_tail, imag_tail = th.chunk(dst_emb, 2, dim=-1)
+
+        phase_rel = rel_emb / (emb_init / th.tensor(math.pi))
+        real_rel, imag_rel = th.cos(phase_rel), th.sin(phase_rel)
+        real_score = real_head * real_rel - imag_head * imag_rel
+        imag_score = real_head * imag_rel + imag_head * real_rel
+        real_score = real_score - real_tail
+        imag_score = imag_score - imag_tail
+        score = th.stack([real_score, imag_score], dim=0)
+        score = score.norm(dim=0)
+
+        return gamma - score.sum(-1)
+
+    check_forward(decoder, etype, h_dim, num_pos, num_neg, comput_score, device)
+
+@pytest.mark.parametrize("h_dim", [16, 64])
 @pytest.mark.parametrize("feat_dim", [8, 32])
 @pytest.mark.parametrize("out_dim", [2, 32])
 @pytest.mark.parametrize("num_ffn_layers", [0, 2])
@@ -530,6 +762,12 @@ def test_EntityRegression(in_dim, out_dim):
     assert decoder.out_dims == out_dim
 
 if __name__ == '__main__':
+    test_LinkPredictRotatEDecoder(16, 8, 1, "cpu")
+    test_LinkPredictRotatEDecoder(16, 32, 32, "cuda:0")
+
+    test_LinkPredictContrastiveRotatEDecoder(32, 8, 16, "cpu")
+    test_LinkPredictContrastiveRotatEDecoder(16, 32, 32, "cuda:0")
+
     test_EntityRegression(8, 1)
     test_EntityRegression(8, 8)
 

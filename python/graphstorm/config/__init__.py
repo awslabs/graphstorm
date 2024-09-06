@@ -29,8 +29,9 @@ from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                      BUILTIN_TASK_MULTI_TASK)
 from .config import SUPPORTED_TASKS
 
-from .config import BUILTIN_LP_DOT_DECODER
-from .config import BUILTIN_LP_DISTMULT_DECODER
+from .config import (BUILTIN_LP_DOT_DECODER,
+                     BUILTIN_LP_DISTMULT_DECODER,
+                     BUILTIN_LP_ROTATE_DECODER)
 from .config import SUPPORTED_LP_DECODER
 
 from .config import (GRAPHSTORM_MODEL_EMBED_LAYER,

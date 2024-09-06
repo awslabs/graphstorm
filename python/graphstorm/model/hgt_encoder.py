@@ -30,8 +30,8 @@ from .gnn_encoder_base import (GraphConvEncoder,
 
 
 class HGTLayer(nn.Module):
-    r"""Heterogenous graph transformer (HGT) layer  from `Heterogeneous Graph Transformer
-    <https://arxiv.org/abs/2003.01332>`__.
+    r"""Heterogenous graph transformer (HGT) layer from `Heterogeneous Graph
+    Transformer <https://arxiv.org/abs/2003.01332>`__.
 
     Given a graph :math:`G(V, E)` and input node features :math:`H^{(l-1)}` in the :math:`l-1`
     layer, it computes the new node features in the :math:`l` layer as follows:
@@ -64,14 +64,14 @@ class HGTLayer(nn.Module):
 
     .. math::
 
-      H^{(l)}[t]=\text{A-Linear}_{\tau(t)}(\sigma(\tilde(H)^{(l)}[t])) + H^{(l-1)}[t]
+      H^{(l)}[t]=\text{A-Linear}_{\tau(t)}(\sigma(\tilde{H}^{(l)}[t])) + H^{(l-1)}[t]
 
     Note:
     -----
-    * Different from DGL's HGTConv, this implementation is based on heterogeneous graph. Other
-      hyperparameters' default values are same as the DGL's HGTConv setting.
+    * Different from DGL's ``HGTConv``, this implementation is based on heterogeneous graphs.
+      Other hyperparameters' default values are same as the DGL's ``HGTConv`` setting.
 
-    * The cross-relation aggregation function of this implementation is `mean`, which was chosen
+    * The cross-relation aggregation function of this implementation is ``mean``, which was chosen
       by authors of the HGT paper in their contribution to DGL.
 
     Examples:
@@ -80,7 +80,7 @@ class HGTLayer(nn.Module):
     .. code:: python
 
         # suppose graph and input_feature are ready
-        from graphstorm.model.hgt_encoder import HGTLayer
+        from graphstorm.model import HGTLayer
 
         layer = HGTLayer(hid_dim, out_dim, g.ntypes, g.canonical_etypes,
                          num_heads, activation, dropout, norm)
@@ -88,24 +88,25 @@ class HGTLayer(nn.Module):
 
     Parameters
     ----------
-    in_dim : int
+    in_dim: int
         Input dimension size.
-    out_dim : int
+    out_dim: int
         Output dimension size.
-    ntypes: list[str]
-        List of node types
-    canonical_etypes: list[(str, str, str)]
-        List of canonical edge types
-    num_heads : int
-        Number of attention heads
-    activation : callable, optional
-        Activation function. Default: None
-    dropout : float, optional
-        Dropout rate. Default: 0.2
-    use_norm: boolean
-        If use layer normalization or not, default is True
-    num_ffn_layers_in_gnn: int, optional
-        Number of layers of ngnn between gnn layers
+    ntypes: list of str
+        List of node types in the format of [ntype1, ntype2, ...].
+    canonical_etypes: list of tuple
+        List of canonical edge types in the format of [('src_ntyp1', 'etype1', 'dst_ntype1`),
+        ...].
+    num_heads: int
+        Number of attention heads.
+    activation: callable
+        Activation function. Default: None.
+    dropout: float
+        Dropout rate. Default: 0.2.
+    norm: str
+        Normalization methods. Options:``batch``, ``layer``, and ``None``. Default: ``layer``.
+    num_ffn_layers_in_gnn: int
+        Number of fnn layers between gnn layers. Default: 0.
     """
     def __init__(self,
                  in_dim,
@@ -115,7 +116,7 @@ class HGTLayer(nn.Module):
                  num_heads,
                  activation=None,
                  dropout=0.2,
-                 norm=True,
+                 norm=BUILDIN_GNN_LAYER_NORM,
                  num_ffn_layers_in_gnn=0,
                  fnn_activation=F.relu):
         super(HGTLayer, self).__init__()
@@ -200,19 +201,19 @@ class HGTLayer(nn.Module):
         logging.warning(warn_msg)
 
     def forward(self, g, h):
-        """Forward computation
+        """ HGT layer forward computation.
 
         Parameters
         ----------
-        g : DGLHeteroGraph
-            Input graph.
-        inputs : dict[str, torch.Tensor]
-            Node feature for each node type.
+        g: DGLHeteroGraph
+            Input DGL heterogenous graph.
+        h: dict of Tensor
+            Node features for each node type in the format of {ntype: tensor}.
 
         Returns
         -------
-        dict[str, torch.Tensor]
-            New node features for each node type.
+        new_h: dict of Tensor
+            New node embeddings for each node type in the format of {ntype: tensor}.
         """
         # pylint: disable=no-member
         with g.local_scope():
@@ -298,28 +299,29 @@ class HGTLayer(nn.Module):
 
 
 class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
-    r"""Heterogenous graph transformer (HGT) encoder
+    r""" Heterogenous Graph Transformer (HGT) encoder.
 
-    The HGTEncoder employs several HGTLayers as its encoding mechanism.
-    The HGTEncoder should be designated as the model's encoder within Graphstorm.
+    The ``HGTEncoder`` employs several ``HGTLayer`` as its encoding mechanism.
+    The ``HGTEncoder`` should be designated as the model's encoder within Graphstorm.
 
     Parameters
-    g : DGLHeteroGraph
-        Input graph.
+    -----------
+    g: DistGraph
+        The input distributed graph.
     hid_dim: int
-        Hidden dimension size
+        Hidden dimension size.
     out_dim: int
-        Output dimension size
+        Output dimension size.
     num_hidden_layers: int
-        Number of hidden layers
+        Number of hidden layers. Total GNN layers is equal to ``num_hidden_layers + 1``.
     num_heads: int
-        Number of heads
+        Number of attention heads.
     dropout: float
-        Dropout, default is 0.2
-    norm : str, optional
-        Normalization Method. Default: None
+        Dropout rate. Default: 0.2.
+    norm: str
+        Normalization methods. Options:``batch``, ``layer``, and ``None``. Default: ``layer``.
     num_ffn_layers_in_gnn: int
-        Number of ngnn gnn layers between GNN layers
+        Number of fnn layers between GNN layers. Default: 0.
 
     Examples:
     ----------
@@ -328,8 +330,8 @@ class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
 
         # Build model and do full-graph inference on HGTEncoder
         from graphstorm import get_node_feat_size
-        from graphstorm.model.hgt_encoder import HGTEncoder
-        from graphstorm.model.edge_decoder import MLPEdgeDecoder
+        from graphstorm.model import HGTEncoder
+        from graphstorm.model import MLPEdgeDecoder
         from graphstorm.model import GSgnnEdgeModel, GSNodeEncoderInputLayer
         from graphstorm.dataloading import GSgnnData
         from graphstorm.model import do_full_graph_inference
@@ -337,7 +339,7 @@ class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         np_data = GSgnnData(...)
 
         model = GSgnnEdgeModel(alpha_l2norm=0)
-        feat_size = get_node_feat_size(np_data.g, 'feat')
+        feat_size = get_node_feat_size(np_data.g, "feat")
         encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
                                           dropout=0,
                                           use_node_embeddings=True)
@@ -349,7 +351,7 @@ class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
                                  num_hidden_layers=1,
                                  num_heads=2,
                                  dropout=0.0,
-                                 norm='layer',
+                                 norm="layer",
                                  num_ffn_layers_in_gnn=0)
         model.set_gnn_encoder(gnn_encoder)
         model.set_decoder(MLPEdgeDecoder(model.gnn_encoder.out_dims,
@@ -401,19 +403,22 @@ class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         pass
 
     def forward(self, blocks, h):
-        """Forward computation
+        """HGT encoder forward computation.
 
         Parameters
         ----------
-        blocks: DGL MFGs
-            Sampled subgraph in DGL MFG
-        h: dict[str, torch.Tensor]
-            Input node feature for each node type.
+        blocks: list of DGL MFGs
+            Sampled subgraph in the list of DGL message flow graphs (MFGs) format. More
+            detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+            Overview
+            <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
+        h: dict of Tensor
+            Input node features for each node type in the format of {ntype: tensor}.
 
         Returns
         ----------
-        h: dict[str, torch.Tensor]
-            Output node feature for each node type.
+        h: dict of Tensor
+            New node embeddings for each node type in the format of {ntype: tensor}.
         """
         for layer, block in zip(self.layers, blocks):
             h = layer(block, h)

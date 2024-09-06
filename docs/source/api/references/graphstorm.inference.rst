@@ -3,10 +3,11 @@
 graphstorm.inference
 ====================
 
-    GraphStorm inferrers assemble the distributed inference pipeline for different tasks.
+    GraphStorm inference modules assemble the distributed inference pipelines for different
+    tasks, e.g., node classification, and link prediction.
 
-    If possible, users should always use these inferrers to avoid handling the distributed
-    inference processing.
+    If possible, users should always use these GraphStorm inference modules to avoid handling
+    the complexities involved with the distributed data loading and model inference.
 
 .. currentmodule:: graphstorm.inference
 
@@ -15,6 +16,7 @@ graphstorm.inference
     :nosignatures:
     :template: inferencetemplate.rst
 
-    GSgnnLinkPredictionInferrer
     GSgnnNodePredictionInferrer
     GSgnnEdgePredictionInferrer
+    GSgnnLinkPredictionInferrer
+    GSgnnEmbGenInferer

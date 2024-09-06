@@ -579,10 +579,32 @@ class GSgnnData():
                 idx = [] if idx is None else idx
                 num_data += len(idx)
                 # If there are validation/test data globally, we should add them to the dict.
-                if dist_sum(len(idx)) > 0:
-                    idxs[ntype] = idx
+                total_num_idx = dist_sum(len(idx))
+                if total_num_idx > 0:
+                    if total_num_idx >= get_world_size():
+                        # The size of the validation or test set is larger
+                        # than the world size. Each validation/test dataloader
+                        # will not be empty
+                        idxs[ntype] = idx
+                    else:
+                        # There is not enough validation or test data.
+                        # One or more validation/test dataloader will be
+                        # empty, which will cause an evaluation error.
+                        #
+                        # To avoid the error, force each trainer or
+                        # inferencer to use the entire validation
+                        # or test set.
+                        idx = th.nonzero(g.nodes[ntype].data[msk][ \
+                            th.arange(g.num_nodes(ntype))]).reshape(-1,) # 1D tensor
+                        idxs[ntype] = idx
+                        logging.warning("Since the total number of validation/test data"
+                                        "of %s, which is %d, is less than the number of "
+                                        "workers %d, we will force each worker to do "
+                                        "validation or testing on the entire "
+                                        "validation/test set.",
+                                        ntype, total_num_idx, get_world_size())
 
-                logging.debug('part %d | ntype %s, mask %s | num nodes: %d',
+                logging.debug('part %d | ntype %s, mask %s | val/test: %d',
                           get_rank(), ntype, msk, len(idx))
         return idxs, num_data
 
@@ -814,8 +836,30 @@ class GSgnnData():
                 idx = [] if idx is None else idx
                 num_data += len(idx)
                 # If there are validation data globally, we should add them to the dict.
-                if dist_sum(len(idx)) > 0:
-                    idxs[canonical_etype] = idx
+                total_num_idx = dist_sum(len(idx))
+                if total_num_idx > 0:
+                    if total_num_idx >= get_world_size():
+                        # The size of the validation or test set is larger
+                        # than the world size. Each validation/test dataloader
+                        # will not be empty
+                        idxs[canonical_etype] = idx
+                    else:
+                        # There is not enough validation or test data.
+                        # One or more validation/test dataloader will be
+                        # empty, which will cause an evaluation error.
+                        #
+                        # To avoid the error, force each trainer or
+                        # inferencer to use the entire validation
+                        # or test set.
+                        idx = th.nonzero(g.edges[canonical_etype].data[msk][\
+                            th.arange(g.num_edges(canonical_etype))]).reshape(-1,) # 1D tensor
+                        idxs[canonical_etype] = idx
+                        logging.warning("Since the total number of validation/test data"
+                                        "of %s, which is %d, is less than the number of "
+                                        "workers %d, we will force each worker to do "
+                                        "validation or testing on the entire "
+                                        "validation/test set.",
+                                        canonical_etype, total_num_idx, get_world_size())
 
                 logging.debug('part %d | etype %s, mask %s | val/test: %d',
                               get_rank(), canonical_etype, msk, len(idx))

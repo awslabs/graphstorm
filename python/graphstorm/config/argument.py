@@ -663,6 +663,7 @@ class GSConfig:
         _ = self.edge_id_mapping_file
         _ = self.verbose
         _ = self.use_wholegraph_embed
+        _ = self.use_graphbolt
 
         # Data
         _ = self.node_feat_name
@@ -952,6 +953,18 @@ class GSConfig:
         else:
             return None
 
+    @property
+    def use_graphbolt(self):
+        """ Whether to use GraphBolt in-memory graph representation.
+            See https://docs.dgl.ai/stochastic_training/ for details.
+        """
+        if hasattr(self, "_use_graphbolt"):
+            assert self._use_graphbolt in [True, False], \
+                "Invalid value for _use_graphbolt. Must be either True or False."
+            return self._use_graphbolt
+        else:
+            return False
+
     ###################### language model support #########################
     # Bert related
     @property
@@ -1198,7 +1211,7 @@ class GSConfig:
                 assert isinstance(feat_info[1], str), \
                     f"Feature name of {ntype} should be a string not {feat_info[1]}"
                 # multiple features separated by ','
-                fname_dict[ntype] = feat_info[1].split(",")
+                fname_dict[ntype] = [item.strip() for item in feat_info[1].split(",")]
             return fname_dict
 
         # By default, return None which means there is no node feature
@@ -2767,6 +2780,15 @@ def _add_initialization_args(parser):
         help="Whether to use WholeGraph to store intermediate embeddings/tensors generated \
             during training or inference, e.g., cache_lm_emb, sparse_emb, etc."
     )
+    group.add_argument(
+        "--use-graphbolt",
+        type=lambda x: (str(x).lower() in ['true', '1']),
+        default=argparse.SUPPRESS,
+        help=(
+            "Whether to use GraphBolt graph representation. "
+            "See https://docs.dgl.ai/stochastic_training/ for details"
+        )
+    )
     return parser
 
 def _add_gsgnn_basic_args(parser):
@@ -3001,7 +3023,9 @@ def _add_node_classification_args(parser):
             "The weights should be in the following format 0.1,0.2,0.3,0.1,0.0 ")
     group.add_argument("--num-classes", type=int, default=argparse.SUPPRESS,
                        help="The cardinality of labels in a classifiction task")
-    group.add_argument("--return-proba", type=bool, default=argparse.SUPPRESS,
+    group.add_argument("--return-proba",
+                       type=lambda x: (str(x).lower() in ['true', '1']),
+                       default=argparse.SUPPRESS,
                        help="Whether to return the probabilities of all the predicted \
                        results or only the maximum one. Set True to return the \
                        probabilities. Set False to return the maximum one.")

@@ -7,4 +7,13 @@
 
 .. autoclass:: {{ name }}
     :show-inheritance:
-    :members: forward, save_model, restore_model, predict, create_optimizer
+    :members:
+    :exclude-members: freeze_input_encoder,
+                      unfreeze_input_encoder,
+                      normalize_node_embs,
+                      warning_once,
+                      skip_last_selfloop,
+                      reset_last_selfloop,
+                      reset_parameters
+    :member-order: bysource
+

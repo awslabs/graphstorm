@@ -804,4 +804,51 @@ fi
 
 rm /tmp/train_log.txt
 
+echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, decoder: RotatE, exclude_training_targets: true, save model"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false  --use-node-embeddings true  --eval-batch-size 1024 --save-model-path /data/gsgnn_lp_ml_rotate/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_rotate/emb/ --lp-decoder-type rotate --train-etype user,rating,movie movie,rating-rev,user --logging-file /tmp/train_log.txt --preserve-input True
+
+error_and_exit $?
+
+cnt=$(ls -l /data/gsgnn_lp_ml_rotate/ | grep epoch | wc -l)
+if test $cnt != 1
+then
+    echo "The number of save models $cnt is not equal to the specified topk 1"
+    exit -1
+fi
+
+best_epoch_rotate=$(grep "successfully save the model to" /tmp/train_log.txt | tail -1 | tr -d '\n' | tail -c 1)
+echo "The best model is saved in epoch $best_epoch_rotate"
+
+echo "**************dataset: Movielens, do inference on saved model, decoder: RotatE"
+python3 -m graphstorm.run.gs_link_prediction --inference --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp_infer.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --use-node-embeddings true --eval-batch-size 1024 --save-embed-path /data/gsgnn_lp_ml_rotate/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_rotate/epoch-$best_epoch_rotate/ --lp-decoder-type rotate --no-validation False --train-etype user,rating,movie movie,rating-rev,user --preserve-input True
+
+error_and_exit $?
+
+python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_lp_ml_rotate/emb/ --infer-embout /data/gsgnn_lp_ml_rotate/infer-emb/ --link-prediction
+
+error_and_exit $?
+
+cnt=$(ls /data/gsgnn_lp_ml_rotate/infer-emb/ | grep rel_emb.pt | wc -l)
+if test $cnt -ne 1
+then
+    echo "RotatE inference outputs edge embedding"
+    exit -1
+fi
+
+cnt=$(ls /data/gsgnn_lp_ml_rotate/infer-emb/ | grep relation2id_map.json | wc -l)
+if test $cnt -ne 1
+then
+    echo "RotatE inference outputs edge embedding"
+    exit -1
+fi
+
+rm /tmp/train_log.txt
+rm -fr /data/gsgnn_lp_ml_rotate/*
+
+echo "**************dataset: Movielens, two training edges but only one with edge weight for loss, score func: RotatE ***********"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --eval-batch-size 1024 --topk-model-to-save 1 --save-model-frequency 1000 --train-etype user,rating,movie movie,rating-rev,user --lp-edge-weight-for-loss user,rating,movie:rate --lp-decoder-type rotate --save-model-path /data/gsgnn_lp_ml_rotate/
+
+error_and_exit $?
+rm -fr /data/gsgnn_lp_ml_rotate/*
+
 rm -fr /tmp/*
