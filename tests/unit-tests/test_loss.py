@@ -93,8 +93,17 @@ def test_FocalLossFunc():
     logits = th.tensor([[0.6330],[0.9946],[0.2322],[0.0115],[0.9159],[0.5752],[0.4491], [0.9231],[0.7170],[0.2761]])
     labels = th.tensor([0, 0, 0, 1, 1, 1, 0, 1, 0, 0])
     # Manually call the torchvision.ops.sigmoid_focal_loss to generate the loss value
-    gt_loss =  th.tensor(0.1968)
+    gt_loss = th.tensor(0.1968)
+    loss = loss_func(logits, labels)
+    assert_almost_equal(loss.numpy(), gt_loss.numpy(), decimal=4)
 
+    alpha = 0.2
+    gamma = 1.5
+    loss_func = FocalLossFunc(alpha, gamma)
+    logits = th.tensor([2.8205, 0.4035, 0.8215, 1.9420, 0.2400, 2.8565, 1.8330, 0.7786, 2.0962, 1.0399])
+    labels = th.tensor([0, 0, 1, 0, 1, 1, 1, 1, 0, 0])
+    # Manually call the torchvision.ops.sigmoid_focal_loss to generate the loss value
+    gt_loss = th.tensor(0.6040)
     loss = loss_func(logits, labels)
     assert_almost_equal(loss.numpy(), gt_loss.numpy(), decimal=4)
 
