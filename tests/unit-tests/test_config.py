@@ -1035,6 +1035,19 @@ def create_lp_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"_fail_metric3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    yaml_object["gsf"]["link_prediction"] = {
+        "adversarial_temperature": 0.1,
+    }
+    with open(os.path.join(tmp_path, file_name+"_adv_temp.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["link_prediction"] = {
+        "lp_loss_func": BUILTIN_LP_LOSS_CONTRASTIVELOSS,
+        "adversarial_temperature": 0.1,
+    }
+    with open(os.path.join(tmp_path, file_name+"_adv_temp_fail.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
 def test_lp_info():
     with tempfile.TemporaryDirectory() as tmpdirname:
         create_lp_config(Path(tmpdirname), 'lp_test')
@@ -1051,6 +1064,7 @@ def test_lp_info():
         assert config.gamma == None
         assert config.alpha == None
         assert config.lp_loss_func == BUILTIN_LP_LOSS_CROSS_ENTROPY
+        assert config.adversarial_temperature == None
         assert config.lp_embed_normalizer == None
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
@@ -1129,6 +1143,16 @@ def test_lp_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail_metric3.yaml'), local_rank=0)
         config = GSConfig(args)
         check_failure(config, "eval_metric")
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_adv_temp.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert config.lp_loss_func == BUILTIN_LP_LOSS_CROSS_ENTROPY
+        assert config.adversarial_temperature == 0.1
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_adv_temp_fail.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS
+        check_failure(config, "adversarial_temperature")
 
 def create_gnn_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
