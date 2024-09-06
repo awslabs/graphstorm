@@ -40,7 +40,7 @@ def main(config_args):
     config.verify_arguments(False)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
-                  local_rank=config.local_rank)
+                  local_rank=config.local_rank, use_graphbolt=config.use_graphbolt)
     # The model only uses language model(s) as its encoder
     # It will not use node or edge features
     # except LM related features.

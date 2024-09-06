@@ -49,11 +49,11 @@ DOCKER_FULLNAME="${IMAGE_NAME}:${TAG}-${DEVICE_TYPE}"
 echo "Build a local docker image ${DOCKER_FULLNAME}"
 
 if [[ $DEVICE_TYPE = "gpu" ]]; then
-    SOURCE_IMAGE="nvidia/cuda:12.1.1-runtime-ubuntu20.04"
+    SOURCE_IMAGE="nvidia/cuda:12.1.1-runtime-ubuntu22.04"
 elif [[ $DEVICE_TYPE = "cpu" ]]; then
     aws ecr-public get-login-password --region us-east-1 | \
         docker login --username AWS --password-stdin public.ecr.aws
-    SOURCE_IMAGE="public.ecr.aws/ubuntu/ubuntu:20.04_stable"
+    SOURCE_IMAGE="public.ecr.aws/ubuntu/ubuntu:22.04_stable"
 else
     echo >&2 -e "Image type can only be \"gpu\" or \"cpu\", but got \""$DEVICE_TYPE"\""
     # remove the temporary code folder

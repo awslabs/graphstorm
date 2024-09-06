@@ -11,9 +11,9 @@ graphstorm.model
     * Input layer: an input encoder that converts input node/edge features into embeddings
       with the given hidden dimensions. The output of an input layer will become the input of
       the GNN layer, or the decoder layer if GNN is not defined.
-    * GNN layer (Optional): a GNN encoder that performs the message passing computation. 
+    * GNN layer (Optional): a GNN encoder that performs the message passing computation.
       The outputs of a GNN layer are embeddings of nodes that wil be used in the decoder layer.
-    * Decoder layer: a task specific decoder that converts results from either a GNN layer or 
+    * Decoder layer: a task specific decoder that converts results from either a GNN layer or
       an input layer into loss values for different GML tasks, e.g., classification, regression,
       or link prediction.
     * Model optimizer: GraphStorm model classes have a built-in model optimizer, which should
@@ -94,7 +94,10 @@ Decoder Layer
     DenseBiDecoder
     MLPEdgeDecoder
     MLPEFeatEdgeDecoder
+    LinkPredictMultiRelationLearnableDecoder
     LinkPredictDotDecoder
     LinkPredictContrastiveDotDecoder
     LinkPredictDistMultDecoder
     LinkPredictContrastiveDistMultDecoder
+    LinkPredictRotatEDecoder
+    LinkPredictContrastiveRotatEDecoder
