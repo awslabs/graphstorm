@@ -32,6 +32,10 @@ job_type_info = {
         'job_definition': 'graphstorm-definition-gpu',
         'job_queue': 'graphstorm-queue-v1',
     },
+    'CI-GPU-DGL230': {
+        'job_definition': 'graphstorm-definition-gpu-dgl230',
+        'job_queue': 'graphstorm-queue-graphbolt',
+    },
     'CI-LINT-PUSH': {
         'job_definition': 'graphstorm-definition-lint',
         'job_queue': 'graphstorm-queue-lint',
