@@ -43,7 +43,7 @@ env:
   COMMAND-E2E: chmod +x ./e2e_check.sh && ./e2e_check.sh
   COMMAND-E2E-MGPU: chmod +x ./e2e_mgpu_check.sh && ./e2e_mgpu_check.sh
   COMMAND-E2E-MGPU-MULTITASK: chmod +x ./e2e_mgpu_multitask_check.sh && ./e2e_mgpu_multitask_check.sh
-  COMMAND-E2E-MGPU-GB: chmod +x ./e2e_mgpu_gb_check.sh && ./e2e_mgpu_gb_check.sh
+  COMMAND-E2E-GB: chmod +x ./e2e_mgpu_gb_check.sh && ./e2e_mgpu_gb_check.sh
 
 jobs:
 
@@ -311,7 +311,7 @@ jobs:
                                --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
                                --source-ref '${{ github.event.pull_request.head.sha }}' \
                                --wait
-  e2e_mgpu_graphbolt:
+  e2e_graphbolt:
     if: ${{ github.event.label.name != 'draft' }}
     needs: [pytest_check, lint_check]
     runs-on: ubuntu-latest
@@ -338,8 +338,8 @@ jobs:
       shell: bash
       run: |
         echo "Start submitting job - Push"  
-        python3 ./submitJob.py --job-type CI-GPU-DGL230 --name Graphstorm-E2E-MGPUTest-GB-Push-'${{ github.ref }}' \
-                               --command "${{ env.COMMAND-E2E-MGPU-GB }}" \
+        python3 ./submitJob.py --job-type CI-GPU-DGL230 --name Graphstorm-E2E-Test-GB-Push-'${{ github.ref }}' \
+                               --command "${{ env.COMMAND-E2E-GB }}" \
                                --remote https://github.com/'${{ github.repository }}' \
                                --source-ref '${{ github.ref }}' \
                                --wait
@@ -348,8 +348,8 @@ jobs:
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
-        python3 ./submitJob.py --job-type CI-GPU-DGL230 --name Graphstorm-E2E-MGPUTest-GB-PR#-'${{ github.event.number }}' \
-                               --command "${{ env.COMMAND-E2E-MGPU-GB }}" \
+        python3 ./submitJob.py --job-type CI-GPU-DGL230 --name Graphstorm-E2E-Test-GB-PR#-'${{ github.event.number }}' \
+                               --command "${{ env.COMMAND-E2E-GB }}" \
                                --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
                                --source-ref '${{ github.event.pull_request.head.sha }}' \
                                --wait
