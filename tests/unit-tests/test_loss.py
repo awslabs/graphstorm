@@ -21,7 +21,8 @@ import torch.nn.functional as F
 from numpy.testing import assert_almost_equal
 
 from graphstorm.model.loss_func import (LinkPredictAdvBCELossFunc,
-                                        WeightedLinkPredictAdvBCELossFunc)
+                                        WeightedLinkPredictAdvBCELossFunc,
+                                        FocalLossFunc)
 
 @pytest.mark.parametrize("num_pos", [1, 8, 32])
 @pytest.mark.parametrize("num_neg", [1, 8, 32])
@@ -84,6 +85,22 @@ def test_WeightedLinkPredictAdvBCELossFunc(num_pos, num_neg):
 
     assert_almost_equal(loss.numpy(),gt_loss.numpy())
 
+def test_FocalLossFunc():
+    alpha = 0.25
+    gamma = 2.
+
+    loss_func = FocalLossFunc(alpha, gamma)
+    logits = th.tensor([[0.6330],[0.9946],[0.2322],[0.0115],[0.9159],[0.5752],[0.4491], [0.9231],[0.7170],[0.2761]])
+    labels = th.tensor([0, 0, 0, 1, 1, 1, 0, 1, 0, 0])
+    # Manually call the torchvision.ops.sigmoid_focal_loss to generate the loss value
+    gt_loss =  th.tensor(0.1968)
+
+    loss = loss_func(logits, labels)
+    assert_almost_equal(loss.numpy(), gt_loss.numpy(), decimal=4)
+
+
 if __name__ == '__main__':
+    test_FocalLossFunc()
+
     test_LinkPredictAdvBCELossFunc(16, 128)
     test_WeightedLinkPredictAdvBCELossFunc(16, 128)
