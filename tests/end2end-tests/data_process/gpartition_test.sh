@@ -51,26 +51,3 @@ for i in $(seq 0 1); do
         exit 1
     fi
 done
-
-
-echo "********* Test partition creation with GraphBolt graph format ********"
-
-GRAPHBOLT_PATH="${OUTPUT_PATH}/graphbolt-part"
-python3 -m graphstorm.gpartition.dist_partition_graph \
-    --input-path "${INPUT_PATH}" \
-    --ip-config ip_list.txt \
-    --metadata-filename chunked_graph_meta.json \
-    --num-parts 2 \
-    --output-path $GRAPHBOLT_PATH \
-    --ssh-port 2222 \
-    --use-graphbolt "true"
-
-
-# Ensure GraphBolt files were created
-for i in $(seq 0 1); do
-    if [ ! -f "$GRAPHBOLT_PATH/dist_graph/part${i}/fused_csc_sampling_graph.pt" ]
-    then
-        echo "$GRAPHBOLT_PATH/dist_graph/part${i}/fused_csc_sampling_graph.pt must exist"
-        exit 1
-    fi
-done

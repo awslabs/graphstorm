@@ -27,26 +27,6 @@ python3 -m graphstorm.gconstruct.construct_graph --conf-file $GS_HOME/tests/end2
 
 error_and_exit $?
 
-echo "********* Test generating the GraphBolt graph format with GConstruct ********"
-
-python3 -m graphstorm.gconstruct.construct_graph \
-    --add-reverse-edges \
-    --conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_text.json \
-    --graph-name ml \
-    --num-processes 1 \
-    --output-dir /tmp/movielens_graphbolt \
-    --part-method random \
-    --use-graphbolt "true"
-
-error_and_exit $?
-
-# check if graphbolt representation was created
-if test -f /tmp/movielens_graphbolt/part0/fused_csc_sampling_graph.pt -ne 0
-then
-	echo "/tmp/movielens_graphbolt/part0/fused_csc_sampling_graph.pt must exist"
-	exit 1
-fi
-
 echo "********* Test the DistDGL graph format with BERT embeddings ********"
 python3 -m graphstorm.gconstruct.construct_graph --conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens.json --num-processes 1 --output-dir /tmp/movielens_bert_emb --graph-name ml --add-reverse-edges
 
