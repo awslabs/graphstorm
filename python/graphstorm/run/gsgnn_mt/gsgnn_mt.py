@@ -110,7 +110,7 @@ def create_task_train_dataloader(task, config, train_data):
                               exclude_training_targets=task_config.exclude_training_targets,
                               # Only use training edges in message passing during training.
                               # Overwrite the default mask name "train_mask"
-                              edge_mask_for_gnn_embeddings=config.train_mask,
+                              edge_mask_for_gnn_embeddings=task_config.train_mask,
                               edge_dst_negative_field=task_config.train_etypes_negative_dstnode,
                               num_hard_negs=task_config.num_train_hard_negatives)
     elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
