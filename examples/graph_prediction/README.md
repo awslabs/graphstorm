@@ -3,9 +3,9 @@ Graph prediction, such as classification and regression, is a common task in Gra
 
 A typical operation used in graph prediction is called `Read-out`, e.g., `sum`, `mean`, or `max/min`, which aggregates the representations of nodes in a subgraph to form one representation for the subgraph. Then outputs of the `Read-out` will be used to perform downstream prediction computation.
 
-The current version of GraphStorm can not directly perform graph prediction. But as GraphStorm supports node-level prediction, we can use a method called `super-node` to fulfill the graph prediction requirement. Instead of using the `Read-out` operation, we can add a new node, called **super node**, to each subgraph, and link all original nodes of the subgraph to it, but not adding reversed edges. With this method, representations of all original nodes could be easily aggregated to the **super node**. And then we can use the **super node** as the repsentation of this subgraph to perform graph level prediciton tasks. Using this method we turn the graph prediction task into a node prediction task.
+The current version of GraphStorm can not directly perform graph prediction. But as GraphStorm supports node-level prediction, we can use a method called `super-node` to fulfill the graph prediction requirement. Instead of using the `Read-out` operation, we can add a new node, called **super node**, to each subgraph, and link all original nodes of the subgraph to it, but not adding reversed edges. With these inbound edges, representations of all original nodes in a subgraph could be easily aggregated to the **super node**. And then we can use the **super node** as the repsentation of this subgraph to perform graph level prediciton tasks. The `super-node` method help us to turn a graph prediction task into a node prediction task.
 
-In this example, we demonstrate how to process the common graph property prediction dataset (the [OGBG datasets](https://ogb.stanford.edu/docs/graphprop/)) into the `super-node` format graph data. And then we can leverage GraphStorm's graph construciton, and model trainig CLIs to perform the **super node** prediction tasks for graph predicition tasks.
+In this example, we demonstrate how to process the common graph property prediction dataset (the [OGBG datasets](https://ogb.stanford.edu/docs/graphprop/)) into the `super-node` format graph data. And then we can leverage GraphStorm's graph construciton, and model trainig CLIs to perform `super node` prediction for graph predicition tasks.
 
 ## `Super-node` Graph Data Processing
 
@@ -24,7 +24,7 @@ python -m graphstorm.gconstruct.construct_graph \
         --graph-name supernode_molhiv
 ```
 
-## Traing GraphStorm GNN Models for Super-node Graph
+## Traing GraphStorm GNN Models for `Super-node` Graphs
 
 Using the `super-node` method, we turn the graph prediction task into a node prediction task. Then we can leverage GraphStorm's node prediction CLIs to perform the graph prediction on **super nodes**. Below is the CLI for training an RGCN model on the OGBG data.
 
