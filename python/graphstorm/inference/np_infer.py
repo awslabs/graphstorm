@@ -92,6 +92,7 @@ class GSgnnNodePredictionInferrer(GSInferrer):
             res = node_mini_batch_gnn_predict(self._model, loader, return_proba,
                                               return_label=do_eval)
             preds = res[0]
+            # Filter out the empty tensor
             preds = {key: value for key, value in preds.items() if value.numel() > 0}
             embs = res[1]
             labels = res[2] if do_eval else None
@@ -101,6 +102,7 @@ class GSgnnNodePredictionInferrer(GSInferrer):
             res = node_mini_batch_predict(self._model, embs, loader, return_proba,
                                           return_label=do_eval)
             preds = res[0]
+            # Filter out the empty tensor
             preds = {key: value for key, value in preds.items() if value.numel() > 0}
             labels = res[1] if do_eval else None
 
