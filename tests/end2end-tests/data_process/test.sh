@@ -145,24 +145,21 @@ python3 $GS_HOME/tests/end2end-tests/data_process/check_edge_predict_remap.py --
 
 error_and_exit $?
 
-gz_files=(/tmp/ep_remap/pred/n0_access_n1/src_nids-*.pt)
-cnt=${#gz_files[@]}
+cnt=$(ls /tmp/ep_remap/pred/n0_access_n1/src_nids-*.pt | wc -l)
 if test $cnt != 2
 then
     echo "src_nids-xxx.pt must exist."
     exit -1
 fi
 
-gz_files=(/tmp/ep_remap/pred/n0_access_n1/dst_nids-*.pt)
-cnt=${#gz_files[@]}
+cnt=$(ls /tmp/ep_remap/pred/n0_access_n1/dst_nids-*.pt | wc -l)
 if test $cnt != 2
 then
     echo "dst_nids-xxx.pt must exist."
     exit -1
 fi
 
-gz_files=(/tmp/ep_remap/pred/n0_access_n1/predict-*.pt)
-cnt=${#gz_files[@]}
+cnt=$(ls /tmp/ep_remap/pred/n0_access_n1/predict-*.pt | wc -l)
 if test $cnt != 2
 then
     echo "predict-xxx.pt must exist."
@@ -179,24 +176,21 @@ error_and_exit $?
 
 python3 $GS_HOME/tests/end2end-tests/data_process/check_edge_predict_remap.py --remap-output /tmp/ep_remap/rename-pred/ --column-names "src_nid,~from:STRING" "dst_nid,~to:STRING" "pred,pred:FLOAT"
 
-gz_files=(/tmp/ep_remap/rename-pred/n0_access_n1/src_nids-*.pt)
-cnt=${#gz_files[@]}
+cnt=$(ls /tmp/ep_remap/rename-pred/n0_access_n1/src_nids-*.pt | wc -l)
 if test $cnt != 0
 then
     echo "src_nids-xxx.pt should be removed."
     exit -1
 fi
 
-gz_files=(/tmp/ep_remap/rename-pred/n0_access_n1/dst_nids-*.pt)
-cnt=${#gz_files[@]}
+cnt=$(ls /tmp/ep_remap/rename-pred/n0_access_n1/dst_nids-*.pt | wc -l)
 if test $cnt != 0
 then
     echo "dst_nids-xxx.pt should be removed."
     exit -1
 fi
 
-gz_files=(/tmp/ep_remap/rename-pred/n0_access_n1/predict-*.pt)
-cnt=${#gz_files[@]}
+cnt=$(ls /tmp/ep_remap/rename-pred/n0_access_n1/predict-*.pt | wc -l)
 if test $cnt != 0
 then
     echo "predict-xxx.pt should be removed."
@@ -249,16 +243,14 @@ python3 $GS_HOME/tests/end2end-tests/data_process/check_node_predict_remap.py --
 
 error_and_exit $?
 
-gz_files=(/tmp/np_remap/pred/n0/predict_nids-*.pt)
-cnt=${#gz_files[@]}
+cnt=$(ls /tmp/np_remap/pred/n0/predict_nids-*.pt | wc -l)
 if test $cnt != 2
 then
     echo "predict_nids-xxx.pt must exist."
     exit -1
 fi
 
-gz_files=(/tmp/np_remap/pred/n0/predict-*.pt)
-cnt=${#gz_files[@]}
+cnt=$(ls /tmp/np_remap/pred/n0/predict-*.pt | wc -l)
 if test $cnt != 2
 then
     echo "predict-xxx.pt must exist."
@@ -312,16 +304,14 @@ python3 $GS_HOME/tests/end2end-tests/data_process/check_emb_remap.py --remap-out
 
 error_and_exit $?
 
-gz_files=(/tmp/em_remap/partial-emb/n0/embed_nids-*.pt)
-cnt=${#gz_files[@]}
+cnt=$(ls /tmp/em_remap/partial-emb/n0/embed_nids-*.pt | wc -l)
 if test $cnt != 2
 then
     echo "embed_nids-xxx.pt must exist."
     exit -1
 fi
 
-gz_files=(/tmp/em_remap/partial-emb/n0/embed-*.pt)
-cnt=${#gz_files[@]}
+cnt=$(ls /tmp/em_remap/partial-emb/n0/embed-*.pt | wc -l)
 if test $cnt != 2
 then
     echo "embed-xxx.pt must exist."
@@ -342,16 +332,14 @@ python3 $GS_HOME/tests/end2end-tests/data_process/check_emb_remap.py --remap-out
 
 error_and_exit $?
 
-gz_files=(/tmp/em_remap/partial-rename-emb/n0/embed_nids-*.pt)
-cnt=${#gz_files[@]}
+cnt=$(ls /tmp/em_remap/partial-rename-emb/n0/embed_nids-*.pt | wc -l)
 if test $cnt != 0
 then
     echo "embed_nids-xxx.pt should be removed."
     exit -1
 fi
 
-gz_files=(/tmp/em_remap/partial-rename-emb/n0/embed-*.pt)
-cnt=${#gz_files[@]}
+cnt=$(ls /tmp/em_remap/partial-rename-emb/n0/embed-*.pt | wc -l)
 if test $cnt != 0
 then
     echo "embed-xxx.pt should be removed."
