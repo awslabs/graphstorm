@@ -77,4 +77,5 @@ python -m graphstorm.run.gs_node_classification \
           --num-heads 4
 ```
 
-> [!TIP] The built-in GNN models do not perform the same computation as the `Read-out` operation, which normally just aggregates the representations of nodes in their last GNN layer. To mimic the `Read-out` operation, we can customize GraphStorm GNN encoders. 
+> [!TIP]
+> The built-in GNN models do not perform the same computation as the `Read-out` operation, which normally just aggregates the representations of nodes in their last GNN layer. To mimic the `Read-out` operation, we can customize GraphStorm GNN encoders. 
