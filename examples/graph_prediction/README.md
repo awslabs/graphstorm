@@ -69,13 +69,13 @@ python -m graphstorm.run.gs_node_classification \
 > [!TIP]
 > To help users to dive deep the super-node format graph structure, we also provide a dummy super-node graph generation script, i.e., the `dummy_supernode_data.py`. You can run the following commands to build a dummy super-node format graph dataset. This dummy data can also be used for debugging the super-node customized GraphStorm models.
 
-        ``` bash
-        python dummy_supernode_data.py --num-subgraphs 200 \
-                                        --save-path ./dummy_raw/
+``` bash
+python dummy_supernode_data.py --num-subgraphs 200 \
+                                --save-path ./dummy_raw/
 
-        python -m graphstorm.gconstruct.construct_graph \
-                --conf-file ./dummy_raw/config.json \
-                --output-dir ./dummy_gs_1p/ \
-                --num-parts 1 \
-                --graph-name dummy_supernode
-        ```
+python -m graphstorm.gconstruct.construct_graph \
+        --conf-file ./dummy_raw/config.json \
+        --output-dir ./dummy_gs_1p/ \
+        --num-parts 1 \
+        --graph-name dummy_supernode
+```
