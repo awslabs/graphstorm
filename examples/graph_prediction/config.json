@@ -1,0 +1,73 @@
+{
+    "version": "gconstruct-v0.1",
+    "nodes": [
+        {
+            "node_type": "node",
+            "format": {
+                "name": "parquet"
+            },
+            "files": "./nodes/node/node.parquet",
+            "node_id_col": "NID",
+            "features": [
+                {
+                    "feature_col": "n_feat",
+                    "feature_name": "n_feat"
+                }
+            ]
+        },
+        {
+            "node_type": "super",
+            "format": {
+                "name": "parquet"
+            },
+            "files": "./nodes/super/super.parquet",
+            "node_id_col": "NID",
+            "features": [
+                {
+                    "feature_col": "n_feat",
+                    "feature_name": "n_feat"
+                }
+            ],
+            "labels": [
+                {
+                    "label_col": "labels",
+                    "task_type": "classification",
+                    "custom_split_filenames": {
+                        "train": "./nodes/super/train_idx.json",
+                        "valid": "./nodes/super/val_idx.json",
+                        "test": "./nodes/super/test_idx.json"
+                    },
+                    "label_stats_type": "frequency_cnt"
+                }
+            ]
+        }
+    ],
+    "edges": [
+        {
+            "relation": [
+                "node",
+                "to",
+                "node"
+            ],
+            "format": {
+                "name": "parquet"
+            },
+            "files": "./edges/node-to-node/node-to-node.parquet",
+            "source_id_col": "source_id",
+            "dest_id_col": "dest_id"
+        },
+        {
+            "relation": [
+                "node",
+                "to_super",
+                "super"
+            ],
+            "format": {
+                "name": "parquet"
+            },
+            "files": "./edges/node-to_super-super/node-to_super-super.parquet",
+            "source_id_col": "source_id",
+            "dest_id_col": "dest_id"
+        }
+    ]
+}

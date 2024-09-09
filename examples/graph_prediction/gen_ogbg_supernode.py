@@ -247,6 +247,7 @@ def main(args):
         os.makedirs(ntype_base_path, exist_ok=True)
         node_file_path = os.path.join(ntype_base_path, ntype + '.parquet')
         node_df.to_parquet(node_file_path)
+        print(f'Save {ntype} data to {node_file_path} ...')
 
         node_metadata[ntype] = {'data_path': node_file_path,
                                 'feat_names': list(node_df.columns)}
@@ -271,20 +272,22 @@ def main(args):
         os.makedirs(etype_base_path, exist_ok=True)
         edge_file_path = os.path.join(etype_base_path, can_etype[0] + '-' + can_etype[1] + '-' + can_etype[2] + '.parquet')
         edge_df.to_parquet(edge_file_path)
+        print(f'Save {can_etype} data to {edge_file_path} ...')
 
         edge_metadata[can_etype] = {'data_path': edge_file_path,
                                     'feat_names': list(edge_df.columns)}
     
     # generate the config json file for GraphStorm graph construction
-    print(' ============= Generate Config JSON for GraphStorm ============= \n')
     json_object = generate_ogbg_config_json(node_metadata, edge_metadata)
-    
+    print(f'Generate Config JSON for GraphStorm graph construction:\n')
+    print(json_object)
+
     # save the config json
     json_file_path = os.path.join(args.output_path, 'config.json')
     with open(json_file_path, 'w', encoding='utf-8') as f:
         json.dump(json_object, f, indent=4)
 
-    print(f' ============= All Artifacts are Saved at {args.output_path} ============= \n')
+    print(f'============= All Artifacts are Saved at {args.output_path} ============= \n')
 
 
 if __name__ == '__main__':

@@ -1,25 +1,36 @@
-# Example Code for Graph-level Prediction Solutions
+# Example Code for Graph-level Prediction Solutions using GraphStorm
+Graph prediction, such as classification and regression, is a common task in Graph Machine Learning (GML) across various domains, including life sciences and chemistry. In graph prediction, the entire graph data is typically organized into batches of subgraphs, where each subgraph's nodes have edges only within the subgraph and no edges connecting to nodes in other subgraphs. GML labels are linked to these subgraphs. And then GML model makes prediction on new subgraphs as well.
 
-## Super-node Graph Data Processing
+A typical operation used in graph prediction is called `Read-out`, e.g., `sum`, `mean`, or `max/min`, which aggregates the representations of nodes in a subgraph to form one representation for the subgraph. Outputs of the `Read-out` will be further used to perform downstream prediction computation.
 
-**Step 1**: Generate super-node format graph data
+The current version of GraphStorm can not directly perform graph prediction. But as GraphStorm supports node-level prediction, we can use a method called `super-node` to fulfill the graph prediction requirement.
+
+Instead use the `Read-out` operation, we can add a new node, called **super node**, to each subgraph, and link all original nodes of the subgraph to it, but not adding reversed edges. With this method, representations of all original nodes could be easily aggregated to the **super node**. And then we can use the **super node** as the repsentation of this subgraph to perform graph level prediciton tasks. By using the `super-node` method, we turn the graph prediction task into a node prediction task.
+
+In this example, we demonstrate how to process the common graph property prediction dataset (the [OGBG datasets](https://ogb.stanford.edu/docs/graphprop/)) into the `super-node` format graph data. And then we can leverage GraphStorm's graph construciton, and model trainig CLIs to perform the **super node** prediction tasks for graph predicition tasks.
+
+## `Super-node` Graph Data Processing
+
+**Step 1**: Generate super-node format OGBG graph data.
 ``` bash
-python gen_ogbn_supernode.py --ogbg-data-name molhiv
+python gen_ogbg_supernode.py --ogbg-data-name molhiv \
+                             --output-path ./
 ```
 
-**Step 2**: Run GraphStorm graph construction CLI
+**Step 2**: Run GraphStorm graph construction CLI.
 ``` bash
 python -m graphstorm.gconstruct.construct_graph \
-        --conf-file ./dataset/ogbg_molhiv/gs_raw/config.json \
-        --output-dir ./dataset/ogbg_molhiv/gs_1p/ \
+        --conf-file ./config.json \
+        --output-dir ./supernode_gs_1p/ \
         --num-parts 1 \
         --graph-name supernode_molhiv
 ```
 
-To dive deep the super-node format graph structure, we provide a dummy super-node graph generation script, i.e., the `dummy_supernode_data.py`. You can run the following commands to build a dummy super-node format graph dataset. This dummy data can also be used for debugging the super-node customized GraphStorm models.
+To help users to dive deep the super-node format graph structure, we also provide a dummy super-node graph generation script, i.e., the `dummy_supernode_data.py`. You can run the following commands to build a dummy super-node format graph dataset. This dummy data can also be used for debugging the super-node customized GraphStorm models.
 
 ``` bash
-python dummy_supernode_data.py --num-subgraphs 200 --save-path ./dummy_raw/
+python dummy_supernode_data.py --num-subgraphs 200 \
+                               --save-path ./dummy_raw/
 
 python -m graphstorm.gconstruct.construct_graph \
         --conf-file ./dummy_raw/config.json \
@@ -28,8 +39,42 @@ python -m graphstorm.gconstruct.construct_graph \
         --graph-name dummy_supernode
 ```
 
-## Customized RGCN Encoder for Super-node Formated Graph
+## Run GraphStorm GNN Models for Super-node Graph
+
+Using the `super-node` method, we turn the graph prediction task into a node prediction task. Then we can leverage GraphStorm's node prediction CLIs to perform the graph prediction on **super nodes**. Below is the CLI for training an RGCN model on the OGBG data.
+
 ``` bash
-python supernode_ogbg_gc.py
+python -m graphstorm.run.gs_node_classification \
+          --num-trainers 1 \
+          --part-config ./supernode_gs_1p/supernode_molhiv.json \
+          --cf supernode_gc.yaml \
+          --save-model-path ./supernode_gc_model/
 ```
 
+Users can find the training configuration file, `supernode_gc.yaml`, located at this folder.
+
+We can also try out other GraphStorm GNN models with CLIs like the followings.
+
+``` bash
+# Use RGAT as the GNN model
+python -m graphstorm.run.gs_node_classification \
+          --num-trainers 1 \
+          --part-config ./supernode_gs_1p/supernode_molhiv.json \
+          --cf supernode_gc.yaml \
+          --save-model-path ./supernode_gc_model/ \
+          --model-encoder-type rgat \
+          --num-heads 4
+```
+
+``` bash
+# Use HGT as the GNN model
+python -m graphstorm.run.gs_node_classification \
+          --num-trainers 1 \
+          --part-config ./supernode_gs_1p/supernode_molhiv.json \
+          --cf supernode_gc.yaml \
+          --save-model-path ./supernode_gc_model/ \
+          --model-encoder-type hgt \
+          --num-heads 4
+```
+
+> [!TIP] The built-in GNN models do not perform the same computation as the `Read-out` operation, which normally just aggregates the representations of nodes in their last GNN layer. To mimic the `Read-out` operation, we can customize GraphStorm GNN encoders. 
