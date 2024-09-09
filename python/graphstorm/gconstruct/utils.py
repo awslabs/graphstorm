@@ -1006,15 +1006,15 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
             balance_arr -= 1
         balance_ntypes[ntype] = balance_arr
 
-
     # Call DGL's partition graph, using the appropriate arg list
     # for each version
     dgl_version_str = importlib.metadata.version("dgl")
     dgl_version = version.parse(dgl_version_str)
-    part_position_args = [
-        g, graph_name, num_partitions, output_dir,
-    ]
-    part_kwargs = {
+    partition_kwargs = {
+        "g": g,
+        "graph_name": graph_name,
+        "num_parts": num_partitions,
+        "out_path": output_dir,
         'part_method': part_method,
         'balance_ntypes': balance_ntypes,
         'balance_edges': True,
@@ -1022,17 +1022,14 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
     }
 
     if dgl_version >= version.parse("2.0.0"):
-        part_kwargs['use_graphbolt'] = use_graphbolt
+        partition_kwargs['use_graphbolt'] = use_graphbolt
     else:
         if use_graphbolt:
-            logging.warning(
-                (
-                    "use_graphbolt was 'true' but but DGL version was %s. "
-                    "GraphBolt requires DGL version >= 2.x."
-                ),
-                dgl_version
+            raise ValueError(
+                f"use_graphbolt was 'true' but but DGL version was {dgl_version}. "
+                "GraphBolt requires DGL version >= 2.x."
             )
-    mapping = dgl.distributed.partition_graph(*part_position_args, **part_kwargs)
+    mapping = dgl.distributed.partition_graph(**partition_kwargs)
 
 
     sys_tracker.check('Graph partitioning')

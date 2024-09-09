@@ -161,8 +161,8 @@ def main():
     if args.use_graphbolt:
         dgl_version = importlib.metadata.version('dgl')
         if version.parse(dgl_version) >= version.parse("2.0.0"):
-            # TODO: Use dgl.distributed.partition.gb_convert_single_dgl_partition()
-            # to run distributed conversion
+            # TODO: Implement distributed conversion using
+            # dgl.distributed.partition.gb_convert_single_dgl_partition()
             logging.info("Converting partitions to GraphBolt format")
             dgl.distributed.dgl_partition_to_graphbolt(
                 os.path.join(output_path, "dist_graph", "metadata.json"),
@@ -170,12 +170,9 @@ def main():
                 graph_formats="coo",
             )
         else:
-            logging.warning(
-                (
-                    "use_graphbolt was 'true' but but DGL version was %s. "
-                    "GraphBolt requires DGL version >= 2.x."
-                ),
-                dgl_version
+            raise ValueError(
+                f"use_graphbolt was 'true' but but DGL version was {dgl_version}. "
+                "GraphBolt requires DGL version >= 2.x."
             )
 
     # Copy raw_id_mappings to dist_graph if they exist in the input
