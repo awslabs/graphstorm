@@ -12,13 +12,13 @@ In this example, we demonstrate how to process the common graph property predict
 **Step 1**: Generate super-node format OGBG graph data.
 ``` bash
 python gen_ogbg_supernode.py --ogbg-data-name molhiv \
-                             --output-path ./
+                             --output-path ./supernode_raw/
 ```
 
 **Step 2**: Run GraphStorm graph construction CLI.
 ``` bash
 python -m graphstorm.gconstruct.construct_graph \
-        --conf-file ./config.json \
+        --conf-file ./supernode_raw/config.json \
         --output-dir ./supernode_gs_1p/ \
         --num-parts 1 \
         --graph-name supernode_molhiv

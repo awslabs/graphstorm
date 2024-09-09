@@ -132,7 +132,7 @@ def main(args):
     
     """
     # download and process the original OGBN data
-    print(f' ============= Download and Process OGBG Data: {args.ogbg_data_name} ============= \n')
+    print(f'\n============= Download and Process OGBG Data: {args.ogbg_data_name} =============')
     data_name = 'ogbg-' + args.ogbg_data_name
     dataset = DglGraphPropPredDataset(name = data_name)
 
@@ -147,7 +147,7 @@ def main(args):
     subg_ids = []
 
     # assign original subgraph a graph IDs
-    print(' ============= Create Super Node Data ============= \n')
+    print('\n============= Create Super Node Data =============')
     for i, g in enumerate(gs):
         # create subgraph IDs
         sg_id = f's{i}'
@@ -173,6 +173,9 @@ def main(args):
     srcs = np.concatenate(new_srcs)
     dsts = np.concatenate(new_dsts)
     subg_ids = np.array(subg_ids)
+
+    print(f'Totally there are {subg_ids.shape[0]} subgraphs, including ' + \
+          f'{ntype1.shape[0]} nodes, and {srcs.shape[0]} edges.')
 
     # convert to pandas dataframes
     new_nfeats = [row for row in new_nfeats]
@@ -212,7 +215,7 @@ def main(args):
     })
 
     # process original splits, and regenerate the train/val/test split jsons
-    print(' ============= Process OGB Splits and Assign to Super Nodes ============= \n')
+    print('\n============= Process OGB Splits and Assign to Super Nodes =============')
     split_base_path = './dataset/ogbg_molhiv/split/scaffold/'
     train_idx_path = os.path.join(split_base_path, 'train.csv.gz')
     val_idx_path = os.path.join(split_base_path, 'valid.csv.gz')
@@ -231,6 +234,10 @@ def main(args):
     val_idx['NID'] = 's' + val_idx['idx'].apply(str)
     test_idx['NID'] = 's' + test_idx['idx'].apply(str)
 
+    print(f'The OGB split information is {train_idx.shape[0]} subgraphs in training, ' + \
+          f'{val_idx.shape[0]} subgraphs in validation, and {test_idx.shape[0]} ' + \
+          'subgraphs in testing.')
+
     # prepare ndoe and edge dictionary
     gs_data_base_path = args.output_path
     node_base_path = os.path.join(gs_data_base_path, 'nodes')
@@ -240,14 +247,14 @@ def main(args):
     etype_dict = {('node', 'to', 'node'): etype1_df, ('node', 'to_super', 'super'): to_super_df}
 
     # save node dataframes and create node_metadata
-    print(' ============= Save Processed OGBG Data ============= \n')
+    print('\n============= Save Processed OGBG Data =============')
     node_metadata = {}
     for ntype, node_df in ntype_dict.items():
         ntype_base_path = os.path.join(node_base_path, ntype)
         os.makedirs(ntype_base_path, exist_ok=True)
         node_file_path = os.path.join(ntype_base_path, ntype + '.parquet')
         node_df.to_parquet(node_file_path)
-        print(f'Save {ntype} data to {node_file_path} ...')
+        print(f'Saved {ntype} data to {node_file_path} ...')
 
         node_metadata[ntype] = {'data_path': node_file_path,
                                 'feat_names': list(node_df.columns)}
@@ -279,7 +286,7 @@ def main(args):
     
     # generate the config json file for GraphStorm graph construction
     json_object = generate_ogbg_config_json(node_metadata, edge_metadata)
-    print(f'Generate Config JSON for GraphStorm graph construction:\n')
+    print(f'\nGenerate Config JSON for GraphStorm graph construction:')
     print(json_object)
 
     # save the config json
@@ -287,7 +294,7 @@ def main(args):
     with open(json_file_path, 'w', encoding='utf-8') as f:
         json.dump(json_object, f, indent=4)
 
-    print(f'============= All Artifacts are Saved at {args.output_path} ============= \n')
+    print(f'\n============= All Artifacts are Saved at {args.output_path} =============')
 
 
 if __name__ == '__main__':
