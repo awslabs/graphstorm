@@ -894,6 +894,17 @@ def process_graph(args):
                     "The ID map is saved under %s.", ntype, map_prefix)
 
 if __name__ == '__main__':
+    # Compatible to DGL 2.4.0+
+    if th.cuda.is_available():
+        try:
+            # Set the start method to 'spawn' for GPU context
+            th.multiprocessing.set_start_method('spawn', force=True)
+            logging.info("Set multiprocessing start method to 'spawn'")
+        except RuntimeError:
+            # In case it's already set, ignore the error
+            logging.info("Error when setting multiprocessing start method.")
+    else:
+        logging.info("CUDA not available, no need to set start method")
     argparser = argparse.ArgumentParser("Preprocess graphs")
     argparser.add_argument("--conf-file", type=str, required=True,
                            help="The configuration file.")
