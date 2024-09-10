@@ -2,6 +2,7 @@
 
 GS_HOME=$(pwd)
 export PYTHONPATH=$GS_HOME/python/
+shopt -s nullglob
 
 error_and_exit () {
 	# check exec status of launch.py
