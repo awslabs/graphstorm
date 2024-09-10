@@ -121,7 +121,6 @@ The arguments that ``graphstorm.gpartition.dist_partition_graph`` accepts are th
 * ``--input-path str``: Path to input DGL chunked data directory. (required). The format for the data
   is available at : https://docs.dgl.ai/guide/distributed-preprocessing.html#chunked-graph-format
 * ``--output-path str``: Path to store the partitioned data. (required)
-* ``--output-path str``: Path to store the partitioned data under. (required)
 * ``--num-parts int``: Number of partitions to generate. (required)
 * ``--metadata-filename str``: Name for the chunked DGL data metadata file. (default: ``metadata.json``)
 * ``--ssh-port int``: SSH Port. (default: 22)
