@@ -18,7 +18,7 @@ subgraph could be easily aggregated to the **super node**. We can then use the *
 as the representation of this subgraph to perform graph-level prediction tasks. The `super-node` 
 method help us to turn a graph prediction task into a node prediction task.
 
-In this example, we demonstrate how to process the common graph property prediction dataset 
+In this example, we demonstrate how to process a common graph property prediction dataset 
 (the [OGBG datasets](https://ogb.stanford.edu/docs/graphprop/)) into the `super-node` format 
 graph data. And then we can leverage GraphStorm's graph construciton and model trainig CLIs 
 to perform `super node` prediction for graph predicition tasks.
