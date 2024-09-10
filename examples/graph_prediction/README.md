@@ -44,7 +44,7 @@ python -m graphstorm.gconstruct.construct_graph \
 
 Using the `super-node` method, we turn the graph prediction task into a node prediction task. 
 Then we can leverage GraphStorm's node prediction CLIs to perform the graph prediction on 
-**super nodes**. Below is the CLI for training an RGCN model on the OGBG data.
+**super nodes**. Below is the command for training an RGCN model on the OGBG data.
 
 ``` bash
 python -m graphstorm.run.gs_node_classification \
