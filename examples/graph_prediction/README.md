@@ -56,7 +56,7 @@ python -m graphstorm.run.gs_node_classification \
 
 Users can find the training configuration file, `supernode_gc.yaml`, located at this folder.
 
-We can also try out other GraphStorm GNN models with CLIs like the followings.
+We can also try out other GraphStorm GNN models with commands like the followings.
 
 ``` bash
 # Use RGAT as the GNN model
