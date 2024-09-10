@@ -22,7 +22,7 @@ EOF
 # Parse command-line arguments
 parse_params() {
     # Default values for input and output paths
-    INPUT_PATH="/storage/ml-100k"
+    INPUT_PATH="/data/ml-100k"
     OUTPUT_PATH="/tmp/gb-graphconstruction-e2e-tests"
 
     while :; do
