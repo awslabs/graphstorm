@@ -152,6 +152,13 @@ then
     exit -1
 fi
 
+cnt=$(ls /tmp/ep_remap/pred/n1_access_n0/src_nids-*.pt | wc -l)
+if test $cnt != 2
+then
+    echo "src_nids-xxx.pt must exist."
+    exit -1
+fi
+
 cnt=$(ls /tmp/ep_remap/pred/n0_access_n1/dst_nids-*.pt | wc -l)
 if test $cnt != 2
 then
@@ -159,7 +166,21 @@ then
     exit -1
 fi
 
+cnt=$(ls /tmp/ep_remap/pred/n1_access_n0/dst_nids-*.pt | wc -l)
+if test $cnt != 2
+then
+    echo "dst_nids-xxx.pt must exist."
+    exit -1
+fi
+
 cnt=$(ls /tmp/ep_remap/pred/n0_access_n1/predict-*.pt | wc -l)
+if test $cnt != 2
+then
+    echo "predict-xxx.pt must exist."
+    exit -1
+fi
+
+cnt=$(ls /tmp/ep_remap/pred/n1_access_n0/predict-*.pt | wc -l)
 if test $cnt != 2
 then
     echo "predict-xxx.pt must exist."
@@ -183,6 +204,13 @@ then
     exit -1
 fi
 
+cnt=$(ls /tmp/ep_remap/rename-pred/n1_access_n0/src_nids-*.pt | wc -l)
+if test $cnt != 0
+then
+    echo "src_nids-xxx.pt should be removed."
+    exit -1
+fi
+
 cnt=$(ls /tmp/ep_remap/rename-pred/n0_access_n1/dst_nids-*.pt | wc -l)
 if test $cnt != 0
 then
@@ -190,7 +218,21 @@ then
     exit -1
 fi
 
+cnt=$(ls /tmp/ep_remap/rename-pred/n1_access_n0/dst_nids-*.pt | wc -l)
+if test $cnt != 0
+then
+    echo "dst_nids-xxx.pt should be removed."
+    exit -1
+fi
+
 cnt=$(ls /tmp/ep_remap/rename-pred/n0_access_n1/predict-*.pt | wc -l)
+if test $cnt != 0
+then
+    echo "predict-xxx.pt should be removed."
+    exit -1
+fi
+
+cnt=$(ls /tmp/ep_remap/rename-pred/n1_access_n0/predict-*.pt | wc -l)
 if test $cnt != 0
 then
     echo "predict-xxx.pt should be removed."
@@ -250,7 +292,21 @@ then
     exit -1
 fi
 
+cnt=$(ls /tmp/np_remap/pred/n1/predict_nids-*.pt | wc -l)
+if test $cnt != 2
+then
+    echo "predict_nids-xxx.pt must exist."
+    exit -1
+fi
+
 cnt=$(ls /tmp/np_remap/pred/n0/predict-*.pt | wc -l)
+if test $cnt != 2
+then
+    echo "predict-xxx.pt must exist."
+    exit -1
+fi
+
+cnt=$(ls /tmp/np_remap/pred/n1/predict-*.pt | wc -l)
 if test $cnt != 2
 then
     echo "predict-xxx.pt must exist."
@@ -311,6 +367,13 @@ then
     exit -1
 fi
 
+cnt=$(ls /tmp/em_remap/partial-emb/n1/embed_nids-*.pt | wc -l)
+if test $cnt != 2
+then
+    echo "embed_nids-xxx.pt must exist."
+    exit -1
+fi
+
 cnt=$(ls /tmp/em_remap/partial-emb/n0/embed-*.pt | wc -l)
 if test $cnt != 2
 then
@@ -318,6 +381,12 @@ then
     exit -1
 fi
 
+cnt=$(ls /tmp/em_remap/partial-emb/n1/embed-*.pt | wc -l)
+if test $cnt != 2
+then
+    echo "embed-xxx.pt must exist."
+    exit -1
+fi
 
 cp -r /tmp/em_remap/partial-emb/ /tmp/em_remap/partial-rename-emb/
 
