@@ -3,7 +3,7 @@ Graph prediction, such as classification and regression, is a common task in Gra
 Learning (GML) across various domains, including life sciences and chemistry. In graph prediction,
 the entire graph data is typically organized in a batch of subgraphs format, where each subgraph's
 nodes have edges only within the subgraph and no edges connecting to nodes in other subgraphs. GML
-labels are linked to these subgraphs. And then GML model makes prediction on new subgraphs as well.
+labels are linked to these subgraphs. Once trained, GML models can makes predictions on new and unseen subgraphs.
 
 A typical operation used in graph prediction is called `Read-out`, e.g., `sum`, `mean`, `max` or
 `min`, which aggregates the representations of nodes in a subgraph to form one representation for
