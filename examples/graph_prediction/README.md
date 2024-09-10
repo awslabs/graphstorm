@@ -7,7 +7,7 @@ labels are linked to these subgraphs. Once trained, GML models can makes predict
 
 A typical operation used in graph prediction is called `Read-out`, e.g., `sum`, `mean`, `max` or
 `min`, which aggregates the representations of nodes in a subgraph to form one representation for
-the subgraph. Then outputs of the `Read-out` will be used to perform downstream prediction computation.
+the subgraph. The outputs of the `Read-out` can then be used to make predictions downstream, acting as a single representation of the entire subgraph.
 
 The current version of GraphStorm can not directly perform graph prediction. But as GraphStorm
 supports node-level prediction, we can use a method called `super-node` to fulfill the graph 
