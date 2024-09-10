@@ -31,7 +31,7 @@ python gen_ogbg_supernode.py --ogbg-data-name molhiv \
                              --output-path ./supernode_raw/
 ```
 
-**Step 2**: Run GraphStorm graph construction CLI.
+**Step 2**: Run GraphStorm graph construction command.
 ``` bash
 python -m graphstorm.gconstruct.construct_graph \
         --conf-file ./supernode_raw/config.json \
