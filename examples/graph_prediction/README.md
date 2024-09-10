@@ -14,8 +14,8 @@ supports node-level prediction, we can use a method called `super-node` to perfo
 predictions. Instead of using the `Read-out` operation, we can add a new node, called 
 **super node**, to each subgraph, and link all original nodes of the subgraph to it, but not 
 adding reversed edges. With these inbound edges, representations of all original nodes in a 
-subgraph could be easily aggregated to the **super node**. And then we can use the **super node** 
-as the repsentation of this subgraph to perform graph level prediciton tasks. The `super-node` 
+subgraph could be easily aggregated to the **super node**. We can then use the **super node** 
+as the representation of this subgraph to perform graph-level prediction tasks. The `super-node` 
 method help us to turn a graph prediction task into a node prediction task.
 
 In this example, we demonstrate how to process the common graph property prediction dataset 
