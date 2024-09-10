@@ -10,8 +10,8 @@ A typical operation used in graph prediction is called `Read-out`, e.g., `sum`, 
 the subgraph. The outputs of the `Read-out` can then be used to make predictions downstream, acting as a single representation of the entire subgraph.
 
 The current version of GraphStorm can not directly perform graph prediction. But as GraphStorm
-supports node-level prediction, we can use a method called `super-node` to fulfill the graph 
-prediction requirement. Instead of using the `Read-out` operation, we can add a new node, called 
+supports node-level prediction, we can use a method called `super-node` to perform graph-level 
+predictions. Instead of using the `Read-out` operation, we can add a new node, called 
 **super node**, to each subgraph, and link all original nodes of the subgraph to it, but not 
 adding reversed edges. With these inbound edges, representations of all original nodes in a 
 subgraph could be easily aggregated to the **super node**. And then we can use the **super node** 
