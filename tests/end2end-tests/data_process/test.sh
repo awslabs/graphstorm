@@ -416,6 +416,20 @@ then
     exit -1
 fi
 
+cnt=$(ls /tmp/em_remap/partial-rename-emb/n1/embed_nids-*.pt | wc -l)
+if test $cnt != 0
+then
+    echo "embed_nids-xxx.pt should be removed."
+    exit -1
+fi
+
+cnt=$(ls /tmp/em_remap/partial-rename-emb/n1/embed-*.pt | wc -l)
+if test $cnt != 0
+then
+    echo "embed-xxx.pt should be removed."
+    exit -1
+fi
+
 # Test without shared filesystem
 echo "********* Test the remap partial node embedding without shared mem *********"
 mkdir /tmp/em_remap/partial-emb/0/
