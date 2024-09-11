@@ -115,8 +115,6 @@ def main():
     # Configure logging
     logging.basicConfig(level=get_log_level(args.logging_level))
 
-    start = time.time()
-
     output_path: str = args.output_path
     metadata_file: str = args.metadata_filename
 
