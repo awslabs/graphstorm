@@ -2,7 +2,6 @@
 
 GS_HOME=$(pwd)
 export PYTHONPATH=$GS_HOME/python/
-shopt -s nullglob
 
 error_and_exit () {
 	# check exec status of launch.py
@@ -198,42 +197,42 @@ error_and_exit $?
 
 python3 $GS_HOME/tests/end2end-tests/data_process/check_edge_predict_remap.py --remap-output /tmp/ep_remap/rename-pred/ --column-names "src_nid,~from:STRING" "dst_nid,~to:STRING" "pred,pred:FLOAT"
 
-cnt=$(ls /tmp/ep_remap/rename-pred/n0_access_n1/src_nids-*.pt | wc -l)
+cnt=$(ls /tmp/ep_remap/rename-pred/n0_access_n1/src_nids-*.pt 2>/dev/null | wc -l)
 if test $cnt != 0
 then
     echo "src_nids-xxx.pt should be removed."
     exit -1
 fi
 
-cnt=$(ls /tmp/ep_remap/rename-pred/n1_access_n0/src_nids-*.pt | wc -l)
+cnt=$(ls /tmp/ep_remap/rename-pred/n1_access_n0/src_nids-*.pt 2>/dev/null | wc -l)
 if test $cnt != 0
 then
     echo "src_nids-xxx.pt should be removed."
     exit -1
 fi
 
-cnt=$(ls /tmp/ep_remap/rename-pred/n0_access_n1/dst_nids-*.pt | wc -l)
+cnt=$(ls /tmp/ep_remap/rename-pred/n0_access_n1/dst_nids-*.pt 2>/dev/null | wc -l)
 if test $cnt != 0
 then
     echo "dst_nids-xxx.pt should be removed."
     exit -1
 fi
 
-cnt=$(ls /tmp/ep_remap/rename-pred/n1_access_n0/dst_nids-*.pt | wc -l)
+cnt=$(ls /tmp/ep_remap/rename-pred/n1_access_n0/dst_nids-*.pt 2>/dev/null | wc -l)
 if test $cnt != 0
 then
     echo "dst_nids-xxx.pt should be removed."
     exit -1
 fi
 
-cnt=$(ls /tmp/ep_remap/rename-pred/n0_access_n1/predict-*.pt | wc -l)
+cnt=$(ls /tmp/ep_remap/rename-pred/n0_access_n1/predict-*.pt 2>/dev/null | wc -l)
 if test $cnt != 0
 then
     echo "predict-xxx.pt should be removed."
     exit -1
 fi
 
-cnt=$(ls /tmp/ep_remap/rename-pred/n1_access_n0/predict-*.pt | wc -l)
+cnt=$(ls /tmp/ep_remap/rename-pred/n1_access_n0/predict-*.pt 2>/dev/null | wc -l)
 if test $cnt != 0
 then
     echo "predict-xxx.pt should be removed."
@@ -402,28 +401,28 @@ python3 $GS_HOME/tests/end2end-tests/data_process/check_emb_remap.py --remap-out
 
 error_and_exit $?
 
-cnt=$(ls /tmp/em_remap/partial-rename-emb/n0/embed_nids-*.pt | wc -l)
+cnt=$(ls /tmp/em_remap/partial-rename-emb/n0/embed_nids-*.pt 2>/dev/null | wc -l)
 if test $cnt != 0
 then
     echo "embed_nids-xxx.pt should be removed."
     exit -1
 fi
 
-cnt=$(ls /tmp/em_remap/partial-rename-emb/n0/embed-*.pt | wc -l)
+cnt=$(ls /tmp/em_remap/partial-rename-emb/n0/embed-*.pt 2>/dev/null | wc -l)
 if test $cnt != 0
 then
     echo "embed-xxx.pt should be removed."
     exit -1
 fi
 
-cnt=$(ls /tmp/em_remap/partial-rename-emb/n1/embed_nids-*.pt | wc -l)
+cnt=$(ls /tmp/em_remap/partial-rename-emb/n1/embed_nids-*.pt 2>/dev/null | wc -l)
 if test $cnt != 0
 then
     echo "embed_nids-xxx.pt should be removed."
     exit -1
 fi
 
-cnt=$(ls /tmp/em_remap/partial-rename-emb/n1/embed-*.pt | wc -l)
+cnt=$(ls /tmp/em_remap/partial-rename-emb/n1/embed-*.pt 2>/dev/null | wc -l)
 if test $cnt != 0
 then
     echo "embed-xxx.pt should be removed."
