@@ -1008,8 +1008,6 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
 
     # Call DGL's partition graph, using the appropriate arg list
     # for each version
-    dgl_version_str = importlib.metadata.version("dgl")
-    dgl_version = version.parse(dgl_version_str)
     partition_kwargs = {
         "g": g,
         "graph_name": graph_name,
@@ -1021,13 +1019,14 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
         'return_mapping': save_mapping,
     }
 
-    if dgl_version >= version.parse("2.0.0"):
+    dgl_version = importlib.metadata.version("dgl")
+    if version.parse(dgl_version) >= version.parse("2.1.0"):
         partition_kwargs['use_graphbolt'] = use_graphbolt
     else:
         if use_graphbolt:
             raise ValueError(
                 f"use_graphbolt was 'true' but but DGL version was {dgl_version}. "
-                "GraphBolt requires DGL version >= 2.x."
+                "GraphBolt graph construction requires DGL version >= 2.1.0"
             )
     mapping = dgl.distributed.partition_graph(**partition_kwargs)
 

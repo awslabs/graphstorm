@@ -43,7 +43,8 @@ Full argument list of the ``gconstruct.construct_graph`` command
 * **-\-ext-mem-feat-size**: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.
 * **-\-output-conf-file**: The output file with the updated configurations that records the details of data transformation, e.g., convert to categorical value mappings, and max-min normalization ranges. If not specified, will save the updated configuration file in the **-\-output-dir** with name `data_transform_new.json`.
 * **-\-use-graphbolt**:  ``New in version 0.4``. When set to ``"true"``, will convert the partitioned graph data to the GraphBolt format after
-  partitioning, allowing GraphBolt training/inference jobs to be used downstream. Default: ``"false"``.
+  partitioning, allowing GraphBolt training/inference jobs to be used downstream.
+  Requires installed DGL version to be at least ``2.1.0``. Default is ``"false"``.
 
 .. _gconstruction-json:
 
