@@ -71,6 +71,73 @@ class ClassifyLossFunc(GSLayer):
         """
         return None
 
+class FocalLossFunc(GSLayer):
+    """ Focal loss function for classification.
+
+    Copy from torchvision.ops.sigmoid_focal_loss.
+    Only with mean reduction.
+    See more details on https://pytorch.org/vision/main/_modules/torchvision/ops/focal_loss.html.
+
+    Parameters
+    ----------
+    alpha: float
+        Weighting factor in range (0,1) to balance
+        ositive vs negative examples or -1 for ignore. Default: ``0.25``.
+    gamma: float
+        Exponent of the modulating factor (1 - p_t) to
+        balance easy vs hard examples. Default: ``2``.
+    """
+    def __init__(self, alpha=0.25, gamma=2):
+        super(FocalLossFunc, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def forward(self, logits, labels):
+        """ The forward function.
+
+        Parameters
+        ----------
+        logits: torch.Tensor
+            The prediction results.
+        labels: torch.Tensor
+            The training labels.
+        """
+        # We need to reshape logits into a 1D float tensor
+        # and cast labels into a float tensor.
+        inputs = logits.squeeze()
+        targets = labels.float()
+
+        pred = th.sigmoid(inputs)
+        ce_loss = F.binary_cross_entropy_with_logits(inputs, targets, reduction="none")
+        pred_t = pred * targets + (1 - pred) * (1 - targets)
+        loss = ce_loss * ((1 - pred_t) ** self.gamma)
+
+        if self.alpha >= 0:
+            alpha_t = self.alpha * targets + (1 - self.alpha) * (1 - targets)
+            loss = alpha_t * loss
+
+        return loss.mean()
+
+    @property
+    def in_dims(self):
+        """ The number of input dimensions.
+
+        Returns
+        -------
+        int : the number of input dimensions.
+        """
+        return None
+
+    @property
+    def out_dims(self):
+        """ The number of output dimensions.
+
+        Returns
+        -------
+        int : the number of output dimensions.
+        """
+        return None
+
 class RegressionLossFunc(GSLayer):
     """ Loss function for regression
     """

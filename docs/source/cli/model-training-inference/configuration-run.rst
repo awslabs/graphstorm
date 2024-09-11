@@ -482,11 +482,20 @@ Link Prediction Task
     - Yaml: ``lp_decoder_type: dot_product``
     - Argument: ``--lp-decoder-type dot_product``
     - Default value: ``dot_product``
-- **gamma**: Gamma for ``distmult`` and ``rotate``. A hyperparameter used to control the relation embedding initialization and the margin value in the score functions. See detials in :ref:`Computing Link Prediction Scores<link-prediction-score-func>`。
-
+- **gamma**: Set the value of the hyperparameter denoted by the symbol gamma. Gamma is used in the following cases: i/ focal loss for binary classification ii/ DistMult score function for link prediction and iii/ RotatE score function for link prediction.
     - Yaml: ``gamma: 10.0``
     - Argument: ``--gamma 10.0``
-    - Default value: ``12.0``
+    - Default value: None
+- **alpha**: Set the value of the hyperparameter denoted by the symbol alpha. Alpha is used in the following case: i/ focal loss for binary classification.
+
+    - Yaml: ``alpha: 10.0``
+    - Argument: ``--alpha 10.0``
+    - Default value: None
+- **class_loss_func**: Node/Edge classification loss function. Builtin loss functions include ``cross_entropy`` and ``focal``.
+
+    - Yaml: ``class_loss_func: cross_entropy``
+    - Argument: ``--class-loss-func contrastive``
+    - Default value: ``cross_entropy``
 - **lp_loss_func**: Link prediction loss function. Builtin loss functions include ``cross_entropy`` and ``contrastive``.
 
     - Yaml: ``lp_loss_func: cross_entropy``
