@@ -95,7 +95,14 @@ class EntityClassifier(GSLayer):
         if ``multilabel`` is ``True``.
         """
         logits = th.matmul(inputs, self.decoder)
-        return (th.sigmoid(logits) > .5).long() if self._multilabel else logits.argmax(dim=1)
+        if self._multilabel:
+            out = (th.sigmoid(logits) > .5).long()
+        else:
+            if self.out_dims == 1:
+                out = (th.sigmoid(logits) > .5).long()
+            else:
+                out = logits.argmax(dim=1)
+        return out
 
     def predict_proba(self, inputs):
         """ Node classification prediction computation and return normalized prediction
@@ -111,7 +118,14 @@ class EntityClassifier(GSLayer):
         Tensor: normalized prediction results.
         """
         logits = th.matmul(inputs, self.decoder)
-        return th.sigmoid(logits) if self._multilabel else th.softmax(logits, 1)
+        if self._multilabel:
+            out = th.sigmoid(logits)
+        else:
+            if self.out_dims == 1:
+                out = th.sigmoid(logits)
+            else:
+                out = th.softmax(logits, 1)
+        return out
 
     @property
     def in_dims(self):
