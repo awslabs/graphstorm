@@ -97,6 +97,26 @@ for i in $(seq 0 1); do
     fi
 done
 
+echo "********* Test GraphBolt standalone conversion ********"
+# We remove the previously generated GraphBolt files to test the standalone generation
+for i in $(seq 0 1); do
+    rm "$GCONS_GRAPHBOLT_PATH/part${i}/fused_csc_sampling_graph.pt"
+done
+
+python3 -m graphstorm.gpartition.convert_to_graphbolt \
+    --input-path "${GCONS_GRAPHBOLT_PATH}" \
+    --metadata-filename ml.json
+
+# Ensure GraphBolt files were re-created by standalone script
+for i in $(seq 0 1); do
+    if [ ! -f "$GCONS_GRAPHBOLT_PATH/part${i}/fused_csc_sampling_graph.pt" ]
+    then
+        echo "$GCONS_GRAPHBOLT_PATH/part${i}/fused_csc_sampling_graph.pt must exist"
+        exit 1
+    fi
+done
+
+
 echo "********* Test GSPartition with GraphBolt graph format ********"
 
 DIST_GRAPHBOLT_PATH="${OUTPUT_PATH}/graphbolt-part"
