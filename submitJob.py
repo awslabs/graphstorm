@@ -51,10 +51,6 @@ job_type_info = {
     'CI-GSProcessing-CHECK': {
         'job_definition': 'graphstorm-gsprocessing-definition',
         'job_queue': 'graphstorm-queue-v2',
-    },
-    'CI-Docker-Build-CHECK': {
-        'job_definition': 'graphstorm-definition-docker',
-        'job_queue': 'graphstorm-compute-docker',
     }
 }
 
