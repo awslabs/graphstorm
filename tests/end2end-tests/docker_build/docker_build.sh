@@ -21,17 +21,20 @@ df /dev/shm -h
 
 echo "**************build docker image for GSF local image, platform: gpu"
 bash build_docker_oss4local.sh GS_HOME gpu local
+error_and_exit $?
 
 echo "**************build docker image for GSF local image, platform: cpu"
 bash build_docker_oss4local.sh GS_HOME cpu local
+error_and_exit $?
 
 echo "**************build docker image for GSF SageMaker, platform: gpu"
 bash build_docker_sagemaker.sh GS_HOME gpu
+error_and_exit $?
 
 echo "**************build docker image for GSF SageMaker, platform: cpu"
 bash build_docker_sagemaker.sh GS_HOME gpu
+error_and_exit $?
 
 echo "**************build docker image for GSF local parmetis, platform: cpu"
 bash build_docker_parmetis.sh GS_HOME
-
 error_and_exit $?
