@@ -1,5 +1,5 @@
-# Graphstorm CI for GSProcessing Only
-# Test execution order - [lint] -> [gsprocessing-pytest]
+# Graphstorm CI for Docker Build Only
+# Test execution order - [docker_build]
 name: docker_build_workflow
 
 on:
