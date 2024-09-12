@@ -65,7 +65,8 @@ cp -R "$INPUT_PATH" "$OUTPUT_PATH"
 
 # Ensure ip_list.txt exists and self-ssh works
 echo "127.0.0.1" > ip_list.txt
-ssh -o PreferredAuthentications=publickey -p 2222 127.0.0.1 /bin/true || service ssh restart
+ssh -o PreferredAuthentications=publickey StrictHostKeyChecking=no \
+    -p 2222 127.0.0.1 /bin/true || service ssh restart
 
 
 # Ensure test data have been generated

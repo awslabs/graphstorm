@@ -29,6 +29,7 @@ import uuid
 
 import numpy as np
 import dgl
+from dgl import distributed as dgl_distributed
 from packaging import version
 import torch as th
 from torch import multiprocessing
@@ -1028,8 +1029,7 @@ def partition_graph(g, node_data, edge_data, graph_name, num_partitions, output_
                 f"use_graphbolt was 'true' but but DGL version was {dgl_version}. "
                 "GraphBolt graph construction requires DGL version >= 2.1.0"
             )
-    mapping = dgl.distributed.partition_graph(**partition_kwargs)
-
+    mapping = dgl_distributed.partition_graph(**partition_kwargs)
 
     sys_tracker.check('Graph partitioning')
 

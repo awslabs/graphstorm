@@ -31,7 +31,7 @@ import importlib.metadata
 from typing import Dict
 from threading import Thread
 
-import dgl
+from dgl import distributed as dgl_distributed
 from packaging import version
 
 from graphstorm.gpartition import (
@@ -165,7 +165,7 @@ def main():
                 logging.info("Converting partitions to GraphBolt format")
                 # NOTE: The partition conversion happens on just the leader
                 # and a shared filesystem is assumed to hold the graph data.
-                dgl.distributed.dgl_partition_to_graphbolt(
+                dgl_distributed.dgl_partition_to_graphbolt(
                     os.path.join(output_path, "dist_graph", "metadata.json"),
                     store_eids=True,
                     graph_formats="coo",
