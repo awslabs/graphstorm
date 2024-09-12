@@ -1175,7 +1175,7 @@ def create_gnn_config(tmp_path, file_name):
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name"],
         "fanout": "n1/a/n2:10@n1/b/n2:10,n1/a/n2:10@n1/b/n2:10@n1/c/n2:20",
-        "eval_fanout": "10,10",
+        "eval_fanout": "-1,10",
         "num_layers": 2,
         "hidden_size": 128,
         "use_mini_batch_infer": True,
@@ -1283,7 +1283,7 @@ def test_gnn_info():
         assert config.fanout[1][("n1","a","n2")] == 10
         assert config.fanout[1][("n1","b","n2")] == 10
         assert config.fanout[1][("n1","c","n2")] == 20
-        assert config.eval_fanout == [10,10]
+        assert config.eval_fanout == [-1,10]
         assert config.num_layers == 2
         assert config.hidden_size == 128
         assert config.use_mini_batch_infer == True
