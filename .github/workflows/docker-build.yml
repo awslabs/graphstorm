@@ -9,14 +9,16 @@ on:
       - ci_dev
     paths:
       - '.github/workflow_scripts/docker_check.sh'
-      - 'docker/**'
       - '.github/workflows/docker-build.yml'
+      - './tests/end2end-tests/docker_build/**'
+      - 'docker/**'
   pull_request_target:
     types: [ labeled, opened, reopened, synchronize, ready_for_review ]
     paths:
       - '.github/workflow_scripts/docker_check.sh'
-      - 'docker/**'
       - '.github/workflows/docker-build.yml'
+      - './tests/end2end-tests/docker_build/**'
+      - 'docker/**'
 
 permissions:
   id-token: write
@@ -28,9 +30,6 @@ defaults:
     shell: bash
 
 # All test scripts split in individual .sh files and moved to .github/workflow scripts
-env:
-  COMMAND-Docker: bash docker_check.sh
-
 jobs:
   docker_build:
     if: ${{ github.event_name == 'push' ||
@@ -60,18 +59,11 @@ jobs:
       shell: bash
       run: |
         echo "Start submitting job - Push"  
-        python3 ./submitJob.py --job-type CI-Docker-Build-CHECK --name Graphstorm-Docker-Build-Push-'${{ github.ref }}' \
-                               --command "${{ env.COMMAND-Docker }}" \
-                               --remote https://github.com/'${{ github.repository }}' \
-                               --source-ref '${{ github.ref }}' \
-                               --wait
+        bash ./tests/end2end-tests/docker_build/docker_build.sh
+
     - name: Submit Job (for Pull Request)
       if: ${{ github.event_name == 'pull_request_target' }}
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
-        python3 ./submitJob.py --job-type CI-Docker-Build-CHECK --name Graphstorm-Docker-Build-PR#-'${{ github.event.number }}' \
-                               --command "${{ env.COMMAND-Docker }}" \
-                               --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
-                               --source-ref '${{ github.event.pull_request.head.sha }}' \
-                               --wait
+        bash ./tests/end2end-tests/docker_build/docker_build.sh

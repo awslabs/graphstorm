@@ -2,9 +2,9 @@
 set -Eeuo pipefail
 trap cleanup SIGINT SIGTERM ERR EXIT
 
-GS_HOME="/graphstorm"
-cd /graphstorm/docker
-echo $(pwd)
+GS_HOME=$(pwd)
+cd $GS_HOME/docker
+echo $GS_HOME
 
 error_and_exit () {
 	# check exec status of launch.py

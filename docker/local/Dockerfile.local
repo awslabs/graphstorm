@@ -18,7 +18,6 @@ RUN apt update && apt install -y --no-install-recommends \
     python3-venv \
     unzip \
     vim \
-    wget \
     && rm -rf /var/lib/apt/lists/*
 
 # Install aws-cli
