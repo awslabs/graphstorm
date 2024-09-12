@@ -170,8 +170,12 @@ def initialize(
         if use_graphbolt:
             raise ValueError(
                 f"use_graphbolt was 'true' but but DGL version was {dgl_version}. "
-                "GraphBolt graph construction requires DGL version >= 2.1.0"
+                "GraphBolt DGL initialization requires DGL version >= 2.1.0"
             )
+        dgl.distributed.initialize(
+            ip_config,
+            net_type='socket',
+        )
     assert th.cuda.is_available() or backend == "gloo", "Gloo backend required for a CPU setting."
     if ip_config is not None:
         th.distributed.init_process_group(backend=backend)
