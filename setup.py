@@ -32,6 +32,7 @@ requirements = [
     'pandas',
     'scikit-learn',
     'ogb==1.3.6',
+    'packaging',
     'psutil'
 ]
 

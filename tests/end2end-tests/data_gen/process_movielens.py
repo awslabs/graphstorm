@@ -16,7 +16,9 @@
     Graphstorm package.
 """
 #!/usr/bin/env python
+import json
 import os
+
 import pandas
 import numpy as np
 import h5py
@@ -108,6 +110,12 @@ edge_data = {'src_id': edges[0],
              'rate': edges[2]-1,
              'rate_class': edges[2]} # rate_class for multi-task learning test
 write_data_parquet(edge_data, '/data/ml-100k/edges.parquet')
+edges_only_path = '/data/ml-100k/edges_only.parquet'
+# Subtract 1 because DistPart expects 0-indexed node ids
+write_data_parquet(
+    {"src_id": edges[0] - 1, "dst_id": edges[1] - 1},
+    edges_only_path,
+)
 
 # generate data for homogeneous optimization test
 edges = pandas.read_csv('/data/ml-100k/u.data', delimiter='\t', header=None)
@@ -140,3 +148,45 @@ write_data_parquet(neg_edge_data, '/data/ml-100k/hard_neg.parquet')
 user_labels = np.random.randint(11, size=feat.shape[0])
 user_data = {'id': user['id'].values, 'feat': feat, 'occupation': user['occupation'], 'label': user_labels}
 write_data_parquet(user_data, '/data/ml-100k/users_with_synthetic_labels.parquet')
+
+
+user_feat_only = {'feat': feat}
+user_labels_only = {'label': user_labels}
+user_feat_path = '/data/ml-100k/user_feat.parquet'
+user_label_path = '/data/ml-100k/user_labels.parquet'
+write_data_parquet(user_feat_only, user_feat_path)
+write_data_parquet(user_labels_only, user_label_path)
+
+# Create chunked graph metadata JSON that can be used with DGL DistPart pipeline
+chunked_meta = {
+   "graph_name": "ml-100k",
+   "node_type": ["user", "movie"],
+   "num_nodes_per_type" : [user.shape[0], movie.shape[0]],
+   "edge_type": [
+       "user:rated:movie",
+   ],
+   "num_edges_per_type" : [edges.shape[0]],
+   "edges" : {
+        "user:rated:movie" : {
+             "format" : {"name": "parquet"},
+             "data" : [edges_only_path]
+        },
+   },
+   "node_data" : {
+        "user": {
+             "feat": {
+                 "format": {"name": "parquet"},
+                 "data": [user_feat_path]
+             },
+             "label": {
+                 "format": {"name": "parquet"},
+                 "data": [user_label_path]
+             },
+        },
+   },
+   "edge_data" : {}
+}
+
+chunked_meta_path = "/data/ml-100k/chunked_graph_meta.json"
+with open(chunked_meta_path, 'w', encoding="utf-8") as f:
+    json.dump(chunked_meta, f, indent=4)

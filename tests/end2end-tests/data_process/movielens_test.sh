@@ -16,7 +16,7 @@ error_and_exit () {
 
 	if test $status -ne 0
 	then
-		exit -1
+		exit 1
 	fi
 }
 
@@ -36,13 +36,13 @@ error_and_exit $?
 if test -f /tmp/movielens_bert_emb/node_mapping.pt -ne 0
 then
 	echo "/tmp/movielens_bert_emb/node_mapping.pt must exist"
-	exit -1
+	exit 1
 fi
 
 if test -f /tmp/movielens_bert_emb/edge_mapping.pt -ne 0
 then
 	echo "/tmp/movielens_bert_emb/edge_mapping.pt must exist"
-	exit -1
+	exit 1
 fi
 
 echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: BERT embeddings, inference: mini-batch"
@@ -57,7 +57,7 @@ cnt=$(ls /tmp/movielens_bert_emb/emb/ | wc -l)
 if test $cnt -lt 2
 then
 	echo "Must have node embeddings for movie and user."
-	exit -1
+	exit 1
 fi
 
 echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: HF BERT, BERT nodes: movie, inference: mini-batch"

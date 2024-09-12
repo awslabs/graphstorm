@@ -18,15 +18,16 @@
 
 import os
 import logging
-from importlib.metadata import version
+import importlib.metadata
 
 import numpy as np
 import dgl
 import torch as th
 import torch.nn.functional as F
-from dgl.distributed import role
+
 from dgl.distributed.constants import DEFAULT_NTYPE
 from dgl.distributed.constants import DEFAULT_ETYPE
+from packaging import version
 
 from .utils import sys_tracker, get_rank
 from .utils import setup_device
@@ -157,10 +158,13 @@ def initialize(
         Default: False.
     use_graphbolt: bool
         Whether to use GraphBolt graph representation.
+        Requires installed DGL version to be at least ``2.1.0``.
         Default: False.
+
+        .. versionadded:: 0.4
     """
-    dgl_version = version('dgl')
-    if int(dgl_version.split('.')[0]) > 1:
+    dgl_version = importlib.metadata.version('dgl')
+    if version.parse(dgl_version) >= version.parse("2.1.0"):
         dgl.distributed.initialize(
             ip_config,
             net_type='socket',
@@ -168,15 +172,10 @@ def initialize(
         )
     else:
         if use_graphbolt:
-            logging.warning(
-                (
-                    "use_graphbolt was 'true' but but DGL version was %s. "
-                    "GraphBolt requires DGL version >= 2.x."
-                ),
-                dgl_version
-                )
-        # We need to use socket for communication in DGL 0.8. The tensorpipe backend has a bug.
-        # This problem will be fixed in the future.
+            raise ValueError(
+                f"use_graphbolt was 'true' but but DGL version was {dgl_version}. "
+                "GraphBolt DGL initialization requires DGL version >= 2.1.0"
+            )
         dgl.distributed.initialize(
             ip_config,
             net_type='socket',
