@@ -1221,7 +1221,7 @@ class GSConfig:
 
     def _check_fanout(self, fanout, fot_name):
         try:
-            if fanout[0].isnumeric():
+            if fanout[0].isnumeric() or fanout[0] == "-1":
                 # Fanout in format of 20,10,5,...
                 fanout = [int(val) for val in fanout]
             else:
