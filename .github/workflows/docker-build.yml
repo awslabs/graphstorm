@@ -1,6 +1,6 @@
 # Graphstorm CI for GSProcessing Only
 # Test execution order - [lint] -> [gsprocessing-pytest]
-name: gsprocessing_workflow
+name: docker_build_workflow
 
 on:
   push:
@@ -60,7 +60,7 @@ jobs:
       shell: bash
       run: |
         echo "Start submitting job - Push"  
-        python3 ./submitJob.py --job-type CI-LINT-PUSH --name Graphstorm-LintTest-Push-'${{ github.ref }}' \
+        python3 ./submitJob.py --job-type CI-Docker-Build-CHECK --name Graphstorm-Docker-Build-Push-'${{ github.ref }}' \
                                --command "${{ env.COMMAND-LINT }}" \
                                --remote https://github.com/'${{ github.repository }}' \
                                --source-ref '${{ github.ref }}' \
@@ -70,7 +70,7 @@ jobs:
       shell: bash
       run: |
         echo "Start submitting job - Pull Request"
-        python3 ./submitJob.py --job-type CI-LINT --name Graphstorm-LintTest-PR#-'${{ github.event.number }}' \
+        python3 ./submitJob.py --job-type CI-Docker-Build-CHECK --name Graphstorm-Docker-Build-PR#-'${{ github.event.number }}' \
                                --command "${{ env.COMMAND-LINT }}" \
                                --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
                                --source-ref '${{ github.event.pull_request.head.sha }}' \
