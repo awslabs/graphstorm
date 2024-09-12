@@ -32,7 +32,9 @@ from .config import BUILTIN_ENCODER
 from .config import SUPPORTED_BACKEND
 from .config import (BUILTIN_LP_LOSS_FUNCTION,
                      BUILTIN_LP_LOSS_CROSS_ENTROPY,
-                     BUILTIN_LP_LOSS_CONTRASTIVELOSS)
+                     BUILTIN_LP_LOSS_CONTRASTIVELOSS,
+                     BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
+                     BUILTIN_CLASS_LOSS_FUNCTION)
 
 from .config import BUILTIN_TASK_NODE_CLASSIFICATION
 from .config import BUILTIN_TASK_NODE_REGRESSION
@@ -1219,7 +1221,7 @@ class GSConfig:
 
     def _check_fanout(self, fanout, fot_name):
         try:
-            if fanout[0].isnumeric():
+            if fanout[0].isnumeric() or fanout[0] == "-1":
                 # Fanout in format of 20,10,5,...
                 fanout = [int(val) for val in fanout]
             else:
@@ -2516,13 +2518,34 @@ class GSConfig:
 
     @property
     def gamma(self):
-        """ Gamma for DistMult
+        """ Common hyperparameter symbol gamma.
         """
         if hasattr(self, "_gamma"):
             return float(self._gamma)
 
-        # We use this value in DGL-KE
-        return 12.0
+        return None
+
+    @property
+    def alpha(self):
+        """ Common hyperparameter symbol alpha.
+        """
+        if hasattr(self, "_alpha"):
+            return float(self._alpha)
+
+        return None
+
+    @property
+    def class_loss_func(self):
+        """ Node/Edge classification loss function
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_class_loss_func"):
+            assert self._class_loss_func in BUILTIN_CLASS_LOSS_FUNCTION, \
+                f"Only support {BUILTIN_CLASS_LOSS_FUNCTION} " \
+                "loss functions for classification tasks"
+            return self._class_loss_func
+
+        return BUILTIN_CLASS_LOSS_CROSS_ENTROPY
 
     @property
     def lp_loss_func(self):
@@ -3124,8 +3147,16 @@ def _add_link_prediction_args(parser):
             "--gamma",
             type=float,
             default=argparse.SUPPRESS,
-            help="Used in DistMult score func"
+            help="Common hyperparameter symbol gamma."
     )
+    group.add_argument(
+            "--alpha",
+            type=float,
+            default=argparse.SUPPRESS,
+            help="Common hyperparameter symbol alpha."
+    )
+    group.add_argument("--class-loss-func", type=str, default=argparse.SUPPRESS,
+            help="Classification loss function.")
     group.add_argument("--lp-loss-func", type=str, default=argparse.SUPPRESS,
             help="Link prediction loss function.")
     group.add_argument("--contrastive-loss-temperature", type=float, default=argparse.SUPPRESS,

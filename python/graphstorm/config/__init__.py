@@ -46,7 +46,10 @@ from .config import (BUILTIN_GNN_NORM,
                      BUILDIN_GNN_BATCH_NORM)
 
 from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
-                     BUILTIN_LP_LOSS_CONTRASTIVELOSS)
+                     BUILTIN_LP_LOSS_CONTRASTIVELOSS,
+                     BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
+                     BUILTIN_CLASS_LOSS_FOCAL,
+                     BUILTIN_CLASS_LOSS_FUNCTION)
 from .config import (GRAPHSTORM_LP_EMB_L2_NORMALIZATION,
                      GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS)
 

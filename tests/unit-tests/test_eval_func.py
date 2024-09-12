@@ -273,7 +273,12 @@ def test_eval_acc():
     labels = th.concat([th.zeros(50),th.ones(50)]).long()
     acc_1 = eval_acc(preds, labels)
 
-    # Normal case 2: preds 4D in logits.
+    # Normal case 2: preds 2D with the second dim as 1.
+    preds = th.unsqueeze(th.concat([th.zeros(25), th.ones(75)]).long(), 1)
+    labels = th.concat([th.zeros(50),th.ones(50)]).long()
+    acc_2 = eval_acc(preds, labels)
+
+    # Normal case 3: preds 4D in logits.
     preds = th.concat([th.tensor([0.75, 0.15, 0.2, 0.2]).repeat(25),
                        th.tensor([0.2, 0.75, 0.2, 0.05]).repeat(25),
                        th.tensor([0.2, 0.2, 0.75, 0.15]).repeat(25),
@@ -282,12 +287,13 @@ def test_eval_acc():
                         th.ones(25) + 1,
                         th.ones(25),
                         th.ones(25) + 2]).long()
-    acc_2 = eval_acc(preds, labels)
+    acc_3 = eval_acc(preds, labels)
 
     assert error_acc_1 == -1
     assert error_acc_2 == -1
     assert acc_1 == 0.75
-    assert acc_2 == 0.5
+    assert acc_2 == 0.75
+    assert acc_3 == 0.5
 
 def test_compute_precision_recall_auc():
     # GraphStorm inputs: preds are 1D or 2D, and labels are all 1D list.
@@ -446,6 +452,7 @@ def test_compute_hit_at_classification():
     preds = th.arange(100) / 102
     # preds is in a format as [probe_of_0, probe_of_1]
     preds = th.stack([preds, 1-preds]).T
+    preds2 = preds[:,1].unsqueeze(1)
     labels = th.zeros((100,)) # 1D label tensor
     labels2 = th.zeros((100,1)) # 2D label tensor
     labels[0] = 1
@@ -465,8 +472,16 @@ def test_compute_hit_at_classification():
     hit_at = compute_hit_at_classification(preds, labels, 20)
     assert hit_at == 4
 
+    hit_at = compute_hit_at_classification(preds2, labels, 5)
+    assert hit_at == 3
+    hit_at = compute_hit_at_classification(preds2, labels, 10)
+    assert hit_at == 3
+    hit_at = compute_hit_at_classification(preds2, labels, 20)
+    assert hit_at == 4
+
     shuff_idx = th.randperm(100)
     preds = preds[shuff_idx]
+    preds2 = preds2[shuff_idx]
     labels = labels[shuff_idx]
     labels2 = labels2[shuff_idx]
 
@@ -481,6 +496,19 @@ def test_compute_hit_at_classification():
     hit_at = compute_hit_at_classification(preds, labels2, 10)
     assert hit_at == 3
     hit_at = compute_hit_at_classification(preds, labels2, 20)
+    assert hit_at == 4
+
+    hit_at = compute_hit_at_classification(preds2, labels, 5)
+    assert hit_at == 3
+    hit_at = compute_hit_at_classification(preds2, labels, 10)
+    assert hit_at == 3
+    hit_at = compute_hit_at_classification(preds2, labels, 20)
+    assert hit_at == 4
+    hit_at = compute_hit_at_classification(preds2, labels2, 5)
+    assert hit_at == 3
+    hit_at = compute_hit_at_classification(preds2, labels2, 10)
+    assert hit_at == 3
+    hit_at = compute_hit_at_classification(preds2, labels2, 20)
     assert hit_at == 4
 
 def test_LinkPredictionMetrics():

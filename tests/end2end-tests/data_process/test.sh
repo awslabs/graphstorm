@@ -145,22 +145,43 @@ python3 $GS_HOME/tests/end2end-tests/data_process/check_edge_predict_remap.py --
 
 error_and_exit $?
 
-cnt=$(ls /tmp/ep_remap/pred/src_nids-*.pt | wc -l)
-if test $cnt == 2
+cnt=$(ls /tmp/ep_remap/pred/n0_access_n1/src_nids-*.pt | wc -l)
+if test $cnt != 2
 then
     echo "src_nids-xxx.pt must exist."
     exit -1
 fi
 
-cnt=$(ls /tmp/ep_remap/pred/dst_nids-*.pt | wc -l)
-if test $cnt == 2
+cnt=$(ls /tmp/ep_remap/pred/n1_access_n0/src_nids-*.pt | wc -l)
+if test $cnt != 2
+then
+    echo "src_nids-xxx.pt must exist."
+    exit -1
+fi
+
+cnt=$(ls /tmp/ep_remap/pred/n0_access_n1/dst_nids-*.pt | wc -l)
+if test $cnt != 2
 then
     echo "dst_nids-xxx.pt must exist."
     exit -1
 fi
 
-cnt=$(ls /tmp/ep_remap/pred/predict-*.pt | wc -l)
-if test $cnt == 2
+cnt=$(ls /tmp/ep_remap/pred/n1_access_n0/dst_nids-*.pt | wc -l)
+if test $cnt != 2
+then
+    echo "dst_nids-xxx.pt must exist."
+    exit -1
+fi
+
+cnt=$(ls /tmp/ep_remap/pred/n0_access_n1/predict-*.pt | wc -l)
+if test $cnt != 2
+then
+    echo "predict-xxx.pt must exist."
+    exit -1
+fi
+
+cnt=$(ls /tmp/ep_remap/pred/n1_access_n0/predict-*.pt | wc -l)
+if test $cnt != 2
 then
     echo "predict-xxx.pt must exist."
     exit -1
@@ -168,30 +189,51 @@ fi
 
 cp -r /tmp/ep_remap/pred/ /tmp/ep_remap/rename-pred/
 # Test remap edge prediction results and rename col names
-python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/ep_remap/id_mapping/ --logging-level debug --pred-etypes "n0,access,n1" "n1,access,n0" --preserve-input True --prediction-dir /tmp/ep_remap/rename-pred/ --rank 1 --world-size 2 --column-names "src_nid,~from:STRING" "dst_nid,~to:STRING" "pred,pred:FLOAT"
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/ep_remap/id_mapping/ --logging-level debug --pred-etypes "n0,access,n1" "n1,access,n0" --preserve-input False --prediction-dir /tmp/ep_remap/rename-pred/ --rank 1 --world-size 2 --column-names "src_nid,~from:STRING" "dst_nid,~to:STRING" "pred,pred:FLOAT"
 error_and_exit $?
 
-python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/ep_remap/id_mapping/ --logging-level debug --pred-etypes "n0,access,n1" "n1,access,n0" --preserve-input True --prediction-dir /tmp/ep_remap/rename-pred/ --rank 0 --world-size 2 --column-names "src_nid,~from:STRING" "dst_nid,~to:STRING" "pred,pred:FLOAT"
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/ep_remap/id_mapping/ --logging-level debug --pred-etypes "n0,access,n1" "n1,access,n0" --preserve-input False --prediction-dir /tmp/ep_remap/rename-pred/ --rank 0 --world-size 2 --column-names "src_nid,~from:STRING" "dst_nid,~to:STRING" "pred,pred:FLOAT"
 error_and_exit $?
 
 python3 $GS_HOME/tests/end2end-tests/data_process/check_edge_predict_remap.py --remap-output /tmp/ep_remap/rename-pred/ --column-names "src_nid,~from:STRING" "dst_nid,~to:STRING" "pred,pred:FLOAT"
 
-cnt=$(ls /tmp/ep_remap/rename-pred/src_nids-*.pt | wc -l)
-if test $cnt == 0
+cnt=$(ls /tmp/ep_remap/rename-pred/n0_access_n1/src_nids-*.pt 2>/dev/null | wc -l)
+if test $cnt != 0
 then
     echo "src_nids-xxx.pt should be removed."
     exit -1
 fi
 
-cnt=$(ls /tmp/ep_remap/rename-pred/dst_nids-*.pt | wc -l)
-if test $cnt == 0
+cnt=$(ls /tmp/ep_remap/rename-pred/n1_access_n0/src_nids-*.pt 2>/dev/null | wc -l)
+if test $cnt != 0
+then
+    echo "src_nids-xxx.pt should be removed."
+    exit -1
+fi
+
+cnt=$(ls /tmp/ep_remap/rename-pred/n0_access_n1/dst_nids-*.pt 2>/dev/null | wc -l)
+if test $cnt != 0
 then
     echo "dst_nids-xxx.pt should be removed."
     exit -1
 fi
 
-cnt=$(ls /tmp/ep_remap/rename-pred/predict-*.pt | wc -l)
-if test $cnt == 0
+cnt=$(ls /tmp/ep_remap/rename-pred/n1_access_n0/dst_nids-*.pt 2>/dev/null | wc -l)
+if test $cnt != 0
+then
+    echo "dst_nids-xxx.pt should be removed."
+    exit -1
+fi
+
+cnt=$(ls /tmp/ep_remap/rename-pred/n0_access_n1/predict-*.pt 2>/dev/null | wc -l)
+if test $cnt != 0
+then
+    echo "predict-xxx.pt should be removed."
+    exit -1
+fi
+
+cnt=$(ls /tmp/ep_remap/rename-pred/n1_access_n0/predict-*.pt 2>/dev/null | wc -l)
+if test $cnt != 0
 then
     echo "predict-xxx.pt should be removed."
     exit -1
@@ -243,17 +285,31 @@ python3 $GS_HOME/tests/end2end-tests/data_process/check_node_predict_remap.py --
 
 error_and_exit $?
 
-cnt=$(ls /tmp/np_remap/pred/predict_nids-*.pt | wc -l)
-if test $cnt == 0
+cnt=$(ls /tmp/np_remap/pred/n0/predict_nids-*.pt | wc -l)
+if test $cnt != 2
 then
-    echo "predict_nids-xxx.pt should be removed."
+    echo "predict_nids-xxx.pt must exist."
     exit -1
 fi
 
-cnt=$(ls /tmp/np_remap/pred/predict-*.pt | wc -l)
-if test $cnt == 0
+cnt=$(ls /tmp/np_remap/pred/n1/predict_nids-*.pt | wc -l)
+if test $cnt != 2
 then
-    echo "predict-xxx.pt should be removed."
+    echo "predict_nids-xxx.pt must exist."
+    exit -1
+fi
+
+cnt=$(ls /tmp/np_remap/pred/n0/predict-*.pt | wc -l)
+if test $cnt != 2
+then
+    echo "predict-xxx.pt must exist."
+    exit -1
+fi
+
+cnt=$(ls /tmp/np_remap/pred/n1/predict-*.pt | wc -l)
+if test $cnt != 2
+then
+    echo "predict-xxx.pt must exist."
     exit -1
 fi
 
@@ -272,7 +328,7 @@ cp -r /tmp/np_remap/pred/n0/*1.pt /tmp/np_remap/pred/1/n0/
 cp -r /tmp/np_remap/pred/n1/*0.pt /tmp/np_remap/pred/0/n1/
 cp -r /tmp/np_remap/pred/n1/*1.pt /tmp/np_remap/pred/1/n1/
 
-# Test remap edge prediction results
+# Test remap node prediction results
 python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/np_remap/id_mapping/ --logging-level debug --pred-ntypes "n0" "n1" --preserve-input True --prediction-dir /tmp/np_remap/pred/1/ --rank 1 --world-size 2 --with-shared-fs False
 error_and_exit $?
 
@@ -304,43 +360,70 @@ python3 $GS_HOME/tests/end2end-tests/data_process/check_emb_remap.py --remap-out
 
 error_and_exit $?
 
-cnt=$(ls /tmp/em_remap/partial-emb/embed_nids-*.pt | wc -l)
-if test $cnt == 2
+cnt=$(ls /tmp/em_remap/partial-emb/n0/embed_nids-*.pt | wc -l)
+if test $cnt != 2
 then
     echo "embed_nids-xxx.pt must exist."
     exit -1
 fi
 
-cnt=$(ls /tmp/em_remap/partial-emb/embed-*.pt | wc -l)
-if test $cnt == 2
+cnt=$(ls /tmp/em_remap/partial-emb/n1/embed_nids-*.pt | wc -l)
+if test $cnt != 2
+then
+    echo "embed_nids-xxx.pt must exist."
+    exit -1
+fi
+
+cnt=$(ls /tmp/em_remap/partial-emb/n0/embed-*.pt | wc -l)
+if test $cnt != 2
 then
     echo "embed-xxx.pt must exist."
     exit -1
 fi
 
+cnt=$(ls /tmp/em_remap/partial-emb/n1/embed-*.pt | wc -l)
+if test $cnt != 2
+then
+    echo "embed-xxx.pt must exist."
+    exit -1
+fi
 
 cp -r /tmp/em_remap/partial-emb/ /tmp/em_remap/partial-rename-emb/
 
 # Test remap emb results and rename col names
-python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/em_remap/id_mapping/ --logging-level debug --node-emb-dir /tmp/em_remap/partial-rename-emb/  --rank 1 --world-size 2 --column-names "nid,~id:STRING" "emb,emb:FLOAT"
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/em_remap/id_mapping/ --preserve-input False --logging-level debug --node-emb-dir /tmp/em_remap/partial-rename-emb/  --rank 1 --world-size 2 --column-names "nid,~id:STRING" "emb,emb:FLOAT"
 error_and_exit $?
 
-python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/em_remap/id_mapping/ --logging-level debug --node-emb-dir /tmp/em_remap/partial-rename-emb/ --rank 0 --world-size 2 --column-names "nid,~id:STRING" "emb,emb:FLOAT"
+python3 -m graphstorm.gconstruct.remap_result --num-processes 16 --node-id-mapping /tmp/em_remap/id_mapping/ --preserve-input False --logging-level debug --node-emb-dir /tmp/em_remap/partial-rename-emb/ --rank 0 --world-size 2 --column-names "nid,~id:STRING" "emb,emb:FLOAT"
 error_and_exit $?
 
 python3 $GS_HOME/tests/end2end-tests/data_process/check_emb_remap.py --remap-output /tmp/em_remap/partial-rename-emb/ --column-names "nid,~id:STRING" "emb,emb:FLOAT"
 
 error_and_exit $?
 
-cnt=$(ls /tmp/em_remap/partial-rename-emb/embed_nids-*.pt | wc -l)
-if test $cnt == 0
+cnt=$(ls /tmp/em_remap/partial-rename-emb/n0/embed_nids-*.pt 2>/dev/null | wc -l)
+if test $cnt != 0
 then
     echo "embed_nids-xxx.pt should be removed."
     exit -1
 fi
 
-cnt=$(ls /tmp/em_remap/partial-rename-emb/embed-*.pt | wc -l)
-if test $cnt == 0
+cnt=$(ls /tmp/em_remap/partial-rename-emb/n0/embed-*.pt 2>/dev/null | wc -l)
+if test $cnt != 0
+then
+    echo "embed-xxx.pt should be removed."
+    exit -1
+fi
+
+cnt=$(ls /tmp/em_remap/partial-rename-emb/n1/embed_nids-*.pt 2>/dev/null | wc -l)
+if test $cnt != 0
+then
+    echo "embed_nids-xxx.pt should be removed."
+    exit -1
+fi
+
+cnt=$(ls /tmp/em_remap/partial-rename-emb/n1/embed-*.pt 2>/dev/null | wc -l)
+if test $cnt != 0
 then
     echo "embed-xxx.pt should be removed."
     exit -1
@@ -398,42 +481,42 @@ python3 $GS_HOME/tests/end2end-tests/data_process/check_edge_predict_remap.py --
 error_and_exit $?
 
 cnt=$(ls /tmp/mt_remap/predict/edge_classification-n0_access_n1-test_ec0/n0_access_n1/src_nids-*.pt | wc -l)
-if test $cnt == 2
+if test $cnt != 2
 then
     echo "src_nids-xxx.pt must exist."
     exit -1
 fi
 
 cnt=$(ls /tmp/mt_remap/predict/edge_classification-n0_access_n1-test_ec0/n0_access_n1/dst_nids-*.pt | wc -l)
-if test $cnt == 2
+if test $cnt != 2
 then
     echo "dst_nids-xxx.pt must exist."
     exit -1
 fi
 
 cnt=$(ls /tmp/mt_remap/predict/edge_classification-n0_access_n1-test_ec0/n0_access_n1/predict-*.pt | wc -l)
-if test $cnt == 2
+if test $cnt != 2
 then
     echo "predict-xxx.pt must exist."
     exit -1
 fi
 
 cnt=$(ls /tmp/mt_remap/predict/edge_classification-n1_access_n0-test_ec1/n1_access_n0/src_nids-*.pt | wc -l)
-if test $cnt == 2
+if test $cnt != 2
 then
     echo "src_nids-xxx.pt must exist."
     exit -1
 fi
 
 cnt=$(ls /tmp/mt_remap/predict/edge_classification-n1_access_n0-test_ec1/n1_access_n0/dst_nids-*.pt | wc -l)
-if test $cnt == 2
+if test $cnt != 2
 then
     echo "dst_nids-xxx.pt must exist."
     exit -1
 fi
 
 cnt=$(ls /tmp/mt_remap/predict/edge_classification-n1_access_n0-test_ec1/n1_access_n0/predict-*.pt | wc -l)
-if test $cnt == 2
+if test $cnt != 2
 then
     echo "predict-xxx.pt must exist."
     exit -1

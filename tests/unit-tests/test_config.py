@@ -985,6 +985,7 @@ def create_lp_config(tmp_path, file_name):
         "reverse_edge_types_map": None,
         "eval_metric": ["mrr"],
         "gamma": 1.0,
+        "alpha": 2.0,
         "lp_loss_func": BUILTIN_LP_LOSS_CONTRASTIVELOSS,
         "lp_edge_weight_for_loss": ["query,exactmatch,asin:weight0", "query,click,asin:weight1"]
     }
@@ -1060,13 +1061,15 @@ def test_lp_info():
         assert config.eval_etype == None
         check_failure(config, "exclude_training_targets")
         assert len(config.reverse_edge_types_map) == 0
-        assert config.gamma == 12.0
+        assert config.gamma == None
+        assert config.alpha == None
         assert config.lp_loss_func == BUILTIN_LP_LOSS_CROSS_ENTROPY
         assert config.adversarial_temperature == None
         assert config.lp_embed_normalizer == None
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
-        assert config.gamma == 12.0
+        assert config.gamma == None
+        assert config.alpha == None
         assert config.lp_edge_weight_for_loss == None
         assert config.model_select_etype == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
 
@@ -1107,6 +1110,7 @@ def test_lp_info():
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mrr"
         assert config.gamma == 1.0
+        assert config.alpha == 2.0
         assert config.lp_edge_weight_for_loss[ ("query", "exactmatch", "asin")] == ["weight0"]
         assert config.lp_edge_weight_for_loss[ ("query", "click", "asin")] == ["weight1"]
         assert config.model_select_etype == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
@@ -1171,7 +1175,7 @@ def create_gnn_config(tmp_path, file_name):
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name"],
         "fanout": "n1/a/n2:10@n1/b/n2:10,n1/a/n2:10@n1/b/n2:10@n1/c/n2:20",
-        "eval_fanout": "10,10",
+        "eval_fanout": "-1,10",
         "num_layers": 2,
         "hidden_size": 128,
         "use_mini_batch_infer": True,
@@ -1279,7 +1283,7 @@ def test_gnn_info():
         assert config.fanout[1][("n1","a","n2")] == 10
         assert config.fanout[1][("n1","b","n2")] == 10
         assert config.fanout[1][("n1","c","n2")] == 20
-        assert config.eval_fanout == [10,10]
+        assert config.eval_fanout == [-1,10]
         assert config.num_layers == 2
         assert config.hidden_size == 128
         assert config.use_mini_batch_infer == True
@@ -1698,6 +1702,8 @@ def create_dummy_nc_config():
         "imbalance_class_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2",
         "batch_size": 20,
         "task_weight": 1,
+        "gamma": 2.,
+        "alpha": 0.25,
         "mask_fields": ["class_train_mask", "class_eval_mask", "class_test_mask"]
     }
 
@@ -1849,6 +1855,8 @@ def test_multi_task_config():
         assert nc_config.imbalance_class_weights.tolist() == [1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2]
         assert nc_config.multilabel_weights.tolist() == [1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2]
         assert nc_config.batch_size == 20
+        assert nc_config.gamma == 2.
+        assert nc_config.alpha == 0.25
 
         nr_config = config.multi_tasks[1]
         assert nr_config.task_type == BUILTIN_TASK_NODE_REGRESSION
@@ -1946,7 +1954,7 @@ def test_multi_task_config():
         assert lp_config.eval_etype == None
         assert lp_config.exclude_training_targets == False
         assert len(lp_config.reverse_edge_types_map) == 0
-        assert lp_config.gamma == 12.0
+        assert lp_config.gamma == None
         assert lp_config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS
         assert lp_config.lp_embed_normalizer == GRAPHSTORM_LP_EMB_L2_NORMALIZATION
         assert lp_config.lp_decoder_type == BUILTIN_LP_DISTMULT_DECODER
