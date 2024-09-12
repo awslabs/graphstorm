@@ -61,7 +61,7 @@ jobs:
       run: |
         echo "Start submitting job - Push"  
         python3 ./submitJob.py --job-type CI-Docker-Build-CHECK --name Graphstorm-Docker-Build-Push-'${{ github.ref }}' \
-                               --command "${{ env.COMMAND-LINT }}" \
+                               --command "${{ env.COMMAND-Docker }}" \
                                --remote https://github.com/'${{ github.repository }}' \
                                --source-ref '${{ github.ref }}' \
                                --wait
@@ -71,7 +71,7 @@ jobs:
       run: |
         echo "Start submitting job - Pull Request"
         python3 ./submitJob.py --job-type CI-Docker-Build-CHECK --name Graphstorm-Docker-Build-PR#-'${{ github.event.number }}' \
-                               --command "${{ env.COMMAND-LINT }}" \
+                               --command "${{ env.COMMAND-Docker }}" \
                                --remote https://github.com/'${{ github.event.pull_request.head.repo.full_name }}' \
                                --source-ref '${{ github.event.pull_request.head.sha }}' \
                                --wait
