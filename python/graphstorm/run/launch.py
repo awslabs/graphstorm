@@ -280,7 +280,7 @@ def execute_remote(
             state_q,
         ),
     )
-    thread.setDaemon(True)
+    thread.daemon = True
     thread.start()
     # sleep for a while in case of ssh is rejected by peer due to busy connection
     time.sleep(0.2)
@@ -321,7 +321,7 @@ def execute_local(
             state_q,
         ),
     )
-    thread.setDaemon(True)
+    thread.daemon = True
     thread.start()
     # sleep for a while in case of ssh is rejected by peer due to busy connection
     time.sleep(0.2)

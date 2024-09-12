@@ -859,7 +859,8 @@ def process_graph(args):
         partition_graph(g, node_data, edge_data, args.graph_name,
                         args.num_parts, args.output_dir,
                         save_mapping=True, # always save mapping
-                        part_method=args.part_method)
+                        part_method=args.part_method,
+                        use_graphbolt=args.use_graphbolt)
 
         # There are hard negatives, we need to do NID remapping
         if len(hard_edge_neg_ops) > 0:
@@ -944,4 +945,8 @@ if __name__ == '__main__':
     argparser.add_argument("--logging-level", type=str, default="info",
                            help="The logging level. The possible values: debug, info, warning, \
                                    error. The default value is info.")
+    argparser.add_argument("--use-graphbolt", type=lambda x: (str(x).lower() in ['true', '1']),
+                           default="false",
+                           help=("Whether to convert the partitioned data to the GraphBolt format "
+                               "after creating the DistDGL graph."))
     process_graph(argparser.parse_args())

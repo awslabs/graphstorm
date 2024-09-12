@@ -108,6 +108,9 @@ def create_task_train_dataloader(task, config, train_data):
                               train_task=True,
                               reverse_edge_types_map=task_config.reverse_edge_types_map,
                               exclude_training_targets=task_config.exclude_training_targets,
+                              # Only use training edges in message passing during training.
+                              # Overwrite the default mask name "train_mask"
+                              edge_mask_for_gnn_embeddings=task_config.train_mask,
                               edge_dst_negative_field=task_config.train_etypes_negative_dstnode,
                               num_hard_negs=task_config.num_train_hard_negatives)
     elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
@@ -317,7 +320,8 @@ def main(config_args):
     use_wg_feats = use_wholegraph(config.part_config)
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
                   local_rank=config.local_rank,
-                  use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
+                  use_wholegraph=config.use_wholegraph_embed or use_wg_feats,
+                  use_graphbolt=config.use_graphbolt)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
     train_data = GSgnnData(config.part_config,

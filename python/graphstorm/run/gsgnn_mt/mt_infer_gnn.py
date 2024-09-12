@@ -170,7 +170,8 @@ def main(config_args):
     use_wg_feats = use_wholegraph(config.part_config)
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
                   local_rank=config.local_rank,
-                  use_wholegraph=config.use_wholegraph_embed or use_wg_feats)
+                  use_wholegraph=config.use_wholegraph_embed or use_wg_feats,
+                  use_graphbolt=config.use_graphbolt)
 
     infer_data = GSgnnData(config.part_config,
                            node_feat_field=config.node_feat_name,

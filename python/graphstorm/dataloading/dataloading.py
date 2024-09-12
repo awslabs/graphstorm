@@ -381,7 +381,7 @@ class GSgnnEdgeDataLoader(GSgnnEdgeDataLoaderBase):
     Examples
     ------------
     To train a 2-layer GNN for edge prediction on a set of edges ``target_idx`` on
-    a graph where each edge (source and destination node pair) takes messages from 15 
+    a graph where each edge (source and destination node pair) takes messages from 15
     neighbors on the first layer and 10 neighbors on the second.
 
     .. code:: python
@@ -582,7 +582,7 @@ class GSgnnLinkPredictionDataLoaderBase():
               More detailed information about DGL MFG can be found in `DGL Neighbor Sampling
               Overview
               <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
-        
+
         """
 
     def __len__(self):
@@ -658,8 +658,8 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
 
     ``GSgnnLinkPredictionDataLoader`` samples GraphStorm data into an iterable over mini-batches
     of samples. In each batch, ``pos_graph`` and ``neg_graph`` are sampled subgraph for positive
-    and negative edges, which will be used by GraphStorm Trainers and Inferrers. 
-    
+    and negative edges, which will be used by GraphStorm Trainers and Inferrers.
+
     Given a positive edge, a negative edge is composed of the source node and a random negative
     destination nodes according to a uniform distribution.
 
@@ -719,7 +719,7 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
     ------------
     To train a 2-layer GNN for link prediction on a set of positive edges ``target_idx`` on
     a graph where each edge (a source and destination node pair) takes messages from 15 neighbors
-    on the first layer and 10 neighbors on the second. 
+    on the first layer and 10 neighbors on the second.
     We use 10 negative edges per positive in this example.
 
     .. code:: python
@@ -753,6 +753,12 @@ class GSgnnLinkPredictionDataLoader(GSgnnLinkPredictionDataLoaderBase):
                 train_task=train_task,
                 exclude_training_targets=exclude_training_targets,
                 reverse_edge_types_map=reverse_edge_types_map,
+                # If the edge_mask_for_gnn_embeddings exists as an edge feature
+                # of an edge type, then when sampling edges from that edge type,
+                # only the edges with the mask (set to 1) will be sampled.
+                # if the edge_mask_for_gnn_embeddings does not exist as the edge feature
+                # of an edge type, then when sampling edges from that edge type,
+                # all the edges can be sampled.
                 edge_mask_for_gnn_embeddings=edge_mask_for_gnn_embeddings,
                 construct_feat_ntype=construct_feat_ntype,
                 construct_feat_fanout=construct_feat_fanout,
@@ -1768,10 +1774,10 @@ class GSgnnNodeSemiSupDataLoader(GSgnnNodeDataLoader):
 
     def __len__(self):
         """
-        Follow the 
+        Follow the
         https://github.com/dmlc/dgl/blob/1.0.x/python/dgl/distributed/dist_dataloader.py#L116.
         In DGL, ``DistDataLoader.expected_idxs`` is the length (number of batches)
-        of the dataloader. As it uses two dataloader, either one throws an End of Iter error 
+        of the dataloader. As it uses two dataloader, either one throws an End of Iter error
         will stop the dataloader.
 
         Returns:

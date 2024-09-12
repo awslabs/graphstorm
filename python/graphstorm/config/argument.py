@@ -32,7 +32,9 @@ from .config import BUILTIN_ENCODER
 from .config import SUPPORTED_BACKEND
 from .config import (BUILTIN_LP_LOSS_FUNCTION,
                      BUILTIN_LP_LOSS_CROSS_ENTROPY,
-                     BUILTIN_LP_LOSS_CONTRASTIVELOSS)
+                     BUILTIN_LP_LOSS_CONTRASTIVELOSS,
+                     BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
+                     BUILTIN_CLASS_LOSS_FUNCTION)
 
 from .config import BUILTIN_TASK_NODE_CLASSIFICATION
 from .config import BUILTIN_TASK_NODE_REGRESSION
@@ -663,6 +665,7 @@ class GSConfig:
         _ = self.edge_id_mapping_file
         _ = self.verbose
         _ = self.use_wholegraph_embed
+        _ = self.use_graphbolt
 
         # Data
         _ = self.node_feat_name
@@ -952,6 +955,18 @@ class GSConfig:
         else:
             return None
 
+    @property
+    def use_graphbolt(self):
+        """ Whether to use GraphBolt in-memory graph representation.
+            See https://docs.dgl.ai/stochastic_training/ for details.
+        """
+        if hasattr(self, "_use_graphbolt"):
+            assert self._use_graphbolt in [True, False], \
+                "Invalid value for _use_graphbolt. Must be either True or False."
+            return self._use_graphbolt
+        else:
+            return False
+
     ###################### language model support #########################
     # Bert related
     @property
@@ -1206,7 +1221,7 @@ class GSConfig:
 
     def _check_fanout(self, fanout, fot_name):
         try:
-            if fanout[0].isnumeric():
+            if fanout[0].isnumeric() or fanout[0] == "-1":
                 # Fanout in format of 20,10,5,...
                 fanout = [int(val) for val in fanout]
             else:
@@ -2503,13 +2518,34 @@ class GSConfig:
 
     @property
     def gamma(self):
-        """ Gamma for DistMult
+        """ Common hyperparameter symbol gamma.
         """
         if hasattr(self, "_gamma"):
             return float(self._gamma)
 
-        # We use this value in DGL-KE
-        return 12.0
+        return None
+
+    @property
+    def alpha(self):
+        """ Common hyperparameter symbol alpha.
+        """
+        if hasattr(self, "_alpha"):
+            return float(self._alpha)
+
+        return None
+
+    @property
+    def class_loss_func(self):
+        """ Node/Edge classification loss function
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_class_loss_func"):
+            assert self._class_loss_func in BUILTIN_CLASS_LOSS_FUNCTION, \
+                f"Only support {BUILTIN_CLASS_LOSS_FUNCTION} " \
+                "loss functions for classification tasks"
+            return self._class_loss_func
+
+        return BUILTIN_CLASS_LOSS_CROSS_ENTROPY
 
     @property
     def lp_loss_func(self):
@@ -2522,6 +2558,17 @@ class GSConfig:
         # By default, return None
         # which means using the default evaluation metrics for different tasks.
         return BUILTIN_LP_LOSS_CROSS_ENTROPY
+
+    @property
+    def adversarial_temperature(self):
+        """ Temperature of adversarial cross entropy loss for link prediction tasks.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_adversarial_temperature"):
+            assert self.lp_loss_func in [BUILTIN_LP_LOSS_CROSS_ENTROPY], \
+                f"adversarial_temperature only works with {BUILTIN_LP_LOSS_CROSS_ENTROPY}"
+            return self._adversarial_temperature
+        return None
 
     @property
     def task_type(self):
@@ -2766,6 +2813,15 @@ def _add_initialization_args(parser):
         default=argparse.SUPPRESS,
         help="Whether to use WholeGraph to store intermediate embeddings/tensors generated \
             during training or inference, e.g., cache_lm_emb, sparse_emb, etc."
+    )
+    group.add_argument(
+        "--use-graphbolt",
+        type=lambda x: (str(x).lower() in ['true', '1']),
+        default=argparse.SUPPRESS,
+        help=(
+            "Whether to use GraphBolt graph representation. "
+            "See https://docs.dgl.ai/stochastic_training/ for details"
+        )
     )
     return parser
 
@@ -3091,12 +3147,22 @@ def _add_link_prediction_args(parser):
             "--gamma",
             type=float,
             default=argparse.SUPPRESS,
-            help="Used in DistMult score func"
+            help="Common hyperparameter symbol gamma."
     )
+    group.add_argument(
+            "--alpha",
+            type=float,
+            default=argparse.SUPPRESS,
+            help="Common hyperparameter symbol alpha."
+    )
+    group.add_argument("--class-loss-func", type=str, default=argparse.SUPPRESS,
+            help="Classification loss function.")
     group.add_argument("--lp-loss-func", type=str, default=argparse.SUPPRESS,
             help="Link prediction loss function.")
     group.add_argument("--contrastive-loss-temperature", type=float, default=argparse.SUPPRESS,
             help="Temperature of link prediction contrastive loss.")
+    group.add_argument("--adversarial-temperature", type=float, default=argparse.SUPPRESS,
+            help="Temperature of adversarial cross entropy loss for link prediction tasks.")
     group.add_argument("--lp-embed-normalizer", type=str, default=argparse.SUPPRESS,
             help="Normalization method used to normalize node embeddings in"
                  "link prediction. Supported methods "
