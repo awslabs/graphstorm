@@ -104,8 +104,7 @@ for i in $(seq 0 1); do
 done
 
 python3 -m graphstorm.gpartition.convert_to_graphbolt \
-    --input-path "${GCONS_GRAPHBOLT_PATH}" \
-    --metadata-filename ml.json
+    --metadata-filepath "${GCONS_GRAPHBOLT_PATH}/ml.json"
 
 # Ensure GraphBolt files were re-created by standalone script
 for i in $(seq 0 1); do
