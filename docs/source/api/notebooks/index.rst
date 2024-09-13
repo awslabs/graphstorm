@@ -15,7 +15,7 @@ GraphStorm provides a variaty of built-in neural network model components that c
 
 Besides built-in model components, following GraphStorm APIs users can develop customized components for their specific requirements. `Notebook 4: Use GraphStorm APIs for Customizing Model Components <https://github.com/awslabs/graphstorm/blob/main/docs/source/api/notebooks/Notebook_4_Customized_Models.ipynb>`_ provides an example of a customized `RGAT` encoder and how to integrate it into the GraphStorm model architecture.
 
-Once know how to customize components, users can refer to the `Notebook 5: Use GraphStorm APIs for a Customized Model to Perform Graph Prediction <https://github.com/awslabs/graphstorm/blob/main/docs/source/api/notebooks/Notebook_5_GP_solution.ipynb>`_ to learn how to perform graph prediction in GraphStorm.
+Once they're familiar with customizing components, users can refer to `Notebook 5: Use GraphStorm APIs for a Customized Model to Perform Graph-level Prediction <https://github.com/awslabs/graphstorm/blob/main/docs/source/api/notebooks/Notebook_5_GP_solution.ipynb>`_ to learn how to perform graph-level prediction in GraphStorm.
 
 These examples utilize GraphStorm APIs, such as ``graphstorm``, ``graphstorm.dataloading.GSgnnDataset``, ``graphstorm.dataloading.GSgnnNodeDataLoader``, ``graphstorm.trainer.GSgnnNodePredictionTrainer``, and ``graphstorm.inference.GSgnnNodePredictionInferrer``, to form the training and infernece pipeline. In terms of the GNN models, users can refer to the `demo_model.py <https://github.com/awslabs/graphstorm/blob/main/docs/source/api/notebooks/demo_models.py>`_ file in which all models are created by using GraphStorm APIs.
 
