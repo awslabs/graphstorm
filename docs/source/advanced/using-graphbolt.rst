@@ -162,8 +162,7 @@ data using our GraphBolt conversion entry point:
     rm /tmp/acm_graphbolt/part0/fused_csc_sampling_graph.pt
     # Now let's run the standalone GraphBolt conversion
     python -m graphstorm.gpartition.convert_to_graphbolt \
-        --input-path /tmp/acm_graphbolt
-        --metadata-filename acm.json
+        --metadata-filepath /tmp/acm_graphbolt/acm.json
     # We'll see the GraphBolt representation has been re-created
     ls /tmp/acm_graphbolt/part0
     edge_feat.dgl  fused_csc_sampling_graph.pt  graph.dgl  node_feat.dgl
