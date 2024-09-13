@@ -27,8 +27,12 @@ import time
 import shutil
 import subprocess
 import sys
+import importlib.metadata
 from typing import Dict
 from threading import Thread
+
+import dgl
+from packaging import version
 
 from graphstorm.gpartition import (
     ParMetisPartitionAlgorithm,
@@ -111,8 +115,6 @@ def main():
     # Configure logging
     logging.basicConfig(level=get_log_level(args.logging_level))
 
-    start = time.time()
-
     output_path: str = args.output_path
     metadata_file: str = args.metadata_filename
 
@@ -136,13 +138,13 @@ def main():
         args.num_parts,
         part_assignment_dir)
 
-    part_end = time.time()
     logging.info("Partition assignment with algorithm '%s' took %f sec",
                  args.partition_algorithm,
-                 part_end - part_start,
+                 time.time() - part_start,
     )
 
     if not args.partition_assignment_only:
+        dgl_graph_start = time.time()
         run_build_dglgraph(
             args.input_path,
             part_assignment_dir,
@@ -152,7 +154,29 @@ def main():
             args.dgl_tool_path,
             args.ssh_port)
 
-        logging.info("DGL graph building took %f sec", part_end - time.time())
+        logging.info("DGL graph building took %f sec", dgl_graph_start - time.time())
+
+        if args.use_graphbolt:
+            gb_start = time.time()
+            dgl_version = importlib.metadata.version('dgl')
+            if version.parse(dgl_version) >= version.parse("2.1.0"):
+                # TODO: Implement distributed conversion using
+                # dgl.distributed.partition.gb_convert_single_dgl_partition()
+                logging.info("Converting partitions to GraphBolt format")
+                # NOTE: The partition conversion happens on just the leader
+                # and a shared filesystem is assumed to hold the graph data.
+                dgl.distributed.dgl_partition_to_graphbolt(
+                    os.path.join(output_path, "dist_graph", "metadata.json"),
+                    store_eids=True,
+                    graph_formats="coo",
+                )
+                logging.info("GraphBolt conversion took %f sec.",
+                             time.time() - gb_start)
+            else:
+                raise ValueError(
+                    f"use_graphbolt was 'true' but but DGL version was {dgl_version}. "
+                    "GraphBolt graph construction requires DGL version >= 2.1.0"
+                )
 
     # Copy raw_id_mappings to dist_graph if they exist in the input
     raw_id_mappings_path = os.path.join(args.input_path, "raw_id_mappings")
@@ -164,12 +188,6 @@ def main():
             os.path.join(output_path, 'dist_graph/raw_id_mappings'),
             dirs_exist_ok=True,
         )
-
-    if not args.partition_assignment_only:
-        logging.info('Partition assignment and DGL graph creation took %f seconds',
-                 time.time() - start)
-    else:
-        logging.info('Partition assignment took %f seconds', time.time() - start)
 
 def parse_args() -> argparse.Namespace:
     """Parses arguments for the script"""
@@ -197,6 +215,10 @@ def parse_args() -> argparse.Namespace:
     argparser.add_argument("--logging-level", type=str, default="info",
                            help="The logging level. The possible values: debug, info, warning, \
                                    error. The default value is info.")
+    argparser.add_argument("--use-graphbolt", type=lambda x: (str(x).lower() in ['true', '1']),
+                           default="false",
+                           help=("Whether to convert the partitioned data to the GraphBolt format "
+                               "after creating the DistDGL graph."))
 
     return argparser.parse_args()
 

@@ -10,7 +10,7 @@ Prerequisites
 2. Following the :ref:`Setup GraphStorm with pip Packages <setup_pip>` guideline to install GraphStorm and its dependencies.
 3. Following the :ref:`Input Raw Data Explanations <input_raw_data>` guideline to prepare the input raw data.
 
-Graph consturction command
+Graph construction command
 ****************************
 
 GraphStorm provides a ``gconstruct.construct_graph`` module for graph construction in a signle machine. Users can run the ``gconstruct.construct_graph`` command by following the command template below.
@@ -23,7 +23,28 @@ GraphStorm provides a ``gconstruct.construct_graph`` module for graph constructi
           --num-parts 1 \
           --graph-name a_name
 
-This template provides the actual Python command, and it also indicates the three required command arguments, i.e., ``--conf-file`` specifies a JSON file containing graph construction configurations, ``--output-dir`` specifies the directory for outputs, and ``--graph-name`` specifies a string as a name given to the constructed graph. The ``--num-parts`` whose default given value is ``1`` is also an important argument. It determines how many partitions to be constructed. In distrusted model training and inference, the number of machines is determined by the number of partitions.
+This template provides the actual Python command, and it also indicates the three required command arguments, i.e., ``--conf-file`` specifies a JSON file containing graph construction configurations, ``--output-dir`` specifies the directory for outputs, and ``--graph-name`` specifies a string as a name given to the constructed graph. The ``--num-parts`` whose default given value is ``1`` is also an important argument. It determines how many partitions to be constructed. In distributed model training and inference, the number of machines is determined by the number of partitions.
+
+Full argument list of the ``gconstruct.construct_graph`` command
+................................................................
+
+* **-\-conf-file**: (**Required**) the path of the configuration JSON file.
+* **-\-num-processes**: the number of processes to process the data simultaneously. Default is 1. Increase this number can speed up data processing, but will also increase the CPU memory consumption.
+* **-\-num-processes-for-nodes**: the number of processes to process node data simultaneously. Increase this number can speed up node data processing.
+* **-\-num-processes-for-edges**: the number of processes to process edge data simultaneously. Increase this number can speed up edge data processing.
+* **-\-output-dir**: (**Required**) the path of the output data files.
+* **-\-graph-name**: (**Required**) the name assigned for the graph.
+* **-\-remap-node-id**: boolean value to decide whether to rename node IDs or not. Adding this argument will set it to be true, otherwise false.
+* **-\-add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Adding this argument sets it to true; otherwise, it defaults to false. It is **strongly** suggested to include this argument for graph construction, as some nodes in the original data may not have in-degrees, and thus cannot update their presentations by aggregating messages from their neighbors. Adding this arugment helps prevent this issue.
+* **-\-output-format**: the format of constructed graph, options are ``DGL``,  ``DistDGL``.  Default is ``DistDGL``. It also accepts multiple graph formats at the same time separated by an space, for example ``--output-format "DGL DistDGL"``. The output format is explained in the :ref:`Output <gcon-output-format>` section above.
+* **-\-num-parts**: an integer value that specifies the number of graph partitions to produce. This is only valid if the output format is ``DistDGL``.
+* **-\-skip-nonexist-edges**: boolean value to decide whether skip edges whose endpoint nodes don't exist. Default is true.
+* **-\-ext-mem-workspace**: the directory where the tool can store intermediate data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
+* **-\-ext-mem-feat-size**: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.
+* **-\-output-conf-file**: The output file with the updated configurations that records the details of data transformation, e.g., convert to categorical value mappings, and max-min normalization ranges. If not specified, will save the updated configuration file in the **-\-output-dir** with name `data_transform_new.json`.
+* **-\-use-graphbolt**:  ``New in version 0.4``. When set to ``"true"``, will convert the partitioned graph data to the GraphBolt format after
+  partitioning, allowing GraphBolt training/inference jobs to be used downstream.
+  Requires installed DGL version to be at least ``2.1.0``. Default is ``"false"``.
 
 .. _gconstruction-json:
 
@@ -108,13 +129,13 @@ GraphStorm provides a set of transformation operations for different types of fe
                   "bert_model": "roberta-base",
                   "max_seq_length": 256},
 
-* **Numerical MAX_MIN transformation** normalizes numerical input features with `val = (val-min)/(max-min)`, where `val` is the feature value, `max` is the maximum value in the feature and `min` is the minimum value in the feature. The ``name`` field in the feature transformation dictionary is ``max_min_norm``. The dictionary can contain four optional fields: ``max_bound``, ``min_bound``, ``max_val`` and ``min_val``. 
+* **Numerical MAX_MIN transformation** normalizes numerical input features with `val = (val-min)/(max-min)`, where `val` is the feature value, `max` is the maximum value in the feature and `min` is the minimum value in the feature. The ``name`` field in the feature transformation dictionary is ``max_min_norm``. The dictionary can contain four optional fields: ``max_bound``, ``min_bound``, ``max_val`` and ``min_val``.
 
   - ``max_bound`` specifies the maximum value allowed in the feature. Any number larger than ``max_bound`` will be set to ``max_bound``. Here, `max = min(np.amax(feats), ``max_bound``)`.
-  - ``min_bound`` specifies the minimum value allowed in the feature. Any number smaller than ``min_bound`` will be set to ``min_bound``. Here, `min` = max(np.amin(feats), ``min_bound``). 
+  - ``min_bound`` specifies the minimum value allowed in the feature. Any number smaller than ``min_bound`` will be set to ``min_bound``. Here, `min` = max(np.amin(feats), ``min_bound``).
   - ``max_val`` defines the `max` in the transformation formula. When ``max_val`` is provided, `max` is always equal to ``max_val``.
   - ``min_val`` defines the `min` in the transformation formula.  When ``min_val`` is provided, `min` is always equal to ``min_val``.
-  
+
   ``max_val`` and ``min_val`` are mainly used in the inference stage, where we want to use the same `max` and `min` values computed in the training stage to normalize inference data.
 
   Example:
@@ -165,9 +186,9 @@ GraphStorm provides a set of transformation operations for different types of fe
 
 .. _gcon-output-format:
 
-Outputs of the graph consturction command
+Outputs of the graph construction command
 ............................................
-The graph construction command outputs two formats: ``DistDGL`` or ``DGL`` specified by the argument **-\-output-format**. 
+The graph construction command outputs two formats: ``DistDGL`` or ``DGL`` specified by the argument **-\-output-format**.
 
 If select ``DGL``, the output includes an `DGLGraph <https://docs.dgl.ai/en/1.0.x/generated/dgl.save_graphs.html>`_ file, named ``<graph_name>.dgl`` under the folder specified by the **-\-output-dir** argument, where `<graph_name>` is the value of argument **-\-graph-name**.
 
@@ -190,7 +211,7 @@ Besides the graph data, the graph construction command also generate other files
       If users provide a value of the **-\-output-conf-file** argument, the newly generated configuration file will use this value as the file name. Otherwise GraphStorm will save the configuration JSON file in the **-\-output-dir** with name ``data_transform_new.json``.
 
     - **Label Statistic Summary JSONs:**
-      If required in the ``label_stats_type`` field, the graph construction command will compute statistics of labels and save them in a ``node_label_stats.json`` or a ``edge_label_stats.json``. 
+      If required in the ``label_stats_type`` field, the graph construction command will compute statistics of labels and save them in a ``node_label_stats.json`` or a ``edge_label_stats.json``.
 
 .. note:: These mapping files are important for mapping the training and inference outputs. Therefore, DO NOT move or delete them.
 
@@ -303,24 +324,6 @@ This section provides a construction configuration JSON associated to the :ref:`
 
 .. note:: For a real runnable example, please refer to the :ref:`input JSON file <input-config>` used in the :ref:`Use Your Own Graphs Tutorial <use-own-data>`.
 
-A full argument list of the ``gconstruct.construct_graph`` command
-...................................................................
-
-* **-\-conf-file**: (**Required**) the path of the configuration JSON file.
-* **-\-num-processes**: the number of processes to process the data simulteneously. Default is 1. Increase this number can speed up data processing, but will also increase the CPU memory consumption.
-* **-\-num-processes-for-nodes**: the number of processes to process node data simulteneously. Increase this number can speed up node data processing.
-* **-\-num-processes-for-edges**: the number of processes to process edge data simulteneously. Increase this number can speed up edge data processing.
-* **-\-output-dir**: (**Required**) the path of the output data files.
-* **-\-graph-name**: (**Required**) the name assigned for the graph.
-* **-\-remap-node-id**: boolean value to decide whether to rename node IDs or not. Adding this argument will set it to be true, otherwise false.
-* **-\-add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Adding this argument sets it to true; otherwise, it defaults to false. It is **strongly** suggested to include this argument for graph construction, as some nodes in the original data may not have in-degrees, and thus cannot update their presentations by aggregating messages from their neighbors. Adding this arugment helps prevent this issue.
-* **-\-output-format**: the format of constructed graph, options are ``DGL``,  ``DistDGL``.  Default is ``DistDGL``. It also accepts multiple graph formats at the same time separated by an space, for example ``--output-format "DGL DistDGL"``. The output format is explained in the :ref:`Output <gcon-output-format>` section above.
-* **-\-num-parts**: an integer value that specifies the number of graph partitions to produce. This is only valid if the output format is ``DistDGL``.
-* **-\-skip-nonexist-edges**: boolean value to decide whether skip edges whose endpoint nodes don't exist. Default is true.
-* **-\-ext-mem-workspace**: the directory where the tool can store intermediate data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
-* **-\-ext-mem-feat-size**: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.
-* **-\-output-conf-file**: The output file with the updated configurations that records the details of data transformation, e.g., convert to categorical value mappings, and max-min normalization ranges. If not specified, will save the updated configuration file in the **-\-output-dir** with name `data_transform_new.json`.
-
 .. _configurations-partition:
 
 Graph Partition for DGL Graphs
@@ -347,7 +350,7 @@ For users who are already familiar with DGL and know how to construct DGL graphs
 - **-\-generate-new-node-split**: a boolean value, required if need the partition script to split nodes for training/validation/test sets. If this argument is set to ``true``, the **target-ntype** argument **must** also be set.
 - **-\-generate-new-edge-split**: a boolean value, required if need the partition script to split edges for training/validation/test sets. If this argument is set to ``true``, the **target-etype** argument **must** also be set.
 - **-\-train-pct**: a float value (\>0. and \<1.) with default value ``0.8``. If you want the partition script to split nodes/edges for training/validation/test sets, you can set this value to control the percentage of nodes/edges for training.
-- **-\-val-pct**: a float value (\>0. and \<1.) with default value ``0.1``. You can set this value to control the percentage of nodes/edges for validation. 
+- **-\-val-pct**: a float value (\>0. and \<1.) with default value ``0.1``. You can set this value to control the percentage of nodes/edges for validation.
 
 .. Note::
     The sum of the **train-pct** and **val-pct** should be less than 1. And the percentage of test nodes/edges is the result of 1-(train_pct + val_pct).
@@ -362,9 +365,9 @@ For users who are already familiar with DGL and know how to construct DGL graphs
 - **-\-filepath**: (**Required**) the file path of the saved DGL graph file.
 - **-\-target-etypes**: (**Required**) the canonical edge types for making prediction. GraphStorm supports multiple predict edge types that are separated by a white space. The format is ``src_ntype1,etype1,dst_ntype1 src_ntype2,etype2,dst_ntype2``, e.g., `"author,write,paper paper,citing,paper"`.
 - **-\-train-pct**: a float value (\>0. and \<1.) with default value ``0.8``. If you want the partition script to split edges for training/validation/test sets, you can set this value to control the percentage of edges for training.
-- **-\-val-pct**: a float value (\>0. and \<1.) with default value ``0.1``. You can set this value to control the percentage of edges for validation. 
+- **-\-val-pct**: a float value (\>0. and \<1.) with default value ``0.1``. You can set this value to control the percentage of edges for validation.
 
-.. Note:: 
+.. Note::
     The sum of the **train-pct** and **val-pct** should less than 1. And the percentage of test edges is the result of 1-(train_pct + val_pct).
 
 - **-\-add-reverse-edges**: if add this argument, will add reverse edges to the given graphs.

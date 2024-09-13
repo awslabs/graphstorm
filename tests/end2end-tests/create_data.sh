@@ -1,3 +1,6 @@
+#!/usr/bin/env bash
+set -Eeu
+
 date
 GS_HOME=$(pwd)
 export PYTHONPATH=$GS_HOME/python/
