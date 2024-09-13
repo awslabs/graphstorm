@@ -130,4 +130,5 @@ The arguments that ``graphstorm.gpartition.dist_partition_graph`` accepts are th
 * ``--partition-assignment-only``: Only generate partition assignments for nodes, the process will not build the partitioned DGL graph.
 * ``--logging-level str``: The logging level. The possible values: debug, info, warning, error. The default value is info. (default: info)
 * ``--use-graphbolt "true"/"false"``: ``New in v0.4``. Whether to convert the partitioned data to the GraphBolt format after creating the DistDGL graph.
-  Requires installed DGL version to be at least ``2.1.0``. (default: ``"false"``)
+  Requires installed DGL version to be at least ``2.1.0``. See :ref:`using-graphbolt-ref` for an example.
+  (default: ``"false"``)

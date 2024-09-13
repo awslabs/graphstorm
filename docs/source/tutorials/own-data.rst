@@ -268,7 +268,7 @@ The configuration JSON file along with these node and edge parquet files are the
 
 Outputs of graph construction
 ```````````````````````````````
-The above command reads in the JSON file, and matchs its contents with the node and edge parquet files. It will then read all parquet files, construct the graph, check file correctness, pre-process features, and eventually split the graph into partitions. Outputs of the command will be saved under the ``/tmp/acm_gs/`` folder as followings:
+The above command reads in the JSON file, and matches its contents with the node and edge parquet files. It will then read all parquet files, construct the graph, check file correctness, pre-process features, and eventually split the graph into partitions. Outputs of the command will be saved under the ``/tmp/acm_gs/`` folder as followings:
 
 .. code-block:: bash
 
@@ -455,7 +455,7 @@ Users can copy these YAML files to the ``/tmp`` folder within the GraphStorm con
 Step 3: Launch training and inference scripts on your own graphs
 -----------------------------------------------------------------
 
-With the partitioned data and configuration YAML file available, it is easy to use GraphStorm's training and infernece scripts to launch the job.
+With the partitioned data and configuration YAML file available, it is easy to use GraphStorm's training and inference scripts to launch the job.
 
 Below is a launch script example that trains a GraphStorm built-in RGCN model on the ACM data for node classification.
 
