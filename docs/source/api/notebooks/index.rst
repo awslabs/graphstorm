@@ -30,4 +30,4 @@ More example notebooks will be released.
   Notebook_2_LP_Pipeline
   Notebook_3_Model_Variants
   Notebook_4_Customized_Models
-  Notebook_5_CP_solution
+  Notebook_5_GP_solution
