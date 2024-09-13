@@ -6,7 +6,7 @@ Using GraphBolt to speed up training and inference
 With GraphStorm ``v0.4``, we introduced support for
 `GraphBolt <https://docs.dgl.ai/stochastic_training/>`_
 stochastic training. GraphBolt is a new data loading module for DGL that enables faster and more
-efficient graph sampling, potentially leading to significant performance benefits.
+efficient graph sampling, potentially leading to significant efficiency benefits.
 
 In this guide we'll give an example of how to prepare your data for use with GraphBolt.
 
@@ -40,16 +40,16 @@ the GraphStorm repository:
     you need to ensure there's enough shared memory configured for your
     system. For most Linux systems it's automatically set up as a ``tempfs`` volume
     using part of main memory (``df -h | grep shm``). If however you're using a Docker container
-    to run the example, ensure you're giving the container enough shared memory:
-    ``docker run --shm-size=16g -it graphstorm:local-cpu /bin/bash``
+    to run the example, ensure you're giving the container enough shared memory
+    by mapping it to the host's shared memory:
+    ``docker run -v /dev/shm:/dev/shm -it graphstorm:local-cpu /bin/bash``
 
 Preparing data for use with GraphBolt
 -------------------------------------
 
 In order to use GraphBolt for training, we need to first convert our DGL data to the GraphBolt
 format.
-
-If you haven't created the partitioned graph data using GConstuct or GSPartition yet, you can
+If you are going to create the partitioned graph data using GConstuct or GSPartition, you can
 simply provide the additional argument ``--use-graphbolt true`` when creating/partitioning your
 graph.
 
@@ -97,7 +97,6 @@ to optimized data loading.
 GSPartition with GraphBolt
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-
 Similar to GConstuct, when running distributed graph partitioning with the GSPartition module you can
 provide the ``--use-graphbolt true`` argument to convert the resulting partitions to GraphBolt
 at the end of partitioning. You'll need your data to be in DGL's "chunked graph format",
@@ -120,7 +119,8 @@ Running training and inference tasks with GraphBolt enabled
 -----------------------------------------------------------
 
 Now that we have prepared our data we can run a training job, with GraphBolt enabled.
-We run the same node classification task as in the original guide:
+We run the same node classification task as in the original guide by adding the
+`--use-graphbolt true` argument to enable GraphBolt:
 
 .. code-block:: bash
 
@@ -152,7 +152,7 @@ Similarly, we can run an inference task with GraphBolt enabled as such:
 Converting existing partitioned graphs to the GraphBolt format
 --------------------------------------------------------------
 
-If you have an existing partitioned graph that you would like to
+If you have a partitioned graph that you would like to
 run training or inference on, using GraphBolt, you can directly convert that
 data using our GraphBolt conversion entry point:
 
