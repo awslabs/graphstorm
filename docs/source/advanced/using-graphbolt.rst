@@ -41,13 +41,13 @@ the GraphStorm repository:
     system. For most Linux systems it's automatically set up as a ``tempfs`` volume
     using part of main memory (``df -h | grep shm``). If however you're using a Docker container
     to run the example, ensure you're giving the container enough shared memory
-    by mapping it to the host's shared memory:
+    by mapping it to the host's shared memory, like:
     ``docker run -v /dev/shm:/dev/shm -it graphstorm:local-cpu /bin/bash``
 
 Preparing data for use with GraphBolt
 -------------------------------------
 
-In order to use GraphBolt for training, we need to first convert our DGL data to the GraphBolt
+In order to use GraphBolt for training, we need to first convert our graph data to the GraphBolt
 format.
 If you are going to create the partitioned graph data using GConstuct or GSPartition, you can
 simply provide the additional argument ``--use-graphbolt true`` when creating/partitioning your
@@ -92,7 +92,7 @@ GraphBolt will create a modified representation of each graph partition:
     edge_feat.dgl  fused_csc_sampling_graph.pt  graph.dgl  node_feat.dgl
 
 The file ``fused_csc_sampling_graph.pt`` is the new representation that GraphBolt will use during training
-to optimized data loading.
+to optimize data loading.
 
 GSPartition with GraphBolt
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -112,15 +112,15 @@ which can be produced by feeding your raw data and GConstuct configuration to
         --num-parts 2 \
         --output-path "$DIST_GRAPHBOLT_PATH" \
         --ssh-port 2222 \
-        --use-graphbolt "true"
+        --use-graphbolt true
 
 
 Running training and inference tasks with GraphBolt enabled
 -----------------------------------------------------------
 
 Now that we have prepared our data we can run a training job, with GraphBolt enabled.
-We run the same node classification task as in the original guide by adding the
-`--use-graphbolt true` argument to enable GraphBolt:
+We run the :ref:`same node classification task as in the original guide <launch_training_oyog>`
+by adding the `--use-graphbolt true` argument to enable GraphBolt:
 
 .. code-block:: bash
 
