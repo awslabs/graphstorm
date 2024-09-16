@@ -42,7 +42,7 @@ Environment Configurations
     - Argument: ``--verbose false``
     - Default value: ``false``
 - **use_graphbolt**: Set true to use the GraphBolt graph representation during training.
-  See https://docs.dgl.ai/stochastic_training/ for more details.
+  See https://docs.dgl.ai/stochastic_training/ for more details and :ref:`using-graphbolt-ref` for a complete example.
 
     - Yaml: ``use_graphbolt: true``
     - Argument: ``--use-graphbolt true``
