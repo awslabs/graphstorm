@@ -1,0 +1,31 @@
+.. _apiconfig:
+
+graphstorm.config
+===================
+
+GraphStorm model training and inference CLIs have a set of :ref:`built-in configurations <configurations-run>`.
+These configurations are defined and managed in `graphstorm.config` module. The `get_argument_parser()` method
+can help users to read in these built-in configurations either from a yaml file or from CLI arguments, which is
+useful when you want to convert your customized models to use GraphStorm CLIs.
+
+.. currentmodule:: graphstorm.config
+
+Configuration Argument Parser
+------------------------------
+
+    >>> from graphstorm.config import get_argument_parser
+    >>> if __name__ == '__main__':
+    >>>     # Leverage GraphStorm's argument parser to accept configuratioin yaml file
+    >>>     arg_parser = get_argument_parser()
+    >>>
+    >>>     # parse all arguments and split GraphStorm's built-in arguments from the customized ones
+    >>>     gs_args, unknown_args = arg_parser.parse_known_args()
+    >>>
+    >>>     print(f'GS arguments: {gs_args}')
+    >>>     print(f'Non GS arguments: {unknown_args}')
+
+.. autosummary::
+    :toctree: ../generated/
+    :nosignatures:
+
+    argument.get_argument_parser

@@ -76,7 +76,7 @@ __all__ = [
 ]
 
 def get_argument_parser():
-    """Parse command-line arguments"""
+    """Parse GraphStorm yaml config file arguments"""
     parser = argparse.ArgumentParser(description="GSGNN Arguments")
     parser.add_argument('--logging-level', type=str, default="info",
                         help="Change the logging level. " + \
