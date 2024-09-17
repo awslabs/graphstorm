@@ -13,6 +13,9 @@ useful when you want to convert your customized models to use GraphStorm CLIs.
 Configuration Argument Parser
 ------------------------------
 
+    Users can call the `get_argument_parser` method to obtain a GraphStorm configuration parse in
+    the `main` function, and parse launch CLIs arguments. For example,
+
     >>> from graphstorm.config import get_argument_parser
     >>> if __name__ == '__main__':
     >>>     # Leverage GraphStorm's argument parser to accept configuratioin yaml file
