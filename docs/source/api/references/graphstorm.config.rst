@@ -4,9 +4,9 @@ graphstorm.config
 ===================
 
 GraphStorm model training and inference CLIs have a set of :ref:`built-in configurations <configurations-run>`.
-These configurations are defined and managed in `graphstorm.config` module. The `get_argument_parser()` method
-can help users to read in these built-in configurations either from a yaml file or from CLI arguments, which is
-useful when you want to convert your customized models to use GraphStorm CLIs.
+These configurations are defined and managed in ``graphstorm.config`` module whose ``get_argument_parser()``
+method can help users to read in these built-in configurations either from a yaml file or from CLI arguments.
+This ``get_argument_parser()`` is useful when users want to convert your customized models to use GraphStorm CLIs.
 
 .. currentmodule:: graphstorm.config
 

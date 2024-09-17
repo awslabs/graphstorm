@@ -77,13 +77,11 @@ __all__ = [
 
 def get_argument_parser():
     """Parse GraphStorm yaml config file arguments.
-    
-    This argument parser accepts two important arguments, i.e., "--yaml_config_file" or "--cf" in short,
-    and "--local-rank" for >=2.0 PyTorch or "--local_rank" for lower verison PyTorch.
-    
-    This argument parser also can accept and parse all configurations defined in the yaml file. It will
-    parses yaml config file first. Then it parses arguments to overwrite parameters defined in the yaml
-    file or add new parameters.
+
+    This argument parser can accept and parse all configurations defined in the yaml file. It also can
+    accept and parse the corresponding configuration arugment in GraphStorm launch CLIs. Specifically,
+    it will parses yaml config file first, and then parses arguments to overwrite parameters defined in
+    the yaml file or add new parameters.
     """
     parser = argparse.ArgumentParser(description="GSGNN Arguments")
     parser.add_argument('--logging-level', type=str, default="info",
