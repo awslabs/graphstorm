@@ -18,7 +18,7 @@ Configuration Argument Parser
 
     >>> from graphstorm.config import get_argument_parser
     >>> if __name__ == '__main__':
-    >>>     # Leverage GraphStorm's argument parser to accept configuratioin yaml file
+    >>>     # Leverage GraphStorm's argument parser to accept configuratioin yaml file and other arguments
     >>>     arg_parser = get_argument_parser()
     >>>
     >>>     # parse all arguments and split GraphStorm's built-in arguments from the customized ones
