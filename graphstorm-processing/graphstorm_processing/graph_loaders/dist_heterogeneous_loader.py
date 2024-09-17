@@ -220,7 +220,6 @@ class DistHeterogeneousGraphLoader(object):
         self.graph_name = loader_config.graph_name
         self.skip_train_masks = False
         self.pre_computed_transformations = loader_config.precomputed_transformations
-        self.is_multitask = False
 
     def process_and_write_graph_data(
         self, data_configs: Mapping[str, Sequence[StructureConfig]]
@@ -261,7 +260,6 @@ class DistHeterogeneousGraphLoader(object):
             self.skip_train_masks = True
 
         metadata_dict = self._initialize_metadata_dict(data_configs)
-        self.is_multitask = self._is_multitask(data_configs)
 
         edge_configs: Sequence[EdgeConfig] = data_configs["edges"]
 
@@ -1213,6 +1211,7 @@ class DistHeterogeneousGraphLoader(object):
                 split_rates,
                 split_masks_output_prefix,
                 custom_split_filenames,
+                mask_field_names=label_conf.mask_field_names,
             )
             node_type_label_metadata.update(label_split_dicts)
 
@@ -1709,6 +1708,7 @@ class DistHeterogeneousGraphLoader(object):
                 split_rates,
                 split_masks_output_prefix,
                 custom_split_filenames,
+                mask_field_names=label_conf.mask_field_names,
             )
             label_metadata_dicts.update(label_split_dicts)
 
@@ -1792,6 +1792,7 @@ class DistHeterogeneousGraphLoader(object):
         output_path: str,
         custom_split_file: Optional[CustomSplit] = None,
         seed: Optional[int] = None,
+        mask_field_names: Optional[tuple[str, str, str]] = None,
     ) -> Dict:
         """
         Given an input dataframe and a list of split rates or a list of custom split files
@@ -1816,6 +1817,10 @@ class DistHeterogeneousGraphLoader(object):
             training/validation/test.
         seed: int
             An optional random seed for reproducibility.
+        mask_field_names: Optional[tuple[str, str, str]]
+            An optional tuple of field names to use for the split masks.
+            If not provided, the default field names "train_mask",
+            "val_mask", and "test_mask" are used.
 
         Returns
         -------
@@ -1825,30 +1830,32 @@ class DistHeterogeneousGraphLoader(object):
         # If the user did not provide a split rate we use a default
         split_metadata = {}
         if not custom_split_file:
-            train_mask_df, val_mask_df, test_mask_df = self._create_split_files_split_rates(
-                input_df, label_column, split_rates, seed
+            mask_dfs = self._create_split_files_split_rates(
+                input_df, label_column, split_rates, seed, mask_field_names
             )
         else:
-            train_mask_df, val_mask_df, test_mask_df = self._create_split_files_custom_split(
-                input_df, custom_split_file
-            )
+            if mask_field_names:
+                raise NotImplementedError(
+                    "Custom split files with custom mask field names currently not supported."
+                )
+
+            mask_dfs = self._create_split_files_custom_split(input_df, custom_split_file)
 
         def create_metadata_entry(path_list):
             return {"format": {"name": FORMAT_NAME, "delimiter": DELIMITER}, "data": path_list}
 
-        def write_mask(kind: str, mask_df: DataFrame, split_meta: dict):
-            mask_entry = (
-                f"{kind}_mask_{label_column or 'lp'}" if self.is_multitask else f"{kind}_mask"
-            )
-            out_path_list = self._write_df(
-                mask_df.select(F.col(f"{kind}_mask").cast(ByteType()).alias(f"{kind}_mask")),
-                f"{output_path}-{mask_entry}",
-            )
-            split_meta[mask_entry] = create_metadata_entry(out_path_list)
+        if mask_field_names is not None:
+            mask_names = mask_field_names
+        else:
+            mask_names = ("train_mask", "val_mask", "test_mask")
 
-        write_mask("train", train_mask_df, split_metadata)
-        write_mask("val", val_mask_df, split_metadata)
-        write_mask("test", test_mask_df, split_metadata)
+        # Write each mask DF to disk with appropriate name
+        for mask_name, mask_df in zip(mask_names, mask_dfs):
+            out_path_list = self._write_df(
+                mask_df.select(F.col(mask_name).cast(ByteType()).alias(mask_name)),
+                f"{output_path}-{mask_name}",
+            )
+            split_metadata[mask_name] = create_metadata_entry(out_path_list)
 
         return split_metadata
 
@@ -1858,6 +1865,7 @@ class DistHeterogeneousGraphLoader(object):
         label_column: str,
         split_rates: Optional[SplitRates],
         seed: Optional[int],
+        mask_field_names: Optional[tuple[str, str, str]] = None,
     ) -> tuple[DataFrame, DataFrame, DataFrame]:
         """
         Creates the train/val/test mask dataframe based on split rates.
@@ -1875,11 +1883,15 @@ class DistHeterogeneousGraphLoader(object):
             If None, a default split rate of 0.8:0.1:0.1 is used.
         seed: Optional[int]
             An optional random seed for reproducibility.
+        mask_field_names: Optional[tuple[str, str, str]]
+            An optional tuple of field names to use for the split masks.
+            If not provided, the default field names "train_mask",
+            "val_mask", and "test_mask" are used.
 
         Returns
         -------
         tuple[DataFrame, DataFrame, DataFrame]
-            Train/val/test mask dataframes.
+            Train/val/test mask DataFrames.
         """
         if split_rates is None:
             split_rates = SplitRates(train_rate=0.8, val_rate=0.1, test_rate=0.1)
@@ -1920,40 +1932,17 @@ class DistHeterogeneousGraphLoader(object):
 
         # We cache because we re-use this DF 3 times
         int_group_df.cache()
-        train_mask_df = int_group_df.select(F.col(group_col_name)[0].alias("train_mask"))
-        val_mask_df = int_group_df.select(F.col(group_col_name)[1].alias("val_mask"))
-        test_mask_df = int_group_df.select(F.col(group_col_name)[2].alias("test_mask"))
+        # Use custom column names if requested
+        if mask_field_names:
+            mask_names = mask_field_names
+        else:
+            mask_names = ("train_mask", "val_mask", "test_mask")
+
+        train_mask_df = int_group_df.select(F.col(group_col_name)[0].alias(mask_names[0]))
+        val_mask_df = int_group_df.select(F.col(group_col_name)[1].alias(mask_names[1]))
+        test_mask_df = int_group_df.select(F.col(group_col_name)[2].alias(mask_names[2]))
 
         return train_mask_df, val_mask_df, test_mask_df
-
-    @staticmethod
-    def _is_multitask(data_configs: Mapping[str, Sequence[StructureConfig]]) -> bool:
-        """Returns True when the input configuration contains more than one label.
-
-        Parameters
-        ----------
-        data_configs : Mapping[str, Sequence[StructureConfig]]
-            Input configuration for edges and nodes
-
-        Returns
-        -------
-        bool
-            True if the input config contains more than one label, False otherwise.
-        """
-        edge_configs: Sequence[EdgeConfig] = data_configs["edges"]
-
-        num_labels = 0
-        for edge_config in edge_configs:
-            if edge_config.label_configs:
-                num_labels += len(edge_config.label_configs)
-
-        if "nodes" in data_configs:
-            node_configs: Sequence[NodeConfig] = data_configs["nodes"]
-            for node_config in node_configs:
-                if node_config.label_configs:
-                    num_labels += len(node_config.label_configs)
-
-        return num_labels > 1
 
     def _create_split_files_custom_split(
         self, input_df: DataFrame, custom_split_file: CustomSplit

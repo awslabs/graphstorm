@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 from dataclasses import dataclass
+from math import fsum
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import FloatType
@@ -58,7 +59,7 @@ class SplitRates:
         Validate the split rates.
         """
         # TODO: add support for sums <= 1.0, useful for large-scale link prediction
-        if self.train_rate + self.val_rate + self.test_rate != 1.0:
+        if fsum([self.train_rate, self.val_rate, self.test_rate]) != 1.0:
             raise ValueError(
                 "Sum of split rates must be 1.0, got "
                 f"{self.train_rate=}, {self.val_rate=}, {self.test_rate=}"

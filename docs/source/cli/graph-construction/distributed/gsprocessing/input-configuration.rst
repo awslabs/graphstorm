@@ -497,18 +497,16 @@ arguments.
 Creating a graph for multi-task training
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To create a graph for multi-task training, you simply need to
-define a label in your config for each of the labels you want to
-use during training. GSProcessing will generate separate
-train/val/test masks for each of your labels, which
-will be named ``<mask_type>_<label_column>``, e.g.
-if your label columns were ``label_class``, and ``label_reg``
-GSProcessing will generate masks named as ``train_mask_label_class``,
-``train_mask_label_reg`` etc. For link prediction tasks, the masks
-will have ``_lp`` added as a suffix, e.g. ``train_mask_lp``.
+To create a graph for multi-task training, you need to
+define custom label names in your config for each of the labels you want to
+use during training in a ``mask_field_names`` entry for each label config.
+GSProcessing will generate separate
+train/val/test masks for each of your labels named
+accordingly.
 
-After partitioning the data, you can then provide these masks
-in your train YAML file to use during multi-task training.
+After partitioning the data, you need to then provide the same
+mask names in a ``mask_fields`` entry
+in your train YAML file during multi-task training.
 
 For details on running multi-task training see
 :doc:`/advanced/multi-task-learning`.
@@ -555,7 +553,12 @@ type.
                             "train": 0.8,
                             "val": 0.1,
                             "test": 0.1
-                        }
+                        },
+                        "mask_field_names": [
+                            "train_mask_class",
+                            "val_mask_class",
+                            "test_mask_class"
+                        ]
                     }
                 ]
             }
@@ -587,7 +590,12 @@ type.
                             "train": 0.8,
                             "val": 0.1,
                             "test": 0.1
-                        }
+                        },
+                        "mask_field_names": [
+                            "train_mask_lp",
+                            "val_mask_lp",
+                            "test_mask_lp"
+                        ]
                     }
                 ]
             }
@@ -636,9 +644,9 @@ train YAML file to run multi-task training:
                 target_ntype: "paper"
                 label_field: "label"
                 mask_fields:
-                    - "train_mask_label"
-                    - "val_mask_label"
-                    - "test_mask_label"
+                    - "train_mask_class"
+                    - "val_mask_class"
+                    - "test_mask_class"
                 num_classes: 14
                 task_weight: 1.0
             - link_prediction:
@@ -671,7 +679,7 @@ when you want to produce a graph just for inference.
 Examples
 ~~~~~~~~
 
-OAG-Paper dataset
+Node classification for node type `field` in OAG-Paper dataset
 -----------------
 
 .. code-block:: json

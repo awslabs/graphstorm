@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 import json
 import math
 import os
@@ -510,10 +510,11 @@ def create_edges_df_num_label(spark: SparkSession, missing_data_points: int) -> 
 
 def ensure_masks_are_correct(
     train_mask_df: DataFrame,
-    test_mask_df: DataFrame,
     val_mask_df: DataFrame,
+    test_mask_df: DataFrame,
     expected_data_points: int,
     requested_rates: dict[str, float],
+    mask_names: Optional[list[str]] = None,
 ):
     """Check the correctness of train/val/test maps"""
 
@@ -521,9 +522,16 @@ def ensure_masks_are_correct(
         """Sum the values in a column"""
         return in_df.agg(F.sum(col_name)).collect()[0][0]
 
-    train_mask_sum = sum_col(train_mask_df, "train_mask")
-    val_mask_sum = sum_col(val_mask_df, "val_mask")
-    test_mask_sum = sum_col(test_mask_df, "test_mask")
+    if mask_names is None:
+        mask_names = [
+            "train_mask",
+            "val_mask",
+            "test_mask",
+        ]
+
+    train_mask_sum = sum_col(train_mask_df, mask_names[0])
+    val_mask_sum = sum_col(val_mask_df, mask_names[1])
+    test_mask_sum = sum_col(test_mask_df, mask_names[2])
 
     sum_counts = train_mask_sum + test_mask_sum + val_mask_sum
 
@@ -547,7 +555,14 @@ def read_masks_from_disk(
     output_dicts: dict,
     mask_suffix: str = "",
 ) -> Tuple[DataFrame, DataFrame, DataFrame]:
-    """Helper function to read mask DFs from disk"""
+    """Helper function to read mask DFs from disk.
+
+
+    Returns
+    -------
+    Tuple[DataFrame, DataFrame, DataFrame]
+        Train mask, test mask, val mask DFs
+    """
     train_mask_df = spark.read.parquet(
         *[
             os.path.join(loader.output_prefix, rel_path)
@@ -593,8 +608,8 @@ def test_create_split_files_from_rates(
 
     ensure_masks_are_correct(
         train_mask_df,
-        test_mask_df,
         val_mask_df,
+        test_mask_df,
         non_missing_data_points,
         split_rates.todict(),
     )
@@ -623,7 +638,7 @@ def test_create_split_files_from_rates_empty_col(
     )
 
     ensure_masks_are_correct(
-        train_mask_df, test_mask_df, val_mask_df, NUM_DATAPOINTS, split_rates.todict()
+        train_mask_df, val_mask_df, test_mask_df, NUM_DATAPOINTS, split_rates.todict()
     )
 
 
@@ -652,7 +667,7 @@ def test_process_edge_labels_link_prediction(
         spark, dghl_loader, label_metadata_dicts
     )
 
-    ensure_masks_are_correct(train_mask_df, test_mask_df, val_mask_df, NUM_DATAPOINTS, split_rates)
+    ensure_masks_are_correct(train_mask_df, val_mask_df, test_mask_df, NUM_DATAPOINTS, split_rates)
 
 
 def test_process_edge_labels_multitask(
@@ -663,32 +678,42 @@ def test_process_edge_labels_multitask(
     lp_split_rates = {"train": 0.6, "val": 0.2, "test": 0.2}
     reg_split_rates = {"train": 0.8, "val": 0.1, "test": 0.1}
 
-    lp_config_dict = {"column": "", "type": "link_prediction", "split_rate": lp_split_rates}
+    lp_mask_names = [
+        "train_mask_lp",
+        "val_mask_lp",
+        "test_mask_lp",
+    ]
+    lp_config_dict = {
+        "column": "",
+        "type": "link_prediction",
+        "split_rate": lp_split_rates,
+        "mask_field_names": lp_mask_names,
+    }
+    reg_mask_names = [
+        f"train_mask_{NUM_LABEL_COL}",
+        f"val_mask_{NUM_LABEL_COL}",
+        f"test_mask_{NUM_LABEL_COL}",
+    ]
     regression_config_dict = {
         "column": NUM_LABEL_COL,
         "type": "regression",
+        "mask_field_names": reg_mask_names,
     }
     label_configs = [
         EdgeLabelConfig(lp_config_dict),
         EdgeLabelConfig(regression_config_dict),
     ]
 
-    dghl_loader.is_multitask = True
     label_metadata_dicts = dghl_loader._process_edge_labels(
         label_configs, edges_df, "src:to:dst", "to"
     )
 
     # For multi-task link prediction and regression, each task should
-    # have its own masks, the LP task's masks should have the `_lp` suffix
-    # the other label should have the label's name, and we should have a entry
+    # have its own custom mask names, and we should have a entry
     # for the regression label itself
     assert label_metadata_dicts.keys() == {
-        "train_mask_lp",
-        "test_mask_lp",
-        "val_mask_lp",
-        f"train_mask_{NUM_LABEL_COL}",
-        f"test_mask_{NUM_LABEL_COL}",
-        f"val_mask_{NUM_LABEL_COL}",
+        *lp_mask_names,
+        *reg_mask_names,
         NUM_LABEL_COL,
     }
 
@@ -697,14 +722,24 @@ def test_process_edge_labels_multitask(
         spark, dghl_loader, label_metadata_dicts, mask_suffix="_lp"
     )
     ensure_masks_are_correct(
-        train_mask_df, test_mask_df, val_mask_df, NUM_DATAPOINTS, lp_split_rates
+        train_mask_df,
+        val_mask_df,
+        test_mask_df,
+        NUM_DATAPOINTS,
+        lp_split_rates,
+        lp_mask_names,
     )
     # Check regression mask correctness
     train_mask_df, test_mask_df, val_mask_df = read_masks_from_disk(
         spark, dghl_loader, label_metadata_dicts, mask_suffix=f"_{NUM_LABEL_COL}"
     )
     ensure_masks_are_correct(
-        train_mask_df, test_mask_df, val_mask_df, NUM_DATAPOINTS, reg_split_rates
+        train_mask_df,
+        val_mask_df,
+        test_mask_df,
+        NUM_DATAPOINTS,
+        reg_split_rates,
+        reg_mask_names,
     )
 
 
@@ -713,36 +748,44 @@ def test_process_node_labels_multitask(
 ):
     """Test processing multi-task link prediction and regression edge labels"""
     nodes_df = create_edges_df_num_label(spark, 0)
-    class_split_rates = {"train": 0.6, "val": 0.2, "test": 0.2}
-    reg_split_rates = {"train": 0.8, "val": 0.1, "test": 0.1}
+    class_split_rates = {"train": 0.6, "val": 0.3, "test": 0.1}
+    reg_split_rates = {"train": 0.7, "val": 0.2, "test": 0.1}
 
+    class_mask_names = [
+        f"train_mask_{STR_LABEL_COL}",
+        f"val_mask_{STR_LABEL_COL}",
+        f"test_mask_{STR_LABEL_COL}",
+    ]
     class_config_dict = {
         "column": STR_LABEL_COL,
         "type": "classification",
         "split_rate": class_split_rates,
+        "mask_field_names": class_mask_names,
     }
+    reg_mask_names = [
+        f"train_mask_{NUM_LABEL_COL}",
+        f"val_mask_{NUM_LABEL_COL}",
+        f"test_mask_{NUM_LABEL_COL}",
+    ]
     regression_config_dict = {
         "column": NUM_LABEL_COL,
         "type": "regression",
+        "split_rate": reg_split_rates,
+        "mask_field_names": reg_mask_names,
     }
     label_configs = [
         NodeLabelConfig(class_config_dict),
         NodeLabelConfig(regression_config_dict),
     ]
 
-    dghl_loader.is_multitask = True
     label_metadata_dicts = dghl_loader._process_node_labels(label_configs, nodes_df, "test_ntype")
 
     # For multi-task node classification and regression, each task should
     # have its own masks, with the label names as suffixes, as well as
     # entries for each label column
     assert label_metadata_dicts.keys() == {
-        f"train_mask_{STR_LABEL_COL}",
-        f"test_mask_{STR_LABEL_COL}",
-        f"val_mask_{STR_LABEL_COL}",
-        f"train_mask_{NUM_LABEL_COL}",
-        f"test_mask_{NUM_LABEL_COL}",
-        f"val_mask_{NUM_LABEL_COL}",
+        *class_mask_names,
+        *reg_mask_names,
         NUM_LABEL_COL,
         STR_LABEL_COL,
     }
@@ -752,14 +795,24 @@ def test_process_node_labels_multitask(
         spark, dghl_loader, label_metadata_dicts, mask_suffix=f"_{STR_LABEL_COL}"
     )
     ensure_masks_are_correct(
-        train_mask_df, test_mask_df, val_mask_df, NUM_DATAPOINTS, class_split_rates
+        train_mask_df,
+        val_mask_df,
+        test_mask_df,
+        NUM_DATAPOINTS,
+        class_split_rates,
+        class_mask_names,
     )
     # Check regression mask correctness
     train_mask_df, test_mask_df, val_mask_df = read_masks_from_disk(
         spark, dghl_loader, label_metadata_dicts, mask_suffix=f"_{NUM_LABEL_COL}"
     )
     ensure_masks_are_correct(
-        train_mask_df, test_mask_df, val_mask_df, NUM_DATAPOINTS, reg_split_rates
+        train_mask_df,
+        val_mask_df,
+        test_mask_df,
+        NUM_DATAPOINTS,
+        reg_split_rates,
+        reg_mask_names,
     )
 
 

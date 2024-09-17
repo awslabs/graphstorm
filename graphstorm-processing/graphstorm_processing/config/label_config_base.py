@@ -43,6 +43,10 @@ class LabelConfig(abc.ABC):
             )
         else:
             self._custom_split_filenames = config_dict["custom_split_filenames"]
+        if "mask_field_names" in config_dict:
+            self._mask_field_names: list[str] = config_dict["mask_field_names"]
+        else:
+            self._mask_field_names = None
 
     def _sanity_check(self):
         if self._label_column == "":
@@ -61,6 +65,10 @@ class LabelConfig(abc.ABC):
             assert "test" in self._custom_split_filenames
             assert "column" in self._custom_split_filenames
             assert isinstance(self._separator, str) if self._multilabel else self._separator is None
+        if self._mask_field_names:
+            assert isinstance(self._mask_field_names, list)
+            assert all(isinstance(x, str) for x in self._mask_field_names)
+            assert len(self._mask_field_names) == 3
 
     @property
     def label_column(self) -> str:
@@ -93,6 +101,11 @@ class LabelConfig(abc.ABC):
     def custom_split_filenames(self) -> Dict[str, Any]:
         """The config for custom split labels."""
         return self._custom_split_filenames
+
+    @property
+    def mask_field_names(self) -> Optional[tuple[str, str, str]]:
+        """Custom names to assign to masks for multi-task learning."""
+        return tuple(self._mask_field_names) if self._mask_field_names else None
 
 
 class EdgeLabelConfig(LabelConfig):

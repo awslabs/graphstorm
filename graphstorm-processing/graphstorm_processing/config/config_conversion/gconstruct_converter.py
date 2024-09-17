@@ -83,6 +83,8 @@ class GConstructConfigConverter(ConfigConverter):
                 if "separator" in label:
                     label_sep = label["separator"]
                     label_dict["separator"] = label_sep
+                if "mask_field_names" in label:
+                    label_dict["mask_field_names"] = label["mask_field_names"]
 
                 labels_list.append(label_dict)
             except KeyError as exc:
