@@ -28,4 +28,4 @@ Configuration Argument Parser
     :toctree: ../generated/
     :nosignatures:
 
-    argument.get_argument_parser
+    get_argument_parser
