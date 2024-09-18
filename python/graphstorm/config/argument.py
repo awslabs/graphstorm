@@ -76,12 +76,17 @@ __all__ = [
 ]
 
 def get_argument_parser():
-    """Parse GraphStorm yaml config file arguments.
+    """ Get GraphStorm CLIs argument parse.
 
-    This argument parser can accept and parse all configurations defined in the yaml file. It also can
-    accept and parse the corresponding configuration arugment in GraphStorm launch CLIs. Specifically,
-    it will parses yaml config file first, and then parses arguments to overwrite parameters defined in
-    the yaml file or add new parameters.
+    This argument parser can accept and parse all GraphStorm model training and inference configurations
+    defined in a yaml file. It also can accept and parse the corresponding arugments in
+    GraphStorm launch CLIs. Specifically, it will parses yaml config file first, and then parses
+    arguments to overwrite parameters defined in the yaml file or add new parameters.
+    
+    Return
+    -------
+    parser: an ArgumentParser
+        The parser include all GraphStorm model training and inference configurations.
     """
     parser = argparse.ArgumentParser(description="GSGNN Arguments")
     parser.add_argument('--logging-level', type=str, default="info",
