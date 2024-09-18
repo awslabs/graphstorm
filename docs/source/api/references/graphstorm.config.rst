@@ -13,20 +13,6 @@ This ``get_argument_parser()`` is useful when users want to convert your customi
 Configuration Argument Parser
 ------------------------------
 
-    Users can call the ``get_argument_parser`` method to obtain a GraphStorm configuration parse in
-    the ``main`` function, and parse launch CLIs arguments. For example,
-
-    >>> from graphstorm.config import get_argument_parser
-    >>> if __name__ == '__main__':
-    >>>     # use GraphStorm argument parser to accept configuratioin yaml file and other arguments
-    >>>     arg_parser = get_argument_parser()
-    >>>
-    >>>     # parse all arguments and split GraphStorm's built-in arguments from the customized ones
-    >>>     gs_args, unknown_args = arg_parser.parse_known_args()
-    >>>
-    >>>     print(f'GS arguments: {gs_args}')
-    >>>     print(f'Non GS arguments: {unknown_args}')
-
 .. autosummary::
     :toctree: ../generated/
     :nosignatures:

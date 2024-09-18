@@ -82,7 +82,24 @@ def get_argument_parser():
     defined in a yaml file. It also can accept and parse the corresponding arugments in
     GraphStorm launch CLIs. Specifically, it will parses yaml config file first, and then parses
     arguments to overwrite parameters defined in the yaml file or add new parameters.
-    
+
+    Examples:
+    ----------
+
+    .. code:: python
+
+        from graphstorm.config import get_argument_parser
+        
+        if __name__ == '__main__':
+            # use GraphStorm argument parser to accept configuratioin yaml file and other arguments
+            arg_parser = get_argument_parser()
+       
+            # parse all arguments and split GraphStorm's built-in arguments from the customized ones
+            gs_args, unknown_args = arg_parser.parse_known_args()
+       
+            print(f'GS arguments: {gs_args}')
+            print(f'Non GS arguments: {unknown_args}')
+
     Return
     -------
     parser: an ArgumentParser
