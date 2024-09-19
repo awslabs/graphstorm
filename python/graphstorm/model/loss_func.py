@@ -308,8 +308,8 @@ class LinkPredictAdvBCELossFunc(LinkPredictBCELossFunc):
         # For debugging abnormal loss values.
         if self._debug_print and get_rank() == 0:
             logging.debug("Cross entropy loss for link prediction \
-                          with input score as {} and loss as {}.".format(
-                          score.detach(), loss.detach()))
+                          with input score as %s and loss as %s.",
+                          score.detach(), loss.detach())
         return loss
 
     def _compute_adversarial_loss(self, score, label):
@@ -319,11 +319,11 @@ class LinkPredictAdvBCELossFunc(LinkPredictBCELossFunc):
         # For debugging abnormal loss values.
         if self._debug_print and get_rank() == 0:
             logging.debug("Adversarial cross entropy loss for negative samples \
-                          with input score as {} and loss as {}. \
+                          with input score as %s and loss as %s. \
                           For abnormal loss values, it is suggested to enable \
                           lp embed normalizer by setting --lp-embed-normalizer l2_norm \
-                          and tune the hyperparameter gamma.".format(
-                          score.detach(), loss.detach()))
+                          and tune the hyperparameters gamma or adversarial_temperature.",
+                          score.detach(), loss.detach())
             # turn off the debug warning
             self._debug_print = False
 
@@ -475,12 +475,12 @@ class LinkPredictContrastiveLossFunc(GSLayer):
 
         # For debugging abnormal loss values.
         if self._debug_print and get_rank() == 0:
-            logging.debug("Contrastive loss with pos score as {} \
-                          and neg score as {} and loss as {}.\
+            logging.debug("Contrastive loss with pos score as %s \
+                          and neg score as %s and loss as %s.\
                           For abnormal loss values, it is suggested \
-                          to tune the hyperparameter gamma.or \
-                          the contrastive_loss_temperature.".format(
-                          pscore.detach(), nscore.detach(), -log_prob.detach()))
+                          to tune the hyperparameter gamma or \
+                          contrastive_loss_temperature.",
+                          pscore.detach(), nscore.detach(), -log_prob.detach())
             self._debug_print = False
 
         return loss
