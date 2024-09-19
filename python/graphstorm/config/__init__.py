@@ -31,7 +31,8 @@ from .config import SUPPORTED_TASKS
 
 from .config import (BUILTIN_LP_DOT_DECODER,
                      BUILTIN_LP_DISTMULT_DECODER,
-                     BUILTIN_LP_ROTATE_DECODER)
+                     BUILTIN_LP_ROTATE_DECODER,
+                     BUILTIN_LP_TRANSE_DECODER)
 from .config import SUPPORTED_LP_DECODER
 
 from .config import (GRAPHSTORM_MODEL_EMBED_LAYER,
@@ -50,7 +51,8 @@ from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
                      BUILTIN_CLASS_LOSS_FOCAL,
                      BUILTIN_CLASS_LOSS_FUNCTION)
-from .config import (GRAPHSTORM_LP_EMB_L2_NORMALIZATION,
+from .config import (BUILTIN_LP_NORMALIZATION_METHODS,
+                     GRAPHSTORM_LP_EMB_L2_NORMALIZATION,
                      GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS)
 
 from .config import TaskInfo

@@ -53,7 +53,8 @@ from .config import SUPPORTED_TASKS
 
 from .config import BUILTIN_LP_DISTMULT_DECODER
 from .config import SUPPORTED_LP_DECODER
-from .config import (GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS,
+from .config import (BUILTIN_LP_NORMALIZATION_METHODS,
+                     GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS,
                      GRAPHSTORM_LP_EMB_L2_NORMALIZATION)
 
 from .config import (GRAPHSTORM_MODEL_ALL_LAYERS, GRAPHSTORM_MODEL_EMBED_LAYER,
@@ -643,6 +644,7 @@ class GSConfig:
         _ = self.lp_loss_func
         _ = self.lp_decoder_type
         _ = self.gamma
+        _ = self.score_norm
         _ = self.report_eval_per_type
 
 
@@ -776,6 +778,7 @@ class GSConfig:
         # For link prediction tasks.
         if self.task_type == BUILTIN_TASK_LINK_PREDICTION:
             _ = self.gamma
+            _ = self.score_norm
             _ = self.lp_decoder_type
             _ = self.lp_edge_weight_for_loss
             _ = self.contrastive_loss_temperature
@@ -2526,6 +2529,17 @@ class GSConfig:
         return None
 
     @property
+    def score_norm(self):
+        """ Normalization methods used in calculating score functions (e.g., TransE).
+        """
+        if hasattr(self, "_score_norm"):
+            assert self._score_norm in BUILTIN_LP_NORMALIZATION_METHODS, \
+                f"Only support {BUILTIN_LP_NORMALIZATION_METHODS} " \
+                "normalization methods for link prediction tasks"
+            return self._score_norm
+        return None
+
+    @property
     def alpha(self):
         """ Common hyperparameter symbol alpha.
         """
@@ -2536,7 +2550,7 @@ class GSConfig:
 
     @property
     def class_loss_func(self):
-        """ Node/Edge classification loss function
+        """ Node/Edge classification loss function.
         """
         # pylint: disable=no-member
         if hasattr(self, "_class_loss_func"):
@@ -2549,7 +2563,7 @@ class GSConfig:
 
     @property
     def lp_loss_func(self):
-        """ Link prediction loss function
+        """ Link prediction loss function.
         """
         # pylint: disable=no-member
         if hasattr(self, "_lp_loss_func"):
@@ -2572,7 +2586,7 @@ class GSConfig:
 
     @property
     def task_type(self):
-        """ Task type
+        """ Task type.
         """
         # pylint: disable=no-member
         if hasattr(self, "_task_type"):
@@ -3148,6 +3162,12 @@ def _add_link_prediction_args(parser):
             type=float,
             default=argparse.SUPPRESS,
             help="Common hyperparameter symbol gamma."
+    )
+    group.add_argument(
+            "--score-norm",
+            type=str,
+            default=argparse.SUPPRESS,
+            help="Normalization methods used in calculating score functions (e.g., TransE)."
     )
     group.add_argument(
             "--alpha",
