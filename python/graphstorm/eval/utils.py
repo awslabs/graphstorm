@@ -379,7 +379,7 @@ def calc_rotate_neg_tail_score(heads, tails, r_emb, num_chunks,
     return rotate_score
 
 def calc_transe_pos_score(h_emb, t_emb, r_emb, gamma, norm='l2', device=None):
-    """ Calculate TransE Score for positive pairs
+    r""" Calculate TransE Score for positive pairs
 
         Score function of TransE measures the angular distance between
         head and tail elements. The angular distance is defined as:
