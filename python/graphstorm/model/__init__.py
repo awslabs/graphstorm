@@ -58,7 +58,10 @@ from .edge_decoder import (DenseBiDecoder,
                            LinkPredictContrastiveDistMultDecoder,
                            LinkPredictRotatEDecoder,
                            LinkPredictContrastiveRotatEDecoder,
-                           LinkPredictWeightedRotatEDecoder)
+                           LinkPredictWeightedRotatEDecoder,
+                           LinkPredictTransEDecoder,
+                           LinkPredictContrastiveTransEDecoder,
+                           LinkPredictWeightedTransEDecoder)
 
 from .gnn_encoder_base import GraphConvEncoder
 
