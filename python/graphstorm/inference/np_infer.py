@@ -17,6 +17,7 @@
 """
 import time
 import logging
+import warnings
 
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_shuffled_node_embeddings
@@ -110,7 +111,7 @@ class GSgnnNodePredictionInferrer(GSInferrer):
                 # release embs
                 del embs
         sys_tracker.check('finish compute embeddings')
-
+        print(preds)
         # do evaluation first
         if do_eval:
             # iterate all the target ntypes
@@ -157,8 +158,10 @@ class GSgnnNodePredictionInferrer(GSInferrer):
                     if node_id_mapping_file else None
             shuffled_preds = {}
             for ntype, pred in preds.items():
-                assert ntype in infer_ntypes, \
-                    f"{ntype} is not in the set of evaluation ntypes {infer_ntypes}"
+                if ntype not in infer_ntypes:
+                    warnings.warn(f"{ntype} is not in the evaluation ntypes {infer_ntypes}, "
+                                  f"will not do the remapping")
+                    continue
 
                 pred_nids = loader.target_nidx[ntype]
                 if node_id_mapping_file is not None:
