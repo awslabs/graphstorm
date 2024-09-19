@@ -1000,7 +1000,7 @@ def create_lp_config(tmp_path, file_name):
         "exclude_training_targets": "error",
         "reverse_edge_types_map": "query,exactmatch,rev-exactmatch,asin",
         "lp_loss_func": "unknown",
-        "lp_decoder_type": "transe",
+        "lp_decoder_type": "transr",
         "lp_edge_weight_for_loss": ["query,click,asin:weight1"],
         "model_select_etype": "fail"
     }
