@@ -1507,7 +1507,7 @@ class LinkPredictWeightedRotatEDecoder(LinkPredictRotatEDecoder):
             return scores
 
 class LinkPredictTransEDecoder(LinkPredictMultiRelationLearnableDecoder):
-    """ Decoder for link prediction using the TransE as the score function.
+    r""" Decoder for link prediction using the TransE as the score function.
 
         Score function of TransE measures the angular distance between
         head and tail elements. The angular distance is defined as:
