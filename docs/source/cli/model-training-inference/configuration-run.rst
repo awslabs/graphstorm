@@ -36,7 +36,7 @@ Yaml File Configurations
 
 Environment Configurations
 ...........................
-- **backend**: (**Required**) PyTorch distributed backend, the suggested backend is `gloo`. Support backends include `gloo` and `nccl`.
+- **backend**: PyTorch distributed backend, the suggested backend is `gloo`. Support backends include `gloo` and `nccl`.
 
     - Yaml: ``backend: gloo``
     - Argument: ``--backend gloo``
