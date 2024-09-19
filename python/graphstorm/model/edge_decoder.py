@@ -28,7 +28,10 @@ from ..dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                            BUILTIN_LP_JOINT_NEG_SAMPLER,
                            BUILTIN_LP_FIXED_NEG_SAMPLER)
 
-from ..eval.utils import calc_distmult_pos_score, calc_dot_pos_score, calc_rotate_pos_score, calc_transe_pos_score
+from ..eval.utils import (calc_distmult_pos_score,
+                          calc_dot_pos_score,
+                          calc_rotate_pos_score,
+                          calc_transe_pos_score)
 from ..eval.utils import (calc_distmult_neg_head_score,
                           calc_distmult_neg_tail_score,
                           calc_rotate_neg_head_score,
