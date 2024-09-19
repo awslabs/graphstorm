@@ -110,8 +110,8 @@ class GSgnnNodePredictionInferrer(GSInferrer):
             else:
                 # release embs
                 del embs
+                
         sys_tracker.check('finish compute embeddings')
-        print(preds)
         # do evaluation first
         if do_eval:
             # iterate all the target ntypes
