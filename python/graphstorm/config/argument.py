@@ -76,7 +76,7 @@ __all__ = [
 ]
 
 def get_argument_parser():
-    """ Get GraphStorm CLI argument parse.
+    """ Get GraphStorm CLI argument parser.
 
     This argument parser can accept and parse all GraphStorm model training and inference configurations
     defined in a yaml file. It also can accept and parse the corresponding arugments in
@@ -88,7 +88,7 @@ def get_argument_parser():
 
     .. code:: python
 
-        from graphstorm.config import get_argument_parser
+        from graphstorm.config import get_argument_parser, GSConfig
         
         if __name__ == '__main__':
             # use GraphStorm argument parser to accept configuration yaml file and other arguments
@@ -99,6 +99,9 @@ def get_argument_parser():
        
             print(f'GS arguments: {gs_args}')
             print(f'Non GS arguments: {unknown_args}')
+            
+            # use gs_args to create a GSConfig object
+            config = GSConfig(gs_args)
 
     Return
     -------
