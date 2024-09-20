@@ -162,20 +162,22 @@ def get_argument_parser():
 
 # pylint: disable=no-member
 class GSConfig:
-    """GSgnn Argument class which contains all arguments
-       from yaml config and constructs additional arguments
+    """GSgnn configuration class.
+    
+    GSConfig contains all GraphStorm CLI configurations, which can either be loaded from a yaml
+    file specified in a CLI argument, or from CLI arguments.
 
     Parameters:
-    cmd_args: Argument
-        Commend line arguments
+    cmd_args: Arguments
+        Commend line arguments.
     """
     def __init__(self, cmd_args):
-        # We need to config the logging at very beginning. Otherwise, logging will not work.
+        # need to config the logging at very beginning. Otherwise, logging will not work.
         log_level = get_log_level(cmd_args.logging_level) \
                 if hasattr(cmd_args, "logging_level") else logging.INFO
         log_file = cmd_args.logging_file if hasattr(cmd_args, "logging_file") else None
         if log_file is None:
-            # We need to force the logging to reset the existing logging handlers
+            # need to force the logging to reset the existing logging handlers
             # in order to make sure this config is effective.
             logging.basicConfig(level=log_level, force=True)
         else:

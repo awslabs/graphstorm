@@ -18,3 +18,4 @@ Configuration Argument Parser
     :nosignatures:
 
     get_argument_parser
+    GSConfig
