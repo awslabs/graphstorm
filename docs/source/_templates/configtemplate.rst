@@ -1,4 +1,8 @@
+.. role:: hidden
+    :class: hidden-section
 .. currentmodule:: {{ module }}
+
+{{ name | underline}}
 
 .. autoclass:: {{ name }}
     :show-inheritance:
@@ -16,3 +20,4 @@
                       verify_edge_regression_arguments,
                       verify_link_prediction_arguments,
                       verify_arguments
+
