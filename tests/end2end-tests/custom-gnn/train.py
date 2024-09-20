@@ -109,14 +109,14 @@ if __name__ == '__main__':
     argparser.add_argument("--num-classes", type=int, required=True,
                            help="The number of classes.")
     if TORCH_MAJOR_VER >= 2:
-        parser.add_argument(
+        argparser.add_argument(
                 "--local-rank",
                 type=int,
                 default=0,
                 help="The rank of the trainer.",
                 )
     else:
-        parser.add_argument(
+        argparser.add_argument(
                 "--local_rank",
                 type=int,
                 default=0,
