@@ -24,7 +24,7 @@ import graphstorm as gs
 from graphstorm import model as gsmodel
 from graphstorm.trainer import GSgnnNodePredictionTrainer
 from graphstorm.dataloading import GSgnnData, GSgnnNodeDataLoader
-from graphstorm.utils import get_device, TORCH_MAJOR_VER
+from graphstorm.utils import get_device
 
 class MyGNNModel(gsmodel.GSgnnNodeModelBase):
     def __init__(self, g, feat_size, hidden_size, num_classes):
@@ -108,20 +108,8 @@ if __name__ == '__main__':
                            help="The name of the label.")
     argparser.add_argument("--num-classes", type=int, required=True,
                            help="The number of classes.")
-    if TORCH_MAJOR_VER >= 2:
-        argparser.add_argument(
-                "--local-rank",
-                type=int,
-                default=0,
-                help="The rank of the trainer.",
-                )
-    else:
-        argparser.add_argument(
-                "--local_rank",
-                type=int,
-                default=0,
-                help="The rank of the trainer.",
-                )
+    argparser.add_argument("--local-rank", "--local_rank", type=int,
+                           help="The rank of the trainer.")
     argparser.add_argument("--verbose",
                            type=lambda x: (str(x).lower() in ['true', '1']),
                            default=argparse.SUPPRESS,

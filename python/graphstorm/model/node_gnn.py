@@ -248,6 +248,7 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     data = loader.data
     g = data.g
     preds = {}
+    target_ntypes = set(loader.target_nidx.keys())
 
     if return_label:
         assert loader.label_field is not None, \
@@ -316,8 +317,10 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                               iter_l, max_num_batch, time.time() - iter_start)
 
     model.train()
-    for ntype, ntype_pred in preds.items():
-        preds[ntype] = th.cat(ntype_pred)
+    preds = {
+        ntype: th.cat(preds[ntype])
+        for ntype in preds if ntype in target_ntypes
+    }
     for ntype, ntype_emb in embs.items():
         embs[ntype] = th.cat(ntype_emb)
     if return_label:
@@ -402,13 +405,10 @@ def run_node_mini_batch_predict(decoder, emb, loader, device,
 
     preds = {}
     labels = {}
-    target_ntype = list(loader.target_nidx.keys())
     # TODO(zhengda) I need to check if the data loader only returns target nodes.
     with th.no_grad():
         for _, seeds, _ in loader: # seeds are target nodes
             for ntype, seed_nodes in seeds.items():
-                if ntype not in target_ntype:
-                    continue
                 if isinstance(decoder, th.nn.ModuleDict):
                     assert ntype in decoder, f"Node type {ntype} not in decoder"
                     decoder = decoder[ntype]
