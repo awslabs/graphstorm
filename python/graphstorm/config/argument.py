@@ -164,10 +164,11 @@ def get_argument_parser():
 class GSConfig:
     """GSgnn configuration class.
     
-    GSConfig contains all GraphStorm CLI configurations, which can either be loaded from a yaml
-    file specified in a CLI argument, or from CLI arguments.
+    GSConfig contains all GraphStorm model training and inference configurations, which can
+    either be loaded from a yaml file specified in the `--cf` argument, or from CLI arguments.
 
     Parameters:
+    ------------
     cmd_args: Arguments
         Commend line arguments.
     """

@@ -10,12 +10,13 @@ This ``get_argument_parser()`` is useful when users want to convert customized m
 
 .. currentmodule:: graphstorm.config
 
-Configuration Argument Parser
-------------------------------
+Configuration
+--------------
 
 .. autosummary::
     :toctree: ../generated/
     :nosignatures:
+    :template: configtemplate.rst
 
     get_argument_parser
     GSConfig
