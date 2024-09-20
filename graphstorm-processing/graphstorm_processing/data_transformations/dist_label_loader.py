@@ -104,7 +104,7 @@ class DistLabelLoader:
         self.label_config = label_config
         self.label_column = label_config.label_column
         self.spark = spark
-        self.label_map = {}  # type: Dict[str, int]
+        self.label_map: dict[str, int] = {}
 
     def process_label(self, input_df: DataFrame) -> DataFrame:
         """Transforms the label column in the input DataFrame to conform to GraphStorm expectations.

@@ -76,6 +76,48 @@
                     "name": "parquet",
                     "delimiter": ""
                 }
+            },
+            "class_train_mask": {
+                "data":[
+                    "edge_data/dummy_type-class_train_mask/parquet/part-00000.parquet",
+                    "edge_data/dummy_type-class_train_mask/parquet/part-00001.parquet",
+                    "edge_data/dummy_type-class_train_mask/parquet/part-00002.parquet",
+                    "edge_data/dummy_type-class_train_mask/parquet/part-00003.parquet",
+                    "edge_data/dummy_type-class_train_mask/parquet/part-00004.parquet"
+                ],
+                "row_counts": [10, 10, 10, 10, 10],
+                "format": {
+                    "name": "parquet",
+                    "delimiter": ""
+                }
+            },
+            "class_val_mask": {
+                "data":[
+                    "edge_data/dummy_type-class_val_mask/parquet/part-00000.parquet",
+                    "edge_data/dummy_type-class_val_mask/parquet/part-00001.parquet",
+                    "edge_data/dummy_type-class_val_mask/parquet/part-00002.parquet",
+                    "edge_data/dummy_type-class_val_mask/parquet/part-00003.parquet",
+                    "edge_data/dummy_type-class_val_mask/parquet/part-00004.parquet"
+                ],
+                "row_counts": [10, 10, 10, 10, 10],
+                "format": {
+                    "name": "parquet",
+                    "delimiter": ""
+                }
+            },
+            "class_test_mask": {
+                "data":[
+                    "edge_data/dummy_type-class_test_mask/parquet/part-00000.parquet",
+                    "edge_data/dummy_type-class_test_mask/parquet/part-00001.parquet",
+                    "edge_data/dummy_type-class_test_mask/parquet/part-00002.parquet",
+                    "edge_data/dummy_type-class_test_mask/parquet/part-00003.parquet",
+                    "edge_data/dummy_type-class_test_mask/parquet/part-00004.parquet"
+                ],
+                "row_counts": [10, 10, 10, 10, 10],
+                "format": {
+                    "name": "parquet",
+                    "delimiter": ""
+                }
             }
         },
         "dst:dummy_type-rev:src": {
@@ -120,7 +162,49 @@
                         "name": "parquet",
                         "delimiter": ""
                     }
+                },
+                "class_train_mask": {
+                "data":[
+                    "edge_data/dummy_type-class_train_mask/parquet/part-00000.parquet",
+                    "edge_data/dummy_type-class_train_mask/parquet/part-00001.parquet",
+                    "edge_data/dummy_type-class_train_mask/parquet/part-00002.parquet",
+                    "edge_data/dummy_type-class_train_mask/parquet/part-00003.parquet",
+                    "edge_data/dummy_type-class_train_mask/parquet/part-00004.parquet"
+                ],
+                "row_counts": [10, 10, 10, 10, 10],
+                "format": {
+                    "name": "parquet",
+                    "delimiter": ""
                 }
+            },
+            "class_val_mask": {
+                "data":[
+                    "edge_data/dummy_type-class_val_mask/parquet/part-00000.parquet",
+                    "edge_data/dummy_type-class_val_mask/parquet/part-00001.parquet",
+                    "edge_data/dummy_type-class_val_mask/parquet/part-00002.parquet",
+                    "edge_data/dummy_type-class_val_mask/parquet/part-00003.parquet",
+                    "edge_data/dummy_type-class_val_mask/parquet/part-00004.parquet"
+                ],
+                "row_counts": [10, 10, 10, 10, 10],
+                "format": {
+                    "name": "parquet",
+                    "delimiter": ""
+                }
+            },
+            "class_test_mask": {
+                "data":[
+                    "edge_data/dummy_type-class_test_mask/parquet/part-00000.parquet",
+                    "edge_data/dummy_type-class_test_mask/parquet/part-00001.parquet",
+                    "edge_data/dummy_type-class_test_mask/parquet/part-00002.parquet",
+                    "edge_data/dummy_type-class_test_mask/parquet/part-00003.parquet",
+                    "edge_data/dummy_type-class_test_mask/parquet/part-00004.parquet"
+                ],
+                "row_counts": [10, 10, 10, 10, 10],
+                "format": {
+                    "name": "parquet",
+                    "delimiter": ""
+                }
+            }
         }
     },
     "node_type": [
@@ -170,6 +254,48 @@
                     "name": "parquet",
                     "delimiter": ""
                 }
+            },
+            "class_train_mask": {
+                "data":[
+                    "node_data/src-class_train_mask/parquet/part-00000.parquet",
+                    "node_data/src-class_train_mask/parquet/part-00001.parquet",
+                    "node_data/src-class_train_mask/parquet/part-00002.parquet",
+                    "node_data/src-class_train_mask/parquet/part-00003.parquet",
+                    "node_data/src-class_train_mask/parquet/part-00004.parquet"
+                ],
+                "row_counts": [10, 10, 10, 10, 10],
+                "format": {
+                    "name": "parquet",
+                    "delimiter": ""
+                }
+            },
+            "class_val_mask": {
+                "data":[
+                    "node_data/src-class_val_mask/parquet/part-00000.parquet",
+                    "node_data/src-class_val_mask/parquet/part-00001.parquet",
+                    "node_data/src-class_val_mask/parquet/part-00002.parquet",
+                    "node_data/src-class_val_mask/parquet/part-00003.parquet",
+                    "node_data/src-class_val_mask/parquet/part-00004.parquet"
+                ],
+                "row_counts": [10, 10, 10, 10, 10],
+                "format": {
+                    "name": "parquet",
+                    "delimiter": ""
+                }
+            },
+            "class_test_mask": {
+                "data":[
+                    "node_data/src-class_test_mask/parquet/part-00000.parquet",
+                    "node_data/src-class_test_mask/parquet/part-00001.parquet",
+                    "node_data/src-class_test_mask/parquet/part-00002.parquet",
+                    "node_data/src-class_test_mask/parquet/part-00003.parquet",
+                    "node_data/src-class_test_mask/parquet/part-00004.parquet"
+                ],
+                "row_counts": [10, 10, 10, 10, 10],
+                "format": {
+                    "name": "parquet",
+                    "delimiter": ""
+                }
             }
         }
     },
@@ -186,6 +312,16 @@
         "etype_label_property": [
             "label"
         ],
-        "task_type": "edge_class"
+        "task_type": "edge_class",
+        "ntype_to_label_masks": {
+            "src": [
+                "class_train_mask", "class_val_mask", "class_test_mask"
+            ]
+        },
+        "etype_to_label_masks": {
+            "src:dummy_type:dst": [
+                "class_train_mask", "class_val_mask", "class_test_mask"
+            ]
+        }
     }
 }

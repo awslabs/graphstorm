@@ -44,7 +44,7 @@ class LabelConfig(abc.ABC):
         else:
             self._custom_split_filenames = config_dict["custom_split_filenames"]
         if "mask_field_names" in config_dict:
-            self._mask_field_names: list[str] = config_dict["mask_field_names"]
+            self._mask_field_names: Optional[list[str]] = config_dict["mask_field_names"]
         else:
             self._mask_field_names = None
 

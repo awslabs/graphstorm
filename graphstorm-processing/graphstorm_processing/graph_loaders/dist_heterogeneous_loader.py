@@ -49,7 +49,11 @@ from graphstorm_processing.constants import (
     HUGGINGFACE_TOKENIZE,
     TRANSFORMATIONS_FILENAME,
 )
-from graphstorm_processing.config.config_parser import EdgeConfig, NodeConfig, StructureConfig
+from graphstorm_processing.config.config_parser import (
+    EdgeConfig,
+    NodeConfig,
+    StructureConfig,
+)
 from graphstorm_processing.config.label_config_base import LabelConfig
 from graphstorm_processing.config.feature_config_base import FeatureConfig
 from graphstorm_processing.data_transformations.dist_feature_transformer import (
@@ -288,10 +292,10 @@ class DistHeterogeneousGraphLoader(object):
             metadata_dict["node_data"] = {}
 
         edges_start_time = perf_counter()
-        edge_data_dict, edges_dict = self.process_edge_data(edge_configs)
+        edge_data_dict, edge_structure_dict = self.process_edge_data(edge_configs)
         self.timers["process_edge_data"] = perf_counter() - edges_start_time
         metadata_dict["edge_data"] = edge_data_dict
-        metadata_dict["edges"] = edges_dict
+        metadata_dict["edges"] = edge_structure_dict
         # We use the data location as the graph name, can also take from user?
         # TODO: Fix this, take from config?
         metadata_dict["graph_name"] = (
@@ -320,7 +324,9 @@ class DistHeterogeneousGraphLoader(object):
 
         # Write the transformations file
         with open(
-            os.path.join(self.output_path, TRANSFORMATIONS_FILENAME), "w", encoding="utf-8"
+            os.path.join(self.output_path, TRANSFORMATIONS_FILENAME),
+            "w",
+            encoding="utf-8",
         ) as f:
             json.dump(self.transformation_representations, f, indent=4)
 
@@ -328,7 +334,9 @@ class DistHeterogeneousGraphLoader(object):
         # name did not fit Parquet requirements
         if len(self.column_substitutions) > 0:
             with open(
-                os.path.join(self.output_path, "column_substitutions.json"), "w", encoding="utf-8"
+                os.path.join(self.output_path, "column_substitutions.json"),
+                "w",
+                encoding="utf-8",
             ) as f:
                 json.dump(self.column_substitutions, f, indent=4)
 
@@ -647,7 +655,9 @@ class DistHeterogeneousGraphLoader(object):
         return missing_node_types
 
     def create_node_id_maps_from_edges(
-        self, edge_configs: Sequence[EdgeConfig], missing_node_types: Optional[Set[str]] = None
+        self,
+        edge_configs: Sequence[EdgeConfig],
+        missing_node_types: Optional[Set[str]] = None,
     ) -> None:
         """Creates node id mappings from edges.
 
@@ -785,7 +795,8 @@ class DistHeterogeneousGraphLoader(object):
         # TODO: The counts trigger computations, should we avoid this?
         if node_df_with_ids.count() > mapping_df.count():
             logging.info(
-                "Node mapping count mismatch, for node_col: %s, re-assigning int ids...", node_col
+                "Node mapping count mismatch, for node_col: %s, re-assigning int ids...",
+                node_col,
             )
             node_rdd_with_ids = (
                 node_df_with_ids.select(join_col)
@@ -899,6 +910,7 @@ class DistHeterogeneousGraphLoader(object):
         self.graph_info["nfeat_size"] = {}
         self.graph_info["ntype_label"] = []
         self.graph_info["ntype_label_property"] = []
+        self.graph_info["ntype_to_label_masks"] = defaultdict(list)
         for node_config in node_configs:
             files = node_config.files
             file_paths = [f"{self.input_prefix}/{f}" for f in files]
@@ -958,7 +970,9 @@ class DistHeterogeneousGraphLoader(object):
                     nodes_df_count = nodes_df.count()
                     mapping_df_count = mapping_df.count()
                     logging.warning(
-                        "Node mapping count for node type %s: %d", node_type, mapping_df_count
+                        "Node mapping count for node type %s: %d",
+                        node_type,
+                        mapping_df_count,
                     )
                     assert nodes_df_count == mapping_df_count, (
                         f"Nodes df count ({nodes_df_count}) does not match "
@@ -992,6 +1006,14 @@ class DistHeterogeneousGraphLoader(object):
                     node_config.label_configs, nodes_df, node_type
                 )
                 node_type_metadata_dicts.update(node_type_label_metadata)
+
+                for label_config in node_config.label_configs:
+                    if label_config.mask_field_names:
+                        mask_names = label_config.mask_field_names
+                    else:
+                        mask_names = ("train_mask", "val_mask", "test_mask")
+                    self.graph_info["ntype_to_label_masks"][node_type].extend(mask_names)
+
                 self.graph_info["ntype_label"].append(node_type)
                 self.graph_info["ntype_label_property"].append(
                     node_config.label_configs[0].label_column
@@ -1045,7 +1067,10 @@ class DistHeterogeneousGraphLoader(object):
         return node_feature_metadata_dict, nfeat_size
 
     def _process_node_features(
-        self, feature_configs: Sequence[FeatureConfig], nodes_df: DataFrame, node_type: str
+        self,
+        feature_configs: Sequence[FeatureConfig],
+        nodes_df: DataFrame,
+        node_type: str,
     ) -> Tuple[Dict, Dict]:
         """Transform node features and write to storage.
 
@@ -1088,7 +1113,8 @@ class DistHeterogeneousGraphLoader(object):
 
             if json_representation:
                 logging.info(
-                    "Will apply pre-computed transformation for feature: %s", feat_conf.feat_name
+                    "Will apply pre-computed transformation for feature: %s",
+                    feat_conf.feat_name,
                 )
 
             transformed_feature_df, json_representation = transformer.apply_transformation(nodes_df)
@@ -1107,7 +1133,11 @@ class DistHeterogeneousGraphLoader(object):
                     and feat_conf.transformation_kwargs["action"] == HUGGINGFACE_TOKENIZE
                 ):
 
-                    for bert_feat_name in ["input_ids", "attention_mask", "token_type_ids"]:
+                    for bert_feat_name in [
+                        "input_ids",
+                        "attention_mask",
+                        "token_type_ids",
+                    ]:
                         single_feature_df = transformed_feature_df.select(bert_feat_name)
                         feature_output_path = os.path.join(
                             self.output_prefix,
@@ -1168,7 +1198,7 @@ class DistHeterogeneousGraphLoader(object):
             self.graph_info["label_map"] = node_label_loader.label_map
 
             label_output_path = (
-                f"{self.output_prefix}/node_data/{node_type}-label-{label_conf.label_column}"
+                f"{self.output_prefix}/node_data/" f"{node_type}-label-{label_conf.label_column}"
             )
 
             path_list = self._write_df(transformed_label, label_output_path)
@@ -1251,10 +1281,14 @@ class DistHeterogeneousGraphLoader(object):
         dst_col = edge_config.dst_col
         dst_ntype = edge_config.dst_ntype
         edge_type = (
-            f"{edge_config.src_ntype}:{edge_config.get_relation_name()}:{edge_config.dst_ntype}"
+            f"{edge_config.src_ntype}:"
+            f"{edge_config.get_relation_name()}:"
+            f"{edge_config.dst_ntype}"
         )
         rev_edge_type = (
-            f"{edge_config.dst_ntype}:{edge_config.get_relation_name()}-rev:{edge_config.src_ntype}"
+            f"{edge_config.dst_ntype}:"
+            f"{edge_config.get_relation_name()}-rev:"
+            f"{edge_config.src_ntype}"
         )
 
         src_node_id_mapping = (
@@ -1417,104 +1451,149 @@ class DistHeterogeneousGraphLoader(object):
         """
         # iterates over entries of the edge section in the export config
         edge_data_dict = {}
-        edges_dict = {}
+        edge_structure_dict = {}
         logging.info("Processing edge data...")
         self.graph_info["efeat_size"] = {}
         self.graph_info["etype_label"] = []
         self.graph_info["etype_label_property"] = []
+        # A mapping from edge type to all label masks for the type
+        self.graph_info["etype_to_label_masks"] = defaultdict(list)
         for edge_config in edge_configs:
-            read_edges_start = perf_counter()
-            edges_df = self._read_edge_df(edge_config)
-            # TODO: Assert columns from config exist in the edge df
-
-            # This will throw an "already cached" warning if
-            # we created mappings from the edges alone
-            edges_df.cache()
-            edge_type = (
-                f"{edge_config.src_ntype}:{edge_config.get_relation_name()}:{edge_config.dst_ntype}"
-            )
-            reverse_edge_type = (
-                f"{edge_config.dst_ntype}"
-                f":{edge_config.get_relation_name()}-rev"
-                f":{edge_config.src_ntype}"
-            )
-            logging.info("Processing edge type '%s'...", edge_type)
-
-            # The following performs the str-to-node-id mapping conversion
-            # on the edge files and writes them to S3, along with their reverse.
-            edges_df, edge_structure_path_list, reverse_edge_path_list = self.write_edge_structure(
-                edges_df, edge_config
-            )
-            self.timers["read_edges_and_write_structure"] += perf_counter() - read_edges_start
-
-            edges_metadata_dict = {
-                "format": {"name": FORMAT_NAME, "delimiter": DELIMITER},
-                "data": edge_structure_path_list,
-            }
-            edges_dict[edge_type] = edges_metadata_dict
-
-            if self.add_reverse_edges:
-                reverse_edges_metadata_dict = {
-                    "format": {"name": FORMAT_NAME, "delimiter": DELIMITER},
-                    "data": reverse_edge_path_list,
-                }
-
-                edges_dict[reverse_edge_type] = reverse_edges_metadata_dict
-
-            # Without features or labels
-            if edge_config.feature_configs is None and edge_config.label_configs is None:
-                logging.info("No features or labels for edge type: %s", edge_type)
-            # With features or labels
-            else:
-                # TODO: Add unit tests for this branch
-                relation_col = edge_config.rel_col
-                edge_type_metadata_dicts = {}
-
-                if edge_config.feature_configs is not None:
-                    edge_feature_start = perf_counter()
-                    edge_feature_metadata_dicts, etype_feat_sizes = self._process_edge_features(
-                        edge_config.feature_configs, edges_df, edge_type
-                    )
-                    self.graph_info["efeat_size"].update({edge_type: etype_feat_sizes})
-                    edge_type_metadata_dicts.update(edge_feature_metadata_dicts)
-                    self.timers["_process_edge_features"] += perf_counter() - edge_feature_start
-                if edge_config.label_configs is not None:
-                    if relation_col is None or relation_col == "":
-                        edge_label_start = perf_counter()
-                        # All edges have the same relation type
-                        label_metadata_dicts = self._process_edge_labels(
-                            edge_config.label_configs, edges_df, edge_type, edge_config.rel_type
-                        )
-                        edge_type_metadata_dicts.update(label_metadata_dicts)
-                        self.graph_info["etype_label"].append(edge_type)
-                        self.graph_info["etype_label"].append(reverse_edge_type)
-                        if edge_config.label_configs[0].task_type != "link_prediction":
-                            self.graph_info["etype_label_property"].append(
-                                edge_config.label_configs[0].label_column
-                            )
-
-                        if self.add_reverse_edges:
-                            # For reverse edges only the label metadata
-                            # (labels + split masks) are relevant.
-                            edge_data_dict[reverse_edge_type] = label_metadata_dicts
-                        self.timers["_process_edge_labels"] += perf_counter() - edge_label_start
-                    else:
-                        # Different edges can have different relation types
-                        # TODO: For each rel_type we need get the label and output it separately.
-                        # We'll create one file output per rel_type, with the labels for each type
-                        raise NotImplementedError(
-                            "Currently we do not support loading edge "
-                            "labels with multiple edge relation types"
-                        )
-                if edge_type_metadata_dicts:
-                    edge_data_dict[edge_type] = edge_type_metadata_dicts
-                edges_df.unpersist()
+            self._process_single_edge(edge_config, edge_data_dict, edge_structure_dict)
 
         logging.info("Finished processing edge features")
-        return edge_data_dict, edges_dict
+        return edge_data_dict, edge_structure_dict
+
+    def _process_single_edge(
+        self, edge_config: EdgeConfig, edge_data_dict: dict, edge_structure_dict: dict
+    ):
+        """Processes a single edge type, including writing the edge structure and data.
+
+        Updates ``edge_data_dict`` and ``edge_structure_dict`` dicts in-place.
+
+        Parameters
+        ----------
+        edge_config : EdgeConfig
+            Configuration object for one edge type.
+        edge_data_dict : dict
+            Shared edge data dict that will be used as output for metadata.json.
+        edge_structure_dict : dict
+            Shared edge structure dict that will be used as output for metadata.json.
+
+        Raises
+        ------
+        NotImplementedError
+            If the config contains a "relation" column, indicating that the type
+            of edge is determined by a column in the data (Gremlin format).
+        """
+        read_edges_start = perf_counter()
+        edges_df = self._read_edge_df(edge_config)
+        # TODO: Assert columns from config exist in the edge df
+
+        # This will throw an "already cached" warning if
+        # we created mappings from the edges alone
+        edges_df.cache()
+        edge_type = (
+            f"{edge_config.src_ntype}:"
+            f"{edge_config.get_relation_name()}:"
+            f"{edge_config.dst_ntype}"
+        )
+        reverse_edge_type = (
+            f"{edge_config.dst_ntype}:"
+            f"{edge_config.get_relation_name()}-rev:"
+            f"{edge_config.src_ntype}"
+        )
+        logging.info("Processing edge type '%s'...", edge_type)
+
+        # The following performs the str-to-node-id mapping conversion
+        # on the edge files and writes them to S3, along with their reverse.
+        edges_df, edge_structure_path_list, reverse_edge_path_list = self.write_edge_structure(
+            edges_df, edge_config
+        )
+        self.timers["read_edges_and_write_structure"] += perf_counter() - read_edges_start
+
+        edges_metadata_dict = {
+            "format": {"name": FORMAT_NAME, "delimiter": DELIMITER},
+            "data": edge_structure_path_list,
+        }
+        edge_structure_dict[edge_type] = edges_metadata_dict
+
+        if self.add_reverse_edges:
+            reverse_edges_metadata_dict = {
+                "format": {"name": FORMAT_NAME, "delimiter": DELIMITER},
+                "data": reverse_edge_path_list,
+            }
+
+            edge_structure_dict[reverse_edge_type] = reverse_edges_metadata_dict
+
+        # Without features or labels
+        if edge_config.feature_configs is None and edge_config.label_configs is None:
+            logging.info("No features or labels for edge type: %s", edge_type)
+        # With features or labels
+        else:
+            # TODO: Add unit tests for this branch
+            relation_col = edge_config.rel_col
+            edge_type_metadata_dicts = {}
+
+            if edge_config.feature_configs is not None:
+                edge_feature_start = perf_counter()
+                edge_feature_metadata_dicts, etype_feat_sizes = self._process_edge_features(
+                    edge_config.feature_configs, edges_df, edge_type
+                )
+                self.graph_info["efeat_size"].update({edge_type: etype_feat_sizes})
+                edge_type_metadata_dicts.update(edge_feature_metadata_dicts)
+                self.timers["_process_edge_features"] += perf_counter() - edge_feature_start
+
+            if edge_config.label_configs is not None:
+                if relation_col is None or relation_col == "":
+                    edge_label_start = perf_counter()
+                    # All edges have the same relation type
+                    label_metadata_dicts = self._process_edge_labels(
+                        edge_config.label_configs,
+                        edges_df,
+                        edge_type,
+                        edge_config.rel_type,
+                    )
+                    edge_type_metadata_dicts.update(label_metadata_dicts)
+                    self.graph_info["etype_label"].append(edge_type)
+                    self.graph_info["etype_label"].append(reverse_edge_type)
+                    self.graph_info["etype_to_label_masks"][edge_type] = []
+
+                    # Collect all the mask names for the edge type
+                    for label_config in edge_config.label_configs:
+                        if label_config.mask_field_names:
+                            mask_names = label_config.mask_field_names
+                        else:
+                            mask_names = ("train_mask", "val_mask", "test_mask")
+                        self.graph_info["etype_to_label_masks"][edge_type].extend(mask_names)
+
+                    if edge_config.label_configs[0].task_type != "link_prediction":
+                        self.graph_info["etype_label_property"].append(
+                            edge_config.label_configs[0].label_column
+                        )
+
+                    if self.add_reverse_edges:
+                        # For reverse edges only the label metadata
+                        # (labels + split masks) are relevant.
+                        edge_data_dict[reverse_edge_type] = label_metadata_dicts
+                    self.timers["_process_edge_labels"] += perf_counter() - edge_label_start
+                else:
+                    # Different edges can have different relation types
+                    # TODO: For each rel_type we need get the label and output it separately.
+                    # We'll create one file output per rel_type, with the labels for each type
+                    raise NotImplementedError(
+                        "Currently we do not support loading edge "
+                        "labels with multiple edge relation types"
+                    )
+            if edge_type_metadata_dicts:
+                edge_data_dict[edge_type] = edge_type_metadata_dicts
+            edges_df.unpersist()
 
     def _process_edge_features(
-        self, feature_configs: Sequence[FeatureConfig], edges_df: DataFrame, edge_type: str
+        self,
+        feature_configs: Sequence[FeatureConfig],
+        edges_df: DataFrame,
+        edge_type: str,
     ) -> Tuple[Dict, Dict]:
         """Process edge features.
 
@@ -1553,7 +1632,8 @@ class DistHeterogeneousGraphLoader(object):
 
             if json_representation:
                 logging.info(
-                    "Will apply pre-computed transformation for feature: %s", feat_conf.feat_name
+                    "Will apply pre-computed transformation for feature: %s",
+                    feat_conf.feat_name,
                 )
             transformed_feature_df, json_representation = transformer.apply_transformation(edges_df)
             transformed_feature_df.cache()
@@ -1571,7 +1651,11 @@ class DistHeterogeneousGraphLoader(object):
                     feat_conf.feat_type == HUGGINGFACE_TRANFORM
                     and feat_conf.transformation_kwargs["action"] == HUGGINGFACE_TOKENIZE
                 ):
-                    for bert_feat_name in ["input_ids", "attention_mask", "token_type_ids"]:
+                    for bert_feat_name in [
+                        "input_ids",
+                        "attention_mask",
+                        "token_type_ids",
+                    ]:
                         single_feature_df = transformed_feature_df.select(bert_feat_name)
                         feature_output_path = os.path.join(
                             self.output_prefix,
@@ -1715,7 +1799,10 @@ class DistHeterogeneousGraphLoader(object):
         return label_metadata_dicts
 
     def _update_label_properties(
-        self, node_or_edge_type: str, original_labels: DataFrame, label_config: LabelConfig
+        self,
+        node_or_edge_type: str,
+        original_labels: DataFrame,
+        label_config: LabelConfig,
     ) -> None:
         """Extracts and stores statistics about labels.
 
@@ -1842,7 +1929,10 @@ class DistHeterogeneousGraphLoader(object):
             mask_dfs = self._create_split_files_custom_split(input_df, custom_split_file)
 
         def create_metadata_entry(path_list):
-            return {"format": {"name": FORMAT_NAME, "delimiter": DELIMITER}, "data": path_list}
+            return {
+                "format": {"name": FORMAT_NAME, "delimiter": DELIMITER},
+                "data": path_list,
+            }
 
         if mask_field_names is not None:
             mask_names = mask_field_names
