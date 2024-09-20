@@ -160,7 +160,7 @@ class GSgnnNodePredictionInferrer(GSInferrer):
             for ntype, pred in preds.items():
                 if ntype not in infer_ntypes:
                     warnings.warn(f"{ntype} is not in the evaluation ntypes {infer_ntypes}, "
-                                  f"will not do the remapping")
+                                  f"will not do the remapping and save {ntype} node predictions")
                     continue
 
                 pred_nids = loader.target_nidx[ntype]
