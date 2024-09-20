@@ -1,7 +1,5 @@
 .. currentmodule:: {{ module }}
 
-{{ name | underline}}
-
 .. autoclass:: {{ name }}
     :show-inheritance:
     :members:
