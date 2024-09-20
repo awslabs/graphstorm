@@ -20,5 +20,8 @@
                       verify_edge_regression_arguments,
                       verify_link_prediction_arguments,
                       verify_arguments,
-                      training_method
+                      training_method,
+                      node_lm_configs,
+                      distill_lm_configs,
+                      cache_lm_embed
 

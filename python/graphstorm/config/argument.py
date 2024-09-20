@@ -1156,7 +1156,8 @@ class GSConfig:
     ###################### general gnn model related ######################
     @property
     def model_encoder_type(self):
-        """ Which graph encoder to use, it can be GNN or language model only
+        """ The Encoder module used to encode graph data. It can be a GNN encoder or
+            a non-GNN encoder, e.g., language models and MLPs. Default is None.
         """
         # pylint: disable=no-member
         if self.distill_lm_configs is None:
@@ -1170,7 +1171,9 @@ class GSConfig:
 
     @property
     def max_grad_norm(self):
-        """ maximum L2 norm of gradients, used for gradient clip
+        """ Maximum gradient clip which limits the magnitude of gradients during training in
+            order to prevent issues like exploding gradients and improve the stability and
+            convergence of the training process. Default is None.
         """
         # pylint: disable=no-member
         if hasattr(self, "_max_grad_norm"):
@@ -1181,7 +1184,7 @@ class GSConfig:
 
     @property
     def grad_norm_type(self):
-        """ type of the used p-norm, used for gradient clip
+        """ Value of the type of norm that is used to compute the gradient norm. Default is 2.
         """
         # pylint: disable=no-member
         if hasattr(self, "_grad_norm_type"):
@@ -1192,7 +1195,7 @@ class GSConfig:
 
     @property
     def input_activate(self):
-        """ Design activation funtion type in the input layer
+        """ Input layer activation funtion type. Either None or ``relu``. Default is None.
         """
         # pylint: disable=no-member
         if hasattr(self, "_input_activate"):
@@ -1207,21 +1210,21 @@ class GSConfig:
 
     @property
     def edge_feat_name(self):
-        """ User defined edge feature name
-
-        Not used by GraphStorm, reserved for future usage.
+        """ User defined edge feature names. Not be impplemented in this version,
+            reserved for future usage.
         """
         return None
 
     @property
     def node_feat_name(self):
-        """ User defined node feature name
-
-            It can be in following format:
+        """ User defined node feature name.
+         
+        It can be in following format:
             1) [feat_name]: global feature name, if a node has node feature,
             the corresponding feature name is <feat_name>
-            2)["ntype0:feat0","ntype1:feat0,feat1",...]: different node
-            types have different node features.
+            
+            2)["ntype0:feat0","ntype1:feat0,feat1",...]: different node types
+            have different node features.
         """
         # pylint: disable=no-member
         if hasattr(self, "_node_feat_name"):
