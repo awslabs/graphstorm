@@ -55,7 +55,7 @@ from graphstorm_processing.data_transformations import s3_utils
 from graphstorm_processing.graph_loaders.row_count_utils import ParquetRowCounter
 from graphstorm_processing.constants import FilesystemType
 
-NUM_WRITE_THREADS = 1
+NUM_WRITE_THREADS = 16
 
 
 class ParquetRepartitioner:

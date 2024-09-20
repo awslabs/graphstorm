@@ -202,6 +202,34 @@ class DistHeterogeneousGraphLoader(object):
         # we collect an column name substitutions we had to make
         # here and later output as a JSON file.
         self.column_substitutions: dict[str, str] = {}
+        # graph_info structure:
+        # {
+        #     "nfeat_size": {
+        #         "ntype_name": { Mapping from ntype to length of feature vector
+        #             "feature_name": feature_vector_length (int),
+        #             [...]
+        #         },
+        #         [...]
+        #     },
+        #     "efeat_size": Same as nfeat_size,
+        #     [n/e]type_label assume only a single node/edge type has label, for NeptuneML
+        #     "ntype_label": ["ntype_that_has_labels"],
+        #     "ntype_label_property": ["column_of_ntype_with_label"],
+        #     "etype_label": [],
+        #     "etype_label_property": [],
+        #     "task_type": "node_class",
+        #     "label_map": {"male": 0, "female": 1}, # Value map for classification tasks
+        #     "label_properties": { # Name and value counts for classification labels
+        #         "user": {
+        #             "COLUMN_NAME": "gender",
+        #             "VALUE_COUNTS": {"male": 3, "female": 1, "null": 1},
+        #         }
+        #     },
+        #     "ntype_to_label_masks": { Mapping from node type to label mask names
+        #           "user": ["train_mask", "val_mask", "test_mask"]
+        #     },
+        #     "etype_to_label_masks": {},
+        # }
         self.graph_info: dict[str, Any] = {}
 
         # transformation_representations structure:
