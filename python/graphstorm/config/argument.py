@@ -165,14 +165,16 @@ class GSConfig:
     """GSgnn configuration class.
     
     GSConfig contains all GraphStorm model training and inference configurations, which can
-    either be loaded from a yaml file specified in the `--cf` argument, or from CLI arguments.
-
-    Parameters:
-    ------------
-    cmd_args: Arguments
-        Commend line arguments.
+    either be loaded from a yaml file specified in the ``--cf`` argument, or from CLI arguments.
     """
     def __init__(self, cmd_args):
+        """ Construct a GSConfig object.
+
+        Parameters:
+        ------------
+        cmd_args: Arguments
+            Commend line arguments.
+        """
         # need to config the logging at very beginning. Otherwise, logging will not work.
         log_level = get_log_level(cmd_args.logging_level) \
                 if hasattr(cmd_args, "logging_level") else logging.INFO
