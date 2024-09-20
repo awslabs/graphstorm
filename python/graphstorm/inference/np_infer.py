@@ -17,7 +17,6 @@
 """
 import time
 import logging
-import warnings
 
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_shuffled_node_embeddings
