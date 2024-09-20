@@ -1217,7 +1217,7 @@ class GSConfig:
 
     @property
     def node_feat_name(self):
-        """ User defined node feature name.
+        """ User defined node feature name. Default is None.
          
         It can be in following format:
             1) [feat_name]: global feature name, if a node has node feature,
@@ -1284,7 +1284,8 @@ class GSConfig:
 
     @property
     def fanout(self):
-        """ training fanout
+        """ The fanout of each GNN layers. The fanouts must be integers larger than 0. 
+            The number of fanouts must equal to ``num_layers``. Must provide.
         """
         # pylint: disable=no-member
         if self.model_encoder_type in BUILTIN_GNN_ENCODER:
@@ -1297,7 +1298,8 @@ class GSConfig:
 
     @property
     def eval_fanout(self):
-        """ evaluation fanout
+        """ The fanout of each GNN layers used in evaluation and inference. Default is same
+            as the ``fanout``.
         """
         # pylint: disable=no-member
         if hasattr(self, "_eval_fanout"):
@@ -1309,13 +1311,11 @@ class GSConfig:
 
     @property
     def fixed_test_size(self):
-        """ Fixed number of test data used in evaluation
-
-            This is useful for reducing the overhead of doing link prediction evaluation.
-
-            TODO: support fixed_test_size in
-            node prediction and edge prediction tasks.
+        """ The number of validation and test data used during link prediction training
+            evaluaiotn. This is useful for reducing the overhead of doing link prediction
+            evaluation when the graph size is large. Default is None.
         """
+        # TODO: support fixed_test_size in node prediction and edge prediction tasks.
         # pylint: disable=no-member
         if hasattr(self, "_fixed_test_size"):
             assert self._fixed_test_size > 0, \
@@ -1328,7 +1328,9 @@ class GSConfig:
 
     @property
     def textual_data_path(self):
-        """ distillation textual data path
+        """ The path to load the textual data for distillation. User need to specify
+            a path of directory with two sub-directory for ``train`` and ``val`` split.
+            Default is None.
         """
         if hasattr(self, "_textual_data_path"):
             return self._textual_data_path
@@ -1336,7 +1338,7 @@ class GSConfig:
 
     @property
     def max_distill_step(self):
-        """ Maximum training steps for distillation.
+        """ The maximum training steps for each node type for distillation. Default is 10000.
         """
         # only needed by distillation
         if hasattr(self, "_max_distill_step"):
@@ -1349,7 +1351,8 @@ class GSConfig:
 
     @property
     def max_seq_len(self):
-        """ Maximum sequence length for distillation.
+        """ The maximum sequence length of tokenized textual data for distillation.
+            Default is 1024.
         """
         # only needed by distillation
         if hasattr(self, "_max_seq_len"):
@@ -1362,7 +1365,8 @@ class GSConfig:
 
     @property
     def hidden_size(self):
-        """ Hidden embedding size
+        """ The dimension of hidden GNN layers. Must be an integer larger than 0.
+            Default is None.
         """
         # pylint: disable=no-member
         if self.distill_lm_configs is None:
@@ -1379,7 +1383,8 @@ class GSConfig:
 
     @property
     def num_layers(self):
-        """ Number of GNN layers
+        """ Number of GNN layers. Must be an integer larger than 0 if given.
+            Default is 0, which means no GNN layers.
         """
         # pylint: disable=no-member
         if self.model_encoder_type in BUILTIN_GNN_ENCODER:
@@ -1396,7 +1401,8 @@ class GSConfig:
 
     @property
     def use_mini_batch_infer(self):
-        """ Whether do mini-batch inference or full graph inference
+        """ Whether to do mini-batch inference or full graph inference. Default is
+            False for link prediction, and True for other tasks.
         """
         # pylint: disable=no-member
         if hasattr(self, "_use_mini_batch_infer"):
@@ -1419,7 +1425,8 @@ class GSConfig:
 
     @property
     def gnn_norm(self):
-        """ Normalization (Batch or Layer)
+        """ Normalization method for GNN layers. Option is ``batch`` or ``layer``. 
+            Default is None.
         """
         # pylint: disable=no-member
         if not hasattr(self, "_gnn_norm"):
@@ -1433,7 +1440,9 @@ class GSConfig:
     ### Restore model ###
     @property
     def restore_model_layers(self):
-        """ GraphStorm model layers to load.
+        """ GraphStorm model layers to load. Currently, three neural network layers are supported,
+            i.e., ``embed`` (input layer), ``gnn`` and ``decoder``. Default is to restore all three
+            of these layers.
         """
         # pylint: disable=no-member
         model_layers = GRAPHSTORM_MODEL_ALL_LAYERS
@@ -1462,7 +1471,7 @@ class GSConfig:
 
     @property
     def restore_model_path(self):
-        """ Path to the entire model including embed layer, encoder and decoder
+        """ A path where GraphStorm model parameters were saved. Default is None.
         """
         # pylint: disable=no-member
         if hasattr(self, "_restore_model_path"):
@@ -1471,8 +1480,8 @@ class GSConfig:
 
     @property
     def restore_optimizer_path(self):
-        """ Path to the saved optimizer status including embed layer,
-            encoder and decoder.
+        """ A path storing optimizer status corresponding to GraphML model parameters.
+            Default is None.
         """
         # pylint: disable=no-member
         if hasattr(self, "_restore_optimizer_path"):
@@ -1482,7 +1491,7 @@ class GSConfig:
     ### Save model ###
     @property
     def save_embed_path(self):
-        """ Path to save the GNN embeddings from the best model
+        """ Path to save the generated node embeddings. Default is None.
         """
         # pylint: disable=no-member
         if hasattr(self, "_save_embed_path"):
@@ -1504,7 +1513,8 @@ class GSConfig:
 
     @property
     def save_model_path(self):
-        """ Path to save the model.
+        """ A path to save GraphStorm model parameters and the corresponding optimizer status.
+            Default is None.
         """
         # pylint: disable=no-member
         if hasattr(self, "_save_model_path"):
@@ -1513,7 +1523,9 @@ class GSConfig:
 
     @property
     def save_model_frequency(self):
-        """ Save model every N iterations
+        """ The Number of iterations to save model once. By default, GraphStorm will save
+            models at the end of each epoch if ``save_model_path`` is provided. Default is
+            -1, which means only save at the end of each epoch.
         """
         # pylint: disable=no-member
         if hasattr(self, "_save_model_frequency"):
@@ -1527,41 +1539,18 @@ class GSConfig:
 
     @property
     def topk_model_to_save(self):
-        """ the number of top k best validation performance model to save
+        """ The number of top best validation performance GraphStorm model to save.
 
-            If topk_model_to_save is set (save_model_frequency is not set),
-            GraphStorm will try to save models after each epoch and keep at
-            most K models.
-            If save_model_frequency is set, GraphStorm will try to save
-            models every #save_model_frequency iterations and keep at
-            most K models.
-            By default, GraphStorm will save the latest K models unless
-            eval_frequency is set. When eval_frequency is set,
-            GraphStorm will evaluate the model performance every
-            #eval_frequency iterations. If at the same iteration,
-            #save_model_frequency is reached, it will try to save the
-            best K model instead of the latest K model.
+            If ``topk_model_to_save`` is set and ``save_model_frequency`` is not set,
+            GraphStorm will try to save models after each epoch and keep at most ``K`` models.
+            If save_model_frequency is set, GraphStorm will try to save models every number of
+            ``save_model_frequency`` iteration and keep at most ``K`` models.
         """
         # pylint: disable=no-member
         if hasattr(self, "_topk_model_to_save"):
             assert self._topk_model_to_save > 0, "Top K best model must > 0"
             assert self.save_model_path is not None, \
                 'To save models, please specify a valid path. But got None'
-
-            if self.eval_frequency != sys.maxsize and self.save_model_frequency > 0:
-                # save model within an epoch need to collaborate with evaluation
-                # within an epoch
-                assert self.save_model_frequency >= self.eval_frequency and \
-                    self.save_model_frequency % self.eval_frequency == 0, \
-                    'FATAL: save_model_frequency' \
-                          f'({self.save_model_frequency}) ' \
-                          'does not equal to eval_frequency' \
-                          f'({self.eval_frequency}), or ' \
-                          f'save_model_frequency ({self.save_model_frequency}) ' \
-                          'is not divisible by eval_frequency ' \
-                          f'({self.eval_frequency}). ' \
-                          'GraphStorm can not guarentees that it will ' \
-                          'save the best model after evaluation cycles.'
 
             return self._topk_model_to_save
         else:
@@ -1571,7 +1560,8 @@ class GSConfig:
     #### Task tracker and print options ####
     @property
     def task_tracker(self):
-        """ Get the type of task_tracker
+        """ A task tracker used to formalize and report model performance metrics.
+            Default is ``sagemaker_task_tracker``.
         """
         # pylint: disable=no-member
         if hasattr(self, "_task_tracker"):
@@ -1598,7 +1588,8 @@ class GSConfig:
     ###################### Model training related ######################
     @property
     def dropout(self):
-        """ Dropout
+        """ Dropout probability. Dropout must be a float value in [0,1). Dropout is applied
+            to every GNN layer(s). Default is 0.
         """
         # pylint: disable=no-member
         if hasattr(self, "_dropout"):
@@ -1610,7 +1601,8 @@ class GSConfig:
     @property
     # pylint: disable=invalid-name
     def lr(self):
-        """ Learning rate
+        """ Learning rate for dense parameters of input encoder, model encoder and decoder.
+            Must provide.
         """
         assert hasattr(self, "_lr"), "Learning rate must be specified"
         lr = float(self._lr) # pylint: disable=no-member
@@ -1622,7 +1614,7 @@ class GSConfig:
 
     @property
     def num_epochs(self):
-        """ Number of epochs
+        """ Number of training epochs. Must be integer. Default is 0.
         """
         if hasattr(self, "_num_epochs"):
             # if 0, only inference or testing
@@ -1633,7 +1625,10 @@ class GSConfig:
 
     @property
     def batch_size(self):
-        """ Batch size
+        """ Mini-batch size. It defines the batch size of each trainer. The global batch
+            size equals to the number of trainers multiply the batch_size. For example,
+            suppose we have 2 machines each with 8 GPUs and set batch_size to 128. The
+            global batch size will be 2 * 8 * 128 = 2048. Must provide.
         """
         # pylint: disable=no-member
         assert hasattr(self, "_batch_size"), "Batch size must be specified"
@@ -1642,7 +1637,8 @@ class GSConfig:
 
     @property
     def sparse_optimizer_lr(self): # pylint: disable=invalid-name
-        """ Sparse optimizer learning rate
+        """ Learning rate for the optimizer corresponding to learnable sparse embeddings.
+            Default is same as ``lr``.
         """
         if hasattr(self, "_sparse_optimizer_lr"):
             sparse_optimizer_lr = float(self._sparse_optimizer_lr)
@@ -1654,7 +1650,7 @@ class GSConfig:
 
     @property
     def use_node_embeddings(self):
-        """ Whether to use extra learnable node embeddings
+        """ Whether to use extra learnable embeddings for nodes. Default is False.
         """
         # pylint: disable=no-member
         if hasattr(self, "_use_node_embeddings"):
@@ -1666,7 +1662,8 @@ class GSConfig:
 
     @property
     def construct_feat_ntype(self):
-        """ The node types that require to construct node features.
+        """ The node types that require to reconstruct node features during node feature
+            reconstruction learning. Default is an empty list.
         """
         if hasattr(self, "_construct_feat_ntype") \
                 and self._construct_feat_ntype is not None:
@@ -1676,7 +1673,8 @@ class GSConfig:
 
     @property
     def construct_feat_encoder(self):
-        """ The encoder used for constructing node features.
+        """ The encoder used to reconstruct node features. during node feature
+            reconstruction learning. Default is ``rgcn``.
         """
         if hasattr(self, "_construct_feat_encoder"):
             assert self._construct_feat_encoder == "rgcn", \

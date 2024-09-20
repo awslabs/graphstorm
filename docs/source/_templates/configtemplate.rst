@@ -23,5 +23,6 @@
                       training_method,
                       node_lm_configs,
                       distill_lm_configs,
-                      cache_lm_embed
-
+                      cache_lm_embed,
+                      save_embed_format,
+                      log_report_frequency
