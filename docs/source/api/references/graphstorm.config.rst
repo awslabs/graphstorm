@@ -16,7 +16,7 @@ Configuration
 .. autosummary::
     :toctree: ../generated/
     :nosignatures:
-    .. :template: configtemplate.rst
+    :template: configtemplate.rst
 
     get_argument_parser
     GSConfig

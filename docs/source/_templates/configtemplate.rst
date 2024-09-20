@@ -19,5 +19,6 @@
                       verify_edge_class_arguments,
                       verify_edge_regression_arguments,
                       verify_link_prediction_arguments,
-                      verify_arguments
+                      verify_arguments,
+                      training_method
 
