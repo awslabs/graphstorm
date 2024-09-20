@@ -402,10 +402,13 @@ def run_node_mini_batch_predict(decoder, emb, loader, device,
 
     preds = {}
     labels = {}
+    target_ntype = list(loader.target_nidx.keys())
     # TODO(zhengda) I need to check if the data loader only returns target nodes.
     with th.no_grad():
         for _, seeds, _ in loader: # seeds are target nodes
             for ntype, seed_nodes in seeds.items():
+                if ntype not in target_ntype:
+                    continue
                 if isinstance(decoder, th.nn.ModuleDict):
                     assert ntype in decoder, f"Node type {ntype} not in decoder"
                     decoder = decoder[ntype]

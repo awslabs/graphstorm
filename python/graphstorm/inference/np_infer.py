@@ -158,10 +158,8 @@ class GSgnnNodePredictionInferrer(GSInferrer):
                     if node_id_mapping_file else None
             shuffled_preds = {}
             for ntype, pred in preds.items():
-                if ntype not in infer_ntypes:
-                    warnings.warn(f"{ntype} is not in the evaluation ntypes {infer_ntypes}, "
-                                  f"will not do the remapping and save {ntype} node predictions")
-                    continue
+                assert ntype in infer_ntypes, \
+                    f"{ntype} is not in the set of evaluation ntypes {infer_ntypes}"
 
                 pred_nids = loader.target_nidx[ntype]
                 if node_id_mapping_file is not None:
