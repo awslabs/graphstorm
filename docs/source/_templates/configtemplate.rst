@@ -8,7 +8,7 @@
 .. autoclass:: {{ name }}
     :show-inheritance:
     :members:
-    :member-order: bysource
+    :member-order: alphabetical
     :exclude-members: handle_argument_conflicts,
                       load_yaml_config,
                       set_attributes,
