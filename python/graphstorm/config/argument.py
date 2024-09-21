@@ -2450,16 +2450,17 @@ class GSConfig:
         """ Number of hard negatives to sample for each edge type during training.
 
             For each edge type to have number of hard negatives,
-            the format of the arguement should be:
+            the format of the arguement is:
             
             num_train_hard_negatives:
               - src_type,rel_type0,dst_type:num_negatives
               - src_type,rel_type1,dst_type:num_negatives
 
-            or
+            or, for all edge types to have the same number of hard negatives,
+            the format of the arguement is:
+            
             num_train_hard_negatives:
               - num_negatives
-            All the edge types use the same number of hard negatives.
         """
         # pylint: disable=no-member
         if hasattr(self, "_num_train_hard_negatives"):

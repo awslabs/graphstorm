@@ -27,5 +27,4 @@
                       save_embed_format,
                       log_report_frequency,
                       use_pseudolabel,
-                      eval_target_ntype,
-                      train_etypes_negative_dstnode
+                      eval_target_ntype
