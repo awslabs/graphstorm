@@ -1685,7 +1685,8 @@ class GSConfig:
 
     @property
     def construct_feat_fanout(self):
-        """ The fanout for constructing node features
+        """ The fanout used to reconstruct node features during node feature
+            reconstruction learning. Default is 5.
         """
         if hasattr(self, "_construct_feat_fanout"):
             assert isinstance(self._construct_feat_fanout, int), \
@@ -1699,7 +1700,7 @@ class GSConfig:
 
     @property
     def wd_l2norm(self):
-        """ Weight decay
+        """ Weight decay used by torch.optim.Adam. Default is 0.
         """
         # pylint: disable=no-member
         if hasattr(self, "_wd_l2norm"):
@@ -1708,7 +1709,10 @@ class GSConfig:
 
     @property
     def alpha_l2norm(self):
-        """ coef for l2 norm of unused weights
+        """ Coefficiency of the l2 norm of dense parameters. GraphStorm adds a regularization loss,
+            i.e., l2 norm of dense parameters, to the final loss. It uses alpha_l2norm to re-scale
+            the regularization loss. Specifically, loss = loss + alpha_l2norm * regularization_loss.
+            Default is 0.
         """
         # pylint: disable=no-member
         if hasattr(self, "_alpha_l2norm"):
@@ -1717,7 +1721,7 @@ class GSConfig:
 
     @property
     def use_self_loop(self):
-        """ Whether to include self feature as a special relation
+        """ Whether to include nodes' own feature as a special relation type. Detault is True.
         """
         # pylint: disable=no-member
         if hasattr(self, "_use_self_loop"):
@@ -1729,9 +1733,7 @@ class GSConfig:
     ### control evaluation ###
     @property
     def eval_batch_size(self):
-        """ Evaluation batch size
-
-            Mini-batch size for computing GNN embeddings in evaluation.
+        """ Mini-batch size for computing GNN embeddings in evaluation. Default is 10000.
         """
         # pylint: disable=no-member
         if hasattr(self, "_eval_batch_size"):
@@ -1747,7 +1749,9 @@ class GSConfig:
 
     @property
     def eval_frequency(self):
-        """ How many iterations between evaluations
+        """ The frequency of doing evaluation. GraphStorm trainers do evaluation at the end of each epoch.
+            When eval_frequency is set, every ``eval_frequency`` iteration, trainers will do evaluation once.
+            Default is only do evaluation at the end of each epoch.
         """
         # pylint: disable=no-member
         if hasattr(self, "_eval_frequency"):
@@ -1758,7 +1762,7 @@ class GSConfig:
 
     @property
     def no_validation(self):
-        """ If no_validation is True, no validation and testing will run
+        """ Whether to do evaluation(validation) during training. Default is False.
         """
         if hasattr(self, "_no_validation"):
             assert self._no_validation in [True, False]
@@ -1770,7 +1774,7 @@ class GSConfig:
     ### control early stop ###
     @property
     def early_stop_burnin_rounds(self):
-        """ Burn-in rounds before we start checking for the early stop condition.
+        """ Burn-in rounds before start to check for the early stop condition. Default is 0.
         """
         # pylint: disable=no-member
         if hasattr(self, "_early_stop_burnin_rounds"):
@@ -1784,7 +1788,8 @@ class GSConfig:
 
     @property
     def early_stop_rounds(self):
-        """ The number of rounds for validation scores to average to decide on early stop
+        """ The number of rounds for validation scores used to decide if early stop.
+            Default is 3.
         """
         # pylint: disable=no-member
         if hasattr(self, "_early_stop_rounds"):
@@ -1799,7 +1804,9 @@ class GSConfig:
 
     @property
     def early_stop_strategy(self):
-        """ The early stop strategy
+        """ The early stop strategy. GraphStorm supports two strategies: 1)
+            ``consecutive_increase``, and 2) ``average_increase``. Default is 
+            ``average_increase``.
         """
         # pylint: disable=no-member
         if hasattr(self, "_early_stop_strategy"):
@@ -1815,7 +1822,7 @@ class GSConfig:
 
     @property
     def use_early_stop(self):
-        """ whether to use early stopping by monitoring the validation value
+        """ whether to use early stopping during training. Defautl is False. 
         """
         # pylint: disable=no-member
         if hasattr(self, "_use_early_stop"):
@@ -1829,7 +1836,7 @@ class GSConfig:
     ## RGCN only ##
     @property
     def num_bases(self):
-        """ Number of bases used in RGCN weight
+        """ Number of bases used in RGCN weights. Default is -1.
         """
         # pylint: disable=no-member
         if hasattr(self, "_num_bases"):
@@ -1843,7 +1850,7 @@ class GSConfig:
     ## RGAT and HGT only ##
     @property
     def num_heads(self):
-        """ Number of attention heads
+        """ Number of attention heads used in RGAT and HGT weights. Default is 4.
         """
         # pylint: disable=no-member
         if hasattr(self, "_num_heads"):
@@ -1857,9 +1864,13 @@ class GSConfig:
     ###classification/regression related ####
     @property
     def label_field(self):
-        """ The label field in the data
+        """ The field name of labelled data in the graph data. Must provide for classification
+            and regression tasks.
 
-            Used by node and edge classification/regression tasks.
+            For node classification tasks, GraphStorm use
+            ``graph.nodes[target_ntype].data[label_field]`` to access node labels.
+            For edge classification tasks, GraphStorm use
+            ``graph.edges[target_etype].data[label_field]`` to access edge labels.
         """
         # pylint: disable=no-member
         assert hasattr(self, "_label_field"), \
@@ -1879,9 +1890,8 @@ class GSConfig:
 
     @property
     def num_classes(self):
-        """ The cardinality of labels in a classification task
-
-            Used by node classification and edge classification
+        """ The cardinality of labels in a classification task. Used by node classification
+            and edge classification. Must provide for classification tasks.
         """
         # pylint: disable=no-member
         assert hasattr(self, "_num_classes"), \
@@ -1900,9 +1910,8 @@ class GSConfig:
 
     @property
     def multilabel(self):
-        """ Whether the task is a multi-label classification task
-
-            Used by node classification and edge classification
+        """ Whether the task is a multi-label classification task. Used by node
+            classification and edge classification. Default is False.
         """
 
         def check_multilabel(multilabel):
@@ -1922,11 +1931,10 @@ class GSConfig:
 
     @property
     def multilabel_weights(self):
-        """Used to specify label weight of each class in a
-           multi-label classification task. It is feed into th.nn.BCEWithLogitsLoss
-           as pos_weight.
-
-           The weights should be in the following format 0.1,0.2,0.3,0.1,0.0
+        """Used to specify label weight of each class in a multi-label classification task.
+            It is feed into th.nn.BCEWithLogitsLoss as pos_weight. 
+            The weights should be in the following format 0.1,0.2,0.3,0.1,0.0, ...
+            Default is None.
         """
 
         def check_multilabel_weights(multilabel, multilabel_weights, num_classes):
@@ -1967,8 +1975,9 @@ class GSConfig:
 
     @property
     def return_proba(self):
-        """ Whether to return all the predictions or the maximum prediction.
-            Set True to return predictions and False to return maximum prediction.
+        """ Whether to return all the predictions or the maximum prediction in classification
+            tasks. Set True to return predictions and False to return maximum prediction.
+            Default is True.
         """
         if hasattr(self, "_return_proba"):
             assert self._return_proba in [True, False], \
@@ -1987,10 +1996,10 @@ class GSConfig:
     def imbalance_class_weights(self):
         """ Used to specify a manual rescaling weight given to each class
             in a single-label multi-class classification task.
-            It is used in imbalanced label use cases.
-            It is feed into th.nn.CrossEntropyLoss
+            It is used in imbalanced label use cases. It is feed into
+            ``th.nn.CrossEntropyLoss``. Default is None.
 
-            Customer should provide the weight in following format 0.1,0.2,0.3,0.1
+            Customer should provide the weight in the following format: 0.1,0.2,0.3,0.1, ...
         """
 
         def check_imbalance_class_weights(imbalance_class_weights, num_classes):
@@ -2031,7 +2040,8 @@ class GSConfig:
     ###classification/regression inference related ####
     @property
     def save_prediction_path(self):
-        """ Path to save prediction results.
+        """ Path to save prediction results. This is used in classification orregression
+            inference. Default is same as the ``save_embed_path``.
         """
         # pylint: disable=no-member
         if hasattr(self, "_save_prediction_path"):
@@ -2044,7 +2054,8 @@ class GSConfig:
     ### Node related task variables ###
     @property
     def target_ntype(self):
-        """ The node type for prediction
+        """ The node type for prediction. By default, GraphStorm will assume the input graph
+            is a homogeneous graph and set ``target_ntype`` to ``_N``.
         """
         # pylint: disable=no-member
         if hasattr(self, "_target_ntype"):
@@ -2076,11 +2087,11 @@ class GSConfig:
     #### edge related task variables ####
     @property
     def reverse_edge_types_map(self):
-        """ A list of reverse edge type info.
+        """ A list of reverse edge type info. Default is an empty dictionary.
 
             Each information is in the following format:
-            <head,relation,reverse relation,tail>. For example:
-            ["query,adds,rev-adds,asin", "query,clicks,rev-clicks,asin"]
+            ``<head,relation,reverse relation,tail>``. For example:
+            ``["query,adds,rev-adds,asin", "query,clicks,rev-clicks,asin"]``.
         """
         # link prediction or edge classification
         assert self.task_type in [BUILTIN_TASK_LINK_PREDICTION, \
@@ -2118,12 +2129,13 @@ class GSConfig:
     ### Edge classification and regression tasks ###
     @property
     def target_etype(self):
-        """ The list of canonical etype that will be added as
-            a training target in edge classification and regression tasks.
-
-            TODO(xiangsx): Only support single task edge
-            classification/regression. Support multiple tasks when needed.
+        """ The list of canonical etypes that will be added as training targets in edge
+            classification and regression tasks.  If not provided, GraphStorm will assume
+            the input graph is a homogeneous graph and set ``target_etype`` to 
+            ``('_N', '_E', '_N')``.
         """
+        # TODO(xiangsx): Only support single task edge classification/regression. 
+        # Support multiple tasks when needed.
         # pylint: disable=no-member
         if not hasattr(self, "_target_etype"):
             logging.warning("There is not target etype provided, "
@@ -2145,16 +2157,15 @@ class GSConfig:
     @property
     def remove_target_edge_type(self):
         """ Whether to remove the training target edge type for message passing.
+            Default is True.
 
-            Will set the fanout of training target edge type as zero. Only used
-            with edge classification.
-
+            If set to True, Graphstorm will set the fanout of training target edge
+            type as zero. This is only used with edge classification. 
             If the edge classification is to predict the existence of an edge between
-            two nodes, we should remove the target edge in the message passing to
-            avoid information leak.
-            If it's to predict some attributes associated with an edge, we may not need
-            to remove the target edge.
-            Since we don't know what to predict, to be safe, we should remove the target
+            two nodes, GraphStorm should remove the target edge in the message passing to
+            avoid information leak. If it's to predict some attributes associated with
+            an edge, GraphStorm may not need to remove the target edge.
+            Since it is unclear what to predict, to be safe, remove the target
             edge in message passing by default.
         """
         # pylint: disable=no-member
@@ -2172,7 +2183,8 @@ class GSConfig:
 
     @property
     def decoder_type(self):
-        """ Type of edge clasification or regression decoder
+        """ Type of edge clasification or regression decoder. Built-in decoders include 
+            ``DenseBiDecoder`` and ``MLPDecoder``. Default is ``DenseBiDecoder``.
         """
         # pylint: disable=no-member
         if hasattr(self, "_decoder_type"):
@@ -2183,7 +2195,8 @@ class GSConfig:
 
     @property
     def num_decoder_basis(self):
-        """ The number of basis for the decoder in edge prediction task.
+        """ The number of basis for the ``DenseBiDecoder`` decoder in edge prediction task.
+            Default is 2.
         """
         # pylint: disable=no-member
         if hasattr(self, "_num_decoder_basis"):
@@ -2197,7 +2210,7 @@ class GSConfig:
     @property
     def decoder_edge_feat(self):
         """ A list of edge features that can be used by a decoder to
-            enhance its performance.
+            enhance its performance. Default is None.
         """
         # pylint: disable=no-member
         if hasattr(self, "_decoder_edge_feat"):
@@ -2230,8 +2243,9 @@ class GSConfig:
     ### Link Prediction specific ###
     @property
     def train_negative_sampler(self):
-        """ The algorithm of sampling negative edges for link prediction
-            training.
+        """ The negative sampler used for link prediction training. 
+            Built-in samplers include ``uniform``, ``joint``, ``localuniform``,
+            ``all_etype_uniform`` and ``all_etype_joint``. Default is ``uniform``.
         """
         # pylint: disable=no-member
         if hasattr(self, "_train_negative_sampler"):
@@ -2240,8 +2254,9 @@ class GSConfig:
 
     @property
     def eval_negative_sampler(self):
-        """ The algorithm of sampling negative edges for link prediction
-            evaluation.
+        """ The negative sampler used for link prediction training. 
+            Built-in samplers include ``uniform``, ``joint``, ``localuniform``,
+            ``all_etype_uniform`` and ``all_etype_joint``. Default is ``joint``.
         """
         # pylint: disable=no-member
         if hasattr(self, "_eval_negative_sampler"):
@@ -2252,7 +2267,8 @@ class GSConfig:
 
     @property
     def num_negative_edges(self):
-        """ Number of edges consider for the negative batch of edges
+        """ Number of negative edges sampled for each positive edge during training.
+            Default is 16.
         """
         # pylint: disable=no-member
         if hasattr(self, "_num_negative_edges"):
@@ -2264,8 +2280,8 @@ class GSConfig:
 
     @property
     def num_negative_edges_eval(self):
-        """ Number of edges consider for the negative
-            batch of edges for the model evaluation
+        """ Number of negative edges sampled for each positive edge in the validation and test.
+            Default is 1000.
         """
         # pylint: disable=no-member
         if hasattr(self, "_num_negative_edges_eval"):
@@ -2277,7 +2293,9 @@ class GSConfig:
 
     @property
     def lp_decoder_type(self):
-        """ Type of link prediction decoder
+        """ Type decoder for loss function in link prediction tasks.
+            Currently GraphStorm support ``dot_product``, ``distmult`` and ``rotate``.
+            Default is ``distmult``.
         """
         # pylint: disable=no-member
         if hasattr(self, "_lp_decoder_type"):
@@ -2292,8 +2310,9 @@ class GSConfig:
 
     @property
     def lp_embed_normalizer(self):
-        """ Type of normalization method applied on node embeddings
-            in link prediction.
+        """ Type of normalization method used to normalize node embeddings in link prediction
+            tasks. Currently GraphStorm only supports l2 normalization (``l2_norm``). Default
+            is None.
         """
         # pylint: disable=no-member
         if hasattr(self, "_lp_embed_normalizer"):
@@ -2316,7 +2335,8 @@ class GSConfig:
 
     @property
     def contrastive_loss_temperature(self):
-        """ Temperature of link prediction contrustive loss
+        """ Temperature of link prediction contrastive loss. This is used to rescale the
+        link prediction positive and negative scores for the loss. Default is 1.0.
         """
         # pylint: disable=no-member
         if hasattr(self, "_contrastive_loss_temperature"):
@@ -2333,16 +2353,15 @@ class GSConfig:
 
     @property
     def lp_edge_weight_for_loss(self):
-        """ The edge data fields that stores the edge weights used
-            in computing link prediction loss
+        """ Edge feature field name for edge weight. The edge weight is used to rescale the
+            positive edge loss for link prediction tasks. Default is None.
 
             The edge_weight can be in following format:
+            
             1) [weight_name]: global weight name, if an edge has weight,
-            the corresponding weight name is <weight_name>
+            the corresponding weight name is <weight_name>.
             2) ["src0,rel0,dst0:weight0","src0,rel0,dst0:weight1",...]:
             different edge types have different edge weights.
-
-            By default, it is none.
         """
         # pylint: disable=no-member
         if hasattr(self, "_lp_edge_weight_for_loss"):
@@ -2400,19 +2419,21 @@ class GSConfig:
 
     @property
     def train_etypes_negative_dstnode(self):
-        """ The list of canonical etypes that have hard negative edges
-        constructed by corrupting destination nodes.
+        """ The list of canonical edge types that have hard negative edges 
+            constructed by corrupting destination nodes.
 
-            The format of the arguement should be:
-            train_etypes_negative_dstnode:
+            For each edge type to use different fields to store the hard negatives,
+            the format of the arguement is:
+            
+            train_etypes_negative_dstnode: 
               - src_type,rel_type0,dst_type:negative_nid_field
               - src_type,rel_type1,dst_type:negative_nid_field
-            Each edge type can have different fields storing the hard negatives.
-
-            or
+              
+            or, for all edge types to use the same field to store the hard negatives,
+            the format of the arguement is:
+            
             train_etypes_negative_dstnode:
               - negative_nid_field
-            All the edge types use the same filed storing the hard negatives.
         """
         # pylint: disable=no-member
         if hasattr(self, "_train_etypes_negative_dstnode"):
@@ -2426,13 +2447,14 @@ class GSConfig:
 
     @property
     def num_train_hard_negatives(self):
-        """ Number of hard negatives per edge type
+        """ Number of hard negatives to sample for each edge type during training.
 
-            The format of the arguement should be:
+            For each edge type to have number of hard negatives,
+            the format of the arguement should be:
+            
             num_train_hard_negatives:
               - src_type,rel_type0,dst_type:num_negatives
               - src_type,rel_type1,dst_type:num_negatives
-            Each edge type can have different number of hard negatives.
 
             or
             num_train_hard_negatives:

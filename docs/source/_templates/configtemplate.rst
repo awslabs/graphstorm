@@ -25,4 +25,7 @@
                       distill_lm_configs,
                       cache_lm_embed,
                       save_embed_format,
-                      log_report_frequency
+                      log_report_frequency,
+                      use_pseudolabel,
+                      eval_target_ntype,
+                      train_etypes_negative_dstnode

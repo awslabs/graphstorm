@@ -486,7 +486,7 @@ Link Prediction Task
 
     - Yaml: ``lp_decoder_type: dot_product``
     - Argument: ``--lp-decoder-type dot_product``
-    - Default value: ``dot_product``
+    - Default value: ``distmult``
 - **gamma**: Set the value of the hyperparameter denoted by the symbol gamma. Gamma is used in the following cases: i/ focal loss for binary classification ii/ DistMult score function for link prediction and iii/ RotatE score function for link prediction.
     - Yaml: ``gamma: 10.0``
     - Argument: ``--gamma 10.0``
@@ -524,17 +524,30 @@ Link Prediction Task
     - Argument: ``--lp-edge-weight-for-loss ntype0,rel0,ntype1:weight0 ntype0,rel1,ntype1:weight1``
     - Default value: None
 
-- **contrastive-loss-temperature**: Temperature of link prediction contrastive loss. This is used to rescale the link prediction positive and negative scores for the loss.
+- **contrastive_loss_temperature**: Temperature of link prediction contrastive loss. This is used to rescale the link prediction positive and negative scores for the loss.
 
     - Yaml: ``contrastive_loss_temperature: 0.01```
     - Argument: ``--contrastive-loss-temperature 0.01``
     - Default value: 1.0
 
-- **lp-embed-normalizer**: Type of normalization method used to normalize node embeddings in link prediction tasks. Currently GraphStorm only supports l2 normalization (`l2_norm`).
+- **lp_embed_normalizer**: Type of normalization method used to normalize node embeddings in link prediction tasks. Currently GraphStorm only supports l2 normalization (`l2_norm`).
 
     - Yaml: ``lp_embed_normalizer: l2_norm``
     - Argument: ``--lp-embed-normalizer l2_norm``
     - Default value: None
+
+- **train_etypes_negative_dstnode**: The list of canonical edge types that have hard negative edges constructed by corrupting destination nodes. The format of the configuration should be ``<src_type,rel_type0,dst_type:negative_nid_field src_type,rel_type1,dst_type:negative_nid_field>`` for each edge type to use different fields to store the hard negatives, or ``negative_nid_field`` for all edge types to use the same field to store the hard negatives.
+
+    - Yaml: ``train_etypes_negative_dstnode:``
+                | ``- src_type,rel_type0,dst_type:negative_nid_field``
+                | ``- src_type,rel_type1,dst_type:negative_nid_field``
+        Or ``train_etypes_negative_dstnode: negative_nid_field``
+    - Argument: ``--train-etypes-negative-dstnode src_type,rel_type0,dst_type:negative_nid_field src_type,rel_type1,dst_type:negative_nid_field``
+    - Default value: None
+
+- **num_train_hard_negatives**:
+
+- **eval_etypes_negative_dstnode**:
 
 Distillation Specific Configurations
 .....................................
