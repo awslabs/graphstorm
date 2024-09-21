@@ -541,7 +541,8 @@ Link Prediction Task
     - Yaml: ``train_etypes_negative_dstnode:``
                 | ``- src_type,rel_type0,dst_type:negative_nid_field``
                 | ``- src_type,rel_type1,dst_type:negative_nid_field``
-        Or ``train_etypes_negative_dstnode: negative_nid_field``
+        Or
+            ``train_etypes_negative_dstnode: negative_nid_field``
     - Argument: ``--train-etypes-negative-dstnode src_type,rel_type0,dst_type:negative_nid_field src_type,rel_type1,dst_type:negative_nid_field``
     - Default value: None
 
