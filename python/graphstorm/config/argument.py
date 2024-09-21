@@ -2424,16 +2424,20 @@ class GSConfig:
 
             For each edge type to use different fields to store the hard negatives,
             the format of the arguement is:
-            
-            train_etypes_negative_dstnode: 
-              \- src_type,rel_type0,dst_type:negative_nid_field
-              \- src_type,rel_type1,dst_type:negative_nid_field
+
+            .. code:: json
+
+                train_etypes_negative_dstnode: 
+                    - src_type,rel_type0,dst_type:negative_nid_field
+                    - src_type,rel_type1,dst_type:negative_nid_field
               
             or, for all edge types to use the same field to store the hard negatives,
             the format of the arguement is:
             
-            train_etypes_negative_dstnode:
-              - negative_nid_field
+            .. code:: json
+
+                train_etypes_negative_dstnode:
+                    - negative_nid_field
         """
         # pylint: disable=no-member
         if hasattr(self, "_train_etypes_negative_dstnode"):
