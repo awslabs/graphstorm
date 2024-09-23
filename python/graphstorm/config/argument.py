@@ -1824,7 +1824,7 @@ class GSConfig:
 
     @property
     def use_early_stop(self):
-        """ whether to use early stopping during training. Defautl is False. 
+        """ whether to use early stopping during training. Default is False. 
         """
         # pylint: disable=no-member
         if hasattr(self, "_use_early_stop"):
