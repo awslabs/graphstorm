@@ -317,6 +317,7 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                               iter_l, max_num_batch, time.time() - iter_start)
 
     model.train()
+    # MFG for DGL 2.0.0+ return all node and edge type
     preds = {
         ntype: th.cat(preds[ntype])
         for ntype in preds if ntype in target_ntypes
