@@ -1676,8 +1676,9 @@ class GSConfig:
 
     @property
     def construct_feat_encoder(self):
-        """ The encoder used to reconstruct node features. during node feature
-            reconstruction learning. Default is ``rgcn``.
+        """ The encoder used to reconstruct node features during node feature
+            reconstruction learning. Options include all built-in GNN encoders, i.e.,
+            ``rgcn``, ``rgat``, and ``hgt``. Default is ``rgcn``.
         """
         if hasattr(self, "_construct_feat_encoder"):
             assert self._construct_feat_encoder == "rgcn", \
@@ -1765,7 +1766,8 @@ class GSConfig:
 
     @property
     def no_validation(self):
-        """ When set to true, will not perform evaluation (validation) during training. Default is False.
+        """ When set to true, will not perform evaluation (validation) during training.
+            Default is False.
         """
         if hasattr(self, "_no_validation"):
             assert self._no_validation in [True, False]
