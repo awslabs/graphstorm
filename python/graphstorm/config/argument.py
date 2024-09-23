@@ -1313,7 +1313,7 @@ class GSConfig:
     @property
     def fixed_test_size(self):
         """ The number of validation and test data used during link prediction training
-            evaluaiotn. This is useful for reducing the overhead of doing link prediction
+            and evaluation. This is useful for reducing the overhead of doing link prediction
             evaluation when the graph size is large. Default is None.
         """
         # TODO: support fixed_test_size in node prediction and edge prediction tasks.
