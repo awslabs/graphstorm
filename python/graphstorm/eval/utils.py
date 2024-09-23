@@ -247,6 +247,8 @@ def calc_rotate_pos_score(h_emb, t_emb, r_emb, rel_emb_init, gamma, device=None)
             The initial value used to bound the relation embedding initialization.
         gamma: float
             The gamma value used for shifting the optimization target.
+        device: th.device
+            Device to run the computation.
 
         Return
         ------
@@ -297,6 +299,8 @@ def calc_rotate_neg_head_score(heads, tails, r_emb, num_chunks,
             The initial value used to bound the relation embedding initialization.
         gamma: float
             The gamma value used for shifting the optimization target.
+        device: th.device
+            Device to run the computation.
 
         Return
         ------
@@ -349,6 +353,8 @@ def calc_rotate_neg_tail_score(heads, tails, r_emb, num_chunks,
             The initial value used to bound the relation embedding initialization.
         gamma: float
             The gamma value used for shifting the optimization target.
+        device: th.device
+            Device to run the computation.
 
         Return
         ------
@@ -412,6 +418,8 @@ def calc_transe_pos_score(h_emb, t_emb, r_emb, gamma, norm='l2', device=None):
             The gamma value used for shifting the optimization target.
         norm: str
             L1 or L2 norm on the angular distance.
+        device: th.device
+            Device to run the computation.
 
         Return
         ------
@@ -455,6 +463,8 @@ def calc_transe_neg_head_score(h_emb, t_emb, r_emb, num_chunks,
             The gamma value used for shifting the optimization target.
         norm: str
             L1 or L2 norm on the angular distance.
+        device: th.device
+            Device to run the computation.
 
         Return
         ------
@@ -501,6 +511,8 @@ def calc_transe_neg_tail_score(h_emb, t_emb, r_emb, num_chunks,
             The gamma value used for shifting the optimization target.
         norm: str
             L1 or L2 norm on the angular distance.
+        device: th.device
+            Device to run the computation.
 
         Return
         ------
