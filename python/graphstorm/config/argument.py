@@ -1221,10 +1221,10 @@ class GSConfig:
          
         It can be in following format:
         
-            1) [feat_name]: global feature name, if a node has node feature,
+        - [feat_name]: global feature name, if a node has node feature,
             the corresponding feature name is <feat_name>
             
-            2)["ntype0:feat0","ntype1:feat0,feat1",...]: different node types
+        - ["ntype0:feat0","ntype1:feat0,feat1",...]: different node types
             have different node features.
         """
         # pylint: disable=no-member
