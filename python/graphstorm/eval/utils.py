@@ -435,8 +435,10 @@ def calc_transe_pos_score(h_emb, t_emb, r_emb, gamma, norm='l2', device=None):
 
     if norm == 'l1':
         transe_score = gamma - th.norm(score, p=1, dim=-1)
-    else:
+    elif norm == 'l2':
         transe_score = gamma - th.norm(score, p=2, dim=-1)
+    else:
+        raise ValueError("Unknown norm on the angular distance. Only support L1 and L2.")
     return transe_score
 
 def calc_transe_neg_head_score(h_emb, t_emb, r_emb, num_chunks,
@@ -483,8 +485,10 @@ def calc_transe_neg_head_score(h_emb, t_emb, r_emb, num_chunks,
 
     if norm == 'l1':
         transe_score = gamma - th.cdist(t_emb, h_emb, p=1)
-    else:
+    elif norm == 'l2':
         transe_score = gamma - th.cdist(t_emb, h_emb, p=2)
+    else:
+        raise ValueError("Unknown norm on the angular distance. Only support L1 and L2.")
     return transe_score
 
 def calc_transe_neg_tail_score(h_emb, t_emb, r_emb, num_chunks,
@@ -531,8 +535,10 @@ def calc_transe_neg_tail_score(h_emb, t_emb, r_emb, num_chunks,
 
     if norm == 'l1':
         transe_score = gamma - th.cdist(h_emb, t_emb, p=1)
-    else:
+    elif norm == 'l2':
         transe_score = gamma - th.cdist(h_emb, t_emb, p=2)
+    else:
+        raise ValueError("Unknown norm on the angular distance. Only support L1 and L2.")
     return transe_score
 
 def calc_ranking(pos_score, neg_score):

@@ -644,7 +644,6 @@ class GSConfig:
         _ = self.lp_loss_func
         _ = self.lp_decoder_type
         _ = self.gamma
-        _ = self.score_norm
         _ = self.report_eval_per_type
 
 
@@ -778,7 +777,6 @@ class GSConfig:
         # For link prediction tasks.
         if self.task_type == BUILTIN_TASK_LINK_PREDICTION:
             _ = self.gamma
-            _ = self.score_norm
             _ = self.lp_decoder_type
             _ = self.lp_edge_weight_for_loss
             _ = self.contrastive_loss_temperature
@@ -2526,17 +2524,6 @@ class GSConfig:
         if hasattr(self, "_gamma"):
             return float(self._gamma)
 
-        return None
-
-    @property
-    def score_norm(self):
-        """ Normalization methods used in calculating score functions (e.g., TransE).
-        """
-        if hasattr(self, "_score_norm"):
-            assert self._score_norm in BUILTIN_LP_NORMALIZATION_METHODS, \
-                f"Only support {BUILTIN_LP_NORMALIZATION_METHODS} " \
-                "normalization methods for link prediction tasks"
-            return self._score_norm
         return None
 
     @property

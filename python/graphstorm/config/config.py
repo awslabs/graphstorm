@@ -82,12 +82,14 @@ SUPPORTED_TASK_TRACKER = [GRAPHSTORM_SAGEMAKER_TASK_TRACKER]
 BUILTIN_LP_DOT_DECODER = "dot_product"
 BUILTIN_LP_DISTMULT_DECODER = "distmult"
 BUILTIN_LP_ROTATE_DECODER = "rotate"
-BUILTIN_LP_TRANSE_DECODER = "transe"
+BUILTIN_LP_TRANSE_L1_DECODER = "transe_l1"
+BUILTIN_LP_TRANSE_L2_DECODER = "transe_l2"
 
 SUPPORTED_LP_DECODER = [BUILTIN_LP_DOT_DECODER,
                         BUILTIN_LP_DISTMULT_DECODER,
                         BUILTIN_LP_ROTATE_DECODER,
-                        BUILTIN_LP_TRANSE_DECODER]
+                        BUILTIN_LP_TRANSE_L1_DECODER,
+                        BUILTIN_LP_TRANSE_L2_DECODER]
 
 ################ Task info data classes ############################
 def get_mttask_id(task_type, ntype=None, etype=None, label=None):

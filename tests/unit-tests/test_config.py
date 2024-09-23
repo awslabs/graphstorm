@@ -43,7 +43,8 @@ from graphstorm.config.config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
 from graphstorm.config import (BUILTIN_LP_DOT_DECODER,
                                BUILTIN_LP_DISTMULT_DECODER,
                                BUILTIN_LP_ROTATE_DECODER,
-                               BUILTIN_LP_TRANSE_DECODER)
+                               BUILTIN_LP_TRANSE_L1_DECODER,
+                               BUILTIN_LP_TRANSE_L2_DECODER)
 from graphstorm.config.config import LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
 
 def check_failure(config, field):
@@ -1057,9 +1058,21 @@ def create_lp_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["link_prediction"] = {
-        "lp_decoder_type": "transe",
+        "lp_decoder_type": "transe_l1",
     }
-    with open(os.path.join(tmp_path, file_name + "_transe.yaml"), "w") as f:
+    with open(os.path.join(tmp_path, file_name + "_transe_l1.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["link_prediction"] = {
+        "lp_decoder_type": "transe_l2",
+    }
+    with open(os.path.join(tmp_path, file_name + "_transe_l2.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["link_prediction"] = {
+        "lp_decoder_type": "transe_l3",
+    }
+    with open(os.path.join(tmp_path, file_name + "_fail_transe.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
 def test_lp_info():
@@ -1175,10 +1188,22 @@ def test_lp_info():
         assert config.lp_decoder_type == BUILTIN_LP_ROTATE_DECODER
 
         args = Namespace(
-            yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_transe.yaml'),
+            yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_transe_l1.yaml'),
             local_rank=0)
         config = GSConfig(args)
-        assert config.lp_decoder_type == BUILTIN_LP_TRANSE_DECODER
+        assert config.lp_decoder_type == BUILTIN_LP_TRANSE_L1_DECODER
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_transe_l2.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        assert config.lp_decoder_type == BUILTIN_LP_TRANSE_L2_DECODER
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail_transe.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        check_failure(config, "lp_decoder_type")
 
 def create_gnn_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
