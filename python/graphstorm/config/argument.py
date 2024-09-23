@@ -943,7 +943,7 @@ class GSConfig:
             to the node partition assignment. We expect partition algorithms
             will save edge ID mappings to map new edge IDs to their original
             edge IDds.
-            GraphStorm assumes edge_id mappings are stored as a single object
+            GraphStorm assumes edge ID mappings are stored as a single object
             along with the partition config file.
         """
         path = os.path.dirname(self.part_config)
@@ -1211,7 +1211,7 @@ class GSConfig:
 
     @property
     def edge_feat_name(self):
-        """ User defined edge feature names. Not be impplemented in this version,
+        """ User defined edge feature names. Not be impplemented in this version, but
             reserved for future usage.
         """
         return None
@@ -1590,7 +1590,7 @@ class GSConfig:
     @property
     def dropout(self):
         """ Dropout probability. Dropout must be a float value in [0,1). Dropout is applied
-            to every GNN layer(s). Default is 0.
+            to every GNN layer. Default is 0.
         """
         # pylint: disable=no-member
         if hasattr(self, "_dropout"):
@@ -1809,9 +1809,9 @@ class GSConfig:
 
     @property
     def early_stop_strategy(self):
-        """ The early stop strategy. GraphStorm supports two strategies: 1)
-            ``consecutive_increase``, and 2) ``average_increase``. Default is 
-            ``average_increase``.
+        """ The strategy used to decide if stop training early. GraphStorm supports two 
+            strategies: 1) ``consecutive_increase``, and 2) ``average_increase``.
+            Default is ``average_increase``.
         """
         # pylint: disable=no-member
         if hasattr(self, "_early_stop_strategy"):
@@ -2188,7 +2188,7 @@ class GSConfig:
 
     @property
     def decoder_type(self):
-        """ Type of edge clasification or regression decoder. Built-in decoders include 
+        """ The type of edge clasification or regression decoders. Built-in decoders include 
             ``DenseBiDecoder`` and ``MLPDecoder``. Default is ``DenseBiDecoder``.
         """
         # pylint: disable=no-member
