@@ -873,7 +873,8 @@ class GSConfig:
 
     @property
     def backend(self):
-        """ Distributed training backend. GraphStorm support "gloo" or "nccl". Default is "gloo".
+        """ Distributed training backend. GraphStorm support ``gloo`` or ``nccl``.
+            Default is ``gloo``.
         """
         # pylint: disable=no-member
         if hasattr(self, "_backend"):
@@ -1627,8 +1628,8 @@ class GSConfig:
     def batch_size(self):
         """ Mini-batch size. It defines the batch size of each trainer. The global batch
             size equals to the number of trainers multiply the batch_size. For example,
-            suppose we have 2 machines each with 8 GPUs and set batch_size to 128. The
-            global batch size will be 2 * 8 * 128 = 2048. Must provide.
+            suppose we have 2 machines each of which has 8 GPUs, and set batch_size to 128.
+            The global batch size will be 2 * 8 * 128 = 2048. Must provide.
         """
         # pylint: disable=no-member
         assert hasattr(self, "_batch_size"), "Batch size must be specified"
@@ -2599,7 +2600,8 @@ class GSConfig:
 
     @property
     def alpha(self):
-        """ Common hyperparameter symbol alpha. Default is None.
+        """ Common hyperparameter symbol alpha. Alpha is used in focal loss for binary
+            classification. Default is None.
         """
         if hasattr(self, "_alpha"):
             return float(self._alpha)

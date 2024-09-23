@@ -202,7 +202,7 @@ GraphStorm provides a set of parameters to control training hyper-parameters.
     - Yaml: ``sparse_optimizer_lr: 0.5``
     - Argument: ``--sparse-optimizer-lr 0.5``
     - Default value: same as ``lr``.
-- **use_node_embeddings**: Set true to use extra learnable node embedding for each node.
+- **use_node_embeddings**: Set true to create and use extra learnable node embeddings for nodes. These learnable embeddings will be concatenated with nodes' own features to form the inputs for model training.
 
     - Yaml: ``use_node_embeddings: true``
     - Argument: ``--use-node-embeddings true``
@@ -492,7 +492,7 @@ Link Prediction Task
     - Yaml: ``gamma: 10.0``
     - Argument: ``--gamma 10.0``
     - Default value: None
-- **alpha**: Set the value of the hyperparameter denoted by the symbol alpha. Alpha is used in the following case: i/ focal loss for binary classification.
+- **alpha**: Set the value of the hyperparameter denoted by the symbol alpha. Alpha is used in focal loss for binary classification.
 
     - Yaml: ``alpha: 10.0``
     - Argument: ``--alpha 10.0``
