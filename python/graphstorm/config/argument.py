@@ -1790,7 +1790,7 @@ class GSConfig:
 
     @property
     def early_stop_rounds(self):
-        """ The number of rounds for validation scores used to decide if early stop.
+        """ The number of rounds for validation scores used to decide to stop training early.
             Default is 3.
         """
         # pylint: disable=no-member
