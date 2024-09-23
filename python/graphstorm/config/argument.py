@@ -3150,12 +3150,6 @@ def _add_link_prediction_args(parser):
             help="Common hyperparameter symbol gamma."
     )
     group.add_argument(
-            "--score-norm",
-            type=str,
-            default=argparse.SUPPRESS,
-            help="Normalization methods used in calculating score functions (e.g., TransE)."
-    )
-    group.add_argument(
             "--alpha",
             type=float,
             default=argparse.SUPPRESS,
