@@ -35,4 +35,5 @@
                       multi_tasks,
                       construct_feat_ntype,
                       construct_feat_encoder,
-                      construct_feat_fanout
+                      construct_feat_fanout,
+                      profile_path

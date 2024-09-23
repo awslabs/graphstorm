@@ -915,7 +915,7 @@ class GSConfig:
             to the node partition assignment. We expect partition algorithms
             will save node ID mappings to map new node IDs to their original
             node IDs.
-            GraphStorm assumes node_id mappings are stored as a single object
+            GraphStorm assumes node ID mappings are stored as a single object
             along with the partition config file.
         """
         path = os.path.dirname(self.part_config)
@@ -980,7 +980,8 @@ class GSConfig:
     @property
     def use_wholegraph_embed(self):
         """ Whether to use WholeGraph to store intermediate embeddings/tensors generated
-            during training or inference, e.g., cache_lm_emb, sparse_emb, etc. Default is None.
+            during training or inference, e.g., "cache_lm_emb", "sparse_emb", etc.
+            Default is None.
         """
         if hasattr(self, "_use_wholegraph_embed"):
             assert self._use_wholegraph_embed in [True, False], \
@@ -1157,7 +1158,7 @@ class GSConfig:
     ###################### general gnn model related ######################
     @property
     def model_encoder_type(self):
-        """ The Encoder module used to encode graph data. It can be a GNN encoder or
+        """ The encoder module used to encode graph data. It can be a GNN encoder or
             a non-GNN encoder, e.g., language models and MLPs. Default is None.
         """
         # pylint: disable=no-member
@@ -1554,8 +1555,8 @@ class GSConfig:
 
             If ``topk_model_to_save`` is set and ``save_model_frequency`` is not set,
             GraphStorm will try to save models after each epoch and keep at most ``K`` models.
-            If save_model_frequency is set, GraphStorm will try to save models every number of
-            ``save_model_frequency`` iteration and keep at most ``K`` models.
+            If ``save_model_frequency`` is set, GraphStorm will try to save models every number
+            of ``save_model_frequency`` iteration and keep at most ``K`` models.
         """
         # pylint: disable=no-member
         if hasattr(self, "_topk_model_to_save"):
@@ -1625,7 +1626,8 @@ class GSConfig:
 
     @property
     def num_epochs(self):
-        """ Number of training epochs. Must be integer. Default is 0.
+        """ Number of training epochs. Must be integer and larger than 0 if given.
+            Default is 0.
         """
         if hasattr(self, "_num_epochs"):
             # if 0, only inference or testing
@@ -1714,7 +1716,7 @@ class GSConfig:
 
     @property
     def wd_l2norm(self):
-        """ Weight decay used by torch.optim.Adam. Default is 0.
+        """ Weight decay used by ``torch.optim.Adam``. Default is 0.
         """
         # pylint: disable=no-member
         if hasattr(self, "_wd_l2norm"):
@@ -1838,7 +1840,7 @@ class GSConfig:
 
     @property
     def use_early_stop(self):
-        """ whether to use early stopping during training. Default is False. 
+        """ Whether to use early stopping during training. Default is False. 
         """
         # pylint: disable=no-member
         if hasattr(self, "_use_early_stop"):
@@ -1948,7 +1950,8 @@ class GSConfig:
     @property
     def multilabel_weights(self):
         """Used to specify label weight of each class in a multi-label classification task.
-            It is feed into th.nn.BCEWithLogitsLoss as pos_weight. 
+            It is feed into ``th.nn.BCEWithLogitsLoss`` as ``pos_weight``.
+             
             The weights should be in the following format 0.1,0.2,0.3,0.1,0.0, ...
             Default is None.
         """
@@ -2056,7 +2059,7 @@ class GSConfig:
     ###classification/regression inference related ####
     @property
     def save_prediction_path(self):
-        """ Path to save prediction results. This is used in classification orregression
+        """ Path to save prediction results. This is used in classification or regression
             inference. Default is same as the ``save_embed_path``.
         """
         # pylint: disable=no-member
@@ -2374,10 +2377,10 @@ class GSConfig:
 
             The edge_weight can be in following format:
             
-            - <weight_name>: global weight name, if an edge has weight,
-            the corresponding weight name is <weight_name>.
+            - ``weight_name``: global weight name, if an edge has weight,
+            the corresponding weight name is ``weight_name``.
             
-            - <"src0,rel0,dst0:weight0","src0,rel0,dst0:weight1",...>:
+            - ``"src0,rel0,dst0:weight0","src0,rel0,dst0:weight1",...``:
             different edge types have different edge weights.
         """
         # pylint: disable=no-member
@@ -2471,7 +2474,7 @@ class GSConfig:
         """ Number of hard negatives to sample for each edge type during training. 
             Default is None.
 
-            For each edge type to have number of hard negatives,
+            For each edge type to have a number of hard negatives,
             the format of the arguement is:
 
             .. code:: json
@@ -2858,7 +2861,7 @@ class GSConfig:
 
     @property
     def num_ffn_layers_in_decoder(self):
-        """ Number of extra feedforward neural network layers to be added in decoder.
+        """ Number of extra feedforward neural network layers to be added in the decoder layer.
             Default is 0.
         """
         # pylint: disable=no-member
