@@ -1764,7 +1764,7 @@ class GSConfig:
 
     @property
     def no_validation(self):
-        """ Whether to do evaluation(validation) during training. Default is False.
+        """ When set to true, will not perform evaluation (validation) during training. Default is False.
         """
         if hasattr(self, "_no_validation"):
             assert self._no_validation in [True, False]
