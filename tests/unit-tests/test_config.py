@@ -986,8 +986,7 @@ def create_lp_config(tmp_path, file_name):
         "eval_metric": ["mrr"],
         "gamma": 1.0,
         "alpha": 2.0,
-        "lp_loss_func": BUILTIN_LP_LOSS_CONTRASTIVELOSS,
-        "lp_edge_weight_for_loss": ["query,exactmatch,asin:weight0", "query,click,asin:weight1"]
+        "lp_loss_func": BUILTIN_LP_LOSS_CONTRASTIVELOSS
     }
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1111,8 +1110,7 @@ def test_lp_info():
         assert config.eval_metric[0] == "mrr"
         assert config.gamma == 1.0
         assert config.alpha == 2.0
-        assert config.lp_edge_weight_for_loss[ ("query", "exactmatch", "asin")] == ["weight0"]
-        assert config.lp_edge_weight_for_loss[ ("query", "click", "asin")] == ["weight1"]
+        assert config.lp_edge_weight_for_loss is None
         assert config.model_select_etype == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail1.yaml'), local_rank=0)
