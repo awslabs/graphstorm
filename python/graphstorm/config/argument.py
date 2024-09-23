@@ -886,7 +886,8 @@ class GSConfig:
 
     @property
     def ip_config(self):
-        """ IP config file of instances in a cluster. Default is None.
+        """ IP config file that contains all IP addresses of instances in a cluster.
+            In the file, each line stores one IP address. Default is None.
         """
         # pylint: disable=no-member
         if hasattr(self, "_ip_config"):
@@ -1016,8 +1017,7 @@ class GSConfig:
 
     @property
     def lm_train_nodes(self):
-        """ Number of nodes used in tuning LM model fine-tuning for each different LM model.
-            Default is 0.
+        """ Number of nodes used in LM model fine-tuning. Default is 0.
         """
         # pylint: disable=no-member
         if hasattr(self, "_lm_train_nodes"):
@@ -1032,7 +1032,7 @@ class GSConfig:
 
     @property
     def lm_infer_batch_size(self):
-        """ Mini batch size used to do LM model inference.
+        """ Mini-batch size used to do LM model inference. Default is 32.
         """
         # pylint: disable=no-member
         if hasattr(self, "_lm_infer_batch_size"):
@@ -1044,8 +1044,8 @@ class GSConfig:
 
     @property
     def freeze_lm_encoder_epochs(self):
-        """ Before fine-tuning LM model, how many epochs we will take to warmup a GNN model.
-            Default is 0.
+        """ Before fine-tuning LM models, how many epochs GraphStorm will take to
+            warmup a GNN model. Default is 0.
         """
         # pylint: disable=no-member
         if hasattr(self, "_freeze_lm_encoder_epochs"):
@@ -1285,8 +1285,18 @@ class GSConfig:
 
     @property
     def fanout(self):
-        """ The fanout of each GNN layers. The fanouts must be integers larger than 0. 
-            The number of fanouts must equal to ``num_layers``. Must provide.
+        """ The fanouts of GNN layers. The values of fanouts must be integers larger
+            than 0. The number of fanouts must equal to ``num_layers``. Must provide.
+            
+            It accepts two formats: 
+            
+            - ``20,10``, which defines the number of neighbors
+            to sample per edge type for each GNN layer with the i_th element being the
+            fanout for the ith GNN layer.
+            
+            - "etype2:20@etype3:20@etype1:10,etype2:10@etype3:4@etype1:2", which defines
+            the numbers of neighbors to sample for different edge types for each GNN layers
+            with the i_th element being the fanout for the i_th GNN layer. 
         """
         # pylint: disable=no-member
         if self.model_encoder_type in BUILTIN_GNN_ENCODER:
@@ -1426,7 +1436,7 @@ class GSConfig:
 
     @property
     def gnn_norm(self):
-        """ Normalization method for GNN layers. Option is ``batch`` or ``layer``. 
+        """ Normalization method for GNN layers. Options include ``batch`` or ``layer``. 
             Default is None.
         """
         # pylint: disable=no-member
@@ -1754,8 +1764,9 @@ class GSConfig:
     @property
     def eval_frequency(self):
         """ The frequency of doing evaluation. GraphStorm trainers do evaluation at the end of
-            each epoch. When eval_frequency is set, every ``eval_frequency`` iteration, trainers
-            will do evaluation once. Default is only do evaluation at the end of each epoch.
+            each epoch. When ``eval_frequency`` is set, every ``eval_frequency`` iteration,
+            trainers will do evaluation once. Default is only do evaluation at the end of each
+            epoch.
         """
         # pylint: disable=no-member
         if hasattr(self, "_eval_frequency"):
@@ -1869,12 +1880,12 @@ class GSConfig:
     ###classification/regression related ####
     @property
     def label_field(self):
-        """ The field name of labelled data in the graph data. Must provide for classification
+        """ The field name of labels in a graph data. Must provide for classification
             and regression tasks.
 
-            For node classification tasks, GraphStorm use
+            For node classification tasks, GraphStorm uses
             ``graph.nodes[target_ntype].data[label_field]`` to access node labels.
-            For edge classification tasks, GraphStorm use
+            For edge classification tasks, GraphStorm uses
             ``graph.edges[target_etype].data[label_field]`` to access edge labels.
         """
         # pylint: disable=no-member
@@ -2298,8 +2309,8 @@ class GSConfig:
 
     @property
     def lp_decoder_type(self):
-        """ Type decoder for loss function in link prediction tasks.
-            Currently GraphStorm support ``dot_product``, ``distmult`` and ``rotate``.
+        """ The decoder type for loss function in link prediction tasks.
+            Currently GraphStorm supports ``dot_product``, ``distmult`` and ``rotate``.
             Default is ``distmult``.
         """
         # pylint: disable=no-member
@@ -2363,9 +2374,9 @@ class GSConfig:
 
             The edge_weight can be in following format:
             
-            1) [weight_name]: global weight name, if an edge has weight,
+            - <weight_name>: global weight name, if an edge has weight,
             the corresponding weight name is <weight_name>.
-            2) ["src0,rel0,dst0:weight0","src0,rel0,dst0:weight1",...]:
+            - <"src0,rel0,dst0:weight0","src0,rel0,dst0:weight1",...>:
             different edge types have different edge weights.
         """
         # pylint: disable=no-member
@@ -2680,7 +2691,7 @@ class GSConfig:
 
     @property
     def eval_metric(self):
-        """ Evaluation metric used during evaluation. The input can be a string specifying
+        """ Evaluation metric(s) used during evaluation. The input can be a string specifying
             the evaluation metric to report,  or a list of strings specifying a list of
             evaluation metrics to report. The first evaluation metric is treated as the
             major metric and is used to choose the best trained model. Default values
