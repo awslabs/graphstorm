@@ -1472,7 +1472,7 @@ class GSConfig:
 
     @property
     def restore_model_path(self):
-        """ A path where GraphStorm model parameters were saved. Default is None.
+        """ A path where GraphStorm model parameters are saved. Default is None.
         """
         # pylint: disable=no-member
         if hasattr(self, "_restore_model_path"):
