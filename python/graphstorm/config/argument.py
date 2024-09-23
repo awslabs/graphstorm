@@ -1220,6 +1220,7 @@ class GSConfig:
         """ User defined node feature name. Default is None.
          
         It can be in following format:
+        
             1) [feat_name]: global feature name, if a node has node feature,
             the corresponding feature name is <feat_name>
             
