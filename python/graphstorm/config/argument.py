@@ -1173,7 +1173,7 @@ class GSConfig:
     @property
     def max_grad_norm(self):
         """ Maximum gradient clip which limits the magnitude of gradients during training in
-            order to prevent issues like exploding gradients and improve the stability and
+            order to prevent issues like exploding gradients, and to improve the stability and
             convergence of the training process. Default is None.
         """
         # pylint: disable=no-member
@@ -1612,8 +1612,8 @@ class GSConfig:
     @property
     # pylint: disable=invalid-name
     def lr(self):
-        """ Learning rate for dense parameters of input encoder, model encoder and decoder.
-            Must provide.
+        """ Learning rate for dense parameters of input encoders, model encoders, 
+            and decoders. Must provide.
         """
         assert hasattr(self, "_lr"), "Learning rate must be specified"
         lr = float(self._lr) # pylint: disable=no-member
@@ -2376,6 +2376,7 @@ class GSConfig:
             
             - <weight_name>: global weight name, if an edge has weight,
             the corresponding weight name is <weight_name>.
+            
             - <"src0,rel0,dst0:weight0","src0,rel0,dst0:weight1",...>:
             different edge types have different edge weights.
         """
