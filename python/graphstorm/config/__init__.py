@@ -52,8 +52,7 @@ from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
                      BUILTIN_CLASS_LOSS_FOCAL,
                      BUILTIN_CLASS_LOSS_FUNCTION)
-from .config import (BUILTIN_LP_NORMALIZATION_METHODS,
-                     GRAPHSTORM_LP_EMB_L2_NORMALIZATION,
+from .config import (GRAPHSTORM_LP_EMB_L2_NORMALIZATION,
                      GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS)
 
 from .config import TaskInfo
