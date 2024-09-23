@@ -2420,7 +2420,7 @@ class GSConfig:
     @property
     def train_etypes_negative_dstnode(self):
         """ The list of canonical edge types that have hard negative edges 
-            constructed by corrupting destination nodes.
+            constructed by corrupting destination nodes during training.
 
             For each edge type to use different fields to store the hard negatives,
             the format of the arguement is:
@@ -2451,20 +2451,25 @@ class GSConfig:
 
     @property
     def num_train_hard_negatives(self):
-        """ Number of hard negatives to sample for each edge type during training.
+        """ Number of hard negatives to sample for each edge type during training. 
+            Default is None.
 
             For each edge type to have number of hard negatives,
             the format of the arguement is:
-            
-            num_train_hard_negatives:
-              - src_type,rel_type0,dst_type:num_negatives
-              - src_type,rel_type1,dst_type:num_negatives
+
+            .. code:: json
+
+                num_train_hard_negatives:
+                    - src_type,rel_type0,dst_type:num_negatives
+                    - src_type,rel_type1,dst_type:num_negatives
 
             or, for all edge types to have the same number of hard negatives,
             the format of the arguement is:
             
-            num_train_hard_negatives:
-              - num_negatives
+            .. code:: json
+
+                num_train_hard_negatives:
+                    - num_negatives
         """
         # pylint: disable=no-member
         if hasattr(self, "_num_train_hard_negatives"):
@@ -2497,19 +2502,25 @@ class GSConfig:
 
     @property
     def eval_etypes_negative_dstnode(self):
-        """ The list of canonical etypes that have predefined negative edges
-        constructed by corrupting destination nodes.
+        """ The list of canonical edge types that have hard negative edges 
+            constructed by corrupting destination nodes during evaluation.
 
-            The format of the arguement should be:
-            eval_etypes_negative_dstnode:
-              - src_type,rel_type0,dst_type:negative_nid_field
-              - src_type,rel_type1,dst_type:negative_nid_field
-            Each edge type can have different fields storing the fixed negatives.
+            For each edge type to use different fields to store the hard negatives,
+            the format of the arguement is:
 
-            or
-            eval_etypes_negative_dstnode:
-              - negative_nid_field
-            All the edge types use the same filed storing the fixed negatives.
+            .. code:: json
+
+                eval_etypes_negative_dstnode: 
+                    - src_type,rel_type0,dst_type:negative_nid_field
+                    - src_type,rel_type1,dst_type:negative_nid_field
+              
+            or, for all edge types to use the same field to store the hard negatives,
+            the format of the arguement is:
+            
+            .. code:: json
+
+                eval_etypes_negative_dstnode:
+                    - negative_nid_field
         """
         # pylint: disable=no-member
         if hasattr(self, "_eval_etypes_negative_dstnode"):
@@ -2523,10 +2534,9 @@ class GSConfig:
 
     @property
     def train_etype(self):
-        """ The list of canonical etypes that will be added as
-            training target with the target e type(s)
-
-            If not provided, all edge types will be used as training target.
+        """ The list of canonical edge types that will be added as training target. 
+            If not provided, all edge types will be used as training target. A canonical
+            edge type should be formatted as ``src_node_type,relation_type,dst_node_type``.
         """
         # pylint: disable=no-member
         if hasattr(self, "_train_etype"):
@@ -2541,10 +2551,9 @@ class GSConfig:
 
     @property
     def eval_etype(self):
-        """ The list of canonical etype that will be added as
-            evaluation target with the target edge type(s)
-
-            If not provided, all edge types will be used as evaluation target.
+        """ The list of canonical edge types that will be added as evaluation target. 
+            If not provided, all edge types will be used as evaluation target. A canonical
+            edge type should be formatted as ``src_node_type,relation_type,dst_node_type``.
         """
         # pylint: disable=no-member
         if hasattr(self, "_eval_etype"):
@@ -2558,8 +2567,8 @@ class GSConfig:
 
     @property
     def exclude_training_targets(self):
-        """ Whether to remove the training targets from
-            the computation graph before the forward pass.
+        """ Whether to remove the training targets from the GNN computation graph.
+            Default is True.
         """
         # pylint: disable=no-member
         if hasattr(self, "_exclude_training_targets"):
@@ -2579,7 +2588,7 @@ class GSConfig:
 
     @property
     def gamma(self):
-        """ Common hyperparameter symbol gamma.
+        """ Common hyperparameter symbol gamma. Default is None.
         """
         if hasattr(self, "_gamma"):
             return float(self._gamma)
@@ -2588,7 +2597,7 @@ class GSConfig:
 
     @property
     def alpha(self):
-        """ Common hyperparameter symbol alpha.
+        """ Common hyperparameter symbol alpha. Default is None.
         """
         if hasattr(self, "_alpha"):
             return float(self._alpha)
@@ -2597,7 +2606,8 @@ class GSConfig:
 
     @property
     def class_loss_func(self):
-        """ Node/Edge classification loss function
+        """ Classification loss function. Builtin loss functions include 
+            ``cross_entropy`` and ``focal``. Default is ``cross_entropy``.
         """
         # pylint: disable=no-member
         if hasattr(self, "_class_loss_func"):
@@ -2610,7 +2620,8 @@ class GSConfig:
 
     @property
     def lp_loss_func(self):
-        """ Link prediction loss function
+        """ Link prediction loss function. Builtin loss functions include 
+            ``cross_entropy`` and ``contrastive``. Default is ``cross_entropy``.
         """
         # pylint: disable=no-member
         if hasattr(self, "_lp_loss_func"):
@@ -2622,7 +2633,8 @@ class GSConfig:
 
     @property
     def adversarial_temperature(self):
-        """ Temperature of adversarial cross entropy loss for link prediction tasks.
+        """ A hyperparameter value of temperature of adversarial cross entropy loss for link
+            prediction tasks. Default is None.
         """
         # pylint: disable=no-member
         if hasattr(self, "_adversarial_temperature"):
@@ -2633,7 +2645,9 @@ class GSConfig:
 
     @property
     def task_type(self):
-        """ Task type
+        """ Graph machine learning task type. GraphStorm supported task types include
+            "node_classification", "node_regression", "edge_classification",
+            "edge_regression", and "link_prediction". Must provided.
         """
         # pylint: disable=no-member
         if hasattr(self, "_task_type"):
@@ -2660,10 +2674,13 @@ class GSConfig:
 
     @property
     def eval_metric(self):
-        """ Evaluation metric used during evaluation
-
-            The input can be a string specifying the evaluation metric to report
-            or a list of strings specifying a list of  evaluation metrics to report.
+        """ Evaluation metric used during evaluation. The input can be a string specifying
+            the evaluation metric to report,  or a list of strings specifying a list of
+            evaluation metrics to report. The first evaluation metric is treated as the
+            major metric and is used to choose the best trained model. Default values
+            depend on ``task_type``. For classification tasks, the default value is ``accuracy``;
+            For regression tasks, the default value is ``rmse``. For link prediction tasks,
+            the default value is ``mrr``.
         """
         # pylint: disable=no-member
         # Task is node classification
@@ -2780,7 +2797,8 @@ class GSConfig:
 
     @property
     def model_select_etype(self):
-        """ Canonical etype used for selecting the best model
+        """ Canonical etype used for selecting the best model. Default is on
+            all edge types.
         """
         # pylint: disable=no-member
         if hasattr(self, "_model_select_etype"):
@@ -2796,7 +2814,8 @@ class GSConfig:
 
     @property
     def num_ffn_layers_in_input(self):
-        """ Number of extra feedforward neural network layers in the input layer
+        """ Number of extra feedforward neural network layers to be added in the input layer.
+            Default is 0.
         """
         # pylint: disable=no-member
         if hasattr(self, "_num_ffn_layers_in_input"):
@@ -2808,7 +2827,8 @@ class GSConfig:
 
     @property
     def num_ffn_layers_in_gnn(self):
-        """ Number of extra feedforward neural network layers between GNN layers
+        """ Number of extra feedforward neural network layers to be added between GNN layers.
+            Default is 0.
         """
         # pylint: disable=no-member
         if hasattr(self, "_num_ffn_layers_in_gnn"):
@@ -2820,7 +2840,8 @@ class GSConfig:
 
     @property
     def num_ffn_layers_in_decoder(self):
-        """ Number of extra feedforward neural network layers in decoder
+        """ Number of extra feedforward neural network layers to be added in decoder.
+            Default is 0.
         """
         # pylint: disable=no-member
         if hasattr(self, "_num_ffn_layers_in_decoder"):

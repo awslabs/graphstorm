@@ -27,4 +27,9 @@
                       save_embed_format,
                       log_report_frequency,
                       use_pseudolabel,
-                      eval_target_ntype
+                      eval_target_ntype,
+                      report_eval_per_type,
+                      model_select_etype,
+                      decoder_norm,
+                      reconstruct_nfeat_name,
+                      multi_tasks

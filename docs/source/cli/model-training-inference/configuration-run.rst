@@ -488,6 +488,7 @@ Link Prediction Task
     - Argument: ``--lp-decoder-type dot_product``
     - Default value: ``distmult``
 - **gamma**: Set the value of the hyperparameter denoted by the symbol gamma. Gamma is used in the following cases: i/ focal loss for binary classification ii/ DistMult score function for link prediction and iii/ RotatE score function for link prediction.
+
     - Yaml: ``gamma: 10.0``
     - Argument: ``--gamma 10.0``
     - Default value: None
@@ -507,7 +508,7 @@ Link Prediction Task
     - Argument: ``--lp-loss-func contrastive``
     - Default value: ``cross_entropy``
 
-- **adversarial_temperature**: Enable adversarial cross entropy loss and set the ``adversarial_temperature`` hyper-parameter. Only work when ``lp_loss_func`` is set to ``cross_entropy``. More detials can be found on the :ref:`Link Prediction Loss Functions<link_prediction_loss>`.
+- **adversarial_temperature**: Enable adversarial cross entropy loss and set the ``adversarial_temperature`` hyper-parameter. Only work when ``lp_loss_func`` is set to ``cross_entropy``. More details can be found on the :ref:`Link Prediction Loss Functions<link_prediction_loss>`.
 
     - Yaml: ``adversarial_temperature: 1.0``
     - Argument: ``adversarial-temperature 1.0``
@@ -536,7 +537,7 @@ Link Prediction Task
     - Argument: ``--lp-embed-normalizer l2_norm``
     - Default value: None
 
-- **train_etypes_negative_dstnode**: The list of canonical edge types that have hard negative edges constructed by corrupting destination nodes. The format of the configuration should be ``<src_type,rel_type0,dst_type:negative_nid_field src_type,rel_type1,dst_type:negative_nid_field>`` for each edge type to use different fields to store the hard negatives, or ``negative_nid_field`` for all edge types to use the same field to store the hard negatives.
+- **train_etypes_negative_dstnode**: The list of canonical edge types that have hard negative edges constructed by corrupting destination nodes during training. The format of the configuration is ``src_type,rel_type0,dst_type:negative_nid_field src_type,rel_type1,dst_type:negative_nid_field`` for each edge type to use different fields to store the hard negatives, or ``negative_nid_field`` for all edge types to use the same field to store the hard negatives.
 
     - Yaml: ``train_etypes_negative_dstnode:``
                 | ``- src_type,rel_type0,dst_type:negative_nid_field``
@@ -546,9 +547,26 @@ Link Prediction Task
     - Argument: ``--train-etypes-negative-dstnode src_type,rel_type0,dst_type:negative_nid_field src_type,rel_type1,dst_type:negative_nid_field``
     - Default value: None
 
-- **num_train_hard_negatives**:
+- **num_train_hard_negatives**: Number of hard negatives to sample for each edge type during training. The format of the configuration is ``src_type,rel_type0,dst_type:num_negatives src_type,rel_type1,dst_type:num_negatives`` for each edge type to have number of hard negatives, or ``num_negatives`` for all edge types to have the same number of hard negatives.
 
-- **eval_etypes_negative_dstnode**:
+    - Yaml: ``num_train_hard_negatives:``
+                | ``- src_type,rel_type0,dst_type:num_negatives``
+                | ``- src_type,rel_type1,dst_type:num_negatives``
+
+    Or
+            ``num_train_hard_negatives: num_negatives``
+    - Argument: ``num_train_hard_negatives src_type,rel_type0,dst_type:num_negatives src_type,rel_type1,dst_type:num_negatives``
+    - Default value: None
+
+- **eval_etypes_negative_dstnode**: The list of canonical edge types that have hard negative edges constructed by corrupting destination nodes during evaluation. The format of the configuration is ``src_type,rel_type0,dst_type:negative_nid_field src_type,rel_type1,dst_type:negative_nid_field`` for each edge type to use different fields to store the hard negatives, or ``negative_nid_field`` for all edge types to use the same field to store the hard negatives.
+
+    - Yaml: ``eval_etypes_negative_dstnode:``
+                | ``- src_type,rel_type0,dst_type:negative_nid_field``
+                | ``- src_type,rel_type1,dst_type:negative_nid_field``
+        Or
+            ``eval_etypes_negative_dstnode: negative_nid_field``
+    - Argument: ``--eval-etypes-negative-dstnode src_type,rel_type0,dst_type:negative_nid_field src_type,rel_type1,dst_type:negative_nid_field``
+    - Default value: None
 
 Distillation Specific Configurations
 .....................................
