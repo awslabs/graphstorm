@@ -1752,9 +1752,9 @@ class GSConfig:
 
     @property
     def eval_frequency(self):
-        """ The frequency of doing evaluation. GraphStorm trainers do evaluation at the end of each epoch.
-            When eval_frequency is set, every ``eval_frequency`` iteration, trainers will do evaluation once.
-            Default is only do evaluation at the end of each epoch.
+        """ The frequency of doing evaluation. GraphStorm trainers do evaluation at the end of
+            each epoch. When eval_frequency is set, every ``eval_frequency`` iteration, trainers
+            will do evaluation once. Default is only do evaluation at the end of each epoch.
         """
         # pylint: disable=no-member
         if hasattr(self, "_eval_frequency"):
@@ -2134,10 +2134,10 @@ class GSConfig:
     def target_etype(self):
         """ The list of canonical etypes that will be added as training targets in edge
             classification and regression tasks.  If not provided, GraphStorm will assume
-            the input graph is a homogeneous graph and set ``target_etype`` to 
+            the input graph is a homogeneous graph and set ``target_etype`` to
             ``('_N', '_E', '_N')``.
         """
-        # TODO(xiangsx): Only support single task edge classification/regression. 
+        # TODO(xiangsx): Only support single task edge classification/regression.
         # Support multiple tasks when needed.
         # pylint: disable=no-member
         if not hasattr(self, "_target_etype"):
