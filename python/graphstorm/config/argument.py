@@ -1776,7 +1776,7 @@ class GSConfig:
     ### control early stop ###
     @property
     def early_stop_burnin_rounds(self):
-        """ Burn-in rounds before start to check for the early stop condition. Default is 0.
+        """ Burn-in rounds before starting to check for the early stop condition. Default is 0.
         """
         # pylint: disable=no-member
         if hasattr(self, "_early_stop_burnin_rounds"):
