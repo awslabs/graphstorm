@@ -1590,13 +1590,12 @@ class LinkPredictTransEDecoder(LinkPredictMultiRelationLearnableDecoder):
                 i = self.etype2rid[canonical_etype]
                 self.trained_rels[i] += 1
                 rel_embedding = self._w_relation(th.tensor(i).to(self._w_relation.weight.device))
-                rel_embedding = rel_embedding.unsqueeze(dim=1)
+                rel_embedding = rel_embedding.unsqueeze(dim=0)
                 src_type, _, dest_type = canonical_etype
                 u, v = g.edges(etype=canonical_etype)
                 src_emb = h[src_type][u]
 
                 dest_emb = h[dest_type][v]
-                rel_embedding = rel_embedding.repeat(1, dest_emb.shape[0]).T
                 scores_etype = calc_transe_pos_score(src_emb,
                                                      dest_emb,
                                                      rel_embedding,
@@ -1803,7 +1802,7 @@ class LinkPredictContrastiveTransEDecoder(LinkPredictTransEDecoder):
                 i = self.etype2rid[canonical_etype]
                 self.trained_rels[i] += 1
                 rel_embedding = self._w_relation(th.tensor(i).to(self._w_relation.weight.device))
-                rel_embedding = rel_embedding.unsqueeze(dim=1)
+                rel_embedding = rel_embedding.unsqueeze(dim=0)
                 src_type, _, dest_type = canonical_etype
                 u, v = g.edges(etype=canonical_etype)
                 # Sort edges according to source node ids
@@ -1825,7 +1824,6 @@ class LinkPredictContrastiveTransEDecoder(LinkPredictTransEDecoder):
                 v = v[u_sort_idx]
                 src_emb = h[src_type][u]
                 dest_emb = h[dest_type][v]
-                rel_embedding = rel_embedding.repeat(1,dest_emb.shape[0]).T
                 scores_etype = calc_transe_pos_score(src_emb,
                                                      dest_emb,
                                                      rel_embedding,
