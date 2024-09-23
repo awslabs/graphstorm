@@ -2282,7 +2282,7 @@ class GSConfig:
 
     @property
     def num_negative_edges_eval(self):
-        """ Number of negative edges sampled for each positive edge in the validation and test.
+        """ Number of negative edges sampled for each positive edge during validation and testing.
             Default is 1000.
         """
         # pylint: disable=no-member
