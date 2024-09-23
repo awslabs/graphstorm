@@ -1650,7 +1650,9 @@ class GSConfig:
 
     @property
     def use_node_embeddings(self):
-        """ Whether to use extra learnable embeddings for nodes. Default is False.
+        """ Whether to create extra learnable embeddings for nodes.
+            These learnable embeddings will be concatenated with nodes' own features
+            to form the inputs for model training. Default is False.
         """
         # pylint: disable=no-member
         if hasattr(self, "_use_node_embeddings"):
