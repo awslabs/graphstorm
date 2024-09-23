@@ -2348,7 +2348,7 @@ class GSConfig:
                 "Edge weight for loss only works with link prediction"
 
             if self.lp_loss_func in [ BUILTIN_LP_LOSS_CONTRASTIVELOSS]:
-                logging.warning("p_edge_weight_for_loss does not work with "
+                logging.warning("lp_edge_weight_for_loss does not work with "
                                 "%s loss in link prediction."
                                 "Disable edge weight for link prediction loss.",
                                 BUILTIN_LP_LOSS_CONTRASTIVELOSS)
