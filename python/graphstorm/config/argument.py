@@ -83,6 +83,9 @@ def get_argument_parser():
     arugments in GraphStorm launch CLIs. Specifically, it will parses yaml config file first,
     and then parses arguments to overwrite parameters defined in the yaml file or add new
     parameters.
+    
+    This ``get_argument_parser()`` is also useful when users want to convert customized models
+    to use GraphStorm CLIs.
 
     Examples:
     ----------
