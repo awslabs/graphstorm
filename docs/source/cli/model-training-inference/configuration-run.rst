@@ -482,12 +482,12 @@ Link Prediction Task
     - Yaml: ``num_negative_edges_eval: 1000``
     - Argument: ``--num-negative-edges-eval 1000``
     - Default value: ``1000``
-- **lp_decoder_type**: Set the decoder type for loss function in Link Prediction tasks. Currently GraphStorm support  ``dot_product``, ``distmult`` and ``rotate``.
+- **lp_decoder_type**: Set the decoder type for loss function in Link Prediction tasks. Currently GraphStorm support  ``dot_product``, ``distmult``, ``rotate``, ``transe_l1``, and ``transe_l2``.
 
     - Yaml: ``lp_decoder_type: dot_product``
     - Argument: ``--lp-decoder-type dot_product``
     - Default value: ``distmult``
-- **gamma**: Set the value of the hyperparameter denoted by the symbol gamma. Gamma is used in the following cases: i/ focal loss for binary classification ii/ DistMult score function for link prediction and iii/ RotatE score function for link prediction.
+- **gamma**: Set the value of the hyperparameter denoted by the symbol gamma. Gamma is used in the following cases: i/ focal loss for binary classification ii/ DistMult score function for link prediction, iii/ TransE score function for link prediction, and iv/ RotatE score function for link prediction.
 
     - Yaml: ``gamma: 10.0``
     - Argument: ``--gamma 10.0``

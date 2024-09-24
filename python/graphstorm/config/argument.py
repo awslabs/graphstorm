@@ -2316,7 +2316,7 @@ class GSConfig:
     @property
     def lp_decoder_type(self):
         """ The decoder type for loss function in link prediction tasks.
-            Currently GraphStorm supports ``dot_product``, ``distmult`` and ``rotate``.
+            Currently GraphStorm supports ``dot_product``, ``distmult``, ``transe``, and ``rotate``.
             Default is ``distmult``.
         """
         # pylint: disable=no-member
