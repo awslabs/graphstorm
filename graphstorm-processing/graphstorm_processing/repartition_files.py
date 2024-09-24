@@ -91,7 +91,8 @@ class ParquetRepartitioner:
         if self.filesystem_type == FilesystemType.S3:
             self.bucket = self.input_prefix.split("/")[1]
             self.pyarrow_fs = fs.S3FileSystem(
-                region=region, retry_strategy=fs.AwsDefaultS3RetryStrategy(max_attempts=10)
+                region=region,
+                retry_strategy=fs.AwsDefaultS3RetryStrategy(max_attempts=10),
             )
         else:
             self.pyarrow_fs = fs.LocalFileSystem()
@@ -127,7 +128,10 @@ class ParquetRepartitioner:
         return pq.read_table(file_path, filesystem=self.pyarrow_fs, memory_map=True)
 
     def write_parquet_to_relative_path(
-        self, relative_path: str, table: pyarrow.Table, desired_count: Optional[int] = None
+        self,
+        relative_path: str,
+        table: pyarrow.Table,
+        desired_count: Optional[int] = None,
     ) -> None:
         """
         Write a parquet file to storage, prepending `self.input_prefix` to the object path.
@@ -146,7 +150,9 @@ class ParquetRepartitioner:
 
     @staticmethod
     def create_new_relative_path_from_existing(
-        original_relative_path: str, repartitioned_file_index: int, suffix: Optional[str] = None
+        original_relative_path: str,
+        repartitioned_file_index: int,
+        suffix: Optional[str] = None,
     ) -> str:
         """Changes the index of the filename ``part-<index>`` in `original_relative_path`
         to the one given in `repartitioned_file_index`.
@@ -454,7 +460,9 @@ class ParquetRepartitioner:
 
             current_table_row_count = combined_table.num_rows
             logging.debug(
-                "Combined row counts: %d, desired count: %d", current_table_row_count, desired_count
+                "Combined row counts: %d, desired count: %d",
+                current_table_row_count,
+                desired_count,
             )
 
             # If the combined row count is already the same we just write to S3 and move on
@@ -474,7 +482,9 @@ class ParquetRepartitioner:
 
             # If desired_count != current_table_row_count, we need to re-partition the file
             logging.debug(
-                "Re-partitioning file %s to %d rows.", original_relative_path, desired_count
+                "Re-partitioning file %s to %d rows.",
+                original_relative_path,
+                desired_count,
             )
             logging.debug("New file: %s", new_relative_path)
 
@@ -825,17 +835,16 @@ def modify_flat_array_metadata(
     """
     edge_data_meta: dict = metadata_dict.get("edge_data", {})
     node_data_meta: dict = metadata_dict.get("node_data", {})
+    graph_info: dict = metadata_dict["graph_info"]
 
     if edge_data_meta:
-        task_type = metadata_dict["graph_info"].get("task_type", "link_prediction")  # type: str
-        edge_types_with_labels = metadata_dict["graph_info"]["etype_label"]  # type: List[str]
+        task_type = graph_info.get("task_type", "link_prediction")  # type: str
+        edge_types_with_labels = graph_info["etype_label"]  # type: List[str]
         # If there exist edge types with labels
         if edge_types_with_labels:
             # And at least one edge label
-            if len(metadata_dict["graph_info"]["etype_label_property"]) > 0:
-                etype_label_property = metadata_dict["graph_info"]["etype_label_property"][
-                    0
-                ]  #  type: str
+            if len(graph_info["etype_label_property"]) > 0:
+                etype_label_property = graph_info["etype_label_property"][0]  #  type: str
                 if task_type not in {"link_predict", "link_prediction"}:
                     assert etype_label_property, (
                         "When task is not link prediction, providing an 'etype_label_property' "
@@ -843,7 +852,7 @@ def modify_flat_array_metadata(
                         "['etype_label_property']` was empty."
                     )
 
-        for type_idx, (type_name, type_data_dict) in enumerate(edge_data_meta.items()):
+        for type_idx, (type_name, etype_data_dict) in enumerate(edge_data_meta.items()):
             _, relation, _ = type_name.split(":")
 
             if relation.endswith("-rev"):
@@ -870,12 +879,12 @@ def modify_flat_array_metadata(
 
                 # If the task is not link_prediction, we need to modify the label file's metadata
                 if task_type not in {"link_predict", "link_prediction"}:
-                    assert etype_label_property in type_data_dict, (
+                    assert etype_label_property in etype_data_dict, (
                         "When task is not link prediction, providing an 'etype_label_property' "
                         f"is required. Got task {task_type}, but {etype_label_property=}"
-                        f"was not in {type_data_dict=}"
+                        f"was not in {etype_data_dict=}"
                     )
-                    label_files = type_data_dict[etype_label_property]["data"]  # type: List[str]
+                    label_files: list[str] = etype_data_dict[etype_label_property]["data"]
                     logging.info(
                         "Modifying Parquet metadata for %d files of label '%s' of edge type '%s'",
                         len(label_files),
@@ -883,24 +892,33 @@ def modify_flat_array_metadata(
                         type_name,
                     )
                     repartitioner.modify_metadata_for_flat_arrays(label_files)
-                for mask in ["train_mask", "test_mask", "val_mask"]:
-                    if mask in type_data_dict:
-                        edge_mask_files = type_data_dict[mask]["data"]  # type: List[str]
+
+                if "etype_to_label_masks" in graph_info:
+                    etype_label_masks: list[str] = graph_info["etype_to_label_masks"][type_name]
+                    etype_mask_names: set[str] = set(etype_label_masks)
+                else:
+                    # Ensure backwards compatibility with pre-v0.4 metadata
+                    etype_mask_names = {"train_mask", "val_mask", "test_mask"}
+
+                for (
+                    etype_data_entry_key,
+                    etype_data_entry_val,
+                ) in etype_data_dict.items():
+                    if etype_data_entry_key in etype_mask_names:
+                        edge_mask_files: list[str] = etype_data_entry_val["data"]
                         logging.info(
                             "Modifying Parquet metadata for %d files of '%s' for edge type '%s'",
                             len(edge_mask_files),
-                            mask,
+                            etype_data_entry_key,
                             type_name,
                         )
                         repartitioner.modify_metadata_for_flat_arrays(edge_mask_files)
 
     if node_data_meta:
-        node_types_with_labels = metadata_dict["graph_info"]["ntype_label"]  # type: List[str]
+        node_types_with_labels = graph_info["ntype_label"]  # type: List[str]
         if node_types_with_labels:
-            ntype_label_property = metadata_dict["graph_info"]["ntype_label_property"][
-                0
-            ]  #  type: str
-        for type_idx, (type_name, type_data_dict) in enumerate(node_data_meta.items()):
+            ntype_label_property = graph_info["ntype_label_property"][0]  #  type: str
+        for type_idx, (type_name, ntype_data_dict) in enumerate(node_data_meta.items()):
             logging.info(
                 "Modifying Parquet metadata for node type '%s', %d/%d:",
                 type_name,
@@ -908,7 +926,7 @@ def modify_flat_array_metadata(
                 len(node_data_meta),
             )
             if type_name in node_types_with_labels:
-                node_label_files = type_data_dict[ntype_label_property]["data"]  # type: List[str]
+                node_label_files = ntype_data_dict[ntype_label_property]["data"]  # type: List[str]
                 logging.info(
                     "Modifying Parquet metadata for %d files of label '%s' of node type '%s'",
                     len(node_label_files),
@@ -916,13 +934,23 @@ def modify_flat_array_metadata(
                     type_name,
                 )
                 repartitioner.modify_metadata_for_flat_arrays(node_label_files)
-                for mask in ["train_mask", "test_mask", "val_mask"]:
-                    if mask in type_data_dict:
-                        node_mask_files = type_data_dict[mask]["data"]  # type: List[str]
+                for (
+                    ntype_data_entry_key,
+                    ntype_data_entry_val,
+                ) in ntype_data_dict.items():
+                    if "ntype_to_label_masks" in graph_info:
+                        ntype_label_masks: list[str] = graph_info["ntype_to_label_masks"][type_name]
+                        ntype_mask_names: set[str] = set(ntype_label_masks)
+                    else:
+                        # Ensure backwards compatibility with pre-v0.4 metadata
+                        ntype_mask_names = {"train_mask", "val_mask", "test_mask"}
+
+                    if ntype_data_entry_key in ntype_mask_names:
+                        node_mask_files: list[str] = ntype_data_entry_val["data"]
                         logging.info(
                             "Modifying Parquet metadata for %d files of '%s' for node type '%s'",
                             len(node_mask_files),
-                            mask,
+                            ntype_data_entry_key,
                             type_name,
                         )
                         repartitioner.modify_metadata_for_flat_arrays(node_mask_files)
@@ -992,7 +1020,8 @@ def _repartition_edge_files(metadata_dict: dict[str, Any], repartitioner: Parque
                 )
                 edge_structure_meta[reverse_edge_type_name] = (
                     repartitioner.repartition_parquet_files(
-                        edge_structure_meta[reverse_edge_type_name], most_frequent_counts
+                        edge_structure_meta[reverse_edge_type_name],
+                        most_frequent_counts,
                     )
                 )
 
@@ -1183,7 +1212,9 @@ def main():
     t0 = time.time()
 
     logging.info(
-        "Reading metadata from %s/%s", input_prefix, repartition_config.input_metadata_file_name
+        "Reading metadata from %s/%s",
+        input_prefix,
+        repartition_config.input_metadata_file_name,
     )
 
     # Get the metadata file

@@ -15,11 +15,14 @@
 
     Loss functions.
 """
+import logging
+
 import torch as th
 from torch import nn
 import torch.nn.functional as F
 
 from .gs_layer import GSLayer
+from .utils import get_rank
 
 class ClassifyLossFunc(GSLayer):
     """ Loss function for classification.
@@ -294,17 +297,37 @@ class LinkPredictAdvBCELossFunc(LinkPredictBCELossFunc):
             "The adversarial_temperature must be a float, but we get " \
             f"{adversarial_temperature} with type {type(adversarial_temperature)}"
         self.adversarial_temperature = adversarial_temperature
+        self._debug_print = True
 
     def _compute_loss(self, score, label):
         """ Compute BCE loss
         """
-        return -(label * th.log(F.sigmoid(score)) +
+        loss = -(label * th.log(F.sigmoid(score)) +
             (1 - label) * th.log(1 - F.sigmoid(score)))
+
+        # For debugging abnormal loss values.
+        if self._debug_print and get_rank() == 0:
+            logging.debug("Cross entropy loss for link prediction \
+                          with input score as %s and loss as %s.",
+                          score.detach(), loss.detach())
+        return loss
 
     def _compute_adversarial_loss(self, score, label):
         loss = self._compute_loss(score, label)
-        loss = th.sum(th.softmax(score * self.adversarial_temperature,
-                                 dim=-1).detach() * loss, dim=-1)
+        loss = th.softmax(score * self.adversarial_temperature,
+                                 dim=-1).detach() * loss
+        # For debugging abnormal loss values.
+        if self._debug_print and get_rank() == 0:
+            logging.debug("Adversarial cross entropy loss for negative samples \
+                          with input score as %s and loss as %s. \
+                          For abnormal loss values, it is suggested to enable \
+                          lp embed normalizer by setting --lp-embed-normalizer l2_norm \
+                          and tune the hyperparameters gamma or adversarial_temperature.",
+                          score.detach(), loss.detach())
+            # turn off the debug warning
+            self._debug_print = False
+
+        loss = th.sum(loss, dim=-1)
         return loss
 
     def forward(self, pos_score, neg_score):
@@ -416,6 +439,7 @@ class LinkPredictContrastiveLossFunc(GSLayer):
     def __init__(self, temp=1.0):
         super(LinkPredictContrastiveLossFunc, self).__init__()
         self._temp = temp
+        self._debug_print = True
 
     def forward(self, pos_score, neg_score):
         """ The forward function.
@@ -447,8 +471,19 @@ class LinkPredictContrastiveLossFunc(GSLayer):
 
         exp_logits = th.exp(score)
         log_prob = pscore - th.log(exp_logits.sum(1))
+        loss = -log_prob.mean()
 
-        return -log_prob.mean()
+        # For debugging abnormal loss values.
+        if self._debug_print and get_rank() == 0:
+            logging.debug("Contrastive loss with pos score as %s \
+                          and neg score as %s and loss as %s.\
+                          For abnormal loss values, it is suggested \
+                          to tune the hyperparameter gamma or \
+                          contrastive_loss_temperature.",
+                          pscore.detach(), nscore.detach(), -log_prob.detach())
+            self._debug_print = False
+
+        return loss
 
     @property
     def in_dims(self):

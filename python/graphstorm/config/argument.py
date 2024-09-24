@@ -93,17 +93,17 @@ def get_argument_parser():
     .. code:: python
 
         from graphstorm.config import get_argument_parser, GSConfig
-        
+
         if __name__ == '__main__':
             # use GraphStorm argument parser to accept configuration yaml file and other arguments
             arg_parser = get_argument_parser()
-       
+
             # parse all arguments and split GraphStorm's built-in arguments from the customized ones
             gs_args, unknown_args = arg_parser.parse_known_args()
-       
+
             print(f'GS arguments: {gs_args}')
             print(f'Non GS arguments: {unknown_args}')
-            
+
             # use gs_args to create a GSConfig object
             config = GSConfig(gs_args)
 
@@ -2390,6 +2390,14 @@ class GSConfig:
         if hasattr(self, "_lp_edge_weight_for_loss"):
             assert self.task_type == BUILTIN_TASK_LINK_PREDICTION, \
                 "Edge weight for loss only works with link prediction"
+
+            if self.lp_loss_func in [ BUILTIN_LP_LOSS_CONTRASTIVELOSS]:
+                logging.warning("lp_edge_weight_for_loss does not work with "
+                                "%s loss in link prediction."
+                                "Disable edge weight for link prediction loss.",
+                                BUILTIN_LP_LOSS_CONTRASTIVELOSS)
+                return None
+
             edge_weights = self._lp_edge_weight_for_loss
             if len(edge_weights) == 1 and \
                 ":" not in edge_weights[0]:
