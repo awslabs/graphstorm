@@ -149,6 +149,48 @@ python3 -m graphstorm.run.gs_gen_node_embedding \
 fdir_exists d "$LP_OUTPUT/embeddings/movie"
 fdir_exists d "$LP_OUTPUT/embeddings/user"
 
+LP_OUTPUT="$OUTPUT_PATH/gb-lp-inbatch_joint"
+msg "**************GraphBolt Link Prediction training. dataset: Movielens, RGCN layer 1, inference: mini-batch, negative_sampler: inbatch_joint, exclude_training_targets: true"
+python3 -m graphstorm.run.gs_link_prediction \
+    --cf $GS_HOME/training_scripts/gsgnn_lp/ml_lp.yaml \
+    --eval-frequency 300 \
+    --exclude-training-targets True \
+    --ip-config "$OUTPUT_PATH/ip_list.txt" \
+    --num-epochs 1 \
+    --num-samplers 0 \
+    --num-servers 1 \
+    --num-trainers 1 \
+    --part-config "$LP_INPUT_1P/ml-lp.json" \
+    --reverse-edge-types-map user,rating,rating-rev,movie \
+    --save-model-path "$LP_OUTPUT/model" \
+    --ssh-port 2222 \
+    --train-negative-sampler inbatch_joint \
+    --use-graphbolt true
+
+# Ensure model file was saved
+fdir_exists f "$LP_OUTPUT/model/epoch-0/model.bin"
+
+LP_OUTPUT="$OUTPUT_PATH/gb-lp-all_etype_uniform"
+msg "**************GraphBolt Link Prediction training. dataset: Movielens, RGCN layer 1, inference: mini-batch, negative_sampler: all_etype_uniform, exclude_training_targets: true"
+python3 -m graphstorm.run.gs_link_prediction \
+    --cf $GS_HOME/training_scripts/gsgnn_lp/ml_lp.yaml \
+    --eval-frequency 300 \
+    --exclude-training-targets True \
+    --ip-config "$OUTPUT_PATH/ip_list.txt" \
+    --num-epochs 1 \
+    --num-samplers 0 \
+    --num-servers 1 \
+    --num-trainers 1 \
+    --part-config "$LP_INPUT_1P/ml-lp.json" \
+    --reverse-edge-types-map user,rating,rating-rev,movie \
+    --save-model-path "$LP_OUTPUT/model" \
+    --ssh-port 2222 \
+    --train-negative-sampler all_etype_uniform \
+    --use-graphbolt true
+
+# Ensure model file was saved
+fdir_exists f "$LP_OUTPUT/model/epoch-0/model.bin"
+
 
 # Generate 1P NC data
 NC_INPUT_1P="${OUTPUT_PATH}/graphbolt-gconstruct-nc-1p"
@@ -163,7 +205,7 @@ python3 -m graphstorm.gconstruct.construct_graph \
     --use-graphbolt "true"
 
 
-msg "**************GraphBolt Node Classification. dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, negative_sampler: joint, exclude_training_targets: false"
+msg "************** GraphBolt Node Classification training. dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch"
 NC_OUTPUT="$OUTPUT_PATH/gb-nc"
 python3 -m graphstorm.run.gs_node_classification \
     --cf $GS_HOME/training_scripts/gsgnn_np/ml_nc.yaml \
@@ -181,7 +223,7 @@ python3 -m graphstorm.run.gs_node_classification \
 # Ensure model files were saved
 fdir_exists f "$NC_OUTPUT/model/epoch-0/model.bin"
 
-msg "**************GraphBolt Node Classification inference."
+msg "************** GraphBolt Node Classification inference. **************"
 python3 -m graphstorm.run.gs_node_classification \
     --cf $GS_HOME/training_scripts/gsgnn_np/ml_nc.yaml \
     --eval-frequency 300 \
