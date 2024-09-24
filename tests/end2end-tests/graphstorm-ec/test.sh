@@ -28,7 +28,7 @@ echo "Test GraphStorm edge classification"
 date
 
 echo "**************standalone"
-python3 $GS_HOME/python/graphstorm/run/gsgnn_ep/gsgnn_ep.py --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --cf $GS_HOME/training_scripts/gsgnn_ep/ml_ec.yaml
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --cf ml_ec.yaml
 
 error_and_exit $?
 
@@ -139,6 +139,11 @@ then
 fi
 
 rm /tmp/exec.log
+
+echo "**************dataset: Test edge classification, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, focal loss"
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ec_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --num-epochs 1 --class-loss-func focal --num-classes 1
+
+error_and_exit $?
 
 date
 

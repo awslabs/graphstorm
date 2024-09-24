@@ -248,6 +248,7 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
     data = loader.data
     g = data.g
     preds = {}
+    target_ntypes = set(loader.target_nidx.keys())
 
     if return_label:
         assert loader.label_field is not None, \
@@ -316,8 +317,11 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                               iter_l, max_num_batch, time.time() - iter_start)
 
     model.train()
-    for ntype, ntype_pred in preds.items():
-        preds[ntype] = th.cat(ntype_pred)
+    # MFG for DGL 2.0.0+ return all node and edge type
+    preds = {
+        ntype: th.cat(preds[ntype])
+        for ntype in preds if ntype in target_ntypes
+    }
     for ntype, ntype_emb in embs.items():
         embs[ntype] = th.cat(ntype_emb)
     if return_label:

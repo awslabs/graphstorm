@@ -103,7 +103,7 @@ Now we can ssh into the **leader node** of the EC2 cluster, and start GSPartitio
 
 .. code:: bash
 
-    python3 -m graphstorm.gpartition.dist_partition_graph
+    python3 -m graphstorm.gpartition.dist_partition_graph \
         --input-path ${LOCAL_INPUT_DATAPATH} \
         --metadata-filename ${METADATA_FILE} \
         --output-path ${LOCAL_OUTPUT_DATAPATH} \
@@ -116,4 +116,19 @@ Now we can ssh into the **leader node** of the EC2 cluster, and start GSPartitio
     2. The number of instances in the cluster should be equal to ``NUM_PARTITIONS``.
     3. For users who only want to generate partition assignments instead of the partitioned DGL graph, please add ``--partition-assignment-only`` flag.
 
-Currently we support both ``random`` and ``parmetis`` as the partitioning algorithm for EC2 clusters.
+The arguments that ``graphstorm.gpartition.dist_partition_graph`` accepts are the following:
+
+* ``--input-path str``: Path to input DGL chunked data directory. (required). The format for the data
+  is available at : https://docs.dgl.ai/guide/distributed-preprocessing.html#chunked-graph-format
+* ``--output-path str``: Path to store the partitioned data. (required)
+* ``--num-parts int``: Number of partitions to generate. (required)
+* ``--metadata-filename str``: Name for the chunked DGL data metadata file. (default: ``metadata.json``)
+* ``--ssh-port int``: SSH Port. (default: 22)
+* ``--dgl-tool-path str``: The path to `dgl/tools` code. (default: ``/root/dgl/tools``)
+* ``--partition-algorithm str``: Partition algorithm to use. (choices: ``random``, ``parmetis``, default: ``random``)
+* ``--ip-config str``: A file storing a list of IPs, one line for each instance of the partition cluster.
+* ``--partition-assignment-only``: Only generate partition assignments for nodes, the process will not build the partitioned DGL graph.
+* ``--logging-level str``: The logging level. The possible values: debug, info, warning, error. The default value is info. (default: info)
+* ``--use-graphbolt "true"/"false"``: ``New in v0.4``. Whether to convert the partitioned data to the GraphBolt format after creating the DistDGL graph.
+  Requires installed DGL version to be at least ``2.1.0``. See :ref:`using-graphbolt-ref` for an example.
+  (default: ``"false"``)

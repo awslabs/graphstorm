@@ -82,7 +82,7 @@ def main(config_args):
     config.verify_arguments(True)
 
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
-                  local_rank=config.local_rank)
+                  local_rank=config.local_rank, use_graphbolt=config.use_graphbolt)
     rt_profiler.init(config.profile_path, rank=gs.get_rank())
     sys_tracker.init(config.verbose, rank=gs.get_rank())
     # The model only uses language model(s) as its encoder

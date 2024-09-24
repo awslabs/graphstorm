@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from dataclasses import dataclass
-from typing import Dict, List
+from math import fsum
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import FloatType
@@ -37,18 +37,29 @@ class SplitRates:
     val_rate: float
     test_rate: float
 
-    def tolist(self) -> List[float]:
+    def tolist(self) -> list[float]:
         """
         Return the split rates as a list of floats: [train_rate, val_rate, test_rate]
         """
         return [self.train_rate, self.val_rate, self.test_rate]
+
+    def todict(self) -> dict[str, float]:
+        """
+        Return the split rates as a dict of str to float:
+        {
+            "train": train_rate,
+            "val": val_rate,
+            "test": test_rate,
+        }
+        """
+        return {"train": self.train_rate, "val": self.val_rate, "test": self.test_rate}
 
     def __post_init__(self) -> None:
         """
         Validate the split rates.
         """
         # TODO: add support for sums <= 1.0, useful for large-scale link prediction
-        if self.train_rate + self.val_rate + self.test_rate != 1.0:
+        if fsum([self.train_rate, self.val_rate, self.test_rate]) != 1.0:
             raise ValueError(
                 "Sum of split rates must be 1.0, got "
                 f"{self.train_rate=}, {self.val_rate=}, {self.test_rate=}"
@@ -93,7 +104,7 @@ class DistLabelLoader:
         self.label_config = label_config
         self.label_column = label_config.label_column
         self.spark = spark
-        self.label_map = {}  # type: Dict[str, int]
+        self.label_map: dict[str, int] = {}
 
     def process_label(self, input_df: DataFrame) -> DataFrame:
         """Transforms the label column in the input DataFrame to conform to GraphStorm expectations.

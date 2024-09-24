@@ -32,6 +32,7 @@ requirements = [
     'pandas',
     'scikit-learn',
     'ogb==1.3.6',
+    'packaging',
     'psutil'
 ]
 
@@ -42,7 +43,7 @@ setup(
     # Metadata
     name='graphstorm',
     version=VERSION,
-    python_requires='>=3.7',
+    python_requires='>=3.8',
     description='GraphStorm',
     long_description_content_type='text/markdown',
     license='Apache-2.0',

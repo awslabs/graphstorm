@@ -37,7 +37,7 @@ GraphStorm provides three ways to compute link prediction scores: Dot Product, D
 * **Dot Product**: The Dot Product score function is as:
 
     .. math::
-            score = sum(head\_emb * tail\_emb)
+        score = \mathrm{sum}(head\_emb * tail\_emb)
 
     where the ``head_emb`` is the node embedding of the head node and
     the ``tail_emb`` is the node embedding of the tail node.
@@ -45,7 +45,7 @@ GraphStorm provides three ways to compute link prediction scores: Dot Product, D
 * **DistMult**: The DistMult score function is as:
 
     .. math::
-        score = sum(head\_emb * relation\_emb * tail\_emb)
+        score = \mathrm{sum}(head\_emb * relation\_emb * tail\_emb)
 
     where the ``head_emb`` is the node embedding of the head node,
     the ``tail_emb`` is the node embedding of the tail node and
@@ -70,44 +70,86 @@ GraphStorm provides three ways to compute link prediction scores: Dot Product, D
     :ref:`Model Configurations<configurations-model>`.
     To learn more information about RotatE, please refer to `the DGLKE doc <https://dglke.dgl.ai/doc/kg.html#rotatee>`__.
 
+.. _link_prediction_loss:
+
 Link Prediction Loss Functions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-GraphStorm provides three options to compute training losses:
+GraphStorm provides four options to compute training losses:
 
 * **Cross Entropy Loss**: The cross entropy loss turns a link prediction task into a binary classification task. We treat positive edges as 1 and negative edges as 0. The loss of an edge ``e`` is as:
 
     .. math::
-        \begin{eqnarray}
-            loss = - y \cdot \log score + (1 - y) \cdot \log (1 - score)
-        \end{eqnarray}
+
+        loss = - y \cdot \log score + (1 - y) \cdot \log (1 - score)
 
     where ``y`` is 1 when ``e`` is a positive edge and 0 when it is a negative edge. ``score`` is the score value of ``e`` computed by the score function.
 
 * **Weighted Cross Entropy Loss**: The weighted cross entropy loss is similar to **Cross Entropy Loss** except that it allows users to set a weight for each positive edge. The loss function of an edge ``e`` is as:
 
     .. math::
-        \begin{eqnarray}
-            loss = - w\_e \left[ y \cdot \log score + (1 - y) \cdot \log (1 - score) \right]
-        \end{eqnarray}
+
+        loss = - w\_e \left[ y \cdot \log score + (1 - y) \cdot \log (1 - score) \right]
 
     where ``y`` is 1 when ``e`` is a positive edge and 0 when it is a negative edge. ``score`` is the score value of ``e`` computed by the score function, ``w_e`` is the weight of ``e`` and is defined as
 
     .. math::
-        \begin{eqnarray}
+
         w\_e = \left \{
         \begin{array}{lc}
             1,  & \text{ if } e \in G, \\
             0,  & \text{ if } e \notin G
         \end{array}
         \right.
-        \end{eqnarray}
 
     where ``G`` is the training graph.
+
+
+* **Adversarial Cross Entropy Loss**: The adversarial cross entropy loss turns a link prediction task into a binary classification task. We treat positive edges as 1 and negative edges as 0. In addition, adversarial cross-entropy loss adjusts the loss value of each negative sample based on its degree of difficulty. This is enabled by setting the ``adversarial_temperature`` config.
+
+    The loss of positive edges is as:
+
+    .. math::
+
+        loss_{pos} = - \log score
+
+    where ``score`` is the score value of the positive edges computed by the score function.
+
+    The loss of negative edges is as:
+
+    .. math::
+
+        \begin{gather*}
+        loss_{neg} = \log (1 - score) \\
+        loss_{neg} = \mathrm{softmax}(score * adversarial\_temperature) * loss_{neg}
+        \end{gather*}
+
+    where ``score`` is the score value of the negative edges computed by the score function and ``adversarial_temperature`` is a hyper-parameter.
+
+    The final loss is as:
+
+    .. math::
+
+        loss = \dfrac{\mathrm{avg}(loss_{pos}) + \mathrm{avg}(loss_{neg})}{2}
+
+* **Weighted Adversarial Cross Entropy Loss**  The weighted cross entropy loss is similar to **Adversarial Cross Entropy Loss** except that it allows users to set a weight for each positive edge. The loss function of a positive edge ``e`` is as:
+
+    .. math::
+
+        loss_{pos} = - w * \log score
+
+    where ``score`` is the score value of the positive edges computed by the score function, ``w`` is the weight of each positive edge. The loss of the negative edges is the same as **Adversarial Cross Entropy Loss**.
+
+    The final loss is as:
+
+    .. math::
+
+        loss = \dfrac{\mathrm{avg}(loss_{pos}) + \mathrm{avg}(loss_{neg})}{2}
 
 * **Contrastive Loss**: The contrastive loss compels the representations of connected nodes to be similar while forcing the representations of disconnected nodes remains dissimilar. In the implementation, we use the score computed by the score function to represent the distance between nodes. When computing the loss, we group one positive edge with the ``N`` negative edges corresponding to it.The loss function is as follows:
 
     .. math::
-        loss = -log(\dfrac{exp(pos\_score)}{\sum_{i=0}^N exp(score\_i)})
+
+        loss = -\log \left(\dfrac{\exp(pos\_score)}{\sum_{i=0}^N \exp(score\_i)} \right)
 
     where ``pos_score`` is the score of the positive edge. ``score_i`` is the score of the i-th edge. In total, there are ``N+1`` edges, within which there is 1 positive edge and ``N`` negative edges.
 

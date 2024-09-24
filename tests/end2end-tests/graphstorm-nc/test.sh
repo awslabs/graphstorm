@@ -28,13 +28,6 @@ echo "Test GraphStorm node classification"
 date
 
 echo "**************standalone"
-python3 $GS_HOME/python/graphstorm/run/gsgnn_np/gsgnn_np.py --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --cf $GS_HOME/training_scripts/gsgnn_np/ml_nc.yaml --save-model-path ./models/movielen_100k/train_val/standalone
-
-error_and_exit $?
-
-rm -R ./models/movielen_100k/train_val/standalone
-
-echo "**************standalone"
 python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --cf ml_nc.yaml
 
 error_and_exit $?
@@ -294,6 +287,11 @@ echo "**************dataset: multi target ntypes multiclass MovieLens, RGCN laye
 # generate a dataset with user and movie have multilabel
 python3 $GS_HOME/tests/end2end-tests/data_gen/gen_multilabel.py --path /data/movielen_100k_multi_target_ntypes_train_val_1p_4t --node_class 1 --field label
 python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_target_ntypes_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_multi_target_ntypes_multilabel.yaml --num-epochs 3
+
+error_and_exit $?
+
+echo "**************dataset: MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, focal loss"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --decoder-norm layer --class-loss-func focal --num-classes 1
 
 error_and_exit $?
 
