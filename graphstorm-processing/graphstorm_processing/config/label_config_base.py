@@ -28,7 +28,6 @@ class LabelConfig(abc.ABC):
             self._label_column = config_dict["column"]
         else:
             self._label_column = ""
-            assert config_dict["type"] == "link_prediction"
         self._task_type: str = config_dict["type"]
         self._separator: Optional[str] = (
             config_dict["separator"] if "separator" in config_dict else None
@@ -37,9 +36,17 @@ class LabelConfig(abc.ABC):
         self._custom_split_filenames: Dict[str, list[str]] = {}
         self._split: Dict[str, float] = {}
         if "custom_split_filenames" not in config_dict:
-            self._split = config_dict["split_rate"]
+            # Get the custom split rate, or use the default 80/10/10 split
+            self._split = config_dict.get(
+                "split_rate",
+                {"train": 0.8, "val": 0.1, "test": 0.1},
+            )
         else:
             self._custom_split_filenames = config_dict["custom_split_filenames"]
+        if "mask_field_names" in config_dict:
+            self._mask_field_names: Optional[list[str]] = config_dict["mask_field_names"]
+        else:
+            self._mask_field_names = None
 
     def _sanity_check(self):
         if self._label_column == "":
@@ -58,6 +65,10 @@ class LabelConfig(abc.ABC):
             assert "test" in self._custom_split_filenames
             assert "column" in self._custom_split_filenames
             assert isinstance(self._separator, str) if self._multilabel else self._separator is None
+        if self._mask_field_names:
+            assert isinstance(self._mask_field_names, list)
+            assert all(isinstance(x, str) for x in self._mask_field_names)
+            assert len(self._mask_field_names) == 3
 
     @property
     def label_column(self) -> str:
@@ -90,6 +101,11 @@ class LabelConfig(abc.ABC):
     def custom_split_filenames(self) -> Dict[str, Any]:
         """The config for custom split labels."""
         return self._custom_split_filenames
+
+    @property
+    def mask_field_names(self) -> Optional[tuple[str, str, str]]:
+        """Custom names to assign to masks for multi-task learning."""
+        return tuple(self._mask_field_names) if self._mask_field_names else None
 
 
 class EdgeLabelConfig(LabelConfig):

@@ -100,17 +100,26 @@ def create_parquet_files_fixture():
         [10, 12, 10, 8, 10],
         [10, 10, 10, 10, 10],
         [10, 10, 10, 10, 10],
+        [10, 10, 10, 10, 10],
+        [10, 10, 10, 10, 10],
+        [10, 10, 10, 10, 10],
     ]
 
+    # The same data files are generated for both the edge files and node files
     col_names = [
         "label",
         "feature_one",
         "feature_two",
+        "class_train_mask",
+        "class_val_mask",
+        "class_test_mask",
     ]
 
     # Read the metadata to ensure our generated files will match the expected counts
     with open(
-        os.path.join(TEMP_DATA_PREFIX, "partitioned_metadata.json"), "r", encoding="utf-8"
+        os.path.join(TEMP_DATA_PREFIX, "partitioned_metadata.json"),
+        "r",
+        encoding="utf-8",
     ) as metafile:
         metadata_dict = json.load(metafile)
     # Check metadata file content against the row counts defined in this function
@@ -125,7 +134,7 @@ def create_parquet_files_fixture():
         edge_data_counts = metadata_dict["node_data"]["src"][col_name]["row_counts"]
         assert edge_data_counts == generated_rows
 
-    # Generate data and write edge data files to disk
+    # Generate data and write node and edge data files to disk
     for row_distribution, col_name in zip(per_file_rows, col_names):
         total_rows = 0
         edge_feat_path = os.path.join(
@@ -161,7 +170,8 @@ def create_parquet_files_fixture():
     for i, edge_rows in enumerate(edges_rows):
         filename = f"part-{str(i).zfill(5)}.parquet"
         pq.write_table(
-            edges_table[total_edges : total_edges + edge_rows], os.path.join(edges_path, filename)
+            edges_table[total_edges : total_edges + edge_rows],
+            os.path.join(edges_path, filename),
         )
         total_edges += edge_rows
 
@@ -256,7 +266,8 @@ def test_verify_metadata_only_edge_data():
 
     # Ensure success when counts match
     repartition_files.verify_metadata(
-        original_metadata_dict["edges"], edge_data_meta=original_metadata_dict["edge_data"]
+        original_metadata_dict["edges"],
+        edge_data_meta=original_metadata_dict["edge_data"],
     )
 
 
@@ -283,7 +294,8 @@ def test_verify_metadata_with_node_data():
     # Ensure failure with wrong counts
     with pytest.raises(RuntimeError):
         repartition_files.verify_metadata(
-            original_metadata_dict["edges"], node_data_meta=original_metadata_dict["node_data"]
+            original_metadata_dict["edges"],
+            node_data_meta=original_metadata_dict["node_data"],
         )
 
     original_metadata_dict["node_data"] = {
@@ -299,7 +311,8 @@ def test_verify_metadata_with_node_data():
 
     # Ensure success when counts match
     repartition_files.verify_metadata(
-        original_metadata_dict["edges"], node_data_meta=original_metadata_dict["node_data"]
+        original_metadata_dict["edges"],
+        node_data_meta=original_metadata_dict["node_data"],
     )
 
     # Ensure failure with right node counts but wrong edge data counts
@@ -388,6 +401,8 @@ def test_repartition_files_integration(monkeypatch, task_type):
 
         # The most popular counts are all 10 rows
         expected_counts = [10, 10, 10, 10, 10]
+        # The mask column name are given by the metadata
+        mask_names = ["class_train_mask", "class_val_mask", "class_test_mask"]
 
         reported_edge_counts = new_metadata_dict["edges"]["src:dummy_type:dst"]["row_counts"]
 
@@ -436,7 +451,7 @@ def test_repartition_files_integration(monkeypatch, task_type):
                 assert (
                     expected_count == file_rows
                 ), f"Count mismatch for {feature_name}, {absolute_feature_filepath}"
-                if feature_name == "label":
+                if feature_name == "label" or feature_name in mask_names:
                     arrow_meta = filemeta.schema.to_arrow_schema().metadata
                     bshape = arrow_meta.get(b"shape", None)
                     shape = tuple(literal_eval(bshape.decode()))

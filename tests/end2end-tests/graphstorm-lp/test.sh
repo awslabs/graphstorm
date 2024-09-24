@@ -28,7 +28,7 @@ echo "Test GraphStorm link prediction"
 date
 
 echo "**************standalone"
-python3 $GS_HOME/python/graphstorm/run/gsgnn_lp/gsgnn_lp.py --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --cf $GS_HOME/training_scripts/gsgnn_lp/ml_lp.yaml
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --cf ml_lp.yaml
 
 error_and_exit $?
 
@@ -156,9 +156,18 @@ python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scrip
 
 error_and_exit $?
 
-
 echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, decoder: RotatE, exclude_training_targets: false, contrastive loss"
-python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --lp-decoder-type rotate --train-etype user,rating,movie movie,rating-rev,user --num-epochs 1 --eval-frequency 300 --contrastive-loss-temperature 0.01 --lp-loss-func contrastive
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --lp-decoder-type rotate --train-etype user,rating,movie movie,rating-rev,user --num-epochs 1 --eval-frequency 300 --contrastive-loss-temperature 0.1 --lp-loss-func contrastive
+
+error_and_exit $?
+
+echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, decoder: TransE_l2, exclude_training_targets: false, contrastive loss"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --lp-decoder-type transe_l2 --train-etype user,rating,movie movie,rating-rev,user --num-epochs 1 --eval-frequency 300 --contrastive-loss-temperature 1 --lp-loss-func contrastive
+
+error_and_exit $?
+
+echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, decoder: TransE_l1, exclude_training_targets: false, contrastive loss"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --lp-decoder-type transe_l1 --train-etype user,rating,movie movie,rating-rev,user --num-epochs 1 --eval-frequency 300 --contrastive-loss-temperature 1 --lp-loss-func contrastive
 
 error_and_exit $?
 
@@ -167,8 +176,18 @@ python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scrip
 
 error_and_exit $?
 
-echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, decoder: RotatE, exclude_training_targets: false, adversarial cross entropy loss"
-python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --lp-decoder-type rotate --train-etype user,rating,movie movie,rating-rev,user --num-epochs 1 --eval-frequency 300 --lp-loss-func cross_entropy --adversarial-temperature 0.1
+echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, decoder: RotatE, exclude_training_targets: false, lp-embed-normalizer: l2_norm, adversarial cross entropy loss"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --lp-decoder-type rotate --train-etype user,rating,movie movie,rating-rev,user --num-epochs 1 --eval-frequency 300 --lp-loss-func cross_entropy --adversarial-temperature 0.1 --lp-embed-normalizer l2_norm
+
+error_and_exit $?
+
+echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, decoder: TransE_L2, exclude_training_targets: false, adversarial cross entropy loss"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --lp-decoder-type transe_l2 --train-etype user,rating,movie movie,rating-rev,user --num-epochs 1 --eval-frequency 300 --lp-loss-func cross_entropy --adversarial-temperature 0.1
+
+error_and_exit $?
+
+echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, decoder: TransE_L1, exclude_training_targets: false, lp-embed-normalizer: l2_norm, adversarial cross entropy loss"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --lp-decoder-type transe_l1 --train-etype user,rating,movie movie,rating-rev,user --num-epochs 1 --eval-frequency 300 --lp-loss-func cross_entropy --adversarial-temperature 0.1 --lp-embed-normalizer l2_norm
 
 error_and_exit $?
 

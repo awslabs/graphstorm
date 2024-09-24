@@ -108,7 +108,8 @@ if __name__ == '__main__':
                            help="The name of the label.")
     argparser.add_argument("--num-classes", type=int, required=True,
                            help="The number of classes.")
-    argparser.add_argument("--local_rank", type=int,
+    # compatible for all torch versions
+    argparser.add_argument("--local-rank", "--local_rank", type=int,
                            help="The rank of the trainer.")
     argparser.add_argument("--verbose",
                            type=lambda x: (str(x).lower() in ['true', '1']),

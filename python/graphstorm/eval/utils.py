@@ -247,6 +247,8 @@ def calc_rotate_pos_score(h_emb, t_emb, r_emb, rel_emb_init, gamma, device=None)
             The initial value used to bound the relation embedding initialization.
         gamma: float
             The gamma value used for shifting the optimization target.
+        device: th.device
+            Device to run the computation.
 
         Return
         ------
@@ -297,6 +299,8 @@ def calc_rotate_neg_head_score(heads, tails, r_emb, num_chunks,
             The initial value used to bound the relation embedding initialization.
         gamma: float
             The gamma value used for shifting the optimization target.
+        device: th.device
+            Device to run the computation.
 
         Return
         ------
@@ -349,6 +353,8 @@ def calc_rotate_neg_tail_score(heads, tails, r_emb, num_chunks,
             The initial value used to bound the relation embedding initialization.
         gamma: float
             The gamma value used for shifting the optimization target.
+        device: th.device
+            Device to run the computation.
 
         Return
         ------
@@ -377,6 +383,163 @@ def calc_rotate_neg_tail_score(heads, tails, r_emb, num_chunks,
 
     rotate_score = gamma - score.sum(-1)
     return rotate_score
+
+def calc_transe_pos_score(h_emb, t_emb, r_emb, gamma, norm='l2', device=None):
+    r""" Calculate TransE Score for positive pairs
+
+        Score function of TransE measures the angular distance between
+        head and tail elements. The angular distance is defined as:
+
+        .. math::
+
+            d_r(h, t)= -\|h+r-t\|
+
+        The TransE score function is defined as:
+
+        .. math::
+
+            gamma - \|h+r-t\|^{frac{1}{2}} \text{or} gamma - \|h+r-t\|
+
+        where gamma is a margin.
+
+        For more details, please refer to
+        https://papers.nips.cc/paper_files/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html
+        or https://dglke.dgl.ai/doc/kg.html#transe.
+
+        Parameters
+        ----------
+        h_emb: th.Tensor
+            Head node embedding.
+        t_emb: th.Tensor
+            Tail node embedding.
+        r_emb: th.Tensor
+            Relation type embedding.
+        gamma: float
+            The gamma value used for shifting the optimization target.
+        norm: str
+            L1 or L2 norm on the angular distance.
+        device: th.device
+            Device to run the computation.
+
+        Return
+        ------
+        transe_score: th.Tensor
+            The TransE score.
+    """
+    if device is not None:
+        r_emb = r_emb.to(device)
+        h_emb = h_emb.to(device)
+        t_emb = t_emb.to(device)
+
+    score = (h_emb + r_emb) - t_emb
+
+    if norm == 'l1':
+        transe_score = gamma - th.norm(score, p=1, dim=-1)
+    elif norm == 'l2':
+        transe_score = gamma - th.norm(score, p=2, dim=-1)
+    else:
+        raise ValueError("Unknown norm on the angular distance. Only support L1 and L2.")
+    return transe_score
+
+def calc_transe_neg_head_score(h_emb, t_emb, r_emb, num_chunks,
+                               chunk_size, neg_sample_size,
+                               gamma, norm='l2',
+                               device=None):
+    """ Calculate TransE Score for negative pairs when head nodes are negative.
+
+        Parameters
+        ----------
+        h_emb: th.Tensor
+            Head node embedding.
+        t_emb: th.Tensor
+            Tail node embedding.
+        r_emb: th.Tensor
+            Relation type embedding.
+        num_chunks: int
+            Number of shared negative chunks.
+        chunk_size: int
+            Chunk size.
+        neg_sample_size: int
+            Number of negative samples for each positive node.
+        gamma: float
+            The gamma value used for shifting the optimization target.
+        norm: str
+            L1 or L2 norm on the angular distance.
+        device: th.device
+            Device to run the computation.
+
+        Return
+        ------
+        transe_score: th.Tensor
+            The TransE score.
+    """
+    if device is not None:
+        r_emb = r_emb.to(device)
+        h_emb = h_emb.to(device)
+        t_emb = t_emb.to(device)
+
+    hidden_dim = h_emb.shape[1]
+    h_emb = h_emb.reshape(num_chunks, neg_sample_size, hidden_dim)
+    t_emb = t_emb - r_emb
+    t_emb = t_emb.reshape(num_chunks, chunk_size, hidden_dim)
+
+    if norm == 'l1':
+        transe_score = gamma - th.cdist(t_emb, h_emb, p=1)
+    elif norm == 'l2':
+        transe_score = gamma - th.cdist(t_emb, h_emb, p=2)
+    else:
+        raise ValueError("Unknown norm on the angular distance. Only support L1 and L2.")
+    return transe_score
+
+def calc_transe_neg_tail_score(h_emb, t_emb, r_emb, num_chunks,
+                               chunk_size, neg_sample_size,
+                               gamma, norm='l2',
+                               device=None):
+    """ Calculate TransE Score for negative pairs when tail nodes are negative.
+
+        Parameters
+        ----------
+        h_emb: th.Tensor
+            Head node embedding.
+        t_emb: th.Tensor
+            Tail node embedding.
+        r_emb: th.Tensor
+            Relation type embedding.
+        num_chunks: int
+            Number of shared negative chunks.
+        chunk_size: int
+            Chunk size.
+        neg_sample_size: int
+            Number of negative samples for each positive node.
+        gamma: float
+            The gamma value used for shifting the optimization target.
+        norm: str
+            L1 or L2 norm on the angular distance.
+        device: th.device
+            Device to run the computation.
+
+        Return
+        ------
+        transe_score: th.Tensor
+            The TransE score.
+    """
+    if device is not None:
+        r_emb = r_emb.to(device)
+        h_emb = h_emb.to(device)
+        t_emb = t_emb.to(device)
+
+    hidden_dim = h_emb.shape[1]
+    h_emb = h_emb + r_emb
+    h_emb = h_emb.reshape(num_chunks, chunk_size, hidden_dim)
+    t_emb = t_emb.reshape(num_chunks, neg_sample_size, hidden_dim)
+
+    if norm == 'l1':
+        transe_score = gamma - th.cdist(h_emb, t_emb, p=1)
+    elif norm == 'l2':
+        transe_score = gamma - th.cdist(h_emb, t_emb, p=2)
+    else:
+        raise ValueError("Unknown norm on the angular distance. Only support L1 and L2.")
+    return transe_score
 
 def calc_ranking(pos_score, neg_score):
     """ Calculate ranking of positive scores among negative scores

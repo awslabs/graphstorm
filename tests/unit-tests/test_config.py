@@ -40,8 +40,11 @@ from graphstorm.config.config import GRAPHSTORM_LP_EMB_L2_NORMALIZATION
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.config.config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
-from graphstorm.config import BUILTIN_LP_DOT_DECODER
-from graphstorm.config import BUILTIN_LP_DISTMULT_DECODER
+from graphstorm.config import (BUILTIN_LP_DOT_DECODER,
+                               BUILTIN_LP_DISTMULT_DECODER,
+                               BUILTIN_LP_ROTATE_DECODER,
+                               BUILTIN_LP_TRANSE_L1_DECODER,
+                               BUILTIN_LP_TRANSE_L2_DECODER)
 from graphstorm.config.config import LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
 
 def check_failure(config, field):
@@ -380,7 +383,9 @@ def test_train_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test_fail1.yaml'), local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "topk_model_to_save")
+        # in PR # 893 we loose the constraints of model saving frequency and eval frequency
+        # so here we do not check failure, but check the topk model argument
+        assert config.topk_model_to_save == 3
 
 def create_rgcn_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
@@ -986,8 +991,7 @@ def create_lp_config(tmp_path, file_name):
         "eval_metric": ["mrr"],
         "gamma": 1.0,
         "alpha": 2.0,
-        "lp_loss_func": BUILTIN_LP_LOSS_CONTRASTIVELOSS,
-        "lp_edge_weight_for_loss": ["query,exactmatch,asin:weight0", "query,click,asin:weight1"]
+        "lp_loss_func": BUILTIN_LP_LOSS_CONTRASTIVELOSS
     }
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1000,7 +1004,7 @@ def create_lp_config(tmp_path, file_name):
         "exclude_training_targets": "error",
         "reverse_edge_types_map": "query,exactmatch,rev-exactmatch,asin",
         "lp_loss_func": "unknown",
-        "lp_decoder_type": "transe",
+        "lp_decoder_type": "transr",
         "lp_edge_weight_for_loss": ["query,click,asin:weight1"],
         "model_select_etype": "fail"
     }
@@ -1046,6 +1050,30 @@ def create_lp_config(tmp_path, file_name):
         "adversarial_temperature": 0.1,
     }
     with open(os.path.join(tmp_path, file_name+"_adv_temp_fail.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["link_prediction"] = {
+        "lp_decoder_type": "rotate",
+    }
+    with open(os.path.join(tmp_path, file_name+"_rotate.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["link_prediction"] = {
+        "lp_decoder_type": "transe_l1",
+    }
+    with open(os.path.join(tmp_path, file_name + "_transe_l1.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["link_prediction"] = {
+        "lp_decoder_type": "transe_l2",
+    }
+    with open(os.path.join(tmp_path, file_name + "_transe_l2.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["link_prediction"] = {
+        "lp_decoder_type": "transe_l3",
+    }
+    with open(os.path.join(tmp_path, file_name + "_fail_transe.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
 def test_lp_info():
@@ -1111,8 +1139,7 @@ def test_lp_info():
         assert config.eval_metric[0] == "mrr"
         assert config.gamma == 1.0
         assert config.alpha == 2.0
-        assert config.lp_edge_weight_for_loss[ ("query", "exactmatch", "asin")] == ["weight0"]
-        assert config.lp_edge_weight_for_loss[ ("query", "click", "asin")] == ["weight1"]
+        assert config.lp_edge_weight_for_loss is None
         assert config.model_select_etype == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail1.yaml'), local_rank=0)
@@ -1153,6 +1180,30 @@ def test_lp_info():
         config = GSConfig(args)
         assert config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS
         check_failure(config, "adversarial_temperature")
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_rotate.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        assert config.lp_decoder_type == BUILTIN_LP_ROTATE_DECODER
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_transe_l1.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        assert config.lp_decoder_type == BUILTIN_LP_TRANSE_L1_DECODER
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_transe_l2.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        assert config.lp_decoder_type == BUILTIN_LP_TRANSE_L2_DECODER
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail_transe.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        check_failure(config, "lp_decoder_type")
 
 def create_gnn_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
