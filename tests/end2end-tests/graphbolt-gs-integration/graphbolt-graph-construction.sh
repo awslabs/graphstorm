@@ -65,7 +65,8 @@ cp -R "$INPUT_PATH" "$OUTPUT_PATH"
 
 # Ensure ip_list.txt exists and self-ssh works
 echo "127.0.0.1" > ip_list.txt
-ssh -o PreferredAuthentications=publickey -p 2222 127.0.0.1 /bin/true || service ssh restart
+ssh -o PreferredAuthentications=publickey StrictHostKeyChecking=no \
+    -p 2222 127.0.0.1 /bin/true || service ssh restart
 
 
 # Ensure test data have been generated
@@ -95,6 +96,25 @@ for i in $(seq 0 1); do
         exit 1
     fi
 done
+
+echo "********* Test GraphBolt standalone conversion ********"
+# We remove the previously generated GraphBolt files to test the standalone generation
+for i in $(seq 0 1); do
+    rm "$GCONS_GRAPHBOLT_PATH/part${i}/fused_csc_sampling_graph.pt"
+done
+
+python3 -m graphstorm.gpartition.convert_to_graphbolt \
+    --metadata-filepath "${GCONS_GRAPHBOLT_PATH}/ml.json"
+
+# Ensure GraphBolt files were re-created by standalone script
+for i in $(seq 0 1); do
+    if [ ! -f "$GCONS_GRAPHBOLT_PATH/part${i}/fused_csc_sampling_graph.pt" ]
+    then
+        echo "$GCONS_GRAPHBOLT_PATH/part${i}/fused_csc_sampling_graph.pt must exist"
+        exit 1
+    fi
+done
+
 
 echo "********* Test GSPartition with GraphBolt graph format ********"
 

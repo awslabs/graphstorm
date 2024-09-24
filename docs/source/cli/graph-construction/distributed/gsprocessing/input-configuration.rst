@@ -489,9 +489,182 @@ arguments.
         You can find all models in the `Huggingface model repository <https://huggingface.co/models>`_.
       - ``max_seq_length`` (Integer, required): Specifies the maximum number of tokens of the input.
         You can use a length greater than the dataset's longest sentence; or for a safe value choose 128. Make sure to check
-        the model's max suported length when setting this value,
+        the model's max supported length when setting this value.
 
---------------
+
+..  _gsprocessing-multitask-ref:
+
+Creating a graph for multi-task training
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To create a graph for multi-task training, you need to
+define custom label names in your config for each of the labels you want to
+use during training in a ``mask_field_names`` entry for each label config.
+GSProcessing will generate separate
+train/val/test masks for each of your labels named
+accordingly.
+
+After partitioning the data, you need to then provide the same
+mask names in a ``mask_fields`` entry
+in your train YAML file during multi-task training.
+
+For details on running multi-task training see
+:doc:`/advanced/multi-task-learning`.
+
+Here we list an example multi-task GSProcessing config for the ACM data described in
+:doc:`/tutorials/use-own-data`, where we prepare a node classification label for the
+``paper`` node type, and a link prediction task on the ``paper,citing,paper`` edge
+type.
+
+.. raw:: html
+
+   <details>
+   <summary><a>Example multi-task GSProcessing config</a></summary>
+
+.. code-block:: json
+
+    {
+    "version": "gsprocessing-v1.0",
+    "graph": {
+        "nodes": [
+            {
+                "data": {
+                    "format": "parquet",
+                    "files": [
+                        "nodes/paper.parquet"
+                    ]
+                },
+                "type": "paper",
+                "column": "node_id",
+                "features": [
+                    {
+                        "column": "feat",
+                        "name": "feat",
+                        "transformation": {
+                            "name": "no-op"
+                        }
+                    }
+                ],
+                "labels": [
+                    {
+                        "column": "label",
+                        "type": "classification",
+                        "split_rate": {
+                            "train": 0.8,
+                            "val": 0.1,
+                            "test": 0.1
+                        },
+                        "mask_field_names": [
+                            "train_mask_class",
+                            "val_mask_class",
+                            "test_mask_class"
+                        ]
+                    }
+                ]
+            }
+        ],
+        "edges": [
+            {
+                "data": {
+                    "format": "parquet",
+                    "files": [
+                        "edges/paper_citing_paper.parquet"
+                    ]
+                },
+                "source": {
+                    "column": "source_id",
+                    "type": "paper"
+                },
+                "dest": {
+                    "column": "dest_id",
+                    "type": "paper"
+                },
+                "relation": {
+                    "type": "citing"
+                },
+                "labels": [
+                    {
+                        "column": "",
+                        "type": "link_prediction",
+                        "split_rate": {
+                            "train": 0.8,
+                            "val": 0.1,
+                            "test": 0.1
+                        },
+                        "mask_field_names": [
+                            "train_mask_lp",
+                            "val_mask_lp",
+                            "test_mask_lp"
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+
+.. raw:: html
+
+   </details><p></p>
+
+When using the above GSProcessing config you can then use the following
+train YAML file to run multi-task training:
+
+.. raw:: html
+
+    <details>
+    <summary><a>Example multi-task training YAML</a></summary>
+
+.. code-block:: yaml
+
+    ---
+    version: 1.0
+    gsf:
+        basic:
+            model_encoder_type: rgcn
+            backend: gloo
+            verbose: false
+        gnn:
+            fanout: "50,50"
+            num_layers: 2
+            hidden_size: 256
+            use_mini_batch_infer: false
+        hyperparam:
+        dropout: 0.
+        lr: 0.0001
+        lm_tune_lr: 0.0001
+        num_epochs: 300
+        batch_size: 1024
+        wd_l2norm: 0
+        alpha_l2norm: 0.
+        rgcn:
+        num_bases: -1
+        use_self_loop: true
+        multi_task_learning:
+            - node_classification:
+                target_ntype: "paper"
+                label_field: "label"
+                mask_fields:
+                    - "train_mask_class"
+                    - "val_mask_class"
+                    - "test_mask_class"
+                num_classes: 14
+                task_weight: 1.0
+            - link_prediction:
+                num_negative_edges: 4
+                num_negative_edges_eval: 100
+                train_negative_sampler: joint
+                train_etype:
+                    - "paper,citing,paper"
+                mask_fields:
+                    - "train_mask_lp"
+                    - "val_mask_lp"
+                    - "test_mask_lp"
+                reverse_edge_types_map: ["paper,citing,cited,paper"]
+                task_weight: 0.5 # weight of the task
+
+.. raw:: html
+
+   </details><p></p>
 
 Creating a graph for inference
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -501,10 +674,12 @@ in the input configuration, the processed data will not
 include any train/val/test masks. You can use this mode
 when you want to produce a graph just for inference.
 
+--------------
+
 Examples
 ~~~~~~~~
 
-OAG-Paper dataset
+Node classification for node type `field` in OAG-Paper dataset
 -----------------
 
 .. code-block:: json

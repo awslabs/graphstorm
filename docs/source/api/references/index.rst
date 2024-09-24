@@ -12,6 +12,7 @@ The released APIs include the necessary components that can build GraphStorm mod
    :titlesonly:
 
    graphstorm
+   graphstorm.config
    graphstorm.dataloading
    graphstorm.eval
    graphstorm.inference
