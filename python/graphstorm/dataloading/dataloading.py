@@ -124,6 +124,8 @@ class MultiLayerNeighborSamplerForReconstruct(dgl.dataloading.BlockSampler):
         self._sampler = sampler
         self._construct_feat_sampler = _ReconstructedNeighborSampler(
                 dataset, construct_feat_ntype, construct_feat_fanout)
+        # Temporary fix for DGL 2.0.0+ Compatabilities
+        self.prob = None
 
     def sample_blocks(self, g, seed_nodes, exclude_eids=None):
         """ Sample blocks (list of DGL MFGs) for message passing.

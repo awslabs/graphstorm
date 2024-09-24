@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from typing import List
-
 import numpy as np
 
 from pyspark.sql import DataFrame, SparkSession
@@ -123,7 +121,7 @@ def test_dist_multilabel_classification(spark: SparkSession, check_df_schema):
 
     transformed_rows = transformed_labels.collect()
 
-    row_val_list = []  # type: List[List[float]]
+    row_val_list: list[list[float]] = []
     for row in transformed_rows:
         row_val_list.append(row[label_col])
 

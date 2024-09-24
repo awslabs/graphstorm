@@ -154,6 +154,8 @@ You can follow the instructions in :ref:`Run graph construction<run-graph-constr
 GraphStorm construction tool for creating partitioned graph data. Please ensure you
 customize the command line arguments such as `--conf-file`, `--output-dir`, `--graph-name` to your
 specific values.
+For large graphs you can use GSProcessing to prepare your data. For specific instructions when
+using GSProcessing for multi-task training see :ref:`gsprocessing-multitask-ref`.
 
 
 Run Multi-task Learning Training
