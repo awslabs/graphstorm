@@ -380,7 +380,9 @@ def test_train_info():
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test_fail1.yaml'), local_rank=0)
         config = GSConfig(args)
-        check_failure(config, "topk_model_to_save")
+        # in PR # 893 we loose the constraints of model saving frequency and eval frequency
+        # so here we do not check failure, but check the topk model argument
+        assert config.topk_model_to_save == 3
 
 def create_rgcn_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
