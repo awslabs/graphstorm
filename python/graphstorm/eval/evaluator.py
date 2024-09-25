@@ -144,14 +144,14 @@ class GSgnnPredictionEvalInterface():
         Returns
         -----------
         eval_score: dict
-            Validation scores of differnet metrics in the format of {metric: val_score}.
+            Validation scores of different metrics in the format of {metric: val_score}.
         test_score: dict
             Test scores of different metrics in the format of {metric: test_score}.
         """
 
     @abc.abstractmethod
     def compute_score(self, pred, labels, train=True):
-        """ Compute evaluation score of Prediciton results.
+        """ Compute evaluation score of Prediction results.
 
         **Classification** and **regression** evaluators should provide both predictions
         and labels to this method.
@@ -177,7 +177,7 @@ class GSgnnLPRankingEvalInterface():
     The interface sets two abstract methods for Link Prediction evaluator classes that use
     ranking method to compute evaluation metrics, such as ``mrr`` (Mean Reciprocal Rank).
 
-    There are two methdos to be implemented if inherite this interface.
+    There are two methods to be implemented if inherit this interface.
 
     1. ``evaluate()`` method, which will be called by different **Trainer** in their ``eval()``
     function to provide ranking-based evaluation results of validation and test sets during
@@ -188,7 +188,7 @@ class GSgnnLPRankingEvalInterface():
 
     @abc.abstractmethod
     def evaluate(self, val_rankings, test_rankings, total_iters):
-        """Evaluate Link Prediciton results on validation and test sets.
+        """Evaluate Link Prediction results on validation and test sets.
 
         **Link Prediction** evaluators should provide the ranking of validation and test sets as
         input to this method.
@@ -212,7 +212,7 @@ class GSgnnLPRankingEvalInterface():
 
     @abc.abstractmethod
     def compute_score(self, rankings, train=True):
-        """ Compute Link Prediciton evaluation score.
+        """ Compute Link Prediction evaluation score.
 
         Ranking-based Link Prediction evaluators should provide ranking values as input
         to this method.
@@ -237,8 +237,8 @@ class GSgnnBaseEvaluator():
     ``GSgnnClassificationEvaluator``, ``GSgnnRegressionEvaluator``, ``GSgnnMrrLPEvaluator``,
     ``GSgnnPerEtypeMrrLPEvaluator``, and ``GSgnnRconstructFeatRegScoreEvaluator``.
 
-    In order to create customized Evaluators, users can inherite this class and the corresponding
-    EvalInteface class, and then implement their two abstract methods, i.e., ``evaluate()``
+    In order to create customized Evaluators, users can inherit this class and the corresponding
+    EvalInterface class, and then implement their two abstract methods, i.e., ``evaluate()``
     and ``compute_score()`` accordingly.
 
     Parameters
@@ -300,7 +300,7 @@ class GSgnnBaseEvaluator():
     def do_eval(self, total_iters, epoch_end=False):
         """ Decide whether to do the evaluation in current iteration or epoch.
 
-        Return `True`, if the current iteration is larger than 0 and is a mutiple of the given
+        Return `True`, if the current iteration is larger than 0 and is a multiple of the given
         `eval_frequency`, or is the end of an epoch. Otherwise return `False`.
 
         Parameters
@@ -336,7 +336,7 @@ class GSgnnBaseEvaluator():
             return False
 
         assert len(val_score) == 1, \
-            f"valudation score should be a signle key value pair but got {val_score}"
+            f"validation score should be a single key value pair but got {val_score}"
         self._num_early_stop_calls += 1
         # Not enough existing validation scores
         if self._num_early_stop_calls <= self._early_stop_burnin_rounds:
@@ -517,7 +517,7 @@ class GSgnnClassificationEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterf
             self._best_iter[metric] = 0
 
     def evaluate(self, val_pred, test_pred, val_labels, test_labels, total_iters):
-        """ Compute classificaton metric scores on validation and test sets.
+        """ Compute classification metric scores on validation and test sets.
 
         Parameters
         ----------
@@ -673,7 +673,7 @@ class GSgnnRegressionEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface)
         Returns
         -----------
         eval_score: dict
-            Validation scores of differnet regression metrics in the format of
+            Validation scores of different regression metrics in the format of
             {metric: val_score}.
         test_score: dict
             Test scores of different regression metrics in the format of {metric: test_score}.
@@ -731,7 +731,7 @@ class GSgnnRegressionEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface)
 
                 if train:
                     # training expects always a single number to be
-                    # returned and has a different (potentially) evluation function
+                    # returned and has a different (potentially) evaluation function
                     scores[metric] = self.metrics_obj.metric_function[metric](pred, labels)
                 else:
                     # validation or testing may have a different
@@ -747,7 +747,7 @@ class GSgnnRegressionEvaluator(GSgnnBaseEvaluator, GSgnnPredictionEvalInterface)
 class GSgnnRconstructFeatRegScoreEvaluator(GSgnnRegressionEvaluator):
     """ Evaluator for feature reconstruction tasks using regression scores.
 
-    A built-in evalutor for feature reconstruction tasks. It uses ``mse`` or ``rmse`` as
+    A built-in evaluator for feature reconstruction tasks. It uses ``mse`` or ``rmse`` as
     evaluation metrics.
 
     This evaluator requires the prediction results to be a 2D float tensor and
@@ -817,7 +817,7 @@ class GSgnnRconstructFeatRegScoreEvaluator(GSgnnRegressionEvaluator):
 
                 if train:
                     # training expects always a single number to be
-                    # returned and has a different (potentially) evluation function
+                    # returned and has a different (potentially) evaluation function
                     scores[metric] = self.metrics_obj.metric_function[metric](pred, labels)
                 else:
                     # validation or testing may have a different
@@ -831,7 +831,11 @@ class GSgnnRconstructFeatRegScoreEvaluator(GSgnnRegressionEvaluator):
         return scores
 
 class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
-    """ Link Prediction Evaluator using “mrr” and/or "hit@k" as metric.
+    """
+    .. versionadded:: 0.4
+        The :py:class:`GSgnnLPEvaluator`.
+
+    Link Prediction Evaluator using “mrr” and/or "hit@k" as metric.
 
     GS built-in evaluator for Link Prediction tasks. It uses "mrr" as the default eval metric,
     which implements the `GSgnnLPRankingEvalInterface`.
@@ -969,8 +973,12 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         return return_metrics
 
 class GSgnnPerEtypeLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
-    """ The class for link prediction evaluation using "mrr" and/or "hit@k" metrics and
-        return a per etype score.
+    """
+    .. versionadded:: 0.4
+        The :py:class:`GSgnnPerEtypeLPEvaluator`.
+
+    The class for link prediction evaluation using "mrr" and/or "hit@k" metrics and
+    return a per etype score.
 
     Parameters
     ----------
@@ -1123,14 +1131,18 @@ class GSgnnPerEtypeLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         return return_metrics
 
 class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
-    """ Evaluator for Link Prediction tasks using ``mrr`` as metric.
+    """
+    .. deprecated:: 0.4
+        Use :py:class:`GSgnnLPEvaluator` instead.
+
+    Evaluator for Link Prediction tasks using ``mrr`` as metric.
 
     A built-in evaluator for Link Prediction tasks. It uses ``mrr`` as the default eval metric,
     which implements the ``GSgnnLPRankingEvalInterface``.
 
     To create a customized Link Prediction evaluator that use an evaluation metric other than
     ``mrr``, users might need to 1) define a new evaluation interface if the evaluation method
-    requires different input arguments; 2) inherite the new evaluation interface in a
+    requires different input arguments; 2) inherit the new evaluation interface in a
     customized Link Prediction evaluator; 3) define a customized Link Prediction
     Trainer/Inferrer to call the customized Link Prediction evaluator.
 
@@ -1251,7 +1263,7 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         for metric in self.metric_list:
             if train:
                 # training expects always a single number to be
-                # returned and has a different (potentially) evluation function
+                # returned and has a different (potentially) evaluation function
                 metrics[metric] = self.metrics_obj.metric_function[metric](ranking)
             else:
                 # validation or testing may have a different
@@ -1273,7 +1285,11 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         return return_metrics
 
 class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
-    """ Evaluator for Link Prediction tasks using ``mrr`` as metric,  and
+    """
+    .. deprecated:: 0.4
+        Use :py:class:`GSgnnPerEtypeLPEvaluator` instead.
+
+    Evaluator for Link Prediction tasks using ``mrr`` as metric,  and
     return per edge type ``mrr`` scores.
 
     Parameters
@@ -1465,7 +1481,11 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
         return rank
 
 class GSgnnHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
-    """ Evaluator for Link Prediction tasks using ``hit@k`` as metric.
+    """
+    .. deprecated:: 0.4
+        Use :py:class:`GSgnnLPEvaluator` instead.
+
+    Evaluator for Link Prediction tasks using ``hit@k`` as metric.
 
     A built-in evaluator for Link Prediction tasks. It uses ``hit_at_100`` as the default
     eval metric, which implements the ``GSgnnLPRankingEvalInterface``.
@@ -1612,8 +1632,12 @@ class GSgnnHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         return return_metrics
 
 class GSgnnPerEtypeHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
-    """ Evaluator for Link Prediction tasks using ``hit@k`` as metric,  and
-        return per edge type ``hit@k`` scores.
+    """
+    .. deprecated:: 0.4
+        Use :py:class:`GSgnnPerEtypeLPEvaluator` instead.
+
+    Evaluator for Link Prediction tasks using ``hit@k`` as metric,  and
+    return per edge type ``hit@k`` scores.
 
     Parameters
     ----------
@@ -1812,7 +1836,7 @@ class GSgnnMultiTaskEvalInterface():
     def evaluate(self, val_results, test_results, total_iters):
         """Evaluate validation and test sets for Prediciton tasks
 
-            GSgnnTrainers will call this function to do evalution in their eval() fuction.
+            GSgnnTrainers will call this function to do evaluation in their eval() fuction.
 
         Parameters
         ----------

@@ -23,7 +23,7 @@ import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnLinkPredictionInferrer
-from graphstorm.eval import GSgnnLPEvaluator, GSgnnMrrLPEvaluator, GSgnnHitsLPEvaluator
+from graphstorm.eval import GSgnnLPEvaluator
 from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import (GSgnnLinkPredictionTestDataLoader,
                                     GSgnnLinkPredictionJointTestDataLoader,
@@ -56,16 +56,8 @@ def main(config_args):
         "GraphStorm only supports MRR and Hit@K metrics for link prediction.")
     if not config.no_validation:
         infer_idxs = infer_data.get_edge_test_set(config.eval_etype)
-        if (len(config.eval_metric) == 0 or
-                (len(config.eval_metric)==1 and "mrr" in config.eval_metric)):
-            infer.setup_evaluator(
-                GSgnnMrrLPEvaluator(config.eval_frequency))
-        elif 'mrr' not in config.eval_metric:
-            infer.setup_evaluator(GSgnnHitsLPEvaluator(
-                config.eval_frequency, eval_metric_list=config.eval_metric))
-        else:
-            infer.setup_evaluator(GSgnnLPEvaluator(
-                config.eval_frequency, eval_metric_list=config.eval_metric))
+        infer.setup_evaluator(GSgnnLPEvaluator(
+            config.eval_frequency, eval_metric_list=config.eval_metric))
         assert len(infer_idxs) > 0, "There is not test data for evaluation."
     else:
         infer_idxs = infer_data.get_edge_infer_set(config.eval_etype)
