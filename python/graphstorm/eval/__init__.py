@@ -27,6 +27,8 @@ from .eval_func import SUPPORTED_HIT_AT_METRICS
 from .evaluator import (GSgnnBaseEvaluator,
                         GSgnnPredictionEvalInterface,
                         GSgnnLPRankingEvalInterface,
+                        GSgnnLPEvaluator,
+                        GSgnnPerEtypeLPEvaluator,
                         GSgnnMrrLPEvaluator,
                         GSgnnPerEtypeMrrLPEvaluator,
                         GSgnnHitsLPEvaluator,

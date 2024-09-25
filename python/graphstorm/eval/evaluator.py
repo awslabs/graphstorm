@@ -830,6 +830,298 @@ class GSgnnRconstructFeatRegScoreEvaluator(GSgnnRegressionEvaluator):
 
         return scores
 
+class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
+    """ Link Prediction Evaluator using “mrr” and/or "hit@k" as metric.
+
+    GS built-in evaluator for Link Prediction tasks. It uses "mrr" as the default eval metric,
+    which implements the `GSgnnLPRankingEvalInterface`.
+
+    Parameters
+    ----------
+    eval_frequency: int
+        The frequency (number of iterations) of doing evaluation.
+    eval_metric_list: list of string
+        Evaluation metric used during evaluation. Default: ['mrr']
+    use_early_stop: bool
+        Set true to use early stop.
+    early_stop_burnin_rounds: int
+        Burn-in rounds before start checking for the early stop condition.
+    early_stop_rounds: int
+        The number of rounds for validation scores used to decide early stop.
+    early_stop_strategy: str
+        The early stop strategy. GraphStorm supports two strategies:
+        1) consecutive_increase and 2) average_increase.
+    """
+    def __init__(self, eval_frequency,
+                 eval_metric_list=None,
+                 use_early_stop=False,
+                 early_stop_burnin_rounds=0,
+                 early_stop_rounds=3,
+                 early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
+        # set default metric list
+        if eval_metric_list is None:
+            eval_metric_list = ["mrr"]
+        super(GSgnnLPEvaluator, self).__init__(eval_frequency,
+            eval_metric_list, use_early_stop, early_stop_burnin_rounds,
+            early_stop_rounds, early_stop_strategy)
+        self.metrics_obj = LinkPredictionMetrics(eval_metric_list)
+
+        self._best_val_score = {}
+        self._best_test_score = {}
+        self._best_iter = {}
+        for metric in self.metric_list:
+            self._best_val_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
+            self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
+            self._best_iter[metric] = 0
+
+    def evaluate(self, val_rankings, test_rankings, total_iters):
+        """ `GSgnnLinkPredictionTrainer` and `GSgnnLinkPredictionInferrer` will call this function
+        to compute validation and test scores.
+
+        Parameters
+        ----------
+        val_rankings: dict of tensors
+            Rankings of positive scores of validation edges for each edge type.
+        test_rankings: dict of tensors
+            Rankings of positive scores of test edges for each edge type.
+        total_iters: int
+            The current interation number.
+
+        Returns
+        -----------
+        val_score: float
+            Validation score
+        test_score: float
+            Test score
+        """
+        with th.no_grad():
+            if test_rankings is not None:
+                test_score = self.compute_score(test_rankings)
+            else:
+                test_score = {}
+                for metric in self.metric_list:
+                    test_score[metric] = "N/A" # Dummy
+
+            if val_rankings is not None:
+                val_score = self.compute_score(val_rankings)
+
+                if get_rank() == 0:
+                    for metric in self.metric_list:
+                        # be careful whether > or < it might change per metric.
+                        if self.metrics_obj.metric_comparator[metric](
+                            self._best_val_score[metric], val_score[metric]):
+                            self._best_val_score[metric] = val_score[metric]
+                            self._best_test_score[metric] = test_score[metric]
+                            self._best_iter[metric] = total_iters
+            else:
+                val_score = {}
+                for metric in self.metric_list:
+                    val_score[metric] = "N/A" # Dummy
+
+        self._history.append((val_score, test_score))
+
+        return val_score, test_score
+
+    def compute_score(self, rankings, train=True):
+        """ Compute evaluation score
+
+            Parameters
+            ----------
+            rankings: dict of tensors
+                Rankings of positive scores in format of {etype: ranking}
+            train: boolean
+                If in model training.
+
+            Returns
+            -------
+            Evaluation metric values: dict
+        """
+        # We calculate global score, etype is ignored.
+        ranking = []
+        for _, rank in rankings.items():
+            ranking.append(rank)
+        ranking = th.cat(ranking, dim=0)
+
+        # compute ranking value for each metric
+        metrics = {}
+        for metric in self.metric_list:
+            if train:
+                # training expects always a single number to be
+                # returned and has a different (potentially) evaluation function
+                metrics[metric] = self.metrics_obj.metric_function[metric](ranking)
+            else:
+                # validation or testing may have a different
+                # evaluation function, in our case the evaluation code
+                # may return a dictionary with the metric values for each metric
+                metrics[metric] = self.metrics_obj.metric_eval_function[metric](ranking)
+
+        # When world size == 1, we do not need the barrier
+        if get_world_size() > 1:
+            barrier()
+            for _, metric_val in metrics.items():
+                th.distributed.all_reduce(metric_val)
+
+        return_metrics = {}
+        for metric, metric_val in metrics.items():
+            return_metric = metric_val / get_world_size()
+            return_metrics[metric] = return_metric.item()
+
+        return return_metrics
+
+class GSgnnPerEtypeLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
+    """ The class for link prediction evaluation using "mrr" and/or "hit@k" metrics and
+        return a per etype score.
+
+    Parameters
+    ----------
+    eval_frequency: int
+        The frequency (number of iterations) of doing evaluation.
+    eval_metric_list: list of string
+        Evaluation metric used during evaluation. Default: ['mrr']
+    major_etype: tuple
+        Canonical etype used for selecting the best model. If None, use the general hit@k.
+    use_early_stop: bool
+        Set true to use early stop.
+    early_stop_burnin_rounds: int
+        Burn-in rounds before start checking for the early stop condition.
+    early_stop_rounds: int
+        The number of rounds for validation scores used to decide early stop.
+    early_stop_strategy: str
+        The early stop strategy. GraphStorm supports two strategies:
+        1) consecutive_increase and 2) average_increase.
+    """
+    def __init__(self, eval_frequency,
+                 eval_metric_list=None,
+                 major_etype=LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL,
+                 use_early_stop=False,
+                 early_stop_burnin_rounds=0,
+                 early_stop_rounds=3,
+                 early_stop_strategy=EARLY_STOP_AVERAGE_INCREASE_STRATEGY):
+        # set default metric list
+        if eval_metric_list is None:
+            eval_metric_list = ["mrr"]
+        super(GSgnnPerEtypeLPEvaluator, self).__init__(eval_frequency,
+            eval_metric_list, use_early_stop, early_stop_burnin_rounds,
+            early_stop_rounds, early_stop_strategy)
+
+        self.major_etype = major_etype
+        self.metrics_obj = LinkPredictionMetrics(eval_metric_list)
+
+        self._best_val_score = {}
+        self._best_test_score = {}
+        self._best_iter = {}
+        for metric in self.metric_list:
+            self._best_val_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
+            self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
+            self._best_iter[metric] = 0
+
+    def evaluate(self, val_rankings, test_rankings, total_iters):
+        """ `GSgnnLinkPredictionTrainer` and `GSgnnLinkPredictionInferrer` will call this function
+        to compute validation and test scores.
+
+        Parameters
+        ----------
+        val_rankings: dict of tensors
+            Rankings of positive scores of validation edges for each edge type.
+        test_rankings: dict of tensors
+            Rankings of positive scores of test edges for each edge type.
+        total_iters: int
+            The current interation number.
+
+        Returns
+        -----------
+        val_score: float
+            Validation score
+        test_score: float
+            Test score
+        """
+        with th.no_grad():
+            if test_rankings is not None:
+                test_score = self.compute_score(test_rankings)
+            else:
+                test_score = {}
+                for metric in self.metric_list:
+                    test_score[metric] = "N/A" # Dummy
+
+            if val_rankings is not None:
+                val_score = self.compute_score(val_rankings)
+
+                if get_rank() == 0:
+                    for metric in self.metric_list:
+                        # be careful whether > or < it might change per metric.
+                        major_val_score = self._get_major_score(val_score[metric])
+                        major_test_score = self._get_major_score(test_score[metric])
+                        if self.metrics_obj.metric_comparator[metric](
+                            self._best_val_score[metric], major_val_score):
+                            self._best_val_score[metric] = major_val_score
+                            self._best_test_score[metric] = major_test_score
+                            self._best_iter[metric] = total_iters
+            else:
+                val_score = {}
+                for metric in self.metric_list:
+                    val_score[metric] = "N/A" # Dummy
+
+        self._history.append((val_score, test_score))
+
+        return val_score, test_score
+
+    def _get_major_score(self, score):
+        """ Get the score for save best model(s) and early stop
+        """
+        if isinstance(self.major_etype, str) and \
+            self.major_etype == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL:
+            major_score = sum(score.values()) / len(score)
+        else:
+            major_score = score[self.major_etype]
+        return major_score
+
+    def compute_score(self, rankings, train=True):
+        """ Compute evaluation score
+
+            Parameters
+            ----------
+            rankings: dict of tensors
+                Rankings of positive scores in format of {etype: ranking}
+            train: boolean
+                If in model training.
+
+            Returns
+            -------
+            Evaluation metric values: dict
+        """
+        # We calculate per etype score
+        per_etype_metrics = {}
+        for etype, ranking in rankings.items():
+            # compute ranking value for each metric
+            metrics = {}
+            for metric in self.metric_list:
+                if train:
+                    # training expects always a single number to be
+                    # returned and has a different (potentially) evaluation function
+                    metrics[metric] = self.metrics_obj.metric_function[metric](ranking)
+                else:
+                    # validation or testing may have a different
+                    # evaluation function, in our case the evaluation code
+                    # may return a dictionary with the metric values for each metric
+                    metrics[metric] = self.metrics_obj.metric_eval_function[metric](ranking)
+            per_etype_metrics[etype] = metrics
+
+        # When world size == 1, we do not need the barrier
+        if get_world_size() > 1:
+            barrier()
+            for _, metric in per_etype_metrics.items():
+                for _, metric_val in metric.items():
+                    th.distributed.all_reduce(metric_val)
+
+        return_metrics = {}
+        for etype, metric in per_etype_metrics.items():
+            for metric_key, metric_val in metric.items():
+                return_metric = metric_val / get_world_size()
+                if metric_key not in return_metrics:
+                    return_metrics[metric_key] = {}
+                return_metrics[metric_key][etype] = return_metric.item()
+        return return_metrics
+
 class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     """ Evaluator for Link Prediction tasks using ``mrr`` as metric.
 
