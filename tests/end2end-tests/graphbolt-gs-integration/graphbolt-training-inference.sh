@@ -99,6 +99,7 @@ ssh -o PreferredAuthentications=publickey -o StrictHostKeyChecking=no \
     -p 2222 127.0.0.1 /bin/true || service ssh restart
 
 # Generate 1P LP data
+msg "**************GraphBolt Link Prediction data generation **************"
 LP_INPUT_1P="${OUTPUT_PATH}/graphbolt-gconstruct-lp-1p"
 python3 -m graphstorm.gconstruct.construct_graph \
     --add-reverse-edges \
@@ -125,8 +126,9 @@ python3 -m graphstorm.run.gs_link_prediction \
     --ssh-port 2222 \
     --use-graphbolt true
 
-# Ensure model file was saved
+# Ensure model files were saved
 fdir_exists f "$LP_OUTPUT/model/epoch-0/model.bin"
+fdir_exists f "$LP_OUTPUT/model/epoch-0/optimizers.bin"
 
 msg " **************GraphBolt Link Prediction embedding generation **************"
 
@@ -167,8 +169,9 @@ python3 -m graphstorm.run.gs_link_prediction \
     --train-negative-sampler inbatch_joint \
     --use-graphbolt true
 
-# Ensure model file was saved
+# Ensure model files were saved
 fdir_exists f "$LP_OUTPUT/model/epoch-0/model.bin"
+fdir_exists f "$LP_OUTPUT/model/epoch-0/optimizers.bin"
 
 LP_OUTPUT="$OUTPUT_PATH/gb-lp-all_etype_uniform"
 msg "**************GraphBolt Link Prediction training. dataset: Movielens, RGCN layer 1, inference: mini-batch, negative_sampler: all_etype_uniform, exclude_training_targets: true"
@@ -188,11 +191,13 @@ python3 -m graphstorm.run.gs_link_prediction \
     --train-negative-sampler all_etype_uniform \
     --use-graphbolt true
 
-# Ensure model file was saved
+# Ensure model file were saved
 fdir_exists f "$LP_OUTPUT/model/epoch-0/model.bin"
+fdir_exists f "$LP_OUTPUT/model/epoch-0/optimizers.bin"
 
 
 # Generate 1P NC data
+msg "************** GraphBolt Node Classification data generation. **************"
 NC_INPUT_1P="${OUTPUT_PATH}/graphbolt-gconstruct-nc-1p"
 python3 -m graphstorm.gconstruct.construct_graph \
     --add-reverse-edges \
@@ -222,6 +227,7 @@ python3 -m graphstorm.run.gs_node_classification \
 
 # Ensure model files were saved
 fdir_exists f "$NC_OUTPUT/model/epoch-0/model.bin"
+fdir_exists f "$NC_OUTPUT/model/epoch-0/optimizers.bin"
 
 msg "************** GraphBolt Node Classification inference. **************"
 python3 -m graphstorm.run.gs_node_classification \
@@ -246,4 +252,4 @@ python3 -m graphstorm.run.gs_node_classification \
 fdir_exists d "$NC_OUTPUT/embeddings"
 fdir_exists d "$NC_OUTPUT/predictions"
 
-echo "********* GraphBolt training and inference tests passed *********"
+msg "********* GraphBolt training and inference tests passed *********"
