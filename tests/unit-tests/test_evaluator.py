@@ -697,12 +697,15 @@ def test_per_etype_lp_evaluation():
     m_score = lp._get_major_score(score)
     assert m_score == score[("a", "r2", "b")]
 
+    # Test score computation
     val_pos_scores, val_neg_scores = val_scores
     test_pos_scores, test_neg_scores = test_scores
 
     lp = GSgnnPerEtypeLPEvaluator(config.eval_frequency,
                                       eval_metric_list=config.eval_metric_list,
                                       use_early_stop=config.use_early_stop)
+
+    # test for val scores
     rank0 = []
     rank1 = []
     for i in range(len(val_pos_scores)):
@@ -735,6 +738,7 @@ def test_per_etype_lp_evaluation():
             hits_1 = th.div(th.sum(th.squeeze(val_ranks[etypes[1]]) <= k), len(th.squeeze(val_ranks[etypes[1]])))
             assert_almost_equal(val_s[metric][etypes[1]], hits_1.numpy(), decimal=7)
 
+    # test for test scores
     rank0 = []
     rank1 = []
     for i in range(len(test_pos_scores)):
@@ -767,6 +771,7 @@ def test_per_etype_lp_evaluation():
             hits_1 = th.div(th.sum(th.squeeze(test_ranks[etypes[1]]) <= k), len(th.squeeze(test_ranks[etypes[1]])))
             assert_almost_equal(test_s[metric][etypes[1]], hits_1.numpy(), decimal=7)
 
+    # Check evaluate()
     val_sc, test_sc = lp.evaluate(val_ranks, test_ranks, 0)
     for metric in config.eval_metric_list:
         val_s_score = (val_s[metric][etypes[0]] + val_s[metric][etypes[1]]) / 2
@@ -818,6 +823,7 @@ def test_lp_evaluator():
                               eval_metric_list=config.eval_metric_list,
                               use_early_stop=config.use_early_stop)
 
+    # test computation for val scores
     rank = []
     for i in range(len(val_pos_scores)):
         val_pos = val_pos_scores[i]
@@ -843,6 +849,7 @@ def test_lp_evaluator():
             hits_0 = th.div(th.sum(th.squeeze(val_ranks[etypes[0]]) <= k), len(th.squeeze(val_ranks[etypes[0]])))
             assert_almost_equal(val_s[metric], hits_0.numpy(), decimal=7)
 
+    # test computation for test scores
     rank = []
     for i in range(len(test_pos_scores)):
         test_pos = test_pos_scores[i]
@@ -868,6 +875,7 @@ def test_lp_evaluator():
             hits_0 = th.div(th.sum(th.squeeze(test_ranks[etypes[0]]) <= k), len(th.squeeze(test_ranks[etypes[0]])))
             assert_almost_equal(test_s[metric], hits_0.numpy(), decimal=7)
 
+    # check evaluate()
     val_sc, test_sc = lp.evaluate(val_ranks, test_ranks, 0)
     for metric in config.eval_metric_list:
         assert_equal(val_s[metric], val_sc[metric])
