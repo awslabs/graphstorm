@@ -21,7 +21,7 @@ import graphstorm as gs
 from graphstorm.config import get_argument_parser
 from graphstorm.config import GSConfig
 from graphstorm.inference import GSgnnLinkPredictionInferrer
-from graphstorm.eval import GSgnnMrrLPEvaluator, GSgnnHitsLPEvaluator
+from graphstorm.eval import GSgnnLPEvaluator, GSgnnMrrLPEvaluator, GSgnnHitsLPEvaluator
 from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import (GSgnnLinkPredictionTestDataLoader,
                                     GSgnnLinkPredictionJointTestDataLoader,
@@ -56,18 +56,21 @@ def main(config_args):
                         model_layer_to_load=config.restore_model_layers)
     infer = GSgnnLinkPredictionInferrer(model)
     infer.setup_device(device=get_device())
-    # TODO: to create a generic evaluator for LP tasks
-    if len(config.eval_metric) > 1 and ("mrr" in config.eval_metric) \
-            and any((x.startswith(SUPPORTED_HIT_AT_METRICS) for x in config.eval_metric)):
-        logging.warning("GraphStorm does not support computing MRR and Hit@K metrics at the "
-                        "same time. If both metrics are given, only 'mrr' is returned.")
+    assert all((x.startswith(SUPPORTED_HIT_AT_METRICS) or x == 'mrr') for x in
+               config.eval_metric), (
+        "Invalid LP evaluation metrics. "
+        "GraphStorm only supports MRR and Hit@K metrics for link prediction.")
     if not config.no_validation:
         infer_idxs = infer_data.get_edge_test_set(config.eval_etype)
-        if len(config.eval_metric) == 0 or 'mrr' in config.eval_metric:
+        if (len(config.eval_metric) == 0 or
+                (len(config.eval_metric)==1 and "mrr" in config.eval_metric)):
             infer.setup_evaluator(
                 GSgnnMrrLPEvaluator(config.eval_frequency))
-        else:
+        elif 'mrr' not in config.eval_metric:
             infer.setup_evaluator(GSgnnHitsLPEvaluator(
+                config.eval_frequency, eval_metric_list=config.eval_metric))
+        else:
+            infer.setup_evaluator(GSgnnLPEvaluator(
                 config.eval_frequency, eval_metric_list=config.eval_metric))
         assert len(infer_idxs) > 0, "There is not test data for evaluation."
     else:

@@ -26,7 +26,7 @@ error_and_exit () {
 
 df /dev/shm -h
 
-echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, exclude_training_targets: true, save model"
+echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, exclude_training_targets: true, save model, eval_metric [hit_at_1 hit_at_3 hit_at_10]"
 python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false  --use-node-embeddings true --eval-batch-size 1024 --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie  --save-model-path /data/gsgnn_lp_ml_dot/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_dot/emb/ --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --eval-metric hit_at_1 hit_at_3 hit_at_10
 
 error_and_exit $?
@@ -99,6 +99,112 @@ cnt=$(grep "Validation hit_at_3" /tmp/train_log.txt | wc -l)
 if test $cnt -lt $bst_cnt
 then
     echo "We use SageMaker task tracker, we should have Validation hit@3"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Test hit_at_10" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Test hit@10"
+    exit -1
+fi
+
+cnt=$(grep "| Test hit_at_10" /tmp/train_log.txt | wc -l)
+if test $cnt -lt $bst_cnt
+then
+    echo "We use SageMaker task tracker, we should have Test hit@10"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Validation hit_at_10" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Validation hit@10"
+    exit -1
+fi
+
+cnt=$(grep "Validation hit_at_10" /tmp/train_log.txt | wc -l)
+if test $cnt -lt $bst_cnt
+then
+    echo "We use SageMaker task tracker, we should have Validation hit@10"
+    exit -1
+fi
+
+rm /tmp/train_log.txt
+
+echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, exclude_training_targets: true, save model, eval_metric [hit_at_1 mrr hit_at_10]"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false  --use-node-embeddings true --eval-batch-size 1024 --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie  --save-model-path /data/gsgnn_lp_ml_dot/ --topk-model-to-save 1 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_dot/emb/ --logging-file /tmp/train_log.txt --logging-level debug --preserve-input True --eval-metric hit_at_1 mrr hit_at_10
+
+error_and_exit $?
+
+# check prints
+cnt=$(grep "save_embed_path: /data/gsgnn_lp_ml_dot/emb/" /tmp/train_log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have save_embed_path"
+    exit -1
+fi
+
+cnt=$(grep "save_model_path: /data/gsgnn_lp_ml_dot/" /tmp/train_log.txt | wc -l)
+if test $cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have save_model_path"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Test hit_at_1" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Test hit@1"
+    exit -1
+fi
+
+cnt=$(grep "| Test hit_at_1" /tmp/train_log.txt | wc -l)
+if test $cnt -lt $bst_cnt
+then
+    echo "We use SageMaker task tracker, we should have Test hit@1"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Validation hit_at_1" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Validation hit@1"
+    exit -1
+fi
+
+cnt=$(grep "Validation hit_at_1" /tmp/train_log.txt | wc -l)
+if test $cnt -lt $bst_cnt
+then
+    echo "We use SageMaker task tracker, we should have Validation hit@1"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Test mrr" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Test mrr"
+    exit -1
+fi
+
+cnt=$(grep "| Test mrr" /tmp/train_log.txt | wc -l)
+if test $cnt -lt $bst_cnt
+then
+    echo "We use SageMaker task tracker, we should have Test mrr"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Validation mrr" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Validation mrr"
+    exit -1
+fi
+
+cnt=$(grep "Validation mrr" /tmp/train_log.txt | wc -l)
+if test $cnt -lt $bst_cnt
+then
+    echo "We use SageMaker task tracker, we should have Validation mrr"
     exit -1
 fi
 
