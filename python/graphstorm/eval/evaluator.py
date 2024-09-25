@@ -831,11 +831,7 @@ class GSgnnRconstructFeatRegScoreEvaluator(GSgnnRegressionEvaluator):
         return scores
 
 class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
-    """
-    .. versionadded:: 0.4
-        The :py:class:`GSgnnLPEvaluator`.
-
-    Link Prediction Evaluator using “mrr” and/or "hit@k" as metric.
+    """ Link Prediction Evaluator using “mrr” and/or "hit@k" as metric.
 
     GS built-in evaluator for Link Prediction tasks. It uses "mrr" as the default eval metric,
     which implements the `GSgnnLPRankingEvalInterface`.
@@ -855,6 +851,9 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     early_stop_strategy: str
         The early stop strategy. GraphStorm supports two strategies:
         1) consecutive_increase and 2) average_increase.
+
+    .. versionadded:: 0.4.0
+        The :py:class:`GSgnnLPEvaluator`.
     """
     def __init__(self, eval_frequency,
                  eval_metric_list=None,
@@ -974,9 +973,6 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
 
 class GSgnnPerEtypeLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     """
-    .. versionadded:: 0.4
-        The :py:class:`GSgnnPerEtypeLPEvaluator`.
-
     The class for link prediction evaluation using "mrr" and/or "hit@k" metrics and
     return a per etype score.
 
@@ -997,6 +993,9 @@ class GSgnnPerEtypeLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     early_stop_strategy: str
         The early stop strategy. GraphStorm supports two strategies:
         1) consecutive_increase and 2) average_increase.
+
+    .. versionadded:: 0.4.0
+        The :py:class:`GSgnnPerEtypeLPEvaluator`.
     """
     def __init__(self, eval_frequency,
                  eval_metric_list=None,
@@ -1131,11 +1130,7 @@ class GSgnnPerEtypeLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         return return_metrics
 
 class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
-    """
-    .. deprecated:: 0.4
-        Use :py:class:`GSgnnLPEvaluator` instead.
-
-    Evaluator for Link Prediction tasks using ``mrr`` as metric.
+    """ Evaluator for Link Prediction tasks using ``mrr`` as metric.
 
     A built-in evaluator for Link Prediction tasks. It uses ``mrr`` as the default eval metric,
     which implements the ``GSgnnLPRankingEvalInterface``.
@@ -1164,6 +1159,9 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         The early stop strategy. GraphStorm supports two strategies:
         1) ``consecutive_increase``, and 2) ``average_increase``.
         Default: ``average_increase``.
+
+    .. deprecated:: 0.4.0
+        Use :py:class:`GSgnnLPEvaluator` instead.
     """
     def __init__(self, eval_frequency,
                  eval_metric_list=None,
@@ -1186,6 +1184,14 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             self._best_val_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_iter[metric] = 0
+
+        import warnings
+        warnings.warn(
+            "The GSgnnMrrLPEvaluator has been deprecated from version 0.4.0. "
+            f"Please use GSgnnLPEvaluator instead.",
+            DeprecationWarning,
+            stacklevel=1
+        )
 
     def evaluate(self, val_rankings, test_rankings, total_iters):
         """ ``GSgnnLinkPredictionTrainer`` and ``GSgnnLinkPredictionInferrer`` will call this
@@ -1286,10 +1292,7 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
 
 class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     """
-    .. deprecated:: 0.4
-        Use :py:class:`GSgnnPerEtypeLPEvaluator` instead.
-
-    Evaluator for Link Prediction tasks using ``mrr`` as metric,  and
+    Evaluator for Link Prediction tasks using ``mrr`` as metric, and
     return per edge type ``mrr`` scores.
 
     Parameters
@@ -1313,6 +1316,9 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
         The early stop strategy. GraphStorm supports two strategies:
         1) ``consecutive_increase``, and 2) ``average_increase``.
         Default: ``average_increase``.
+
+    .. deprecated:: 0.4.0
+        Use :py:class:`GSgnnPerEtypeLPEvaluator` instead.
     """
     def __init__(self, eval_frequency,
                  eval_metric_list=None,
@@ -1340,6 +1346,14 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
             self._best_val_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_iter[metric] = 0
+
+        import warnings
+        warnings.warn(
+            "The GSgnnPerEtypeMrrLPEvaluator has been deprecated from version 0.4.0. "
+            f"Please use GSgnnPerEtypeLPEvaluator instead.",
+            DeprecationWarning,
+            stacklevel=1
+        )
 
     def evaluate(self, val_rankings, test_rankings, total_iters):
         """ ``GSgnnLinkPredictionTrainer`` and ``GSgnnLinkPredictionInferrer`` will call this
@@ -1481,11 +1495,7 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
         return rank
 
 class GSgnnHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
-    """
-    .. deprecated:: 0.4
-        Use :py:class:`GSgnnLPEvaluator` instead.
-
-    Evaluator for Link Prediction tasks using ``hit@k`` as metric.
+    """ Evaluator for Link Prediction tasks using ``hit@k`` as metric.
 
     A built-in evaluator for Link Prediction tasks. It uses ``hit_at_100`` as the default
     eval metric, which implements the ``GSgnnLPRankingEvalInterface``.
@@ -1509,6 +1519,9 @@ class GSgnnHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         The early stop strategy. GraphStorm supports two strategies:
         1) ``consecutive_increase``, and 2) ``average_increase``.
         Default: ``average_increase``.
+
+    .. deprecated:: 0.4.0
+        Use :py:class:`GSgnnLPEvaluator` instead.
     """
     def __init__(self, eval_frequency,
                  eval_metric_list=None,
@@ -1531,6 +1544,14 @@ class GSgnnHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             self._best_val_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_iter[metric] = 0
+
+        import warnings
+        warnings.warn(
+            "The GSgnnHitsLPEvaluator has been deprecated from version 0.4.0. "
+            f"Please use GSgnnLPEvaluator instead.",
+            DeprecationWarning,
+            stacklevel=1
+        )
 
     def evaluate(self, val_rankings, test_rankings, total_iters):
         """ ``GSgnnLinkPredictionTrainer`` and ``GSgnnLinkPredictionInferrer`` will call this
@@ -1633,9 +1654,6 @@ class GSgnnHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
 
 class GSgnnPerEtypeHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     """
-    .. deprecated:: 0.4
-        Use :py:class:`GSgnnPerEtypeLPEvaluator` instead.
-
     Evaluator for Link Prediction tasks using ``hit@k`` as metric,  and
     return per edge type ``hit@k`` scores.
 
@@ -1660,6 +1678,9 @@ class GSgnnPerEtypeHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfa
     early_stop_strategy: str
         1) ``consecutive_increase``, and 2) ``average_increase``.
         Default: ``average_increase``.
+
+    .. deprecated:: 0.4.0
+        Use :py:class:`GSgnnPerEtypeLPEvaluator` instead.
     """
     def __init__(self, eval_frequency,
                  eval_metric_list=None,
@@ -1685,6 +1706,14 @@ class GSgnnPerEtypeHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfa
             self._best_val_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_iter[metric] = 0
+
+        import warnings
+        warnings.warn(
+            "The GSgnnPerEtypeHitsLPEvaluator has been deprecated from version 0.4.0. "
+            f"Please use GSgnnPerEtypeLPEvaluator instead.",
+            DeprecationWarning,
+            stacklevel=1
+        )
 
     def evaluate(self, val_rankings, test_rankings, total_iters):
         """ ``GSgnnLinkPredictionTrainer`` and ``GSgnnLinkPredictionInferrer`` will call this
