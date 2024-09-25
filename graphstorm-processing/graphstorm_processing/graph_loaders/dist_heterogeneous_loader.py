@@ -2114,6 +2114,7 @@ class DistHeterogeneousGraphLoader(object):
                     input_df[NODE_MAPPING_STR] == custom_mask_df[f"custom_{mask_type}_mask"],
                     "left_outer",
                 )
+                mask_df = mask_df.orderBy(NODE_MAPPING_STR)
                 mask_df = mask_df.select(
                     "*",
                     when(mask_df[f"custom_{mask_type}_mask"].isNotNull(), 1)
@@ -2132,6 +2133,7 @@ class DistHeterogeneousGraphLoader(object):
                     input_df["src_str_id"] == custom_mask_df[f"custom_{mask_type}_mask_src"]
                 ) & (input_df["dst_str_id"] == custom_mask_df[f"custom_{mask_type}_mask_dst"])
                 mask_df = input_df.join(custom_mask_df, join_condition, "left_outer")
+                mask_df = mask_df.orderBy(NODE_MAPPING_STR)
                 mask_df = mask_df.select(
                     "*",
                     when(
@@ -2145,7 +2147,6 @@ class DistHeterogeneousGraphLoader(object):
             else:
                 raise ValueError("The number of column should be only 1 or 2.")
 
-            mask_df = mask_df.orderBy(NODE_MAPPING_INT)
             return mask_df
 
         if mask_field_names:
