@@ -1188,7 +1188,7 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         import warnings
         warnings.warn(
             "The GSgnnMrrLPEvaluator has been deprecated from version 0.4.0. "
-            f"Please use GSgnnLPEvaluator instead.",
+            "Please use GSgnnLPEvaluator instead.",
             DeprecationWarning,
             stacklevel=1
         )
@@ -1350,7 +1350,7 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
         import warnings
         warnings.warn(
             "The GSgnnPerEtypeMrrLPEvaluator has been deprecated from version 0.4.0. "
-            f"Please use GSgnnPerEtypeLPEvaluator instead.",
+            "Please use GSgnnPerEtypeLPEvaluator instead.",
             DeprecationWarning,
             stacklevel=1
         )
@@ -1548,7 +1548,7 @@ class GSgnnHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         import warnings
         warnings.warn(
             "The GSgnnHitsLPEvaluator has been deprecated from version 0.4.0. "
-            f"Please use GSgnnLPEvaluator instead.",
+            "Please use GSgnnLPEvaluator instead.",
             DeprecationWarning,
             stacklevel=1
         )
@@ -1710,7 +1710,7 @@ class GSgnnPerEtypeHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfa
         import warnings
         warnings.warn(
             "The GSgnnPerEtypeHitsLPEvaluator has been deprecated from version 0.4.0. "
-            f"Please use GSgnnPerEtypeLPEvaluator instead.",
+            "Please use GSgnnPerEtypeLPEvaluator instead.",
             DeprecationWarning,
             stacklevel=1
         )
