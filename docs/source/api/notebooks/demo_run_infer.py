@@ -223,7 +223,7 @@ def infer(gs_args, cust_args):
     # Utilize GraphStorm's GSConfig class to accept arguments
     config = GSConfig(gs_args)
 
-    gs.initialize(ip_config=config.ip_config, backend="gloo", local_rank=config.local_rank)
+    gs.initialize(ip_config=config.ip_config, backend=config.backend, local_rank=config.local_rank)
     acm_data = gs.dataloading.GSgnnData(part_config=config.part_config)
 
     model = RgatNCModel(g=acm_data.g,
@@ -264,7 +264,7 @@ if __name__ == '__main__':
     cust_parser = argparse.ArgumentParser(description="Customized Arguments")
     # add customized arguments
     cust_parser.add_argument('--rgat-encoder-type', type=str, default="ara",
-                        help=".")
+                             help="The RGAT encoder type. Default is ara, a customized RGAT module.")
     cust_args = cust_parser.parse_args(unknown_args)
     print(f'Customized arguments: {cust_args}')
 
