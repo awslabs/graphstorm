@@ -42,6 +42,8 @@ parse_params() {
   IMAGE='graphstorm-processing'
   VERSION=`poetry version --short`
   LATEST_VERSION=${VERSION}
+  REGION=$(aws configure get region)||REGION=""
+  REGION=${REGION:-us-west-2}
   ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
   ARCH='x86_64'
   SUFFIX=""
@@ -102,18 +104,6 @@ if [[ ${EXEC_ENV} == "sagemaker" || ${EXEC_ENV} == "emr-serverless" || ${EXEC_EN
     :  # Do nothing
 else
     die "--environment parameter needs to be one of 'emr', 'emr-serverless' or 'sagemaker', got ${EXEC_ENV}"
-fi
-
-if [[ -n "${REGION-}" ]]; then
-    # REGION was set via script argument
-    :
-else
-    # Attempt to get REGION from AWS CLI, default to 'us-west-2'
-    REGION=$(aws configure get region) || REGION=""
-    REGION=${REGION:-us-west-2}
-    if [[ -z "$(aws configure get region)" ]]; then
-        msg "No default AWS region configured. Falling back to 'us-west-2'."
-    fi
 fi
 
 TAG="${VERSION}-${ARCH}${SUFFIX}"
