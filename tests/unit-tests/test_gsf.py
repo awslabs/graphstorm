@@ -16,6 +16,7 @@
 from graphstorm.gsf import (create_builtin_node_decoder,
                             create_builtin_edge_decoder,
                             create_builtin_lp_decoder)
+from graphstorm.utils import check_graph_name
 from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
@@ -449,7 +450,41 @@ def test_create_builtin_lp_decoder():
     assert decoder.gamma == 6.
 
 
+def test_check_graph_name():
+    graph_name = "a"
+    check_graph_name(graph_name)
+    graph_name = "graph_name"
+    check_graph_name(graph_name)
+    graph_name = "graph-name"
+    check_graph_name(graph_name)
+
+    # test with invalid graph name
+    graph_name = "/graph_name"
+    invalid_name = False
+    try:
+        check_graph_name(graph_name)
+    except:
+        invalid_name = True
+    assert invalid_name
+
+    graph_name = "|graph_name"
+    invalid_name = False
+    try:
+        check_graph_name(graph_name)
+    except:
+        invalid_name = True
+    assert invalid_name
+
+    graph_name = "\graph_name"
+    invalid_name = False
+    try:
+        check_graph_name(graph_name)
+    except:
+        invalid_name = True
+    assert invalid_name
+
 if __name__ == '__main__':
+    test_check_graph_name()
     test_create_builtin_node_decoder()
     test_create_builtin_edge_decoder()
     test_create_builtin_lp_decoder()

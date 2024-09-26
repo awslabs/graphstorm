@@ -31,6 +31,26 @@ TORCH_MAJOR_VER = int(th.__version__.split('.', maxsplit=1)[0])
 USE_WHOLEGRAPH = False
 GS_DEVICE = th.device('cpu')
 
+def check_graph_name(graph_name):
+    """ Check whether the graph name is a valid graph name.
+
+        We enforce that the graph name adheres to the Python
+        identifier naming rules as in
+        https://docs.python.org/3/reference/lexical_analysis.html#identifiers,
+        with the exception that hyphens (-) are permitted.
+        This helps avoid the cases when an invalid graph name,
+        such as `/graph`, causes unexpected errors.
+
+    Parameter
+    ---------
+    graph_name: str
+        Graph Name.
+    """
+    assert graph_name.replace('-', '_').isidentifier(), \
+        "GraphStorm expects the graph name adheres to the Python" \
+        "identifier naming rules with the exception that hyphens " \
+        f"(-) are permitted. But we get {graph_name}"
+
 def get_graph_name(part_config):
     """ Get graph name from graph partition config file
 
@@ -45,7 +65,9 @@ def get_graph_name(part_config):
     """
     with open(part_config, "r", encoding='utf-8') as f:
         config = json.load(f)
-    return config["graph_name"]
+    graph_name = config["graph_name"]
+    check_graph_name(graph_name)
+    return graph_name
 
 def setup_device(local_rank):
     r"""Setup computation device.

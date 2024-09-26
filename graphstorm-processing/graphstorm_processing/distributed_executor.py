@@ -563,6 +563,27 @@ def parse_args() -> argparse.Namespace:
 
     return parser.parse_args()
 
+def check_graph_name(graph_name):
+    """ Check whether the graph name is a valid graph name.
+
+        We enforce that the graph name adheres to the Python
+        identifier naming rules as in
+        https://docs.python.org/3/reference/lexical_analysis.html#identifiers,
+        with the exception that hyphens (-) are permitted.
+        This helps avoid the cases when an invalid graph name,
+        such as `/graph`, causes unexpected errors.
+
+        Note: Same as graphstorm.utils.check_graph_name.
+
+    Parameter
+    ---------
+    graph_name: str
+        Graph Name.
+    """
+    assert graph_name.replace('-', '_').isidentifier(), \
+        "GraphStorm expects the graph name adheres to the Python" \
+        "identifier naming rules with the exception that hyphens " \
+        f"(-) are permitted. But we get {graph_name}"
 
 def main():
     """Main entry point for GSProcessing"""
@@ -572,6 +593,7 @@ def main():
         level=gsprocessing_args.log_level,
         format="[GSPROCESSING] %(asctime)s %(levelname)-8s %(message)s",
     )
+    check_graph_name(gsprocessing_args.graph_name)
 
     # Determine execution environment
     if os.path.exists("/opt/ml/config/processingjobconfig.json"):

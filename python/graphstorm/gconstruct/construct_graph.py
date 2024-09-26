@@ -30,7 +30,7 @@ import torch as th
 import dgl
 from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 
-from ..utils import sys_tracker, get_log_level
+from ..utils import sys_tracker, get_log_level, check_graph_name
 from .file_io import parse_node_file_format, parse_edge_file_format
 from .file_io import get_in_files
 from .transform import parse_feat_ops, process_features, preprocess_features
@@ -742,6 +742,7 @@ def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats
 def process_graph(args):
     """ Process the graph.
     """
+    check_graph_name(args.graph_name)
     logging.basicConfig(level=get_log_level(args.logging_level))
     with open(args.conf_file, 'r', encoding="utf8") as json_file:
         process_confs = json.load(json_file)
