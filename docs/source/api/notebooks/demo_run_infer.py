@@ -226,49 +226,30 @@ def infer(gs_args, cust_args):
     gs.initialize(ip_config=config.ip_config, backend="gloo", local_rank=config.local_rank)
     acm_data = gs.dataloading.GSgnnData(part_config=config.part_config)
 
-    nfeats_4_modeling = config.node_feat_name
+    model = RgatNCModel(g=acm_data.g,
+                        num_heads=config.num_heads, 
+                        num_hid_layers=config.num_layers,
+                        node_feat_field=config.node_feat_name,
+                        hid_size=config.hidden_size,
+                        num_classes=config.num_classes,
+                        encoder_type=cust_args.rgat_encoder_type)   # here use the customized argument instead of GSConfig
 
-    train_dataloader = gs.dataloading.GSgnnNodeDataLoader(
-        dataset=acm_data,
-        target_idx=acm_data.get_node_train_set(ntypes=config.target_ntype),
-        node_feats=nfeats_4_modeling,
-        label_field=config.label_field,
-        fanout=config.fanout,
-        batch_size=config.batch_size,
-        train_task=True)
-    val_dataloader = gs.dataloading.GSgnnNodeDataLoader(
-        dataset=acm_data,
-        target_idx=acm_data.get_node_val_set(ntypes=config.target_ntype),
-        node_feats=nfeats_4_modeling,
-        label_field=config.label_field,
-        fanout=config.eval_fanout,
-        batch_size=config.eval_batch_size,
-        train_task=False)
-    test_dataloader = gs.dataloading.GSgnnNodeDataLoader(
-        dataset=acm_data,
-        target_idx=acm_data.get_node_test_set(ntypes=config.target_ntype),
-        node_feats=nfeats_4_modeling,
-        label_field=config.label_field,
-        fanout=config.eval_fanout,
-        batch_size=config.eval_batch_size,
-        train_task=False)
+    model.restore_model(config.restore_model_path)
 
-    model = RgatNCModel(g=acm_data.g, num_heads=8, num_hid_layers=2, node_feat_field=nfeats_4_modeling,
-                        hid_size=128, num_classes=14, encoder_type=cust_args.rgat_encoder_type)
+    infer_dataloader = gs.dataloading.GSgnnNodeDataLoader(dataset=acm_data,
+                                                        target_idx=acm_data.get_node_test_set(ntypes=config.target_ntype),
+                                                        node_feats=config.node_feat_name,
+                                                        label_field=config.label_field,
+                                                        fanout=config.eval_fanout,
+                                                        batch_size=config.eval_batch_size,
+                                                        train_task=False)
 
-    evaluator = gs.eval.GSgnnClassificationEvaluator(eval_frequency=100)
+    infer = gs.inference.GSgnnNodePredictionInferrer(model)
 
-    trainer = gs.trainer.GSgnnNodePredictionTrainer(model)
-    trainer.setup_evaluator(evaluator)
-    trainer.setup_device(gs.utils.get_device())
-
-    trainer.fit(train_loader=train_dataloader,
-                val_loader=val_dataloader,
-                test_loader=test_dataloader,
-                num_epochs=config.num_epochs,
-                save_model_path=config.save_model_path)
-
-    print(f'------------ Ends Here ------------')
+    infer.infer(infer_dataloader,
+                save_embed_path=config.save_embed_path,
+                save_prediction_path=config.save_prediction_path,
+                use_mini_batch_infer=True)
 
 
 if __name__ == '__main__':
