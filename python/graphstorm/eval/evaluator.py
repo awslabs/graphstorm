@@ -852,6 +852,9 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     early_stop_strategy: str
         The early stop strategy. GraphStorm supports two strategies:
         1) consecutive_increase and 2) average_increase.
+
+    .. versionadded:: 0.4.0
+        The :py:class:`GSgnnLPEvaluator`.
     """
     def __init__(self, eval_frequency,
                  eval_metric_list=None,
@@ -991,6 +994,9 @@ class GSgnnPerEtypeLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     early_stop_strategy: str
         The early stop strategy. GraphStorm supports two strategies:
         1) consecutive_increase and 2) average_increase.
+
+    .. versionadded:: 0.4.0
+        The :py:class:`GSgnnPerEtypeLPEvaluator`.
     """
     def __init__(self, eval_frequency,
                  eval_metric_list=None,
@@ -1123,6 +1129,34 @@ class GSgnnPerEtypeLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
                     return_metrics[metric_key] = {}
                 return_metrics[metric_key][etype] = return_metric.item()
         return return_metrics
+
+    def get_val_score_rank(self, val_score):
+        """ Get the rank of the validation score of the ``major_etype`` initialized in class
+        initialization by comparing its value to the existing historical values. If using
+        the default ``major_etype``, it will compute the rank as the summation of validation
+        values of all edge types.
+
+        Parameters
+        ----------
+        val_score: dict of dict
+            A dict in the format of {metric: {etype: score}}.
+
+        Returns
+        --------
+        rank: int
+            The rank of the validation score of the given ``major_etype`` initialized in
+            class initialization. If using the default ``major_etype``, the rank will be
+            computed based on the summation of validation scores for all edge types.
+        """
+        val_score = list(val_score.values())[0]
+        val_score = self._get_major_score(val_score)
+
+        rank = get_val_score_rank(val_score,
+                                  self._val_perf_rank_list,
+                                  self.get_metric_comparator())
+        # after compare, append the score into existing list
+        self._val_perf_rank_list.append(val_score)
+        return rank
 
 class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     """ Evaluator for Link Prediction tasks using ``mrr`` as metric.
@@ -1425,7 +1459,7 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
             for metric in self.metric_list:
                 if train:
                     # training expects always a single number to be
-                    # returned and has a different (potentially) evluation function
+                    # returned and has a different (potentially) evaluation function
                     metrics[metric] = self.metrics_obj.metric_function[metric](ranking)
                 else:
                     # validation or testing may have a different
