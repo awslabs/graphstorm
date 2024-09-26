@@ -54,6 +54,7 @@ import dataclasses
 import json
 import logging
 import os
+import re
 from pathlib import Path
 import tempfile
 import time
@@ -586,7 +587,8 @@ def check_graph_name(graph_name):
     graph_name: str
         Graph Name.
     """
-    assert graph_name.replace("-", "_").isidentifier(), (
+    gname = re.sub(r"^\d+", "", graph_name)
+    assert gname.replace("-", "_").isidentifier(), (
         "GraphStorm expects the graph name adheres to the Python"
         "identifier naming rules with the exception that hyphens "
         f"(-) are permitted and the name can start with numbers. "
