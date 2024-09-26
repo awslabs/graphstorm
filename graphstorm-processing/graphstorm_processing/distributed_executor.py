@@ -541,9 +541,9 @@ def parse_args() -> argparse.Namespace:
         "--graph-name",
         type=str,
         help="Name for the graph being processed."
-             "The graph name must adhere to the Python "
-             "identifier naming rules with the exception "
-             "that hyphens (-) are permitted.",
+        "The graph name must adhere to the Python "
+        "identifier naming rules with the exception "
+        "that hyphens (-) are permitted.",
         required=False,
         default=None,
     )
@@ -566,8 +566,9 @@ def parse_args() -> argparse.Namespace:
 
     return parser.parse_args()
 
+
 def check_graph_name(graph_name):
-    """ Check whether the graph name is a valid graph name.
+    """Check whether the graph name is a valid graph name.
 
         We enforce that the graph name adheres to the Python
         identifier naming rules as in
@@ -583,10 +584,12 @@ def check_graph_name(graph_name):
     graph_name: str
         Graph Name.
     """
-    assert graph_name.replace('-', '_').isidentifier(), \
-        "GraphStorm expects the graph name adheres to the Python" \
-        "identifier naming rules with the exception that hyphens " \
+    assert graph_name.replace("-", "_").isidentifier(), (
+        "GraphStorm expects the graph name adheres to the Python"
+        "identifier naming rules with the exception that hyphens "
         f"(-) are permitted. But we get {graph_name}"
+    )
+
 
 def main():
     """Main entry point for GSProcessing"""
