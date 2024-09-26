@@ -28,7 +28,7 @@ You can clone the GraphStorm repository using
 
     git clone https://github.com/awslabs/graphstorm.git
 
-You can then navigate to the ``graphstorm-processing/docker`` directory
+You can then navigate to the ``graphstorm-processing/`` directory
 that contains the relevant code:
 
 .. code-block:: bash
