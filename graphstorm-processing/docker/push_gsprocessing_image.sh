@@ -104,7 +104,6 @@ else
     die "--environment parameter needs to be one of 'emr', 'emr-serverless' or 'sagemaker', got ${EXEC_ENV}"
 fi
 
-# Determine the AWS region
 if [[ -n "${REGION-}" ]]; then
     # REGION was set via script argument
     :
