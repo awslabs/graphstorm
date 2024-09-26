@@ -910,7 +910,10 @@ if __name__ == '__main__':
     argparser.add_argument("--output-dir", type=str, required=True,
                            help="The path of the output data folder.")
     argparser.add_argument("--graph-name", type=str, required=True,
-                           help="The graph name")
+                           help="Name for the graph being processed."
+                                "The graph name must adhere to the Python "
+                                "identifier naming rules with the exception "
+                                "that hyphens (-) are permitted.",)
     argparser.add_argument("--remap-node-id", action='store_true',
                            help="Whether or not to remap node IDs.")
     argparser.add_argument("--add-reverse-edges", action='store_true',

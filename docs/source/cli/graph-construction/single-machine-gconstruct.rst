@@ -33,7 +33,7 @@ Full argument list of the ``gconstruct.construct_graph`` command
 * **-\-num-processes-for-nodes**: the number of processes to process node data simultaneously. Increase this number can speed up node data processing.
 * **-\-num-processes-for-edges**: the number of processes to process edge data simultaneously. Increase this number can speed up edge data processing.
 * **-\-output-dir**: (**Required**) the path of the output data files.
-* **-\-graph-name**: (**Required**) the name assigned for the graph.
+* **-\-graph-name**: (**Required**) the name assigned for the graph. The graph name must adhere to the Python identifier naming rules with the exception that hyphens (``-``) are permitted.
 * **-\-remap-node-id**: boolean value to decide whether to rename node IDs or not. Adding this argument will set it to be true, otherwise false.
 * **-\-add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Adding this argument sets it to true; otherwise, it defaults to false. It is **strongly** suggested to include this argument for graph construction, as some nodes in the original data may not have in-degrees, and thus cannot update their presentations by aggregating messages from their neighbors. Adding this arugment helps prevent this issue.
 * **-\-output-format**: the format of constructed graph, options are ``DGL``,  ``DistDGL``.  Default is ``DistDGL``. It also accepts multiple graph formats at the same time separated by an space, for example ``--output-format "DGL DistDGL"``. The output format is explained in the :ref:`Output <gcon-output-format>` section above.

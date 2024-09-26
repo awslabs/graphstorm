@@ -540,7 +540,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--graph-name",
         type=str,
-        help="Name for the graph being processed.",
+        help="Name for the graph being processed."
+             "The graph name must adhere to the Python "
+             "identifier naming rules with the exception "
+             "that hyphens (-) are permitted.",
         required=False,
         default=None,
     )
