@@ -54,6 +54,7 @@ import dataclasses
 import json
 import logging
 import os
+import re
 from pathlib import Path
 import tempfile
 import time
@@ -540,7 +541,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--graph-name",
         type=str,
-        help="Name for the graph being processed.",
+        help="Name for the graph being processed."
+        "The graph name must adhere to the Python "
+        "identifier naming rules with the exception "
+        "that hyphens (-) are permitted and the name "
+        "can start with numbers",
         required=False,
         default=None,
     )
@@ -564,6 +569,33 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def check_graph_name(graph_name):
+    """Check whether the graph name is a valid graph name.
+
+        We enforce that the graph name adheres to the Python
+        identifier naming rules as in
+        https://docs.python.org/3/reference/lexical_analysis.html#identifiers,
+        with the exception that hyphens (-) are permitted
+        and the name can start with numbers.
+        This helps avoid the cases when an invalid graph name,
+        such as `/graph`, causes unexpected errors.
+
+        Note: Same as graphstorm.utils.check_graph_name.
+
+    Parameter
+    ---------
+    graph_name: str
+        Graph Name.
+    """
+    gname = re.sub(r"^\d+", "", graph_name)
+    assert gname.replace("-", "_").isidentifier(), (
+        "GraphStorm expects the graph name adheres to the Python"
+        "identifier naming rules with the exception that hyphens "
+        "(-) are permitted and the name can start with numbers. "
+        f"Got: {graph_name}"
+    )
+
+
 def main():
     """Main entry point for GSProcessing"""
     # Allows us to get typed arguments from the command line
@@ -572,6 +604,7 @@ def main():
         level=gsprocessing_args.log_level,
         format="[GSPROCESSING] %(asctime)s %(levelname)-8s %(message)s",
     )
+    check_graph_name(gsprocessing_args.graph_name)
 
     # Determine execution environment
     if os.path.exists("/opt/ml/config/processingjobconfig.json"):
