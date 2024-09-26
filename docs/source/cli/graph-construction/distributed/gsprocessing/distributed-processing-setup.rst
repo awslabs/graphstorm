@@ -33,7 +33,7 @@ that contains the relevant code:
 
 .. code-block:: bash
 
-    cd ./graphstorm/graphstorm-processing/docker
+    cd ./graphstorm/graphstorm-processing/
 
 Install Docker
 --------------
