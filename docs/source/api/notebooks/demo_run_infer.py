@@ -219,17 +219,19 @@ class RgatNCModel(GSgnnNodeModel):
         self.init_optimizer(lr=0.001, sparse_optimizer_lr=0.01, weight_decay=0)
 
 
-def fit(gs_args, cust_args):
+def infer(gs_args, cust_args):
     # Utilize GraphStorm's GSConfig class to accept arguments
     config = GSConfig(gs_args)
 
     gs.initialize(ip_config=config.ip_config, backend="gloo", local_rank=config.local_rank)
     acm_data = gs.dataloading.GSgnnData(part_config=config.part_config)
 
+    nfeats_4_modeling = config.node_feat_name
+
     train_dataloader = gs.dataloading.GSgnnNodeDataLoader(
         dataset=acm_data,
         target_idx=acm_data.get_node_train_set(ntypes=config.target_ntype),
-        node_feats=config.node_feat_name,
+        node_feats=nfeats_4_modeling,
         label_field=config.label_field,
         fanout=config.fanout,
         batch_size=config.batch_size,
@@ -237,7 +239,7 @@ def fit(gs_args, cust_args):
     val_dataloader = gs.dataloading.GSgnnNodeDataLoader(
         dataset=acm_data,
         target_idx=acm_data.get_node_val_set(ntypes=config.target_ntype),
-        node_feats=config.node_feat_name,
+        node_feats=nfeats_4_modeling,
         label_field=config.label_field,
         fanout=config.eval_fanout,
         batch_size=config.eval_batch_size,
@@ -245,19 +247,14 @@ def fit(gs_args, cust_args):
     test_dataloader = gs.dataloading.GSgnnNodeDataLoader(
         dataset=acm_data,
         target_idx=acm_data.get_node_test_set(ntypes=config.target_ntype),
-        node_feats=config.node_feat_name,
+        node_feats=nfeats_4_modeling,
         label_field=config.label_field,
         fanout=config.eval_fanout,
         batch_size=config.eval_batch_size,
         train_task=False)
 
-    model = RgatNCModel(g=acm_data.g,
-                        num_heads=config.num_heads, 
-                        num_hid_layers=config.num_layers,
-                        node_feat_field=config.node_feat_name,
-                        hid_size=config.hidden_size,
-                        num_classes=config.num_classes,
-                        encoder_type=cust_args.rgat_encoder_type)   # here use the customized argument instead of GSConfig
+    model = RgatNCModel(g=acm_data.g, num_heads=8, num_hid_layers=2, node_feat_field=nfeats_4_modeling,
+                        hid_size=128, num_classes=14, encoder_type=cust_args.rgat_encoder_type)
 
     evaluator = gs.eval.GSgnnClassificationEvaluator(eval_frequency=100)
 
@@ -271,7 +268,7 @@ def fit(gs_args, cust_args):
                 num_epochs=config.num_epochs,
                 save_model_path=config.save_model_path)
 
-    print('------------ Ends Here ------------')
+    print(f'------------ Ends Here ------------')
 
 
 if __name__ == '__main__':
@@ -286,9 +283,9 @@ if __name__ == '__main__':
     cust_parser = argparse.ArgumentParser(description="Customized Arguments")
     # add customized arguments
     cust_parser.add_argument('--rgat-encoder-type', type=str, default="ara",
-                        help="The RGAT encoder type. Default is ara, a customized RGAT module.")
+                        help=".")
     cust_args = cust_parser.parse_args(unknown_args)
     print(f'Customized arguments: {cust_args}')
 
     # use both argument sets in our main function
-    fit(gs_args, cust_args)
+    infer(gs_args, cust_args)
