@@ -591,8 +591,8 @@ def check_graph_name(graph_name):
     assert gname.replace("-", "_").isidentifier(), (
         "GraphStorm expects the graph name adheres to the Python"
         "identifier naming rules with the exception that hyphens "
-        f"(-) are permitted and the name can start with numbers. "
-        "But we get {graph_name}"
+        "(-) are permitted and the name can start with numbers. "
+        f"But we get {graph_name}"
     )
 
 
