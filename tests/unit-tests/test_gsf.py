@@ -12,6 +12,7 @@
 
     Unit tests for gsf.py
 """
+import pytest
 
 from graphstorm.gsf import (create_builtin_node_decoder,
                             create_builtin_edge_decoder,
@@ -464,28 +465,16 @@ def test_check_graph_name():
 
     # test with invalid graph name
     graph_name = "/graph_name"
-    invalid_name = False
-    try:
+    with pytest.raises(AssertionError):
         check_graph_name(graph_name)
-    except:
-        invalid_name = True
-    assert invalid_name
 
     graph_name = "|graph_name"
-    invalid_name = False
-    try:
+    with pytest.raises(AssertionError):
         check_graph_name(graph_name)
-    except:
-        invalid_name = True
-    assert invalid_name
 
     graph_name = "\graph_name"
-    invalid_name = False
-    try:
+    with pytest.raises(AssertionError):
         check_graph_name(graph_name)
-    except:
-        invalid_name = True
-    assert invalid_name
 
 if __name__ == '__main__':
     test_check_graph_name()
