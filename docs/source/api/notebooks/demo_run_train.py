@@ -259,7 +259,7 @@ def fit(gs_args, cust_args):
                         num_classes=config.num_classes,
                         encoder_type=cust_args.rgat_encoder_type)   # here use the customized argument instead of GSConfig
 
-    evaluator = gs.eval.GSgnnClassificationEvaluator(eval_frequency=100)
+    evaluator = gs.eval.GSgnnClassificationEvaluator(eval_frequency=config.eval_frequency)
 
     trainer = gs.trainer.GSgnnNodePredictionTrainer(model)
     trainer.setup_evaluator(evaluator)
@@ -270,8 +270,6 @@ def fit(gs_args, cust_args):
                 test_loader=test_dataloader,
                 num_epochs=config.num_epochs,
                 save_model_path=config.save_model_path)
-
-    print('------------ Ends Here ------------')
 
 
 if __name__ == '__main__':
