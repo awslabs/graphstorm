@@ -592,7 +592,7 @@ def check_graph_name(graph_name):
         "GraphStorm expects the graph name adheres to the Python"
         "identifier naming rules with the exception that hyphens "
         "(-) are permitted and the name can start with numbers. "
-        f"But we get {graph_name}"
+        f"Got: {graph_name}"
     )
 
 
