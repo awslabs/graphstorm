@@ -39,7 +39,9 @@ from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
 from .config import (BUILTIN_LP_DOT_DECODER,
                      BUILTIN_LP_DISTMULT_DECODER,
-                     BUILTIN_LP_ROTATE_DECODER)
+                     BUILTIN_LP_ROTATE_DECODER,
+                     BUILTIN_LP_TRANSE_L1_DECODER,
+                     BUILTIN_LP_TRANSE_L2_DECODER)
 from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_LP_LOSS_CONTRASTIVELOSS,
                      BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
@@ -78,7 +80,10 @@ from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictWeightedDistMultDecoder,
                                  LinkPredictRotatEDecoder,
                                  LinkPredictContrastiveRotatEDecoder,
-                                 LinkPredictWeightedRotatEDecoder)
+                                 LinkPredictWeightedRotatEDecoder,
+                                 LinkPredictTransEDecoder,
+                                 LinkPredictContrastiveTransEDecoder,
+                                 LinkPredictWeightedTransEDecoder)
 from .dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                           BUILTIN_LP_JOINT_NEG_SAMPLER,BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER,
                           BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER,
@@ -723,6 +728,30 @@ def create_builtin_lp_decoder(g, decoder_input_dim, config, train_task):
             decoder = LinkPredictWeightedRotatEDecoder(g.canonical_etypes,
                                                        decoder_input_dim,
                                                        gamma,
+                                                       config.lp_edge_weight_for_loss)
+    elif config.lp_decoder_type in [BUILTIN_LP_TRANSE_L1_DECODER, BUILTIN_LP_TRANSE_L2_DECODER]:
+        if get_rank() == 0:
+            logging.debug("Using TransE objective for supervision")
+
+        # default gamma for TransE is 12.
+        gamma = config.gamma if config.gamma is not None else 12.
+
+        score_norm = 'l1' if config.lp_decoder_type == BUILTIN_LP_TRANSE_L1_DECODER else 'l2'
+        if config.lp_edge_weight_for_loss is None:
+            decoder = LinkPredictContrastiveTransEDecoder(g.canonical_etypes,
+                                                          decoder_input_dim,
+                                                          gamma,
+                                                          score_norm) \
+                if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS else \
+                LinkPredictTransEDecoder(g.canonical_etypes,
+                                         decoder_input_dim,
+                                         gamma,
+                                         score_norm)
+        else:
+            decoder = LinkPredictWeightedTransEDecoder(g.canonical_etypes,
+                                                       decoder_input_dim,
+                                                       gamma,
+                                                       score_norm,
                                                        config.lp_edge_weight_for_loss)
     else:
         raise Exception(f"Unknown link prediction decoder type {config.lp_decoder_type}")
