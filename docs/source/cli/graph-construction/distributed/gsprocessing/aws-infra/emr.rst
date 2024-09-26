@@ -201,6 +201,5 @@ Run distributed partitioning and training on Amazon SageMaker
 -------------------------------------------------------------
 
 With the data now processed you can follow the
-`GraphStorm Amazon SageMaker guide
-<distributed-sagemaker>`_
+:ref:`GraphStorm Amazon SageMaker guide<distributed-sagemaker>`
 to partition your data and run training on AWS.
