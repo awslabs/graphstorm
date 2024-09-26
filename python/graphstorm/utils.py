@@ -21,6 +21,7 @@ import time
 import resource
 import logging
 import psutil
+import re
 
 import pandas as pd
 import dgl
@@ -37,7 +38,8 @@ def check_graph_name(graph_name):
         We enforce that the graph name adheres to the Python
         identifier naming rules as in
         https://docs.python.org/3/reference/lexical_analysis.html#identifiers,
-        with the exception that hyphens (-) are permitted.
+        with the exception that hyphens (-) are permitted
+        and the name can start with numbers.
         This helps avoid the cases when an invalid graph name,
         such as `/graph`, causes unexpected errors.
 
@@ -46,10 +48,12 @@ def check_graph_name(graph_name):
     graph_name: str
         Graph Name.
     """
-    assert graph_name.replace('-', '_').isidentifier(), \
+    gname = re.sub(r'^\d+', '', graph_name)
+    assert gname.replace('-', '_').isidentifier(), \
         "GraphStorm expects the graph name adheres to the Python" \
         "identifier naming rules with the exception that hyphens " \
-        f"(-) are permitted. But we get {graph_name}"
+        f"(-) are permitted and the name can start with numbers. " \
+        "But we get {graph_name}"
 
 def get_graph_name(part_config):
     """ Get graph name from graph partition config file

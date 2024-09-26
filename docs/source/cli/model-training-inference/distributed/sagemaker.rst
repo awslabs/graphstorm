@@ -388,7 +388,7 @@ The rest of the arguments are passed on to ``sagemaker_train.py`` or ``sagemaker
 
 * **--task-type**: Task type.
 * **--graph-data-s3**: S3 location of the input graph.
-* **--graph-name**: Name of the input graph.
+* **--graph-name**: Name of the input graph. The graph name must adhere to the Python identifier naming rules with the exception that hyphens (``-``) are permitted and the name can start with numbers.
 * **--yaml-s3**: S3 location of yaml file for training and inference.
 * **--custom-script**: Custom training script provided by customers to run customer training logic. This should be a path to the Python script within the Docker image.
 * **--output-emb-s3**: S3 location to store GraphStorm generated node embeddings. This is an inference only argument.

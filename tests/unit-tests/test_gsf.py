@@ -457,6 +457,10 @@ def test_check_graph_name():
     check_graph_name(graph_name)
     graph_name = "graph-name"
     check_graph_name(graph_name)
+    graph_name = "123-graph-name"
+    check_graph_name(graph_name)
+    graph_name = "_Graph-name"
+    check_graph_name(graph_name)
 
     # test with invalid graph name
     graph_name = "/graph_name"

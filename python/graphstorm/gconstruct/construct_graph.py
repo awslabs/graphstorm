@@ -913,7 +913,8 @@ if __name__ == '__main__':
                            help="Name for the graph being processed."
                                 "The graph name must adhere to the Python "
                                 "identifier naming rules with the exception "
-                                "that hyphens (-) are permitted.",)
+                                "that hyphens (-) are permitted "
+                                "and the name can start with numbers",)
     argparser.add_argument("--remap-node-id", action='store_true',
                            help="Whether or not to remap node IDs.")
     argparser.add_argument("--add-reverse-edges", action='store_true',
