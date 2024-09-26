@@ -16,6 +16,7 @@
     Evaluator for different tasks.
 """
 
+import warnings
 import abc
 from statistics import mean
 import torch as th
@@ -851,9 +852,6 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     early_stop_strategy: str
         The early stop strategy. GraphStorm supports two strategies:
         1) consecutive_increase and 2) average_increase.
-
-    .. versionadded:: 0.4.0
-        The :py:class:`GSgnnLPEvaluator`.
     """
     def __init__(self, eval_frequency,
                  eval_metric_list=None,
@@ -993,9 +991,6 @@ class GSgnnPerEtypeLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
     early_stop_strategy: str
         The early stop strategy. GraphStorm supports two strategies:
         1) consecutive_increase and 2) average_increase.
-
-    .. versionadded:: 0.4.0
-        The :py:class:`GSgnnPerEtypeLPEvaluator`.
     """
     def __init__(self, eval_frequency,
                  eval_metric_list=None,
@@ -1185,7 +1180,7 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_iter[metric] = 0
 
-        import warnings
+
         warnings.warn(
             "The GSgnnMrrLPEvaluator has been deprecated from version 0.4.0. "
             "Please use GSgnnLPEvaluator instead.",
@@ -1347,7 +1342,6 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
             self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_iter[metric] = 0
 
-        import warnings
         warnings.warn(
             "The GSgnnPerEtypeMrrLPEvaluator has been deprecated from version 0.4.0. "
             "Please use GSgnnPerEtypeLPEvaluator instead.",
@@ -1545,7 +1539,6 @@ class GSgnnHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_iter[metric] = 0
 
-        import warnings
         warnings.warn(
             "The GSgnnHitsLPEvaluator has been deprecated from version 0.4.0. "
             "Please use GSgnnLPEvaluator instead.",
@@ -1707,7 +1700,6 @@ class GSgnnPerEtypeHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfa
             self._best_test_score[metric] = self.metrics_obj.init_best_metric(metric=metric)
             self._best_iter[metric] = 0
 
-        import warnings
         warnings.warn(
             "The GSgnnPerEtypeHitsLPEvaluator has been deprecated from version 0.4.0. "
             "Please use GSgnnPerEtypeLPEvaluator instead.",

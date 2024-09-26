@@ -114,7 +114,9 @@ from .eval import (GSgnnClassificationEvaluator,
                    GSgnnRegressionEvaluator,
                    GSgnnRconstructFeatRegScoreEvaluator,
                    GSgnnPerEtypeLPEvaluator,
-                   GSgnnLPEvaluator)
+                   GSgnnLPEvaluator,
+                   GSgnnPerEtypeMrrLPEvaluator,
+                   GSgnnMrrLPEvaluator)
 from .trainer import (GSgnnLinkPredictionTrainer,
                       GSgnnNodePredictionTrainer,
                       GSgnnEdgePredictionTrainer,
@@ -1119,21 +1121,23 @@ def create_evaluator(task_info):
                                         config.early_stop_rounds,
                                         config.early_stop_strategy)
     elif task_info.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
+        assert len(config.eval_metric) == 1, \
+        "GraphStorm doees not support computing multiple metrics at the same time for link prediction tasks."
         if config.report_eval_per_type:
-            return GSgnnPerEtypeLPEvaluator(eval_frequency=config.eval_frequency,
-                                    eval_metric_list=config.eval_metric,
-                                    major_etype=config.model_select_etype,
-                                    use_early_stop=config.use_early_stop,
-                                    early_stop_burnin_rounds=config.early_stop_burnin_rounds,
-                                    early_stop_rounds=config.early_stop_rounds,
-                                    early_stop_strategy=config.early_stop_strategy)
+            return GSgnnPerEtypeMrrLPEvaluator(
+                eval_frequency=config.eval_frequency,
+                major_etype=config.model_select_etype,
+                use_early_stop=config.use_early_stop,
+                early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                early_stop_rounds=config.early_stop_rounds,
+                early_stop_strategy=config.early_stop_strategy)
         else:
-            return GSgnnLPEvaluator(eval_frequency=config.eval_frequency,
-                                    eval_metric_list=config.eval_metric,
-                                    use_early_stop=config.use_early_stop,
-                                    early_stop_burnin_rounds=config.early_stop_burnin_rounds,
-                                    early_stop_rounds=config.early_stop_rounds,
-                                    early_stop_strategy=config.early_stop_strategy)
+            return GSgnnMrrLPEvaluator(
+                eval_frequency=config.eval_frequency,
+                use_early_stop=config.use_early_stop,
+                early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                early_stop_rounds=config.early_stop_rounds,
+                early_stop_strategy=config.early_stop_strategy)
     elif task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
         return GSgnnRconstructFeatRegScoreEvaluator(
             config.eval_frequency,
@@ -1154,7 +1158,7 @@ def create_lp_evaluator(config):
 
         Return
         ------
-        Evaluator
+        Evaluator: A link prediction evaluator
     """
     assert all((x.startswith(SUPPORTED_HIT_AT_METRICS) or x == 'mrr') for x in
                config.eval_metric), (

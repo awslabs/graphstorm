@@ -983,7 +983,7 @@ def test_lp_evaluator():
     # config.no_validation False
     # eval_frequency is 0
     lp = GSgnnLPEvaluator(config3.eval_frequency,
-                              eval_metric_list=["hit_at_1", "mrr", "hit_at_10"],
+                              eval_metric_list=config3.eval_metric_list,
                               use_early_stop=config3.use_early_stop)
     assert lp.do_eval(120, epoch_end=True) is True
     assert lp.do_eval(200) is False
