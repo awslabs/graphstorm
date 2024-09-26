@@ -29,7 +29,8 @@ from .gsf import create_builtin_lp_model
 from .gsf import create_builtin_edge_model
 from .gsf import create_builtin_node_model
 from .gsf import (create_task_decoder,
-                  create_evaluator)
+                  create_evaluator,
+                  create_lp_evaluator)
 
 from .gsf import (create_builtin_node_decoder,
                   create_builtin_edge_decoder,

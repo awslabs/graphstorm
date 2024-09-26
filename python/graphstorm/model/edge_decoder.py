@@ -1116,29 +1116,33 @@ class LinkPredictMultiRelationLearnableDecoder(LinkPredictLearnableDecoder):
         return self._w_relation.weight, self.etype2rid
 
 class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
-    r""" Decoder for link prediction using the RotatE as the score function.
+    r"""
+    .. versionadded:: 0.4
+        The :py:class:`LinkPredictRotatEDecoder`.
 
-        Score function of RotateE measures the angular distance between
-        head and tail elements. The angular distance is defined as:
+    Decoder for link prediction using the RotatE as the score function.
 
-        .. math::
+    Score function of RotateE measures the angular distance between
+    head and tail elements. The angular distance is defined as:
 
-            d_r(h, t)=\|h\circ r-t\|
+    .. math::
 
-        The RotatE score function is defined as:
+        d_r(h, t)=\|h\circ r-t\|
 
-        .. math::
+    The RotatE score function is defined as:
 
-            gamma - \|h\circ r-t\|^2
+    .. math::
 
-        where gamma is a margin.
+        gamma - \|h\circ r-t\|^2
 
-        For more details, please refer to https://arxiv.org/abs/1902.10197
-        or https://dglke.dgl.ai/doc/kg.html#rotatee.
+    where gamma is a margin.
 
-        Note: The relation embedding of RotatE has two parts,
-        one for real numbers and one for complex numbers.
-        Each has the dimension size as half of the input dimension size.
+    For more details, please refer to https://arxiv.org/abs/1902.10197
+    or https://dglke.dgl.ai/doc/kg.html#rotatee.
+
+    Note: The relation embedding of RotatE has two parts,
+    one for real numbers and one for complex numbers.
+    Each has the dimension size as half of the input dimension size.
 
     Parameters
     ----------
@@ -1376,14 +1380,18 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
         return 1
 
 class LinkPredictContrastiveRotatEDecoder(LinkPredictRotatEDecoder):
-    """ Decoder for link prediction designed for contrastive loss
-        using the RotatE as the score function.
+    """
+    .. versionadded:: 0.4
+        The :py:class:`LinkPredictContrastiveRotatEDecoder`.
 
-        Note:
-        ------
-        This class is specifically implemented for contrastive loss. But
-        it could also be used by other pair-wise loss functions for link
-        prediction tasks.
+    Decoder for link prediction designed for contrastive loss
+    using the RotatE as the score function.
+
+    Note:
+    ------
+    This class is specifically implemented for contrastive loss. But
+    it could also be used by other pair-wise loss functions for link
+    prediction tasks.
 
     Parameters
     ----------
@@ -1442,10 +1450,13 @@ class LinkPredictContrastiveRotatEDecoder(LinkPredictRotatEDecoder):
             return scores
 
 class LinkPredictWeightedRotatEDecoder(LinkPredictRotatEDecoder):
-    """Link prediction decoder with the score function of RotatE
-       with edge weight.
+    """
+    .. versionadded:: 0.4
+        The :py:class:`LinkPredictWeightedRotatEDecoder`.
 
-       When computing loss, edge weights are used to adjust the loss.
+    Link prediction decoder with the score function of RotatE with edge weight.
+
+    When computing loss, edge weights are used to adjust the loss.
 
     Parameters
     ----------
@@ -1510,26 +1521,30 @@ class LinkPredictWeightedRotatEDecoder(LinkPredictRotatEDecoder):
             return scores
 
 class LinkPredictTransEDecoder(LinkPredictMultiRelationLearnableDecoder):
-    r""" Decoder for link prediction using the TransE as the score function.
+    r"""
+    .. versionadded:: 0.4
+        The :py:class:`LinkPredictTransEDecoder`.
 
-        Score function of TransE measures the angular distance between
-        head and tail elements. The angular distance is defined as:
+    Decoder for link prediction using the TransE as the score function.
 
-        .. math::
+    Score function of TransE measures the angular distance between
+    head and tail elements. The angular distance is defined as:
 
-            d_r(h, t)= -\|h+r-t\|
+    .. math::
 
-        The TransE score function is defined as:
+        d_r(h, t)= -\|h+r-t\|
 
-        .. math::
+    The TransE score function is defined as:
 
-            gamma - \|h+r-t\|^{frac{1}{2}} \text{or} gamma - \|h+r-t\|
+    .. math::
 
-        where gamma is a margin.
+        gamma - \|h+r-t\|^{frac{1}{2}} \text{or} gamma - \|h+r-t\|
 
-        For more details, please refer to
-        https://papers.nips.cc/paper_files/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html
-        or https://dglke.dgl.ai/doc/kg.html#transe.
+    where gamma is a margin.
+
+    For more details, please refer to
+    https://papers.nips.cc/paper_files/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html
+    or https://dglke.dgl.ai/doc/kg.html#transe.
 
     Parameters
     ----------
@@ -1769,14 +1784,18 @@ class LinkPredictTransEDecoder(LinkPredictMultiRelationLearnableDecoder):
         return 1
 
 class LinkPredictContrastiveTransEDecoder(LinkPredictTransEDecoder):
-    """ Decoder for link prediction designed for contrastive loss
-        using the TransE as the score function.
+    """
+    .. versionadded:: 0.4
+        The :py:class:`LinkPredictContrastiveTransEDecoder`.
 
-        Note:
-        ------
-        This class is specifically implemented for contrastive loss. But
-        it could also be used by other pair-wise loss functions for link
-        prediction tasks.
+    Decoder for link prediction designed for contrastive loss
+    using the TransE as the score function.
+
+    Note:
+    ------
+    This class is specifically implemented for contrastive loss. But
+    it could also be used by other pair-wise loss functions for link
+    prediction tasks.
 
     Parameters
     ----------
@@ -1834,10 +1853,13 @@ class LinkPredictContrastiveTransEDecoder(LinkPredictTransEDecoder):
             return scores
 
 class LinkPredictWeightedTransEDecoder(LinkPredictTransEDecoder):
-    """Link prediction decoder with the score function of TransE
-       with edge weight.
+    """
+    .. versionadded:: 0.4
+        The :py:class:`LinkPredictWeightedTransEDecoder`.
 
-       When computing loss, edge weights are used to adjust the loss.
+    Link prediction decoder with the score function of TransE with edge weight.
+
+    When computing loss, edge weights are used to adjust the loss.
 
     Parameters
     ----------
