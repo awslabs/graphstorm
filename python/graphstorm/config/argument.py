@@ -83,7 +83,7 @@ def get_argument_parser():
     arugments in GraphStorm launch CLIs. Specifically, it will parses yaml config file first,
     and then parses arguments to overwrite parameters defined in the yaml file or add new
     parameters.
-    
+
     This ``get_argument_parser()`` is also useful when users want to convert customized models
     to use GraphStorm CLIs.
 
@@ -166,7 +166,7 @@ def get_argument_parser():
 # pylint: disable=no-member
 class GSConfig:
     """GSgnn configuration class.
-    
+
     GSConfig contains all GraphStorm model training and inference configurations, which can
     either be loaded from a yaml file specified in the ``--cf`` argument, or from CLI arguments.
     """
@@ -1223,9 +1223,9 @@ class GSConfig:
     @property
     def node_feat_name(self):
         """ User defined node feature name. Default is None.
-         
+
         It can be in following format:
-        
+
         - ``feat_name``: global feature name, if a node has node feature, the corresponding
           feature name is <feat_name>.
         - ``"ntype0:feat0","ntype1:feat0,feat1",...``: different node types  have different
@@ -1291,16 +1291,16 @@ class GSConfig:
     def fanout(self):
         """ The fanouts of GNN layers. The values of fanouts must be integers larger
             than 0. The number of fanouts must equal to ``num_layers``. Must provide.
-            
-            It accepts two formats: 
-            
+
+            It accepts two formats:
+
             - ``20,10``, which defines the number of neighbors
             to sample per edge type for each GNN layer with the i_th element being the
             fanout for the ith GNN layer.
-            
+
             - "etype2:20@etype3:20@etype1:10,etype2:10@etype3:4@etype1:2", which defines
             the numbers of neighbors to sample for different edge types for each GNN layers
-            with the i_th element being the fanout for the i_th GNN layer. 
+            with the i_th element being the fanout for the i_th GNN layer.
         """
         # pylint: disable=no-member
         if self.model_encoder_type in BUILTIN_GNN_ENCODER:
@@ -1440,7 +1440,7 @@ class GSConfig:
 
     @property
     def gnn_norm(self):
-        """ Normalization method for GNN layers. Options include ``batch`` or ``layer``. 
+        """ Normalization method for GNN layers. Options include ``batch`` or ``layer``.
             Default is None.
         """
         # pylint: disable=no-member
@@ -1616,7 +1616,7 @@ class GSConfig:
     @property
     # pylint: disable=invalid-name
     def lr(self):
-        """ Learning rate for dense parameters of input encoders, model encoders, 
+        """ Learning rate for dense parameters of input encoders, model encoders,
             and decoders. Must provide.
         """
         assert hasattr(self, "_lr"), "Learning rate must be specified"
@@ -1825,7 +1825,7 @@ class GSConfig:
 
     @property
     def early_stop_strategy(self):
-        """ The strategy used to decide if stop training early. GraphStorm supports two 
+        """ The strategy used to decide if stop training early. GraphStorm supports two
             strategies: 1) ``consecutive_increase``, and 2) ``average_increase``.
             Default is ``average_increase``.
         """
@@ -1843,7 +1843,7 @@ class GSConfig:
 
     @property
     def use_early_stop(self):
-        """ Whether to use early stopping during training. Default is False. 
+        """ Whether to use early stopping during training. Default is False.
         """
         # pylint: disable=no-member
         if hasattr(self, "_use_early_stop"):
@@ -1954,7 +1954,7 @@ class GSConfig:
     def multilabel_weights(self):
         """Used to specify label weight of each class in a multi-label classification task.
             It is feed into ``th.nn.BCEWithLogitsLoss`` as ``pos_weight``.
-             
+
             The weights should be in the following format 0.1,0.2,0.3,0.1,0.0, ...
             Default is None.
         """
@@ -2182,7 +2182,7 @@ class GSConfig:
             Default is True.
 
             If set to True, Graphstorm will set the fanout of training target edge
-            type as zero. This is only used with edge classification. 
+            type as zero. This is only used with edge classification.
             If the edge classification is to predict the existence of an edge between
             two nodes, GraphStorm should remove the target edge in the message passing to
             avoid information leak. If it's to predict some attributes associated with
@@ -2205,7 +2205,7 @@ class GSConfig:
 
     @property
     def decoder_type(self):
-        """ The type of edge clasification or regression decoders. Built-in decoders include 
+        """ The type of edge clasification or regression decoders. Built-in decoders include
             ``DenseBiDecoder`` and ``MLPDecoder``. Default is ``DenseBiDecoder``.
         """
         # pylint: disable=no-member
@@ -2265,7 +2265,7 @@ class GSConfig:
     ### Link Prediction specific ###
     @property
     def train_negative_sampler(self):
-        """ The negative sampler used for link prediction training. 
+        """ The negative sampler used for link prediction training.
             Built-in samplers include ``uniform``, ``joint``, ``localuniform``,
             ``all_etype_uniform`` and ``all_etype_joint``. Default is ``uniform``.
         """
@@ -2276,7 +2276,7 @@ class GSConfig:
 
     @property
     def eval_negative_sampler(self):
-        """ The negative sampler used for link prediction training. 
+        """ The negative sampler used for link prediction training.
             Built-in samplers include ``uniform``, ``joint``, ``localuniform``,
             ``all_etype_uniform`` and ``all_etype_joint``. Default is ``joint``.
         """
@@ -2316,8 +2316,8 @@ class GSConfig:
     @property
     def lp_decoder_type(self):
         """ The decoder type for loss function in link prediction tasks.
-            Currently GraphStorm supports ``dot_product``, ``distmult`` and ``rotate``.
-            Default is ``distmult``.
+            Currently GraphStorm supports ``dot_product``, ``distmult``,
+            ``transe`` (``transe_l1`` and ``transe_l2``), and ``rotate``. Default is ``distmult``.
         """
         # pylint: disable=no-member
         if hasattr(self, "_lp_decoder_type"):
@@ -2379,10 +2379,10 @@ class GSConfig:
             positive edge loss for link prediction tasks. Default is None.
 
             The edge_weight can be in following format:
-            
+
             - ``weight_name``: global weight name, if an edge has weight,
             the corresponding weight name is ``weight_name``.
-            
+
             - ``"src0,rel0,dst0:weight0","src0,rel0,dst0:weight1",...``:
             different edge types have different edge weights.
         """
@@ -2450,7 +2450,7 @@ class GSConfig:
 
     @property
     def train_etypes_negative_dstnode(self):
-        """ The list of canonical edge types that have hard negative edges 
+        """ The list of canonical edge types that have hard negative edges
             constructed by corrupting destination nodes during training.
 
             For each edge type to use different fields to store the hard negatives,
@@ -2458,13 +2458,13 @@ class GSConfig:
 
             .. code:: json
 
-                train_etypes_negative_dstnode: 
+                train_etypes_negative_dstnode:
                     - src_type,rel_type0,dst_type:negative_nid_field
                     - src_type,rel_type1,dst_type:negative_nid_field
-              
+
             or, for all edge types to use the same field to store the hard negatives,
             the format of the arguement is:
-            
+
             .. code:: json
 
                 train_etypes_negative_dstnode:
@@ -2482,7 +2482,7 @@ class GSConfig:
 
     @property
     def num_train_hard_negatives(self):
-        """ Number of hard negatives to sample for each edge type during training. 
+        """ Number of hard negatives to sample for each edge type during training.
             Default is None.
 
             For each edge type to have a number of hard negatives,
@@ -2496,7 +2496,7 @@ class GSConfig:
 
             or, for all edge types to have the same number of hard negatives,
             the format of the arguement is:
-            
+
             .. code:: json
 
                 num_train_hard_negatives:
@@ -2533,7 +2533,7 @@ class GSConfig:
 
     @property
     def eval_etypes_negative_dstnode(self):
-        """ The list of canonical edge types that have hard negative edges 
+        """ The list of canonical edge types that have hard negative edges
             constructed by corrupting destination nodes during evaluation.
 
             For each edge type to use different fields to store the hard negatives,
@@ -2541,13 +2541,13 @@ class GSConfig:
 
             .. code:: json
 
-                eval_etypes_negative_dstnode: 
+                eval_etypes_negative_dstnode:
                     - src_type,rel_type0,dst_type:negative_nid_field
                     - src_type,rel_type1,dst_type:negative_nid_field
-              
+
             or, for all edge types to use the same field to store the hard negatives,
             the format of the arguement is:
-            
+
             .. code:: json
 
                 eval_etypes_negative_dstnode:
@@ -2565,7 +2565,7 @@ class GSConfig:
 
     @property
     def train_etype(self):
-        """ The list of canonical edge types that will be added as training target. 
+        """ The list of canonical edge types that will be added as training target.
             If not provided, all edge types will be used as training target. A canonical
             edge type should be formatted as ``src_node_type,relation_type,dst_node_type``.
         """
@@ -2582,7 +2582,7 @@ class GSConfig:
 
     @property
     def eval_etype(self):
-        """ The list of canonical edge types that will be added as evaluation target. 
+        """ The list of canonical edge types that will be added as evaluation target.
             If not provided, all edge types will be used as evaluation target. A canonical
             edge type should be formatted as ``src_node_type,relation_type,dst_node_type``.
         """
@@ -2638,7 +2638,7 @@ class GSConfig:
 
     @property
     def class_loss_func(self):
-        """ Classification loss function. Builtin loss functions include 
+        """ Classification loss function. Builtin loss functions include
             ``cross_entropy`` and ``focal``. Default is ``cross_entropy``.
         """
         # pylint: disable=no-member
@@ -2652,7 +2652,7 @@ class GSConfig:
 
     @property
     def lp_loss_func(self):
-        """ Link prediction loss function. Builtin loss functions include 
+        """ Link prediction loss function. Builtin loss functions include
             ``cross_entropy`` and ``contrastive``. Default is ``cross_entropy``.
         """
         # pylint: disable=no-member

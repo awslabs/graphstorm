@@ -12,10 +12,12 @@
 
     Unit tests for gsf.py
 """
+import pytest
 
 from graphstorm.gsf import (create_builtin_node_decoder,
                             create_builtin_edge_decoder,
                             create_builtin_lp_decoder)
+from graphstorm.utils import check_graph_name
 from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
@@ -449,7 +451,33 @@ def test_create_builtin_lp_decoder():
     assert decoder.gamma == 6.
 
 
+def test_check_graph_name():
+    graph_name = "a"
+    check_graph_name(graph_name)
+    graph_name = "graph_name"
+    check_graph_name(graph_name)
+    graph_name = "graph-name"
+    check_graph_name(graph_name)
+    graph_name = "123-graph-name"
+    check_graph_name(graph_name)
+    graph_name = "_Graph-name"
+    check_graph_name(graph_name)
+
+    # test with invalid graph name
+    graph_name = "/graph_name"
+    with pytest.raises(AssertionError):
+        check_graph_name(graph_name)
+
+    graph_name = "|graph_name"
+    with pytest.raises(AssertionError):
+        check_graph_name(graph_name)
+
+    graph_name = "\graph_name"
+    with pytest.raises(AssertionError):
+        check_graph_name(graph_name)
+
 if __name__ == '__main__':
+    test_check_graph_name()
     test_create_builtin_node_decoder()
     test_create_builtin_edge_decoder()
     test_create_builtin_lp_decoder()

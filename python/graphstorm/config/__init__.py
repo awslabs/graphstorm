@@ -31,7 +31,9 @@ from .config import SUPPORTED_TASKS
 
 from .config import (BUILTIN_LP_DOT_DECODER,
                      BUILTIN_LP_DISTMULT_DECODER,
-                     BUILTIN_LP_ROTATE_DECODER)
+                     BUILTIN_LP_ROTATE_DECODER,
+                     BUILTIN_LP_TRANSE_L1_DECODER,
+                     BUILTIN_LP_TRANSE_L2_DECODER)
 from .config import SUPPORTED_LP_DECODER
 
 from .config import (GRAPHSTORM_MODEL_EMBED_LAYER,
