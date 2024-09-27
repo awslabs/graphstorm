@@ -940,7 +940,7 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         Parameters
         ----------
         rankings: dict of tensors
-            Rankings of positive scores in the format of {etype: ranking}
+            Rankings of positive scores in the format of {etype: ranking}.
         train: boolean
             If in model training.
 
