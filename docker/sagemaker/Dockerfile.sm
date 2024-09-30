@@ -2,16 +2,17 @@
 # Note: Distributed graph partition will use another docker image which will come soon.
 
 ARG DEVICE=gpu
+ARG DGL_VERSION=2.3.0
 
 FROM 763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-training:2.3.0-gpu-py311-cu121-ubuntu20.04-sagemaker as branch-gpu
 ENV dev_type=GPU
 # Install DGL GPU version
-RUN pip3 install dgl==2.3.0+cu121 -f https://data.dgl.ai/wheels/torch-2.3/cu121/repo.html && rm -rf /root/.cache
+RUN pip3 install dgl==${DGL_VERSION}+cu121 -f https://data.dgl.ai/wheels/torch-2.3/cu121/repo.html && rm -rf /root/.cache
 
 FROM 763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-training:2.3.0-cpu-py311-ubuntu20.04-sagemaker as branch-cpu
 ENV dev_type=CPU
 # Install DGL CPU version
-RUN pip3 install dgl==2.3.0 -f https://data.dgl.ai/wheels/torch-2.3/repo.html && rm -rf /root/.cache
+RUN pip3 install dgl==${DGL_VERSION} -f https://data.dgl.ai/wheels/torch-2.3/repo.html && rm -rf /root/.cache
 
 FROM branch-${DEVICE} AS final
 
@@ -46,7 +47,7 @@ ENV PYTHONPATH="/opt/ml/code/graphstorm/python/:${PYTHONPATH}"
 RUN cp /opt/ml/code/graphstorm/sagemaker/run/* /opt/ml/code/
 
 # Download DGL source code
-RUN cd /root; git clone https://github.com/dmlc/dgl.git
+RUN cd /root; git clone --branch v${DGL_VERSION} https://github.com/dmlc/dgl.git
 # Un-comment if we prefer a local DGL distribution
 # COPY dgl /root/dgl
 ENV PYTHONPATH="/root/dgl/tools/:${PYTHONPATH}"
