@@ -101,3 +101,7 @@ Decoder Layer
     LinkPredictContrastiveDistMultDecoder
     LinkPredictRotatEDecoder
     LinkPredictContrastiveRotatEDecoder
+    LinkPredictWeightedRotatEDecoder
+    LinkPredictTransEDecoder
+    LinkPredictContrastiveTransEDecoder
+    LinkPredictWeightedTransEDecoder

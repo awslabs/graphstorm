@@ -104,12 +104,11 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
         if self.evaluator is not None:
             test_start = time.time()
             test_rankings = lp_mini_batch_predict(self._model, embs, loader, device)
-            # TODO: to refactor the names
-            val_mrr, test_mrr = self.evaluator.evaluate(None, test_rankings, 0)
+            val_score, test_score = self.evaluator.evaluate(None, test_rankings, 0)
             sys_tracker.check('run evaluation')
             if get_rank() == 0:
-                self.log_print_metrics(val_score=val_mrr,
-                                       test_score=test_mrr,
+                self.log_print_metrics(val_score=val_score,
+                                       test_score=test_score,
                                        dur_eval=time.time() - test_start,
                                        total_steps=0)
 
