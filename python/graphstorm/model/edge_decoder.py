@@ -1118,27 +1118,27 @@ class LinkPredictMultiRelationLearnableDecoder(LinkPredictLearnableDecoder):
 class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
     r""" Decoder for link prediction using the RotatE as the score function.
 
-        Score function of RotateE measures the angular distance between
-        head and tail elements. The angular distance is defined as:
+    Score function of RotateE measures the angular distance between
+    head and tail elements. The angular distance is defined as:
 
-        .. math::
+    .. math::
 
-            d_r(h, t)=\|h\circ r-t\|
+        d_r(h, t)=\|h\circ r-t\|
 
-        The RotatE score function is defined as:
+    The RotatE score function is defined as:
 
-        .. math::
+    .. math::
 
-            gamma - \|h\circ r-t\|^2
+        gamma - \|h\circ r-t\|^2
 
-        where gamma is a margin.
+    where gamma is a margin.
 
-        For more details, please refer to https://arxiv.org/abs/1902.10197
-        or https://dglke.dgl.ai/doc/kg.html#rotatee.
+    For more details, please refer to https://arxiv.org/abs/1902.10197
+    or https://dglke.dgl.ai/doc/kg.html#rotatee.
 
-        Note: The relation embedding of RotatE has two parts,
-        one for real numbers and one for complex numbers.
-        Each has the dimension size as half of the input dimension size.
+    Note: The relation embedding of RotatE has two parts,
+    one for real numbers and one for complex numbers.
+    Each has the dimension size as half of the input dimension size.
 
     Parameters
     ----------
@@ -1150,6 +1150,9 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
         node embeddings.
     gamma: float
         The gamma value for model initialization and score function. Default: 12.
+
+    .. versionadded:: 0.4.0
+        The :py:class:`LinkPredictRotatEDecoder`.
     """
     def __init__(self,
                  etypes,
@@ -1377,13 +1380,13 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
 
 class LinkPredictContrastiveRotatEDecoder(LinkPredictRotatEDecoder):
     """ Decoder for link prediction designed for contrastive loss
-        using the RotatE as the score function.
+    using the RotatE as the score function.
 
-        Note:
-        ------
-        This class is specifically implemented for contrastive loss. But
-        it could also be used by other pair-wise loss functions for link
-        prediction tasks.
+    Note:
+    ------
+    This class is specifically implemented for contrastive loss. But
+    it could also be used by other pair-wise loss functions for link
+    prediction tasks.
 
     Parameters
     ----------
@@ -1395,6 +1398,9 @@ class LinkPredictContrastiveRotatEDecoder(LinkPredictRotatEDecoder):
         node embeddings.
     gamma: float
         The gamma value for model weight initialization. Default: 4.
+
+    .. versionadded:: 0.4.0
+        The :py:class:`LinkPredictContrastiveRotatEDecoder`.
     """
 
     # pylint: disable=unused-argument
@@ -1442,10 +1448,9 @@ class LinkPredictContrastiveRotatEDecoder(LinkPredictRotatEDecoder):
             return scores
 
 class LinkPredictWeightedRotatEDecoder(LinkPredictRotatEDecoder):
-    """Link prediction decoder with the score function of RotatE
-       with edge weight.
+    """ Link prediction decoder with the score function of RotatE with edge weight.
 
-       When computing loss, edge weights are used to adjust the loss.
+    When computing loss, edge weights are used to adjust the loss.
 
     Parameters
     ----------
@@ -1459,6 +1464,9 @@ class LinkPredictWeightedRotatEDecoder(LinkPredictRotatEDecoder):
         The gamma value for model weight initialization. Default: 12.
     edge_weight_fields: dict of str
         The edge feature field(s) storing the edge weights.
+
+    .. versionadded:: 0.4.0
+        The :py:class:`LinkPredictWeightedRotatEDecoder`.
     """
     def __init__(self, etypes, h_dim, gamma=12., edge_weight_fields=None):
         self._edge_weight_fields = edge_weight_fields
@@ -1512,24 +1520,24 @@ class LinkPredictWeightedRotatEDecoder(LinkPredictRotatEDecoder):
 class LinkPredictTransEDecoder(LinkPredictMultiRelationLearnableDecoder):
     r""" Decoder for link prediction using the TransE as the score function.
 
-        Score function of TransE measures the angular distance between
-        head and tail elements. The angular distance is defined as:
+    Score function of TransE measures the angular distance between
+    head and tail elements. The angular distance is defined as:
 
-        .. math::
+    .. math::
 
-            d_r(h, t)= -\|h+r-t\|
+        d_r(h, t)= -\|h+r-t\|
 
-        The TransE score function is defined as:
+    The TransE score function is defined as:
 
-        .. math::
+    .. math::
 
-            gamma - \|h+r-t\|^{frac{1}{2}} \text{or} gamma - \|h+r-t\|
+        gamma - \|h+r-t\|^{frac{1}{2}} \text{or} gamma - \|h+r-t\|
 
-        where gamma is a margin.
+    where gamma is a margin.
 
-        For more details, please refer to
-        https://papers.nips.cc/paper_files/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html
-        or https://dglke.dgl.ai/doc/kg.html#transe.
+    For more details, please refer to
+    https://papers.nips.cc/paper_files/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html
+    or https://dglke.dgl.ai/doc/kg.html#transe.
 
     Parameters
     ----------
@@ -1543,6 +1551,9 @@ class LinkPredictTransEDecoder(LinkPredictMultiRelationLearnableDecoder):
         The gamma value for model initialization and score function. Default: 12.
     norm: str
         L1 or L2 norm on the angular distance for TransE. Default: 'l2'.
+
+    .. versionadded:: 0.4.0
+        The :py:class:`LinkPredictTransEDecoder`.
     """
     def __init__(self,
                  etypes,
@@ -1770,13 +1781,13 @@ class LinkPredictTransEDecoder(LinkPredictMultiRelationLearnableDecoder):
 
 class LinkPredictContrastiveTransEDecoder(LinkPredictTransEDecoder):
     """ Decoder for link prediction designed for contrastive loss
-        using the TransE as the score function.
+    using the TransE as the score function.
 
-        Note:
-        ------
-        This class is specifically implemented for contrastive loss. But
-        it could also be used by other pair-wise loss functions for link
-        prediction tasks.
+    Note:
+    ------
+    This class is specifically implemented for contrastive loss. But
+    it could also be used by other pair-wise loss functions for link
+    prediction tasks.
 
     Parameters
     ----------
@@ -1788,6 +1799,9 @@ class LinkPredictContrastiveTransEDecoder(LinkPredictTransEDecoder):
         node embeddings.
     gamma: float
         The gamma value for model weight initialization. Default: 4.
+
+    .. versionadded:: 0.4.0
+        The :py:class:`LinkPredictContrastiveTransEDecoder`.
     """
 
     # pylint: disable=unused-argument
@@ -1834,10 +1848,9 @@ class LinkPredictContrastiveTransEDecoder(LinkPredictTransEDecoder):
             return scores
 
 class LinkPredictWeightedTransEDecoder(LinkPredictTransEDecoder):
-    """Link prediction decoder with the score function of TransE
-       with edge weight.
+    """ Link prediction decoder with the score function of TransE with edge weight.
 
-       When computing loss, edge weights are used to adjust the loss.
+    When computing loss, edge weights are used to adjust the loss.
 
     Parameters
     ----------
@@ -1853,6 +1866,9 @@ class LinkPredictWeightedTransEDecoder(LinkPredictTransEDecoder):
         L1 or L2 norm on the angular distance for TransE. Default: 'l2'.
     edge_weight_fields: dict of str
         The edge feature field(s) storing the edge weights.
+
+    .. versionadded:: 0.4.0
+        The :py:class:`LinkPredictWeightedTransEDecoder`.
     """
     def __init__(self, etypes, h_dim, gamma=12., norm='l2', edge_weight_fields=None):
         self.norm = norm
