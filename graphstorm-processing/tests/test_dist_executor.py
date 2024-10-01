@@ -62,8 +62,9 @@ def user_state_categorical_precomp_file_fixture():
     os.remove(precomp_file)
 
 
-def test_dist_executor_run_with_precomputed(tempdir: str, user_state_categorical_precomp_file):
-    """Test run function with local data"""
+@pytest.fixture(name="executor_configuration")
+def executor_config_fixture(tempdir: str):
+    """Create a re-usable ExecutorConfig"""
     input_path = os.path.join(_ROOT, "resources/small_heterogeneous_graph")
     executor_configuration = ExecutorConfig(
         local_config_path=input_path,
@@ -79,6 +80,15 @@ def test_dist_executor_run_with_precomputed(tempdir: str, user_state_categorical
         do_repartition=True,
     )
 
+    yield executor_configuration
+
+
+def test_dist_executor_run_with_precomputed(
+    tempdir: str,
+    user_state_categorical_precomp_file: str,
+    executor_configuration: ExecutorConfig,
+):
+    """Test run function with local data"""
     original_precomp_file = user_state_categorical_precomp_file
 
     with open(original_precomp_file, "r", encoding="utf-8") as f:
@@ -106,23 +116,8 @@ def test_dist_executor_run_with_precomputed(tempdir: str, user_state_categorical
     # TODO: Verify other metadata files that verify_integ_test_output doesn't check for
 
 
-def test_merge_input_and_transform_dicts(tempdir: str):
+def test_merge_input_and_transform_dicts(executor_configuration: ExecutorConfig):
     """Test the _merge_config_with_transformations function with hardcoded json data"""
-    input_path = os.path.join(_ROOT, "resources/small_heterogeneous_graph")
-    executor_configuration = ExecutorConfig(
-        local_config_path=input_path,
-        local_metadata_output_path=tempdir,
-        input_prefix=input_path,
-        output_prefix=tempdir,
-        num_output_files=-1,
-        config_filename="gsprocessing-config.json",
-        execution_env=ExecutionEnv.LOCAL,
-        filesystem_type=FilesystemType.LOCAL,
-        add_reverse_edges=True,
-        graph_name="small_heterogeneous_graph",
-        do_repartition=True,
-    )
-
     dist_executor = DistributedExecutor(executor_configuration)
 
     pre_comp_transormations = {
@@ -148,3 +143,28 @@ def test_merge_input_and_transform_dicts(tempdir: str):
                 if "state" == feature["column"]:
                     transform_for_feature = feature["precomputed_transformation"]
                     assert transform_for_feature["transformation_name"] == "categorical"
+
+
+def test_dist_executor_graph_name(executor_configuration: ExecutorConfig):
+    """Test cases for graph name"""
+
+    # Ensure we can set a valid graph name
+    executor_configuration.graph_name = "2024-a_valid_name"
+    dist_executor = DistributedExecutor(executor_configuration)
+    assert dist_executor.graph_name == "2024-a_valid_name"
+
+    # Ensure default value is used when graph_name is not provided
+    executor_configuration.graph_name = None
+    dist_executor = DistributedExecutor(executor_configuration)
+    assert dist_executor.graph_name == "small_heterogeneous_graph"
+
+    # Ensure we raise when invalid graph name is provided
+    with pytest.raises(AssertionError):
+        executor_configuration.graph_name = "graph.name"
+        dist_executor = DistributedExecutor(executor_configuration)
+
+    # Ensure a valid default graph name is parsed when the input ends in '/'
+    executor_configuration.graph_name = None
+    executor_configuration.input_prefix = executor_configuration.input_prefix + "/"
+    dist_executor = DistributedExecutor(executor_configuration)
+    assert dist_executor.graph_name == "small_heterogeneous_graph"
