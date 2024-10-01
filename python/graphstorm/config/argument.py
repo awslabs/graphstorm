@@ -1723,7 +1723,12 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_wd_l2norm"):
-            return self._wd_l2norm
+            try:
+                wd_l2norm = float(self._wd_l2norm)
+            except:
+                raise ValueError("wd-l2norm must be a floating point " \
+                                 f"but get {self._wd_l2norm}")
+            return wd_l2norm
         return 0
 
     @property
