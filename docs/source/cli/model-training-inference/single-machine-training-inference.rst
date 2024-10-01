@@ -61,16 +61,16 @@ While task-specific CLIs allow users to quickly perform GML tasks supported by G
     python -m graphstorm.run.launch \
               --num-trainers 1 \
               --part-config data.json \
-              --save-model-path model_path/ \
-              customized_model.py customized_arguments
+              customized_model.py --save-model-path model_path/ \
+                                  customized_arguments 
 
     # Model inference
     python -m graphstorm.run.launch \
               --inference \
               --num-trainers 1 \
               --part-config data.json \
-              --restore-model-path model_path/ \
-              --save-prediction-path pred_path/
-              customized_model.py customized_arguments
+              customized_model.py --restore-model-path model_path/ \
+                                  --save-prediction-path pred_path/ \
+                                  customized_arguments
 
 The task-agnostic CLI command (``launch``) has similar tempalte as the task-specific CLIs except that it takes the customized model, which is stored as a ``.py`` file, as an argument. And in case the customized model has its own arguments, they should be placed after the customized model python file.
