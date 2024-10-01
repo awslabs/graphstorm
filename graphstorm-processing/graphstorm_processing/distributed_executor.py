@@ -59,7 +59,7 @@ from pathlib import Path
 import tempfile
 import time
 from collections.abc import Mapping
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import boto3
 import botocore
@@ -106,8 +106,8 @@ class ExecutorConfig:
         The filesystem type, can be LOCAL or S3
     add_reverse_edges : bool
         Whether to create reverse edges for each edge type.
-    graph_name: str
-        The name of the graph being processed
+    graph_name: str, optional
+        The name of the graph being processed. If not provided we use part of the input_prefix.
     do_repartition: bool
         Whether to apply repartitioning to the graph on the Spark leader.
     """
@@ -121,7 +121,7 @@ class ExecutorConfig:
     config_filename: str
     filesystem_type: FilesystemType
     add_reverse_edges: bool
-    graph_name: str
+    graph_name: Optional[str]
     do_repartition: bool
 
 
@@ -135,7 +135,7 @@ class GSProcessingArguments:
     num_output_files: int
     add_reverse_edges: bool
     log_level: str
-    graph_name: str
+    graph_name: Optional[str]
     do_repartition: bool
 
 
@@ -162,7 +162,14 @@ class DistributedExecutor:
         self.filesystem_type = executor_config.filesystem_type
         self.execution_env = executor_config.execution_env
         self.add_reverse_edges = executor_config.add_reverse_edges
-        self.graph_name = executor_config.graph_name
+        # We use the data location as the graph name if a name is not provided
+        if executor_config.graph_name:
+            self.graph_name = executor_config.graph_name
+        else:
+            derived_name = s3_utils.s3_path_remove_trailing(self.input_prefix).split("/")[-1]
+            logging.warning("Setting graph name derived from input path: %s", derived_name)
+            self.graph_name = derived_name
+        check_graph_name(self.graph_name)
         self.repartition_on_leader = executor_config.do_repartition
         # Input config dict using GSProcessing schema
         self.gsp_config_dict = {}
@@ -541,11 +548,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--graph-name",
         type=str,
-        help="Name for the graph being processed."
-        "The graph name must adhere to the Python "
-        "identifier naming rules with the exception "
-        "that hyphens (-) are permitted and the name "
-        "can start with numbers",
+        help=(
+            "Name for the graph being processed."
+            "The graph name must adhere to the Python "
+            "identifier naming rules with the exception "
+            "that hyphens (-) are permitted and the name "
+            "can start with numbers. If not provided, we will use the last "
+            "section of the input prefix path."
+        ),
         required=False,
         default=None,
     )
@@ -604,7 +614,6 @@ def main():
         level=gsprocessing_args.log_level,
         format="[GSPROCESSING] %(asctime)s %(levelname)-8s %(message)s",
     )
-    check_graph_name(gsprocessing_args.graph_name)
 
     # Determine execution environment
     if os.path.exists("/opt/ml/config/processingjobconfig.json"):
