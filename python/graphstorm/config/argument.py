@@ -1726,7 +1726,7 @@ class GSConfig:
             try:
                 wd_l2norm = float(self._wd_l2norm)
             except:
-                raise ValueError("wd-l2norm must be a floating point " \
+                raise ValueError("wd_l2norm must be a floating point " \
                                  f"but get {self._wd_l2norm}")
             return wd_l2norm
         return 0
@@ -1740,7 +1740,12 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_alpha_l2norm"):
-            return self._alpha_l2norm
+            try:
+                alpha_l2norm = float(self._alpha_l2norm)
+            except:
+                raise ValueError("alpha_l2norm must be a floating point " \
+                                 f"but get {self._alpha_l2norm}")
+            return alpha_l2norm
         return .0
 
     @property
