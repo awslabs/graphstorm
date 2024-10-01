@@ -442,8 +442,6 @@ class DistHeterogeneousGraphLoader(object):
         metadata_dict["edge_type"] = edge_types
         metadata_dict["node_type"] = sorted(node_type_set)
 
-        # We use the data location as the graph name, can also take from user?
-        # TODO: Fix this, take from config?
         metadata_dict["graph_name"] = self.graph_name
 
         return metadata_dict

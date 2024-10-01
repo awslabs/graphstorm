@@ -148,6 +148,11 @@ def test_merge_input_and_transform_dicts(executor_configuration: ExecutorConfig)
 def test_dist_executor_graph_name(executor_configuration: ExecutorConfig):
     """Test cases for graph name"""
 
+    # Ensure we can set a valid graph name
+    executor_configuration.graph_name = "2024-a_valid_name"
+    dist_executor = DistributedExecutor(executor_configuration)
+    assert dist_executor.graph_name == "2024-a_valid_name"
+
     # Ensure default value is used when graph_name is not provided
     executor_configuration.graph_name = None
     dist_executor = DistributedExecutor(executor_configuration)

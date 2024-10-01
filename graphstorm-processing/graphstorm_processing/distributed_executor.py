@@ -162,11 +162,13 @@ class DistributedExecutor:
         self.filesystem_type = executor_config.filesystem_type
         self.execution_env = executor_config.execution_env
         self.add_reverse_edges = executor_config.add_reverse_edges
-        self.graph_name = (
-            executor_config.graph_name
-            if executor_config.graph_name
-            else s3_utils.s3_path_remove_trailing(executor_config.input_prefix).split("/")[-1]
-        )
+        # We use the data location as the graph name if a name is not provided
+        if executor_config.graph_name:
+            self.graph_name = executor_config.graph_name
+        else:
+            derived_name = s3_utils.s3_path_remove_trailing(self.input_prefix).split("/")[-1]
+            logging.warning("Setting graph name derived from input path: %s", derived_name)
+            self.graph_name = derived_name
         check_graph_name(self.graph_name)
         self.repartition_on_leader = executor_config.do_repartition
         # Input config dict using GSProcessing schema
