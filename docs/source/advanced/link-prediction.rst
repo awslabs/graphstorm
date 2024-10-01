@@ -12,8 +12,8 @@ Optimizing model performance
 ----------------------------
 GraphStorm incorporates three ways of improving model performance of link
 prediction. Firstly, GraphStorm avoids information leak in model training.
-Secondly, to better handle heterogeneous graphs, GraphStorm provides three ways
-to compute link prediction scores: dot product, DistMult and RotatE.
+Secondly, to better handle heterogeneous graphs, GraphStorm provides four ways
+to compute link prediction scores: dot product, DistMult, TransE, and RotatE.
 Thirdly, GraphStorm provides two options to compute training losses, i.e.,
 cross entropy loss and contrastive loss. The following sub-sections provide more details.
 
@@ -32,7 +32,7 @@ GraphStorm provides supports to avoid theses problems:
 
 Computing Link Prediction Scores
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-GraphStorm provides three ways to compute link prediction scores: Dot Product, DistMult and RotatE.
+GraphStorm provides four ways to compute link prediction scores: Dot Product, DistMult, TransE, and RotatE.
 
 * **Dot Product**: The Dot Product score function is as:
 
@@ -53,7 +53,21 @@ GraphStorm provides three ways to compute link prediction scores: Dot Product, D
     The ``relation_emb`` values are initialized from a uniform distribution
     within the range of ``(-gamma/hidden_size, gamma/hidden_size)``,
     where ``gamma`` and ``hidden_size`` are hyperparameters defined in
-    :ref:`Model Configurations<configurations-model>`。
+    :ref:`Model Configurations<configurations-model>`.
+
+* **TransE**: The TransE score function is as:
+
+    .. math::
+        score = gamma - \|h+r-t\|^{frac{1}{2}} \text{or} gamma - \|h+r-t\|
+
+    where the ``head_emb`` is the node embedding of the head node,
+    the ``tail_emb`` is the node embedding of the tail node,
+    the ``relation_emb`` is the relation embedding of the specific edge type.
+    The ``relation_emb`` values are initialized from a uniform distribution
+    within the range of ``(-gamma/(hidden_size/2), gamma/(hidden_size/2))``,
+    where ``gamma`` and ``hidden_size`` are hyperparameters defined in
+    :ref:`Model Configurations<configurations-model>`.
+    To learn more information about TransE, please refer to `the DGLKE doc <https://dglke.dgl.ai/doc/kg.html#transe>`__.
 
 * **RotatE**: The RotatE score function is as:
 

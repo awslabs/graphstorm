@@ -28,11 +28,16 @@ from ..dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                            BUILTIN_LP_JOINT_NEG_SAMPLER,
                            BUILTIN_LP_FIXED_NEG_SAMPLER)
 
-from ..eval.utils import calc_distmult_pos_score, calc_dot_pos_score, calc_rotate_pos_score
+from ..eval.utils import (calc_distmult_pos_score,
+                          calc_dot_pos_score,
+                          calc_rotate_pos_score,
+                          calc_transe_pos_score)
 from ..eval.utils import (calc_distmult_neg_head_score,
                           calc_distmult_neg_tail_score,
                           calc_rotate_neg_head_score,
-                          calc_rotate_neg_tail_score)
+                          calc_rotate_neg_tail_score,
+                          calc_transe_neg_head_score,
+                          calc_transe_neg_tail_score)
 
 
 # TODO(zhengda) we need to split it into classifier and regression.
@@ -1113,27 +1118,27 @@ class LinkPredictMultiRelationLearnableDecoder(LinkPredictLearnableDecoder):
 class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
     r""" Decoder for link prediction using the RotatE as the score function.
 
-        Score function of RotateE measures the angular distance between
-        head and tail elements. The angular distance is defined as:
+    Score function of RotateE measures the angular distance between
+    head and tail elements. The angular distance is defined as:
 
-        .. math::
+    .. math::
 
-            d_r(h, t)=\|h\circ r-t\|
+        d_r(h, t)=\|h\circ r-t\|
 
-        The RotatE score function is defined as:
+    The RotatE score function is defined as:
 
-        .. math::
+    .. math::
 
-            gamma - \|h\circ r-t\|^2
+        gamma - \|h\circ r-t\|^2
 
-        where gamma is a margin.
+    where gamma is a margin.
 
-        For more details, please refer to https://arxiv.org/abs/1902.10197
-        or https://dglke.dgl.ai/doc/kg.html#rotatee.
+    For more details, please refer to https://arxiv.org/abs/1902.10197
+    or https://dglke.dgl.ai/doc/kg.html#rotatee.
 
-        Note: The relation embedding of RotatE has two parts,
-        one for real numbers and one for complex numbers.
-        Each has the dimension size as half of the input dimension size.
+    Note: The relation embedding of RotatE has two parts,
+    one for real numbers and one for complex numbers.
+    Each has the dimension size as half of the input dimension size.
 
     Parameters
     ----------
@@ -1145,6 +1150,9 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
         node embeddings.
     gamma: float
         The gamma value for model initialization and score function. Default: 12.
+
+    .. versionadded:: 0.4.0
+        The :py:class:`LinkPredictRotatEDecoder`.
     """
     def __init__(self,
                  etypes,
@@ -1372,13 +1380,13 @@ class LinkPredictRotatEDecoder(LinkPredictMultiRelationLearnableDecoder):
 
 class LinkPredictContrastiveRotatEDecoder(LinkPredictRotatEDecoder):
     """ Decoder for link prediction designed for contrastive loss
-        using the RotatE as the score function.
+    using the RotatE as the score function.
 
-        Note:
-        ------
-        This class is specifically implemented for contrastive loss. But
-        it could also be used by other pair-wise loss functions for link
-        prediction tasks.
+    Note:
+    ------
+    This class is specifically implemented for contrastive loss. But
+    it could also be used by other pair-wise loss functions for link
+    prediction tasks.
 
     Parameters
     ----------
@@ -1390,6 +1398,9 @@ class LinkPredictContrastiveRotatEDecoder(LinkPredictRotatEDecoder):
         node embeddings.
     gamma: float
         The gamma value for model weight initialization. Default: 4.
+
+    .. versionadded:: 0.4.0
+        The :py:class:`LinkPredictContrastiveRotatEDecoder`.
     """
 
     # pylint: disable=unused-argument
@@ -1437,10 +1448,9 @@ class LinkPredictContrastiveRotatEDecoder(LinkPredictRotatEDecoder):
             return scores
 
 class LinkPredictWeightedRotatEDecoder(LinkPredictRotatEDecoder):
-    """Link prediction decoder with the score function of RotatE
-       with edge weight.
+    """ Link prediction decoder with the score function of RotatE with edge weight.
 
-       When computing loss, edge weights are used to adjust the loss.
+    When computing loss, edge weights are used to adjust the loss.
 
     Parameters
     ----------
@@ -1454,6 +1464,9 @@ class LinkPredictWeightedRotatEDecoder(LinkPredictRotatEDecoder):
         The gamma value for model weight initialization. Default: 12.
     edge_weight_fields: dict of str
         The edge feature field(s) storing the edge weights.
+
+    .. versionadded:: 0.4.0
+        The :py:class:`LinkPredictWeightedRotatEDecoder`.
     """
     def __init__(self, etypes, h_dim, gamma=12., edge_weight_fields=None):
         self._edge_weight_fields = edge_weight_fields
@@ -1504,6 +1517,407 @@ class LinkPredictWeightedRotatEDecoder(LinkPredictRotatEDecoder):
 
             return scores
 
+class LinkPredictTransEDecoder(LinkPredictMultiRelationLearnableDecoder):
+    r""" Decoder for link prediction using the TransE as the score function.
+
+    Score function of TransE measures the angular distance between
+    head and tail elements. The angular distance is defined as:
+
+    .. math::
+
+        d_r(h, t)= -\|h+r-t\|
+
+    The TransE score function is defined as:
+
+    .. math::
+
+        gamma - \|h+r-t\|^{frac{1}{2}} \text{or} gamma - \|h+r-t\|
+
+    where gamma is a margin.
+
+    For more details, please refer to
+    https://papers.nips.cc/paper_files/paper/2013/hash/1cecc7a77928ca8133fa24680a88d2f9-Abstract.html
+    or https://dglke.dgl.ai/doc/kg.html#transe.
+
+    Parameters
+    ----------
+    etypes: list of tuples
+        The canonical edge types of the graph in the format of
+        [(src_ntype1, etype1, dst_ntype1), ...]
+    h_dim: int
+        The input dimension size. It is the dimension for both source and destination
+        node embeddings.
+    gamma: float
+        The gamma value for model initialization and score function. Default: 12.
+    norm: str
+        L1 or L2 norm on the angular distance for TransE. Default: 'l2'.
+
+    .. versionadded:: 0.4.0
+        The :py:class:`LinkPredictTransEDecoder`.
+    """
+    def __init__(self,
+                 etypes,
+                 h_dim,
+                 gamma=12.,
+                 norm='l2'):
+        self.norm = norm
+        super(LinkPredictTransEDecoder, self).__init__(etypes, h_dim, gamma)
+
+    def init_w_relation(self):
+        self._w_relation = nn.Embedding(self.num_rels, self.h_dim)
+        self.emb_init = self.gamma / self.h_dim
+        nn.init.uniform_(self._w_relation.weight, -self.emb_init, self.emb_init)
+
+    # pylint: disable=unused-argument
+    def forward(self, g, h, e_h=None):
+        """ Link prediction decoder forward function using the TransE
+            as the score function.
+
+            This computes the edge score on every edge type.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The input graph.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        scores: dict of Tensor
+            The scores for edges of all edge types in the input graph in the format of
+            {(src_ntype, etype, dst_ntype): score}.
+        """
+        with g.local_scope():
+            scores = {}
+
+            for canonical_etype in g.canonical_etypes:
+                if g.num_edges(canonical_etype) == 0:
+                    continue # the block might contain empty edge types
+
+                i = self.etype2rid[canonical_etype]
+                self.trained_rels[i] += 1
+                rel_embedding = self._w_relation(th.tensor(i).to(self._w_relation.weight.device))
+                rel_embedding = rel_embedding.unsqueeze(dim=0)
+                src_type, _, dest_type = canonical_etype
+                u, v = g.edges(etype=canonical_etype)
+                src_emb = h[src_type][u]
+
+                dest_emb = h[dest_type][v]
+                scores_etype = calc_transe_pos_score(src_emb,
+                                                     dest_emb,
+                                                     rel_embedding,
+                                                     self.gamma,
+                                                     self.norm)
+                scores[canonical_etype] = scores_etype
+
+            return scores
+
+    def calc_test_scores(self, emb, pos_neg_tuple, neg_sample_type, device):
+        """ Compute scores for positive edges and negative edges.
+
+        Parameters
+        ----------
+        emb: dict of Tensor
+            Node embeddings in the format of {ntype: emb}.
+        pos_neg_tuple: dict of tuple
+            Positive and negative edges stored in a dict of tuple in the format of
+            {("src_ntype1", "etype1", "dst_ntype1" ): (pos_src_idx, neg_src_idx,
+            pos_dst_idx, neg_dst_idx)}.
+
+            The `pos_src_idx` represents the postive source node indexes in the format
+            of Torch.Tensor. The `neg_src_idx` represents the negative source node indexes
+            in the format of Torch.Tensor. The `pos_dst_idx` represents the postive destination
+            node indexes in the format of Torch.Tensor. The `neg_dst_idx` represents the
+            negative destination node indexes in the format of Torch.Tensor.
+
+            We define positive and negative edges as:
+
+            * The positive edges: (pos_src_idx, pos_dst_idx)
+            * The negative edges: (pos_src_idx, neg_dst_idx) and
+              (neg_src_idx, pos_dst_idx)
+
+        neg_sample_type: str
+            Describe how negative samples are sampled. There are two options:
+
+            * ``Uniform``: For each positive edge, we sample K negative edges.
+            * ``Joint``: For one batch of positive edges, we sample K negative edges.
+
+        device: th.device
+            Device used to compute scores.
+
+        Returns
+        --------
+        scores: dict of tuple
+            Return a dictionary of edge type's positive scores and negative scores in the format
+            of {(src_ntype, etype, dst_ntype): (pos_scores, neg_scores)}.
+        """
+        assert isinstance(pos_neg_tuple, dict), \
+            "TransE is only applicable to heterogeneous graphs." \
+            "Otherwise please use dot product decoder."
+        scores = {}
+        for canonical_etype, (pos_src, neg_src, pos_dst, neg_dst) in pos_neg_tuple.items():
+            utype, _, vtype = canonical_etype
+            # pos score
+            pos_src_emb = emb[utype][pos_src]
+            pos_dst_emb = emb[vtype][pos_dst]
+            rid = self.etype2rid[canonical_etype]
+            rel_embedding = self._w_relation(
+                th.tensor(rid).to(self._w_relation.weight.device))
+            pos_scores = calc_transe_pos_score(pos_src_emb,
+                                               pos_dst_emb,
+                                               rel_embedding,
+                                               self.gamma,
+                                               self.norm,
+                                               device)
+            neg_scores = []
+
+            if neg_src is not None:
+                neg_src_emb = emb[utype][neg_src.reshape(-1,)]
+                if neg_sample_type in [BUILTIN_LP_UNIFORM_NEG_SAMPLER,
+                                       BUILTIN_LP_FIXED_NEG_SAMPLER]:
+                    # fixed negative sample is similar to uniform negative sample
+                    neg_src_emb = neg_src_emb.reshape(neg_src.shape[0], neg_src.shape[1], -1)
+                    # uniform sampled negative samples
+                    pos_dst_emb = pos_dst_emb.reshape(
+                        pos_dst_emb.shape[0], 1, pos_dst_emb.shape[1])
+                    rel_embedding = rel_embedding.reshape(
+                        1, 1, rel_embedding.shape[-1])
+                    neg_score = calc_transe_pos_score(neg_src_emb,
+                                                      pos_dst_emb,
+                                                      rel_embedding,
+                                                      self.gamma,
+                                                      self.norm,
+                                                      device)
+                elif neg_sample_type == BUILTIN_LP_JOINT_NEG_SAMPLER:
+                    # joint sampled negative samples
+                    assert len(pos_dst_emb.shape) == 2, \
+                        "For joint negative sampler, in evaluation" \
+                        "positive src/dst embs should in shape of" \
+                        "[eval_batch_size, dimension size]"
+                    assert len(neg_src_emb.shape) == 2, \
+                        "For joint negative sampler, in evaluation" \
+                        "negative src/dst embs should in shape of " \
+                        "[number_of_negs, dimension size]"
+                    neg_score = calc_transe_neg_head_score(
+                        neg_src_emb, pos_dst_emb, rel_embedding,
+                        1, pos_dst_emb.shape[0], neg_src_emb.shape[0],
+                        self.gamma, self.norm,
+                        device)
+                    # shape (batch_size, num_negs)
+                    neg_score = neg_score.reshape(-1, neg_src_emb.shape[0])
+                else:
+                    assert False, f"Unknow negative sample type {neg_sample_type}"
+                assert len(neg_score.shape) == 2
+                neg_scores.append(neg_score)
+
+            if neg_dst is not None:
+                if neg_sample_type in [BUILTIN_LP_UNIFORM_NEG_SAMPLER,
+                                       BUILTIN_LP_FIXED_NEG_SAMPLER]:
+                    # fixed negative sample is similar to uniform negative sample
+                    neg_dst_emb = emb[vtype][neg_dst.reshape(-1,)]
+                    neg_dst_emb = neg_dst_emb.reshape(neg_dst.shape[0], neg_dst.shape[1], -1)
+                    # uniform sampled negative samples
+                    pos_src_emb = pos_src_emb.reshape(
+                        pos_src_emb.shape[0], 1, pos_src_emb.shape[1])
+                    rel_embedding = rel_embedding.reshape(
+                        1, 1, rel_embedding.shape[-1])
+                    neg_score = calc_transe_pos_score(pos_src_emb,
+                                                      neg_dst_emb,
+                                                      rel_embedding,
+                                                      self.gamma,
+                                                      self.norm,
+                                                      device)
+                elif neg_sample_type == BUILTIN_LP_JOINT_NEG_SAMPLER:
+                    neg_dst_emb = emb[vtype][neg_dst]
+                    # joint sampled negative samples
+                    assert len(pos_src_emb.shape) == 2, \
+                        "For joint negative sampler, in evaluation " \
+                        "positive src/dst embs should in shape of" \
+                        "[eval_batch_size, dimension size]"
+                    assert len(neg_dst_emb.shape) == 2, \
+                        "For joint negative sampler, in evaluation" \
+                        "negative src/dst embs should in shape of " \
+                        "[number_of_negs, dimension size]"
+                    neg_score = calc_transe_neg_tail_score(
+                        pos_src_emb, neg_dst_emb, rel_embedding,
+                        1, pos_src_emb.shape[0], neg_dst_emb.shape[0],
+                        self.gamma, self.norm,
+                        device)
+                    # shape (batch_size, num_negs)
+                    neg_score = neg_score.reshape(-1, neg_dst_emb.shape[0])
+                else:
+                    assert False, f"Unknow negative sample type {neg_sample_type}"
+                assert len(neg_score.shape) == 2
+                neg_scores.append(neg_score)
+            neg_scores = th.cat(neg_scores, dim=-1).detach()
+            # gloo with cpu will consume less GPU memory
+            neg_scores = neg_scores.cpu() \
+                if is_distributed() and get_backend() == "gloo" \
+                else neg_scores
+
+            pos_scores = pos_scores.detach()
+            pos_scores = pos_scores.cpu() \
+                if is_distributed() and get_backend() == "gloo" \
+                else pos_scores
+            scores[canonical_etype] = (pos_scores, neg_scores)
+
+        return scores
+
+    @property
+    def in_dims(self):
+        """ Return the input dimension size, which is given in class initialization.
+        """
+        return self.h_dim
+
+    @property
+    def out_dims(self):
+        """ Return ``1`` for link prediction tasks.
+        """
+        return 1
+
+class LinkPredictContrastiveTransEDecoder(LinkPredictTransEDecoder):
+    """ Decoder for link prediction designed for contrastive loss
+    using the TransE as the score function.
+
+    Note:
+    ------
+    This class is specifically implemented for contrastive loss. But
+    it could also be used by other pair-wise loss functions for link
+    prediction tasks.
+
+    Parameters
+    ----------
+    etypes: list of tuples
+        The canonical edge types of the graph in the format of
+        [(src_ntype1, etype1, dst_ntype1), ...]
+    h_dim: int
+        The input dimension size. It is the dimension for both source and destination
+        node embeddings.
+    gamma: float
+        The gamma value for model weight initialization. Default: 4.
+
+    .. versionadded:: 0.4.0
+        The :py:class:`LinkPredictContrastiveTransEDecoder`.
+    """
+
+    # pylint: disable=unused-argument
+    def forward(self, g, h, e_h=None):
+        with g.local_scope():
+            scores = {}
+
+            for canonical_etype in g.canonical_etypes:
+                if g.num_edges(canonical_etype) == 0:
+                    continue # the block might contain empty edge types
+
+                i = self.etype2rid[canonical_etype]
+                self.trained_rels[i] += 1
+                rel_embedding = self._w_relation(th.tensor(i).to(self._w_relation.weight.device))
+                rel_embedding = rel_embedding.unsqueeze(dim=0)
+                src_type, _, dest_type = canonical_etype
+                u, v = g.edges(etype=canonical_etype)
+                # Sort edges according to source node ids
+                # The same function is invoked by computing both pos scores
+                # and neg scores, by sorting edges according to source nids
+                # the output scores of pos_score and neg_score are compatible.
+                #
+                # For example:
+                #
+                # pos pairs   |  neg pairs
+                # (10, 20)    |  (10, 3), (10, 1), (10, 0), (10, 22)
+                # (13, 6)     |  (13, 3), (13, 1), (13, 0), (13, 22)
+                # (29, 8)     |  (29, 3), (29, 1), (29, 0), (29, 22)
+                #
+                # TODO: use stable to keep the order of negatives. This may not
+                # be necessary
+                u_sort_idx = th.argsort(u, stable=True)
+                u = u[u_sort_idx]
+                v = v[u_sort_idx]
+                src_emb = h[src_type][u]
+                dest_emb = h[dest_type][v]
+                scores_etype = calc_transe_pos_score(src_emb,
+                                                     dest_emb,
+                                                     rel_embedding,
+                                                     self.gamma,
+                                                     self.norm)
+                scores[canonical_etype] = scores_etype
+
+            return scores
+
+class LinkPredictWeightedTransEDecoder(LinkPredictTransEDecoder):
+    """ Link prediction decoder with the score function of TransE with edge weight.
+
+    When computing loss, edge weights are used to adjust the loss.
+
+    Parameters
+    ----------
+    etypes: list of tuples
+        The canonical edge types of the graph in the format of
+        [(src_ntype1, etype1, dst_ntype1), ...]
+    h_dim: int
+        The input dimension size. It is the dimension for both source and destination
+        node embeddings.
+    gamma: float
+        The gamma value for model weight initialization. Default: 12.
+    norm: str
+        L1 or L2 norm on the angular distance for TransE. Default: 'l2'.
+    edge_weight_fields: dict of str
+        The edge feature field(s) storing the edge weights.
+
+    .. versionadded:: 0.4.0
+        The :py:class:`LinkPredictWeightedTransEDecoder`.
+    """
+    def __init__(self, etypes, h_dim, gamma=12., norm='l2', edge_weight_fields=None):
+        self.norm = norm
+        self._edge_weight_fields = edge_weight_fields
+        super(LinkPredictWeightedTransEDecoder, self).__init__(etypes, h_dim, gamma)
+
+    # pylint: disable=signature-differs
+    def forward(self, g, h, e_h):
+        """Forward function.
+
+        This computes the TransE score on every edge type.
+        """
+        with g.local_scope():
+            scores = {}
+
+            for canonical_etype in g.canonical_etypes:
+                if g.num_edges(canonical_etype) == 0:
+                    continue # the block might contain empty edge types
+
+                i = self.etype2rid[canonical_etype]
+                self.trained_rels[i] += 1
+                rel_embedding = self._w_relation(th.tensor(i).to(self._w_relation.weight.device))
+                rel_embedding = rel_embedding.unsqueeze(dim=0)
+                src_type, _, dest_type = canonical_etype
+                u, v = g.edges(etype=canonical_etype)
+                src_emb = h[src_type][u]
+
+                dest_emb = h[dest_type][v]
+                scores_etype = calc_transe_pos_score(src_emb,
+                                                     dest_emb,
+                                                     rel_embedding,
+                                                     self.gamma,
+                                                     self.norm)
+
+                if e_h is not None and canonical_etype in e_h.keys():
+                    weight = e_h[canonical_etype]
+                    assert th.is_tensor(weight), \
+                        "The edge weight for Link prediction must be a torch tensor." \
+                        "LinkPredictWeightedTransEDecoder only accepts a 1D edge " \
+                        "feature as edge weight."
+                    weight = weight.flatten()
+                else:
+                    # current etype does not have weight
+                    weight = th.ones((g.num_edges(canonical_etype),),
+                                     device=scores_etype.device)
+                scores[canonical_etype] = (scores_etype,
+                                           weight)
+
+            return scores
 
 class LinkPredictDistMultDecoder(LinkPredictMultiRelationLearnableDecoder):
     """ Decoder for link prediction using the DistMult as the score function.

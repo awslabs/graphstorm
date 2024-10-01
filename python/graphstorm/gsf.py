@@ -39,11 +39,14 @@ from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
 from .config import (BUILTIN_LP_DOT_DECODER,
                      BUILTIN_LP_DISTMULT_DECODER,
-                     BUILTIN_LP_ROTATE_DECODER)
+                     BUILTIN_LP_ROTATE_DECODER,
+                     BUILTIN_LP_TRANSE_L1_DECODER,
+                     BUILTIN_LP_TRANSE_L2_DECODER)
 from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_LP_LOSS_CONTRASTIVELOSS,
                      BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
                      BUILTIN_CLASS_LOSS_FOCAL)
+from graphstorm.eval.eval_func import SUPPORTED_HIT_AT_METRICS
 from .model.embed import GSNodeEncoderInputLayer
 from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from .model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
@@ -78,7 +81,10 @@ from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictWeightedDistMultDecoder,
                                  LinkPredictRotatEDecoder,
                                  LinkPredictContrastiveRotatEDecoder,
-                                 LinkPredictWeightedRotatEDecoder)
+                                 LinkPredictWeightedRotatEDecoder,
+                                 LinkPredictTransEDecoder,
+                                 LinkPredictContrastiveTransEDecoder,
+                                 LinkPredictWeightedTransEDecoder)
 from .dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                           BUILTIN_LP_JOINT_NEG_SAMPLER,BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER,
                           BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER,
@@ -107,6 +113,8 @@ from .dataloading import (GSgnnLinkPredictionTestDataLoader,
 from .eval import (GSgnnClassificationEvaluator,
                    GSgnnRegressionEvaluator,
                    GSgnnRconstructFeatRegScoreEvaluator,
+                   GSgnnPerEtypeLPEvaluator,
+                   GSgnnLPEvaluator,
                    GSgnnPerEtypeMrrLPEvaluator,
                    GSgnnMrrLPEvaluator)
 from .trainer import (GSgnnLinkPredictionTrainer,
@@ -724,6 +732,30 @@ def create_builtin_lp_decoder(g, decoder_input_dim, config, train_task):
                                                        decoder_input_dim,
                                                        gamma,
                                                        config.lp_edge_weight_for_loss)
+    elif config.lp_decoder_type in [BUILTIN_LP_TRANSE_L1_DECODER, BUILTIN_LP_TRANSE_L2_DECODER]:
+        if get_rank() == 0:
+            logging.debug("Using TransE objective for supervision")
+
+        # default gamma for TransE is 12.
+        gamma = config.gamma if config.gamma is not None else 12.
+
+        score_norm = 'l1' if config.lp_decoder_type == BUILTIN_LP_TRANSE_L1_DECODER else 'l2'
+        if config.lp_edge_weight_for_loss is None:
+            decoder = LinkPredictContrastiveTransEDecoder(g.canonical_etypes,
+                                                          decoder_input_dim,
+                                                          gamma,
+                                                          score_norm) \
+                if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS else \
+                LinkPredictTransEDecoder(g.canonical_etypes,
+                                         decoder_input_dim,
+                                         gamma,
+                                         score_norm)
+        else:
+            decoder = LinkPredictWeightedTransEDecoder(g.canonical_etypes,
+                                                       decoder_input_dim,
+                                                       gamma,
+                                                       score_norm,
+                                                       config.lp_edge_weight_for_loss)
     else:
         raise Exception(f"Unknown link prediction decoder type {config.lp_decoder_type}")
 
@@ -1089,23 +1121,21 @@ def create_evaluator(task_info):
                                         config.early_stop_rounds,
                                         config.early_stop_strategy)
     elif task_info.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
-        assert len(config.eval_metric) == 1, \
-        "GraphStorm doees not support computing multiple metrics at the same time for link prediction tasks."
         if config.report_eval_per_type:
-            return GSgnnPerEtypeMrrLPEvaluator(
-                eval_frequency=config.eval_frequency,
-                major_etype=config.model_select_etype,
-                use_early_stop=config.use_early_stop,
-                early_stop_burnin_rounds=config.early_stop_burnin_rounds,
-                early_stop_rounds=config.early_stop_rounds,
-                early_stop_strategy=config.early_stop_strategy)
+            return GSgnnPerEtypeLPEvaluator(eval_frequency=config.eval_frequency,
+                                    eval_metric_list=config.eval_metric,
+                                    major_etype=config.model_select_etype,
+                                    use_early_stop=config.use_early_stop,
+                                    early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                    early_stop_rounds=config.early_stop_rounds,
+                                    early_stop_strategy=config.early_stop_strategy)
         else:
-            return GSgnnMrrLPEvaluator(
-                eval_frequency=config.eval_frequency,
-                use_early_stop=config.use_early_stop,
-                early_stop_burnin_rounds=config.early_stop_burnin_rounds,
-                early_stop_rounds=config.early_stop_rounds,
-                early_stop_strategy=config.early_stop_strategy)
+            return GSgnnLPEvaluator(eval_frequency=config.eval_frequency,
+                                    eval_metric_list=config.eval_metric,
+                                    use_early_stop=config.use_early_stop,
+                                    early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                    early_stop_rounds=config.early_stop_rounds,
+                                    early_stop_strategy=config.early_stop_strategy)
     elif task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
         return GSgnnRconstructFeatRegScoreEvaluator(
             config.eval_frequency,
@@ -1115,3 +1145,36 @@ def create_evaluator(task_info):
             config.early_stop_rounds,
             config.early_stop_strategy)
     return None
+
+def create_lp_evaluator(config):
+    """ Create LP specific evaluator.
+
+        Parameters
+        ----------
+        config: GSConfig
+            Configuration.
+
+        Return
+        ------
+        Evaluator: A link prediction evaluator
+    """
+    assert all((x.startswith(SUPPORTED_HIT_AT_METRICS) or x == 'mrr') for x in
+               config.eval_metric), (
+        "Invalid LP evaluation metrics. "
+        "GraphStorm only supports MRR and Hit@K metrics for link prediction.")
+
+    if config.report_eval_per_type:
+        return GSgnnPerEtypeLPEvaluator(eval_frequency=config.eval_frequency,
+                                eval_metric_list=config.eval_metric,
+                                major_etype=config.model_select_etype,
+                                use_early_stop=config.use_early_stop,
+                                early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                early_stop_rounds=config.early_stop_rounds,
+                                early_stop_strategy=config.early_stop_strategy)
+    else:
+        return GSgnnLPEvaluator(eval_frequency=config.eval_frequency,
+                                eval_metric_list=config.eval_metric,
+                                use_early_stop=config.use_early_stop,
+                                early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                early_stop_rounds=config.early_stop_rounds,
+                                early_stop_strategy=config.early_stop_strategy)
