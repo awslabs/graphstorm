@@ -2100,7 +2100,9 @@ class DistHeterogeneousGraphLoader(object):
                 input_df: DataFrame
                     Input dataframe for which we will add integer mapping.
                 """
-                return_df = input_df.withColumn(CUSTOM_DATA_SPLIT_ORDER, monotonically_increasing_id())
+                return_df = input_df.withColumn(
+                    CUSTOM_DATA_SPLIT_ORDER, monotonically_increasing_id()
+                )
                 return return_df
 
             if mask_type == "train":
