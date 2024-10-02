@@ -294,18 +294,18 @@ class WeightedLinkPredictBCELossFunc(GSLayer):
 
     .. math::
 
-        loss = - w\_e \left[ y \cdot \log score + (1 - y) \cdot \log (1 - score) \right]
+        loss = - w\_e [ y \cdot \log score + (1 - y) \cdot \log (1 - score) ]
 
     where ``y`` is 1 when ``e`` is a positive edge and 0 when it is a negative edge. ``score`` is the score value of ``e`` computed by the score function, ``w_e`` is the weight of ``e`` and is defined as
 
     .. math::
 
-        w\_e = \left \{
+        w\_e = \{
         \begin{array}{lc}
             1,  & \text{ if } e \in G, \\
             0,  & \text{ if } e \notin G
         \end{array}
-        \right.
+        \}.
 
     where ``G`` is the training graph.
     """
@@ -384,10 +384,8 @@ class LinkPredictAdvBCELossFunc(LinkPredictBCELossFunc):
 
     .. math::
 
-        \begin{gather*}
         loss_{neg} = \log (1 - score) \\
         loss_{neg} = \mathrm{softmax}(score * adversarial\_temperature) * loss_{neg}
-        \end{gather*}
 
     where ``score`` is the score value of the negative edges computed by the score function and ``adversarial_temperature`` is a hyper-parameter.
 
@@ -550,7 +548,9 @@ class LinkPredictContrastiveLossFunc(GSLayer):
     The positive and negative scores are computed through a
     score function as:
 
-        score = f(<src, rel, dst>)
+        .. math::
+
+            score = f(<src, rel, dst>)
 
     And we treat a score as the distance between `src` and
     `dst` nodes under relation `rel`.
@@ -561,7 +561,8 @@ class LinkPredictContrastiveLossFunc(GSLayer):
     loss of <src, dst>, we follow the following equation:
 
         .. math::
-        loss = -log(exp(pos\_score)/\sum_{i=0}^N exp(score_i))
+
+            loss = -log(exp(pos\_score)/\sum_{i=0}^N exp(score_i))
 
     where score includes both positive score of <src, dst> and
     negative scores of <src, neg_dst0>, ... <src, neg_dstk>
