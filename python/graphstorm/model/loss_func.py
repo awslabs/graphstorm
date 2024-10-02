@@ -223,7 +223,7 @@ class RegressionLossFunc(GSLayer):
         return None
 
 class LinkPredictBCELossFunc(GSLayer):
-    """ Loss function for link prediction tasks using binary
+    r""" Loss function for link prediction tasks using binary
     cross entropy loss.
 
     The torch.nn.functional.binary_cross_entropy_with_logits is used
@@ -286,7 +286,7 @@ class LinkPredictBCELossFunc(GSLayer):
         return None
 
 class WeightedLinkPredictBCELossFunc(GSLayer):
-    """ Loss function for link prediction tasks using binary
+    r""" Loss function for link prediction tasks using binary
     cross entropy loss.
 
     The torch.nn.functional.binary_cross_entropy_with_logits is used
@@ -369,7 +369,7 @@ class WeightedLinkPredictBCELossFunc(GSLayer):
         return None
 
 class LinkPredictAdvBCELossFunc(LinkPredictBCELossFunc):
-    """ Binary cross entropy loss function for link prediction tasks
+    r""" Binary cross entropy loss function for link prediction tasks
     with adversarial loss for negative samples.
 
     The loss of positive edges is as:
@@ -477,7 +477,7 @@ class LinkPredictAdvBCELossFunc(LinkPredictBCELossFunc):
         return loss
 
 class WeightedLinkPredictAdvBCELossFunc(LinkPredictAdvBCELossFunc):
-    """ Binary cross entropy loss function for link prediction tasks
+    r""" Binary cross entropy loss function for link prediction tasks
     with adversarial loss for negative samples and weight on positive samples.
 
     The loss function of a positive edge ``e`` is as:
