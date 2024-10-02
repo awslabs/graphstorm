@@ -300,12 +300,12 @@ class WeightedLinkPredictBCELossFunc(GSLayer):
 
     .. math::
 
-        w\_e = \{
+        w\_e = \left \{
         \begin{array}{lc}
             1,  & \text{ if } e \in G, \\
             0,  & \text{ if } e \notin G
         \end{array}
-        \}.
+        \right.
 
     where ``G`` is the training graph.
     """
