@@ -107,7 +107,7 @@ class FocalLossFunc(GSLayer):
     ----------
     alpha: float
         Weighting factor in range (0,1) to balance
-        ositive vs negative examples or -1 for ignore.
+        positive vs negative examples. Use ``-1`` to ignore this parameter.
         Default: ``0.25``.
     gamma: float
         Exponent of the modulating factor (1 - p_t) to
