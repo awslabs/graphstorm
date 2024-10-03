@@ -177,7 +177,7 @@ class FocalLossFunc(GSLayer):
 class RegressionLossFunc(GSLayer):
     """ Loss function for regression tasks.
 
-    The the torch.nn.MSELoss is used.
+    The the ``torch.nn.MSELoss`` is used.
     """
     def __init__(self):
         super(RegressionLossFunc, self).__init__()
