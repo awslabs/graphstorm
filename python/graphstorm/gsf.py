@@ -73,7 +73,8 @@ from .model.loss_func import (ClassifyLossFunc,
 from .model.node_decoder import EntityClassifier, EntityRegression
 from .model.edge_decoder import (DenseBiDecoder,
                                  MLPEdgeDecoder,
-                                 MLPEFeatEdgeDecoder)
+                                 MLPEFeatEdgeDecoder,
+                                 EdgeRegression)
 from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictDistMultDecoder,
                                  LinkPredictContrastiveDotDecoder,
@@ -367,9 +368,10 @@ def create_builtin_reconstruct_efeat_decoder(g, decoder_input_dim, config, train
     reconstruct_feat = config.reconstruct_efeat_name
     feat_dim = g.edges[target_etype].data[reconstruct_feat].shape[1]
 
-    decoder = EntityRegression(decoder_input_dim,
-                               dropout=dropout,
-                               out_dim=feat_dim)
+    decoder = EdgeRegression(decoder_input_dim,
+                             target_etype=target_etype,
+                             out_dim=feat_dim,
+                             dropout=dropout)
 
     loss_func = RegressionLossFunc()
     return decoder, loss_func

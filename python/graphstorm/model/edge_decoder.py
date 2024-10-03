@@ -305,6 +305,167 @@ class DenseBiDecoder(GSEdgeDecoder):
         """
         return 1 if self.regression else self.num_classes
 
+class EdgeRegression(GSEdgeDecoder):
+    """ Decoder for edge regression tasks.
+
+        Can be used for edge regression tasks or
+        edge feature reconstruction.
+
+    Parameters
+    ----------
+    h_dim: int
+        The input dimension size.
+    target_etype: tuple of str
+        The target etype for prediction in the format of (src_ntype, etype, dst_ntype).
+    out_dim: int
+        The output dimension size.
+        Default: 1.
+    dropout: float
+        Dropout rate.
+        Default: 0.
+    norm: str, optional
+        Normalization methods. Not used, but reserved for complex node regression
+        implementation. Default: None.
+    """
+    def __init__(self,
+                 h_dim,
+                 target_etype,
+                 out_dim=1,
+                 dropout=0,
+                 norm=None):
+        super(EdgeRegression, self).__init__()
+        self._h_dim = h_dim
+        self._out_dim = out_dim
+        self._dropout = dropout
+        # TODO(xiangsx): The norm is not used here.
+        self._norm = norm
+
+        assert isinstance(target_etype, tuple) and len(target_etype) == 3, \
+            "Target etype must be a tuple of a canonical etype."
+        self._target_etype = target_etype
+
+        self._init_model()
+
+    def _init_model(self):
+        """ Init decoder model
+        """
+        h_dim = self.h_dim
+        out_dim = self.out_dim
+        if self.norm is not None:
+            logging.warning("Embedding normalization (batch norm or layer norm) "
+                            "is not supported in EdgeRegression")
+        self.linear = nn.Linear(h_dim * 2, h_dim, bias=True)
+        self.relu = nn.ReLU()
+        self.dropout = nn.Dropout(self._dropout)
+        self.regression_head = nn.Linear(h_dim, out_dim, bias=True)
+
+    def _compute_logits(self, g, h):
+        """ Compute forword output
+
+            Parameters
+            ----------
+            g: DGLBlock
+                The minibatch graph
+            h: dict of Tensors
+                The dictionary containing the embeddings
+            Returns
+            -------
+            th.Tensor
+                Output of forward
+        """
+        with g.local_scope():
+            u, v = g.edges(etype=self._target_etype)
+            src_type, _, dest_type = self._target_etype
+            ufeat = h[src_type][u]
+            ifeat = h[dest_type][v]
+
+            h = th.cat([ufeat, ifeat], dim=1)
+            out = self.linear(h)
+            out = self.relu(out)
+            out = self.dropout(out)
+        return out
+
+    # pylint: disable=unused-argument
+    def forward(self, g, h, e_h=None):
+        """ MLP-based edge decoder forward computation.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results.
+        """
+        out = self._compute_logits(g, h)
+        out = self.regression_head(out)
+        return out
+
+    # pylint: disable=unused-argument
+    def predict(self, g, h, e_h=None):
+        """ MLP-based edge regression prediction computation.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results.
+        """
+        out = self._compute_logits(g, h)
+        out = self.regression_head(out)
+        return out
+
+    # pylint: disable=unused-argument
+    def predict_proba(self, g, h, e_h=None):
+        """ MLP-based edge regression prediction computation,
+        it returns the same results as the ``predict()`` function.
+
+        Parameters
+        ----------
+        g: DGLGraph
+            The graph of target edges.
+        h: dict of Tensor
+            The input node embeddings in the format of {ntype: emb}.
+        e_h: dict of Tensor
+            The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
+            Not used, but reserved for future support of edge embeddings. Default: None.
+
+        Returns
+        -------
+        out: Tensor
+            The prediction results. If this decoder is for edge classification, return the
+            normalized prediction results.
+        """
+        return self.predict(g, h, e_h)
+
+    @property
+    def in_dims(self):
+        """ Return the input dimension size, which is given in class initialization.
+        """
+        return self._h_dim
+
+    @property
+    def out_dims(self):
+        """ Return the output dimension size. If this decoder is for edge regression,
+        will return ``1``.
+        """
+        return self._out_dim
 
 class MLPEdgeDecoder(GSEdgeDecoder):
     """ MLP-based decoder for edge prediction tasks.
