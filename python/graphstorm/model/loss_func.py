@@ -233,7 +233,8 @@ class LinkPredictBCELossFunc(GSLayer):
 
         loss = - y \cdot \log score + (1 - y) \cdot \log (1 - score)
 
-    where ``y`` is 1 for a positive edge and 0 for a negative edge. ``score`` is the score value of ``e`` computed by the score function.
+    where ``y`` is 1 for a positive edge and 0 for a negative edge.
+    ``score`` is the score value of ``e`` computed by the score function.
     """
 
     def forward(self, pos_score, neg_score):
@@ -296,7 +297,9 @@ class WeightedLinkPredictBCELossFunc(GSLayer):
 
         loss = - w\_e [ y \cdot \log score + (1 - y) \cdot \log (1 - score) ]
 
-    where ``y`` is 1 for a positive edge and 0 for a negative edge. ``score`` is the score value of ``e`` computed by the score function, ``w_e`` is the weight of ``e`` and is defined as
+    where ``y`` is 1 for a positive edge and 0 for a negative edge.
+    ``score`` is the score value of ``e`` computed by the score function,
+    ``w_e`` is the weight of ``e`` and is defined as:
 
     .. math::
 
@@ -372,7 +375,7 @@ class LinkPredictAdvBCELossFunc(LinkPredictBCELossFunc):
     r""" Binary cross entropy loss function for link prediction tasks
     with adversarial loss for negative samples.
 
-    The loss of positive edges is as:
+    The loss of positive edges is defined as:
 
     .. math::
 
@@ -380,16 +383,18 @@ class LinkPredictAdvBCELossFunc(LinkPredictBCELossFunc):
 
     where ``score`` is the score value of the positive edges computed by the score function.
 
-    The loss of negative edges is as:
+    The loss of negative edges is defined as:
 
     .. math::
 
         loss_{neg} = \log (1 - score) \\
         loss_{neg} = \mathrm{softmax}(score * adversarial\_temperature) * loss_{neg}
 
-    where ``score`` is the score value of the negative edges computed by the score function and ``adversarial_temperature`` is a hyper-parameter.
+    where ``score`` is the score value of the negative edges
+    computed by the score function and ``adversarial_temperature``
+    is a hyper-parameter.
 
-    The final loss is as:
+    The final loss is defined as:
 
     .. math::
 
@@ -478,17 +483,19 @@ class LinkPredictAdvBCELossFunc(LinkPredictBCELossFunc):
 
 class WeightedLinkPredictAdvBCELossFunc(LinkPredictAdvBCELossFunc):
     r""" Binary cross entropy loss function for link prediction tasks
-    with adversarial loss for negative samples and weight on positive samples.
+    with adversarial loss for negative samples and weights on positive samples.
 
-    The loss function of a positive edge ``e`` is as:
+    The loss function of a positive edge is defined as:
 
     .. math::
 
         loss_{pos} = - w * \log score
 
-    where ``score`` is the score value of the positive edges computed by the score function, ``w`` is the weight of each positive edge. The loss of the negative edges is the same as **LinkPredictAdvBCELossFunc**.
+    where ``score`` is the score value of the positive edges computed
+    by the score function, and ``w`` is the weight of each positive edge.
+    The loss of the negative edges is the same as **LinkPredictAdvBCELossFunc**.
 
-    The final loss is as:
+    The final loss is defined as:
 
     .. math::
 
@@ -543,7 +550,7 @@ class WeightedLinkPredictAdvBCELossFunc(LinkPredictAdvBCELossFunc):
         return loss
 
 class LinkPredictContrastiveLossFunc(GSLayer):
-    r""" Contrastive Loss function for link prediction.
+    r""" Contrastive Loss function for link prediction tasks.
 
     The positive and negative scores are computed through a
     score function as:
@@ -562,10 +569,10 @@ class LinkPredictContrastiveLossFunc(GSLayer):
 
         .. math::
 
-            loss = -log(exp(pos\_score)/\sum_{i=0}^N exp(score_i))
+            loss = -log(exp(pos\_score)/\sum_{i=0}^K exp(score_i))
 
     where score includes both positive score of <src, dst> and
-    negative scores of <src, neg_dst0>, ... <src, neg_dstk>
+    negative scores of <src, neg_dst0>, ... <src, neg_dstk>.
 
     Parameters
     ----------
