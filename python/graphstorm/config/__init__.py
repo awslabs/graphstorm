@@ -26,6 +26,7 @@ from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                      BUILTIN_TASK_LINK_PREDICTION,
                      BUILTIN_TASK_COMPUTE_EMB,
                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                     BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT,
                      BUILTIN_TASK_MULTI_TASK)
 from .config import SUPPORTED_TASKS
 
