@@ -289,7 +289,7 @@ class WeightedLinkPredictBCELossFunc(GSLayer):
     r""" Loss function for link prediction tasks using binary
     cross entropy loss with weights.
 
-    The torch.nn.functional.binary_cross_entropy_with_logits is used
+    The ``torch.nn.functional.binary_cross_entropy_with_logits`` is used
     to compute the loss. The loss function is defined as:
 
     .. math::
