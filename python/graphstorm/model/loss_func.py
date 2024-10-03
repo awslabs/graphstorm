@@ -70,7 +70,7 @@ class ClassifyLossFunc(GSLayer):
             loss = self.loss_fn(logits, labels.type(th.float32))
             return loss
         else:
-            self.loss_fn(logits, labels.long())
+            loss = self.loss_fn(logits, labels.long())
             return loss
 
     @property
@@ -349,7 +349,8 @@ class WeightedLinkPredictBCELossFunc(GSLayer):
         score = th.cat([p_score, n_score])
         label = th.cat([th.ones_like(p_score), th.zeros_like(n_score)])
         weight = th.cat([p_weight, th.ones_like(n_score)])
-        return F.binary_cross_entropy_with_logits(score, label, weight=weight)
+        loss = F.binary_cross_entropy_with_logits(score, label, weight=weight)
+        return loss
 
     @property
     def in_dims(self):
