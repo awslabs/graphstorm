@@ -557,7 +557,7 @@ class LinkPredictContrastiveLossFunc(GSLayer):
 
     In contrastive loss, we assume one positive pair <src, dst>
     has K corresponding negative pairs <src, neg_dst1>,
-    <src, neg_dst2> .... <src, neg_dstk> When we compute the
+    <src, neg_dst2> .... <src, neg_dstk>. When we compute the
     loss of <src, dst>, we follow the following equation:
 
         .. math::
