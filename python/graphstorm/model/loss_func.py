@@ -233,7 +233,7 @@ class LinkPredictBCELossFunc(GSLayer):
 
         loss = - y \cdot \log score + (1 - y) \cdot \log (1 - score)
 
-    where ``y`` is 1 when ``e`` is a positive edge and 0 when it is a negative edge. ``score`` is the score value of ``e`` computed by the score function.
+    where ``y`` is 1 for a positive edge and 0 for a negative edge. ``score`` is the score value of ``e`` computed by the score function.
     """
 
     def forward(self, pos_score, neg_score):
