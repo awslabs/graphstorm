@@ -570,7 +570,7 @@ class LinkPredictContrastiveLossFunc(GSLayer):
     Parameters
     ----------
     temp: float
-        Temperature value
+        Temperature value.
     """
     def __init__(self, temp=1.0):
         super(LinkPredictContrastiveLossFunc, self).__init__()
