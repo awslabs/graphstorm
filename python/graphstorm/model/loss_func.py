@@ -552,7 +552,7 @@ class LinkPredictContrastiveLossFunc(GSLayer):
 
             score = f(<src, rel, dst>)
 
-    And we treat a score as the distance between `src` and
+    And we treat a score as the distance between ``src`` and
     `dst` nodes under relation `rel`.
 
     In contrastive loss, we assume one positive pair <src, dst>
