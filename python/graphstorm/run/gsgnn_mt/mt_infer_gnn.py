@@ -25,7 +25,8 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
                                BUILTIN_TASK_EDGE_REGRESSION,
                                BUILTIN_TASK_LINK_PREDICTION,
-                               BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+                               BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                               BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
 from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
@@ -158,6 +159,27 @@ def create_task_infer_dataloader(task, config, infer_data):
                                    train_task=False,
                                    node_feats=node_feats,
                                    label_field=task_config.reconstruct_nfeat_name)
+    elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
+        eval_etype = task_config.target_etype
+        if not config.no_validation:
+            target_idxs = infer_data.get_edge_test_set(eval_etype, mask=task_config.test_mask)
+            assert len(target_idxs) > 0, \
+                f"There is not test data for evaluation for task {task.task_id}. " \
+                "You can use --no-validation true to avoid do testing"
+        else:
+            target_idxs = infer_data.get_edge_infer_set(eval_etype, mask=task_config.test_mask)
+            assert len(target_idxs) > 0, \
+                f"To do inference on {config.target_etype} for {task.task_id} " \
+                "without doing evaluation, you should not define test_mask as its " \
+                "edge feature. GraphStorm will do inference on the whole edge set. "
+        return GSgnnEdgeDataLoader(infer_data,
+                                   target_idxs,
+                                   fanout=fanout,
+                                   batch_size=task_config.eval_batch_size,
+                                   node_feats=node_feats,
+                                   label_field=task_config.reconstruct_efeat_name,
+                                   train_task=False)
+
     else:
         raise TypeError(f"Unknown task type {task.task_type}")
 

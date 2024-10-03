@@ -42,7 +42,8 @@ from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from .config import BUILTIN_TASK_EDGE_REGRESSION
 from .config import (BUILTIN_TASK_LINK_PREDICTION,
                      LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL)
-from .config import BUILTIN_TASK_RECONSTRUCT_NODE_FEAT
+from .config import (BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                     BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
 from .config import BUILTIN_GNN_NORM
 from .config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
 from .config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
@@ -518,6 +519,39 @@ class GSConfig:
                         task_id=task_id,
                         task_config=task_info)
 
+    def _parse_reconstruct_edge_feat(self, task_config):
+        """ Parse the reconstruct edge feature task info
+
+        Parameters
+        ----------
+        task_config: dict
+            Reconstruct edge feature task config
+        """
+        task_type = BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT
+        mask_fields, task_weight, batch_size = \
+            self._parse_general_task_config(task_config)
+        task_config["batch_size"] = batch_size
+
+        task_info = GSConfig.__new__(GSConfig)
+        task_info.set_task_attributes(task_config)
+        setattr(task_info, "_task_type", task_type)
+        task_info.verify_edge_feat_reconstruct_arguments()
+
+        target_ntype = task_info.target_ntype
+        label_field = task_info.reconstruct_efeat_name
+
+        task_id = get_mttask_id(task_type=task_type,
+                                ntype=target_ntype,
+                                label=label_field)
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
+        setattr(task_info, "task_weight", task_weight)
+
+        return TaskInfo(task_type=task_type,
+                        task_id=task_id,
+                        task_config=task_info)
+
     def _parse_multi_tasks(self, multi_task_config):
         """ Parse multi-task configuration
 
@@ -619,6 +653,14 @@ class GSConfig:
         _ = self.batch_size
         _ = self.eval_metric
         _ = self.reconstruct_nfeat_name
+
+    def verify_edge_feat_reconstruct_arguments(self):
+        """Verify the correctness of arguments for edge feature reconstruction tasks.
+        """
+        _ = self.target_ntype
+        _ = self.batch_size
+        _ = self.eval_metric
+        _ = self.reconstruct_efeat_name
 
     def verify_node_class_arguments(self):
         """ Verify the correctness of arguments for node classification tasks.
@@ -2913,6 +2955,15 @@ class GSConfig:
         assert hasattr(self, "_reconstruct_nfeat_name"), \
             "reconstruct_nfeat_name must be provided under reconstruct_node_feat task "
         return self._reconstruct_nfeat_name
+
+    ################## Reconstruct edge feats ###############
+    @property
+    def reconstruct_efeat_name(self):
+        """ node feature name for reconstruction
+        """
+        assert hasattr(self, "_reconstruct_efeat_name"), \
+            "reconstruct_efeat_name must be provided under reconstruct_efeat_name task "
+        return self._reconstruct_efeat_name
 
     ################## Multi task learning ##################
     @property
