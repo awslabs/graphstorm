@@ -27,7 +27,7 @@ from .utils import get_rank
 class ClassifyLossFunc(GSLayer):
     """ Loss function for classification tasks.
 
-    If multilabel is set to True, the torch.nn.BCEWithLogitsLoss
+    If multilabel is set to True, the ``torch.nn.BCEWithLogitsLoss``
     is used, otherwise the torch.nn.CrossEntropyLoss is used.
 
     Parameters
