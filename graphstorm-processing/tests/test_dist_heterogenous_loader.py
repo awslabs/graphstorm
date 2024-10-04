@@ -1090,18 +1090,16 @@ def test_node_custom_label_multitask(spark, dghl_loader: DistHeterogeneousGraphL
     assert test_total_ones == 9
 
     # Check the order of the train_mask_df
-    train_mask_df = train_mask_df.withColumn(
-        "order_check_id", F.monotonically_increasing_id()
-    )
-    val_mask_df = val_mask_df.withColumn(
-        "order_check_id", F.monotonically_increasing_id()
-    )
-    test_mask_df = test_mask_df.withColumn(
-        "order_check_id", F.monotonically_increasing_id()
-    )
+    train_mask_df = train_mask_df.withColumn("order_check_id", F.monotonically_increasing_id())
+    val_mask_df = val_mask_df.withColumn("order_check_id", F.monotonically_increasing_id())
+    test_mask_df = test_mask_df.withColumn("order_check_id", F.monotonically_increasing_id())
     train_mask_df = train_mask_df.filter((F.col("order_check_id") <= 98)).drop("order_check_id")
-    val_mask_df = val_mask_df.filter((F.col("order_check_id") >= 100) & (F.col("order_check_id") < 108)).drop("order_check_id")
-    test_mask_df = test_mask_df.filter((F.col("order_check_id") >= 110) & (F.col("order_check_id") < 118)).drop("order_check_id")
+    val_mask_df = val_mask_df.filter(
+        (F.col("order_check_id") >= 100) & (F.col("order_check_id") < 108)
+    ).drop("order_check_id")
+    test_mask_df = test_mask_df.filter(
+        (F.col("order_check_id") >= 110) & (F.col("order_check_id") < 118)
+    ).drop("order_check_id")
 
     train_unique_rows = train_mask_df.distinct().collect()
     train_mask_df.show(n=100)

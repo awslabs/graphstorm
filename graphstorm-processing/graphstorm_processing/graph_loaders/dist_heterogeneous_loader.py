@@ -2091,6 +2091,21 @@ class DistHeterogeneousGraphLoader(object):
         def process_custom_mask_df(
             input_df: DataFrame, split_file: CustomSplit, mask_name: str, mask_type: str
         ):
+            """
+            Creates the mask dataframe based on custom split files on one mask type.
+
+            Parameters
+            ----------
+            input_df: DataFrame
+                Input dataframe for which we will add integer mapping.
+            split_file: CustomSplit
+                A CustomSplit object including path to the custom split files for
+                training/validation/test.
+            mask_name: str
+                Mask field name for the mask type.
+            mask_type: str
+                The type of mask to create, value can be train, val or test.
+            """
             def create_mapping(input_df):
                 """
                 Creates the integer mapping for order maintaining.
