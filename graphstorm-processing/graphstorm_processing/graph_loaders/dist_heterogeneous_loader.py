@@ -2106,6 +2106,7 @@ class DistHeterogeneousGraphLoader(object):
             mask_type: str
                 The type of mask to create, value can be train, val or test.
             """
+
             def create_mapping(input_df):
                 """
                 Creates the integer mapping for order maintaining.
