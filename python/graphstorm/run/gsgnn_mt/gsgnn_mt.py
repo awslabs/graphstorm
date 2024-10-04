@@ -127,8 +127,8 @@ def create_task_train_dataloader(task, config, train_data):
                                    node_feats=node_feats,
                                    label_field=task_config.reconstruct_nfeat_name)
     elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
-        train_idxs = train_data.get_node_train_set(
-            task_config.target_ntype,
+        train_idxs = train_data.get_edge_train_set(
+            task_config.target_etype,
             mask=task_config.train_mask)
         return GSgnnEdgeDataLoader(train_data,
                                    train_idxs,
