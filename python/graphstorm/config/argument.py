@@ -537,11 +537,11 @@ class GSConfig:
         setattr(task_info, "_task_type", task_type)
         task_info.verify_edge_feat_reconstruct_arguments()
 
-        target_ntype = task_info.target_ntype
+        target_etype = task_info.target_etype
         label_field = task_info.reconstruct_efeat_name
 
         task_id = get_mttask_id(task_type=task_type,
-                                ntype=target_ntype,
+                                etype=target_etype,
                                 label=label_field)
         setattr(task_info, "train_mask", mask_fields[0])
         setattr(task_info, "val_mask", mask_fields[1])
@@ -616,6 +616,9 @@ class GSConfig:
             elif "reconstruct_node_feat" in task_config:
                 task = self._parse_reconstruct_node_feat(
                     task_config["reconstruct_node_feat"])
+            elif "reconstruct_edge_feat" in task_config:
+                task = self._parse_reconstruct_edge_feat(
+                    task_config["reconstruct_edge_feat"])
             else:
                 raise ValueError(f"Invalid task type in multi-task learning {task_config}.")
             tasks.append(task)
@@ -2813,7 +2816,8 @@ class GSConfig:
             else:
                 eval_metric = ["accuracy"]
         elif self.task_type in [BUILTIN_TASK_NODE_REGRESSION, \
-            BUILTIN_TASK_EDGE_REGRESSION, BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
+            BUILTIN_TASK_EDGE_REGRESSION, BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+            BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
             if hasattr(self, "_eval_metric"):
                 if isinstance(self._eval_metric, str):
                     eval_metric = self._eval_metric.lower()
@@ -2836,7 +2840,8 @@ class GSConfig:
                         "should be a string or a list of string"
                     # no eval_metric
             else:
-                if self.task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT:
+                if self.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                                      BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
                     eval_metric = ["mse"]
                 else:
                     eval_metric = ["rmse"]

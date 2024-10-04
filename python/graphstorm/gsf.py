@@ -364,7 +364,8 @@ def create_builtin_reconstruct_efeat_decoder(g, decoder_input_dim, config, train
     loss_func: The loss function(s)
     """
     dropout = config.dropout if train_task else 0
-    target_etype = config.target_etype
+    # Only support on edge type per reconstruction type
+    target_etype = config.target_etype[0]
     reconstruct_feat = config.reconstruct_efeat_name
     feat_dim = g.edges[target_etype].data[reconstruct_feat].shape[1]
 

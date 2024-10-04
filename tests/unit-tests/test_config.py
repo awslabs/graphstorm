@@ -1858,7 +1858,7 @@ def create_dummy_nfr_config2():
 
 def create_dummy_efr_config():
     return {
-        "target_etype": ("a", "r", "b"),
+        "target_etype": ["a,r,b"],
         "reconstruct_efeat_name": "rfeat",
         "task_weight": 0.5,
         "mask_fields": ["efr_train_mask", "efr_eval_mask", "efr_test_mask"]
@@ -1866,7 +1866,7 @@ def create_dummy_efr_config():
 
 def create_dummy_efr_config2():
     return {
-        "target_etype": ("a", "r", "b"),
+        "target_etype": ["a,r,b"],
         "reconstruct_efeat_name": "rfeat",
         "mask_fields": ["efr_train_mask", "efr_eval_mask", "efr_test_mask"],
         "eval_metric": "rmse"
@@ -1912,7 +1912,7 @@ def create_multi_task_config(tmp_path, file_name):
         },
         {
             BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT: create_dummy_efr_config2()
-        }
+        },
     ]
 
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
@@ -2084,6 +2084,7 @@ def test_multi_task_config():
         # reconstruct edge feat
         efr_config = config.multi_tasks[8]
         assert efr_config.task_type == BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT
+        print(efr_config.task_id)
         assert efr_config.task_id == f"{BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT}-a_r_b-rfeat"
         efr_config = efr_config.task_config
         assert efr_config.task_weight == 0.5

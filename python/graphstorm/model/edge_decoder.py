@@ -349,8 +349,8 @@ class EdgeRegression(GSEdgeDecoder):
     def _init_model(self):
         """ Init decoder model
         """
-        h_dim = self.h_dim
-        out_dim = self.out_dim
+        h_dim = self._h_dim
+        out_dim = self._out_dim
         if self.norm is not None:
             logging.warning("Embedding normalization (batch norm or layer norm) "
                             "is not supported in EdgeRegression")
