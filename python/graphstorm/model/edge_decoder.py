@@ -351,7 +351,7 @@ class EdgeRegression(GSEdgeDecoder):
         """
         h_dim = self._h_dim
         out_dim = self._out_dim
-        if self.norm is not None:
+        if self._norm is not None:
             logging.warning("Embedding normalization (batch norm or layer norm) "
                             "is not supported in EdgeRegression")
         self.linear = nn.Linear(h_dim * 2, h_dim, bias=True)

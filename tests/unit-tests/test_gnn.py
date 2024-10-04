@@ -1459,7 +1459,7 @@ def test_edge_feat_reconstruct():
     decoder, loss_func = create_builtin_reconstruct_efeat_decoder(
         g, decoder_input_dim=32, config=config, train_task=True)
     assert isinstance(decoder, EdgeRegression)
-    assert decoder.decoder.shape[1] == 32
+    assert decoder.linear.out_features == 32
     assert isinstance(loss_func, RegressionLossFunc)
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
