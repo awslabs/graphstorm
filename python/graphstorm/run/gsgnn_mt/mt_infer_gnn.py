@@ -178,7 +178,8 @@ def create_task_infer_dataloader(task, config, infer_data):
                                    batch_size=task_config.eval_batch_size,
                                    node_feats=node_feats,
                                    label_field=task_config.reconstruct_efeat_name,
-                                   train_task=False)
+                                   train_task=False,
+                                   remove_target_edge_type=False)
 
     else:
         raise TypeError(f"Unknown task type {task.task_type}")

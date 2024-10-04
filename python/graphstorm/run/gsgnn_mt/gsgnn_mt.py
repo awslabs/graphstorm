@@ -136,7 +136,8 @@ def create_task_train_dataloader(task, config, train_data):
                                    batch_size=task_config.batch_size,
                                    node_feats=node_feats,
                                    label_field=task_config.reconstruct_efeat_name,
-                                   train_task=True)
+                                   train_task=True,
+                                   remove_target_edge_type=False)
 
     return None
 
@@ -236,7 +237,8 @@ def create_task_val_dataloader(task, config, train_data):
                                        batch_size=task_config.eval_batch_size,
                                        train_task=False,
                                        node_feats=node_feats,
-                                       label_field=task_config.reconstruct_efeat_name)
+                                       label_field=task_config.reconstruct_efeat_name,
+                                       remove_target_edge_type=False)
 
     return None
 
@@ -342,7 +344,8 @@ def create_task_test_dataloader(task, config, train_data):
                                        batch_size=task_config.eval_batch_size,
                                        train_task=False,
                                        node_feats=node_feats,
-                                       label_field=task_config.reconstruct_efeat_name)
+                                       label_field=task_config.reconstruct_efeat_name,
+                                       remove_target_edge_type=False)
     return None
 
 def main(config_args):
