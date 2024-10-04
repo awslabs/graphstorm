@@ -1037,14 +1037,14 @@ def test_edge_custom_label(spark, dghl_loader: DistHeterogeneousGraphLoader, tmp
 
 def test_node_custom_label_multitask(spark, dghl_loader: DistHeterogeneousGraphLoader, tmp_path):
     """Test using custom label splits for nodes"""
-    data = [(i,) for i in range(1, 120)]
+    data = [(i,) for i in range(1, 1200)]
 
     # Create DataFrame
     nodes_df = spark.createDataFrame(data, ["orig"])
 
-    train_df = spark.createDataFrame([(i,) for i in range(1, 100)], ["mask_id"])
-    val_df = spark.createDataFrame([(i,) for i in range(101, 110)], ["mask_id"])
-    test_df = spark.createDataFrame([(i,) for i in range(111, 120)], ["mask_id"])
+    train_df = spark.createDataFrame([(i,) for i in range(1, 1000)], ["mask_id"])
+    val_df = spark.createDataFrame([(i,) for i in range(1001, 1100)], ["mask_id"])
+    test_df = spark.createDataFrame([(i,) for i in range(1101, 1200)], ["mask_id"])
 
     train_df.repartition(1).write.parquet(f"{tmp_path}/train.parquet")
     val_df.repartition(1).write.parquet(f"{tmp_path}/val.parquet")
@@ -1085,24 +1085,23 @@ def test_node_custom_label_multitask(spark, dghl_loader: DistHeterogeneousGraphL
     train_total_ones = train_mask_df.agg(F.sum("custom_split_train_mask")).collect()[0][0]
     val_total_ones = val_mask_df.agg(F.sum("custom_split_val_mask")).collect()[0][0]
     test_total_ones = test_mask_df.agg(F.sum("custom_split_test_mask")).collect()[0][0]
-    assert train_total_ones == 99
-    assert val_total_ones == 9
-    assert test_total_ones == 9
+    assert train_total_ones == 999
+    assert val_total_ones == 99
+    assert test_total_ones == 99
 
     # Check the order of the train_mask_df
     train_mask_df = train_mask_df.withColumn("order_check_id", F.monotonically_increasing_id())
     val_mask_df = val_mask_df.withColumn("order_check_id", F.monotonically_increasing_id())
     test_mask_df = test_mask_df.withColumn("order_check_id", F.monotonically_increasing_id())
-    train_mask_df = train_mask_df.filter((F.col("order_check_id") <= 98)).drop("order_check_id")
+    train_mask_df = train_mask_df.filter((F.col("order_check_id") < 999)).drop("order_check_id")
     val_mask_df = val_mask_df.filter(
-        (F.col("order_check_id") >= 100) & (F.col("order_check_id") < 108)
+        (F.col("order_check_id") >= 1000) & (F.col("order_check_id") < 1099)
     ).drop("order_check_id")
     test_mask_df = test_mask_df.filter(
-        (F.col("order_check_id") >= 110) & (F.col("order_check_id") < 118)
+        (F.col("order_check_id") >= 1100) & (F.col("order_check_id") < 1199)
     ).drop("order_check_id")
 
     train_unique_rows = train_mask_df.distinct().collect()
-    train_mask_df.show(n=100)
     assert len(train_unique_rows) == 1 and all(value == 1 for value in train_unique_rows[0])
     val_unique_rows = val_mask_df.distinct().collect()
     assert len(val_unique_rows) == 1 and all(value == 1 for value in val_unique_rows[0])
@@ -1112,20 +1111,20 @@ def test_node_custom_label_multitask(spark, dghl_loader: DistHeterogeneousGraphL
 
 def test_edge_custom_label_multitask(spark, dghl_loader: DistHeterogeneousGraphLoader, tmp_path):
     """Test using custom label splits for edges"""
-    data = [(i, j) for i in range(1, 4) for j in range(11, 14)]
+    data = [(i, j) for i in range(1, 4) for j in range(0, 1000)]
     # Create DataFrame
     edges_df = spark.createDataFrame(data, ["src_str_id", "dst_str_id"])
 
     train_df = spark.createDataFrame(
-        [(i, j) for i in range(1, 2) for j in range(11, 14)],
+        [(i, j) for i in range(1, 2) for j in range(0, 10)],
         ["mask_src_id", "mask_dst_id"],
     )
     val_df = spark.createDataFrame(
-        [(i, j) for i in range(2, 3) for j in range(11, 14)],
+        [(i, j) for i in range(2, 3) for j in range(0, 10)],
         ["mask_src_id", "mask_dst_id"],
     )
     test_df = spark.createDataFrame(
-        [(i, j) for i in range(3, 4) for j in range(11, 14)],
+        [(i, j) for i in range(3, 4) for j in range(0, 10)],
         ["mask_src_id", "mask_dst_id"],
     )
 
@@ -1167,6 +1166,25 @@ def test_edge_custom_label_multitask(spark, dghl_loader: DistHeterogeneousGraphL
     train_total_ones = train_mask_df.agg(F.sum("custom_split_train_mask")).collect()[0][0]
     val_total_ones = val_mask_df.agg(F.sum("custom_split_val_mask")).collect()[0][0]
     test_total_ones = test_mask_df.agg(F.sum("custom_split_test_mask")).collect()[0][0]
-    assert train_total_ones == 3
-    assert val_total_ones == 3
-    assert test_total_ones == 3
+    assert train_total_ones == 10
+    assert val_total_ones == 10
+    assert test_total_ones == 10
+
+    # Check the order of the train_mask_df
+    train_mask_df = train_mask_df.withColumn("order_check_id", F.monotonically_increasing_id())
+    val_mask_df = val_mask_df.withColumn("order_check_id", F.monotonically_increasing_id())
+    test_mask_df = test_mask_df.withColumn("order_check_id", F.monotonically_increasing_id())
+    train_mask_df = train_mask_df.filter((F.col("order_check_id") < 10)).drop("order_check_id")
+    val_mask_df = val_mask_df.filter(
+        (F.col("order_check_id") >= 1000) & (F.col("order_check_id") < 1009)
+    ).drop("order_check_id")
+    test_mask_df = test_mask_df.filter(
+        (F.col("order_check_id") >= 2000) & (F.col("order_check_id") < 2009)
+    ).drop("order_check_id")
+
+    train_unique_rows = train_mask_df.distinct().collect()
+    assert len(train_unique_rows) == 1 and all(value == 1 for value in train_unique_rows[0])
+    val_unique_rows = val_mask_df.distinct().collect()
+    assert len(val_unique_rows) == 1 and all(value == 1 for value in val_unique_rows[0])
+    test_unique_rows = test_mask_df.distinct().collect()
+    assert len(test_unique_rows) == 1 and all(value == 1 for value in test_unique_rows[0])
