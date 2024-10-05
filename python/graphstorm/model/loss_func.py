@@ -299,7 +299,7 @@ class WeightedLinkPredictBCELossFunc(GSLayer):
 
     where ``y`` is 1 for a positive edge and 0 for a negative edge.
     ``score`` is the score value of ``e`` computed by the score function,
-    ``w_e`` is the weight of ``e`` and is defined as:
+    ``w_e`` is the weight of an edge ``e``, which is defined as:
 
     .. math::
 
