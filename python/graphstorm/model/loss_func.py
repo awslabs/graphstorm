@@ -25,7 +25,10 @@ from .gs_layer import GSLayer
 from .utils import get_rank
 
 class ClassifyLossFunc(GSLayer):
-    """ Loss function for classification.
+    """ Loss function for classification tasks.
+
+    If multilabel is set to True, the ``torch.nn.BCEWithLogitsLoss``
+    is used, otherwise the ``torch.nn.CrossEntropyLoss`` is used.
 
     Parameters
     ----------
@@ -33,8 +36,10 @@ class ClassifyLossFunc(GSLayer):
         Whether this is multi-label classification.
     multilabel_weights : Tensor
         The label weights for multi-label classifciation.
+        Default: None
     imbalance_class_weights : Tensor
         The class weights for imbalanced classes.
+        Default: None
     """
     def __init__(self, multilabel, multilabel_weights=None, imbalance_class_weights=None):
         super(ClassifyLossFunc, self).__init__()
@@ -47,12 +52,26 @@ class ClassifyLossFunc(GSLayer):
 
     def forward(self, logits, labels):
         """ The forward function.
+
+        Parameters
+        ----------
+        logits: torch.Tensor
+            The prediction results.
+        labels: torch.Tensor
+            The training labels.
+
+        Returns
+        -------
+        loss: Tensor
+            The loss value.
         """
         if self.multilabel:
             # BCEWithLogitsLoss wants labels be th.Float
-            return self.loss_fn(logits, labels.type(th.float32))
+            loss = self.loss_fn(logits, labels.type(th.float32))
+            return loss
         else:
-            return self.loss_fn(logits, labels.long())
+            loss = self.loss_fn(logits, labels.long())
+            return loss
 
     @property
     def in_dims(self):
@@ -75,20 +94,28 @@ class ClassifyLossFunc(GSLayer):
         return None
 
 class FocalLossFunc(GSLayer):
-    """ Focal loss function for classification.
+    """ Focal loss function for classification tasks.
 
     Copy from torchvision.ops.sigmoid_focal_loss.
     Only with mean reduction.
     See more details on https://pytorch.org/vision/main/_modules/torchvision/ops/focal_loss.html.
 
+    To use focal loss, the classification task must be
+    a binary classification task.
+
     Parameters
     ----------
     alpha: float
         Weighting factor in range (0,1) to balance
-        ositive vs negative examples or -1 for ignore. Default: ``0.25``.
+        positive vs negative examples. Use ``-1`` to ignore this parameter.
+        Default: ``0.25``.
     gamma: float
         Exponent of the modulating factor (1 - p_t) to
-        balance easy vs hard examples. Default: ``2``.
+        balance easy vs hard examples.
+        Default: ``2``.
+
+    .. versionadded:: 0.4.0
+        The :py:class:`FocalLossFunc`.
     """
     def __init__(self, alpha=0.25, gamma=2):
         super(FocalLossFunc, self).__init__()
@@ -104,6 +131,11 @@ class FocalLossFunc(GSLayer):
             The prediction results.
         labels: torch.Tensor
             The training labels.
+
+        Returns
+        -------
+        loss: Tensor
+            The loss value.
         """
         # We need to reshape logits into a 1D float tensor
         # and cast labels into a float tensor.
@@ -119,7 +151,8 @@ class FocalLossFunc(GSLayer):
             alpha_t = self.alpha * targets + (1 - self.alpha) * (1 - targets)
             loss = alpha_t * loss
 
-        return loss.mean()
+        loss = loss.mean()
+        return loss
 
     @property
     def in_dims(self):
@@ -142,7 +175,9 @@ class FocalLossFunc(GSLayer):
         return None
 
 class RegressionLossFunc(GSLayer):
-    """ Loss function for regression
+    """ Loss function for regression tasks.
+
+    The ``torch.nn.MSELoss`` is used.
     """
     def __init__(self):
         super(RegressionLossFunc, self).__init__()
@@ -150,9 +185,22 @@ class RegressionLossFunc(GSLayer):
 
     def forward(self, logits, labels):
         """ The forward function.
+
+        Parameters
+        ----------
+        logits: torch.Tensor
+            The prediction results.
+        labels: torch.Tensor
+            The training labels.
+
+        Returns
+        -------
+        loss: Tensor
+            The loss value.
         """
         # Make sure the lable is a float tensor
-        return self.loss_fn(logits, labels.float())
+        loss = self.loss_fn(logits, labels.float())
+        return loss
 
     @property
     def in_dims(self):
@@ -175,18 +223,34 @@ class RegressionLossFunc(GSLayer):
         return None
 
 class LinkPredictBCELossFunc(GSLayer):
-    """ Loss function for link prediction.
+    r""" Loss function for link prediction tasks using binary
+    cross entropy loss.
+
+    The ``torch.nn.functional.binary_cross_entropy_with_logits`` is used
+    to compute the loss. The loss function is defined as:
+
+    .. math::
+
+        loss = - y \cdot \log score + (1 - y) \cdot \log (1 - score)
+
+    where ``y`` is 1 for a positive edge and 0 for a negative edge.
+    ``score`` is the score value of the edges computed by the score function.
     """
 
     def forward(self, pos_score, neg_score):
         """ The forward function.
 
-            Parameters
-            ----------
-            pos_score: dict of Tensor
-                The scores for positive edges of each edge type.
-            neg_score: dict of Tensor
-                The scores for negative edges of each edge type.
+        Parameters
+        ----------
+        pos_score: dict of Tensor
+            The scores for positive edges of each edge type.
+        neg_score: dict of Tensor
+            The scores for negative edges of each edge type.
+
+        Returns
+        -------
+        loss: Tensor
+            The loss value.
         """
         p_score = []
         n_score = []
@@ -199,7 +263,8 @@ class LinkPredictBCELossFunc(GSLayer):
         n_score = th.cat(n_score)
         score = th.cat([p_score, n_score])
         label = th.cat([th.ones_like(p_score), th.zeros_like(n_score)])
-        return F.binary_cross_entropy_with_logits(score, label)
+        loss = F.binary_cross_entropy_with_logits(score, label)
+        return loss
 
     @property
     def in_dims(self):
@@ -222,18 +287,46 @@ class LinkPredictBCELossFunc(GSLayer):
         return None
 
 class WeightedLinkPredictBCELossFunc(GSLayer):
-    """ Loss function for link prediction.
+    r""" Loss function for link prediction tasks using binary
+    cross entropy loss with weights.
+
+    The ``torch.nn.functional.binary_cross_entropy_with_logits`` is used
+    to compute the loss. The loss function is defined as:
+
+    .. math::
+
+        loss = - w\_e [ y \cdot \log score + (1 - y) \cdot \log (1 - score) ]
+
+    where ``y`` is 1 for a positive edge and 0 for a negative edge.
+    ``score`` is the score value of ``e`` computed by the score function,
+    ``w_e`` is the weight of an edge ``e``, which is defined as:
+
+    .. math::
+
+        w\_e = \left \{
+        \begin{array}{lc}
+            1,  & \text{ if } e \in G, \\
+            0,  & \text{ if } e \notin G
+        \end{array}
+        \right.
+
+    where ``G`` is the training graph.
     """
 
     def forward(self, pos_score, neg_score):
         """ The forward function.
 
-            Parameters
-            ----------
-            pos_score: dict of tuple of Tensor
-                The (scores, edge weight) for positive edges of each edge type.
-            neg_score: dict of tuple of Tensor
-                The (scores, edge weight) for negative edges of each edge type.
+        Parameters
+        ----------
+        pos_score: dict of tuple of Tensor
+            The (scores, edge weight) for positive edges of each edge type.
+        neg_score: dict of tuple of Tensor
+            The (scores, edge weight) for negative edges of each edge type.
+
+        Returns
+        -------
+        loss: Tensor
+            The loss value.
         """
         p_score = []
         p_weight = []
@@ -256,7 +349,8 @@ class WeightedLinkPredictBCELossFunc(GSLayer):
         score = th.cat([p_score, n_score])
         label = th.cat([th.ones_like(p_score), th.zeros_like(n_score)])
         weight = th.cat([p_weight, th.ones_like(n_score)])
-        return F.binary_cross_entropy_with_logits(score, label, weight=weight)
+        loss = F.binary_cross_entropy_with_logits(score, label, weight=weight)
+        return loss
 
     @property
     def in_dims(self):
@@ -279,17 +373,38 @@ class WeightedLinkPredictBCELossFunc(GSLayer):
         return None
 
 class LinkPredictAdvBCELossFunc(LinkPredictBCELossFunc):
-    """ BCE loss function for link prediction with adversarial
-        loss for negative samples.
+    r""" Binary cross entropy loss function for link prediction tasks
+    with adversarial loss for negative samples.
 
-        .. math::
+    The loss of positive edges is defined as:
 
-            neg_loss = softmax(neg_score * adversarial_temperature) * neg_loss
+    .. math::
 
-        Parameters
-        ----------
-        adversarial_temperature: float
-            Temperature value for adversarial loss.
+        loss_{pos} = - \log score
+
+    where ``score`` is the score value of the positive edges computed by the score function.
+
+    The loss of negative edges is defined as:
+
+    .. math::
+
+        loss_{neg} = \log (1 - score) \\
+        loss_{neg} = \mathrm{softmax}(score * adversarial\_temperature) * loss_{neg}
+
+    where ``score`` is the score value of the negative edges
+    computed by the score function and ``adversarial_temperature``
+    is a hyper-parameter.
+
+    The final loss is defined as:
+
+    .. math::
+
+        loss = \dfrac{\mathrm{avg}(loss_{pos}) + \mathrm{avg}(loss_{neg})}{2}
+
+    Parameters
+    ----------
+    adversarial_temperature: float
+        Temperature value for adversarial loss.
     """
     def __init__(self, adversarial_temperature):
         super(LinkPredictAdvBCELossFunc, self).__init__()
@@ -333,12 +448,17 @@ class LinkPredictAdvBCELossFunc(LinkPredictBCELossFunc):
     def forward(self, pos_score, neg_score):
         """ The forward function.
 
-            Parameters
-            ----------
-            pos_score: dict of Tensor
-                The scores for positive edges of each edge type.
-            neg_score: dict of Tensor
-                The scores for negative edges of each edge type.
+        Parameters
+        ----------
+        pos_score: dict of Tensor
+            The scores for positive edges of each edge type.
+        neg_score: dict of Tensor
+            The scores for negative edges of each edge type.
+
+        Returns
+        -------
+        loss: Tensor
+            The loss value.
         """
         p_score = []
         n_score = []
@@ -363,19 +483,40 @@ class LinkPredictAdvBCELossFunc(LinkPredictBCELossFunc):
         return loss
 
 class WeightedLinkPredictAdvBCELossFunc(LinkPredictAdvBCELossFunc):
-    """ BCE loss function for link prediction with adversarial
-        loss for negative samples and weight on positive samples.
+    r""" Binary cross entropy loss function for link prediction tasks
+    with adversarial loss for negative samples and weights on positive samples.
+
+    The loss function of a positive edge is defined as:
+
+    .. math::
+
+        loss_{pos} = - w * \log score
+
+    where ``score`` is the score value of the positive edges computed
+    by the score function, and ``w`` is the weight of each positive edge.
+    The loss of the negative edges is the same as **LinkPredictAdvBCELossFunc**.
+
+    The final loss is defined as:
+
+    .. math::
+
+        loss = \dfrac{\mathrm{avg}(loss_{pos}) + \mathrm{avg}(loss_{neg})}{2}
     """
 
     def forward(self, pos_score, neg_score):
         """ The forward function.
 
-            Parameters
-            ----------
-            pos_score: dict of tuple of Tensor
-                The (scores, edge weight) for positive edges of each edge type.
-            neg_score: dict of tuple of Tensor
-                The (scores, edge weight) for negative edges of each edge type.
+        Parameters
+        ----------
+        pos_score: dict of tuple of Tensor
+            The (scores, edge weight) for positive edges of each edge type.
+        neg_score: dict of tuple of Tensor
+            The (scores, edge weight) for negative edges of each edge type.
+
+        Returns
+        -------
+        loss: Tensor
+            The loss value.
         """
         p_score = []
         p_weight = []
@@ -410,31 +551,34 @@ class WeightedLinkPredictAdvBCELossFunc(LinkPredictAdvBCELossFunc):
         return loss
 
 class LinkPredictContrastiveLossFunc(GSLayer):
-    r""" Contrastive Loss function for link prediction.
+    r""" Contrastive Loss function for link prediction tasks.
 
-        The positive and negative scores are computed through a
-        score function as:
+    The positive and negative scores are computed through a
+    score function as:
+
+        .. math::
 
             score = f(<src, rel, dst>)
 
-        And we treat a score as the distance between `src` and
-        `dst` nodes under relation `rel`.
+    And we treat a score as the distance between ``src`` and
+    ``dst`` nodes under relation ``rel``.
 
-        In contrastive loss, we assume one positive pair <src, dst>
-        has K corresponding negative pairs <src, neg_dst1>,
-        <src, neg_dst2> .... <src, neg_dstk> When we compute the
-        loss of <src, dst>, we follow the following equation:
+    In contrastive loss, we assume one positive pair <src, dst>
+    has K corresponding negative pairs <src, neg_dst1>,
+    <src, neg_dst2> .... <src, neg_dstk>. When we compute the
+    loss of <src, dst>, we follow the following equation:
 
-            .. math::
-            loss = -log(exp(pos\_score)/\sum_{i=0}^N exp(score_i))
+        .. math::
 
-        where score includes both positive score of <src, dst> and
-        negative scores of <src, neg_dst0>, ... <src, neg_dstk>
+            loss = -log(exp(pos\_score)/\sum_{i=0}^K exp(score_i))
 
-        Parameters
-        ----------
-        temp: float
-            Temperature value
+    where score includes both positive score of <src, dst> and
+    negative scores of <src, neg_dst0>, ... <src, neg_dstk>.
+
+    Parameters
+    ----------
+    temp: float
+        Temperature value.
     """
     def __init__(self, temp=1.0):
         super(LinkPredictContrastiveLossFunc, self).__init__()
@@ -444,12 +588,17 @@ class LinkPredictContrastiveLossFunc(GSLayer):
     def forward(self, pos_score, neg_score):
         """ The forward function.
 
-            Parameters
-            ----------
-            pos_score: dict of Tensor
-                The scores for positive edges of each edge type.
-            neg_score: dict of Tensor
-                The scores for negative edges of each edge type.
+        Parameters
+        ----------
+        pos_score: dict of Tensor
+            The scores for positive edges of each edge type.
+        neg_score: dict of Tensor
+            The scores for negative edges of each edge type.
+
+        Returns
+        -------
+        loss: Tensor
+            The loss value.
         """
         pscore = []
         nscore = []
