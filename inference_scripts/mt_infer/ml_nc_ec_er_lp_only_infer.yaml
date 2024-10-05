@@ -78,7 +78,7 @@ gsf:
         eval_metric:
           - "mse"
     - reconstruct_edge_feat:
-        reconstruct_efeat_name: "rate"
+        reconstruct_efeat_name: "feat"
         target_etype:
           - "user,rating,movie"
         batch_size: 128

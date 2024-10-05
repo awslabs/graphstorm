@@ -26,7 +26,8 @@ from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_EDGE_CLASSIFICATION,
                       BUILTIN_TASK_EDGE_REGRESSION,
                       BUILTIN_TASK_LINK_PREDICTION,
-                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                      BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
 from .gnn import GSgnnModel
 from .gnn_encoder_base import GSgnnGNNEncoderInterface
 
@@ -282,6 +283,15 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
             loss = self._forward(task_info.task_id,
                                  (blocks, input_feats, edge_feats, input_nodes),
                                  lbl)
+        elif task_info.task_type == BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT:
+            # Order follow GSgnnEdgeModelInterface.forward
+            # We ignore the edge features when doing
+            # reconstruction.
+            blocks, target_edges, node_feats, edge_feats, \
+                _, lbl, input_nodes = mini_batch
+            loss = self._forward(task_info.task_id,
+                                 (blocks, node_feats, None, input_nodes),
+                                 (target_edges, lbl))
         else:
             raise TypeError(f"Unknown task {task_info}")
 
@@ -441,6 +451,17 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
             pred_loss = loss_func(ntype_logits, ntype_labels)
 
             return pred_loss
+        elif task_type == BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT:
+            batch_graph, labels = decoder_data
+            assert len(labels) == 1, \
+                "In multi-task learning, only support do edge reconstruction " \
+                "on one edge type for a single edge task."
+            pred_loss = 0
+            target_etype = list(labels.keys())[0]
+            logits = task_decoder(batch_graph, encode_embs)
+            pred_loss = loss_func(logits, labels[target_etype])
+
+            return pred_loss
         else:
             raise TypeError(f"Unknow task type {task_type}")
 
@@ -562,7 +583,9 @@ def multi_task_mini_batch_predict(
                     res[task_info.task_id] = (preds[ntype], labels[ntype] \
                         if labels else None)
             elif task_info.task_type in \
-            [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
+            [BUILTIN_TASK_EDGE_CLASSIFICATION,
+             BUILTIN_TASK_EDGE_REGRESSION,
+             BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
                 if dataloader is None:
                     # In cases when there is no validation or test set.
                     # set pred and labels to None

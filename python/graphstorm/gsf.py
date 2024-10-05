@@ -367,6 +367,9 @@ def create_builtin_reconstruct_efeat_decoder(g, decoder_input_dim, config, train
     # Only support on edge type per reconstruction type
     target_etype = config.target_etype[0]
     reconstruct_feat = config.reconstruct_efeat_name
+    assert len(g.edges[target_etype].data[reconstruct_feat].shape) == 2, \
+        "The edge feature {reconstruct_feat} of {target_etype} edges " \
+        f"Must be a 2D tensor, but got {g.edges[target_etype].data[reconstruct_feat].shape}"
     feat_dim = g.edges[target_etype].data[reconstruct_feat].shape[1]
 
     decoder = EdgeRegression(decoder_input_dim,
@@ -1177,7 +1180,8 @@ def create_evaluator(task_info):
                                     early_stop_burnin_rounds=config.early_stop_burnin_rounds,
                                     early_stop_rounds=config.early_stop_rounds,
                                     early_stop_strategy=config.early_stop_strategy)
-    elif task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
+    elif task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                                 BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
         return GSgnnRconstructFeatRegScoreEvaluator(
             config.eval_frequency,
             config.eval_metric,

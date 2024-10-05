@@ -57,6 +57,7 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
               predict_test_loader=None,
               lp_test_loader=None,
               recon_nfeat_test_loader=None,
+              recon_efeat_test_loader=None,
               save_embed_path=None,
               save_prediction_path=None,
               use_mini_batch_infer=False,
@@ -83,6 +84,8 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
             Test dataloader for link prediction tasks.
         recon_nfeat_test_loader: GSgnnMultiTaskDataLoaders
             Test dataloader for node feature reconstruction tasks.
+        recon_efeat_test_loader: GSgnnMultiTaskDataLoaders
+            Test dataloader for edge feature reconstruction tasks.
         save_embed_path: str
             The path to save the node embeddings.
         save_prediction_path: str
@@ -121,8 +124,13 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
                 if task_fanout is not None:
                     fanout = task_fanout
                     break
-        else:
+        elif recon_nfeat_test_loader is not None:
             for task_fanout in recon_nfeat_test_loader.fanout:
+                if task_fanout is not None:
+                    fanout = task_fanout
+                    break
+        else:
+            for task_fanout in recon_efeat_test_loader.fanout:
                 if task_fanout is not None:
                     fanout = task_fanout
                     break
@@ -209,6 +217,22 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
                     device=device,
                     return_proba=return_proba,
                     return_label=do_eval)
+
+        if recon_efeat_test_loader is not None:
+            # We also need to compute test scores for edge feature reconstruction tasks.
+            dataloaders = recon_efeat_test_loader.dataloaders
+            task_infos = recon_efeat_test_loader.task_infos
+
+            efeat_recon_results = \
+                multi_task_mini_batch_predict(
+                    model,
+                    emb=embs,
+                    dataloaders=dataloaders,
+                    task_infos=task_infos,
+                    device=self.device,
+                    return_proba=return_proba,
+                    return_label=True)
+            pre_results.update(efeat_recon_results)
 
         if recon_nfeat_test_loader is not None:
             # We also need to compute test scores for node feature reconstruction tasks.
