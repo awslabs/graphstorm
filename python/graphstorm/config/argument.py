@@ -1220,7 +1220,7 @@ class GSConfig:
         """ User provided edge feature names. Default is None.
 
         .. versionchanged:: 0.4.0
-            The ``edge_feat_name`` property is supported in v0.4.0.
+            The ``edge_feat_name`` property is supported.
 
         It can be in the following formats:
 
@@ -1273,9 +1273,12 @@ class GSConfig:
     def edge_feat_mp_ops(self):
         """ The operation for using edge features during message passing computation.
             Defaut is "concat".
-            
-            GraphStorm support five message passing operations for edge features, including:
-            
+
+        .. versionadded:: 0.4.0
+            The ``edge_feat_mp_ops`` argument.
+
+            GraphStorm supports five message passing operations for edge features, including:
+
             - "concat": concatinate the source node feature with the edge feauture together,
               and then pass them to the destination node.
             - "add":add the source node feature with the edge feauture together,
