@@ -30,6 +30,7 @@ from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 from .config import BUILTIN_GNN_ENCODER
 from .config import BUILTIN_ENCODER
 from .config import SUPPORTED_BACKEND
+from .config import BUILTIN_EDGE_FEAT_MP_OPS
 from .config import (BUILTIN_LP_LOSS_FUNCTION,
                      BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_LP_LOSS_CONTRASTIVELOSS,
@@ -1276,22 +1277,24 @@ class GSConfig:
             GraphStorm support five message passing operations for edge features, including:
             
             - "concat": concatinate the source node feature with the edge feauture together,
-            and then pass to the destination node.
-
-            - "add":add the source node feature with the edge feauture,
-            and then pass to the destination node.
-
+              and then pass them to the destination node.
+            - "add":add the source node feature with the edge feauture together,
+              and then pass them to the destination node.
             - "sub":substract the edge feauture from the source node feature,
-            and then pass to the destination node.
-
+              and then pass them to the destination node.
             - "mul":multiple the source node feature with the edge feauture,
-            and then pass to the destination node.
-
+              and then pass them to the destination node.
             - "div":divid the source node feature by the edge feauture together,
-            and then pass to the destination node.
+              and then pass them to the destination node.
 
         """
-        return "concat"
+        # pylint: disable=no-member
+        if not hasattr(self, "_edge_feat_mp_ops"):
+            return "concat"
+        assert self._edge_feat_mp_ops in BUILTIN_EDGE_FEAT_MP_OPS, \
+            "The edge feature message passing operation must be one of " + \
+            f"{BUILTIN_EDGE_FEAT_MP_OPS}, but got {self._edge_feat_mp_ops}."
+        return self._edge_feat_mp_ops
 
     @property
     def node_feat_name(self):
