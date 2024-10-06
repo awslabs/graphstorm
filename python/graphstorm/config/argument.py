@@ -1274,16 +1274,17 @@ class GSConfig:
             Defaut is "concat".
             
             GraphStorm support five message passing operations for edge features, including:
+            
             - "concat": concatinate the source node feature with the edge feauture together,
-                and then pass to the destination node.
+            and then pass to the destination node.
             - "add":add the source node feature with the edge feauture,
-                and then pass to the destination node.
+            and then pass to the destination node.
             - "sub":substract the edge feauture from the source node feature,
-                and then pass to the destination node.
+            and then pass to the destination node.
             - "mul":multiple the source node feature with the edge feauture,
-                and then pass to the destination node.
+            and then pass to the destination node.
             - "div":divid the source node feature by the edge feauture together,
-                and then pass to the destination node.
+            and then pass to the destination node.
 
         """
         return "concat"
