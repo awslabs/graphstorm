@@ -678,6 +678,9 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                 if len(predict_test_loaders) > 0 else None
 
         if len(efeat_recon_tasks) > 0:
+            if embs is None:
+                sys_tracker.check('compute embeddings')
+                embs = gen_embs()
             # do validation and test for edge feature reconstruct tasks.
             if len(efeat_recon_val_loaders) > 0:
                 efrecon_val_results = \
