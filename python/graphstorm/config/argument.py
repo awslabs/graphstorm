@@ -3060,6 +3060,15 @@ def _add_gnn_args(parser):
             "the corresponding feature name is <feat_name>"
             "2)'--node-feat-name ntype0:feat0,feat1 ntype1:feat0,feat1 ...': "
             "different node types have different node features.")
+    group.add_argument("--edge-feat-name", nargs='+', type=str, default=argparse.SUPPRESS,
+            help="Edge feature field name. It can be in following format: "
+            "1) '--node-feat-name feat_name': global feature name, "
+            "if a node has node feature,"
+            "the corresponding feature name is <feat_name>"
+            "2)'--node-feat-name can_etype0:feat0 can_etype1:feat0,feat1,...': "
+            "different edge types have different edge features.")
+    group.add_argument("--edge-feat-mp-op", type=str, default=argparse.SUPPRESS,
+            help="The operation for using edge feature in message passing computation.")
     group.add_argument("--fanout", type=str, default=argparse.SUPPRESS,
             help="Fan-out of neighbor sampling. This argument can either be --fanout 20,10 or "
                  "--fanout etype2:20@etype3:20@etype1:20,etype2:10@etype3:4@etype1:2"
