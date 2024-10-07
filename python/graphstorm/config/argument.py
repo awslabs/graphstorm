@@ -711,7 +711,7 @@ class GSConfig:
         # Data
         _ = self.node_feat_name
         _ = self.edge_feat_name
-        - = self.edge_feat_mp_op
+        _ = self.edge_feat_mp_op
         _ = self.decoder_edge_feat
 
         # Evaluation
