@@ -209,6 +209,8 @@ def main(config_args):
     lp_tasks = []
     recon_nfeat_dataloaders = []
     recon_nfeat_tasks = []
+    recon_efeat_dataloaders = []
+    recon_efeat_tasks = []
     task_evaluators = {}
     encoder_out_dims = model.gnn_encoder.out_dims \
         if model.gnn_encoder is not None \
@@ -238,6 +240,12 @@ def main(config_args):
             # when evaluating feature reconstruction performance.
             recon_nfeat_dataloaders.append(data_loader)
             recon_nfeat_tasks.append(task)
+        elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
+            # Node feature reconstruction should be handled separately
+            # We should avoid including self-loop of the lask GNN layer
+            # when evaluating feature reconstruction performance.
+            recon_efeat_dataloaders.append(data_loader)
+            recon_efeat_tasks.append(task)
         else:
             predict_dataloaders.append(data_loader)
             predict_tasks.append(task)
@@ -275,6 +283,11 @@ def main(config_args):
     recon_nfeat_test_dataloader = GSgnnMultiTaskDataLoader(
         infer_data, recon_nfeat_tasks, recon_nfeat_dataloaders) \
         if len(recon_nfeat_dataloaders) > 0 else None
+    # Multi-task testing dataloader for edge feature
+    # reconstruction.
+    recon_efeat_test_dataloader = GSgnnMultiTaskDataLoader(
+        infer_data, recon_efeat_tasks, recon_efeat_dataloaders) \
+        if len(recon_efeat_dataloaders) > 0 else None
 
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
@@ -289,6 +302,7 @@ def main(config_args):
                 predict_test_dataloader,
                 lp_test_dataloader,
                 recon_nfeat_test_dataloader,
+                recon_efeat_test_dataloader,
                 save_embed_path=config.save_embed_path,
                 save_prediction_path=config.save_prediction_path,
                 use_mini_batch_infer=config.use_mini_batch_infer,
