@@ -711,7 +711,7 @@ class GSConfig:
         # Data
         _ = self.node_feat_name
         _ = self.edge_feat_name
-        - = self.edge_feat_mp_ops
+        - = self.edge_feat_mp_op
         _ = self.decoder_edge_feat
 
         # Evaluation
@@ -1271,12 +1271,12 @@ class GSConfig:
         return None
 
     @property
-    def edge_feat_mp_ops(self):
+    def edge_feat_mp_op(self):
         """ The operation for using edge features during message passing computation.
             Defaut is "concat".
 
         .. versionadded:: 0.4.0
-            The ``edge_feat_mp_ops`` argument.
+            The ``edge_feat_mp_op`` argument.
 
             GraphStorm supports five message passing operations for edge features, including:
 
@@ -1293,12 +1293,12 @@ class GSConfig:
 
         """
         # pylint: disable=no-member
-        if not hasattr(self, "_edge_feat_mp_ops"):
+        if not hasattr(self, "_edge_feat_mp_op"):
             return "concat"
-        assert self._edge_feat_mp_ops in BUILTIN_EDGE_FEAT_MP_OPS, \
+        assert self._edge_feat_mp_op in BUILTIN_EDGE_FEAT_MP_OPS, \
             "The edge feature message passing operation must be one of " + \
-            f"{BUILTIN_EDGE_FEAT_MP_OPS}, but got {self._edge_feat_mp_ops}."
-        return self._edge_feat_mp_ops
+            f"{BUILTIN_EDGE_FEAT_MP_OPS}, but got {self._edge_feat_mp_op}."
+        return self._edge_feat_mp_op
 
     @property
     def node_feat_name(self):
