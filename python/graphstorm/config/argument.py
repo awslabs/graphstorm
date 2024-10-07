@@ -1254,7 +1254,7 @@ class GSConfig:
                 # check and convert canonical edge type string
                 assert isinstance(feat_info[0], str), \
                     f"The edge type should be a string not {feat_info[0]}"
-                can_etype = tuple([item.strip() for item in feat_info[0].split(",")])
+                can_etype = tuple(item.strip() for item in feat_info[0].split(","))
                 assert len(can_etype) == 3, \
                         f"Unknown format of the edge type {feat_info[0]}, must be: " + \
                          "src_node_type,relation_type,dst_node_type."
