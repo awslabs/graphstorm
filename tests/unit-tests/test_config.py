@@ -1229,6 +1229,7 @@ def create_gnn_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["test_feat"],
+        "edge_feat_name": ["test_feat"],
         "fanout": "10,20,30",
         "num_layers": 3,
         "hidden_size": 128,
@@ -1241,6 +1242,8 @@ def create_gnn_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name"],
+        "edge_feat_name": ["ntype0, rel0, ntype1:feat_name"],
+        "edge_feat_mp_ops": "mul",
         "fanout": "n1/a/n2:10@n1/b/n2:10,n1/a/n2:10@n1/b/n2:10@n1/c/n2:20",
         "eval_fanout": "-1,10",
         "num_layers": 2,
@@ -1258,6 +1261,9 @@ def create_gnn_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name,feat_name2", "ntype1:fname"],
+        "edge_feat_name": ["ntype0, rel0, ntype1:feat_name, feat_name2", 
+                           "ntype1, rel1, ntype2:fname"],
+        "edge_feat_mp_ops": "add",
     }
     with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1268,6 +1274,8 @@ def create_gnn_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name,fname", "ntype1:fname"],
+        "edge_feat_name": ["ntype0, rel0, ntype1:feat_name, fname", 
+                           "ntype1, rel1, ntype2:fname"]
     }
     with open(os.path.join(tmp_path, file_name+"4.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1306,6 +1314,8 @@ def create_gnn_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name", "ntype0:feat_name"], # set feat_name twice
+        "edge_feat_name": ["ntype0, rel0, ntype1:feat_name", "ntype0, rel0, ntype1:feat_name"], # set feat_name twice
+        "edge_feat_mp_ops": "dot", # not in support ops list
         "fanout": "error", # error fanout
         "eval_fanout": "error",
         "hidden_size": 0,
@@ -1317,6 +1327,7 @@ def create_gnn_config(tmp_path, file_name):
 
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": {"ntype0":"feat_name"}, # not a list
+        "edge_feat_name": ["ntype0, rel0:feat_name"], # error of can_etype format
         "fanout": "10,10", # error fanout
         "eval_fanout": "10,10",
         "hidden_size": 32,
@@ -1333,6 +1344,8 @@ def test_gnn_info():
                          local_rank=0)
         config = GSConfig(args)
         assert config.node_feat_name == "test_feat"
+        assert config.edge_feat_name == "test_feat"
+        assert config.edge_feat_mp_ops == "concat"
         assert config.fanout == [10,20,30]
         assert config.eval_fanout == [-1, -1, -1]
         assert config.num_layers == 3
@@ -1345,6 +1358,8 @@ def test_gnn_info():
         assert len(config.node_feat_name) == 1
         assert 'ntype0' in config.node_feat_name
         assert config.node_feat_name['ntype0'] == ["feat_name"]
+        assert config.edge_feat_name[("ntype0", "rel0", "ntype1")] == ["feat_name"]
+        assert config.edge_feat_mp_ops == "mul"
         assert config.fanout[0][("n1","a","n2")] == 10
         assert config.fanout[0][("n1","b","n2")] == 10
         assert config.fanout[1][("n1","a","n2")] == 10
@@ -1365,6 +1380,11 @@ def test_gnn_info():
         assert 'ntype1' in config.node_feat_name
         assert config.node_feat_name['ntype0'] == ["feat_name", "feat_name2"]
         assert config.node_feat_name['ntype1'] == ["fname"]
+        assert ("ntype0", "rel0", "ntype1") in config.edge_feat_name
+        assert ("ntype1", "rel1", "ntype2") in config.edge_feat_name
+        assert config.edge_feat_name[("ntype0", "rel0", "ntype1")] == ["feat_name", "feat_name2"]
+        assert config.edge_feat_name[("ntype1", "rel1", "ntype2")] == ["fname"]
+        assert config.edge_feat_mp_ops == "add"
         assert config.use_mini_batch_infer == True
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test4.yaml'),
@@ -1377,6 +1397,14 @@ def test_gnn_info():
         assert "feat_name" in config.node_feat_name['ntype0']
         assert "fname" in config.node_feat_name['ntype0']
         assert config.node_feat_name['ntype1'] == ["fname"]
+        assert len(config.edge_feat_name) == 2
+        assert ("ntype0", "rel0", "ntype1") in config.edge_feat_name
+        assert ("ntype1", "rel1", "ntype2") in config.edge_feat_name
+        assert len(config.edge_feat_name[("ntype0", "rel0", "ntype1")]) == 2
+        assert "feat_name" in config.edge_feat_name[("ntype0", "rel0", "ntype1")]
+        assert "fname" in config.edge_feat_name[("ntype0", "rel0", "ntype1")]
+        assert config.edge_feat_name[("ntype1", "rel1", "ntype2")] == ["fname"]
+        assert config.edge_feat_mp_ops == "concat"
         assert config.use_mini_batch_infer == True
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test5.yaml'),
@@ -1389,6 +1417,8 @@ def test_gnn_info():
         assert "feat_name" in config.node_feat_name['ntype0']
         assert "feat_name2" in config.node_feat_name['ntype0']
         assert config.node_feat_name['ntype1'] == ["fname"]
+        assert config.edge_feat_name is None
+        assert config.edge_feat_mp_ops == "concat"
         assert config.use_mini_batch_infer == True
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test6.yaml'),
@@ -1410,6 +1440,8 @@ def test_gnn_info():
                          local_rank=0)
         config = GSConfig(args)
         check_failure(config, "node_feat_name")
+        check_failure(config, "edge_feat_name")
+        check_failure(config, "edge_feat_mp_ops")
         check_failure(config, "fanout")
         check_failure(config, "eval_fanout")
         check_failure(config, "hidden_size")
@@ -1420,6 +1452,7 @@ def test_gnn_info():
                          local_rank=0)
         config = GSConfig(args)
         check_failure(config, "node_feat_name")
+        check_failure(config, "edge_feat_name")
         check_failure(config, "fanout")
         check_failure(config, "eval_fanout")
 
