@@ -692,7 +692,10 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                         device=self.device,
                         return_proba=return_proba,
                         return_label=True)
-                val_results.update(efrecon_val_results)
+                if val_results is None:
+                    val_results = efrecon_val_results
+                else:
+                    val_results.update(efrecon_val_results)
 
             if len(efeat_recon_test_loaders) > 0:
                 efrecon_test_results = \
@@ -704,7 +707,10 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                         device=self.device,
                         return_proba=return_proba,
                         return_label=True)
-                test_results.update(efrecon_test_results)
+                if test_results is None:
+                    test_results = efrecon_test_results
+                else:
+                    test_results.update(efrecon_test_results)
 
         if len(lp_tasks) > 0:
             for lp_val_loader, lp_test_loader, task_info \
