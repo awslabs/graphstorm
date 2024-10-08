@@ -327,12 +327,12 @@ class GSConfig:
         return mask_fields, task_weight, batch_size
 
     def _parse_node_classification_task(self, task_config):
-        """ Parse the node classification task info
+        """ Parse the node classification task info.
 
         Parameters
         ----------
         task_config: dict
-            Node classification task config
+            Node classification task config.
         """
         task_type = BUILTIN_TASK_NODE_CLASSIFICATION
         mask_fields, task_weight, batch_size = \
@@ -360,12 +360,12 @@ class GSConfig:
                         task_config=task_info)
 
     def _parse_node_regression_task(self, task_config):
-        """ Parse the node regression task info
+        """ Parse the node regression task info.
 
         Parameters
         ----------
         task_config: dict
-            Node regression task config
+            Node regression task config.
         """
         task_type = BUILTIN_TASK_NODE_REGRESSION
         mask_fields, task_weight, batch_size = \
@@ -525,7 +525,7 @@ class GSConfig:
         Parameters
         ----------
         task_config: dict
-            Reconstruct edge feature task config
+            Reconstruct edge feature task config.
         """
         task_type = BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT
         mask_fields, task_weight, batch_size = \
@@ -660,7 +660,7 @@ class GSConfig:
     def verify_edge_feat_reconstruct_arguments(self):
         """Verify the correctness of arguments for edge feature reconstruction tasks.
         """
-        _ = self.target_ntype
+        _ = self.target_etype
         _ = self.batch_size
         _ = self.eval_metric
         _ = self.reconstruct_efeat_name
@@ -2958,16 +2958,16 @@ class GSConfig:
         """ node feature name for reconstruction
         """
         assert hasattr(self, "_reconstruct_nfeat_name"), \
-            "reconstruct_nfeat_name must be provided under reconstruct_node_feat task "
+            "reconstruct_nfeat_name must be provided for reconstruct_node_feat tasks(s)."
         return self._reconstruct_nfeat_name
 
     ################## Reconstruct edge feats ###############
     @property
     def reconstruct_efeat_name(self):
-        """ node feature name for reconstruction
+        """ edge feature name for reconstruction
         """
         assert hasattr(self, "_reconstruct_efeat_name"), \
-            "reconstruct_efeat_name must be provided under reconstruct_efeat_name task "
+            "reconstruct_efeat_name must be provided for reconstruct_edge_feat task(s)."
         return self._reconstruct_efeat_name
 
     ################## Multi task learning ##################

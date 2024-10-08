@@ -107,7 +107,7 @@ gsf:
           - "user,rating,movie"
         batch_size: 32
         mask_fields:
-          - "train_mask_field_r" # edge regression mask
+          - "train_mask_field_r" # edge reconstruct mask
           - "val_mask_field_r"
           - "test_mask_field_r"
         eval_metric:

@@ -308,7 +308,7 @@ def create_builtin_node_gnn_model(g, config, train_task):
 # pylint: disable=unused-argument
 def create_builtin_reconstruct_nfeat_decoder(g, decoder_input_dim, config, train_task):
     """ create builtin node feature reconstruction decoder
-        according to task config
+        according to task config.
 
     Parameters
     ----------
@@ -317,16 +317,16 @@ def create_builtin_reconstruct_nfeat_decoder(g, decoder_input_dim, config, train
         Note(xiang): Make it consistent with create_builtin_edge_decoder.
         Reserved for future.
     decoder_input_dim: int
-        Input dimension size of the decoder
+        Input dimension size of the decoder.
     config: GSConfig
-        Configurations
+        Configurations.
     train_task : bool
         Whether this model is used for training.
 
     Returns
     -------
-    decoder: The node task decoder(s)
-    loss_func: The loss function(s)
+    decoder: The node task decoder(s).
+    loss_func: The loss function(s).
     """
     dropout = config.dropout if train_task else 0
     target_ntype = config.target_ntype
@@ -349,27 +349,26 @@ def create_builtin_reconstruct_efeat_decoder(g, decoder_input_dim, config, train
     ----------
     g: DGLGraph
         The graph data.
-        Note(xiang): Make it consistent with create_builtin_edge_decoder.
-        Reserved for future.
     decoder_input_dim: int
-        Input dimension size of the decoder
+        Input dimension size of the decoder.
     config: GSConfig
-        Configurations
+        Configurations.
     train_task : bool
         Whether this model is used for training.
 
     Returns
     -------
-    decoder: The node task decoder(s)
-    loss_func: The loss function(s)
+    decoder: The node task decoder(s).
+    loss_func: The loss function(s).
     """
     dropout = config.dropout if train_task else 0
-    # Only support on edge type per reconstruction type
+    # Only support one edge type per edge feature
+    # reconstruction task.
     target_etype = config.target_etype[0]
     reconstruct_feat = config.reconstruct_efeat_name
     assert len(g.edges[target_etype].data[reconstruct_feat].shape) == 2, \
         "The edge feature {reconstruct_feat} of {target_etype} edges " \
-        f"Must be a 2D tensor, but got {g.edges[target_etype].data[reconstruct_feat].shape}"
+        f"Must be a 2D tensor, but got {g.edges[target_etype].data[reconstruct_feat].shape}."
     feat_dim = g.edges[target_etype].data[reconstruct_feat].shape[1]
 
     decoder = EdgeRegression(decoder_input_dim,
