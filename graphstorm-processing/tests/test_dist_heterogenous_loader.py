@@ -757,7 +757,7 @@ def test_process_edge_labels_multitask(
         train_mask_df,
         val_mask_df,
         test_mask_df,
-        1200,
+        NUM_DATAPOINTS,
         lp_split_rates,
         lp_mask_names,
     )
