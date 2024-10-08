@@ -326,6 +326,9 @@ class EdgeRegression(GSEdgeDecoder):
     norm: str, optional
         Normalization methods. Not used, but reserved for complex node regression
         implementation. Default: None.
+
+    .. versionadded:: 0.4.0
+        The :py:class:`EdgeRegression`.
     """
     def __init__(self,
                  h_dim,
@@ -341,7 +344,8 @@ class EdgeRegression(GSEdgeDecoder):
         self._norm = norm
 
         assert isinstance(target_etype, tuple) and len(target_etype) == 3, \
-            "Target etype must be a tuple of a canonical etype."
+            "Target etype must be a tuple of a canonical etype." \
+            f"But get {target_etype}"
         self._target_etype = target_etype
 
         self._init_model()
@@ -397,7 +401,8 @@ class EdgeRegression(GSEdgeDecoder):
             The input node embeddings in the format of {ntype: emb}.
         e_h: dict of Tensor
             The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
-            Not used, but reserved for future support of edge embeddings. Default: None.
+            Not used, but reserved for future support of edge embeddings.
+            Default: None.
 
         Returns
         -------
@@ -420,7 +425,8 @@ class EdgeRegression(GSEdgeDecoder):
             The input node embeddings in the format of {ntype: emb}.
         e_h: dict of Tensor
             The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
-            Not used, but reserved for future support of edge embeddings. Default: None.
+            Not used, but reserved for future support of edge embeddings.
+            Default: None.
 
         Returns
         -------
@@ -444,7 +450,8 @@ class EdgeRegression(GSEdgeDecoder):
             The input node embeddings in the format of {ntype: emb}.
         e_h: dict of Tensor
             The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
-            Not used, but reserved for future support of edge embeddings. Default: None.
+            Not used, but reserved for future support of edge embeddings.
+            Default: None.
 
         Returns
         -------
@@ -462,8 +469,7 @@ class EdgeRegression(GSEdgeDecoder):
 
     @property
     def out_dims(self):
-        """ Return the output dimension size. If this decoder is for edge regression,
-        will return ``1``.
+        """ Return the output dimension size.
         """
         return self._out_dim
 

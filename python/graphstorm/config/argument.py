@@ -651,6 +651,8 @@ class GSConfig:
 
     def verify_node_feat_reconstruct_arguments(self):
         """Verify the correctness of arguments for node feature reconstruction tasks.
+
+            .. versionadded:: 0.4.0
         """
         _ = self.target_ntype
         _ = self.batch_size
@@ -2965,6 +2967,8 @@ class GSConfig:
     @property
     def reconstruct_efeat_name(self):
         """ edge feature name for reconstruction
+
+            .. versionadded:: 0.4.0
         """
         assert hasattr(self, "_reconstruct_efeat_name"), \
             "reconstruct_efeat_name must be provided for reconstruct_edge_feat task(s)."

@@ -105,6 +105,10 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
         infer_batch_size: int
             Specify the inference batch size when computing node embeddings
             with mini batch inference.
+
+        .. versionchanged:: 0.4.0
+            Add a new argument "recon_efeat_test_loader" for test
+            dataloaders of edge feature reconstruction tasks.
         """
         do_eval = self.evaluator is not None
         sys_tracker.check('start inferencing')

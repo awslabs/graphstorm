@@ -171,7 +171,7 @@ def initialize(
         Requires installed DGL version to be at least ``2.1.0``.
         Default: False.
 
-        .. versionadded:: 0.4
+        .. versionadded:: 0.4.0
     """
     dgl_version = importlib.metadata.version('dgl')
     if version.parse(dgl_version) >= version.parse("2.1.0"):
@@ -358,8 +358,10 @@ def create_builtin_reconstruct_efeat_decoder(g, decoder_input_dim, config, train
 
     Returns
     -------
-    decoder: The node task decoder(s).
+    decoder: The edge feature reconstruction decoder(s).
     loss_func: The loss function(s).
+
+    .. versionadded:: 0.4.0
     """
     dropout = config.dropout if train_task else 0
     # Only support one edge type per edge feature
