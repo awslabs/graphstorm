@@ -311,6 +311,9 @@ class EdgeRegression(GSEdgeDecoder):
         Can be used for edge regression tasks or
         edge feature reconstruction.
 
+    .. versionadded:: 0.4.0
+        The :py:class:`EdgeRegression`.
+
     Parameters
     ----------
     h_dim: int
@@ -324,11 +327,8 @@ class EdgeRegression(GSEdgeDecoder):
         Dropout rate.
         Default: 0.
     norm: str, optional
-        Normalization methods. Not used, but reserved for complex node regression
+        Normalization methods. Not used, but reserved for complex edge regression.
         implementation. Default: None.
-
-    .. versionadded:: 0.4.0
-        The :py:class:`EdgeRegression`.
     """
     def __init__(self,
                  h_dim,
@@ -344,14 +344,14 @@ class EdgeRegression(GSEdgeDecoder):
         self._norm = norm
 
         assert isinstance(target_etype, tuple) and len(target_etype) == 3, \
-            "Target etype must be a tuple of a canonical etype." \
-            f"But get {target_etype}"
+            "Target etype must be a tuple of a canonical etype," \
+            f"e.g., (src_ntype, etype, dst_ntype), but got {target_etype}."
         self._target_etype = target_etype
 
         self._init_model()
 
     def _init_model(self):
-        """ Init decoder model
+        """ Init decoder model.
         """
         h_dim = self._h_dim
         out_dim = self._out_dim
@@ -364,26 +364,26 @@ class EdgeRegression(GSEdgeDecoder):
         self.regression_head = nn.Linear(h_dim, out_dim, bias=True)
 
     def _compute_logits(self, g, h):
-        """ Compute forword output
+        """ Compute forword output.
 
             Parameters
             ----------
             g: DGLBlock
-                The minibatch graph
+                The minibatch graph.
             h: dict of Tensors
-                The dictionary containing the embeddings
+                The dictionary containing the embeddings.
             Returns
             -------
-            th.Tensor
-                Output of forward
+            out: th.Tensor
+                Output of forward.
         """
         with g.local_scope():
             u, v = g.edges(etype=self._target_etype)
             src_type, _, dest_type = self._target_etype
             ufeat = h[src_type][u]
-            ifeat = h[dest_type][v]
+            vfeat = h[dest_type][v]
 
-            h = th.cat([ufeat, ifeat], dim=1)
+            h = th.cat([ufeat, vfeat], dim=1)
             out = self.linear(h)
             out = self.relu(out)
             out = self.dropout(out)
@@ -439,8 +439,8 @@ class EdgeRegression(GSEdgeDecoder):
 
     # pylint: disable=unused-argument
     def predict_proba(self, g, h, e_h=None):
-        """ MLP-based edge regression prediction computation,
-        it returns the same results as the ``predict()`` function.
+        """ MLP-based edge regression prediction computation.
+        It returns the same results as the ``predict()`` function.
 
         Parameters
         ----------
@@ -456,8 +456,7 @@ class EdgeRegression(GSEdgeDecoder):
         Returns
         -------
         out: Tensor
-            The prediction results. If this decoder is for edge classification, return the
-            normalized prediction results.
+            The prediction results. Same as calling predict function.
         """
         return self.predict(g, h, e_h)
 

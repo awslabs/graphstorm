@@ -133,11 +133,13 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
                 if task_fanout is not None:
                     fanout = task_fanout
                     break
-        else:
+        elif recon_efeat_test_loader is not None:
             for task_fanout in recon_efeat_test_loader.fanout:
                 if task_fanout is not None:
                     fanout = task_fanout
                     break
+        else:
+            raise ValueError("All the test data loaders are None.")
 
         def gen_embs(edge_mask=None):
             # Generate node embeddings.

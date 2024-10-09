@@ -2961,6 +2961,10 @@ class GSConfig:
         """
         assert hasattr(self, "_reconstruct_nfeat_name"), \
             "reconstruct_nfeat_name must be provided for reconstruct_node_feat tasks(s)."
+        assert isinstance(self._reconstruct_nfeat_name, str), \
+            "The name of the node feature for reconstruction must be a string." \
+            "For a node feature reconstruction task, it only " \
+            "reconstruct one node feature on one node type."
         return self._reconstruct_nfeat_name
 
     ################## Reconstruct edge feats ###############
@@ -2972,6 +2976,10 @@ class GSConfig:
         """
         assert hasattr(self, "_reconstruct_efeat_name"), \
             "reconstruct_efeat_name must be provided for reconstruct_edge_feat task(s)."
+        assert isinstance(self._reconstruct_efeat_name, str), \
+            "The name of the edge feature for reconstruction must be a string." \
+            "For a edge feature reconstruction task, it only " \
+            "reconstruct one edge feature on one edge type."
         return self._reconstruct_efeat_name
 
     ################## Multi task learning ##################

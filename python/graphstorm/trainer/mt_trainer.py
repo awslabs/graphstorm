@@ -236,20 +236,23 @@ def prepare_reconstruct_edge_feat(data, task_info, mini_batch, device):
     Parameters
     ----------
     data: GSgnnData
-        Graph data
+        Graph data.
     task_info: TaskInfo
-        Task meta information
+        Task meta information.
     mini_batch: tuple
-        Mini-batch info
+        Mini-batch info.
     device: torch.device
-        Device
+        Device.
 
     Return
     ------
-    tuple: mini-batch
+    tuple: mini-batch.
+
+    .. versionadded:: 0.4.0
+        Add in 0.4.0 for edge feature reconstruction support.
     """
-    # same are preparing edge regression data
-    # Note: We may add some argumentation in the future
+    # same as preparing edge regression data
+    # Note: We may add some arguments in the future
     # So keep a different prepare func for node feature reconstruction.
     return prepare_edge_mini_batch(data, task_info, mini_batch, device)
 
@@ -270,6 +273,9 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
         The GNN model for prediction.
     topk_model_to_save : int
         The top K model to save.
+
+    .. versionchanged:: 0.4.0
+        Add support for edge feature reconstruction tasks.
     """
     def __init__(self, model, topk_model_to_save=1):
         super(GSgnnMultiTaskLearningTrainer, self).__init__(model, topk_model_to_save)

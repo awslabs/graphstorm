@@ -285,8 +285,10 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
                                  lbl)
         elif task_info.task_type == BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT:
             # Order follow GSgnnEdgeModelInterface.forward
-            # We ignore the edge features when doing
-            # reconstruction.
+            # edge_feats is not used when doing edge
+            # feature reconstruction
+            # edge_decoder_feats is ignored when doing
+            # edge feature reconstruction
             blocks, target_edges, node_feats, edge_feats, \
                 _, lbl, input_nodes = mini_batch
             loss = self._forward(task_info.task_id,
@@ -454,8 +456,10 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
         elif task_type == BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT:
             batch_graph, labels = decoder_data
             assert len(labels) == 1, \
-                "In multi-task learning, only support do edge reconstruction " \
-                "on one edge type for a single edge task."
+                "In multi-task learning, GraphStorm only support doing edge " \
+                "reconstruction on one edge type per task. " \
+                "To conduct edge reconstruction on multiple edge types," \
+                "please define multiple edge reconstruction tasks."
             pred_loss = 0
             target_etype = list(labels.keys())[0]
             logits = task_decoder(batch_graph, encode_embs)

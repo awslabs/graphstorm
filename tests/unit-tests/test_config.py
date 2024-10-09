@@ -937,7 +937,6 @@ def test_edge_class_info():
         assert config.target_etype[1] == ("query", "click", "asin")
         assert len(config.target_etype) == 2
         assert len(config.reverse_edge_types_map) == 2
-        print(config.reverse_edge_types_map)
         assert config.reverse_edge_types_map[("query","match","asin")] == \
              ("asin","rev-match","query")
         assert config.reverse_edge_types_map[("query","click","asin")] == \
@@ -2084,7 +2083,6 @@ def test_multi_task_config():
         # reconstruct edge feat
         efr_config = config.multi_tasks[8]
         assert efr_config.task_type == BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT
-        print(efr_config.task_id)
         assert efr_config.task_id == f"{BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT}-a_r_b-rfeat"
         efr_config = efr_config.task_config
         assert efr_config.task_weight == 0.5

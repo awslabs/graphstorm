@@ -229,7 +229,9 @@ def create_task_val_dataloader(task, config, train_data):
                                        node_feats=node_feats,
                                        label_field=task_config.reconstruct_nfeat_name)
     elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
-        val_idxs = train_data.get_edge_val_set(task_config.target_etype, mask=task_config.val_mask)
+        val_idxs = train_data.get_edge_val_set(
+            task_config.target_etype,
+            mask=task_config.val_mask)
         if len(val_idxs) > 0:
             return GSgnnEdgeDataLoader(train_data,
                                        val_idxs,

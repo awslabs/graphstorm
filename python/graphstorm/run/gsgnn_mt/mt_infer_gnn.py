@@ -241,9 +241,7 @@ def main(config_args):
             recon_nfeat_dataloaders.append(data_loader)
             recon_nfeat_tasks.append(task)
         elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
-            # Node feature reconstruction should be handled separately
-            # We should avoid including self-loop of the lask GNN layer
-            # when evaluating feature reconstruction performance.
+            # Edge feature reconstruction.
             recon_efeat_dataloaders.append(data_loader)
             recon_efeat_tasks.append(task)
         else:
