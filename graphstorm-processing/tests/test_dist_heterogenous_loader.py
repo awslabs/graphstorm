@@ -522,6 +522,7 @@ def ensure_masks_are_correct(
     expected_data_points: int,
     requested_rates: dict[str, float],
     mask_names: Optional[list[str]] = None,
+    total_data_points: Optional[int] = NUM_DATAPOINTS,
 ):
     """Check the correctness of train/val/test maps"""
 
@@ -543,7 +544,7 @@ def ensure_masks_are_correct(
     sum_counts = train_mask_sum + test_mask_sum + val_mask_sum
 
     # Ensure all masks have the correct number of rows
-    assert train_mask_df.count() == test_mask_df.count() == val_mask_df.count() == NUM_DATAPOINTS
+    assert train_mask_df.count() == test_mask_df.count() == val_mask_df.count() == total_data_points
 
     # Ensure the total number of 1's sums to the number of expected datapoints
     if math.fsum(requested_rates.values()) == 1.0:
@@ -1033,3 +1034,217 @@ def test_edge_custom_label(spark, dghl_loader: DistHeterogeneousGraphLoader, tmp
     assert train_total_ones == 3
     assert val_total_ones == 3
     assert test_total_ones == 3
+
+
+def test_node_custom_label_multitask(spark, dghl_loader: DistHeterogeneousGraphLoader, tmp_path):
+    """Test using custom label splits for nodes"""
+    data = [(i,) for i in range(0, 1200)]
+
+    # Create DataFrame
+    nodes_df = spark.createDataFrame(data, ["orig"])
+
+    train_df = spark.createDataFrame([(i,) for i in range(1, 1000)], ["mask_id"])
+    val_df = spark.createDataFrame([(i,) for i in range(1001, 1100)], ["mask_id"])
+    test_df = spark.createDataFrame([(i,) for i in range(1101, 1200)], ["mask_id"])
+
+    train_df.repartition(1).write.parquet(f"{tmp_path}/train.parquet")
+    val_df.repartition(1).write.parquet(f"{tmp_path}/val.parquet")
+    test_df.repartition(1).write.parquet(f"{tmp_path}/test.parquet")
+    class_mask_names = [
+        "custom_split_train_mask",
+        "custom_split_val_mask",
+        "custom_split_test_mask",
+    ]
+    # Will only do custom data split although provided split rate
+    config_dict = {
+        "column": "orig",
+        "type": "classification",
+        "split_rate": {"train": 0.8, "val": 0.1, "test": 0.1},
+        "custom_split_filenames": {
+            "train": f"{tmp_path}/train.parquet",
+            "valid": f"{tmp_path}/val.parquet",
+            "test": f"{tmp_path}/test.parquet",
+            "column": ["mask_id"],
+        },
+        "mask_field_names": class_mask_names,
+    }
+    class_mask_names_split_rate = [
+        "reg_train_mask",
+        "reg_val_mask",
+        "reg_test_mask",
+    ]
+    class_config_dict_split_rate = {
+        "column": "orig",
+        "type": "classification",
+        "split_rate": {"train": 0.8, "val": 0.1, "test": 0.1},
+        "mask_field_names": class_mask_names_split_rate,
+    }
+    dghl_loader.input_prefix = ""
+    label_configs = [
+        NodeLabelConfig(config_dict),
+        NodeLabelConfig(class_config_dict_split_rate),
+    ]
+    label_metadata_dicts = dghl_loader._process_node_labels(label_configs, nodes_df, "orig")
+
+    assert label_metadata_dicts.keys() == {
+        *class_mask_names,
+        *class_mask_names_split_rate,
+        "orig",
+    }
+
+    train_mask_df, val_mask_df, test_mask_df = read_masks_from_disk(
+        spark, dghl_loader, label_metadata_dicts, class_mask_names
+    )
+
+    train_total_ones = train_mask_df.agg(F.sum("custom_split_train_mask")).collect()[0][0]
+    val_total_ones = val_mask_df.agg(F.sum("custom_split_val_mask")).collect()[0][0]
+    test_total_ones = test_mask_df.agg(F.sum("custom_split_test_mask")).collect()[0][0]
+    assert train_total_ones == 999
+    assert val_total_ones == 99
+    assert test_total_ones == 99
+
+    # Check the order of the train_mask_df
+    train_mask_df = train_mask_df.withColumn("order_check_id", F.monotonically_increasing_id())
+    val_mask_df = val_mask_df.withColumn("order_check_id", F.monotonically_increasing_id())
+    test_mask_df = test_mask_df.withColumn("order_check_id", F.monotonically_increasing_id())
+    train_mask_df = train_mask_df.filter(
+        (F.col("order_check_id") > 0) & (F.col("order_check_id") < 1000)
+    ).drop("order_check_id")
+    val_mask_df = val_mask_df.filter(
+        (F.col("order_check_id") > 1000) & (F.col("order_check_id") < 1100)
+    ).drop("order_check_id")
+    test_mask_df = test_mask_df.filter(
+        (F.col("order_check_id") > 1100) & (F.col("order_check_id") < 1300)
+    ).drop("order_check_id")
+
+    train_unique_rows = train_mask_df.distinct().collect()
+    assert len(train_unique_rows) == 1 and all(value == 1 for value in train_unique_rows[0])
+    val_unique_rows = val_mask_df.distinct().collect()
+    assert len(val_unique_rows) == 1 and all(value == 1 for value in val_unique_rows[0])
+    test_unique_rows = test_mask_df.distinct().collect()
+    assert len(test_unique_rows) == 1 and all(value == 1 for value in test_unique_rows[0])
+
+    # Check classification mask correctness
+    train_mask_df, val_mask_df, test_mask_df = read_masks_from_disk(
+        spark,
+        dghl_loader,
+        label_metadata_dicts,
+        mask_names=class_mask_names_split_rate,
+    )
+    ensure_masks_are_correct(
+        train_mask_df,
+        val_mask_df,
+        test_mask_df,
+        1200,
+        {"train": 0.8, "val": 0.1, "test": 0.1},
+        class_mask_names_split_rate,
+        1200,
+    )
+
+
+def test_edge_custom_label_multitask(spark, dghl_loader: DistHeterogeneousGraphLoader, tmp_path):
+    """Test using custom label splits for edges"""
+    data = [(i, j) for i in range(1, 4) for j in range(0, 1000)]
+    # Create DataFrame
+    edges_df = spark.createDataFrame(data, ["src_str_id", "dst_str_id"])
+
+    train_df = spark.createDataFrame(
+        [(i, j) for i in range(1, 2) for j in range(0, 10)],
+        ["mask_src_id", "mask_dst_id"],
+    )
+    val_df = spark.createDataFrame(
+        [(i, j) for i in range(2, 3) for j in range(0, 10)],
+        ["mask_src_id", "mask_dst_id"],
+    )
+    test_df = spark.createDataFrame(
+        [(i, j) for i in range(3, 4) for j in range(0, 10)],
+        ["mask_src_id", "mask_dst_id"],
+    )
+
+    class_mask_names = [
+        "custom_split_train_mask",
+        "custom_split_val_mask",
+        "custom_split_test_mask",
+    ]
+    train_df.repartition(1).write.parquet(f"{tmp_path}/train.parquet")
+    val_df.repartition(1).write.parquet(f"{tmp_path}/val.parquet")
+    test_df.repartition(1).write.parquet(f"{tmp_path}/test.parquet")
+    config_dict = {
+        "column": "",
+        "type": "link_prediction",
+        "custom_split_filenames": {
+            "train": f"{tmp_path}/train.parquet",
+            "valid": f"{tmp_path}/val.parquet",
+            "test": f"{tmp_path}/test.parquet",
+            "column": ["mask_src_id", "mask_dst_id"],
+        },
+        "mask_field_names": class_mask_names,
+    }
+    lp_mask_names = [
+        "lp_train_mask",
+        "lp_val_mask",
+        "lp_test_mask",
+    ]
+    lp_config_dict = {
+        "column": "",
+        "type": "link_prediction",
+        "split_rate": {"train": 0.8, "val": 0.1, "test": 0.1},
+        "mask_field_names": lp_mask_names,
+    }
+    dghl_loader.input_prefix = ""
+    label_configs = [EdgeLabelConfig(config_dict), EdgeLabelConfig(lp_config_dict)]
+    label_metadata_dicts = dghl_loader._process_edge_labels(
+        label_configs, edges_df, "src_str_id:to:dst_str_id", ""
+    )
+
+    assert label_metadata_dicts.keys() == {
+        *class_mask_names,
+        *lp_mask_names,
+    }
+
+    train_mask_df, val_mask_df, test_mask_df = read_masks_from_disk(
+        spark, dghl_loader, label_metadata_dicts, class_mask_names
+    )
+
+    train_total_ones = train_mask_df.agg(F.sum("custom_split_train_mask")).collect()[0][0]
+    val_total_ones = val_mask_df.agg(F.sum("custom_split_val_mask")).collect()[0][0]
+    test_total_ones = test_mask_df.agg(F.sum("custom_split_test_mask")).collect()[0][0]
+    assert train_total_ones == 10
+    assert val_total_ones == 10
+    assert test_total_ones == 10
+
+    # Check the order of the train_mask_df
+    train_mask_df = train_mask_df.withColumn("order_check_id", F.monotonically_increasing_id())
+    val_mask_df = val_mask_df.withColumn("order_check_id", F.monotonically_increasing_id())
+    test_mask_df = test_mask_df.withColumn("order_check_id", F.monotonically_increasing_id())
+    train_mask_df = train_mask_df.filter((F.col("order_check_id") < 10)).drop("order_check_id")
+    val_mask_df = val_mask_df.filter(
+        (F.col("order_check_id") >= 1000) & (F.col("order_check_id") < 1009)
+    ).drop("order_check_id")
+    test_mask_df = test_mask_df.filter(
+        (F.col("order_check_id") >= 2000) & (F.col("order_check_id") < 2009)
+    ).drop("order_check_id")
+
+    train_unique_rows = train_mask_df.distinct().collect()
+    assert len(train_unique_rows) == 1 and all(value == 1 for value in train_unique_rows[0])
+    val_unique_rows = val_mask_df.distinct().collect()
+    assert len(val_unique_rows) == 1 and all(value == 1 for value in val_unique_rows[0])
+    test_unique_rows = test_mask_df.distinct().collect()
+    assert len(test_unique_rows) == 1 and all(value == 1 for value in test_unique_rows[0])
+
+    # Check classification mask correctness
+    train_mask_df, val_mask_df, test_mask_df = read_masks_from_disk(
+        spark,
+        dghl_loader,
+        label_metadata_dicts,
+        mask_names=lp_mask_names,
+    )
+    ensure_masks_are_correct(
+        train_mask_df,
+        val_mask_df,
+        test_mask_df,
+        3000,
+        {"train": 0.8, "val": 0.1, "test": 0.1},
+        lp_mask_names,
+        3000,
+    )
