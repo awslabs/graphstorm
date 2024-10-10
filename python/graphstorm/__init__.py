@@ -35,6 +35,7 @@ from .gsf import (create_task_decoder,
 from .gsf import (create_builtin_node_decoder,
                   create_builtin_edge_decoder,
                   create_builtin_lp_decoder,
-                  create_builtin_reconstruct_nfeat_decoder)
+                  create_builtin_reconstruct_nfeat_decoder,
+                  create_builtin_reconstruct_efeat_decoder)
 from .gsf import (get_builtin_lp_train_dataloader_class,
                   get_builtin_lp_eval_dataloader_class)

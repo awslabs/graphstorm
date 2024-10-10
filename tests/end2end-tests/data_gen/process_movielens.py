@@ -105,10 +105,13 @@ write_data_parquet(movie_data, '/data/ml-100k/movie.parquet')
 # process edges
 edges = pandas.read_csv('/data/ml-100k/u.data', delimiter='\t', header=None)
 # Set the rate to start from 0 to fit evaluation metrics, e.g., roc_auc or p_r
+efeat = np.array(edges[2])
+efeat = np.stack([efeat, efeat], axis=1)
 edge_data = {'src_id': edges[0],
              'dst_id': edges[1],
              'rate': edges[2]-1,
-             'rate_class': edges[2]} # rate_class for multi-task learning test
+             'rate_class': edges[2],
+             'feat': efeat} # rate_class for multi-task learning test
 write_data_parquet(edge_data, '/data/ml-100k/edges.parquet')
 edges_only_path = '/data/ml-100k/edges_only.parquet'
 # Subtract 1 because DistPart expects 0-indexed node ids

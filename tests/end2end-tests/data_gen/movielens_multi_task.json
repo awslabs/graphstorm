@@ -54,6 +54,11 @@
         "relation":         ["user", "rating", "movie"],
         "format":           {"name": "parquet"},
         "files":        "/data/ml-100k/edges.parquet",
+        "features":     [
+            {
+                "feature_col":  "feat"
+            }
+        ],
         "labels":	[
             {
                 "label_col":	"rate_class",
