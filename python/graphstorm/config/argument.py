@@ -1227,7 +1227,7 @@ class GSConfig:
 
         - ``feat_name``: global feature name for all edge types, i.e., for any edge, its
           corresponding feature name is <feat_name>.
-        - ``"can_etype0:feat0","can_etype1:feat0,feat1",...``: different edge types have
+        - ``"etype0:feat0","etype1:feat0,feat1",...``: different edge types have
           different edge features under different names. The edge type should be in a
           canonical edge type, i.e., `src_node_type,relation_type,dst_node_type`.
 
@@ -1250,7 +1250,7 @@ class GSConfig:
                 feat_info = feat_name.split(":")
                 assert len(feat_info) == 2, \
                         f"Unknown format of the feature name: {feat_name}, " + \
-                        "must be: can_etype:feat_name."
+                        "must be: etype:feat_name."
                 # check and convert canonical edge type string
                 assert isinstance(feat_info[0], str), \
                     f"The edge type should be a string, but got {feat_info[0]}"
@@ -3062,10 +3062,10 @@ def _add_gnn_args(parser):
             "different node types have different node features.")
     group.add_argument("--edge-feat-name", nargs='+', type=str, default=argparse.SUPPRESS,
             help="Edge feature field name. It can be in following format: "
-            "1) '--node-feat-name feat_name': global feature name, "
-            "if a node has node feature,"
+            "1) '--edge-feat-name feat_name': global feature name, "
+            "if an edge has feature,"
             "the corresponding feature name is <feat_name>"
-            "2)'--node-feat-name can_etype0:feat0 can_etype1:feat0,feat1,...': "
+            "2)'--edge-feat-name etype0:feat0 etype1:feat0,feat1,...': "
             "different edge types have different edge features.")
     group.add_argument("--edge-feat-mp-op", type=str, default=argparse.SUPPRESS,
             help="The operation for using edge feature in message passing computation."
