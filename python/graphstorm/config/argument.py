@@ -1280,7 +1280,7 @@ class GSConfig:
 
             GraphStorm supports five message passing operations for edge features, including:
 
-            - "concat": concatinate the source node feature with the edge feauture together,
+            - "concat":concatinate the source node feature with the edge feauture together,
               and then pass them to the destination node.
             - "add":add the source node feature with the edge feauture together,
               and then pass them to the destination node.
