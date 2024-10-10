@@ -21,6 +21,7 @@ import typing
 BUILTIN_GNN_ENCODER = ["gat", "rgat", "rgcn", "sage", "hgt", "gatv2"]
 BUILTIN_ENCODER = ["lm", "mlp"] + BUILTIN_GNN_ENCODER
 SUPPORTED_BACKEND = ["gloo", "nccl"]
+BUILTIN_EDGE_FEAT_MP_OPS = ["concat", "add", "sub", "mul", "div"]
 
 GRAPHSTORM_MODEL_EMBED_LAYER = "embed"
 GRAPHSTORM_MODEL_DENSE_EMBED_LAYER = "dense_embed"
