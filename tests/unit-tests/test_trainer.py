@@ -30,7 +30,8 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_EDGE_CLASSIFICATION,
                                 BUILTIN_TASK_EDGE_REGRESSION,
                                 BUILTIN_TASK_LINK_PREDICTION,
-                                BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+                                BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                                BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
 from graphstorm.dataloading import GSgnnData, GSgnnMultiTaskDataLoader
 from graphstorm.tracker import GSSageMakerTaskTracker
 from graphstorm import create_builtin_node_gnn_model
@@ -493,8 +494,14 @@ def test_mtask_eval():
                             task_id='nfr_task',
                             task_config=None)
     nfr_dataloader = DummyGSgnnNodeDataLoader()
+    tast_info_efr = TaskInfo(task_type=BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT,
+                            task_id='efr_task',
+                            task_config=None)
+    efr_dataloader = DummyGSgnnEdgeDataLoader()
+
     task_infos = [task_info_nc, task_info_nr, task_info_ec,
-                  task_info_er, task_info_lp, task_info_nfr]
+                  task_info_er, task_info_lp,
+                  task_info_nfr, tast_info_efr]
 
     data = None
     res = mt_trainer.eval(model, data, None, None, 100)
@@ -524,7 +531,8 @@ def test_mtask_eval():
                 else:
                     res[task_info.task_id] = ntask_res
             elif task_info.task_type in \
-            [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
+            [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION,
+             BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
                 if dataloader is None:
                     res[task_info.task_id] = (None, None)
                 else:
@@ -553,9 +561,11 @@ def test_mtask_eval():
                    mock_get_rank):
 
         val_dataloaders = [nc_dataloader, nr_dataloader, ec_dataloader,
-                       er_dataloader, lp_dataloader, nfr_dataloader]
+                       er_dataloader, lp_dataloader, nfr_dataloader,
+                       efr_dataloader]
         test_dataloaders = [nc_dataloader, nr_dataloader, ec_dataloader,
-                            er_dataloader, lp_dataloader, nfr_dataloader]
+                            er_dataloader, lp_dataloader, nfr_dataloader,
+                            efr_dataloader]
         val_loader = GSgnnMultiTaskDataLoader(None, task_infos, val_dataloaders)
         test_loader = GSgnnMultiTaskDataLoader(None, task_infos, test_dataloaders)
 
@@ -565,7 +575,8 @@ def test_mtask_eval():
             "ec_task":etask_res,
             "er_task":etask_res,
             "lp_task":lp_res,
-            "nfr_task":ntask_res
+            "nfr_task":ntask_res,
+            "efr_task":etask_res
         }
         evaluator = MTaskCheckerEvaluator(target_res, None, 100)
         mt_trainer.setup_evaluator(evaluator)
@@ -583,15 +594,18 @@ def test_mtask_eval():
 
         # predict tasks are empty
         val_dataloaders = [None, None, None,
-                       None, lp_dataloader, nfr_dataloader]
+                       None, lp_dataloader, nfr_dataloader,
+                       efr_dataloader]
         test_dataloaders = [None, None, None,
-                            None, lp_dataloader, nfr_dataloader]
+                            None, lp_dataloader, nfr_dataloader,
+                            efr_dataloader]
         val_loader = GSgnnMultiTaskDataLoader(None, task_infos, val_dataloaders)
         test_loader = GSgnnMultiTaskDataLoader(None, task_infos, test_dataloaders)
 
         target_res = {
             "lp_task":lp_res,
-            "nfr_task":ntask_res
+            "nfr_task":ntask_res,
+            "efr_task":etask_res
         }
         evaluator = MTaskCheckerEvaluator(target_res, target_res, 100)
         mt_trainer.setup_evaluator(evaluator)
@@ -599,9 +613,9 @@ def test_mtask_eval():
 
         # lp tasks are empty
         val_dataloaders = [nc_dataloader, nr_dataloader, ec_dataloader,
-                       er_dataloader, None, nfr_dataloader]
+                       er_dataloader, None, nfr_dataloader, efr_dataloader]
         test_dataloaders = [nc_dataloader, nr_dataloader, ec_dataloader,
-                            er_dataloader, None, nfr_dataloader]
+                            er_dataloader, None, nfr_dataloader, efr_dataloader]
         val_loader = GSgnnMultiTaskDataLoader(None, task_infos, val_dataloaders)
         test_loader = GSgnnMultiTaskDataLoader(None, task_infos, test_dataloaders)
         target_res = {
@@ -609,17 +623,19 @@ def test_mtask_eval():
             "nr_task":ntask_res,
             "ec_task":etask_res,
             "er_task":etask_res,
-            "nfr_task":ntask_res
+            "nfr_task":ntask_res,
+            "efr_task":etask_res
         }
         evaluator = MTaskCheckerEvaluator(target_res, target_res, 200)
         mt_trainer.setup_evaluator(evaluator)
         mt_trainer.eval(model, data, val_loader, test_loader, 200)
 
         # node feature reconstruct tasks are empty
+        # edge feature reconstruct tasks are empty
         val_dataloaders = [nc_dataloader, nr_dataloader, ec_dataloader,
-                       er_dataloader, lp_dataloader, None]
+                       er_dataloader, lp_dataloader, None, None]
         test_dataloaders = [nc_dataloader, nr_dataloader, ec_dataloader,
-                            er_dataloader, lp_dataloader, None]
+                            er_dataloader, lp_dataloader, None, None]
         val_loader = GSgnnMultiTaskDataLoader(None, task_infos, val_dataloaders)
         test_loader = GSgnnMultiTaskDataLoader(None, task_infos, test_dataloaders)
         target_res = {

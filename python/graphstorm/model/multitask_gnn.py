@@ -460,7 +460,6 @@ class GSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInterface)
                 "reconstruction on one edge type per task. " \
                 "To conduct edge reconstruction on multiple edge types," \
                 "please define multiple edge reconstruction tasks."
-            pred_loss = 0
             target_etype = list(labels.keys())[0]
             logits = task_decoder(batch_graph, encode_embs)
             pred_loss = loss_func(logits, labels[target_etype])
