@@ -101,3 +101,14 @@ gsf:
           - "test_mask_c0"
         eval_metric:
           - "mse"
+    - reconstruct_edge_feat:
+        reconstruct_efeat_name: "feat"
+        target_etype:
+          - "user,rating,movie"
+        batch_size: 32
+        mask_fields:
+          - "train_mask_field_r" # edge reconstruct mask
+          - "val_mask_field_r"
+          - "test_mask_field_r"
+        eval_metric:
+          - "mse"

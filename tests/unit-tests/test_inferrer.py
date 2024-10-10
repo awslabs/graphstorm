@@ -38,7 +38,8 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_EDGE_CLASSIFICATION,
                                 BUILTIN_TASK_EDGE_REGRESSION,
                                 BUILTIN_TASK_LINK_PREDICTION,
-                                BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+                                BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                                BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
 
 from data_utils import generate_dummy_dist_graph
 
@@ -163,6 +164,10 @@ def test_mtask_infer():
                             task_id='nfr_task',
                             task_config=None)
     nfr_dataloader = DummyGSgnnNodeDataLoader()
+    tast_info_efr = TaskInfo(task_type=BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT,
+                            task_id='efr_task',
+                            task_config=None)
+    efr_dataloader = DummyGSgnnEdgeDataLoader()
 
     encoder_model = DummyGSgnnEncoderModel()
     model = DummyGSgnnMTModel(encoder_model, decoders={tast_info_lp.task_id: LinkPredictDistMultDecoder([("n1","r1","n2")], 128)}, has_sparse=True)
@@ -178,6 +183,9 @@ def test_mtask_infer():
 
     nfr_dataloaders = [nfr_dataloader]
     nfr_tasks = [tast_info_nfr]
+
+    efr_dataloaders = [efr_dataloader]
+    efr_tasks = [tast_info_efr]
 
     data = DummyGSgnnData()
 
@@ -235,7 +243,9 @@ def test_mtask_infer():
                 else:
                     res[task_info.task_id] = ntask_res
             elif task_info.task_type in \
-            [BUILTIN_TASK_EDGE_CLASSIFICATION, BUILTIN_TASK_EDGE_REGRESSION]:
+            [BUILTIN_TASK_EDGE_CLASSIFICATION,
+             BUILTIN_TASK_EDGE_REGRESSION,
+             BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
                 if dataloader is None:
                     res[task_info.task_id] = (None, None)
                 else:
@@ -268,13 +278,16 @@ def test_mtask_infer():
 
         nfr_test_dataloader = GSgnnMultiTaskDataLoader(None, nfr_tasks, nfr_dataloaders)
 
+        efr_test_dataloader = GSgnnMultiTaskDataLoader(None, efr_tasks, efr_dataloaders)
+
         target_res = {
             "nc_task":ntask_res,
             "nr_task":ntask_res,
             "ec_task":etask_res,
             "er_task":etask_res,
             "lp_task":lp_res,
-            "nfr_task":ntask_res
+            "nfr_task":ntask_res,
+            "efr_task":etask_res
         }
         evaluator = MTaskCheckerEvaluator(target_res, target_res, 0)
         mt_infer.setup_evaluator(evaluator)
@@ -283,6 +296,7 @@ def test_mtask_infer():
                 test_dataloader,
                 lp_test_dataloader,
                 nfr_test_dataloader,
+                efr_test_dataloader,
                 emb_path,
                 pred_path,
                 use_mini_batch_infer=True,
@@ -294,6 +308,7 @@ def test_mtask_infer():
                 test_dataloader,
                 lp_test_dataloader,
                 nfr_test_dataloader,
+                efr_test_dataloader,
                 emb_path,
                 pred_path,
                 use_mini_batch_infer=False,
@@ -313,6 +328,7 @@ def test_mtask_infer():
                 test_dataloader,
                 None,
                 None,
+                None,
                 emb_path,
                 pred_path,
                 use_mini_batch_infer=True,
@@ -328,6 +344,7 @@ def test_mtask_infer():
         mt_infer.infer(data,
                 None,
                 lp_test_dataloader,
+                None,
                 None,
                 emb_path,
                 pred_path,
@@ -346,6 +363,25 @@ def test_mtask_infer():
                 None,
                 None,
                 nfr_test_dataloader,
+                None,
+                emb_path,
+                pred_path,
+                use_mini_batch_infer=True,
+                node_id_mapping_file=None,
+                edge_id_mapping_file=None,
+                return_proba=True)
+
+        target_res = {
+            "efr_task":etask_res
+        }
+        evaluator = MTaskCheckerEvaluator(target_res, target_res, 0)
+        mt_infer.setup_evaluator(evaluator)
+
+        mt_infer.infer(data,
+                None,
+                None,
+                None,
+                efr_test_dataloader,
                 emb_path,
                 pred_path,
                 use_mini_batch_infer=True,
