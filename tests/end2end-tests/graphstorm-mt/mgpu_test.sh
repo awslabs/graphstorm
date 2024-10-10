@@ -174,6 +174,34 @@ then
     exit -1
 fi
 
+bst_cnt=$(grep "Best Test reconstruct_edge_feat" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Test reconstruct_edge_feat"
+    exit -1
+fi
+
+cnt=$(grep "Test reconstruct_edge_feat" /tmp/train_log.txt | wc -l)
+if test $cnt -lt $((1+$bst_cnt))
+then
+    echo "We use SageMaker task tracker, we should have Test reconstruct_edge_feat"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Validation reconstruct_edge_feat" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Validation reconstruct_edge_feat"
+    exit -1
+fi
+
+cnt=$(grep "Validation reconstruct_edge_feat" /tmp/train_log.txt | wc -l)
+if test $cnt -lt $((1+$bst_cnt))
+then
+    echo "We use SageMaker task tracker, we should have Validation reconstruct_edge_feat"
+    exit -1
+fi
+
 cnt=$(ls -l /data/gsgnn_mt/ | grep epoch | wc -l)
 if test $cnt != 3
 then
@@ -328,6 +356,34 @@ cnt=$(grep "Validation reconstruct_node_feat" /tmp/train_log.txt | wc -l)
 if test $cnt -lt $((1+$bst_cnt))
 then
     echo "We use SageMaker task tracker, we should have Validation reconstruct_node_feat"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Test reconstruct_edge_feat" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Test reconstruct_edge_feat"
+    exit -1
+fi
+
+cnt=$(grep "Test reconstruct_edge_feat" /tmp/train_log.txt | wc -l)
+if test $cnt -lt $((1+$bst_cnt))
+then
+    echo "We use SageMaker task tracker, we should have Test reconstruct_edge_feat"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Validation reconstruct_edge_feat" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Validation reconstruct_edge_feat"
+    exit -1
+fi
+
+cnt=$(grep "Validation reconstruct_edge_feat" /tmp/train_log.txt | wc -l)
+if test $cnt -lt $((1+$bst_cnt))
+then
+    echo "We use SageMaker task tracker, we should have Validation reconstruct_edge_feat"
     exit -1
 fi
 
@@ -667,6 +723,34 @@ cnt=$(grep "Validation reconstruct_node_feat" /tmp/infer_log.txt | wc -l)
 if test $cnt != 2
 then
     echo "We use SageMaker task tracker, the number of Validation reconstruct_node_feat should be 2."
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Test reconstruct_edge_feat" /tmp/infer_log.txt | wc -l)
+if test $bst_cnt != 1
+then
+    echo "We use SageMaker task tracker, the number of Best Test reconstruct_edge_feat should be 1."
+    exit -1
+fi
+
+cnt=$(grep "Test reconstruct_edge_feat" /tmp/infer_log.txt | wc -l)
+if test $cnt != 2
+then
+    echo "We use SageMaker task tracker, the number of Test reconstruct_edge_feat should be 2."
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Validation reconstruct_edge_feat" /tmp/infer_log.txt | wc -l)
+if test $bst_cnt != 1
+then
+    echo "We use SageMaker task tracker,the number of Best Validation reconstruct_edge_feat should be 1."
+    exit -1
+fi
+
+cnt=$(grep "Validation reconstruct_edge_feat" /tmp/infer_log.txt | wc -l)
+if test $cnt != 2
+then
+    echo "We use SageMaker task tracker, the number of Validation reconstruct_edge_feat should be 2."
     exit -1
 fi
 

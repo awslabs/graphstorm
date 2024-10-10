@@ -102,6 +102,15 @@ def main(args):
                         "target_ntype": ntype0,
                         "reconstruct_nfeat_name": "feat"
                     }
+                },
+                {
+                    # will be ignored
+                    "edge_classification": {
+                        "target_etype": [
+                            ",".join(etype0)
+                        ],
+                        "reconstruct_efeat_name": "test_ec0",
+                    },
                 }
             ]
         }
