@@ -30,6 +30,7 @@ from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 from .config import BUILTIN_GNN_ENCODER
 from .config import BUILTIN_ENCODER
 from .config import SUPPORTED_BACKEND
+from .config import BUILTIN_EDGE_FEAT_MP_OPS
 from .config import (BUILTIN_LP_LOSS_FUNCTION,
                      BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_LP_LOSS_CONTRASTIVELOSS,
@@ -756,6 +757,8 @@ class GSConfig:
 
         # Data
         _ = self.node_feat_name
+        _ = self.edge_feat_name
+        _ = self.edge_feat_mp_op
         _ = self.decoder_edge_feat
 
         # Evaluation
@@ -1262,21 +1265,99 @@ class GSConfig:
 
     @property
     def edge_feat_name(self):
-        """ User defined edge feature names. Not be impplemented in this version, but
-            reserved for future usage.
+        """ User provided edge feature names. Default is None.
+
+        .. versionchanged:: 0.4.0
+            The ``edge_feat_name`` property is supported.
+
+        It can be in the following formats:
+
+        - ``feat_name``: global feature name for all edge types, i.e., for any edge, its
+          corresponding feature name is <feat_name>.
+        - ``"etype0:feat0","etype1:feat0,feat1",...``: different edge types have
+          different edge features under different names. The edge type should be in a
+          canonical edge type, i.e., `src_node_type,relation_type,dst_node_type`.
+
+        This method parses given edge feature name list, and return either a string
+        corresponding a global feature name, or a dictionary corresponding different
+        edge types with diffent feature names.
         """
+        # pylint: disable=no-member
+        if hasattr(self, "_edge_feat_name"):
+            feat_names = self._edge_feat_name
+            if len(feat_names) == 1 and \
+                ":" not in feat_names[0]:
+                # global feat_name
+                return feat_names[0]
+
+            # per edge type feature
+            fname_dict = {}
+
+            for feat_name in feat_names:
+                feat_info = feat_name.split(":")
+                assert len(feat_info) == 2, \
+                        f"Unknown format of the feature name: {feat_name}, " + \
+                        "must be: etype:feat_name."
+                # check and convert canonical edge type string
+                assert isinstance(feat_info[0], str), \
+                    f"The edge type should be a string, but got {feat_info[0]}"
+                can_etype = tuple(item.strip() for item in feat_info[0].split(","))
+                assert len(can_etype) == 3, \
+                        f"Unknown format of the edge type {feat_info[0]}, must be: " + \
+                         "src_node_type,relation_type,dst_node_type."
+                assert can_etype not in fname_dict, \
+                        f"You already specify the feature names of {can_etype} " \
+                        f"as {fname_dict[can_etype]}."
+                assert isinstance(feat_info[1], str), \
+                    f"Feature name of {can_etype} should be a string, but got {feat_info[1]} " + \
+                    f"with type {type(feat_info[1])}."
+                # multiple features separated by ','
+                fname_dict[can_etype] = [item.strip() for item in feat_info[1].split(",")]
+            return fname_dict
+
+        # By default, return None which means there is no node feature
         return None
 
     @property
+    def edge_feat_mp_op(self):
+        """ The operation for using edge features during message passing computation.
+            Defaut is "concat".
+
+        .. versionadded:: 0.4.0
+            The ``edge_feat_mp_op`` argument.
+
+            GraphStorm supports five message passing operations for edge features, including:
+
+            - "concat":concatinate the source node feature with the edge feauture together,
+              and then pass them to the destination node.
+            - "add":add the source node feature with the edge feauture together,
+              and then pass them to the destination node.
+            - "sub":substract the edge feauture from the source node feature,
+              and then pass them to the destination node.
+            - "mul":multiple the source node feature with the edge feauture,
+              and then pass them to the destination node.
+            - "div":divid the source node feature by the edge feauture together,
+              and then pass them to the destination node.
+
+        """
+        # pylint: disable=no-member
+        if not hasattr(self, "_edge_feat_mp_op"):
+            return "concat"
+        assert self._edge_feat_mp_op in BUILTIN_EDGE_FEAT_MP_OPS, \
+            "The edge feature message passing operation must be one of " + \
+            f"{BUILTIN_EDGE_FEAT_MP_OPS}, but got {self._edge_feat_mp_op}."
+        return self._edge_feat_mp_op
+
+    @property
     def node_feat_name(self):
-        """ User defined node feature name. Default is None.
+        """ User provided node feature name. Default is None.
 
-        It can be in following format:
+        It can be in the following formats:
 
-        - ``feat_name``: global feature name, if a node has node feature, the corresponding
-          feature name is <feat_name>.
-        - ``"ntype0:feat0","ntype1:feat0,feat1",...``: different node types  have different
-          node features.
+        - ``feat_name``: global feature name for all node types, i.e., for any node, its
+          corresponding feature name is <feat_name>.
+        - ``"ntype0:feat0","ntype1:feat0,feat1",...``: different node types have different
+          node features with different names.
         """
         # pylint: disable=no-member
         if hasattr(self, "_node_feat_name"):
@@ -1293,7 +1374,7 @@ class GSConfig:
                 feat_info = feat_name.split(":")
                 assert len(feat_info) == 2, \
                         f"Unknown format of the feature name: {feat_name}, " + \
-                        "must be NODE_TYPE:FEAT_NAME"
+                        "must be NODE_TYPE:FEAT_NAME."
                 ntype = feat_info[0]
                 assert ntype not in fname_dict, \
                         f"You already specify the feature names of {ntype} " \
@@ -3048,6 +3129,16 @@ def _add_gnn_args(parser):
             "the corresponding feature name is <feat_name>"
             "2)'--node-feat-name ntype0:feat0,feat1 ntype1:feat0,feat1 ...': "
             "different node types have different node features.")
+    group.add_argument("--edge-feat-name", nargs='+', type=str, default=argparse.SUPPRESS,
+            help="Edge feature field name. It can be in following format: "
+            "1) '--edge-feat-name feat_name': global feature name, "
+            "if an edge has feature,"
+            "the corresponding feature name is <feat_name>"
+            "2)'--edge-feat-name etype0:feat0 etype1:feat0,feat1,...': "
+            "different edge types have different edge features.")
+    group.add_argument("--edge-feat-mp-op", type=str, default=argparse.SUPPRESS,
+            help="The operation for using edge feature in message passing computation."
+                      "Supported operations include {BUILTIN_EDGE_FEAT_MP_OPS}")
     group.add_argument("--fanout", type=str, default=argparse.SUPPRESS,
             help="Fan-out of neighbor sampling. This argument can either be --fanout 20,10 or "
                  "--fanout etype2:20@etype3:20@etype1:20,etype2:10@etype3:4@etype1:2"
