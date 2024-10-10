@@ -1309,7 +1309,7 @@ class GSConfig:
         - ``feat_name``: global feature name for all node types, i.e., for any node, its
           corresponding feature name is <feat_name>.
         - ``"ntype0:feat0","ntype1:feat0,feat1",...``: different node types have different
-          node features under different names.
+          node features with different names.
         """
         # pylint: disable=no-member
         if hasattr(self, "_node_feat_name"):
