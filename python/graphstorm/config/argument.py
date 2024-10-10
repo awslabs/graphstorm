@@ -3068,7 +3068,8 @@ def _add_gnn_args(parser):
             "2)'--node-feat-name can_etype0:feat0 can_etype1:feat0,feat1,...': "
             "different edge types have different edge features.")
     group.add_argument("--edge-feat-mp-op", type=str, default=argparse.SUPPRESS,
-            help="The operation for using edge feature in message passing computation.")
+            help="The operation for using edge feature in message passing computation."
+                      "Supported operations include {BUILTIN_EDGE_FEAT_MP_OPS}")
     group.add_argument("--fanout", type=str, default=argparse.SUPPRESS,
             help="Fan-out of neighbor sampling. This argument can either be --fanout 20,10 or "
                  "--fanout etype2:20@etype3:20@etype1:20,etype2:10@etype3:4@etype1:2"
