@@ -1309,7 +1309,8 @@ class GSConfig:
                         f"You already specify the feature names of {can_etype} " \
                         f"as {fname_dict[can_etype]}."
                 assert isinstance(feat_info[1], str), \
-                    f"Feature name of {can_etype} should be a string, but got {feat_info[1]} with type {type(feat_info[1])}."
+                    f"Feature name of {can_etype} should be a string, but got {feat_info[1]} " + \
+                    f"with type {type(feat_info[1])}."
                 # multiple features separated by ','
                 fname_dict[can_etype] = [item.strip() for item in feat_info[1].split(",")]
             return fname_dict
