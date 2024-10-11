@@ -16,9 +16,11 @@
     Evaluation functions
 """
 import logging
+import operator
+from collections.abc import Callable
 from enum import Enum
 from functools import partial
-import operator
+
 import numpy as np
 import torch as th
 from sklearn.metrics import roc_auc_score
@@ -28,7 +30,7 @@ SUPPORTED_HIT_AT_METRICS = 'hit_at'
 SUPPORTED_CLASSIFICATION_METRICS = {'accuracy', 'precision_recall', \
     'roc_auc', 'f1_score', 'per_class_f1_score', 'per_class_roc_auc', SUPPORTED_HIT_AT_METRICS}
 SUPPORTED_REGRESSION_METRICS = {'rmse', 'mse', 'mae'}
-SUPPORTED_LINK_PREDICTION_METRICS = {"mrr", SUPPORTED_HIT_AT_METRICS}
+SUPPORTED_LINK_PREDICTION_METRICS = {"mrr", SUPPORTED_HIT_AT_METRICS, "amri"}
 
 class ClassificationMetrics:
     """ object that compute metrics for classification tasks.
@@ -158,16 +160,19 @@ class LinkPredictionMetrics:
         self.supported_metrics = SUPPORTED_LINK_PREDICTION_METRICS
 
         # This is the operator used to compare whether current value is better than the current best
-        self.metric_comparator = {}
+        self.metric_comparator: dict[str, Callable] = {}
         self.metric_comparator["mrr"] = operator.le
+        self.metric_comparator["amri"] = operator.le
 
         # This is the operator used to measure each metric performance
-        self.metric_function = {}
+        self.metric_function: dict[str, Callable[..., th.Tensor]] = {}
         self.metric_function["mrr"] = compute_mrr
+        self.metric_function["amri"] = compute_amri
 
         # This is the operator used to measure each metric performance in evaluation
-        self.metric_eval_function = {}
+        self.metric_eval_function: dict[str, Callable[..., th.Tensor]] = {}
         self.metric_eval_function["mrr"] = compute_mrr
+        self.metric_eval_function["amri"] = compute_amri
 
         if eval_metric_list:
             for eval_metric in eval_metric_list:
@@ -190,20 +195,22 @@ class LinkPredictionMetrics:
             assert metric in self.supported_metrics, \
                 f"Metric {metric} not supported for link prediction"
 
-    def init_best_metric(self, metric):
+    def init_best_metric(self, metric: str):
         """
         Return the initial value for the metric to keep track of the best metric.
         Parameters
         ----------
-        metric: the metric to initialize
+        metric: str
+            the name of the metric to initialize
 
         Returns
         -------
-
+        float
+            An initial value for the metric.
         """
         # Need to check if the given metric is supported first
         self.assert_supported_metric(metric)
-        return 0
+        return -1.0 if metric == "amri" else 0.0
 
 
 def labels_to_one_hot(labels, total_labels):
@@ -695,17 +702,65 @@ def compute_mae(pred, labels):
     return th.mean(diff).cpu().item()
 
 def compute_mrr(ranking):
-    """ Get link prediction mrr metrics
+    """ Get link prediction Mean Reciprocal Rank (MRR) metrics
 
-        Parameters
-        ----------
-        ranking:
-            ranking of each positive edge
+    Parameters
+    ----------
+    ranking: torch.Tensor
+        ranking of each positive edge
 
-        Returns
-        -------
-        link prediction mrr metrics: tensor
+    Returns
+    -------
+    th.Tensor
+        link prediction mrr metrics
     """
-    logs = th.div(1.0, ranking)
-    metrics = th.tensor(th.div(th.sum(logs),len(logs)))
+    reciprocal_ranks = th.div(1.0, ranking)
+    metrics = th.tensor(th.div(th.sum(reciprocal_ranks), len(reciprocal_ranks)))
     return metrics
+
+def compute_amri(ranking: th.Tensor, candidate_sizes: th.Tensor) -> th.Tensor:
+    """Computes the Adjusted Mean Rank Index (AMRI) for the given ranking and candidate sizes.
+
+    AMRI is a metric that evaluates the performance of link prediction models by considering both
+    the rank of the correct candidate and the number of candidates considered. It is calculated as:
+
+    .. math::
+        AMRI = 1 - \\frac{\\text{MR}-1}{\\mathbb{E}[\\text{MR}-1]}
+
+    where MR is the mean rank, and `E[MR]` is the expected mean rank, which is used
+    to adjust for chance. Its values will be in the [-1, 1] range, where 1 corresponds
+    to optimal performance where each individual rank is 1. A value of 0 indicates
+    model performance similar to a model assigning random scores, or equal score
+    to every candidate. The value is negative if the model performs worse than the
+    constant-score model."
+
+    For more details see https://arxiv.org/abs/2002.06914
+
+    Parameters
+    ----------
+    ranking : torch.Tensor
+        ranking of each positive edge
+    candidate_sizes : th.Tensor
+        The size of each candidate list. If all lists have
+        the same size this will be a single-value tensor.
+
+    Returns
+    -------
+    th.Tensor
+        A single-value Tensor with the AMRI metric.
+
+    .. versionadded: 0.4.0
+    """
+    if candidate_sizes.shape[0] > 1:
+        assert ranking.shape[0] == candidate_sizes.shape[0], \
+            "ranking and candidate_sizes must have the same length"
+        assert th.all(ranking <= candidate_sizes).item(), \
+            "all ranks must be <= candidate_sizes"
+
+    nominator = 2 * th.sum(ranking - 1)
+    if candidate_sizes.shape[0] == 1:
+        denominator = candidate_sizes.item() * ranking.shape[0]
+    else:
+        denominator = th.sum(candidate_sizes)
+
+    return 1 - th.div(nominator, denominator)

@@ -16,8 +16,13 @@
     GNN model for link prediction in GraphStorm.
 """
 import abc
+from collections import defaultdict
+
 import torch as th
+
+from ..dataloading.dataloading import GSgnnEdgeDataLoader
 from .gnn import GSgnnModel, GSgnnModelBase
+from ..model.edge_decoder import LinkPredictionTestScoreMixin
 from .utils import normalize_node_embs
 from ..eval.utils import calc_ranking
 
@@ -137,8 +142,9 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
         # weighted addition to the total loss
         return pred_loss + alpha_l2norm * reg_loss
 
-def lp_mini_batch_predict(model, emb, loader, device):
-    """ Perform mini-batch prediction.
+def lp_mini_batch_predict(model, emb, loader, device, return_batch_lengths=False):
+    """ Perform mini-batch prediction for link prediction and return rankings
+        of true edges in the predicted scores.
 
         This function follows full-graph GNN embedding inference.
         After having the GNN embeddings, we need to perform mini-batch
@@ -157,19 +163,31 @@ def lp_mini_batch_predict(model, emb, loader, device):
             The GraphStorm dataloader
         device: th.device
             Device used to compute test scores
+        return_batch_lengths: bool, default False
+            Whether to return the lengths of each batch of edges for each ranking value.
 
         Returns
         -------
-        rankings: dict of tensors
+        rankings: dict[str, torch.Tensor], if `return_batch_lengths` was False
             Rankings of positive scores in format of {etype: ranking}
+        rankings, batch_lengths: tuple[dict, dict], if `return_batch_lengths` was True
+            A tuple of rankings of positive scores in format of {etype: ranking},
+            and the corresponding batch lengths for each ranking value.
     """
     decoder = model.decoder
     return run_lp_mini_batch_predict(decoder,
                                      emb,
                                      loader,
-                                     device)
+                                     device,
+                                     return_batch_lengths,)
 
-def run_lp_mini_batch_predict(decoder, emb, loader, device):
+def run_lp_mini_batch_predict(
+        decoder,
+        emb: dict[str, th.Tensor],
+        loader: GSgnnEdgeDataLoader,
+        device: th.device,
+        return_batch_lengths=False,
+    ):
     """ Perform mini-batch link prediction with the given decoder.
 
         This function follows full-graph GNN embedding inference.
@@ -189,28 +207,44 @@ def run_lp_mini_batch_predict(decoder, emb, loader, device):
             The GraphStorm dataloader
         device: th.device
             Device used to compute test scores
+        return_batch_lengths: bool, default False
+            Whether to return the candidate list sizes of each ranking value.
 
         Returns
         -------
-        rankings: dict of tensors
+        rankings: dict[tuple, torch.Tensor], if `return_batch_lengths` was False
             Rankings of positive scores in format of {etype: ranking}
+        rankings, batch_lengths: tuple[dict, dict], if `return_batch_lengths` was True
+            A tuple of rankings of positive scores in format of {etype: ranking},
+            and the corresponding batch lengths for each ranking value.
     """
     with th.no_grad():
-        ranking = {}
+        ranking: dict[tuple, list[th.Tensor]] = defaultdict(list)
+        batch_lengths: dict[tuple, list[th.Tensor]] = defaultdict(list)
+        assert isinstance(decoder, LinkPredictionTestScoreMixin)
         for pos_neg_tuple, neg_sample_type in loader:
-            score = \
+            score: dict[tuple, tuple[th.Tensor, th.Tensor]] = \
                 decoder.calc_test_scores(
                     emb, pos_neg_tuple, neg_sample_type, device)
+            print(f"{score=}")
             for canonical_etype, s in score.items():
                 # We do not concatenate rankings into a single
                 # ranking tensor to avoid unnecessary data copy.
                 pos_score, neg_score = s
-                if canonical_etype in ranking:
-                    ranking[canonical_etype].append(calc_ranking(pos_score, neg_score))
-                else:
-                    ranking[canonical_etype] = [calc_ranking(pos_score, neg_score)]
+                assert pos_score.shape[0] == neg_score.shape[0], \
+                    "There should be as many negative lists as there are positive examples"
+                ranking[canonical_etype].append(calc_ranking(pos_score, neg_score))
+                batch_lengths[canonical_etype].append(
+                    th.tensor([neg_score.shape[1]+1])
+                )
 
-        rankings = {}
+        rankings: dict[tuple, th.Tensor] = {}
+        batch_length_tensors: dict[tuple, th.Tensor] = {}
         for canonical_etype, rank in ranking.items():
             rankings[canonical_etype] = th.cat(rank, dim=0)
+            etype_lengths = batch_lengths[canonical_etype]
+            batch_length_tensors[canonical_etype] = th.cat(etype_lengths, dim=0)
+
+    if return_batch_lengths:
+        return rankings, batch_length_tensors
     return rankings

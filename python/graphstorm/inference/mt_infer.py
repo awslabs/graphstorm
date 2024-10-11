@@ -24,6 +24,7 @@ from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_NODE_REGRESSION,
                       BUILTIN_TASK_EDGE_CLASSIFICATION,
                       BUILTIN_TASK_EDGE_REGRESSION)
+from ..eval.evaluator import GSgnnLPRankingEvalInterface
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
 from ..model.utils import (save_node_prediction_results,
@@ -210,6 +211,7 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
         #    to reuse the node embeddings generated at the beginning)
         # 3. link prediction.
         pre_results = {}
+        test_lengths = {}
         if predict_test_loader is not None:
             # compute prediction results for node classification,
             # node regressoin, edge classification
@@ -309,13 +311,20 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
                                                                   inplace=True)
 
                     decoder = model.task_decoders[task_info.task_id]
-                    ranking = run_lp_mini_batch_predict(decoder, lp_test_embs, dataloader, device)
+                    ranking, test_lengths = run_lp_mini_batch_predict(
+                        decoder, lp_test_embs, dataloader, device, return_batch_lengths=True)
                     pre_results[task_info.task_id] = ranking
 
         if do_eval:
             test_start = time.time()
+            assert isinstance(self.evaluator, GSgnnLPRankingEvalInterface)
             val_score, test_score = self.evaluator.evaluate(
-                pre_results, pre_results, 0)
+                None,
+                pre_results,
+                0,
+                val_candidate_sizes=None,
+                test_candidate_sizes=test_lengths,
+                )
             sys_tracker.check('run evaluation')
             if get_rank() == 0:
                 self.log_print_metrics(val_score=val_score,
