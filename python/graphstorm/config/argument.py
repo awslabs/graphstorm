@@ -30,6 +30,7 @@ from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 from .config import BUILTIN_GNN_ENCODER
 from .config import BUILTIN_ENCODER
 from .config import SUPPORTED_BACKEND
+from .config import BUILTIN_EDGE_FEAT_MP_OPS
 from .config import (BUILTIN_LP_LOSS_FUNCTION,
                      BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_LP_LOSS_CONTRASTIVELOSS,
@@ -42,7 +43,8 @@ from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from .config import BUILTIN_TASK_EDGE_REGRESSION
 from .config import (BUILTIN_TASK_LINK_PREDICTION,
                      LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL)
-from .config import BUILTIN_TASK_RECONSTRUCT_NODE_FEAT
+from .config import (BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                     BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
 from .config import BUILTIN_GNN_NORM
 from .config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
 from .config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
@@ -326,12 +328,12 @@ class GSConfig:
         return mask_fields, task_weight, batch_size
 
     def _parse_node_classification_task(self, task_config):
-        """ Parse the node classification task info
+        """ Parse the node classification task info.
 
         Parameters
         ----------
         task_config: dict
-            Node classification task config
+            Node classification task config.
         """
         task_type = BUILTIN_TASK_NODE_CLASSIFICATION
         mask_fields, task_weight, batch_size = \
@@ -359,12 +361,12 @@ class GSConfig:
                         task_config=task_info)
 
     def _parse_node_regression_task(self, task_config):
-        """ Parse the node regression task info
+        """ Parse the node regression task info.
 
         Parameters
         ----------
         task_config: dict
-            Node regression task config
+            Node regression task config.
         """
         task_type = BUILTIN_TASK_NODE_REGRESSION
         mask_fields, task_weight, batch_size = \
@@ -518,6 +520,39 @@ class GSConfig:
                         task_id=task_id,
                         task_config=task_info)
 
+    def _parse_reconstruct_edge_feat(self, task_config):
+        """ Parse the reconstruct edge feature task info
+
+        Parameters
+        ----------
+        task_config: dict
+            Reconstruct edge feature task config.
+        """
+        task_type = BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT
+        mask_fields, task_weight, batch_size = \
+            self._parse_general_task_config(task_config)
+        task_config["batch_size"] = batch_size
+
+        task_info = GSConfig.__new__(GSConfig)
+        task_info.set_task_attributes(task_config)
+        setattr(task_info, "_task_type", task_type)
+        task_info.verify_edge_feat_reconstruct_arguments()
+
+        target_etype = task_info.target_etype
+        label_field = task_info.reconstruct_efeat_name
+
+        task_id = get_mttask_id(task_type=task_type,
+                                etype=target_etype,
+                                label=label_field)
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
+        setattr(task_info, "task_weight", task_weight)
+
+        return TaskInfo(task_type=task_type,
+                        task_id=task_id,
+                        task_config=task_info)
+
     def _parse_multi_tasks(self, multi_task_config):
         """ Parse multi-task configuration
 
@@ -582,6 +617,9 @@ class GSConfig:
             elif "reconstruct_node_feat" in task_config:
                 task = self._parse_reconstruct_node_feat(
                     task_config["reconstruct_node_feat"])
+            elif "reconstruct_edge_feat" in task_config:
+                task = self._parse_reconstruct_edge_feat(
+                    task_config["reconstruct_edge_feat"])
             else:
                 raise ValueError(f"Invalid task type in multi-task learning {task_config}.")
             tasks.append(task)
@@ -614,11 +652,21 @@ class GSConfig:
 
     def verify_node_feat_reconstruct_arguments(self):
         """Verify the correctness of arguments for node feature reconstruction tasks.
+
+            .. versionadded:: 0.4.0
         """
         _ = self.target_ntype
         _ = self.batch_size
         _ = self.eval_metric
         _ = self.reconstruct_nfeat_name
+
+    def verify_edge_feat_reconstruct_arguments(self):
+        """Verify the correctness of arguments for edge feature reconstruction tasks.
+        """
+        _ = self.target_etype
+        _ = self.batch_size
+        _ = self.eval_metric
+        _ = self.reconstruct_efeat_name
 
     def verify_node_class_arguments(self):
         """ Verify the correctness of arguments for node classification tasks.
@@ -709,6 +757,8 @@ class GSConfig:
 
         # Data
         _ = self.node_feat_name
+        _ = self.edge_feat_name
+        _ = self.edge_feat_mp_op
         _ = self.decoder_edge_feat
 
         # Evaluation
@@ -1215,21 +1265,99 @@ class GSConfig:
 
     @property
     def edge_feat_name(self):
-        """ User defined edge feature names. Not be impplemented in this version, but
-            reserved for future usage.
+        """ User provided edge feature names. Default is None.
+
+        .. versionchanged:: 0.4.0
+            The ``edge_feat_name`` property is supported.
+
+        It can be in the following formats:
+
+        - ``feat_name``: global feature name for all edge types, i.e., for any edge, its
+          corresponding feature name is <feat_name>.
+        - ``"etype0:feat0","etype1:feat0,feat1",...``: different edge types have
+          different edge features under different names. The edge type should be in a
+          canonical edge type, i.e., `src_node_type,relation_type,dst_node_type`.
+
+        This method parses given edge feature name list, and return either a string
+        corresponding a global feature name, or a dictionary corresponding different
+        edge types with diffent feature names.
         """
+        # pylint: disable=no-member
+        if hasattr(self, "_edge_feat_name"):
+            feat_names = self._edge_feat_name
+            if len(feat_names) == 1 and \
+                ":" not in feat_names[0]:
+                # global feat_name
+                return feat_names[0]
+
+            # per edge type feature
+            fname_dict = {}
+
+            for feat_name in feat_names:
+                feat_info = feat_name.split(":")
+                assert len(feat_info) == 2, \
+                        f"Unknown format of the feature name: {feat_name}, " + \
+                        "must be: etype:feat_name."
+                # check and convert canonical edge type string
+                assert isinstance(feat_info[0], str), \
+                    f"The edge type should be a string, but got {feat_info[0]}"
+                can_etype = tuple(item.strip() for item in feat_info[0].split(","))
+                assert len(can_etype) == 3, \
+                        f"Unknown format of the edge type {feat_info[0]}, must be: " + \
+                         "src_node_type,relation_type,dst_node_type."
+                assert can_etype not in fname_dict, \
+                        f"You already specify the feature names of {can_etype} " \
+                        f"as {fname_dict[can_etype]}."
+                assert isinstance(feat_info[1], str), \
+                    f"Feature name of {can_etype} should be a string, but got {feat_info[1]} " + \
+                    f"with type {type(feat_info[1])}."
+                # multiple features separated by ','
+                fname_dict[can_etype] = [item.strip() for item in feat_info[1].split(",")]
+            return fname_dict
+
+        # By default, return None which means there is no node feature
         return None
 
     @property
+    def edge_feat_mp_op(self):
+        """ The operation for using edge features during message passing computation.
+            Defaut is "concat".
+
+        .. versionadded:: 0.4.0
+            The ``edge_feat_mp_op`` argument.
+
+            GraphStorm supports five message passing operations for edge features, including:
+
+            - "concat":concatinate the source node feature with the edge feauture together,
+              and then pass them to the destination node.
+            - "add":add the source node feature with the edge feauture together,
+              and then pass them to the destination node.
+            - "sub":substract the edge feauture from the source node feature,
+              and then pass them to the destination node.
+            - "mul":multiple the source node feature with the edge feauture,
+              and then pass them to the destination node.
+            - "div":divid the source node feature by the edge feauture together,
+              and then pass them to the destination node.
+
+        """
+        # pylint: disable=no-member
+        if not hasattr(self, "_edge_feat_mp_op"):
+            return "concat"
+        assert self._edge_feat_mp_op in BUILTIN_EDGE_FEAT_MP_OPS, \
+            "The edge feature message passing operation must be one of " + \
+            f"{BUILTIN_EDGE_FEAT_MP_OPS}, but got {self._edge_feat_mp_op}."
+        return self._edge_feat_mp_op
+
+    @property
     def node_feat_name(self):
-        """ User defined node feature name. Default is None.
+        """ User provided node feature name. Default is None.
 
-        It can be in following format:
+        It can be in the following formats:
 
-        - ``feat_name``: global feature name, if a node has node feature, the corresponding
-          feature name is <feat_name>.
-        - ``"ntype0:feat0","ntype1:feat0,feat1",...``: different node types  have different
-          node features.
+        - ``feat_name``: global feature name for all node types, i.e., for any node, its
+          corresponding feature name is <feat_name>.
+        - ``"ntype0:feat0","ntype1:feat0,feat1",...``: different node types have different
+          node features with different names.
         """
         # pylint: disable=no-member
         if hasattr(self, "_node_feat_name"):
@@ -1246,7 +1374,7 @@ class GSConfig:
                 feat_info = feat_name.split(":")
                 assert len(feat_info) == 2, \
                         f"Unknown format of the feature name: {feat_name}, " + \
-                        "must be NODE_TYPE:FEAT_NAME"
+                        "must be NODE_TYPE:FEAT_NAME."
                 ntype = feat_info[0]
                 assert ntype not in fname_dict, \
                         f"You already specify the feature names of {ntype} " \
@@ -1723,7 +1851,12 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_wd_l2norm"):
-            return self._wd_l2norm
+            try:
+                wd_l2norm = float(self._wd_l2norm)
+            except:
+                raise ValueError("wd_l2norm must be a floating point " \
+                                 f"but get {self._wd_l2norm}")
+            return wd_l2norm
         return 0
 
     @property
@@ -1735,7 +1868,12 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_alpha_l2norm"):
-            return self._alpha_l2norm
+            try:
+                alpha_l2norm = float(self._alpha_l2norm)
+            except:
+                raise ValueError("alpha_l2norm must be a floating point " \
+                                 f"but get {self._alpha_l2norm}")
+            return alpha_l2norm
         return .0
 
     @property
@@ -2761,7 +2899,8 @@ class GSConfig:
             else:
                 eval_metric = ["accuracy"]
         elif self.task_type in [BUILTIN_TASK_NODE_REGRESSION, \
-            BUILTIN_TASK_EDGE_REGRESSION, BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
+            BUILTIN_TASK_EDGE_REGRESSION, BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+            BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
             if hasattr(self, "_eval_metric"):
                 if isinstance(self._eval_metric, str):
                     eval_metric = self._eval_metric.lower()
@@ -2784,7 +2923,8 @@ class GSConfig:
                         "should be a string or a list of string"
                     # no eval_metric
             else:
-                if self.task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT:
+                if self.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                                      BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
                     eval_metric = ["mse"]
                 else:
                     eval_metric = ["rmse"]
@@ -2901,8 +3041,27 @@ class GSConfig:
         """ node feature name for reconstruction
         """
         assert hasattr(self, "_reconstruct_nfeat_name"), \
-            "reconstruct_nfeat_name must be provided under reconstruct_node_feat task "
+            "reconstruct_nfeat_name must be provided for reconstruct_node_feat tasks(s)."
+        assert isinstance(self._reconstruct_nfeat_name, str), \
+            "The name of the node feature for reconstruction must be a string." \
+            "For a node feature reconstruction task, it only " \
+            "reconstruct one node feature on one node type."
         return self._reconstruct_nfeat_name
+
+    ################## Reconstruct edge feats ###############
+    @property
+    def reconstruct_efeat_name(self):
+        """ edge feature name for reconstruction
+
+            .. versionadded:: 0.4.0
+        """
+        assert hasattr(self, "_reconstruct_efeat_name"), \
+            "reconstruct_efeat_name must be provided for reconstruct_edge_feat task(s)."
+        assert isinstance(self._reconstruct_efeat_name, str), \
+            "The name of the edge feature for reconstruction must be a string." \
+            "For a edge feature reconstruction task, it only " \
+            "reconstruct one edge feature on one edge type."
+        return self._reconstruct_efeat_name
 
     ################## Multi task learning ##################
     @property
@@ -2970,6 +3129,16 @@ def _add_gnn_args(parser):
             "the corresponding feature name is <feat_name>"
             "2)'--node-feat-name ntype0:feat0,feat1 ntype1:feat0,feat1 ...': "
             "different node types have different node features.")
+    group.add_argument("--edge-feat-name", nargs='+', type=str, default=argparse.SUPPRESS,
+            help="Edge feature field name. It can be in following format: "
+            "1) '--edge-feat-name feat_name': global feature name, "
+            "if an edge has feature,"
+            "the corresponding feature name is <feat_name>"
+            "2)'--edge-feat-name etype0:feat0 etype1:feat0,feat1,...': "
+            "different edge types have different edge features.")
+    group.add_argument("--edge-feat-mp-op", type=str, default=argparse.SUPPRESS,
+            help="The operation for using edge feature in message passing computation."
+                      "Supported operations include {BUILTIN_EDGE_FEAT_MP_OPS}")
     group.add_argument("--fanout", type=str, default=argparse.SUPPRESS,
             help="Fan-out of neighbor sampling. This argument can either be --fanout 20,10 or "
                  "--fanout etype2:20@etype3:20@etype1:20,etype2:10@etype3:4@etype1:2"

@@ -36,7 +36,7 @@ from pyspark.sql.types import (
     ArrayType,
     ByteType,
 )
-from pyspark.sql.functions import col, when
+from pyspark.sql.functions import col, when, monotonically_increasing_id
 from numpy.random import default_rng
 
 from graphstorm_processing.constants import (
@@ -73,6 +73,7 @@ FORMAT_NAME = "parquet"
 DELIMITER = "" if FORMAT_NAME == "parquet" else ","
 NODE_MAPPING_STR = "orig"
 NODE_MAPPING_INT = "new"
+CUSTOM_DATA_SPLIT_ORDER = "custom_split_order_flag"
 
 
 @dataclass
@@ -324,11 +325,6 @@ class DistHeterogeneousGraphLoader(object):
         self.timers["process_edge_data"] = perf_counter() - edges_start_time
         metadata_dict["edge_data"] = edge_data_dict
         metadata_dict["edges"] = edge_structure_dict
-        # We use the data location as the graph name, can also take from user?
-        # TODO: Fix this, take from config?
-        metadata_dict["graph_name"] = (
-            self.graph_name if self.graph_name else self.input_prefix.split("/")[-1]
-        )
 
         # Ensure output dict has the correct order of keys
         for edge_type in metadata_dict["edge_type"]:
@@ -446,6 +442,8 @@ class DistHeterogeneousGraphLoader(object):
 
         metadata_dict["edge_type"] = edge_types
         metadata_dict["node_type"] = sorted(node_type_set)
+
+        metadata_dict["graph_name"] = self.graph_name
 
         return metadata_dict
 
@@ -1949,12 +1947,9 @@ class DistHeterogeneousGraphLoader(object):
                 input_df, label_column, split_rates, seed, mask_field_names
             )
         else:
-            if mask_field_names:
-                raise NotImplementedError(
-                    "Custom split files with custom mask field names currently not supported."
-                )
-
-            mask_dfs = self._create_split_files_custom_split(input_df, custom_split_file)
+            mask_dfs = self._create_split_files_custom_split(
+                input_df, custom_split_file, mask_field_names
+            )
 
         def create_metadata_entry(path_list):
             return {
@@ -2063,7 +2058,10 @@ class DistHeterogeneousGraphLoader(object):
         return train_mask_df, val_mask_df, test_mask_df
 
     def _create_split_files_custom_split(
-        self, input_df: DataFrame, custom_split_file: CustomSplit
+        self,
+        input_df: DataFrame,
+        custom_split_file: CustomSplit,
+        mask_field_names: Optional[tuple[str, str, str]] = None,
     ) -> tuple[DataFrame, DataFrame, DataFrame]:
         """
         Creates the train/val/test mask dataframe based on custom split files.
@@ -2077,6 +2075,10 @@ class DistHeterogeneousGraphLoader(object):
             training/validation/test.
         mask_type: str
             The type of mask to create, value can be train, val or test.
+        mask_field_names: Optional[tuple[str, str, str]]
+            An optional tuple of field names to use for the split masks.
+            If not provided, the default field names "train_mask",
+            "val_mask", and "test_mask" are used.
 
         Returns
         -------
@@ -2086,7 +2088,39 @@ class DistHeterogeneousGraphLoader(object):
 
         # custom node/edge label
         # create custom mask dataframe for one of the types: train, val, test
-        def process_custom_mask_df(input_df: DataFrame, split_file: CustomSplit, mask_type: str):
+        def process_custom_mask_df(
+            input_df: DataFrame, split_file: CustomSplit, mask_name: str, mask_type: str
+        ):
+            """
+            Creates the mask dataframe based on custom split files on one mask type.
+
+            Parameters
+            ----------
+            input_df: DataFrame
+                Input dataframe for which we will add integer mapping.
+            split_file: CustomSplit
+                A CustomSplit object including path to the custom split files for
+                training/validation/test.
+            mask_name: str
+                Mask field name for the mask type.
+            mask_type: str
+                The type of mask to create, value can be train, val or test.
+            """
+
+            def create_mapping(input_df):
+                """
+                Creates the integer mapping for order maintaining.
+
+                Parameters
+                ----------
+                input_df: DataFrame
+                    Input dataframe for which we will add integer mapping.
+                """
+                return_df = input_df.withColumn(
+                    CUSTOM_DATA_SPLIT_ORDER, monotonically_increasing_id()
+                )
+                return return_df
+
             if mask_type == "train":
                 file_path = split_file.train
             elif mask_type == "val":
@@ -2096,22 +2130,26 @@ class DistHeterogeneousGraphLoader(object):
             else:
                 raise ValueError("Unknown mask type")
 
+            # Custom data split should only be considered
+            # in cases with a limited number of labels.
             if len(split_file.mask_columns) == 1:
                 # custom split on node original id
                 custom_mask_df = self.spark.read.parquet(
                     os.path.join(self.input_prefix, file_path)
                 ).select(col(split_file.mask_columns[0]).alias(f"custom_{mask_type}_mask"))
-                mask_df = input_df.join(
+                input_df_id = create_mapping(input_df)
+                mask_df = input_df_id.join(
                     custom_mask_df,
-                    input_df[NODE_MAPPING_STR] == custom_mask_df[f"custom_{mask_type}_mask"],
+                    input_df_id[NODE_MAPPING_STR] == custom_mask_df[f"custom_{mask_type}_mask"],
                     "left_outer",
                 )
+                mask_df = mask_df.orderBy(CUSTOM_DATA_SPLIT_ORDER)
                 mask_df = mask_df.select(
                     "*",
                     when(mask_df[f"custom_{mask_type}_mask"].isNotNull(), 1)
                     .otherwise(0)
-                    .alias(f"{mask_type}_mask"),
-                ).select(f"{mask_type}_mask")
+                    .alias(mask_name),
+                ).select(mask_name)
             elif len(split_file.mask_columns) == 2:
                 # custom split on edge (srd, dst) original ids
                 custom_mask_df = self.spark.read.parquet(
@@ -2120,10 +2158,12 @@ class DistHeterogeneousGraphLoader(object):
                     col(split_file.mask_columns[0]).alias(f"custom_{mask_type}_mask_src"),
                     col(split_file.mask_columns[1]).alias(f"custom_{mask_type}_mask_dst"),
                 )
+                input_df_id = create_mapping(input_df)
                 join_condition = (
-                    input_df["src_str_id"] == custom_mask_df[f"custom_{mask_type}_mask_src"]
-                ) & (input_df["dst_str_id"] == custom_mask_df[f"custom_{mask_type}_mask_dst"])
-                mask_df = input_df.join(custom_mask_df, join_condition, "left_outer")
+                    input_df_id["src_str_id"] == custom_mask_df[f"custom_{mask_type}_mask_src"]
+                ) & (input_df_id["dst_str_id"] == custom_mask_df[f"custom_{mask_type}_mask_dst"])
+                mask_df = input_df_id.join(custom_mask_df, join_condition, "left_outer")
+                mask_df = mask_df.orderBy(CUSTOM_DATA_SPLIT_ORDER)
                 mask_df = mask_df.select(
                     "*",
                     when(
@@ -2132,17 +2172,21 @@ class DistHeterogeneousGraphLoader(object):
                         1,
                     )
                     .otherwise(0)
-                    .alias(f"{mask_type}_mask"),
-                ).select(f"{mask_type}_mask")
+                    .alias(mask_name),
+                ).select(mask_name)
             else:
                 raise ValueError("The number of column should be only 1 or 2.")
 
             return mask_df
 
+        if mask_field_names:
+            mask_names = mask_field_names
+        else:
+            mask_names = ("train_mask", "val_mask", "test_mask")
         train_mask_df, val_mask_df, test_mask_df = (
-            process_custom_mask_df(input_df, custom_split_file, "train"),
-            process_custom_mask_df(input_df, custom_split_file, "val"),
-            process_custom_mask_df(input_df, custom_split_file, "test"),
+            process_custom_mask_df(input_df, custom_split_file, mask_names[0], "train"),
+            process_custom_mask_df(input_df, custom_split_file, mask_names[1], "val"),
+            process_custom_mask_df(input_df, custom_split_file, mask_names[2], "test"),
         )
         return train_mask_df, val_mask_df, test_mask_df
 

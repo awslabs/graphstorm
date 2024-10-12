@@ -36,7 +36,8 @@ from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                      BUILTIN_TASK_EDGE_CLASSIFICATION,
                      BUILTIN_TASK_EDGE_REGRESSION,
                      BUILTIN_TASK_LINK_PREDICTION,
-                     BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+                     BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                     BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
 from .config import (BUILTIN_LP_DOT_DECODER,
                      BUILTIN_LP_DISTMULT_DECODER,
                      BUILTIN_LP_ROTATE_DECODER,
@@ -72,7 +73,8 @@ from .model.loss_func import (ClassifyLossFunc,
 from .model.node_decoder import EntityClassifier, EntityRegression
 from .model.edge_decoder import (DenseBiDecoder,
                                  MLPEdgeDecoder,
-                                 MLPEFeatEdgeDecoder)
+                                 MLPEFeatEdgeDecoder,
+                                 EdgeRegression)
 from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictDistMultDecoder,
                                  LinkPredictContrastiveDotDecoder,
@@ -169,7 +171,7 @@ def initialize(
         Requires installed DGL version to be at least ``2.1.0``.
         Default: False.
 
-        .. versionadded:: 0.4
+        .. versionadded:: 0.4.0
     """
     dgl_version = importlib.metadata.version('dgl')
     if version.parse(dgl_version) >= version.parse("2.1.0"):
@@ -306,7 +308,7 @@ def create_builtin_node_gnn_model(g, config, train_task):
 # pylint: disable=unused-argument
 def create_builtin_reconstruct_nfeat_decoder(g, decoder_input_dim, config, train_task):
     """ create builtin node feature reconstruction decoder
-        according to task config
+        according to task config.
 
     Parameters
     ----------
@@ -315,16 +317,16 @@ def create_builtin_reconstruct_nfeat_decoder(g, decoder_input_dim, config, train
         Note(xiang): Make it consistent with create_builtin_edge_decoder.
         Reserved for future.
     decoder_input_dim: int
-        Input dimension size of the decoder
+        Input dimension size of the decoder.
     config: GSConfig
-        Configurations
+        Configurations.
     train_task : bool
         Whether this model is used for training.
 
     Returns
     -------
-    decoder: The node task decoder(s)
-    loss_func: The loss function(s)
+    decoder: The node task decoder(s).
+    loss_func: The loss function(s).
     """
     dropout = config.dropout if train_task else 0
     target_ntype = config.target_ntype
@@ -334,6 +336,47 @@ def create_builtin_reconstruct_nfeat_decoder(g, decoder_input_dim, config, train
     decoder = EntityRegression(decoder_input_dim,
                                dropout=dropout,
                                out_dim=feat_dim)
+
+    loss_func = RegressionLossFunc()
+    return decoder, loss_func
+
+# pylint: disable=unused-argument
+def create_builtin_reconstruct_efeat_decoder(g, decoder_input_dim, config, train_task):
+    """ create builtin edge feature reconstruction decoder
+        according to task config
+
+    Parameters
+    ----------
+    g: DGLGraph
+        The graph data.
+    decoder_input_dim: int
+        Input dimension size of the decoder.
+    config: GSConfig
+        Configurations.
+    train_task : bool
+        Whether this model is used for training.
+
+    Returns
+    -------
+    decoder: The edge feature reconstruction decoder(s).
+    loss_func: The loss function(s).
+
+    .. versionadded:: 0.4.0
+    """
+    dropout = config.dropout if train_task else 0
+    # Only support one edge type per edge feature
+    # reconstruction task.
+    target_etype = config.target_etype[0]
+    reconstruct_feat = config.reconstruct_efeat_name
+    assert len(g.edges[target_etype].data[reconstruct_feat].shape) == 2, \
+        "The edge feature {reconstruct_feat} of {target_etype} edges " \
+        f"Must be a 2D tensor, but got {g.edges[target_etype].data[reconstruct_feat].shape}."
+    feat_dim = g.edges[target_etype].data[reconstruct_feat].shape[1]
+
+    decoder = EdgeRegression(decoder_input_dim,
+                             target_etype=target_etype,
+                             out_dim=feat_dim,
+                             dropout=dropout)
 
     loss_func = RegressionLossFunc()
     return decoder, loss_func
@@ -1069,6 +1112,8 @@ def create_task_decoder(task_info, g, decoder_input_dim, train_task):
         return create_builtin_lp_decoder(g, decoder_input_dim, task_info.task_config, train_task)
     elif task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
         return create_builtin_reconstruct_nfeat_decoder(g, decoder_input_dim, task_info.task_config, train_task)
+    elif task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
+        return create_builtin_reconstruct_efeat_decoder(g, decoder_input_dim, task_info.task_config, train_task)
     else:
         raise TypeError(f"Unknown task type {task_info.task_type}")
 
@@ -1136,7 +1181,8 @@ def create_evaluator(task_info):
                                     early_stop_burnin_rounds=config.early_stop_burnin_rounds,
                                     early_stop_rounds=config.early_stop_rounds,
                                     early_stop_strategy=config.early_stop_strategy)
-    elif task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
+    elif task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                                 BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
         return GSgnnRconstructFeatRegScoreEvaluator(
             config.eval_frequency,
             config.eval_metric,

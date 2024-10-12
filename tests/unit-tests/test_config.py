@@ -35,7 +35,8 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
                                BUILTIN_TASK_EDGE_REGRESSION,
                                BUILTIN_TASK_LINK_PREDICTION,
-                               BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+                               BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                               BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
 from graphstorm.config.config import GRAPHSTORM_LP_EMB_L2_NORMALIZATION
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
@@ -252,6 +253,8 @@ def create_train_config(tmp_path, file_name):
     yaml_object["gsf"]["hyperparam"] = {
         "topk_model_to_save": 4,
         "save_model_path": os.path.join(tmp_path, "save"),
+        "wd_l2norm": 5e-5,
+        "alpha_l2norm": 5e-5,
     }
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -261,6 +264,8 @@ def create_train_config(tmp_path, file_name):
         'save_model_frequency': 2000,
         "topk_model_to_save": 5,
         "save_model_path": os.path.join(tmp_path, "save"),
+        "wd_l2norm": "1e-3",
+        "alpha_l2norm": "1e-3",
     }
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -291,6 +296,8 @@ def create_train_config(tmp_path, file_name):
         "use_early_stop": True,
         "early_stop_burnin_rounds": -1,
         "early_stop_rounds": 0,
+        "wd_l2norm": "NA",
+        "alpha_l2norm": "NA",
     }
 
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
@@ -301,6 +308,8 @@ def create_train_config(tmp_path, file_name):
         'save_model_frequency': 2000,
         "topk_model_to_save": 3,
         "save_model_path": os.path.join(tmp_path, "save"),
+        "wd_l2norm": "",
+        "alpha_l2norm": "",
     }
     with open(os.path.join(tmp_path, file_name+"_fail1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -350,12 +359,16 @@ def test_train_info():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test1.yaml'), local_rank=0)
         config = GSConfig(args)
         assert config.topk_model_to_save == 4
+        assert config.wd_l2norm == 5e-5
+        assert config.alpha_l2norm == 5e-5
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test2.yaml'), local_rank=0)
         config = GSConfig(args)
         assert config.eval_frequency == 1000
         assert config.save_model_frequency == 2000
         assert config.topk_model_to_save == 5
+        assert config.wd_l2norm == 1e-3
+        assert config.alpha_l2norm == 1e-3
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test3.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -380,12 +393,16 @@ def test_train_info():
         check_failure(config, "topk_model_to_save")
         check_failure(config, "early_stop_burnin_rounds")
         check_failure(config, "early_stop_rounds")
+        check_failure(config, "wd_l2norm")
+        check_failure(config, "alpha_l2norm")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'train_test_fail1.yaml'), local_rank=0)
         config = GSConfig(args)
         # in PR # 893 we loose the constraints of model saving frequency and eval frequency
         # so here we do not check failure, but check the topk model argument
         assert config.topk_model_to_save == 3
+        check_failure(config, "wd_l2norm")
+        check_failure(config, "alpha_l2norm")
 
 def create_rgcn_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
@@ -920,7 +937,6 @@ def test_edge_class_info():
         assert config.target_etype[1] == ("query", "click", "asin")
         assert len(config.target_etype) == 2
         assert len(config.reverse_edge_types_map) == 2
-        print(config.reverse_edge_types_map)
         assert config.reverse_edge_types_map[("query","match","asin")] == \
              ("asin","rev-match","query")
         assert config.reverse_edge_types_map[("query","click","asin")] == \
@@ -1213,6 +1229,7 @@ def create_gnn_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["test_feat"],
+        "edge_feat_name": ["test_feat"],
         "fanout": "10,20,30",
         "num_layers": 3,
         "hidden_size": 128,
@@ -1225,6 +1242,8 @@ def create_gnn_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name"],
+        "edge_feat_name": ["ntype0, rel0, ntype1:feat_name"],
+        "edge_feat_mp_op": "mul",
         "fanout": "n1/a/n2:10@n1/b/n2:10,n1/a/n2:10@n1/b/n2:10@n1/c/n2:20",
         "eval_fanout": "-1,10",
         "num_layers": 2,
@@ -1242,6 +1261,9 @@ def create_gnn_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name,feat_name2", "ntype1:fname"],
+        "edge_feat_name": ["ntype0, rel0, ntype1:feat_name, feat_name2", 
+                           "ntype1, rel1, ntype2:fname"],
+        "edge_feat_mp_op": "add",
     }
     with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1252,6 +1274,8 @@ def create_gnn_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name,fname", "ntype1:fname"],
+        "edge_feat_name": ["ntype0, rel0, ntype1:feat_name, fname", 
+                           "ntype1, rel1, ntype2:fname"]
     }
     with open(os.path.join(tmp_path, file_name+"4.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -1290,6 +1314,8 @@ def create_gnn_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name", "ntype0:feat_name"], # set feat_name twice
+        "edge_feat_name": ["ntype0, rel0, ntype1:feat_name", "ntype0, rel0, ntype1:feat_name"], # set feat_name twice
+        "edge_feat_mp_op": "dot", # not in support ops list
         "fanout": "error", # error fanout
         "eval_fanout": "error",
         "hidden_size": 0,
@@ -1301,6 +1327,7 @@ def create_gnn_config(tmp_path, file_name):
 
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": {"ntype0":"feat_name"}, # not a list
+        "edge_feat_name": ["ntype0, rel0:feat_name"], # error of can_etype format
         "fanout": "10,10", # error fanout
         "eval_fanout": "10,10",
         "hidden_size": 32,
@@ -1317,6 +1344,8 @@ def test_gnn_info():
                          local_rank=0)
         config = GSConfig(args)
         assert config.node_feat_name == "test_feat"
+        assert config.edge_feat_name == "test_feat"
+        assert config.edge_feat_mp_op == "concat"
         assert config.fanout == [10,20,30]
         assert config.eval_fanout == [-1, -1, -1]
         assert config.num_layers == 3
@@ -1329,6 +1358,8 @@ def test_gnn_info():
         assert len(config.node_feat_name) == 1
         assert 'ntype0' in config.node_feat_name
         assert config.node_feat_name['ntype0'] == ["feat_name"]
+        assert config.edge_feat_name[("ntype0", "rel0", "ntype1")] == ["feat_name"]
+        assert config.edge_feat_mp_op == "mul"
         assert config.fanout[0][("n1","a","n2")] == 10
         assert config.fanout[0][("n1","b","n2")] == 10
         assert config.fanout[1][("n1","a","n2")] == 10
@@ -1349,6 +1380,11 @@ def test_gnn_info():
         assert 'ntype1' in config.node_feat_name
         assert config.node_feat_name['ntype0'] == ["feat_name", "feat_name2"]
         assert config.node_feat_name['ntype1'] == ["fname"]
+        assert ("ntype0", "rel0", "ntype1") in config.edge_feat_name
+        assert ("ntype1", "rel1", "ntype2") in config.edge_feat_name
+        assert config.edge_feat_name[("ntype0", "rel0", "ntype1")] == ["feat_name", "feat_name2"]
+        assert config.edge_feat_name[("ntype1", "rel1", "ntype2")] == ["fname"]
+        assert config.edge_feat_mp_op == "add"
         assert config.use_mini_batch_infer == True
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test4.yaml'),
@@ -1361,6 +1397,14 @@ def test_gnn_info():
         assert "feat_name" in config.node_feat_name['ntype0']
         assert "fname" in config.node_feat_name['ntype0']
         assert config.node_feat_name['ntype1'] == ["fname"]
+        assert len(config.edge_feat_name) == 2
+        assert ("ntype0", "rel0", "ntype1") in config.edge_feat_name
+        assert ("ntype1", "rel1", "ntype2") in config.edge_feat_name
+        assert len(config.edge_feat_name[("ntype0", "rel0", "ntype1")]) == 2
+        assert "feat_name" in config.edge_feat_name[("ntype0", "rel0", "ntype1")]
+        assert "fname" in config.edge_feat_name[("ntype0", "rel0", "ntype1")]
+        assert config.edge_feat_name[("ntype1", "rel1", "ntype2")] == ["fname"]
+        assert config.edge_feat_mp_op == "concat"
         assert config.use_mini_batch_infer == True
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test5.yaml'),
@@ -1373,6 +1417,8 @@ def test_gnn_info():
         assert "feat_name" in config.node_feat_name['ntype0']
         assert "feat_name2" in config.node_feat_name['ntype0']
         assert config.node_feat_name['ntype1'] == ["fname"]
+        assert config.edge_feat_name is None
+        assert config.edge_feat_mp_op == "concat"
         assert config.use_mini_batch_infer == True
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test6.yaml'),
@@ -1394,6 +1440,8 @@ def test_gnn_info():
                          local_rank=0)
         config = GSConfig(args)
         check_failure(config, "node_feat_name")
+        check_failure(config, "edge_feat_name")
+        check_failure(config, "edge_feat_mp_op")
         check_failure(config, "fanout")
         check_failure(config, "eval_fanout")
         check_failure(config, "hidden_size")
@@ -1404,6 +1452,7 @@ def test_gnn_info():
                          local_rank=0)
         config = GSConfig(args)
         check_failure(config, "node_feat_name")
+        check_failure(config, "edge_feat_name")
         check_failure(config, "fanout")
         check_failure(config, "eval_fanout")
 
@@ -1839,6 +1888,22 @@ def create_dummy_nfr_config2():
         "eval_metric": "rmse"
     }
 
+def create_dummy_efr_config():
+    return {
+        "target_etype": ["a,r,b"],
+        "reconstruct_efeat_name": "rfeat",
+        "task_weight": 0.5,
+        "mask_fields": ["efr_train_mask", "efr_eval_mask", "efr_test_mask"]
+    }
+
+def create_dummy_efr_config2():
+    return {
+        "target_etype": ["a,r,b"],
+        "reconstruct_efeat_name": "rfeat",
+        "mask_fields": ["efr_train_mask", "efr_eval_mask", "efr_test_mask"],
+        "eval_metric": "rmse"
+    }
+
 def create_multi_task_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
     yaml_object["gsf"]["basic"] = {
@@ -1873,7 +1938,13 @@ def create_multi_task_config(tmp_path, file_name):
         },
         {
             BUILTIN_TASK_RECONSTRUCT_NODE_FEAT: create_dummy_nfr_config2()
-        }
+        },
+        {
+            BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT: create_dummy_efr_config()
+        },
+        {
+            BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT: create_dummy_efr_config2()
+        },
     ]
 
     with open(os.path.join(tmp_path, file_name+"_default.yaml"), "w") as f:
@@ -1886,7 +1957,7 @@ def test_multi_task_config():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'multi_task_test_default.yaml'), local_rank=0)
         config = GSConfig(args)
 
-        assert len(config.multi_tasks) == 8
+        assert len(config.multi_tasks) == 10
         nc_config = config.multi_tasks[0]
         assert nc_config.task_type == BUILTIN_TASK_NODE_CLASSIFICATION
         assert nc_config.task_id == f"{BUILTIN_TASK_NODE_CLASSIFICATION}-a-label_c"
@@ -2041,6 +2112,35 @@ def test_multi_task_config():
         assert len(nfr_config.eval_metric) == 1
         assert nfr_config.eval_metric[0] == "rmse"
         assert nfr_config.batch_size == 64
+
+        # reconstruct edge feat
+        efr_config = config.multi_tasks[8]
+        assert efr_config.task_type == BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT
+        assert efr_config.task_id == f"{BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT}-a_r_b-rfeat"
+        efr_config = efr_config.task_config
+        assert efr_config.task_weight == 0.5
+        assert efr_config.train_mask == "efr_train_mask"
+        assert efr_config.val_mask == "efr_eval_mask"
+        assert efr_config.test_mask == "efr_test_mask"
+        assert efr_config.target_etype[0] == ("a", "r", "b")
+        assert efr_config.reconstruct_efeat_name == "rfeat"
+        assert len(efr_config.eval_metric) == 1
+        assert efr_config.eval_metric[0] == "mse"
+        assert efr_config.batch_size == 64
+
+        efr_config = config.multi_tasks[9]
+        assert efr_config.task_type == BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT
+        assert efr_config.task_id == f"{BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT}-a_r_b-rfeat"
+        efr_config = efr_config.task_config
+        assert efr_config.task_weight == 1.0
+        assert efr_config.train_mask == "efr_train_mask"
+        assert efr_config.val_mask == "efr_eval_mask"
+        assert efr_config.test_mask == "efr_test_mask"
+        assert efr_config.target_etype[0] == ("a", "r", "b")
+        assert efr_config.reconstruct_efeat_name == "rfeat"
+        assert len(efr_config.eval_metric) == 1
+        assert efr_config.eval_metric[0] == "rmse"
+        assert efr_config.batch_size == 64
 
 if __name__ == '__main__':
     test_multi_task_config()

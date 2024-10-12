@@ -19,7 +19,7 @@ Once they're familiar with customizing components, users can refer to `Notebook 
 
 These examples utilize GraphStorm APIs, such as ``graphstorm``, ``graphstorm.dataloading.GSgnnDataset``, ``graphstorm.dataloading.GSgnnNodeDataLoader``, ``graphstorm.trainer.GSgnnNodePredictionTrainer``, and ``graphstorm.inference.GSgnnNodePredictionInferrer``, to form the training and infernece pipeline. In terms of the GNN models, users can refer to the `demo_model.py <https://github.com/awslabs/graphstorm/blob/main/docs/source/api/notebooks/demo_models.py>`_ file in which all models are created by using GraphStorm APIs.
 
-More example notebooks will be released.
+These notebooks can run with the GraphStrom Standalone mode, i.e., on a single CPU or GPU of a single machine. To fully leverage GraphStorm's distributed model training and inference capability, users can follow the guidelines shown in `Notebook 6: Running Custom Model with GraphStorm CLIs <https://github.com/awslabs/graphstorm/blob/main/docs/source/api/notebooks/Notebook_6_API2CLI.ipynb>`_ and choose a proper distributed environment to run the custom models for their enterprise-level graph datasets. Users can refer to the `demo_run_train.py <https://github.com/awslabs/graphstorm/blob/main/docs/source/api/notebooks/demo_run_train.py>`_ and `demo_run_infer.py <https://github.com/awslabs/graphstorm/blob/main/docs/source/api/notebooks/demo_run_infer.py>`_ as examples of custom models to be used by GraphStorm CLIs.
 
 .. toctree::
   :maxdepth: 2
@@ -31,3 +31,4 @@ More example notebooks will be released.
   Notebook_3_Model_Variants
   Notebook_4_Customized_Models
   Notebook_5_GP_solution
+  Notebook_6_API2CLI

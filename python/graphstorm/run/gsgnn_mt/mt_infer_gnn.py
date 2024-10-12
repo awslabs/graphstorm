@@ -25,7 +25,8 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
                                BUILTIN_TASK_EDGE_REGRESSION,
                                BUILTIN_TASK_LINK_PREDICTION,
-                               BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+                               BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                               BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
 from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
@@ -158,6 +159,28 @@ def create_task_infer_dataloader(task, config, infer_data):
                                    train_task=False,
                                    node_feats=node_feats,
                                    label_field=task_config.reconstruct_nfeat_name)
+    elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
+        eval_etype = task_config.target_etype
+        if not config.no_validation:
+            target_idxs = infer_data.get_edge_test_set(eval_etype, mask=task_config.test_mask)
+            assert len(target_idxs) > 0, \
+                f"There is not test data for evaluation for task {task.task_id}. " \
+                "You can use --no-validation true to avoid do testing"
+        else:
+            target_idxs = infer_data.get_edge_infer_set(eval_etype, mask=task_config.test_mask)
+            assert len(target_idxs) > 0, \
+                f"To do inference on {config.target_etype} for {task.task_id} " \
+                "without doing evaluation, you should not define test_mask as its " \
+                "edge feature. GraphStorm will do inference on the whole edge set. "
+        return GSgnnEdgeDataLoader(infer_data,
+                                   target_idxs,
+                                   fanout=fanout,
+                                   batch_size=task_config.eval_batch_size,
+                                   node_feats=node_feats,
+                                   label_field=task_config.reconstruct_efeat_name,
+                                   train_task=False,
+                                   remove_target_edge_type=False)
+
     else:
         raise TypeError(f"Unknown task type {task.task_type}")
 
@@ -186,6 +209,8 @@ def main(config_args):
     lp_tasks = []
     recon_nfeat_dataloaders = []
     recon_nfeat_tasks = []
+    recon_efeat_dataloaders = []
+    recon_efeat_tasks = []
     task_evaluators = {}
     encoder_out_dims = model.gnn_encoder.out_dims \
         if model.gnn_encoder is not None \
@@ -215,6 +240,10 @@ def main(config_args):
             # when evaluating feature reconstruction performance.
             recon_nfeat_dataloaders.append(data_loader)
             recon_nfeat_tasks.append(task)
+        elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
+            # Edge feature reconstruction.
+            recon_efeat_dataloaders.append(data_loader)
+            recon_efeat_tasks.append(task)
         else:
             predict_dataloaders.append(data_loader)
             predict_tasks.append(task)
@@ -252,6 +281,11 @@ def main(config_args):
     recon_nfeat_test_dataloader = GSgnnMultiTaskDataLoader(
         infer_data, recon_nfeat_tasks, recon_nfeat_dataloaders) \
         if len(recon_nfeat_dataloaders) > 0 else None
+    # Multi-task testing dataloader for edge feature
+    # reconstruction.
+    recon_efeat_test_dataloader = GSgnnMultiTaskDataLoader(
+        infer_data, recon_efeat_tasks, recon_efeat_dataloaders) \
+        if len(recon_efeat_dataloaders) > 0 else None
 
     model.restore_model(config.restore_model_path,
                         model_layer_to_load=config.restore_model_layers)
@@ -266,6 +300,7 @@ def main(config_args):
                 predict_test_dataloader,
                 lp_test_dataloader,
                 recon_nfeat_test_dataloader,
+                recon_efeat_test_dataloader,
                 save_embed_path=config.save_embed_path,
                 save_prediction_path=config.save_prediction_path,
                 use_mini_batch_infer=config.use_mini_batch_infer,

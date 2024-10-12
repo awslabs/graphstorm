@@ -26,7 +26,8 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
                                BUILTIN_TASK_EDGE_REGRESSION,
                                BUILTIN_TASK_LINK_PREDICTION,
-                               BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+                               BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                               BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
 from graphstorm.dataloading import GSgnnData
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
@@ -125,6 +126,18 @@ def create_task_train_dataloader(task, config, train_data):
                                    train_task=True,
                                    node_feats=node_feats,
                                    label_field=task_config.reconstruct_nfeat_name)
+    elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
+        train_idxs = train_data.get_edge_train_set(
+            task_config.target_etype,
+            mask=task_config.train_mask)
+        return GSgnnEdgeDataLoader(train_data,
+                                   train_idxs,
+                                   fanout=fanout,
+                                   batch_size=task_config.batch_size,
+                                   node_feats=node_feats,
+                                   label_field=task_config.reconstruct_efeat_name,
+                                   train_task=True,
+                                   remove_target_edge_type=False)
 
     return None
 
@@ -215,6 +228,19 @@ def create_task_val_dataloader(task, config, train_data):
                                        train_task=False,
                                        node_feats=node_feats,
                                        label_field=task_config.reconstruct_nfeat_name)
+    elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
+        val_idxs = train_data.get_edge_val_set(
+            task_config.target_etype,
+            mask=task_config.val_mask)
+        if len(val_idxs) > 0:
+            return GSgnnEdgeDataLoader(train_data,
+                                       val_idxs,
+                                       fanout=fanout,
+                                       batch_size=task_config.eval_batch_size,
+                                       train_task=False,
+                                       node_feats=node_feats,
+                                       label_field=task_config.reconstruct_efeat_name,
+                                       remove_target_edge_type=False)
 
     return None
 
@@ -309,6 +335,19 @@ def create_task_test_dataloader(task, config, train_data):
                                        train_task=False,
                                        node_feats=node_feats,
                                        label_field=task_config.reconstruct_nfeat_name)
+    elif task.task_type in [BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
+        test_idxs = train_data.get_edge_test_set(
+            task_config.target_etype,
+            mask=task_config.test_mask)
+        if len(test_idxs) > 0:
+            return GSgnnEdgeDataLoader(train_data,
+                                       test_idxs,
+                                       fanout=fanout,
+                                       batch_size=task_config.eval_batch_size,
+                                       train_task=False,
+                                       node_feats=node_feats,
+                                       label_field=task_config.reconstruct_efeat_name,
+                                       remove_target_edge_type=False)
     return None
 
 def main(config_args):

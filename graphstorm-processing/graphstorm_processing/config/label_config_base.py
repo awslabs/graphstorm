@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import abc
+import logging
 from typing import Any, Dict, Optional
 
 
@@ -42,6 +43,11 @@ class LabelConfig(abc.ABC):
                 {"train": 0.8, "val": 0.1, "test": 0.1},
             )
         else:
+            if "split_rate" in config_dict:
+                logging.warning(
+                    "custom_split_filenames and split_rate are set at the same time, "
+                    "will do custom data split"
+                )
             self._custom_split_filenames = config_dict["custom_split_filenames"]
         if "mask_field_names" in config_dict:
             self._mask_field_names: Optional[list[str]] = config_dict["mask_field_names"]
