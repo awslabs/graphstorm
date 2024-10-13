@@ -217,7 +217,7 @@ i.e., `mask_fields` and `task_weight`. The `mask_fields` provides the specific t
 test masks for a task. The `task_weight` defines a task's loss weight value to be multiplied with
 its loss value when aggregating all task losses to compute the total loss during training.
 
-In multi-task learning, GraphStorm provides two new unsupervised training signals: i/ node feature
+In multi-task learning, GraphStorm provides two new unsupervised training signals: 1/ node feature
 reconstruction (`BUILTIN_TASK_RECONSTRUCT_NODE_FEAT = "reconstruct_node_feat"`)
 and 2/ edge feature reconstruction (`BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT
 = "reconstruct_edge_feat"`)
