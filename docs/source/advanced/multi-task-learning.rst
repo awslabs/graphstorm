@@ -279,7 +279,7 @@ You can define an edge feature reconstruction task as the following example:
 
 In the configuration, `target_etype` defines the target edge type to which the reconstruct edge feature
 learning will be applied. `reconstruct_efeat_name`` defines the name of the feature to be
-re-construct. The other configs are same as edge regression tasks.
+reconstructed. The other configs are same as edge regression tasks.
 
 
 Run Model Training
