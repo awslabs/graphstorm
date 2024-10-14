@@ -1552,7 +1552,8 @@ class GSConfig:
         # pylint: disable=no-member
         if hasattr(self, "_out_emb_size"):
             if self._num_layers <= 1:
-                logging.warning("The out_emb_size is ignored given num_layers == 1.")
+                logging.warning("The out_emb_size is ignored given num_layers <= 1.")
+                return None
             assert isinstance(self._out_emb_size, int), \
                 "Output embedding size must be an integer."
             assert self._out_emb_size > 0, \
