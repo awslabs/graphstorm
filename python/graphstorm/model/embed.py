@@ -62,7 +62,7 @@ def init_emb(shape, dtype):
 
 
 class GSNodeInputLayer(GSLayer):  # pylint: disable=abstract-method
-    """The input layer for all nodes in a heterogeneous graph.
+    """ The base input layer for all nodes in a heterogeneous graph.
 
     Parameters
     ----------
@@ -163,6 +163,35 @@ class GSNodeInputLayer(GSLayer):  # pylint: disable=abstract-method
         return False
 
 
+class GSEdgeInputLayer(GSLayer):  # pylint: disable=abstract-method
+    """ The base input layer for all edges in a heterogeneous graph.
+
+    This is the base class for all edge input layer classes. This implementation only
+    support edge feature transformation. Unlike ``GSNodeInputLayer``, for featureless edges,
+    this implementation will do nothing.
+
+    .. versionadded:: 0.4.0
+        Add ``GSEdgeInputLayer`` in v0.4.0 to support edge features.
+
+    Parameters
+    ----------
+    g: DistGraph
+        The distributed graph.
+    """
+    def __init__(self, g):
+        super(GSEdgeInputLayer, self).__init__()
+        self.g = g
+
+    def get_general_dense_parameters(self):
+        """ Get dense layers' parameters.
+
+        Returns
+        -------
+        list of Tensors: the dense parameters
+        """
+        return self.parameters()
+
+
 class GSNodeEncoderInputLayer(GSNodeInputLayer):
     """ The node encoder input layer for all nodes in a heterogeneous graph.
 
@@ -213,7 +242,7 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
 
         np_data = GSgnnData(...)
 
-        model = GSgnnEdgeModel(alpha_l2norm=0)
+        model = GSgnnNodeModel(alpha_l2norm=0)
         feat_size = get_node_feat_size(np_data.g, "feat")
         encoder = GSNodeEncoderInputLayer(g, feat_size, 
                                           embed_size=4,
@@ -467,6 +496,135 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
         which is given in class initialization.
         """
         return self._use_wholegraph_sparse_emb
+
+
+class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
+    """ The edge encoder input layer for edges with features in a heterogeneous graph.
+
+    The input layer adds a linear layer on edges with edge features and the linear layer
+    projects the edge features into a specified dimension.
+
+    The current implementation does not supports learnable embeddings for featureless edges,
+    or language models on textual features, or the wholegraph.
+
+    .. versionadded:: 0.4.0
+        Add ``GSEdgeEncoderInputLayer`` in v0.4.0 to support edge features.
+
+    Parameters
+    ----------
+    g: DistGraph
+        The input DGL distributed graph.
+    feat_size : dict of int
+        The original feat size of each node type in the format of {ntype: size}.
+    embed_size : int
+        The output embedding size.
+    activation : callable
+        The activation function applied to the output embeddigns. Default: None.
+    dropout : float
+        The dropout parameter. Default: 0.
+    num_ffn_layers_in_input: int
+        (Optional) Number of layers of feedforward neural network for each node type
+        in the input layer. Default: 0.
+    ffn_activation : callable
+        The activation function for the feedforward neural networks. Default: relu.
+
+    Examples:
+    ----------
+
+    .. code:: python
+
+        from graphstorm import get_edge_feat_size
+        from graphstorm.model import (GSgnnEdgeModel,
+                                      GSEdgeEncoderInputLayer,
+                                      GSEdgeEncoderInputLayer)
+        from graphstorm.dataloading import GSgnnData
+
+        np_data = GSgnnData(...)
+
+        model = GSgnnNodeModel(alpha_l2norm=0)
+        node_feat_size = get_node_feat_size(np_data.g, "feat")
+        node_encoder = GSNodeEncoderInputLayer(g, node_feat_size, 
+                                          embed_size=4,
+                                          use_node_embeddings=True)
+        edge_feat_size = get_edge_feat_size(np_data.g, "feat")
+        edge_encoder = GSEdgeEncoderInputLayer(g, edge_feat_size, embed_size=32)
+        model.set_node_input_encoder(node_encoder)
+        model.set_edge_input_encoder(edge_encoder)
+    """
+    def __init__(self, 
+                 g, 
+                 feat_size,
+                 embed_size,
+                 activation=None,
+                 dropout=0.0,
+                 num_ffn_layers_in_input=0,
+                 ffn_activation=F.relu):
+        super(GSEdgeEncoderInputLayer, self).__init__(g)
+        self.g = g
+        self.embed_size = embed_size
+        self.dropout = nn.Dropout(dropout)
+        self.feat_size = feat_size
+        self.activation = activation
+
+        self.input_projs = nn.ParameterDict()
+
+        # ngnn
+        self.num_ffn_layers_in_input = num_ffn_layers_in_input
+        self.ngnn_mlp = nn.ModuleDict({})
+
+        # set projection weights on edge features
+        for canonical_etype in g.canonical_etypes:
+            feat_dim = 0
+            if self.feat_size[canonical_etype] > 1:
+                feat_dim += self.feat_size[canonical_etype]
+            if feat_dim > 0:
+                input_projs = nn.Parameter(th.Tensor(feat_dim, self.embed_size))
+                nn.init.xavier_uniform_(input_projs, gain=nn.init.calculate_gain("relu"))
+                self.input_projs[str(canonical_etype)] = input_projs
+
+                self.ngnn_mlp[str(canonical_etype)] = NGNNMLP(embed_size, embed_size,
+                                num_ffn_layers_in_input, ffn_activation, dropout)
+
+    def forward(self, block_edge_input_feats):
+        """ Input layer forward computation.
+        
+        Parameters
+        -----------
+        block_edge_input_feats: list of dicts
+            The input edge features of all blocks in the format of 
+            [{can_etype1: feats, can_etype2: feats, ...}, {can_etype1: feats, ...}, ...].
+
+        Returns
+        --------
+        embs_list: list of dicts
+            The projected edge embeddings in the format of
+            [{can_etype1: embs, can_etype2: embs, ...}, {can_etype1: embs, ...}, ...].
+        """
+        assert isinstance(block_edge_input_feats, list), \
+            'The edge input features should be in a list.'
+
+        embs_list = []
+        for edge_input_feats in block_edge_input_feats:
+            assert isinstance(edge_input_feats, dict), \
+                'The input features should be in a dict.'
+            embs = {}
+            for canonical_etype, feats in edge_input_feats.items():
+                emb = None
+                assert str(canonical_etype) in self.input_projs, \
+                    f"We need a projection for edge type {canonical_etype}"
+                emb = feats.float() @ self.input_projs[str(canonical_etype)]
+
+                if emb is not None:
+                    if self.activation is not None:
+                        emb = self.activation(emb)
+                        emb = self.dropout(emb)
+                    embs[canonical_etype] = emb
+
+            if self.num_ffn_layers_in_input > 0:
+                embs = {can_etype: self.ngnn_mlp[str(can_etype)](h) \
+                    for can_etype, h in embs.items()}
+            embs_list.append(embs)
+        return embs_list
 
 
 def _gen_emb(g, feat_field, embed_layer, ntype):
