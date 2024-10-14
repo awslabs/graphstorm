@@ -551,8 +551,8 @@ class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
         model.set_node_input_encoder(node_encoder)
         model.set_edge_input_encoder(edge_encoder)
     """
-    def __init__(self, 
-                 g, 
+    def __init__(self,
+                 g,
                  feat_size,
                  embed_size,
                  activation=None,
@@ -625,6 +625,18 @@ class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
                     for can_etype, h in embs.items()}
             embs_list.append(embs)
         return embs_list
+
+    @property
+    def in_dims(self):
+        """ Return the input feature size, which is given in class initialization.
+        """
+        return self.feat_size
+
+    @property
+    def out_dims(self):
+        """ Return the number of output dimensions, which is given in class initialization.
+        """
+        return self.embed_size
 
 
 def _gen_emb(g, feat_field, embed_layer, ntype):
