@@ -14,7 +14,8 @@
 """
 import pytest
 
-from graphstorm.gsf import (create_builtin_node_decoder,
+from graphstorm.gsf import (get_edge_feat_size,
+                            create_builtin_node_decoder,
                             create_builtin_edge_decoder,
                             create_builtin_lp_decoder)
 from graphstorm.utils import check_graph_name
@@ -179,7 +180,6 @@ def test_create_builtin_node_decoder():
     decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
     assert isinstance(decoder, EntityRegression)
     assert isinstance(loss_func, RegressionLossFunc)
-
 
 def test_create_builtin_edge_decoder():
     g = None
@@ -450,7 +450,6 @@ def test_create_builtin_lp_decoder():
     assert isinstance(loss_func, LinkPredictContrastiveLossFunc)
     assert decoder.gamma == 6.
 
-
 def test_check_graph_name():
     graph_name = "a"
     check_graph_name(graph_name)
@@ -476,8 +475,36 @@ def test_check_graph_name():
     with pytest.raises(AssertionError):
         check_graph_name(graph_name)
 
+def test_get_edge_feat_size():
+    g = generate_dummy_hetero_graph()
+
+    # normal edge feature names
+    edge_feat_names1 = {
+        ("n0", "r0", "n1"): ['feat'],
+        ("n0", "r1", "n1"): ['feat']
+    }
+    edge_feat_size = get_edge_feat_size(g, edge_feat_names1)
+
+    assert edge_feat_size[("n0", "r0", "n1")] == 2
+    assert edge_feat_size[("n0", "r1", "n1")] == 2
+    
+    # None edge feature names
+    edge_feat_size = get_edge_feat_size(g, None)
+    assert edge_feat_size[("n0", "r0", "n1")] == 0
+    assert edge_feat_size[("n0", "r1", "n1")] == 0
+
+    # Partial edge feature names
+    edge_feat_names2 = {
+        ("n0", "r0", "n1"): ['feat']
+    }
+    edge_feat_size = get_edge_feat_size(g, edge_feat_names2)
+    assert edge_feat_size[("n0", "r0", "n1")] == 2
+    assert edge_feat_size[("n0", "r1", "n1")] == 0
+
+
 if __name__ == '__main__':
     test_check_graph_name()
     test_create_builtin_node_decoder()
     test_create_builtin_edge_decoder()
     test_create_builtin_lp_decoder()
+    test_get_edge_feat_size()
