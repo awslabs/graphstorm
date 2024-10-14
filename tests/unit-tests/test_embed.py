@@ -753,30 +753,30 @@ def test_mp_wg_lm_cache(world_size):
 
 
 if __name__ == '__main__':
-    # test_pytroch_emb_load_save(11)
-    # test_lm_cache()
-    # test_mp_lm_cache()
-    # test_input_layer1(None)
-    # test_input_layer1(F.relu)
-    # test_input_layer2()
-    # test_input_layer3('cpu')
-    # test_input_layer3('cuda:0')
+    test_pytroch_emb_load_save(11)
+    test_lm_cache()
+    test_mp_lm_cache()
+    test_input_layer1(None)
+    test_input_layer1(F.relu)
+    test_input_layer2()
+    test_input_layer3('cpu')
+    test_input_layer3('cuda:0')
 
     test_input_layer4('cpu')
-    # test_input_layer4('cuda:0')
+    test_input_layer4('cuda:0')
 
-    # test_compute_embed('cpu')
-    # test_compute_embed('cuda:0')
+    test_compute_embed('cpu')
+    test_compute_embed('cuda:0')
 
-    # test_pure_lm_embed(0)
-    # test_pure_lm_embed(10)
+    test_pure_lm_embed(0)
+    test_pure_lm_embed(10)
 
-    # test_lm_embed(0)
-    # test_lm_embed(10)
+    test_lm_embed(0)
+    test_lm_embed(10)
 
-    # test_lm_embed_warmup('cpu')
-    # test_lm_embed_warmup('cuda:0')
-    # test_lm_infer()
+    test_lm_embed_warmup('cpu')
+    test_lm_embed_warmup('cuda:0')
+    test_lm_infer()
 
-    # test_wg_lm_cache()
-    # test_mp_wg_lm_cache(1)
+    test_wg_lm_cache()
+    test_mp_wg_lm_cache(1)
