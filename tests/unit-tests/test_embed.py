@@ -28,8 +28,11 @@ import tempfile
 import dgl
 from transformers import AutoTokenizer
 import graphstorm as gs
-from graphstorm import get_node_feat_size
-from graphstorm.model import GSNodeEncoderInputLayer, GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
+from graphstorm import get_node_feat_size, get_edge_feat_size
+from graphstorm.model import (GSNodeEncoderInputLayer,
+                              GSEdgeEncoderInputLayer,
+                              GSLMNodeEncoderInputLayer,
+                              GSPureLMNodeInputLayer)
 from graphstorm.model.embed import compute_node_input_embeddings
 from graphstorm.dataloading.dataset import prepare_batch_input
 from graphstorm.model.lm_model import TOKEN_IDX, ATT_MASK_IDX, VALID_LEN
@@ -176,6 +179,87 @@ def test_input_layer3(dev):
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+# Test GSgnnEdgeEncoderInputLayer
+@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
+def test_input_layer4(dev):
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, _ = generate_dummy_dist_graph(tmpdirname)
+
+    # Test 1: one edge type and one layer input edge features
+    edge_feat_size = get_edge_feat_size(g, {('n0', 'r0', 'n1'): ['feat']})
+    edge_input_layer = GSEdgeEncoderInputLayer(g, edge_feat_size, 2)
+    assert len(edge_input_layer.input_projs) == 1
+    assert list(edge_input_layer.input_projs.keys())[0] == str(('n0', 'r0', 'n1'))
+    edge_input_layer = edge_input_layer.to(dev)
+
+    # run forward for 10 edges
+    block_edge_feat_list = [{('n0', 'r0', 'n1'): \
+                             g.edges[('n0', 'r0', 'n1')].data['feat'][np.arange(10)].to(dev)}]
+    nn.init.eye_(edge_input_layer.input_projs[str(('n0', 'r0', 'n1'))])
+    embed = edge_input_layer(block_edge_feat_list)
+    # test output dimensions
+    assert len(embed) == 1
+    assert len(embed[0][('n0', 'r0', 'n1')]) == 10
+    # test output device
+    for _, emb in embed[0].items():
+        assert emb.get_device() == (-1 if dev == 'cpu' else 0)
+    # test output values, should be equal to the inputs
+    assert_almost_equal(embed[0][('n0', 'r0', 'n1')].detach().cpu().numpy(),
+        g.edges[('n0', 'r0', 'n1')].data['feat'][np.arange(10)].detach().cpu().numpy())
+
+    # Test 2: multiple edge types and two layers of input edge features
+    edge_feat_size = get_edge_feat_size(g, {('n0', 'r0', 'n1'): ['feat'], \
+                                            ('n0', 'r1', 'n1'): ['feat']})
+    edge_input_layer = GSEdgeEncoderInputLayer(g, edge_feat_size, 2)
+    assert len(edge_input_layer.input_projs) == 2
+    assert list(edge_input_layer.input_projs.keys())[0] == str(('n0', 'r0', 'n1'))
+    assert list(edge_input_layer.input_projs.keys())[1] == str(('n0', 'r1', 'n1'))
+    edge_input_layer = edge_input_layer.to(dev)
+
+    # test 10 edges for the 1st layer, and 4 edges for the 2nd layer.
+    block_edge_feat_list = []
+    feat1 = {
+        ('n0', 'r0', 'n1'): g.edges[('n0', 'r0', 'n1')].data['feat'][np.arange(10)].to(dev),
+        ('n0', 'r1', 'n1'): g.edges[('n0', 'r1', 'n1')].data['feat'][np.arange(10)].to(dev)
+    }
+    block_edge_feat_list.append(feat1)
+    feat2 = {
+        ('n0', 'r0', 'n1'): g.edges[('n0', 'r0', 'n1')].data['feat'][np.arange(10, 14)].to(dev),
+        ('n0', 'r1', 'n1'): g.edges[('n0', 'r1', 'n1')].data['feat'][np.arange(10, 14)].to(dev)
+    }
+    block_edge_feat_list.append(feat2)
+    nn.init.eye_(edge_input_layer.input_projs[str(('n0', 'r0', 'n1'))])
+    nn.init.eye_(edge_input_layer.input_projs[str(('n0', 'r1', 'n1'))])
+    embed = edge_input_layer(block_edge_feat_list)
+
+    # test output dimensions
+    assert len(embed) == 2
+    assert len(embed[0][('n0', 'r0', 'n1')]) == 10
+    assert len(embed[0][('n0', 'r1', 'n1')]) == 10
+    assert len(embed[1][('n0', 'r0', 'n1')]) == 4
+    assert len(embed[1][('n0', 'r1', 'n1')]) == 4
+
+    # test output device
+    for _, emb in embed[0].items():
+        assert emb.get_device() == (-1 if dev == 'cpu' else 0)
+    # test output values, should be equal to the inputs
+    assert_almost_equal(embed[0][('n0', 'r0', 'n1')].detach().cpu().numpy(),
+        g.edges[('n0', 'r0', 'n1')].data['feat'][np.arange(10)].detach().cpu().numpy())
+    assert_almost_equal(embed[0][('n0', 'r1', 'n1')].detach().cpu().numpy(),
+        g.edges[('n0', 'r1', 'n1')].data['feat'][np.arange(10)].detach().cpu().numpy())
+    assert_almost_equal(embed[1][('n0', 'r0', 'n1')].detach().cpu().numpy(),
+        g.edges[('n0', 'r0', 'n1')].data['feat'][np.arange(10, 14)].detach().cpu().numpy())
+    assert_almost_equal(embed[1][('n0', 'r1', 'n1')].detach().cpu().numpy(),
+        g.edges[('n0', 'r1', 'n1')].data['feat'][np.arange(10, 14)].detach().cpu().numpy())
+    
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
 
 @pytest.mark.parametrize("dev", ['cpu','cuda:0'])
 def test_compute_embed(dev):
@@ -669,26 +753,30 @@ def test_mp_wg_lm_cache(world_size):
 
 
 if __name__ == '__main__':
-    test_pytroch_emb_load_save(11)
-    test_lm_cache()
-    test_mp_lm_cache()
-    test_input_layer1(None)
-    test_input_layer1(F.relu)
-    test_input_layer2()
-    test_input_layer3('cpu')
-    test_input_layer3('cuda:0')
-    test_compute_embed('cpu')
-    test_compute_embed('cuda:0')
+    # test_pytroch_emb_load_save(11)
+    # test_lm_cache()
+    # test_mp_lm_cache()
+    # test_input_layer1(None)
+    # test_input_layer1(F.relu)
+    # test_input_layer2()
+    # test_input_layer3('cpu')
+    # test_input_layer3('cuda:0')
 
-    test_pure_lm_embed(0)
-    test_pure_lm_embed(10)
+    test_input_layer4('cpu')
+    # test_input_layer4('cuda:0')
 
-    test_lm_embed(0)
-    test_lm_embed(10)
+    # test_compute_embed('cpu')
+    # test_compute_embed('cuda:0')
 
-    test_lm_embed_warmup('cpu')
-    test_lm_embed_warmup('cuda:0')
-    test_lm_infer()
+    # test_pure_lm_embed(0)
+    # test_pure_lm_embed(10)
 
-    test_wg_lm_cache()
-    test_mp_wg_lm_cache(1)
+    # test_lm_embed(0)
+    # test_lm_embed(10)
+
+    # test_lm_embed_warmup('cpu')
+    # test_lm_embed_warmup('cuda:0')
+    # test_lm_infer()
+
+    # test_wg_lm_cache()
+    # test_mp_wg_lm_cache(1)
