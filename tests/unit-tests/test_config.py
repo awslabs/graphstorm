@@ -1336,6 +1336,26 @@ def create_gnn_config(tmp_path, file_name):
     with open(os.path.join(tmp_path, file_name+"_error2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
+    yaml_object["gsf"]["gnn"] = {
+        "num_layers": 2,
+        "out_emb_size": 8
+    }
+    with open(os.path.join(tmp_path, file_name + "_outembsize.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["gnn"] = {
+        "num_layers": 1,
+        "out_emb_size": 8
+    }
+    with open(os.path.join(tmp_path, file_name+"_outembsize_ignored.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["gnn"] = {
+        "out_emb_size": 0
+    }
+    with open(os.path.join(tmp_path, file_name + "_outembsize_error.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
 
 def test_gnn_info():
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -1455,6 +1475,25 @@ def test_gnn_info():
         check_failure(config, "edge_feat_name")
         check_failure(config, "fanout")
         check_failure(config, "eval_fanout")
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_outembsize.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        assert config.out_emb_size == 8
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_outembsize_ignored.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        assert config.out_emb_size == None
+
+        args = Namespace(
+            yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_test_outembsize_error.yaml'),
+            local_rank=0)
+        config = GSConfig(args)
+        check_failure(config, "out_emb_size")
+
 
 def create_io_config(tmp_path, file_name):
     yaml_object = create_dummpy_config_obj()
