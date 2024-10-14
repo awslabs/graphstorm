@@ -105,7 +105,7 @@ def main(args):
                 },
                 {
                     # will be ignored
-                    "edge_classification": {
+                    "reconstruct_edge_feat": {
                         "target_etype": [
                             ",".join(etype0)
                         ],
