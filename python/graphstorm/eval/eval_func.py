@@ -701,7 +701,7 @@ def compute_mae(pred, labels):
     diff = th.abs(pred.cpu() - labels.cpu())
     return th.mean(diff).cpu().item()
 
-def compute_mrr(ranking):
+def compute_mrr(ranking: th.Tensor) -> th.Tensor:
     """ Get link prediction Mean Reciprocal Rank (MRR) metrics
 
     Parameters

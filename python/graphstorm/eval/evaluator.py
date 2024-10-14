@@ -921,7 +921,7 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             Currently we support:
 
             val_candidate_sizes : torch.Tensor
-                The size of each candidate list in the test set.
+                The size of each candidate list (positive + negative pairs) for each testing edges in the validation set.
                 If the tensor has a single element we use that as the size of all lists.
             test_candidate_sizes : torch.Tensor
                 The size of each candidate list in the test set.
