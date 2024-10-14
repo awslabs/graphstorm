@@ -741,7 +741,7 @@ def compute_amri(ranking: th.Tensor, candidate_sizes: th.Tensor) -> th.Tensor:
     ranking : torch.Tensor
         ranking of each positive edge
     candidate_sizes : th.Tensor
-        The size of each candidate list. If all lists have
+        The size of each candidate list. If all candidate lists have
         the same size this will be a single-value tensor.
 
     Returns

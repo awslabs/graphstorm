@@ -909,7 +909,7 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
         return out
 
 ##################### Link Prediction Decoders #######################
-class LinkPredictionTestScoreMixin(abc.ABC):
+class LinkPredictionTestScoreInterface(abc.ABC):
     """ Mixin class for link prediction test score computation
     """
 
@@ -960,7 +960,7 @@ class LinkPredictionTestScoreMixin(abc.ABC):
             of {(src_ntype, etype, dst_ntype): (pos_scores, neg_scores)}
         """
 
-class LinkPredictNoParamDecoder(GSLayerNoParam, LinkPredictionTestScoreMixin):
+class LinkPredictNoParamDecoder(GSLayerNoParam, LinkPredictionTestScoreInterface):
     """ Abstract class for Link prediction decoder without trainable parameters
     """
 
@@ -987,7 +987,7 @@ class LinkPredictNoParamDecoder(GSLayerNoParam, LinkPredictionTestScoreMixin):
             in the input graph.
         """
 
-class LinkPredictLearnableDecoder(GSLayer, LinkPredictionTestScoreMixin):
+class LinkPredictLearnableDecoder(GSLayer, LinkPredictionTestScoreInterface):
     """ Abstract class for Link prediction decoder with trainable parameters
     """
 

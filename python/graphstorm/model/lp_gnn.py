@@ -22,7 +22,7 @@ import torch as th
 
 from ..dataloading.dataloading import GSgnnEdgeDataLoader
 from .gnn import GSgnnModel, GSgnnModelBase
-from ..model.edge_decoder import LinkPredictionTestScoreMixin
+from ..model.edge_decoder import LinkPredictionTestScoreInterface
 from .utils import normalize_node_embs
 from ..eval.utils import calc_ranking
 
@@ -221,12 +221,11 @@ def run_lp_mini_batch_predict(
     with th.no_grad():
         ranking: dict[tuple, list[th.Tensor]] = defaultdict(list)
         batch_lengths: dict[tuple, list[th.Tensor]] = defaultdict(list)
-        assert isinstance(decoder, LinkPredictionTestScoreMixin)
+        assert isinstance(decoder, LinkPredictionTestScoreInterface)
         for pos_neg_tuple, neg_sample_type in loader:
-            score: dict[tuple, tuple[th.Tensor, th.Tensor]] = \
+            score = \
                 decoder.calc_test_scores(
                     emb, pos_neg_tuple, neg_sample_type, device)
-            print(f"{score=}")
             for canonical_etype, s in score.items():
                 # We do not concatenate rankings into a single
                 # ranking tensor to avoid unnecessary data copy.

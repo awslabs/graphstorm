@@ -235,8 +235,9 @@ class GSgnnLPRankingEvalInterface():
         train: boolean
             If in model training.
         candidate_sizes : torch.Tensor, optional
-            The size of each candidate list. If all lists have the
-            same size this will be an int, otherwise a list of ints.
+            The size of each candidate list (positive + negative pairs)
+            for every edge in the testing set. If the tensor has a
+            single element we use that as the size of all lists.
 
         Returns
         -------
@@ -921,10 +922,12 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             Currently we support:
 
             val_candidate_sizes : torch.Tensor
-                The size of each candidate list (positive + negative pairs) for each testing edges in the validation set.
+                A tensor containing the size of each candidate list (positive + negative pairs)
+                for each testing edge in the validation set.
                 If the tensor has a single element we use that as the size of all lists.
             test_candidate_sizes : torch.Tensor
-                The size of each candidate list in the test set.
+                A tensor containing the size of each candidate list (positive + negative pairs)
+                for every edge in the test set.
                 If the tensor has a single element we use that as the size of all lists.
 
             ..versionadded:: 0.4.0
@@ -1122,14 +1125,16 @@ class GSgnnPerEtypeLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             Currently we support:
 
             val_candidate_sizes : dict of tensors
-                The size of each candidate list in the validation set, in the format of
-                {etype: size}. If all lists have the same size this will be a single-value
-                tensor per etype.
+                The size of each candidate list (positive + negative pairs)
+                in the validation set, in the format of {etype: size_tensor}.
+                If all candidate lists have the same size this
+                will be a single-value tensor per etype.
 
             test_candidate_sizes : dict of tensors
-                The size of each candidate list in the test set, in the format of
-                {etype: size}. If all lists have the same size this will be a single-value
-                tensor per etype.
+                The size of each candidate list (positive + negative pairs)
+                in the test set, in the format of {etype: size_tensor}.
+                If all candidate lists have the same size this
+                will be a single-value tensor per etype.
 
 
             ..versionadded:: 0.4.0
