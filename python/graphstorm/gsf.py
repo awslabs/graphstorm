@@ -263,8 +263,11 @@ def get_edge_feat_size(g, edge_feat_names):
     """ Get the overall feature size of each edge type with feature names specified in the
     ``edge_feat_names``. If an edge type has multiple features, the returned feature size
     will be the sum of the sizes of these features for that edge type.
- 
-     Parameters
+
+    .. versionadded:: 0.4.0
+        Add the `get_edge_feat_size` in v0.4.0 to support edge features.
+
+    Parameters
     ----------
     g : DistGraph
         The distributed graph.
