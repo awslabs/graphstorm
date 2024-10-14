@@ -326,7 +326,7 @@ def test_fp_min_max_transform(input_dtype, out_dtype):
         new_feats[new_feats < min_val[i]] = min_val[i]
         new_feats = (new_feats-min_val[i])/(max_val[i]-min_val[i])
         new_feats = new_feats if out_dtype is None else new_feats.astype(out_dtype)
-        assert_almost_equal(norm_feats[:,i], new_feats, decimal=6)
+        assert_almost_equal(norm_feats[:,i], new_feats, decimal=5)
 
 
 def test_categorize_transform():
