@@ -971,7 +971,7 @@ def set_encoder(model, g, config, train_task):
     model.set_node_input_encoder(node_encoder)
 
     # set edge encoder input layer no matter if having edge feature names or not
-    edge_feat_size = get_edge_feat_size(config.edge_feat_names)
+    edge_feat_size = get_edge_feat_size(config.edge_feat_name)
     edge_encoder = GSEdgeEncoderInputLayer(g, edge_feat_size, config.hidden_size,
                                     dropout=config.dropout,
                                     activation=config.input_activate,
