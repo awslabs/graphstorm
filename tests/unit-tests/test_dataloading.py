@@ -453,6 +453,60 @@ def test_GSgnnData2():
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
+def test_GSgnnData3():
+    """ Test GSgnnData built-in functions.
+    
+    Currently only test the ``get_blocks_edge_feats``.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
+                                                            dirname=tmpdirname, add_reverse=True)
+        # there will be three etypes:
+        # ('n0', 'r1', 'n1'), ('n0', 'r0', 'n1'), ("n1", "r2", "n0")
+        gdata = GSgnnData(part_config=part_config)
+        
+        # Test 0: empty edge feature fields, should return an empty list
+        efeat_fields = {}
+        target_idx = {('n0', 'r1', 'n1'): [0]}
+        dataloader = GSgnnEdgeDataLoader(gdata, target_idx, [10, 10], 10,
+                                        label_field='label',
+                                        train_task=False, remove_target_edge_type=False)
+        for _, _, blocks in dataloader:
+            edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
+            assert len(edge_feat_list) == 0
+
+        # Test 1: all edge feature fields, should return a list with two dicts
+        efeat_fields = {
+            ('n0', 'r0', 'n1'): ['feat'],
+            ('n0', 'r1', 'n1'): ['feat']
+        }
+        for _, _, blocks in dataloader:
+            edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
+            assert len(edge_feat_list) == 2
+            assert edge_feat_list[0][('n0', 'r0', 'n1')].shape[1] == 2
+            assert edge_feat_list[0][('n0', 'r1', 'n1')].shape[1] == 2
+            assert edge_feat_list[1][('n0', 'r1', 'n1')].shape[1] == 2
+
+        # Test 2: partial edge feature fields, should return a list with two dicts
+        efeat_fields = {
+            ('n0', 'r1', 'n1'): ['feat']
+        }
+        for _, _, blocks in dataloader:
+            edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
+            assert len(edge_feat_list) == 2
+            assert edge_feat_list[0][('n0', 'r1', 'n1')].shape[1] == 2
+            assert edge_feat_list[1][('n0', 'r1', 'n1')].shape[1] == 2
+
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()
+
 @pytest.mark.parametrize("batch_size", [1, 10, 128])
 def test_GSgnnAllEtypeLinkPredictionDataLoader(batch_size):
     # initialize the torch distributed environment
@@ -2500,45 +2554,46 @@ def test_GSgnnTranData_small_val_test():
         assert p1.exitcode == 0
 
 if __name__ == '__main__':
-    test_GSgnnTranData_small_val_test()
-    test_GSgnnLinkPredictionTestDataLoader(1, 1)
-    test_GSgnnLinkPredictionTestDataLoader(10, 20)
-    test_GSgnnMultiTaskDataLoader()
-    test_GSgnnLinkPredictionPredefinedTestDataLoader(1)
-    test_GSgnnLinkPredictionPredefinedTestDataLoader(10)
-    test_edge_fixed_dst_negative_sample_gen_neg_pairs()
-    test_hard_edge_dst_negative_sample_generate_complex_case()
-    test_hard_edge_dst_negative_sample_generate()
-    test_inbatch_joint_neg_sampler(10, 20)
+    # test_GSgnnTranData_small_val_test()
+    # test_GSgnnLinkPredictionTestDataLoader(1, 1)
+    # test_GSgnnLinkPredictionTestDataLoader(10, 20)
+    # test_GSgnnMultiTaskDataLoader()
+    # test_GSgnnLinkPredictionPredefinedTestDataLoader(1)
+    # test_GSgnnLinkPredictionPredefinedTestDataLoader(10)
+    # test_edge_fixed_dst_negative_sample_gen_neg_pairs()
+    # test_hard_edge_dst_negative_sample_generate_complex_case()
+    # test_hard_edge_dst_negative_sample_generate()
+    # test_inbatch_joint_neg_sampler(10, 20)
 
-    test_np_dataloader_len(11)
-    test_ep_dataloader_len(11)
-    test_lp_dataloader_len(11)
+    # test_np_dataloader_len(11)
+    # test_ep_dataloader_len(11)
+    # test_lp_dataloader_len(11)
 
-    test_np_dataloader_trim_data(GSgnnNodeDataLoader)
-    test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
-    test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
-    test_GSgnnData()
-    test_GSgnnData2()
-    test_lp_dataloader()
-    test_edge_dataloader()
-    test_node_dataloader()
-    test_node_dataloader_reconstruct()
-    test_GSgnnAllEtypeLinkPredictionDataLoader(10)
-    test_GSgnnAllEtypeLinkPredictionDataLoader(1)
-    test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
-    test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
+    # test_np_dataloader_trim_data(GSgnnNodeDataLoader)
+    # test_edge_dataloader_trim_data(GSgnnLinkPredictionDataLoader)
+    # test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
+    # test_GSgnnData()
+    # test_GSgnnData2()
+    test_GSgnnData3()
+    # test_lp_dataloader()
+    # test_edge_dataloader()
+    # test_node_dataloader()
+    # test_node_dataloader_reconstruct()
+    # test_GSgnnAllEtypeLinkPredictionDataLoader(10)
+    # test_GSgnnAllEtypeLinkPredictionDataLoader(1)
+    # test_GSgnnLinkPredictionJointTestDataLoader(1, 1)
+    # test_GSgnnLinkPredictionJointTestDataLoader(10, 20)
 
-    test_prepare_input()
-    test_modify_fanout_for_target_etype()
+    # test_prepare_input()
+    # test_modify_fanout_for_target_etype()
 
-    test_distill_sampler_get_file(num_files=7)
-    test_DistillDistributedFileSampler(num_files=7, is_train=True, \
-        infinite=False, shuffle=True)
-    test_DistillDataloaderGenerator("gloo", 7, True)
+    # test_distill_sampler_get_file(num_files=7)
+    # test_DistillDistributedFileSampler(num_files=7, is_train=True, \
+    #     infinite=False, shuffle=True)
+    # test_DistillDataloaderGenerator("gloo", 7, True)
 
-    test_GSgnnTrainData_homogeneous()
-    test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'gloo')
-    test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'nccl')
-    test_edge_dataloader_trim_data_device(GSgnnLinkPredictionDataLoader, 'gloo')
-    test_edge_dataloader_trim_data_device(GSgnnEdgeDataLoader, 'nccl')
+    # test_GSgnnTrainData_homogeneous()
+    # test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'gloo')
+    # test_np_dataloader_trim_data_device(GSgnnNodeDataLoader, 'nccl')
+    # test_edge_dataloader_trim_data_device(GSgnnLinkPredictionDataLoader, 'gloo')
+    # test_edge_dataloader_trim_data_device(GSgnnEdgeDataLoader, 'nccl')
