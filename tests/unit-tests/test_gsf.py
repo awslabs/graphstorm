@@ -501,6 +501,16 @@ def test_get_edge_feat_size():
     assert edge_feat_size[("n0", "r0", "n1")] == 2
     assert edge_feat_size[("n0", "r1", "n1")] == 0
 
+    # non 2D edge feature error
+    edge_feat_names3 = {
+        ("n0", "r1", "n1"): ['feat', 'label']
+    }
+    try:
+        edge_feat_size = get_edge_feat_size(g, edge_feat_names3)
+    except:
+        edge_feat_size = None
+    assert edge_feat_size is None
+
 
 if __name__ == '__main__':
     test_check_graph_name()
