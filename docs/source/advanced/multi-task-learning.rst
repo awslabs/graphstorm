@@ -7,7 +7,9 @@ may want to do link prediction as well as node feature reconstruction at the sam
 training of a GNN model. As another example, people may want to do fraud detection on both seller and
 buyer nodes in a seller-product-buyer graph. To support such scenarios, GraphStorm supports
 multi-task learning, allowing users to define multiple training targets on different nodes and edges
-within a single training loop. The supported training supervisions for multi-task learning include node classification/regression, edge classification/regression, link prediction and node feature reconstruction.
+within a single training loop. The supported training supervisions for multi-task learning include node classification/regression,
+edge classification/regression, link prediction, node feature reconstruction
+and edge feature reconstruction.
 
 
 Preparing the Training Data
@@ -215,9 +217,12 @@ i.e., `mask_fields` and `task_weight`. The `mask_fields` provides the specific t
 test masks for a task. The `task_weight` defines a task's loss weight value to be multiplied with
 its loss value when aggregating all task losses to compute the total loss during training.
 
-In multi-task learning, GraphStorm provides a new unsupervised training signal, i.e., node feature
-reconstruction (`BUILTIN_TASK_RECONSTRUCT_NODE_FEAT = "reconstruct_node_feat"`). You can define a
-node feature reconstruction task as the following example:
+In multi-task learning, GraphStorm provides two new unsupervised training signals: 1/ node feature
+reconstruction (`BUILTIN_TASK_RECONSTRUCT_NODE_FEAT = "reconstruct_node_feat"`)
+and 2/ edge feature reconstruction (`BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT
+= "reconstruct_edge_feat"`)
+
+You can define a node feature reconstruction task as the following example:
 
 .. code-block:: yaml
 
@@ -245,6 +250,36 @@ node feature reconstruction task as the following example:
 In the configuration, `target_ntype` defines the target node type, the reconstruct node feature
 learning will be applied. `reconstruct_nfeat_name`` defines the name of the feature to be
 re-construct. The other configs are same as node regression tasks.
+
+You can define an edge feature reconstruction task as the following example:
+
+.. code-block:: yaml
+
+    ---
+    version: 1.0
+    gsf:
+        basic:
+            ...
+        ...
+        multi_task_learning:
+            - node_classification:
+                ...
+            - reconstruct_edge_feat:
+                reconstruct_efeat_name: "title"
+                target_etype:
+                    - "user,rating,movie"
+                batch_size: 128
+                mask_fields:
+                    - "train_mask_e0"
+                    - "val_mask_e0"
+                    - "test_mask_e0"
+                task_weight: 1.0
+                eval_metric:
+                    - "mse"
+
+In the configuration, `target_etype` defines the target edge type to which the reconstruct edge feature
+learning will be applied. `reconstruct_efeat_name`` defines the name of the feature to be
+reconstructed. The other configs are same as edge regression tasks.
 
 
 Run Model Training
