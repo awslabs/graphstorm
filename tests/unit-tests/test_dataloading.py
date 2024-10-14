@@ -77,7 +77,7 @@ from graphstorm.dataloading.dataset import (prepare_batch_input,
 from graphstorm.dataloading.utils import modify_fanout_for_target_etype
 from graphstorm.dataloading.utils import trim_data
 
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_almost_equal
 from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
 
@@ -475,7 +475,7 @@ def test_GSgnnData3():
         # Test 0: empty edge feature fields, should return an empty list
         efeat_fields = {}
         target_idx = {('n0', 'r1', 'n1'): [0]}
-        dataloader = GSgnnEdgeDataLoader(gdata, target_idx, [10, 10], 10,
+        dataloader = GSgnnEdgeDataLoader(gdata, target_idx, [100, 100], 10,
                                         label_field='label',
                                         train_task=False, remove_target_edge_type=False)
         for _, _, blocks in dataloader:
@@ -493,6 +493,8 @@ def test_GSgnnData3():
             assert edge_feat_list[0][('n0', 'r0', 'n1')].shape[1] == 2
             assert edge_feat_list[0][('n0', 'r1', 'n1')].shape[1] == 2
             assert edge_feat_list[1][('n0', 'r1', 'n1')].shape[1] == 2
+            assert_equal(edge_feat_list[1][('n0', 'r1', 'n1')][0].numpy(),
+                         gdata.g.edges[('n0', 'r1', 'n1')].data['feat'][0][0].numpy())
 
         # Test 2: partial edge feature fields, should return a list with two dicts
         efeat_fields = {
@@ -503,6 +505,8 @@ def test_GSgnnData3():
             assert len(edge_feat_list) == 2
             assert edge_feat_list[0][('n0', 'r1', 'n1')].shape[1] == 2
             assert edge_feat_list[1][('n0', 'r1', 'n1')].shape[1] == 2
+            assert_equal(edge_feat_list[1][('n0', 'r1', 'n1')][0].numpy(),
+                         gdata.g.edges[('n0', 'r1', 'n1')].data['feat'][0][0].numpy())
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
