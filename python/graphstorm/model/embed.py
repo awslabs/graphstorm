@@ -182,6 +182,15 @@ class GSEdgeInputLayer(GSLayer):  # pylint: disable=abstract-method
         super(GSEdgeInputLayer, self).__init__()
         self.g = g
 
+    def prepare(self, _):
+        """ Preparing input layer for training or inference.
+
+        The input layer can pre-compute node features in the preparing step
+        if needed. For example pre-compute all BERT embeddings
+
+        Default action: Do nothing
+        """
+
     def get_general_dense_parameters(self):
         """ Get dense layers' parameters.
 
