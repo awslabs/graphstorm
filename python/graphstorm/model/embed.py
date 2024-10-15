@@ -219,6 +219,18 @@ class GSEdgeInputLayer(GSLayer):  # pylint: disable=abstract-method
         # By default, there is no language model
         return []
 
+    def freeze(self, _):
+        """ Freeze the models in input layer during model training
+
+        Default action: Do nothing
+        """
+
+    def unfreeze(self):
+        """ Unfreeze the models in input layer during model training
+
+        Default action: Do nothing
+        """
+
 
 class GSNodeEncoderInputLayer(GSNodeInputLayer):
     """ The node encoder input layer for all nodes in a heterogeneous graph.
