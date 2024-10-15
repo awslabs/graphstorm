@@ -191,6 +191,25 @@ class GSEdgeInputLayer(GSLayer):  # pylint: disable=abstract-method
         """
         return self.parameters()
 
+    def get_sparse_params(self):
+        """ Get the sparse parameters.
+
+        Returns
+        -------
+        list of Tensors: the sparse embeddings.
+        """
+        # By default, there is no sparse_embeds
+        return []
+
+    def get_lm_dense_parameters(self):
+        """ Get the language model related parameters
+        Returns
+        -------
+        list of Tensors: the language model parameters.
+        """
+        # By default, there is no language model
+        return []
+
 
 class GSNodeEncoderInputLayer(GSNodeInputLayer):
     """ The node encoder input layer for all nodes in a heterogeneous graph.
