@@ -1113,6 +1113,9 @@ def create_task_decoder(task_info, g, decoder_input_dim, train_task):
     elif task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
         return create_builtin_reconstruct_nfeat_decoder(
             g, decoder_input_dim, task_info.task_config, train_task)
+    elif task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
+        return create_builtin_reconstruct_efeat_decoder(
+            g, decoder_input_dim, task_info.task_config, train_task)
     else:
         raise TypeError(f"Unknown task type {task_info.task_type}")
 
