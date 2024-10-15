@@ -965,18 +965,19 @@ def set_encoder(model, g, config, train_task):
                                           force_no_embeddings=config.construct_feat_ntype,
                                           num_ffn_layers_in_input=config.num_ffn_layers_in_input,
                                           use_wholegraph_sparse_emb=config.use_wholegraph_embed)
+        # set edge encoder input layer no matter if having edge feature names or not
+        # TODO: add support of languange models and GLEM
+        edge_feat_size = get_edge_feat_size(g, config.edge_feat_name)
+        edge_encoder = GSEdgeEncoderInputLayer(g, edge_feat_size, config.hidden_size,
+                                        dropout=config.dropout,
+                                        activation=config.input_activate,
+                                        num_ffn_layers_in_input=config.num_ffn_layers_in_input)
+        model.set_edge_input_encoder(edge_encoder)
+
     # The number of feature dimensions can change. For example, the feature dimensions
     # of BERT embeddings are determined when the input encoder is created.
     node_feat_size = node_encoder.in_dims
     model.set_node_input_encoder(node_encoder)
-
-    # set edge encoder input layer no matter if having edge feature names or not
-    edge_feat_size = get_edge_feat_size(g, config.edge_feat_name)
-    edge_encoder = GSEdgeEncoderInputLayer(g, edge_feat_size, config.hidden_size,
-                                    dropout=config.dropout,
-                                    activation=config.input_activate,
-                                    num_ffn_layers_in_input=config.num_ffn_layers_in_input)
-    model.set_edge_input_encoder(edge_encoder)
 
     # Set GNN encoders
     dropout = config.dropout if train_task else 0
