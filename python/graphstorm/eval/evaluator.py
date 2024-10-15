@@ -1223,7 +1223,7 @@ class GSgnnPerEtypeLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             metrics = {}
             etype_candidate_sizes = candidate_sizes[etype] if candidate_sizes is not None else None
             for metric in self.metric_list:
-                arg_tuple = (ranking, etype_candidate_sizes) if metric == "amri" else (ranking)
+                arg_tuple = (ranking, etype_candidate_sizes) if metric == "amri" else (ranking, )
                 if train:
                     # training expects always a single number to be
                     # returned and has a different (potentially) evaluation function
