@@ -120,7 +120,7 @@ from .eval import (GSgnnClassificationEvaluator,
                    GSgnnRegressionEvaluator,
                    GSgnnRconstructFeatRegScoreEvaluator,
                    GSgnnPerEtypeLPEvaluator,
-                   GSgnnLPEvaluator,)
+                   GSgnnLPEvaluator)
 
 from .tracker import get_task_tracker_class
 
