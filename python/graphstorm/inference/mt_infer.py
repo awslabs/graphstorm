@@ -319,7 +319,7 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
             test_start = time.time()
             assert isinstance(self.evaluator, GSgnnLPRankingEvalInterface)
             val_score, test_score = self.evaluator.evaluate(
-                None,
+                pre_results,
                 pre_results,
                 0,
                 val_candidate_sizes=None,

@@ -33,6 +33,7 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
                                 BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
 from graphstorm.dataloading import GSgnnData, GSgnnMultiTaskDataLoader
+from graphstorm.eval.evaluator import GSgnnLPRankingEvalInterface
 from graphstorm.tracker import GSSageMakerTaskTracker
 from graphstorm import create_builtin_node_gnn_model
 from graphstorm.trainer import GSgnnTrainer
@@ -498,14 +499,14 @@ def test_mtask_prepare_lp_mini_batch():
     assert_equal(input_nodes["n0"].numpy(), input_node_idx["n0"].numpy())
     assert_equal(input_nodes["n1"].numpy(), input_node_idx["n1"].numpy())
 
-class MTaskCheckerEvaluator():
-    def __init__(self, val_resluts, test_results, steps):
-        self._val_results = val_resluts
-        self._test_results = test_results
-        self._steps = steps
+class MTaskCheckerEvaluator(GSgnnLPRankingEvalInterface):
+    def __init__(self, val_rankings, test_rankings, total_iters):
+        self._val_results = val_rankings
+        self._test_results = test_rankings
+        self._steps = total_iters
 
-    def evaluate(self, val_results, test_results, total_steps):
-        assert self._steps == total_steps
+    def evaluate(self, val_rankings, test_rankings, total_iters, **kwargs):
+        assert self._steps == total_iters
         def compare_results(target_res, check_res):
             assert len(target_res) == len(check_res)
             for task_id, target_r in target_res.items():
@@ -521,10 +522,14 @@ class MTaskCheckerEvaluator():
                     assert_equal(target_r, check_r)
 
         if self._val_results is not None:
-            compare_results(self._val_results, val_results)
+            compare_results(self._val_results, val_rankings)
         if self._test_results is not None:
-            compare_results(self._test_results, test_results)
+            compare_results(self._test_results, test_rankings)
         return None, None
+
+    def compute_score(self, rankings, train=True, candidate_sizes=None):
+        """Dummy implementation to conform to interface"""
+        raise NotImplementedError()
 
     @property
     def task_tracker(self):

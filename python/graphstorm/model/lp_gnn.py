@@ -17,6 +17,7 @@
 """
 import abc
 from collections import defaultdict
+from typing import Union
 
 import torch as th
 
@@ -185,7 +186,7 @@ def run_lp_mini_batch_predict(
         decoder,
         emb: dict[str, th.Tensor],
         loader: GSgnnEdgeDataLoader,
-        device: th.device,
+        device: Union[th.device, int],
         return_batch_lengths=False,
     ):
     """ Perform mini-batch link prediction with the given decoder.
@@ -205,7 +206,7 @@ def run_lp_mini_batch_predict(
             The GNN embeddings
         loader : GSgnnEdgeDataLoader
             The GraphStorm dataloader
-        device: th.device
+        device: th.device or int
             Device used to compute test scores
         return_batch_lengths: bool, default False
             Whether to return the candidate list sizes of each ranking value.
