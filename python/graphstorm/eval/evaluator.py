@@ -19,7 +19,7 @@
 import abc
 import warnings
 from statistics import mean
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import torch as th
 
@@ -196,7 +196,7 @@ class GSgnnLPRankingEvalInterface():
         test_rankings,
         total_iters,
         **kwargs,
-    ) -> Tuple[dict[str, th.Tensor], dict[str, th.Tensor]]:
+    ) -> Tuple[Dict[str, th.Tensor], Dict[str, th.Tensor]]:
         """Evaluate Link Prediction results on validation and test sets.
 
         **Link Prediction** evaluators should provide the ranking of validation and test sets as
@@ -979,7 +979,7 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             self,
             rankings,
             train=True,
-            candidate_sizes: Optional[dict[str, th.Tensor]] = None,
+            candidate_sizes: Optional[Dict[str, th.Tensor]] = None,
         ):
         """ Compute evaluation score.
 
@@ -1010,7 +1010,7 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         sizes_list = []
 
         # compute ranking value for each metric
-        metrics: dict[str, th.Tensor] = {}
+        metrics: Dict[str, th.Tensor] = {}
         for metric in self.metric_list:
             if metric == "amri":
                 assert candidate_sizes
@@ -1036,7 +1036,7 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             for _, metric_val in metrics.items():
                 th.distributed.all_reduce(metric_val)
 
-        return_metrics: dict[str, float] = {}
+        return_metrics: Dict[str, float] = {}
         for metric, metric_val in metrics.items():
             return_metric = metric_val / get_world_size()
             return_metrics[metric] = return_metric.item()

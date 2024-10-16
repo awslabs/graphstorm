@@ -17,7 +17,7 @@
 """
 import abc
 from collections import defaultdict
-from typing import Union
+from typing import Dict, Union
 
 import torch as th
 
@@ -184,7 +184,7 @@ def lp_mini_batch_predict(model, emb, loader, device, return_batch_lengths=False
 
 def run_lp_mini_batch_predict(
         decoder,
-        emb: dict[str, th.Tensor],
+        emb: Dict[str, th.Tensor],
         loader: GSgnnEdgeDataLoader,
         device: Union[th.device, int],
         return_batch_lengths=False,
@@ -220,8 +220,8 @@ def run_lp_mini_batch_predict(
             and the corresponding batch lengths for each ranking value.
     """
     with th.no_grad():
-        ranking: dict[tuple, list[th.Tensor]] = defaultdict(list)
-        batch_lengths: dict[tuple, list[th.Tensor]] = defaultdict(list)
+        ranking: Dict[tuple, list[th.Tensor]] = defaultdict(list)
+        batch_lengths: Dict[tuple, list[th.Tensor]] = defaultdict(list)
         assert isinstance(decoder, LinkPredictionTestScoreInterface)
         for pos_neg_tuple, neg_sample_type in loader:
             score = \
@@ -238,8 +238,8 @@ def run_lp_mini_batch_predict(
                     th.tensor([neg_score.shape[1]+1])
                 )
 
-        rankings: dict[tuple, th.Tensor] = {}
-        batch_length_tensors: dict[tuple, th.Tensor] = {}
+        rankings: Dict[tuple, th.Tensor] = {}
+        batch_length_tensors: Dict[tuple, th.Tensor] = {}
         for canonical_etype, rank in ranking.items():
             rankings[canonical_etype] = th.cat(rank, dim=0)
             etype_lengths = batch_lengths[canonical_etype]
