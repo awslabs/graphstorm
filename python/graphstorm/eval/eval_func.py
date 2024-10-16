@@ -753,7 +753,8 @@ def compute_amri(ranking: th.Tensor, candidate_sizes: th.Tensor) -> th.Tensor:
     """
     if candidate_sizes.shape[0] > 1:
         assert ranking.shape[0] == candidate_sizes.shape[0], \
-            "ranking and candidate_sizes must have the same length"
+            ("ranking and candidate_sizes must have the same length, "
+             f"got {ranking.shape=} {candidate_sizes.shape=}" )
         assert th.all(ranking <= candidate_sizes).item(), \
             "all ranks must be <= candidate_sizes"
 

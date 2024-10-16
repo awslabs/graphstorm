@@ -17,7 +17,7 @@
 """
 import abc
 from collections import defaultdict
-from typing import Dict, Union
+from typing import Dict, List, Tuple, Union
 
 import torch as th
 
@@ -180,7 +180,7 @@ def lp_mini_batch_predict(model, emb, loader, device, return_batch_lengths=False
                                      emb,
                                      loader,
                                      device,
-                                     return_batch_lengths,)
+                                     return_batch_lengths)
 
 def run_lp_mini_batch_predict(
         decoder,
@@ -220,8 +220,8 @@ def run_lp_mini_batch_predict(
             and the corresponding batch lengths for each ranking value.
     """
     with th.no_grad():
-        ranking: Dict[tuple, list[th.Tensor]] = defaultdict(list)
-        batch_lengths: Dict[tuple, list[th.Tensor]] = defaultdict(list)
+        ranking: Dict[Tuple, List[th.Tensor]] = defaultdict(list)
+        batch_lengths: Dict[Tuple, List[th.Tensor]] = defaultdict(list)
         assert isinstance(decoder, LinkPredictionTestScoreInterface)
         for pos_neg_tuple, neg_sample_type in loader:
             score = \
@@ -234,12 +234,15 @@ def run_lp_mini_batch_predict(
                 assert pos_score.shape[0] == neg_score.shape[0], \
                     "There should be as many negative lists as there are positive examples"
                 ranking[canonical_etype].append(calc_ranking(pos_score, neg_score))
+                # Set the number of candidates for each positive example (neg_score.shape[0])
+                # which will be the number of negatives (neg_score.shape[1])
+                # plus one for the positive example
                 batch_lengths[canonical_etype].append(
-                    th.tensor([neg_score.shape[1]+1])
+                    th.tensor(neg_score.shape[0] * [neg_score.shape[1] + 1])
                 )
 
-        rankings: Dict[tuple, th.Tensor] = {}
-        batch_length_tensors: Dict[tuple, th.Tensor] = {}
+        rankings: Dict[Tuple, th.Tensor] = {}
+        batch_length_tensors: Dict[Tuple, th.Tensor] = {}
         for canonical_etype, rank in ranking.items():
             rankings[canonical_etype] = th.cat(rank, dim=0)
             etype_lengths = batch_lengths[canonical_etype]
