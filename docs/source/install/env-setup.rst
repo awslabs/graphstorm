@@ -159,7 +159,7 @@ Run the following command:
 
 .. code:: bash
 
-    nvidia-docker run --network=host -v /dev/shm:/dev/shm/ -d --name test graphstorm:local-gpu service ssh restart
+    docker run --gpus all --network=host -v /dev/shm:/dev/shm/ -d --name test graphstorm:local-gpu
 
 This command will create a GraphStorm container, named ``test`` and run the container as a daemon.
 
