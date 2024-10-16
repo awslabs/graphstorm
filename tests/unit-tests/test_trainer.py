@@ -33,7 +33,7 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
                                 BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
 from graphstorm.dataloading import GSgnnData, GSgnnMultiTaskDataLoader
-from graphstorm.eval.evaluator import GSgnnMultiTaskEvaluator
+from graphstorm.eval.evaluator import GSgnnLPRankingEvalInterface, GSgnnMultiTaskEvaluator
 from graphstorm.tracker import GSSageMakerTaskTracker
 from graphstorm import create_builtin_node_gnn_model
 from graphstorm.trainer import GSgnnTrainer
@@ -48,7 +48,7 @@ from graphstorm.trainer.mt_trainer import (GSgnnMultiTaskLearningTrainer,
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
                                     GSgnnLinkPredictionDataLoader)
-from graphstorm.model import GSgnnMultiTaskModelInterface, GSgnnModel, GSgnnModelBase
+from graphstorm.model import GSgnnMultiTaskModelInterface, GSgnnModel
 from numpy.testing import assert_equal
 
 from util import (DummyGSgnnEncoderModel,
@@ -499,7 +499,7 @@ def test_mtask_prepare_lp_mini_batch():
     assert_equal(input_nodes["n0"].numpy(), input_node_idx["n0"].numpy())
     assert_equal(input_nodes["n1"].numpy(), input_node_idx["n1"].numpy())
 
-class MTaskCheckerEvaluator(GSgnnMultiTaskEvaluator):
+class MTaskCheckerEvaluator(GSgnnMultiTaskEvaluator, GSgnnLPRankingEvalInterface):
     def __init__(self, val_rankings, test_rankings, total_iters):
         self._val_results = val_rankings
         self._test_results = test_rankings
