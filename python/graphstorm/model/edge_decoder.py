@@ -17,7 +17,7 @@
 """
 import abc
 import logging
-from typing import Dict, Union
+from typing import Dict, Tuple, Union
 
 import numpy as np
 import torch as th
@@ -919,10 +919,10 @@ class LinkPredictionTestScoreInterface(abc.ABC):
     def calc_test_scores(
         self,
         emb: Dict[str, th.Tensor],
-        pos_neg_tuple: Dict[tuple[str, str, str], th.Tensor],
+        pos_neg_tuple: Dict[Tuple[str, str, str], th.Tensor],
         neg_sample_type: str,
         device: Union[int, th.device],
-    ) -> Dict[tuple[str, str, str], tuple[th.Tensor, th.Tensor]]:
+    ) -> Dict[Tuple[str, str, str], Tuple[th.Tensor, th.Tensor]]:
         """ Compute scores for positive edges and negative edges.
 
         Parameters
