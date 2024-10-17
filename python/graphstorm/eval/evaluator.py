@@ -19,7 +19,7 @@
 import abc
 import warnings
 from statistics import mean
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import torch as th
 
@@ -2003,16 +2003,20 @@ class GSgnnPerEtypeHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfa
         return return_metrics
 
 
-class GSgnnMultiTaskEvalInterface():
+class GSgnnMultiTaskEvalInterface(abc.ABC):
     """ Interface for multi-task evaluation
 
     The interface set one abstract method
     """
     @abc.abstractmethod
-    def evaluate(self, val_results, test_results, total_iters):
-        """Evaluate validation and test sets for Prediciton tasks
-
-            GSgnnTrainers will call this function to do evaluation in their eval() fuction.
+    def evaluate(
+        self,
+        val_results: Dict[str, Any],
+        test_results: Dict[str, Any],
+        total_iters: int,
+        **kwargs
+    ):
+        """Evaluate multi-task training results, using task-specific evaluators for each task.
 
         Parameters
         ----------
@@ -2166,7 +2170,13 @@ class GSgnnMultiTaskEvaluator(GSgnnBaseEvaluator, GSgnnMultiTaskEvalInterface):
     def val_perf_rank_list(self):
         raise RuntimeError("GSgnnMultiTaskEvaluator.val_perf_rank_list not supported")
 
-    def evaluate(self, val_results, test_results, total_iters):
+    def evaluate(
+        self,
+        val_results: Dict[str, Any],
+        test_results: Dict[str, Any],
+        total_iters: int,
+        **kwargs
+    ):
         eval_tasks = {}
         val_scores = {}
         test_scores = {}
@@ -2211,7 +2221,11 @@ class GSgnnMultiTaskEvaluator(GSgnnBaseEvaluator, GSgnnMultiTaskEvalInterface):
                     test_candidate_sizes=test_rankings_and_lengths[1],
                 )
             else:
-                raise TypeError("Unknown evaluator")
+                raise RuntimeError(
+                    f"Unknown evaluator type: {type(task_evaluator)}. "
+                    "Evaluators need to implement either GSgnnPredictionEvalInterface "
+                    "or GSgnnLPRankingEvalInterface"
+                    )
 
             val_scores[task_id] = val_score
             test_scores[task_id] = test_score

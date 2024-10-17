@@ -233,13 +233,17 @@ def run_lp_mini_batch_predict(
                 pos_score, neg_score = s
                 assert pos_score.shape[0] == neg_score.shape[0], \
                     "There should be as many negative lists as there are positive examples"
-                ranking[canonical_etype].append(calc_ranking(pos_score, neg_score))
-                # Set the number of candidates for each positive example (neg_score.shape[0])
-                # which will be the number of negatives (neg_score.shape[1])
+                score_ranking = calc_ranking(pos_score, neg_score)
+                ranking[canonical_etype].append(score_ranking)
+                # Set the number of candidates for each positive example
+                # (equal to neg_score.shape[0])
+                # which will be the number of negatives (equal to neg_score.shape[1])
                 # plus one for the positive example
-                batch_lengths[canonical_etype].append(
-                    th.tensor(neg_score.shape[0] * [neg_score.shape[1] + 1])
-                )
+                lengths_tensor = th.tensor(neg_score.shape[0] * [neg_score.shape[1] + 1])
+                # Ensure rankings and lengths are on the same device
+                lengths_tensor = lengths_tensor.to(score_ranking.device)
+
+                batch_lengths[canonical_etype].append(lengths_tensor)
 
         rankings: Dict[Tuple, th.Tensor] = {}
         batch_length_tensors: Dict[Tuple, th.Tensor] = {}
