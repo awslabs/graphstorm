@@ -651,7 +651,7 @@ class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
             for canonical_etype, feats in edge_input_feats.items():
                 emb = None
                 assert str(canonical_etype) in self.input_projs, \
-                    f"We need a projection for edge type {canonical_etype}"
+                    f"We need a projection weight for edge features of edge type {canonical_etype}"
                 emb = feats.float() @ self.input_projs[str(canonical_etype)]
 
                 if emb is not None:
