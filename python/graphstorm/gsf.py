@@ -309,7 +309,7 @@ def get_edge_feat_size(g, edge_feat_names):
                 # This helps avoid unexpected training behavior.
                 assert fname in g.edges[canonical_etype].data, \
                         f"Warning. The feature \"{fname}\" " \
-                        f"does not exists for the edge type \"{canonical_etype}\"."
+                        f"does not exist for the edge type \"{canonical_etype}\"."
                 # TODO: we only allow an input node feature as a 2D tensor
                 # Support 1D or nD when required.
                 assert len(g.edges[canonical_etype].data[fname].shape) == 2, \
