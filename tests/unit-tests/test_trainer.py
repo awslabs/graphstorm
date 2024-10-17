@@ -519,6 +519,10 @@ class MTaskCheckerEvaluator(GSgnnMultiTaskEvaluator, GSgnnLPRankingEvalInterface
                     assert_equal(tr_1, cr_1)
                     assert_equal(tr_2, cr_2)
                 else:
+                    # In case LP results also returned candidate list
+                    # lengths, we only keep the rankings
+                    if isinstance(check_r, tuple):
+                        check_r, _ = check_r
                     assert_equal(target_r, check_r)
 
         if self._val_results is not None:
