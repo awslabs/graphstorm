@@ -520,7 +520,7 @@ def test_GSgnnData_edge_feat():
                 edge_feat_list = {}
             assert len(edge_feat_list) == 0
 
-        # Test 4: all non-existing edge feature fields, should an empty dict
+        # Test 4: all non-existing edge feature fields, should trigger an assertion error
         efeat_fields = {
             ('n0', 'r0', 'n1'): ['none'],
             ('n0', 'r1', 'n1'): ['none']
