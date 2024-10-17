@@ -912,7 +912,7 @@ def set_encoder(model, g, config, train_task):
     # Set GNN encoders
     dropout = config.dropout if train_task else 0
     out_emb_size = config.out_emb_size if config.out_emb_size else config.hidden_size
-    if model_encoder_type == "mlp" or model_encoder_type == "lm":
+    if model_encoder_type in ("mlp", "lm"):
         # Only input encoder is used
         assert config.num_layers == 0, "No GNN layers"
         gnn_encoder = None
