@@ -16,6 +16,7 @@
     GSF utility functions.
 """
 
+
 import os
 import logging
 import importlib.metadata
@@ -533,10 +534,13 @@ def create_builtin_node_model(g, config, train_task):
     -------
     GSgnnModel : The GNN model.
     """
-    if config.training_method["name"] == "glem":
+    training_method = config.training_method["name"]
+    if training_method == "glem":
         model = GLEM(config.alpha_l2norm, config.target_ntype, **config.training_method["kwargs"])
-    elif config.training_method["name"] == "default":
+    elif training_method == "default":
         model = GSgnnNodeModel(config.alpha_l2norm)
+    else:
+        raise NotImplementedError(f'Unrecognized training_method: {training_method}')
     set_encoder(model, g, config, train_task)
 
     encoder_out_dims = model.gnn_encoder.out_dims \

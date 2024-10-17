@@ -508,6 +508,30 @@ def test_GSgnnData_edge_feat():
             assert_equal(edge_feat_list[1][('n0', 'r1', 'n1')][0].numpy(),
                          gdata.g.edges[('n0', 'r1', 'n1')].data['feat'][0][0].numpy())
 
+        # Test 3: one non-existing edge feature fields, will trigger an assertion error
+        efeat_fields = {
+            ('n0', 'r0', 'n1'): ['none'],
+            ('n0', 'r1', 'n1'): ['feat', 'none']
+        }
+        for _, _, blocks in dataloader:
+            try:
+                edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
+            except:
+                edge_feat_list = {}
+            assert len(edge_feat_list) == 0
+
+        # Test 4: all non-existing edge feature fields, should an empty dict
+        efeat_fields = {
+            ('n0', 'r0', 'n1'): ['none'],
+            ('n0', 'r1', 'n1'): ['none']
+        }
+        for _, _, blocks in dataloader:
+            try:
+                edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
+            except:
+                edge_feat_list = {}
+            assert len(edge_feat_list) == 0
+
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
