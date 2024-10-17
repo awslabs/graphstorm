@@ -18,6 +18,7 @@
 import time
 
 from .graphstorm_infer import GSInferrer
+from ..eval.evaluator import GSgnnLPRankingEvalInterface
 from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
 from ..model.utils import save_relation_embeddings
 from ..model.edge_decoder import LinkPredictMultiRelationLearnableDecoder
@@ -103,8 +104,16 @@ class GSgnnLinkPredictionInferrer(GSInferrer):
 
         if self.evaluator is not None:
             test_start = time.time()
-            test_rankings = lp_mini_batch_predict(self._model, embs, loader, device)
-            val_score, test_score = self.evaluator.evaluate(None, test_rankings, 0)
+            test_rankings, test_lengths = lp_mini_batch_predict(
+                self._model, embs, loader, device, return_batch_lengths=True)
+            assert isinstance(self.evaluator, GSgnnLPRankingEvalInterface)
+            val_score, test_score = self.evaluator.evaluate(
+                None,
+                test_rankings,
+                0,
+                val_candidate_sizes=None,
+                test_candidate_sizes=test_lengths,
+                )
             sys_tracker.check('run evaluation')
             if get_rank() == 0:
                 self.log_print_metrics(val_score=val_score,

@@ -224,12 +224,13 @@ def test_mtask_infer():
             "n2": None,
         }
 
+    lp_res = np.arange(5)
+    lp_length = np.array([5])
     def mock_func_run_lp_mini_batch_predict(*args, **kwargs):
-        return lp_res
+        return lp_res, lp_length
 
     ntask_res = (np.arange(10), np.arange(10))
     etask_res = (np.arange(20), np.arange(20))
-    lp_res = np.arange(5)
     def mock_func_multi_task_mini_batch_predict(model, emb, dataloaders, task_infos, device, return_proba, return_label):
         assert len(emb) == 2
         res = {}
