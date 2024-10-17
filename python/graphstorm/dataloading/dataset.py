@@ -440,7 +440,7 @@ class GSgnnData():
         block_edge_input_feats = []
         for block in input_blocks:
             input_edges = {}
-            for can_etype in block.canonical_etypes:
+            for etype in block.canonical_etypes:
                 eid = block.edges[can_etype].data[dgl.EID]
                 input_edges[can_etype] = eid
             edge_feat = self.get_edge_feats(input_edges, efeat_fields, device)
