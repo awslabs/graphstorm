@@ -911,6 +911,7 @@ def set_encoder(model, g, config, train_task):
 
     # Set GNN encoders
     dropout = config.dropout if train_task else 0
+    out_emb_size = config.out_emb_size if config.out_emb_size else config.hidden_size
     if model_encoder_type in ("mlp", "lm"):
         # Only input encoder is used
         assert config.num_layers == 0, "No GNN layers"
@@ -920,7 +921,7 @@ def set_encoder(model, g, config, train_task):
         # we need to set the num_layers -1 because there is an output layer
         # that is hard coded.
         gnn_encoder = RelationalGCNEncoder(g,
-                                           config.hidden_size, config.hidden_size,
+                                           config.hidden_size, out_emb_size,
                                            num_bases=num_bases,
                                            num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
@@ -931,7 +932,7 @@ def set_encoder(model, g, config, train_task):
         # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = RelationalGATEncoder(g,
                                            config.hidden_size,
-                                           config.hidden_size,
+                                           out_emb_size,
                                            config.num_heads,
                                            num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
@@ -942,7 +943,7 @@ def set_encoder(model, g, config, train_task):
         # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = HGTEncoder(g,
                                  config.hidden_size,
-                                 config.hidden_size,
+                                 out_emb_size,
                                  num_hidden_layers=config.num_layers -1,
                                  num_heads=config.num_heads,
                                  dropout=dropout,
@@ -954,7 +955,7 @@ def set_encoder(model, g, config, train_task):
             'The graph is not a homogeneous graph, can not use sage model encoder'
         # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = SAGEEncoder(h_dim=config.hidden_size,
-                                  out_dim=config.hidden_size,
+                                  out_dim=out_emb_size,
                                   num_hidden_layers=config.num_layers - 1,
                                   dropout=dropout,
                                   aggregator_type='pool',
@@ -965,7 +966,7 @@ def set_encoder(model, g, config, train_task):
         assert check_homo(g), \
             'The graph is not a homogeneous graph, can not use gat model encoder'
         gnn_encoder = GATEncoder(h_dim=config.hidden_size,
-                                 out_dim=config.hidden_size,
+                                 out_dim=out_emb_size,
                                  num_heads=config.num_heads,
                                  num_hidden_layers=config.num_layers -1,
                                  dropout=dropout,
@@ -975,7 +976,7 @@ def set_encoder(model, g, config, train_task):
         assert check_homo(g), \
             'The graph is not a homogeneous graph, can not use gatv2 model encoder'
         gnn_encoder = GATv2Encoder(h_dim=config.hidden_size,
-                                   out_dim=config.hidden_size,
+                                   out_dim=out_emb_size,
                                    num_heads=config.num_heads,
                                    num_hidden_layers=config.num_layers -1,
                                    dropout=dropout,
@@ -992,7 +993,7 @@ def set_encoder(model, g, config, train_task):
                     + "probably because their neighbors don't have features."
         assert config.construct_feat_encoder == "rgcn", \
                 "We only support RGCN for reconstructing node features."
-        input_gnn = RelGraphConvLayer(config.hidden_size, config.hidden_size,
+        input_gnn = RelGraphConvLayer(config.hidden_size, out_emb_size,
                                       rel_names, len(rel_names),
                                       self_loop=False, # We should disable self loop so that
                                                        # the encoder doesn't use dest node

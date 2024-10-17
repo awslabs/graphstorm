@@ -828,6 +828,7 @@ class GSConfig:
             _ = self.input_activate
             _ = self.hidden_size
             _ = self.num_layers
+            _ = self.out_emb_size
             _ = self.use_self_loop
             _ = self.use_node_embeddings
             _ = self.num_bases
@@ -1541,6 +1542,25 @@ class GSConfig:
         else:
             # not used by non-GNN models
             return 0
+
+    @property
+    def out_emb_size(self):
+        """ The dimension of embeddings output from the last GNN layer. It will be ignored when
+            num_layers <= 1. Must be an integer larger than 0.
+            Default is None.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_out_emb_size"):
+            if self._num_layers <= 1:
+                logging.warning("The out_emb_size is ignored given num_layers <= 1.")
+                return None
+            assert isinstance(self._out_emb_size, int), \
+                "Output embedding size must be an integer."
+            assert self._out_emb_size > 0, \
+                "Output embedding size must be larger than 0."
+            return self._out_emb_size
+        else:
+            return None
 
     @property
     def use_mini_batch_infer(self):

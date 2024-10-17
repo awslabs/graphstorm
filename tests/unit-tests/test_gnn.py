@@ -1213,8 +1213,9 @@ def create_ec_config(tmp_path, file_name):
                 "node_feat_name": ["feat"],
             },
             "gnn": {
-                "num_layers": 1,
+                "num_layers": 2,
                 "hidden_size": 4,
+                "out_emb_size": 2,
                 "model_encoder_type": "rgcn",
                 "lr": 0.001,
                 "norm": "batch"
@@ -1251,8 +1252,9 @@ def test_edge_classification():
                          local_rank=0)
         config = GSConfig(args)
     model = create_builtin_edge_gnn_model(g, config, True)
-    assert model.gnn_encoder.num_layers == 1
-    assert model.gnn_encoder.out_dims == 4
+    assert model.gnn_encoder.num_layers == 2
+    assert model.gnn_encoder.h_dims == 4
+    assert model.gnn_encoder.out_dims == 2
     assert isinstance(model.gnn_encoder, RelationalGCNEncoder)
     assert isinstance(model.decoder, DenseBiDecoder)
     th.distributed.destroy_process_group()
@@ -1276,8 +1278,9 @@ def test_edge_classification_feat():
                          decoder_type="MLPEFeatEdgeDecoder")
         config = GSConfig(args)
     model = create_builtin_edge_gnn_model(g, config, True)
-    assert model.gnn_encoder.num_layers == 1
-    assert model.gnn_encoder.out_dims == 4
+    assert model.gnn_encoder.num_layers == 2
+    assert model.gnn_encoder.h_dims == 4
+    assert model.gnn_encoder.out_dims == 2
     assert isinstance(model.gnn_encoder, RelationalGCNEncoder)
     assert isinstance(model.decoder, MLPEFeatEdgeDecoder)
     assert model.decoder.feat_dim == 2
@@ -1292,8 +1295,9 @@ def test_edge_classification_feat():
                          decoder_type="MLPEFeatEdgeDecoder")
         config = GSConfig(args)
     model = create_builtin_edge_gnn_model(g, config, True)
-    assert model.gnn_encoder.num_layers == 1
-    assert model.gnn_encoder.out_dims == 4
+    assert model.gnn_encoder.num_layers == 2
+    assert model.gnn_encoder.h_dims == 4
+    assert model.gnn_encoder.out_dims == 2
     assert isinstance(model.gnn_encoder, RelationalGCNEncoder)
     assert isinstance(model.decoder, MLPEFeatEdgeDecoder)
     assert model.decoder.feat_dim == 2
@@ -1309,8 +1313,9 @@ def test_edge_classification_feat():
                          decoder_type="MLPEFeatEdgeDecoder")
         config = GSConfig(args)
     model = create_builtin_edge_gnn_model(g, config, True)
-    assert model.gnn_encoder.num_layers == 1
-    assert model.gnn_encoder.out_dims == 4
+    assert model.gnn_encoder.num_layers == 2
+    assert model.gnn_encoder.h_dims == 4
+    assert model.gnn_encoder.out_dims == 2
     assert isinstance(model.gnn_encoder, RelationalGCNEncoder)
     assert isinstance(model.decoder, MLPEFeatEdgeDecoder)
     assert model.decoder.feat_dim == 4
@@ -1328,6 +1333,7 @@ def create_er_config(tmp_path, file_name):
             "gnn": {
                 "num_layers": 1,
                 "hidden_size": 4,
+                "out_emb_size": 2, # out_emb_size will be ignored as there is only 1 layer.
                 "lr": 0.001,
             },
             "input": {},
@@ -1360,6 +1366,7 @@ def test_edge_regression():
         config = GSConfig(args)
     model = create_builtin_edge_gnn_model(g, config, True)
     assert model.gnn_encoder.num_layers == 1
+    assert model.gnn_encoder.h_dims == 4
     assert model.gnn_encoder.out_dims == 4
     assert isinstance(model.gnn_encoder, RelationalGATEncoder)
     assert isinstance(model.decoder, DenseBiDecoder)
@@ -1377,6 +1384,7 @@ def create_nr_config(tmp_path, file_name):
             "gnn": {
                 "num_layers": 1,
                 "hidden_size": 4,
+                "out_emb_size": 2, # out_emb_size will be ignored as there is only 1 layer.
                 "lr": 0.001,
             },
             "input": {},
@@ -1408,6 +1416,7 @@ def test_node_regression():
         config = GSConfig(args)
     model = create_builtin_node_gnn_model(g, config, True)
     assert model.gnn_encoder.num_layers == 1
+    assert model.gnn_encoder.h_dims == 4
     assert model.gnn_encoder.out_dims == 4
     assert isinstance(model.gnn_encoder, RelationalGATEncoder)
     assert isinstance(model.decoder, EntityRegression)
@@ -1473,8 +1482,9 @@ def create_nc_config(tmp_path, file_name):
                 "model_encoder_type": "rgat",
             },
             "gnn": {
-                "num_layers": 1,
-                "hidden_size": 4,
+                "num_layers": 2,
+                "hidden_size": 32,
+                "out_emb_size": 8,
                 "lr": 0.001,
                 "norm": "layer"
             },
@@ -1507,8 +1517,9 @@ def test_node_classification():
                          local_rank=0)
         config = GSConfig(args)
     model = create_builtin_node_gnn_model(g, config, True)
-    assert model.gnn_encoder.num_layers == 1
-    assert model.gnn_encoder.out_dims == 4
+    assert model.gnn_encoder.num_layers == 2
+    assert model.gnn_encoder.h_dims == 32
+    assert model.gnn_encoder.out_dims == 8
     assert isinstance(model.gnn_encoder, RelationalGATEncoder)
     assert isinstance(model.decoder, EntityClassifier)
     th.distributed.destroy_process_group()
@@ -1524,7 +1535,8 @@ def create_lp_config(tmp_path, file_name):
             },
             "gnn": {
                 "num_layers": 1,
-                "hidden_size": 4,
+                "hidden_size": 32,
+                "out_emb_size": 8,
                 "lr": 0.001,
             },
             "input": {},
@@ -1559,7 +1571,8 @@ def test_link_prediction(num_embs):
         config = GSConfig(args)
     model = create_builtin_lp_gnn_model(g, config, True)
     assert model.gnn_encoder.num_layers == 1
-    assert model.gnn_encoder.out_dims == 4
+    assert model.gnn_encoder.h_dims == 32
+    assert model.gnn_encoder.out_dims == 32
     assert isinstance(model.gnn_encoder, RelationalGATEncoder)
     assert isinstance(model.decoder, LinkPredictDotDecoder)
 
@@ -1594,7 +1607,8 @@ def test_link_prediction_weight():
         config = GSConfig(args)
     model = create_builtin_lp_gnn_model(g, config, True)
     assert model.gnn_encoder.num_layers == 1
-    assert model.gnn_encoder.out_dims == 4
+    assert model.gnn_encoder.h_dims == 32
+    assert model.gnn_encoder.out_dims == 32
     assert isinstance(model.gnn_encoder, RelationalGATEncoder)
     assert isinstance(model.decoder, LinkPredictWeightedDotDecoder)
 
@@ -1606,11 +1620,13 @@ def test_link_prediction_weight():
                          local_rank=0,
                          lp_edge_weight_for_loss=["weight"],
                          lp_decoder_type="distmult",
-                         train_etype=[("n0,r0,n1"), ("n0,r1,n1")])
+                         train_etype=[("n0,r0,n1"), ("n0,r1,n1")],
+                         num_layers=2)
         config = GSConfig(args)
     model = create_builtin_lp_gnn_model(g, config, True)
-    assert model.gnn_encoder.num_layers == 1
-    assert model.gnn_encoder.out_dims == 4
+    assert model.gnn_encoder.num_layers == 2
+    assert model.gnn_encoder.h_dims == 32
+    assert model.gnn_encoder.out_dims == 8
     assert isinstance(model.gnn_encoder, RelationalGATEncoder)
     assert isinstance(model.decoder, LinkPredictWeightedDistMultDecoder)
     th.distributed.destroy_process_group()
