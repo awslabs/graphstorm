@@ -632,7 +632,7 @@ class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
         -----------
         block_edge_input_feats: list of dicts
             The input edge features of all blocks in the format of 
-            [{can_etype1: feats, can_etype2: feats, ...}, {can_etype1: feats, ...}, ...].
+            [{etype1: feats, etype2: feats, ...}, {etype1: feats, ...}, ...].
 
         Returns
         --------
