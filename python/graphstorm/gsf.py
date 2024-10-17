@@ -271,7 +271,7 @@ def get_edge_feat_size(g, edge_feat_names):
     ----------
     g : DistGraph
         The distributed graph.
-    edge_feat_names : str or dict of str
+    edge_feat_names : str, or dict of list of str
         The edge feature names.
 
     Returns

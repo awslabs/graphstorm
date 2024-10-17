@@ -453,7 +453,7 @@ def test_GSgnnData2():
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
-def test_GSgnnData3():
+def test_GSgnnData_edge_feat():
     """ Test GSgnnData built-in functions.
     
     Currently only test the ``get_blocks_edge_feats``.
@@ -2578,7 +2578,7 @@ if __name__ == '__main__':
     test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
     test_GSgnnData()
     test_GSgnnData2()
-    test_GSgnnData3()
+    test_GSgnnData_edge_feat()
     test_lp_dataloader()
     test_edge_dataloader()
     test_node_dataloader()
