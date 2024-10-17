@@ -478,7 +478,7 @@ def test_check_graph_name():
 def test_get_edge_feat_size():
     g = generate_dummy_hetero_graph()
 
-    # normal edge feature names
+    # Test case 0: normal edge feature names
     edge_feat_names1 = {
         ("n0", "r0", "n1"): ['feat'],
         ("n0", "r1", "n1"): ['feat']
@@ -488,12 +488,12 @@ def test_get_edge_feat_size():
     assert edge_feat_size[("n0", "r0", "n1")] == 2
     assert edge_feat_size[("n0", "r1", "n1")] == 2
     
-    # None edge feature names
+    # Test case 1: None edge feature names
     edge_feat_size = get_edge_feat_size(g, None)
     assert edge_feat_size[("n0", "r0", "n1")] == 0
     assert edge_feat_size[("n0", "r1", "n1")] == 0
 
-    # Partial edge feature names
+    # Test case 2: Partial edge feature names
     edge_feat_names2 = {
         ("n0", "r0", "n1"): ['feat']
     }
@@ -501,7 +501,7 @@ def test_get_edge_feat_size():
     assert edge_feat_size[("n0", "r0", "n1")] == 2
     assert edge_feat_size[("n0", "r1", "n1")] == 0
 
-    # non 2D edge feature error
+    # Test case 3: non 2D edge feature error
     edge_feat_names3 = {
         ("n0", "r1", "n1"): ['feat', 'label']
     }
@@ -510,6 +510,26 @@ def test_get_edge_feat_size():
     except:
         edge_feat_size = None
     assert edge_feat_size is None
+
+    # Test case 4: non-existing edge feature names, should raise assertion errors.
+    edge_feat_names4 = {
+        ("n0", "r0", "n1"): ['none']
+    }
+    try:
+        edge_feat_size = get_edge_feat_size(g, edge_feat_names4)
+    except:
+        edge_feat_size = {}
+    assert edge_feat_size == {}
+    
+    # Test case 5: non-existing edge types, should raise assertion errors.
+    edge_feat_names5 = {
+        ("n0", "r2", "n1"): ['feat']
+    }
+    try:
+        edge_feat_size = get_edge_feat_size(g, edge_feat_names5)
+    except:
+        edge_feat_size = {}
+    assert edge_feat_size == {}
 
 
 if __name__ == '__main__':

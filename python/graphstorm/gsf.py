@@ -276,6 +276,13 @@ def get_edge_feat_size(g, edge_feat_names):
         The feature size for each edge type. If feature name is not specified, the feature size
         will be 0.
     """
+    # check if edge types in edge_feat_names are in graph
+    if edge_feat_names:
+        for etype in edge_feat_names.keys():
+            assert etype in list(g.canonical_etypes), \
+                f"Graph data does not contain the specified edge type {etype}!, " + \
+                "Please check the values of \'edge_feat_names\' variable."
+
     edge_feat_size = {}
     for canonical_etype in g.canonical_etypes:
         # user can specify the name of the field or do nothing
