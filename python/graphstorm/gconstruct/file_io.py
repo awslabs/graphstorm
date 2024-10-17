@@ -507,9 +507,10 @@ def get_in_files(in_files):
     """
     # If the input file has a wildcard, get all files that matches the input file name.
     if '*' in in_files:
-        in_files = glob.glob(in_files)
-        assert len(in_files) > 0, \
+        in_file_list = glob.glob(in_files)
+        assert len(in_file_list) > 0, \
             f"There is no file matching {in_files} pattern"
+        in_files = in_file_list
     # This is a single file.
     elif not isinstance(in_files, list):
         in_files = [in_files]

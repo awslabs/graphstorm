@@ -94,6 +94,7 @@ Decoder Layer
     DenseBiDecoder
     MLPEdgeDecoder
     MLPEFeatEdgeDecoder
+    EdgeRegression
     LinkPredictMultiRelationLearnableDecoder
     LinkPredictDotDecoder
     LinkPredictContrastiveDotDecoder

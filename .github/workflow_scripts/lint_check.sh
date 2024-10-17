@@ -4,6 +4,7 @@ cd ../../
 set -ex
 
 pip install pylint==2.17.5
+pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/*.py
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/data/*.py
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/distributed/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/dataloading/

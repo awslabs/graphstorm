@@ -42,7 +42,8 @@ from graphstorm.trainer.mt_trainer import (GSgnnMultiTaskLearningTrainer,
                                            prepare_node_mini_batch,
                                            prepare_edge_mini_batch,
                                            prepare_link_predict_mini_batch,
-                                           prepare_reconstruct_node_feat)
+                                           prepare_reconstruct_node_feat,
+                                           prepare_reconstruct_edge_feat)
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
                                     GSgnnLinkPredictionDataLoader)
@@ -207,6 +208,75 @@ class DummyGSgnnMultiTaskSharedEncoderModel(GSgnnModel, GSgnnMultiTaskModelInter
 
     def predict(self, task_id, mini_batch, return_proba=False):
         pass
+
+def test_mtask_prepare_reconstruct_edge_feat():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        g, part_config = generate_dummy_dist_graph(graph_name='dummy', dirname=tmpdirname)
+        ep_data = GSgnnData(part_config=part_config)
+
+    setup_device(0)
+    device = get_device()
+
+    target_idx = {('n0', 'r1', 'n1'): th.arange(ep_data.g.number_of_edges('r1'))}
+
+    task_id = "test_edge_feat_reconstruct"
+
+    # label is same as edge label
+    dataloader = GSgnnEdgeDataLoader(ep_data,
+                                     target_idx, [10], 10,
+                                     label_field='label',
+                                     node_feats='feat',
+                                     train_task=False,
+                                     remove_target_edge_type=False)
+    task_config = GSConfig.__new__(GSConfig)
+    setattr(task_config, "task_weight", 0.75)
+    task_info = TaskInfo(task_type=BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT,
+                         task_id=task_id,
+                         task_config=task_config,
+                         dataloader=dataloader)
+    input_node_idx = {
+        "n0": th.arange(10),
+        "n1": th.arange(20),
+    }
+    node_feats = ep_data.get_node_feats(input_node_idx, 'feat')
+    labels = ep_data.get_edge_feats(target_idx, 'label')
+    batch_graph = dgl.heterograph(
+        {('n0', 'r1', 'n1'): (th.randint(g.number_of_nodes("n0"), (g.number_of_edges('r1'),)),
+                              th.randint(g.number_of_nodes("n1"), (g.number_of_edges('r1'),)))}
+    )
+    batch_graph.edges[('n0', 'r1', 'n1')].data[dgl.EID] = th.arange(ep_data.g.number_of_edges('r1'))
+    mini_batch = (input_node_idx, batch_graph, None)
+
+    blocks, edge_graph, input_feats, _, \
+        edge_decoder_feats, lbl, input_nodes = \
+            prepare_reconstruct_edge_feat(ep_data, task_info, mini_batch, device)
+    assert blocks is None
+    assert edge_decoder_feats is None
+    assert edge_graph.number_of_edges('r1') == batch_graph.number_of_edges('r1')
+    assert_equal(input_nodes["n0"].numpy(), input_node_idx["n0"].numpy())
+    assert_equal(input_nodes["n1"].numpy(), input_node_idx["n1"].numpy())
+    assert_equal(input_feats["n0"].cpu().numpy(), node_feats["n0"].numpy())
+    assert_equal(input_feats["n1"].cpu().numpy(), node_feats["n1"].numpy())
+    assert_equal(lbl[('n0', 'r1', 'n1')].cpu().numpy(), labels[('n0', 'r1', 'n1')].numpy())
+
+    # there is no node feat
+    dataloader = GSgnnEdgeDataLoader(ep_data,
+                                     target_idx, [10], 10,
+                                     label_field='label',
+                                     train_task=False,
+                                     remove_target_edge_type=False)
+    task_info = TaskInfo(task_type=BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT,
+                         task_id=task_id,
+                         task_config=task_config,
+                         dataloader=dataloader)
+    _, _, input_feats, _, \
+        _, lbl, input_nodes = \
+            prepare_reconstruct_edge_feat(ep_data, task_info, mini_batch, device)
+    assert_equal(input_nodes["n0"].numpy(), input_node_idx["n0"].numpy())
+    assert_equal(input_nodes["n1"].numpy(), input_node_idx["n1"].numpy())
+    assert len(input_feats) == 0
+    assert_equal(lbl[('n0', 'r1', 'n1')].cpu().numpy(), labels[('n0', 'r1', 'n1')].numpy())
 
 def test_mtask_prepare_reconstruct_node_feat():
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -659,3 +729,4 @@ if __name__ == '__main__':
     test_mtask_prepare_edge_mini_batch()
     test_mtask_prepare_lp_mini_batch()
     test_mtask_prepare_reconstruct_node_feat()
+    test_mtask_prepare_reconstruct_edge_feat()
