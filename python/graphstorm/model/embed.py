@@ -575,7 +575,7 @@ class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
 
         from graphstorm import get_edge_feat_size
         from graphstorm.model import (GSgnnEdgeModel,
-                                      GSEdgeEncoderInputLayer,
+                                      GSNodeEncoderInputLayer,
                                       GSEdgeEncoderInputLayer)
         from graphstorm.dataloading import GSgnnData
 
