@@ -37,6 +37,7 @@ from ..utils import (
 from .ngnn_mlp import NGNNMLP
 from ..wholegraph import WholeGraphDistTensor
 from ..wholegraph import is_wholegraph_init
+from ..utils import is_wholegraph
 
 
 def init_emb(shape, dtype):
@@ -595,11 +596,14 @@ class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
                  g,
                  feat_size,
                  embed_size,
-                 activation=None,
+                 activation=F.relu,
                  dropout=0.0,
                  num_ffn_layers_in_input=0,
                  ffn_activation=F.relu):
         super(GSEdgeEncoderInputLayer, self).__init__(g)
+        assert not is_wholegraph(), 'Current GraphStorm does not support edge feature when ' + \
+            'using WholeGraph. Please not convert graph feature to WholeGraph format.'
+            
         self.g = g
         self.embed_size = embed_size
         self.dropout = nn.Dropout(dropout)
@@ -616,7 +620,7 @@ class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
         for canonical_etype in g.canonical_etypes:
             feat_dim = 0
             if self.feat_size[canonical_etype] > 1:
-                feat_dim += self.feat_size[canonical_etype]
+                feat_dim = self.feat_size[canonical_etype]
             if feat_dim > 0:
                 input_projs = nn.Parameter(th.Tensor(feat_dim, self.embed_size))
                 nn.init.xavier_uniform_(input_projs, gain=nn.init.calculate_gain("relu"))
@@ -649,16 +653,14 @@ class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
                 'The input features should be in a dict.'
             embs = {}
             for canonical_etype, feats in edge_input_feats.items():
-                emb = None
                 assert str(canonical_etype) in self.input_projs, \
                     f"We need a projection weight for edge features of edge type {canonical_etype}"
                 emb = feats.float() @ self.input_projs[str(canonical_etype)]
 
-                if emb is not None:
-                    if self.activation is not None:
-                        emb = self.activation(emb)
-                        emb = self.dropout(emb)
-                    embs[canonical_etype] = emb
+                if self.activation is not None:
+                    emb = self.activation(emb)
+                emb = self.dropout(emb)
+                embs[canonical_etype] = emb
 
             if self.num_ffn_layers_in_input > 0:
                 embs = {can_etype: self.ngnn_mlp[str(can_etype)](h) \
