@@ -62,7 +62,7 @@ def init_emb(shape, dtype):
 
 
 class GSNodeInputLayer(GSLayer):  # pylint: disable=abstract-method
-    """ The base input layer for all nodes in a heterogeneous graph.
+    """ The base input layer for nodes in a heterogeneous graph.
 
     Parameters
     ----------
@@ -164,7 +164,7 @@ class GSNodeInputLayer(GSLayer):  # pylint: disable=abstract-method
 
 
 class GSEdgeInputLayer(GSLayer):  # pylint: disable=abstract-method
-    """ The base input layer for all edges in a heterogeneous graph.
+    """ The base input layer for edges in a heterogeneous graph.
 
     This is the base class for all edge input layer classes. This implementation only
     support edge feature transformation. Unlike ``GSNodeInputLayer``, for featureless edges,

@@ -954,28 +954,29 @@ def set_encoder(model, g, config, train_task):
         if model_encoder_type == "lm":
             # only use language model(s) as input layer encoder(s)
             node_encoder = GSPureLMNodeInputLayer(g, config.node_lm_configs,
-                                            num_train=config.lm_train_nodes,
-                                            lm_infer_batch_size=config.lm_infer_batch_size,
-                                            cached_embed_path=emb_path,
-                                            wg_cached_embed=config.use_wholegraph_embed)
+                                                  num_train=config.lm_train_nodes,
+                                                  lm_infer_batch_size=config.lm_infer_batch_size,
+                                                  cached_embed_path=emb_path,
+                                                  wg_cached_embed=config.use_wholegraph_embed)
         else:
             node_encoder = GSLMNodeEncoderInputLayer(g, config.node_lm_configs,
-                                                node_feat_size, config.hidden_size,
-                                                num_train=config.lm_train_nodes,
-                                                lm_infer_batch_size=config.lm_infer_batch_size,
-                                                dropout=config.dropout,
-                                                use_node_embeddings=config.use_node_embeddings,
-                                                cached_embed_path=emb_path,
-                                                wg_cached_embed=config.use_wholegraph_embed,
-                                                force_no_embeddings=config.construct_feat_ntype)
+                                                    node_feat_size, config.hidden_size,
+                                                    num_train=config.lm_train_nodes,
+                                                    lm_infer_batch_size=config.lm_infer_batch_size,
+                                                    dropout=config.dropout,
+                                                    use_node_embeddings=config.use_node_embeddings,
+                                                    cached_embed_path=emb_path,
+                                                    wg_cached_embed=config.use_wholegraph_embed,
+                                                    force_no_embeddings=config.construct_feat_ntype
+                                                    )
     else:
         node_encoder = GSNodeEncoderInputLayer(g, node_feat_size, config.hidden_size,
-                                          dropout=config.dropout,
-                                          activation=config.input_activate,
-                                          use_node_embeddings=config.use_node_embeddings,
-                                          force_no_embeddings=config.construct_feat_ntype,
-                                          num_ffn_layers_in_input=config.num_ffn_layers_in_input,
-                                          use_wholegraph_sparse_emb=config.use_wholegraph_embed)
+                                            dropout=config.dropout,
+                                            activation=config.input_activate,
+                                            use_node_embeddings=config.use_node_embeddings,
+                                            force_no_embeddings=config.construct_feat_ntype,
+                                            num_ffn_layers_in_input=config.num_ffn_layers_in_input,
+                                            use_wholegraph_sparse_emb=config.use_wholegraph_embed)
         # set edge encoder input layer no matter if having edge feature names or not
         # TODO: add support of languange models and GLEM
         edge_feat_size = get_edge_feat_size(g, config.edge_feat_name)
