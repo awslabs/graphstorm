@@ -185,7 +185,7 @@ class GSEdgeInputLayer(GSLayer):  # pylint: disable=abstract-method
     def prepare(self, _):
         """ Preparing input layer for training or inference.
 
-        The input layer can pre-compute node features in the preparing step
+        The input layer can pre-compute edge features in the preparing step
         if needed. For example pre-compute all BERT embeddings
 
         Default action: Do nothing
