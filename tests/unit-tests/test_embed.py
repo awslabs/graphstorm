@@ -193,7 +193,7 @@ def test_input_layer4(dev):
 
     # Test 1: one edge type and one layer input edge features
     edge_feat_size = get_edge_feat_size(g, {('n0', 'r0', 'n1'): ['feat']})
-    edge_input_layer = GSEdgeEncoderInputLayer(g, edge_feat_size, 2)
+    edge_input_layer = GSEdgeEncoderInputLayer(g, edge_feat_size, 2, activation=None)
     assert len(edge_input_layer.input_projs) == 1
     assert list(edge_input_layer.input_projs.keys())[0] == str(('n0', 'r0', 'n1'))
     edge_input_layer = edge_input_layer.to(dev)
@@ -216,7 +216,7 @@ def test_input_layer4(dev):
     # Test 2: multiple edge types and two layers of input edge features
     edge_feat_size = get_edge_feat_size(g, {('n0', 'r0', 'n1'): ['feat'], \
                                             ('n0', 'r1', 'n1'): ['feat']})
-    edge_input_layer = GSEdgeEncoderInputLayer(g, edge_feat_size, 2)
+    edge_input_layer = GSEdgeEncoderInputLayer(g, edge_feat_size, 2, activation=None)
     assert len(edge_input_layer.input_projs) == 2
     assert list(edge_input_layer.input_projs.keys())[0] == str(('n0', 'r0', 'n1'))
     assert list(edge_input_layer.input_projs.keys())[1] == str(('n0', 'r1', 'n1'))
@@ -763,30 +763,30 @@ def test_mp_wg_lm_cache(world_size):
 
 
 if __name__ == '__main__':
-    # test_pytroch_emb_load_save(11)
-    # test_lm_cache()
-    # test_mp_lm_cache()
-    # test_input_layer1(None)
-    # test_input_layer1(F.relu)
-    # test_input_layer2()
-    # test_input_layer3('cpu')
-    # test_input_layer3('cuda:0')
+    test_pytroch_emb_load_save(11)
+    test_lm_cache()
+    test_mp_lm_cache()
+    test_input_layer1(None)
+    test_input_layer1(F.relu)
+    test_input_layer2()
+    test_input_layer3('cpu')
+    test_input_layer3('cuda:0')
 
     test_input_layer4('cpu')
-    # test_input_layer4('cuda:0')
+    test_input_layer4('cuda:0')
 
-    # test_compute_embed('cpu')
-    # test_compute_embed('cuda:0')
+    test_compute_embed('cpu')
+    test_compute_embed('cuda:0')
 
-    # test_pure_lm_embed(0)
-    # test_pure_lm_embed(10)
+    test_pure_lm_embed(0)
+    test_pure_lm_embed(10)
 
-    # test_lm_embed(0)
-    # test_lm_embed(10)
+    test_lm_embed(0)
+    test_lm_embed(10)
 
-    # test_lm_embed_warmup('cpu')
-    # test_lm_embed_warmup('cuda:0')
-    # test_lm_infer()
+    test_lm_embed_warmup('cpu')
+    test_lm_embed_warmup('cuda:0')
+    test_lm_infer()
 
-    # test_wg_lm_cache()
-    # test_mp_wg_lm_cache(1)
+    test_wg_lm_cache()
+    test_mp_wg_lm_cache(1)
