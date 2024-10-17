@@ -47,7 +47,10 @@ from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_LP_LOSS_CONTRASTIVELOSS,
                      BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
                      BUILTIN_CLASS_LOSS_FOCAL)
-from graphstorm.eval.eval_func import SUPPORTED_HIT_AT_METRICS
+from .eval.eval_func import (
+    SUPPORTED_HIT_AT_METRICS,
+    SUPPORTED_LINK_PREDICTION_METRICS,
+)
 from .model.embed import GSNodeEncoderInputLayer, GSEdgeEncoderInputLayer
 from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from .model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
@@ -88,7 +91,8 @@ from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictContrastiveTransEDecoder,
                                  LinkPredictWeightedTransEDecoder)
 from .dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
-                          BUILTIN_LP_JOINT_NEG_SAMPLER,BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER,
+                          BUILTIN_LP_JOINT_NEG_SAMPLER,
+                          BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER,
                           BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER,
                           BUILTIN_LP_LOCALJOINT_NEG_SAMPLER,
                           BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER,
@@ -116,17 +120,7 @@ from .eval import (GSgnnClassificationEvaluator,
                    GSgnnRegressionEvaluator,
                    GSgnnRconstructFeatRegScoreEvaluator,
                    GSgnnPerEtypeLPEvaluator,
-                   GSgnnLPEvaluator,
-                   GSgnnPerEtypeMrrLPEvaluator,
-                   GSgnnMrrLPEvaluator)
-from .trainer import (GSgnnLinkPredictionTrainer,
-                      GSgnnNodePredictionTrainer,
-                      GSgnnEdgePredictionTrainer,
-                      GLEMNodePredictionTrainer)
-from .inference import (GSgnnLinkPredictionInferrer,
-                        GSgnnNodePredictionInferrer,
-                        GSgnnEdgePredictionInferrer,
-                        GSgnnEdgePredictionInferrer)
+                   GSgnnLPEvaluator)
 
 from .tracker import get_task_tracker_class
 
@@ -175,7 +169,7 @@ def initialize(
     """
     dgl_version = importlib.metadata.version('dgl')
     if version.parse(dgl_version) >= version.parse("2.1.0"):
-        dgl.distributed.initialize(
+        dgl.distributed.initialize( # pylint: disable=unexpected-keyword-arg
             ip_config,
             net_type='socket',
             use_graphbolt=use_graphbolt,
@@ -213,7 +207,8 @@ def get_node_feat_size(g, node_feat_names):
         A DGL distributed graph.
     node_feat_names : str, or dict of list of str
         The node feature names. A string indicates that all nodes share the same feature name,
-        while a dictionary with a list of strings indicates that each node type has different node feature names.
+        while a dictionary with a list of strings indicates that each
+        node type has different node feature names.
 
     Returns
     -------
@@ -486,8 +481,8 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                 gamma = config.gamma if config.gamma is not None else 2.
                 loss_func = FocalLossFunc(alpha, gamma)
             else:
-                raise RuntimeError("Unknow classification loss %s",
-                                   config.class_loss_func)
+                raise RuntimeError(
+                    f"Unknown classification loss {config.class_loss_func}")
         else:
             decoder = {}
             loss_func = {}
@@ -509,8 +504,8 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                     gamma = config.gamma if config.gamma is not None else 2.
                     loss_func[ntype] =  FocalLossFunc(alpha, gamma)
                 else:
-                    raise RuntimeError("Unknow classification loss %s",
-                                    config.class_loss_func)
+                    raise RuntimeError(
+                        f"Unknown classification loss {config.class_loss_func}")
     elif config.task_type == BUILTIN_TASK_NODE_REGRESSION:
         decoder  = EntityRegression(decoder_input_dim,
                                     dropout=dropout,
@@ -630,8 +625,10 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                 assert decoder_edge_feat in g.edges[target_etype].data
                 feat_dim = g.edges[target_etype].data[decoder_edge_feat].shape[-1]
             else:
-                feat_dim = sum([g.edges[target_etype].data[fname].shape[-1] \
-                    for fname in decoder_edge_feat[target_etype]])
+                feat_dim = sum(
+                    g.edges[target_etype].data[fname].shape[-1] \
+                    for fname in decoder_edge_feat[target_etype]
+                )
 
             decoder = MLPEFeatEdgeDecoder(
                 h_dim=decoder_input_dim,
@@ -656,8 +653,8 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
             gamma = config.gamma if config.gamma is not None else 2.
             loss_func = FocalLossFunc(alpha, gamma)
         else:
-            raise RuntimeError("Unknown classification loss %s",
-                                config.class_loss_func)
+            raise RuntimeError(
+                f"Unknown classification loss {config.class_loss_func}")
 
     elif config.task_type == BUILTIN_TASK_EDGE_REGRESSION:
         decoder_type = config.decoder_type
@@ -692,8 +689,10 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                 assert decoder_edge_feat in g.edges[target_etype].data
                 feat_dim = g.edges[target_etype].data[decoder_edge_feat].shape[-1]
             else:
-                feat_dim = sum([g.edges[target_etype].data[fname].shape[-1] \
-                    for fname in decoder_edge_feat[target_etype]])
+                feat_dim = sum(
+                    g.edges[target_etype].data[fname].shape[-1] \
+                    for fname in decoder_edge_feat[target_etype]
+                )
 
             decoder = MLPEFeatEdgeDecoder(
                 h_dim=decoder_input_dim,
@@ -861,7 +860,8 @@ def create_builtin_lp_decoder(g, decoder_input_dim, config, train_task):
                                                        score_norm,
                                                        config.lp_edge_weight_for_loss)
     else:
-        raise Exception(f"Unknown link prediction decoder type {config.lp_decoder_type}")
+        raise RuntimeError(
+            f"Unknown link prediction decoder type {config.lp_decoder_type}")
 
     if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS:
         loss_func = LinkPredictContrastiveLossFunc(config.contrastive_loss_temperature)
@@ -981,7 +981,7 @@ def set_encoder(model, g, config, train_task):
 
     # Set GNN encoders
     dropout = config.dropout if train_task else 0
-    if model_encoder_type == "mlp" or model_encoder_type == "lm":
+    if model_encoder_type in ("mlp", "lm"):
         # Only input encoder is used
         assert config.num_layers == 0, "No GNN layers"
         gnn_encoder = None
@@ -1020,7 +1020,7 @@ def set_encoder(model, g, config, train_task):
                                  num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     elif model_encoder_type == "sage":
         # we need to check if the graph is homogeneous
-        assert check_homo(g) == True, \
+        assert check_homo(g), \
             'The graph is not a homogeneous graph, can not use sage model encoder'
         # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = SAGEEncoder(h_dim=config.hidden_size,
@@ -1032,7 +1032,7 @@ def set_encoder(model, g, config, train_task):
                                   norm=config.gnn_norm)
     elif model_encoder_type == "gat":
         # we need to check if the graph is homogeneous
-        assert check_homo(g) == True, \
+        assert check_homo(g), \
             'The graph is not a homogeneous graph, can not use gat model encoder'
         gnn_encoder = GATEncoder(h_dim=config.hidden_size,
                                  out_dim=config.hidden_size,
@@ -1042,7 +1042,7 @@ def set_encoder(model, g, config, train_task):
                                  num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     elif model_encoder_type == "gatv2":
         # we need to check if the graph is homogeneous
-        assert check_homo(g) == True, \
+        assert check_homo(g), \
             'The graph is not a homogeneous graph, can not use gatv2 model encoder'
         gnn_encoder = GATv2Encoder(h_dim=config.hidden_size,
                                    out_dim=config.hidden_size,
@@ -1055,7 +1055,7 @@ def set_encoder(model, g, config, train_task):
 
     if reconstruct_feats:
         rel_names = get_rel_names_for_reconstruct(g, config.construct_feat_ntype, node_feat_size)
-        dst_types = set([rel_name[2] for rel_name in rel_names])
+        dst_types = {rel_name[2] for rel_name in rel_names}
         for ntype in config.construct_feat_ntype:
             assert ntype in dst_types, \
                     f"We cannot reconstruct features of node {ntype} " \
@@ -1181,9 +1181,11 @@ def create_task_decoder(task_info, g, decoder_input_dim, train_task):
     elif task_info.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
         return create_builtin_lp_decoder(g, decoder_input_dim, task_info.task_config, train_task)
     elif task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
-        return create_builtin_reconstruct_nfeat_decoder(g, decoder_input_dim, task_info.task_config, train_task)
+        return create_builtin_reconstruct_nfeat_decoder(
+            g, decoder_input_dim, task_info.task_config, train_task)
     elif task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
-        return create_builtin_reconstruct_efeat_decoder(g, decoder_input_dim, task_info.task_config, train_task)
+        return create_builtin_reconstruct_efeat_decoder(
+            g, decoder_input_dim, task_info.task_config, train_task)
     else:
         raise TypeError(f"Unknown task type {task_info.task_type}")
 
@@ -1274,10 +1276,12 @@ def create_lp_evaluator(config):
         ------
         Evaluator: A link prediction evaluator
     """
-    assert all((x.startswith(SUPPORTED_HIT_AT_METRICS) or x == 'mrr') for x in
-               config.eval_metric), (
-        "Invalid LP evaluation metrics. "
-        "GraphStorm only supports MRR and Hit@K metrics for link prediction.")
+    assert all(
+        (x.startswith(SUPPORTED_HIT_AT_METRICS) or x in SUPPORTED_LINK_PREDICTION_METRICS)
+            for x in config.eval_metric), (
+            "Invalid LP evaluation metrics. "
+            "GraphStorm only supports MRR and Hit@K metrics for link prediction."
+        )
 
     if config.report_eval_per_type:
         return GSgnnPerEtypeLPEvaluator(eval_frequency=config.eval_frequency,
