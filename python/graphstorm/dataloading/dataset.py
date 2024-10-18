@@ -421,7 +421,7 @@ class GSgnnData():
             defined in ``efeat_fields``.
 
         .. versionadded:: 0.4.0
-            Add ``get_blocks_edge_feat`` in 0.4.0 to support edge features.
+            Add ``get_blocks_edge_feat`` in 0.4.0 to support edge features in message passing.
 
         Parameters
         ----------
