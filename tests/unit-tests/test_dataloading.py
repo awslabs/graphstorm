@@ -77,7 +77,7 @@ from graphstorm.dataloading.dataset import (prepare_batch_input,
 from graphstorm.dataloading.utils import modify_fanout_for_target_etype
 from graphstorm.dataloading.utils import trim_data
 
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_almost_equal
 from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
 
@@ -449,6 +449,88 @@ def test_GSgnnData2():
             ('n0', 'r0', 'n1'): ('n0', 'r0', 'n1') # fake reverse etype
         })
         assert len(infer_idxs) == 1
+
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()
+
+def test_GSgnnData_edge_feat():
+    """ Test GSgnnData built-in functions.
+    
+    Currently only test the ``get_blocks_edge_feats``.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
+                                                            dirname=tmpdirname, add_reverse=True)
+        # there will be three etypes:
+        # ('n0', 'r1', 'n1'), ('n0', 'r0', 'n1'), ("n1", "r2", "n0")
+        gdata = GSgnnData(part_config=part_config)
+        
+        # Test 0: empty edge feature fields, should return an empty list
+        efeat_fields = {}
+        target_idx = {('n0', 'r1', 'n1'): [0]}
+        dataloader = GSgnnEdgeDataLoader(gdata, target_idx, [100, 100], 10,
+                                        label_field='label',
+                                        train_task=False, remove_target_edge_type=False)
+        for _, _, blocks in dataloader:
+            edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
+            assert len(edge_feat_list) == 0
+
+        # Test 1: all edge feature fields, should return a list with two dicts
+        efeat_fields = {
+            ('n0', 'r0', 'n1'): ['feat'],
+            ('n0', 'r1', 'n1'): ['feat']
+        }
+        for _, _, blocks in dataloader:
+            edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
+            assert len(edge_feat_list) == 2
+            assert edge_feat_list[0][('n0', 'r0', 'n1')].shape[1] == 2
+            assert edge_feat_list[0][('n0', 'r1', 'n1')].shape[1] == 2
+            assert edge_feat_list[1][('n0', 'r1', 'n1')].shape[1] == 2
+            assert_equal(edge_feat_list[1][('n0', 'r1', 'n1')][0].numpy(),
+                         gdata.g.edges[('n0', 'r1', 'n1')].data['feat'][0][0].numpy())
+
+        # Test 2: partial edge feature fields, should return a list with two dicts
+        efeat_fields = {
+            ('n0', 'r1', 'n1'): ['feat']
+        }
+        for _, _, blocks in dataloader:
+            edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
+            assert len(edge_feat_list) == 2
+            assert edge_feat_list[0][('n0', 'r1', 'n1')].shape[1] == 2
+            assert edge_feat_list[1][('n0', 'r1', 'n1')].shape[1] == 2
+            assert_equal(edge_feat_list[1][('n0', 'r1', 'n1')][0].numpy(),
+                         gdata.g.edges[('n0', 'r1', 'n1')].data['feat'][0][0].numpy())
+
+        # Test 3: one non-existing edge feature fields, will trigger an assertion error
+        efeat_fields = {
+            ('n0', 'r0', 'n1'): ['none'],
+            ('n0', 'r1', 'n1'): ['feat', 'none']
+        }
+        for _, _, blocks in dataloader:
+            try:
+                edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
+            except:
+                edge_feat_list = {}
+            assert len(edge_feat_list) == 0
+
+        # Test 4: all non-existing edge feature fields, should trigger an assertion error
+        efeat_fields = {
+            ('n0', 'r0', 'n1'): ['none'],
+            ('n0', 'r1', 'n1'): ['none']
+        }
+        for _, _, blocks in dataloader:
+            try:
+                edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
+            except:
+                edge_feat_list = {}
+            assert len(edge_feat_list) == 0
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
@@ -2520,6 +2602,7 @@ if __name__ == '__main__':
     test_edge_dataloader_trim_data(FastGSgnnLinkPredictionDataLoader)
     test_GSgnnData()
     test_GSgnnData2()
+    test_GSgnnData_edge_feat()
     test_lp_dataloader()
     test_edge_dataloader()
     test_node_dataloader()

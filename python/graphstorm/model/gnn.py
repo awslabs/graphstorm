@@ -613,7 +613,10 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """
         assert isinstance(encoder, GSLayerBase), \
                 'The edge input encoder should be the class of GSLayerBase.'
-        # TODO(zhengda) we need to check the dimensions.
+        if self.gnn_encoder is not None:
+            assert encoder.out_dims == self.gnn_encoder.in_dims, \
+                    'The output dimensions of the edge input encoder should ' \
+                    + 'match the input dimension of the GNN encoder.'
         self._edge_input_encoder = encoder
 
     def set_gnn_encoder(self, encoder):
