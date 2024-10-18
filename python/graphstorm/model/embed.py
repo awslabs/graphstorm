@@ -663,7 +663,7 @@ class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
                 embs[canonical_etype] = emb
 
             if self.num_ffn_layers_in_input > 0:
-                embs = {can_etype: self.ngnn_mlp[str(can_etype)](h) \
+                embs = {canonical_etype: self.ngnn_mlp[str(canonical_etype)](h) \
                     for can_etype, h in embs.items()}
             embs_list.append(embs)
         return embs_list
