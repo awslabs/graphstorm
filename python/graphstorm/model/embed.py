@@ -602,7 +602,7 @@ class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
                  ffn_activation=F.relu):
         super(GSEdgeEncoderInputLayer, self).__init__(g)
         assert not is_wholegraph(), 'Current GraphStorm does not support edge feature when ' + \
-            'using WholeGraph. Please not convert graph feature to WholeGraph format.'
+            'using WholeGraph. Please not convert graph feature(s) to WholeGraph format.'
 
         self.g = g
         self.embed_size = embed_size
