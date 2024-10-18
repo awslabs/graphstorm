@@ -222,7 +222,7 @@ class GSgnnLPRankingEvalInterface():
         """
 
     @abc.abstractmethod
-    def compute_score(self, rankings, train=True, candidate_sizes=None):
+    def compute_score(self, rankings, train=True, **kwargs):
         """ Compute Link Prediction evaluation score.
 
         Ranking-based Link Prediction evaluators should provide ranking values as input
@@ -234,10 +234,15 @@ class GSgnnLPRankingEvalInterface():
             Rankings of positive scores in the format of {etype: ranking}
         train: boolean
             If in model training.
-        candidate_sizes : torch.Tensor, optional
-            The size of each candidate list (positive + negative pairs)
-            for every edge in the testing set. If the tensor has a
-            single element we use that as the size of all lists.
+        kwargs: dict
+            Keyword arguments to pass downstream to the metric computation.
+
+            Currently we support:
+
+            candidate_sizes : dict of tensors
+                A mapping from edge type to the the size of each candidate list
+                (positive + negative pairs).
+                If the tensor has a single element we use that as the size of all lists.
 
         Returns
         -------
@@ -979,7 +984,7 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             self,
             rankings,
             train=True,
-            candidate_sizes: Optional[Dict[str, th.Tensor]] = None,
+            **kwargs
         ):
         """ Compute evaluation score.
 
@@ -989,13 +994,15 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             Rankings of positive scores in the format of {etype: ranking}.
         train: boolean
             If in model training.
-        candidate_sizes: dict[str, torch.Tensor], optional
-            A mapping from edge type to the
-            the size of each candidate list, corresponding to each element
-            in ``rankings``. If the tensor has a single
-            element we use that as the size of all ranking lists.
+        kwargs: dict
+            Keyword arguments to pass downstream to the metric computation.
 
-            ..versionadded:: 0.4.0
+            Currently we support:
+
+            candidate_sizes : dict of tensors
+                A mapping from edge type to the the size of each candidate list
+                (positive + negative pairs).
+                If the tensor has a single element we use that as the size of all lists.
 
         Returns
         -------
@@ -1008,6 +1015,7 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             ranking.append(rank)
         ranking = th.cat(ranking, dim=0)
         sizes_list = []
+        candidate_sizes: Optional[Dict[str, th.Tensor]] = kwargs.get("candidate_sizes", None)
 
         # compute ranking value for each metric
         metrics: Dict[str, th.Tensor] = {}
@@ -1194,7 +1202,7 @@ class GSgnnPerEtypeLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             major_score = score[self.major_etype]
         return major_score
 
-    def compute_score(self, rankings, train=True, candidate_sizes=None):
+    def compute_score(self, rankings, train=True, **kwargs):
         """ Compute per edge type evaluation score.
 
         Parameters
@@ -1203,13 +1211,18 @@ class GSgnnPerEtypeLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             Rankings of positive scores in the format of {etype: ranking}.
         train: boolean
             If in model training.
-        candidate_sizes: dict of tensors, optional
-            The size of each candidate list corresponding to each value in the
-            ``rankings``, in the format of {etype: sizes}. If a tensor for
-            an edge type has a single element we use that as the size of all
-            lists.
+        kwargs: dict
+            Keyword arguments to pass downstream to the metric computation.
 
-            ..versionadded:: 0.4.0
+            Currently we support:
+
+            candidate_sizes: dict of tensors, optional
+                The size of each candidate list corresponding to each value in the
+                ``rankings``, in the format of {etype: sizes}. If a tensor for
+                an edge type has a single element we use that as the size of all
+                lists.
+
+                ..versionadded:: 0.4.0
 
         Returns
         -------
@@ -1221,6 +1234,7 @@ class GSgnnPerEtypeLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         for etype, ranking in rankings.items():
             # compute ranking value for each metric
             metrics = {}
+            candidate_sizes: Dict[str, th.Tensor] = kwargs.get("candidate_sizes", None)
             etype_candidate_sizes = candidate_sizes[etype] if candidate_sizes is not None else None
             for metric in self.metric_list:
                 arg_tuple = (ranking, etype_candidate_sizes) if metric == "amri" else (ranking, )
@@ -1393,7 +1407,7 @@ class GSgnnMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
 
         return val_score, test_score
 
-    def compute_score(self, rankings, train=True, candidate_sizes=None):
+    def compute_score(self, rankings, train=True, **kwargs):
         """ Compute ``mrr`` evaluation score.
 
         Parameters
@@ -1557,7 +1571,7 @@ class GSgnnPerEtypeMrrLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfac
 
         return val_score, test_score
 
-    def compute_score(self, rankings, train=True, candidate_sizes=None):
+    def compute_score(self, rankings, train=True, **kwargs):
         """ Compute per edge type ``mrr`` evaluation score.
 
         Parameters
@@ -1753,7 +1767,7 @@ class GSgnnHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
 
         return val_score, test_score
 
-    def compute_score(self, rankings, train=True, candidate_sizes=None):
+    def compute_score(self, rankings, train=True, **kwargs):
         """ Compute ``hit@k`` evaluation score.
 
         Parameters
@@ -1954,7 +1968,7 @@ class GSgnnPerEtypeHitsLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterfa
         self._val_perf_rank_list.append(val_score)
         return rank
 
-    def compute_score(self, rankings, train=True, candidate_sizes=None):
+    def compute_score(self, rankings, train=True, **kwargs):
         """ Compute per edge type ``hit@k`` evaluation score.
 
         Parameters
