@@ -426,7 +426,7 @@ class GSgnnData():
         Parameters
         ----------
         input_blocks : list of DGLblock
-            The input blocks to be extracted for edge features.
+            The input blocks with edge features to be extracted.
         efeat_fields: string or dict of list of strings
             The edge feature fields to be extracted.
         device : Pytorch device
