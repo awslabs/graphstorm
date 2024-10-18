@@ -30,6 +30,7 @@ from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_LINK_PREDICTION,
                       BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
                       BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
+from ..eval.evaluator import GSgnnMultiTaskEvaluator
 from ..model import (do_full_graph_inference,
                      do_mini_batch_inference,
                      GSgnnModelBase, GSgnnModel,
@@ -732,25 +733,34 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                                                               inplace=True)
 
                 decoder = model.task_decoders[task_info.task_id]
-                val_scores = run_lp_mini_batch_predict(decoder,
-                                                       lp_test_embs,
-                                                       lp_val_loader,
-                                                       self.device) \
-                    if lp_val_loader is not None else None
-                test_scores = run_lp_mini_batch_predict(decoder,
-                                                        lp_test_embs,
-                                                        lp_test_loader,
-                                                        self.device) \
-                    if lp_test_loader is not None else None
+                if lp_val_loader is not None:
+                    val_rankings_and_lengths = run_lp_mini_batch_predict(
+                        decoder,
+                        lp_test_embs,
+                        lp_val_loader,
+                        self.device,
+                        return_batch_lengths=True)
+                else:
+                    val_rankings_and_lengths = (None, None)
+
+                if lp_test_loader is not None:
+                    test_rankings_and_lengths = run_lp_mini_batch_predict(
+                        decoder,
+                        lp_test_embs,
+                        lp_test_loader,
+                        self.device,
+                        return_batch_lengths=True)
+                else:
+                    test_rankings_and_lengths = (None, None)
 
                 if val_results is not None:
-                    val_results[task_info.task_id] = val_scores
+                    val_results[task_info.task_id] = val_rankings_and_lengths
                 else:
-                    val_results = {task_info.task_id: val_scores}
+                    val_results = {task_info.task_id: val_rankings_and_lengths}
                 if test_results is not None:
-                    test_results[task_info.task_id] = test_scores
+                    test_results[task_info.task_id] = test_rankings_and_lengths
                 else:
-                    test_results = {task_info.task_id: test_scores}
+                    test_results = {task_info.task_id: test_rankings_and_lengths}
 
         if len(nfeat_recon_tasks) > 0:
             def nfrecon_gen_embs(skip_last_self_loop=False, node_embs=embs):
@@ -811,6 +821,8 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
 
 
         sys_tracker.check('after_test_score')
+        assert isinstance(self.evaluator, GSgnnMultiTaskEvaluator), \
+            "Evaluator must be a GSgnnMultiTaskEvaluator"
         val_score, test_score = self.evaluator.evaluate(
                 val_results, test_results, total_steps)
         sys_tracker.check('evaluate validation/test')

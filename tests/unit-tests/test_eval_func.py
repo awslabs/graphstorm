@@ -13,20 +13,25 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
-import torch as th
 import inspect
 
+
+import pytest
+import torch as th
 from numpy.testing import assert_almost_equal
+
 from graphstorm.eval.eval_func import (eval_roc_auc,
                                        eval_acc)
-from graphstorm.eval.eval_func import (compute_mse,
-                                       compute_rmse,
-                                       compute_roc_auc,
-                                       compute_f1_score,
-                                       compute_precision_recall_auc,
-                                       compute_per_class_roc_auc,
-                                       compute_hit_at_classification,
-                                       compute_hit_at_link_prediction)
+from graphstorm.eval.eval_func import (
+    compute_amri,
+    compute_mse,
+    compute_rmse,
+    compute_roc_auc,
+    compute_f1_score,
+    compute_precision_recall_auc,
+    compute_per_class_roc_auc,
+    compute_hit_at_classification,
+    compute_hit_at_link_prediction)
 from graphstorm.eval.eval_func import ClassificationMetrics, LinkPredictionMetrics
 
 def test_compute_mse():
@@ -512,12 +517,14 @@ def test_compute_hit_at_classification():
     assert hit_at == 4
 
 def test_LinkPredictionMetrics():
-    eval_metric_list = ["mrr", "hit_at_5", "hit_at_10"]
+    eval_metric_list = ["mrr", "hit_at_5", "hit_at_10", "amri"]
     metric = LinkPredictionMetrics(eval_metric_list)
 
     assert "mrr" in metric.metric_comparator
     assert "mrr" in metric.metric_function
     assert "mrr" in metric.metric_eval_function
+    assert "amri" in metric.metric_eval_function
+
 
     assert "hit_at_5" in metric.metric_comparator
     assert "hit_at_5" in metric.metric_function
@@ -532,16 +539,12 @@ def test_LinkPredictionMetrics():
     assert signature.parameters["k"].default == 10
 
     metric.assert_supported_metric("mrr")
+    metric.assert_supported_metric("amri")
     metric.assert_supported_metric("hit_at_5")
     metric.assert_supported_metric("hit_at_10")
 
-    pass_assert = False
-    try:
+    with pytest.raises(AssertionError):
         metric.assert_supported_metric("hit_at_ten")
-        pass_assert = True
-    except:
-        pass_assert = False
-    assert not pass_assert
 
 def test_compute_hit_at_link_prediction():
     preds = 1 - th.arange(100) / 120    # preds for all positive and negative samples
@@ -566,6 +569,49 @@ def test_compute_hit_at_link_prediction():
     assert hit_at == 7 / 7
     hit_at = compute_hit_at_link_prediction(ranking, 200)
     assert hit_at == 7 / 7
+
+def test_compute_amri():
+    # Compute amri when candidate lists vary in size
+    ranks = th.tensor([4, 1, 4, 5, 1, 5, 5, 1, 2, 3])
+    candidate_lists = th.tensor([10, 12, 7, 5, 4, 10, 12, 10, 20, 10])
+
+    # Use the definition from the paper to verify the values
+    def amri_definition(rankings, candidate_tensor) -> float:
+        mr = th.sum(rankings) / rankings.shape[0]
+        emr = (1 / (2 * candidate_tensor.shape[0])) * th.sum(candidate_tensor)
+        expected_amri = 1 - ((mr - 1) / emr)
+        return expected_amri
+
+    actual_amri = compute_amri(ranks, candidate_lists)
+    expected_amri = amri_definition(ranks, candidate_lists)
+    assert_almost_equal(
+        actual_amri,
+        expected_amri,
+        decimal=4
+    )
+
+    # Compute amri when all lists have the same size
+    candidate_size = th.tensor([10])
+    actual_amri = compute_amri(ranks, candidate_size)
+    expected_amri = amri_definition(ranks, candidate_size)
+    assert_almost_equal(
+        actual_amri,
+        expected_amri,
+        decimal=4
+    )
+
+    # amri should be 0 when all ranks are the expected rank plus one
+    ranks = th.tensor([10]*5) # MR is 10, MR-1 is 9
+    candidate_size = th.tensor([18]*5) # E [MR] is (1/(2*5))*(18*5) = 9
+    actual_amri = compute_amri(ranks, candidate_size)
+    expected_amri = 0
+    assert_almost_equal(
+        actual_amri,
+        expected_amri,
+        decimal=2
+    )
+
+
 
 if __name__ == '__main__':
     test_LinkPredictionMetrics()

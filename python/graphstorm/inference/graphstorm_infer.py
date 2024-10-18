@@ -17,6 +17,7 @@
 """
 from ..tracker import GSSageMakerTaskTracker
 
+
 class GSInferrer():
     """ Generic GSgnn Inferrer.
 
@@ -25,7 +26,7 @@ class GSInferrer():
     model : GSgnnModel
         This model could be one of the internal GraphStorm GNN models, i.e.,
         ``GSgnnNodeModel``, ``GSgnnEdgeModel``, ``GSgnnLinkPredictionModel``, or a model
-        class that inherit them.  
+        class that inherit them.
         For customized GNN models, they should be the concrete implementation that inherits
         one of the ``GSgnnNodeModelBase``, ``GSgnnEdgeModelBase``, and
         ``GSgnnLinkPredictionModelBase`` classes.

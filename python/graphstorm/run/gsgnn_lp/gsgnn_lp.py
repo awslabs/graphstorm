@@ -58,8 +58,6 @@ def main(config_args):
                               model_layer_to_load=config.restore_model_layers)
     trainer.setup_device(device=get_device())
     if not config.no_validation:
-        # TODO(zhengda) we need to refactor the evaluator.
-        # Currently, we only support mrr
         evaluator = gs.create_lp_evaluator(config)
         trainer.setup_evaluator(evaluator)
         val_idxs = train_data.get_edge_val_set(config.eval_etype)
