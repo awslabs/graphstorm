@@ -89,7 +89,7 @@ def expand_wildcard(data_files):
     expanded_files = []
     for item in data_files:
         if '*' in item:
-            matched_files = glob.glob(item)
+            matched_files = sorted(glob.glob(item))
             assert len(matched_files) > 0, \
                 f"There is no file matching {item} pattern"
             expanded_files.extend(matched_files)
@@ -507,7 +507,7 @@ def get_in_files(in_files):
     """
     # If the input file has a wildcard, get all files that matches the input file name.
     if '*' in in_files:
-        in_file_list = glob.glob(in_files)
+        in_file_list = sorted(glob.glob(in_files))
         assert len(in_file_list) > 0, \
             f"There is no file matching {in_files} pattern"
         in_files = in_file_list
