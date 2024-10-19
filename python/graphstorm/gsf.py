@@ -16,7 +16,6 @@
     GSF utility functions.
 """
 
-
 import os
 import logging
 import importlib.metadata

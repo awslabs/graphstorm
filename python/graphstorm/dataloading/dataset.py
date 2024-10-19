@@ -441,11 +441,13 @@ class GSgnnData():
         for block in input_blocks:
             input_edges = {}
             for etype in block.canonical_etypes:
+                if block.num_edges(etype) == 0:
+                    continue
                 eid = block.edges[etype].data[dgl.EID]
                 input_edges[etype] = eid
             edge_feat = self.get_edge_feats(input_edges, efeat_fields, device)
-            if edge_feat:
-                block_edge_input_feats.append(edge_feat)
+            # if no edge feature, will return an empty dict, also add
+            block_edge_input_feats.append(edge_feat)
 
         return block_edge_input_feats
 

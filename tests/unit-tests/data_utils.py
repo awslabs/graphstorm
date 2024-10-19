@@ -46,6 +46,43 @@ def generate_mask(idx, length):
     th_mask = th.tensor(mask, dtype=th.bool)
     return th_mask
 
+def generate_special_dummy_hetero_graph():
+    """
+    generate a special dummy heterogeneous graph to test a special get_edge_feat_size() method.
+    
+    The graph schema is ("n0", "r0", "n1") and ("n1", "r1", "n2"). "n2" as target nodes. "r1" has no
+    edge feature, "r0" has edge features.
+
+    Return
+    -------
+    hg: a heterogeneous graph.
+    """
+    size_dict = SIZE_DICT
+    data_size = int(size_dict['tiny'])
+
+    num_nodes_dict = {
+        "n0": data_size,
+        "n1": data_size,
+        "n2": data_size
+    }
+
+    edges = {
+        ("n0", "r0", "n1"): (th.randint(data_size, (data_size,)),
+                             th.randint(data_size, (data_size,))),
+        ("n1", "r1", "n2"): (th.randint(data_size, (2 * data_size,)),
+                             th.randint(data_size, (2 * data_size,))),
+    }
+
+    hetero_graph = dgl.heterograph(edges, num_nodes_dict=num_nodes_dict)
+
+    # set node and edge features
+    edge_feat = {'r1': th.randn(2 * data_size, 2)}
+
+    hetero_graph.edges['r1'].data['feat'] = edge_feat['r1']
+
+    return hetero_graph
+
+
 def generate_dummy_hetero_graph(size='tiny', gen_mask=True, add_reverse=False):
     """
     generate a dummy heterogeneous graph.
@@ -490,6 +527,24 @@ def partion_and_load_distributed_graph(hetero_graph, dirname, graph_name='dummy'
     part_config = os.path.join(dirname, graph_name+'.json')
     dist_graph = dist.DistGraph(graph_name=graph_name, part_config=part_config)
     return dist_graph, part_config
+
+def generate_special_dummy_dist_graph(dirname, graph_name='special_dummy'):
+    """ Generate a special dummy DGL distributed graph.
+
+    Parameters
+    ----------
+    dirname : the directory where the graph will be partitioned and stored.
+    graph_name: string as a name
+
+    Returns
+    -------
+    dist_graph: a DGL distributed graph
+    part_config : the path of the partition configuration file.
+    """
+    special_hetero_graph = generate_special_dummy_hetero_graph()
+    return partion_and_load_distributed_graph(hetero_graph=special_hetero_graph, dirname=dirname,
+                                              graph_name=graph_name)
+    
 
 def generate_dummy_dist_graph(dirname, size='tiny', graph_name='dummy',
                               gen_mask=True, is_homo=False, add_reverse=False):

@@ -167,10 +167,6 @@ class GSNodeInputLayer(GSLayer):  # pylint: disable=abstract-method
 class GSEdgeInputLayer(GSLayer):  # pylint: disable=abstract-method
     """ The base input layer for edges in a heterogeneous graph.
 
-    This is the base class for all edge input layer classes. This implementation only
-    support edge feature transformation. Unlike ``GSNodeInputLayer``, for featureless edges,
-    this implementation will do nothing.
-
     .. versionadded:: 0.4.0
         Add ``GSEdgeInputLayer`` in v0.4.0 to support edge features.
 
@@ -542,8 +538,8 @@ class GSNodeEncoderInputLayer(GSNodeInputLayer):
 class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
     """ The edge encoder input layer for edges with features in a heterogeneous graph.
 
-    The input layer adds a linear layer on edges with edge features and the linear layer
-    projects the edge features into a specified dimension.
+    The input layer adds a projection layer on edges with edge features, projecting the edge
+    features into a specified dimension.
 
     The current implementation does not supports learnable embeddings for featureless edges,
     or language models on textual features, or the wholegraph.
@@ -618,14 +614,10 @@ class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
 
         # set projection weights on edge features
         for canonical_etype in g.canonical_etypes:
-            feat_dim = 0
             if self.feat_size[canonical_etype] > 1:
                 feat_dim = self.feat_size[canonical_etype]
-            if feat_dim > 0:
                 input_projs = nn.Parameter(th.Tensor(feat_dim, self.embed_size))
-                nn.init.xavier_uniform_(input_projs, gain=nn.init.calculate_gain("relu"))
                 self.input_projs[str(canonical_etype)] = input_projs
-
                 self.ngnn_mlp[str(canonical_etype)] = NGNNMLP(embed_size, embed_size,
                                 num_ffn_layers_in_input, ffn_activation, dropout)
 
@@ -650,7 +642,7 @@ class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
         embs_list = []
         for edge_input_feats in block_edge_input_feats:
             assert isinstance(edge_input_feats, dict), \
-                'The input features should be in a dict.'
+                f'The input features should be in a dict, but got {edge_input_feats}.'
             embs = {}
             for canonical_etype, feats in edge_input_feats.items():
                 assert str(canonical_etype) in self.input_projs, \

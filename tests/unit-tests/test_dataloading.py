@@ -28,6 +28,7 @@ import dgl
 import pytest
 from data_utils import (
     generate_dummy_dist_graph,
+    generate_special_dummy_dist_graph,
     generate_dummy_dist_graph_reconstruct,
     generate_dummy_dist_graph_homogeneous_failure_graph,
     generate_dummy_dist_graph_multi_task,
@@ -472,7 +473,7 @@ def test_GSgnnData_edge_feat():
         # ('n0', 'r1', 'n1'), ('n0', 'r0', 'n1'), ("n1", "r2", "n0")
         gdata = GSgnnData(part_config=part_config)
         
-        # Test 0: empty edge feature fields, should return an empty list
+        # Test 0: empty edge feature fields, should return a list with two empty dicts
         efeat_fields = {}
         target_idx = {('n0', 'r1', 'n1'): [0]}
         dataloader = GSgnnEdgeDataLoader(gdata, target_idx, [100, 100], 10,
@@ -480,7 +481,9 @@ def test_GSgnnData_edge_feat():
                                         train_task=False, remove_target_edge_type=False)
         for _, _, blocks in dataloader:
             edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
-            assert len(edge_feat_list) == 0
+            assert len(edge_feat_list) == 2
+            assert edge_feat_list[0] == {}
+            assert edge_feat_list[1] == {}
 
         # Test 1: all edge feature fields, should return a list with two dicts
         efeat_fields = {
@@ -490,9 +493,15 @@ def test_GSgnnData_edge_feat():
         for _, _, blocks in dataloader:
             edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
             assert len(edge_feat_list) == 2
-            assert edge_feat_list[0][('n0', 'r0', 'n1')].shape[1] == 2
+            if ('n0', 'r0', 'n1') in edge_feat_list[0]:
+                assert edge_feat_list[0][('n0', 'r0', 'n1')].shape[1] == 2
             assert edge_feat_list[0][('n0', 'r1', 'n1')].shape[1] == 2
+            assert ('n1', 'r2', 'n0') not in edge_feat_list[0]
+            if ('n0', 'r0', 'n1') in edge_feat_list[1]:
+                assert edge_feat_list[1][('n0', 'r0', 'n1')].shape[1] == 2
             assert edge_feat_list[1][('n0', 'r1', 'n1')].shape[1] == 2
+            assert ('n1', 'r2', 'n0') not in edge_feat_list[1]
+            # check extracted featuer values
             assert_equal(edge_feat_list[1][('n0', 'r1', 'n1')][0].numpy(),
                          gdata.g.edges[('n0', 'r1', 'n1')].data['feat'][0][0].numpy())
 
@@ -504,6 +513,9 @@ def test_GSgnnData_edge_feat():
             edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
             assert len(edge_feat_list) == 2
             assert edge_feat_list[0][('n0', 'r1', 'n1')].shape[1] == 2
+            assert edge_feat_list[1][('n0', 'r1', 'n1')].shape[1] == 2
+            assert ('n0', 'r0', 'n1') not in edge_feat_list[0]
+            assert ('n1', 'r2', 'n0') not in edge_feat_list[0]
             assert edge_feat_list[1][('n0', 'r1', 'n1')].shape[1] == 2
             assert_equal(edge_feat_list[1][('n0', 'r1', 'n1')][0].numpy(),
                          gdata.g.edges[('n0', 'r1', 'n1')].data['feat'][0][0].numpy())
@@ -532,8 +544,61 @@ def test_GSgnnData_edge_feat():
                 edge_feat_list = {}
             assert len(edge_feat_list) == 0
 
+        # Test 5: layer 0 has edge feature, and layer 1 not, i.e., empty dict
+        target_idx = {'n0': [0]}
+        dataloader = GSgnnNodeDataLoader(gdata, target_idx, [100, 100], 10,
+                                        label_field='label',
+                                        train_task=False)
+        efeat_fields = {
+            ('n0', 'r0', 'n1'): ['feat'],
+            ('n0', 'r1', 'n1'): ['feat']
+        }
+        for _, _, blocks in dataloader:
+            edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
+            assert len(edge_feat_list) == 2
+            assert edge_feat_list[1] == {}
+
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
+
+def test_GSgnnData_edge_feat2():
+    """ Test GSgnnData built-in functions.
+    
+    Currently only test the ``get_blocks_edge_feats``.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_special_dummy_dist_graph(graph_name='special_dummy',
+                                                           dirname=tmpdirname)
+        # there will be two etypes:
+        # ('n0', 'r1', 'n1'), ('n1', 'r1', 'n2')
+        gdata = GSgnnData(part_config=part_config)
+        
+        # Test 1: layer 0 has edge feature, and layer 1 not, i.e., empty dict
+        target_idx = {'n2': [0]}
+        dataloader = GSgnnNodeDataLoader(gdata, target_idx,
+                                         [{("n0", "r0", "n1"):100, ("n1", "r1", "n2"):0},
+                                          {("n0", "r0", "n1"):0, ("n1", "r1", "n2"):100}],
+                                         10,
+                                        label_field='label',
+                                        train_task=False)
+        efeat_fields = {
+            ('n1', 'r1', 'n2'): ['feat'],
+        }
+        for _, _, blocks in dataloader:
+            edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
+            assert len(edge_feat_list) == 2
+            assert edge_feat_list[0] == {}
+
+    # after test pass, destroy all process group
+    th.distributed.destroy_process_group()
+
 
 @pytest.mark.parametrize("batch_size", [1, 10, 128])
 def test_GSgnnAllEtypeLinkPredictionDataLoader(batch_size):
@@ -2603,6 +2668,7 @@ if __name__ == '__main__':
     test_GSgnnData()
     test_GSgnnData2()
     test_GSgnnData_edge_feat()
+    test_GSgnnData_edge_feat2()
     test_lp_dataloader()
     test_edge_dataloader()
     test_node_dataloader()
