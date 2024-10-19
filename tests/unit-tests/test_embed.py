@@ -285,7 +285,8 @@ def test_input_layer4(dev):
     nn.init.eye_(edge_input_layer.input_projs[str(('n0', 'r0', 'n1'))])
     nn.init.eye_(edge_input_layer.input_projs[str(('n0', 'r1', 'n1'))])
     embed = edge_input_layer(block_edge_feat_list)
-    
+    edge_input_layer = edge_input_layer.to(dev)
+
     # test output list
     assert len(embed) == 2
     assert embed[0] == {}
