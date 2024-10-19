@@ -248,6 +248,7 @@ def test_input_layer4(dev):
     # test output device
     for _, emb in embed[0].items():
         assert emb.get_device() == (-1 if dev == 'cpu' else 0)
+
     # test output values, should be equal to the inputs
     assert_almost_equal(embed[0][('n0', 'r0', 'n1')].detach().cpu().numpy(),
         g.edges[('n0', 'r0', 'n1')].data['feat'][np.arange(10)].detach().cpu().numpy())
@@ -267,6 +268,32 @@ def test_input_layer4(dev):
     except:
         embed = None
     assert embed is None
+
+    # Test 4: test empty for the 1st layer, and 4 edges for the 2nd layer.
+    edge_feat_size = get_edge_feat_size(g, {('n0', 'r0', 'n1'): ['feat'], \
+                                            ('n0', 'r1', 'n1'): ['feat']})
+    edge_input_layer = GSEdgeEncoderInputLayer(g, edge_feat_size, 2, activation=None)
+    block_edge_feat_list = []
+    feat1 = {
+    }
+    block_edge_feat_list.append(feat1)
+    feat2 = {
+        ('n0', 'r0', 'n1'): g.edges[('n0', 'r0', 'n1')].data['feat'][np.arange(10, 14)].to(dev),
+        ('n0', 'r1', 'n1'): g.edges[('n0', 'r1', 'n1')].data['feat'][np.arange(10, 14)].to(dev)
+    }
+    block_edge_feat_list.append(feat2)
+    nn.init.eye_(edge_input_layer.input_projs[str(('n0', 'r0', 'n1'))])
+    nn.init.eye_(edge_input_layer.input_projs[str(('n0', 'r1', 'n1'))])
+    embed = edge_input_layer(block_edge_feat_list)
+    
+    # test output list
+    assert len(embed) == 2
+    assert embed[0] == {}
+    # test output values
+    assert_almost_equal(embed[1][('n0', 'r0', 'n1')].detach().cpu().numpy(),
+        g.edges[('n0', 'r0', 'n1')].data['feat'][np.arange(10, 14)].detach().cpu().numpy())
+    assert_almost_equal(embed[1][('n0', 'r1', 'n1')].detach().cpu().numpy(),
+        g.edges[('n0', 'r1', 'n1')].data['feat'][np.arange(10, 14)].detach().cpu().numpy())
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -763,30 +790,30 @@ def test_mp_wg_lm_cache(world_size):
 
 
 if __name__ == '__main__':
-    test_pytroch_emb_load_save(11)
-    test_lm_cache()
-    test_mp_lm_cache()
-    test_input_layer1(None)
-    test_input_layer1(F.relu)
-    test_input_layer2()
-    test_input_layer3('cpu')
-    test_input_layer3('cuda:0')
+    # test_pytroch_emb_load_save(11)
+    # test_lm_cache()
+    # test_mp_lm_cache()
+    # test_input_layer1(None)
+    # test_input_layer1(F.relu)
+    # test_input_layer2()
+    # test_input_layer3('cpu')
+    # test_input_layer3('cuda:0')
 
     test_input_layer4('cpu')
-    test_input_layer4('cuda:0')
+    # test_input_layer4('cuda:0')
 
-    test_compute_embed('cpu')
-    test_compute_embed('cuda:0')
+    # test_compute_embed('cpu')
+    # test_compute_embed('cuda:0')
 
-    test_pure_lm_embed(0)
-    test_pure_lm_embed(10)
+    # test_pure_lm_embed(0)
+    # test_pure_lm_embed(10)
 
-    test_lm_embed(0)
-    test_lm_embed(10)
+    # test_lm_embed(0)
+    # test_lm_embed(10)
 
-    test_lm_embed_warmup('cpu')
-    test_lm_embed_warmup('cuda:0')
-    test_lm_infer()
+    # test_lm_embed_warmup('cpu')
+    # test_lm_embed_warmup('cuda:0')
+    # test_lm_infer()
 
-    test_wg_lm_cache()
-    test_mp_wg_lm_cache(1)
+    # test_wg_lm_cache()
+    # test_mp_wg_lm_cache(1)
