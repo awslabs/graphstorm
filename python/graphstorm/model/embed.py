@@ -617,6 +617,7 @@ class GSEdgeEncoderInputLayer(GSEdgeInputLayer):
             if self.feat_size[canonical_etype] > 1:
                 feat_dim = self.feat_size[canonical_etype]
                 input_projs = nn.Parameter(th.Tensor(feat_dim, self.embed_size))
+                nn.init.xavier_uniform_(input_projs.T, gain=nn.init.calculate_gain('linear'))
                 self.input_projs[str(canonical_etype)] = input_projs
                 self.ngnn_mlp[str(canonical_etype)] = NGNNMLP(embed_size, embed_size,
                                 num_ffn_layers_in_input, ffn_activation, dropout)
