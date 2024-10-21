@@ -540,13 +540,10 @@ def create_builtin_node_model(g, config, train_task):
     -------
     GSgnnModel : The GNN model.
     """
-    training_method = config.training_method["name"]
-    if training_method == "glem":
+    if config.training_method["name"] == "glem":
         model = GLEM(config.alpha_l2norm, config.target_ntype, **config.training_method["kwargs"])
-    elif training_method == "default":
+    elif config.training_method["name"] == "default":
         model = GSgnnNodeModel(config.alpha_l2norm)
-    else:
-        raise NotImplementedError(f'Unrecognized training_method: {training_method}')
     set_encoder(model, g, config, train_task)
 
     encoder_out_dims = model.gnn_encoder.out_dims \
