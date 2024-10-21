@@ -499,13 +499,13 @@ def test_mtask_prepare_lp_mini_batch():
     assert_equal(input_nodes["n0"].numpy(), input_node_idx["n0"].numpy())
     assert_equal(input_nodes["n1"].numpy(), input_node_idx["n1"].numpy())
 
-class MTaskCheckerEvaluator(GSgnnMultiTaskEvaluator, GSgnnLPRankingEvalInterface):
+class MTaskCheckerEvaluator(GSgnnMultiTaskEvaluator):
     def __init__(self, val_rankings, test_rankings, total_iters):
         self._val_results = val_rankings
         self._test_results = test_rankings
         self._steps = total_iters
 
-    def evaluate(self, val_rankings, test_rankings, total_iters, **kwargs):
+    def evaluate(self, val_results, test_results, total_iters, **kwargs):
         assert self._steps == total_iters
         def compare_results(target_res, check_res):
             assert len(target_res) == len(check_res)
@@ -526,14 +526,10 @@ class MTaskCheckerEvaluator(GSgnnMultiTaskEvaluator, GSgnnLPRankingEvalInterface
                     assert_equal(target_r, check_r)
 
         if self._val_results is not None:
-            compare_results(self._val_results, val_rankings)
+            compare_results(self._val_results, val_results)
         if self._test_results is not None:
-            compare_results(self._test_results, test_rankings)
+            compare_results(self._test_results, test_results)
         return None, None
-
-    def compute_score(self, rankings, train=True, candidate_sizes=None):
-        """Dummy implementation to conform to interface"""
-        raise NotImplementedError()
 
     @property
     def task_tracker(self):
