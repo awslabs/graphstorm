@@ -46,9 +46,9 @@ def generate_mask(idx, length):
     th_mask = th.tensor(mask, dtype=th.bool)
     return th_mask
 
-def generate_special_dummy_hetero_graph():
+def generate_dummy_hetero_graph_for_efeat_gnn():
     """
-    generate a special dummy heterogeneous graph to test a special get_edge_feat_size() method.
+    generate a dummy heterogeneous graph to test the get_edge_feat_size() method.
     
     The graph schema is ("n0", "r0", "n1") and ("n1", "r1", "n2"). "n2" as target nodes. "r1" has no
     edge feature, "r0" has edge features.
