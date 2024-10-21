@@ -46,7 +46,7 @@ def generate_mask(idx, length):
     th_mask = th.tensor(mask, dtype=th.bool)
     return th_mask
 
-def generate_special_dummy_hetero_graph():
+def generate_dummy_hetero_graph_for_efeat_gnn():
     """
     generate a special dummy heterogeneous graph to test a special get_edge_feat_size() method.
     
