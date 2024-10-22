@@ -566,7 +566,7 @@ def test_GSgnnData_edge_feat():
     th.distributed.destroy_process_group()
 
 def test_GSgnnData_edge_feat2():
-    """ Test GSgnnData built-in functions for a special test case
+    """ Test GSgnnData built-in functions for a special test case.
 
     The special test case is about only layer 0 has edge feature, but layer 1 does not.
     """
