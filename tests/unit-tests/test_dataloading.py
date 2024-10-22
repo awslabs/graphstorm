@@ -466,9 +466,10 @@ def test_GSgnnData_edge_feat():
                                       world_size=1)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        dist_graph, part_config = generate_dummy_dist_graph(graph_name='dummy',
-                                                            dirname=tmpdirname, add_reverse=True)
+        # get the test dummy distributed graph with determistic graph structure
+        _, part_config = generate_dummy_dist_graph(graph_name='dummy',
+                                                   dirname=tmpdirname, add_reverse=True,
+                                                   is_random=False)
         # there will be three etypes:
         # ('n0', 'r1', 'n1'), ('n0', 'r0', 'n1'), ("n1", "r2", "n0")
         gdata = GSgnnData(part_config=part_config)
@@ -493,12 +494,10 @@ def test_GSgnnData_edge_feat():
         for _, _, blocks in dataloader:
             edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
             assert len(edge_feat_list) == 2
-            if ('n0', 'r0', 'n1') in edge_feat_list[0]:
-                assert edge_feat_list[0][('n0', 'r0', 'n1')].shape[1] == 2
+            assert edge_feat_list[0][('n0', 'r0', 'n1')].shape[1] == 2
             assert edge_feat_list[0][('n0', 'r1', 'n1')].shape[1] == 2
             assert ('n1', 'r2', 'n0') not in edge_feat_list[0]
-            if ('n0', 'r0', 'n1') in edge_feat_list[1]:
-                assert edge_feat_list[1][('n0', 'r0', 'n1')].shape[1] == 2
+            assert edge_feat_list[1][('n0', 'r0', 'n1')].shape[1] == 2
             assert edge_feat_list[1][('n0', 'r1', 'n1')].shape[1] == 2
             assert ('n1', 'r2', 'n0') not in edge_feat_list[1]
             # check extracted featuer values
@@ -556,10 +555,8 @@ def test_GSgnnData_edge_feat():
         for _, _, blocks in dataloader:
             edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
             assert len(edge_feat_list) == 2
-            if ('n0', 'r0', 'n1') in edge_feat_list[0]:
-                assert edge_feat_list[0][('n0', 'r0', 'n1')].shape[1] == 2
-            if ('n0', 'r1', 'n1') in edge_feat_list[0]:
-                assert edge_feat_list[0][('n0', 'r1', 'n1')].shape[1] == 2
+            assert edge_feat_list[0][('n0', 'r0', 'n1')].shape[1] == 2
+            assert edge_feat_list[0][('n0', 'r1', 'n1')].shape[1] == 2
             assert edge_feat_list[1] == {}
 
     # after test pass, destroy all process group
@@ -577,9 +574,10 @@ def test_GSgnnData_edge_feat2():
                                       world_size=1)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
+        # get the test dummy distributed graph with determistic graph structure
         _, part_config = generate_special_dummy_dist_graph_for_efeat_gnn(graph_name='dummy4ef',
-                                                                         dirname=tmpdirname)
+                                                                         dirname=tmpdirname,
+                                                                         is_random=False)
         # there will be two etypes:
         # ('n0', 'r1', 'n1'), ('n1', 'r1', 'n2')
         gdata = GSgnnData(part_config=part_config)
@@ -598,8 +596,7 @@ def test_GSgnnData_edge_feat2():
         for _, _, blocks in dataloader:
             edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
             assert len(edge_feat_list) == 2
-            if ('n0', 'r1', 'n1') in edge_feat_list[1]:
-                assert edge_feat_list[1][('n1', 'r1', 'n2')].shape[1] == 2
+            assert edge_feat_list[1][('n1', 'r1', 'n2')].shape[1] == 2
             assert edge_feat_list[0] == {}
 
     # after test pass, destroy all process group
