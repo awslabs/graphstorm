@@ -240,7 +240,7 @@ class GSgnnLPRankingEvalInterface():
             Currently we support:
 
             candidate_sizes : dict of tensors
-                A mapping from edge type to the the size of each candidate list
+                A mapping from edge type to the size of each candidate list
                 (positive + negative pairs).
                 If the tensor has a single element we use that as the size of all lists.
 

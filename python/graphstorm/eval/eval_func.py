@@ -722,7 +722,7 @@ def compute_amri(ranking: th.Tensor, candidate_sizes: th.Tensor) -> th.Tensor:
     """Computes the Adjusted Mean Rank Index (AMRI) for the given ranking and candidate sizes.
 
     AMRI is a metric that evaluates the performance of link prediction models by considering both
-    the rank of the correct candidate and the number of candidates considered. It is calculated as:
+    the rank of the correct candidate and the number of candidates. It is calculated as:
 
     .. math::
         AMRI = 1 - \\frac{\\text{MR}-1}{\\mathbb{E}[\\text{MR}-1]}
