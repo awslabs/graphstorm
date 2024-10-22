@@ -18,12 +18,15 @@
 import os
 import time
 import logging
+from typing import Any, Dict, Optional
+
 import torch as th
 
 from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_NODE_REGRESSION,
                       BUILTIN_TASK_EDGE_CLASSIFICATION,
                       BUILTIN_TASK_EDGE_REGRESSION)
+from ..dataloading import GSgnnMultiTaskDataLoader
 from ..eval.evaluator import GSgnnMultiTaskEvaluator
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
@@ -55,10 +58,10 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
 
     # pylint: disable=unused-argument
     def infer(self, data,
-              predict_test_loader=None,
-              lp_test_loader=None,
-              recon_nfeat_test_loader=None,
-              recon_efeat_test_loader=None,
+              predict_test_loader: Optional[GSgnnMultiTaskDataLoader] = None,
+              lp_test_loader: Optional[GSgnnMultiTaskDataLoader] = None,
+              recon_nfeat_test_loader: Optional[GSgnnMultiTaskDataLoader] = None,
+              recon_efeat_test_loader: Optional[GSgnnMultiTaskDataLoader] = None,
               save_embed_path=None,
               save_prediction_path=None,
               use_mini_batch_infer=False,
@@ -210,7 +213,7 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
         # 2. node feature reconstruction (as it has the chance
         #    to reuse the node embeddings generated at the beginning)
         # 3. link prediction.
-        pre_results = {}
+        pre_results: Dict[str, Any] = {}
         test_lengths = None
         if predict_test_loader is not None:
             # compute prediction results for node classification,
@@ -323,8 +326,6 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
                 pre_results,
                 pre_results,
                 0,
-                val_candidate_sizes=test_lengths,
-                test_candidate_sizes=test_lengths,
             )
 
             sys_tracker.check('run evaluation')

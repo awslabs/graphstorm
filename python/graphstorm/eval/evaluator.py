@@ -1021,7 +1021,8 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         metrics: Dict[str, th.Tensor] = {}
         for metric in self.metric_list:
             if metric == "amri":
-                assert candidate_sizes
+                assert candidate_sizes, \
+                    f"candidate_sizes needs to have a value for AMRI, got {candidate_sizes=}."
                 for _, size in candidate_sizes.items():
                     sizes_list.append(size)
                 candidate_sizes_tensor = th.cat(sizes_list, dim=0)
@@ -2027,8 +2028,7 @@ class GSgnnMultiTaskEvalInterface(abc.ABC):
         self,
         val_results: Dict[str, Any],
         test_results: Dict[str, Any],
-        total_iters: int,
-        **kwargs
+        total_iters: int
     ):
         """Evaluate multi-task training results, using task-specific evaluators for each task.
 
@@ -2189,7 +2189,6 @@ class GSgnnMultiTaskEvaluator(GSgnnBaseEvaluator, GSgnnMultiTaskEvalInterface):
         val_results: Dict[str, Any],
         test_results: Dict[str, Any],
         total_iters: int,
-        **kwargs
     ):
         eval_tasks = {}
         val_scores = {}

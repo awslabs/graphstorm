@@ -587,7 +587,7 @@ def test_compute_amri():
     assert_almost_equal(
         actual_amri,
         expected_amri,
-        decimal=4
+        decimal=6
     )
 
     # Compute amri when all lists have the same size

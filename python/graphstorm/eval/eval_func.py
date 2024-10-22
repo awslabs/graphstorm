@@ -210,6 +210,7 @@ class LinkPredictionMetrics:
         """
         # Need to check if the given metric is supported first
         self.assert_supported_metric(metric)
+        # The minimum value for AMRI is -1.0 so we init with that
         return -1.0 if metric == "amri" else 0.0
 
 
@@ -758,6 +759,12 @@ def compute_amri(ranking: th.Tensor, candidate_sizes: th.Tensor) -> th.Tensor:
         assert th.all(ranking <= candidate_sizes).item(), \
             "all ranks must be <= candidate_sizes"
 
+    # We use the simplified form of AMRI calculation
+    # 1 - \frac{MR-1}{E[MR-1]} = 1 - \frac{2*\sum_n{r-1}}{\sum_n{|S|}}
+    # where n is the number of evaluations (number of positive edges),
+    # r is the ranking of the positive edge in each ranked score list,
+    # and |S| is the edge candidate set size.
+    # See equation (8) in https://arxiv.org/abs/2002.06914
     nominator = 2 * th.sum(ranking - 1)
     if candidate_sizes.shape[0] == 1:
         denominator = candidate_sizes.item() * ranking.shape[0]

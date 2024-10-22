@@ -520,9 +520,15 @@ class MTaskCheckerEvaluator(GSgnnMultiTaskEvaluator):
                     assert_equal(tr_2, cr_2)
                 else:
                     # In case LP results also returned candidate list
-                    # lengths, we only keep the rankings
+                    # lengths, we check the lengths and values
                     if isinstance(check_r, tuple):
-                        check_r, _ = check_r
+                        check_r, candidate_sizes = check_r
+                        if candidate_sizes.shape[0] > 1:
+                            assert check_r.shape[0] == candidate_sizes.shape[0], \
+                                ("ranking and candidate_sizes must have the same length, "
+                                f"got {check_r.shape=} {candidate_sizes.shape=}" )
+                            assert th.all(check_r <= candidate_sizes).item(), \
+                                "all ranks must be <= candidate_sizes"
                     assert_equal(target_r, check_r)
 
         if self._val_results is not None:

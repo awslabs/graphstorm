@@ -374,8 +374,10 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         else:
             test_rankings, test_lengths = None, None
         sys_tracker.check('after_test_score')
-        assert self.evaluator is not None
-        assert isinstance(self.evaluator, GSgnnLPRankingEvalInterface)
+        assert self.evaluator is not None, \
+            "Evaluator needs to be setup, use trainer.setup_evaluator(evaluator)"
+        assert isinstance(self.evaluator, GSgnnLPRankingEvalInterface), \
+            f"Evaluator needs to implement GSgnnLPRankingEvalInterface, got {type(self.evaluator)}"
         val_score, test_score = self.evaluator.evaluate(
             val_rankings,
             test_rankings,

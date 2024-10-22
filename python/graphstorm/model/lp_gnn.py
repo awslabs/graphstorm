@@ -222,7 +222,8 @@ def run_lp_mini_batch_predict(
     with th.no_grad():
         ranking: Dict[Tuple, List[th.Tensor]] = defaultdict(list)
         batch_lengths: Dict[Tuple, List[th.Tensor]] = defaultdict(list)
-        assert isinstance(decoder, LinkPredictionTestScoreInterface)
+        assert isinstance(decoder, LinkPredictionTestScoreInterface), \
+            f"The decoder must implement LinkPredictionTestScoreInterface, got {decoder=}"
         for pos_neg_tuple, neg_sample_type in loader:
             score = \
                 decoder.calc_test_scores(
