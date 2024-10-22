@@ -528,7 +528,7 @@ def partion_and_load_distributed_graph(hetero_graph, dirname, graph_name='dummy'
     dist_graph = dist.DistGraph(graph_name=graph_name, part_config=part_config)
     return dist_graph, part_config
 
-def generate_special_dummy_dist_graph(dirname, graph_name='special_dummy'):
+def generate_special_dummy_dist_graph_for_efeat_gnn(dirname, graph_name='special_dummy'):
     """ Generate a special dummy DGL distributed graph.
 
     Parameters
@@ -541,7 +541,7 @@ def generate_special_dummy_dist_graph(dirname, graph_name='special_dummy'):
     dist_graph: a DGL distributed graph
     part_config : the path of the partition configuration file.
     """
-    special_hetero_graph = generate_special_dummy_hetero_graph()
+    special_hetero_graph = generate_dummy_hetero_graph_for_efeat_gnn()
     return partion_and_load_distributed_graph(hetero_graph=special_hetero_graph, dirname=dirname,
                                               graph_name=graph_name)
     

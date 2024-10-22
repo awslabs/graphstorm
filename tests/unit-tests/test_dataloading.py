@@ -28,7 +28,7 @@ import dgl
 import pytest
 from data_utils import (
     generate_dummy_dist_graph,
-    generate_special_dummy_dist_graph,
+    generate_special_dummy_dist_graph_for_efeat_gnn,
     generate_dummy_dist_graph_reconstruct,
     generate_dummy_dist_graph_homogeneous_failure_graph,
     generate_dummy_dist_graph_multi_task,
@@ -457,7 +457,7 @@ def test_GSgnnData2():
 def test_GSgnnData_edge_feat():
     """ Test GSgnnData built-in functions.
     
-    Currently only test the ``get_blocks_edge_feats``.
+    Currently only test the ``get_blocks_edge_feats`` for normal test cases.
     """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
@@ -556,15 +556,19 @@ def test_GSgnnData_edge_feat():
         for _, _, blocks in dataloader:
             edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
             assert len(edge_feat_list) == 2
+            if ('n0', 'r0', 'n1') in edge_feat_list[0]:
+                assert edge_feat_list[0][('n0', 'r0', 'n1')].shape[1] == 2
+            if ('n0', 'r1', 'n1') in edge_feat_list[0]:
+                assert edge_feat_list[0][('n0', 'r1', 'n1')].shape[1] == 2
             assert edge_feat_list[1] == {}
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
 def test_GSgnnData_edge_feat2():
-    """ Test GSgnnData built-in functions.
-    
-    Currently only test the ``get_blocks_edge_feats``.
+    """ Test GSgnnData built-in functions for a special test case
+
+    The special test case is about only layer 0 has edge feature, but layer 1 does not.
     """
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
@@ -574,8 +578,8 @@ def test_GSgnnData_edge_feat2():
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
-        _, part_config = generate_special_dummy_dist_graph(graph_name='special_dummy',
-                                                           dirname=tmpdirname)
+        _, part_config = generate_special_dummy_dist_graph_for_efeat_gnn(graph_name='dummy4ef',
+                                                                         dirname=tmpdirname)
         # there will be two etypes:
         # ('n0', 'r1', 'n1'), ('n1', 'r1', 'n2')
         gdata = GSgnnData(part_config=part_config)
@@ -594,6 +598,8 @@ def test_GSgnnData_edge_feat2():
         for _, _, blocks in dataloader:
             edge_feat_list = gdata.get_blocks_edge_feats(blocks, efeat_fields)
             assert len(edge_feat_list) == 2
+            if ('n0', 'r1', 'n1') in edge_feat_list[1]:
+                assert edge_feat_list[1][('n1', 'r1', 'n2')].shape[1] == 2
             assert edge_feat_list[0] == {}
 
     # after test pass, destroy all process group
