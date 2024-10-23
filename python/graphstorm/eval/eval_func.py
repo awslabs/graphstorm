@@ -729,7 +729,16 @@ def compute_amri(ranking: th.Tensor, candidate_sizes: th.Tensor) -> th.Tensor:
         AMRI = 1 - \\frac{\\text{MR}-1}{\\mathbb{E}[\\text{MR}-1]}
 
     where MR is the mean rank, and `E[MR]` is the expected mean rank, which is used
-    to adjust for chance. Its values will be in the [-1, 1] range, where 1 corresponds
+    to adjust for chance. E[MR] is defined as:
+
+    .. math::
+        \\mathbb{E}[\\text{MR}] = \\mathbb{E} \\left[ \\frac{1}{n} \\sum^n_{i=1}{r_i} \\right]
+
+    Where :math:`r_i` is the rank the model assigns to the positive edge,
+    compared to the negative edges in the candidate list, and :math:`n` is the number of
+    candidate lists, one per positive edge.
+
+    AMRI values will be in the :math:`[-1, 1]` range, where 1 corresponds
     to optimal performance where each individual rank is 1. A value of 0 indicates
     model performance similar to a model assigning random scores, or equal score
     to every candidate. The value is negative if the model performs worse than the

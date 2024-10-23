@@ -982,7 +982,7 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
 
     def compute_score(
             self,
-            rankings,
+            rankings: Dict[str, th.Tensor],
             train=True,
             **kwargs
         ):
@@ -1023,8 +1023,8 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
             if metric == "amri":
                 assert candidate_sizes, \
                     f"candidate_sizes needs to have a value for AMRI, got {candidate_sizes=}."
-                for _, size in candidate_sizes.items():
-                    sizes_list.append(size)
+                for etype, _ in rankings.items():
+                    sizes_list.append(candidate_sizes[etype])
                 candidate_sizes_tensor = th.cat(sizes_list, dim=0)
                 arg_tuple = (ranking, candidate_sizes_tensor)
             else:
