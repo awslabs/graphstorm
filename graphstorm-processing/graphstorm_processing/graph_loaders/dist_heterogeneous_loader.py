@@ -1685,7 +1685,7 @@ class DistHeterogeneousGraphLoader(object):
                         single_feature_df = transformed_feature_df.select(bert_feat_name)
                         feature_output_path = os.path.join(
                             self.output_prefix,
-                            f"edge_data/{edge_type}-{bert_feat_name}",
+                            f"edge_data/{edge_type.replace(':', '_')}-{bert_feat_name}",
                         )
                         feat_meta, feat_size = self._write_processed_feature(
                             bert_feat_name,
@@ -1699,7 +1699,7 @@ class DistHeterogeneousGraphLoader(object):
                         feat_col, feat_name
                     )
                     feature_output_path = os.path.join(
-                        self.output_prefix, f"edge_data/{edge_type}-{feat_name}"
+                        self.output_prefix, f"edge_data/{edge_type.replace(':', '_')}-{feat_name}"
                     )
                     feat_meta, feat_size = self._write_processed_feature(
                         feat_name,
