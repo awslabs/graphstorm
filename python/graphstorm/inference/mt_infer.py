@@ -18,12 +18,16 @@
 import os
 import time
 import logging
+from typing import Any, Dict, Optional
+
 import torch as th
 
 from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_NODE_REGRESSION,
                       BUILTIN_TASK_EDGE_CLASSIFICATION,
                       BUILTIN_TASK_EDGE_REGRESSION)
+from ..dataloading import GSgnnMultiTaskDataLoader
+from ..eval.evaluator import GSgnnMultiTaskEvaluator
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
 from ..model.utils import (save_node_prediction_results,
@@ -54,10 +58,10 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
 
     # pylint: disable=unused-argument
     def infer(self, data,
-              predict_test_loader=None,
-              lp_test_loader=None,
-              recon_nfeat_test_loader=None,
-              recon_efeat_test_loader=None,
+              predict_test_loader: Optional[GSgnnMultiTaskDataLoader] = None,
+              lp_test_loader: Optional[GSgnnMultiTaskDataLoader] = None,
+              recon_nfeat_test_loader: Optional[GSgnnMultiTaskDataLoader] = None,
+              recon_efeat_test_loader: Optional[GSgnnMultiTaskDataLoader] = None,
               save_embed_path=None,
               save_prediction_path=None,
               use_mini_batch_infer=False,
@@ -209,7 +213,8 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
         # 2. node feature reconstruction (as it has the chance
         #    to reuse the node embeddings generated at the beginning)
         # 3. link prediction.
-        pre_results = {}
+        pre_results: Dict[str, Any] = {}
+        test_lengths = None
         if predict_test_loader is not None:
             # compute prediction results for node classification,
             # node regressoin, edge classification
@@ -309,13 +314,20 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
                                                                   inplace=True)
 
                     decoder = model.task_decoders[task_info.task_id]
-                    ranking = run_lp_mini_batch_predict(decoder, lp_test_embs, dataloader, device)
-                    pre_results[task_info.task_id] = ranking
+                    ranking, test_lengths = run_lp_mini_batch_predict(
+                        decoder, lp_test_embs, dataloader, device, return_batch_lengths=True)
+                    pre_results[task_info.task_id] = (ranking, test_lengths)
 
         if do_eval:
             test_start = time.time()
+            assert isinstance(self.evaluator, GSgnnMultiTaskEvaluator)
+
             val_score, test_score = self.evaluator.evaluate(
-                pre_results, pre_results, 0)
+                pre_results,
+                pre_results,
+                0,
+            )
+
             sys_tracker.check('run evaluation')
             if get_rank() == 0:
                 self.log_print_metrics(val_score=val_score,
