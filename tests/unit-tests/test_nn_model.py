@@ -240,7 +240,7 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
 
     seeds = {'n1': [0]}
     subg = dgl.sampling.sample_neighbors(heter_graph, seeds, 100)
-    block = dgl.to_block(subg, seeds)
+    block = dgl.to_block(subg, seeds).to(dev)
 
     etypes = [("n0", "r0", "n1"), ("n0", "r1", "n1")]
 
