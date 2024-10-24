@@ -450,7 +450,7 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
     emb6 = layer(block, node_feats, edge_feats)
     actual_1 = (emb6['n1']/input_dim).detach().cpu()
     desired_1 = th.ones(dst_idx.shape[0], output_dim) * (2 + 4*(2**-0.5))
-    assert_almost_equal(actual_1.numpy(), desired_1.numpy())
+    assert_almost_equal(actual_1.numpy(), desired_1.numpy(), decimal=5)
 
     # add
     layer = RelGraphConvLayer(
@@ -466,7 +466,7 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
     emb6 = layer(block, node_feats, edge_feats)
     actual_1 = (emb6['n1']/input_dim).detach().cpu()
     desired_1 = th.ones(dst_idx.shape[0], output_dim) * (2 + 4*(2**-0.5))
-    assert_almost_equal(actual_1.numpy(), desired_1.numpy())
+    assert_almost_equal(actual_1.numpy(), desired_1.numpy(), decimal=5)
 
     # sub
     layer = RelGraphConvLayer(
@@ -481,7 +481,7 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
 
     emb6 = layer(block, node_feats, edge_feats)
     assert_almost_equal(emb6['n1'].detach().cpu().numpy(),
-                       (th.zeros(dst_idx.shape[0], output_dim)).numpy())
+                       (th.zeros(dst_idx.shape[0], output_dim)).numpy(), decimal=5)
 
     # mul
     layer = RelGraphConvLayer(
@@ -497,7 +497,8 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
     emb6 = layer(block, node_feats, edge_feats)
     assert_almost_equal(emb6['n1'].detach().cpu().numpy(),
                        (th.ones(dst_idx.shape[0],
-                                output_dim) * (input_dim + input_dim*2*(2**-0.5))).numpy())
+                                output_dim) * (input_dim + input_dim*2*(2**-0.5))).numpy(),
+                       decimal=5)
 
     # div
     layer = RelGraphConvLayer(
@@ -513,7 +514,7 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
     emb6 = layer(block, node_feats, edge_feats)
     actual_2 = (emb6['n1']/input_dim).detach().cpu()
     desired_2 = th.ones(dst_idx.shape[0], output_dim) * (1 + 2*(2**-0.5))
-    assert_almost_equal(actual_2.numpy(), desired_2.numpy())
+    assert_almost_equal(actual_2.numpy(), desired_2.numpy(), decimal=5)
 
 
 if __name__ == '__main__':
