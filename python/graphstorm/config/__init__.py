@@ -19,6 +19,7 @@
 from .argument import GSConfig
 from .argument import get_argument_parser
 
+from .config import BUILTIN_EDGE_FEAT_MP_OPS
 from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                      BUILTIN_TASK_NODE_REGRESSION,
                      BUILTIN_TASK_EDGE_CLASSIFICATION,
