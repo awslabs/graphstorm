@@ -105,6 +105,7 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
                           GraphConvwithEdgeFeat)
         assert isinstance(encoder.layers[0].conv._get_module(('n1', 'r2', 'n0')),
                           dgl.nn.GraphConv)
+        encoder = encoder.to(dev)
         emb1 = encoder(blocks, nfeats, efeats_list)
         assert emb1['n0'].shape[-1] == output_dim
         assert emb1['n1'].shape[-1] == output_dim
@@ -142,6 +143,7 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
                           GraphConvwithEdgeFeat)
         assert isinstance(encoder.layers[0].conv._get_module(('n1', 'r2', 'n0')),
                           dgl.nn.GraphConv)
+        encoder = encoder.to(dev)
         emb2 = encoder(blocks, nfeats, efeats_list)
         assert emb2['n0'].shape[-1] == output_dim
         assert emb2['n1'].shape[-1] == output_dim
@@ -177,6 +179,7 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
         assert isinstance(encoder.layers[0].conv._get_module(('n1', 'r2', 'n0')),
                           dgl.nn.GraphConv)
         # no need of input edge features
+        encoder = encoder.to(dev)
         emb3 = encoder(blocks, nfeats)
         assert emb3['n0'].shape[-1] == output_dim
         assert emb3['n1'].shape[-1] == output_dim
@@ -205,6 +208,7 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
                                        edge_feat_name=efeat_fields,
                                        edge_feat_mp_op='concat')
         try:
+            encoder = encoder.to(dev)
             emb4 = encoder(blocks, nfeats, efeats_list)
         except:
             emb4 = None
@@ -241,6 +245,7 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
                           GraphConvwithEdgeFeat)
         assert isinstance(encoder.layers[0].conv._get_module(('n1', 'r2', 'n0')),
                           dgl.nn.GraphConv)
+        encoder = encoder.to(dev)
         emb5 = encoder(blocks, nfeats, efeats_list)
         assert emb5['n0'].shape[-1] == output_dim
         assert emb5['n1'].shape[-1] == output_dim
@@ -276,6 +281,7 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
                           GraphConvwithEdgeFeat)
         assert isinstance(encoder.layers[0].conv._get_module(('n1', 'r2', 'n0')),
                           dgl.nn.GraphConv)
+        encoder = encoder.to(dev)
         emb5 = encoder(blocks, nfeats, efeats_list)
         assert emb5['n0'].shape[-1] == output_dim
         assert emb5['n1'].shape[-1] == output_dim
