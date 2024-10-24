@@ -139,7 +139,7 @@ class RelGraphConvLayer(nn.Module):
         rel_convs = {}
         for rel in rel_names:
             if edge_feat_name and rel in edge_feat_name:
-                rel_convs[rel] = GraphConvwithEdgeFeat(in_feat, out_feat, 
+                rel_convs[rel] = GraphConvwithEdgeFeat(in_feat, out_feat,
                                                        edge_feat_mp_op=edge_feat_mp_op,
                                                        bias=False)
             else:
@@ -209,7 +209,7 @@ class RelGraphConvLayer(nn.Module):
         logging.warning(warn_msg)
 
     # pylint: disable=invalid-name
-    def forward(self, g, n_h, e_h={}):
+    def forward(self, g, n_h, e_h=None):
         """ RGCN layer forward computation.
 
         Parameters
@@ -261,6 +261,9 @@ class RelGraphConvLayer(nn.Module):
                                              dtype=th.float32, device=g.device)
         else:
             inputs_src = inputs_dst = n_h
+
+        if e_h is None:
+            e_h = {}
 
         if self.edge_feat_name:
             hs = self.conv(g, (inputs_src, inputs_dst, e_h), mod_kwargs=wdict)
@@ -415,7 +418,7 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
     def reset_last_selfloop(self):
         self.layers[-1].self_loop = self.last_selfloop
 
-    def forward(self, blocks, n_h, e_hs=[]):
+    def forward(self, blocks, n_h, e_hs=None):
         """ RGCN encoder forward computation.
 
         .. versionchanged:: 0.4.0
@@ -441,6 +444,9 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         h: dict of Tensor
             New node embeddings for each node type in the format of {ntype: tensor}.
         """
+        if e_hs is None:
+            e_hs = []
+
         if len(e_hs) > 0:
             assert len(e_hs) >= len(blocks), 'The layer of edge features should be equal or ' + \
                 f'greater than the number of blocks, but got {len(e_hs)} layer of edge ' + \
@@ -613,8 +619,9 @@ class GraphConvwithEdgeFeat(nn.Module):
         super(GraphConvwithEdgeFeat, self).__init__()
         self.in_feat = in_feat
         self.out_feat = out_feat
-        assert edge_feat_mp_op in BUILTIN_EDGE_FEAT_MP_OPS, 'GraphStorm only support edge message' + \
-            f'passing operation in {BUILTIN_EDGE_FEAT_MP_OPS}, bug got {edge_feat_mp_op}.'
+        assert edge_feat_mp_op in BUILTIN_EDGE_FEAT_MP_OPS, 'GraphStorm only support edge' + \
+            f' message passing operation in {BUILTIN_EDGE_FEAT_MP_OPS}, bug got ' + \
+            f'{edge_feat_mp_op}.'
         self.edge_feat_mp_op = edge_feat_mp_op
         self.bias = bias
 
@@ -629,6 +636,7 @@ class GraphConvwithEdgeFeat(nn.Module):
             self.h_bias = nn.Parameter(th.Tensor(out_feat))
             nn.init.zeros_(self.h_bias)
 
+    # pylint: disable=nused-argument
     def forward(self, rel_graph, inputs, weight=None, edge_weight=None):
         """ Graph conv forward computation with edge feature.
 
@@ -679,6 +687,7 @@ class GraphConvwithEdgeFeat(nn.Module):
         rel_graph.dstdata['norm'] = in_norms
 
         # aggregate on dest nodes
+        # pylint: disable=no-member
         rel_graph.update_all(fn.e_mul_v('m', 'norm', 'n_m'), fn.sum('n_m', 'h'))
 
         # extract outputs
