@@ -448,9 +448,9 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
     layer = layer.to(dev)
 
     emb6 = layer(block, node_feats, edge_feats)
-    assert_almost_equal(emb6['n1'].detach().cpu().numpy(),
-                       (th.ones(dst_idx.shape[0],
-                                output_dim) * (input_dim*2 + input_dim*4*(2**-0.5))).numpy())
+    actual_1 = (emb6['n1']/input_dim).detach().cpu()
+    desired_1 = th.ones(dst_idx.shape[0], output_dim) * (2 + 4*(2**-0.5))
+    assert_almost_equal(actual_1.numpy(), desired_1.numpy())
 
     # add
     layer = RelGraphConvLayer(
@@ -464,9 +464,9 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
     layer = layer.to(dev)
 
     emb6 = layer(block, node_feats, edge_feats)
-    assert_almost_equal(emb6['n1'].detach().cpu().numpy(),
-                       (th.ones(dst_idx.shape[0],
-                                output_dim) * (input_dim*2 + input_dim*4*(2**-0.5))).numpy())
+    actual_1 = (emb6['n1']/input_dim).detach().cpu()
+    desired_1 = th.ones(dst_idx.shape[0], output_dim) * (2 + 4*(2**-0.5))
+    assert_almost_equal(actual_1.numpy(), desired_1.numpy())
 
     # sub
     layer = RelGraphConvLayer(
@@ -511,9 +511,9 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
     layer = layer.to(dev)
 
     emb6 = layer(block, node_feats, edge_feats)
-    assert_almost_equal(emb6['n1'].detach().cpu().numpy(),
-                       (th.ones(dst_idx.shape[0],
-                                output_dim) * (input_dim + input_dim*2*(2**-0.5))).numpy())
+    actual_2 = (emb6['n1']/input_dim).detach().cpu()
+    desired_2 = th.ones(dst_idx.shape[0], output_dim) * (1 + 2*(2**-0.5))
+    assert_almost_equal(actual_2.numpy(), desired_2.numpy())
 
 
 if __name__ == '__main__':
