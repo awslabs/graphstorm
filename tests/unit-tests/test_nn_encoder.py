@@ -26,7 +26,7 @@ from graphstorm.model.rgcn_encoder import GraphConvwithEdgeFeat, RelationalGCNEn
 
 from data_utils import (generate_dummy_dist_graph)
 
-def generate_dummy_features(input_feats, output_dim, feat_pattern='random'):
+def generate_dummy_features(input_feats, output_dim, feat_pattern='random', device='cpu'):
     """ generate dummy feature values to replace original feature values.
     
     Only support 2D features now.
@@ -40,11 +40,11 @@ def generate_dummy_features(input_feats, output_dim, feat_pattern='random'):
     output_feats = {}
     for key, feats in input_feats.items():
         if feat_pattern == 'random':
-            new_feats = th.rand(feats.shape[0], output_dim)
+            new_feats = th.rand(feats.shape[0], output_dim).to(device)
         elif feat_pattern == 'zeros':
-            new_feats = th.zeros(feats.shape[0], output_dim)
+            new_feats = th.zeros(feats.shape[0], output_dim).to(device)
         elif feat_pattern == 'ones':
-            new_feats = th.ones(feats.shape[0], output_dim)
+            new_feats = th.ones(feats.shape[0], output_dim).to(device)
         else:   # do nothing
             new_feats = feats
 
@@ -87,8 +87,8 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
             nfeats = gdata.get_node_feats(input_nodes, nfeat_fields, device=dev)
             efeats_list = gdata.get_blocks_edge_feats(blocks, efeat_fields, device=dev)
 
-        nfeats = generate_dummy_features(nfeats, input_dim, feat_pattern='random')
-        efeats_list = [generate_dummy_features(efeats, input_dim, feat_pattern='random')
+        nfeats = generate_dummy_features(nfeats, input_dim, feat_pattern='random', device=dev)
+        efeats_list = [generate_dummy_features(efeats, input_dim, feat_pattern='random', device=dev)
                        for efeats in efeats_list]
 
         blocks = [block.to(dev) for block in blocks]
@@ -126,8 +126,8 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
             nfeats = gdata.get_node_feats(input_nodes, nfeat_fields, device=dev)
             efeats_list = gdata.get_blocks_edge_feats(blocks, efeat_fields, device=dev)
 
-        nfeats = generate_dummy_features(nfeats, input_dim, feat_pattern='random')
-        efeats_list = [generate_dummy_features(efeats, input_dim, feat_pattern='random')
+        nfeats = generate_dummy_features(nfeats, input_dim, feat_pattern='random', device=dev)
+        efeats_list = [generate_dummy_features(efeats, input_dim, feat_pattern='random', device=dev)
                        for efeats in efeats_list]
 
         blocks = [block.to(dev) for block in blocks]
@@ -161,8 +161,8 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
             nfeats = gdata.get_node_feats(input_nodes, nfeat_fields, device=dev)
             efeats_list = gdata.get_blocks_edge_feats(blocks, efeat_fields, device=dev)
 
-        nfeats = generate_dummy_features(nfeats, input_dim, feat_pattern='random')
-        efeats_list = [generate_dummy_features(efeats, input_dim, feat_pattern='random')
+        nfeats = generate_dummy_features(nfeats, input_dim, feat_pattern='random', device=dev)
+        efeats_list = [generate_dummy_features(efeats, input_dim, feat_pattern='random', device=dev)
                        for efeats in efeats_list]
 
         blocks = [block.to(dev) for block in blocks]
@@ -198,8 +198,8 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
             nfeats = gdata.get_node_feats(input_nodes, nfeat_fields, device=dev)
             efeats_list = gdata.get_blocks_edge_feats(blocks, efeat_fields, device=dev)
 
-        nfeats = generate_dummy_features(nfeats, input_dim, feat_pattern='random')
-        efeats_list = [generate_dummy_features(efeats_list[0], input_dim, feat_pattern='random')]
+        nfeats = generate_dummy_features(nfeats, input_dim, feat_pattern='random', device=dev)
+        efeats_list = [generate_dummy_features(efeats_list[0], input_dim, feat_pattern='random', device=dev)]
         blocks = [block.to(dev) for block in blocks]
 
         encoder = RelationalGCNEncoder(gdata.g,
@@ -227,8 +227,8 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
             nfeats = gdata.get_node_feats(input_nodes, nfeat_fields, device=dev)
             efeats_list = gdata.get_blocks_edge_feats(blocks, efeat_fields, device=dev)
 
-        nfeats = generate_dummy_features(nfeats, input_dim, feat_pattern='random')
-        efeats_list = [generate_dummy_features(efeats, input_dim, feat_pattern='random') \
+        nfeats = generate_dummy_features(nfeats, input_dim, feat_pattern='random', device=dev)
+        efeats_list = [generate_dummy_features(efeats, input_dim, feat_pattern='random', device=dev) \
                        for efeats in efeats_list]
 
         blocks = [block.to(dev) for block in blocks]
@@ -263,8 +263,8 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
             nfeats = gdata.get_node_feats(input_nodes, nfeat_fields, device=dev)
             efeats_list = gdata.get_blocks_edge_feats(blocks, efeat_fields, device=dev)
 
-        nfeats = generate_dummy_features(nfeats, input_dim, feat_pattern='random')
-        efeats_list = [generate_dummy_features(efeats, input_dim, feat_pattern='random') \
+        nfeats = generate_dummy_features(nfeats, input_dim, feat_pattern='random', device=dev)
+        efeats_list = [generate_dummy_features(efeats, input_dim, feat_pattern='random', device=dev) \
                        for efeats in efeats_list]
 
         blocks = [block.to(dev) for block in blocks]
