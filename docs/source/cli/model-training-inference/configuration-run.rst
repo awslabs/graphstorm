@@ -343,7 +343,24 @@ General Configurations
     - Default value: This parameter must be provided by user.
 
 .. _eval_metrics:
-- **eval_metric**: Evaluation metric used during evaluation. The input can be a string specifying the evaluation metric to report or a list of strings specifying a list of evaluation metrics to report. The first evaluation metric is treated as the major metric and is used to choose the best trained model. The supported evaluation metrics of classification tasks include ``accuracy``, ``precision_recall``, ``roc_auc``, ``f1_score``, ``per_class_f1_score``, ``hit_at_k``. To be noted, ``hit_at_k`` only works with binary classification tasks. The ``k`` of ``hit_at_k`` can be any positive integer, for example ``hit_at_10`` or ``hit_at_100``. The term ``hit_at_k`` refers to the number of true positives among the top ``k`` predictions with the highest confidence scores. The supported evaluation metrics of regression tasks include ``rmse``, ``mse`` and ``mae``. The supported evaluation metrics of link prediction tasks include ``mrr`` and ``hit_at_k``.
+- **eval_metric**: Evaluation metrics used during evaluation. The input can be a string specifying
+  the evaluation metric to report or a list of strings specifying a list of evaluation metrics to
+  report. The first evaluation metric in the list is treated as the primary metric and is used to
+  choose the best trained model and for early stopping. Each learning task supports different evaluation metrics:
+
+  - The supported evaluation metrics of classification tasks include ``accuracy``,
+    ``precision_recall``, ``roc_auc``, ``f1_score``, ``per_class_f1_score``, ``hit_at_k``. Note that
+    ``hit_at_k`` only works with binary classification tasks.
+
+    - The ``k`` of ``hit_at_k`` can be any positive integer, for example ``hit_at_10`` or
+      ``hit_at_100``. The term ``hit_at_k`` refers to the number of true positives among the top ``k``
+      predictions with the highest confidence scores.
+  - The supported evaluation metrics of regression tasks include ``rmse``, ``mse`` and ``mae``.
+  - The supported evaluation metrics of link prediction tasks include ``mrr``, ``amri`` and
+    ``hit_at_k``. MRR refers to the Mean Reciprocal Rank with values between and 0 (worst) and 1
+    (best), and AMRI refers the Adjusted Mean Rank Index, with values ranging from -1 (worst) to 1
+    (best). An AMRI value of 1 is equivalent to random guessing or assigning the same score to all
+    edges in the candidate set. For more details on these metrics see :ref:`link-prediction-evaluation-metrics`.
 
     - Yaml: ``eval_metric:``
         | ``- accuracy``

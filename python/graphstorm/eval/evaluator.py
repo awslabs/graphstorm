@@ -1020,6 +1020,7 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         # compute ranking value for each metric
         metrics: Dict[str, th.Tensor] = {}
         for metric in self.metric_list:
+            # NOTE: If other metrics needs candidate list sizes, add them here.
             if metric == "amri":
                 assert candidate_sizes, \
                     f"candidate_sizes needs to have a value for AMRI, got {candidate_sizes=}."
