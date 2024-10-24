@@ -636,7 +636,7 @@ class GraphConvwithEdgeFeat(nn.Module):
             self.h_bias = nn.Parameter(th.Tensor(out_feat))
             nn.init.zeros_(self.h_bias)
 
-    # pylint: disable=nused-argument
+    # pylint: disable=unused-argument
     def forward(self, rel_graph, inputs, weight=None, edge_weight=None):
         """ Graph conv forward computation with edge feature.
 
