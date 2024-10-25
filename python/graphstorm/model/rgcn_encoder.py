@@ -220,7 +220,7 @@ class RelGraphConvLayer(nn.Module):
             Node features for each node type in the format of {ntype: tensor}.
         e_h: dict of Tensor
             edge features for each edge type in the format of {etype: tensor}. Default is an
-            ampty dict, meaning no edge features.
+            empty dict, meaning no edge feature.
 
         Returns
         -------
