@@ -519,7 +519,7 @@ class HeteroGraphConv(nn.Module):
         Invoke the forward function with each module and aggregate their results.
 
         .. versionchanged:: 0.4.0
-            Modify inputs to include edge inputs in v0.4.0.
+            Modify the argument inputs to accept a tuple of dict[str, Tensor] to support edge features in graph converlusion.
 
         Parameters
         ----------
