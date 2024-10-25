@@ -227,7 +227,7 @@ class RelGraphConvLayer(nn.Module):
         dict of Tensor: New node embeddings for each node type in the format of {ntype: tensor}.
 
         .. versionchanged:: 0.4.0
-            Change inputs into node inputs and edge inputs in v0.4.0 to support edge featuer
+            Change inputs into n_h and e_h in v0.4.0 to support edge feature
             in RGCN layer.
         """
         g = g.local_var()
