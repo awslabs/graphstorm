@@ -422,7 +422,7 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         """ RGCN encoder forward computation.
 
         .. versionchanged:: 0.4.0
-            Change inputs into node inputs and edge input in v0.4.0 to support edge featuer
+            Change inputs into blocks, n_h and e_hs in v0.4.0 to support edge feature
             in RGCN encoder.
 
         Parameters
