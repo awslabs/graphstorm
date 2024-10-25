@@ -341,11 +341,11 @@ In general, link prediction evaluation happens by constructing a set of negative
 edges with one of the sampling methods described above, and including one positive
 edge in this set of edges, which we will refer to as the `candidate set`. The model
 assigns a score to each edge in the candidate set, and ideally the true edge is ranked
-at the top position when edges are ranked by score.
+at the top position when edges are ranked by scores.
 
-We define the set of individual rank scores as :math:`\mathcal{I}` and the number of candidate
-edges as :math:`\mathcal{|I|}`. We refer to the ranking of the positive edge within the list
-of returned scores as :math:`r`.
+We define the set of ranking scores as :math:`\mathcal{I}` and the number of candidate
+edges as :math:`\mathcal{|I|}`. We refer to the ranking of a positive edge within the list
+as :math:`r`.
 
 Mean Reciprocal Rank (MRR)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -362,16 +362,16 @@ where :math:`\mathcal{I}` is the set of candidate edges, and :math:`r` correspon
 ranking of the positive edge as determined by the score assigned to the model to
 each edge in the candidate set.
 
-The ideal MRR is 1.0 meaning that the positive edge was ranked first in every
+The ideal MRR is 1.0 meaning that the positive edges are ranked first in every
 score list. Because a positive edge is always included in the ranking, it cannot
-get the value of 0.0 so its range is in :math:`(0, 1]`. MRR values will depend on
+get the value of 0.0 so its range is in :math:`(0, 1]`. MRR values are influenced by
 the size of the candidate lists, so it can only be used to compare the performance
 when the number of negative edges per positive edge is the same.
 
-Hits @ k
-^^^^^^^^
+Hits@k
+^^^^^^
 
-The ``Hits @ k`` metric measures the number of times the positive edge was ranked in the
+The ``Hits@k`` metric measures the number of times the positive edge was ranked in the
 top k positions by the model in the sorted score list:
 
 .. math::
@@ -380,7 +380,8 @@ top k positions by the model in the sorted score list:
 
 This metric is easy to interpret but has the disadvantage that any position
 beyond the top-k is not taken into account, so does not provide a holistic
-view needed for cross-model comparison.
+view needed for cross-model comparison, and is also sensitive to the number
+of negatives in the set.
 
 
 Adjusted Mean Ranking Index (AMRI)
@@ -401,4 +402,4 @@ which is used to adjust for chance. Its values will be in the :math:`[-1, 1]` ra
 to optimal performance where each individual rank of the positive edge is 1. A value of 0 indicates
 model performance similar to a model assigning random scores, or equal score
 to every candidate. The value is negative if the model performs worse than the
-constant-score model."
+all-equal-score model."

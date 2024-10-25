@@ -359,7 +359,7 @@ General Configurations
   - The supported evaluation metrics of link prediction tasks include ``mrr``, ``amri`` and
     ``hit_at_k``. MRR refers to the Mean Reciprocal Rank with values between and 0 (worst) and 1
     (best), and AMRI refers the Adjusted Mean Rank Index, with values ranging from -1 (worst) to 1
-    (best). An AMRI value of 1 is equivalent to random guessing or assigning the same score to all
+    (best). An AMRI value of 0 is equivalent to random guessing or assigning the same score to all
     edges in the candidate set. For more details on these metrics see :ref:`link-prediction-evaluation-metrics`.
 
     - Yaml: ``eval_metric:``
