@@ -86,7 +86,7 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
         self._out_dim = out_dim
         self._num_hidden_layers = num_hidden_layers
         self._layers = nn.ModuleList()  # GNN layers.
-        
+
         self.edge_feat_name = edge_feat_name
         self.edge_feat_mp_op = edge_feat_mp_op
         is_support_edge_feat = self.is_support_edge_feat()
@@ -100,10 +100,7 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
         overwrite this method and decide how to support edge feature in message passing
         computation.
         """
-        if self.edge_feat_name is None:
-            return True
-        else:
-            return False
+        return self.edge_feat_name is None
 
     @property
     def in_dims(self):
