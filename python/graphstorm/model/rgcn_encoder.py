@@ -90,7 +90,12 @@ class RelGraphConvLayer(nn.Module):
         etype2:[...], ...}, or None if not provided.
     edge_feat_mp_op: str
         The opration method to combine source node embeddings with edge embeddings in message
-        passing. Options include `concat`, `add`, `sub`, `mul`, and `div`.
+        passing. Options include ``concat``, ``add``, ``sub``, ``mul``, and ``div``.
+        ``concat`` operation will concatenate the source node features with edge features;
+        ``add`` operation will add the source node features with edge features together;
+        ``sub`` operation will subtract the source node features by edge features;
+        ``mul`` operation will multiply the source node features with edge features; and
+        ``div`` operation will divide the source node features by edge features.
     weight: bool
         Whether to apply a linear layer after message passing. Default: True.
     bias: bool
@@ -219,8 +224,7 @@ class RelGraphConvLayer(nn.Module):
         n_h: dict of Tensor
             Node features for each node type in the format of {ntype: tensor}.
         e_h: dict of Tensor
-            edge features for each edge type in the format of {etype: tensor}. Default is an
-            empty dict, meaning no edge feature.
+            edge features for each edge type in the format of {etype: tensor}. Default is None.
 
         Returns
         -------
@@ -327,6 +331,11 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
     edge_feat_mp_op: str
         The opration method to combine source node embeddings with edge embeddings in message
         passing. Options include `concat`, `add`, `sub`, `mul`, and `div`.
+        ``concat`` operation will concatenate the source node features with edge features;
+        ``add`` operation will add the source node features with edge features together;
+        ``sub`` operation will subtract the source node features by edge features;
+        ``mul`` operation will multiply the source node features with edge features; and
+        ``div`` operation will divide the source node features by edge features.
     dropout: float
         Dropout rate. Default 0.
     use_self_loop: bool
@@ -390,7 +399,8 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
                  last_layer_act=False,
                  num_ffn_layers_in_gnn=0,
                  norm=None):
-        super(RelationalGCNEncoder, self).__init__(h_dim, out_dim, num_hidden_layers)
+        super(RelationalGCNEncoder, self).__init__(h_dim, out_dim, num_hidden_layers,
+                                                   edge_feat_name, edge_feat_mp_op)
         if num_bases < 0 or num_bases > len(g.canonical_etypes):
             self.num_bases = len(g.canonical_etypes)
         else:
@@ -410,6 +420,15 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
             edge_feat_name=edge_feat_name, edge_feat_mp_op=edge_feat_mp_op,
             activation=F.relu if last_layer_act else None,
             self_loop=use_self_loop, norm=norm if last_layer_act else None))
+
+    def is_support_edge_feat(self):
+        """ Overwrite ``GraphConvEncoder`` class' method, indicating RGCN Encoder
+        implementation supports edge feature.
+        
+        Current implementation direct return True, but customized RGCN encoder can
+        have more complex condition checks.
+        """
+        return True
 
     def skip_last_selfloop(self):
         self.last_selfloop = self.layers[-1].self_loop
@@ -435,20 +454,17 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         n_h: dict of Tensor
             Input node features for each node type in the format of {ntype: tensor}.
         e_hs: list of dict of Tensor
-            Input edge features for each edge type in the format of [{etype: tensor}, ...].
-            The length of e_hs should be equal or greater than the number of gnn layers.
-            Default is an empty list '[]'.
+            Input edge features for each edge type in the format of [{etype: tensor}, ...],
+            or [{}, {}. ...] for zero number of edges in input blocks. The length of e_hs
+            should be equal to the number of gnn layers. Default is None.
 
         Returns
         ----------
         h: dict of Tensor
             New node embeddings for each node type in the format of {ntype: tensor}.
         """
-        if e_hs is None:
-            e_hs = []
-
-        if len(e_hs) > 0:
-            assert len(e_hs) >= len(blocks), 'The layer of edge features should be equal or ' + \
+        if e_hs is not None:
+            assert len(e_hs) == len(blocks), 'The layer of edge features should be equal or ' + \
                 f'greater than the number of blocks, but got {len(e_hs)} layer of edge ' + \
                 f'features and {len(blocks)} blocks.'
 
@@ -459,6 +475,7 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
                 n_h = layer(block, n_h)
 
         return n_h
+
 
 class HeteroGraphConv(nn.Module):
     r"""A generic module for computing convolution on heterogeneous graphs.
@@ -543,8 +560,11 @@ class HeteroGraphConv(nn.Module):
             mod_kwargs = {}
         outputs = {nty: [] for nty in g.dsttypes}
         if isinstance(inputs, tuple) or g.is_block:
-            if isinstance(inputs, tuple):
+            if isinstance(inputs, tuple) and len(inputs)==3:
                 src_inputs, dst_inputs, edge_inputs = inputs
+            elif isinstance(inputs, tuple) and len(inputs)==2:
+                src_inputs, dst_inputs = inputs
+                edge_inputs = {}
             else:
                 src_inputs = inputs
                 dst_inputs = {
@@ -607,6 +627,11 @@ class GraphConvwithEdgeFeat(nn.Module):
     edge_feat_mp_op: str
         The opration method to combine source node embeddings with edge embeddings in message
         passing. Options include `concat`, `add`, `sub`, `mul`, and `div`.
+        ``concat`` operation will concatenate the source node features with edge features;
+        ``add`` operation will add the source node features with edge features together;
+        ``sub`` operation will subtract the source node features by edge features;
+        ``mul`` operation will multiply the source node features with edge features; and
+        ``div`` operation will divide the source node features by edge features.
     bias: bool
         Whether to add bias. Default: True.
     """
@@ -630,6 +655,7 @@ class GraphConvwithEdgeFeat(nn.Module):
             self.weights = nn.Parameter(th.Tensor(in_feat * 2, out_feat))
         else:
             self.weights = nn.Parameter(th.Tensor(in_feat, out_feat))
+        nn.init.xavier_uniform_(self.weights.T, gain=nn.init.calculate_gain('linear'))
 
         # bias
         if bias:
@@ -660,41 +686,46 @@ class GraphConvwithEdgeFeat(nn.Module):
                                  'provide 3 inputs in a tuple, the format is (src_inputs, ' + \
                                  f'dst_inputs, edge_inputs). but got {len(inputs)} inputs.'
         src_inputs, _, edge_inputs = inputs
+        assert src_inputs.shape[1:] == edge_inputs.shape[1:], \
+            'To use edge feature in message passing computation, the node and edge features ' + \
+            f'should have the same dimensions, but got node feature dimension: ' + \
+            f'{src_inputs.shape[1:]} and edge feature dimension: {edge_inputs.shape[1:]}.'
 
-        rel_graph.srcdata['n_h'] = src_inputs
-        rel_graph.edata['e_h'] = edge_inputs
-        if self.edge_feat_mp_op == 'concat':
-            rel_graph.apply_edges(lambda edges: {'m': th.concat([edges.src['n_h'], \
-                                                 edges.data['e_h']], dim=1) @ self.weights})
-        elif self.edge_feat_mp_op == 'add':
-            rel_graph.apply_edges(lambda edges: {'m': (edges.src['n_h'] + \
-                                                 edges.data['e_h']) @ self.weights})
-        elif self.edge_feat_mp_op == 'sub':
-            rel_graph.apply_edges(lambda edges: {'m': (edges.src['n_h'] - \
-                                                 edges.data['e_h']) @ self.weights})
-        elif self.edge_feat_mp_op == 'mul':
-            rel_graph.apply_edges(lambda edges: {'m': (edges.src['n_h'] * \
-                                                 edges.data['e_h']) @ self.weights})
-        elif self.edge_feat_mp_op == 'div':
-            rel_graph.apply_edges(lambda edges: {'m': (edges.src['n_h'] / \
-                                                 edges.data['e_h']) @ self.weights})
-        else:
-            raise ValueError(f'Unknown edge message passing operation: {self.edge_feat_mp_op}.' + \
-                             f'It should be one of {BUILTIN_EDGE_FEAT_MP_OPS}.')
-        # assign in_degree norm to dst nodes as right norm
-        in_degs = rel_graph.in_degrees()
-        in_norms = th.pow(in_degs, -0.5)
-        rel_graph.dstdata['norm'] = in_norms
+        with rel_graph.local_scope():
+            rel_graph.srcdata['n_h'] = src_inputs
+            rel_graph.edata['e_h'] = edge_inputs
+            if self.edge_feat_mp_op == 'concat':
+                rel_graph.apply_edges(lambda edges: {'m': th.concat([edges.src['n_h'], \
+                                                    edges.data['e_h']], dim=1) @ self.weights})
+            elif self.edge_feat_mp_op == 'add':
+                rel_graph.apply_edges(lambda edges: {'m': (edges.src['n_h'] + \
+                                                    edges.data['e_h']) @ self.weights})
+            elif self.edge_feat_mp_op == 'sub':
+                rel_graph.apply_edges(lambda edges: {'m': (edges.src['n_h'] - \
+                                                    edges.data['e_h']) @ self.weights})
+            elif self.edge_feat_mp_op == 'mul':
+                rel_graph.apply_edges(lambda edges: {'m': (edges.src['n_h'] * \
+                                                    edges.data['e_h']) @ self.weights})
+            elif self.edge_feat_mp_op == 'div':
+                rel_graph.apply_edges(lambda edges: {'m': (edges.src['n_h'] / \
+                                                    edges.data['e_h']) @ self.weights})
+            else:
+                raise ValueError(f'Unknown edge message passing operation: {self.edge_feat_mp_op}.' + \
+                                f'It should be one of {BUILTIN_EDGE_FEAT_MP_OPS}.')
+            # assign in_degree norm to dst nodes as right norm
+            in_degs = rel_graph.in_degrees()
+            in_norms = th.pow(in_degs, -0.5)
+            rel_graph.dstdata['norm'] = in_norms
 
-        # aggregate on dest nodes
-        # pylint: disable=no-member
-        rel_graph.update_all(fn.e_mul_v('m', 'norm', 'n_m'), fn.sum('n_m', 'h'))
+            # aggregate on dest nodes
+            # pylint: disable=no-member
+            rel_graph.update_all(fn.e_mul_v('m', 'norm', 'n_m'), fn.sum('n_m', 'h'))
 
-        # extract outputs
-        h = rel_graph.dstdata['h']
+            # extract outputs
+            h = rel_graph.dstdata['h']
 
-        # add bias
-        if self.bias:
-            h = h + self.h_bias
+            # add bias
+            if self.bias:
+                h = h + self.h_bias
 
-        return h
+            return h
