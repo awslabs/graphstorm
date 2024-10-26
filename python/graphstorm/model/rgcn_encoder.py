@@ -536,7 +536,8 @@ class HeteroGraphConv(nn.Module):
         Invoke the forward function with each module and aggregate their results.
 
         .. versionchanged:: 0.4.0
-            Modify the argument inputs to accept a tuple of dict[str, Tensor] to support edge features in graph converlusion.
+            Modify the argument inputs to accept a tuple of dict[str, Tensor] to support
+            edge features in graph convolution.
 
         Parameters
         ----------
@@ -688,7 +689,7 @@ class GraphConvwithEdgeFeat(nn.Module):
         src_inputs, _, edge_inputs = inputs
         assert src_inputs.shape[1:] == edge_inputs.shape[1:], \
             'To use edge feature in message passing computation, the node and edge features ' + \
-            f'should have the same dimensions, but got node feature dimension: ' + \
+            'should have the same dimensions, but got node feature dimension: ' + \
             f'{src_inputs.shape[1:]} and edge feature dimension: {edge_inputs.shape[1:]}.'
 
         with rel_graph.local_scope():
@@ -710,8 +711,9 @@ class GraphConvwithEdgeFeat(nn.Module):
                 rel_graph.apply_edges(lambda edges: {'m': (edges.src['n_h'] / \
                                                     edges.data['e_h']) @ self.weights})
             else:
-                raise ValueError(f'Unknown edge message passing operation: {self.edge_feat_mp_op}.' + \
-                                f'It should be one of {BUILTIN_EDGE_FEAT_MP_OPS}.')
+                raise ValueError('Unknown edge message passing operation: ' + \
+                                f'{self.edge_feat_mp_op}. It should be one of ' + \
+                                f'{BUILTIN_EDGE_FEAT_MP_OPS}.')
             # assign in_degree norm to dst nodes as right norm
             in_degs = rel_graph.in_degrees()
             in_norms = th.pow(in_degs, -0.5)
