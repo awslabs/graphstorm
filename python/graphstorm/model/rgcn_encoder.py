@@ -430,6 +430,11 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         """
         return True
 
+    def is_using_edge_feat(self):
+        """ If users provide edge_feat_name, RelationalGCNEcoder will use it.
+        """
+        return self.edge_feat_name is not None
+
     def skip_last_selfloop(self):
         self.last_selfloop = self.layers[-1].self_loop
         self.layers[-1].self_loop = False
