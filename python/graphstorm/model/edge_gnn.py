@@ -180,6 +180,10 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
 def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=False):
     """ Perform mini-batch prediction on a GNN model.
 
+    .. versionchanged:: 0.4.0
+        Add input edge feature into model.predict() call in v0.4.0 to support edge features
+        in message passing computation.
+
     Parameters
     ----------
     model : GSgnnModel
@@ -237,7 +241,9 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                         if etype not in input_edges]
                 prepare_for_wholegraph(g, input_nodes, input_edges)
             nfeat_fields = loader.node_feat_fields
-            input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
+            input_nfeats = data.get_node_feats(input_nodes, nfeat_fields, device)
+            efeat_fields = loader.edge_feat_fields
+            input_efeat_list = data.get_blocks_edge_feats(blocks, efeat_fields, device)
             if blocks is None:
                 continue
             # Remove additional keys (ntypes) added for WholeGraph compatibility
@@ -257,8 +263,8 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                 edge_decoder_feats = None
             blocks = [block.to(device) for block in blocks]
             target_edge_graph = target_edge_graph.to(device)
-            pred = model.predict(blocks, target_edge_graph, input_feats,
-                                 None, edge_decoder_feats, input_nodes,
+            pred = model.predict(blocks, target_edge_graph, input_nfeats,
+                                 input_efeat_list, edge_decoder_feats, input_nodes,
                                  return_proba)
 
             # TODO expand code for multiple edge types
@@ -296,7 +302,7 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
 def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=False):
     """ Perform mini-batch prediction.
 
-    This function usually follows full-grain GNN embedding inference. After having
+    This function usually follows full-graph GNN embedding inference. After having
     the GNN embeddings, we need to perform mini-batch computation to make predictions
     on the GNN embeddings.
 

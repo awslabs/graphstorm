@@ -41,7 +41,7 @@ from ..utils import (
 )
 from ..wholegraph import is_wholegraph_optimizer, create_wholememory_optimizer, WholeGraphDistTensor
 
-from ..dataloading.dataset import prepare_batch_input
+from ..dataloading.dataset import prepare_batch_input, get_blocks_edge_feats
 
 from ..config import (GRAPHSTORM_MODEL_ALL_LAYERS,
                       GRAPHSTORM_MODEL_EMBED_LAYER,
@@ -979,6 +979,10 @@ def do_mini_batch_inference(model, data, batch_size=1024,
 
     It may use some of the edges indicated by `edge_mask` to compute GNN embeddings.
 
+    .. versionchanged:: 0.4.0
+        Change ``get_input_embeds`` in v0.4.0 to support edge features in message
+        passing computation.
+
     Parameters
     ----------
     model: torch model
@@ -1023,36 +1027,68 @@ def do_mini_batch_inference(model, data, batch_size=1024,
                                                      feat_field=data.node_feat_field)
         model.eval()
         device = model.gnn_encoder.device
-        def get_input_embeds(input_nodes):
+
+        # an internal function for computing embeddings as inputs of GNN encoder
+        def get_input_embeds(input_nodes, blocks, dataloader):
+            """ Currently, only support node embedding cache, and still use mini batch to compute
+            edge embeddings.
+            """
+            # extract cached node embeddings
             if not isinstance(input_nodes, dict):
                 assert len(data.g.ntypes) == 1
                 input_nodes = {data.g.ntypes[0]: input_nodes}
-            return {ntype: input_embeds[ntype][ids].to(device) \
-                    for ntype, ids in input_nodes.items()}
+            node_input_embs = {ntype: input_embeds[ntype][ids].to(device) \
+                               for ntype, ids in input_nodes.items()}
+            # get input edge features list
+            efeat_fields = dataloader.edge_feat_fields
+            if not isinstance(efeat_fields, dict):
+                assert len(data.g.canonical_etypes) == 1
+                efeat_fields = {data.g.canonical_etypes[0]: efeat_fields}
+            input_efeats_list = get_blocks_edge_feats(data, blocks, efeat_fields, device)
+            # computer edge embeddings
+            edge_input_embs = model.edge_input_encoder(input_efeats_list)
+            return node_input_embs, edge_input_embs
+
         embeddings = dist_minibatch_inference(data.g,
-                                                model.gnn_encoder,
-                                                get_input_embeds,
-                                                batch_size, fanout,
-                                                edge_mask=edge_mask,
-                                                target_ntypes=infer_ntypes,
-                                                task_tracker=task_tracker)
+                                              model.gnn_encoder,
+                                              get_input_embeds,
+                                              batch_size, fanout,
+                                              edge_mask=edge_mask,
+                                              target_ntypes=infer_ntypes,
+                                              task_tracker=task_tracker)
     else:
         model.eval()
         device = model.gnn_encoder.device
-        def get_input_embeds(input_nodes):
+
+        # an internal function for computing embeddings as inputs of GNN encoder
+        def get_input_embeds(input_nodes, blocks, dataloader):
+            # get input node features
             if not isinstance(input_nodes, dict):
                 assert len(data.g.ntypes) == 1
                 input_nodes = {data.g.ntypes[0]: input_nodes}
-            feats = prepare_batch_input(data.g, input_nodes, dev=device,
-                                        feat_field=data.node_feat_field)
-            return model.node_input_encoder(feats, input_nodes)
+            input_nfeats = prepare_batch_input(data.g, input_nodes, dev=device,
+                                               feat_field=dataloader.node_feat_fields)
+            # get input edge features list
+            efeat_fields = dataloader.edge_feat_fields
+            if efeat_fields is not None:
+                if not isinstance(efeat_fields, dict):
+                    assert len(data.g.canonical_etypes) == 1
+                    efeat_fields = {data.g.canonical_etypes[0]: efeat_fields}
+                input_efeats_list = get_blocks_edge_feats(data, blocks, efeat_fields, device)
+            else:
+                input_efeats_list = [{}, {}]
+            # compute input embeddings
+            node_input_embs = model.node_input_encoder(input_nfeats, input_nodes)
+            edge_input_embs = model.edge_input_encoder(input_efeats_list)
+            return node_input_embs, edge_input_embs
+
         embeddings = dist_minibatch_inference(data.g,
-                                                model.gnn_encoder,
-                                                get_input_embeds,
-                                                batch_size, fanout,
-                                                edge_mask=edge_mask,
-                                                target_ntypes=infer_ntypes,
-                                                task_tracker=task_tracker)
+                                              model.gnn_encoder,
+                                              get_input_embeds,
+                                              batch_size, fanout,
+                                              edge_mask=edge_mask,
+                                              target_ntypes=infer_ntypes,
+                                              task_tracker=task_tracker)
     # Called when model.eval()
     # TODO: do_mini_batch_inference is not TRUE mini-batch inference
     #       Need to change the implementation.

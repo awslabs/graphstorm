@@ -236,14 +236,18 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
             if task_tracker is not None:
                 task_tracker.keep_alive(report_step=iter_l)
 
-            h = get_input_embeds(input_nodes)
+            n_h, e_hs = get_input_embeds(input_nodes, blocks, dataloader)
             if blocks is None:
                 continue
             # Remove additional keys (ntypes) added for WholeGraph compatibility
             for ntype in tmp_keys:
                 del input_nodes[ntype]
             blocks = [block.to(device) for block in blocks]
-            output = gnn_encoder(blocks, h)
+            # Check if edge embeddings have values
+            if all(e_hs):
+                output = gnn_encoder(blocks, n_h, e_hs)
+            else:
+                output = gnn_encoder(blocks, n_h)
 
             for ntype, out_nodes in output_nodes.items():
                 out_embs[ntype][out_nodes] = output[ntype].cpu()
