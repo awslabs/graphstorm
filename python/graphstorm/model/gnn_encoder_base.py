@@ -244,7 +244,7 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
                 del input_nodes[ntype]
             blocks = [block.to(device) for block in blocks]
             # Check if edge embeddings have values
-            if all(e_hs):
+            if any(e_hs):
                 output = gnn_encoder(blocks, n_h, e_hs)
             else:
                 output = gnn_encoder(blocks, n_h)

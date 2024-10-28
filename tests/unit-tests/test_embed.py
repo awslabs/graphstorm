@@ -201,7 +201,7 @@ def test_input_layer4(dev):
     block_edge_feat_list = [{}, {}]
     embed = edge_input_layer(block_edge_feat_list)
     assert len(embed) == len(block_edge_feat_list)
-    assert all(embed) == False
+    assert any(embed) == False
 
     # Test 1: one edge type and one layer input edge features
     edge_feat_size = get_edge_feat_size(g, {('n0', 'r0', 'n1'): ['feat']})
