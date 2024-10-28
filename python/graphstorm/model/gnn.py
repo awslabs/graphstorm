@@ -41,7 +41,7 @@ from ..utils import (
 )
 from ..wholegraph import is_wholegraph_optimizer, create_wholememory_optimizer, WholeGraphDistTensor
 
-from ..dataloading.dataset import prepare_batch_input, get_blocks_edge_feats
+from ..dataloading.dataset import prepare_batch_input 
 
 from ..config import (GRAPHSTORM_MODEL_ALL_LAYERS,
                       GRAPHSTORM_MODEL_EMBED_LAYER,
@@ -1045,7 +1045,7 @@ def do_mini_batch_inference(model, data, batch_size=1024,
                 if not isinstance(efeat_fields, dict):
                     assert len(data.g.canonical_etypes) == 1
                     efeat_fields = {data.g.canonical_etypes[0]: efeat_fields}
-                input_efeats_list = get_blocks_edge_feats(data, blocks, efeat_fields, device)
+                input_efeats_list = data.get_blocks_edge_feats(blocks, efeat_fields, device)
             else:
                 input_efeats_list = [{}, {}]
             # computer edge embeddings
@@ -1077,7 +1077,7 @@ def do_mini_batch_inference(model, data, batch_size=1024,
                 if not isinstance(efeat_fields, dict):
                     assert len(data.g.canonical_etypes) == 1
                     efeat_fields = {data.g.canonical_etypes[0]: efeat_fields}
-                input_efeats_list = get_blocks_edge_feats(data, blocks, efeat_fields, device)
+                input_efeats_list = data.get_blocks_edge_feats(blocks, efeat_fields, device)
             else:
                 input_efeats_list = [{}, {}]
             # compute input embeddings
