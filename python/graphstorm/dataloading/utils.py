@@ -175,7 +175,7 @@ def verify_edge_feat_fields(edge_feats):
         Parameters
         ----------
         edge_feats: str, or dist of list of str
-            str: All the edges have the same fecature name.
+            str: All the edges have the same feature name.
             list of string: All the edges have the same list of features.
             dist of list of string: Each edge type have different set of edge features.
     """
