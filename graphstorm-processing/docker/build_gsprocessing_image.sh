@@ -21,7 +21,8 @@ Available options:
 -t, --target        Docker image target, must be one of 'prod' or 'test'. Default is 'prod'.
 -p, --path          Path to graphstorm-processing root directory, default is one level above this script's location.
 -i, --image         Docker image name, default is 'graphstorm-processing-\${environment}'.
--v, --version       Docker version tag, default is the library's current version (`poetry version --short`)
+-v, --version       Docker version tag. Default is the library's latest version, as determined by the directory
+                    structure under graphstorm-processing/docker/. The selected version needs to exist as a directory there.
 -s, --suffix        Suffix for the image tag, can be used to push custom image tags. Default is "".
 -b, --build         Docker build directory prefix, default is '/tmp/'.
 -m, --hf-model      Provide a Huggingface Model name to be packed into the docker image. Default is "", no model included.
@@ -45,7 +46,7 @@ parse_params() {
   # default values of variables set from params
   GSP_HOME="${SCRIPT_DIR}/../"
   IMAGE_NAME='graphstorm-processing'
-  VERSION=`poetry version --short`
+  VERSION=$(find "$SCRIPT_DIR" -maxdepth 1 -type d | sort --version-sort | tail -1 | xargs basename)
   BUILD_DIR='/tmp'
   TARGET='prod'
   ARCH='x86_64'
@@ -158,10 +159,20 @@ rm -rf "${BUILD_DIR}/docker/code"
 mkdir -p "${BUILD_DIR}/docker/code"
 
 if [[ ${TARGET} == "prod" ]]; then
-    # Build the graphstorm-processing library and copy the wheels file
-    poetry build -C ${GSP_HOME} --format wheel
-    cp ${GSP_HOME}/dist/graphstorm_processing-${VERSION}-py3-none-any.whl \
-        "${BUILD_DIR}/docker/code"
+    # This indicates the non-poetry build, available from 0.4.0 onwards
+    if [[ -f "${GSP_HOME}/docker/${VERSION}/requirements.txt" ]]; then
+        # Copy library source code excluding tests and docker
+        rsync -r ${GSP_HOME} "${BUILD_DIR}/docker/code/graphstorm-processing/" --exclude .venv --exclude dist \
+            --exclude "*__pycache__" --exclude "*.pytest_cache" --exclude "*.mypy_cache" --exclude tests --exclude docker
+        cp ${GSP_HOME}/../graphstorm_job.sh "${BUILD_DIR}/docker/code/"
+    else
+        # Support versions prior to 0.4.0
+        poetry build -C ${GSP_HOME} --format wheel
+    fi
+    # Copy library source code
+    rsync -r ${GSP_HOME} "${BUILD_DIR}/docker/code/graphstorm-processing/" --exclude .venv --exclude dist \
+        --exclude "*__pycache__" --exclude "*.pytest_cache" --exclude "*.mypy_cache" --exclude tests --exclude docker
+    cp ${GSP_HOME}/../graphstorm_job.sh "${BUILD_DIR}/docker/code/"
 else
     # Copy library source code along with test files
     rsync -r ${GSP_HOME} "${BUILD_DIR}/docker/code/graphstorm-processing/" --exclude .venv --exclude dist \
@@ -172,8 +183,13 @@ fi
 # Copy Docker entry point to build folder
 cp ${GSP_HOME}/docker-entry.sh "${BUILD_DIR}/docker/code/"
 
-# Export Poetry requirements to requirements.txt file
-poetry export -f requirements.txt --output "${BUILD_DIR}/docker/requirements.txt"
+# Copy or export requirements to requirements.txt file
+if [[ -f "${GSP_HOME}/docker/${VERSION}/requirements.txt" ]]; then
+    cp "${GSP_HOME}/docker/${VERSION}/requirements.txt" "${BUILD_DIR}/docker/requirements.txt"
+else
+    # Support versions prior to 0.4.0
+    poetry export -f requirements.txt --output "${BUILD_DIR}/docker/requirements.txt"
+fi
 
 # Set image name
 DOCKER_FULLNAME="${IMAGE_NAME}-${EXEC_ENV}:${VERSION}-${ARCH}${SUFFIX}"
