@@ -104,7 +104,7 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
 
     def is_using_edge_feat(self):
         """ Check if instance of this class is using edge features.
-        
+
         If children classes enable edge feature support, and is provided with ``edge_feat_name``,
         return True. This method is for functions related to trainers and inferrers related, e.g.,
         ``do_full_graph_inference()``, to determine if they allow to use edge features.
