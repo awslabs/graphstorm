@@ -1041,10 +1041,13 @@ def do_mini_batch_inference(model, data, batch_size=1024,
                                for ntype, ids in input_nodes.items()}
             # get input edge features list
             efeat_fields = dataloader.edge_feat_fields
-            if not isinstance(efeat_fields, dict):
-                assert len(data.g.canonical_etypes) == 1
-                efeat_fields = {data.g.canonical_etypes[0]: efeat_fields}
-            input_efeats_list = get_blocks_edge_feats(data, blocks, efeat_fields, device)
+            if efeat_fields is not None:
+                if not isinstance(efeat_fields, dict):
+                    assert len(data.g.canonical_etypes) == 1
+                    efeat_fields = {data.g.canonical_etypes[0]: efeat_fields}
+                input_efeats_list = get_blocks_edge_feats(data, blocks, efeat_fields, device)
+            else:
+                input_efeats_list = [{}, {}]
             # computer edge embeddings
             edge_input_embs = model.edge_input_encoder(input_efeats_list)
             return node_input_embs, edge_input_embs
