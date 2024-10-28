@@ -1143,6 +1143,9 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
                                                    feat_field=data.node_feat_field)
         model.eval()
     elif model.node_input_encoder.require_cache_embed():
+        assert not model.gnn_encoder.is_using_edge_feat, "Full-graph inference does not " + \
+            "support using edge features. Please call the \"do_mini_batch_inference()\" " + \
+            "method to do inference using edge features."
         # If the input encoder has heavy computation, we should compute
         # the embeddings and cache them.
         input_embeds = compute_node_input_embeddings(data.g,
@@ -1167,6 +1170,9 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
                                                     batch_size, fanout, edge_mask=edge_mask,
                                                     task_tracker=task_tracker)
     else:
+        assert not model.gnn_encoder.is_using_edge_feat, "Full-graph inference does not " + \
+            "support using edge features. Please call the \"do_mini_batch_inference()\" " + \
+            "method to do inference using edge features."
         model.eval()
         device = model.gnn_encoder.device
         def get_input_embeds(input_nodes):
