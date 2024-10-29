@@ -96,7 +96,7 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
     def is_support_edge_feat(self):
         """ Check if a GraphConvEncoder child class support edge feature in message passing.
         
-        By default GNN encoders do not support edge feature unless children classes
+        By default GNN encoders do not support edge feature. A child class can 
         overwrite this method and decide how to support edge feature in message passing
         computation.
         """
