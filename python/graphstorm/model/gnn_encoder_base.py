@@ -150,6 +150,10 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
     """Distributed inference of final representation over all node types
        using mini-batch inference.
 
+    .. versionchanged:: 0.4.0
+        Change ``get_input_embeds`` outputs in v0.4.0 to support edge features in message
+        passing computation.
+
     Parameters
     ----------
     g : DistGraph

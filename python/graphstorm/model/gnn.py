@@ -864,10 +864,14 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
 
         return embs
 
-    def compute_embed_step(self, blocks, input_feats, input_nodes):
+    def compute_embed_step(self, blocks, input_nfeats, input_nodes, input_efeats_list=None):
         """ Compute the GNN embeddings on a mini-batch.
 
         This function is used for mini-batch inference.
+
+        .. versionchanged:: 0.4.0
+            Chagen ``input_feats`` to ``input_nfeats`` and add new argument ``input_efeats_list``
+            in v0.4.0 to support edge features in message passing computation.
 
         Parameters
         ----------
@@ -876,10 +880,13 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             detailed information about DGL MFG can be found in `DGL Neighbor Sampling
             Overview
             <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
-        input_feats : dict of Tensors
+        input_nfeats : dict of Tensors
             The input node features.
         input_nodes : dict of Tensors
             The input node IDs.
+        input_efeats_list: list of dict of Tensors
+            The input edge feature list in the format of [{etype: tensor}, {etyp: tensor}, ...].
+            Default is None.
 
         Returns
         -------
@@ -887,14 +894,25 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """
         device = blocks[0].device
         if self.node_input_encoder is not None:
-            embs = self.node_input_encoder(input_feats, input_nodes)
-            embs = {name: emb.to(device) for name, emb in embs.items()}
+            node_embs = self.node_input_encoder(input_nfeats, input_nodes)
+            node_embs = {name: emb.to(device) for name, emb in node_embs.items()}
         else:
-            embs = input_feats
+            node_embs = input_nfeats
+        # To backward compatibility, set input edge feature list to be None
+        if input_efeats_list is None:
+            input_efeats_list = [{} for _ in range(len(blocks))]
+        if self.edge_input_encoder is not None:
+            edge_embs = self.edge_input_encoder(input_efeats_list)
+        else:
+            edge_embs = input_efeats_list
+
         if self.gnn_encoder is not None:
-            gnn_embs = self.gnn_encoder(blocks, embs)
+            if any(edge_embs):
+                gnn_embs = self.gnn_encoder(blocks, node_embs, edge_embs)
+            else:
+                gnn_embs = self.gnn_encoder(blocks, node_embs)
         else:
-            gnn_embs = embs
+            gnn_embs = node_embs
         return gnn_embs
 
     def save_dense_model(self, model_path):

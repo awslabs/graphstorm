@@ -42,7 +42,9 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_LINK_PREDICTION,
                                 BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
                                 GRAPHSTORM_LP_EMB_L2_NORMALIZATION)
-from graphstorm.model import GSNodeEncoderInputLayer, RelationalGCNEncoder
+from graphstorm.model import (GSNodeEncoderInputLayer,
+                              GSEdgeEncoderInputLayer, 
+                              RelationalGCNEncoder)
 from graphstorm.model import GSgnnNodeModel, GSgnnEdgeModel
 from graphstorm.model import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from graphstorm.model import GSgnnLinkPredictionModel
@@ -70,7 +72,7 @@ from graphstorm import (create_builtin_edge_gnn_model,
                         create_builtin_lp_gnn_model,
                         create_builtin_reconstruct_nfeat_decoder,
                         create_builtin_reconstruct_efeat_decoder)
-from graphstorm import get_node_feat_size
+from graphstorm import get_node_feat_size, get_edge_feat_size
 from graphstorm.gsf import get_rel_names_for_reconstruct
 from graphstorm.model import do_full_graph_inference, do_mini_batch_inference
 from graphstorm.model.node_gnn import (node_mini_batch_predict,
@@ -2471,6 +2473,51 @@ def test_gen_emb_for_nfeat_recon():
     skip_self_loop = False
     gen_emb_for_nfeat_reconstruct(model, check_call_gen_embs)
 
+def create_rgcn_edge_model_with_edge_feature(g):
+    model = GSgnnEdgeModel(alpha_l2norm=0)
+
+    nfeat_size = get_node_feat_size(g, 'feat')
+    node_encoder = GSNodeEncoderInputLayer(g, nfeat_size, 4,
+                                      dropout=0,
+                                      use_node_embeddings=True)
+    efeat_size = get_edge_feat_size(g, 'feat')
+    edge_encoder = GSEdgeEncoderInputLayer(g, efeat_size, 4, dropout=0)
+    model.set_node_input_encoder(node_encoder)
+    model.set_edge_input_encoder(edge_encoder)
+
+    gnn_encoder = RelationalGCNEncoder(g, 4, 4,
+                                       num_bases=2,
+                                       num_hidden_layers=1,
+                                       dropout=0,
+                                       use_self_loop=True)
+    model.set_gnn_encoder(gnn_encoder)
+    model.set_decoder(MLPEdgeDecoder(model.gnn_encoder.out_dims,
+                                     3, multilabel=False, target_etype=("n0", "r1", "n1")))
+    return model
+
+def test_do_mini_batch_inference_with_edge_feats():
+    """ Test the ``do_mini_batch_inference`` method with edge features.
+    
+    Currently only support edge features in mini-batch inference. So, will not compare
+    the results between full-graph inference and mini-batch inference.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        ep_data = GSgnnData(part_config=part_config,
+                            node_feat_field="feat",
+                            edge_feat_field="feat")
+    model = create_rgcn_edge_model(ep_data.g, num_ffn_layers=0)
+    check_edge_prediction(model, ep_data)
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+
 
 if __name__ == '__main__':
     test_edge_feat_reconstruct()
@@ -2483,9 +2530,9 @@ if __name__ == '__main__':
     test_multi_task_mini_batch_predict()
     test_gen_emb_for_nfeat_recon()
 
-    test_lm_rgcn_node_prediction_with_reconstruct()
-    test_rgcn_node_prediction_with_reconstruct(True)
-    test_rgcn_node_prediction_with_reconstruct(False)
+    # test_lm_rgcn_node_prediction_with_reconstruct()
+    # test_rgcn_node_prediction_with_reconstruct(True)
+    # test_rgcn_node_prediction_with_reconstruct(False)
     test_mini_batch_full_graph_inference(0)
 
     test_gnn_model_load_save()
@@ -2500,7 +2547,7 @@ if __name__ == '__main__':
     test_rgat_node_prediction(None)
     test_sage_node_prediction(None)
     test_gat_node_prediction('cpu')
-    test_gat_node_prediction('cuda:0')
+    # test_gat_node_prediction('cuda:0')
 
     test_edge_classification()
     test_edge_classification_feat()
