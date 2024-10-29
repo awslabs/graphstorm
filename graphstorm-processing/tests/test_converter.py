@@ -401,7 +401,14 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "files": ["/tmp/acm_raw/edges/author_writing_paper.parquet"],
             "source_id_col": "~from",
             "dest_id_col": "~to",
-            "features": [{"feature_col": ["author"], "feature_name": "feat"}],
+            "features": [
+                {"feature_col": ["author"], "feature_name": "feat"},
+                {
+                    "feature_col": ["author"],
+                    "feature_name": "hard_negative",
+                    "transform": {"name": "edge_dst_hard_negative"},
+                },
+            ],
             "labels": [
                 {
                     "label_col": "edge_col",
@@ -505,7 +512,12 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
     assert edges_output["dest"] == {"column": "~to", "type": "paper"}
     assert edges_output["relation"] == {"type": "writing"}
     assert edges_output["features"] == [
-        {"column": "author", "transformation": {"name": "no-op"}, "name": "feat"}
+        {"column": "author", "transformation": {"name": "no-op"}, "name": "feat"},
+        {
+            "column": "author",
+            "name": "hard_negative",
+            "transformation": {"name": "edge_dst_hard_negative"},
+        },
     ]
     assert edges_output["labels"] == [
         {
