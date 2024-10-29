@@ -74,7 +74,7 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
         gdata = GSgnnData(part_config=part_config)
 
         # Test 1: normal case, two node types have features, two edge types have features,
-        #         and one edge type does not have features
+        #         and one edge type ("n1", "r2", "n0") does not have features
         nfeat_fields = {'n0':['feat'], 'n1': ['feat']}
         efeat_fields = {('n0', 'r0', 'n1'): ['feat'], ('n0', 'r1', 'n1'): ['feat']}
 
