@@ -355,8 +355,6 @@ class GSgnnBaseEvaluator():
         if self._do_early_stop is False:
             return False
 
-        assert len(val_score) == 1, \
-            f"validation score should be a single key value pair but got {val_score}"
         self._num_early_stop_calls += 1
         # Not enough existing validation scores
         if self._num_early_stop_calls <= self._early_stop_burnin_rounds:
