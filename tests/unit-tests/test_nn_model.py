@@ -326,7 +326,7 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
     assert emb2['n1'].shape[0] == len(seeds['n1'])
     assert emb2['n1'].shape[1] == output_dim
 
-    # Test case 3: normal case, all 5 message passong ops
+    # Test case 3: normal case, all 5 message passing ops
     layer = RelGraphConvLayer(
         input_dim, output_dim, etypes,
         num_bases=2,
