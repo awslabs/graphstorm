@@ -393,7 +393,7 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
     assert emb3['n1'].shape[1] == output_dim
 
     # Test case 4: abnormal case, layer has no edge feature weights, but give edge features
-    #              the edge features will be ignor. layer only use node features in forward()
+    #              the edge features will be ignored. layer only use node features in forward()
     layer = RelGraphConvLayer(
         input_dim, output_dim, etypes,
         num_bases=2,
