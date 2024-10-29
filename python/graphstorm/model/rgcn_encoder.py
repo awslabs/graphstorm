@@ -423,7 +423,7 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
 
     def is_support_edge_feat(self):
         """ Overwrite ``GraphConvEncoder`` class' method, indicating RelationalGCNEncoder
-        implementation supports edge feature.
+       supports edge feature.
         
         Current implementation direct return True, but customized RGCN encoder can
         have more complex condition checks.
