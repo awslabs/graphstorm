@@ -90,7 +90,7 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
         self.edge_feat_name = edge_feat_name
         self.edge_feat_mp_op = edge_feat_mp_op
         self.is_support_edge_feat()
-        
+
     def is_support_edge_feat(self):
         """ Check if a GraphConvEncoder child class support edge feature in message passing.
         
