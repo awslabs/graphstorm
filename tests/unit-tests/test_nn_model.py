@@ -19,7 +19,7 @@ import pytest
 import tempfile
 import torch as th
 import dgl
-from numpy.testing import assert_almost_equal
+from numpy.testing import assert_almost_equal, assert_raises
 
 from graphstorm.model.rgat_encoder import RelationalAttLayer
 from graphstorm.model.rgcn_encoder import RelGraphConvLayer
@@ -327,6 +327,7 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
     assert emb2['n1'].shape[1] == output_dim
 
     # Test case 3: normal case, all 5 message passing ops
+    # Test 3.1, "add" op
     layer = RelGraphConvLayer(
         input_dim, output_dim, etypes,
         num_bases=2,
@@ -341,12 +342,13 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
         ("n0", "r1", "n1"): th.rand(r1_eid.shape[0], input_dim).to(dev)
     }
 
-    emb3 = layer(block, node_feats, edge_feats)
+    emb31 = layer(block, node_feats, edge_feats)
     # check output numbers, dimensions and device
-    assert 'n0' not in emb3
-    assert emb3['n1'].shape[0] == len(seeds['n1'])
-    assert emb3['n1'].shape[1] == output_dim
+    assert 'n0' not in emb31
+    assert emb31['n1'].shape[0] == len(seeds['n1'])
+    assert emb31['n1'].shape[1] == output_dim
 
+    # Test 3.2, "sub" op
     layer = RelGraphConvLayer(
         input_dim, output_dim, etypes,
         num_bases=2,
@@ -356,12 +358,13 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
         dropout=0.1)
     layer = layer.to(dev)
 
-    emb3 = layer(block, node_feats, edge_feats)
+    emb32 = layer(block, node_feats, edge_feats)
     # check output numbers, dimensions and device
-    assert 'n0' not in emb3
-    assert emb3['n1'].shape[0] == len(seeds['n1'])
-    assert emb3['n1'].shape[1] == output_dim
+    assert 'n0' not in emb32
+    assert emb32['n1'].shape[0] == len(seeds['n1'])
+    assert emb32['n1'].shape[1] == output_dim
 
+    # Test 3.3, "mul" op
     layer = RelGraphConvLayer(
         input_dim, output_dim, etypes,
         num_bases=2,
@@ -371,12 +374,13 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
         dropout=0.1)
     layer = layer.to(dev)
 
-    emb3 = layer(block, node_feats, edge_feats)
+    emb33 = layer(block, node_feats, edge_feats)
     # check output numbers, dimensions and device
-    assert 'n0' not in emb3
-    assert emb3['n1'].shape[0] == len(seeds['n1'])
-    assert emb3['n1'].shape[1] == output_dim
+    assert 'n0' not in emb33
+    assert emb33['n1'].shape[0] == len(seeds['n1'])
+    assert emb33['n1'].shape[1] == output_dim
 
+    # Test 3.4, "div" op
     layer = RelGraphConvLayer(
         input_dim, output_dim, etypes,
         num_bases=2,
@@ -386,14 +390,15 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
         dropout=0.1)
     layer = layer.to(dev)
 
-    emb3 = layer(block, node_feats, edge_feats)
+    emb34 = layer(block, node_feats, edge_feats)
     # check output numbers, dimensions and device
-    assert 'n0' not in emb3
-    assert emb3['n1'].shape[0] == len(seeds['n1'])
-    assert emb3['n1'].shape[1] == output_dim
+    assert 'n0' not in emb34
+    assert emb34['n1'].shape[0] == len(seeds['n1'])
+    assert emb34['n1'].shape[1] == output_dim
 
-    # Test case 4: abnormal case, layer has no edge feature weights, but give edge features
-    #              the edge features will be ignored. layer only use node features in forward()
+    # Test case 4: abnormal case, layer has no edge feature weights, but give edge features。
+    #              this will trigger an assertion error to let users know that they need to use
+    #              GraphConvwithEdgeFeat.
     layer = RelGraphConvLayer(
         input_dim, output_dim, etypes,
         num_bases=2,
@@ -401,14 +406,11 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
         dropout=0.1)
     layer = layer.to(dev)
 
-    emb4 = layer(block, node_feats, edge_feats)
-    # check output numbers, dimensions
-    assert 'n0' not in emb4
-    assert emb4['n1'].shape[0] == len(seeds['n1'])
-    assert emb4['n1'].shape[1] == output_dim
+    with assert_raises(AssertionError):
+        layer(block, node_feats, edge_feats)
 
     # Test case 5: abnormal case, layer has edge feature weights, but not give edge features
-    #              this will trigger an assertion error of the number of input features.
+    #              this will trigger an assertion error of mismatch of the number of inputs
     layer = RelGraphConvLayer(
         input_dim, output_dim, etypes,
         num_bases=2,
@@ -417,11 +419,8 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
         dropout=0.1)
     layer = layer.to(dev)
 
-    try:
-        emb5 = layer(block, node_feats)
-    except:
-        emb5 = None
-    assert emb5 is None
+    with assert_raises(AssertionError):
+        layer(block, node_feats)
 
     # Test case 6: normal case, checking forward results accuracy.
     #              we set all feature to be 1s and all weights to be 1s.

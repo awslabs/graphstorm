@@ -774,9 +774,6 @@ def create_distill_data(tmpdirname, num_files):
 """ For self tests"""
 if __name__ == '__main__':
     dist_graph = generate_dummy_dist_graph('small')
-    print(dist_graph.num_edges('r1'))
 
     # test determistic of dummy graph for edge feature
     hg = generate_dummy_hetero_graph_for_efeat_gnn()
-    print(hg.edges(etype='r0'))
-    print(hg.edges(etype='r1'))

@@ -89,10 +89,8 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
 
         self.edge_feat_name = edge_feat_name
         self.edge_feat_mp_op = edge_feat_mp_op
-        is_support_edge_feat = self.is_support_edge_feat()
-        assert is_support_edge_feat, 'Edge features are not supported in the ' + \
-                                     f'\"{self.__class__}\" encoder.'
-
+        self.is_support_edge_feat()
+        
     def is_support_edge_feat(self):
         """ Check if a GraphConvEncoder child class support edge feature in message passing.
         
@@ -100,14 +98,17 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
         overwrite this method when it supports edge feature in message passing
         computation.
         """
-        return self.edge_feat_name is None
+        assert self.edge_feat_name is None, 'Edge features are not supported in the ' + \
+                                            f'\"{self.__class__}\" encoder.'
+
 
     def is_using_edge_feat(self):
-        """ Check if instance of this class is using edge features.
+        """ Check if an instance of this class is using edge features.
 
-        If children classes enable edge feature support, and is provided with ``edge_feat_name``,
-        return True. This method is for functions related to trainers and inferrers related, e.g.,
-        ``do_full_graph_inference()``, to determine if they allow to use edge features.
+        If a GraphConvEncoder child class enables edge feature support, and is provided with
+        ``edge_feat_name``, return True. This method is for functions related to trainers
+        and inferrers related, e.g., ``do_full_graph_inference()``, to determine if they allow
+        to use edge features.
         """
         return self.edge_feat_name is not None
 

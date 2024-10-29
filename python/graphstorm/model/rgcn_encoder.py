@@ -267,12 +267,12 @@ class RelGraphConvLayer(nn.Module):
             inputs_src = inputs_dst = n_h
 
         if e_h is None:
-            e_h = {}
-
-        if self.edge_feat_name:
-            hs = self.conv(g, (inputs_src, inputs_dst, e_h), mod_kwargs=wdict)
-        else:
             hs = self.conv(g, (inputs_src, inputs_dst, {}), mod_kwargs=wdict)
+        else:
+            assert len(e_h) == 0 or self.edge_feat_name is not None, "Since you want to use " + \
+                f"edge features {list(e_h.keys())} in message passing computation, please " + \
+                "initialize the RelGraphConvLayer by setting the \"edge_feat_name\" argument."
+            hs = self.conv(g, (inputs_src, inputs_dst, e_h), mod_kwargs=wdict)
 
         def _apply(ntype, h):
             if self.self_loop:
@@ -424,9 +424,6 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
     def is_support_edge_feat(self):
         """ Overwrite ``GraphConvEncoder`` class' method, indicating RelationalGCNEncoder
        supports edge feature.
-        
-        Current implementation direct return True, but customized RGCN encoder can
-        have more complex condition checks.
         """
         return True
 
@@ -464,9 +461,9 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
             New node embeddings for each node type in the format of {ntype: tensor}.
         """
         if e_hs is not None:
-            assert len(e_hs) == len(blocks), 'The layer of edge features should be equal or ' + \
-                f'greater than the number of blocks, but got {len(e_hs)} layer of edge ' + \
-                f'features and {len(blocks)} blocks.'
+            assert len(e_hs) == len(blocks), 'The layer of edge features should be equal to ' + \
+                f'the number of blocks, but got {len(e_hs)} layers of edge features ' + \
+                f'and {len(blocks)} blocks.'
 
             for layer, block, e_h in zip(self.layers, blocks, e_hs):
                 n_h = layer(block, n_h, e_h)

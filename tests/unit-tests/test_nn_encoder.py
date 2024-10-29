@@ -19,7 +19,7 @@ import pytest
 import tempfile
 import torch as th
 import dgl
-from numpy.testing import assert_almost_equal
+from numpy.testing import assert_raises
 
 from graphstorm.dataloading import GSgnnData, GSgnnEdgeDataLoader
 from graphstorm.model.rgcn_encoder import GraphConvwithEdgeFeat, RelationalGCNEncoder
@@ -112,8 +112,8 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
         assert emb1['n0'].get_device() == (-1 if dev == 'cpu' else 0)
         assert emb1['n1'].get_device() == (-1 if dev == 'cpu' else 0)
 
-        # Test 2: normal case, two node types have features, one edge type has features,
-        #         and one edge type does not have features
+        # Test 2: normal case, one edge type has features but one edge type does not
+        #         have features.
         nfeat_fields = {'n0':['feat'], 'n1':['feat']}
         efeat_fields = {('n0', 'r1', 'n1'): ['feat']}
 
@@ -178,6 +178,12 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
                           dgl.nn.GraphConv)
         assert isinstance(encoder.layers[0].conv._get_module(('n1', 'r2', 'n0')),
                           dgl.nn.GraphConv)
+        assert isinstance(encoder.layers[1].conv._get_module(('n0', 'r0', 'n1')),
+                          dgl.nn.GraphConv)
+        assert isinstance(encoder.layers[1].conv._get_module(('n0', 'r1', 'n1')),
+                          dgl.nn.GraphConv)
+        assert isinstance(encoder.layers[1].conv._get_module(('n1', 'r2', 'n0')),
+                          dgl.nn.GraphConv)
         # no need of input edge features
         encoder = encoder.to(dev)
         emb3 = encoder(blocks, nfeats)
@@ -207,12 +213,9 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
                                        num_hidden_layers=len(fanout)-1,
                                        edge_feat_name=efeat_fields,
                                        edge_feat_mp_op='concat')
-        try:
-            encoder = encoder.to(dev)
-            emb4 = encoder(blocks, nfeats, efeats_list)
-        except:
-            emb4 = None
-        assert emb4 == None
+        encoder = encoder.to(dev)
+        with assert_raises(AssertionError):
+            encoder(blocks, nfeats, efeats_list)
 
         # Test 5: normal case, same as case 1, but one layer of GNN
         nfeat_fields = {'n0':['feat'], 'n1': ['feat']}
@@ -281,6 +284,18 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
                           GraphConvwithEdgeFeat)
         assert isinstance(encoder.layers[0].conv._get_module(('n1', 'r2', 'n0')),
                           dgl.nn.GraphConv)
+        assert isinstance(encoder.layers[1].conv._get_module(('n0', 'r0', 'n1')),
+                          GraphConvwithEdgeFeat)
+        assert isinstance(encoder.layers[1].conv._get_module(('n0', 'r1', 'n1')),
+                          GraphConvwithEdgeFeat)
+        assert isinstance(encoder.layers[1].conv._get_module(('n1', 'r2', 'n0')),
+                          dgl.nn.GraphConv)
+        assert isinstance(encoder.layers[2].conv._get_module(('n0', 'r0', 'n1')),
+                          GraphConvwithEdgeFeat)
+        assert isinstance(encoder.layers[2].conv._get_module(('n0', 'r1', 'n1')),
+                          GraphConvwithEdgeFeat)
+        assert isinstance(encoder.layers[2].conv._get_module(('n1', 'r2', 'n0')),
+                          dgl.nn.GraphConv)
         encoder = encoder.to(dev)
         emb5 = encoder(blocks, nfeats, efeats_list)
         assert emb5['n0'].shape[-1] == output_dim
@@ -293,4 +308,4 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
 if __name__ == '__main__':
     test_rgcn_encoder_with_edge_features(32, 64, 'cpu')
     test_rgcn_encoder_with_edge_features(64, 64, 'cpu')
-    # test_rgcn_encoder_with_edge_features(32, 64, 'cuda:0')
+    test_rgcn_encoder_with_edge_features(32, 64, 'cuda:0')
