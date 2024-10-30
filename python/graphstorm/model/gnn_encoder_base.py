@@ -101,17 +101,6 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
         assert self.edge_feat_name is None, 'Edge features are not supported in the ' + \
                                             f'\"{self.__class__}\" encoder.'
 
-
-    def is_using_edge_feat(self):
-        """ Check if an instance of this class is using edge features.
-
-        If a GraphConvEncoder child class enables edge feature support, and is provided with
-        ``edge_feat_name``, return True. This method is for functions related to trainers
-        and inferrers related, e.g., ``do_full_graph_inference()``, to determine if they allow
-        to use edge features.
-        """
-        return self.edge_feat_name is not None
-
     @property
     def in_dims(self):
         return self._h_dim
