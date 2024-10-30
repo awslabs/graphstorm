@@ -17,19 +17,14 @@ limitations under the License.
 import logging
 import os
 from typing import Sequence
-import numpy as np
-import torch as th
 from pyspark.sql import DataFrame
-from pyspark.sql.types import ArrayType, IntegerType, FloatType, StructType, StructField
 from pyspark.sql.functions import udf
-from transformers import AutoTokenizer, AutoModel, AutoConfig
 
-from graphstorm_processing.constants import HUGGINGFACE_TOKENIZE, HUGGINGFACE_EMB
 from .base_dist_transformation import DistributedTransformation
 
 
 def apply_transform(
-    cols: Sequence[str], separator: str, input_df: DataFrame
+    cols: Sequence[str], separator: str, input_df: DataFrame, edge_mapping_dict: dict
 ) -> DataFrame:
     """Applies hard negative transformation to each row.
 
@@ -39,7 +34,15 @@ def apply_transform(
         List of column names to apply normalization to.
     separator: str, optional
         The separator for string input value. Only required when input value type is string.
+    input_df : DataFrame
+        The input DataFrame to apply normalization to.
+    edge_mapping_dict: dict
+        The mapping dictionary contain mapping file directory and edge type
     """
+
+    input_df.show()
+    print(edge_mapping_dict)
+    exit(-1)
 
     return transformed_df
 
@@ -54,16 +57,18 @@ class DistHardNegativeTransformation(DistributedTransformation):
     """
 
     def __init__(
-        self, cols: Sequence[str], separator: str = "",
+        self, cols: Sequence[str], separator: str = "", edge_mapping_dict=None
     ) -> None:
         super().__init__(cols)
         self.cols = cols
         assert len(self.cols) == 1, "Hard Negative Transformation only supports single column"
         self.separator = separator
+        self.edge_mapping_dict = edge_mapping_dict
+        assert self.edge_mapping_dict, "edge mapping dict cannot be None for hard negative "
 
     def apply(self, input_df: DataFrame) -> DataFrame:
         transformed_df = apply_transform(
-            self.cols, self.separator, input_df
+            self.cols, self.separator, input_df, self.edge_mapping_dict
         )
 
         return transformed_df

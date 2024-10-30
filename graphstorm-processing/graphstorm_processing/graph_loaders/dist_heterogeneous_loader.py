@@ -1654,7 +1654,12 @@ class DistHeterogeneousGraphLoader(object):
                 .get(edge_type, {})
                 .get(feat_conf.feat_name, {})
             )
-            transformer = DistFeatureTransformer(feat_conf, self.spark, json_representation)
+            # Hard Negative Transformation use case, but should be able to be reused
+            edge_mapping_dict = {
+                "edge_type": edge_type,
+                "mapping_path": f"{self.output_prefix}/raw_id_mappings/"
+            }
+            transformer = DistFeatureTransformer(feat_conf, self.spark, json_representation, edge_mapping_dict)
 
             if json_representation:
                 logging.info(

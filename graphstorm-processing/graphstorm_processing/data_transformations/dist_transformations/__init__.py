@@ -15,3 +15,4 @@ from .dist_numerical_transformation import (
 )
 from .dist_bucket_numerical_transformation import DistBucketNumericalTransformation
 from .dist_hf_transformation import DistHFTransformation
+from .dist_hard_negative_transformation import DistHardNegativeTransformation
