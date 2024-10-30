@@ -355,8 +355,6 @@ class GSgnnBaseEvaluator():
         if self._do_early_stop is False:
             return False
 
-        assert len(val_score) == 1, \
-            f"validation score should be a single key value pair but got {val_score}"
         self._num_early_stop_calls += 1
         # Not enough existing validation scores
         if self._num_early_stop_calls <= self._early_stop_burnin_rounds:
@@ -1020,6 +1018,8 @@ class GSgnnLPEvaluator(GSgnnBaseEvaluator, GSgnnLPRankingEvalInterface):
         # compute ranking value for each metric
         metrics: Dict[str, th.Tensor] = {}
         for metric in self.metric_list:
+            # NOTE: If other metrics needs candidate list sizes, add them here.
+            # Avoid adding the size twice to avoid possible errors.
             if metric == "amri":
                 assert candidate_sizes, \
                     f"candidate_sizes needs to have a value for AMRI, got {candidate_sizes=}."

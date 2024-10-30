@@ -31,7 +31,7 @@ from graphstorm.dataloading import (GSgnnLinkPredictionTestDataLoader,
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
 from graphstorm.utils import get_device
-from graphstorm.eval.eval_func import SUPPORTED_HIT_AT_METRICS
+from graphstorm.eval.eval_func import SUPPORTED_HIT_AT_METRICS, SUPPORTED_LINK_PREDICTION_METRICS
 
 def main(config_args):
     """ main function
@@ -50,10 +50,12 @@ def main(config_args):
                         model_layer_to_load=config.restore_model_layers)
     infer = GSgnnLinkPredictionInferrer(model)
     infer.setup_device(device=get_device())
-    assert all((x.startswith(SUPPORTED_HIT_AT_METRICS) or x == 'mrr') for x in
-               config.eval_metric), (
+    assert all((x.startswith(SUPPORTED_HIT_AT_METRICS)
+                or x in SUPPORTED_LINK_PREDICTION_METRICS)
+                for x in config.eval_metric), (
         "Invalid LP evaluation metrics. "
-        "GraphStorm only supports MRR and Hit@K metrics for link prediction.")
+        f"GraphStorm only supports {SUPPORTED_LINK_PREDICTION_METRICS} "
+        "and Hit@K metrics for link prediction.")
     if not config.no_validation:
         infer_idxs = infer_data.get_edge_test_set(config.eval_etype)
         infer.setup_evaluator(GSgnnLPEvaluator(
