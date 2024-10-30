@@ -30,13 +30,9 @@ class HardNegativeConfig(FeatureConfig):
 
     def __init__(self, config: Mapping):
         super().__init__(config)
-        self.separator = self._transformation_kwargs.get("separator")
+        self.separator = self._transformation_kwargs.get("separator", None)
 
         self._sanity_check()
 
     def _sanity_check(self) -> None:
         super()._sanity_check()
-        assert self.action in [
-            HUGGINGFACE_TOKENIZE,
-            HUGGINGFACE_EMB,
-        ], f"huggingface action needs to be one of {HUGGINGFACE_TOKENIZE, HUGGINGFACE_EMB}"
