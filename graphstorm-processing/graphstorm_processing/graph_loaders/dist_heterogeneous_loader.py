@@ -1657,7 +1657,8 @@ class DistHeterogeneousGraphLoader(object):
             # Hard Negative Transformation use case, but should be able to be reused
             edge_mapping_dict = {
                 "edge_type": edge_type,
-                "mapping_path": f"{self.output_prefix}/raw_id_mappings/"
+                "mapping_path": f"{self.output_prefix}/raw_id_mappings/",
+                "format_name": FORMAT_NAME
             }
             transformer = DistFeatureTransformer(feat_conf, self.spark, json_representation, edge_mapping_dict)
 

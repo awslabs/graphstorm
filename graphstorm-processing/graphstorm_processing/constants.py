@@ -58,6 +58,9 @@ HUGGINGFACE_TRANFORM = "huggingface"
 HUGGINGFACE_TOKENIZE = "tokenize_hf"
 HUGGINGFACE_EMB = "embedding_hf"
 
+################# Node Mapping  ################
+NODE_MAPPING_STR = "orig"
+NODE_MAPPING_INT = "new"
 
 ################# Supported execution envs  ##############
 class ExecutionEnv(Enum):
