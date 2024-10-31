@@ -47,7 +47,7 @@ gsf:
                 - "val_mask"
                 - "test_mask"
         - reconstruct_node_feat:
-            reconstruct_nfeat_name: "label"
+            reconstruct_nfeat_name: "feat"
             target_ntype: "paper"
             batch_size: 32
             mask_fields:
