@@ -51,6 +51,10 @@ class GSgnnGNNEncoderInterface:
 class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
     r"""General encoder for graph data.
 
+    .. versionchanged:: 0.4.0
+        Add two new arguments ``edge_feat_name`` and ``edge_feat_mp_op`` in v0.4.0 to
+        support edge features in encoders.
+
     Parameters
     ----------
     h_dim : int
@@ -58,17 +62,43 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
     out_dim : int
         Output dimension
     num_hidden_layers : int
-        Number of hidden layers. Total GNN layers is equal to num_hidden_layers + 1. Default 1
+        Number of hidden layers. Total GNN layers is equal to num_hidden_layers + 1. Default 1.
+    edge_feat_name: dict of list of str
+        User provided edge feature names in the format of {etype1:[feat1, feat2, ...],
+        etype2:[...], ...}, or None if not provided.
+    edge_feat_mp_op: str
+        The opration method to combine source node embeddings with edge embeddings in message
+        passing. Options include `concat`, `add`, `sub`, `mul`, and `div`.
+        ``concat`` operation will concatenate the source node features with edge features;
+        ``add`` operation will add the source node features with edge features together;
+        ``sub`` operation will subtract the source node features by edge features;
+        ``mul`` operation will multiply the source node features with edge features; and
+        ``div`` operation will divide the source node features by edge features.
     """
     def __init__(self,
                  h_dim,
                  out_dim,
-                 num_hidden_layers=1):
+                 num_hidden_layers=1,
+                 edge_feat_name=None,
+                 edge_feat_mp_op='concat'):
         super(GraphConvEncoder, self).__init__()
         self._h_dim = h_dim
         self._out_dim = out_dim
         self._num_hidden_layers = num_hidden_layers
         self._layers = nn.ModuleList()  # GNN layers.
+        self.edge_feat_name = edge_feat_name
+        self.edge_feat_mp_op = edge_feat_mp_op
+        self.is_support_edge_feat()
+
+    def is_support_edge_feat(self):
+        """ Check if a GraphConvEncoder child class support edge feature in message passing.
+        
+        By default GNN encoders do not support edge feature. A child class can 
+        overwrite this method when it supports edge feature in message passing
+        computation.
+        """
+        assert self.edge_feat_name is None, 'Edge features are not supported in the ' + \
+                                            f'\"{self.__class__}\" encoder.'
 
     def is_using_edge_feat(self):
         """ Check if an instance of this class is using edge features.
