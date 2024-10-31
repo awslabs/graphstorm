@@ -479,6 +479,12 @@ def test_get_edge_feat_size():
     g = generate_dummy_hetero_graph()
 
     # Test case 0: normal edge feature names
+    edge_feat_names1 = 'feat'
+    edge_feat_size = get_edge_feat_size(g, edge_feat_names1)
+
+    assert edge_feat_size[("n0", "r0", "n1")] == 2
+    assert edge_feat_size[("n0", "r1", "n1")] == 2
+
     edge_feat_names1 = {
         ("n0", "r0", "n1"): ['feat'],
         ("n0", "r1", "n1"): ['feat']

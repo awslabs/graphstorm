@@ -91,7 +91,7 @@ class GraphConvEncoder(GSLayer):     # pylint: disable=abstract-method
         self.is_support_edge_feat()
 
     def is_support_edge_feat(self):
-        """ Check if a GraphConvEncoder child class support edge feature in message passing.
+        """ Check if a GraphConvEncoder child class supports edge feature in message passing.
         
         By default GNN encoders do not support edge feature. A child class can 
         overwrite this method when it supports edge feature in message passing
@@ -280,7 +280,7 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
             if task_tracker is not None:
                 task_tracker.keep_alive(report_step=iter_l)
 
-            n_h, e_hs = get_input_embeds(input_nodes, blocks, dataloader)
+            n_h, e_hs = get_input_embeds(input_nodes, blocks)
             if blocks is None:
                 continue
             # Remove additional keys (ntypes) added for WholeGraph compatibility

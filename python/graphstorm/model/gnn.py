@@ -1047,7 +1047,7 @@ def do_mini_batch_inference(model, data, batch_size=1024,
         device = model.gnn_encoder.device
 
         # an internal function for computing embeddings as inputs of GNN encoder
-        def get_input_embeds(input_nodes, blocks, dataloader):
+        def get_input_embeds(input_nodes, blocks):
             """ Currently, only support node embedding cache, and still use mini batch to compute
             edge embeddings.
             """
@@ -1058,7 +1058,7 @@ def do_mini_batch_inference(model, data, batch_size=1024,
             node_input_embs = {ntype: input_embeds[ntype][ids].to(device) \
                                for ntype, ids in input_nodes.items()}
             # get input edge features list
-            efeat_fields = dataloader.edge_feat_fields
+            efeat_fields = data.edge_feat_field
             if efeat_fields is not None:
                 if not isinstance(efeat_fields, dict):
                     assert len(data.g.canonical_etypes) == 1
@@ -1082,15 +1082,15 @@ def do_mini_batch_inference(model, data, batch_size=1024,
         device = model.gnn_encoder.device
 
         # an internal function for computing embeddings as inputs of GNN encoder
-        def get_input_embeds(input_nodes, blocks, dataloader):
+        def get_input_embeds(input_nodes, blocks):
             # get input node features
             if not isinstance(input_nodes, dict):
                 assert len(data.g.ntypes) == 1
                 input_nodes = {data.g.ntypes[0]: input_nodes}
             input_nfeats = prepare_batch_input(data.g, input_nodes, dev=device,
-                                               feat_field=dataloader.node_feat_fields)
+                                               feat_field=data.node_feat_field)
             # get input edge features list
-            efeat_fields = dataloader.edge_feat_fields
+            efeat_fields = data.edge_feat_field
             if efeat_fields is not None:
                 if not isinstance(efeat_fields, dict):
                     assert len(data.g.canonical_etypes) == 1
@@ -1161,7 +1161,7 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
                                                    feat_field=data.node_feat_field)
         model.eval()
     elif model.node_input_encoder.require_cache_embed():
-        assert not model.gnn_encoder.is_using_edge_feat, "Full-graph inference does not " + \
+        assert not model.gnn_encoder.is_using_edge_feat(), "Full-graph inference does not " + \
             "support using edge features. Please call the \"do_mini_batch_inference()\" " + \
             "method to do inference using edge features."
         # If the input encoder has heavy computation, we should compute
@@ -1188,7 +1188,7 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
                                                     batch_size, fanout, edge_mask=edge_mask,
                                                     task_tracker=task_tracker)
     else:
-        assert not model.gnn_encoder.is_using_edge_feat, "Full-graph inference does not " + \
+        assert not model.gnn_encoder.is_using_edge_feat(), "Full-graph inference does not " + \
             "support using edge features. Please call the \"do_mini_batch_inference()\" " + \
             "method to do inference using edge features."
         model.eval()

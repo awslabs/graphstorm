@@ -753,11 +753,15 @@ def test_gat_node_prediction(device):
 def create_rgcn_edge_model(g, num_ffn_layers):
     model = GSgnnEdgeModel(alpha_l2norm=0)
 
-    feat_size = get_node_feat_size(g, 'feat')
-    encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+    nfeat_size = get_node_feat_size(g, 'feat')
+    efeat_size = get_edge_feat_size(g, 'feat')
+    
+    node_encoder = GSNodeEncoderInputLayer(g, nfeat_size, 4,
                                       dropout=0,
                                       use_node_embeddings=True)
-    model.set_node_input_encoder(encoder)
+    edge_encoder = GSEdgeEncoderInputLayer(g, efeat_size, 4)
+    model.set_node_input_encoder(node_encoder)
+    model.set_edge_input_encoder(edge_encoder)
 
     gnn_encoder = RelationalGCNEncoder(g, 4, 4,
                                        num_bases=2,
