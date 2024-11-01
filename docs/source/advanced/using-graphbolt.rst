@@ -166,3 +166,94 @@ data using our GraphBolt conversion entry point:
     # We'll see the GraphBolt representation has been re-created
     ls /tmp/acm_graphbolt/part0
     edge_feat.dgl  fused_csc_sampling_graph.pt  graph.dgl  node_feat.dgl
+
+Using GraphBolt on SageMaker
+----------------------------
+
+To prepare data to use with GraphBolt on SageMaker
+we need to launch the GraphBolt data conversion step
+as a separate SageMaker job, after
+the partitioned DGL graph files have been created on S3.
+
+After running your distributed partition SageMaker job as normal using
+``sagemaker/launch_partition.py``, you next need to launch the
+``sagemaker/launch_graphbolt_convert.py`` script, passing as input
+the S3 URI where you created the DistDGL partition data,
+**plus the suffix dist_graph** as that's where GSPartition creates the partition files.
+
+For example, if you used ``--output-data-s3 s3://my-bucket/my-part-graph`` for
+``sagemaker/launch_partition.py`` you need to use ``--graph-data-s3 s3://my-bucket/my-part-graph/dist_graph``
+for ``sagemaker/launch_graphbolt_convert.py``.
+
+So where before the SageMaker job sequence for distributed processing and training
+was ``GSProcessing -> GSPartition -> GSTraining`` to use GraphBolt we need to add
+a step after partitioning and before training:
+``GSProcessing -> GSPartition -> GraphBoltConvert -> GSTraining``.
+
+.. code-block:: bash
+
+    cd graphstorm/sagemaker
+    sagemaker/launch_partition.py \
+        --graph-data-s3 "s3-uri-where-gsprocessing-data-exist" \
+        --output-data-s3 "s3-uri-where-gspartition-data-will-be"
+        # Add other required parameters like --partition-algorithm, --num-instances etc.
+
+    # Once the above job succeeds we run the below to convert the data to GraphBolt.
+    # Note the /dist_graph suffix!
+    sagemaker/launch_graphbolt_convert.py \
+        --graph-data-s3 "s3-uri-where-gspartition-data-will-be/dist_graph" \
+        --metadata-filename "metadata.json" # Or <graph-name>.json for gconstruct-ed partitions
+
+
+If your data are small enough to process on a single SageMaker instance
+using ``GConstuct``, you can simply pass the ``--use-graphbolt true`` argument
+to the ``GConstruct`` SageMaker launch script and that will create the
+necessary GraphBolt files as well.
+So the job sequence there remains ``GConstruct -> GSTraining``.
+
+.. code-block:: bash
+
+    sagemaker/launch_gconstruct.py \
+        --graph-data-s3 "s3-uri-where-raw-data-exist" \
+        --output-data-s3 "s3-uri-where-gspartition-data-will-be" \
+        --graph-config-file "gconstruct-config.json" \
+        --use-graphbolt true
+
+If you initially used GConstruct to create the non-GraphBolt DistDGL files,
+you'll need to pass in the additional argument ``--metadata-filename``
+to ``launch_graphbolt_convert.py``.
+Use ``<graph-name>.json`` where the graph name should correspond to the
+one you used with GConstruct as shown below:
+
+.. code-block:: bash
+
+    sagemaker/launch_gconstruct.py \
+        --graph-name my-graph \
+        --graph-data-s3 "s3-uri-where-raw-data-exist" \
+        --output-data-s3 "s3-uri-where-gspartition-data-will-be" \
+        --graph-config-file "gconstruct-config.json" # We don't add --use-graphbolt true
+
+    # Once the above job succeeds we run the below to convert the data to GraphBolt
+    sagemaker/launch_graphbolt_convert.py \
+        --graph-data-s3 "s3-uri-where-gspartition-data-will-be"
+        --metadata-filename "my-graph.json" # Should be <graph-name>.json
+
+
+Once the data have been converted to the GraphBolt format you can run your training
+and inference jobs as before, passing the additional
+argument ``--use-graphbolt`` to the SageMaker launch scripts
+to indicate that we want to use GraphBolt during training/inference:
+
+.. code-block:: bash
+
+    sagemaker/launch_train.py \
+        --graph-name my-graph \
+        --graph-data-s3 "s3-uri-where-gspartition-data-will-be" \
+        --yaml-s3 "s3-path-to-train-yaml" \
+        --use-graphbolt true
+
+
+Internally we use the unknown arguments mechanism of Python's
+``argparse`` module to forward
+the ``--use-graphbolt`` argument to the downstream job, along
+with other GraphStorm arguments.

@@ -11,6 +11,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.egg-info/
+.pytest_cache
+.mypy_cache
+.ipynb_checkpoints
 
 # used by the container build
 /code
@@ -20,3 +23,8 @@ __pycache__/
 docs/build/
 docs/source/_build
 docs/source/generated
+
+# IDEs and Python venv
+.idea
+.venv
+.vscode

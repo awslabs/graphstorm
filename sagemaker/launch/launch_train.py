@@ -109,7 +109,7 @@ def run_job(input_args, image, unknowargs):
         py_version="py3",
         base_job_name=prefix,
         hyperparameters=params,
-        sagemaker_session=sess,
+        # sagemaker_session=sess,
         tags=[{"Key":"GraphStorm", "Value":"oss"},
               {"Key":"GraphStorm_Task", "Value":"Training"}],
         **estimator_kwargs

@@ -38,7 +38,7 @@ def get_common_parser() -> argparse.ArgumentParser:
 
     common_args = parser.add_argument_group("Common arguments")
 
-    common_args.add_argument("--graph-data-s3", type=str,
+    common_args.add_argument("--graph-data-s3", "--input-graph-s3", type=str,
         help="S3 location of input graph data", required=True)
     common_args.add_argument("--image-url", type=str,
         help="GraphStorm SageMaker docker image URI",
@@ -49,7 +49,7 @@ def get_common_parser() -> argparse.ArgumentParser:
     common_args.add_argument("--instance-type", type=str,
         help="instance type for the SageMaker job")
     common_args.add_argument("--instance-count", type=int,
-        default=2,
+        default=1,
         help="number of instances")
     common_args.add_argument("--region", type=str,
         default="us-west-2",
