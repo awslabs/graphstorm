@@ -38,6 +38,7 @@ from graphstorm.gpartition import (
     ParMetisPartitionAlgorithm,
     ParMETISConfig,
     RandomPartitionAlgorithm,
+    shuffle_hard_negative_nids,
 )
 from graphstorm.utils import get_log_level
 
@@ -189,12 +190,31 @@ def main():
             dirs_exist_ok=True,
         )
 
+    # Hard Negative Mapping
+    if args.gsprocessing_config:
+        gsprocessing_config = args.gsprocessing_config
+        shuffle_hard_negative_nids(f"{args.input_path}/{gsprocessing_config}", args.output_path)
+    else:
+        for filename in os.listdir(args.input_path):
+            if filename.endswith("_with_transformations.json"):
+                gsprocessing_config = filename
+                shuffle_hard_negative_nids(f"{args.input_path}/{gsprocessing_config}",
+                                           args.num_parts, args.output_path)
+                break
+        else:
+            # Did not raise error here for not introducing the break change,
+            # but will raise warning here to warn customers.
+            logging.info("Skip the hard negative node ID mapping, "
+                         "upgrade the latest GSProcessing to solve the warning here.")
+
 def parse_args() -> argparse.Namespace:
     """Parses arguments for the script"""
     argparser = argparse.ArgumentParser("Partition DGL graphs for node and edge classification "
                                         + "or regression tasks")
     argparser.add_argument("--input-path", type=str, required=True,
                            help="Path to input DGL chunked data.")
+    argparser.add_argument("--gsprocessing-config", type=str,
+                           help="Path to the input GSProcessing config data.")
     argparser.add_argument("--metadata-filename", type=str, default="metadata.json",
                            help="Name for the chunked DGL data metadata file.")
     argparser.add_argument("--output-path", type=str, required=True,
