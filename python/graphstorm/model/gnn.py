@@ -41,7 +41,7 @@ from ..utils import (
 )
 from ..wholegraph import is_wholegraph_optimizer, create_wholememory_optimizer, WholeGraphDistTensor
 
-from ..dataloading.dataset import prepare_batch_input 
+from ..dataloading.dataset import prepare_batch_input
 
 from ..config import (GRAPHSTORM_MODEL_ALL_LAYERS,
                       GRAPHSTORM_MODEL_EMBED_LAYER,
