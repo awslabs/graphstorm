@@ -1109,7 +1109,7 @@ def do_mini_batch_inference(model, data, batch_size=1024,
             # compute input embeddings
             node_input_embs = model.node_input_encoder(input_nfeats, input_nodes)
             # computer edge embeddings
-            if model.edge_input_encodeer is not None:
+            if model.edge_input_encoder is not None:
                 edge_input_embs = model.edge_input_encoder(input_efeats_list)
             else:
                 edge_input_embs =  [{}] * len(blocks)
