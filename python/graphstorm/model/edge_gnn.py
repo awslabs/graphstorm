@@ -145,6 +145,7 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
         else:
             # has GNN encoder, compute node embedding, or optional edge embeddings
             encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes, edge_feats)
+
         # Call emb normalization.
         # the default behavior is doing nothing.
         encode_embs = self.normalize_node_embs(encode_embs)
@@ -168,6 +169,10 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
     def predict(self, blocks, target_edges, node_feats, edge_feats,
                 target_edge_feats, input_nodes, return_proba=False):
         """ Make prediction on edges.
+
+        .. versionchanged:: 0.4.0
+            Add ``edge_feats`` into ``compute_embed_step`` in v0.4.0 to use edge features
+            in message passing computation.
         """
         if blocks is None or len(blocks) == 0:
             # no GNN message passing in encoder

@@ -898,7 +898,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             node_embs = {name: emb.to(device) for name, emb in node_embs.items()}
         else:
             node_embs = input_nfeats
-        # To backward compatibility, set input edge feature list to be None
+        # For backward compatibility, set input edge feature list to be None
         if input_efeats_list is None:
             input_efeats_list = [{} for _ in range(len(blocks))]
         if self.edge_input_encoder is not None:
@@ -908,6 +908,11 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
 
         if self.gnn_encoder is not None:
             if any(edge_embs):
+                assert self.gnn_encoder.is_support_edge_feat(), \
+                    f'This {self.gnn_encoder.__class__} GNN encoder does not support edge ' + \
+                     'features in message passing. Please refer GraphStorm documentations' + \
+                     'to find GNN encoders that support edge features, e.g. ' + \
+                     'RGCN encoder, `RelationalGCNEncoder`.'
                 gnn_embs = self.gnn_encoder(blocks, node_embs, edge_embs)
             else:
                 gnn_embs = self.gnn_encoder(blocks, node_embs)

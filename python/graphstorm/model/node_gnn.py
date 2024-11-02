@@ -121,7 +121,7 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
         super(GSgnnNodeModel, self).__init__()
         self.alpha_l2norm = alpha_l2norm
 
-    def forward(self, blocks, node_feats, _, labels, input_nodes=None):
+    def forward(self, blocks, node_feats, edge_feats, labels, input_nodes=None):
         """ The forward function for node prediction.
 
         This method is used for training. It takes a list of DGL message flow graphs (MFGs),
@@ -130,6 +130,10 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
         detailed information about DGL MFG can be found in `DGL Neighbor Sampling
         Overview
         <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
+
+        .. versionchanged:: 0.4.0
+            Add ``edge_feats`` into ``compute_embed_step`` in v0.4.0 to use edge features
+            in message passing computation.
 
         Parameters
         ----------
@@ -153,10 +157,12 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
         """
         alpha_l2norm = self.alpha_l2norm
         if blocks is None or len(blocks) == 0:
-            # no GNN message passing
+            # no GNN message passing, just compute node embeddings
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
-            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
+            # has GNN encoder, compute node embedding, or optional edge embeddings
+            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes, edge_feats)
+
         # Call emb normalization.
         # the default behavior is doing nothing.
         encode_embs = self.normalize_node_embs(encode_embs)
@@ -192,14 +198,20 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
         total_loss = pred_loss + alpha_l2norm * reg_loss
         return total_loss
 
-    def predict(self, blocks, node_feats, _, input_nodes, return_proba):
+    def predict(self, blocks, node_feats, edge_feats, input_nodes, return_proba):
         """ Make prediction on the nodes with GNN.
+
+        .. versionchanged:: 0.4.0
+            Add ``edge_feats`` into ``compute_embed_step`` in v0.4.0 to use edge features
+            in message passing computation.
         """
         if blocks is None or len(blocks) == 0:
-            # no GNN message passing in encoder
+            # no GNN message passing, just compute node embeddings
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
-            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
+            # has GNN encoder, compute node embedding, or optional edge embeddings
+            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes, edge_feats)
+
         # Call emb normalization.
         # the default behavior is doing nothing.
         encode_embs = self.normalize_node_embs(encode_embs)

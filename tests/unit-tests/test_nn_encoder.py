@@ -301,6 +301,17 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
         assert emb5['n0'].shape[-1] == output_dim
         assert emb5['n1'].shape[-1] == output_dim
 
+    # Test case 6: abnormal case, incorrect edge type string.
+    #              Should trigger an assertion error
+    efeat_fields = {'r0': ['feat'], 'r1': ['feat']}
+    with assert_raises(AssertionError):
+        encoder = RelationalGCNEncoder(gdata.g,
+                                input_dim, output_dim,
+                                num_hidden_layers=len(fanout)-1,
+                                edge_feat_name=efeat_fields,
+                                edge_feat_mp_op='concat')
+
+
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
 
