@@ -1070,9 +1070,12 @@ def do_mini_batch_inference(model, data, batch_size=1024,
                     efeat_fields = {data.g.canonical_etypes[0]: efeat_fields}
                 input_efeats_list = data.get_blocks_edge_feats(blocks, efeat_fields, device)
             else:
-                input_efeats_list = [{}, {}]
+                input_efeats_list = [{}] * len(blocks)
             # computer edge embeddings
-            edge_input_embs = model.edge_input_encoder(input_efeats_list)
+            if model.edge_input_encodeer is not None:
+                edge_input_embs = model.edge_input_encoder(input_efeats_list)
+            else:
+                edge_input_embs =  [{}] * len(blocks)
             return node_input_embs, edge_input_embs
 
         embeddings = dist_minibatch_inference(data.g,
@@ -1102,10 +1105,14 @@ def do_mini_batch_inference(model, data, batch_size=1024,
                     efeat_fields = {data.g.canonical_etypes[0]: efeat_fields}
                 input_efeats_list = data.get_blocks_edge_feats(blocks, efeat_fields, device)
             else:
-                input_efeats_list = [{}, {}]
+                input_efeats_list = [{}] * len(blocks)
             # compute input embeddings
             node_input_embs = model.node_input_encoder(input_nfeats, input_nodes)
-            edge_input_embs = model.edge_input_encoder(input_efeats_list)
+            # computer edge embeddings
+            if model.edge_input_encodeer is not None:
+                edge_input_embs = model.edge_input_encoder(input_efeats_list)
+            else:
+                edge_input_embs =  [{}] * len(blocks)
             return node_input_embs, edge_input_embs
 
         embeddings = dist_minibatch_inference(data.g,
