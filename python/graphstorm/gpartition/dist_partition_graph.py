@@ -205,7 +205,8 @@ def main():
             # Did not raise error here for not introducing the break change,
             # but will raise warning here to warn customers.
             logging.info("Skip the hard negative node ID mapping, "
-                         "upgrade the latest GSProcessing to solve the warning here.")
+                         "please upgrade to the latest GSProcessing.")
+
 
 def parse_args() -> argparse.Namespace:
     """Parses arguments for the script"""

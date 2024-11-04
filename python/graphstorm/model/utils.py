@@ -394,6 +394,8 @@ def _exchange_node_id_mapping(rank, world_size, device,
     return gather_list[0].to(th.device("cpu"))
 
 def load_dist_nid_map(node_id_mapping_file, ntypes):
+    """ Wrapper for load_dist_nid_map.
+    """
     return _load_dist_nid_map(node_id_mapping_file, ntypes)
 
 def _load_dist_nid_map(node_id_mapping_file, ntypes):

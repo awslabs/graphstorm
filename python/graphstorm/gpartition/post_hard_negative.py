@@ -1,3 +1,19 @@
+"""
+    Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+"""
+
 import json
 import os
 
@@ -5,7 +21,15 @@ import torch as th
 from dgl.data.utils import load_tensors, save_tensors
 from graphstorm.model.utils import load_dist_nid_map
 
+
 def load_hard_negative_config(gsprocessing_config):
+    """Load GSProcessing Config to extract hard negative config
+
+    Parameters
+    ----------------
+    gsprocessing_config: str
+        Path to the gsprocessing config.
+    """
     with open(gsprocessing_config, 'r') as file:
         config = json.load(file)
 
@@ -30,6 +54,19 @@ def load_hard_negative_config(gsprocessing_config):
 
 
 def shuffle_hard_negative_nids(gsprocessing_config, num_parts, output_path):
+    """Shuffle hard negative edge feature ids with int-to-int node id mapping.
+    The function here align with the shuffle_hard_nids in graphstorm.gconstruct.utils.
+    Create an additional function to handle the id mappings under distributed setting.
+
+    Parameters
+    ----------------
+    gsprocessing_config: str
+        Path to the gsprocessing config.
+    num_parts: int
+        Number of parts.
+    output_path: str
+        Path to the output DGL graph.
+    """
     shuffled_edge_config = load_hard_negative_config(gsprocessing_config)
 
     node_type_list = []
@@ -70,4 +107,4 @@ def shuffle_hard_negative_nids(gsprocessing_config, num_parts, output_path):
         # replace the edge_feat.dgl with the updated one.
         os.remove(edge_feat_path)
         save_tensors(edge_feat_path, edge_feats)
-    
+
