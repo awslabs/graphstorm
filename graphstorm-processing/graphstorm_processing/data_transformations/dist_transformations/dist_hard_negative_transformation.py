@@ -65,8 +65,8 @@ def apply_transform(
         return mapped_values
 
     map_values_udf = F.udf(map_values, ArrayType(IntegerType()))
-
     transformed_df = transformed_df.select(map_values_udf(F.col(cols[0])).alias(cols[0]))
+
     return transformed_df
 
 
