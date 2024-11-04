@@ -21,6 +21,8 @@ from typing import Dict
 import pytest
 
 from graphstorm.gpartition import LocalPartitionAlgorithm
+from graphstorm.gpartition.post_hard_negative import (shuffle_hard_negative_nids,
+                                                      load_hard_negative_config)
 
 @pytest.fixture(scope="module", name="chunked_metadata_dict")
 def metadata_dict_fixture() -> Dict:
@@ -28,6 +30,7 @@ def metadata_dict_fixture() -> Dict:
         "num_nodes_per_type": [10, 20],
         "node_type": ["a", "b"],
     }
+
 
 def simple_test_partition(
     partition_algorithm: LocalPartitionAlgorithm,
@@ -61,7 +64,7 @@ def simple_test_partition(
         with open(os.path.join(tmpdir, "partition_meta.json"), 'r', encoding="utf-8") as f:
             part_meta = json.load(f)
             assert part_meta["num_parts"] == num_parts
-            assert part_meta["algo_name"] ==  algorithm_name
+            assert part_meta["algo_name"] == algorithm_name
 
         # Ensure contents of partition assignment files are correct
         for i, node_type in enumerate(chunked_metadata_dict["node_type"]):
