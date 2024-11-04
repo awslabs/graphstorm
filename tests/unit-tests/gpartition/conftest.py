@@ -21,8 +21,7 @@ from typing import Dict
 import pytest
 
 from graphstorm.gpartition import LocalPartitionAlgorithm
-from graphstorm.gpartition.post_hard_negative import (shuffle_hard_negative_nids,
-                                                      load_hard_negative_config)
+
 
 @pytest.fixture(scope="module", name="chunked_metadata_dict")
 def metadata_dict_fixture() -> Dict:
