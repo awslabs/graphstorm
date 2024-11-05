@@ -51,7 +51,7 @@ class DistFeatureTransformer(object):
         self.transformation: DistributedTransformation
         # We use this to re-apply transformations
         self.json_representation = json_representation
-        # Edge mapping file location
+        # Node Mapping Info for hard negative feature transformation
         self.edge_mapping_dict = edge_mapping_dict
 
         default_kwargs = {
