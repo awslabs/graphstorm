@@ -81,8 +81,7 @@ def run_job(input_args, image, unknowargs):
     if model_checkpoint_to_load is not None:
         params["model-checkpoint-to-load"] = model_checkpoint_to_load
     unknown_args_dict = parse_unknown_gs_args(unknowargs)
-    if len(unknown_args_dict) > 0:
-        params.update(unknown_args_dict)
+    params.update(unknown_args_dict)
 
     print(f"SageMaker launch parameters {params}")
     print(f"GraphStorm forwarded parameters {unknown_args_dict}")

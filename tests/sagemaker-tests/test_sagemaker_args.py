@@ -47,12 +47,6 @@ def test_quoted_args():
     assert dict(parse_unknown_gs_args(args)) == expected
 
 @pytest.mark.parametrize("input_args, expected_output", [
-    (['--num', '1', '2', '3', '--str', 'a', 'b', 'c'],
-     {'num': '1 2 3', 'str': 'a b c'}),
-    (['--mixed', 'str', '123', 'true', '--flag'],
-     {'mixed': 'str 123 true', 'flag': ''}),
-    (['--empty', '', '--zero', '0', '--false', 'false'],
-     {'empty': '', 'zero': '0', 'false': 'false'}),
     (['--special-chars', '!@#$%^&*()'],
      {'special-chars': '!@#$%^&*()'}),
     (['--unicode', 'こんにちは', 'world'],

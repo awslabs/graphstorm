@@ -67,6 +67,11 @@ def run_gb_conversion(part_config: str, njobs=1):
     """
     dgl_version = importlib.metadata.version("dgl")
     if version.parse(dgl_version) < version.parse("2.4.0"):
+        if njobs > 1:
+            logging.warning(
+                "GB conversion njobs > 1 is only supported for DGL >= 2.4.0. "
+                "njobs will be set to 1."
+            )
         dgl_distributed.dgl_partition_to_graphbolt(
             part_config,
             store_eids=True,

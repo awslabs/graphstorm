@@ -20,15 +20,16 @@ FROM branch-${DEVICE} AS final
 
 LABEL maintainer="Amazon AI Graph ML team"
 
-# Install related Python packages
+# Install required Python packages,
+# we set the versions to match those of the base conda environment when possible
 RUN pip3 install \
-        boto3 \
-        numba==0.58.1 \
+        boto3==1.34.112 \
+        numba==0.59.1 \
         numpy==1.26.4 \
         ogb==1.3.6 \
-        pyarrow==18.0.0 \
-        scikit-learn \
-        scipy \
+        pyarrow==16.1.0 \
+        scikit-learn==1.5.0 \
+        scipy==1.13.1 \
         transformers==4.28.1 \
     && rm -rf /root/.cache
 
@@ -56,5 +57,5 @@ ENV PYTHONPATH="/root/dgl/tools/:${PYTHONPATH}"
 
 WORKDIR /opt/ml/code
 
-ENTRYPOINT ["bash", "-m", "start_with_right_hostname.sh"]
+ENTRYPOINT ["bash", "-m", "/usr/local/bin/start_with_right_hostname.sh"]
 CMD ["/bin/bash"]

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -x
 
 if [[ "$1" = "train" ]]; then
      CURRENT_HOST=$(jq .current_host  /opt/ml/input/config/resourceconfig.json)

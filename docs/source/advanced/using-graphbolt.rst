@@ -170,7 +170,15 @@ data using our GraphBolt conversion entry point:
 Using GraphBolt on SageMaker
 ----------------------------
 
-To prepare data to use with GraphBolt on SageMaker
+Before being able to train on SageMaker
+we need to ensure our data on S3 have been
+converted to the GraphBolt format.
+When using GConstruct to process our data
+we can include the GraphBolt data conversion in the GConstruct
+step as we'll show below.
+
+When using distributed graph construction with GSProcessing and GSPartition,
+to prepare data to use with GraphBolt on SageMaker
 we need to launch the GraphBolt data conversion step
 as a separate SageMaker job, after
 the partitioned DGL graph files have been created on S3.
@@ -227,6 +235,7 @@ one you used with GConstruct as shown below:
 
 .. code-block:: bash
 
+    # NOTE: we provide 'my-graph' as the graph name
     sagemaker/launch_gconstruct.py \
         --graph-name my-graph \
         --graph-data-s3 "s3-uri-where-raw-data-exist" \
@@ -234,6 +243,7 @@ one you used with GConstruct as shown below:
         --graph-config-file "gconstruct-config.json" # We don't add --use-graphbolt true
 
     # Once the above job succeeds we run the below to convert the data to GraphBolt
+    # NOTE: Our metadata file name will be named 'my-graph.json'
     sagemaker/launch_graphbolt_convert.py \
         --graph-data-s3 "s3-uri-where-gspartition-data-will-be"
         --metadata-filename "my-graph.json" # Should be <graph-name>.json
@@ -253,7 +263,6 @@ to indicate that we want to use GraphBolt during training/inference:
         --use-graphbolt true
 
 
-Internally we use the unknown arguments mechanism of Python's
-``argparse`` module to forward
-the ``--use-graphbolt`` argument to the downstream job, along
-with other GraphStorm arguments.
+If you want to test steps locally you can use SageMaker's
+[local mode](https://sagemaker.readthedocs.io/en/stable/overview.html#local-mode)
+by providing `local` as the instance type in the launch scripts.

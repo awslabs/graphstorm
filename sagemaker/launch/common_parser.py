@@ -91,8 +91,8 @@ def parse_estimator_kwargs(arg_string: str) -> Dict[str, Any]:
     return typed_args_dict
 
 def parse_unknown_gs_args(unknown_args: List[str]) -> Dict[str, str]:
-    """
-    Parses unknown arguments for GraphStorm tasks.
+    """Parses unknown arguments for GraphStorm tasks.
+
     The input is a list of arguments, the second element of the tuple
     returned by ``argparse.ArgumentParser.parse_known_args()``.
 
@@ -100,9 +100,15 @@ def parse_unknown_gs_args(unknown_args: List[str]) -> Dict[str, str]:
         ``--target-etype query,clicks,asin query,search,asin``
         ``--feat-name ntype0:feat0 ntype1:feat1``
 
+    Parameters
+    ----------
+    unknown_args : List[str]
+        List of unknown arguments.
 
-    :param unknown_args: List of unknown arguments.
-    :return: Dictionary of parsed arguments.
+    Returns
+    -------
+    Dict[str, str]
+        Dictionary of parsed arguments {'arg_name': 'arg_value'}
     """
     unknown_args_dict = {}
     current_arg_name = None
