@@ -1,7 +1,7 @@
 """
 Common parsers for all launcher scripts.
 """
-from typing import Any, Dict
+from typing import Any, Dict, List
 from ast import literal_eval
 import argparse
 
@@ -89,3 +89,35 @@ def parse_estimator_kwargs(arg_string: str) -> Dict[str, Any]:
         typed_args_dict[k] = literal_eval(v)
 
     return typed_args_dict
+
+def parse_unknown_gs_args(unknown_args: List[str]) -> Dict[str, str]:
+    """
+    Parses unknown arguments for GraphStorm tasks.
+    The input is a list of arguments, the second element of the tuple
+    returned by ``argparse.ArgumentParser.parse_known_args()``.
+
+    We must handle cases like
+        ``--target-etype query,clicks,asin query,search,asin``
+        ``--feat-name ntype0:feat0 ntype1:feat1``
+
+
+    :param unknown_args: List of unknown arguments.
+    :return: Dictionary of parsed arguments.
+    """
+    unknown_args_dict = {}
+    current_arg_name = None
+
+    for arg in unknown_args:
+        # We have the name of the argument
+        if arg.startswith("--"):
+            current_arg_name = arg[2:]
+            # The default value of the dict will be the empty string
+            unknown_args_dict[current_arg_name] = ""
+        # We are parsing the values for the current arg
+        elif current_arg_name is not None:
+            # If we already started parsing current arg's values,
+            # append the new value to the existing, otherwise initialize it
+            arg_value = f" {arg}" if unknown_args_dict[current_arg_name] else arg
+            unknown_args_dict[current_arg_name] += arg_value
+
+    return unknown_args_dict
