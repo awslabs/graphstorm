@@ -30,7 +30,7 @@ def load_hard_negative_config(gsprocessing_config):
     gsprocessing_config: str
         Path to the gsprocessing config.
     """
-    with open(gsprocessing_config, 'r') as file:
+    with open(gsprocessing_config, 'r', encoding='utf-8') as file:
         config = json.load(file)
 
     # Hard Negative only supports link prediction
@@ -107,4 +107,3 @@ def shuffle_hard_negative_nids(gsprocessing_config, num_parts, output_path):
         # replace the edge_feat.dgl with the updated one.
         os.remove(edge_feat_path)
         save_tensors(edge_feat_path, edge_feats)
-

@@ -193,7 +193,8 @@ def main():
     # Hard Negative Mapping
     if args.gsprocessing_config:
         gsprocessing_config = args.gsprocessing_config
-        shuffle_hard_negative_nids(f"{args.input_path}/{gsprocessing_config}", args.output_path)
+        shuffle_hard_negative_nids(f"{args.input_path}/{gsprocessing_config}",
+                                   args.num_parts, args.output_path)
     else:
         for filename in os.listdir(args.input_path):
             if filename.endswith("_with_transformations.json"):
