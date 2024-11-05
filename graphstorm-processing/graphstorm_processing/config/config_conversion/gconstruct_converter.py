@@ -189,7 +189,6 @@ class GConstructConfigConverter(ConfigConverter):
                         "max_seq_length": gconstruct_transform_dict["max_seq_length"],
                     }
                 elif gconstruct_transform_dict["name"] == "edge_dst_hard_negative":
-                    # Not check if it is link prediction task here
                     gsp_transformation_dict["name"] = "edge_dst_hard_negative"
                     if "separator" in gconstruct_transform_dict:
                         gsp_transformation_dict["kwargs"] = {
