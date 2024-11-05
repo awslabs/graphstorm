@@ -50,27 +50,7 @@ def gsprocessing_config_hard_negative_dict_fixture() -> Dict:
                         ]
                     },
                     "type": "paper",
-                    "column": "node_id",
-                    "features": [
-                        {
-                            "column": "feat",
-                            "name": "feat",
-                            "transformation": {
-                                "name": "no-op"
-                            }
-                        }
-                    ],
-                    "labels": [
-                        {
-                            "column": "label",
-                            "type": "classification",
-                            "split_rate": {
-                                "train": 0.8,
-                                "val": 0.1,
-                                "test": 0.1
-                            }
-                        }
-                    ]
+                    "column": "node_id"
                 }
             ],
             "edges": [
@@ -122,18 +102,7 @@ def gsprocessing_config_hard_negative_dict_fixture() -> Dict:
                     },
                     "relation": {
                         "type": "citing"
-                    },
-                    "labels": [
-                        {
-                            "column": "",
-                            "type": "link_prediction",
-                            "split_rate": {
-                                "train": 0.8,
-                                "val": 0.1,
-                                "test": 0.1
-                            }
-                        }
-                    ]
+                    }
                 }
             ]
         },
@@ -164,27 +133,7 @@ def gsprocessing_config_non_hard_negative_dict_fixture() -> Dict:
                         ]
                     },
                     "type": "paper",
-                    "column": "node_id",
-                    "features": [
-                        {
-                            "column": "feat",
-                            "name": "feat",
-                            "transformation": {
-                                "name": "no-op"
-                            }
-                        }
-                    ],
-                    "labels": [
-                        {
-                            "column": "label",
-                            "type": "classification",
-                            "split_rate": {
-                                "train": 0.8,
-                                "val": 0.1,
-                                "test": 0.1
-                            }
-                        }
-                    ]
+                    "column": "node_id"
                 }
             ],
             "edges": [
@@ -224,18 +173,7 @@ def gsprocessing_config_non_hard_negative_dict_fixture() -> Dict:
                     },
                     "relation": {
                         "type": "citing"
-                    },
-                    "labels": [
-                        {
-                            "column": "",
-                            "type": "link_prediction",
-                            "split_rate": {
-                                "train": 0.8,
-                                "val": 0.1,
-                                "test": 0.1
-                            }
-                        }
-                    ]
+                    }
                 }
             ]
         },
