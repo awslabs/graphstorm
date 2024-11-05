@@ -178,15 +178,15 @@ the partitioned DGL graph files have been created on S3.
 After running your distributed partition SageMaker job as normal using
 ``sagemaker/launch_partition.py``, you next need to launch the
 ``sagemaker/launch_graphbolt_convert.py`` script, passing as input
-the S3 URI where you created the DistDGL partition data,
-**plus the suffix dist_graph** as that's where GSPartition creates the partition files.
+the S3 URI where the DistDGL partition data is stored by ``launch_partition.py``,
+**plus the suffix `dist_graph`** as that's where GSPartition creates the partition files.
 
 For example, if you used ``--output-data-s3 s3://my-bucket/my-part-graph`` for
 ``sagemaker/launch_partition.py`` you need to use ``--graph-data-s3 s3://my-bucket/my-part-graph/dist_graph``
 for ``sagemaker/launch_graphbolt_convert.py``.
 
-So where before the SageMaker job sequence for distributed processing and training
-was ``GSProcessing -> GSPartition -> GSTraining`` to use GraphBolt we need to add
+Without using GraphBolt a SageMaker job sequence for distributed processing and training
+is ``GSProcessing -> GSPartition -> GSTraining``. To use GraphBolt we need to add
 a step after partitioning and before training:
 ``GSProcessing -> GSPartition -> GraphBoltConvert -> GSTraining``.
 
@@ -198,7 +198,7 @@ a step after partitioning and before training:
         --output-data-s3 "s3-uri-where-gspartition-data-will-be"
         # Add other required parameters like --partition-algorithm, --num-instances etc.
 
-    # Once the above job succeeds we run the below to convert the data to GraphBolt.
+    # Once the above job succeeds we run the following command to convert the data to GraphBolt format.
     # Note the /dist_graph suffix!
     sagemaker/launch_graphbolt_convert.py \
         --graph-data-s3 "s3-uri-where-gspartition-data-will-be/dist_graph" \
@@ -222,7 +222,7 @@ So the job sequence there remains ``GConstruct -> GSTraining``.
 If you initially used GConstruct to create the non-GraphBolt DistDGL files,
 you'll need to pass in the additional argument ``--metadata-filename``
 to ``launch_graphbolt_convert.py``.
-Use ``<graph-name>.json`` where the graph name should correspond to the
+Use ``<graph-name>.json`` where the graph name should be the
 one you used with GConstruct as shown below:
 
 .. code-block:: bash
