@@ -42,7 +42,7 @@ def apply_transform(
     spark: SparkSession
         The spark session
     input_df : DataFrame
-        The input DataFrame to apply normalization to.
+        The input DataFrame to apply transformation to.
     edge_mapping_dict: dict
         The mapping dictionary contain mapping file directory and edge type
     """
