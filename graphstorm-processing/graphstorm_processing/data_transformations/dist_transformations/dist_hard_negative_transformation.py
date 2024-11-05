@@ -59,7 +59,8 @@ def apply_transform(
     )
     node_mapping_length = hard_negative_node_mapping.count()
 
-    # TODO: This method may suffer from scalability issue, we can make this method to join-based solution.
+    # TODO: This method may suffer from scalability issue,
+    # we can make this method to join-based solution.
     hard_negative_node_mapping_dict = {
         row[NODE_MAPPING_STR]: row[NODE_MAPPING_INT] for row in hard_negative_node_mapping.collect()
     }
