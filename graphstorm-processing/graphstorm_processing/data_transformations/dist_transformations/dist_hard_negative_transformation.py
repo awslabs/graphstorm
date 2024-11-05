@@ -36,13 +36,13 @@ def apply_transform(
     Parameters
     ----------
     cols : Sequence[str]
-        List of column names to apply normalization to.
+        List of column names to apply normalization to
     separator: str, optional
-        The separator for string input value. Only required when input value type is string.
+        The separator for string input value. Only required when input value type is string
     spark: SparkSession
         The spark session
     input_df : DataFrame
-        The input DataFrame to apply transformation to.
+        The input DataFrame to apply transformation to
     edge_mapping_dict: dict
         The mapping dictionary contain mapping file directory and edge type
     """
@@ -86,7 +86,7 @@ class DistHardNegativeTransformation(DistributedTransformation):
     Parameters
     ----------
     separator: str, optional
-        The separator for string input value. Only required when input value type is string.
+        The separator for string input value. Only required when input value type is string
     spark: SparkSession
         The spark session
     edge_mapping_dict: dict
