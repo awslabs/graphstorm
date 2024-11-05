@@ -39,6 +39,8 @@ def apply_transform(
         List of column names to apply normalization to.
     separator: str, optional
         The separator for string input value. Only required when input value type is string.
+    spark: SparkSession
+        The spark session
     input_df : DataFrame
         The input DataFrame to apply normalization to.
     edge_mapping_dict: dict
@@ -49,7 +51,7 @@ def apply_transform(
         transformed_df = input_df.withColumn(cols[0], split(col(cols[0]), separator))
     else:
         transformed_df = input_df
-    # Edge type should be (src_ntype:get_relation_name()}:dst_ntype)
+    # Edge type should be (src_ntype:get_relation_name():dst_ntype)
     # Assume all the node type in the hard negative feature should be dst node type
     _, _, dst_type = edge_mapping_dict["edge_type"].split(":")
     mapping_prefix = edge_mapping_dict["mapping_path"]
