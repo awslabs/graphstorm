@@ -491,6 +491,13 @@ arguments.
         You can use a length greater than the dataset's longest sentence; or for a safe value choose 128. Make sure to check
         the model's max supported length when setting this value.
 
+-  ``edge_dst_hard_negative``
+
+   -  Encodes a hard negative edge feature for link prediction. For detail information for hard negative support, please refer to :ref:`hard_negative_sampling`.
+   -  ``kwargs``:
+      - ``separator`` (String, optional): Same as the one in the No-op operation, the separator is used to
+        split multiple input values for CSV files e.g. ``p0;s1``. If it is not provided, then the whole value
+        will be considered as a string.
 
 ..  _gsprocessing-multitask-ref:
 

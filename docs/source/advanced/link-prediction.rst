@@ -236,6 +236,8 @@ impact is negligible.
 
 With DGL 1.0.4, ``fast_localuniform`` dataloader can speedup 2.4X over ``localuniform`` dataloader on training a 2 layer RGCN on MAG dataset on four g5.48x instances.
 
+.. _hard_negative_sampling:
+
 Hard Negative sampling
 -----------------------
 GraphStorm provides support for users to define hard negative edges for a positive edge during Link Prediction training.
@@ -271,10 +273,10 @@ In general, GraphStorm covers following cases:
 
 **Preparing graph data for hard negative sampling**
 
-The gconstruct pipeline of GraphStorm provides support to load hard negative data from raw input.
+Now both single machine and distributed graph construction pipeline of GraphStorm provide support to load hard negative data from raw input.
 Hard destination negatives can be defined through ``edge_dst_hard_negative`` transformation.
 The ``feature_col`` field of ``edge_dst_hard_negative`` must stores the raw node ids of hard destination nodes.
-The follwing example shows how to define a hard negative feature for edges with the relation ``(node1, relation1, node1)``:
+The following example shows how to define a hard negative feature for edges with the relation ``(node1, relation1, node1)``:
 
   .. code-block:: json
 
