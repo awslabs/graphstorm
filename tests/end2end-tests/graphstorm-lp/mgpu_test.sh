@@ -378,8 +378,8 @@ then
     exit -1
 fi
 
-echo "**************dataset: Movielens, do inference on saved model, decoder: dot"
-python3 -m graphstorm.run.gs_link_prediction --inference --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp_infer.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --use-node-embeddings true --eval-batch-size 1024 --save-embed-path /data/gsgnn_lp_ml_dot/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_dot/epoch-$best_epoch_dot/ --logging-file /tmp/log.txt --preserve-input True
+echo "**************dataset: Movielens, do inference on saved model, decoder: dot, metrics: mrr amri"
+python3 -m graphstorm.run.gs_link_prediction --inference --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp_infer.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --use-node-embeddings true --eval-batch-size 1024 --save-embed-path /data/gsgnn_lp_ml_dot/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_dot/epoch-$best_epoch_dot/ --logging-file /tmp/log.txt --preserve-input True --eval-metric mrr amri
 
 error_and_exit $?
 
@@ -388,6 +388,13 @@ if test $cnt -ne 1
 then
     echo "We do test, should have mrr"
     exit -1
+fi
+
+cnt=$(grep -c "| Test amri" /tmp/log.txt)
+if test $cnt -ne 1
+then
+    echo "We do test, should have amri"
+    exit 1
 fi
 
 bst_cnt=$(grep "Best Test mrr" /tmp/log.txt | wc -l)
@@ -562,7 +569,7 @@ then
 fi
 
 echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, exclude_training_targets: true, save model, early stop"
-python3 -m graphstorm.run.launch --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 $GS_HOME/python/graphstorm/run/gsgnn_lp/gsgnn_lp.py --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false  --use-node-embeddings true --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie --save-model-path /data/gsgnn_lp_ml_dot/ --topk-model-to-save 3 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_dot/emb/ --use-early-stop True --early-stop-burnin-rounds 3 -e 30 --early-stop-rounds 2 --early-stop-strategy consecutive_increase --logging-file /tmp/exec.log
+python3 -m graphstorm.run.launch --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 $GS_HOME/python/graphstorm/run/gsgnn_lp/gsgnn_lp.py --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false  --use-node-embeddings true --exclude-training-targets True --reverse-edge-types-map user,rating,rating-rev,movie --save-model-path /data/gsgnn_lp_ml_dot/ --topk-model-to-save 3 --save-model-frequency 1000 --save-embed-path /data/gsgnn_lp_ml_dot/emb/ --use-early-stop True --early-stop-burnin-rounds 3 -e 30 --early-stop-rounds 2 --early-stop-strategy consecutive_increase --logging-file /tmp/exec.log --eval-metric mrr amri
 
 error_and_exit $?
 
