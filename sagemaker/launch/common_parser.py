@@ -94,11 +94,13 @@ def parse_unknown_gs_args(unknown_args: List[str]) -> Dict[str, str]:
     """Parses unknown arguments for GraphStorm tasks.
 
     The input is a list of arguments, the second element of the tuple
-    returned by ``argparse.ArgumentParser.parse_known_args()``.
+    returned by ``argparse.ArgumentParser.parse_known_args()``, which
+    can be a single string depending on how the arguments were passed.
 
     We must handle cases like
         ``--target-etype query,clicks,asin query,search,asin``
         ``--feat-name ntype0:feat0 ntype1:feat1``
+        ``'--feat-name ntype0:feat0 --num-epochs 2'`` (note the quotes)
 
     Parameters
     ----------
@@ -112,6 +114,10 @@ def parse_unknown_gs_args(unknown_args: List[str]) -> Dict[str, str]:
     """
     unknown_args_dict = {}
     current_arg_name = None
+
+    # Handle case where all args were parsed as a single string
+    if len(unknown_args) == 1 and unknown_args[0].count("--") > 1:
+        unknown_args = unknown_args[0].split()
 
     for arg in unknown_args:
         # We have the name of the argument

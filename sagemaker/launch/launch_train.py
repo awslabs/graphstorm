@@ -101,7 +101,6 @@ def run_job(input_args, image, unknowargs):
         py_version="py3",
         base_job_name=prefix,
         hyperparameters=params,
-        # sagemaker_session=sess,
         tags=[{"Key":"GraphStorm", "Value":"oss"},
               {"Key":"GraphStorm_Task", "Value":"Training"}],
         **estimator_kwargs
@@ -145,8 +144,8 @@ def get_train_parser():
 if __name__ == "__main__":
     arg_parser = get_train_parser()
     args, unknownargs = arg_parser.parse_known_args()
-    print(f"Train launch Known args: {args}")
-    print(f"Train launch unknown args: {unknownargs}")
+    print(f"Train launch Known args: '{args}'")
+    print(f"Train launch unknown args:{type(unknownargs)=} '{unknownargs=}'")
 
     train_image = args.image_url
 
