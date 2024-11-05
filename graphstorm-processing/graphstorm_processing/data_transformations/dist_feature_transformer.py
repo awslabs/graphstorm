@@ -39,7 +39,11 @@ class DistFeatureTransformer(object):
     """
 
     def __init__(
-        self, feature_config: FeatureConfig, spark: SparkSession, json_representation: dict, edge_mapping_dict: dict = None
+        self,
+        feature_config: FeatureConfig,
+        spark: SparkSession,
+        json_representation: dict,
+        edge_mapping_dict: dict = None,
     ):
         feat_type = feature_config.feat_type
         feat_name = feature_config.feat_name
@@ -73,8 +77,9 @@ class DistFeatureTransformer(object):
         elif feat_type == "huggingface":
             self.transformation = DistHFTransformation(**default_kwargs, **args_dict)
         elif feat_type == "edge_dst_hard_negative":
-            self.transformation = DistHardNegativeTransformation(**default_kwargs, **args_dict,
-                                                                 spark=spark, edge_mapping_dict=edge_mapping_dict)
+            self.transformation = DistHardNegativeTransformation(
+                **default_kwargs, **args_dict, spark=spark, edge_mapping_dict=edge_mapping_dict
+            )
         else:
             raise NotImplementedError(
                 f"Feature {feat_name} has type: {feat_type} that is not supported"

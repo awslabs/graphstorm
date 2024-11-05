@@ -33,6 +33,3 @@ class HardNegativeConfig(FeatureConfig):
         self.separator = self._transformation_kwargs.get("separator", None)
 
         self._sanity_check()
-
-    def _sanity_check(self) -> None:
-        super()._sanity_check()

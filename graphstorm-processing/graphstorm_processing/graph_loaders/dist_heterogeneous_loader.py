@@ -1658,9 +1658,11 @@ class DistHeterogeneousGraphLoader(object):
             edge_mapping_dict = {
                 "edge_type": edge_type,
                 "mapping_path": f"{self.output_prefix}/raw_id_mappings/",
-                "format_name": FORMAT_NAME
+                "format_name": FORMAT_NAME,
             }
-            transformer = DistFeatureTransformer(feat_conf, self.spark, json_representation, edge_mapping_dict)
+            transformer = DistFeatureTransformer(
+                feat_conf, self.spark, json_representation, edge_mapping_dict
+            )
 
             if json_representation:
                 logging.info(

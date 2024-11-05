@@ -14,19 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-import logging
-import os
 from typing import Sequence
-from pyspark.sql.functions import udf, split, col
+from pyspark.sql.functions import split, col
 from pyspark.sql.types import ArrayType, IntegerType, StringType
 from pyspark.sql import DataFrame, functions as F, SparkSession
 
-from .base_dist_transformation import DistributedTransformation
-
 from graphstorm_processing.constants import NODE_MAPPING_STR, NODE_MAPPING_INT
 
+from .base_dist_transformation import DistributedTransformation
+
+
 def apply_transform(
-    cols: Sequence[str], separator: str, spark: SparkSession, input_df: DataFrame, edge_mapping_dict: dict
+    cols: Sequence[str],
+    separator: str,
+    spark: SparkSession,
+    input_df: DataFrame,
+    edge_mapping_dict: dict,
 ) -> DataFrame:
     """Applies hard negative transformation to each row.
 
@@ -51,11 +54,15 @@ def apply_transform(
     _, _, dst_type = edge_mapping_dict["edge_type"].split(":")
     mapping_prefix = edge_mapping_dict["mapping_path"]
     format_name = edge_mapping_dict["format_name"]
-    hard_negative_node_mapping = spark.read.parquet(f"{mapping_prefix}{dst_type}/{format_name}/*.parquet")
+    hard_negative_node_mapping = spark.read.parquet(
+        f"{mapping_prefix}{dst_type}/{format_name}/*.parquet"
+    )
     node_mapping_length = hard_negative_node_mapping.count()
 
     # TODO: This method may suffer from scalability issue, we can make this method to join-based solution.
-    hard_negative_node_mapping_dict = {row[NODE_MAPPING_STR]: row[NODE_MAPPING_INT] for row in hard_negative_node_mapping.collect()}
+    hard_negative_node_mapping_dict = {
+        row[NODE_MAPPING_STR]: row[NODE_MAPPING_INT] for row in hard_negative_node_mapping.collect()
+    }
 
     # Same length for feature to convert to tensor
     def map_values(hard_neg_list):
