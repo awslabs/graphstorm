@@ -19,7 +19,7 @@ from typing import Mapping
 from .feature_config_base import FeatureConfig
 
 
-class HardNegativeConfig(FeatureConfig):
+class HardEdgeNegativeConfig(FeatureConfig):
     """Feature configuration for hard negative feature. Now only support link prediction.
 
     Supported kwargs

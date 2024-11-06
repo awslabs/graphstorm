@@ -28,7 +28,7 @@ from .dist_transformations import (
     DistCategoryTransformation,
     DistMultiCategoryTransformation,
     DistHFTransformation,
-    DistHardNegativeTransformation,
+    DistHardEdgeNegativeTransformation,
 )
 
 
@@ -77,7 +77,7 @@ class DistFeatureTransformer(object):
         elif feat_type == "huggingface":
             self.transformation = DistHFTransformation(**default_kwargs, **args_dict)
         elif feat_type == "edge_dst_hard_negative":
-            self.transformation = DistHardNegativeTransformation(
+            self.transformation = DistHardEdgeNegativeTransformation(
                 **default_kwargs, **args_dict, spark=spark, edge_mapping_dict=edge_mapping_dict
             )
         else:

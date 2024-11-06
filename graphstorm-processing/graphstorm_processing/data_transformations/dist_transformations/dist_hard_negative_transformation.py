@@ -80,7 +80,7 @@ def apply_transform(
     return transformed_df
 
 
-class DistHardNegativeTransformation(DistributedTransformation):
+class DistHardEdgeNegativeTransformation(DistributedTransformation):
     """Transformation to apply hard negative transformation.
 
     Parameters
@@ -113,4 +113,4 @@ class DistHardNegativeTransformation(DistributedTransformation):
 
     @staticmethod
     def get_transformation_name() -> str:
-        return "DistHardNegativeTransformation"
+        return "DistHardEdgeNegativeTransformation"

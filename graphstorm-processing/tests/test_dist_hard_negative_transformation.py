@@ -21,7 +21,7 @@ from numpy.testing import assert_array_equal
 
 from graphstorm_processing.constants import NODE_MAPPING_STR, NODE_MAPPING_INT
 from graphstorm_processing.data_transformations.dist_transformations import (
-    DistHardNegativeTransformation,
+    DistHardEdgeNegativeTransformation,
 )
 
 
@@ -51,7 +51,7 @@ def test_hard_negative_example_list(spark: SparkSession, check_df_schema, tmp_pa
         "mapping_path": f"{tmp_path}/raw_id_mappings/",
         "format_name": "parquet",
     }
-    hard_negative_transformation = DistHardNegativeTransformation(
+    hard_negative_transformation = DistHardEdgeNegativeTransformation(
         ["hard_negative"], spark=spark, edge_mapping_dict=edge_mapping_dict, separator=None
     )
     output_df = hard_negative_transformation.apply(input_df)
@@ -92,7 +92,7 @@ def test_hard_negative_example_str(spark: SparkSession, check_df_schema, tmp_pat
         "mapping_path": f"{tmp_path}/raw_id_mappings/",
         "format_name": "parquet",
     }
-    hard_negative_transformation = DistHardNegativeTransformation(
+    hard_negative_transformation = DistHardEdgeNegativeTransformation(
         ["hard_negative"], spark=spark, edge_mapping_dict=edge_mapping_dict, separator=";"
     )
     output_df = hard_negative_transformation.apply(input_df)
