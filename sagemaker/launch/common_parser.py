@@ -95,7 +95,7 @@ def parse_unknown_gs_args(unknown_args: List[str]) -> Dict[str, str]:
 
     The input is a list of arguments, the second element of the tuple
     returned by ``argparse.ArgumentParser.parse_known_args()``, which
-    can be a single string depending on how the arguments were passed.
+    can be a single string depending on how the arguments are passed.
 
     We must handle cases like
         ``--target-etype query,clicks,asin query,search,asin``

@@ -186,7 +186,7 @@ the partitioned DGL graph files have been created on S3.
 After running your distributed partition SageMaker job as normal using
 ``sagemaker/launch_partition.py``, you next need to launch the
 ``sagemaker/launch_graphbolt_convert.py`` script, passing as input
-the S3 URI where the DistDGL partition data is stored by ``launch_partition.py``,
+the S3 URI, where the DistDGL partition data is stored by ``launch_partition.py``,
 **plus the suffix `dist_graph`** as that's where GSPartition creates the partition files.
 
 For example, if you used ``--output-data-s3 s3://my-bucket/my-part-graph`` for
