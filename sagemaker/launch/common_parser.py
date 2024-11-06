@@ -116,7 +116,7 @@ def parse_unknown_gs_args(unknown_args: List[str]) -> Dict[str, str]:
     current_arg_name = None
 
     # Handle case where all args were parsed as a single string
-    if len(unknown_args) == 1 and unknown_args[0].count("--") > 1:
+    if len(unknown_args) == 1 and unknown_args[0].count("--") >= 1:
         unknown_args = unknown_args[0].split()
 
     for arg in unknown_args:

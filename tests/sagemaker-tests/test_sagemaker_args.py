@@ -66,11 +66,11 @@ def test_parse_unknown_gs_args_parametrized(input_args, expected_output):
 
 
 def test_parse_single_string():
-    """Happens when GS args are passed in quoted:
+    """Happens when GS args are passed in quoted in bash:
     ``python launch_*.py --launch-arg 1 '--gs-arg1 2 --gs-arg2 3'``
     """
-    args = ["--num-epochs 1 --use-graphbolt true"]
-    expected = {"num-epochs": "1", "use-graphbolt": "true"}
+    args = ["--feat-name ntype0:feat0 ntype1:feat1"]
+    expected = {"feat-name": "ntype0:feat0 ntype1:feat1"}
     assert dict(parse_unknown_gs_args(args)) == expected
 
 
