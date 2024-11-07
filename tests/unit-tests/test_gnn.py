@@ -2759,6 +2759,7 @@ def test_rgcn_edge_model_forward():
                                       batch_size=10,
                                       label_field='label',
                                       node_feats='feat',
+                                      edge_feats=None,
                                       train_task=False,
                                       remove_target_edge_type=False)
     for i, (input_nodes, batch_graph, blocks) in enumerate(dataloader3):
