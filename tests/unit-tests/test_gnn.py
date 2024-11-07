@@ -2552,7 +2552,7 @@ def test_edge_model_inference_with_edge_feats():
     with assert_raises(AssertionError):
         do_full_graph_inference(model1, ep_data)
 
-    # Test case 2: abnormal case, model does not use edge feature, so can do both mini-batch and
+    # Test case 2: normal case, model does not use edge feature, so can do both mini-batch and
     #              full graph inference
     model2 = create_rgcn_edge_model(ep_data.g, num_ffn_layers=0)
     check_edge_prediction(model2, ep_data)
