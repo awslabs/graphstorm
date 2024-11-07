@@ -870,7 +870,7 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         This function is used for mini-batch inference.
 
         .. versionchanged:: 0.4.0
-            Chagen ``input_feats`` to ``input_nfeats`` and add new argument ``input_efeats_list``
+            Change ``input_feats`` to ``input_nfeats`` and add new argument ``input_efeats_list``
             in v0.4.0 to support edge features in message passing computation.
 
         Parameters
