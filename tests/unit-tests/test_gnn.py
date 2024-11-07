@@ -2697,6 +2697,31 @@ def test_rgcn_node_model_forward():
         with assert_raises(AssertionError):
             model4(blocks, ninput_feats, einput_feats_list, lbl, input_nodes)
 
+    # Test case 4: abnormal case, edge model does not use edge feature, but provides edge feature
+    #              for mini-batch forward. Should Trigger an assertion error about initialization
+    #              of RGCN model using `edge_feat_name` argument.
+    edge_feat_name = {('n0', 'r1', 'n1'): 'feat'}
+    model5 = create_rgcn_node_model(np_data.g, edge_feat_name=None)
+    target_idx = {"n1": [0, 1]}
+    dataloader5 = GSgnnNodeDataLoader(np_data,
+                                      target_idx,
+                                      fanout=[-1, -1],
+                                      batch_size=10,
+                                      label_field='label',
+                                      edge_feats={('n0', 'r1', 'n1'): ['feat']},
+                                      node_feats='feat',
+                                      train_task=False)
+    for i, (input_nodes, seeds, blocks) in enumerate(dataloader5):
+        nfeat_fields = dataloader5.node_feat_fields
+        ninput_feats = np_data.get_node_feats(input_nodes, nfeat_fields)
+        efeat_fields = dataloader5.edge_feat_fields
+        einput_feats_list = np_data.get_blocks_edge_feats(blocks, efeat_fields)
+
+        lbl = np_data.get_node_feats(seeds, 'label')
+
+        with assert_raises(AssertionError):
+            model5(blocks, ninput_feats, einput_feats_list, lbl, input_nodes)
+
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
@@ -2818,6 +2843,35 @@ def test_rgcn_edge_model_forward():
         with assert_raises(AssertionError):
             model4(blocks, batch_graph, ninput_feats, einput_feats_list,
                    None, lbl, input_nodes)
+
+    # Test case 4: abnormal case, edge model uses partial edge feature, but provides other edge type
+    #              features for mini-batch forward. Should Trigger an assertion error about missing
+    #              projection weight in edge input layer.
+    edge_feat_name = {('n0', 'r0', 'n1'): 'feat'}
+    model5 = create_rgcn_edge_model(ep_data.g, num_ffn_layers=0, edge_feat_name=edge_feat_name)
+    target_idx = {("n0", "r1", "n1"): [0, 1]}
+    dataloader5 = GSgnnEdgeDataLoader(ep_data,
+                                      target_idx,
+                                      fanout=[-1, -1],
+                                      batch_size=10,
+                                      label_field='label',
+                                      node_feats='feat',
+                                      edge_feats={('n0', 'r1', 'n1'): ['feat']},
+                                      train_task=False,
+                                      remove_target_edge_type=False)
+    for i, (input_nodes, batch_graph, blocks) in enumerate(dataloader5):
+        nfeat_fields = dataloader5.node_feat_fields
+        ninput_feats = ep_data.get_node_feats(input_nodes, nfeat_fields)
+        efeat_fields = dataloader5.edge_feat_fields
+        einput_feats_list = ep_data.get_blocks_edge_feats(blocks, efeat_fields)
+
+        label_field = dataloader5.label_field
+        lbl = ep_data.get_edge_feats({("n0", "r1", "n1"): [0, 1]}, label_field)
+
+        with assert_raises(AssertionError):
+            model5(blocks, batch_graph, ninput_feats, einput_feats_list,
+                   None, lbl, input_nodes)
+
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -2967,6 +3021,40 @@ def test_rgcn_lp_model_forward():
                    edge_feats=einput_feats_list,
                    pos_edge_feats=pos_graph_feats,
                    input_nodes=input_nodes)
+
+    # Test case 4: abnormal case, lp model does not use edge feature, but provides edge feature
+    #              for mini-batch forward. Should Trigger an assertion error about initialization
+    #              of RGCN model using `edge_feat_name` argument.
+    edge_feat_name = {('n0', 'r1', 'n1'): 'feat'}
+    model5 = create_rgcn_lp_model(ep_data.g, edge_feat_name=None)
+    target_idx = {("n0", "r1", "n1"): [0, 1]}
+    dataloader5 = GSgnnLinkPredictionDataLoader(ep_data,
+                                                target_idx,
+                                                fanout=[-1, -1],
+                                                batch_size=10,
+                                                node_feats='feat',
+                                                edge_feats={('n0', 'r0', 'n1'): ['feat']},
+                                                num_negative_edges=2,
+                                                train_task=False)
+    for i, (input_nodes, pos_graph, neg_graph, blocks) in enumerate(dataloader5):
+        nfeat_fields = dataloader5.node_feat_fields
+        ninput_feats = ep_data.get_node_feats(input_nodes, nfeat_fields)
+        efeat_fields = dataloader5.edge_feat_fields
+        einput_feats_list = ep_data.get_blocks_edge_feats(blocks, efeat_fields)
+        if dataloader5.pos_graph_edge_feat_fields is not None:
+            input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
+                for etype in pos_graph.canonical_etypes}
+            pos_graph_feats = ep_data.get_edge_feats(input_edges,
+                                                     dataloader5.pos_graph_edge_feat_fields)
+        else:
+            pos_graph_feats = None
+
+        with assert_raises(AssertionError):
+            model5(blocks, pos_graph, neg_graph,
+                    node_feats=ninput_feats,
+                    edge_feats=einput_feats_list,
+                    pos_edge_feats=pos_graph_feats,
+                    input_nodes=input_nodes)
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
