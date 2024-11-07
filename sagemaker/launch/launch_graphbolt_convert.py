@@ -92,7 +92,7 @@ def get_partition_parser():
 
     partition_args.add_argument("--entry-point", type=str,
         default="run/gb_convert_entry.py",
-        help="PATH-TO graphstorm/sagemaker/run/partition_entry.py")
+        help="PATH-TO graphstorm/sagemaker/run/gb_convert_entry.py")
 
     partition_args.add_argument("--gb-convert-njobs", type=int, default=1,
         help="Number of parallel processes to use for GraphBolt partition conversion.")
