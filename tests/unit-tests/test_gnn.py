@@ -114,7 +114,7 @@ def create_rgcn_node_model(g, norm=None, edge_feat_name=None):
     node_encoder = GSNodeEncoderInputLayer(g, nfeat_size, 4,
                                       dropout=0,
                                       use_node_embeddings=True)
-    efeat_size = get_edge_feat_size(g, 'feat')
+    efeat_size = get_edge_feat_size(g, edge_feat_name)
     edge_encoder = GSEdgeEncoderInputLayer(g, efeat_size, 4, dropout=0)
     model.set_node_input_encoder(node_encoder)
     model.set_edge_input_encoder(edge_encoder)
@@ -766,7 +766,7 @@ def create_rgcn_edge_model(g, num_ffn_layers, edge_feat_name=None):
     node_encoder = GSNodeEncoderInputLayer(g, nfeat_size, 4,
                                       dropout=0,
                                       use_node_embeddings=True)
-    efeat_size = get_edge_feat_size(g, 'feat')
+    efeat_size = get_edge_feat_size(g, edge_feat_name)
     edge_encoder = GSEdgeEncoderInputLayer(g, efeat_size, 4, dropout=0)
     model.set_node_input_encoder(node_encoder)
     model.set_edge_input_encoder(edge_encoder)
@@ -792,7 +792,7 @@ def create_rgcn_lp_model(g, edge_feat_name=None):
     node_encoder = GSNodeEncoderInputLayer(g, nfeat_size, 4,
                                       dropout=0,
                                       use_node_embeddings=True)
-    efeat_size = get_edge_feat_size(g, 'feat')
+    efeat_size = get_edge_feat_size(g, edge_feat_name)
     edge_encoder = GSEdgeEncoderInputLayer(g, efeat_size, 4, dropout=0)
     model.set_node_input_encoder(node_encoder)
     model.set_edge_input_encoder(edge_encoder)
@@ -2546,18 +2546,18 @@ def test_edge_model_inference_with_edge_feats():
     assert pred[("n0", "r1", "n1")].dim() == 2
     assert pred[("n0", "r1", "n1")].shape[0] == labels[("n0", "r1", "n1")].shape[0]
 
-    # Test case 1: normal case, model uses edge feature, and do full graph inference. 
+    # Test case 1: abnormal case, model uses edge feature, and do full graph inference. 
     #              This should trigger an assertion error, showing an edge feature supported
     #              GNN model cannot do full graph inference
     with assert_raises(AssertionError):
         do_full_graph_inference(model1, ep_data)
 
-    # Test case 2: normal case, model does not use edge feature, so can do both mini-batch and
+    # Test case 2: abnormal case, model does not use edge feature, so can do both mini-batch and
     #              full graph inference
     model2 = create_rgcn_edge_model(ep_data.g, num_ffn_layers=0)
     check_edge_prediction(model2, ep_data)
 
-    # Test case 3: normal case, model does not use edge feature, but provide edge feature as inputs.
+    # Test case 3: abnormal case, model does not use edge feature, but provide edge feature as inputs.
     #              This will trigger an assertion error to ask users to use edge_feat_name to create
     #              a model using edge features.
     target_idx = {("n0", "r1", "n1"): th.arange(ep_data.g.number_of_edges("r1"))}
@@ -2570,6 +2570,22 @@ def test_edge_model_inference_with_edge_feats():
                                      remove_target_edge_type=False)
     with assert_raises(AssertionError):
         edge_mini_batch_gnn_predict(model2, dataloader2, return_label=True)
+        
+    # Test case 4: abnormal case, model only use partial edge features, but provide other edge feature
+    #              as inputs. This will trigger an assertion error to ask users to provide edge_feat_name
+    #              for the missing edge type to create projection weights.
+    edge_feat_name = {('n0', 'r0', 'n1'): 'feat'}
+    model3 = create_rgcn_edge_model(ep_data.g, num_ffn_layers=0, edge_feat_name=edge_feat_name)
+    target_idx = {("n0", "r1", "n1"): th.arange(ep_data.g.number_of_edges("r1"))}
+    dataloader3 = GSgnnEdgeDataLoader(ep_data, target_idx, fanout=[-1, -1],
+                                     batch_size=10,
+                                     label_field='label',
+                                     node_feats='feat',
+                                     edge_feats={('n0', 'r1', 'n1'): ['feat']},
+                                     train_task=False,
+                                     remove_target_edge_type=False)
+    with assert_raises(AssertionError):
+        edge_mini_batch_gnn_predict(model3, dataloader3, return_label=True)
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
