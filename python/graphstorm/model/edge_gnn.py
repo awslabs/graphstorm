@@ -127,7 +127,6 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
         super(GSgnnEdgeModel, self).__init__()
         self.alpha_l2norm = alpha_l2norm
 
-    # pylint: disable=unused-argument
     def forward(self, blocks, target_edges, node_feats, edge_feats, target_edge_feats,
         labels, input_nodes=None):
         """ The forward function for edge prediction.

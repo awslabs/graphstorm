@@ -894,30 +894,30 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """
         device = blocks[0].device
         if self.node_input_encoder is not None:
-            node_embs = self.node_input_encoder(input_nfeats, input_nodes)
-            node_embs = {name: emb.to(device) for name, emb in node_embs.items()}
+            node_input_embs = self.node_input_encoder(input_nfeats, input_nodes)
+            node_input_embs = {name: emb.to(device) for name, emb in node_input_embs.items()}
         else:
-            node_embs = input_nfeats
+            node_input_embs = input_nfeats
         # For backward compatibility, set input edge feature list to be None
         if input_efeats_list is None:
             input_efeats_list = [{} for _ in range(len(blocks))]
         if self.edge_input_encoder is not None:
-            edge_embs = self.edge_input_encoder(input_efeats_list)
+            edge_input_embs = self.edge_input_encoder(input_efeats_list)
         else:
-            edge_embs = input_efeats_list
+            edge_input_embs = input_efeats_list
 
         if self.gnn_encoder is not None:
-            if any(edge_embs):
+            if any(edge_input_embs):
                 assert self.gnn_encoder.is_support_edge_feat(), \
                     f'This {self.gnn_encoder.__class__} GNN encoder does not support edge ' + \
                      'features in message passing. Please refer GraphStorm documentations' + \
                      'to find GNN encoders that support edge features, e.g. ' + \
                      'RGCN encoder, `RelationalGCNEncoder`.'
-                gnn_embs = self.gnn_encoder(blocks, node_embs, edge_embs)
+                gnn_embs = self.gnn_encoder(blocks, node_input_embs, edge_input_embs)
             else:
-                gnn_embs = self.gnn_encoder(blocks, node_embs)
+                gnn_embs = self.gnn_encoder(blocks, node_input_embs)
         else:
-            gnn_embs = node_embs
+            gnn_embs = node_input_embs
         return gnn_embs
 
     def save_dense_model(self, model_path):
@@ -1058,7 +1058,9 @@ def do_mini_batch_inference(model, data, batch_size=1024,
             """
             # extract cached node embeddings
             if not isinstance(input_nodes, dict):
-                assert len(data.g.ntypes) == 1
+                assert len(data.g.ntypes) == 1, 'If input nodes are not in ' + \
+                        'a dictionary, the input graph should be a homogeneous graph with ' + \
+                        f'one node type only, but got {len(data.g.ntypes)} node types.' 
                 input_nodes = {data.g.ntypes[0]: input_nodes}
             node_input_embs = {ntype: input_embeds[ntype][ids].to(device) \
                                for ntype, ids in input_nodes.items()}
@@ -1066,7 +1068,10 @@ def do_mini_batch_inference(model, data, batch_size=1024,
             efeat_fields = data.edge_feat_field
             if efeat_fields is not None:
                 if not isinstance(efeat_fields, dict):
-                    assert len(data.g.canonical_etypes) == 1
+                    assert len(data.g.canonical_etypes) == 1, 'If edge feature names are ' + \
+                        'not in a dictionary, the input graph should be a homogeneous graph ' + \
+                       f'with one edge type only, but got {len(data.g.canonical_etypes)} ' + \
+                        'edge types.'
                     efeat_fields = {data.g.canonical_etypes[0]: efeat_fields}
                 input_efeats_list = data.get_blocks_edge_feats(blocks, efeat_fields, device)
             else:
@@ -1093,7 +1098,9 @@ def do_mini_batch_inference(model, data, batch_size=1024,
         def get_input_embeds(input_nodes, blocks):
             # get input node features
             if not isinstance(input_nodes, dict):
-                assert len(data.g.ntypes) == 1
+                assert len(data.g.ntypes) == 1, 'If input nodes are not in ' + \
+                        'a dictionary, the input graph should be a homogeneous graph with ' + \
+                        f'one node type only, but got {len(data.g.ntypes)} node types.' 
                 input_nodes = {data.g.ntypes[0]: input_nodes}
             input_nfeats = prepare_batch_input(data.g, input_nodes, dev=device,
                                                feat_field=data.node_feat_field)
@@ -1101,7 +1108,10 @@ def do_mini_batch_inference(model, data, batch_size=1024,
             efeat_fields = data.edge_feat_field
             if efeat_fields is not None:
                 if not isinstance(efeat_fields, dict):
-                    assert len(data.g.canonical_etypes) == 1
+                    assert len(data.g.canonical_etypes) == 1, 'If edge feature names are ' + \
+                        'not in a dictionary, the input graph should be a homogeneous graph ' + \
+                       f'with one edge type only, but got {len(data.g.canonical_etypes)} ' + \
+                        'edge types.'
                     efeat_fields = {data.g.canonical_etypes[0]: efeat_fields}
                 input_efeats_list = data.get_blocks_edge_feats(blocks, efeat_fields, device)
             else:
@@ -1187,7 +1197,9 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
         device = model.gnn_encoder.device
         def get_input_embeds(input_nodes):
             if not isinstance(input_nodes, dict):
-                assert len(data.g.ntypes) == 1
+                assert len(data.g.ntypes) == 1, 'If input nodes are not in ' + \
+                        'a dictionary, the input graph should be a homogeneous graph with ' + \
+                        f'one node type only, but got {len(data.g.ntypes)} node types.' 
                 input_nodes = {data.g.ntypes[0]: input_nodes}
             res = {}
             # If the input node layer doesn't generate embeddings for a node type,
@@ -1207,7 +1219,9 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
         device = model.gnn_encoder.device
         def get_input_embeds(input_nodes):
             if not isinstance(input_nodes, dict):
-                assert len(data.g.ntypes) == 1
+                assert len(data.g.ntypes) == 1, 'If input nodes are not in ' + \
+                        'a dictionary, the input graph should be a homogeneous graph with ' + \
+                        f'one node type only, but got {len(data.g.ntypes)} node types.' 
                 input_nodes = {data.g.ntypes[0]: input_nodes}
             feats = prepare_batch_input(data.g, input_nodes, dev=device,
                                         feat_field=data.node_feat_field)
