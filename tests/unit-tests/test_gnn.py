@@ -2633,7 +2633,7 @@ def test_rgcn_node_model_forward():
         assert th.is_floating_point(loss2)
 
     # Test case 2: abnormal case, edge model uses edge feature, and not provides edge feature
-    #              for mini-batch forward. Should Trigger an assertion error about the number
+    #             in forward. Should Trigger an assertion error about the number
     #              of input features.
     edge_feat_name = {('n0', 'r0', 'n1'): 'feat', ('n0', 'r1', 'n1'): 'feat'}
     model3 = create_rgcn_node_model(np_data.g, edge_feat_name=edge_feat_name)
