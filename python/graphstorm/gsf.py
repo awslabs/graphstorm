@@ -276,7 +276,7 @@ def get_edge_feat_size(g, edge_feat_names):
         will be 0.
     """
     # check if edge types in edge_feat_names are in graph
-    if edge_feat_names:
+    if edge_feat_names and isinstance(edge_feat_names, dict):
         for etype in edge_feat_names.keys():
             assert etype in list(g.canonical_etypes), \
                 f"Graph data does not contain the specified edge type {etype}!, " + \

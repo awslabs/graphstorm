@@ -864,10 +864,14 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
 
         return embs
 
-    def compute_embed_step(self, blocks, input_feats, input_nodes):
+    def compute_embed_step(self, blocks, input_nfeats, input_nodes, input_efeats_list=None):
         """ Compute the GNN embeddings on a mini-batch.
 
         This function is used for mini-batch inference.
+
+        .. versionchanged:: 0.4.0
+            Change ``input_feats`` to ``input_nfeats`` and add new argument ``input_efeats_list``
+            in v0.4.0 to support edge features in message passing computation.
 
         Parameters
         ----------
@@ -876,10 +880,13 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
             detailed information about DGL MFG can be found in `DGL Neighbor Sampling
             Overview
             <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
-        input_feats : dict of Tensors
+        input_nfeats : dict of Tensors
             The input node features.
         input_nodes : dict of Tensors
             The input node IDs.
+        input_efeats_list: list of dict of Tensors
+            The input edge feature list in the format of [{etype: tensor}, {etyp: tensor}, ...].
+            Default is None.
 
         Returns
         -------
@@ -887,14 +894,30 @@ class GSgnnModel(GSgnnModelBase):    # pylint: disable=abstract-method
         """
         device = blocks[0].device
         if self.node_input_encoder is not None:
-            embs = self.node_input_encoder(input_feats, input_nodes)
-            embs = {name: emb.to(device) for name, emb in embs.items()}
+            node_input_embs = self.node_input_encoder(input_nfeats, input_nodes)
+            node_input_embs = {name: emb.to(device) for name, emb in node_input_embs.items()}
         else:
-            embs = input_feats
+            node_input_embs = input_nfeats
+        # For backward compatibility, set input edge feature list to be None
+        if input_efeats_list is None:
+            input_efeats_list = [{} for _ in range(len(blocks))]
+        if self.edge_input_encoder is not None:
+            edge_input_embs = self.edge_input_encoder(input_efeats_list)
+        else:
+            edge_input_embs = input_efeats_list
+
         if self.gnn_encoder is not None:
-            gnn_embs = self.gnn_encoder(blocks, embs)
+            if any(edge_input_embs):
+                assert self.gnn_encoder.is_support_edge_feat(), \
+                    f'This {self.gnn_encoder.__class__} GNN encoder does not support edge ' + \
+                     'features in message passing. Please refer GraphStorm documentations' + \
+                     'to find GNN encoders that support edge features, e.g. ' + \
+                     'RGCN encoder, `RelationalGCNEncoder`.'
+                gnn_embs = self.gnn_encoder(blocks, node_input_embs, edge_input_embs)
+            else:
+                gnn_embs = self.gnn_encoder(blocks, node_input_embs)
         else:
-            gnn_embs = embs
+            gnn_embs = node_input_embs
         return gnn_embs
 
     def save_dense_model(self, model_path):
@@ -979,6 +1002,10 @@ def do_mini_batch_inference(model, data, batch_size=1024,
 
     It may use some of the edges indicated by `edge_mask` to compute GNN embeddings.
 
+    .. versionchanged:: 0.4.0
+        Change ``get_input_embeds`` in v0.4.0 to support edge features in message
+        passing computation.
+
     Parameters
     ----------
     model: torch model
@@ -1023,36 +1050,88 @@ def do_mini_batch_inference(model, data, batch_size=1024,
                                                      feat_field=data.node_feat_field)
         model.eval()
         device = model.gnn_encoder.device
-        def get_input_embeds(input_nodes):
+
+        # an internal function for computing embeddings as inputs of GNN encoder
+        def get_input_embeds(input_nodes, blocks):
+            """ Currently, only support node embedding cache, and still use mini batch to compute
+            edge embeddings.
+            """
+            # extract cached node embeddings
             if not isinstance(input_nodes, dict):
-                assert len(data.g.ntypes) == 1
+                assert len(data.g.ntypes) == 1, 'If input nodes are not in ' + \
+                        'a dictionary, the input graph should be a homogeneous graph with ' + \
+                        f'one node type only, but got {len(data.g.ntypes)} node types.' 
                 input_nodes = {data.g.ntypes[0]: input_nodes}
-            return {ntype: input_embeds[ntype][ids].to(device) \
-                    for ntype, ids in input_nodes.items()}
+            node_input_embs = {ntype: input_embeds[ntype][ids].to(device) \
+                               for ntype, ids in input_nodes.items()}
+            # get input edge features list
+            efeat_fields = data.edge_feat_field
+            if efeat_fields is not None:
+                if not isinstance(efeat_fields, dict):
+                    assert len(data.g.canonical_etypes) == 1, 'If edge feature names are ' + \
+                        'not in a dictionary, the input graph should be a homogeneous graph ' + \
+                       f'with one edge type only, but got {len(data.g.canonical_etypes)} ' + \
+                        'edge types.'
+                    efeat_fields = {data.g.canonical_etypes[0]: efeat_fields}
+                input_efeats_list = data.get_blocks_edge_feats(blocks, efeat_fields, device)
+            else:
+                input_efeats_list = [{}] * len(blocks)
+            # computer edge embeddings
+            if model.edge_input_encoder is not None:
+                edge_input_embs = model.edge_input_encoder(input_efeats_list)
+            else:
+                edge_input_embs =  [{}] * len(blocks)
+            return node_input_embs, edge_input_embs
+
         embeddings = dist_minibatch_inference(data.g,
-                                                model.gnn_encoder,
-                                                get_input_embeds,
-                                                batch_size, fanout,
-                                                edge_mask=edge_mask,
-                                                target_ntypes=infer_ntypes,
-                                                task_tracker=task_tracker)
+                                              model.gnn_encoder,
+                                              get_input_embeds,
+                                              batch_size, fanout,
+                                              edge_mask=edge_mask,
+                                              target_ntypes=infer_ntypes,
+                                              task_tracker=task_tracker)
     else:
         model.eval()
         device = model.gnn_encoder.device
-        def get_input_embeds(input_nodes):
+
+        # an internal function for computing embeddings as inputs of GNN encoder
+        def get_input_embeds(input_nodes, blocks):
+            # get input node features
             if not isinstance(input_nodes, dict):
-                assert len(data.g.ntypes) == 1
+                assert len(data.g.ntypes) == 1, 'If input nodes are not in ' + \
+                        'a dictionary, the input graph should be a homogeneous graph with ' + \
+                        f'one node type only, but got {len(data.g.ntypes)} node types.' 
                 input_nodes = {data.g.ntypes[0]: input_nodes}
-            feats = prepare_batch_input(data.g, input_nodes, dev=device,
-                                        feat_field=data.node_feat_field)
-            return model.node_input_encoder(feats, input_nodes)
+            input_nfeats = prepare_batch_input(data.g, input_nodes, dev=device,
+                                               feat_field=data.node_feat_field)
+            # get input edge features list
+            efeat_fields = data.edge_feat_field
+            if efeat_fields is not None:
+                if not isinstance(efeat_fields, dict):
+                    assert len(data.g.canonical_etypes) == 1, 'If edge feature names are ' + \
+                        'not in a dictionary, the input graph should be a homogeneous graph ' + \
+                       f'with one edge type only, but got {len(data.g.canonical_etypes)} ' + \
+                        'edge types.'
+                    efeat_fields = {data.g.canonical_etypes[0]: efeat_fields}
+                input_efeats_list = data.get_blocks_edge_feats(blocks, efeat_fields, device)
+            else:
+                input_efeats_list = [{}] * len(blocks)
+            # compute input embeddings
+            node_input_embs = model.node_input_encoder(input_nfeats, input_nodes)
+            # computer edge embeddings
+            if model.edge_input_encoder is not None:
+                edge_input_embs = model.edge_input_encoder(input_efeats_list)
+            else:
+                edge_input_embs =  [{}] * len(blocks)
+            return node_input_embs, edge_input_embs
+
         embeddings = dist_minibatch_inference(data.g,
-                                                model.gnn_encoder,
-                                                get_input_embeds,
-                                                batch_size, fanout,
-                                                edge_mask=edge_mask,
-                                                target_ntypes=infer_ntypes,
-                                                task_tracker=task_tracker)
+                                              model.gnn_encoder,
+                                              get_input_embeds,
+                                              batch_size, fanout,
+                                              edge_mask=edge_mask,
+                                              target_ntypes=infer_ntypes,
+                                              task_tracker=task_tracker)
     # Called when model.eval()
     # TODO: do_mini_batch_inference is not TRUE mini-batch inference
     #       Need to change the implementation.
@@ -1104,6 +1183,9 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
                                                    feat_field=data.node_feat_field)
         model.eval()
     elif model.node_input_encoder.require_cache_embed():
+        assert not model.gnn_encoder.is_using_edge_feat(), "Full-graph inference does not " + \
+            "support using edge features. Please call the \"do_mini_batch_inference()\" " + \
+            "method to do inference using edge features."
         # If the input encoder has heavy computation, we should compute
         # the embeddings and cache them.
         input_embeds = compute_node_input_embeddings(data.g,
@@ -1115,7 +1197,9 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
         device = model.gnn_encoder.device
         def get_input_embeds(input_nodes):
             if not isinstance(input_nodes, dict):
-                assert len(data.g.ntypes) == 1
+                assert len(data.g.ntypes) == 1, 'If input nodes are not in ' + \
+                        'a dictionary, the input graph should be a homogeneous graph with ' + \
+                        f'one node type only, but got {len(data.g.ntypes)} node types.' 
                 input_nodes = {data.g.ntypes[0]: input_nodes}
             res = {}
             # If the input node layer doesn't generate embeddings for a node type,
@@ -1128,11 +1212,16 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
                                                     batch_size, fanout, edge_mask=edge_mask,
                                                     task_tracker=task_tracker)
     else:
+        assert not model.gnn_encoder.is_using_edge_feat(), "Full-graph inference does not " + \
+            "support using edge features. Please call the \"do_mini_batch_inference()\" " + \
+            "method to do inference using edge features."
         model.eval()
         device = model.gnn_encoder.device
         def get_input_embeds(input_nodes):
             if not isinstance(input_nodes, dict):
-                assert len(data.g.ntypes) == 1
+                assert len(data.g.ntypes) == 1, 'If input nodes are not in ' + \
+                        'a dictionary, the input graph should be a homogeneous graph with ' + \
+                        f'one node type only, but got {len(data.g.ntypes)} node types.' 
                 input_nodes = {data.g.ntypes[0]: input_nodes}
             feats = prepare_batch_input(data.g, input_nodes, dev=device,
                                         feat_field=data.node_feat_field)

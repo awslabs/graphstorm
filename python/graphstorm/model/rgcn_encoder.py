@@ -270,8 +270,9 @@ class RelGraphConvLayer(nn.Module):
             hs = self.conv(g, (inputs_src, inputs_dst, {}), mod_kwargs=wdict)
         else:
             assert len(e_h) == 0 or self.edge_feat_name is not None, "Since you want to use " + \
-                f"edge features {list(e_h.keys())} in message passing computation, please " + \
-                "initialize the RelGraphConvLayer by setting the \"edge_feat_name\" argument."
+                f"edge features on edge type {list(e_h.keys())} in message passing " + \
+                "computation, please initialize the RelGraphConvLayer by setting the " + \
+                "\"edge_feat_name\" argument."
             hs = self.conv(g, (inputs_src, inputs_dst, e_h), mod_kwargs=wdict)
 
         def _apply(ntype, h):
@@ -405,6 +406,12 @@ class RelationalGCNEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
             self.num_bases = len(g.canonical_etypes)
         else:
             self.num_bases = num_bases
+
+        # check edge type string format
+        if edge_feat_name:
+            for etype, _ in edge_feat_name.items():
+                assert len(etype) == 3, 'The edge type should be in canonical type format:' + \
+                    f'(src_ntype, etype, dst_ntype), but got \"{etype}\".'
 
         # h2h
         for _ in range(num_hidden_layers):
