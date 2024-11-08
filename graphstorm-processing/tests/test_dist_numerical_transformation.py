@@ -31,6 +31,7 @@ from pyspark.sql.types import (
     LongType,
 )
 from scipy.special import erfinv  # pylint: disable=no-name-in-module
+from pandas.testing import assert_frame_equal
 
 from graphstorm_processing.data_transformations.dist_transformations import (
     DistNumericalTransformation,
@@ -81,36 +82,40 @@ def test_numerical_transformation_with_mode_imputer(input_df: DataFrame):
 
     transformed_df = dist_numerical_transformation.apply(input_df)
 
-    transformed_rows = transformed_df.collect()
+    transformed_pd_df = transformed_df.toPandas()
 
-    for row in transformed_rows:
-        if row["name"] == "mark":
-            assert row["salary"] == 10000
-        elif row["name"] == "john":
-            assert row["age"] == 40
-        else:
-            assert row["salary"] in {10000, 20000, 40000}
-            assert row["age"] in {20, 40, 60}
+    expected_pd_df = pd.DataFrame(
+        {
+            "salary": [10000, 10000, 20000, 10000, 40000],
+            "age": [40, 40, 20, 60, 40],
+        }
+    )
+
+    assert_frame_equal(transformed_pd_df, expected_pd_df)
 
 
 def test_numerical_transformation_with_minmax_scaler(input_df: DataFrame):
     """Test numerical min-max normalizer"""
     no_na_df = input_df.na.fill(0)
     dist_numerical_transformation = DistNumericalTransformation(
-        ["age", "salary"], imputer="none", normalizer="min-max"
+        ["age", "salary"],
+        imputer="none",
+        normalizer="min-max",
+        out_dtype="float64",
     )
 
     transformed_df = dist_numerical_transformation.apply(no_na_df)
 
-    transformed_rows = transformed_df.collect()
+    transformed_pd_df = transformed_df.toPandas()
 
-    for row in transformed_rows:
-        if row["name"] == "kate":
-            assert row["salary"] == 1.0
-        elif row["name"] == "mark":
-            assert row["salary"] == 0.0
-        else:
-            assert row["salary"] < 1.0 and row["salary"] > 0.0
+    expected_pd_df = pd.DataFrame(
+        {
+            "age": [0.666667, 0.0, 0.333333, 1.0, 0.666667],
+            "salary": [0.0, 0.25, 0.5, 0.25, 1.0],
+        }
+    )
+
+    assert_frame_equal(transformed_pd_df, expected_pd_df, rtol=0.001)
 
 
 def test_numerical_transformation_without_transformation(input_df: DataFrame, check_df_schema):
@@ -453,3 +458,91 @@ def test_rank_gauss_reshuffling(spark: SparkSession, check_df_schema, epsilon):
         assert_almost_equal(
             [row["rand"]], expected_vals[i, :], decimal=4, err_msg=f"Row {i} is not equal"
         )
+
+
+def test_json_representation(input_df: DataFrame, check_df_schema):
+    """Test that the generated representation is correct"""
+    dist_numerical_transformation = DistNumericalTransformation(
+        ["salary", "age"], imputer="mean", normalizer="min-max"
+    )
+    transformed_df = dist_numerical_transformation.apply(input_df)
+    json_rep = dist_numerical_transformation.get_json_representation()
+
+    assert "cols" in json_rep
+    assert "imputer_model" in json_rep
+    assert "normalizer_model" in json_rep
+    assert "out_dtype" in json_rep
+    assert json_rep["cols"] == ["salary", "age"]
+    assert json_rep["imputer_model"]["imputer_name"] == "mean"
+    assert json_rep["normalizer_model"]["norm_name"] == "min-max"
+
+    check_df_schema(transformed_df)
+
+
+def test_precomputed_transformation(input_df: DataFrame, check_df_schema):
+    """Test that the precomputed transformation produced works as intended"""
+    # First, apply the transformation and get the JSON representation
+    dist_numerical_transformation = DistNumericalTransformation(
+        ["salary", "age"], imputer="mean", normalizer="min-max"
+    )
+    original_df = dist_numerical_transformation.apply(input_df)
+    json_rep = dist_numerical_transformation.get_json_representation()
+
+    # Now, create a new transformation with the precomputed values
+    precomputed_transformation = DistNumericalTransformation(
+        ["salary", "age"], json_representation=json_rep
+    )
+    precomputed_df = precomputed_transformation.apply_precomputed_transformation(input_df)
+
+    check_df_schema(precomputed_df)
+
+    # Compare the results
+    assert_frame_equal(original_df.toPandas(), precomputed_df.toPandas())
+
+
+@pytest.mark.parametrize("imputer", ["mean", "median", "most_frequent"])
+def test_precomputed_imputation(imputer, input_df: DataFrame, check_df_schema):
+    """Test various precomputed imputations"""
+    dist_numerical_transformation = DistNumericalTransformation(
+        ["salary", "age"], imputer=imputer, normalizer="none"
+    )
+    original_df = dist_numerical_transformation.apply(input_df)
+    json_rep = dist_numerical_transformation.get_json_representation()
+
+    precomputed_transformation = DistNumericalTransformation(
+        ["salary", "age"], json_representation=json_rep
+    )
+    precomputed_df = precomputed_transformation.apply_precomputed_transformation(input_df)
+
+    check_df_schema(precomputed_df)
+
+    assert_frame_equal(original_df.toPandas(), precomputed_df.toPandas())
+
+
+@pytest.mark.parametrize("normalizer", ["min-max", "standard"])
+def test_precomputed_normalization(normalizer, input_df: DataFrame, check_df_schema):
+    """Test various precomputed norms"""
+    input_df = input_df.na.fill(0)
+    dist_numerical_transformation = DistNumericalTransformation(
+        ["salary", "age"], imputer="none", normalizer=normalizer
+    )
+    original_df = dist_numerical_transformation.apply(input_df)
+    json_rep = dist_numerical_transformation.get_json_representation()
+
+    precomputed_transformation = DistNumericalTransformation(
+        ["salary", "age"], json_representation=json_rep
+    )
+    precomputed_df = precomputed_transformation.apply_precomputed_transformation(input_df)
+
+    check_df_schema(precomputed_df)
+
+    assert_frame_equal(original_df.toPandas(), precomputed_df.toPandas())
+
+
+def test_precomputed_transformation_without_json(input_df: DataFrame):
+    """Test trying to re-apply transformation without a representation"""
+    dist_numerical_transformation = DistNumericalTransformation(
+        ["salary", "age"], imputer="mean", normalizer="min-max"
+    )
+    with pytest.raises(AssertionError):
+        dist_numerical_transformation.apply_precomputed_transformation(input_df)
