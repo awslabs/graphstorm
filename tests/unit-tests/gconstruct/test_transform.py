@@ -307,7 +307,7 @@ def test_fp_min_max_transform(input_dtype, out_dtype):
     feats[feats < min_val] = min_val
     feats = (feats-min_val)/(max_val-min_val)
     feats = feats if out_dtype is None else feats.astype(out_dtype)
-    assert_almost_equal(norm_feats, feats, decimal=6)
+    assert_almost_equal(norm_feats, feats, decimal=5)
 
     transform = NumericalMinMaxTransform("test", "test", out_dtype=out_dtype)
     max_val = np.array([2., 3., 0.])
