@@ -21,7 +21,12 @@ import boto3 # pylint: disable=import-error
 from sagemaker.pytorch.estimator import PyTorch
 import sagemaker
 
-from common_parser import get_common_parser, parse_estimator_kwargs, SUPPORTED_TASKS
+from common_parser import (
+    get_common_parser,
+    parse_estimator_kwargs,
+    SUPPORTED_TASKS,
+    parse_unknown_gs_args,
+    )
 
 INSTANCE_TYPE = "ml.g4dn.12xlarge"
 
@@ -75,24 +80,11 @@ def run_job(input_args, image, unknowargs):
         params["custom-script"] = custom_script
     if model_checkpoint_to_load is not None:
         params["model-checkpoint-to-load"] = model_checkpoint_to_load
-    # We must handle cases like
-    # --target-etype query,clicks,asin query,search,asin
-    # --feat-name ntype0:feat0 ntype1:feat1
-    unknow_idx = 0
-    while unknow_idx < len(unknowargs):
-        assert unknowargs[unknow_idx].startswith("--")
-        sub_params = []
-        for i in range(unknow_idx+1, len(unknowargs)+1):
-            # end of loop or stand with --
-            if i == len(unknowargs) or \
-                unknowargs[i].startswith("--"):
-                break
-            sub_params.append(unknowargs[i])
-        params[unknowargs[unknow_idx][2:]] = ' '.join(sub_params)
-        unknow_idx = i
+    unknown_args_dict = parse_unknown_gs_args(unknowargs)
+    params.update(unknown_args_dict)
 
-    print(f"Parameters {params}")
-    print(f"GraphStorm Parameters {unknowargs}")
+    print(f"SageMaker launch parameters {params}")
+    print(f"GraphStorm forwarded parameters {unknown_args_dict}")
     if input_args.sm_estimator_parameters:
         print(f"SageMaker Estimator parameters: '{input_args.sm_estimator_parameters}'")
 
@@ -109,7 +101,6 @@ def run_job(input_args, image, unknowargs):
         py_version="py3",
         base_job_name=prefix,
         hyperparameters=params,
-        sagemaker_session=sess,
         tags=[{"Key":"GraphStorm", "Value":"oss"},
               {"Key":"GraphStorm_Task", "Value":"Training"}],
         **estimator_kwargs
@@ -153,7 +144,8 @@ def get_train_parser():
 if __name__ == "__main__":
     arg_parser = get_train_parser()
     args, unknownargs = arg_parser.parse_known_args()
-    print(args)
+    print(f"Train launch Known args: '{args}'")
+    print(f"Train launch unknown args:{type(unknownargs)=} '{unknownargs=}'")
 
     train_image = args.image_url
 

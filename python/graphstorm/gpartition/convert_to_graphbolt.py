@@ -27,24 +27,72 @@ from packaging import version
 
 def parse_gbconv_args() -> argparse.Namespace:
     """Parses GraphBolt conversion arguments"""
-    parser = argparse.ArgumentParser("Convert partitioned DGL graph to GraphBolt format.")
-    parser.add_argument("--metadata-filepath", type=str, required=True,
-                           help="File path to the partitioned DGL metadata file.")
-    parser.add_argument("--logging-level", type=str, default="info",
-                           help="The logging level. The possible values: debug, info, warning, \
-                                   error. The default value is info.")
+    parser = argparse.ArgumentParser(
+        "Convert partitioned DGL graph to GraphBolt format."
+    )
+    parser.add_argument(
+        "--metadata-filepath",
+        type=str,
+        required=True,
+        help="File path to the partitioned DGL metadata file.",
+    )
+    parser.add_argument(
+        "--logging-level",
+        type=str,
+        default="info",
+        help="The logging level. The possible values: debug, info, warning, "
+        "error. The default value is info.",
+    )
+    parser.add_argument(
+        "--njobs",
+        type=int,
+        default=1,
+        help="Number of parallel processes to use for GraphBolt partition conversion. "
+        "Only applies for DGL >= v2.4.0.",
+    )
 
     return parser.parse_args()
 
 
-def main():
-    """ Entry point
+def run_gb_conversion(part_config: str, njobs=1):
+    """Converts the DistGraph data under the given part_config to GraphBolt
+
+    Parameters
+    ----------
+    part_config : str
+        File path to the partitioned data metadata JSON file
+    njobs : int, optional
+        Number of partitions to convert in parallel, by default 1.
+        Only applies if DGL >= 2.4.0.
     """
-    dgl_version = importlib.metadata.version('dgl')
+    dgl_version = importlib.metadata.version("dgl")
+    if version.parse(dgl_version) < version.parse("2.4.0"):
+        if njobs > 1:
+            logging.warning(
+                "GB conversion njobs > 1 is only supported for DGL >= 2.4.0. "
+                "njobs will be set to 1."
+            )
+        dgl_distributed.dgl_partition_to_graphbolt(
+            part_config,
+            store_eids=True,
+            graph_formats="coo",
+        )
+    else:
+        dgl_distributed.dgl_partition_to_graphbolt(  # pylint: disable=unexpected-keyword-arg
+            part_config,
+            store_eids=True,
+            graph_formats="coo",
+            njobs=njobs,
+        )
+
+
+def main():
+    """Entry point"""
+    dgl_version = importlib.metadata.version("dgl")
     if version.parse(dgl_version) < version.parse("2.1.0"):
         raise ValueError(
-                "GraphBolt conversion requires DGL version >= 2.1.0, "
-                f"but DGL version was {dgl_version}. "
+            "GraphBolt conversion requires DGL version >= 2.1.0, "
+            f"but DGL version was {dgl_version}. "
         )
 
     gb_conv_args = parse_gbconv_args()
@@ -59,14 +107,10 @@ def main():
     gb_start = time.time()
     logging.info("Converting partitions to GraphBolt format")
 
-    dgl_distributed.dgl_partition_to_graphbolt(
-            part_config,
-            store_eids=True,
-            graph_formats="coo",
-        )
+    run_gb_conversion(part_config, njobs=gb_conv_args.njobs)
 
-    logging.info("GraphBolt conversion took %f sec.",
-                    time.time() - gb_start)
+    logging.info("GraphBolt conversion took %f sec.", time.time() - gb_start)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

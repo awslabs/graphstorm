@@ -39,12 +39,11 @@ def run_job(input_args, image, unknownargs):
     unknownargs: dict
         GraphStorm graph construction parameters
     """
-    sm_task_name = input_args.task_name # SageMaker task name
     role = input_args.role # SageMaker ARN role
     instance_type = input_args.instance_type # SageMaker instance type
     region = input_args.region # AWS region
     entry_point = input_args.entry_point # GraphStorm gconstruct entry_point
-    input_graph_s3 = input_args.input_graph_s3
+    input_graph_s3 = input_args.graph_data_s3
     output_graph_s3 = input_args.output_graph_s3
     graph_name = input_args.graph_name # Inference graph name
     graph_config_file = input_args.graph_config_file # graph config file
@@ -105,9 +104,7 @@ def get_gconstruct_parser():
 
     gconstruct_arguments = parser.add_argument_group("GraphStorm Gconstruct arguments")
 
-    gconstruct_arguments.add_argument("--input-graph-s3", type=str,
-        required=True, help="S3 location of the input graph data")
-    gconstruct_arguments.add_argument("--output-graph-s3", type=str,
+    gconstruct_arguments.add_argument("--output-graph-s3", "--output-data-s3", type=str,
         required=True, help="S3 location to store the constructed graph")
     gconstruct_arguments.add_argument("--entry-point", type=str,
         default="graphstorm/sagemaker/run/gconstruct_entry.py",
@@ -124,7 +121,8 @@ def get_gconstruct_parser():
 if __name__ == "__main__":
     arg_parser = get_gconstruct_parser()
     args, unknownargs = arg_parser.parse_known_args()
-    print(args)
+    print(f"known args: {args}")
+    print(f"unknown args: {unknownargs}")
 
     gconstruct_image = args.image_url
 
