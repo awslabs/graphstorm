@@ -516,7 +516,7 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
         {
             "column": "author",
             "name": "hard_negative",
-            "transformation": {"name": "edge_dst_hard_negative", "separator": ";"},
+            "transformation": {"name": "edge_dst_hard_negative", "kwargs": {"separator": ";"}},
         },
     ]
     assert edges_output["labels"] == [

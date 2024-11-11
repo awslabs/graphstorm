@@ -1,0 +1,67 @@
+{
+    "graph": {
+        "nodes": [
+            {
+                "data": {
+                    "format": "parquet",
+                    "files": [
+                        "./nodes/author.parquet"
+                    ]
+                },
+                "type": "author",
+                "column": "node_id"
+            },
+            {
+                "data": {
+                    "format": "parquet",
+                    "files": [
+                        "./nodes/paper.parquet"
+                    ]
+                },
+                "type": "paper",
+                "column": "node_id"
+            }
+        ],
+        "edges": [
+            {
+                "data": {
+                    "format": "parquet",
+                    "files": [
+                        "./edges/author_writing_paper_hard_negative.parquet"
+                    ]
+                },
+                "source": {
+                    "column": "source_id",
+                    "type": "author"
+                },
+                "dest": {
+                    "column": "dest_id",
+                    "type": "paper"
+                },
+                "relation": {
+                    "type": "writing"
+                }
+            },
+            {
+                "data": {
+                    "format": "parquet",
+                    "files": [
+                        "./edges/paper_citing_paper.parquet"
+                    ]
+                },
+                "source": {
+                    "column": "source_id",
+                    "type": "paper"
+                },
+                "dest": {
+                    "column": "dest_id",
+                    "type": "paper"
+                },
+                "relation": {
+                    "type": "citing"
+                }
+            }
+        ]
+    },
+    "version": "gsprocessing-v1.0"
+}

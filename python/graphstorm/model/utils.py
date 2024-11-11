@@ -394,7 +394,19 @@ def _exchange_node_id_mapping(rank, world_size, device,
     return gather_list[0].to(th.device("cpu"))
 
 def load_dist_nid_map(node_id_mapping_file, ntypes):
-    """ Wrapper for load_dist_nid_map.
+    """ Load id mapping files in dist partition format.
+    
+        Parameters
+        ----------
+        node_id_mapping_file: str
+            Node mapping directory.
+        ntypes: list[str]
+            List of node types.
+
+        Return
+        ------
+        id_mappings: dict
+            Node mapping dictionary.
     """
     return _load_dist_nid_map(node_id_mapping_file, ntypes)
 

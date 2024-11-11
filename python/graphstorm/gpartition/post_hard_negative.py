@@ -35,7 +35,7 @@ def load_hard_negative_config(gsprocessing_config):
 
     # Hard Negative only supports link prediction
     edges_config = config['graph']['edges']
-    mapping_edge_list = []
+    hard_neg_list = []
     for single_edge_config in edges_config:
         if "features" not in single_edge_config:
             continue
@@ -47,13 +47,13 @@ def load_hard_negative_config(gsprocessing_config):
                                      single_edge_config["relation"]["type"],
                                      single_edge_config["dest"]["type"]])
                 hard_neg_feat_name = single_feature['name']
-                mapping_edge_list.append({"dst_node_type": single_edge_config["dest"]["type"],
+                hard_neg_list.append({"dst_node_type": single_edge_config["dest"]["type"],
                                           "edge_type": edge_type,
                                           "hard_neg_feat_name": hard_neg_feat_name})
-    return mapping_edge_list
+    return hard_neg_list
 
 
-def shuffle_hard_negative_nids(gsprocessing_config, num_parts, output_path):
+def shuffle_hard_negative_nids(gsprocessing_config, num_parts, graph_path):
     """Shuffle hard negative edge feature ids with int-to-int node id mapping.
     The function here align with the shuffle_hard_nids in graphstorm.gconstruct.utils.
     Create an additional function to handle the id mappings under the distributed setting.
@@ -64,7 +64,7 @@ def shuffle_hard_negative_nids(gsprocessing_config, num_parts, output_path):
         Path to the gsprocessing config.
     num_parts: int
         Number of parts.
-    output_path: str
+    graph_path: str
         Path to the output DGL graph.
     """
     shuffled_edge_config = load_hard_negative_config(gsprocessing_config)
@@ -73,7 +73,7 @@ def shuffle_hard_negative_nids(gsprocessing_config, num_parts, output_path):
     for single_shuffled_edge_config in shuffled_edge_config:
         node_type = single_shuffled_edge_config["dst_node_type"]
         node_type_list.append(node_type)
-    node_mapping = load_dist_nid_map(f"{output_path}/dist_graph", node_type_list)
+    node_mapping = load_dist_nid_map(f"{graph_path}/dist_graph", node_type_list)
     gnid2pnid_mapping = {}
 
     def get_gnid2pnid_map(ntype):
@@ -89,7 +89,7 @@ def shuffle_hard_negative_nids(gsprocessing_config, num_parts, output_path):
 
     # iterate all the partitions to convert hard negative node ids.
     for i in range(num_parts):
-        part_path = os.path.join(f"{output_path}/dist_graph", f"part{i}")
+        part_path = os.path.join(f"{graph_path}/dist_graph", f"part{i}")
         edge_feat_path = os.path.join(part_path, "edge_feat.dgl")
 
         # load edge features first

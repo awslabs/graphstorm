@@ -27,194 +27,27 @@ from dgl.data.utils import load_tensors, save_tensors
 from graphstorm.gpartition.post_hard_negative import (shuffle_hard_negative_nids,
                                                       load_hard_negative_config)
 
-@pytest.fixture(scope="module", name="gsprocessing_hard_negative_config")
-def gsprocessing_config_hard_negative_dict_fixture() -> Dict:
-    return{
-        "graph": {
-            "nodes": [
-                {
-                    "data": {
-                        "format": "parquet",
-                        "files": [
-                            "./nodes/author.parquet"
-                        ]
-                    },
-                    "type": "author",
-                    "column": "node_id",
-                },
-                {
-                    "data": {
-                        "format": "parquet",
-                        "files": [
-                            "./nodes/paper.parquet"
-                        ]
-                    },
-                    "type": "paper",
-                    "column": "node_id"
-                }
-            ],
-            "edges": [
-                {
-                    "data": {
-                        "format": "parquet",
-                        "files": [
-                            "./edges/author_writing_paper_hard_negative.parquet"
-                        ]
-                    },
-                    "source": {
-                        "column": "source_id",
-                        "type": "author"
-                    },
-                    "dest": {
-                        "column": "dest_id",
-                        "type": "paper"
-                    },
-                    "relation": {
-                        "type": "writing"
-                    },
-                    "features": [
-                        {
-                            "column": "hard_neg",
-                            "name": "hard_neg_feat",
-                            "transformation": {
-                                "name": "edge_dst_hard_negative",
-                                "kwargs": {
-                                    "separator": ";"
-                                }
-                            }
-                        }
-                    ]
-                },
-                {
-                    "data": {
-                        "format": "parquet",
-                        "files": [
-                            "./edges/paper_citing_paper.parquet"
-                        ]
-                    },
-                    "source": {
-                        "column": "source_id",
-                        "type": "paper"
-                    },
-                    "dest": {
-                        "column": "dest_id",
-                        "type": "paper"
-                    },
-                    "relation": {
-                        "type": "citing"
-                    }
-                }
-            ]
-        },
-        "version": "gsprocessing-v1.0"
-    }
 
-
-@pytest.fixture(scope="module", name="gsprocessing_non_hard_negative_config")
-def gsprocessing_config_non_hard_negative_dict_fixture() -> Dict:
-    return{
-        "graph": {
-            "nodes": [
-                {
-                    "data": {
-                        "format": "parquet",
-                        "files": [
-                            "./nodes/author.parquet"
-                        ]
-                    },
-                    "type": "author",
-                    "column": "node_id",
-                },
-                {
-                    "data": {
-                        "format": "parquet",
-                        "files": [
-                            "./nodes/paper.parquet"
-                        ]
-                    },
-                    "type": "paper",
-                    "column": "node_id"
-                }
-            ],
-            "edges": [
-                {
-                    "data": {
-                        "format": "parquet",
-                        "files": [
-                            "./edges/author_writing_paper_hard_negative.parquet"
-                        ]
-                    },
-                    "source": {
-                        "column": "source_id",
-                        "type": "author"
-                    },
-                    "dest": {
-                        "column": "dest_id",
-                        "type": "paper"
-                    },
-                    "relation": {
-                        "type": "writing"
-                    }
-                },
-                {
-                    "data": {
-                        "format": "parquet",
-                        "files": [
-                            "./edges/paper_citing_paper.parquet"
-                        ]
-                    },
-                    "source": {
-                        "column": "source_id",
-                        "type": "paper"
-                    },
-                    "dest": {
-                        "column": "dest_id",
-                        "type": "paper"
-                    },
-                    "relation": {
-                        "type": "citing"
-                    }
-                }
-            ]
-        },
-        "version": "gsprocessing-v1.0"
-    }
-
-
-def test_load_hard_negative_config(tmp_path, gsprocessing_hard_negative_config: Dict,
-                                   gsprocessing_non_hard_negative_config: Dict):
-    # For config with gsprocessing_config.json
-    json_file_path = f"{tmp_path}/gsprocessing_config.json"
-
-    # Write the dictionary to the JSON file
-    with open(json_file_path, 'w') as json_file:
-        json.dump(gsprocessing_hard_negative_config, json_file, indent=4)
+def test_load_hard_negative_config():
+    # For config with hard negative transformation
+    json_file_path = f"./config/gsprocessing_hard_negative_config.json"
 
     res = load_hard_negative_config(json_file_path)
 
     assert res[0] == {'dst_node_type': 'paper', 'edge_type':
         'author:writing:paper', 'hard_neg_feat_name': 'hard_neg_feat'}
 
-    # For config without hard negative feature definition
-    json_file_path = f"{tmp_path}/gsprocessing_config.json"
-
-    # Write the dictionary to the JSON file
-    with open(json_file_path, 'w') as json_file:
-        json.dump(gsprocessing_non_hard_negative_config,
-                  json_file, indent=4)
+    # For config without hard negative transformation
+    json_file_path = f"./config/gsprocessing_non_hard_negative_config.json"
 
     res = load_hard_negative_config(json_file_path)
 
     assert res == []
 
 
-def test_shuffle_hard_negative_nids(tmp_path, gsprocessing_hard_negative_config: Dict):
+def test_shuffle_hard_negative_nids(tmp_path):
     # For config with gsprocessing_config.json
-    json_file_path = f"{tmp_path}/gsprocessing_config.json"
-
-    # Write the dictionary to the JSON file
-    with open(json_file_path, 'w') as json_file:
-        json.dump(gsprocessing_hard_negative_config, json_file, indent=4)
+    json_file_path = f"./config/gsprocessing_hard_negative_config.json"
 
     # Generate dgl graph
     partitioned_graph = f"{tmp_path}/partitioned_graph"

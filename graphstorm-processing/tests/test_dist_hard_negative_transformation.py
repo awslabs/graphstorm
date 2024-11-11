@@ -66,7 +66,7 @@ def test_hard_negative_example_list(spark: SparkSession, check_df_schema, tmp_pa
 
     for idx, row in enumerate(output_data):
         np.testing.assert_equal(
-            row[0], expected_output[idx], decimal=3, err_msg=f"Row {idx} is not equal"
+            row[0], expected_output[idx], err_msg=f"Row {idx} is not equal"
         )
 
 
@@ -91,7 +91,7 @@ def test_hard_negative_example_str(spark: SparkSession, check_df_schema, tmp_pat
     mapping_column = [NODE_MAPPING_STR, NODE_MAPPING_INT]
     mapping_df = spark.createDataFrame(mapping_data, schema=mapping_column)
     mapping_df.repartition(1).write.parquet(f"{tmp_path}/raw_id_mappings/dst_type/parquet")
-    edge_mapping_dict = {
+    hard_node_mapping_dict = {
         "edge_type": "src_type:relation:dst_type",
         "mapping_path": f"{tmp_path}/raw_id_mappings/",
         "format_name": "parquet",
@@ -108,5 +108,5 @@ def test_hard_negative_example_str(spark: SparkSession, check_df_schema, tmp_pat
 
     for idx, row in enumerate(output_data):
         np.testing.assert_equal(
-            row[0], expected_output[idx], decimal=3, err_msg=f"Row {idx} is not equal"
+            row[0], expected_output[idx], err_msg=f"Row {idx} is not equal"
         )
