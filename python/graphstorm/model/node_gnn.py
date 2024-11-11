@@ -235,6 +235,10 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
 def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=False):
     """ Perform mini-batch prediction on a GNN model.
 
+    .. versionchanged:: 0.4.0
+        Add input edge feats when call model.predict() in v0.4.0 to use edge features
+        in message passing computation.
+
     Parameters
     ----------
     model : GSgnnModel

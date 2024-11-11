@@ -99,6 +99,10 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         * At the evaluation frequency (number of iterations) defined in the evaluator.
         * Before saving a model checkpoint.
 
+        .. versionchanged:: 0.4.0
+            Extract and add edge feats when call model foward() in v0.4.0 to use edge features
+            in message passing computation.
+
         Parameters
         ----------
         train_loader: GSgnnNodeDataLoader

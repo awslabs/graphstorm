@@ -81,9 +81,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 "The input model is not an edge model. Please implement GSgnnEdgeModelBase."
 
     def fit(self, train_loader, num_epochs,
-            val_loader=None,            # pylint: disable=unused-argument
-            test_loader=None,           # pylint: disable=unused-argument
-            use_mini_batch_infer=True,      # pylint: disable=unused-argument
+            val_loader=None,
+            test_loader=None,
+            use_mini_batch_infer=True,
             save_model_path=None,
             save_model_frequency=-1,
             save_perf_results_path=None,
@@ -104,6 +104,10 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         * At the end of each epoch.
         * At the evaluation frequency (number of iterations) defined in the evaluator.
         * Before saving a model checkpoint.
+
+        .. versionchanged:: 0.4.0
+            Extract and add edge feats when call model foward() in v0.4.0 to use edge features
+            in message passing computation.
 
         Parameters
         ----------
@@ -200,7 +204,11 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                     assert len(pos_graph.ntypes) == 1
                     input_nodes = {pos_graph.ntypes[0]: input_nodes}
                 nfeat_fields = train_loader.node_feat_fields
-                input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
+                node_input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
+
+                efeat_fields = train_loader.edge_feat_fields
+                edge_input_feats = data.get_blocks_edge_feats(blocks, efeat_fields, device)
+
                 if train_loader.pos_graph_edge_feat_fields is not None:
                     input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
                         for etype in pos_graph.canonical_etypes}
@@ -216,10 +224,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 blocks = [blk.to(device) for blk in blocks]
                 rt_profiler.record('train_graph2GPU')
 
-                # TODO(zhengda) we don't support edge features for now.
                 loss = model(blocks, pos_graph, neg_graph,
-                             node_feats=input_feats,
-                             edge_feats=None,
+                             node_feats=node_input_feats,
+                             edge_feats=edge_input_feats,
                              pos_edge_feats=pos_graph_feats,
                              input_nodes=input_nodes)
                 rt_profiler.record('train_forward')
