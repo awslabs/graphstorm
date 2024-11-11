@@ -39,10 +39,7 @@ class DistFeatureTransformer(object):
     """
 
     def __init__(
-        self,
-        feature_config: FeatureConfig,
-        spark: SparkSession,
-        json_representation: dict,
+        self, feature_config: FeatureConfig, spark: SparkSession, json_representation: dict
     ):
         feat_type = feature_config.feat_type
         feat_name = feature_config.feat_name
