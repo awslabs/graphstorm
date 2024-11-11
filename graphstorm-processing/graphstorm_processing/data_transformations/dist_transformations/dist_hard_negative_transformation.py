@@ -29,7 +29,7 @@ def apply_transform(
     separator: str,
     spark: SparkSession,
     input_df: DataFrame,
-    edge_mapping_dict: dict,
+    hard_node_mapping_dict: dict,
 ) -> DataFrame:
     """Applies hard negative transformation to each row.
 
@@ -43,7 +43,7 @@ def apply_transform(
         The spark session.
     input_df : DataFrame
         The input DataFrame to apply transformation to.
-    edge_mapping_dict: dict
+    hard_node_mapping_dict: dict
         The mapping dictionary contain mapping file directory and edge type.
     """
     column_type = input_df.schema[cols[0]].dataType
@@ -54,9 +54,9 @@ def apply_transform(
     # Edge type should be (src_ntype:relation_type:dst_ntype)
     # Only support hard negative for destination nodes. Get the node type of destination nodes.
     # TODO: support hard negative for source nodes.
-    _, _, dst_type = edge_mapping_dict["edge_type"].split(":")
-    mapping_prefix = edge_mapping_dict["mapping_path"]
-    format_name = edge_mapping_dict["format_name"]
+    _, _, dst_type = hard_node_mapping_dict["edge_type"].split(":")
+    mapping_prefix = hard_node_mapping_dict["mapping_path"]
+    format_name = hard_node_mapping_dict["format_name"]
     hard_negative_node_mapping = spark.read.parquet(
         f"{mapping_prefix}{dst_type}/{format_name}/*.parquet"
     )
@@ -90,24 +90,28 @@ class DistHardEdgeNegativeTransformation(DistributedTransformation):
         The separator for string input value. Only required when input value type is string.
     spark: SparkSession
         The spark session.
-    edge_mapping_dict: dict
+    hard_node_mapping_dict: dict
         The node type and mapping directory.
     """
 
     def __init__(
-        self, cols: Sequence[str], spark: SparkSession, separator: str = "", edge_mapping_dict=None
+        self,
+        cols: Sequence[str],
+        spark: SparkSession,
+        separator: str = "",
+        hard_node_mapping_dict=None,
     ) -> None:
         super().__init__(cols, spark)
         self.cols = cols
         assert len(self.cols) == 1, "Hard Negative Transformation only supports single column"
         self.separator = separator
-        self.edge_mapping_dict = edge_mapping_dict
-        assert self.edge_mapping_dict, "edge mapping dict cannot be None for hard negative "
+        self.hard_node_mapping_dict = hard_node_mapping_dict
+        assert self.hard_node_mapping_dict, "edge mapping dict cannot be None for hard negative "
 
     def apply(self, input_df: DataFrame) -> DataFrame:
         assert self.spark
         transformed_df = apply_transform(
-            self.cols, self.separator, self.spark, input_df, self.edge_mapping_dict
+            self.cols, self.separator, self.spark, input_df, self.hard_node_mapping_dict
         )
 
         return transformed_df

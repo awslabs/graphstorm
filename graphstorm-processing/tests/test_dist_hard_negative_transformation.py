@@ -46,22 +46,26 @@ def test_hard_negative_example_list(spark: SparkSession, check_df_schema, tmp_pa
     mapping_column = [NODE_MAPPING_STR, NODE_MAPPING_INT]
     mapping_df = spark.createDataFrame(mapping_data, schema=mapping_column)
     mapping_df.repartition(1).write.parquet(f"{tmp_path}/raw_id_mappings/dst_type/parquet")
-    edge_mapping_dict = {
+    hard_node_mapping_dict = {
         "edge_type": "src_type:relation:dst_type",
         "mapping_path": f"{tmp_path}/raw_id_mappings/",
         "format_name": "parquet",
     }
     hard_negative_transformation = DistHardEdgeNegativeTransformation(
-        ["hard_negative"], spark=spark, edge_mapping_dict=edge_mapping_dict, separator=None
+        ["hard_negative"],
+        spark=spark,
+        hard_node_mapping_dict=hard_node_mapping_dict,
+        separator=None,
     )
     output_df = hard_negative_transformation.apply(input_df)
     check_df_schema(output_df)
     output_data = output_df.collect()
 
+    # Length should be 4 for each tensor because there are 4 distinct nodes for dst node
     expected_output = [[1, -1, -1, -1], [2, 3, -1, -1], [3, 0, 1, -1], [0, -1, -1, -1]]
 
     for idx, row in enumerate(output_data):
-        np.testing.assert_almost_equal(
+        np.testing.assert_equal(
             row[0], expected_output[idx], decimal=3, err_msg=f"Row {idx} is not equal"
         )
 
@@ -93,15 +97,16 @@ def test_hard_negative_example_str(spark: SparkSession, check_df_schema, tmp_pat
         "format_name": "parquet",
     }
     hard_negative_transformation = DistHardEdgeNegativeTransformation(
-        ["hard_negative"], spark=spark, edge_mapping_dict=edge_mapping_dict, separator=";"
+        ["hard_negative"], spark=spark, hard_node_mapping_dict=hard_node_mapping_dict, separator=";"
     )
     output_df = hard_negative_transformation.apply(input_df)
     check_df_schema(output_df)
     output_data = output_df.collect()
 
+    # Length should be 4 for each tensor because there are 4 distinct nodes for dst node
     expected_output = [[1, -1, -1, -1], [2, 3, -1, -1], [3, 0, 1, -1], [0, -1, -1, -1]]
 
     for idx, row in enumerate(output_data):
-        np.testing.assert_almost_equal(
+        np.testing.assert_equal(
             row[0], expected_output[idx], decimal=3, err_msg=f"Row {idx} is not equal"
         )

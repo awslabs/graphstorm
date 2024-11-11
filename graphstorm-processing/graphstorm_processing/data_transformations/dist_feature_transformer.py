@@ -78,7 +78,7 @@ class DistFeatureTransformer(object):
             self.transformation = DistHFTransformation(**default_kwargs, **args_dict)
         elif feat_type == "edge_dst_hard_negative":
             self.transformation = DistHardEdgeNegativeTransformation(
-                **default_kwargs, **args_dict, spark=spark, edge_mapping_dict=edge_mapping_dict
+                **default_kwargs, **args_dict, spark=spark
             )
         else:
             raise NotImplementedError(
