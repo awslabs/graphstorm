@@ -91,7 +91,7 @@ class DistHardEdgeNegativeTransformation(DistributedTransformation):
     spark: SparkSession
         The spark session.
     hard_node_mapping_dict: dict
-        The node type and mapping directory.
+        The mapping dictionary contain mapping file directory and edge type.
     """
 
     def __init__(
