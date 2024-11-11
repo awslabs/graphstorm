@@ -56,7 +56,7 @@ def load_hard_negative_config(gsprocessing_config):
 def shuffle_hard_negative_nids(gsprocessing_config, num_parts, output_path):
     """Shuffle hard negative edge feature ids with int-to-int node id mapping.
     The function here align with the shuffle_hard_nids in graphstorm.gconstruct.utils.
-    Create an additional function to handle the id mappings under distributed setting.
+    Create an additional function to handle the id mappings under the distributed setting.
 
     Parameters
     ----------------
