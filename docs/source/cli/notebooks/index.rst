@@ -15,7 +15,7 @@ the :ref:`User Your Own Data Tutorial<use-own-data>`.
 Users can follow the `Notebook 0: Data Preparation <https://github.com/awslabs/graphstorm/blob/main/docs/source/api/notebooks/Notebook_0_Data_Prepare.ipynb>`_
 to explore the details of ACM data preparation.
 
-The `Notebook 4: Use GraphStorm CLI for Multi-task Learning <https://github.com/awslabs/graphstorm/blob/main/docs/source/cli/notebooks/Notebook_4_MT_CLI.ipynb>`_ provides
+The `CLI Notebook: Use GraphStorm CLI for Multi-task Learning <https://github.com/awslabs/graphstorm/blob/main/docs/source/cli/notebooks/Notebook_CLI_MT.ipynb>`_ provides
 an example that demonstrates how to run multi-task GNN model
 training and inference with GraphStorm CLIs. The training
 tasks include link prediction and node feature reconstruction.
@@ -24,5 +24,5 @@ tasks include link prediction and node feature reconstruction.
   :maxdepth: 2
   :titlesonly:
 
-  Notebook_4_MT_CLI
+  Notebook_CLI_MT
 
