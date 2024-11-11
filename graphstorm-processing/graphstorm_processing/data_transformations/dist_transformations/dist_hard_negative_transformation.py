@@ -51,8 +51,9 @@ def apply_transform(
         transformed_df = input_df.withColumn(cols[0], split(col(cols[0]), separator))
     else:
         transformed_df = input_df
-    # Edge type should be (src_ntype:get_relation_name():dst_ntype)
-    # Assume all the node type in the hard negative feature should be dst node type
+    # Edge type should be (src_ntype:relation_type:dst_ntype)
+    # Only support hard negative for destination nodes. Get the node type of destination nodes.
+    # TODO: support hard negative for source nodes.
     _, _, dst_type = edge_mapping_dict["edge_type"].split(":")
     mapping_prefix = edge_mapping_dict["mapping_path"]
     format_name = edge_mapping_dict["format_name"]
