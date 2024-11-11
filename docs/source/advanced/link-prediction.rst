@@ -274,7 +274,7 @@ In general, GraphStorm covers following cases:
 Preparing graph data for hard negative sampling
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Now both single machine and distributed graph construction pipeline of GraphStorm provide support to load hard negative data from raw input.
+Both single machine and distributed graph construction pipeline of GraphStorm provide support to load hard negative data from raw input.
 Hard destination negatives can be defined through ``edge_dst_hard_negative`` transformation.
 The ``feature_col`` field of ``edge_dst_hard_negative`` must stores the raw node ids of hard destination nodes.
 The following example shows how to define a hard negative feature for edges with the relation ``(node1, relation1, node1)``:

@@ -495,9 +495,9 @@ arguments.
 
    -  Encodes a hard negative edge feature for link prediction. For detail information for hard negative support, please refer to :ref:`hard_negative_sampling`.
    -  ``kwargs``:
-      - ``separator`` (String, optional): Same as the one in the No-op operation, the separator is used to
-        split multiple input values for CSV files e.g. ``p0;s1``. If it is not provided, then the whole value
-        will be considered as a string.
+      - ``separator`` (String, optional): The separator is used to
+        split multiple values in an input string for data in CSV files e.g. ``p0;s1``. If it is not provided, then the whole value
+        will be treated as a single string.
 
 ..  _gsprocessing-multitask-ref:
 
