@@ -1,4 +1,5 @@
-========================
+.. _cli-examples:
+
 GraphStorm CLI Examples
 ========================
 
@@ -18,7 +19,6 @@ The `Notebook 4: Use GraphStorm CLI for Multi-task Learning <https://github.com/
 an example that demonstrates how to run multi-task GNN model
 training and inference with GraphStorm CLIs. The training
 tasks include link prediction and node feature reconstruction.
-
 
 .. toctree::
   :maxdepth: 2
