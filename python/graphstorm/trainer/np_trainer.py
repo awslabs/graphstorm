@@ -191,16 +191,19 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                         f"but it has multiple node types {g.ntypes}"
                     input_nodes = {g.ntypes[0]: input_nodes}
                 nfeat_fields = train_loader.node_feat_fields
+                node_input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
+
+                efeat_fields = train_loader.edge_feat_fields
+                edge_input_feats = data.get_blocks_edge_feats(blocks, efeat_fields, device)
+
                 label_field = train_loader.label_field
-                input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
                 lbl = data.get_node_feats(seeds, label_field, device)
                 rt_profiler.record('train_node_feats')
 
                 blocks = [block.to(device) for block in blocks]
                 rt_profiler.record('train_graph2GPU')
 
-                # TODO(zhengda) we don't support edge features for now.
-                loss = model(blocks, input_feats, None, lbl, input_nodes)
+                loss = model(blocks, node_input_feats, edge_input_feats, lbl, input_nodes)
                 rt_profiler.record('train_forward')
 
                 self.optimizer.zero_grad()
