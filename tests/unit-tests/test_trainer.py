@@ -44,11 +44,12 @@ from graphstorm.trainer.mt_trainer import (GSgnnMultiTaskLearningTrainer,
                                            prepare_link_predict_mini_batch,
                                            prepare_reconstruct_node_feat,
                                            prepare_reconstruct_edge_feat)
+from graphstorm.trainer import GSgnnNodePredictionTrainer
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
                                     GSgnnLinkPredictionDataLoader)
 from graphstorm.model import GSgnnMultiTaskModelInterface, GSgnnModel, GSgnnModelBase
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_raises
 
 from util import (DummyGSgnnEncoderModel,
                   DummyGSgnnMTModel,
@@ -82,9 +83,9 @@ def create_nc_config(tmp_path, file_name):
             },
         }
     }
+    
     with open(os.path.join(tmp_path, file_name), "w") as f:
         yaml.dump(conf_object, f)
-
 
 def test_trainer_setup_evaluator():
 
@@ -721,12 +722,291 @@ def test_mtask_eval():
 
     check_eval()
 
-if __name__ == '__main__':
-    test_mtask_eval()
-    test_trainer_setup_evaluator()
+def create_config4ef(tmp_path, file_name, encoder='rgcn', task='nc', use_ef=True):
 
-    test_mtask_prepare_node_mini_batch()
-    test_mtask_prepare_edge_mini_batch()
-    test_mtask_prepare_lp_mini_batch()
-    test_mtask_prepare_reconstruct_node_feat()
-    test_mtask_prepare_reconstruct_edge_feat()
+    conf_object = {
+        "version": 1.0
+        }
+
+    gsf_object = {}
+
+    # config basic object
+    basic_obj = {"node_feat_name": ["feat"]}
+    if use_ef:
+        basic_obj["edge_feat_name"] = ["n0,r1,n1:feat",
+                                       "n0,r0,n1:feat"]
+
+    gsf_object["basic"] = basic_obj
+
+    # config gnn object
+    gnn_obj = {
+                "num_layers": 2,
+                "hidden_size": 10,
+                "lr": 0.001
+        }
+    if encoder == "rgcn":
+        gnn_obj["model_encoder_type"] = "rgcn"
+    elif encoder == "hgt":
+        gnn_obj["model_encoder_type"] = "hgt"
+
+    gsf_object["gnn"] = gnn_obj
+    
+    # config input and output
+    gsf_object["input"] = {}
+    gsf_object["output"] = {}
+
+    # config hyper parameters
+    hp_ob = {
+        "fanout": "10,10",
+        "batch_size": 2
+    }
+    gsf_object["hyperparam"] = hp_ob
+
+    # config encoder model specific configurations
+    if encoder == "hgt":
+        hgt_obj = {"num_heads": 4}
+        gsf_object["hgt"] = hgt_obj
+
+    # config task specific configurations
+    if task == "nc":
+        nc_obj = {
+            "num_classes": 10,
+            "target_ntype": "n1",
+            "label_field": "label"
+        }
+        gsf_object["node_classification"] = nc_obj
+    elif task == "ec":
+        ec_obj = {
+            "num_classes": 10,
+            "target_etype": "n0,r1,n1",
+            "label_field": "label",
+            "remove_target_edge_type": True
+        }
+        gsf_object["edge_classification"] = ec_obj
+    elif task == "lp":
+        lp_obj = {
+            "train_etype": ["n0,r1,n1"],
+            "exclude_training_targets": True,
+            "num_negative_edges": 10
+        }
+        gsf_object["link_prediction"] = lp_obj
+    else:
+        pass
+
+    conf_object["gsf"] = gsf_object
+
+    with open(os.path.join(tmp_path, file_name), "w") as f:
+        yaml.dump(conf_object, f)
+
+def test_rgcn_nc4ef():
+
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        gdata = GSgnnData(part_config=part_config)
+
+        setup_device(0)
+        device = get_device()
+
+        # Test case 0: normal case, set RGCN model with edge features for NC, and provide
+        #              edge features.
+        #              Should complete 2 epochs and output training loss and evaluation
+        #              metrics.
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml')
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model1 = create_builtin_node_gnn_model(gdata.g, config, True)
+        trainer1 = GSgnnNodePredictionTrainer(model1)
+        trainer1.setup_device(device)
+
+        train_dataloader1 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_train_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,
+            train_task=True)
+        val_dataloader1 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_val_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,
+            train_task=False)
+
+        evaluator1 = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                    config.eval_metric,
+                                                    config.multilabel,
+                                                    config.use_early_stop)
+        trainer1.setup_evaluator(evaluator1)
+
+        trainer1.fit(
+            train_loader=train_dataloader1,
+            val_loader=val_dataloader1,
+            num_epochs=2
+            )
+
+        # Test case 1: normal case, set RGCN model without edge features for NC, and not
+        #              provide edge features.
+        #              Should complete 2 epochs and output training loss and evaluation
+        #              metrics.
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model2 = create_builtin_node_gnn_model(gdata.g, config, True)
+        trainer2 = GSgnnNodePredictionTrainer(model2)
+        trainer2.setup_device(device)
+
+        train_dataloader2 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_train_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            train_task=True)
+        val_dataloader2 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_val_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            train_task=False)
+
+        evaluator2 = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                    config.eval_metric,
+                                                    config.multilabel,
+                                                    config.use_early_stop)
+
+        trainer2.setup_evaluator(evaluator2)
+
+        trainer2.fit(
+            train_loader=train_dataloader2,
+            val_loader=val_dataloader2,
+            num_epochs=2
+            )
+
+        # Test case 2: abnormal case, set RGCN model with edge features for NC, but not
+        #              provide edge features.
+        #              This will trigger an assertion error, asking for giving edge feature
+        #              for message passing computation.
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model3 = create_builtin_node_gnn_model(gdata.g, config, True)
+        trainer3 = GSgnnNodePredictionTrainer(model3)
+        trainer3.setup_device(device)
+
+        train_dataloader3 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_train_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            train_task=True)
+        val_dataloader3 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_val_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            train_task=False)
+
+        evaluator3 = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                    config.eval_metric,
+                                                    config.multilabel,
+                                                    config.use_early_stop)
+
+        trainer3.setup_evaluator(evaluator3)
+
+        with assert_raises(AssertionError):
+            trainer3.fit(
+                train_loader=train_dataloader3,
+                val_loader=val_dataloader3,
+                num_epochs=2
+                )
+
+        # Test case 3: abnormal case, set RGCN model without edge features for NC, but 
+        #              provide edge features.
+        #              This will trigger an assertion error, asking for projection weights
+        #              in the GSEdgeEncoderInputLayer.
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model4 = create_builtin_node_gnn_model(gdata.g, config, True)
+        trainer4 = GSgnnNodePredictionTrainer(model4)
+        trainer4.setup_device(device)
+
+        train_dataloader4 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_train_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats={('n0', 'r0', 'n1'): ['feat'],
+                        ('n0', 'r1', 'n1'): ['feat']},  # Manually set as config does not have it.
+            train_task=True)
+        val_dataloader4 = GSgnnNodeDataLoader(
+            gdata,
+            target_idx=gdata.get_node_val_set(config.target_ntype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats={('n0', 'r0', 'n1'): ['feat'],
+                        ('n0', 'r1', 'n1'): ['feat']},  # Manually set as config does not have it.
+            train_task=False)
+        evaluator4 = GSgnnClassificationEvaluator(config.eval_frequency,
+                                                    config.eval_metric,
+                                                    config.multilabel,
+                                                    config.use_early_stop)
+
+        trainer4.setup_evaluator(evaluator4)
+
+        with assert_raises(AssertionError):
+            trainer4.fit(
+                train_loader=train_dataloader4,
+                val_loader=val_dataloader4,
+                num_epochs=2
+                )
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+
+if __name__ == '__main__':
+    # test_mtask_eval()
+    # test_trainer_setup_evaluator()
+
+    # test_mtask_prepare_node_mini_batch()
+    # test_mtask_prepare_edge_mini_batch()
+    # test_mtask_prepare_lp_mini_batch()
+    # test_mtask_prepare_reconstruct_node_feat()
+    # test_mtask_prepare_reconstruct_edge_feat()
+
+    test_rgcn_nc4ef()
