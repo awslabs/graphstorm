@@ -30,7 +30,8 @@ from graphstorm.gpartition.post_hard_negative import (shuffle_hard_negative_nids
 
 def test_load_hard_negative_config():
     # For config with hard negative transformation
-    json_file_path = f"./config/gsprocessing_hard_negative_config.json"
+    json_file_path = (f"/graphstorm/tests/unit-tests/gpartition/"
+                      f"config/gsprocessing_hard_negative_config.json")
 
     res = load_hard_negative_config(json_file_path)
 
@@ -38,7 +39,8 @@ def test_load_hard_negative_config():
         'author:writing:paper', 'hard_neg_feat_name': 'hard_neg_feat'}
 
     # For config without hard negative transformation
-    json_file_path = f"./config/gsprocessing_non_hard_negative_config.json"
+    json_file_path = (f"/graphstorm/tests/unit-tests/gpartition/"
+                      f"config/gsprocessing_non_hard_negative_config.json")
 
     res = load_hard_negative_config(json_file_path)
 
@@ -47,7 +49,8 @@ def test_load_hard_negative_config():
 
 def test_shuffle_hard_negative_nids(tmp_path):
     # For config with gsprocessing_config.json
-    json_file_path = f"./config/gsprocessing_hard_negative_config.json"
+    json_file_path = (f"/graphstorm/tests/unit-tests/gpartition/"
+                      f"config/gsprocessing_hard_negative_config.json")
 
     # Generate dgl graph
     partitioned_graph = f"{tmp_path}/partitioned_graph"
