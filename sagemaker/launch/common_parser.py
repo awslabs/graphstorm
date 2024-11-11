@@ -1,7 +1,7 @@
 """
 Common parsers for all launcher scripts.
 """
-from typing import Any, Dict
+from typing import Any, Dict, List
 from ast import literal_eval
 import argparse
 
@@ -38,7 +38,7 @@ def get_common_parser() -> argparse.ArgumentParser:
 
     common_args = parser.add_argument_group("Common arguments")
 
-    common_args.add_argument("--graph-data-s3", type=str,
+    common_args.add_argument("--graph-data-s3", "--input-graph-s3", type=str,
         help="S3 location of input graph data", required=True)
     common_args.add_argument("--image-url", type=str,
         help="GraphStorm SageMaker docker image URI",
@@ -49,7 +49,7 @@ def get_common_parser() -> argparse.ArgumentParser:
     common_args.add_argument("--instance-type", type=str,
         help="instance type for the SageMaker job")
     common_args.add_argument("--instance-count", type=int,
-        default=2,
+        default=1,
         help="number of instances")
     common_args.add_argument("--region", type=str,
         default="us-west-2",
@@ -89,3 +89,47 @@ def parse_estimator_kwargs(arg_string: str) -> Dict[str, Any]:
         typed_args_dict[k] = literal_eval(v)
 
     return typed_args_dict
+
+def parse_unknown_gs_args(unknown_args: List[str]) -> Dict[str, str]:
+    """Parses unknown arguments for GraphStorm tasks.
+
+    The input is a list of arguments, the second element of the tuple
+    returned by ``argparse.ArgumentParser.parse_known_args()``, which
+    can be a single string depending on how the arguments are passed.
+
+    We must handle cases like
+        ``--target-etype query,clicks,asin query,search,asin``
+        ``--feat-name ntype0:feat0 ntype1:feat1``
+        ``'--feat-name ntype0:feat0 --num-epochs 2'`` (note the quotes)
+
+    Parameters
+    ----------
+    unknown_args : List[str]
+        List of unknown arguments.
+
+    Returns
+    -------
+    Dict[str, str]
+        Dictionary of parsed arguments {'arg_name': 'arg_value'}
+    """
+    unknown_args_dict = {}
+    current_arg_name = None
+
+    # Handle case where all args were parsed as a single string
+    if len(unknown_args) == 1 and unknown_args[0].count("--") >= 1:
+        unknown_args = unknown_args[0].split()
+
+    for arg in unknown_args:
+        # We have the name of the argument
+        if arg.startswith("--"):
+            current_arg_name = arg[2:]
+            # The default value of the dict will be the empty string
+            unknown_args_dict[current_arg_name] = ""
+        # We are parsing the values for the current arg
+        elif current_arg_name is not None:
+            # If we already started parsing current arg's values,
+            # append the new value to the existing, otherwise initialize it
+            arg_value = f" {arg}" if unknown_args_dict[current_arg_name] else arg
+            unknown_args_dict[current_arg_name] += arg_value
+
+    return unknown_args_dict
