@@ -43,7 +43,6 @@ class DistFeatureTransformer(object):
         feature_config: FeatureConfig,
         spark: SparkSession,
         json_representation: dict,
-        edge_mapping_dict: dict = None,
     ):
         feat_type = feature_config.feat_type
         feat_name = feature_config.feat_name
@@ -51,8 +50,6 @@ class DistFeatureTransformer(object):
         self.transformation: DistributedTransformation
         # We use this to re-apply transformations
         self.json_representation = json_representation
-        # Node Mapping Info for hard negative feature transformation
-        self.edge_mapping_dict = edge_mapping_dict
 
         default_kwargs = {
             "cols": feature_config.cols,
