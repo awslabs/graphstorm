@@ -21,6 +21,7 @@ Welcome to the GraphStorm Documentation and Tutorials
 
    cli/graph-construction/index.rst
    cli/model-training-inference/index.rst
+   cli/notebooks/index.rst
 
 .. toctree::
    :maxdepth: 2
