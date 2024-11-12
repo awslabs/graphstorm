@@ -1410,7 +1410,7 @@ def test_hgt_ec4ef():
         #              edge features.
         #              Should trigger an assertion error of not support edge feature in hgt
         #              encoder.
-        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', encoder='hgt', use_ef=True)
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', encoder='hgt', task='ec', use_ef=True)
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
                             local_rank=0)
         config = GSConfig(args)
@@ -1685,19 +1685,157 @@ def test_rgcn_lp4ef():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+def test_hgt_lp4ef():
+    """ Test HGT model Link Prediction traning pipeline with/without edge features.
+    
+    Because HGT encoder dose not support edge feature so far, if initialized with edge_feat_name,
+    it will trigger a Not-support assertion error.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
+
+        setup_device(0)
+        device = get_device()
+
+        # Test case 0: normal case, set HGT model without edge features for LP, and not provide
+        #              edge features.
+        #              Should complete 2 epochs and output training loss and evaluation
+        #              metrics.
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', encoder='hgt', task='lp', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+        gdata = GSgnnData(part_config=part_config,
+                          node_feat_field=config.node_feat_name)
+
+        model1 = create_builtin_lp_gnn_model(gdata.g, config, True)
+        trainer1 = GSgnnLinkPredictionTrainer(model1)
+        trainer1.setup_device(device)
+        
+        train_dataloader1 = GSgnnLinkPredictionDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_train_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=None,  # Because LP use gdata to extract feature, this
+                              # setting does not change results
+            num_negative_edges=config.num_negative_edges,
+            exclude_training_targets=config.exclude_training_targets,
+            train_task=True)
+        val_dataloader1 = GSgnnLinkPredictionTestDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_val_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=None,  # Because LP use gdata to extract feature, this
+                              # setting does not change results
+            num_negative_edges=config.num_negative_edges)
+
+        evaluator1 = GSgnnLPEvaluator(config.eval_frequency,
+                                      config.eval_metric,
+                                      config.multilabel,
+                                      config.use_early_stop)
+        trainer1.setup_evaluator(evaluator1)
+
+        trainer1.fit(
+            train_loader=train_dataloader1,
+            val_loader=val_dataloader1,
+            num_epochs=2
+            )
+
+        # Test case 1: abnormal case, set HGT model with edge features for LP, and not provide
+        #              edge features.
+        #              Should trigger an assertion error of not support edge feature in hgt
+        #              encoder.
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', encoder='hgt', task='lp', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+        gdata = GSgnnData(part_config=part_config,
+                          node_feat_field=config.node_feat_name)
+
+        with assert_raises(AssertionError):
+            model2 = create_builtin_lp_gnn_model(gdata.g, config, True)
+
+        # Test case 2: abnormal case, set HGT model without edge features for LP, but provide
+        #              edge features.
+        #              Should trigger an assertion error， asking for projection weights
+        #              in the GSEdgeEncoderInputLayer.
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', encoder='hgt',
+                         task='lp', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+        gdata = GSgnnData(part_config=part_config,
+                          node_feat_field=config.node_feat_name,
+                          edge_feat_field={('n0', 'r0', 'n1'): ['feat'],
+                                            ('n0', 'r1', 'n1'): ['feat']},# Manually set, as 
+                                                                          # config does not have it
+                          )
+
+        model3 = create_builtin_lp_gnn_model(gdata.g, config, True)
+        trainer3 = GSgnnLinkPredictionTrainer(model3)
+        trainer3.setup_device(device)
+        
+        train_dataloader3 = GSgnnLinkPredictionDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_train_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=None,  # Because LP use gdata to extract feature, this
+                              # setting does not change results
+            num_negative_edges=config.num_negative_edges,
+            exclude_training_targets=config.exclude_training_targets,
+            train_task=True)
+        val_dataloader3 = GSgnnLinkPredictionTestDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_val_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=None,  # Because LP use gdata to extract feature, this
+                              # setting does not change results
+            num_negative_edges=config.num_negative_edges)
+
+        evaluator3 = GSgnnLPEvaluator(config.eval_frequency,
+                                      config.eval_metric,
+                                      config.multilabel,
+                                      config.use_early_stop)
+        trainer3.setup_evaluator(evaluator3)
+
+        with assert_raises(AssertionError):
+            trainer3.fit(
+                train_loader=train_dataloader3,
+                val_loader=val_dataloader3,
+                num_epochs=2
+                )
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
 
 if __name__ == '__main__':
-    # test_mtask_eval()
-    # test_trainer_setup_evaluator()
+    test_mtask_eval()
+    test_trainer_setup_evaluator()
 
-    # test_mtask_prepare_node_mini_batch()
-    # test_mtask_prepare_edge_mini_batch()
-    # test_mtask_prepare_lp_mini_batch()
-    # test_mtask_prepare_reconstruct_node_feat()
-    # test_mtask_prepare_reconstruct_edge_feat()
+    test_mtask_prepare_node_mini_batch()
+    test_mtask_prepare_edge_mini_batch()
+    test_mtask_prepare_lp_mini_batch()
+    test_mtask_prepare_reconstruct_node_feat()
+    test_mtask_prepare_reconstruct_edge_feat()
 
-    # test_rgcn_nc4ef()
-    # test_hgt_nc4ef()
-    # test_rgcn_ec4ef()
-    # test_hgt_ec4ef()
+    test_rgcn_nc4ef()
+    test_hgt_nc4ef()
+    test_rgcn_ec4ef()
+    test_hgt_ec4ef()
     test_rgcn_lp4ef()
+    test_hgt_lp4ef()
