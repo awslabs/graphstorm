@@ -990,6 +990,14 @@ def set_encoder(model, g, config, train_task):
     # Set GNN encoders
     dropout = config.dropout if train_task else 0
     out_emb_size = config.out_emb_size if config.out_emb_size else config.hidden_size
+    
+    # Check use edge feature and GNN encoder capacity
+    assert (config.edge_feat_name is None) or \
+                (config.edge_feat_name is not None and model_encoder_type == 'rgcn'), \
+                    f'The \"{model_encoder_type}\" encoder dose not support edge feature ' + \
+                     'so far. Please check GraphStorm documentations to find the encoders ' + \
+                     'that support edge features, e.g., \"rgcn\".'
+
     if model_encoder_type in ("mlp", "lm"):
         # Only input encoder is used
         assert config.num_layers == 0, "No GNN layers"
@@ -1015,8 +1023,6 @@ def set_encoder(model, g, config, train_task):
                                            out_emb_size,
                                            config.num_heads,
                                            num_hidden_layers=config.num_layers -1,
-                                           edge_feat_name=config.edge_feat_name,
-                                           edge_feat_mp_op=config.edge_feat_mp_op,
                                            dropout=dropout,
                                            use_self_loop=config.use_self_loop,
                                            num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn,
@@ -1027,8 +1033,6 @@ def set_encoder(model, g, config, train_task):
                                  config.hidden_size,
                                  out_emb_size,
                                  num_hidden_layers=config.num_layers -1,
-                                 edge_feat_name=config.edge_feat_name,
-                                 edge_feat_mp_op=config.edge_feat_mp_op,
                                  num_heads=config.num_heads,
                                  dropout=dropout,
                                  norm=config.gnn_norm,
@@ -1041,8 +1045,6 @@ def set_encoder(model, g, config, train_task):
         gnn_encoder = SAGEEncoder(h_dim=config.hidden_size,
                                   out_dim=out_emb_size,
                                   num_hidden_layers=config.num_layers - 1,
-                                  edge_feat_name=config.edge_feat_name,
-                                  edge_feat_mp_op=config.edge_feat_mp_op,
                                   dropout=dropout,
                                   aggregator_type='pool',
                                   num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn,
@@ -1055,8 +1057,6 @@ def set_encoder(model, g, config, train_task):
                                  out_dim=out_emb_size,
                                  num_heads=config.num_heads,
                                  num_hidden_layers=config.num_layers -1,
-                                 edge_feat_name=config.edge_feat_name,
-                                 edge_feat_mp_op=config.edge_feat_mp_op,
                                  dropout=dropout,
                                  num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     elif model_encoder_type == "gatv2":
@@ -1067,8 +1067,6 @@ def set_encoder(model, g, config, train_task):
                                    out_dim=out_emb_size,
                                    num_heads=config.num_heads,
                                    num_hidden_layers=config.num_layers -1,
-                                   edge_feat_name=config.edge_feat_name,
-                                   edge_feat_mp_op=config.edge_feat_mp_op,
                                    dropout=dropout,
                                    num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     else:
