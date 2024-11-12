@@ -52,7 +52,7 @@ from graphstorm.trainer import (GSgnnTrainer,
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
                                     GSgnnLinkPredictionDataLoader,
-                                    GSgnnLPLocalUniformNegDataLoader)
+                                    GSgnnLinkPredictionTestDataLoader)
 from graphstorm.model import GSgnnMultiTaskModelInterface, GSgnnModel
 from numpy.testing import assert_equal, assert_raises
 
@@ -768,10 +768,7 @@ def create_config4ef(tmp_path, file_name, encoder='rgcn', task='nc', use_ef=True
     gsf_object["hyperparam"] = hp_ob
 
     # config encoder model specific configurations
-    if encoder == "rgcn":
-        rgcn_obj = {"use_self_loop": False}
-        gsf_object["rgcn"] = rgcn_obj
-    elif encoder == "hgt":
+    if encoder == "hgt":
         hgt_obj = {"num_heads": 4}
         gsf_object["hgt"] = hgt_obj
 
@@ -1489,7 +1486,7 @@ def test_rgcn_lp4ef():
         setup_device(0)
         device = get_device()
 
-        # Test case 0: normal case, set RGCN model with edge features for NC, and provide
+        # Test case 0: normal case, set RGCN model with edge features for LP, and provide
         #              edge features.
         #              Should complete 2 epochs and output training loss and evaluation
         #              metrics.
@@ -1516,15 +1513,14 @@ def test_rgcn_lp4ef():
             num_negative_edges=config.num_negative_edges,
             exclude_training_targets=config.exclude_training_targets,
             train_task=True)
-        val_dataloader1 = GSgnnLinkPredictionDataLoader(
+        val_dataloader1 = GSgnnLinkPredictionTestDataLoader(
             gdata,
             target_idx=gdata.get_edge_val_set(config.train_etype),
             fanout=config.fanout,
             batch_size=config.batch_size,
             node_feats=config.node_feat_name,
             edge_feats=config.edge_feat_name,
-            num_negative_edges=config.num_negative_edges,
-            train_task=False)
+            num_negative_edges=config.num_negative_edges)
 
         evaluator1 = GSgnnLPEvaluator(config.eval_frequency,
                                       config.eval_metric,
@@ -1535,9 +1531,156 @@ def test_rgcn_lp4ef():
         trainer1.fit(
             train_loader=train_dataloader1,
             val_loader=val_dataloader1,
-            num_epochs=2,
-            use_mini_batch_infer=True
+            num_epochs=2
             )
+
+        # Test case 1: normal case, set RGCN model without edge features for LP, and not
+        #              provide edge features.
+        #              Should complete 2 epochs and output training loss and evaluation
+        #              metrics.
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', task='lp', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+        gdata = GSgnnData(part_config=part_config,
+                          node_feat_field=config.node_feat_name)
+
+        model2 = create_builtin_lp_gnn_model(gdata.g, config, True)
+        trainer2 = GSgnnLinkPredictionTrainer(model2)
+        trainer2.setup_device(device)
+        
+        train_dataloader2 = GSgnnLinkPredictionDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_train_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,  # Because LP use gdata to extract feature, this
+                                               # setting does not change results
+            num_negative_edges=config.num_negative_edges,
+            exclude_training_targets=config.exclude_training_targets,
+            train_task=True)
+        val_dataloader2 = GSgnnLinkPredictionTestDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_val_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,  # Because LP use gdata to extract feature, this
+                                               # setting does not change results
+            num_negative_edges=config.num_negative_edges)
+
+        evaluator2 = GSgnnLPEvaluator(config.eval_frequency,
+                                      config.eval_metric,
+                                      config.multilabel,
+                                      config.use_early_stop)
+        trainer2.setup_evaluator(evaluator2)
+
+        trainer2.fit(
+            train_loader=train_dataloader2,
+            val_loader=val_dataloader2,
+            num_epochs=2
+            )
+
+        # Test case 2: abnormal case, set RGCN model with edge features for LP, but not
+        #              provide edge features.
+        #              This will trigger an assertion error, asking for giving edge feature
+        #              for message passing computation.
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', task='lp', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+        gdata = GSgnnData(part_config=part_config,
+                          node_feat_field=config.node_feat_name)  # only provide node features.
+
+        model3 = create_builtin_lp_gnn_model(gdata.g, config, True)
+        trainer3 = GSgnnLinkPredictionTrainer(model3)
+        trainer3.setup_device(device)
+        
+        train_dataloader3 = GSgnnLinkPredictionDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_train_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,  # Because LP use gdata to extract feature, this
+                                               # setting does not change results
+            num_negative_edges=config.num_negative_edges,
+            exclude_training_targets=config.exclude_training_targets,
+            train_task=True)
+        val_dataloader3 = GSgnnLinkPredictionTestDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_val_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,  # Because LP use gdata to extract feature, this
+                                               # setting does not change results
+            num_negative_edges=config.num_negative_edges)
+
+        evaluator3 = GSgnnLPEvaluator(config.eval_frequency,
+                                      config.eval_metric,
+                                      config.multilabel,
+                                      config.use_early_stop)
+        trainer3.setup_evaluator(evaluator3)
+
+        with assert_raises(AssertionError):
+            trainer3.fit(
+                train_loader=train_dataloader3,
+                val_loader=val_dataloader3,
+                num_epochs=2
+                )
+
+        # Test case 3: abnormal case, set RGCN model without edge features for LP, but 
+        #              provide edge features.
+        #              This will trigger an assertion error, asking for projection weights
+        #              in the GSEdgeEncoderInputLayer.
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', task='lp', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        gdata = GSgnnData(part_config=part_config,
+                          node_feat_field=config.node_feat_name,
+                          edge_feat_field={('n0', 'r0', 'n1'): ['feat'],
+                                            ('n0', 'r1', 'n1'): ['feat']},# Manually set, as 
+                                                                          # config does not have it
+                          )
+        model4 = create_builtin_lp_gnn_model(gdata.g, config, True)
+        trainer4 = GSgnnLinkPredictionTrainer(model4)
+        trainer4.setup_device(device)
+        
+        train_dataloader4 = GSgnnLinkPredictionDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_train_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            num_negative_edges=config.num_negative_edges,
+            exclude_training_targets=config.exclude_training_targets,
+            train_task=True)
+        val_dataloader4 = GSgnnLinkPredictionTestDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_val_set(config.train_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            num_negative_edges=config.num_negative_edges)
+
+        evaluator4 = GSgnnLPEvaluator(config.eval_frequency,
+                                      config.eval_metric,
+                                      config.multilabel,
+                                      config.use_early_stop)
+        trainer4.setup_evaluator(evaluator4)
+
+        with assert_raises(AssertionError):
+            trainer4.fit(
+                train_loader=train_dataloader4,
+                val_loader=val_dataloader4,
+                num_epochs=2
+                )
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
