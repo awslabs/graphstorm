@@ -19,7 +19,12 @@ from pyspark.sql.functions import split, col
 from pyspark.sql.types import ArrayType, IntegerType, StringType
 from pyspark.sql import DataFrame, functions as F, SparkSession
 
-from graphstorm_processing.constants import NODE_MAPPING_STR, NODE_MAPPING_INT
+from graphstorm_processing.constants import (
+    NODE_MAPPING_STR,
+    NODE_MAPPING_INT,
+    ORDER_INDEX,
+    EXPLODE_HARD_NEGATIVE_VALUE,
+)
 
 from .base_dist_transformation import DistributedTransformation
 
@@ -62,21 +67,29 @@ def apply_transform(
     )
     node_mapping_length = hard_negative_node_mapping.count()
 
-    # TODO: This method may suffer from scalability issue,
-    # we can make this method to join-based solution.
-    hard_negative_node_mapping_dict = {
-        row[NODE_MAPPING_STR]: row[NODE_MAPPING_INT] for row in hard_negative_node_mapping.collect()
-    }
+    # TODO: Use panda series to possibly improve the efficiency
+    transformed_df = transformed_df.withColumn(ORDER_INDEX, F.monotonically_increasing_id())
+    transformed_df = transformed_df.withColumn(
+        EXPLODE_HARD_NEGATIVE_VALUE, F.explode(F.col(cols[0]))
+    )
+    transformed_df = transformed_df.join(
+        hard_negative_node_mapping,
+        transformed_df[EXPLODE_HARD_NEGATIVE_VALUE] == hard_negative_node_mapping[NODE_MAPPING_STR],
+        "inner",
+    ).select(NODE_MAPPING_INT, ORDER_INDEX)
+    transformed_df = transformed_df.groupBy(ORDER_INDEX).agg(
+        F.collect_list(NODE_MAPPING_INT).alias(cols[0])
+    )
 
     # Same length for feature to convert to tensor
-    def map_values(hard_neg_list):
-        mapped_values = [hard_negative_node_mapping_dict.get(item, -1) for item in hard_neg_list]
-        while len(mapped_values) < node_mapping_length:
-            mapped_values.append(-1)
-        return mapped_values
+    def pad_mapped_values(hard_neg_list):
+        while len(hard_neg_list) < node_mapping_length:
+            hard_neg_list.append(-1)
+        return hard_neg_list
 
-    map_values_udf = F.udf(map_values, ArrayType(IntegerType()))
-    transformed_df = transformed_df.select(map_values_udf(F.col(cols[0])).alias(cols[0]))
+    pad_value_udf = F.udf(pad_mapped_values, ArrayType(IntegerType()))
+    transformed_df = transformed_df.orderBy(ORDER_INDEX)
+    transformed_df = transformed_df.select(pad_value_udf(F.col(cols[0])).alias(cols[0]))
 
     return transformed_df
 
