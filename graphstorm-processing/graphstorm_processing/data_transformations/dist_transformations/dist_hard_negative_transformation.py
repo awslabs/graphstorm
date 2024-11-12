@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from typing import Sequence
-from pyspark.sql.functions import split, col, size
+from pyspark.sql.functions import split, col
 from pyspark.sql.types import ArrayType, IntegerType, StringType
 from pyspark.sql import DataFrame, functions as F, SparkSession
 
