@@ -68,6 +68,7 @@ def apply_transform(
     node_mapping_length = hard_negative_node_mapping.count()
 
     # TODO: Use panda series to possibly improve the efficiency
+    # Explode the original list and join node id mapping dataframe
     transformed_df = transformed_df.withColumn(ORDER_INDEX, F.monotonically_increasing_id())
     transformed_df = transformed_df.withColumn(
         EXPLODE_HARD_NEGATIVE_VALUE, F.explode(F.col(cols[0]))
@@ -88,6 +89,7 @@ def apply_transform(
         return hard_neg_list
 
     pad_value_udf = F.udf(pad_mapped_values, ArrayType(IntegerType()))
+    # Make sure it keeps the original order
     transformed_df = transformed_df.orderBy(ORDER_INDEX)
     transformed_df = transformed_df.select(pad_value_udf(F.col(cols[0])).alias(cols[0]))
 
