@@ -101,7 +101,7 @@ class DistHardEdgeNegativeTransformation(DistributedTransformation):
             F.collect_list(NODE_MAPPING_INT).alias(input_col)
         )
 
-        # Same length for feature to convert to tensor
+        # Extend the feature to the same length as total number of nodes within one node type
         def pad_mapped_values(hard_neg_list):
             if len(hard_neg_list) < node_mapping_length:
                 hard_neg_list.extend([-1] * (node_mapping_length - len(hard_neg_list)))
