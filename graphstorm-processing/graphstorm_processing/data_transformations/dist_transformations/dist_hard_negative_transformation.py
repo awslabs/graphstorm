@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from typing import Sequence
-from pyspark.sql.functions import split, col
+from pyspark.sql.functions import split, col, size
 from pyspark.sql.types import ArrayType, IntegerType, StringType
 from pyspark.sql import DataFrame, functions as F, SparkSession
 
@@ -83,7 +83,8 @@ class DistHardEdgeNegativeTransformation(DistributedTransformation):
         hard_negative_node_mapping = self.spark.read.parquet(
             f"{mapping_prefix}{dst_type}/{format_name}/"
         )
-        node_mapping_length = hard_negative_node_mapping.count()
+        max_size = transformed_df.select(F.size(F.col(input_col)).alias(f"{input_col}_size")) \
+                                 .agg(F.max(f"{input_col}_size")).collect()[0][0]
 
         # TODO: Use panda series to possibly improve the efficiency
         # Explode the original list and join node id mapping dataframe
@@ -103,8 +104,8 @@ class DistHardEdgeNegativeTransformation(DistributedTransformation):
 
         # Extend the feature to the same length as total number of nodes within one node type
         def pad_mapped_values(hard_neg_list):
-            if len(hard_neg_list) < node_mapping_length:
-                hard_neg_list.extend([-1] * (node_mapping_length - len(hard_neg_list)))
+            if len(hard_neg_list) < max_size:
+                hard_neg_list.extend([-1] * (max_size - len(hard_neg_list)))
             return hard_neg_list
 
         pad_value_udf = F.udf(pad_mapped_values, ArrayType(IntegerType()))

@@ -61,8 +61,8 @@ def test_hard_negative_example_list(spark: SparkSession, check_df_schema, tmp_pa
     check_df_schema(output_df)
     output_data = output_df.collect()
 
-    # Length should be 4 for each tensor because there are 4 distinct nodes for dst node
-    expected_output = [[1, -1, -1, -1], [2, 3, -1, -1], [3, 0, 1, -1], [0, -1, -1, -1]]
+    # All the length should be the same as the maximum array.
+    expected_output = [[1, -1, -1], [2, 3, -1], [3, 0, 1], [0, -1, -1]]
 
     for idx, row in enumerate(output_data):
         np.testing.assert_equal(row[0], expected_output[idx], err_msg=f"Row {idx} is not equal")
@@ -101,8 +101,8 @@ def test_hard_negative_example_str(spark: SparkSession, check_df_schema, tmp_pat
     check_df_schema(output_df)
     output_data = output_df.collect()
 
-    # Length should be 4 for each tensor because there are 4 distinct nodes for dst node
-    expected_output = [[1, -1, -1, -1], [2, 3, -1, -1], [3, 0, 1, -1], [0, -1, -1, -1]]
+    # All the length should be the same as the maximum array.
+    expected_output = [[1, -1, -1], [2, 3, -1], [3, 0, 1], [0, -1, -1]]
 
     for idx, row in enumerate(output_data):
         np.testing.assert_equal(row[0], expected_output[idx], err_msg=f"Row {idx} is not equal")
