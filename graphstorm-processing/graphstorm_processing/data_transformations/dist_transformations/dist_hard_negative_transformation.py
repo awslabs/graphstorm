@@ -83,8 +83,11 @@ class DistHardEdgeNegativeTransformation(DistributedTransformation):
         hard_negative_node_mapping = self.spark.read.parquet(
             f"{mapping_prefix}{dst_type}/{format_name}/"
         )
-        max_size = transformed_df.select(F.size(F.col(input_col)).alias(f"{input_col}_size")) \
-                                 .agg(F.max(f"{input_col}_size")).collect()[0][0]
+        max_size = (
+            transformed_df.select(F.size(F.col(input_col)).alias(f"{input_col}_size"))
+            .agg(F.max(f"{input_col}_size"))
+            .collect()[0][0]
+        )
 
         # TODO: Use panda series to possibly improve the efficiency
         # Explode the original list and join node id mapping dataframe
