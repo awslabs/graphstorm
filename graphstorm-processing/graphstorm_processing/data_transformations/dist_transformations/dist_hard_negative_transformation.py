@@ -93,7 +93,8 @@ class DistHardEdgeNegativeTransformation(DistributedTransformation):
         )
         transformed_df = transformed_df.join(
             hard_negative_node_mapping,
-            transformed_df[EXPLODE_HARD_NEGATIVE_VALUE] == hard_negative_node_mapping[NODE_MAPPING_STR],
+            transformed_df[EXPLODE_HARD_NEGATIVE_VALUE]
+            == hard_negative_node_mapping[NODE_MAPPING_STR],
             "inner",
         ).select(NODE_MAPPING_INT, ORDER_INDEX)
         transformed_df = transformed_df.groupBy(ORDER_INDEX).agg(

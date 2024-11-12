@@ -17,7 +17,6 @@
 import json
 import os
 
-import torch as th
 from dgl.data.utils import load_tensors, save_tensors
 from graphstorm.model.utils import load_dist_nid_map
 from graphstorm.gconstruct.utils import get_gnid2pnid_map
@@ -30,6 +29,17 @@ def load_hard_negative_config(gsprocessing_config):
     ----------------
     gsprocessing_config: str
         Path to the gsprocessing config.
+
+    Returns
+    -------
+    list of dicts
+        A list of dict for each hard negative feature transformation.
+        Each dict will look like:
+        {
+            "dst_node_type": destination node type for hard negative,
+            "edge_type": edge_type,
+            "hard_neg_feat_name": feature name
+        }
     """
     with open(gsprocessing_config, 'r', encoding='utf-8') as file:
         config = json.load(file)
@@ -57,7 +67,6 @@ def load_hard_negative_config(gsprocessing_config):
 def shuffle_hard_negative_nids(gsprocessing_config, num_parts, graph_path):
     """Shuffle hard negative edge feature ids with int-to-int node id mapping.
     The function here align with the shuffle_hard_nids in graphstorm.gconstruct.utils.
-    Create an additional function to handle the id mappings under the distributed setting.
 
     Parameters
     ----------------

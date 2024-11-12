@@ -1119,16 +1119,16 @@ def get_hard_edge_negs_feats(hard_edge_neg_ops):
     return hard_edge_neg_feats
 
 def get_gnid2pnid_map(ntype, node_mapping, gnid2pnid_mapping):
-    """ Get global nid to partitioned nid mapping
+    """ Get global nid to partitioned nid mapping.
 
         Parameters
         ----------
         ntype: str
             Path to the directory storing the partitioned graph.
-        node_mapping: dict of list
-            Dict of mapping. {ntype: mapping}
+        node_mapping: dict
+            Dict of mapping. {ntype: partitioned nid to global nid mapping}
         gnid2pnid_mapping: dict
-            Dict of mapping from global nid to partitioned id mapping.
+            Dict of mapping. {ntype: global nid to partitioned nid mapping}
     """
     if ntype in gnid2pnid_mapping:
         return gnid2pnid_mapping[ntype]
