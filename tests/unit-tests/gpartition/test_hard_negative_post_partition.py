@@ -27,32 +27,11 @@ from dgl.data.utils import load_tensors, save_tensors
 from graphstorm.gpartition.post_hard_negative import (shuffle_hard_negative_nids,
                                                       load_hard_negative_config)
 
-
-def test_load_hard_negative_config():
-    # For config with hard negative transformation
-    json_file_path = (f"/graphstorm/tests/unit-tests/gpartition/"
-                      f"config/gsprocessing_hard_negative_config.json")
-
-    res = load_hard_negative_config(json_file_path)
-
-    assert res[0] == {'dst_node_type': 'paper', 'edge_type':
-        'author:writing:paper', 'hard_neg_feat_name': 'hard_neg_feat'}
-
-    # For config without hard negative transformation
-    json_file_path = (f"/graphstorm/tests/unit-tests/gpartition/"
-                      f"config/gsprocessing_non_hard_negative_config.json")
-
-    res = load_hard_negative_config(json_file_path)
-
-    assert res == []
+_ROOT = os.path.abspath(os.path.dirname(__file__))
 
 
-def test_shuffle_hard_negative_nids(tmp_path):
-    # For config with gsprocessing_config.json
-    json_file_path = (f"/graphstorm/tests/unit-tests/gpartition/"
-                      f"config/gsprocessing_hard_negative_config.json")
-
-    # Generate dgl graph
+@pytest.fixture
+def setup_graph_partition(tmp_path):
     partitioned_graph = f"{tmp_path}/partitioned_graph"
 
     # Generate ID mapping for each partition
@@ -78,6 +57,36 @@ def test_shuffle_hard_negative_nids(tmp_path):
     node_mapping = load_dist_nid_map(f"{partitioned_graph}/dist_graph", ["author", "paper"])
     reverse_map_dst = {gid: i for i, gid in enumerate(node_mapping["paper"].tolist())}
     reverse_map_dst[-1] = -1
+
+    return partitioned_graph, reverse_map_dst
+
+
+def test_load_hard_negative_config():
+    # For config with hard negative transformation
+    json_file_path = os.path.join(_ROOT,
+                                  "config/gsprocessing_hard_negative_config.json")
+
+    res = load_hard_negative_config(json_file_path)
+
+    assert res[0] == {'dst_node_type': 'paper', 'edge_type':
+        'author:writing:paper', 'hard_neg_feat_name': 'hard_neg_feat'}
+
+    # For config without hard negative transformation
+    json_file_path = os.path.join(_ROOT,
+                                  "config/gsprocessing_non_hard_negative_config.json")
+
+    res = load_hard_negative_config(json_file_path)
+
+    assert res == []
+
+
+def test_shuffle_hard_negative_nids(setup_graph_partition):
+    # Test the hard negative id shuffling process within distributed setting
+
+    partitioned_graph, reverse_map_dst = setup_graph_partition
+    # For config with gsprocessing_config.json
+    json_file_path = os.path.join(_ROOT,
+                                  "config/gsprocessing_hard_negative_config.json")
 
     # generate edge features
     etype = ("author", "writing", "paper")

@@ -1118,6 +1118,28 @@ def get_hard_edge_negs_feats(hard_edge_neg_ops):
 
     return hard_edge_neg_feats
 
+def get_gnid2pnid_map(ntype, node_mapping, gnid2pnid_mapping):
+    """ Get global nid to partitioned nid mapping
+
+        Parameters
+        ----------
+        ntype: str
+            Path to the directory storing the partitioned graph.
+        node_mapping: dict of list
+            Dict of mapping. {ntype: mapping}
+        gnid2pnid_mapping: dict
+            Dict of mapping from global nid to partitioned id mapping.
+    """
+    if ntype in gnid2pnid_mapping:
+        return gnid2pnid_mapping[ntype]
+    else:
+        pnid2gnid_map = node_mapping[ntype]
+        gnid2pnid_map = th.argsort(pnid2gnid_map)
+        gnid2pnid_mapping[ntype] = gnid2pnid_map
+        # del ntype in node_mapping to save memory
+        del node_mapping[ntype]
+        return gnid2pnid_mapping[ntype]
+
 def shuffle_hard_nids(data_path, num_parts, hard_edge_neg_feats):
     """ Shuffle node ids of hard negatives from Graph node id space to
         Partition Node id space.
@@ -1136,17 +1158,6 @@ def shuffle_hard_nids(data_path, num_parts, hard_edge_neg_feats):
     node_mapping = load_maps(data_path, "node_mapping")
     gnid2pnid_mapping = {}
 
-    def get_gnid2pnid_map(ntype):
-        if ntype in gnid2pnid_mapping:
-            return gnid2pnid_mapping[ntype]
-        else:
-            pnid2gnid_map = node_mapping[ntype]
-            gnid2pnid_map = th.argsort(pnid2gnid_map)
-            gnid2pnid_mapping[ntype] = gnid2pnid_map
-            # del ntype in node_mapping to save memory
-            del node_mapping[ntype]
-            return gnid2pnid_mapping[ntype]
-
     # iterate all the partitions to convert hard negative node ids.
     for i in range(num_parts):
         part_path = os.path.join(data_path, f"part{i}")
@@ -1162,7 +1173,8 @@ def shuffle_hard_nids(data_path, num_parts, hard_edge_neg_feats):
                     efeat_name = f"{etype}/{neg_feat}"
                     hard_nids = edge_feats[efeat_name]
                     hard_nid_idx = hard_nids > -1
-                    gnid2pnid_map = get_gnid2pnid_map(neg_ntype)
+                    gnid2pnid_map = get_gnid2pnid_map(neg_ntype, node_mapping,
+                                                      gnid2pnid_mapping)
                     hard_nids[hard_nid_idx] = gnid2pnid_map[hard_nids[hard_nid_idx]]
 
         # replace the edge_feat.dgl with the updated one.

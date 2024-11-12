@@ -20,6 +20,7 @@ import os
 import torch as th
 from dgl.data.utils import load_tensors, save_tensors
 from graphstorm.model.utils import load_dist_nid_map
+from graphstorm.gconstruct.utils import get_gnid2pnid_map
 
 
 def load_hard_negative_config(gsprocessing_config):
@@ -76,17 +77,6 @@ def shuffle_hard_negative_nids(gsprocessing_config, num_parts, graph_path):
     node_mapping = load_dist_nid_map(f"{graph_path}/dist_graph", node_type_list)
     gnid2pnid_mapping = {}
 
-    def get_gnid2pnid_map(ntype):
-        if ntype in gnid2pnid_mapping:
-            return gnid2pnid_mapping[ntype]
-        else:
-            pnid2gnid_map = node_mapping[ntype]
-            gnid2pnid_map = th.argsort(pnid2gnid_map)
-            gnid2pnid_mapping[ntype] = gnid2pnid_map
-            # del ntype in node_mapping to save memory
-            del node_mapping[ntype]
-            return gnid2pnid_mapping[ntype]
-
     # iterate all the partitions to convert hard negative node ids.
     for i in range(num_parts):
         part_path = os.path.join(f"{graph_path}/dist_graph", f"part{i}")
@@ -101,7 +91,8 @@ def shuffle_hard_negative_nids(gsprocessing_config, num_parts, graph_path):
             efeat_name = f"{etype}/{neg_feat}"
             hard_nids = edge_feats[efeat_name].long()
             hard_nid_idx = hard_nids > -1
-            gnid2pnid_map = get_gnid2pnid_map(neg_ntype)
+            gnid2pnid_map = get_gnid2pnid_map(neg_ntype, node_mapping,
+                                              gnid2pnid_mapping)
             hard_nids[hard_nid_idx] = gnid2pnid_map[hard_nids[hard_nid_idx]]
 
         # replace the edge_feat.dgl with the updated one.
