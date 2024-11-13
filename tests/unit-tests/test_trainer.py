@@ -1545,8 +1545,8 @@ def test_rgcn_lp4ef():
         #              edge features.
         #              Should complete 2 epochs and output training loss and evaluation
         #              metrics.
-        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', task='lp', use_ef=True)
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+        create_config4ef(Path(tmpdirname), 'gnn_lp.yaml', task='lp', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
                             local_rank=0)
         config = GSConfig(args)
         gdata = GSgnnData(part_config=part_config,
@@ -1597,8 +1597,8 @@ def test_rgcn_lp4ef():
         #              provide edge features.
         #              Should complete 2 epochs and output training loss and evaluation
         #              metrics.
-        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', task='lp', use_ef=False)
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+        create_config4ef(Path(tmpdirname), 'gnn_lp.yaml', task='lp', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
                             local_rank=0)
         config = GSConfig(args)
         gdata = GSgnnData(part_config=part_config,
@@ -1649,8 +1649,8 @@ def test_rgcn_lp4ef():
         #              provide edge features.
         #              This will trigger an assertion error, asking for giving edge feature
         #              for message passing computation.
-        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', task='lp', use_ef=True)
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+        create_config4ef(Path(tmpdirname), 'gnn_lp.yaml', task='lp', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
                             local_rank=0)
         config = GSConfig(args)
         gdata = GSgnnData(part_config=part_config,
@@ -1702,8 +1702,8 @@ def test_rgcn_lp4ef():
         #              provide edge features.
         #              This will trigger an assertion error, asking for projection weights
         #              in the GSEdgeEncoderInputLayer.
-        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', task='lp', use_ef=False)
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+        create_config4ef(Path(tmpdirname), 'gnn_lp.yaml', task='lp', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
                             local_rank=0)
         config = GSConfig(args)
 
