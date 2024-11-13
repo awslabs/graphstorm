@@ -33,7 +33,6 @@ from graphstorm.eval import GSgnnClassificationEvaluator
 from graphstorm.dataloading import GSgnnData, GSgnnMultiTaskDataLoader
 from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
-                                    GSgnnLinkPredictionDataLoader,
                                     GSgnnLinkPredictionTestDataLoader)
 from graphstorm.inference import (GSgnnMultiTaskLearningInferrer,
                                   GSgnnNodePredictionInferrer,
