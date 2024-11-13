@@ -939,7 +939,7 @@ class DistHeterogeneousGraphLoader(object):
         self.graph_info["ntype_to_label_masks"] = defaultdict(list)
         for node_config in node_configs:
             files = node_config.files
-            file_paths = [f"{self.input_prefix}/{f}" for f in files]
+            file_paths = [os.path.join(self.input_prefix, f) for f in files]
 
             node_type = node_config.ntype
             node_col = node_config.node_col
