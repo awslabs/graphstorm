@@ -687,6 +687,8 @@ class GraphConvwithEdgeFeat(nn.Module):
         h: Tensor
             New node embeddings for destination node type.
         """
+        print(f'============== {len(inputs)}===============')
+        print(inputs)
         assert len(inputs) == 3, 'For using edge features in message passing, you need to ' + \
                                  'provide 3 inputs in a tuple, the format is (src_inputs, ' + \
                                  f'dst_inputs, edge_inputs). but got {len(inputs)} inputs.'

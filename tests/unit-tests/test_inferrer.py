@@ -480,6 +480,182 @@ def test_mtask_infer():
 
     check_eval()
 
+def test_rgcn_infer_ec4ef():
+    """ Test RGCN model Edge Classification inference pipeline with/without edge features.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        gdata = GSgnnData(part_config=part_config)
+
+        setup_device(0)
+        device = get_device()
+
+        # Test case 0: normal case, set RGCN model with edge features for EC, and provide
+        #              edge features.
+        #              Should complete inference process
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', task='ec', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model1 = create_builtin_edge_gnn_model(gdata.g, config, True)
+        inferrer1 = GSgnnEdgePredictionInferrer(model1)
+        inferrer1.setup_device(device)
+
+        infer_dataloader1 = GSgnnEdgeDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_test_set(config.target_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,
+            remove_target_edge_type=config.remove_target_edge_type,
+            train_task=False)
+ 
+        inferrer1.infer(
+            loader=infer_dataloader1,
+            save_embed_path=None,
+            use_mini_batch_infer=True
+            )
+
+        # Test case 1: normal case, set RGCN model without edge features for EC, and not
+        #              provide edge features.
+        #              Should complete inference process
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', task='ec', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model2 = create_builtin_edge_gnn_model(gdata.g, config, True)
+        inferrer2 = GSgnnEdgePredictionInferrer(model2)
+        inferrer2.setup_device(device)
+
+        infer_dataloader2 = GSgnnEdgeDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_test_set(config.target_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            remove_target_edge_type=config.remove_target_edge_type,
+            train_task=False)
+ 
+        inferrer2.infer(
+            loader=infer_dataloader2,
+            save_embed_path=None,
+            use_mini_batch_infer=True
+            )
+
+        # Test case 2: abnormal case, set RGCN model with edge features for EC, and provide edge
+        #              features. But use full graph inference method.
+        #              This will trigger an assertion error, saying currently full graph
+        #              inference does not support using edge features, should
+        #              use mini-batch inferenc.
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', task='ec', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model3 = create_builtin_edge_gnn_model(gdata.g, config, True)
+        inferrer3 = GSgnnEdgePredictionInferrer(model3)
+        inferrer3.setup_device(device)
+
+        infer_dataloader3 = GSgnnEdgeDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_test_set(config.target_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,
+            remove_target_edge_type=config.remove_target_edge_type,
+            train_task=False)
+ 
+        with assert_raises(AssertionError):
+            inferrer3.infer(
+                loader=infer_dataloader3,
+                save_embed_path=None,
+                use_mini_batch_infer=False
+                )
+
+        # Test case 3: abnormal case, set RGCN model without edge features for EC, but 
+        #              provide edge features.
+        #              This will trigger an assertion error, asking for projection weights
+        #              in the GSEdgeEncoderInputLayer.
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', task='ec', use_ef=False)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model4 = create_builtin_edge_gnn_model(gdata.g, config, True)
+        inferrer4 = GSgnnEdgePredictionInferrer(model4)
+        inferrer4.setup_device(device)
+
+        infer_dataloader4 = GSgnnEdgeDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_test_set(config.target_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats={('n0', 'r0', 'n1'): ['feat'],
+                        ('n0', 'r1', 'n1'): ['feat']},  # Manually set, as config does not have it.
+            remove_target_edge_type=config.remove_target_edge_type,
+            train_task=False)
+ 
+        with assert_raises(AssertionError):
+            inferrer4.infer(
+                loader=infer_dataloader4,
+                save_embed_path=None,
+                use_mini_batch_infer=True
+                )
+
+        # Test case 4: abnormal case, set RGCN model with edge features for NC, but 
+        #              not provide edge features.
+        #              This will trigger an assertion error, asking for giving edge feature
+        #              for message passing computation.
+        create_config4ef(Path(tmpdirname), 'gnn_nc.yaml', task='ec', use_ef=True)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_nc.yaml'),
+                            local_rank=0)
+        config = GSConfig(args)
+
+        model5 = create_builtin_edge_gnn_model(gdata.g, config, True)
+        inferrer5 = GSgnnEdgePredictionInferrer(model5)
+        inferrer5.setup_device(device)
+
+        infer_dataloader5 = GSgnnEdgeDataLoader(
+            gdata,
+            target_idx=gdata.get_edge_test_set(config.target_etype),
+            fanout=config.fanout,
+            batch_size=config.batch_size,
+            label_field=config.label_field,
+            node_feats=config.node_feat_name,
+            edge_feats=None,
+            remove_target_edge_type=config.remove_target_edge_type,
+            train_task=False)
+ 
+        with assert_raises(AssertionError):
+            inferrer5.infer(
+                loader=infer_dataloader5,
+                save_embed_path=None,
+                use_mini_batch_infer=True
+                )
+
+    # delete temporary results
+    if os.path.exists('/tmp/embs'):
+        shutil.rmtree('/tmp/embs')
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
 def test_rgcn_infer_nc4ef():
     """ Test RGCN model Node Classification inference pipeline with/without edge features.
     """
@@ -1213,7 +1389,7 @@ if __name__ == '__main__':
     test_inferrer_setup_evaluator()
 
     test_rgcn_infer_nc4ef()
-
+    test_rgcn_infer_ec4ef()
     test_rgcn_infer_lp4ef()
     test_hgt_infer_nc4ef()
     test_hgt_infer_ec4ef()
