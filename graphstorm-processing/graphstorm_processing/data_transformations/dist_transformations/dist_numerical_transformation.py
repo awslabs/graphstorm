@@ -297,7 +297,7 @@ def _apply_min_max_transform(
     original_min_vals: Optional[list[float]] = None,
     original_max_vals: Optional[list[float]] = None,
 ) -> tuple[DataFrame, dict]:
-    """Applies min max normalization to the input.
+    """Applies min-max normalization to the input.
 
     Parameters
     ----------
