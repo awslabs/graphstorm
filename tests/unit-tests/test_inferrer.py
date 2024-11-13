@@ -1389,7 +1389,7 @@ if __name__ == '__main__':
     test_inferrer_setup_evaluator()
 
     test_rgcn_infer_nc4ef()
-    test_rgcn_infer_ec4ef()
+    # test_rgcn_infer_ec4ef()
     test_rgcn_infer_lp4ef()
     test_hgt_infer_nc4ef()
     test_hgt_infer_ec4ef()
