@@ -1698,7 +1698,7 @@ def test_hgt_lp4ef():
                                       world_size=1)
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
 
         setup_device(0)
         device = get_device()
