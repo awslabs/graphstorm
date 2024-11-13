@@ -1552,18 +1552,18 @@ def test_rgcn_lp4ef():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
                             local_rank=0)
         config = GSConfig(args)
-        gdata = GSgnnData(part_config=part_config,
+        gdata_lp = GSgnnData(part_config=part_config,
                           node_feat_field=config.node_feat_name,  # Need to set these features in
                           edge_feat_field=config.edge_feat_name,  # dataset, as lp_trainer uses
                           )                                       # a different mini-batch method.
 
-        model1 = create_builtin_lp_gnn_model(gdata.g, config, True)
+        model1 = create_builtin_lp_gnn_model(gdata_lp.g, config, True)
         trainer1 = GSgnnLinkPredictionTrainer(model1)
         trainer1.setup_device(device)
         
         train_dataloader1 = GSgnnLinkPredictionDataLoader(
-            gdata,
-            target_idx=gdata.get_edge_train_set(config.train_etype),
+            gdata_lp,
+            target_idx=gdata_lp.get_edge_train_set(config.train_etype),
             fanout=config.fanout,
             batch_size=config.batch_size,
             node_feats=config.node_feat_name,
@@ -1572,8 +1572,8 @@ def test_rgcn_lp4ef():
             exclude_training_targets=config.exclude_training_targets,
             train_task=True)
         val_dataloader1 = GSgnnLinkPredictionTestDataLoader(
-            gdata,
-            target_idx=gdata.get_edge_val_set(config.train_etype),
+            gdata_lp,
+            target_idx=gdata_lp.get_edge_val_set(config.train_etype),
             fanout=config.fanout,
             batch_size=config.batch_size,
             node_feats=config.node_feat_name,
@@ -1604,16 +1604,16 @@ def test_rgcn_lp4ef():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
                             local_rank=0)
         config = GSConfig(args)
-        gdata = GSgnnData(part_config=part_config,
+        gdata_lp = GSgnnData(part_config=part_config,
                           node_feat_field=config.node_feat_name)
 
-        model2 = create_builtin_lp_gnn_model(gdata.g, config, True)
+        model2 = create_builtin_lp_gnn_model(gdata_lp.g, config, True)
         trainer2 = GSgnnLinkPredictionTrainer(model2)
         trainer2.setup_device(device)
         
         train_dataloader2 = GSgnnLinkPredictionDataLoader(
-            gdata,
-            target_idx=gdata.get_edge_train_set(config.train_etype),
+            gdata_lp,
+            target_idx=gdata_lp.get_edge_train_set(config.train_etype),
             fanout=config.fanout,
             batch_size=config.batch_size,
             node_feats=config.node_feat_name,
@@ -1623,8 +1623,8 @@ def test_rgcn_lp4ef():
             exclude_training_targets=config.exclude_training_targets,
             train_task=True)
         val_dataloader2 = GSgnnLinkPredictionTestDataLoader(
-            gdata,
-            target_idx=gdata.get_edge_val_set(config.train_etype),
+            gdata_lp,
+            target_idx=gdata_lp.get_edge_val_set(config.train_etype),
             fanout=config.fanout,
             batch_size=config.batch_size,
             node_feats=config.node_feat_name,
@@ -1656,16 +1656,16 @@ def test_rgcn_lp4ef():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_lp.yaml'),
                             local_rank=0)
         config = GSConfig(args)
-        gdata = GSgnnData(part_config=part_config,
+        gdata_lp = GSgnnData(part_config=part_config,
                           node_feat_field=config.node_feat_name)  # only provide node features.
 
-        model3 = create_builtin_lp_gnn_model(gdata.g, config, True)
+        model3 = create_builtin_lp_gnn_model(gdata_lp.g, config, True)
         trainer3 = GSgnnLinkPredictionTrainer(model3)
         trainer3.setup_device(device)
         
         train_dataloader3 = GSgnnLinkPredictionDataLoader(
-            gdata,
-            target_idx=gdata.get_edge_train_set(config.train_etype),
+            gdata_lp,
+            target_idx=gdata_lp.get_edge_train_set(config.train_etype),
             fanout=config.fanout,
             batch_size=config.batch_size,
             node_feats=config.node_feat_name,
@@ -1675,8 +1675,8 @@ def test_rgcn_lp4ef():
             exclude_training_targets=config.exclude_training_targets,
             train_task=True)
         val_dataloader3 = GSgnnLinkPredictionTestDataLoader(
-            gdata,
-            target_idx=gdata.get_edge_val_set(config.train_etype),
+            gdata_lp,
+            target_idx=gdata_lp.get_edge_val_set(config.train_etype),
             fanout=config.fanout,
             batch_size=config.batch_size,
             node_feats=config.node_feat_name,
@@ -1710,19 +1710,19 @@ def test_rgcn_lp4ef():
                             local_rank=0)
         config = GSConfig(args)
 
-        gdata = GSgnnData(part_config=part_config,
+        gdata_lp = GSgnnData(part_config=part_config,
                           node_feat_field=config.node_feat_name,
                           edge_feat_field={('n0', 'r0', 'n1'): ['feat'],
                                             ('n0', 'r1', 'n1'): ['feat']},# Manually set, as 
                                                                           # config does not have it
                           )
-        model4 = create_builtin_lp_gnn_model(gdata.g, config, True)
+        model4 = create_builtin_lp_gnn_model(gdata_lp.g, config, True)
         trainer4 = GSgnnLinkPredictionTrainer(model4)
         trainer4.setup_device(device)
         
         train_dataloader4 = GSgnnLinkPredictionDataLoader(
-            gdata,
-            target_idx=gdata.get_edge_train_set(config.train_etype),
+            gdata_lp,
+            target_idx=gdata_lp.get_edge_train_set(config.train_etype),
             fanout=config.fanout,
             batch_size=config.batch_size,
             node_feats=config.node_feat_name,
@@ -1731,8 +1731,8 @@ def test_rgcn_lp4ef():
             exclude_training_targets=config.exclude_training_targets,
             train_task=True)
         val_dataloader4 = GSgnnLinkPredictionTestDataLoader(
-            gdata,
-            target_idx=gdata.get_edge_val_set(config.train_etype),
+            gdata_lp,
+            target_idx=gdata_lp.get_edge_val_set(config.train_etype),
             fanout=config.fanout,
             batch_size=config.batch_size,
             node_feats=config.node_feat_name,
