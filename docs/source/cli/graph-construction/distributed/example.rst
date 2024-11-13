@@ -260,7 +260,7 @@ the graph structure, features, and labels. In more detail:
   instead of creating new ones, ensuring that models trained with the original
   data can still be used in the newly transformed data. Currently only
   categorical and numerical transformations can be re-applied. Note that
-  the Rank-Gauss transformation cannot support re-application, it can
+  the Rank-Gauss transformation does not support re-application, it may
   only work for transductive tasks.
 * ``updated_row_counts_metadata.json``:
   This file is meant to be used as the input configuration for the

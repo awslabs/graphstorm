@@ -366,6 +366,8 @@ def _apply_min_max_transform(
         )
 
         # Fit a pipeline on just the dummy DF
+        # MinMaxScaler computes the minimum and maximum of dummy_df 
+        # to be used for later scaling
         scaler_pipeline = pipeline.fit(dummy_df)
     else:
         # Fit a pipeline on the entire input DF
