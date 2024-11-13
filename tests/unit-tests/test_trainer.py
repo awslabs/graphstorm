@@ -813,13 +813,14 @@ def test_rgcn_nc4ef():
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
+
+    setup_device(0)
+    device = get_device()
+
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(tmpdirname)
         gdata = GSgnnData(part_config=part_config)
-
-        setup_device(0)
-        device = get_device()
 
         # Test case 0: normal case, set RGCN model with edge features for NC, and provide
         #              edge features.
@@ -864,6 +865,11 @@ def test_rgcn_nc4ef():
             val_loader=val_dataloader1,
             num_epochs=2
             )
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        gdata = GSgnnData(part_config=part_config)
 
         # Test case 1: normal case, set RGCN model without edge features for NC, and not
         #              provide edge features.
@@ -910,6 +916,11 @@ def test_rgcn_nc4ef():
             num_epochs=2
             )
 
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        gdata = GSgnnData(part_config=part_config)
+
         # Test case 2: abnormal case, set RGCN model with edge features for NC, but not
         #              provide edge features.
         #              This will trigger an assertion error, asking for giving edge feature
@@ -955,6 +966,11 @@ def test_rgcn_nc4ef():
                 val_loader=val_dataloader3,
                 num_epochs=2
                 )
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        gdata = GSgnnData(part_config=part_config)
 
         # Test case 3: abnormal case, set RGCN model without edge features for NC, but 
         #              provide edge features.
@@ -1017,13 +1033,14 @@ def test_hgt_nc4ef():
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
+
+    setup_device(0)
+    device = get_device()
+
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(tmpdirname)
         gdata = GSgnnData(part_config=part_config)
-
-        setup_device(0)
-        device = get_device()
 
         # Test case 0: normal case, set HGT model without edge features for NC, and not provide
         #              edge features.
@@ -1070,6 +1087,11 @@ def test_hgt_nc4ef():
             num_epochs=2
             )
 
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        gdata = GSgnnData(part_config=part_config)
+
         # Test case 1: abnormal case, set HGT model with edge features for NC, and not provide
         #              edge features.
         #              Should trigger an assertion error of not support edge feature in hgt
@@ -1081,6 +1103,11 @@ def test_hgt_nc4ef():
 
         with assert_raises(AssertionError):
             model2 = create_builtin_node_gnn_model(gdata.g, config, True)
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        gdata = GSgnnData(part_config=part_config)
 
         # Test case 2: abnormal case, set HGT model without edge features for NC, but provide
         #              edge features.
@@ -1141,13 +1168,14 @@ def test_rgcn_ec4ef():
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
+
+    setup_device(0)
+    device = get_device()
+
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
         gdata = GSgnnData(part_config=part_config)
-
-        setup_device(0)
-        device = get_device()
 
         # Test case 0: normal case, set RGCN model with edge features for EC, and provide
         #              edge features.
@@ -1195,6 +1223,11 @@ def test_rgcn_ec4ef():
             num_epochs=2
             )
 
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
+        gdata = GSgnnData(part_config=part_config)
+
         # Test case 1: normal case, set RGCN model without edge features for EC, and not
         #              provide edge features.
         #              Should complete 2 epochs and output training loss and evaluation
@@ -1240,6 +1273,11 @@ def test_rgcn_ec4ef():
             val_loader=val_dataloader2,
             num_epochs=2
             )
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
+        gdata = GSgnnData(part_config=part_config)
 
         # Test case 2: abnormal case, set RGCN model with edge features for EC, but not
         #              provide edge features.
@@ -1287,6 +1325,11 @@ def test_rgcn_ec4ef():
                 val_loader=val_dataloader3,
                 num_epochs=2
                 )
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
+        gdata = GSgnnData(part_config=part_config)
 
         # Test case 3: abnormal case, set RGCN model without edge features for NC, but 
         #              provide edge features.
@@ -1351,13 +1394,14 @@ def test_hgt_ec4ef():
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
+
+    setup_device(0)
+    device = get_device()
+
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(tmpdirname)
         gdata = GSgnnData(part_config=part_config)
-
-        setup_device(0)
-        device = get_device()
 
         # Test case 0: normal case, set HGT model without edge features for EC, and not provide
         #              edge features.
@@ -1406,6 +1450,11 @@ def test_hgt_ec4ef():
             num_epochs=2
             )
 
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        gdata = GSgnnData(part_config=part_config)
+
         # Test case 1: abnormal case, set HGT model with edge features for EC, and not provide
         #              edge features.
         #              Should trigger an assertion error of not support edge feature in hgt
@@ -1417,6 +1466,11 @@ def test_hgt_ec4ef():
 
         with assert_raises(AssertionError):
             model2 = create_builtin_edge_gnn_model(gdata.g, config, True)
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        gdata = GSgnnData(part_config=part_config)
 
         # Test case 2: abnormal case, set HGT model without edge features for EC, but provide
         #              edge features.
@@ -1479,12 +1533,13 @@ def test_rgcn_lp4ef():
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
+
+    setup_device(0)
+    device = get_device()
+
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
-
-        setup_device(0)
-        device = get_device()
 
         # Test case 0: normal case, set RGCN model with edge features for LP, and provide
         #              edge features.
@@ -1497,7 +1552,7 @@ def test_rgcn_lp4ef():
         gdata = GSgnnData(part_config=part_config,
                           node_feat_field=config.node_feat_name,  # Need to set these features in
                           edge_feat_field=config.edge_feat_name,  # dataset, as lp_trainer uses
-                          )                                        # a different mini-batch method.
+                          )                                       # a different mini-batch method.
 
         model1 = create_builtin_lp_gnn_model(gdata.g, config, True)
         trainer1 = GSgnnLinkPredictionTrainer(model1)
@@ -1533,6 +1588,10 @@ def test_rgcn_lp4ef():
             val_loader=val_dataloader1,
             num_epochs=2
             )
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
 
         # Test case 1: normal case, set RGCN model without edge features for LP, and not
         #              provide edge features.
@@ -1582,6 +1641,10 @@ def test_rgcn_lp4ef():
             num_epochs=2
             )
 
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
+
         # Test case 2: abnormal case, set RGCN model with edge features for LP, but not
         #              provide edge features.
         #              This will trigger an assertion error, asking for giving edge feature
@@ -1630,6 +1693,10 @@ def test_rgcn_lp4ef():
                 val_loader=val_dataloader3,
                 num_epochs=2
                 )
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
 
         # Test case 3: abnormal case, set RGCN model without edge features for LP, but 
         #              provide edge features.
@@ -1696,12 +1763,13 @@ def test_hgt_lp4ef():
                                       init_method='tcp://127.0.0.1:23456',
                                       rank=0,
                                       world_size=1)
+
+    setup_device(0)
+    device = get_device()
+
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(tmpdirname)
-
-        setup_device(0)
-        device = get_device()
 
         # Test case 0: normal case, set HGT model without edge features for LP, and not provide
         #              edge features.
@@ -1751,6 +1819,10 @@ def test_hgt_lp4ef():
             num_epochs=2
             )
 
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+
         # Test case 1: abnormal case, set HGT model with edge features for LP, and not provide
         #              edge features.
         #              Should trigger an assertion error of not support edge feature in hgt
@@ -1764,6 +1836,10 @@ def test_hgt_lp4ef():
 
         with assert_raises(AssertionError):
             model2 = create_builtin_lp_gnn_model(gdata.g, config, True)
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
 
         # Test case 2: abnormal case, set HGT model without edge features for LP, but provide
         #              edge features.
