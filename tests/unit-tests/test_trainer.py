@@ -1539,7 +1539,7 @@ def test_rgcn_lp4ef():
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
 
         # Test case 0: normal case, set RGCN model with edge features for LP, and provide
         #              edge features.
@@ -1591,7 +1591,7 @@ def test_rgcn_lp4ef():
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
 
         # Test case 1: normal case, set RGCN model without edge features for LP, and not
         #              provide edge features.
@@ -1643,7 +1643,7 @@ def test_rgcn_lp4ef():
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
 
         # Test case 2: abnormal case, set RGCN model with edge features for LP, but not
         #              provide edge features.
@@ -1696,7 +1696,7 @@ def test_rgcn_lp4ef():
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
 
         # Test case 3: abnormal case, set RGCN model without edge features for LP, but 
         #              provide edge features.
