@@ -83,6 +83,7 @@ class DistHardEdgeNegativeTransformation(DistributedTransformation):
         hard_negative_node_mapping = self.spark.read.parquet(
             f"{mapping_prefix}{dst_type}/{format_name}/"
         )
+        # The maximum number of negatives in the input feature column
         max_size = (
             transformed_df.select(F.size(F.col(input_col)).alias(f"{input_col}_size"))
             .agg(F.max(f"{input_col}_size"))
@@ -92,6 +93,7 @@ class DistHardEdgeNegativeTransformation(DistributedTransformation):
         # TODO: Use panda series to possibly improve the efficiency
         # Explode the original list and join node id mapping dataframe
         transformed_df = transformed_df.withColumn(ORDER_INDEX, F.monotonically_increasing_id())
+        # Could result in extremely large DFs in num_nodes * avg(len_of_negatives) rows
         transformed_df = transformed_df.withColumn(
             EXPLODE_HARD_NEGATIVE_VALUE, F.explode(F.col(input_col))
         )
@@ -105,7 +107,7 @@ class DistHardEdgeNegativeTransformation(DistributedTransformation):
             F.collect_list(NODE_MAPPING_INT).alias(input_col)
         )
 
-        # Extend the feature to the same length as total number of nodes within one node type
+        # Extend the feature to the same length as the maximum length of the feature column
         def pad_mapped_values(hard_neg_list):
             if len(hard_neg_list) < max_size:
                 hard_neg_list.extend([-1] * (max_size - len(hard_neg_list)))

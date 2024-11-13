@@ -22,7 +22,7 @@ from graphstorm.model.utils import load_dist_nid_map
 from graphstorm.gconstruct.utils import get_gnid2pnid_map
 
 
-def load_hard_negative_config(gsprocessing_config):
+def load_hard_negative_config(gsprocessing_config: str):
     """Load GSProcessing Config to extract hard negative config
 
     Parameters
@@ -64,7 +64,8 @@ def load_hard_negative_config(gsprocessing_config):
     return hard_neg_list
 
 
-def shuffle_hard_negative_nids(gsprocessing_config, num_parts, graph_path):
+def shuffle_hard_negative_nids(gsprocessing_config: str,
+                               num_parts: int, graph_path: str):
     """Shuffle hard negative edge feature ids with int-to-int node id mapping.
     The function here align with the shuffle_hard_nids in graphstorm.gconstruct.utils.
 

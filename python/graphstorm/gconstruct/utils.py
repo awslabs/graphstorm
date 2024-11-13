@@ -1118,17 +1118,32 @@ def get_hard_edge_negs_feats(hard_edge_neg_ops):
 
     return hard_edge_neg_feats
 
-def get_gnid2pnid_map(ntype, node_mapping, gnid2pnid_mapping):
+def get_gnid2pnid_map(ntype: str, node_mapping: dict, gnid2pnid_mapping: dict):
     """ Get global nid to partitioned nid mapping.
 
         Parameters
         ----------
         ntype: str
-            Path to the directory storing the partitioned graph.
+            Node type.
         node_mapping: dict
-            Dict of mapping. {ntype: partitioned nid to global nid mapping}
+            Dict of mapping.
+            {
+                ntype: 1D tensor representing the mapping from
+                partition node IDs (pnid) to global node IDs (gnid).
+                Each index corresponds to a partition node IDs, and
+                the value at that index is the global node IDs.
+            }
         gnid2pnid_mapping: dict
-            Dict of mapping. {ntype: global nid to partitioned nid mapping}
+            Dict of mapping. Here are the mapping represented:
+            {
+                ntype: 1D tensor representing the mapping from
+                global node IDs (gnid) to partition node IDs (pnid).
+                Each index corresponds to a global node ID, and
+                the value at that index is the partition node ID.
+            }
+
+        Returns
+            1-D node Mapping Tensor for target node type.
     """
     if ntype in gnid2pnid_mapping:
         return gnid2pnid_mapping[ntype]
