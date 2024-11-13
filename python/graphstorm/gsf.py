@@ -990,7 +990,7 @@ def set_encoder(model, g, config, train_task):
     # Set GNN encoders
     dropout = config.dropout if train_task else 0
     out_emb_size = config.out_emb_size if config.out_emb_size else config.hidden_size
-    
+
     # Check use edge feature and GNN encoder capacity
     assert (config.edge_feat_name is None) or \
                 (config.edge_feat_name is not None and model_encoder_type == 'rgcn'), \
