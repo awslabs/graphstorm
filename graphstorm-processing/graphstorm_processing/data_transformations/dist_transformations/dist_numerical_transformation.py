@@ -192,7 +192,7 @@ def apply_norm(
         A dataclass containing the normalized DataFrame with only the
         columns listed in ``cols`` retained in the ``scaled_df`` element,
         and a dict representation of the transformation in the ``normalization_representation``
-        variable. Inner structure depends on normalizer, see ``NormalizationResult`` docstring
+        variable. The inner structure of ``normalization_representation`` depends on normalizers, see ``NormalizationResult`` docstring
         for details.
 
     Raises
