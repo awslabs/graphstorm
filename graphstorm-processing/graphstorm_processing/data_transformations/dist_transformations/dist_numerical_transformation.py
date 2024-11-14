@@ -65,7 +65,7 @@ class ImputationResult:
         Structure:
         imputed_val_dict: dict[str, float]
             The imputed values for each column, {col_name: imputation_val}.
-            Empty if no imputation was applied.
+            Will be an empty dict if no imputation was applied.
         imputer_name: str
             The name of imputer used.
     """
@@ -192,8 +192,8 @@ def apply_norm(
         A dataclass containing the normalized DataFrame with only the
         columns listed in ``cols`` retained in the ``scaled_df`` element,
         and a dict representation of the transformation in the ``normalization_representation``
-        variable. The inner structure of ``normalization_representation`` depends on normalizers, see ``NormalizationResult`` docstring
-        for details.
+        variable. The inner structure of ``normalization_representation`` depends on normalizers,
+        see ``NormalizationResult`` docstring for details.
 
     Raises
     ------
@@ -584,6 +584,7 @@ class DistNumericalTransformation(DistributedTransformation):
         )
 
         cols = self.json_representation["cols"]
+        # All cols share the same imputer and normalizer
         impute_representation = self.json_representation["imputer_model"]
         norm_representation = self.json_representation["normalizer_model"]
         out_dtype = self.json_representation.get("out_dtype", TYPE_FLOAT32)
