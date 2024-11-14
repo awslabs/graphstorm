@@ -688,10 +688,14 @@ class GraphConvwithEdgeFeat(nn.Module):
             New node embeddings for destination node type.
         """
 
-        if rel_graph.num_edges() == 0:  # A corner case: no edge of this rel in this block.
+        # A corner case: no edge of this rel in this block. Will create an all 0s message and
+        # multiple it with project weights as outputs, which is an all 0s tensor with output dim
+        if rel_graph.num_edges() == 0:
             _, dst_inputs = inputs
-            h = th.zeros_like(dst_inputs, device=dst_inputs.device) # copy all 0s dst
-            h = h @ self.weights        # return an all 0s tensor in output dimensions.
+            h = th.zeros_like(dst_inputs, device=dst_inputs.device)
+            if self.edge_feat_mp_op == 'concat':
+                h = th.concat([h, h], dim=-1)
+            h = h @ self.weights 
         else:
             assert len(inputs) == 3, 'For using edge features in message passing, you need to ' + \
                                     'provide 3 inputs in a tuple, the format is (src_inputs, ' + \
