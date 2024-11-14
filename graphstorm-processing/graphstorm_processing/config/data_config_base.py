@@ -15,7 +15,7 @@ limitations under the License.
 """
 
 from dataclasses import dataclass
-from typing import Sequence, Optional
+from typing import Optional
 
 from graphstorm_processing.constants import SUPPORTED_FILE_TYPES
 
@@ -27,7 +27,7 @@ class DataStorageConfig:
     """
 
     format: str
-    files: Sequence[str]
+    files: list[str]
     separator: Optional[str] = None
 
     def __post_init__(self):
@@ -39,3 +39,7 @@ class DataStorageConfig:
                     raise ValueError(
                         f"File paths need to be relative (not starting with '/'), got : {file}"
                     )
+
+        for idx, file in enumerate(self.files):
+            if file.startswith("./"):
+                self.files[idx] = file[2:]
