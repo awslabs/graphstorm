@@ -690,7 +690,8 @@ class GraphConvwithEdgeFeat(nn.Module):
 
         if rel_graph.num_edges() == 0:  # A corner case: no edge of this rel in this block.
             _, dst_inputs = inputs
-            h = dst_inputs              # Do nothing, just return the destination node embs
+            h = th.zeros_like(dst_inputs, device=dst_inputs.device) # copy all 0s dst
+            h = h @ self.weights        # return an all 0s tensor in output dimensions.
         else:
             assert len(inputs) == 3, 'For using edge features in message passing, you need to ' + \
                                     'provide 3 inputs in a tuple, the format is (src_inputs, ' + \
