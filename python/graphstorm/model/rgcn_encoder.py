@@ -695,7 +695,7 @@ class GraphConvwithEdgeFeat(nn.Module):
             h = th.zeros_like(dst_inputs, device=dst_inputs.device)
             if self.edge_feat_mp_op == 'concat':
                 h = th.concat([h, h], dim=-1)
-            h = h @ self.weights 
+            h = h @ self.weights
         else:
             assert len(inputs) == 3, 'For using edge features in message passing, you need to ' + \
                                     'provide 3 inputs in a tuple, the format is (src_inputs, ' + \
