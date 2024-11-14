@@ -57,6 +57,19 @@ def test_get_sparse_emb_range():
     assert start == 12
     assert end == 15
 
+    # num_embs = 15
+    for i in range(66):
+        start, end = _get_sparse_emb_range(133, i, 80)
+        assert start == i * 2
+        assert end == i * 2 + 2
+    start, end = _get_sparse_emb_range(133, 66, 80)
+    assert start == 132
+    assert end == 133
+    for i in range(67, 80):
+        start, end = _get_sparse_emb_range(133, i, 80)
+        assert start == 133
+        assert end == 133
+
     try:
         _get_sparse_emb_range(15, 4, 4)
     except:

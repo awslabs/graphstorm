@@ -156,7 +156,12 @@ def _get_sparse_emb_range(num_embs, rank, world_size):
     else:
         start = rank * math.ceil(num_embs / world_size)
         end = (rank + 1) * math.ceil(num_embs / world_size)
-        end = num_embs if rank + 1 == world_size else end
+        # It is possible that start is also larger than num_embs
+        # For example, when num_embs = 11, world_size = 8
+        # and rank is 7
+        # start = 7 * 2, which is 14 > 11.
+        start = num_embs if start > num_embs else start
+        end = num_embs if end > num_embs else end
     return start, end
 
 def save_sparse_emb(model_path, sparse_emb, ntype):
