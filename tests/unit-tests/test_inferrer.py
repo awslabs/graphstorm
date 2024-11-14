@@ -883,7 +883,6 @@ def test_rgcn_infer_lp4ef():
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(tmpdirname)
-        gdata = GSgnnData(part_config=part_config)
 
         # Test case 0: normal case, set RGCN model with edge features for LP, and provide
         #              edge features.
