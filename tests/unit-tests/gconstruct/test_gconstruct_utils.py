@@ -19,10 +19,11 @@ import json
 
 import dgl
 import numpy as np
-import torch as th
+import pytest
 import pandas as pd
 import pyarrow.parquet as pq
 import pyarrow as pa
+import torch as th
 
 from numpy.testing import assert_almost_equal
 
@@ -292,22 +293,25 @@ def test_get_in_files():
         for i in range(10):
             data = {"test": np.random.rand(10)}
             write_data_parquet(data, files[i])
+        files.sort()
 
+        # Test single string wildcard path
         in_files = get_in_files(os.path.join(tmpdirname,"*.parquet"))
         assert len(in_files) == 10
-        files.sort()
+
+        assert files == in_files
+
+        # Test list of wildcard paths with a single element
+        in_files = get_in_files([os.path.join(tmpdirname, "*.parquet")])
+        assert len(in_files) == 10
         assert files == in_files
 
         in_files = get_in_files(os.path.join(tmpdirname,"test9.parquet"))
         assert len(in_files) == 1
         assert os.path.join(tmpdirname,"test9.parquet") == in_files[0]
 
-        pass_test = False
-        try:
+        with pytest.raises(AssertionError):
             in_files = get_in_files(os.path.join(tmpdirname,"test10.parquet"))
-        except:
-            pass_test = True
-        assert pass_test
 
 def test_get_hard_edge_negs_feats():
     hard_trans0 = HardEdgeDstNegativeTransform("hard_neg", "hard_neg")
