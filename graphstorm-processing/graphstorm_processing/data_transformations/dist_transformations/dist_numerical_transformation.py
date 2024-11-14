@@ -53,14 +53,21 @@ from ..spark_utils import rename_multiple_cols
 
 @dataclass
 class ImputationResult:
-    """Container class to store the results of imputation.
+    """Dataclass to store the results of imputation.
 
     Parameters
     ----------
     imputed_df: DataFrame
         The imputed DataFrame.
     impute_representation: dict[str, dict]
-        A representation of the imputation.
+        A dict representation of the imputation applied.
+
+        Structure:
+        imputed_val_dict: dict[str, float]
+            The imputed values for each column, {col_name: imputation_val}.
+            Empty if no imputation was applied.
+        imputer_name: str
+            The name of imputer used.
     """
 
     imputed_df: DataFrame
@@ -69,14 +76,25 @@ class ImputationResult:
 
 @dataclass
 class NormalizationResult:
-    """Container class to store the results of normalization.
+    """Dataclass to store the results of normalization.
 
     Parameters
     ----------
     scaled_df: DataFrame
         The normalized DataFrame.
     normalization_representation: dict[str, dict]
-        A representation of the normalization.
+        The reconstruction information for the normalizer. Empty if no normalization
+        was applied. Inner structure depends on normalizer.
+
+        Structure for MinMaxScaler:
+        originalMinValues: list[float]
+            The original minimum values for each column, in the order of the cols key.
+        originalMaxValues: list[float]
+            The original maximum values for each column, in the order of the cols key.
+
+        Structure for StandardScaler:
+        col_sums: dict[str, float]
+            The sum of each column.
     """
 
     scaled_df: DataFrame
@@ -174,6 +192,8 @@ def apply_norm(
         A dataclass containing the normalized DataFrame with only the
         columns listed in ``cols`` retained in the ``scaled_df`` element,
         and a dict representation of the transformation in the ``normalization_representation``
+        variable. Inner structure depends on normalizer, see ``NormalizationResult`` docstring
+        for details.
 
     Raises
     ------
@@ -207,7 +227,9 @@ def apply_norm(
         scaled_df, norm_reconstruction = _apply_standard_transform(imputed_df, cols, out_dtype)
         norm_representation["norm_reconstruction"] = norm_reconstruction
     elif shared_norm == "rank-gauss":
-        assert len(cols) == 1, "Rank-Gauss numerical transformation only supports single column"
+        assert (
+            len(cols) == 1
+        ), f"Rank-Gauss numerical transformation only supports single column, got {cols}"
         norm_representation["norm_reconstruction"] = {}
         column_name = cols[0]
         select_df = imputed_df.select(column_name)
@@ -251,6 +273,8 @@ def _apply_standard_transform(
 ) -> tuple[DataFrame, dict]:
     """Applies standard scaling to the input DataFrame, individually to each of the columns.
 
+    Each value in a column is divided by the sum of all values in that column.
+
     Parameters
     ----------
     input_df : DataFrame
@@ -266,6 +290,10 @@ def _apply_standard_transform(
     -------
     tuple[DataFrame, dict]
         The transformed dataframe and the representation of the standard transform as dict.
+
+        Representation structure::
+            col_sums: dict[str, float]
+                The sum of each column, {col_name: sum}.
 
     Raises
     ------
@@ -297,7 +325,12 @@ def _apply_min_max_transform(
     original_min_vals: Optional[list[float]] = None,
     original_max_vals: Optional[list[float]] = None,
 ) -> tuple[DataFrame, dict]:
-    """Applies min-max normalization to the input.
+    """Applies min-max normalization to the input, rescaling each feature to the [0, 1] range.
+
+    Each value ``x`` in a column is transformed as follows:
+    .. math::
+
+        x = \\frac{x - \\text{col_min}}{\\text{col_max} - \\text{col_min}}
 
     Parameters
     ----------
@@ -309,15 +342,21 @@ def _apply_min_max_transform(
         Other cols that we want to retain
     out_dtype : str
         Numerical type of output data.
-    original_min_vals : Optional[list[float]], optional
+    original_min_vals : Optional[list[float]]
         Pre-calculated minimum values for each column, by default None
-    original_max_vals : Optional[list[float]], optional
+    original_max_vals : Optional[list[float]]
         Pre-calculated maximum values for each column, by default None
 
     Returns
     -------
     tuple[DataFrame, dict]
         The transformed DataFrame and the representation of the min-max transform as dict.
+
+        Representation structure:
+            originalMinValues: list[float]
+                The original minimum values for each column, in the order of the cols key.
+            originalMaxValues: list[float]
+                The original maximum values for each column, in the order of the cols key.
     """
 
     # Use the map to get the corresponding data type object, or raise an error if not found
@@ -366,7 +405,7 @@ def _apply_min_max_transform(
         )
 
         # Fit a pipeline on just the dummy DF
-        # MinMaxScaler computes the minimum and maximum of dummy_df 
+        # MinMaxScaler computes the minimum and maximum of dummy_df
         # to be used for later scaling
         scaler_pipeline = pipeline.fit(dummy_df)
     else:
@@ -376,8 +415,7 @@ def _apply_min_max_transform(
     # Transform the input DF
     scaled_df = scaler_pipeline.transform(input_df).drop(*vector_cols).drop(*cols)
 
-    # F.col(scaled_col_name).getField('values'[0] get the first element of a SparseVector
-    # https://spark.apache.org/docs/latest/api/python/reference/api/pyspark.ml.linalg.SparseVector.html
+    # Convert Spark Vector to array and get its first element and rename col to original name
     scaled_df = scaled_df.select(
         *[
             (vector_to_array(F.col(scaled_col_name), dtype=out_dtype)[0].alias(orig_col))
@@ -389,6 +427,10 @@ def _apply_min_max_transform(
     # MinMaxScalerModel for each feature. So we skip the first num_cols to
     # get just the MinMaxScalerModels
     min_max_models: list[MinMaxScalerModel] = scaler_pipeline.stages[len(cols) :]
+    for min_max_model in min_max_models:
+        assert isinstance(
+            min_max_model, MinMaxScalerModel
+        ), f"Expected MinMaxScalerModel, got {type(min_max_model)}"
     norm_reconstruction = {
         "originalMinValues": [
             min_max_model.originalMin.toArray()[0] for min_max_model in min_max_models
@@ -419,6 +461,10 @@ class DistNumericalTransformation(DistributedTransformation):
         Output feature dtype
     epsilon: float
         Epsilon for normalization used to avoid INF float during computation.
+    json_representation: Optional[dict]
+        JSON representation of the transformation. If provided, the transformation
+        will be applied using this representation.
+        See ``DistNumericalTransformation.get_json_representation()`` for dict structure.
     """
 
     def __init__(

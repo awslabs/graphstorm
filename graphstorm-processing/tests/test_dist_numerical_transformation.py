@@ -460,10 +460,13 @@ def test_rank_gauss_reshuffling(spark: SparkSession, check_df_schema, epsilon):
         )
 
 
-def test_json_representation(input_df: DataFrame, check_df_schema):
+@pytest.mark.parametrize("normalizer", ["min-max", "none", "standard", "rank-gauss"])
+def test_json_representation(input_df: DataFrame, check_df_schema, normalizer):
     """Test that the generated representation is correct"""
+    imputer = "mean"
+    cols = ["salary", "age"] if normalizer != "rank-gauss" else ["salary"]
     dist_numerical_transformation = DistNumericalTransformation(
-        ["salary", "age"], imputer="mean", normalizer="min-max"
+        cols, imputer=imputer, normalizer=normalizer
     )
     transformed_df = dist_numerical_transformation.apply(input_df)
     json_rep = dist_numerical_transformation.get_json_representation()
@@ -472,9 +475,9 @@ def test_json_representation(input_df: DataFrame, check_df_schema):
     assert "imputer_model" in json_rep
     assert "normalizer_model" in json_rep
     assert "out_dtype" in json_rep
-    assert json_rep["cols"] == ["salary", "age"]
-    assert json_rep["imputer_model"]["imputer_name"] == "mean"
-    assert json_rep["normalizer_model"]["norm_name"] == "min-max"
+    assert json_rep["cols"] == cols
+    assert json_rep["imputer_model"]["imputer_name"] == imputer
+    assert json_rep["normalizer_model"]["norm_name"] == normalizer
 
     check_df_schema(transformed_df)
 
