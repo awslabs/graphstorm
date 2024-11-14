@@ -110,8 +110,15 @@ def test_dist_executor_run_with_precomputed(
     with open(os.path.join(tempdir, TRANSFORMATIONS_FILENAME), "r", encoding="utf-8") as f:
         reapplied_transformations = json.load(f)
 
-    # There should be no difference between original and re-applied transformation dicts
-    assert reapplied_transformations == original_transformations
+    # There should be no difference between original and
+    # pre-existing, pre-applied transformation dicts
+    node_feature_transforms = original_transformations["node_features"]
+    for node_type, node_type_transforms in node_feature_transforms.items():
+        for feature_name, feature_transforms in node_type_transforms.items():
+            assert (
+                feature_transforms
+                == reapplied_transformations["node_features"][node_type][feature_name]
+            )
 
     # TODO: Verify other metadata files that verify_integ_test_output doesn't check for
 

@@ -31,7 +31,7 @@ from .dist_transformations import (
 )
 
 
-class DistFeatureTransformer(object):
+class DistFeatureTransformer:
     """
     Given a feature configuration selects the correct transformation type,
     which can then be be applied through a call to apply_transformation.
@@ -56,7 +56,9 @@ class DistFeatureTransformer(object):
         if feat_type == "no-op":
             self.transformation = NoopTransformation(**default_kwargs, **args_dict)
         elif feat_type == "numerical":
-            self.transformation = DistNumericalTransformation(**default_kwargs, **args_dict)
+            self.transformation = DistNumericalTransformation(
+                **default_kwargs, **args_dict, json_representation=json_representation
+            )
         elif feat_type == "multi-numerical":
             self.transformation = DistMultiNumericalTransformation(**default_kwargs, **args_dict)
         elif feat_type == "bucket-numerical":
