@@ -214,7 +214,7 @@ Users can use the following commands to check the corresponding outputs:
 
 Launch embedding generation task
 ``````````````````````````````````
-Users can use the following command to launch a GraphStorm embedding generation job without generating predictions.
+Users can use the following example command to launch a GraphStorm embedding generation job in the ``ogbn-mag`` data without generating predictions.
 
 .. code:: bash
     python3 launch/launch_infer.py  \
