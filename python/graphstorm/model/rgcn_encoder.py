@@ -688,17 +688,17 @@ class GraphConvwithEdgeFeat(nn.Module):
             New node embeddings for destination node type.
         """
 
-        if rel_graph.num_edges() == 0:  # a corner case: no edge of this rel in this block
+        if rel_graph.num_edges() == 0:  # A corner case: no edge of this rel in this block.
             _, dst_inputs = inputs
-            h = dst_inputs
+            h = dst_inputs              # Do nothing, just return the destination node embs
         else:
             assert len(inputs) == 3, 'For using edge features in message passing, you need to ' + \
                                     'provide 3 inputs in a tuple, the format is (src_inputs, ' + \
                                     f'dst_inputs, edge_inputs). but got {len(inputs)} inputs.'
             src_inputs, _, edge_inputs = inputs
             assert src_inputs.shape[1:] == edge_inputs.shape[1:], \
-                'To use edge feature in message passing computation, the node and edge features ' + \
-                'should have the same dimensions, but got node feature dimension: ' + \
+                'To use edge feature in message passing computation, the node and edge ' + \
+                'features should have the same dimensions, but got node feature dimension: ' + \
                 f'{src_inputs.shape[1:]} and edge feature dimension: {edge_inputs.shape[1:]}.'
 
             with rel_graph.local_scope():
@@ -735,8 +735,8 @@ class GraphConvwithEdgeFeat(nn.Module):
                 # extract outputs
                 h = rel_graph.dstdata['h']
 
-        # add bias
-        if self.bias:
-            h = h + self.h_bias
+            # add bias
+            if self.bias:
+                h = h + self.h_bias
 
         return h
