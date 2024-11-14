@@ -146,6 +146,13 @@ def _get_sparse_emb_range(num_embs, rank, world_size):
         world_size : int
             World size in a distributed environment. This tells the size of a distributed cluster
             (How many processes in a cluster).
+
+        Return
+        ------
+        Tuple of (int, int)
+            A tuple storing the start idx (inclusive) and end
+            idx (exclusive) of the target emb range regarding
+            to the rank and world_size.
     """
     assert rank < world_size, \
         "local rank {rank} shold be smaller than world size {world_size}"
