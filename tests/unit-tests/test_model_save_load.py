@@ -57,11 +57,21 @@ def test_get_sparse_emb_range():
     assert start == 12
     assert end == 15
 
-    try:
+    # num_embs = 133
+    for i in range(66):
+        start, end = _get_sparse_emb_range(133, i, 80)
+        assert start == i * 2
+        assert end == i * 2 + 2
+    start, end = _get_sparse_emb_range(133, 66, 80)
+    assert start == 132
+    assert end == 133
+    for i in range(67, 80):
+        start, end = _get_sparse_emb_range(133, i, 80)
+        assert start == 133
+        assert end == 133
+
+    with pytest.raises(AssertionError):
         _get_sparse_emb_range(15, 4, 4)
-    except:
-        return
-    raise "_get_sparse_emb_range should handle the case when local_rank is >= world_size"
 
 @pytest.mark.parametrize("world_size", [3, 4])
 def test_sparse_embed_save(world_size):
