@@ -728,7 +728,13 @@ def test_mtask_eval():
     check_eval()
 
 def create_config4ef(tmp_path, file_name, encoder='rgcn', task='nc', use_ef=True):
+    """ Create a specific config object for yaml configuration.
 
+    encoder can be "rgcn" and "hgt".
+    task can be "nc", "ec", and "lp".
+
+    If later on you want to add new encoders or tasks, please add corresponding config objects.
+    """
     conf_object = {
         "version": 1.0
         }
@@ -749,10 +755,8 @@ def create_config4ef(tmp_path, file_name, encoder='rgcn', task='nc', use_ef=True
                 "hidden_size": 16,
                 "lr": 0.001
         }
-    if encoder == "rgcn":
-        gnn_obj["model_encoder_type"] = "rgcn"
-    elif encoder == "hgt":
-        gnn_obj["model_encoder_type"] = "hgt"
+
+    gnn_obj["model_encoder_type"] = encoder
 
     gsf_object["gnn"] = gnn_obj
     
@@ -798,7 +802,8 @@ def create_config4ef(tmp_path, file_name, encoder='rgcn', task='nc', use_ef=True
         }
         gsf_object["link_prediction"] = lp_obj
     else:
-        pass
+        raise NotImplementedError(f'This test config does not support the {task} task. Options include' + \
+            '\"nc\", \"ec\", and \"lp\".')
 
     conf_object["gsf"] = gsf_object
 

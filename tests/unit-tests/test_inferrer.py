@@ -51,7 +51,7 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
                                 BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
 
-from numpy.testing import assert_raises
+from numpy.testing import assert_raises, assert_equal
 from data_utils import generate_dummy_dist_graph
 
 from util import (DummyGSgnnData,
@@ -90,7 +90,13 @@ def create_nc_config(tmp_path, file_name):
         yaml.dump(conf_object, f)
 
 def create_config4ef(tmp_path, file_name, encoder='rgcn', task='nc', use_ef=True):
+    """ Create a specific config object for yaml configuration.
 
+    encoder can be "rgcn" and "hgt".
+    task can be "nc", "ec", and "lp".
+
+    If later on you want to add new encoders or tasks, please add corresponding config objects.
+    """
     conf_object = {
         "version": 1.0
         }
@@ -111,10 +117,8 @@ def create_config4ef(tmp_path, file_name, encoder='rgcn', task='nc', use_ef=True
                 "hidden_size": 16,
                 "lr": 0.001
         }
-    if encoder == "rgcn":
-        gnn_obj["model_encoder_type"] = "rgcn"
-    elif encoder == "hgt":
-        gnn_obj["model_encoder_type"] = "hgt"
+
+    gnn_obj["model_encoder_type"] = encoder
 
     gsf_object["gnn"] = gnn_obj
     
@@ -160,7 +164,8 @@ def create_config4ef(tmp_path, file_name, encoder='rgcn', task='nc', use_ef=True
         }
         gsf_object["link_prediction"] = lp_obj
     else:
-        pass
+        raise NotImplementedError(f'This test config does not support the {task} task. Options include' + \
+            '\"nc\", \"ec\", and \"lp\".')
 
     conf_object["gsf"] = gsf_object
 
@@ -521,13 +526,35 @@ def test_rgcn_infer_nc4ef():
         inferrer1.infer(
             loader=infer_dataloader1,
             save_embed_path='/tmp/embs',
+            save_prediction_path='/tmp/prediction',
             use_mini_batch_infer=True
             )
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
-        gdata = GSgnnData(part_config=part_config)
+        target_idx = gdata.get_node_test_set(config.target_ntype)
+
+        embs_path = os.path.join('/tmp/embs', config.target_ntype, 'embed-00000.pt')
+        embs_nid_path = os.path.join('/tmp/embs', config.target_ntype, 'embed_nids-00000.pt')
+        embs = th.load(embs_path)
+        embs_nid = th.load(embs_nid_path)
+        
+        assert embs.shape[0] == target_idx[config.target_ntype].shape[0]
+        assert embs.shape[1] == config.hidden_size
+        assert_equal(embs_nid.numpy(), target_idx[config.target_ntype].numpy())
+
+        preds_path = os.path.join('/tmp/prediction', config.target_ntype, 'predict-00000.pt')
+        preds_nid_path = os.path.join('/tmp/prediction', config.target_ntype, 'predict_nids-00000.pt')
+        predicts = th.load(preds_path)
+        predict_nid = th.load(preds_nid_path)
+
+        assert predicts.shape[0] == target_idx[config.target_ntype].shape[0]
+        assert predicts.shape[1] == config.num_classes
+        assert_equal(predict_nid.numpy(), target_idx[config.target_ntype].numpy())
+
+        # delete temporary results
+        if os.path.exists('/tmp/embs'):
+            shutil.rmtree('/tmp/embs')
+        if os.path.exists('/tmp/prediction'):
+            shutil.rmtree('/tmp/prediction')
 
         # Test case 1: normal case, set RGCN model without edge features for NC, and not
         #              provide edge features.
@@ -554,13 +581,35 @@ def test_rgcn_infer_nc4ef():
         inferrer2.infer(
             loader=infer_dataloader2,
             save_embed_path='/tmp/embs',
+            save_prediction_path='/tmp/prediction',
             use_mini_batch_infer=True
             )
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
-        gdata = GSgnnData(part_config=part_config)
+        target_idx = gdata.get_node_test_set(config.target_ntype)
+
+        embs_path = os.path.join('/tmp/embs', config.target_ntype, 'embed-00000.pt')
+        embs_nid_path = os.path.join('/tmp/embs', config.target_ntype, 'embed_nids-00000.pt')
+        embs = th.load(embs_path)
+        embs_nid = th.load(embs_nid_path)
+        
+        assert embs.shape[0] == target_idx[config.target_ntype].shape[0]
+        assert embs.shape[1] == config.hidden_size
+        assert_equal(embs_nid.numpy(), target_idx[config.target_ntype].numpy())
+
+        preds_path = os.path.join('/tmp/prediction', config.target_ntype, 'predict-00000.pt')
+        preds_nid_path = os.path.join('/tmp/prediction', config.target_ntype, 'predict_nids-00000.pt')
+        predicts = th.load(preds_path)
+        predict_nid = th.load(preds_nid_path)
+
+        assert predicts.shape[0] == target_idx[config.target_ntype].shape[0]
+        assert predicts.shape[1] == config.num_classes
+        assert_equal(predict_nid.numpy(), target_idx[config.target_ntype].numpy())
+
+        # delete temporary results
+        if os.path.exists('/tmp/embs'):
+            shutil.rmtree('/tmp/embs')
+        if os.path.exists('/tmp/prediction'):
+            shutil.rmtree('/tmp/prediction')
 
         # Test case 2: abnormal case, set RGCN model with edge features for NC, and provide edge
         #              features. But use full graph inference method.
@@ -593,11 +642,6 @@ def test_rgcn_infer_nc4ef():
                 use_mini_batch_infer=False
                 )
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
-        gdata = GSgnnData(part_config=part_config)
-
         # Test case 3: abnormal case, set RGCN model without edge features for NC, but 
         #              provide edge features.
         #              This will trigger an assertion error, asking for projection weights
@@ -629,11 +673,6 @@ def test_rgcn_infer_nc4ef():
                 use_mini_batch_infer=True
                 )
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
-        gdata = GSgnnData(part_config=part_config)
-
         # Test case 4: abnormal case, set RGCN model with edge features for NC, but 
         #              not provide edge features.
         #              This will trigger an assertion error, asking for giving edge feature
@@ -663,10 +702,6 @@ def test_rgcn_infer_nc4ef():
                 save_embed_path='/tmp/embs',
                 use_mini_batch_infer=True
                 )
-
-    # delete temporary results
-    if os.path.exists('/tmp/embs'):
-        shutil.rmtree('/tmp/embs')
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -714,13 +749,32 @@ def test_rgcn_infer_ec4ef():
         inferrer1.infer(
             loader=infer_dataloader1,
             save_embed_path=None,
+            save_prediction_path='/tmp/prediction',
             use_mini_batch_infer=True
             )
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
-        gdata = GSgnnData(part_config=part_config)
+        target_idx = gdata.get_edge_test_set(config.target_etype)
+        src, dst = gdata.g.find_edges(target_idx[config.target_etype[0]],
+                                      etype=config.target_etype[0])
+
+        preds_path = os.path.join('/tmp/prediction', '_'.join(config.target_etype[0]),
+                                  'predict-00000.pt')
+        src_nid_path = os.path.join('/tmp/prediction', '_'.join(config.target_etype[0]),
+                                    'src_nids-00000.pt')
+        dst_nid_path = os.path.join('/tmp/prediction', '_'.join(config.target_etype[0]),
+                                    'dst_nids-00000.pt')
+        predicts = th.load(preds_path)
+        src_nid = th.load(src_nid_path)
+        dst_nid = th.load(dst_nid_path)
+
+        assert predicts.shape[0] == target_idx[config.target_etype[0]].shape[0]
+        assert predicts.shape[1] == config.num_classes
+        assert_equal(src.numpy(), src_nid.numpy())
+        assert_equal(dst.numpy(), dst_nid.numpy())
+
+        # delete temporary results
+        if os.path.exists('/tmp/prediction'):
+            shutil.rmtree('/tmp/prediction')
 
         # Test case 1: normal case, set RGCN model without edge features for EC, and not
         #              provide edge features.
@@ -748,13 +802,32 @@ def test_rgcn_infer_ec4ef():
         inferrer2.infer(
             loader=infer_dataloader2,
             save_embed_path=None,
+            save_prediction_path='/tmp/prediction',
             use_mini_batch_infer=True
             )
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
-        gdata = GSgnnData(part_config=part_config)
+        target_idx = gdata.get_edge_test_set(config.target_etype)
+        src, dst = gdata.g.find_edges(target_idx[config.target_etype[0]],
+                                      etype=config.target_etype[0])
+
+        preds_path = os.path.join('/tmp/prediction', '_'.join(config.target_etype[0]),
+                                  'predict-00000.pt')
+        src_nid_path = os.path.join('/tmp/prediction', '_'.join(config.target_etype[0]),
+                                    'src_nids-00000.pt')
+        dst_nid_path = os.path.join('/tmp/prediction', '_'.join(config.target_etype[0]),
+                                    'dst_nids-00000.pt')
+        predicts = th.load(preds_path)
+        src_nid = th.load(src_nid_path)
+        dst_nid = th.load(dst_nid_path)
+
+        assert predicts.shape[0] == target_idx[config.target_etype[0]].shape[0]
+        assert predicts.shape[1] == config.num_classes
+        assert_equal(src.numpy(), src_nid.numpy())
+        assert_equal(dst.numpy(), dst_nid.numpy())
+
+        # delete temporary results
+        if os.path.exists('/tmp/prediction'):
+            shutil.rmtree('/tmp/prediction')
 
         # Test case 2: abnormal case, set RGCN model with edge features for EC, and provide edge
         #              features. But use full graph inference method.
@@ -788,11 +861,6 @@ def test_rgcn_infer_ec4ef():
                 use_mini_batch_infer=False
                 )
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
-        gdata = GSgnnData(part_config=part_config)
-
         # Test case 3: abnormal case, set RGCN model without edge features for EC, but 
         #              provide edge features.
         #              This will trigger an assertion error, asking for projection weights
@@ -825,12 +893,7 @@ def test_rgcn_infer_ec4ef():
                 use_mini_batch_infer=True
                 )
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
-        gdata = GSgnnData(part_config=part_config)
-
-        # Test case 4: abnormal case, set RGCN model with edge features for NC, but 
+        # Test case 4: abnormal case, set RGCN model with edge features for EC, but 
         #              not provide edge features.
         #              This will trigger an assertion error, asking for giving edge feature
         #              for message passing computation.
@@ -860,10 +923,6 @@ def test_rgcn_infer_ec4ef():
                 save_embed_path=None,
                 use_mini_batch_infer=True
                 )
-
-    # delete temporary results
-    if os.path.exists('/tmp/embs'):
-        shutil.rmtree('/tmp/embs')
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -902,7 +961,7 @@ def test_rgcn_infer_lp4ef():
 
         infer_dataloader1 = GSgnnLinkPredictionTestDataLoader(
             gdata,
-            target_idx=gdata.get_edge_val_set(config.train_etype),
+            target_idx=gdata.get_edge_val_set(config.eval_etype),
             fanout=config.fanout,
             batch_size=config.batch_size,
             node_feats=config.node_feat_name,
@@ -916,9 +975,29 @@ def test_rgcn_infer_lp4ef():
                 use_mini_batch_infer=True
                 )
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        src_embs_path = os.path.join('/tmp/embs', config.eval_etype[0][0],
+                                  'embed-00000.pt')
+        src_nid_path = os.path.join('/tmp/embs', config.eval_etype[0][0],
+                                    'embed_nids-00000.pt')
+        dst_embs_path = os.path.join('/tmp/embs', config.eval_etype[0][2],
+                                  'embed-00000.pt')
+        dst_nid_path = os.path.join('/tmp/embs', config.eval_etype[0][2],
+                                    'embed_nids-00000.pt')        
+        src_embs = th.load(src_embs_path)
+        dst_embs = th.load(dst_embs_path)
+        src_nid = th.load(src_nid_path)
+        dst_nid = th.load(dst_nid_path)
+
+        assert src_embs.shape[0] == gdata.g.num_nodes(config.eval_etype[0][0])
+        assert dst_embs.shape[0] == gdata.g.num_nodes(config.eval_etype[0][2])
+        assert src_embs.shape[1] == config.hidden_size
+        assert dst_embs.shape[1] == config.hidden_size
+        assert src_nid.shape[0] == gdata.g.num_nodes(config.eval_etype[0][0])
+        assert dst_nid.shape[0] == gdata.g.num_nodes(config.eval_etype[0][2])
+
+        # delete temporary results
+        if os.path.exists('/tmp/embs'):
+            shutil.rmtree('/tmp/embs')
 
         # Test case 1: normal case, set RGCN model without edge features for LP, and not
         #              provide edge features.
@@ -950,9 +1029,29 @@ def test_rgcn_infer_lp4ef():
                 use_mini_batch_infer=True
                 )
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        src_embs_path = os.path.join('/tmp/embs', config.eval_etype[0][0],
+                                  'embed-00000.pt')
+        src_nid_path = os.path.join('/tmp/embs', config.eval_etype[0][0],
+                                    'embed_nids-00000.pt')
+        dst_embs_path = os.path.join('/tmp/embs', config.eval_etype[0][2],
+                                  'embed-00000.pt')
+        dst_nid_path = os.path.join('/tmp/embs', config.eval_etype[0][2],
+                                    'embed_nids-00000.pt')        
+        src_embs = th.load(src_embs_path)
+        dst_embs = th.load(dst_embs_path)
+        src_nid = th.load(src_nid_path)
+        dst_nid = th.load(dst_nid_path)
+
+        assert src_embs.shape[0] == gdata.g.num_nodes(config.eval_etype[0][0])
+        assert dst_embs.shape[0] == gdata.g.num_nodes(config.eval_etype[0][2])
+        assert src_embs.shape[1] == config.hidden_size
+        assert dst_embs.shape[1] == config.hidden_size
+        assert src_nid.shape[0] == gdata.g.num_nodes(config.eval_etype[0][0])
+        assert dst_nid.shape[0] == gdata.g.num_nodes(config.eval_etype[0][2])
+
+        # delete temporary results
+        if os.path.exists('/tmp/embs'):
+            shutil.rmtree('/tmp/embs')
 
         # Test case 2: abnormal case, set RGCN model with edge features for LP, and provide edge
         #              features. But use full graph inference method.
@@ -988,10 +1087,6 @@ def test_rgcn_infer_lp4ef():
                 save_embed_path='/tmp/embs',
                 use_mini_batch_infer=False
                 )
-
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
 
         # Test case 3: abnormal case, set RGCN model without edge features for LP, but 
         #              provide edge features.
@@ -1029,10 +1124,6 @@ def test_rgcn_infer_lp4ef():
                 use_mini_batch_infer=True
                 )
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
-
         # Test case 4: abnormal case, set RGCN model with edge features for LP, but 
         #              not provide edge features.
         #              This will trigger an assertion error, asking for giving edge feature
@@ -1064,10 +1155,6 @@ def test_rgcn_infer_lp4ef():
                 save_embed_path='/tmp/embs',
                 use_mini_batch_infer=True
                 )
-
-    # delete temporary results
-    if os.path.exists('/tmp/embs'):
-        shutil.rmtree('/tmp/embs')
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -1120,10 +1207,38 @@ def test_hgt_infer_nc4ef():
             use_mini_batch_infer=True
             )
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
-        gdata = GSgnnData(part_config=part_config)
+        inferrer1.infer(
+            loader=infer_dataloader1,
+            save_embed_path='/tmp/embs',
+            save_prediction_path='/tmp/prediction',
+            use_mini_batch_infer=True
+            )
+
+        target_idx = gdata.get_node_test_set(config.target_ntype)
+
+        embs_path = os.path.join('/tmp/embs', config.target_ntype, 'embed-00000.pt')
+        embs_nid_path = os.path.join('/tmp/embs', config.target_ntype, 'embed_nids-00000.pt')
+        embs = th.load(embs_path)
+        embs_nid = th.load(embs_nid_path)
+        
+        assert embs.shape[0] == target_idx[config.target_ntype].shape[0]
+        assert embs.shape[1] == config.hidden_size
+        assert_equal(embs_nid.numpy(), target_idx[config.target_ntype].numpy())
+
+        preds_path = os.path.join('/tmp/prediction', config.target_ntype, 'predict-00000.pt')
+        preds_nid_path = os.path.join('/tmp/prediction', config.target_ntype, 'predict_nids-00000.pt')
+        predicts = th.load(preds_path)
+        predict_nid = th.load(preds_nid_path)
+
+        assert predicts.shape[0] == target_idx[config.target_ntype].shape[0]
+        assert predicts.shape[1] == config.num_classes
+        assert_equal(predict_nid.numpy(), target_idx[config.target_ntype].numpy())
+
+        # delete temporary results
+        if os.path.exists('/tmp/embs'):
+            shutil.rmtree('/tmp/embs')
+        if os.path.exists('/tmp/prediction'):
+            shutil.rmtree('/tmp/prediction')
 
         # Test case 1: normal case, set HGT model without edge features for NC, and not provide
         #              edge features. Use full graph inference method.
@@ -1154,13 +1269,35 @@ def test_hgt_infer_nc4ef():
         inferrer2.infer(
             loader=infer_dataloader2,
             save_embed_path='/tmp/embs',
-            use_mini_batch_infer=False
+            save_prediction_path='/tmp/prediction',
+            use_mini_batch_infer=True
             )
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
-        gdata = GSgnnData(part_config=part_config)
+        target_idx = gdata.get_node_test_set(config.target_ntype)
+
+        embs_path = os.path.join('/tmp/embs', config.target_ntype, 'embed-00000.pt')
+        embs_nid_path = os.path.join('/tmp/embs', config.target_ntype, 'embed_nids-00000.pt')
+        embs = th.load(embs_path)
+        embs_nid = th.load(embs_nid_path)
+        
+        assert embs.shape[0] == target_idx[config.target_ntype].shape[0]
+        assert embs.shape[1] == config.hidden_size
+        assert_equal(embs_nid.numpy(), target_idx[config.target_ntype].numpy())
+
+        preds_path = os.path.join('/tmp/prediction', config.target_ntype, 'predict-00000.pt')
+        preds_nid_path = os.path.join('/tmp/prediction', config.target_ntype, 'predict_nids-00000.pt')
+        predicts = th.load(preds_path)
+        predict_nid = th.load(preds_nid_path)
+
+        assert predicts.shape[0] == target_idx[config.target_ntype].shape[0]
+        assert predicts.shape[1] == config.num_classes
+        assert_equal(predict_nid.numpy(), target_idx[config.target_ntype].numpy())
+
+        # delete temporary results
+        if os.path.exists('/tmp/embs'):
+            shutil.rmtree('/tmp/embs')
+        if os.path.exists('/tmp/prediction'):
+            shutil.rmtree('/tmp/prediction')
 
         # Test case 2: abnormal case, set HGT model without edge features for NC, but provide
         #              edge features. Use mini-batch inference
@@ -1192,10 +1329,6 @@ def test_hgt_infer_nc4ef():
                 save_embed_path='/tmp/embs',
                 use_mini_batch_infer=True
                 )
-
-    # delete temporary results
-    if os.path.exists('/tmp/embs'):
-        shutil.rmtree('/tmp/embs')
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -1247,12 +1380,32 @@ def test_hgt_infer_ec4ef():
         inferrer1.infer(
             loader=infer_dataloader1,
             save_embed_path=None,
+            save_prediction_path='/tmp/prediction',
             use_mini_batch_infer=True
             )
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        target_idx = gdata.get_edge_test_set(config.target_etype)
+        src, dst = gdata.g.find_edges(target_idx[config.target_etype[0]],
+                                      etype=config.target_etype[0])
+
+        preds_path = os.path.join('/tmp/prediction', '_'.join(config.target_etype[0]),
+                                  'predict-00000.pt')
+        src_nid_path = os.path.join('/tmp/prediction', '_'.join(config.target_etype[0]),
+                                    'src_nids-00000.pt')
+        dst_nid_path = os.path.join('/tmp/prediction', '_'.join(config.target_etype[0]),
+                                    'dst_nids-00000.pt')
+        predicts = th.load(preds_path)
+        src_nid = th.load(src_nid_path)
+        dst_nid = th.load(dst_nid_path)
+
+        assert predicts.shape[0] == target_idx[config.target_etype[0]].shape[0]
+        assert predicts.shape[1] == config.num_classes
+        assert_equal(src.numpy(), src_nid.numpy())
+        assert_equal(dst.numpy(), dst_nid.numpy())
+
+        # delete temporary results
+        if os.path.exists('/tmp/prediction'):
+            shutil.rmtree('/tmp/prediction')
 
         # Test case 1: normal case, set HGT model without edge features for EC, and not provide
         #              edge features. Use full graph inference method.
@@ -1285,13 +1438,32 @@ def test_hgt_infer_ec4ef():
         inferrer2.infer(
             loader=infer_dataloader2,
             save_embed_path=None,
-            use_mini_batch_infer=False
+            save_prediction_path='/tmp/prediction',
+            use_mini_batch_infer=True
             )
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
-        gdata = GSgnnData(part_config=part_config)
+        target_idx = gdata.get_edge_test_set(config.target_etype)
+        src, dst = gdata.g.find_edges(target_idx[config.target_etype[0]],
+                                      etype=config.target_etype[0])
+
+        preds_path = os.path.join('/tmp/prediction', '_'.join(config.target_etype[0]),
+                                  'predict-00000.pt')
+        src_nid_path = os.path.join('/tmp/prediction', '_'.join(config.target_etype[0]),
+                                    'src_nids-00000.pt')
+        dst_nid_path = os.path.join('/tmp/prediction', '_'.join(config.target_etype[0]),
+                                    'dst_nids-00000.pt')
+        predicts = th.load(preds_path)
+        src_nid = th.load(src_nid_path)
+        dst_nid = th.load(dst_nid_path)
+
+        assert predicts.shape[0] == target_idx[config.target_etype[0]].shape[0]
+        assert predicts.shape[1] == config.num_classes
+        assert_equal(src.numpy(), src_nid.numpy())
+        assert_equal(dst.numpy(), dst_nid.numpy())
+
+        # delete temporary results
+        if os.path.exists('/tmp/prediction'):
+            shutil.rmtree('/tmp/prediction')
 
         # Test case 2: abnormal case, set HGT model without edge features for EC, but provide
         #              edge features. Use mini-batch inference
@@ -1325,10 +1497,6 @@ def test_hgt_infer_ec4ef():
                 save_embed_path=None,
                 use_mini_batch_infer=True
                 )
-
-    # delete temporary results
-    if os.path.exists('/tmp/embs'):
-        shutil.rmtree('/tmp/embs')
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
@@ -1378,15 +1546,35 @@ def test_hgt_infer_lp4ef():
             num_negative_edges=config.num_negative_edges)
 
         inferrer1.infer(
-            data=gdata,
-            loader=infer_dataloader1,
-            save_embed_path='/tmp/embs',
-            use_mini_batch_infer=True
-        )
+                data=gdata,
+                loader=infer_dataloader1,
+                save_embed_path='/tmp/embs',
+                use_mini_batch_infer=True
+                )
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        src_embs_path = os.path.join('/tmp/embs', config.eval_etype[0][0],
+                                  'embed-00000.pt')
+        src_nid_path = os.path.join('/tmp/embs', config.eval_etype[0][0],
+                                    'embed_nids-00000.pt')
+        dst_embs_path = os.path.join('/tmp/embs', config.eval_etype[0][2],
+                                  'embed-00000.pt')
+        dst_nid_path = os.path.join('/tmp/embs', config.eval_etype[0][2],
+                                    'embed_nids-00000.pt')        
+        src_embs = th.load(src_embs_path)
+        dst_embs = th.load(dst_embs_path)
+        src_nid = th.load(src_nid_path)
+        dst_nid = th.load(dst_nid_path)
+
+        assert src_embs.shape[0] == gdata.g.num_nodes(config.eval_etype[0][0])
+        assert dst_embs.shape[0] == gdata.g.num_nodes(config.eval_etype[0][2])
+        assert src_embs.shape[1] == config.hidden_size
+        assert dst_embs.shape[1] == config.hidden_size
+        assert src_nid.shape[0] == gdata.g.num_nodes(config.eval_etype[0][0])
+        assert dst_nid.shape[0] == gdata.g.num_nodes(config.eval_etype[0][2])
+
+        # delete temporary results
+        if os.path.exists('/tmp/embs'):
+            shutil.rmtree('/tmp/embs')
 
         # Test case 1: normal case, set HGT model without edge features for LP, and not provide
         #              edge features. Use full graph inference method.
@@ -1414,15 +1602,35 @@ def test_hgt_infer_lp4ef():
             num_negative_edges=config.num_negative_edges)
 
         inferrer2.infer(
-            data=gdata,
-            loader=infer_dataloader2,
-            save_embed_path='/tmp/embs',
-            use_mini_batch_infer=False
-        )
+                data=gdata,
+                loader=infer_dataloader2,
+                save_embed_path='/tmp/embs',
+                use_mini_batch_infer=True
+                )
 
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        # get the test dummy distributed graph
-        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        src_embs_path = os.path.join('/tmp/embs', config.eval_etype[0][0],
+                                  'embed-00000.pt')
+        src_nid_path = os.path.join('/tmp/embs', config.eval_etype[0][0],
+                                    'embed_nids-00000.pt')
+        dst_embs_path = os.path.join('/tmp/embs', config.eval_etype[0][2],
+                                  'embed-00000.pt')
+        dst_nid_path = os.path.join('/tmp/embs', config.eval_etype[0][2],
+                                    'embed_nids-00000.pt')        
+        src_embs = th.load(src_embs_path)
+        dst_embs = th.load(dst_embs_path)
+        src_nid = th.load(src_nid_path)
+        dst_nid = th.load(dst_nid_path)
+
+        assert src_embs.shape[0] == gdata.g.num_nodes(config.eval_etype[0][0])
+        assert dst_embs.shape[0] == gdata.g.num_nodes(config.eval_etype[0][2])
+        assert src_embs.shape[1] == config.hidden_size
+        assert dst_embs.shape[1] == config.hidden_size
+        assert src_nid.shape[0] == gdata.g.num_nodes(config.eval_etype[0][0])
+        assert dst_nid.shape[0] == gdata.g.num_nodes(config.eval_etype[0][2])
+
+        # delete temporary results
+        if os.path.exists('/tmp/embs'):
+            shutil.rmtree('/tmp/embs')
 
         # Test case 2: abnormal case, set HGT model without edge features for LP, but provide
         #              edge features. Use mini-batch inference
@@ -1461,10 +1669,6 @@ def test_hgt_infer_lp4ef():
                 save_embed_path='/tmp/embs',
                 use_mini_batch_infer=True
             )
-
-    # delete temporary results
-    if os.path.exists('/tmp/embs'):
-        shutil.rmtree('/tmp/embs')
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()

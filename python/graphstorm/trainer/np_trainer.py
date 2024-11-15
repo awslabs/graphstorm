@@ -99,10 +99,6 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
         * At the evaluation frequency (number of iterations) defined in the evaluator.
         * Before saving a model checkpoint.
 
-        .. versionchanged:: 0.4.0
-            Extract and add edge feats when call model foward() in v0.4.0 to use edge features
-            in message passing computation.
-
         Parameters
         ----------
         train_loader: GSgnnNodeDataLoader
@@ -196,7 +192,7 @@ class GSgnnNodePredictionTrainer(GSgnnTrainer):
                     input_nodes = {g.ntypes[0]: input_nodes}
                 nfeat_fields = train_loader.node_feat_fields
                 node_input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
-
+                # Since v0.4, add edge features as one input
                 efeat_fields = train_loader.edge_feat_fields
                 edge_input_feats = data.get_blocks_edge_feats(blocks, efeat_fields, device)
 

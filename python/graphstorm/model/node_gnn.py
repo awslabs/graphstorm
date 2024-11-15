@@ -235,10 +235,6 @@ class GSgnnNodeModel(GSgnnModel, GSgnnNodeModelInterface):
 def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=False):
     """ Perform mini-batch prediction on a GNN model.
 
-    .. versionchanged:: 0.4.0
-        Add input edge feats when call model.predict() in v0.4.0 to use edge features
-        in message passing computation.
-
     Parameters
     ----------
     model : GSgnnModel
@@ -300,6 +296,7 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                 prepare_for_wholegraph(g, input_nodes)
             nfeat_fields = loader.node_feat_fields
             node_input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
+            # Since v0.4, add the edge features as one input
             efeat_fields = loader.edge_feat_fields
             edge_input_feats = data.get_blocks_edge_feats(blocks, efeat_fields, device)
 
