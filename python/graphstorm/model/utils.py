@@ -405,8 +405,20 @@ def _exchange_node_id_mapping(rank, world_size, device,
     # move mapping into CPU
     return gather_list[0].to(th.device("cpu"))
 
-def _load_dist_nid_map(node_id_mapping_file, ntypes):
+def load_dist_nid_map(node_id_mapping_file, ntypes):
     """ Load id mapping files in dist partition format.
+
+        Parameters
+        ----------
+        node_id_mapping_file: str
+            Node mapping directory.
+        ntypes: list[str]
+            List of node types.
+
+        Return
+        ------
+        id_mappings: dict
+            Node mapping dictionary.
     """
     # node_id_mapping_file it is actually a directory
     # <node_id_mapping_file>/part0, <node_id_mapping_file>/part1, ...
@@ -459,7 +471,7 @@ def distribute_nid_map(embeddings, rank, world_size,
             else:
                 # Homogeneous graph
                 # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
-                ori_node_id_mapping = _load_dist_nid_map(node_id_mapping_file, ["_N"])["_N"]
+                ori_node_id_mapping = load_dist_nid_map(node_id_mapping_file, ["_N"])["_N"]
             _, node_id_mapping = th.sort(ori_node_id_mapping)
         else:
             node_id_mapping = None
@@ -474,7 +486,7 @@ def distribute_nid_map(embeddings, rank, world_size,
                 node_id_mappings = th.load(node_id_mapping_file)
             else:
                 # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
-                node_id_mappings = _load_dist_nid_map(node_id_mapping_file,
+                node_id_mappings = load_dist_nid_map(node_id_mapping_file,
                                                       list(embeddings.keys()))
         else:
             node_id_mappings = None
@@ -1184,7 +1196,7 @@ class NodeIDShuffler():
             id_mappings = th.load(node_id_mapping_file) if get_rank() == 0 else None
         else:
             # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
-            id_mappings = _load_dist_nid_map(node_id_mapping_file, ntypes) \
+            id_mappings = load_dist_nid_map(node_id_mapping_file, ntypes) \
                 if get_rank() == 0 else None
 
         self._id_mapping_info = {

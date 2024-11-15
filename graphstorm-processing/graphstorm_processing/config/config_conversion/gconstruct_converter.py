@@ -188,6 +188,12 @@ class GConstructConfigConverter(ConfigConverter):
                         "hf_model": gconstruct_transform_dict["bert_model"],
                         "max_seq_length": gconstruct_transform_dict["max_seq_length"],
                     }
+                elif gconstruct_transform_dict["name"] == "edge_dst_hard_negative":
+                    gsp_transformation_dict["name"] = "edge_dst_hard_negative"
+                    if "separator" in gconstruct_transform_dict:
+                        gsp_transformation_dict["kwargs"] = {
+                            "separator": gconstruct_transform_dict["separator"],
+                        }
                 else:
                     raise ValueError(
                         "Unsupported GConstruct transformation name: "
