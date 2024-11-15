@@ -991,13 +991,6 @@ def set_encoder(model, g, config, train_task):
     dropout = config.dropout if train_task else 0
     out_emb_size = config.out_emb_size if config.out_emb_size else config.hidden_size
 
-    # Check use edge feature and GNN encoder capacity
-    assert (config.edge_feat_name is None) or \
-                (config.edge_feat_name is not None and model_encoder_type == 'rgcn'), \
-                    f'The \"{model_encoder_type}\" encoder dose not support edge feature ' + \
-                     'so far. Please check GraphStorm documentations to find the encoders ' + \
-                     'that support edge features, e.g., \"rgcn\".'
-
     if model_encoder_type in ("mlp", "lm"):
         # Only input encoder is used
         assert config.num_layers == 0, "No GNN layers"
@@ -1071,6 +1064,13 @@ def set_encoder(model, g, config, train_task):
                                    num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     else:
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
+
+    # Check use edge feature and GNN encoder capacity
+    assert (config.edge_feat_name is None) or \
+                (config.edge_feat_name is not None and gnn_encoder.is_support_edge_feat()), \
+                    f'The \"{gnn_encoder.__class__.__name__}\" encoder dose not support ' + \
+                     'edge feature in this version. Please check GraphStorm documentations ' + \
+                     'to find gnn encoders that support edge features, e.g., \"rgcn\".'
 
     if reconstruct_feats:
         rel_names = get_rel_names_for_reconstruct(g, config.construct_feat_ntype, node_feat_size)
