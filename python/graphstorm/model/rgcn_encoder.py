@@ -687,51 +687,61 @@ class GraphConvwithEdgeFeat(nn.Module):
         h: Tensor
             New node embeddings for destination node type.
         """
-        assert len(inputs) == 3, 'For using edge features in message passing, you need to ' + \
-                                 'provide 3 inputs in a tuple, the format is (src_inputs, ' + \
-                                 f'dst_inputs, edge_inputs). but got {len(inputs)} inputs.'
-        src_inputs, _, edge_inputs = inputs
-        assert src_inputs.shape[1:] == edge_inputs.shape[1:], \
-            'To use edge feature in message passing computation, the node and edge features ' + \
-            'should have the same dimensions, but got node feature dimension: ' + \
-            f'{src_inputs.shape[1:]} and edge feature dimension: {edge_inputs.shape[1:]}.'
 
-        with rel_graph.local_scope():
-            rel_graph.srcdata['n_h'] = src_inputs
-            rel_graph.edata['e_h'] = edge_inputs
+        # A corner case: no edge of this rel in this block. Will create an all 0s message and
+        # multiple it with project weights as outputs, which is an all 0s tensor with output dim
+        if rel_graph.num_edges() == 0:
+            _, dst_inputs = inputs
+            h = th.zeros_like(dst_inputs, device=dst_inputs.device)
             if self.edge_feat_mp_op == 'concat':
-                rel_graph.apply_edges(lambda edges: {'m': th.concat([edges.src['n_h'], \
-                                                    edges.data['e_h']], dim=1) @ self.weights})
-            elif self.edge_feat_mp_op == 'add':
-                rel_graph.apply_edges(lambda edges: {'m': (edges.src['n_h'] + \
-                                                    edges.data['e_h']) @ self.weights})
-            elif self.edge_feat_mp_op == 'sub':
-                rel_graph.apply_edges(lambda edges: {'m': (edges.src['n_h'] - \
-                                                    edges.data['e_h']) @ self.weights})
-            elif self.edge_feat_mp_op == 'mul':
-                rel_graph.apply_edges(lambda edges: {'m': (edges.src['n_h'] * \
-                                                    edges.data['e_h']) @ self.weights})
-            elif self.edge_feat_mp_op == 'div':
-                rel_graph.apply_edges(lambda edges: {'m': (edges.src['n_h'] / \
-                                                    edges.data['e_h']) @ self.weights})
-            else:
-                raise ValueError('Unknown edge message passing operation: ' + \
-                                f'{self.edge_feat_mp_op}. It should be one of ' + \
-                                f'{BUILTIN_EDGE_FEAT_MP_OPS}.')
-            # assign in_degree norm to dst nodes as right norm
-            in_degs = rel_graph.in_degrees()
-            in_norms = th.pow(in_degs, -0.5)
-            rel_graph.dstdata['norm'] = in_norms
+                h = th.concat([h, h], dim=-1)
+            h = h @ self.weights
+        else:
+            assert len(inputs) == 3, 'For using edge features in message passing, you need to ' + \
+                                    'provide 3 inputs in a tuple, the format is (src_inputs, ' + \
+                                    f'dst_inputs, edge_inputs). but got {len(inputs)} inputs.'
+            src_inputs, _, edge_inputs = inputs
+            assert src_inputs.shape[1:] == edge_inputs.shape[1:], \
+                'To use edge feature in message passing computation, the node and edge ' + \
+                'features should have the same dimensions, but got node feature dimension: ' + \
+                f'{src_inputs.shape[1:]} and edge feature dimension: {edge_inputs.shape[1:]}.'
 
-            # aggregate on dest nodes
-            # pylint: disable=no-member
-            rel_graph.update_all(fn.e_mul_v('m', 'norm', 'n_m'), fn.sum('n_m', 'h'))
+            with rel_graph.local_scope():
+                rel_graph.srcdata['n_h'] = src_inputs
+                rel_graph.edata['e_h'] = edge_inputs
+                if self.edge_feat_mp_op == 'concat':
+                    rel_graph.apply_edges(lambda edges: {'m': th.concat([edges.src['n_h'], \
+                                                        edges.data['e_h']], dim=1) @ self.weights})
+                elif self.edge_feat_mp_op == 'add':
+                    rel_graph.apply_edges(lambda edges: {'m': (edges.src['n_h'] + \
+                                                        edges.data['e_h']) @ self.weights})
+                elif self.edge_feat_mp_op == 'sub':
+                    rel_graph.apply_edges(lambda edges: {'m': (edges.src['n_h'] - \
+                                                        edges.data['e_h']) @ self.weights})
+                elif self.edge_feat_mp_op == 'mul':
+                    rel_graph.apply_edges(lambda edges: {'m': (edges.src['n_h'] * \
+                                                        edges.data['e_h']) @ self.weights})
+                elif self.edge_feat_mp_op == 'div':
+                    rel_graph.apply_edges(lambda edges: {'m': (edges.src['n_h'] / \
+                                                        edges.data['e_h']) @ self.weights})
+                else:
+                    raise ValueError('Unknown edge message passing operation: ' + \
+                                    f'{self.edge_feat_mp_op}. It should be one of ' + \
+                                    f'{BUILTIN_EDGE_FEAT_MP_OPS}.')
+                # assign in_degree norm to dst nodes as right norm
+                in_degs = rel_graph.in_degrees()
+                in_norms = th.pow(in_degs, -0.5)
+                rel_graph.dstdata['norm'] = in_norms
 
-            # extract outputs
-            h = rel_graph.dstdata['h']
+                # aggregate on dest nodes
+                # pylint: disable=no-member
+                rel_graph.update_all(fn.e_mul_v('m', 'norm', 'n_m'), fn.sum('n_m', 'h'))
+
+                # extract outputs
+                h = rel_graph.dstdata['h']
 
             # add bias
             if self.bias:
                 h = h + self.h_bias
 
-            return h
+        return h
