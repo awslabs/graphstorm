@@ -71,7 +71,8 @@ def main(config_args):
             infer_data, infer_idxs,
             batch_size=config.eval_batch_size,
             fixed_edge_dst_negative_field=config.eval_etypes_negative_dstnode,
-            node_feats=config.node_feat_name)
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name)
     else:
         if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
             test_dataloader_cls = GSgnnLinkPredictionTestDataLoader
@@ -85,7 +86,8 @@ def main(config_args):
         dataloader = test_dataloader_cls(infer_data, infer_idxs,
             batch_size=config.eval_batch_size,
             num_negative_edges=config.num_negative_edges_eval,
-            node_feats=config.node_feat_name)
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name)
     # Preparing input layer for training or inference.
     # The input layer can pre-compute node features in the preparing step if needed.
     # For example pre-compute all BERT embeddings

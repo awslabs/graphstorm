@@ -87,6 +87,7 @@ def main(config_args):
     dataloader = GSgnnEdgeDataLoader(train_data, train_idxs, fanout=[],
                                      batch_size=config.batch_size,
                                      node_feats=config.node_feat_name,
+                                     edge_feats=config.edge_feat_name,
                                      label_field=config.label_field,
                                      decoder_edge_feats=config.decoder_edge_feat,
                                      train_task=True,
@@ -101,6 +102,7 @@ def main(config_args):
         val_dataloader = GSgnnEdgeDataLoader(train_data, val_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
             node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,
             label_field=config.label_field,
             decoder_edge_feats=config.decoder_edge_feat,
             train_task=False,
@@ -109,6 +111,7 @@ def main(config_args):
         test_dataloader = GSgnnEdgeDataLoader(train_data, test_idxs, fanout=fanout,
             batch_size=config.eval_batch_size,
             node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name,
             label_field=config.label_field,
             decoder_edge_feats=config.decoder_edge_feat,
             train_task=False,
@@ -135,6 +138,11 @@ def main(config_args):
                 grad_norm_type=config.grad_norm_type)
 
     if config.save_embed_path is not None:
+        assert config.edge_feat_name is None, 'GraphStorm edge prediction training command ' + \
+            'uses full-graph inference by default to generate node embeddings at the end of ' + \
+            'training. But the full-graph inference method does not support edge features ' + \
+            'in this version. Please set the \"save_embed_path\" to be empty or does not ' + \
+            'set this argument if you want to use edge features in training command.'
         model = gs.create_builtin_edge_model(train_data.g, config, train_task=False)
         best_model_path = trainer.get_best_model_path()
         # TODO(zhengda) the model path has to be in a shared filesystem.
