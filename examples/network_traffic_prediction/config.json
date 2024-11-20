@@ -13,15 +13,30 @@
             "features": [
                 {
                     "feature_col": "latitude_deg",
-                    "feature_name": "latitude"
+                    "feature_name": "latitude",
+                    "transform": {
+                        "name": "max_min_norm",
+                        "max_val": 90.0,
+                        "min_val": -90.0
+                    }
                 },
                 {
                     "feature_col": "longitude_deg",
-                    "feature_name": "longitude"
+                    "feature_name": "longitude",
+                    "transform": {
+                        "name": "max_min_norm",
+                        "max_val": 180.0,
+                        "min_val": -180.0
+                    }
                 },
                 {
                     "feature_col": "inventory_amounts",
-                    "feature_name": "inventory_amounts"
+                    "feature_name": "inventory_amounts",
+                    "transform": {
+                        "name": "max_min_norm",
+                        "max_val": 1000.0,
+                        "min_val": 0.0
+                    }
                 }
             ],
             "labels": [
@@ -55,7 +70,12 @@
             "features": [
                 {
                     "feature_col": "demands",
-                    "feature_name": "demands"
+                    "feature_name": "demands",
+                    "transform": {
+                        "name": "max_min_norm",
+                        "max_val": 10.0,
+                        "min_val": 0.0
+                    }
                 }
             ]
         },
@@ -76,11 +96,21 @@
             "features": [
                 {
                     "feature_col": "capacity",
-                    "feature_name": "capacity"
+                    "feature_name": "capacity",
+                    "transform": {
+                        "name": "max_min_norm",
+                        "max_val": 10.0,
+                        "min_val": 0.0
+                    }
                 },
                 {
                     "feature_col": "traffics",
-                    "feature_name": "traffics"
+                    "feature_name": "traffics",
+                    "transform": {
+                        "name": "max_min_norm",
+                        "max_val": 10.0,
+                        "min_val": 0.0
+                    }
                 }
             ]
         }
