@@ -1,6 +1,8 @@
 # Setup log level in Jupyter Notebook to show running information
 import logging
 logging.basicConfig(level=20)
+
+import graphstorm as gs
 from graphstorm.dataloading import (GSgnnData,
                                     GSgnnNodeDataLoader)
 from graphstorm.eval import GSgnnRegressionEvaluator
@@ -9,7 +11,6 @@ from nr_models import RgcnNRModel4TS, NodePredictionTrainer4TS, NodePredictionIn
 
 NUM_DEMAND_DAYS = 31
 
-import graphstorm as gs
 gs.initialize()
 
 # create a GraphStorm Dataset for the movie_lens graph data generated with GraphStorm test code
