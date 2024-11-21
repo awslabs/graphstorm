@@ -7,6 +7,8 @@ GS_HOME=$(pwd)
 NUM_TRAINERS=1
 export PYTHONPATH=$GS_HOME/python/
 cd $GS_HOME/training_scripts/gsgnn_ep
+echo "127.0.0.1" > ip_list.txt
+
 cd $GS_HOME/inference_scripts/ep_infer
 echo "127.0.0.1" > ip_list.txt
 
@@ -74,10 +76,16 @@ error_and_exit $?
 echo "**************dataset: MovieLens: ER, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, edge feat: user,rating,movie:feat inference: mini-batch"
 python3 -m graphstorm.run.gs_edge_regression --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_er_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_er.yaml --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --batch-size 64 --save-model-path /data/gsgnn_er_ml_ef/model/ --save-model-frequency 5 --eval-frequency 3  --num-epochs 1 --logging-file /tmp/train_log.txt
 
+error_and_exit $?
+
 python3 -m graphstorm.run.gs_edge_regression --inference --workspace $GS_HOME/inference_scripts/ep_infer/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_er_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_er_infer.yaml --use-mini-batch-infer true --restore-model-path /data/gsgnn_er_ml_ef/model/epoch-0/ --save-prediction-path /data/gsgnn_er_ml_ef/prediction/ --logging-file /tmp/log.txt --preserve-input True --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat
+
+error_and_exit $?
 
 ## Emb Gen
 python3 -m graphstorm.run.gs_gen_node_embedding --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_er_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_er.yaml --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --use-mini-batch-infer true --restore-model-path /data/gsgnn_er_ml_ef/model/epoch-0/ --save-embed-path /data/gsgnn_er_ml_ef/save-emb/ --logging-file /tmp/log.txt --logging-level debug
+
+error_and_exit $?
 
 cnt=$(ls -l /data/gsgnn_er_ml_ef/ | wc -l)
 if test $cnt != 4
