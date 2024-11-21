@@ -77,7 +77,8 @@ def main(config_args):
             batch_size=config.eval_batch_size,
             fixed_edge_dst_negative_field=config.eval_etypes_negative_dstnode,
             fanout=config.eval_fanout,
-            node_feats=config.node_feat_name)
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name)
     else:
         if config.eval_negative_sampler == BUILTIN_LP_UNIFORM_NEG_SAMPLER:
             test_dataloader_cls = GSgnnLinkPredictionTestDataLoader
@@ -92,7 +93,8 @@ def main(config_args):
             batch_size=config.eval_batch_size,
             num_negative_edges=config.num_negative_edges_eval,
             fanout=config.eval_fanout,
-            node_feats=config.node_feat_name)
+            node_feats=config.node_feat_name,
+            edge_feats=config.edge_feat_name)
     infer.infer(infer_data, dataloader,
                 save_embed_path=config.save_embed_path,
                 edge_mask_for_gnn_embeddings=None if config.no_validation else \
