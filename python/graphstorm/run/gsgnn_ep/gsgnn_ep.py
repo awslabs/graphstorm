@@ -157,7 +157,7 @@ def main(config_args):
         assert config.edge_feat_name is None, 'GraphStorm edge prediction training command ' + \
             'uses full-graph inference by default to generate node embeddings at the end of ' + \
             'training. But the full-graph inference method does not support edge features ' + \
-            'in this version. Please set the \"save_embed_path\" to be empty or does not ' + \
+            'in the current version. Please set the \"save_embed_path\" to none ' + \
             'set this argument if you want to use edge features in training command.'
         model = gs.create_builtin_edge_gnn_model(train_data.g, config, train_task=False)
         best_model_path = trainer.get_best_model_path()
