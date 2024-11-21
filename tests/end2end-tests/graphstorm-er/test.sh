@@ -7,7 +7,6 @@ GS_HOME=$(pwd)
 NUM_TRAINERS=1
 export PYTHONPATH=$GS_HOME/python/
 cd $GS_HOME/training_scripts/gsgnn_ep
-echo "127.0.0.1" > ip_list.txt
 cd $GS_HOME/inference_scripts/ep_infer
 echo "127.0.0.1" > ip_list.txt
 
