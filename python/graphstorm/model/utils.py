@@ -146,6 +146,13 @@ def _get_sparse_emb_range(num_embs, rank, world_size):
         world_size : int
             World size in a distributed environment. This tells the size of a distributed cluster
             (How many processes in a cluster).
+
+        Return
+        ------
+        Tuple of (int, int)
+            A tuple storing the start idx (inclusive) and end
+            idx (exclusive) of the target emb range regarding
+            to the rank and world_size.
     """
     assert rank < world_size, \
         "local rank {rank} shold be smaller than world size {world_size}"
@@ -156,7 +163,12 @@ def _get_sparse_emb_range(num_embs, rank, world_size):
     else:
         start = rank * math.ceil(num_embs / world_size)
         end = (rank + 1) * math.ceil(num_embs / world_size)
-        end = num_embs if rank + 1 == world_size else end
+        # It is possible that start is also larger than num_embs
+        # For example, when num_embs = 11, world_size = 8
+        # and rank is 7
+        # start = 7 * 2, which is 14 > 11.
+        start = num_embs if start > num_embs else start
+        end = num_embs if end > num_embs else end
     return start, end
 
 def save_sparse_emb(model_path, sparse_emb, ntype):
@@ -393,8 +405,20 @@ def _exchange_node_id_mapping(rank, world_size, device,
     # move mapping into CPU
     return gather_list[0].to(th.device("cpu"))
 
-def _load_dist_nid_map(node_id_mapping_file, ntypes):
+def load_dist_nid_map(node_id_mapping_file, ntypes):
     """ Load id mapping files in dist partition format.
+
+        Parameters
+        ----------
+        node_id_mapping_file: str
+            Node mapping directory.
+        ntypes: list[str]
+            List of node types.
+
+        Return
+        ------
+        id_mappings: dict
+            Node mapping dictionary.
     """
     # node_id_mapping_file it is actually a directory
     # <node_id_mapping_file>/part0, <node_id_mapping_file>/part1, ...
@@ -447,7 +471,7 @@ def distribute_nid_map(embeddings, rank, world_size,
             else:
                 # Homogeneous graph
                 # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
-                ori_node_id_mapping = _load_dist_nid_map(node_id_mapping_file, ["_N"])["_N"]
+                ori_node_id_mapping = load_dist_nid_map(node_id_mapping_file, ["_N"])["_N"]
             _, node_id_mapping = th.sort(ori_node_id_mapping)
         else:
             node_id_mapping = None
@@ -462,7 +486,7 @@ def distribute_nid_map(embeddings, rank, world_size,
                 node_id_mappings = th.load(node_id_mapping_file)
             else:
                 # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
-                node_id_mappings = _load_dist_nid_map(node_id_mapping_file,
+                node_id_mappings = load_dist_nid_map(node_id_mapping_file,
                                                       list(embeddings.keys()))
         else:
             node_id_mappings = None
@@ -1172,7 +1196,7 @@ class NodeIDShuffler():
             id_mappings = th.load(node_id_mapping_file) if get_rank() == 0 else None
         else:
             # node id mapping file from dgl tools/distpartitioning/convert_partition.py.
-            id_mappings = _load_dist_nid_map(node_id_mapping_file, ntypes) \
+            id_mappings = load_dist_nid_map(node_id_mapping_file, ntypes) \
                 if get_rank() == 0 else None
 
         self._id_mapping_info = {

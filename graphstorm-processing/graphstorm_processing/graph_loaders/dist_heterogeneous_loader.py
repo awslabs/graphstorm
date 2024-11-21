@@ -939,7 +939,7 @@ class DistHeterogeneousGraphLoader(object):
         self.graph_info["ntype_to_label_masks"] = defaultdict(list)
         for node_config in node_configs:
             files = node_config.files
-            file_paths = [f"{self.input_prefix}/{f}" for f in files]
+            file_paths = [os.path.join(self.input_prefix, f) for f in files]
 
             node_type = node_config.ntype
             node_col = node_config.node_col
@@ -1654,6 +1654,15 @@ class DistHeterogeneousGraphLoader(object):
                 .get(edge_type, {})
                 .get(feat_conf.feat_name, {})
             )
+            # Hard Negative Transformation use case, but should be able to be reused
+            if feat_conf.feat_type == "edge_dst_hard_negative":
+                hard_node_mapping_dict = {
+                    "edge_type": edge_type,
+                    "mapping_path": f"{self.output_prefix}/raw_id_mappings/",
+                    "format_name": FORMAT_NAME,
+                }
+                feat_conf.transformation_kwargs["hard_node_mapping_dict"] = hard_node_mapping_dict
+
             transformer = DistFeatureTransformer(feat_conf, self.spark, json_representation)
 
             if json_representation:
@@ -1685,7 +1694,7 @@ class DistHeterogeneousGraphLoader(object):
                         single_feature_df = transformed_feature_df.select(bert_feat_name)
                         feature_output_path = os.path.join(
                             self.output_prefix,
-                            f"edge_data/{edge_type}-{bert_feat_name}",
+                            f"edge_data/{edge_type.replace(':', '_')}-{bert_feat_name}",
                         )
                         feat_meta, feat_size = self._write_processed_feature(
                             bert_feat_name,
@@ -1699,7 +1708,7 @@ class DistHeterogeneousGraphLoader(object):
                         feat_col, feat_name
                     )
                     feature_output_path = os.path.join(
-                        self.output_prefix, f"edge_data/{edge_type}-{feat_name}"
+                        self.output_prefix, f"edge_data/{edge_type.replace(':', '_')}-{feat_name}"
                     )
                     feat_meta, feat_size = self._write_processed_feature(
                         feat_name,

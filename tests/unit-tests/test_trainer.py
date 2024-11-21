@@ -33,6 +33,7 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
                                 BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
 from graphstorm.dataloading import GSgnnData, GSgnnMultiTaskDataLoader
+from graphstorm.eval.evaluator import GSgnnLPRankingEvalInterface, GSgnnMultiTaskEvaluator
 from graphstorm.tracker import GSSageMakerTaskTracker
 from graphstorm import (create_builtin_node_gnn_model,
                         create_builtin_edge_gnn_model,
@@ -504,14 +505,14 @@ def test_mtask_prepare_lp_mini_batch():
     assert_equal(input_nodes["n0"].numpy(), input_node_idx["n0"].numpy())
     assert_equal(input_nodes["n1"].numpy(), input_node_idx["n1"].numpy())
 
-class MTaskCheckerEvaluator():
-    def __init__(self, val_resluts, test_results, steps):
-        self._val_results = val_resluts
-        self._test_results = test_results
-        self._steps = steps
+class MTaskCheckerEvaluator(GSgnnMultiTaskEvaluator):
+    def __init__(self, val_rankings, test_rankings, total_iters):
+        self._val_results = val_rankings
+        self._test_results = test_rankings
+        self._steps = total_iters
 
-    def evaluate(self, val_results, test_results, total_steps):
-        assert self._steps == total_steps
+    def evaluate(self, val_results, test_results, total_iters, **kwargs):
+        assert self._steps == total_iters
         def compare_results(target_res, check_res):
             assert len(target_res) == len(check_res)
             for task_id, target_r in target_res.items():
@@ -524,6 +525,16 @@ class MTaskCheckerEvaluator():
                     assert_equal(tr_1, cr_1)
                     assert_equal(tr_2, cr_2)
                 else:
+                    # In case LP results also returned candidate list
+                    # lengths, we check the lengths and values
+                    if isinstance(check_r, tuple):
+                        check_r, candidate_sizes = check_r
+                        if candidate_sizes.shape[0] > 1:
+                            assert check_r.shape[0] == candidate_sizes.shape[0], \
+                                ("ranking and candidate_sizes must have the same length, "
+                                f"got {check_r.shape=} {candidate_sizes.shape=}" )
+                            assert th.all(check_r <= candidate_sizes).item(), \
+                                "all ranks must be <= candidate_sizes"
                     assert_equal(target_r, check_r)
 
         if self._val_results is not None:

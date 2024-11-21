@@ -5,7 +5,6 @@ service ssh restart
 DGL_HOME=/root/dgl
 GS_HOME=$(pwd)
 NUM_TRAINERS=4
-NUM_INFO_TRAINERS=2
 NUM_INFERs=2
 export PYTHONPATH=$GS_HOME/python/
 cd $GS_HOME/training_scripts/gsgnn_mt
@@ -417,11 +416,12 @@ then
     exit -1
 fi
 
-cnt=$(ls -l /data/gsgnn_mt/emb/ | wc -l)
-cnt=$[cnt - 1]
+cnt=$(find /data/gsgnn_mt/emb/ -maxdepth 1 -type d | wc -l)
+cnt=$(($cnt - 1))
 if test $cnt != 2
 then
     echo "The number of saved embs $cnt is not equal to 2 (for movie and user)."
+    exit 1
 fi
 
 echo "**************[Multi-task] dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch load from saved model and train"

@@ -15,13 +15,20 @@ limitations under the License.
 """
 
 import logging
-from typing import Optional, Sequence
 import uuid
+from dataclasses import dataclass
+from typing import Any, Optional, Sequence
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.types import ArrayType
-from pyspark.ml.feature import MinMaxScaler, Imputer, VectorAssembler, ElementwiseProduct
+from pyspark.ml.feature import (
+    MinMaxScaler,
+    MinMaxScalerModel,
+    Imputer,
+    VectorAssembler,
+    ElementwiseProduct,
+)
 from pyspark.ml.linalg import DenseVector
 from pyspark.ml.stat import Summarizer
 from pyspark.ml import Pipeline
@@ -44,8 +51,60 @@ from .base_dist_transformation import DistributedTransformation
 from ..spark_utils import rename_multiple_cols
 
 
-def apply_imputation(cols: Sequence[str], shared_imputation: str, input_df: DataFrame) -> DataFrame:
-    """Applies a single imputation to input dataframe, individually to each of the columns
+@dataclass
+class ImputationResult:
+    """Dataclass to store the results of imputation.
+
+    Parameters
+    ----------
+    imputed_df: DataFrame
+        The imputed DataFrame.
+    impute_representation: dict[str, dict]
+        A dict representation of the imputation applied.
+
+        Structure:
+        imputed_val_dict: dict[str, float]
+            The imputed values for each column, {col_name: imputation_val}.
+            Will be an empty dict if no imputation was applied.
+        imputer_name: str
+            The name of imputer used.
+    """
+
+    imputed_df: DataFrame
+    impute_representation: dict[str, Any]
+
+
+@dataclass
+class NormalizationResult:
+    """Dataclass to store the results of normalization.
+
+    Parameters
+    ----------
+    scaled_df: DataFrame
+        The normalized DataFrame.
+    normalization_representation: dict[str, dict]
+        The reconstruction information for the normalizer. Empty if no normalization
+        was applied. Inner structure depends on normalizer.
+
+        Structure for MinMaxScaler:
+        originalMinValues: list[float]
+            The original minimum values for each column, in the order of the cols key.
+        originalMaxValues: list[float]
+            The original maximum values for each column, in the order of the cols key.
+
+        Structure for StandardScaler:
+        col_sums: dict[str, float]
+            The sum of each column.
+    """
+
+    scaled_df: DataFrame
+    normalization_representation: dict[str, Any]
+
+
+def apply_imputation(
+    cols: Sequence[str], shared_imputation: str, input_df: DataFrame
+) -> ImputationResult:
+    """Applies a single imputation to input DataFrame, individually to each of the columns
     provided in the cols argument.
 
     Parameters
@@ -60,8 +119,9 @@ def apply_imputation(cols: Sequence[str], shared_imputation: str, input_df: Data
 
     Returns
     -------
-    DataFrame
-        The imputed DataFrame.
+    ImputationResult
+        A dataclass containing the imputed DataFrame in the ``imputed_df`` element
+        and a dict representation of the imputation in the ``impute_representation`` element.
     """
     # "mode" is another way to say most frequent, used by SparkML
     valid_inner_imputers = VALID_IMPUTERS + ["mode"]
@@ -70,20 +130,34 @@ def apply_imputation(cols: Sequence[str], shared_imputation: str, input_df: Data
         f"Unsupported imputation strategy requested: {shared_imputation}, the supported "
         f"strategies are : {valid_inner_imputers}"
     )
+    imputer_model = None
     if shared_imputation == "most_frequent":
         shared_imputation = "mode"
+
     if shared_imputation == "none":
         imputed_df = input_df
     else:
         imputed_col_names = [col_name + "_imputed" for col_name in cols]
         imputer = Imputer(strategy=shared_imputation, inputCols=cols, outputCols=imputed_col_names)
-        model = imputer.fit(input_df)
+        imputer_model = imputer.fit(input_df)
 
         # Create transformed columns and drop originals, then rename transformed cols to original
-        input_df = model.transform(input_df).drop(*cols)
+        input_df = imputer_model.transform(input_df).drop(*cols)
         imputed_df, _ = rename_multiple_cols(input_df, imputed_col_names, cols)
 
-    return imputed_df
+    imputed_val_dict = {}
+    if imputer_model:
+        # Structure: {col_name[str]: imputed_val[float]}
+        imputed_val_dict = imputer_model.surrogateDF.collect()[0].asDict()
+
+    impute_representation = {
+        "imputed_val_dict": imputed_val_dict,
+        "imputer_name": shared_imputation,
+    }
+
+    imputed_df = imputed_df.select(*cols)
+
+    return ImputationResult(imputed_df, impute_representation)
 
 
 def apply_norm(
@@ -92,7 +166,7 @@ def apply_norm(
     imputed_df: DataFrame,
     out_dtype: str = TYPE_FLOAT32,
     epsilon: float = 1e-6,
-) -> DataFrame:
+) -> NormalizationResult:
     """Applies a single normalizer to the imputed dataframe, individually to each of the columns
     provided in the cols argument.
 
@@ -114,8 +188,12 @@ def apply_norm(
 
     Returns
     -------
-    DataFrame
-        The normalized DataFrame with only the columns listed in `cols` retained.
+    NormalizationResult
+        A dataclass containing the normalized DataFrame with only the
+        columns listed in ``cols`` retained in the ``scaled_df`` element,
+        and a dict representation of the transformation in the ``normalization_representation``
+        variable. The inner structure of ``normalization_representation`` depends on normalizers,
+        see ``NormalizationResult`` docstring for details.
 
     Raises
     ------
@@ -125,62 +203,34 @@ def apply_norm(
     ValueError
         If unsupported feature output dtype is provided.
     """
-    other_cols = list(set(imputed_df.columns).difference(cols))
-
-    def single_vec_to_float(vec):
-        return float(vec[0])
-
-    # Use the map to get the corresponding data type object, or raise an error if not found
-    if out_dtype in DTYPE_MAP:
-        vec_udf = F.udf(single_vec_to_float, DTYPE_MAP[out_dtype])
-    else:
-        raise ValueError("Unsupported feature output dtype")
-
     assert shared_norm in VALID_NORMALIZERS, (
         f"Unsupported normalization requested: {shared_norm}, the supported "
         f"strategies are : {VALID_NORMALIZERS}"
     )
 
+    norm_representation: dict[str, Any] = {
+        "norm_name": shared_norm,
+    }
     if shared_norm == "none":
         # Save the time and efficiency for not casting the type
         # when not doing any normalization
         scaled_df = imputed_df
+        norm_representation["norm_reconstruction"] = {}
     elif shared_norm == "min-max":
-        # Because the scalers expect Vector input, we need to use VectorAssembler on each,
-        # creating one (scaled) vector per normalizer type
-        # TODO: See if it's possible to have all features under one assembler and scaler,
-        # speeding up the process. Then do the "disentaglement" on the caller side.
-        assemblers = [VectorAssembler(inputCols=[col], outputCol=col + "_vec") for col in cols]
-        scalers = [MinMaxScaler(inputCol=col + "_vec", outputCol=col + "_scaled") for col in cols]
-
-        vector_cols = [col + "_vec" for col in cols]
-        scaled_cols = [col + "_scaled" for col in cols]
-        pipeline = Pipeline(stages=assemblers + scalers)
-        scaler_model = pipeline.fit(imputed_df)
-        scaled_df = scaler_model.transform(imputed_df).drop(*vector_cols).drop(*cols)
-
-        scaled_df = scaled_df.select(
-            *[
-                (vec_udf(F.col(scaled_col_name))).alias(orig_col)
-                for scaled_col_name, orig_col in zip(scaled_cols, cols)
-            ]
-            + other_cols
+        scaled_df, norm_reconstruction = _apply_min_max_transform(
+            imputed_df,
+            cols,
+            out_dtype,
         )
+        norm_representation["norm_reconstruction"] = norm_reconstruction
     elif shared_norm == "standard":
-        col_sums = imputed_df.agg({col: "sum" for col in cols}).collect()[0].asDict()
-        # TODO: See if it's possible to exclude NaN values from the sum
-        for _, val in col_sums.items():
-            if np.isinf(val) or np.isnan(val):
-                raise RuntimeError(
-                    "Missing values found in the data, cannot apply "
-                    "normalization. Use an imputer in the transformation."
-                )
-        scaled_df = imputed_df.select(
-            [(F.col(c) / col_sums[f"sum({c})"]).cast(DTYPE_MAP[out_dtype]).alias(c) for c in cols]
-            + other_cols
-        )
+        scaled_df, norm_reconstruction = _apply_standard_transform(imputed_df, cols, out_dtype)
+        norm_representation["norm_reconstruction"] = norm_reconstruction
     elif shared_norm == "rank-gauss":
-        assert len(cols) == 1, "Rank-Guass numerical transformation only supports single column"
+        assert (
+            len(cols) == 1
+        ), f"Rank-Gauss numerical transformation only supports single column, got {cols}"
+        norm_representation["norm_reconstruction"] = {}
         column_name = cols[0]
         select_df = imputed_df.select(column_name)
         # original id is the original order for the input data frame,
@@ -209,8 +259,188 @@ def apply_norm(
         scaled_df = normalized_df.orderBy(original_order_col).drop(
             value_rank_col, original_order_col
         )
+    else:
+        raise ValueError(f"Unsupported normalization requested: {shared_norm}")
 
-    return scaled_df
+    return NormalizationResult(scaled_df, norm_representation)
+
+
+def _apply_standard_transform(
+    input_df: DataFrame,
+    cols: list[str],
+    out_dtype: str,
+    col_sums: Optional[dict[str, float]] = None,
+) -> tuple[DataFrame, dict]:
+    """Applies standard scaling to the input DataFrame, individually to each of the columns.
+
+    Each value in a column is divided by the sum of all values in that column.
+
+    Parameters
+    ----------
+    input_df : DataFrame
+        Input data to transform
+    cols : list[str]
+        List of column names to apply standard normalization to.
+    out_dtype : str
+        Type of output data.
+    col_sums : Optional[dict[str, float]], optional
+        Pre-calculated sums per column, by default None
+
+    Returns
+    -------
+    tuple[DataFrame, dict]
+        The transformed dataframe and the representation of the standard transform as dict.
+
+        Representation structure::
+            col_sums: dict[str, float]
+                The sum of each column, {col_name: sum}.
+
+    Raises
+    ------
+    RuntimeError
+        When there's missing values in the input DF.
+    """
+    if col_sums is None:
+        col_sums = input_df.agg({col: "sum" for col in cols}).collect()[0].asDict()
+    # TODO: See if it's possible to exclude NaN values from the sum
+    for _, val in col_sums.items():
+        if np.isinf(val) or np.isnan(val):
+            raise RuntimeError(
+                "Missing values found in the data, cannot apply "
+                "normalization. Use an imputer in the transformation."
+            )
+    scaled_df = input_df.select(
+        [(F.col(c) / col_sums[f"sum({c})"]).cast(DTYPE_MAP[out_dtype]).alias(c) for c in cols]
+    )
+
+    norm_reconstruction = {"col_sums": col_sums}
+
+    return scaled_df, norm_reconstruction
+
+
+def _apply_min_max_transform(
+    input_df: DataFrame,
+    cols: list[str],
+    out_dtype: str,
+    original_min_vals: Optional[list[float]] = None,
+    original_max_vals: Optional[list[float]] = None,
+) -> tuple[DataFrame, dict]:
+    """Applies min-max normalization to the input, rescaling each feature to the [0, 1] range.
+
+    Each value ``x`` in a column is transformed as follows:
+    .. math::
+
+        x = \\frac{x - \\text{col_min}}{\\text{col_max} - \\text{col_min}}
+
+    Parameters
+    ----------
+    input_df : DataFrame
+        The input DF to be transformed
+    cols : list[str]
+        List of column names to apply min-max normalization to.
+    other_cols : list[str]
+        Other cols that we want to retain
+    out_dtype : str
+        Numerical type of output data.
+    original_min_vals : Optional[list[float]]
+        Pre-calculated minimum values for each column, by default None
+    original_max_vals : Optional[list[float]]
+        Pre-calculated maximum values for each column, by default None
+
+    Returns
+    -------
+    tuple[DataFrame, dict]
+        The transformed DataFrame and the representation of the min-max transform as dict.
+
+        Representation structure:
+            originalMinValues: list[float]
+                The original minimum values for each column, in the order of the cols key.
+            originalMaxValues: list[float]
+                The original maximum values for each column, in the order of the cols key.
+    """
+
+    # Use the map to get the corresponding data type object, or raise an error if not found
+    if out_dtype not in DTYPE_MAP:
+        raise ValueError("Unsupported feature output dtype")
+
+    # Because the scalers expect Vector input, we need to use VectorAssembler on each,
+    # creating one (scaled) vector per normalizer type
+    # TODO: See if it's possible to have all features under one assembler and scaler,
+    # speeding up the process. Then do the "disentaglement" on the caller side.
+    assemblers = [VectorAssembler(inputCols=[col], outputCol=col + "_vec") for col in cols]
+    scalers = [MinMaxScaler(inputCol=col + "_vec", outputCol=col + "_scaled") for col in cols]
+
+    vector_cols = [col + "_vec" for col in cols]
+    scaled_cols = [col + "_scaled" for col in cols]
+
+    pipeline = Pipeline(stages=assemblers + scalers)
+    # If transformation representation exists, use that to fit the pipeline,
+    # otherwise we just use the input DF
+    if original_max_vals and original_min_vals:
+        # Create a DF with just the min and the max value per column,
+        # and we use that to fit each scaler used to fit the pipeline.
+        # The dummy DF will have two rows and len(cols) columns.
+        # We use the first row to get the min values and the second row to get the max values
+        min_exprs = [F.lit(val).alias(col) for val, col in zip(original_min_vals, cols)]
+        max_exprs = [F.lit(val).alias(col) for val, col in zip(original_max_vals, cols)]
+
+        # We add a zipWithIndex column to distinguish the first and second rows
+        # We use a list comprehension with F.when() to set the values for each column.
+        # For the first row (where row number is 0), we use the values from original_min_vals,
+        # and for the second row, we use the values from original_max_vals.
+        # Example: minvals=[0, 4], maxvals=[100, 256], cols=["col1", "col2"] becomes
+        # |"col1"|"col2"|
+        # |0     |4     |
+        # |100   |256   |
+        dummy_df = (
+            input_df.limit(2)
+            .rdd.zipWithIndex()
+            .toDF()
+            .select(
+                *[
+                    F.when(F.col("_2") == 0, min_expr).otherwise(max_expr).alias(col_name)
+                    for min_expr, max_expr, col_name in zip(min_exprs, max_exprs, cols)
+                ]
+            )
+        )
+
+        # Fit a pipeline on just the dummy DF
+        # MinMaxScaler computes the minimum and maximum of dummy_df
+        # to be used for later scaling
+        scaler_pipeline = pipeline.fit(dummy_df)
+    else:
+        # Fit a pipeline on the entire input DF
+        scaler_pipeline = pipeline.fit(input_df)
+
+    # Transform the input DF
+    scaled_df = scaler_pipeline.transform(input_df).drop(*vector_cols).drop(*cols)
+
+    # Convert Spark Vector to array and get its first element and rename col to original name
+    scaled_df = scaled_df.select(
+        *[
+            (vector_to_array(F.col(scaled_col_name), dtype=out_dtype)[0].alias(orig_col))
+            for scaled_col_name, orig_col in zip(scaled_cols, cols)
+        ]
+    )
+    # Spark pipelines arrange transformations in a list, ordered by stage/
+    # So here we have first all the VectorAssemblers for each feature, then all the
+    # MinMaxScalerModel for each feature. So we skip the first num_cols to
+    # get just the MinMaxScalerModels
+    min_max_models: list[MinMaxScalerModel] = scaler_pipeline.stages[len(cols) :]
+    for min_max_model in min_max_models:
+        assert isinstance(
+            min_max_model, MinMaxScalerModel
+        ), f"Expected MinMaxScalerModel, got {type(min_max_model)}"
+    norm_reconstruction = {
+        "originalMinValues": [
+            min_max_model.originalMin.toArray()[0] for min_max_model in min_max_models
+        ],
+        "originalMaxValues": [
+            min_max_model.originalMax.toArray()[0] for min_max_model in min_max_models
+        ],
+    }
+
+    return scaled_df, norm_reconstruction
 
 
 class DistNumericalTransformation(DistributedTransformation):
@@ -231,6 +461,10 @@ class DistNumericalTransformation(DistributedTransformation):
         Output feature dtype
     epsilon: float
         Epsilon for normalization used to avoid INF float during computation.
+    json_representation: Optional[dict]
+        JSON representation of the transformation. If provided, the transformation
+        will be applied using this representation.
+        See ``DistNumericalTransformation.get_json_representation()`` for dict structure.
     """
 
     def __init__(
@@ -240,8 +474,11 @@ class DistNumericalTransformation(DistributedTransformation):
         imputer: str = "none",
         out_dtype: str = TYPE_FLOAT32,
         epsilon: float = 1e-6,
+        json_representation: Optional[dict] = None,
     ) -> None:
-        super().__init__(cols)
+        if not json_representation:
+            json_representation = {}
+        super().__init__(cols, json_representation=json_representation)
         self.cols = cols
         self.shared_norm = normalizer
         self.epsilon = epsilon
@@ -254,12 +491,150 @@ class DistNumericalTransformation(DistributedTransformation):
             "Applying normalizer: %s, imputation: %s", self.shared_norm, self.shared_imputation
         )
 
-        imputed_df = apply_imputation(self.cols, self.shared_imputation, input_df)
-        scaled_df = apply_norm(
-            self.cols, self.shared_norm, imputed_df, self.out_dtype, self.epsilon
+        imputation_result = apply_imputation(self.cols, self.shared_imputation, input_df)
+        imputed_df, impute_representation = (
+            imputation_result.imputed_df,
+            imputation_result.impute_representation,
         )
 
+        norm_result = apply_norm(
+            self.cols, self.shared_norm, imputed_df, self.out_dtype, self.epsilon
+        )
+        scaled_df, norm_representation = (
+            norm_result.scaled_df,
+            norm_result.normalization_representation,
+        )
+
+        # see get_json_representation() docstring for structure
+        self.json_representation = {
+            "cols": self.cols,
+            "imputer_model": impute_representation,
+            "normalizer_model": norm_representation,
+            "out_dtype": self.out_dtype,
+            "transformation_name": self.get_transformation_name(),
+        }
+
         # TODO: Figure out why the transformation is producing Double values, and switch to float
+        return scaled_df
+
+    def get_json_representation(self) -> dict:
+        """Representation of numerical transformation for one or more columns.
+
+        Returns
+        -------
+        dict
+            Structure:
+            cols: list[str]
+                The list of columns the transformation is applied to. Order matters.
+
+            imputer_model: dict[str, Any]
+                A dict representation of the imputation applied.
+
+                Structure:
+                imputed_val_dict: dict[str, float]
+                    The imputed values for each column, {col_name: imputation_val}.
+                    Empty if no imputation was applied.
+                imputer_name: str
+                    The name of imputer used.
+
+            normalizer_model: dict[str, Any]
+                A dict representation of the normalization applied.
+
+                Structure:
+                norm_name: str
+                    The name of normalizer used.
+                norm_reconstruction: dict[str, Any]
+                    The reconstruction information for the normalizer. Empty if no normalization
+                    was applied. Inner structure depends on normalizer.
+
+                    Structure for MinMaxScaler:
+                    originalMinValues: list[float]
+                        The original minimum values for each column, in the order of the cols key.
+                    originalMaxValues: list[float]
+                        The original maximum values for each column, in the order of the cols key.
+
+                    Structure for StandardScaler:
+                    col_sums: dict[str, float]
+                        The sum of each column.
+
+            out_dtype: str
+                The output feature dtype, can take the values 'float32' and 'float64'.
+
+            transformation_name: str
+                Will be DistNumericalTransformation.
+        """
+        return self.json_representation
+
+    def apply_precomputed_transformation(self, input_df: DataFrame) -> DataFrame:
+        """Applies a numerical transformation using pre-computed representation.
+
+        Parameters
+        ----------
+        input_df : DataFrame
+            Input DataFrame to apply the transformation to.
+
+        Returns
+        -------
+        DataFrame
+            The input DataFrame, modified according to the pre-computed transformation values.
+        """
+        assert self.json_representation, (
+            "No precomputed transformation found. Please run `apply()` "
+            "first or set self.json_representation."
+        )
+
+        cols = self.json_representation["cols"]
+        # All cols share the same imputer and normalizer
+        impute_representation = self.json_representation["imputer_model"]
+        norm_representation = self.json_representation["normalizer_model"]
+        out_dtype = self.json_representation.get("out_dtype", TYPE_FLOAT32)
+
+        # First reapply pre-computed imputation if needed
+        if impute_representation["imputer_name"] == "none":
+            imputed_df = input_df
+        else:
+            imputed_vals = impute_representation["imputed_val_dict"]
+            shared_imputation = impute_representation["imputer_name"]
+            imputed_col_names = [col_name + "_imputed" for col_name in cols]
+
+            # Create a DF with a single value per column name, used to fit an imputer
+            single_val_df = input_df.limit(1).select(
+                [F.lit(imputed_vals[col_name]).alias(col_name) for col_name in cols]
+            )
+
+            imputer = Imputer(
+                strategy=shared_imputation, inputCols=cols, outputCols=imputed_col_names
+            )
+            imputer_model = imputer.fit(single_val_df)
+
+            # Create transformed columns and drop originals,
+            # then rename transformed cols to original
+            input_df = imputer_model.transform(input_df).drop(*cols)
+            imputed_df, _ = rename_multiple_cols(input_df, imputed_col_names, cols)
+            imputed_df = imputed_df.select(*cols)
+
+        # Second, re-apply normalization if needed
+        norm_name = norm_representation["norm_name"]
+        norm_reconstruction = norm_representation["norm_reconstruction"]
+        if norm_name == "none":
+            scaled_df = imputed_df
+        elif norm_name == "min-max":
+            scaled_df, _ = _apply_min_max_transform(
+                imputed_df,
+                cols,
+                out_dtype,
+                norm_reconstruction["originalMinValues"],
+                norm_reconstruction["originalMaxValues"],
+            )
+        elif norm_name == "standard":
+            scaled_df, _ = _apply_standard_transform(
+                imputed_df, cols, out_dtype, norm_reconstruction["col_sums"]
+            )
+        elif norm_name == "rank-gauss":
+            raise ValueError("Rank-Gauss transformation does not support re-applying.")
+        else:
+            raise ValueError(f"Unknown normalizer: {norm_name=}")
+
         return scaled_df
 
     @staticmethod
@@ -458,7 +833,7 @@ class DistMultiNumericalTransformation(DistNumericalTransformation):
                 # and call the base numerical transformer
                 imputed_df = apply_imputation(
                     split_col_df.columns, self.shared_imputation, split_col_df
-                )
+                ).imputed_df
 
                 # Assemble the separate columns back into a single vector column
                 assembler = VectorAssembler(

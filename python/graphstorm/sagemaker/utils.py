@@ -280,6 +280,9 @@ def download_graph(graph_data_s3, graph_name, part_id, world_size,
                 # Something else has gone wrong.
                 raise err
 
+    assert graph_config, \
+        (f"Could not find a graph config file named {graph_name}.json or metadata.json "
+         f"under {graph_data_s3}")
     S3Downloader.download(os.path.join(graph_data_s3, graph_config),
             graph_path, sagemaker_session=sagemaker_session)
     try:

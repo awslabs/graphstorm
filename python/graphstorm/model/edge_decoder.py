@@ -17,6 +17,8 @@
 """
 import abc
 import logging
+from typing import Dict, Tuple, Union
+
 import numpy as np
 import torch as th
 from torch import nn
@@ -909,7 +911,58 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
         return out
 
 ##################### Link Prediction Decoders #######################
-class LinkPredictNoParamDecoder(GSLayerNoParam):
+class LinkPredictionTestScoreInterface(abc.ABC):
+    """ Mixin class for link prediction test score computation
+    """
+
+    @abc.abstractmethod
+    def calc_test_scores(
+        self,
+        emb: Dict[str, th.Tensor],
+        pos_neg_tuple: Dict[Tuple[str, str, str], th.Tensor],
+        neg_sample_type: str,
+        device: Union[int, th.device],
+    ) -> Dict[Tuple[str, str, str], Tuple[th.Tensor, th.Tensor]]:
+        """ Compute scores for positive edges and negative edges.
+
+        Parameters
+        ----------
+        emb: dict of Tensor
+            Node embeddings in the format of {ntype: emb}.
+        pos_neg_tuple: dict of tuple
+            Positive and negative edges stored in a dict of tuple in the format of
+            {("src_ntype1", "etype1", "dst_ntype1" ): (pos_src_idx, neg_src_idx,
+            pos_dst_idx, neg_dst_idx)}.
+
+            The `pos_src_idx` represents the postive source node indexes in the format
+            of Torch.Tensor. The `neg_src_idx` represents the negative source node indexes
+            in the format of Torch.Tensor. The `pos_dst_idx` represents the postive destination
+            node indexes in the format of Torch.Tensor. The `neg_dst_idx` represents the
+            negative destination node indexes in the format of Torch.Tensor.
+
+            We define positive and negative edges as:
+
+            * The positive edges: (pos_src_idx, pos_dst_idx)
+            * The negative edges: (pos_src_idx, neg_dst_idx) and
+              (neg_src_idx, pos_dst_idx)
+
+        neg_sample_type: str
+            Describe how negative samples are sampled. There are two options:
+
+            * ``Uniform``: For each positive edge, we sample K negative edges.
+            * ``Joint``: For one batch of positive edges, we sample K negative edges.
+
+        device: th.device
+            Device used to compute scores.
+
+        Returns
+        --------
+        scores: dict of tuple
+            Return a dictionary of edge type's positive scores and negative scores in the format
+            of {(src_ntype, etype, dst_ntype): (pos_scores, neg_scores)}
+        """
+
+class LinkPredictNoParamDecoder(GSLayerNoParam, LinkPredictionTestScoreInterface):
     """ Abstract class for Link prediction decoder without trainable parameters
     """
 
@@ -936,7 +989,7 @@ class LinkPredictNoParamDecoder(GSLayerNoParam):
             in the input graph.
         """
 
-class LinkPredictLearnableDecoder(GSLayer):
+class LinkPredictLearnableDecoder(GSLayer, LinkPredictionTestScoreInterface):
     """ Abstract class for Link prediction decoder with trainable parameters
     """
 

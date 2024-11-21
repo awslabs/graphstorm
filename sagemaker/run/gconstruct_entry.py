@@ -19,8 +19,8 @@ import argparse
 import sys
 import subprocess
 
-def parse_construct_args():
-    """  Add arguments for launch gconstruct using SageMaker
+def parse_construct_args() -> tuple[argparse.Namespace, list[str]]:
+    """  Parse known and unknown arguments to pass to GConstruct
     """
     parser = argparse.ArgumentParser(description='gs sagemaker graph construction pipeline')
 
@@ -32,12 +32,15 @@ def parse_construct_args():
         required=True, help="Path to store output")
     parser.add_argument("--graph-name", type=str,
         required=True, help="Graph name")
-    return parser
+
+    return parser.parse_known_args()
 
 
 if __name__ =='__main__':
-    parser = parse_construct_args()
-    args, unknownargs = parser.parse_known_args()
+    args, unknownargs = parse_construct_args()
+
+    print(f"entry point known args: {args}")
+    print(f"entry point unknown args: {unknownargs}")
 
     subprocess.check_call(['ls'], cwd=args.input_path, shell=False)
     subprocess.run(["df", "-h"], check=True)

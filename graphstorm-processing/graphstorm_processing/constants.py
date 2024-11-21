@@ -58,6 +58,14 @@ HUGGINGFACE_TRANFORM = "huggingface"
 HUGGINGFACE_TOKENIZE = "tokenize_hf"
 HUGGINGFACE_EMB = "embedding_hf"
 
+################# Hard Negative transformations  ################
+ORDER_INDEX = "hard_negative_order_id"
+EXPLODE_HARD_NEGATIVE_VALUE = "hard_negative_exploded_single_value"
+
+################# Node Mapping  ################
+NODE_MAPPING_STR = "orig"
+NODE_MAPPING_INT = "new"
+
 
 ################# Supported execution envs  ##############
 class ExecutionEnv(Enum):

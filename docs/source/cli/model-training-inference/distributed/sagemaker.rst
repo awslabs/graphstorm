@@ -212,6 +212,27 @@ Users can use the following commands to check the corresponding outputs:
     aws s3 ls s3://<PATH_TO_SAVE_GENERATED_NODE_EMBEDDING>/
     aws s3 ls s3://<PATH_TO_SAVE_PREDICTION_RESULTS>/
 
+Launch embedding generation task
+``````````````````````````````````
+Users can use the following example command to launch a GraphStorm embedding generation job in the ``ogbn-mag`` data without generating predictions.
+
+.. code:: bash
+    python3 launch/launch_infer.py  \
+            --image-url <AMAZON_ECR_IMAGE_URI> \
+            --region <REGION> \
+            --entry-point run/infer_entry.py \
+            --role <ROLE_ARN> \
+            --instance-count 3 \
+            --graph-data-s3 s3://<PATH_TO_DATA>/ogbn_mag_lp_3p \
+            --yaml-s3 s3://<PATH_TO_TRAINING_CONFIG>/mag_lp.yaml \
+            --model-artifact-s3 s3://<PATH_TO_SAVE_TRAINED_MODEL>/ \
+            --raw-node-mappings-s3 s3://<PATH_TO_DATA>/ogbn_mag_lp_3p/raw_id_mappings \
+            --task-type compute_emb \
+            --output-emb-s3 s3://<PATH_TO_SAVE_GENERATED_NODE_EMBEDDING>/ \
+            --graph-name ogbn-mag \
+            --restore-model-layers embed,gnn
+
+
 Launch graph partitioning task
 ```````````````````````````````
 If your data are in the `DGL chunked

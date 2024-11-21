@@ -1297,9 +1297,9 @@ def create_lp_evaluator(config):
     assert all(
         (x.startswith(SUPPORTED_HIT_AT_METRICS) or x in SUPPORTED_LINK_PREDICTION_METRICS)
             for x in config.eval_metric), (
-            "Invalid LP evaluation metrics. "
-            "GraphStorm only supports MRR and Hit@K metrics for link prediction."
-        )
+        "Invalid LP evaluation metrics. "
+        f"GraphStorm only supports {SUPPORTED_LINK_PREDICTION_METRICS} as metrics "
+        f"for link prediction, got {config.eval_metric}")
 
     if config.report_eval_per_type:
         return GSgnnPerEtypeLPEvaluator(eval_frequency=config.eval_frequency,

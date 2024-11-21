@@ -22,6 +22,7 @@ import torch as th
 from torch.nn.parallel import DistributedDataParallel
 import dgl
 
+from ..eval.evaluator import GSgnnLPRankingEvalInterface
 from ..model.lp_gnn import GSgnnLinkPredictionModelInterface
 from ..model.lp_gnn import lp_mini_batch_predict
 from ..model.gnn_with_reconstruct import GNNEncoderWithReconstructedEmbed
@@ -96,7 +97,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         This function performs the training for the given link prediction model.
         It iterates over the training batches provided by the ``train_loader``
         to compute the loss, and then performs the backward steps using trainer's
-        own optimizer. 
+        own optimizer.
 
         If an evaluator and a validation dataloader are added to this trainer, during
         training, the trainer will perform model evaluation in three cases:
@@ -122,7 +123,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             save model checkpoints.
             Default: None.
         save_model_frequency: int
-            The number of iterations to train the model before saving a model checkpoint. 
+            The number of iterations to train the model before saving a model checkpoint.
             Default: -1, meaning only save model after each epoch.
         save_perf_results_path: str
             The path of the file where the performance results are saved. Default: None.
@@ -349,7 +350,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         Returns
         -------
         val_score: dict
-            Validation scores of differnet metrics in the format of {metric: val_score}.
+            Validation scores of different metrics in the format of {metric: val_score}.
         """
         test_start = time.time()
         sys_tracker.check('before prediction')
@@ -364,16 +365,29 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                                           edge_mask=edge_mask_for_gnn_embeddings,
                                           task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
-        val_scores = lp_mini_batch_predict(model, emb, val_loader, self.device) \
-            if val_loader is not None else None
+        if val_loader is not None:
+            val_rankings, val_lengths = lp_mini_batch_predict(
+                model, emb, val_loader, self.device, return_batch_lengths=True)
+        else:
+            val_rankings, val_lengths = None, None
         sys_tracker.check('after_val_score')
         if test_loader is not None:
-            test_scores = lp_mini_batch_predict(model, emb, test_loader, self.device)
+            test_rankings, test_lengths = lp_mini_batch_predict(
+                model, emb, test_loader, self.device, return_batch_lengths=True)
         else:
-            test_scores = None
+            test_rankings, test_lengths = None, None
         sys_tracker.check('after_test_score')
+        assert self.evaluator is not None, \
+            "Evaluator needs to be setup, use trainer.setup_evaluator(evaluator)"
+        assert isinstance(self.evaluator, GSgnnLPRankingEvalInterface), \
+            f"Evaluator needs to implement GSgnnLPRankingEvalInterface, got {type(self.evaluator)}"
         val_score, test_score = self.evaluator.evaluate(
-            val_scores, test_scores, total_steps)
+            val_rankings,
+            test_rankings,
+            total_steps,
+            val_candidate_sizes=val_lengths,
+            test_candidate_sizes=test_lengths,
+        )
         sys_tracker.check('evaluate validation/test')
         model.train()
 

@@ -21,6 +21,7 @@ import glob
 import json
 import os
 import logging
+from typing import Union, List
 
 import pyarrow.parquet as pq
 import pyarrow as pa
@@ -76,9 +77,9 @@ def read_index(split_info):
     return res[0], res[1], res[2]
 
 
-def expand_wildcard(data_files):
+def expand_wildcard(data_files: List[str]) -> List[str]:
     """
-    Expand the wildcard to the actual file lists.
+    Expand a list of paths that can contain wildcards to the actual file lists.
 
     Parameters
     ----------
@@ -89,7 +90,7 @@ def expand_wildcard(data_files):
     expanded_files = []
     for item in data_files:
         if '*' in item:
-            matched_files = glob.glob(item)
+            matched_files = sorted(glob.glob(item))
             assert len(matched_files) > 0, \
                 f"There is no file matching {item} pattern"
             expanded_files.extend(matched_files)
@@ -490,7 +491,7 @@ def _parse_file_format(conf, is_node, in_mem):
 parse_node_file_format = partial(_parse_file_format, is_node=True)
 parse_edge_file_format = partial(_parse_file_format, is_node=False)
 
-def get_in_files(in_files):
+def get_in_files(in_files: Union[List[str], str]) -> List[str]:
     """ Get the input files.
 
     The input file string may contains a wildcard. This function
@@ -505,15 +506,11 @@ def get_in_files(in_files):
     -------
     a list of str : the full name of input files.
     """
-    # If the input file has a wildcard, get all files that matches the input file name.
-    if '*' in in_files:
-        in_file_list = glob.glob(in_files)
-        assert len(in_file_list) > 0, \
-            f"There is no file matching {in_files} pattern"
-        in_files = in_file_list
-    # This is a single file.
-    elif not isinstance(in_files, list):
+    # Convert single str to list of str if needed
+    if isinstance(in_files, str):
         in_files = [in_files]
+
+    in_files = expand_wildcard(in_files)
 
     # Verify the existence of the input files.
     for in_file in in_files:

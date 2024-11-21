@@ -236,6 +236,8 @@ impact is negligible.
 
 With DGL 1.0.4, ``fast_localuniform`` dataloader can speedup 2.4X over ``localuniform`` dataloader on training a 2 layer RGCN on MAG dataset on four g5.48x instances.
 
+.. _hard_negative_sampling:
+
 Hard Negative sampling
 -----------------------
 GraphStorm provides support for users to define hard negative edges for a positive edge during Link Prediction training.
@@ -269,12 +271,13 @@ In general, GraphStorm covers following cases:
 - **Case 2** ``num_train_hard_negatives`` is smaller than ``num_negative_edges``. GraphStorm will randomly sample ``num_train_hard_negatives`` hard negative nodes from the hard negative set and then randomly sample ``num_negative_edges - num_train_hard_negatives`` negative nodes.
 - **Case 3** GraphStorm supports cases when some edges do not have enough hard negatives provided by users. For example, the expected ``num_train_hard_negatives`` is 10, but an edge only have 5 hard negatives. In certain cases, GraphStorm will use all the hard negatives first and then randomly sample negative nodes to fulfill the requirement of ``num_train_hard_negatives``. Then GraphStorm will go back to **Case 1** or **Case 2**.
 
-**Preparing graph data for hard negative sampling**
+Preparing graph data for hard negative sampling
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The gconstruct pipeline of GraphStorm provides support to load hard negative data from raw input.
+Both single machine and distributed graph construction pipeline of GraphStorm provide support to load hard negative data from raw input.
 Hard destination negatives can be defined through ``edge_dst_hard_negative`` transformation.
 The ``feature_col`` field of ``edge_dst_hard_negative`` must stores the raw node ids of hard destination nodes.
-The follwing example shows how to define a hard negative feature for edges with the relation ``(node1, relation1, node1)``:
+The following example shows how to define a hard negative feature for edges with the relation ``(node1, relation1, node1)``:
 
   .. code-block:: json
 
@@ -328,3 +331,77 @@ For example, the file storing hard negatives should look like the following:
     "src_100"| "dst_41"| "dst0;dst_2"
 
 GraphStorm will automatically translate the Raw Node IDs of hard negatives into Partition Node IDs in a DistDGL graph.
+
+.. _link-prediction-evaluation-metrics:
+
+Link Prediction Metrics
+-----------------------
+
+GraphStorm supports several metrics for link prediction, to give a well-rounded
+view of model performance.
+In general, link prediction evaluation happens by constructing a set of negative
+edges with one of the sampling methods described above, and including one positive
+edge in this set of edges, which we will refer to as the `candidate set`. The model
+assigns a score to each edge in the candidate set, and ideally the true edge is ranked
+at the top position when edges are ranked by scores.
+
+We define the set of ranking scores as :math:`\mathcal{I}` and the number of candidate
+edges as :math:`\mathcal{|I|}`. We refer to the ranking of a positive edge within the list
+as :math:`r`.
+
+Mean Reciprocal Rank (MRR)
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Mean Reciprocal Rank or MRR is a metric commonly used in link prediction evaluation
+that represents the ability of the model to rank the correct edge among a list of
+candidate edges. It is defined as:
+
+.. math::
+
+   \text{MRR} = \frac{1}{| \mathcal{I} |} \sum_{r \in \mathcal{I}}{\frac{1}{r}}
+
+where :math:`\mathcal{I}` is the set of candidate edges, and :math:`r` corresponds to the
+ranking of the positive edge as determined by the score assigned to the model to
+each edge in the candidate set.
+
+The ideal MRR is 1.0 meaning that the positive edges are ranked first in every
+score list. Because a positive edge is always included in the ranking, it cannot
+get the value of 0.0 so its range is in :math:`(0, 1]`. MRR values are influenced by
+the size of the candidate lists, so it can only be used to compare the performance
+when the number of negative edges per positive edge is the same.
+
+Hits@k
+^^^^^^
+
+The ``Hits@k`` metric measures the number of times the positive edge was ranked in the
+top k positions by the model in the sorted score list:
+
+.. math::
+
+   \text{Hits@k} = \frac{| r \in \mathcal{I} | r \leq k |}{| \mathcal{I} |}
+
+This metric is easy to interpret but has the disadvantage that any position
+beyond the top-k is not taken into account, so does not provide a holistic
+view needed for cross-model comparison, and is also sensitive to the number
+of negatives in the set.
+
+
+Adjusted Mean Ranking Index (AMRI)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+AMRI was proposed in the paper
+`On the Ambiguity of Rank-Based Evaluation of EA or LP Methods <https://arxiv.org/abs/2002.06914>`_
+as a metric that allows cross-model comparison, by looking at the entire score list, but is not
+sensitive to the chosen number of negative edges per positive edge. It is defined as:
+
+
+.. math::
+
+        \text{AMRI} = 1 - \frac{\text{MR}-1}{\mathbb{E}[\text{MR}-1]}
+
+where :math:`\text{MR}` is the mean rank, and :math:`\mathbb{E}[\text{MR}-1]` is the expected mean rank,
+which is used to adjust for chance. Its values will be in the :math:`[-1, 1]` range, where 1 corresponds
+to optimal performance where each individual rank of the positive edge is 1. A value of 0 indicates
+model performance similar to a model assigning random scores, or equal score
+to every candidate. The value is negative if the model performs worse than the
+all-equal-score model."
