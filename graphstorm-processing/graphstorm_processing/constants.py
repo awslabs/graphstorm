@@ -31,6 +31,7 @@ MIN_VALUE = "MIN_VALUE"
 MAX_VALUE = "MAX_VALUE"
 COLUMN_NAME = "COLUMN_NAME"
 VALUE_COUNTS = "VALUE_COUNTS"
+COLUMN_ORDER_FLAG = "label_property_order_id"
 
 ############## Spark-specific constants #####################
 SPECIAL_CHARACTERS = {".", "+", "*", "?", "^", "$", "(", ")", "[", "]", "{", "}", "|", "\\"}
