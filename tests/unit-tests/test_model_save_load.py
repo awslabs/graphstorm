@@ -256,7 +256,23 @@ def test_save_load_sparse_emb(emb_size, world_size, monkeypatch):
             monkeypatch.setattr(utils, "get_rank", mock_get_rank)
             utils.load_sparse_emb(load_sparse_emb, load_emb_path)
 
-        assert_equal(load_sparse_emb._tensor.numpy(), sparse_emb.numpy())
+        assert_equal(load_sparse_emb._tensor.numpy(), sparse_emb._tensor.numpy())
+
+
+        load_sparse_emb2 = DummySparseEmb(emb_size)
+        load_emb_path = os.path.join(emb_path, ntype)
+
+        world_size = 2
+        for rank in range(world_size):
+            def mock_get_rank():
+                return rank
+
+            monkeypatch.setattr(utils, "get_world_size", mock_get_world_size)
+            monkeypatch.setattr(utils, "get_rank", mock_get_rank)
+            utils.load_sparse_emb(load_sparse_emb2, load_emb_path)
+            print("aa")
+
+        assert_equal(load_sparse_emb2._tensor.numpy(), sparse_emb._tensor.numpy())
 
 if __name__ == '__main__':
     test_save_load_sparse_emb()
