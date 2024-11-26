@@ -147,6 +147,15 @@ GraphStorm provides a set of transformation operations for different types of fe
                   "max_bound": 2.,
                   "min_bound": -2.}
 
+* **Numerical standard transformation** normalizes numerical input features with `val = val / sum`, where `val` is the feature value and `sum` is a summation of all the values in the feature. The ``name`` field in the feature transformation dictionary is ``standard``. The dictionary can contain one optional field, i.e., ``sum``, which is summation of all the values in the feature col from the previous transformation.
+
+  Example:
+
+  .. code:: json
+
+    "transform": {"name": "standard",
+                  "sum": 100.1,}
+
 * **Numerical Rank Gauss transformation** normalizes numerical input features with rank gauss normalization. It maps the numeric feature values to gaussian distribution based on ranking. The method follows the description in the normalization section of `the Porto Seguro's Safe Driver Prediction kaggle competition <https://www.kaggle.com/c/porto-seguro-safe-driver-prediction/discussion/44629#250927>`_. The ``name`` field in the feature transformation dictionary is ``rank_gauss``. The dict can contains two optional fields, i.e., ``epsilon`` which is used to avoid ``INF`` float during computation and ``uniquify`` which controls whether deduplicating input features before computing rank gauss norm.
 
   Example:
