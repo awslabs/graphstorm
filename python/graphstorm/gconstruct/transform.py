@@ -667,7 +667,7 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
         return {self.feat_name: feats}
 
 class NumericalStandardTransform(TwoPhaseFeatTransform):
-    """ Numerical value with standard normalization.
+    r""" Numerical value with standard normalization.
 
         $val_i = \frac{val_i}{\sum_{i=0}^{N-1} val_i}$
 
@@ -735,8 +735,9 @@ class NumericalStandardTransform(TwoPhaseFeatTransform):
 
     def update_info(self, info):
         # User has provided the sum value.
+        # Skip update info
         if self._summation is not None:
-            return self._summation
+            return
 
         # We have to aggregative sum value from workers.
         summations = []
@@ -781,7 +782,7 @@ class NumericalStandardTransform(TwoPhaseFeatTransform):
                 # if input dtype is not float or integer, we need to cast the data
                 # into float32
                 feats = feats.astype(np.float32)
-            except: # pylint: disable=bare-except
+            except TypeError:
                 raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
 
         feats = feats / self._summation
@@ -1339,7 +1340,9 @@ def parse_feat_ops(confs, input_data_format=None):
                 summation = conf['sum'] if 'sum' in conf else None
                 transform = NumericalStandardTransform(feat['feature_col'],
                                                        feat_name,
-                                                       summation=summation,out_dtype=out_dtype, transform_conf=conf)
+                                                       summation=summation,
+                                                       out_dtype=out_dtype,
+                                                       transform_conf=conf)
             elif conf['name'] == 'rank_gauss':
                 epsilon = conf['epsilon'] if 'epsilon' in conf else None
                 uniquify = conf['uniquify'] if 'uniquify' in conf else False
