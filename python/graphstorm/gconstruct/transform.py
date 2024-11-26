@@ -1336,10 +1336,10 @@ def parse_feat_ops(confs, input_data_format=None):
                                                      min_val,
                                                      out_dtype=out_dtype, transform_conf=conf)
             elif conf['name'] == 'standard':
-                sum = conf['sum'] if 'sum' in conf else None
+                summation = conf['sum'] if 'sum' in conf else None
                 transform = NumericalStandardTransform(feat['feature_col'],
                                                        feat_name,
-                                                       sum=sum,out_dtype=out_dtype, transform_conf=conf)
+                                                       summation=summation,out_dtype=out_dtype, transform_conf=conf)
             elif conf['name'] == 'rank_gauss':
                 epsilon = conf['epsilon'] if 'epsilon' in conf else None
                 uniquify = conf['uniquify'] if 'uniquify' in conf else False

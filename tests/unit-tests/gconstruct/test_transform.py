@@ -1218,6 +1218,18 @@ def test_standard_pre_process(input_dtype):
     assert_almost_equal(conf["sum"],
                         info[0]+info[1])
 
+    # array sum is zero
+    info = [np.array([-1]), np.array([1])]
+    transform = NumericalStandardTransform("test", "test")
+    with assert_raises(AssertionError):
+        transform.update_info(info)
+
+    # array sum has zero
+    info = [np.array([1, 2, -1]), np.array([1, 1, 1])]
+    transform = NumericalStandardTransform("test", "test")
+    with assert_raises(AssertionError):
+        transform.update_info(info)
+
 @pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32, np.float16])
 def test_standard_transform(input_dtype):
     np.random.seed(0)
