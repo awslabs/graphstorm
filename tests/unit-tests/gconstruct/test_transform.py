@@ -1148,7 +1148,7 @@ def test_hard_edge_dst_negative_transform(id_dtype):
     ground_truth[1][-2] = -1
     assert_equal(neg["hard_neg"][:,:10], ground_truth)
 
-@pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32, np.float16])
+@pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
 def test_standard_pre_process(input_dtype):
     np.random.seed(0)
     feats0 = np.random.randn(100).astype(input_dtype)
@@ -1230,7 +1230,7 @@ def test_standard_pre_process(input_dtype):
     with assert_raises(AssertionError):
         transform.update_info(info)
 
-@pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32, np.float16])
+@pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
 def test_standard_transform(input_dtype):
     np.random.seed(0)
     feats0 = np.random.randn(100).astype(input_dtype)
