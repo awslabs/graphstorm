@@ -23,7 +23,7 @@ import sys
 import abc
 import json
 import warnings
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 import numpy as np
 import torch as th
@@ -702,7 +702,7 @@ class NumericalStandardTransform(TwoPhaseFeatTransform):
         out_dtype = np.float32 if out_dtype is None else out_dtype
         super(NumericalStandardTransform, self).__init__(col_name, feat_name, out_dtype)
 
-    def pre_process(self, feats) -> dict[str, np.array]:
+    def pre_process(self, feats) -> Dict[str, np.array]:
         assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
             f"Feature {self.feat_name} of NumericalMinMaxTransform " \
             "must be numpy array or ExtMemArray"
@@ -755,7 +755,7 @@ class NumericalStandardTransform(TwoPhaseFeatTransform):
         if self._conf is not None:
             self._conf['sum'] = self._summation.tolist()
 
-    def call(self, feats) -> dict[str, np.array]:
+    def call(self, feats) -> Dict[str, np.array]:
         """ Do normalization for feats
 
         Parameters
