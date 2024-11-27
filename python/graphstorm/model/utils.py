@@ -1559,9 +1559,8 @@ def load_sparse_emb(target_sparse_emb, ntype_emb_path):
         for i in range(math.ceil(num_files/world_size)):
             file_idx = i * world_size + rank
             if file_idx < num_files:
-                file_path = os.path.join(ntype_emb_path,
-                                         f'sparse_emb_{pad_file_index(file_idx)}.pt')
-                emb = th.load(file_path)
+                emb = th.load(os.path.join(ntype_emb_path,
+                                           f'sparse_emb_{pad_file_index(file_idx)}.pt'))
 
                 # Get the target idx range for sparse_emb_{rank}.pt
                 start, end = _get_sparse_emb_range(num_embs,
@@ -1570,7 +1569,6 @@ def load_sparse_emb(target_sparse_emb, ntype_emb_path):
                 # write sparse_emb back in an iterative way
                 batch_size = 10240
                 idxs = th.split(th.arange(end - start), batch_size, dim=0)
-
                 for idx in idxs:
                     # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
                     target_sparse_emb._tensor[start+idx] = emb[idx]
