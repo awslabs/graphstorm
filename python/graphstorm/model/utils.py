@@ -1571,16 +1571,6 @@ def load_sparse_emb(target_sparse_emb, ntype_emb_path):
                 batch_size = 10240
                 idxs = th.split(th.arange(end - start), batch_size, dim=0)
 
-                # if
-                if start == end:
-                    assert len(emb) == 0, \
-                        "All the embeddings should be loaded by " \
-                        "other processes. The target embedding file " \
-                        f"{file_path} is expected to be empty."
-                    continue
-
-                if len(emb) == 0:
-                    print(f"{file_idx}: {len(emb)}: {start}:{end} {idxs} {len(target_sparse_emb._tensor)}")
                 for idx in idxs:
                     # TODO: dgl.distributed.DistEmbedding should allow some basic tensor ops
                     target_sparse_emb._tensor[start+idx] = emb[idx]
