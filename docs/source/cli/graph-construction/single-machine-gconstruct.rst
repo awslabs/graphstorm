@@ -147,7 +147,7 @@ GraphStorm provides a set of transformation operations for different types of fe
                   "max_bound": 2.,
                   "min_bound": -2.}
 
-* **Numerical standard transformation** normalizes numerical input features with `val = val / sum`, where `val` is the feature value and `sum` is a summation of all the values in the feature. The ``name`` field in the feature transformation dictionary is ``standard``. The dictionary can contain one optional field, i.e., ``sum``, which is summation of all the values in the feature col from the previous transformation.
+* **Numerical standard transformation** normalizes numerical input features with `val = val / sum`, where `val` is the feature value and `sum` is a summation of all the values in the feature. The ``name`` field in the feature transformation dictionary is ``standard``. The dictionary can contain one optional field, i.e., ``sum``, which is summation of all the values in the feature col from the previous transformation. (By default, the ``gconstruct.construct_graph`` command will save the ``sum`` value for each standard transformation.)
 
   Example:
 
