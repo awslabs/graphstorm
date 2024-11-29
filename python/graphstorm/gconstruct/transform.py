@@ -701,6 +701,11 @@ class NumericalStandardTransform(TwoPhaseFeatTransform):
         self._summation = np.array(summation, dtype=np.float32) if summation is not None else None
         self._conf = transform_conf
 
+        # When NumericalStandardTransform is initialized in
+        # parse_feat_ops(), the value of out_dtype will be
+        # set to None if it is not defined by the user.
+        # Set the value to np.float32.
+        out_dtype = np.float32 if out_dtype is None else out_dtype
         super().__init__(col_name, feat_name, out_dtype)
 
     def pre_process(self, feats) -> Dict[str, Optional[np.ndarray]]:
