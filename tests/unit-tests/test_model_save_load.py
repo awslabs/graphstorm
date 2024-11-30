@@ -19,6 +19,7 @@ import os
 import dgl
 import pytest
 import tempfile
+from typing import Tuple
 
 import torch as th
 from numpy.testing import assert_equal
@@ -30,6 +31,8 @@ from graphstorm.model.utils import load_sparse_embeds
 from graphstorm.model.utils import _get_sparse_emb_range
 from graphstorm.model.utils import pad_file_index
 from graphstorm import get_node_feat_size
+
+import graphstorm.model.utils as utils
 
 from data_utils import generate_dummy_dist_graph
 
@@ -201,7 +204,75 @@ def test_sparse_embed_load_corner_cases():
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
+class DummySparseEmb:
+    """ Dummy class for sparse embedding
+    """
+    def __init__(
+        self,
+        shape: Tuple,
+        dtype: th.dtype = th.float,
+    ):
+        self._tensor = th.zeros(shape, dtype=dtype)
+
+    @property
+    def num_embeddings(self):
+        return len(self._tensor)
+
+    def __setitem__(self, idx: th.Tensor, val: th.Tensor):
+        self._tensor[idx] = val
+
+    def __getitem__(self, idx: th.Tensor) -> th.Tensor:
+        return self._tensor[idx]
+
+@pytest.mark.parametrize("emb_size", [(140, 10), (1, 10), (13, 10)])
+@pytest.mark.parametrize("world_size", [80, 1, 12])
+def test_save_load_sparse_emb(emb_size, world_size, monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        emb_path = os.path.join(tmpdirname, "path")
+
+
+        sparse_emb = DummySparseEmb(emb_size)
+        sparse_emb[th.arange(emb_size[0])] = th.rand(emb_size)
+        ntype = "test"
+        def mock_get_world_size():
+            return world_size
+        monkeypatch.setattr(utils , "get_world_size", mock_get_world_size)
+        for rank in range(world_size):
+            def mock_get_rank():
+                return rank
+
+            monkeypatch.setattr(utils , "get_rank", mock_get_rank)
+            utils.save_sparse_emb(emb_path, sparse_emb, ntype)
+
+        new_sparse_emb = DummySparseEmb(emb_size)
+        load_emb_path = os.path.join(emb_path, ntype)
+
+        for rank in range(world_size):
+            def mock_get_rank():
+                return rank
+            monkeypatch.setattr(utils, "get_rank", mock_get_rank)
+            utils.load_sparse_emb(new_sparse_emb, load_emb_path)
+
+        assert_equal(new_sparse_emb._tensor.numpy(), sparse_emb._tensor.numpy())
+
+
+        new_sparse_emb2 = DummySparseEmb(emb_size)
+        load_emb_path = os.path.join(emb_path, ntype)
+
+        # Test the case where the numbers of processes (world_size)
+        # are different between emb saving and loading.
+        world_size = 2
+        for rank in range(world_size):
+            def mock_get_rank():
+                return rank
+
+            monkeypatch.setattr(utils, "get_rank", mock_get_rank)
+            utils.load_sparse_emb(new_sparse_emb2, load_emb_path)
+
+        assert_equal(new_sparse_emb2._tensor.numpy(), sparse_emb._tensor.numpy())
+
 if __name__ == '__main__':
+    test_save_load_sparse_emb()
     test_get_sparse_emb_range()
     test_sparse_embed_save(4)
     test_sparse_embed_load(3, 8)
