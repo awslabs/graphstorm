@@ -64,17 +64,17 @@ GraphStorm provides a set of parameters to config the GNN model structure (input
     - Yaml: ``model_encoder_type: rgcn``
     - Argument: ``--model-encoder-type rgcn``
     - Default value: This parameter must be provided by user.
-- **node_feat_name**: User defined feature name. It accepts two formats: a) `fname`, if all node types have the same node feature name, the corresponding feature name will be `fname`; b) `ntype0:feat0 ntype1:featA ...`, different node types have different node feature name(s). In the example, `ntype0` has a node feature named `feat0` and `ntype1` has a node feature named `featA`.
+- **node_feat_name**: User defined feature name. It accepts two formats like: a) `fname`, if all node types have the same node feature name, the corresponding feature name will be `fname`; b) `ntype0:feat0 ntype1:featA ...`, different node types have different node feature name(s). In the below example, `ntype0` has a node feature named `feat0` and `ntype1` has two node features named `featA` and `featB`.
 
     - Yaml: ``node_feat_name:``
-                | ``- "ntype1:featA,featB"``
                 | ``- "ntype0:feat0"``
+                | ``- "ntype1:featA,featB"``
     - Argument: ``--node-feat-name "ntype0:feat0 ntype1:featA,featB"``
     - Default value: If not provided, there will be no node features used by GraphStorm even graphs have node features attached.
 
     .. Note:: Characters ``:`` and white space are not allowed to be used in node feature names.  And in Yaml format, need to put each node's feature in a separated line that starts with a hyphon.
 
-- **edge_feat_name**: User defined edge feature name. It accepts two format: a) `fname`, if all edge types have the same feature name, the corresponding feature name will be `fname`; b) `src_ntype1,etype1,dst_ntype1:feat0,feat1 src_ntype2,etype2,dst_ntype2:feata`, if different edge types have different feature name(s). In the example, `src_ntype1,etype1,dst_ntype1` has two features named `feat0`, and`feat1`, and `src_ntype2,etype2,dst_ntype2` has one feature named `feata`.
+- **edge_feat_name**: User defined edge feature name. It accepts two formats like: a) `fname`, if all edge types have the same feature name, the corresponding feature name will be `fname`; b) `src_ntype1,etype1,dst_ntype1:feat0,... src_ntype2,etype2,dst_ntype2:feata ...`, if different edge types have different feature name(s). In the below example, `src_ntype1,etype1,dst_ntype1` edge type has two features named `feat0`, and `feat1`, and `src_ntype2,etype2,dst_ntype2` edge type has one feature named `feata`.
 
     - Yaml: ``edge_feat_name:``
                 | ``- "src_ntype1,etype1,dst_ntype1:feat0,feat1"``
@@ -82,7 +82,9 @@ GraphStorm provides a set of parameters to config the GNN model structure (input
     - Argument: ``—-edge-feat-name src_ntype1,etype1,dst_ntype1:feat0,feat1 src_ntype2,etype2dst_ntype2:feata``
     - Default value: If not provided, there will be no edge features used by GraphStorm even graphs have edge features attached.
 
-- **edge_feat_mp_op**: The operations to combine source node embeddings with edge embeddings during GNN message passing computation. Options include ``concat``, ``add``, ``sub``, ``mul``, and ``div``. ``concat`` operation will concatenate the source node embeddings with edge embeddings; ``add`` operation will add the  source node embeddings with edge embeddings; ``sub`` operation will subtract the source node embeddings with edge embeddings; ``mul`` operation will multiply the source node embeddings with edge embeddings; ``div`` operation will divide the source node embeddings with edge embeddings.
+    .. Warning:: In v0.4, only RGCN encoder has been modified to support using edge features during message passing computation. If users would like to use edge features, please set the ``model_encoder_type`` to be ``rgcn``.
+
+- **edge_feat_mp_op**: The operations to combine source node embeddings with edge embeddings during GNN message passing computation. Options include ``concat``, ``add``, ``sub``, ``mul``, and ``div``. ``concat`` operation will concatenate source node embeddings with edge embeddings; ``add`` operation will add source node embeddings with edge embeddings; ``sub`` operation will subtract source node embeddings by edge embeddings; ``mul`` operation will multiply source node embeddings with edge embeddings; ``div`` operation will divide source node embeddings by edge embeddings.
 
     - Yaml: ``edge_feat_mp_op: "add"``
     - Argument: ``-—edge-feat-mp-op add``
