@@ -54,6 +54,7 @@ ARG TRANSFORMERS_VERSION=4.28.1
 RUN cd /root; git clone --branch v${DGL_VERSION} --single-branch https://github.com/dmlc/dgl.git
 ENV DGL_HOME=/root/dgl
 ENV DGLBACKEND=pytorch
+ENV PYTHONPATH="/root/dgl/tools/:${PYTHONPATH}"
 
 FROM base as base-cpu
 
@@ -141,9 +142,6 @@ RUN mkdir -p ${SSHDIR} \
     && mkdir /run/sshd
 
 EXPOSE ${SSH_PORT}
-
-ENV PYTHONPATH="/root/dgl/tools/:${PYTHONPATH}"
-
 
 # Copy GraphStorm source and add to PYTHONPATH
 RUN mkdir -p /graphstorm
