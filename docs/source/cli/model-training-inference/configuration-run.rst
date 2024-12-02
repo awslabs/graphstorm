@@ -82,7 +82,7 @@ GraphStorm provides a set of parameters to config the GNN model structure (input
     - Argument: ``—-edge-feat-name src_ntype1,etype1,dst_ntype1:feat0,feat1 src_ntype2,etype2dst_ntype2:feata``
     - Default value: If not provided, there will be no edge features used by GraphStorm even graphs have edge features attached.
 
-    .. Warning:: In v0.4, only RGCN encoder has been modified to support using edge features during message passing computation. If users would like to use edge features, please set the ``model_encoder_type`` to be ``rgcn``.
+    .. Note:: In the latest version, the RGCN encoder has been modified to support using edge features during message passing computation. If users would like to use edge features, please set the ``model_encoder_type`` to be ``rgcn``.
 
 - **edge_feat_mp_op**: The operations to combine source node embeddings with edge embeddings during GNN message passing computation. Options include ``concat``, ``add``, ``sub``, ``mul``, and ``div``. ``concat`` operation will concatenate source node embeddings with edge embeddings; ``add`` operation will add source node embeddings with edge embeddings; ``sub`` operation will subtract source node embeddings by edge embeddings; ``mul`` operation will multiply source node embeddings with edge embeddings; ``div`` operation will divide source node embeddings by edge embeddings.
 
