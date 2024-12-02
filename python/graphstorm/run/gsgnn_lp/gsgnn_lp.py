@@ -74,6 +74,7 @@ def main(config_args):
     dataloader = dataloader_cls(train_data, train_idxs, config.fanout,
                                 config.batch_size, config.num_negative_edges,
                                 node_feats=config.node_feat_name,
+                                edge_feats=config.edge_feat_name,
                                 pos_graph_edge_feats=config.lp_edge_weight_for_loss,
                                 train_task=True,
                                 reverse_edge_types_map=config.reverse_edge_types_map,
@@ -96,6 +97,7 @@ def main(config_args):
                 fanout=config.eval_fanout,
                 fixed_test_size=config.fixed_test_size,
                 node_feats=config.node_feat_name,
+                edge_feats=config.edge_feat_name,
                 pos_graph_edge_feats=config.lp_edge_weight_for_loss)
         else:
             val_dataloader = test_dataloader_cls(train_data, val_idxs,
@@ -103,6 +105,7 @@ def main(config_args):
                 config.num_negative_edges_eval, config.eval_fanout,
                 fixed_test_size=config.fixed_test_size,
                 node_feats=config.node_feat_name,
+                edge_feats=config.edge_feat_name,
                 pos_graph_edge_feats=config.lp_edge_weight_for_loss)
 
     test_idxs = train_data.get_edge_test_set(config.eval_etype)
@@ -114,12 +117,14 @@ def main(config_args):
                 fanout=config.eval_fanout,
                 fixed_test_size=config.fixed_test_size,
                 node_feats=config.node_feat_name,
+                edge_feats=config.edge_feat_name,
                 pos_graph_edge_feats=config.lp_edge_weight_for_loss)
         else:
             test_dataloader = test_dataloader_cls(train_data, test_idxs,
                 config.eval_batch_size, config.num_negative_edges_eval, config.eval_fanout,
                 fixed_test_size=config.fixed_test_size,
                 node_feats=config.node_feat_name,
+                edge_feats=config.edge_feat_name,
                 pos_graph_edge_feats=config.lp_edge_weight_for_loss)
 
     # Preparing input layer for training or inference.
@@ -144,6 +149,11 @@ def main(config_args):
                 grad_norm_type=config.grad_norm_type)
 
     if config.save_embed_path is not None:
+        assert config.edge_feat_name is None, 'GraphStorm node prediction training command ' + \
+            'uses full-graph inference by default to generate node embeddings at the end of ' + \
+            'training. But the full-graph inference method does not support edge features ' + \
+            'in the current version. Please set the \"save_embed_path\" to none ' + \
+            ' if you want to use edge features in training command.'
         model = gs.create_builtin_lp_gnn_model(train_data.g, config, train_task=False)
         best_model_path = trainer.get_best_model_path()
         # TODO(zhengda) the model path has to be in a shared filesystem.
