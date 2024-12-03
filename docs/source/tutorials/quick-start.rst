@@ -58,7 +58,7 @@ Run the below command to start a training job that trains a built-in RGCN model 
 
 .. code-block:: bash
 
-    # create the workspace first, if it does not exist yet
+    # create the workspace folder first, if it does not exist yet
     mkdir /tmp/ogbn-arxiv-nc
 
     python -m graphstorm.run.gs_node_classification \
