@@ -257,10 +257,14 @@ def create_acm_raw_data(graph,
                                                                 # The split pct values are just for
                                                                 # demonstration purpose.
                 labels_list.append(label_dict)
+            elif col.startswith('cate_'):                       # Dummy categorical features that ask
+                feat_dict['feature_col'] = col                  # for a "to_categorical" tranformation
+                feat_dict['feature_name'] = col                 # operation
+                feat_dict['transform'] = {"name": "to_categorical"}
+                feats_list.append(feat_dict)
             else:
                 feat_dict['feature_col'] = col
                 feat_dict['feature_name'] = col
-                # for this example, we do not have transform for features
                 feats_list.append(feat_dict)
         # set up the rest fileds of this node type
         if feats_list:
