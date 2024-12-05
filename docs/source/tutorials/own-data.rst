@@ -126,6 +126,15 @@ The above command automatically creates the examplary ACM `config.json` file, so
                 ],
                 "source_id_col": "source_id",
                 "dest_id_col": "dest_id",
+                "features": [
+                    {
+                        "feature_col": "cate_feat",
+                        "feature_name": "cate_feat",
+                        "transform": {
+                            "name": "to_categorical"
+                        }
+                    }
+                ],
                 "labels": [
                     {
                         "task_type": "link_prediction",
