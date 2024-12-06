@@ -34,6 +34,7 @@ from sagemaker.workflow.steps import (
     ProcessingStep,
     TrainingStep,
     ProcessingInput,
+    ProcessingOutput,
 )
 
 from pipeline_parameters import PipelineArgs, parse_pipeline_args
@@ -71,6 +72,14 @@ def create_pipeline(args: PipelineArgs) -> Pipeline:
     )
     gpu_instance_type_param = ParameterString(
         name="GPUInstanceType", default_value=args.instance_config.gpu_instance_type
+    )
+    graphconstruct_instance_type_param = ParameterString(
+        name="GraphConstructInstanceType",
+        default_value=args.instance_config.graph_construction_instance_type,
+    )
+    graphconstruct_config_param = ParameterString(
+        name="GraphConstructConfigFile",
+        default_value=args.graph_construction_config.graph_construction_config_file,
     )
     partition_algorithm_param = ParameterString(
         name="PartitionAlgorithm",
@@ -143,6 +152,73 @@ def create_pipeline(args: PipelineArgs) -> Pipeline:
 
     # We use this to update the input to each step in the pipeline
     next_step_input = input_data_param.to_string()
+
+    # GConstruct step
+    if "gconstruct" in args.task_config.jobs_to_run:
+        assert args.graph_construction_config.graph_construction_config_file, (
+            "Graph construction config file must be specified for GConstruct step. "
+            "Use --graph-construction-config-filename"
+        )
+
+        gconstruct_processor = ScriptProcessor(
+            image_uri=args.aws_config.image_url,
+            role=args.aws_config.role,
+            instance_count=1,
+            instance_type=graphconstruct_instance_type_param,
+            command=["python3"],
+            sagemaker_session=pipeline_session,
+        )
+
+        gc_local_input_path = "/opt/ml/processing/input"
+        gc_local_output_path = "/opt/ml/processing/output"
+
+        gconstruct_arguments = [
+            "--graph-config-path",
+            graphconstruct_config_param,
+            "--input-path",
+            gc_local_input_path,
+            "--output-path",
+            gc_local_output_path,
+            "--graph-name",
+            graph_name_param,
+            "--num-parts",
+            instance_count_param.to_string(),
+            "--add-reverse-edges",
+        ]
+
+        if args.graph_construction_config.graph_construction_args:
+            gconstruct_arguments.extend(
+                args.graph_construction_config.graph_construction_args
+            )
+
+        gconstruct_output = Join(
+            on="/",
+            values=[
+                output_subpath,
+                "gconstruct",
+            ],
+        )
+
+        gconstruct_step = ProcessingStep(
+            name="GConstruct",
+            processor=gconstruct_processor,
+            inputs=[
+                ProcessingInput(
+                    source=next_step_input, destination=gc_local_input_path
+                ),
+            ],
+            outputs=[
+                ProcessingOutput(
+                    source=gc_local_output_path,
+                    destination=gconstruct_output,
+                    output_name=graph_name_param,
+                ),
+            ],
+            job_arguments=gconstruct_arguments,
+            code=args.script_paths.gconstruct_script,
+        )
+        pipeline_steps.append(gconstruct_step)
+        next_step_input = gconstruct_output
 
     # DistPartition step
     if "dist_part" in args.task_config.jobs_to_run:
@@ -288,7 +364,8 @@ def create_pipeline(args: PipelineArgs) -> Pipeline:
         )
         pipeline_steps.append(train_step)
 
-    # TODO: During training we should save the best model under 'best_model`
+    # TODO: During training we should save the best model under '/best_model`
+    # to make getting the best model for inference easier
     inference_model_path = Join(
         on="/",
         values=[
@@ -371,6 +448,8 @@ def create_pipeline(args: PipelineArgs) -> Pipeline:
             cpu_instance_type_param,
             gpu_instance_type_param,
             graph_name_param,
+            graphconstruct_instance_type_param,
+            graphconstruct_config_param,
             inference_config_file_param,
             inference_model_snapshot_param,
             input_data_param,

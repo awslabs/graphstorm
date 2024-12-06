@@ -21,14 +21,15 @@ import os
 from dataclasses import dataclass
 from typing import List
 
-# TODO: Add support for gconstruct and gsprocessing
-SUPPORTED_JOB_TYPES = {"dist_part", "train", "inference"}
+# TODO: Add support for gsprocessing
+SUPPORTED_JOB_TYPES = {"gconstruct", "dist_part", "train", "inference"}
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
 
 
 @dataclass
 class AWSConfig:
     """AWS-related configuration"""
+
     role: str
     region: str
     image_url: str
@@ -36,10 +37,12 @@ class AWSConfig:
 
 @dataclass
 class InstanceConfig:
-    """Configuration for worker instances"""
+    """Configuration for SageMaker instances"""
+
     instance_count: int
     cpu_instance_type: str
     gpu_instance_type: str
+    graph_construction_instance_type: str
     train_on_cpu: bool = False
 
     def __post_init__(self):
@@ -54,6 +57,7 @@ class InstanceConfig:
 @dataclass
 class TaskConfig:
     """Pipeline/task-level configuration"""
+
     base_job_name: str
     graph_name: str
     input_data_s3: str
@@ -70,8 +74,17 @@ class TaskConfig:
 
 
 @dataclass
+class GraphConstructionConfig:
+    """Configuration for the graph construction step"""
+
+    graph_construction_config_file: str
+    graph_construction_args: str
+
+
+@dataclass
 class PartitionConfig:
     """Configuration for the partition step"""
+
     partition_algorithm: str
     input_json_filename: str
     output_json_filename: str
@@ -80,10 +93,10 @@ class PartitionConfig:
 @dataclass
 class TrainingConfig:
     """Configuration for the training step"""
+
     model_output_path: str
     train_inference_task: str
     train_yaml_file: str
-    num_epochs: int
     num_trainers: int
     use_graphbolt: str
 
@@ -91,6 +104,7 @@ class TrainingConfig:
 @dataclass
 class InferenceConfig:
     """Configuration for the inference step"""
+
     save_embeddings: bool
     save_predictions: bool
     inference_model_snapshot: str
@@ -100,10 +114,12 @@ class InferenceConfig:
 @dataclass
 class ScriptPaths:
     """Entry point script locations"""
+
     dist_part_script: str
     gb_part_script: str
     train_script: str
     inference_script: str
+    gconstruct_script: str
 
 
 @dataclass()
@@ -111,6 +127,7 @@ class PipelineArgs:
     """Wrapper class for all pipeline configurations"""
 
     aws_config: AWSConfig
+    graph_construction_config: GraphConstructionConfig
     instance_config: InstanceConfig
     task_config: TaskConfig
     partition_config: PartitionConfig
@@ -206,10 +223,10 @@ def parse_pipeline_args() -> PipelineArgs:
     optional_args.add_argument(
         "--jobs-to-run",
         nargs="+",
-        default=["dist_part", "train", "inference"],
+        default=["gconstruct", "train", "inference"],
         help="Jobs to run in the pipeline. "
         f"Should be one or more of: {list(SUPPORTED_JOB_TYPES)} "
-        "Default ['dist_part', 'train', 'inference']",
+        "Default ['gconstruct', 'train', 'inference']",
     )
     optional_args.add_argument(
         "--log-level",
@@ -223,6 +240,34 @@ def parse_pipeline_args() -> PipelineArgs:
         type=str,
         default="30d",
         help="Expiration time for the step cache, as a string in ISO 8601 duration. Default: 30d",
+    )
+    optional_args.add_argument(
+        "--update-pipeline",
+        action="store_true",
+        help="Update an existing pipeline instead of creating a new one.",
+    )
+
+    # Graph construction configuration
+    optional_args.add_argument(
+        "--graph-construction-config-filename",
+        type=str,
+        default="",
+        help="Filename for the graph construction config. "
+        "Needs to exist at the top level of the S3 input data.",
+    )
+    optional_args.add_argument(
+        "--graph-construction-instance-type",
+        type=str,
+        default="ml.m5.4xlarge",
+        help="Instance type for graph construction. Default: ml.m5.4xlarge",
+    )
+    optional_args.add_argument(
+        "--graph-construction-args",
+        type=str,
+        default="",
+        help="Parameters to be passed directly to the GConstruct job, "
+        "wrap these in double quotes to avoid splitting, e.g."
+        '--graph-construction-args "--num-processes 8 "',
     )
 
     # Partition configuration
@@ -255,11 +300,12 @@ def parse_pipeline_args() -> PipelineArgs:
         default="",
         help="S3 path for model output. Default is determined by graph name and subpath.",
     )
+    # TODO: Make this a pipeline param or derive from instance type during launch?
     optional_args.add_argument(
-        "--num-epochs", type=int, default=1, help="Number of training epochs"
-    )
-    optional_args.add_argument(
-        "--num-trainers", type=int, default=4, help="Number of trainers"
+        "--num-trainers",
+        type=int,
+        default=4,
+        help="Number of trainers to use during training/inference. Set this to the number of GPUs",
     )
     required_args.add_argument(
         "--train-inference-task",
@@ -330,10 +376,12 @@ def parse_pipeline_args() -> PipelineArgs:
         help="Path to inference SageMaker entry point script.",
     )
     optional_args.add_argument(
-        "--update-pipeline",
-        action="store_true",
-        help="Update an existing pipeline instead of creating a new one.",
+        "--gconstruct-script",
+        type=str,
+        default=f"{SCRIPT_PATH}/../run/gconstruct_entry.py",
+        help="Path to GConstruct SageMaker entry point script.",
     )
+
     # TODO: Support arbitrary SM estimator args
 
     args = parser.parse_args()
@@ -344,6 +392,7 @@ def parse_pipeline_args() -> PipelineArgs:
         ),
         instance_config=InstanceConfig(
             instance_count=args.instance_count,
+            graph_construction_instance_type=args.graph_construction_instance_type,
             cpu_instance_type=args.cpu_instance_type,
             gpu_instance_type=args.gpu_instance_type,
             train_on_cpu=args.train_on_cpu,
@@ -357,6 +406,10 @@ def parse_pipeline_args() -> PipelineArgs:
             jobs_to_run=args.jobs_to_run,
             log_level=args.log_level,
         ),
+        graph_construction_config=GraphConstructionConfig(
+            graph_construction_config_file=args.graph_construction_config_filename,
+            graph_construction_args=args.graph_construction_args,
+        ),
         partition_config=PartitionConfig(
             input_json_filename=args.partition_input_json,
             output_json_filename=args.partition_output_json,
@@ -364,7 +417,6 @@ def parse_pipeline_args() -> PipelineArgs:
         ),
         training_config=TrainingConfig(
             model_output_path=args.model_output_path,
-            num_epochs=args.num_epochs,
             num_trainers=args.num_trainers,
             train_inference_task=args.train_inference_task,
             train_yaml_file=args.train_yaml_s3,
@@ -378,6 +430,7 @@ def parse_pipeline_args() -> PipelineArgs:
         ),
         script_paths=ScriptPaths(
             dist_part_script=args.dist_part_script,
+            gconstruct_script=args.gconstruct_script,
             gb_part_script=args.gb_part_script,
             train_script=args.train_script,
             inference_script=args.inference_script,
