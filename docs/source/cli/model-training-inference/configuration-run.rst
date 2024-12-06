@@ -84,7 +84,7 @@ GraphStorm provides a set of parameters to config the GNN model structure (input
 
     - Yaml: ``edge_feat_name:``
                 | ``- "src_ntype1,etype1,dst_ntype1:feat0,feat1"``
-                | ``- "src_ntype2,etype2,dst_ntype2:feata"``
+                | ``- "src_ntype2,etype2,dst_ntype2:featA"``
     - Argument: ``—-edge-feat-name src_ntype1,etype1,dst_ntype1:feat0,feat1 src_ntype2,etype2dst_ntype2:feata``
     - Default value: If not provided, there will be no edge features used by GraphStorm even graphs have edge features attached.
 
