@@ -33,10 +33,15 @@ def parse_inference_args():
     # disrributed training
     parser.add_argument("--graph-name", type=str, help="Graph name")
     parser.add_argument("--graph-data-s3", type=str,
-        help="S3 location of input training graph")
+        help="S3 location of input training graph",
+        required=True)
     parser.add_argument("--infer-yaml-s3", type=str,
         help="S3 location of inference yaml file. "
-             "Do not store it with partitioned graph")
+             "Do not store it with partitioned graph",
+             required=True)
+    parser.add_argument("--model-artifact-s3", type=str,
+        help="S3 bucket to load the saved model artifacts",
+        required=True)
     parser.add_argument("--output-emb-s3", type=str,
         help="S3 location to store GraphStorm generated node embeddings.",
         default=None)
@@ -45,8 +50,6 @@ def parse_inference_args():
              "(Only works with node classification/regression " \
              "and edge classification/regression tasks)",
         default=None)
-    parser.add_argument("--model-artifact-s3", type=str,
-        help="S3 bucket to load the saved model artifacts")
     parser.add_argument("--raw-node-mappings-s3", type=str, required=False,
         default=None, help="S3 location where the original (str to int) node mappings exist.")
     parser.add_argument("--custom-script", type=str, default=None,
@@ -69,8 +72,8 @@ def parse_inference_args():
     return parser
 
 if __name__ =='__main__':
-    parser = parse_inference_args()
-    args, unknownargs = parser.parse_known_args()
+    inference_parser = parse_inference_args()
+    args, unknownargs = inference_parser.parse_known_args()
 
     subprocess.run(["df", "-h"], check=True)
     run_infer(args, unknownargs)
