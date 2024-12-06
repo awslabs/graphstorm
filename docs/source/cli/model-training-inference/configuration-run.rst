@@ -85,7 +85,7 @@ GraphStorm provides a set of parameters to config the GNN model structure (input
     - Yaml: ``edge_feat_name:``
                 | ``- "src_ntype1,etype1,dst_ntype1:feat0,feat1"``
                 | ``- "src_ntype2,etype2,dst_ntype2:featA"``
-    - Argument: ``—-edge-feat-name src_ntype1,etype1,dst_ntype1:feat0,feat1 src_ntype2,etype2dst_ntype2:feata``
+    - Argument: ``—-edge-feat-name src_ntype1,etype1,dst_ntype1:feat0,feat1 src_ntype2,etype2dst_ntype2:featA``
     - Default value: If not provided, there will be no edge features used by GraphStorm even graphs have edge features attached.
 
     .. Note:: In the latest version, the RGCN encoder has been modified to support using edge features during message passing computation. If users would like to use edge features, please set the ``model_encoder_type`` to be ``rgcn``.
