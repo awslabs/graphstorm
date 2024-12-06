@@ -78,7 +78,7 @@ GraphStorm provides a set of parameters to config the GNN model structure (input
     - Argument: ``--node-feat-name "ntype0:feat0 ntype1:featA,featB"``
     - Default value: If not provided, there will be no node features used by GraphStorm even graphs have node features attached.
 
-    .. Note:: Characters ``:`` and white space are not allowed to be used in node feature names.  And in Yaml format, need to put each node's feature in a separated line that starts with a hyphon.
+    .. Note:: Characters ``:`` and white space are not allowed to be used in node feature names. In Yaml format, users need to put each node's feature in a separated line that starts with a hyphon.
 
 - **edge_feat_name**: User defined edge feature name. It accepts two formats like: a) `fname`, if all edge types have the same feature name, the corresponding feature name will be `fname`; b) `src_ntype1,etype1,dst_ntype1:feat0,... src_ntype2,etype2,dst_ntype2:feata ...`, if different edge types have different feature name(s). In the below example, `src_ntype1,etype1,dst_ntype1` edge type has two features named `feat0`, and `feat1`, and `src_ntype2,etype2,dst_ntype2` edge type has one feature named `feata`.
 
