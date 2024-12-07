@@ -22,14 +22,6 @@ import os
 from dataclasses import dataclass
 from typing import List
 
-SUPPORTED_JOB_TYPES = {
-    "gconstruct",
-    "gsprocessing",
-    "dist_part",
-    "gb_convert",
-    "train",
-    "inference",
-}
 
 JOB_ORDER = {
     "gconstruct": 0,
@@ -94,20 +86,23 @@ class TaskConfig:
     pipeline_name: str
 
     def __post_init__(self):
+        # Ensure job names are valid
+        for job_type in self.jobs_to_run:
+            assert (
+                job_type in JOB_ORDER
+            ), f"Unsupported job type: '{job_type}', expected one of {list(JOB_ORDER.keys())}"
+
         # Ensure jobs are in the right order
         self.jobs_to_run.sort(key=lambda x: JOB_ORDER[x])
 
-        for job_type in self.jobs_to_run:
-            assert (
-                job_type in SUPPORTED_JOB_TYPES
-            ), f"Unsupported job type: {job_type}, expected one of {SUPPORTED_JOB_TYPES}"
-
+        # We should only run either gconstruct or gsprocessing
         if "gconstruct" in self.jobs_to_run and "gsprocessing" in self.jobs_to_run:
             raise ValueError(
                 "Should not try to run both GConstruct and GSProcessing steps, "
                 f"got job sequence: {self.jobs_to_run}"
             )
 
+        # When running gsprocessing ensure we run dist_part as well
         if "gsprocessing" in self.jobs_to_run and "dist_part" not in self.jobs_to_run:
             raise ValueError(
                 "When running GSProcessing need to run 'dist_part' as the following job, "
@@ -145,10 +140,10 @@ class TrainingConfig:
     train_inference_task: str
     train_yaml_file: str
     num_trainers: int
-    use_graphbolt: str
+    use_graphbolt_str: str
 
     def __post_init__(self):
-        self.use_graphbolt = self.use_graphbolt.lower()
+        self.use_graphbolt_str = self.use_graphbolt_str.lower()
 
 
 @dataclass
@@ -196,12 +191,25 @@ class PipelineArgs:
                 f"{self.instance_config.gpu_instance_type=}"
             )
 
-        if "gsprocessing" in self.task_config.jobs_to_run:
-            assert self.aws_config.gsprocessing_pyspark_image_url, \
-                "Need to provide a GSProcessing PySpark image URL when running GSProcessing"
-
+        # Ensure we provide a GConstruct/GSProcessing config file when running construction
         if (
-            self.training_config.use_graphbolt == "true"
+            "gconstruct" in self.task_config.jobs_to_run
+            or "gsprocessing" in self.task_config.jobs_to_run
+        ):
+            assert self.graph_construction_config.config_filename, (
+                "Need to provide a GConstruct/GSProcessing config file "
+                "when running graph construction."
+            )
+
+        # Ensure we have a GSProcessing image to run gsprocessing
+        if "gsprocessing" in self.task_config.jobs_to_run:
+            assert self.aws_config.gsprocessing_pyspark_image_url,(
+                "Need to provide a GSProcessing PySpark image URL when running GSProcessing"
+            )
+
+        # Ensure we run gb_convert after dist_part when training with graphbolt
+        if (
+            self.training_config.use_graphbolt_str == "true"
             and "dist_part" in self.task_config.jobs_to_run
         ):
             assert "gb_convert" in self.task_config.jobs_to_run, (
@@ -209,6 +217,21 @@ class PipelineArgs:
                 "need to run 'gb_convert' as the following job, "
                 f"got job sequence: {self.task_config.jobs_to_run}"
             )
+
+        # When running gconstruct and train with graphbolt enabled, add '--use-graphbolt true'
+        # to gconstruct args
+        if (
+            "gconstruct" in self.task_config.jobs_to_run
+            and self.training_config.use_graphbolt_str == "true"
+        ):
+            if self.graph_construction_config.graph_construction_args:
+                self.graph_construction_config.graph_construction_args += (
+                    " --use-graphbolt true"
+                )
+            else:
+                self.graph_construction_config.graph_construction_args += (
+                    "--use-graphbolt true"
+                )
 
         # If running gsprocessing but do not set instance count for it, use train instance count
         if (
@@ -259,8 +282,9 @@ def parse_pipeline_args() -> PipelineArgs:
     # Instance Configuration
     required_args.add_argument(
         "--instance-count",
+        "--num-parts",
         type=int,
-        help="Number of worker instances for partition, training, inference.",
+        help="Number of worker instances/partitions for partition, training, inference.",
         required=True,
     )
     optional_args.add_argument(
@@ -308,13 +332,15 @@ def parse_pipeline_args() -> PipelineArgs:
         default="gs",
         help="Base job name for SageMaker jobs. Default: 'sm'",
     )
-    optional_args.add_argument(
+    required_args.add_argument(
         "--jobs-to-run",
         nargs="+",
-        default=["gconstruct", "train", "inference"],
-        help="Jobs to run in the pipeline. "
-        f"Should be one or more of: {list(SUPPORTED_JOB_TYPES)} "
-        "Default ['gconstruct', 'train', 'inference']",
+        required=True,
+        help=(
+            "Space-separated string of jobs to run in the pipeline, "
+            "e.g. 'gconstruct train inference'. "
+            f"Should be one or more of: {list(JOB_ORDER.keys())}. Required. "
+        ),
     )
     optional_args.add_argument(
         "--log-level",
@@ -527,7 +553,7 @@ def parse_pipeline_args() -> PipelineArgs:
             num_trainers=args.num_trainers,
             train_inference_task=args.train_inference_task,
             train_yaml_file=args.train_yaml_s3,
-            use_graphbolt=args.use_graphbolt,
+            use_graphbolt_str=args.use_graphbolt,
         ),
         inference_config=InferenceConfig(
             save_predictions=args.save_predictions,
