@@ -50,6 +50,7 @@ class GraphStormPipelineGenerator:
     args : PipelineArgs
         Complete set of arguments for the pipeline this will create.
     """
+
     def __init__(self, args: PipelineArgs):
         self.args = args
         self.pipeline_session = self._create_pipeline_session()
@@ -182,8 +183,9 @@ class GraphStormPipelineGenerator:
         self.num_trainers_param = self._create_int_parameter(
             "NumTrainers", args.training_config.num_trainers
         )
+        # TODO: Maybe should not be configurable because it requires changing job sequence?
         self.use_graphbolt_param = self._create_string_parameter(
-            "UseGraphBolt", args.training_config.use_graphbolt
+            "UseGraphBolt", args.training_config.use_graphbolt_str
         )
         self.input_data_param = self._create_string_parameter(
             "InputData", args.task_config.input_data_s3
@@ -195,6 +197,7 @@ class GraphStormPipelineGenerator:
             "TrainConfigFile", args.training_config.train_yaml_file
         )
 
+        # If inference yaml is not provided, re-use the training one
         inference_yaml_default = (
             args.inference_config.inference_yaml_file
             or args.training_config.train_yaml_file
@@ -305,12 +308,6 @@ class GraphStormPipelineGenerator:
             "--add-reverse-edges",
         ]
 
-        # TODO: This doesn't seem to work, can try to debug or try to enforce
-        # extended args.graph_construction_config.graph_construction_args during argparsing?
-        # Would that make use-graphbolt not execution-configurable?
-        # if self.use_graphbolt_param.to_string() == "true":
-        #     gconstruct_arguments.extend(["--use-graphbolt", "true"])
-
         # TODO: Make this a pipeline parameter?
         if args.graph_construction_config.graph_construction_args:
             gconstruct_arguments.extend(
@@ -328,6 +325,7 @@ class GraphStormPipelineGenerator:
             ],
             job_arguments=gconstruct_arguments,
             code=args.script_paths.gconstruct_script,
+            cache_config=self.cache_config,
         )
 
         self.next_step_data_input = gconstruct_s3_output
@@ -406,6 +404,7 @@ class GraphStormPipelineGenerator:
             ],
             outputs=[gsprocessing_meta_output],
             job_arguments=gsprocessing_arguments,
+            cache_config=self.cache_config,
         )
 
         self.next_step_data_input = gsprocessing_output
@@ -483,8 +482,6 @@ class GraphStormPipelineGenerator:
         gb_convert_arguments = [
             "--metadata-filename",
             args.partition_config.output_json_filename,
-            "--log-level",
-            args.task_config.log_level,
         ]
 
         gb_convert_step = ProcessingStep(
