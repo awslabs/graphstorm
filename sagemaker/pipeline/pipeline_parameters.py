@@ -13,16 +13,33 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-Parameter parsing for GraphStorm SageMaker Pipeline
+Parameter parsing and validation for GraphStorm SageMaker Pipeline
 """
 
 import argparse
+import logging
 import os
 from dataclasses import dataclass
 from typing import List
 
-# TODO: Add support for gsprocessing
-SUPPORTED_JOB_TYPES = {"gconstruct", "dist_part", "train", "inference"}
+SUPPORTED_JOB_TYPES = {
+    "gconstruct",
+    "gsprocessing",
+    "dist_part",
+    "gb_convert",
+    "train",
+    "inference",
+}
+
+JOB_ORDER = {
+    "gconstruct": 0,
+    "gsprocessing": 1,
+    "dist_part": 2,
+    "gb_convert": 3,
+    "train": 4,
+    "inference": 5,
+}
+
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
 
 
@@ -32,26 +49,36 @@ class AWSConfig:
 
     role: str
     region: str
-    image_url: str
+    graphstorm_pytorch_image_url: str
+    gsprocessing_pyspark_image_url: str
 
 
 @dataclass
 class InstanceConfig:
     """Configuration for SageMaker instances"""
 
-    instance_count: int
+    train_infer_instance_count: int
     cpu_instance_type: str
     gpu_instance_type: str
     graph_construction_instance_type: str
-    train_on_cpu: bool = False
+    gsprocessing_instance_count: int
+    train_on_cpu: bool
 
     def __post_init__(self):
         assert (
             self.cpu_instance_type or self.gpu_instance_type
         ), "At least one instance type (CPU or GPU) should be specified."
+
         assert (
             self.train_on_cpu and self.cpu_instance_type
         ), "Need to provide a CPU instance type when training on CPU"
+
+        if not self.graph_construction_instance_type:
+            self.graph_construction_instance_type = self.cpu_instance_type
+            logging.warning(
+                "No graph processing instance type specified, using the CPU instance type: %s",
+                self.cpu_instance_type,
+            )
 
 
 @dataclass
@@ -67,17 +94,37 @@ class TaskConfig:
     pipeline_name: str
 
     def __post_init__(self):
+        # Ensure jobs are in the right order
+        self.jobs_to_run.sort(key=lambda x: JOB_ORDER[x])
+
         for job_type in self.jobs_to_run:
             assert (
                 job_type in SUPPORTED_JOB_TYPES
             ), f"Unsupported job type: {job_type}, expected one of {SUPPORTED_JOB_TYPES}"
+
+        if "gconstruct" in self.jobs_to_run and "gsprocessing" in self.jobs_to_run:
+            raise ValueError(
+                "Should not try to run both GConstruct and GSProcessing steps, "
+                f"got job sequence: {self.jobs_to_run}"
+            )
+
+        if "gsprocessing" in self.jobs_to_run and "dist_part" not in self.jobs_to_run:
+            raise ValueError(
+                "When running GSProcessing need to run 'dist_part' as the following job, "
+                f"got job sequence: {self.jobs_to_run}"
+            )
+
+        # Fix trailing slash for S3 input paths, otherwise can get
+        # ClientError: Failed to invoke sagemaker:CreateProcessingJob. Error Details: null.
+        if self.input_data_s3.endswith("/"):
+            self.input_data_s3 = self.input_data_s3[:-1]
 
 
 @dataclass
 class GraphConstructionConfig:
     """Configuration for the graph construction step"""
 
-    graph_construction_config_file: str
+    config_filename: str
     graph_construction_args: str
 
 
@@ -100,6 +147,9 @@ class TrainingConfig:
     num_trainers: int
     use_graphbolt: str
 
+    def __post_init__(self):
+        self.use_graphbolt = self.use_graphbolt.lower()
+
 
 @dataclass
 class InferenceConfig:
@@ -116,10 +166,11 @@ class ScriptPaths:
     """Entry point script locations"""
 
     dist_part_script: str
-    gb_part_script: str
+    gb_convert_script: str
     train_script: str
     inference_script: str
     gconstruct_script: str
+    gsprocessing_script: str
 
 
 @dataclass()
@@ -145,6 +196,33 @@ class PipelineArgs:
                 f"{self.instance_config.gpu_instance_type=}"
             )
 
+        if "gsprocessing" in self.task_config.jobs_to_run:
+            assert self.aws_config.gsprocessing_pyspark_image_url, \
+                "Need to provide a GSProcessing PySpark image URL when running GSProcessing"
+
+        if (
+            self.training_config.use_graphbolt == "true"
+            and "dist_part" in self.task_config.jobs_to_run
+        ):
+            assert "gb_convert" in self.task_config.jobs_to_run, (
+                "When using Graphbolt and running distributed partitioning, "
+                "need to run 'gb_convert' as the following job, "
+                f"got job sequence: {self.task_config.jobs_to_run}"
+            )
+
+        # If running gsprocessing but do not set instance count for it, use train instance count
+        if (
+            "gsprocessing" in self.task_config.jobs_to_run
+            and not self.instance_config.gsprocessing_instance_count
+        ):
+            self.instance_config.gsprocessing_instance_count = (
+                self.instance_config.train_infer_instance_count
+            )
+            logging.warning(
+                "No GSProcessing instance count specified, using the training instance count: %s",
+                self.instance_config.gsprocessing_instance_count,
+            )
+
 
 def parse_pipeline_args() -> PipelineArgs:
     """Parses all the arguments for the pipeline definition.
@@ -167,14 +245,22 @@ def parse_pipeline_args() -> PipelineArgs:
         "--region", type=str, required=True, help="AWS region. Required"
     )
     required_args.add_argument(
-        "--image-url", type=str, required=True, help="ECR image URL. Required"
+        "--graphstorm-pytorch-image-url",
+        type=str,
+        required=True,
+        help="GraphStorm GConstruct/dist_part/train/inference ECR image URL. Required",
+    )
+    optional_args.add_argument(
+        "--gsprocessing-pyspark-image-url",
+        type=str,
+        help="GSProcessing SageMaker PySpark ECR image URL. Required if running GSProcessing",
     )
 
     # Instance Configuration
     required_args.add_argument(
         "--instance-count",
         type=int,
-        help="Number of worker instances.",
+        help="Number of worker instances for partition, training, inference.",
         required=True,
     )
     optional_args.add_argument(
@@ -190,7 +276,9 @@ def parse_pipeline_args() -> PipelineArgs:
         default="ml.g5.4xlarge",
     )
     optional_args.add_argument(
-        "--train-on-cpu", action="store_true", help="Train on CPU instead of GPU"
+        "--train-on-cpu",
+        action="store_true",
+        help="Run training and inference on CPU instances instead of GPU",
     )
 
     # Pipeline/Task Configuration
@@ -258,8 +346,8 @@ def parse_pipeline_args() -> PipelineArgs:
     optional_args.add_argument(
         "--graph-construction-instance-type",
         type=str,
-        default="ml.m5.4xlarge",
-        help="Instance type for graph construction. Default: ml.m5.4xlarge",
+        default=None,
+        help="Instance type for graph construction. Default: same as CPU instance type",
     )
     optional_args.add_argument(
         "--graph-construction-args",
@@ -268,6 +356,12 @@ def parse_pipeline_args() -> PipelineArgs:
         help="Parameters to be passed directly to the GConstruct job, "
         "wrap these in double quotes to avoid splitting, e.g."
         '--graph-construction-args "--num-processes 8 "',
+    )
+    optional_args.add_argument(
+        "--gsprocessing-instance-count",
+        type=int,
+        default=None,
+        help="Number of GSProcessing instances. Default is equal to number of training instances",
     )
 
     # Partition configuration
@@ -358,7 +452,7 @@ def parse_pipeline_args() -> PipelineArgs:
         help="Path to DistPartition SageMaker entry point script.",
     )
     optional_args.add_argument(
-        "--gb-part-script",
+        "--gb-convert-script",
         type=str,
         default=f"{SCRIPT_PATH}/../run/gb_convert_entry.py",
         help="Path to GraphBolt partition script.",
@@ -381,6 +475,15 @@ def parse_pipeline_args() -> PipelineArgs:
         default=f"{SCRIPT_PATH}/../run/gconstruct_entry.py",
         help="Path to GConstruct SageMaker entry point script.",
     )
+    optional_args.add_argument(
+        "--gsprocessing-script",
+        type=str,
+        default=(
+            f"{SCRIPT_PATH}/../../graphstorm-processing/"
+            "graphstorm_processing/distributed_executor.py"
+        ),
+        help="Path to GSProcessing SageMaker entry point script.",
+    )
 
     # TODO: Support arbitrary SM estimator args
 
@@ -388,11 +491,15 @@ def parse_pipeline_args() -> PipelineArgs:
 
     return PipelineArgs(
         aws_config=AWSConfig(
-            role=args.role, region=args.region, image_url=args.image_url
+            role=args.role,
+            region=args.region,
+            graphstorm_pytorch_image_url=args.graphstorm_pytorch_image_url,
+            gsprocessing_pyspark_image_url=args.gsprocessing_pyspark_image_url,
         ),
         instance_config=InstanceConfig(
-            instance_count=args.instance_count,
+            train_infer_instance_count=args.instance_count,
             graph_construction_instance_type=args.graph_construction_instance_type,
+            gsprocessing_instance_count=args.gsprocessing_instance_count,
             cpu_instance_type=args.cpu_instance_type,
             gpu_instance_type=args.gpu_instance_type,
             train_on_cpu=args.train_on_cpu,
@@ -407,7 +514,7 @@ def parse_pipeline_args() -> PipelineArgs:
             log_level=args.log_level,
         ),
         graph_construction_config=GraphConstructionConfig(
-            graph_construction_config_file=args.graph_construction_config_filename,
+            config_filename=args.graph_construction_config_filename,
             graph_construction_args=args.graph_construction_args,
         ),
         partition_config=PartitionConfig(
@@ -431,9 +538,10 @@ def parse_pipeline_args() -> PipelineArgs:
         script_paths=ScriptPaths(
             dist_part_script=args.dist_part_script,
             gconstruct_script=args.gconstruct_script,
-            gb_part_script=args.gb_part_script,
+            gb_convert_script=args.gb_convert_script,
             train_script=args.train_script,
             inference_script=args.inference_script,
+            gsprocessing_script=args.gsprocessing_script,
         ),
         step_cache_expiration=args.step_cache_expiration,
         update=args.update_pipeline,
