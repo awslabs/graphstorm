@@ -548,6 +548,7 @@ def test_feat_ops():
     check_feat_ops_rank_gauss()
 
 def test_process_features_fp16():
+    np.random.seed(1)
     # Just get the features without transformation.
     data = {}
     data["test1"] = np.random.rand(10, 3)
