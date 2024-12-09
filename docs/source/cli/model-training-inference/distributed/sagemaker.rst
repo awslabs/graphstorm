@@ -444,7 +444,7 @@ To save computing resources, users can run the below command to clean up the Doc
 Legacy image building instructions
 ``````````````````````````````````
 
-Since GraphStorm version 0.4.0 we provide new build scripts to facilitate easier image building
+Since GraphStorm 0.4.0 we provide new build scripts to facilitate easier image building
 and pushing to ECR. In this section we provide the instructions for the legacy scripts.
 These scripts will be deprecated and no longer updated in future versions of GraphStorm.
 

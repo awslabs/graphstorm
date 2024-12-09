@@ -136,7 +136,7 @@ create an ECR repository if it doesn't exist, and push the GSProcessing image to
 Building the GraphStorm images using Docker
 -------------------------------------------
 
-With Docker installed, and your AWS credentials are set up,
+With Docker installed, and your AWS credentials set up,
 you can use the provided scripts
 in the ``graphstorm/docker`` directory to build the image.
 
@@ -151,7 +151,7 @@ are ``sagemaker`` and ``local``.
 
 For example, assuming our current directory is where
 we cloned ``graphstorm/``, we can use
-the following to build the local image:
+the following command to build the local image:
 
 .. code-block:: bash
 
@@ -171,11 +171,11 @@ For example you can build an image to support CPU-only execution using
     bash docker/build_graphstorm_image.sh --environment local --device cpu
     # Will build an image named 'graphstorm:local-cpu'
 
-Push the image to the Amazon Elastic Container Registry (ECR)
+Push the image to Amazon Elastic Container Registry (ECR)
 -------------------------------------------------------------
 
-Once the image is built we can use the ``push_graphstorm_image.sh`` script
-that will create an ECR repository if needed and push the image we just built.
+Once the image is built we can use the ``push_graphstorm_image.sh`` script to push the image we just built.
+The script will create an ECR repository if needed.
 
 The script again requires us to provide the intended execution environment using
 the ``-e/--environment`` argument,
