@@ -113,41 +113,90 @@ If using AWS `Deep Learning AMI GPU version`, the Nvidia Container Toolkit has b
 Build a GraphStorm Docker image from source code
 .................................................
 
-Please use the following command to build a Docker image from source:
+Set up AWS access
+-----------------
+
+To build and push the image to ECR we'll make use of the
+``aws-cli`` and we'll need valid AWS credentials as well.
+
+To install the AWS CLI you can use:
 
 .. code-block:: bash
 
-    git clone https://github.com/awslabs/graphstorm.git
+    curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+    unzip awscliv2.zip
+    sudo ./aws/install
 
-    cd /path-to-graphstorm/docker/
+To set up credentials for use with ``aws-cli`` see the
+`AWS docs <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-examples>`_.
 
-    bash /path-to-graphstorm/docker/build_docker_oss4local.sh /path-to-graphstorm/ image-name image-tag device
+Your executing role should have full ECR access to be able to pull from ECR to build the image,
+create an ECR repository if it doesn't exist, and push the GSProcessing image to the repository.
 
-There are four positional arguments for ``build_docker_oss4local.sh``:
+Building the GraphStorm images using Docker
+-------------------------------------------
 
-1. **path-to-graphstorm** (**required**), is the absolute path of the "graphstorm" folder, where you cloned the GraphStorm source code. For example, the path could be ``/code/graphstorm``.
-2. **image-name** (optional), is the assigned name of the to be built Docker image. Default is ``graphstorm``.
-3. **image-tag** (optional), is the assigned tag prefix of the Docker image. Default is ``local``.
-4. **device** (optional), is the intended device for the docker image. This ges suffixed to ``image-tag``. Default is ``gpu``, can also build a ``cpu`` image.
+With Docker installed, and your AWS credentials are set up,
+you can use the provided scripts
+in the ``graphstorm/docker`` directory to build the image.
 
-If Docker requires you to run it as a root user and you don't want to preface all docker commands with sudo, you can check the solution available `here <https://docs.docker.com/engine/install/linux-postinstall/#manage-docker-as-a-non-root-user>`_.
+GraphStorm supports Amazon SageMaker and EC2/local
+execution environments, so we need to choose which image we want
+to build first.
 
-You can use the below command to check if the new Docker image is created successfully.
+The ``build_graphstorm_image.sh`` script can build the image
+locally and tag it. It only requires providing the intended execution environment,
+using the ``-e/--environment`` argument. The supported environments
+are ``sagemaker`` and ``local``.
 
-.. code:: bash
-
-    docker image ls
-
-If the build succeeds, there should be a new Docker image, named *<docker-name>:<docker-tag>*, e.g., ``graphstorm:local-gpu``.
-
-To push the image to ECR you can use the `push_gsf_container.sh` script.
-It takes 4 positional arguments,  `image-name` `image-tag-device`, `region`, and `account`.
-For example to push the local GPU image to the us-west-2 on AWS account `1234567890` use:
+For example, assuming our current directory is where
+we cloned ``graphstorm/``, we can use
+the following to build the local image:
 
 .. code-block:: bash
 
-    bash docker/push_gsf_container.sh graphstorm local-gpu us-west-2 1234567890
+    bash docker/build_graphstorm_image.sh --environment local
 
+The above will use the local Dockerfile for GraphStorm,
+build an image and tag it as ``graphstorm:local-gpu``.
+
+The script also supports other arguments to customize the image name,
+tag and other aspects of the build. See ``bash docker/build_graphstorm_image.sh --help``
+for more information.
+
+For example you can build an image to support CPU-only execution using
+
+.. code-block:: bash
+
+    bash docker/build_graphstorm_image.sh --environment local --device cpu
+    # Will build an image named 'graphstorm:local-cpu'
+
+Push the image to the Amazon Elastic Container Registry (ECR)
+-------------------------------------------------------------
+
+Once the image is built we can use the ``push_graphstorm_image.sh`` script
+that will create an ECR repository if needed and push the image we just built.
+
+The script again requires us to provide the intended execution environment using
+the ``-e/--environment`` argument,
+and by default will create a repository named ``graphstorm`` in the ``us-east-1`` region,
+on the default AWS account ``aws-cli`` is configured for,
+and push the image tagged as ``<environment>-<device>```.
+
+In addition to ``-e/--environment``, the script supports several optional arguments, for a full list use
+``bash push_graphstorm_image.sh --help``. We list the most important below:
+
+1. Image name/repository. (``-i/--image``) Default: ``graphstorm``
+2. ECR region. (``-r/--region``) Default: ``us-east-1``.
+3. AWS Account ID. (``-a/--account``) Default: Uses the account ID detected by the ``aws-cli``.
+4. Device type, (``-d/--device``) can be ``cpu`` or ``gpu``. Default: ``'gpu'``.
+
+Example:
+
+.. code-block:: bash
+
+    bash docker/push_graphstorm_image.sh -e local -r "us-east-1" -a "123456789012"
+    # Will push an image to '123456789012.dkr.ecr.us-east-1.amazonaws.com/graphstorm:local-gpu'
 
 
 Create a GraphStorm Container
@@ -161,6 +210,12 @@ Run the following command:
 
     docker run --gpus all --network=host -v /dev/shm:/dev/shm/ -d --name test graphstorm:local-gpu
 
+Or if using a CPU-only host:
+
+.. code:: bash
+
+    docker run --network=host -v /dev/shm:/dev/shm/ -d --name test graphstorm:local-cpu
+
 This command will create a GraphStorm container, named ``test`` and run the container as a daemon.
 
 Then connect to the container by running the following command:
@@ -169,7 +224,7 @@ Then connect to the container by running the following command:
 
     docker container exec -it test /bin/bash
 
-If succeeds, the command prompt will change to the container's, like
+If successful, the command prompt will change to the container's, like
 
 .. code-block:: console
 

@@ -16,17 +16,17 @@ Available options:
 -h, --help          Print this help and exit
 -x, --verbose       Print script debug info (set -x)
 -e, --environment   Image execution environment. Must be one of 'local' or 'sagemaker'. Required.
+-d, --device        Device type, must be one of 'cpu' or 'gpu'. Default is 'gpu'.
 -p, --path          Path to graphstorm root directory, default is one level above this script's location.
--i, --image         Docker image name, default is 'graphstorm-\${environment}'.
--v, --version       Docker version tag, default is the library's current version
--s, --suffix        Suffix for the image tag, can be used to push custom image tags. Default is "".
+-i, --image         Docker image name, default is 'graphstorm'.
+-s, --suffix        Suffix for the image tag, can be used to push custom image tags. Default is "<environment>-<device>".
 -b, --build         Docker build directory prefix, default is '/tmp/'.
---use-parmetis      Include dependencies to be able to run ParMETIS distributed partitioning.
+--use-parmetis      Include dependencies needed to run ParMETIS distributed partitioning.
 
 Example:
 
-    bash $(basename "${BASH_SOURCE[0]}") -e sagemaker -v 0.4.0 --device cpu
-    # Will build an image tagged as 'graphstorm-sagemaker:0.4.0-cpu'
+    bash $(basename "${BASH_SOURCE[0]}") -e sagemaker --device cpu
+    # Will build an image tagged as 'graphstorm:sagemaker-cpu'
 
 EOF
     exit
@@ -45,9 +45,9 @@ die() {
 
 parse_params() {
     # default values of variables set from params
+    DEVICE_TYPE="gpu"
     GSF_HOME="${SCRIPT_DIR}/../"
     IMAGE_NAME='graphstorm'
-    VERSION=$(grep "$GSF_HOME/python/graphstorm/__init__.py" __version__ | cut -d " " -f 3)
     USE_PARMETIS=false
     BUILD_DIR='/tmp/graphstorm-build'
     SUFFIX=""
@@ -60,6 +60,10 @@ parse_params() {
             EXEC_ENV="${2-}"
             shift
             ;;
+        -d | --device)
+            DEVICE_TYPE="${2-}"
+            shift
+            ;;
         -p | --path)
             GSF_HOME="${2-}"
             shift
@@ -70,10 +74,6 @@ parse_params() {
             ;;
         -i | --image)
             IMAGE_NAME="${2-}"
-            shift
-            ;;
-        -v | --version)
-            VERSION="${2-}"
             shift
             ;;
         -s | --suffix)
@@ -109,15 +109,15 @@ parse_params "$@"
 if [[ ${EXEC_ENV} == "local" || ${EXEC_ENV} == "sagemaker" ]]; then
     : # Do nothing
 else
-    die "--environment parameter needs to be one of 'local', '' or 'sagemaker', got ${EXEC_ENV}"
+    die "--environment parameter needs to be one of 'local' or 'sagemaker', got ${EXEC_ENV}"
 fi
 
 # Print build parameters
 msg "Execution parameters:"
 msg "- EXECUTION ENVIRONMENT: ${EXEC_ENV}"
+msg "- DEVICE_TYPE: ${EXEC_ENV}"
 msg "- GSF_HOME: ${GSF_HOME}"
 msg "- IMAGE_NAME: ${IMAGE_NAME}"
-msg "- VERSION: ${VERSION}"
 msg "- SUFFIX: ${SUFFIX}"
 msg "- USE_PARMETIS: ${USE_PARMETIS}"
 
@@ -125,14 +125,11 @@ msg "- USE_PARMETIS: ${USE_PARMETIS}"
 rm -rf "${BUILD_DIR}/docker/code"
 mkdir -p "${BUILD_DIR}/docker/code"
 
-# Set image name
-DOCKER_FULLNAME="${IMAGE_NAME}-${EXEC_ENV}:${VERSION}-${ARCH}${SUFFIX}"
-
 # Login to ECR to be able to pull source SageMaker or public.ecr.aws image
 msg "Authenticating to public ECR registry"
 if [[ ${EXEC_ENV} == "sagemaker" ]]; then
-    aws ecr get-login-password --region us-east-1 \
-        | docker login --username AWS --password-stdin 763104351884.dkr.ecr.us-east-1.amazonaws.com
+    aws ecr get-login-password --region us-east-1 |
+        docker login --username AWS --password-stdin 763104351884.dkr.ecr.us-east-1.amazonaws.com
 else
     # Using local image, login to public ECR
     aws ecr-public get-login-password --region us-east-1 |
@@ -140,16 +137,16 @@ else
 fi
 
 # Copy scripts and tools codes to the docker folder
-mkdir -p $GSF_HOME"/docker/code"
+mkdir -p "${GSF_HOME}/docker/code"
 
-cp -r $GSF_HOME"/python" $GSF_HOME"/docker/code/python"
-cp -r $GSF_HOME"/examples" $GSF_HOME"/docker/code/examples"
-cp -r $GSF_HOME"/inference_scripts" $GSF_HOME"/docker/code/inference_scripts"
-cp -r $GSF_HOME"/tools" $GSF_HOME"/docker/code/tools"
-cp -r $GSF_HOME"/training_scripts" $GSF_HOME"/docker/code/training_scripts"
+cp -r "$GSF_HOME/python" "$GSF_HOME/docker/code/python"
+cp -r "$GSF_HOME/examples" "$GSF_HOME/docker/code/examples"
+cp -r "$GSF_HOME/inference_scripts" "$GSF_HOME/docker/code/inference_scripts"
+cp -r "$GSF_HOME/tools" "$GSF_HOME/docker/code/tools"
+cp -r "$GSF_HOME/training_scripts" "$GSF_HOME/docker/code/training_scripts"
 
-DOCKER_FULLNAME="${IMAGE_NAME}:${TAG}-${DEVICE_TYPE}"
-
+# Set image name
+DOCKER_FULLNAME="${IMAGE_NAME}:${EXEC_ENV}-${DEVICE_TYPE}${SUFFIX}"
 
 if [[ $EXEC_ENV = "local" ]]; then
     cp $SCRIPT_DIR"/local/fetch_and_run.sh" $GSF_HOME"/docker/code/"

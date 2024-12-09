@@ -4,7 +4,7 @@ trap cleanup SIGINT SIGTERM ERR EXIT
 
 usage() {
     cat <<EOF
-Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-x] [--image ...] [--version ...] [--region ...] [--account ...]
+Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-x] -e/--environment [sagemaker|local] [--region ...] [--account ...]
 
 Pushes GSProcessing image to ECR.
 
@@ -13,11 +13,17 @@ Available options:
 -h, --help          Print this help and exit
 -x, --verbose       Print script debug info (set -x)
 -e, --environment   Image execution environment. Must be one of 'local' or 'sagemaker'. Required.
--i, --image         Docker image name, default is 'graphstorm-\${environment}'.
--v, --version       Docker version tag, default is the library's current version
--s, --suffix        Suffix for the image tag, can be used to push custom image tags. Default is "".
+-d, --device        Device type. Must be one of 'gpu' or 'cpu'. Default is 'gpu'.
+-i, --image         Docker image name, default is 'graphstorm'.
+-s, --suffix        Suffix for the image tag, can be used to push custom image tags. Default tag is "<environment>-<device>".
 -r, --region        AWS Region to which we'll push the image. By default will get from aws-cli configuration.
 -a, --account       AWS Account ID. By default will get from aws-cli configuration.
+
+Example:
+
+    bash $(basename "${BASH_SOURCE[0]}") -e sagemaker --device cpu --account 123456789012 --region us-east-1
+    # Will push an image to '123456789012.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sagemaker-cpu'
+
 EOF
     exit
 }
@@ -35,11 +41,10 @@ die() {
 
 parse_params() {
     # default values of variables set from params
+    DEVICE_TYPE="gpu"
     GSF_HOME="${SCRIPT_DIR}/../"
-    IMAGE='graphstorm'
-    VERSION=$(grep "$GSF_HOME/python/graphstorm/__init__.py" __version__ | cut -d " " -f 3)
+    IMAGE_NAME='graphstorm'
     SUFFIX=""
-    LATEST_VERSION=${VERSION}
     REGION=$(aws configure get region) || REGION=""
     REGION=${REGION:-us-east=1}
     ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
@@ -54,11 +59,11 @@ parse_params() {
             shift
             ;;
         -i | --image)
-            IMAGE="${2-}"
+            IMAGE_NAME="${2-}"
             shift
             ;;
-        -v | --version)
-            VERSION="${2-}"
+        -d | --device)
+            DEVICE_TYPE="${2-}"
             shift
             ;;
         -s | --suffix)
@@ -97,38 +102,39 @@ else
     die "--environment parameter needs to be one of 'sagemaker', or 'local' got ${EXEC_ENV}"
 fi
 
-TAG="${VERSION}-${ARCH}${SUFFIX}"
-LATEST_TAG="latest-${ARCH}${SUFFIX}"
-IMAGE_WITH_ENV="${IMAGE}-${EXEC_ENV}"
+TAG="${EXEC_ENV}-${DEVICE_TYPE}${SUFFIX}"
+LATEST_TAG="${EXEC_ENV}-${DEVICE}latest"
+IMAGE="${IMAGE_NAME}"
 
 msg "Execution parameters: "
 msg "- ENVIRONMENT: ${EXEC_ENV}"
+msg "- DEVICE TYPE: ${DEVICE_TYPE}"
 msg "- IMAGE: ${IMAGE}"
 msg "- TAG: ${TAG}"
 msg "- REGION: ${REGION}"
 msg "- ACCOUNT: ${ACCOUNT}"
 
-FULLNAME="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE_WITH_ENV}:${TAG}"
-LATEST_FULLNAME="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE_WITH_ENV}:${LATEST_TAG}"
+FULLNAME="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE}:${TAG}"
+LATEST_FULLNAME="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE}:${LATEST_TAG}"
 
 # If the repository doesn't exist in ECR, create it.
-echo "Getting or creating container repository: ${IMAGE_WITH_ENV}"
-if ! eval aws ecr describe-repositories --repository-names "${IMAGE_WITH_ENV}" --region ${REGION} >/dev/null 2>&1; then
-    echo >&2 "WARNING: ECR repository ${IMAGE_WITH_ENV} does not exist in region ${REGION}. Creating..."
-    aws ecr create-repository --repository-name "${IMAGE_WITH_ENV}" --region ${REGION} >/dev/null
+echo "Getting or creating container repository: ${IMAGE}"
+if ! eval aws ecr describe-repositories --repository-names "${IMAGE}" --region ${REGION} >/dev/null 2>&1; then
+    msg "WARNING: ECR repository ${IMAGE} does not exist in region ${REGION}. Creating..."
+    aws ecr create-repository --repository-name "${IMAGE}" --region ${REGION} >/dev/null
 fi
 
-echo "Logging into ECR with local credentials"
+msg "Logging into ECR with local credentials"
 aws ecr get-login-password --region ${REGION} |
     docker login --username AWS --password-stdin ${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com
 
-echo "Pushing image to ${FULLNAME}"
+msg "Pushing image to ${FULLNAME}"
 
-docker tag ${IMAGE_WITH_ENV}:${TAG} ${FULLNAME}
+docker tag "${IMAGE}:${TAG}" "${FULLNAME}"
 
-docker push ${FULLNAME}
+docker push "${FULLNAME}"
 
-if [ ${VERSION} = ${LATEST_VERSION} ]; then
-    docker tag ${IMAGE_WITH_ENV}:${TAG} ${LATEST_FULLNAME}
-    docker push ${LATEST_FULLNAME}
+if [ "${VERSION}" = "${LATEST_VERSION}" ]; then
+    docker tag "${IMAGE}:${TAG}" "${LATEST_FULLNAME}"
+    docker push "${LATEST_FULLNAME}"
 fi
