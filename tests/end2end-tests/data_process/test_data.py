@@ -65,6 +65,22 @@ reverse_node3_map = {val: key for key, val in zip(node3_map['orig'], node3_map['
 # Test the first node data
 assert g.nodes['node1'].data['feat'].dtype is th.float32
 assert g.nodes['node1'].data['feat1'].dtype is th.float32
+
+# Test standard norm for node data
+data = g.nodes['node1'].data['feat1'].numpy()
+assert g.nodes['node1'].data['feat_std'].dtype is th.float32
+
+data_sum = np.sum(data, axis=0)
+np.testing.assert_almost_equal(
+    g.nodes['node1'].data['feat_std'].numpy(),
+    data/data_sum)
+
+# Test standard norm with given sum
+assert g.nodes['node1'].data['feat_std2'].dtype is th.float32
+np.testing.assert_almost_equal(
+    g.nodes['node1'].data['feat_std2'].numpy(),
+    data/16.0)
+
 data = g.nodes['node1'].data['feat'].numpy()
 data1 = g.nodes['node1'].data['feat1'].numpy()
 assert 'input_ids' in g.nodes['node1'].data
