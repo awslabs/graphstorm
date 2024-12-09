@@ -29,13 +29,13 @@ In general, the graph construction tool needs three sets of files as inputs. The
 
 This tutorial uses the `ACM publication graph <https://data.dgl.ai/dataset/ACM.mat>`_ as a demonstration to show how to prepare users' own graph data, and what these files and their contents are like.
 
-.. note:: The following commands assume users have installed GraphStorm and cloned the GraphStorm source code in the ``<path_to_graphstorm>`` folder.
+.. note:: The following commands assume users have installed GraphStorm and cloned the GraphStorm source code in the ``<path-to-graphstorm>`` folder.
 
-First go the ``<path_to_graphstorm>`` folder.
+First go the ``<path-to-graphstorm>`` folder.
 
 .. code-block:: bash
 
-    cd <path_to_graphstorm>
+    cd <path-to-graphstorm>
 
 Then run the command to create the ACM data with the required raw format.
 
