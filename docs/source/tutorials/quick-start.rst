@@ -16,14 +16,18 @@ In terms of the Standalone mode, users can use the :ref:`Setup GraphStorm with p
 
 Download and Partition OGB-arxiv Data
 --------------------------------------
-First run the below command.
+First run the below commands to clone GraphStorm source code from GitHub, and go to the root path of GraphStorm source code, e.g., <path_to_graphstorm>.
 
 .. code-block:: bash
 
-    python /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
-                                                --filepath /tmp/ogbn-arxiv-nc/ \
-                                                --num-parts 1 \
-                                                --output /tmp/ogbn_arxiv_nc_1p
+    git clone https://github.com/awslabs/graphstorm.git
+
+    cd <path_to_graphstorm>
+
+    python tools/partition_graph.py --dataset ogbn-arxiv \
+                                    --filepath /tmp/ogbn-arxiv-nc/ \
+                                    --num-parts 1 \
+                                    --output /tmp/ogbn_arxiv_nc_1p
 
 This command will automatically download the ogbn-arxiv graph data and split the graph into one partition for node classification. Outcomes of the command are a set of files saved in the ``/tmp/ogbn_arxiv_nc_1p/`` folder, as shown below.
 
@@ -44,10 +48,10 @@ Running the following command can download the ogbn-arxiv graph data and split t
 
 .. code-block:: bash
 
-    python /graphstorm/tools/partition_graph_lp.py --dataset ogbn-arxiv \
-                                                   --filepath /tmp/ogbn-arxiv-lp/ \
-                                                   --num-parts 1 \
-                                                   --output /tmp/ogbn_arxiv_lp_1p/
+    python tools/partition_graph_lp.py --dataset ogbn-arxiv \
+                                       --filepath /tmp/ogbn-arxiv-lp/ \
+                                       --num-parts 1 \
+                                       --output /tmp/ogbn_arxiv_lp_1p/
 
 .. _launch-training:
 

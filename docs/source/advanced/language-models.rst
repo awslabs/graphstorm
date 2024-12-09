@@ -42,19 +42,19 @@ Prepare Text Graph Data
 Create Raw ACM Graph Tables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This tutorial will use the same ACM data as the :ref:`Use Your Own Data<use-own-data>` tutorial but add text data as node features.
+This tutorial will use the same ACM data as the :ref:`Use Your Own Data<use-own-data>` tutorial but add text data as node features. This tutorial assume users have cloned GraphStorm source code into the ``<path_to_graphstorm>`` folder.
 
-First go the ``/graphstorm/examples/`` folder.
+First go the ``<path_to_graphstorm>`` folder.
 
 .. code-block:: bash
 
-    cd /graphstorm/examples 
+    cd <path_to_graphstorm>
 
 Then run the command to create the ACM data with the required ``raw_w_text`` format by specifying the ``--output-type`` argument.
 
 .. code-block:: bash
     
-    python3 /graphstorm/examples/acm_data.py --output-path /tmp/acm_raw --output-type raw_w_text
+    python examples/acm_data.py --output-path /tmp/acm_raw --output-type raw_w_text
 
 Once successful, the command will create a set of folders and files under the ``/tmp/acm_raw/`` folder. Format and contents of these files are similar to the :ref:`outputs<acm-raw-data-output>` in the :ref:`Use Your Own Data<use-own-data>` tutorial except that there is one new column, called "text", in node data files that contains text data as demonstrated in the figure below. For each ``paper`` node, the text data is the paper's title and abstract; for each ``author`` node, the text data is the author's full name; and for each ``subject``, the text data is the subject's ACM category code.
 

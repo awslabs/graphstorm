@@ -29,19 +29,19 @@ In general, the graph construction tool needs three sets of files as inputs. The
 
 This tutorial uses the `ACM publication graph <https://data.dgl.ai/dataset/ACM.mat>`_ as a demonstration to show how to prepare users' own graph data, and what these files and their contents are like.
 
-.. note:: The following commands assume users have installed GraphStorm and cloned the GraphStorm source code in the ``/graphstorm/`` folder.
+.. note:: The following commands assume users have installed GraphStorm and cloned the GraphStorm source code in the ``<path_to_graphstorm>`` folder.
 
-First go the ``/graphstorm/examples/`` folder.
+First go the ``<path_to_graphstorm>`` folder.
 
 .. code-block:: bash
 
-    cd /graphstorm/examples
+    cd <path_to_graphstorm>
 
 Then run the command to create the ACM data with the required raw format.
 
 .. code-block:: bash
 
-    python3 /graphstorm/examples/acm_data.py --output-path /tmp/acm_raw
+    python examples/acm_data.py --output-path /tmp/acm_raw
 
 Once succeeded, the command will create the three sets of files under the ``/tmp/acm_raw/`` folder, as shown below. The next sections will explain each of them in details.
 
@@ -337,9 +337,9 @@ For the ACM data, the following command can create a DGL graph as the input for 
 
 .. code-block:: bash
 
-    python3 /graphstorm/examples/acm_data.py \
-            --output-type dgl \
-            --output-path /tmp/acm_dgl
+    python examples/acm_data.py \
+           --output-type dgl \
+           --output-path /tmp/acm_dgl
 
 The below image show how the built DGL ACM data looks like.
 
@@ -361,7 +361,7 @@ The below command partition the DGL ACM graph, the ``acm.dgl`` in the ``/tmp/acm
 
 .. code-block:: bash
 
-    python /graphstorm/tools/partition_graph.py \
+    python tools/partition_graph.py \
            --dataset acm \
            --filepath /tmp/acm_dgl \
            --num-parts 1 \
@@ -375,7 +375,7 @@ In terms of link prediction task, run the following command to partition the dat
 
 .. code-block:: bash
 
-    python /graphstorm/tools/partition_graph_lp.py \
+    python tools/partition_graph_lp.py \
            --dataset acm \
            --filepath /tmp/acm_dgl \
            --num-parts 1 \
@@ -390,20 +390,20 @@ It is common that users will copy and reuse GraphStorm's built-in scripts and ya
 
 - **node_feat_name**: if some types of nodes have features, please make sure to specify these feature names in either the YAML file or use an argument in the launch command. Otherwise, GraphStorm will ignore any features the nodes might have, hence only using learnable embeddings as their features.
 
-For **`Classification/Regression`** tasks:
+For **Classification/Regression** tasks:
 
 - **label_field**: please change values of this field to specify the field name of labeled data in your graph data.
 - **num_classes**: please change values of this filed to specify the number of classes to be predicted in your graph data if doing a `Classification`` task.
 
-For **`Node Classification/Regression`** tasks:
+For **Node Classification/Regression** tasks:
 
 - **target_ntype**: please change values of this field to the node type that the label is associated, which should be the same node type for prediction.
 
-For **`Edge Classification/Regression`** tasks:
+For **Edge Classification/Regression** tasks:
 
 - **target_etype**: please change values of this field to the edge type that the label is associated, which should be the same edge type for prediction.
 
-For **`Link Prediction`** tasks:
+For **Link Prediction** tasks:
 
 - **train_etype**: please specify values of this field for the edge type that you want to do link prediction for the downstream task, e.g. recommendation or search. Although if not specified, i.e. put ``None`` as the value, all edge types will be used for training, this might not commonly used in practice for most `Link Prediction` related tasks.
 - **eval_etype**: it is highly recommended that you set this value to be the same as the value of ``train_etype``, so that the evaluation metric can truly demonstrate the performance of models.
@@ -435,7 +435,6 @@ Below is an example YAML configuration file for the ACM data, which sets to use 
         restore_model_path: null
     output:
         save_model_path: /tmp/acm_nc/models
-        save_embeds_path: /tmp/acm_nc/embeds
     hyperparam:
         dropout: 0.
         lr: 0.0001
