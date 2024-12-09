@@ -1,0 +1,118 @@
+{
+    "version": "gconstruct-v0.1",
+    "nodes": [
+        {
+            "node_type": "airport",
+            "format": {
+                "name": "parquet"
+            },
+            "files": [
+                "./airport.parquet"
+            ],
+            "node_id_col": "iata_code",
+            "features": [
+                {
+                    "feature_col": "latitude_deg",
+                    "feature_name": "latitude",
+                    "transform": {
+                        "name": "max_min_norm",
+                        "max_val": 90.0,
+                        "min_val": -90.0
+                    }
+                },
+                {
+                    "feature_col": "longitude_deg",
+                    "feature_name": "longitude",
+                    "transform": {
+                        "name": "max_min_norm",
+                        "max_val": 180.0,
+                        "min_val": -180.0
+                    }
+                },
+                {
+                    "feature_col": "inventory_amounts",
+                    "feature_name": "inventory_amounts",
+                    "transform": {
+                        "name": "max_min_norm",
+                        "max_val": 1000.0,
+                        "min_val": 0.0
+                    }
+                }
+            ],
+            "labels": [
+                {
+                    "label_col": "inventory_amounts",
+                    "task_type": "regression",
+                    "split_pct": [
+                        0.8,
+                        0.1,
+                        0.1
+                    ]
+                }
+            ]
+        }
+    ],
+    "edges": [
+        {
+            "relation": [
+                "airport",
+                "demand",
+                "airport"
+            ],
+            "format": {
+                "name": "parquet"
+            },
+            "files": [
+                "./demand_edge.parquet"
+            ],
+            "source_id_col": "src_code",
+            "dest_id_col": "dst_code",
+            "features": [
+                {
+                    "feature_col": "demands",
+                    "feature_name": "demands",
+                    "transform": {
+                        "name": "max_min_norm",
+                        "max_val": 10.0,
+                        "min_val": 0.0
+                    }
+                }
+            ]
+        },
+        {
+            "relation": [
+                "airport",
+                "traffic",
+                "airport"
+            ],
+            "format": {
+                "name": "parquet"
+            },
+            "files": [
+                "traffic_edge.parquet"
+            ],
+            "source_id_col": "src_code",
+            "dest_id_col": "dst_code",
+            "features": [
+                {
+                    "feature_col": "capacity",
+                    "feature_name": "capacity",
+                    "transform": {
+                        "name": "max_min_norm",
+                        "max_val": 10.0,
+                        "min_val": 0.0
+                    }
+                },
+                {
+                    "feature_col": "traffics",
+                    "feature_name": "traffics",
+                    "transform": {
+                        "name": "max_min_norm",
+                        "max_val": 10.0,
+                        "min_val": 0.0
+                    }
+                }
+            ]
+        }
+    ]
+}
