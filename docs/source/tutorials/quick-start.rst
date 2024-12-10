@@ -20,8 +20,6 @@ First run the below commands to clone GraphStorm source code from GitHub, and go
 
 .. code-block:: bash
 
-    git clone https://github.com/awslabs/graphstorm.git
-
     cd <path-to-graphstorm>
 
     python tools/partition_graph.py --dataset ogbn-arxiv \
