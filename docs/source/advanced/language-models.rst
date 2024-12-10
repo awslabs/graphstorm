@@ -42,13 +42,14 @@ Prepare Text Graph Data
 Create Raw ACM Graph Tables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This tutorial will use the same ACM data as the :ref:`Use Your Own Data<use-own-data>` tutorial but add text data as node features. This tutorial assume users have cloned GraphStorm source code into the ``<path-to-graphstorm>`` folder.
+This tutorial will use the same ACM data as the :ref:`Use Your Own Data<use-own-data>` tutorial but add text data as node features.
 
-First go the ``<path-to-graphstorm>`` folder.
+First run the below commands to clone GraphStorm source code from GitHub, and go to the root path of GraphStorm source code.
 
 .. code-block:: bash
 
-    cd <path-to-graphstorm>
+    git clone https://github.com/awslabs/graphstorm.git
+    cd graphstorm
 
 Then run the command to create the ACM data with the required ``raw_w_text`` format by specifying the ``--output-type`` argument.
 

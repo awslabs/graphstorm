@@ -16,11 +16,16 @@ In terms of the Standalone mode, users can use the :ref:`Setup GraphStorm with p
 
 Download and Partition OGB-arxiv Data
 --------------------------------------
-First run the below commands to clone GraphStorm source code from GitHub, and go to the root path of GraphStorm source code, e.g., <path-to-graphstorm>.
+First run the below commands to clone GraphStorm source code from GitHub, and go to the root path of GraphStorm source code.
 
 .. code-block:: bash
 
-    cd <path-to-graphstorm>
+    git clone https://github.com/awslabs/graphstorm.git
+    cd graphstorm
+
+And then, run the ogbn-arxiv data generation script.
+
+.. code-block:: bash
 
     python tools/partition_graph.py --dataset ogbn-arxiv \
                                     --filepath /tmp/ogbn-arxiv-nc/ \
