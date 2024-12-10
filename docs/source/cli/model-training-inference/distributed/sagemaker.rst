@@ -24,6 +24,11 @@ GraphStorm uses SageMaker's **BYOC** (Bring Your Own Container) mode. Therefore,
 Building and pushing a SageMaker uses the same scripts as for building a local image,
 described in :ref:`GraphStorm Docker build instructions <_build_docker>`.
 
+Your executing role should have full ECR access to be able to pull from ECR to build the image,
+create an ECR repository if it doesn't exist, and push the GSProcessing image to the repository.
+See the [official ECR docs](https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-push-iam.html)
+for details.
+
 In short you can run the following:
 
 .. code-block:: bash
@@ -446,7 +451,7 @@ Legacy image building instructions
 
 Since GraphStorm 0.4.0 we provide new build scripts to facilitate easier image building
 and pushing to ECR. In this section we provide the instructions for the legacy scripts.
-These scripts will be deprecated and no longer updated in future versions of GraphStorm.
+These scripts will be deprecated in version 0.5 and removed in a future version of GraphStorm.
 
 Step 1: Build a SageMaker-compatible Docker image
 ...................................................

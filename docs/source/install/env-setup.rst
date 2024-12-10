@@ -132,6 +132,9 @@ To set up credentials for use with ``aws-cli`` see the
 
 Your executing role should have full ECR access to be able to pull from ECR to build the image,
 create an ECR repository if it doesn't exist, and push the GSProcessing image to the repository.
+See the [official ECR docs](https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-push-iam.html)
+for details.
+
 
 Building the GraphStorm images using Docker
 -------------------------------------------
@@ -155,21 +158,33 @@ the following command to build the local image:
 
 .. code-block:: bash
 
+    git clone https://github.com/awslabs/graphstorm.git
+    cd graphstorm
     bash docker/build_graphstorm_image.sh --environment local
 
 The above will use the local Dockerfile for GraphStorm,
 build an image and tag it as ``graphstorm:local-gpu``.
 
 The script also supports other arguments to customize the image name,
-tag and other aspects of the build. See ``bash docker/build_graphstorm_image.sh --help``
-for more information.
+tag and other aspects of the build. We list the full argument list below:
 
-For example you can build an image to support CPU-only execution using
+* ``-x, --verbose``       Print script debug info (set -x)
+* ``-e, --environment``   Image execution environment. Must be one of 'local' or 'sagemaker'. Required.
+* ``-d, --device``        Device type, must be one of 'cpu' or 'gpu'. Default is 'gpu'.
+* ``-p, --path``          Path to graphstorm root directory, default is one level above the script's location.
+* ``-i, --image``         Docker image name, default is 'graphstorm'.
+* ``-s, --suffix``        Suffix for the image tag, can be used to push custom image tags. Default is "<environment>-<device>".
+* ``-b, --build``         Docker build directory prefix, default is '/tmp/graphstorm-build/docker'.
+
+For example you can build an image to support CPU-only execution using:
 
 .. code-block:: bash
 
     bash docker/build_graphstorm_image.sh --environment local --device cpu
     # Will build an image named 'graphstorm:local-cpu'
+
+See ``bash docker/build_graphstorm_image.sh --help``
+for more information.
 
 Push the image to Amazon Elastic Container Registry (ECR)
 -------------------------------------------------------------
@@ -186,10 +201,14 @@ and push the image tagged as ``<environment>-<device>```.
 In addition to ``-e/--environment``, the script supports several optional arguments, for a full list use
 ``bash push_graphstorm_image.sh --help``. We list the most important below:
 
-1. Image name/repository. (``-i/--image``) Default: ``graphstorm``
-2. ECR region. (``-r/--region``) Default: ``us-east-1``.
-3. AWS Account ID. (``-a/--account``) Default: Uses the account ID detected by the ``aws-cli``.
-4. Device type, (``-d/--device``) can be ``cpu`` or ``gpu``. Default: ``'gpu'``.
+* ``-e, --environment``   Image execution environment. Must be one of 'local' or 'sagemaker'. Required.
+* ``-a, --account``       AWS Account ID to use, we retrieve the default from the AWS cli configuration.
+* ``-r, --region``        AWS Region to push the image to, we retrieve the default from the AWS cli configuration.
+* ``-d, --device``        Device type, must be one of 'cpu' or 'gpu'. Default is 'gpu'.
+* ``-p, --path``          Path to graphstorm root directory, default is one level above the script's location.
+* ``-i, --image``         Docker image name, default is 'graphstorm'.
+* ``-s, --suffix``        Suffix for the image tag, can be used to push custom image tags. Default is "<environment>-<device>".
+
 
 Example:
 
