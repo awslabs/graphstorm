@@ -20,8 +20,7 @@ Available options:
 -p, --path          Path to graphstorm root directory, default is one level above this script's location.
 -i, --image         Docker image name, default is 'graphstorm'.
 -s, --suffix        Suffix for the image tag, can be used to push custom image tags. Default is "<environment>-<device>".
--b, --build         Docker build directory prefix, default is '/tmp/'.
---use-parmetis      Include dependencies needed to run ParMETIS distributed partitioning.
+-b, --build         Docker build directory prefix, default is '/tmp/graphstorm-build/docker'.
 
 Example:
 
@@ -49,7 +48,7 @@ parse_params() {
     GSF_HOME="${SCRIPT_DIR}/../"
     IMAGE_NAME='graphstorm'
     USE_PARMETIS=false
-    BUILD_DIR='/tmp/graphstorm-build'
+    BUILD_DIR='/tmp/graphstorm-build/docker'
     SUFFIX=""
 
     while :; do
@@ -78,10 +77,6 @@ parse_params() {
             ;;
         -s | --suffix)
             SUFFIX="${2-}"
-            shift
-            ;;
-        --use-parmetis)
-            USE_PARMETIS=true
             shift
             ;;
         -?*) die "Unknown option: $1" ;;
@@ -122,34 +117,43 @@ msg "- SUFFIX: ${SUFFIX}"
 msg "- USE_PARMETIS: ${USE_PARMETIS}"
 
 # Prepare Docker build directory
-rm -rf "${BUILD_DIR}/docker/code"
-mkdir -p "${BUILD_DIR}/docker/code"
+if [[ -d ${BUILD_DIR} ]]; then
+        rm -rf "${BUILD_DIR}"
+fi
+mkdir -p "${BUILD_DIR}"
 
-# Login to ECR to be able to pull source SageMaker or public.ecr.aws image
+# Authenticate to ECR to be able to pull source SageMaker or public.ecr.aws image
 msg "Authenticating to public ECR registry"
 if [[ ${EXEC_ENV} == "sagemaker" ]]; then
+    # Pulling SageMaker image, login to public SageMaker ECR registry
     aws ecr get-login-password --region us-east-1 |
         docker login --username AWS --password-stdin 763104351884.dkr.ecr.us-east-1.amazonaws.com
 else
-    # Using local image, login to public ECR
+    # Pulling local image, login to Amazon ECR Public Gallery
     aws ecr-public get-login-password --region us-east-1 |
         docker login --username AWS --password-stdin public.ecr.aws
 fi
 
-# Copy scripts and tools codes to the docker folder
-mkdir -p "${GSF_HOME}/docker/code"
+# Prepare Docker build directory
+CODE_DIR="${BUILD_DIR}/code"
+mkdir -p "${CODE_DIR}"
+# TODO: After deprecating the old build scripts, the code copying commands
+# can be merged for both local and sagemaker environments, but will
+# need Dockerfile changes to support both.
 
-cp -r "$GSF_HOME/python" "$GSF_HOME/docker/code/python"
-cp -r "$GSF_HOME/examples" "$GSF_HOME/docker/code/examples"
-cp -r "$GSF_HOME/inference_scripts" "$GSF_HOME/docker/code/inference_scripts"
-cp -r "$GSF_HOME/tools" "$GSF_HOME/docker/code/tools"
-cp -r "$GSF_HOME/training_scripts" "$GSF_HOME/docker/code/training_scripts"
 
 # Set image name
 DOCKER_FULLNAME="${IMAGE_NAME}:${EXEC_ENV}-${DEVICE_TYPE}${SUFFIX}"
 
 if [[ $EXEC_ENV = "local" ]]; then
-    cp $SCRIPT_DIR"/local/fetch_and_run.sh" $GSF_HOME"/docker/code/"
+
+    cp "$SCRIPT_DIR/local/fetch_and_run.sh" "$CODE_DIR"
+    cp -r "$GSF_HOME/python" "${CODE_DIR}/python"
+    cp -r "$GSF_HOME/examples" "${CODE_DIR}/examples"
+    cp -r "$GSF_HOME/inference_scripts" "${CODE_DIR}/inference_scripts"
+    cp -r "$GSF_HOME/tools" "${CODE_DIR}/tools"
+    cp -r "$GSF_HOME/training_scripts" "${CODE_DIR}/training_scripts"
+
     DOCKERFILE="${GSF_HOME}/docker/local/Dockerfile.local"
 
     if [[ $DEVICE_TYPE = "gpu" ]]; then
@@ -157,8 +161,13 @@ if [[ $EXEC_ENV = "local" ]]; then
     else
         SOURCE_IMAGE="public.ecr.aws/ubuntu/ubuntu:22.04_stable"
     fi
+
 elif [[ $EXEC_ENV = "sagemaker" ]]; then
     DOCKERFILE="${GSF_HOME}/docker/sagemaker/Dockerfile.sm"
+    cp -r "${GSF_HOME}/python" "$CODE_DIR/graphstorm/"
+    cp -r "${GSF_HOME}/sagemaker" "$CODE_DIR/graphstorm/sagemaker"
+    cp -r "${GSF_HOME}/docker/sagemaker/build_artifacts" "$BUILD_DIR"
+
     if [[ $DEVICE_TYPE = "gpu" ]]; then
         SOURCE_IMAGE="763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-training:2.3.0-gpu-py311-cu121-ubuntu20.04-sagemaker"
     elif [[ $DEVICE_TYPE = "cpu" ]]; then
@@ -169,7 +178,6 @@ fi
 # Use Buildkit to avoid pulling both CPU and GPU images
 echo "Building Docker image: ${DOCKER_FULLNAME}"
 DOCKER_BUILDKIT=1 docker build \
-    --build-arg DEVICE=$DEVICE_TYPE \
-    --build-arg SOURCE=${SOURCE_IMAGE} \
-    --build-arg USE_PARMETIS=${USE_PARMETIS} \
-    -f "$DOCKERFILE" . -t "$DOCKER_FULLNAME"
+    --build-arg DEVICE="$DEVICE_TYPE" \
+    --build-arg SOURCE="${SOURCE_IMAGE}" \
+    -f "$DOCKERFILE" "${BUILD_DIR}" -t "$DOCKER_FULLNAME"

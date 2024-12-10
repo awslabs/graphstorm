@@ -1,11 +1,23 @@
 # Docker file for building a docker image for running GraphStorm code on Amazon SageMaker
+# Note: Distributed graph partition will use another docker image which will come soon.
+
 ARG DEVICE=gpu
-ARG SOURCE
-ARG USE_PARMETIS=false
-
-FROM ${SOURCE} as base
-
 ARG DGL_VERSION=2.3.0
+ARG SOURCE
+
+FROM ${SOURCE:-763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-training:2.3.0-gpu-py311-cu121-ubuntu20.04-sagemaker} as branch-gpu
+ENV dev_type=GPU
+ARG DGL_VERSION
+# Install DGL GPU version
+RUN pip3 install dgl==${DGL_VERSION}+cu121 -f https://data.dgl.ai/wheels/torch-2.3/cu121/repo.html && rm -rf /root/.cache
+
+FROM ${SOURCE:-763104351884.dkr.ecr.us-east-1.amazonaws.com/pytorch-training:2.3.0-cpu-py311-ubuntu20.04-sagemaker} as branch-cpu
+ENV dev_type=CPU
+ARG DGL_VERSION
+# Install DGL CPU version
+RUN pip3 install dgl==${DGL_VERSION} -f https://data.dgl.ai/wheels/torch-2.3/repo.html && rm -rf /root/.cache
+
+FROM branch-${DEVICE} AS final
 
 LABEL maintainer="Amazon AI Graph ML team"
 
@@ -30,18 +42,6 @@ RUN apt-get update; apt-get install -y --no-install-recommends libopenmpi-dev \
 # Copy workaround script for incorrect hostname
 COPY build_artifacts/changehostname.c /opt/ml/code/
 COPY build_artifacts/start_with_right_hostname.sh /usr/local/bin/start_with_right_hostname.sh
-
-FROM base as base-cpu
-
-# Install DGL CPU version
-RUN pip3 install dgl==${DGL_VERSION} -f https://data.dgl.ai/wheels/torch-2.3/repo.html && rm -rf /root/.cache
-
-FROM base as base-gpu
-
-# Install DGL GPU version
-RUN pip3 install dgl==${DGL_VERSION}+cu121 -f https://data.dgl.ai/wheels/torch-2.3/cu121/repo.html && rm -rf /root/.cache
-
-FROM base-${DEVICE} AS runtime
 
 # /opt/ml and all subdirectories are utilized by SageMaker, we use the /code subdirectory to store our user code.
 # TODO(xiangsx): change to pip install when PIP package is available

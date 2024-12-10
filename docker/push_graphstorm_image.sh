@@ -92,6 +92,7 @@ parse_params() {
 cleanup() {
     trap - SIGINT SIGTERM ERR EXIT
     # script cleanup here
+    rm -f /tmp/ecr_error
 }
 
 parse_params "${@}"
@@ -103,7 +104,7 @@ else
 fi
 
 TAG="${EXEC_ENV}-${DEVICE_TYPE}${SUFFIX}"
-LATEST_TAG="${EXEC_ENV}-${DEVICE}latest"
+LATEST_TAG="${EXEC_ENV}-${DEVICE}-latest"
 IMAGE="${IMAGE_NAME}"
 
 msg "Execution parameters: "
@@ -120,8 +121,20 @@ LATEST_FULLNAME="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE}:${LATEST_TA
 # If the repository doesn't exist in ECR, create it.
 echo "Getting or creating container repository: ${IMAGE}"
 if ! eval aws ecr describe-repositories --repository-names "${IMAGE}" --region ${REGION} >/dev/null 2>&1; then
-    msg "WARNING: ECR repository ${IMAGE} does not exist in region ${REGION}. Creating..."
-    aws ecr create-repository --repository-name "${IMAGE}" --region ${REGION} >/dev/null
+    msg "WARNING: ECR repository ${IMAGE} does not exist in region ${REGION}. Attempting to create..."
+
+    if ! aws ecr create-repository --repository-name "${IMAGE}" --region ${REGION} 2>/tmp/ecr_error; then
+        error_msg=$(cat /tmp/ecr_error)
+        if echo "$error_msg" | grep -q "AccessDeniedException"; then
+            msg "ERROR: You don't have sufficient permissions to create ECR repository"
+            msg "Required permission: ecr:CreateRepository"
+            exit 1
+        else
+            msg "ERROR: Failed to create ECR repository: ${error_msg}"
+            exit 1
+        fi
+    fi
+    msg "Successfully created ECR repository ${IMAGE}"
 fi
 
 msg "Logging into ECR with local credentials"
