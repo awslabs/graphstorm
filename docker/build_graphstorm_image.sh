@@ -164,7 +164,8 @@ if [[ $EXEC_ENV = "local" ]]; then
 
 elif [[ $EXEC_ENV = "sagemaker" ]]; then
     DOCKERFILE="${GSF_HOME}/docker/sagemaker/Dockerfile.sm"
-    cp -r "${GSF_HOME}/python" "$CODE_DIR/graphstorm/"
+    rsync -a --exclude="*.pyc" --exclude="*.pyo" --exclude="*.pyd" \
+        "${GSF_HOME}/python" "$CODE_DIR/graphstorm/"
     cp -r "${GSF_HOME}/sagemaker" "$CODE_DIR/graphstorm/sagemaker"
     cp -r "${GSF_HOME}/docker/sagemaker/build_artifacts" "$BUILD_DIR"
 
