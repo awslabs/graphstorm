@@ -2,6 +2,8 @@
 set -Eeuo pipefail
 trap cleanup SIGINT SIGTERM ERR EXIT
 
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
+
 usage() {
     cat <<EOF
 Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-x] -e/--environment [sagemaker|local] [--region ...] [--account ...]
@@ -104,7 +106,7 @@ else
 fi
 
 TAG="${EXEC_ENV}-${DEVICE_TYPE}${SUFFIX}"
-LATEST_TAG="${EXEC_ENV}-${DEVICE}-latest"
+LATEST_TAG="${EXEC_ENV}-${DEVICE_TYPE}-latest"
 IMAGE="${IMAGE_NAME}"
 
 msg "Execution parameters: "
@@ -116,7 +118,6 @@ msg "- REGION: ${REGION}"
 msg "- ACCOUNT: ${ACCOUNT}"
 
 FULLNAME="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE}:${TAG}"
-LATEST_FULLNAME="${ACCOUNT}.dkr.ecr.${REGION}.amazonaws.com/${IMAGE}:${LATEST_TAG}"
 
 # If the repository doesn't exist in ECR, create it.
 echo "Getting or creating container repository: ${IMAGE}"
@@ -146,8 +147,3 @@ msg "Pushing image to ${FULLNAME}"
 docker tag "${IMAGE}:${TAG}" "${FULLNAME}"
 
 docker push "${FULLNAME}"
-
-if [ "${VERSION}" = "${LATEST_VERSION}" ]; then
-    docker tag "${IMAGE}:${TAG}" "${LATEST_FULLNAME}"
-    docker push "${LATEST_FULLNAME}"
-fi
