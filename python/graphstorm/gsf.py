@@ -398,7 +398,7 @@ def create_builtin_reconstruct_nfeat_decoder(g, decoder_input_dim, config, train
     decoder = EntityRegression(decoder_input_dim,
                                dropout=dropout,
                                out_dim=feat_dim,
-                               bias = config.decoder_bias)
+                               bias=config.decoder_bias)
 
     loss_func = RegressionLossFunc()
     return decoder, loss_func
