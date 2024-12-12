@@ -40,7 +40,7 @@ def get_input_feat_size(feat_size, window_size, ts_feat_names, ts_size):
     """
     # reset feature size according to window size
     new_efeat_size = {}
-    for a_type, feat_size in feat_size.items():
+    for a_type, f_size in feat_size.items():
         if a_type in ts_feat_names:
             # new feature size is static + window_size time seria
             new_efeat_size[a_type] = feat_size - len(ts_feat_names[a_type]) * ts_size  + window_size
