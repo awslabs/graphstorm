@@ -557,7 +557,7 @@ class NodePredictionInferrer4TS(GSgnnNodePredictionInferrer):
         # get the model metadata
         window_size = self._model.window_size
 
-        # This customized inferre only handle the first ntypes for inference.
+        # This customized inferer only handle the first ntype for inference.
         infer_ntype = list(loader.target_nidx.keys())[0]
 
         # get all demands features
