@@ -2,8 +2,6 @@
 set -Eeuo pipefail
 trap cleanup SIGINT SIGTERM ERR EXIT
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
-
 usage() {
     cat <<EOF
 Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-x] -e/--environment [sagemaker|local] [--region ...] [--account ...]
@@ -44,7 +42,6 @@ die() {
 parse_params() {
     # default values of variables set from params
     DEVICE_TYPE="gpu"
-    GSF_HOME="${SCRIPT_DIR}/../"
     IMAGE_NAME='graphstorm'
     SUFFIX=""
     REGION=$(aws configure get region) || REGION=""
@@ -55,7 +52,6 @@ parse_params() {
         case "${1-}" in
         -h | --help) usage ;;
         -x | --verbose) set -x ;;
-        --no-color) NO_COLOR=1 ;;
         -e | --environment)
             EXEC_ENV="${2-}"
             shift
@@ -106,7 +102,6 @@ else
 fi
 
 TAG="${EXEC_ENV}-${DEVICE_TYPE}${SUFFIX}"
-LATEST_TAG="${EXEC_ENV}-${DEVICE_TYPE}-latest"
 IMAGE="${IMAGE_NAME}"
 
 msg "Execution parameters: "
