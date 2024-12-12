@@ -58,7 +58,7 @@ def get_st_feats(input_feats, ts_feat_names, ts_size):
     ts_feat_name: dict of string and list
         A dict of node/edge type and time series feature names in format {type, [str, ...])
     ts_size: int
-        The overall time seria size, e.g., 24.
+        The overall time series data size, e.g., 24.
 
     Tricks:
     1: ts features are always be concatinated at the end of edge features in outputs.
