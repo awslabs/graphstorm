@@ -118,7 +118,7 @@ def get_one_step_ts_feats(input_feats, ts_feat_names, ts_size, window_size, step
         Specific argument for the Network Congestion. Default is `event`.
     
     Assumption:
-    1: ts features are always be concatinated at the end of edge features; 
+    1: time series features are always be concatinated at the end of edge features; 
     2: labels only contain time seria values. So need to extract the window + 1 values as labels.
 
     Return:
