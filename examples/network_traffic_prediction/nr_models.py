@@ -324,7 +324,7 @@ class RgcnNRModel4TS(GSgnnNodeModel):
 
     def forward(self, blocks, node_feats, edge_feats, labels, input_nodes=None):
         """
-        This forward uses the sliding windows method for time serias feature and prediction.
+        This forward uses the sliding windows method for time series feature and prediction.
         That is, use static feature + time seria feature in a window to predict the (window + 1)
         time seria value. Then slide the window one step ahead to predict the next values.
 
