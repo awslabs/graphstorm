@@ -40,6 +40,7 @@ RUN pip install \
     pydantic==2.7.0 \
     scikit-learn==1.4.2 \
     scipy==1.13.0 \
+    torchdata==0.9.0 \
     pyyaml \
     && rm -rf /root/.cache
 
