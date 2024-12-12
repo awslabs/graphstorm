@@ -109,7 +109,7 @@ fi
 # Print build parameters
 msg "Execution parameters:"
 msg "- EXECUTION ENVIRONMENT: ${EXEC_ENV}"
-msg "- DEVICE_TYPE: ${EXEC_ENV}"
+msg "- DEVICE_TYPE: ${DEVICE_TYPE}"
 msg "- GSF_HOME: ${GSF_HOME}"
 msg "- IMAGE_NAME: ${IMAGE_NAME}"
 msg "- SUFFIX: ${SUFFIX}"
