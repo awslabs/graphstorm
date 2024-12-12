@@ -36,7 +36,7 @@ from graphstorm.model.utils import (append_to_dict,
 
 
 def get_input_feat_size(feat_size, window_size, ts_feat_names, ts_size):
-    """ method sepcificly designed for the input feature size when having time series features
+    """ method sepcificly designed for getting the input feature size when having time series features
     """
     # reset feature size according to window size
     new_efeat_size = {}
