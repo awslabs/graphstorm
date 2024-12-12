@@ -47,7 +47,6 @@ parse_params() {
     DEVICE_TYPE="gpu"
     GSF_HOME="${SCRIPT_DIR}/../"
     IMAGE_NAME='graphstorm'
-    USE_PARMETIS=false
     BUILD_DIR='/tmp/graphstorm-build/docker'
     SUFFIX=""
 
@@ -114,7 +113,6 @@ msg "- DEVICE_TYPE: ${EXEC_ENV}"
 msg "- GSF_HOME: ${GSF_HOME}"
 msg "- IMAGE_NAME: ${IMAGE_NAME}"
 msg "- SUFFIX: ${SUFFIX}"
-msg "- USE_PARMETIS: ${USE_PARMETIS}"
 
 # Prepare Docker build directory
 if [[ -d ${BUILD_DIR} ]]; then
