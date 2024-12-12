@@ -56,7 +56,7 @@ def get_st_feats(input_feats, ts_feat_names, ts_size):
         If a dict of tensor, it contains node features. If a list of features, it contains
         edge features.
     ts_feat_name: dict of string and list
-        A dict of node/edge type and time serias feature names in format {type, [str, ...])
+        A dict of node/edge type and time series feature names in format {type, [str, ...])
     ts_size: int
         The overall time seria size, e.g., 24.
 
