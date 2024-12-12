@@ -983,30 +983,38 @@ def test_MLPEFeatEdgeDecoder(h_dim, feat_dim, out_dim, num_ffn_layers):
         pred = out.argmax(dim=1)
         assert_almost_equal(prediction.cpu().numpy(), pred.cpu().numpy())
 
-def check_dropout(decoder, in_dim):
+def check_dropout_train(decoder, in_dim):
     ones = th.ones(in_dim)
     decoder.train()
     output = decoder(ones)
     assert th.any(output == 0)
 
+def check_dropout_eval(decoder, in_dim):
+    ones = th.ones(in_dim)
+    decoder.eval()
+    output = decoder(ones)
+    assert th.all(output != 0)
+
 @pytest.mark.parametrize("in_dim", [16, 64])
 @pytest.mark.parametrize("out_dim", [1, 8])
 def test_EntityRegression(in_dim, out_dim):
-    decoder = EntityRegression(h_dim=in_dim, bias=True)
+    decoder = EntityRegression(h_dim=in_dim)
     assert decoder.in_dims == in_dim
     assert decoder.out_dims == 1
 
-    in_tensor = th.rand((1,in_dim))
-    decoder.bias.weight = th.randn(out_dim)
-    out = decoder.predict(in_tensor)
-    assert th.all(out == (th.matmul(in_tensor,decoder.decoder) + decoder.bias))
+    decoder = EntityRegression(h_dim=in_dim, out_dim=out_dim, bias=True)
+    in_tensor = th.ones((1,in_dim))
+    with th.no_grad():
+        decoder.eval()
+        decoder.decoder.data = th.ones((in_dim, out_dim))
+        out = decoder.predict(in_tensor)
+    assert th.all(out == in_dim)
 
-    decoder = EntityRegression(h_dim=in_dim, out_dim=out_dim)
+    decoder = EntityRegression(h_dim=in_dim, out_dim=out_dim, dropout=1)
     assert decoder.in_dims == in_dim
     assert decoder.out_dims == out_dim
-
-    decoder = EntityRegression(h_dim=in_dim, out_dim=out_dim, dropout=1, bias=False)
-    check_dropout(decoder, in_dim)
+    check_dropout_train(decoder, in_dim)
+    check_dropout_eval(decoder, in_dim)
 
 @pytest.mark.parametrize("in_dim", [16, 64])
 @pytest.mark.parametrize("num_classes", [4, 8])
@@ -1016,15 +1024,18 @@ def test_EntityClassifier(in_dim, num_classes):
     assert decoder.in_dims == in_dim
     assert decoder.out_dims == num_classes
 
-    in_tensor = th.rand((1,in_dim))
-    decoder.bias.weight = th.randn(num_classes)
+    in_tensor = th.ones(1, in_dim)
+    with th.no_grad():
+        decoder.eval()
+        decoder.decoder.data = th.ones((in_dim, num_classes))
+        decoder.decoder.data[0][0] += 1
+        out = decoder.predict(in_tensor)
+    
+    assert out == 0
 
-    out = decoder.predict(in_tensor)
-    act_out = (th.matmul(in_tensor,decoder.decoder) + decoder.bias).argmax(dim=1)
-    assert th.all(out == act_out)
-
-    decoder = EntityClassifier(in_dim=in_dim, num_classes=num_classes, multilabel=False, dropout=1, bias=False)
-    check_dropout(decoder, in_dim)
+    decoder = EntityClassifier(in_dim=in_dim, num_classes=num_classes, multilabel=False, dropout=1)
+    check_dropout_train(decoder, in_dim)
+    check_dropout_eval(decoder, in_dim)
 
 if __name__ == '__main__':
     test_LinkPredictRotatEDecoder(16, 8, 1, "cpu")

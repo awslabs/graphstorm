@@ -38,6 +38,8 @@ class EntityClassifier(GSLayer):
     norm: str
         Normalization methods. Not used, but reserved for complex node classifier
         implementation. Default: None.
+    bias: bool
+        Whether the node decoder has bias. Default: False.
     """
     def __init__(self,
                  in_dim,
@@ -81,11 +83,15 @@ class EntityClassifier(GSLayer):
 
         Returns
         -------
-        Tensor: the prediction logits.
+        output: Tensor of the prediction logits.
         '''
-        output = th.matmul(inputs, self.decoder)
+        out = th.matmul(inputs, self.decoder)
+        if self._bias:
+            out = out + self.bias
 
-        return self.dropout(output) + self.bias if self._bias else self.dropout(output)
+        out = self.dropout(out)
+
+        return out
 
     def predict(self, inputs):
         """ Node classification prediction computation.
@@ -97,10 +103,13 @@ class EntityClassifier(GSLayer):
 
         Returns
         --------
-        Tensor: argmax of the prediction results, or the maximum of the prediction results
+        out: Tensor of argmax of the prediction results, or the maximum of the prediction results
         if ``multilabel`` is ``True``.
         """
-        logits = th.matmul(inputs, self.decoder) + self.bias if self._bias else th.matmul(inputs, self.decoder)
+        logits = th.matmul(inputs, self.decoder) 
+        if self._bias:
+            logits = logits + self.bias
+
         if self._multilabel:
             out = (th.sigmoid(logits) > .5).long()
         else:
@@ -121,9 +130,12 @@ class EntityClassifier(GSLayer):
 
         Returns
         -------
-        Tensor: normalized prediction results.
+        out: Tensor of normalized prediction results.
         """
-        logits = th.matmul(inputs, self.decoder) + self.bias if self._bias else th.matmul(inputs, self.decoder)
+        logits = th.matmul(inputs, self.decoder)
+        if self._bias:
+            logits = logits + self.bias
+
         if self._multilabel:
             out = th.sigmoid(logits)
         else:
@@ -159,6 +171,8 @@ class EntityRegression(GSLayer):
     norm: str, optional
         Normalization methods. Not used, but reserved for complex node regression
         implementation. Default: None.
+    bias: bool
+        Whether the node decoder has bias. Default: False.
     """
     def __init__(self,
                  h_dim,
@@ -198,11 +212,15 @@ class EntityRegression(GSLayer):
 
         Returns
         -------
-        Tensor: the prediction results.
+        out: Tensor of the prediction results.
         """
-        output = th.matmul(inputs, self.decoder)
+        out = th.matmul(inputs, self.decoder)
+        if self._bias:
+            out = out + self.bias
 
-        return self.dropout(output) + self.bias if self._bias else self.dropout(output)
+        out = self.dropout(out)
+
+        return out
 
     def predict(self, inputs):
         """ Node regression prediction computation.
@@ -214,9 +232,13 @@ class EntityRegression(GSLayer):
 
         Returns
         -------
-        Tensor: the prediction results.
+        out: Tensor of the prediction results.
         """
-        return th.matmul(inputs, self.decoder) + self.bias if self._bias else th.matmul(inputs, self.decoder)
+        out = th.matmul(inputs, self.decoder)
+        if self._bias:
+            out = out + self.bias
+
+        return out
 
     def predict_proba(self, inputs):
         """ For node regression task, it returns the same results as the
@@ -229,9 +251,11 @@ class EntityRegression(GSLayer):
 
         Returns
         -------
-        Tensor: the prediction results.
+        out: Tensor of the prediction results.
         """
-        return self.predict(inputs)
+        out = self.predict(inputs)
+
+        return out
 
     @property
     def in_dims(self):
