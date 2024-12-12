@@ -538,7 +538,7 @@ class NodePredictionInferrer4TS(GSgnnNodePredictionInferrer):
             data from the init_step to (init_step + model.window_size) to predict the value in the
             (init_step + model.window_size) + 1 step.
         infer_steps: int
-            Steps to be predicted. That is, the save model will predict from init_step
+            Steps to be predicted. That is, the saved model will predict from init_step
             (init_step + model.window_size), and run infer_steps. When sliding one window ahead, use
             predicted value as input, and predict the next ones.
         """
