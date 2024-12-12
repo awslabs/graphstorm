@@ -624,7 +624,7 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True,
     model.eval()
 
     len_dataloader = max_num_batch = len(loader)
-    tensor = th.tensor([len_dataloader], device=device)
+    global_num_batch = th.tensor([len_dataloader], device=device)
     if gs.utils.is_distributed():
         th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
         max_num_batch = tensor[0]
