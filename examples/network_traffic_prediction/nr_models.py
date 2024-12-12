@@ -42,7 +42,7 @@ def get_input_feat_size(feat_size, window_size, ts_feat_names, ts_size):
     new_efeat_size = {}
     for a_type, f_size in feat_size.items():
         if a_type in ts_feat_names:
-            # new feature size is static + window_size time seria
+            # new feature size is static + window_size time series
             new_efeat_size[a_type] = feat_size - len(ts_feat_names[a_type]) * ts_size  + window_size
         else:
             new_efeat_size[a_type] = feat_size
@@ -62,7 +62,7 @@ def get_st_feats(input_feats, ts_feat_names, ts_size):
 
     Tricks:
     1: ts features are always be concatinated at the end of edge features in outputs.
-    2: all types of ts features have the same time seria size.
+    2: all types of ts features have the same time series size.
 
     Return:
     -------
@@ -72,7 +72,7 @@ def get_st_feats(input_feats, ts_feat_names, ts_size):
     if isinstance(input_feats, dict):
         st_feats = {}
         for a_type, feats in input_feats.items():
-            # has time seria features
+            # has time series features
             if a_type in ts_feat_names:
                 ts_names = ts_feat_names[a_type]
                 num_ts_names = len(ts_names)
@@ -86,7 +86,7 @@ def get_st_feats(input_feats, ts_feat_names, ts_size):
         for one_input_feats in input_feats:
             one_st_feats = {}
             for a_type, feats in one_input_feats.items():
-                # has time seria features
+                # has time series features
                 if a_type in ts_feat_names:
                     ts_names = ts_feat_names[a_type]
                     num_ts_names = len(ts_names)
@@ -102,14 +102,14 @@ def get_st_feats(input_feats, ts_feat_names, ts_size):
     return st_feats
 
 def get_one_step_ts_feats(input_feats, ts_feat_names, ts_size, window_size, step):
-    """ Extract time seria features only
+    """ Extract time series features only
 
     edge_feats: list of dict of tuple and tensor
         A list of edge features for all blocks. Elements are dict in format [tuple, tensor]
     ts_feat_name: dict of tupe and string
-        A dict of edge type and time serias feature names in format [tuple, string]
+        A dict of edge type and time series feature names in format [tuple, string]
     ts_size: int
-        The overall time seria size, e.g., 24.
+        The overall time series size, e.g., 24.
     window_size: int
         The sliding window size, e.g., 7.
     step: int
@@ -119,7 +119,7 @@ def get_one_step_ts_feats(input_feats, ts_feat_names, ts_size, window_size, step
     
     Assumption:
     1: time series features are always be concatinated at the end of edge features; 
-    2: labels only contain time seria values. So need to extract the window + 1 values as labels.
+    2: labels only contain time series values. So need to extract the window + 1 values as labels.
 
     Return:
     -------
@@ -166,7 +166,7 @@ def get_one_step_ts_feats(input_feats, ts_feat_names, ts_size, window_size, step
     return one_step_ts_feats
 
 def combine_st_ts_feats(types, st_feats, ts_feats):
-    """ Combine static, and time-seria together as input features.
+    """ Combine static, and time series together as input features.
 
     Both features should be in a dict or a list of dict format, and have the same length.
     The feature dict is like: {type1: tensor, type2: tensor, ...}. An extreme case is that
@@ -175,11 +175,11 @@ def combine_st_ts_feats(types, st_feats, ts_feats):
     The major issue is that not all types have the two types of features. So, we
     need to check all types. 
 
-    The order of concatination is static, time serias, and event.
+    The order of concatination is static, time series, and event.
     """
     if isinstance(st_feats, dict) and isinstance(ts_feats, dict):
         pass
-        assert len(st_feats) == len(ts_feats), 'static and time serias features should have' + \
+        assert len(st_feats) == len(ts_feats), 'static and time series features should have' + \
                                                'the same number of types.'
         all_feats = {}
         for a_type in types:
@@ -193,9 +193,9 @@ def combine_st_ts_feats(types, st_feats, ts_feats):
                 all_feats[a_type] = th.concat(feats, dim=-1)
     elif isinstance(st_feats, list) and isinstance(ts_feats, list):
         pass
-        assert len(st_feats) == len(ts_feats), 'static and time serias features should have' + \
+        assert len(st_feats) == len(ts_feats), 'static and time series features should have' + \
                                                'the same length!'
-        assert len(st_feats[0]) == len(ts_feats[0]), 'static and time serias features should ' + \
+        assert len(st_feats[0]) == len(ts_feats[0]), 'static and time series features should ' + \
                                                      'have the same number of types.'
         all_feats = []
 
@@ -224,10 +224,10 @@ def get_ts_labels(labels, ts_size, window_size, step):
         A dict of edge type and lables in format [tuple, tensor]
 
     Assumption:
-    1/: labels only contain time seria values. So need to extract window + 1 values as labels.
+    1/: labels only contain time series values. So need to extract window + 1 values as labels.
 
     """
-    # process labels for time seria prediction
+    # process labels for time series prediction
     new_labels = {}
     for a_type, ts_labels in labels.items():
         assert ts_labels.shape[1] == ts_size, \
@@ -325,8 +325,8 @@ class RgcnNRModel4TS(GSgnnNodeModel):
     def forward(self, blocks, node_feats, edge_feats, labels, input_nodes=None):
         """
         This forward uses the sliding windows method for time series feature and prediction.
-        That is, use static feature + time seria feature in a window to predict the (window + 1)
-        time seria value. Then slide the window one step ahead to predict the next values.
+        That is, use static feature + time series feature in a window to predict the (window + 1)
+        time series value. Then slide the window one step ahead to predict the next values.
 
         edge_feats: list of dict of tensors
             A list of edge features in the format: {str: tensor}. The length of the list should
@@ -342,7 +342,7 @@ class RgcnNRModel4TS(GSgnnNodeModel):
         st_node_feats = get_st_feats(node_feats, self._ts_nfeat_names, self._ts_size)
         st_edge_feats = get_st_feats(edge_feats, self._ts_efeat_names, self._ts_size)
 
-        # ------------- Process Time Serial Data ------------- #
+        # ------------- Process Time Series Data ------------- #
         for step in range(0, (self._ts_size - self._window_size)):
             ts_node_feats = get_one_step_ts_feats(node_feats, self._ts_nfeat_names,
                                                   self._ts_size, self._window_size, step)
@@ -411,7 +411,7 @@ class RgcnNRModel4TS(GSgnnNodeModel):
         if use_ar:
             assert predict_step >= 0 and predict_step < (self._ts_size - self._window_size), \
                         'To use autoregressive, must provide a positive predict_step, and ' + \
-                        'the predict_step must be smaller than (time seria size - window size).'
+                        'the predict_step must be smaller than (time series size - window size).'
             ts_node_feats = get_one_step_ts_feats(node_feats, self._ts_nfeat_names,
                                                   self._ts_size, self._window_size, predict_step)
             ts_edge_feats = get_one_step_ts_feats(edge_feats, self._ts_efeat_names,
@@ -655,7 +655,7 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True,
             pred, emb = model.predict(blocks, node_input_feats, edge_input_feats,
                                       input_nodes, return_proba, use_ar, predict_step)
 
-            # process lables for time seria prediction
+            # process lables for time series prediction
             label_field = loader.label_field
             lbl = data.get_node_feats(seeds, label_field)
 
