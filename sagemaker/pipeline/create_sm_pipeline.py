@@ -18,7 +18,7 @@ Create a SageMaker pipeline for GraphStorm.
 
 import os
 import re
-from typing import List, Sequence, Union
+from typing import List, Optional, Sequence, Union
 
 import boto3
 from sagemaker.processing import ScriptProcessor
@@ -37,7 +37,11 @@ from sagemaker.workflow.steps import (
     ProcessingOutput,
 )
 
-from pipeline_parameters import PipelineArgs, parse_pipeline_args
+from pipeline_parameters import (
+    PipelineArgs,
+    parse_pipeline_args,
+    save_pipeline_args,
+)
 
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -48,12 +52,16 @@ class GraphStormPipelineGenerator:
     Parameters
     ----------
     args : PipelineArgs
-        Complete set of arguments for the pipeline this will create.
+        Complete set of arguments for the pipeline this generator will create.
+    input_session: Optional[PipelineSession]
+        Existing PipelineSession to use for the pipeline. Default: None.
     """
 
-    def __init__(self, args: PipelineArgs):
+    def __init__(
+        self, args: PipelineArgs, input_session: Optional[PipelineSession] = None
+    ):
         self.args = args
-        self.pipeline_session = self._create_pipeline_session()
+        self.pipeline_session = self._get_or_create_pipeline_session(input_session)
         self.pipeline_params: List[Union[ParameterString, ParameterInteger]] = []
         self._create_pipeline_parameters(args)
 
@@ -82,13 +90,18 @@ class GraphStormPipelineGenerator:
             else self.gpu_instance_type_param
         )
 
-    def _create_pipeline_session(self):
-        # TODO: Add option for local pipeline session
-        boto_session = boto3.Session(region_name=self.args.aws_config.region)
-        sagemaker_client = boto_session.client(service_name="sagemaker")
-        return PipelineSession(
-            boto_session=boto_session, sagemaker_client=sagemaker_client
-        )
+    def _get_or_create_pipeline_session(
+        self, input_session: Optional[PipelineSession] = None
+    ):
+        """Will return the input session or create a new one if ``None`` is passed."""
+        if input_session is not None:
+            return input_session
+        else:
+            boto_session = boto3.Session(region_name=self.args.aws_config.region)
+            sagemaker_client = boto_session.client(service_name="sagemaker")
+            return PipelineSession(
+                boto_session=boto_session, sagemaker_client=sagemaker_client
+            )
 
     def create_pipeline(self) -> Pipeline:
         """Create a SageMaker pipeline for GraphStorm.
@@ -644,6 +657,10 @@ class GraphStormPipelineGenerator:
 def main():
     """Create or update a GraphStorm SageMaker Pipeline."""
     pipeline_args = parse_pipeline_args()
+
+    save_pipeline_args(
+        pipeline_args, f"{pipeline_args.task_config.pipeline_name}-pipeline-args.json"
+    )
 
     pipeline_generator = GraphStormPipelineGenerator(pipeline_args)
 

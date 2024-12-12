@@ -17,10 +17,15 @@ Execute a SageMaker pipeline for GraphStorm.
 """
 
 import argparse
+import sys
 
 import boto3
-import sagemaker
+import psutil
 from sagemaker.workflow.pipeline import Pipeline
+from sagemaker.workflow.pipeline_context import LocalPipelineSession, PipelineSession
+
+from create_sm_pipeline import GraphStormPipelineGenerator
+from pipeline_parameters import load_pipeline_args
 
 
 def parse_args():
@@ -35,7 +40,15 @@ def parse_args():
         required=True,
         help="Name of the pipeline to execute",
     )
-    parser.add_argument("--region", type=str, required=True, help="AWS region")
+    parser.add_argument(
+        "--pipeline-args-json-file",
+        type=str,
+        help=(
+            "If executing locally, provide a JSON representation of the pipeline arguments. "
+            "By default we look for '<pipeline-name>-pipeline-args.json' in the working dir."
+        ),
+    )
+    parser.add_argument("--region", type=str, required=False, help="AWS region")
 
     # Optional override parameters
     parser.add_argument("--instance-count", type=int, help="Override instance count")
@@ -86,6 +99,11 @@ def parse_args():
     parser.add_argument(
         "--async-execution", action="store_true", help="Run pipeline asynchronously"
     )
+    parser.add_argument(
+        "--local-execution",
+        action="store_true",
+        help="Use a local pipeline session to run the pipeline.",
+    )
 
     return parser.parse_args()
 
@@ -94,10 +112,30 @@ def main():
     """Execute GraphStorm SageMaker pipeline"""
     args = parse_args()
 
-    boto_session = boto3.Session(region_name=args.region)
-    sagemaker_session = sagemaker.Session(boto_session)
+    if args.local_execution:
+        # Use local pipeline and session
+        pipeline_args = load_pipeline_args(
+            args.pipeline_args_json_file or f"{args.pipeline_name}-pipeline-args.json"
+        )
 
-    pipeline = Pipeline(name=args.pipeline_name, sagemaker_session=sagemaker_session)
+        local_session = LocalPipelineSession()
+        pipeline_generator = GraphStormPipelineGenerator(
+            pipeline_args, input_session=local_session
+        )
+        # Set shared memory to half the host's size, as SM does
+        instance_mem_mb = int(psutil.virtual_memory().total // (1024 * 1024))
+        local_session.config = {
+            "local": {"container_config": {"shm_size": f"{instance_mem_mb//2}M"}}
+        }
+        pipeline = pipeline_generator.create_pipeline()
+        pipeline.sagemaker_session = local_session
+        pipeline.create(role_arn=pipeline_args.aws_config.role)
+    else:
+        assert args.region, "Need to provide --region for remote SageMaker execution"
+        boto_session = boto3.Session(region_name=args.region)
+        # Use remote pipeline and session
+        remote_session = PipelineSession(boto_session)
+        pipeline = Pipeline(name=args.pipeline_name, sagemaker_session=remote_session)
 
     # Prepare parameter overrides
     execution_params = {}
@@ -136,6 +174,9 @@ def main():
     execution = pipeline.start(
         parameters=execution_params or {},
     )
+
+    if args.local_execution:
+        sys.exit(0)
 
     print(f"Pipeline execution started: {execution.describe()}")
     print(f"Execution ARN: {execution.arn}")

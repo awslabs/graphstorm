@@ -17,9 +17,10 @@ Parameter parsing and validation for GraphStorm SageMaker Pipeline
 """
 
 import argparse
+import json
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, fields, is_dataclass
 from typing import List
 
 
@@ -170,7 +171,31 @@ class ScriptPaths:
 
 @dataclass()
 class PipelineArgs:
-    """Wrapper class for all pipeline configurations"""
+    """Wrapper class for all pipeline configurations.
+
+    Parameters
+    ----------
+    aws_config : AWSConfig
+        AWS configuration settings
+    graph_construction_config : GraphConstructionConfig
+        Graph construction configuration
+    instance_config : InstanceConfig
+        Instance configuration settings
+    task_config : TaskConfig
+        Task-level configuration settings
+    partition_config : PartitionConfig
+        Partition configuration settings
+    training_config : TrainingConfig
+        Training configuration settings
+    inference_config : InferenceConfig
+        Inference configuration settings
+    script_paths : ScriptPaths
+        Paths to SageMaker entry point scripts
+    step_cache_expiration : str
+        Cache expiration for pipeline steps
+    update : bool
+        Whether to update existing pipeline or create a new one
+    """
 
     aws_config: AWSConfig
     graph_construction_config: GraphConstructionConfig
@@ -201,11 +226,14 @@ class PipelineArgs:
                 "when running graph construction."
             )
 
+        # TODO: When using GConstruct+DistPart (possible?) provide
+        # the correct partition output JSON filename
+
         # Ensure we have a GSProcessing image to run gsprocessing
         if "gsprocessing" in self.task_config.jobs_to_run:
-            assert self.aws_config.gsprocessing_pyspark_image_url,(
-                "Need to provide a GSProcessing PySpark image URL when running GSProcessing"
-            )
+            assert (
+                self.aws_config.gsprocessing_pyspark_image_url
+            ), "Need to provide a GSProcessing PySpark image URL when running GSProcessing"
 
         # Ensure we run gb_convert after dist_part when training with graphbolt
         if (
@@ -245,6 +273,76 @@ class PipelineArgs:
                 "No GSProcessing instance count specified, using the training instance count: %s",
                 self.instance_config.gsprocessing_instance_count,
             )
+
+
+def save_pipeline_args(pipeline_args: PipelineArgs, filepath: str) -> None:
+    """Save PipelineArgs configuration to a JSON file.
+
+    Parameters
+    ----------
+    pipeline_args : PipelineArgs
+        The PipelineArgs instance to save
+    filepath : str
+        Path the JSON file to save
+    """
+    # Convert dataclass to dictionary
+    pipeline_args_dict = asdict(pipeline_args)
+
+    # Save to JSON file with nice formatting
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(pipeline_args_dict, f, indent=2)
+
+
+def dict_to_dataclass(cls: type, data: dict) -> object:
+    """Convert a dictionary to a dataclass instance.
+
+    Parameters
+    ----------
+    cls : type
+        The dataclass type to instantiate
+    data : dict
+        The dictionary used to initialize the dataclass object
+
+    Returns
+    -------
+    object
+        An instance of the dataclass
+    """
+    if not is_dataclass(cls):
+        return data
+    field_types = {f.name: f.type for f in fields(cls)}
+    return cls(
+        **{
+            k: dict_to_dataclass(field_types[k], v)
+            for k, v in data.items()
+            if k in field_types
+        }
+    )
+
+
+def load_pipeline_args(filepath: str) -> PipelineArgs:
+    """Create PipelineArgs object from a JSON file.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to the JSON representation of a PipelineArgs
+        instance.
+
+    Returns
+    -------
+    PipelineArgs
+        PipelineArgs instance with the loaded configuration
+    """
+    with open(filepath, "r", encoding="utf-8") as f:
+        config_dict = json.load(f)
+
+    args_instance = dict_to_dataclass(PipelineArgs, config_dict)
+
+    # Assertion to make the type checker happy
+    assert isinstance(args_instance, PipelineArgs)
+
+    return args_instance
 
 
 def parse_pipeline_args() -> PipelineArgs:
