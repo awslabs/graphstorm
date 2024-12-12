@@ -42,14 +42,14 @@ def get_input_feat_size(feat_size, window_size, ts_feat_names, ts_size):
     new_efeat_size = {}
     for a_type, f_size in feat_size.items():
         if a_type in ts_feat_names:
-            # new feature size is static + window_size time series
-            new_efeat_size[a_type] = feat_size - len(ts_feat_names[a_type]) * ts_size  + window_size
+            # new feature size is static feature size + window_size
+            new_efeat_size[a_type] = f_size - len(ts_feat_names[a_type]) * ts_size  + window_size
         else:
-            new_efeat_size[a_type] = feat_size
+            new_efeat_size[a_type] = f_size
 
     return new_efeat_size
 
-def get_st_feats(input_feats, ts_feat_names, ts_size):
+def get_static_feats(input_feats, ts_feat_names, ts_size):
     """ Extract static node/edge features only
 
     input_feats: dict of tensor, or list of dict of tensor
@@ -61,8 +61,13 @@ def get_st_feats(input_feats, ts_feat_names, ts_size):
         The overall time series data size, e.g., 24.
 
     Tricks:
-    1: ts features are always be concatinated at the end of edge features in outputs.
-    2: all types of ts features have the same time series size.
+    1: time series features are always be concatinated at the end of edge features in outputs.
+    2: all types of time series features have the same time series size.
+    
+    So, the overall feature tensor is a concatination of static features + time series features.
+    For example, we have a 4d static feature, and two time series features, each of which has 24d.
+    Then overall the feature size is 4 + 2 * 24 = 32d. In the overall feature tensor the first 4d
+    are static features, and the rest 28d are time series features.
 
     Return:
     -------
@@ -70,19 +75,20 @@ def get_st_feats(input_feats, ts_feat_names, ts_size):
 
     """
     if isinstance(input_feats, dict):
-        st_feats = {}
+        static_feats = {}
         for a_type, feats in input_feats.items():
             # has time series features
             if a_type in ts_feat_names:
                 ts_names = ts_feat_names[a_type]
                 num_ts_names = len(ts_names)
+                # feats is the concatination of [static features, time series features] 
                 feats = feats[:, 0: -(num_ts_names * ts_size)]
             # only has static features, just copy the feature back.
             else:
                 feats = feats
-            st_feats[a_type] = feats
+            static_feats[a_type] = feats
     elif isinstance(input_feats, list) and isinstance(input_feats[0], dict):
-        st_feats = []
+        static_feats = []
         for one_input_feats in input_feats:
             one_st_feats = {}
             for a_type, feats in one_input_feats.items():
@@ -95,11 +101,11 @@ def get_st_feats(input_feats, ts_feat_names, ts_size):
                 else:
                     feats = feats            
                 one_st_feats[a_type] = feats
-            st_feats.append(one_st_feats)
+            static_feats.append(one_st_feats)
     else:
         raise NotImplementedError(f'The format of {input_feats} is not a dict or a list dict')
 
-    return st_feats
+    return static_feats
 
 def get_one_step_ts_feats(input_feats, ts_feat_names, ts_size, window_size, step):
     """ Extract time series features only
@@ -169,16 +175,16 @@ def combine_st_ts_feats(types, st_feats, ts_feats):
     """ Combine static, and time series together as input features.
 
     Both features should be in a dict or a list of dict format, and have the same length.
-    The feature dict is like: {type1: tensor, type2: tensor, ...}. An extreme case is that
-    there is no features, which is like {}
-
+    The feature dict is like: {type1: tensor, type2: tensor, ...} or
+    [{type1: tensor, type2: tensor, ...}, {type1: tensor, type2: tensor, ...}], which is
+    for edge features in multiple layers.
+    
     The major issue is that not all types have the two types of features. So, we
     need to check all types. 
 
-    The order of concatination is static, time series, and event.
+    The order of concatination is static, and then time series.
     """
     if isinstance(st_feats, dict) and isinstance(ts_feats, dict):
-        pass
         assert len(st_feats) == len(ts_feats), 'static and time series features should have' + \
                                                'the same number of types.'
         all_feats = {}
@@ -192,11 +198,10 @@ def combine_st_ts_feats(types, st_feats, ts_feats):
             if feats:
                 all_feats[a_type] = th.concat(feats, dim=-1)
     elif isinstance(st_feats, list) and isinstance(ts_feats, list):
-        pass
         assert len(st_feats) == len(ts_feats), 'static and time series features should have' + \
                                                'the same length!'
         assert len(st_feats[0]) == len(ts_feats[0]), 'static and time series features should ' + \
-                                                     'have the same number of types.'
+                                                     'have the same number of edge types.'
         all_feats = []
 
         for st_feat, ts_feat in zip(st_feats, ts_feats):
@@ -215,17 +220,28 @@ def combine_st_ts_feats(types, st_feats, ts_feats):
     else:
         raise NotImplementedError(f'The format of {st_feats} and {ts_feats} are not a dict ' + \
                                   'or a list dict')
-
     return all_feats
 
 def get_ts_labels(labels, ts_size, window_size, step):
-    """
-    labels: dict of tensor
-        A dict of edge type and lables in format [tuple, tensor]
+    """ Extract time series labels.
 
     Assumption:
-    1/: labels only contain time series values. So need to extract window + 1 values as labels.
+    1/: labels only contain time series values. So need to extract values at the (step +
+        window_size) as training labels.
 
+    labels: dict of tensor
+        A dict of node/edge type and lables in format [type_str, tensor].
+    ts_size: int
+        The overall time series feature size.
+    window_size: int
+        The sliding window size.
+    step: int
+        The current step for extracting labels.
+    
+    Returns:
+    new_labels: dict of tensor
+        A dict of node/edge type and label values in format of [type_str, tensor], where
+        tensor is 1D.
     """
     # process labels for time series prediction
     new_labels = {}
@@ -256,17 +272,25 @@ class RgcnNRModel4TS(GSgnnNodeModel):
     num_hid_layers: int
         The number of gnn layers
     node_feat_field: dict of list of strings
-        The list features for each node type to be used in the model
+        The feature name list for each node type to be used in the model.
+    edge_feat_field: dict of list of strings
+        The feature name list for each node type to be used in the model.
+    edge_feat_mp_op: str
+        The operation to be used to compute source node embeddings and edge
+        embeddings during message passing computation. Options include "concat",
+        "add", "sub", "mul", and "div".
     hid_size: int
         The dimension of hidden layers.
-    target_etype: tuple of str
-        Target etype for prediction
+    target_ntype: str
+        Target node type for prediction.
+    ts_nfeat_name: dict of list of str
+        A dictionary of the time series feature name list for each node type.
+    ts_efeat_name: dict of list of str
+        A dictionary of the time series feature name list for each edge type.
+    ts_size: int
+        The number of time units of time series features.
     window_size: int
-        The window size of history data that a model can. Default is 4.
-    time_window: int
-        The overall time points in the input demands, traffics, and events. Default is 24.
-    edge_feat_field: dict of list of strings
-        The list features for each edge type to be used in the model
+        The window size of history data to be used for modeling. Defaut is 7.
     """
     def __init__(self,
                  g,
@@ -324,14 +348,27 @@ class RgcnNRModel4TS(GSgnnNodeModel):
 
     def forward(self, blocks, node_feats, edge_feats, labels, input_nodes=None):
         """
-        This forward uses the sliding windows method for time series feature and prediction.
-        That is, use static feature + time series feature in a window to predict the (window + 1)
-        time series value. Then slide the window one step ahead to predict the next values.
+        This forward uses the sliding windows method for time series feature on nodes.
+        That is, use static feature + time series feature in a window to predict the (window
+        + 1) values. Then slide the window one step ahead to predict the next values.
 
+        Arguments
+        ----------
+        blocks: list of DGL MFGs
+            Sampled subgraph in the list of DGL message flow graphs (MFGs) format. More
+            detailed information about DGL MFG can be found in `DGL Neighbor Sampling
+            Overview
+            <https://docs.dgl.ai/stochastic_training/neighbor_sampling_overview.html>`_.
+        node_feats: dict of Tensor
+            Input node features for each node type in the format of {ntype: tensor}.        
         edge_feats: list of dict of tensors
-            A list of edge features in the format: {str: tensor}. The length of the list should
-            be equal to the length of blocks. Trainer will provide the `edge_feats`. And only
-            edge types that have features will be included.
+            Input edge features for each edge type in the format of [{etype: tensor}, ...],
+            or [{}, {}. ...] for zero number of edges in input blocks. The length of e_hs
+            should be equal to the number of gnn layers.
+        labels: dict of tensor
+            A dict of node/edge type and lables in format [type_str, tensor].
+        input_nodes: dict of tensor
+            The input node IDs of the mini-batch.
         """
         ts_losses = []
         # extract static features, only once because it does not change in one batch.
@@ -339,8 +376,8 @@ class RgcnNRModel4TS(GSgnnNodeModel):
         # time series data, which are always concated at the end of each node and edge features.
         # Based on this trick and the _ts_size, it is easy to separate static features from time
         # series ones.
-        st_node_feats = get_st_feats(node_feats, self._ts_nfeat_names, self._ts_size)
-        st_edge_feats = get_st_feats(edge_feats, self._ts_efeat_names, self._ts_size)
+        st_node_feats = get_static_feats(node_feats, self._ts_nfeat_names, self._ts_size)
+        st_edge_feats = get_static_feats(edge_feats, self._ts_efeat_names, self._ts_size)
 
         # ------------- Process Time Series Data ------------- #
         for step in range(0, (self._ts_size - self._window_size)):
@@ -405,8 +442,8 @@ class RgcnNRModel4TS(GSgnnNodeModel):
         --------
             ts_predicts: dict of string and 2D tensor
         """
-        st_node_feats = get_st_feats(node_feats, self._ts_nfeat_names, self._ts_size)
-        st_edge_feats = get_st_feats(edge_feats, self._ts_efeat_names, self._ts_size)
+        st_node_feats = get_static_feats(node_feats, self._ts_nfeat_names, self._ts_size)
+        st_edge_feats = get_static_feats(edge_feats, self._ts_efeat_names, self._ts_size)
 
         if use_ar:
             assert predict_step >= 0 and predict_step < (self._ts_size - self._window_size), \
@@ -547,8 +584,7 @@ class NodePredictionInferrer4TS(GSgnnNodePredictionInferrer):
 
         # ====== Not save embedding in this customized inferrer ========= #
         assert save_embed_path is None, \
-            "Unable to save the node embeddings when using mini batch inference." \
-            "It is not guaranteed that mini-batch prediction will cover all the nodes."
+            "This customized inferrer implementation does not support saving embeddings."
 
         self._model.eval()
 
@@ -607,6 +643,27 @@ class NodePredictionInferrer4TS(GSgnnNodePredictionInferrer):
 
 def node_mini_batch_gnn_predict(model, loader, return_proba=True,
                                 return_label=False, use_ar=False, predict_step=-1):
+    """ This method was copied from GraphStorm's node_mini_batch_gnn_predict() method, and
+    add two new arguments, `use_ar`, and `predict_step`, which are required for the input
+    model's predict() function. It also customizes the label extraction method for time
+    series labels.
+
+    Parameters
+    ----------
+    model : GSgnnModel
+        The GraphStorm GNN model
+    loader : GSgnnNodeDataLoader
+        The GraphStorm dataloader
+    return_proba : bool
+        Whether or not to return all the predictions or the maximum prediction
+    return_label : bool
+        Whether or not to return labels
+    use_ar: boolean
+        Whether to use autoregressive method for prediction.
+    predict_step: int
+        The step to be predicted. This argument asks model's predict() function to compute
+        the values at predicts_step + window_size step.
+    """
     device = model.device
     data = loader.data
     g = data.g
@@ -626,8 +683,8 @@ def node_mini_batch_gnn_predict(model, loader, return_proba=True,
     len_dataloader = max_num_batch = len(loader)
     global_num_batch = th.tensor([len_dataloader], device=device)
     if gs.utils.is_distributed():
-        th.distributed.all_reduce(tensor, op=th.distributed.ReduceOp.MAX)
-        max_num_batch = tensor[0]
+        th.distributed.all_reduce(global_num_batch, op=th.distributed.ReduceOp.MAX)
+        max_num_batch = global_num_batch[0]
 
     dataloader_iter = iter(loader)
 
