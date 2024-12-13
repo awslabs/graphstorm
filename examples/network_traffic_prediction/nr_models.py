@@ -274,7 +274,7 @@ class RgcnNRModel4TS(GSgnnNodeModel):
     node_feat_field: dict of list of strings
         The feature name list for each node type to be used in the model.
     edge_feat_field: dict of list of strings
-        The feature name list for each node type to be used in the model.
+        The feature name list for each edge type to be used in the model.
     edge_feat_mp_op: str
         The operation to be used to compute source node embeddings and edge
         embeddings during message passing computation. Options include "concat",
