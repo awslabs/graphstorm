@@ -137,4 +137,16 @@ for i in $(seq 0 1); do
     fi
 done
 
+echo "********* Test GSPartition with process-group-timeout ********"
+
+DIST_GRAPHBOLT_PATH="${OUTPUT_PATH}/graphbolt-gspartition-nc"
+python3 -m graphstorm.gpartition.dist_partition_graph \
+    --input-path "${INPUT_PATH}" \
+    --ip-config ip_list.txt \
+    --metadata-filename chunked_graph_meta.json \
+    --num-parts 2 \
+    --output-path "$DIST_GRAPHBOLT_PATH" \
+    --ssh-port 2222 \
+    --process-group-timeout 3600
+
 echo "********* GraphBolt graph construction and partitioning tests passed *********"
