@@ -109,4 +109,16 @@ RUN mkdir -p ${SSHDIR} \
 
 EXPOSE ${SSH_PORT}
 
+COPY code/fetch_and_run.sh /graphstorm/fetch_and_run.sh
+
+RUN apt update && apt install -y --no-install-recommends \
+    curl \
+    unzip
+
+# Install aws-cli
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+    && unzip awscliv2.zip \
+    && ./aws/install
+
+
 CMD ["/usr/sbin/sshd", "-D"]
