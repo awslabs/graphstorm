@@ -176,7 +176,7 @@ def combine_st_ts_feats(types, st_feats, ts_feats):
 
     Both features should be in a dict or a list of dict format, and have the same length.
     The feature dict is like: {ntype1: tensor, ntype2: tensor, ...} or
-    [{type1: tensor, type2: tensor, ...}, {type1: tensor, type2: tensor, ...}], which is
+    [{etype1: tensor, etype2: tensor, ...}, {etype1: tensor, etype2: tensor, ...}], which is
     for edge features in multiple layers.
     
     The major issue is that not all types have the two types of features. So, we
