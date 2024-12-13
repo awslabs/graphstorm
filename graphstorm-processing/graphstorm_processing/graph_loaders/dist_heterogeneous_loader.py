@@ -73,7 +73,6 @@ FORMAT_NAME = "parquet"
 DELIMITER = "" if FORMAT_NAME == "parquet" else ","
 NODE_MAPPING_STR = "orig"
 NODE_MAPPING_INT = "new"
-RANDOM_DATA_SPLIT_ORDER = "random_split_order_flag"
 CUSTOM_DATA_SPLIT_ORDER = "custom_split_order_flag"
 
 
