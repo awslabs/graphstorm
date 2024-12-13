@@ -62,7 +62,7 @@ class DistSingleLabelTransformation(DistributedTransformation):
             processed_col_name,
             self.label_column,
         )
-        input_df = input_df.orderBy(COLUMN_ORDER_FLAG)
+        input_df = input_df.orderBy(COLUMN_ORDER_FLAG).drop(COLUMN_ORDER_FLAG)
 
         # Labels that were missing and were assigned the value numLabels by the StringIndexer
         # are converted to None
