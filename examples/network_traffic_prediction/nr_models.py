@@ -175,7 +175,7 @@ def combine_st_ts_feats(types, st_feats, ts_feats):
     """ Combine static, and time series together as input features.
 
     Both features should be in a dict or a list of dict format, and have the same length.
-    The feature dict is like: {type1: tensor, type2: tensor, ...} or
+    The feature dict is like: {ntype1: tensor, ntype2: tensor, ...} or
     [{type1: tensor, type2: tensor, ...}, {type1: tensor, type2: tensor, ...}], which is
     for edge features in multiple layers.
     
