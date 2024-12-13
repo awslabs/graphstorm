@@ -644,7 +644,7 @@ class NodePredictionInferrer4TS(GSgnnNodePredictionInferrer):
 def node_mini_batch_gnn_predict(model, loader, return_proba=True,
                                 return_label=False, use_ar=False, predict_step=-1):
     """ This method was copied from GraphStorm's node_mini_batch_gnn_predict() method, and
-    add two new arguments, `use_ar`, and `predict_step`, which are required for the input
+    add two new arguments, `use_ar`, and `predict_step`, are required for the input
     model's predict() function. It also customizes the label extraction method for time
     series labels.
 
