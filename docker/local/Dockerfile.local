@@ -60,6 +60,7 @@ RUN TORCH_MAJOR_MINOR=$(echo $TORCH_VERSION | cut -c1-3) && \
     pip install \
     dgl==${DGL_VERSION} -f https://data.dgl.ai/wheels/torch-${TORCH_MAJOR_MINOR}/repo.html \
     ogb==${OGB_VERSION} \
+    torchdata==0.9.0 \
     transformers==${TRANSFORMERS_VERSION} \
     && rm -rf /root/.cache
 
@@ -72,6 +73,7 @@ RUN TORCH_MAJOR_MINOR=$(echo $TORCH_VERSION | cut -c1-3) && \
     -f https://data.dgl.ai/wheels/torch-${TORCH_MAJOR_MINOR}/cu${DGL_CUDA_VERSION}/repo.html \
     ogb==${OGB_VERSION} \
     torch==${TORCH_VERSION} \
+    torchdata==0.9.0 \
     transformers==${TRANSFORMERS_VERSION} \
     && rm -rf /root/.cache
 
