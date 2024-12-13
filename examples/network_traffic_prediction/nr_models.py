@@ -366,7 +366,7 @@ class RgcnNRModel4TS(GSgnnNodeModel):
             or [{}, {}. ...] for zero number of edges in input blocks. The length of e_hs
             should be equal to the number of gnn layers.
         labels: dict of tensor
-            A dict of node/edge type and lables in format [type_str, tensor].
+            A dict of node/edge type and lables in format {type_str, tensor}.
         input_nodes: dict of tensor
             The input node IDs of the mini-batch.
         """
