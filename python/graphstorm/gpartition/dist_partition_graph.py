@@ -87,7 +87,7 @@ def run_build_dglgraph(
         "--ssh-port", f"{ssh_port}",
         "--python-path", f"{python_bin}",
         "--log-level", logging.getLevelName(logging.root.getEffectiveLevel()),
-        "--process-group-timeout", process_group_timeout,
+        "--process-group-timeout", str(process_group_timeout),
         "--save-orig-nids",
         "--save-orig-eids"]
 
