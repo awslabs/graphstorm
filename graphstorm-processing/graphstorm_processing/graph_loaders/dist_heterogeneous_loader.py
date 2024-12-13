@@ -73,6 +73,7 @@ FORMAT_NAME = "parquet"
 DELIMITER = "" if FORMAT_NAME == "parquet" else ","
 NODE_MAPPING_STR = "orig"
 NODE_MAPPING_INT = "new"
+RANDOM_DATA_SPLIT_ORDER = "random_split_order_flag"
 CUSTOM_DATA_SPLIT_ORDER = "custom_split_order_flag"
 
 
@@ -2015,6 +2016,20 @@ class DistHeterogeneousGraphLoader(object):
         tuple[DataFrame, DataFrame, DataFrame]
             Train/val/test mask DataFrames.
         """
+        def create_mapping(input_df):
+            """
+            Creates the integer mapping for order maintaining.
+
+            Parameters
+            ----------
+            input_df: DataFrame
+                Input dataframe for which we will add integer mapping.
+            """
+            return_df = input_df.withColumn(
+                CUSTOM_DATA_SPLIT_ORDER, monotonically_increasing_id()
+            )
+            return return_df
+
         if split_rates is None:
             split_rates = SplitRates(train_rate=0.8, val_rate=0.1, test_rate=0.1)
             logging.info(
@@ -2050,7 +2065,9 @@ class DistHeterogeneousGraphLoader(object):
         # Convert label col to string and apply UDF
         # to create one-hot vector indicating train/test/val membership
         input_col = F.col(label_column).astype("string") if label_column else F.lit("dummy")
-        int_group_df = input_df.select(split_group(input_col).alias(group_col_name))
+        input_df = create_mapping(input_df)
+        int_group_df = input_df.select(split_group(input_col).alias(group_col_name),
+                                       RANDOM_DATA_SPLIT_ORDER)
 
         # We cache because we re-use this DF 3 times
         int_group_df.cache()
@@ -2060,6 +2077,7 @@ class DistHeterogeneousGraphLoader(object):
         else:
             mask_names = ("train_mask", "val_mask", "test_mask")
 
+        int_group_df = int_group_df.orderBy(RANDOM_DATA_SPLIT_ORDER)
         train_mask_df = int_group_df.select(F.col(group_col_name)[0].alias(mask_names[0]))
         val_mask_df = int_group_df.select(F.col(group_col_name)[1].alias(mask_names[1]))
         test_mask_df = int_group_df.select(F.col(group_col_name)[2].alias(mask_names[2]))
