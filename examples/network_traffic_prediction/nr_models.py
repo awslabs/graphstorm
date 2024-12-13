@@ -363,7 +363,7 @@ class RgcnNRModel4TS(GSgnnNodeModel):
             Input node features for each node type in the format of {ntype: tensor}.        
         edge_feats: list of dict of tensors
             Input edge features for each edge type in the format of [{etype: tensor}, ...],
-            or [{}, {}. ...] for zero number of edges in input blocks. The length of e_hs
+            or [{}, {}. ...] for zero number of edges in input blocks. The length of edge_feats
             should be equal to the number of gnn layers.
         labels: dict of tensor
             A dict of node/edge type and lables in format {type_str, tensor}.
