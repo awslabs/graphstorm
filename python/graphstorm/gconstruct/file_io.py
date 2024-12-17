@@ -88,6 +88,8 @@ def expand_wildcard(data_files: List[str]) -> List[str]:
 
     """
     expanded_files = []
+    if len(data_files) == 1 and os.path.isdir(data_files[0]):
+        data_files = [os.path.join(data_files[0], "*")]
     for item in data_files:
         if '*' in item:
             matched_files = sorted(glob.glob(item))

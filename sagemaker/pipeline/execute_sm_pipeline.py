@@ -38,71 +38,77 @@ def parse_args():
         "--pipeline-name",
         type=str,
         required=True,
-        help="Name of the pipeline to execute",
+        help="Name of the pipeline to execute. Required.",
+    )
+    parser.add_argument("--region", type=str, required=False,
+        help="AWS region. Required for SageMaker execution.")
+    parser.add_argument(
+        "--async-execution", action="store_true",
+        help="Run pipeline asynchronously on SageMaker, return after printing execution ARN."
+    )
+    parser.add_argument(
+        "--local-execution",
+        action="store_true",
+        help="Use a local pipeline session to execute the pipeline.",
     )
     parser.add_argument(
         "--pipeline-args-json-file",
         type=str,
         help=(
-            "If executing locally, provide a JSON representation of the pipeline arguments. "
+            "When executing locally, optionally provide a JSON representation of the pipeline arguments. "
             "By default we look for '<pipeline-name>-pipeline-args.json' in the working dir."
         ),
     )
-    parser.add_argument("--region", type=str, required=False, help="AWS region")
+
+
+    overrides = parser.add_argument_group(
+        "Pipeline overrides",
+        "Override default pipeline parameters at execution time.")
 
     # Optional override parameters
-    parser.add_argument("--instance-count", type=int, help="Override instance count")
-    parser.add_argument(
+    overrides.add_argument("--instance-count", type=int, help="Override instance count")
+    overrides.add_argument(
         "--cpu-instance-type", type=str, help="Override CPU instance type"
     )
-    parser.add_argument(
+    overrides.add_argument(
         "--gpu-instance-type", type=str, help="Override GPU instance type"
     )
-    parser.add_argument(
+    overrides.add_argument(
         "--graphconstruct-instance-type",
         type=str,
         help="Override graph construction instance type",
     )
-    parser.add_argument(
+    overrides.add_argument(
         "--graphconstruct-config-file",
         type=str,
         help="Override graph construction config file",
     )
-    parser.add_argument(
+    overrides.add_argument(
         "--partition-algorithm",
         type=str,
         choices=["random", "parmetis"],
         help="Override partition algorithm",
     )
-    parser.add_argument("--graph-name", type=str, help="Override graph name")
-    parser.add_argument("--num-trainers", type=int, help="Override number of trainers")
-    parser.add_argument(
+    overrides.add_argument("--graph-name", type=str, help="Override graph name")
+    overrides.add_argument("--num-trainers", type=int, help="Override number of trainers")
+    overrides.add_argument(
         "--use-graphbolt",
         type=str,
         choices=["true", "false"],
         help="Override whether to use GraphBolt",
     )
-    parser.add_argument("--input-data", type=str, help="Override input data S3 path")
-    parser.add_argument("--output-prefix", type=str, help="Override output prefix")
-    parser.add_argument(
-        "--train-config-file", type=str, help="Override train config file S3 path"
+    overrides.add_argument("--input-data", type=str, help="Override input data S3 path")
+    overrides.add_argument("--output-prefix", type=str, help="Override output prefix")
+    overrides.add_argument(
+        "--train-yaml-file", type=str, help="Override train yaml file S3 path"
     )
-    parser.add_argument(
-        "--inference-config-file",
+    overrides.add_argument(
+        "--inference-yaml-file",
         type=str,
-        help="Override inference config file S3 path",
+        help="Override inference yaml file S3 path",
     )
-    parser.add_argument(
+    overrides.add_argument(
         "--inference-model-snapshot", type=str, help="Override inference model snapshot"
-    )
-
-    parser.add_argument(
-        "--async-execution", action="store_true", help="Run pipeline asynchronously"
-    )
-    parser.add_argument(
-        "--local-execution",
-        action="store_true",
-        help="Use a local pipeline session to run the pipeline.",
     )
 
     return parser.parse_args()
@@ -163,10 +169,10 @@ def main():
         execution_params["InputData"] = args.input_data
     if args.output_prefix:
         execution_params["OutputPrefix"] = args.output_prefix
-    if args.train_config_file:
-        execution_params["TrainConfigFile"] = args.train_config_file
-    if args.inference_config_file:
-        execution_params["InferenceConfigFile"] = args.inference_config_file
+    if args.train_yaml_file:
+        execution_params["TrainConfigFile"] = args.train_yaml_file
+    if args.inference_yaml_file:
+        execution_params["InferenceConfigFile"] = args.inference_yaml_file
     if args.inference_model_snapshot:
         execution_params["InferenceModelSnapshot"] = args.inference_model_snapshot
 

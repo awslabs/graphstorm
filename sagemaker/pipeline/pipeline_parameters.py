@@ -42,7 +42,8 @@ class AWSConfig:
 
     role: str
     region: str
-    graphstorm_pytorch_image_url: str
+    graphstorm_pytorch_cpu_image_url: str
+    graphstorm_pytorch_gpu_image_url: str
     gsprocessing_pyspark_image_url: str
 
 
@@ -56,15 +57,16 @@ class InstanceConfig:
     graph_construction_instance_type: str
     gsprocessing_instance_count: int
     train_on_cpu: bool
+    volume_size_gb: int
 
     def __post_init__(self):
         assert (
             self.cpu_instance_type or self.gpu_instance_type
         ), "At least one instance type (CPU or GPU) should be specified."
 
-        assert (
-            self.train_on_cpu and self.cpu_instance_type
-        ), "Need to provide a CPU instance type when training on CPU"
+        if self.train_on_cpu:
+            assert self.cpu_instance_type, \
+                "Need to provide a CPU instance type when training on CPU"
 
         if not self.graph_construction_instance_type:
             self.graph_construction_instance_type = self.cpu_instance_type
@@ -214,6 +216,10 @@ class PipelineArgs:
                 "GPU instance type must be specified if not training on CPU, "
                 f"got {self.instance_config.train_on_cpu=} "
                 f"{self.instance_config.gpu_instance_type=}"
+            )
+            assert self.aws_config.graphstorm_pytorch_cpu_image_url, (
+                "Must use provide GPU image when training on GPU. "
+                "use --graphstorm-pytorch-gpu-image-url"
             )
 
         # Ensure we provide a GConstruct/GSProcessing config file when running construction
@@ -366,10 +372,15 @@ def parse_pipeline_args() -> PipelineArgs:
         "--region", type=str, required=True, help="AWS region. Required"
     )
     required_args.add_argument(
-        "--graphstorm-pytorch-image-url",
+        "--graphstorm-pytorch-cpu-image-url",
         type=str,
         required=True,
-        help="GraphStorm GConstruct/dist_part/train/inference ECR image URL. Required",
+        help="GraphStorm GConstruct/dist_part/train/inference CPU ECR image URL. Required",
+    )
+    optional_args.add_argument(
+        "--graphstorm-pytorch-gpu-image-url",
+        type=str,
+        help="GraphStorm GConstruct/dist_part/train/inference GPU ECR image URL.",
     )
     optional_args.add_argument(
         "--gsprocessing-pyspark-image-url",
@@ -401,6 +412,12 @@ def parse_pipeline_args() -> PipelineArgs:
         "--train-on-cpu",
         action="store_true",
         help="Run training and inference on CPU instances instead of GPU",
+    )
+    optional_args.add_argument(
+        "--volume-size-gb",
+        type=int,
+        help="Additional volume size for instances in GB.",
+        default=100,
     )
 
     # Pipeline/Task Configuration
@@ -617,7 +634,8 @@ def parse_pipeline_args() -> PipelineArgs:
         aws_config=AWSConfig(
             role=args.role,
             region=args.region,
-            graphstorm_pytorch_image_url=args.graphstorm_pytorch_image_url,
+            graphstorm_pytorch_cpu_image_url=args.graphstorm_pytorch_cpu_image_url,
+            graphstorm_pytorch_gpu_image_url=args.graphstorm_pytorch_gpu_image_url,
             gsprocessing_pyspark_image_url=args.gsprocessing_pyspark_image_url,
         ),
         instance_config=InstanceConfig(
@@ -627,6 +645,7 @@ def parse_pipeline_args() -> PipelineArgs:
             cpu_instance_type=args.cpu_instance_type,
             gpu_instance_type=args.gpu_instance_type,
             train_on_cpu=args.train_on_cpu,
+            volume_size_gb=args.volume_size_gb,
         ),
         task_config=TaskConfig(
             graph_name=args.graph_name,

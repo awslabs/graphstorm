@@ -89,6 +89,13 @@ class GraphStormPipelineGenerator:
             if self.args.instance_config.train_on_cpu
             else self.gpu_instance_type_param
         )
+        self.train_infer_image = (
+            args.aws_config.graphstorm_pytorch_cpu_image_url
+            if self.args.instance_config.train_on_cpu
+            else
+            args.aws_config.graphstorm_pytorch_gpu_image_url
+
+        )
 
     def _get_or_create_pipeline_session(
         self, input_session: Optional[PipelineSession] = None
@@ -183,6 +190,10 @@ class GraphStormPipelineGenerator:
         self.graphconstruct_instance_type_param = self._create_string_parameter(
             "GraphConstructInstanceType",
             args.instance_config.graph_construction_instance_type,
+        )
+        self.volume_size_gb_param = self._create_int_parameter(
+            "InstanceVolumeSizeGB",
+            args.instance_config.volume_size_gb,
         )
         self.graphconstruct_config_param = self._create_string_parameter(
             "GraphConstructConfigFile", args.graph_construction_config.config_filename
@@ -279,12 +290,13 @@ class GraphStormPipelineGenerator:
         )
 
         gconstruct_processor = ScriptProcessor(
-            image_uri=args.aws_config.graphstorm_pytorch_image_url,
+            image_uri=args.aws_config.graphstorm_pytorch_cpu_image_url,
             role=args.aws_config.role,
             instance_count=1,
             instance_type=self.graphconstruct_instance_type_param,
             command=["python3"],
             sagemaker_session=self.pipeline_session,
+            volume_size_in_gb=self.volume_size_gb_param,
         )
 
         gconstruct_s3_output = Join(
@@ -298,7 +310,9 @@ class GraphStormPipelineGenerator:
         gc_local_input_path = "/opt/ml/processing/input"
         # GConstruct should always be the first step and start with the source data
         gc_proc_input = ProcessingInput(
-            source=self.input_data_param, destination=gc_local_input_path
+            source=self.input_data_param,
+            destination=gc_local_input_path,
+            s3_input_mode='File',
         )
         gc_local_output_path = "/opt/ml/processing/output"
         gc_proc_output = ProcessingOutput(
@@ -318,7 +332,6 @@ class GraphStormPipelineGenerator:
             self.graph_name_param,
             "--num-parts",
             self.instance_count_param.to_string(),
-            "--add-reverse-edges",
         ]
 
         # TODO: Make this a pipeline parameter?
@@ -354,6 +367,7 @@ class GraphStormPipelineGenerator:
             instance_count=args.instance_config.gsprocessing_instance_count,
             image_uri=args.aws_config.gsprocessing_pyspark_image_url,
             sagemaker_session=self.pipeline_session,
+            volume_size_in_gb=self.volume_size_gb_param,
         )
 
         gsprocessing_output = Join(
@@ -427,12 +441,13 @@ class GraphStormPipelineGenerator:
     def _create_dist_part_step(self, args: PipelineArgs) -> ProcessingStep:
         # Implementation for DistPartition step
         dist_part_processor = ScriptProcessor(
-            image_uri=args.aws_config.graphstorm_pytorch_image_url,
+            image_uri=args.aws_config.graphstorm_pytorch_cpu_image_url,
             role=args.aws_config.role,
             instance_count=self.instance_count_param,
             instance_type=self.cpu_instance_type_param,
             command=["python3"],
             sagemaker_session=self.pipeline_session,
+            volume_size_in_gb=self.volume_size_gb_param,
         )
 
         partition_output = Join(
@@ -484,12 +499,13 @@ class GraphStormPipelineGenerator:
     def _create_gb_convert_step(self, args: PipelineArgs) -> ProcessingStep:
         # Implementation for GraphBolt partition step
         gb_part_processor = ScriptProcessor(
-            image_uri=args.aws_config.graphstorm_pytorch_image_url,
+            image_uri=args.aws_config.graphstorm_pytorch_cpu_image_url,
             role=args.aws_config.role,
             instance_count=1,
             instance_type=self.graphconstruct_instance_type_param,
             command=["python3"],
             sagemaker_session=self.pipeline_session,
+            volume_size_in_gb=self.volume_size_gb_param,
         )
 
         gb_convert_arguments = [
@@ -506,6 +522,7 @@ class GraphStormPipelineGenerator:
                     input_name="dist_graph_s3_input",
                     destination="/opt/ml/processing/dist_graph/",
                     source=self.next_step_data_input,
+                    # GraphBolt conversion requires File mode
                     s3_input_mode="File",
                 )
             ],
@@ -530,7 +547,7 @@ class GraphStormPipelineGenerator:
         train_estimator = PyTorch(
             entry_point=os.path.basename(args.script_paths.train_script),
             source_dir=os.path.dirname(args.script_paths.train_script),
-            image_uri=args.aws_config.graphstorm_pytorch_image_url,
+            image_uri=self.train_infer_image,
             role=args.aws_config.role,
             instance_count=self.instance_count_param,
             instance_type=self.train_infer_instance,
@@ -548,6 +565,7 @@ class GraphStormPipelineGenerator:
             sagemaker_session=self.pipeline_session,
             disable_profiler=True,
             debugger_hook_config=False,
+            volume_size=self.volume_size_gb_param,
         )
 
         train_step = TrainingStep(
@@ -613,7 +631,7 @@ class GraphStormPipelineGenerator:
         inference_estimator = PyTorch(
             entry_point=os.path.basename(args.script_paths.inference_script),
             source_dir=os.path.dirname(args.script_paths.inference_script),
-            image_uri=args.aws_config.graphstorm_pytorch_image_url,
+            image_uri=self.train_infer_image,
             role=args.aws_config.role,
             instance_count=self.instance_count_param,
             instance_type=self.train_infer_instance,
@@ -622,6 +640,7 @@ class GraphStormPipelineGenerator:
             sagemaker_session=self.pipeline_session,
             disable_profiler=True,
             debugger_hook_config=False,
+            volume_size=self.volume_size_gb_param,
         )
 
         inference_step = TrainingStep(
