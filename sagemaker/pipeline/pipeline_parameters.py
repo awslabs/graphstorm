@@ -17,6 +17,7 @@ Parameter parsing and validation for GraphStorm SageMaker Pipeline
 """
 
 import argparse
+import hashlib
 import json
 import logging
 import os
@@ -65,8 +66,9 @@ class InstanceConfig:
         ), "At least one instance type (CPU or GPU) should be specified."
 
         if self.train_on_cpu:
-            assert self.cpu_instance_type, \
-                "Need to provide a CPU instance type when training on CPU"
+            assert (
+                self.cpu_instance_type
+            ), "Need to provide a CPU instance type when training on CPU"
 
         if not self.graph_construction_instance_type:
             self.graph_construction_instance_type = self.cpu_instance_type
@@ -104,6 +106,7 @@ class TaskConfig:
                 "Should not try to run both GConstruct and GSProcessing steps, "
                 f"got job sequence: {self.jobs_to_run}"
             )
+        # TODO: Should we allow running GConstruct with dist_part?
 
         # When running gsprocessing ensure we run dist_part as well
         if "gsprocessing" in self.jobs_to_run and "dist_part" not in self.jobs_to_run:
@@ -210,6 +213,45 @@ class PipelineArgs:
     step_cache_expiration: str
     update: bool
 
+    def __eq__(self, other):
+        if not isinstance(other, PipelineArgs):
+            return False
+        return asdict(self) == asdict(other)
+
+    def __hash__(self):
+        # Convert the object to a dictionary
+        obj_dict = asdict(self)
+
+        # Convert the dictionary to a JSON string
+        json_str = json.dumps(obj_dict, sort_keys=True)
+
+        # Create a hash of the JSON string
+        return hash(json_str)
+
+    def get_hash_hex(self):
+        """Get unique string hash to differentiate between pipeline settings.
+
+        We use this hash as a unique identifier of execution parameters
+        in the intermediate output paths of the pipeline. This enables
+        caching steps when the input parameters are the same for the same
+        pipeline.
+
+        Returns
+        -------
+        str
+            A hexadecimal string representation of the object's hash.
+        """
+        # Convert the object to a dictionary
+        obj_dict = asdict(self)
+        # Remove non-functional keys from the dictionary,
+        # these do not affect the outcome of the execution
+        obj_dict.pop("step_cache_expiration")
+        obj_dict.pop("update")
+
+        # Convert the dictionary to a JSON string and create an md5 hash
+        json_str = json.dumps(obj_dict, sort_keys=True)
+        return hashlib.md5(json_str.encode()).hexdigest()
+
     def __post_init__(self):
         if not self.instance_config.train_on_cpu:
             assert self.instance_config.gpu_instance_type, (
@@ -232,10 +274,21 @@ class PipelineArgs:
                 "when running graph construction."
             )
 
-        # TODO: When using GConstruct+DistPart (possible?) provide
-        # the correct partition output JSON filename
+        # TODO: When using GConstruct+DistPart/GBConvert (possible?) provide
+        # the correct partition input JSON filename?
+        # if "gconstruct" in self.task_config.jobs_to_run:
+        #     if "dist_part" in self.task_config.jobs_to_run or "gb_convert" in self.task_config.jobs_to_run:
+        #         if self.partition_config.input_json_filename != f"{self.task_config.graph_name}.json":
+        #             logging.warning(
+        #                 "When running GConstruct, the partition input JSON "
+        #                 "filename should be '<graph_name>.json'. "
+        #                 "Got %s, setting to %s instead",
+        #                 self.partition_config.input_json_filename,
+        #                 f"{self.task_config.graph_name}.json",
+        #             )
+        #             self.partition_config.input_json_filename = f"{self.task_config.graph_name}.json"
 
-        # Ensure we have a GSProcessing image to run gsprocessing
+        # Ensure we have a GSProcessing image to run GSProcessing
         if "gsprocessing" in self.task_config.jobs_to_run:
             assert (
                 self.aws_config.gsprocessing_pyspark_image_url
@@ -248,7 +301,7 @@ class PipelineArgs:
         ):
             assert "gb_convert" in self.task_config.jobs_to_run, (
                 "When using Graphbolt and running distributed partitioning, "
-                "need to run 'gb_convert' as the following job, "
+                "need to run 'gb_convert' as a follow-up to 'dist_part', "
                 f"got job sequence: {self.task_config.jobs_to_run}"
             )
 
@@ -258,14 +311,9 @@ class PipelineArgs:
             "gconstruct" in self.task_config.jobs_to_run
             and self.training_config.use_graphbolt_str == "true"
         ):
-            if self.graph_construction_config.graph_construction_args:
-                self.graph_construction_config.graph_construction_args += (
-                    " --use-graphbolt true"
-                )
-            else:
-                self.graph_construction_config.graph_construction_args += (
-                    "--use-graphbolt true"
-                )
+            self.graph_construction_config.graph_construction_args += (
+                " --use-graphbolt true"
+            )
 
         # If running gsprocessing but do not set instance count for it, use train instance count
         if (
@@ -279,6 +327,13 @@ class PipelineArgs:
                 "No GSProcessing instance count specified, using the training instance count: %s",
                 self.instance_config.gsprocessing_instance_count,
             )
+
+        # GConstruct uses 'metis', so just translate that if needed
+        if (
+            self.partition_config.partition_algorithm.lower() == "parmetis"
+            and "gconstruct" in self.task_config.jobs_to_run
+        ):
+            self.partition_config.partition_algorithm = "metis"
 
 
 def save_pipeline_args(pipeline_args: PipelineArgs, filepath: str) -> None:
@@ -510,7 +565,7 @@ def parse_pipeline_args() -> PipelineArgs:
         "--partition-algorithm",
         type=str,
         default="random",
-        choices=["random", "parmetis"],
+        choices=["random", "parmetis", "metis"],
         help="Partitioning algorithm. Default: 'random'",
     )
     optional_args.add_argument(
@@ -525,7 +580,8 @@ def parse_pipeline_args() -> PipelineArgs:
         type=str,
         default="updated_row_counts_metadata.json",
         help="Name for the JSON file that describes the input data for partitioning. "
-        "Will be updated_row_counts_metadata.json if you use GSProcessing",
+        "Will be 'updated_row_counts_metadata.json' if you used GSProcessing to prepare the data, "
+        "or '<graph-name>.json' if you used GConstruct",
     )
 
     # Training Configuration

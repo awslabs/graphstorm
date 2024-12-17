@@ -928,6 +928,7 @@ if __name__ == '__main__':
                            help="The number of graph partitions. " + \
                                    "This is only valid if the output format is DistDGL.")
     argparser.add_argument("--part-method", type=str, default='metis',
+                           choices=['metis', 'random'],
                            help="The partition method. Currently, we support 'metis' and 'random'.")
     argparser.add_argument("--skip-nonexist-edges", action='store_true',
                            help="Skip edges that whose endpoint nodes don't exist.")

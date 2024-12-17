@@ -17,7 +17,9 @@ Execute a SageMaker pipeline for GraphStorm.
 """
 
 import argparse
+import os
 import sys
+import warnings
 
 import boto3
 import psutil
@@ -40,11 +42,16 @@ def parse_args():
         required=True,
         help="Name of the pipeline to execute. Required.",
     )
-    parser.add_argument("--region", type=str, required=False,
-        help="AWS region. Required for SageMaker execution.")
     parser.add_argument(
-        "--async-execution", action="store_true",
-        help="Run pipeline asynchronously on SageMaker, return after printing execution ARN."
+        "--region",
+        type=str,
+        required=False,
+        help="AWS region. Required for SageMaker execution.",
+    )
+    parser.add_argument(
+        "--async-execution",
+        action="store_true",
+        help="Run pipeline asynchronously on SageMaker, return after printing execution ARN.",
     )
     parser.add_argument(
         "--local-execution",
@@ -60,10 +67,9 @@ def parse_args():
         ),
     )
 
-
     overrides = parser.add_argument_group(
-        "Pipeline overrides",
-        "Override default pipeline parameters at execution time.")
+        "Pipeline overrides", "Override default pipeline parameters at execution time."
+    )
 
     # Optional override parameters
     overrides.add_argument("--instance-count", type=int, help="Override instance count")
@@ -90,7 +96,9 @@ def parse_args():
         help="Override partition algorithm",
     )
     overrides.add_argument("--graph-name", type=str, help="Override graph name")
-    overrides.add_argument("--num-trainers", type=int, help="Override number of trainers")
+    overrides.add_argument(
+        "--num-trainers", type=int, help="Override number of trainers"
+    )
     overrides.add_argument(
         "--use-graphbolt",
         type=str,
@@ -110,6 +118,14 @@ def parse_args():
     overrides.add_argument(
         "--inference-model-snapshot", type=str, help="Override inference model snapshot"
     )
+    overrides.add_argument(
+        "--execution-subpath",
+        type=str,
+        help=(
+            "Override execution subpath. "
+            "By default it's derived from a hash of the input arguments"
+        ),
+    )
 
     return parser.parse_args()
 
@@ -118,15 +134,16 @@ def main():
     """Execute GraphStorm SageMaker pipeline"""
     args = parse_args()
 
+    pipeline_deploy_args = load_pipeline_args(
+        args.pipeline_args_json_file or f"{args.pipeline_name}-pipeline-args.json"
+    )
+    deploy_time_hash = pipeline_deploy_args.get_hash_hex()
+
     if args.local_execution:
         # Use local pipeline and session
-        pipeline_args = load_pipeline_args(
-            args.pipeline_args_json_file or f"{args.pipeline_name}-pipeline-args.json"
-        )
-
         local_session = LocalPipelineSession()
         pipeline_generator = GraphStormPipelineGenerator(
-            pipeline_args, input_session=local_session
+            pipeline_deploy_args, input_session=local_session
         )
         # Set shared memory to half the host's size, as SM does
         instance_mem_mb = int(psutil.virtual_memory().total // (1024 * 1024))
@@ -135,7 +152,7 @@ def main():
         }
         pipeline = pipeline_generator.create_pipeline()
         pipeline.sagemaker_session = local_session
-        pipeline.create(role_arn=pipeline_args.aws_config.role)
+        pipeline.create(role_arn=pipeline_deploy_args.aws_config.role)
     else:
         assert args.region, "Need to provide --region for remote SageMaker execution"
         boto_session = boto3.Session(region_name=args.region)
@@ -147,34 +164,77 @@ def main():
     execution_params = {}
     if args.instance_count is not None:
         execution_params["InstanceCount"] = args.instance_count
+        pipeline_deploy_args.instance_config.train_infer_instance_count = (
+            args.instance_count
+        )
     if args.cpu_instance_type:
         execution_params["CPUInstanceType"] = args.cpu_instance_type
+        pipeline_deploy_args.instance_config.cpu_instance_type = args.cpu_instance_type
     if args.gpu_instance_type:
         execution_params["GPUInstanceType"] = args.gpu_instance_type
+        pipeline_deploy_args.instance_config.gpu_instance_type = args.gpu_instance_type
     if args.graphconstruct_instance_type:
         execution_params["GraphConstructInstanceType"] = (
             args.graphconstruct_instance_type
         )
+        pipeline_deploy_args.instance_config.graph_construction_instance_type = (
+            args.graphconstruct_instance_type
+        )
     if args.graphconstruct_config_file:
         execution_params["GraphConstructConfigFile"] = args.graphconstruct_config_file
+        pipeline_deploy_args.graph_construction_config.config_filename = (
+            args.graphconstruct_config_file
+        )
     if args.partition_algorithm:
         execution_params["PartitionAlgorithm"] = args.partition_algorithm
+        pipeline_deploy_args.partition_config.partition_algorithm = (
+            args.partition_algorithm
+        )
     if args.graph_name:
         execution_params["GraphName"] = args.graph_name
+        pipeline_deploy_args.task_config.graph_name = args.graph_name
     if args.num_trainers is not None:
         execution_params["NumTrainers"] = args.num_trainers
+        pipeline_deploy_args.training_config.num_trainers = args.num_trainers
     if args.use_graphbolt:
         execution_params["UseGraphBolt"] = args.use_graphbolt
+        pipeline_deploy_args.training_config.use_graphbolt_str = args.use_graphbolt
     if args.input_data:
         execution_params["InputData"] = args.input_data
+        pipeline_deploy_args.task_config.input_data_s3 = args.input_data
     if args.output_prefix:
         execution_params["OutputPrefix"] = args.output_prefix
+        pipeline_deploy_args.task_config.output_prefix = args.output_prefix
     if args.train_yaml_file:
         execution_params["TrainConfigFile"] = args.train_yaml_file
+        pipeline_deploy_args.training_config.train_yaml_file = args.train_yaml_file
     if args.inference_yaml_file:
         execution_params["InferenceConfigFile"] = args.inference_yaml_file
+        pipeline_deploy_args.inference_config.inference_yaml_file = (
+            args.inference_yaml_file
+        )
     if args.inference_model_snapshot:
         execution_params["InferenceModelSnapshot"] = args.inference_model_snapshot
+        pipeline_deploy_args.inference_config.inference_model_snapshot = (
+            args.inference_model_snapshot
+        )
+    # If user specified a subpath use that, otherwise let the execution parameters determine it
+    if args.execution_subpath:
+        execution_params["ExecutionSubpath"] = args.execution_subpath
+    else:
+        execution_params["ExecutionSubpath"] = pipeline_deploy_args.get_hash_hex()
+
+        if pipeline_deploy_args.get_hash_hex() != deploy_time_hash:
+            new_prefix = os.path.join(
+                pipeline_deploy_args.task_config.output_prefix,
+                args.pipeline_name,
+                pipeline_deploy_args.get_hash_hex(),
+            )
+            warnings.warn(
+                "The pipeline execution arguments have been modified "
+                "compared to the deployment parameters. "
+                f"This execution will use a new unique output prefix, : {new_prefix}."
+            )
 
     # If no parameters are provided, use an empty dict to use all defaults
     execution = pipeline.start(

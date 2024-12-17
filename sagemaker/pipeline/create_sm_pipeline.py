@@ -24,7 +24,6 @@ import boto3
 from sagemaker.processing import ScriptProcessor
 from sagemaker.spark.processing import PySparkProcessor
 from sagemaker.pytorch.estimator import PyTorch
-from sagemaker.workflow.execution_variables import ExecutionVariables
 from sagemaker.workflow.functions import Join
 from sagemaker.workflow.parameters import ParameterInteger, ParameterString
 from sagemaker.workflow.pipeline import Pipeline
@@ -71,17 +70,15 @@ class GraphStormPipelineGenerator:
         )
 
         # Build up the output prefix
-        # TODO: Using PIPELINE_EXECUTION_ID in the output path invalidates cached results,
-        # maybe have the output path be static between executions (but unique per pipeline)?
-        # One option might be to use a hash of the execution parameters dict and
-        # add that to the prefix?
-        # Could be passed as another parameter to the pipeline
+        # We use a hash of the execution parameters dict and
+        # add that to the prefix to have consistent intermediate paths between executions
+        # that share all the same parameters.
         self.output_subpath = Join(
             on="/",
             values=[
                 self.output_prefix_param,
                 self._get_pipeline_name(args),
-                ExecutionVariables.PIPELINE_EXECUTION_ID,
+                self.execution_subpath_param,
             ],
         )
         self.train_infer_instance = (
@@ -92,9 +89,7 @@ class GraphStormPipelineGenerator:
         self.train_infer_image = (
             args.aws_config.graphstorm_pytorch_cpu_image_url
             if self.args.instance_config.train_on_cpu
-            else
-            args.aws_config.graphstorm_pytorch_gpu_image_url
-
+            else args.aws_config.graphstorm_pytorch_gpu_image_url
         )
 
     def _get_or_create_pipeline_session(
@@ -194,6 +189,9 @@ class GraphStormPipelineGenerator:
         self.volume_size_gb_param = self._create_int_parameter(
             "InstanceVolumeSizeGB",
             args.instance_config.volume_size_gb,
+        )
+        self.execution_subpath_param = self._create_string_parameter(
+            "ExecutionSubpath", args.get_hash_hex()
         )
         self.graphconstruct_config_param = self._create_string_parameter(
             "GraphConstructConfigFile", args.graph_construction_config.config_filename
@@ -310,15 +308,13 @@ class GraphStormPipelineGenerator:
         gc_local_input_path = "/opt/ml/processing/input"
         # GConstruct should always be the first step and start with the source data
         gc_proc_input = ProcessingInput(
-            source=self.input_data_param,
-            destination=gc_local_input_path,
-            s3_input_mode='File',
+            source=self.input_data_param, destination=gc_local_input_path
         )
         gc_local_output_path = "/opt/ml/processing/output"
         gc_proc_output = ProcessingOutput(
             source=gc_local_output_path,
             destination=gconstruct_s3_output,
-            output_name=self.graph_name_param,
+            output_name=f"{self.graph_name_param}-gconstruct",
         )
 
         gconstruct_arguments = [
@@ -332,6 +328,8 @@ class GraphStormPipelineGenerator:
             self.graph_name_param,
             "--num-parts",
             self.instance_count_param.to_string(),
+            "--part-method",
+            self.partition_algorithm_param,
         ]
 
         # TODO: Make this a pipeline parameter?
@@ -360,7 +358,6 @@ class GraphStormPipelineGenerator:
 
     def _create_gsprocessing_step(self, args: PipelineArgs) -> ProcessingStep:
         # Implementation for GSProcessing step
-        # TODO: Add volume size
         pyspark_processor = PySparkProcessor(
             role=args.aws_config.role,
             instance_type=args.instance_config.graph_construction_instance_type,
@@ -400,8 +397,6 @@ class GraphStormPipelineGenerator:
             gsprocessing_output,
             "--do-repartition",
             "True",
-            "--add-reverse-edges",
-            "True",
             "--log-level",
             args.task_config.log_level,
         ]
@@ -417,7 +412,7 @@ class GraphStormPipelineGenerator:
             destination="/opt/ml/processing/input/data",
         )
         gsprocessing_meta_output = ProcessingOutput(
-            output_name="metadata",
+            output_name="partition-input-metadata",
             destination=gsprocessing_output,
             source="/opt/ml/processing/output",
         )
@@ -522,7 +517,6 @@ class GraphStormPipelineGenerator:
                     input_name="dist_graph_s3_input",
                     destination="/opt/ml/processing/dist_graph/",
                     source=self.next_step_data_input,
-                    # GraphBolt conversion requires File mode
                     s3_input_mode="File",
                 )
             ],
