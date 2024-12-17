@@ -23,9 +23,13 @@ import torch as th
 from torch.utils.data import DataLoader
 import torch.distributed as dist
 
-from dgl.dataloading import DistDataLoader
-from dgl.dataloading import EdgeCollator
-from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
+try:
+    from dgl.distributed import DistDataLoader
+    from dgl.distributed.dist_dataloader import EdgeCollator, _remove_kwargs_dist
+except ImportError:
+    from dgl.dataloading import DistDataLoader
+    from dgl.dataloading import EdgeCollator
+    from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
 
 from ..utils import get_device, is_distributed, get_backend
 from .utils import (verify_label_field,
@@ -122,6 +126,8 @@ class MultiLayerNeighborSamplerForReconstruct(dgl.dataloading.BlockSampler):
     def __init__(self, sampler, dataset, construct_feat_ntype, construct_feat_fanout):
         super().__init__()
         self._sampler = sampler
+        # Temporary fix for DGL 2.0.0+ Compatabilities
+        self.prob = None
         self._construct_feat_sampler = _ReconstructedNeighborSampler(
                 dataset, construct_feat_ntype, construct_feat_fanout)
         # Temporary fix for DGL 2.0.0+ Compatabilities
