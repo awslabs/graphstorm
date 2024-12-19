@@ -118,7 +118,7 @@ def read_index_parquet(data_file, column):
 
     if len(column) == 1:
         res_array = df[column[0]].to_numpy()
-    elif len(df.columns) == 2:
+    elif len(column) == 2:
         res_array = list(zip(df[column[0]].to_numpy(), df[column[1]].to_numpy()))
     else:
         raise ValueError("The Parquet file on node mask must contain exactly one column, "
