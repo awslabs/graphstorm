@@ -50,7 +50,8 @@ def run_build_dglgraph(
         output_path,
         metadata_filename,
         dgl_tool_path,
-        ssh_port):
+        ssh_port,
+        process_group_timeout):
     """ Build DistDGL Graph
 
     Parameters
@@ -67,6 +68,8 @@ def run_build_dglgraph(
         The filename for the graph partitioning metadata file we'll use to determine data sources.
     ssh_port: int
         SSH port
+    process_group_timeout: int
+        Timeout[seconds] for operations executed against the process group.
     """
     # Get the python interpreter used right now.
     # If we can not get it we go with the default `python3`
@@ -84,6 +87,7 @@ def run_build_dglgraph(
         "--ssh-port", f"{ssh_port}",
         "--python-path", f"{python_bin}",
         "--log-level", logging.getLevelName(logging.root.getEffectiveLevel()),
+        "--process-group-timeout", str(process_group_timeout),
         "--save-orig-nids",
         "--save-orig-eids"]
 
@@ -153,7 +157,8 @@ def main():
             os.path.join(output_path, "dist_graph"),
             args.metadata_filename,
             args.dgl_tool_path,
-            args.ssh_port)
+            args.ssh_port,
+            args.process_group_timeout)
 
         logging.info("DGL graph building took %f sec", dgl_graph_start - time.time())
 
@@ -236,6 +241,9 @@ def parse_args() -> argparse.Namespace:
                            default="false",
                            help=("Whether to convert the partitioned data to the GraphBolt format "
                                "after creating the DistDGL graph."))
+    argparser.add_argument("--process-group-timeout", type=int, default=1800,
+                           help="Timeout[seconds] for operations executed "
+                                "against the process group.")
 
     return argparser.parse_args()
 
