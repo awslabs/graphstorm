@@ -290,7 +290,7 @@ class GraphStormPipelineGenerator:
 
         gconstruct_processor = ScriptProcessor(
             image_uri=args.aws_config.graphstorm_pytorch_cpu_image_url,
-            role=args.aws_config.role,
+            role=args.aws_config.execution_role,
             instance_count=1,
             instance_type=self.graphconstruct_instance_type_param,
             command=["python3"],
@@ -360,7 +360,7 @@ class GraphStormPipelineGenerator:
     def _create_gsprocessing_step(self, args: PipelineArgs) -> ProcessingStep:
         # Implementation for GSProcessing step
         pyspark_processor = PySparkProcessor(
-            role=args.aws_config.role,
+            role=args.aws_config.execution_role,
             instance_type=args.instance_config.graph_construction_instance_type,
             instance_count=args.instance_config.gsprocessing_instance_count,
             image_uri=args.aws_config.gsprocessing_pyspark_image_url,
@@ -438,9 +438,9 @@ class GraphStormPipelineGenerator:
         # Implementation for DistPartition step
         dist_part_processor = ScriptProcessor(
             image_uri=args.aws_config.graphstorm_pytorch_cpu_image_url,
-            role=args.aws_config.role,
+            role=args.aws_config.execution_role,
             instance_count=self.instance_count_param,
-            instance_type=self.cpu_instance_type_param,
+            instance_type=self.graphconstruct_instance_type_param,
             command=["python3"],
             sagemaker_session=self.pipeline_session,
             volume_size_in_gb=self.volume_size_gb_param,
@@ -496,7 +496,7 @@ class GraphStormPipelineGenerator:
         # Implementation for GraphBolt partition step
         gb_part_processor = ScriptProcessor(
             image_uri=args.aws_config.graphstorm_pytorch_cpu_image_url,
-            role=args.aws_config.role,
+            role=args.aws_config.execution_role,
             instance_count=1,
             instance_type=self.graphconstruct_instance_type_param,
             command=["python3"],
@@ -543,7 +543,7 @@ class GraphStormPipelineGenerator:
             entry_point=os.path.basename(args.script_paths.train_script),
             source_dir=os.path.dirname(args.script_paths.train_script),
             image_uri=self.train_infer_image,
-            role=args.aws_config.role,
+            role=args.aws_config.execution_role,
             instance_count=self.instance_count_param,
             instance_type=self.train_infer_instance,
             py_version="py3",
@@ -627,7 +627,7 @@ class GraphStormPipelineGenerator:
             entry_point=os.path.basename(args.script_paths.inference_script),
             source_dir=os.path.dirname(args.script_paths.inference_script),
             image_uri=self.train_infer_image,
-            role=args.aws_config.role,
+            role=args.aws_config.execution_role,
             instance_count=self.instance_count_param,
             instance_type=self.train_infer_instance,
             py_version="py3",
@@ -682,10 +682,10 @@ def main():
 
     if pipeline_args.update:
         # TODO: If updating ensure pipeline exists first to get more informative error
-        pipeline.update(role_arn=pipeline_args.aws_config.role)
+        pipeline.update(role_arn=pipeline_args.aws_config.execution_role)
         print(f"Pipeline '{pipeline.name}' updated successfully.")
     else:
-        pipeline.create(role_arn=pipeline_args.aws_config.role)
+        pipeline.create(role_arn=pipeline_args.aws_config.execution_role)
         print(f"Pipeline '{pipeline.name}' created successfully.")
 
 

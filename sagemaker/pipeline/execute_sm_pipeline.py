@@ -75,10 +75,17 @@ def parse_args():
     # Optional override parameters
     overrides.add_argument("--instance-count", type=int, help="Override instance count")
     overrides.add_argument(
-        "--cpu-instance-type", type=str, help="Override CPU instance type"
+        "--cpu-instance-type",
+        type=str,
+        help="Override CPU instance type. "
+        "Always used in DistPart step and if '--train-on-cpu' is provided, "
+        "in Train and Inference steps.",
     )
     overrides.add_argument(
-        "--gpu-instance-type", type=str, help="Override GPU instance type"
+        "--gpu-instance-type",
+        type=str,
+        help="Override GPU instance type. "
+        "Used by default in in Train and Inference steps, unless '--train-on-cpu' is provided.",
     )
     overrides.add_argument(
         "--graphconstruct-instance-type",
@@ -144,12 +151,12 @@ def main():
         # Ensure GPU is available if trying to execute with GPU locally
         if not pipeline_deploy_args.instance_config.train_on_cpu:
             try:
-                subprocess.check_output('nvidia-smi')
+                subprocess.check_output("nvidia-smi")
             except Exception:
                 raise RuntimeError(
-                    'Need host with NVidia GPU to run training on GPU! '
+                    "Need host with NVidia GPU to run training on GPU! "
                     "Try re-deploying the pipeline with --train-on-cpu set."
-                    )
+                )
         # Use local pipeline and session
         local_session = LocalPipelineSession()
         pipeline_generator = GraphStormPipelineGenerator(
@@ -162,7 +169,7 @@ def main():
         }
         pipeline = pipeline_generator.create_pipeline()
         pipeline.sagemaker_session = local_session
-        pipeline.create(role_arn=pipeline_deploy_args.aws_config.role)
+        pipeline.create(role_arn=pipeline_deploy_args.aws_config.execution_role)
     else:
         assert args.region, "Need to provide --region for remote SageMaker execution"
         boto_session = boto3.Session(region_name=args.region)

@@ -40,9 +40,12 @@ The project consists of three main Python scripts:
 
 1. `create_sm_pipeline.py`: Defines the structure of the SageMaker pipeline
 2. `pipeline_parameters.py`: Manages the configuration and parameters for the pipeline
-3. `execute_pipeline.py`: Executes created pipelines
+3. `execute_sm_pipeline.py`: Executes created pipelines
 
-## Access code and install dependencies
+## Installation
+
+To construct and execute GraphStorm SageMaker pipelines you need the code
+available and a Python environment with the SageMaker SDK and `boto3` installed.
 
 1. Clone the GraphStorm repository:
    ```
@@ -63,15 +66,15 @@ To create a new SageMaker pipeline for GraphStorm:
 
 ```bash
 python create_sm_pipeline.py \
-    --role arn:aws:iam::123456789012:role/SageMakerRole \
+    --execution-role arn:aws:iam::123456789012:role/SageMakerRole \
     --region us-west-2 \
-    --graphstorm-pytorch-image-url 123456789012.dkr.ecr.us-west-2.amazonaws.com/graphstorm:sm-cpu \
+    --graphstorm-pytorch-cpu-image-url 123456789012.dkr.ecr.us-west-2.amazonaws.com/graphstorm:sagemaker-cpu \
     --instance-count 2 \
     --jobs-to-run gconstruct train inference \
     --graph-name my-graph \
     --graph-construction-config-filename my_gconstruct_config.json \
     --input-data-s3 s3://input-bucket/data \
-    --output-prefix-s3 s3://output-bucket/results \
+    --output-prefix s3://output-bucket/results \
     --train-inference-task node_classification \
     --train-yaml-s3 s3://config-bucket/train.yaml
 ```
@@ -83,7 +86,7 @@ to construct the graph and the train config file at `s3://config-bucket/train.ya
 to run training and inference.
 
 The `--instance-count` parameter determines the number of workers and partitions we will create and use
-during partitioning/training. It is also aliased to `--num-parts`.
+during partitioning/training.
 
 You can customize various aspects of the pipeline using additional command-line arguments. Refer to the script's help message for a full list of options:
 
@@ -96,7 +99,7 @@ python create_sm_pipeline.py --help
 To execute a created pipeline:
 
 ```bash
-python execute_pipeline.py \
+python execute_sm_pipeline.py \
     --pipeline-name my-graphstorm-pipeline \
     --region us-west-2
 ```
@@ -104,7 +107,7 @@ python execute_pipeline.py \
 You can override various pipeline parameters during execution:
 
 ```bash
-python execute_pipeline.py \
+python execute_sm_pipeline.py \
     --pipeline-name my-graphstorm-pipeline \
     --region us-west-2 \
     --instance-count 4 \
@@ -114,20 +117,22 @@ python execute_pipeline.py \
 For a full list of execution options:
 
 ```bash
-python execute_pipeline.py --help
+python execute_sm_pipeline.py --help
 ```
 
-For more fine-grained execution options see the
+For more fine-grained execution options, like selective execution,
 [SageMaker AI documentation](https://docs.aws.amazon.com/sagemaker/latest/dg/pipelines-selective-ex.html).
 
 ## Pipeline Components
 
-The GraphStorm SageMaker pipeline typically includes the following steps:
+The GraphStorm SageMaker pipeline can include the following steps:
 
-1. **Graph Construction**: Builds the graph from input data
-2. **Graph Partitioning**: Partitions the graph for distributed processing
-3. **Training**: Trains the graph neural network model
-4. **Inference**: Runs inference on the trained model
+1. **Graph Construction (GConstruct)**: Builds the partitioned graph from input data in a single instance.
+2. **Graph Processing (GSProcessing)**: Processes the graph data using PySpark, preparing it for distributed partitioning.
+3. **Graph Partitioning (DistPart)**: Partitions the graph using multiple instances.
+4. **GraphBolt Conversion**: Converts the partitioned data (usually generated from DistPart) to GraphBolt format.
+5. **Training**: Trains the graph neural network model.
+6. **Inference**: Runs inference on the trained model.
 
 Each step is configurable and can be customized based on your specific requirements.
 
@@ -165,27 +170,40 @@ python create_sm_pipeline.py \
     --use-graphbolt true
 ```
 
-will create a pipeline that uses GSProcessing to process and prepare the data for partitioning,
-use GSPartition to partition the data, convert the partitioned data to the GraphBolt format,
+This will create a pipeline that uses GSProcessing to process and prepare the data for partitioning,
+use DistPart to partition the data, convert the partitioned data to the GraphBolt format,
 then run a train and an inference job in sequence.
-
+You can use this job sequence when your graph is too large to partition on one instance using
+GConstruct (1+ TB is the suggested threshold to move to distributed partitioning).
 
 ### Asynchronous Execution
 
 To start a pipeline execution without waiting for it to complete:
 
 ```bash
-python execute_pipeline.py \
+python execute_sm_pipeline.py \
     --pipeline-name my-graphstorm-pipeline \
     --region us-west-2 \
     --async-execution
 ```
 
+### Local Execution
+
+For testing purposes, you can execute the pipeline locally:
+
+```bash
+python execute_sm_pipeline.py \
+    --pipeline-name my-graphstorm-pipeline \
+    --local-execution
+```
+
+Note that local execution requires a GPU if the pipeline is configured to use GPU instances.
+
 ## Troubleshooting
 
 - Ensure all required AWS permissions are correctly set up
 - Check SageMaker execution logs for detailed error messages
-- Verify that all S3 paths are correct and accessible. Note trailing `/` that could cause issues.
+- Verify that all S3 paths are correct and accessible
 - Ensure that the specified EC2 instance types are available in your region
 
 See also [Troubleshooting Amazon SageMaker Pipelines](https://docs.aws.amazon.com/sagemaker/latest/dg/pipelines-troubleshooting.html)

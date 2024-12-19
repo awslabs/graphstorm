@@ -41,7 +41,7 @@ SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
 class AWSConfig:
     """AWS-related configuration"""
 
-    role: str
+    execution_role: str
     region: str
     graphstorm_pytorch_cpu_image_url: str
     graphstorm_pytorch_gpu_image_url: str
@@ -421,7 +421,10 @@ def parse_pipeline_args() -> PipelineArgs:
 
     # AWS Configuration
     required_args.add_argument(
-        "--role", type=str, required=True, help="SageMaker IAM role ARN. Required"
+        "--execution-role",
+        type=str,
+        required=True,
+        help="SageMaker execution IAM role ARN. Required.",
     )
     required_args.add_argument(
         "--region", type=str, required=True, help="AWS region. Required"
@@ -454,19 +457,42 @@ def parse_pipeline_args() -> PipelineArgs:
     optional_args.add_argument(
         "--cpu-instance-type",
         type=str,
-        help="CPU instance type.",
+        help=(
+            "CPU instance type. "
+            "Always used in DistPart step and if '--train-on-cpu' is provided, "
+            "in Train and Inference steps."
+        ),
         default="ml.m5.4xlarge",
     )
     optional_args.add_argument(
         "--gpu-instance-type",
         type=str,
-        help="GPU instance type.",
+        help=(
+            "GPU instance type. Used by default in in Train and Inference steps, "
+            "unless '--train-on-cpu' is set."
+        ),
         default="ml.g5.4xlarge",
     )
     optional_args.add_argument(
         "--train-on-cpu",
         action="store_true",
-        help="Run training and inference on CPU instances instead of GPU",
+        help="Run training and inference on CPU instances instead of GPU.",
+    )
+    optional_args.add_argument(
+        "--graph-construction-instance-type",
+        type=str,
+        default=None,
+        help=(
+            "Instance type for graph construction. "
+            "Used in GSProcessing, GConstruct, GraphBoltConversion steps. "
+            "Default: same as CPU instance type"
+        ),
+    )
+    optional_args.add_argument(
+        "--gsprocessing-instance-count",
+        type=int,
+        default=None,
+        help="Number of GSProcessing instances. Default is equal to number of training instances.",
     )
     optional_args.add_argument(
         "--volume-size-gb",
@@ -540,24 +566,12 @@ def parse_pipeline_args() -> PipelineArgs:
         "Needs to exist at the top level of the S3 input data.",
     )
     optional_args.add_argument(
-        "--graph-construction-instance-type",
-        type=str,
-        default=None,
-        help="Instance type for graph construction. Default: same as CPU instance type",
-    )
-    optional_args.add_argument(
         "--graph-construction-args",
         type=str,
         default="",
         help="Parameters to be passed directly to the GConstruct job, "
         "wrap these in double quotes to avoid splitting, e.g."
         '--graph-construction-args "--num-processes 8 "',
-    )
-    optional_args.add_argument(
-        "--gsprocessing-instance-count",
-        type=int,
-        default=None,
-        help="Number of GSProcessing instances. Default is equal to number of training instances",
     )
 
     # Partition configuration
@@ -573,15 +587,16 @@ def parse_pipeline_args() -> PipelineArgs:
         type=str,
         default="metadata.json",
         help="Name for the output JSON file that describes the partitioned data. "
-        "Will be metadata.json if you use GSPartition, <graph-name>.json if you use GConstruct.",
+        "Will be metadata.json if you use GSPartition to partition the data, "
+        "<graph-name>.json if you use GConstruct.",
     )
     optional_args.add_argument(
         "--partition-input-json",
         type=str,
         default="updated_row_counts_metadata.json",
         help="Name for the JSON file that describes the input data for partitioning. "
-        "Will be 'updated_row_counts_metadata.json' if you used GSProcessing to prepare the data, "
-        "or '<graph-name>.json' if you used GConstruct",
+        "Will be 'updated_row_counts_metadata.json' if you used GSProcessing to process the data, "
+        "or '<graph-name>.json' if you used GConstruct.",
     )
 
     # Training Configuration
@@ -596,7 +611,8 @@ def parse_pipeline_args() -> PipelineArgs:
         "--num-trainers",
         type=int,
         default=4,
-        help="Number of trainers to use during training/inference. Set this to the number of GPUs",
+        help="Number of trainers to use during training/inference. Set this to the number of GPUs."
+        "Default: 4",
     )
     required_args.add_argument(
         "--train-inference-task",
@@ -604,10 +620,10 @@ def parse_pipeline_args() -> PipelineArgs:
         required=True,
         help="Task type for training and inference, e.g. 'node_classification'. Required",
     )
-    required_args.add_argument(
+    optional_args.add_argument(
         "--train-yaml-s3",
         type=str,
-        help="S3 path to train YAML configuration file",
+        help="S3 path to train YAML configuration file. Required if you include train step.",
     )
     optional_args.add_argument(
         "--use-graphbolt",
@@ -622,23 +638,24 @@ def parse_pipeline_args() -> PipelineArgs:
         "--inference-yaml-s3",
         type=str,
         default=None,
-        help="S3 path to inference YAML configuration file",
+        help="S3 path to inference YAML configuration file. Default: same as --train-yaml-config",
     )
+    # TODO: Need a good way to initialize this. Ideally "best-model" should pick up best epoch
+    # from training
     optional_args.add_argument(
         "--inference-model-snapshot",
         type=str,
-        default="best_model",
         help="Which model snapshot to choose to run inference with, e.g. 'epoch-0'.",
     )
     optional_args.add_argument(
         "--save-predictions",
         action="store_true",
-        help="Whether to save predictions to S3 during inference",
+        help="Whether to save predictions to S3 during inference.",
     )
     optional_args.add_argument(
         "--save-embeddings",
         action="store_true",
-        help="Whether to save predictions to S3 during inference.",
+        help="Whether to save embeddings to S3 during inference.",
     )
 
     # Script Paths
@@ -688,7 +705,7 @@ def parse_pipeline_args() -> PipelineArgs:
 
     return PipelineArgs(
         aws_config=AWSConfig(
-            role=args.role,
+            execution_role=args.execution_role,
             region=args.region,
             graphstorm_pytorch_cpu_image_url=args.graphstorm_pytorch_cpu_image_url,
             graphstorm_pytorch_gpu_image_url=args.graphstorm_pytorch_gpu_image_url,
