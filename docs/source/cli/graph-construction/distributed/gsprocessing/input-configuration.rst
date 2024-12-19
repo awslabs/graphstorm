@@ -173,15 +173,23 @@ objects:
          assign to the validation set [0.0, 1.0).
       -  ``test``: The percentage of the data with available labels to
          assign to the test set [0.0, 1.0).
-   -  ``custom_split_filenames`` (JSON object, optional): Specifies the customized
-      training/validation/test mask. Once it is defined, GSProcessing will ignore
-      the ``split_rate``.
-      -  ``train``: Path of the training mask parquet file such that each line contains
-    the original ID for node tasks, or the pair [source_id, destination_id] for edge tasks.
-      -  ``val``: Path of the validation mask parquet file such that each line contains
-    the original ID for node tasks, or the pair [source_id, destination_id] for edge tasks.
-      -  ``test``: Path of the test mask parquet file such that each line contains
-    the original ID for node tasks, or the pair [source_id, destination_id] for edge tasks.
+   -  ``custom_split_filenames`` (JSON object, optional): Specifies pre-assigned
+      training/validation/test masks. If defined, GSProcessing will ignore
+      ``split_rate`` if provided.
+
+      -  ``column``: (List[String], optional) A list of length one for node splits, or two for edge splits,
+         containing the name(s) of the column(s) that contain the node/edge ids for each split. For example,
+         if the node ids to include in each split exist in column ``"nid"`` of the custom train/val/test files, this
+         needs to be ``["nid"]``. For edges it would be a value like ``["src_id", "dst_id"]``.
+         If not provided for nodes we assume the first column in the data contains the node ids to include.
+         For edges, we assume the first column is the source id and the second the destination id.
+      -  ``train``: (List[String], optional) Paths of the training mask parquet file such that each line contains
+         the original ID for node tasks, or the pair ``[source_id, destination_id]`` for edge tasks.
+      -  ``val``: (List[String], optional) Paths of the validation mask parquet file such that each line contains
+         the original ID for node tasks, or the pair ``[source_id, destination_id]`` for edge tasks.
+      -  ``test``: (List[String], optional) Paths of the test mask parquet file such that each line contains
+         the original ID for node tasks, or the pair ``[source_id, destination_id]`` for edge tasks.
+      -  Note: At least one of the ``["train", "val", "test"]`` keys must be present.
 
 -  ``features`` (List of JSON objects, optional)\ **:** Describes
    the set of features for the current edge type. See the :ref:`features-object` section for details.
