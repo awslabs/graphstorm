@@ -75,9 +75,9 @@ class CustomSplit:
     ----------
     train : list[str]
         Paths of the training mask parquet files.
-    valid : str
+    valid : list[str]
         Paths of the validation mask parquet files.
-    test : str
+    test : list[str]
         Paths of the testing mask parquet files.
     mask_columns : list[str]
         List of columns that contain original string ids.
