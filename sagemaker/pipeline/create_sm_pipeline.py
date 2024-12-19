@@ -199,6 +199,7 @@ class GraphStormPipelineGenerator:
         self.partition_algorithm_param = self._create_string_parameter(
             "PartitionAlgorithm", args.partition_config.partition_algorithm
         )
+        # TODO: Probably should not be a parameter
         self.graph_name_param = self._create_string_parameter(
             "GraphName", args.task_config.graph_name
         )
@@ -314,7 +315,7 @@ class GraphStormPipelineGenerator:
         gc_proc_output = ProcessingOutput(
             source=gc_local_output_path,
             destination=gconstruct_s3_output,
-            output_name=f"{self.graph_name_param}-gconstruct",
+            output_name=f"{self.args.task_config.graph_name}-gconstruct",
         )
 
         gconstruct_arguments = [

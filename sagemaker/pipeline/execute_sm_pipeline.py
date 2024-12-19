@@ -18,6 +18,7 @@ Execute a SageMaker pipeline for GraphStorm.
 
 import argparse
 import os
+import subprocess
 import sys
 import warnings
 
@@ -140,6 +141,15 @@ def main():
     deploy_time_hash = pipeline_deploy_args.get_hash_hex()
 
     if args.local_execution:
+        # Ensure GPU is available if trying to execute with GPU locally
+        if not pipeline_deploy_args.instance_config.train_on_cpu:
+            try:
+                subprocess.check_output('nvidia-smi')
+            except Exception:
+                raise RuntimeError(
+                    'Need host with NVidia GPU to run training on GPU! '
+                    "Try re-deploying the pipeline with --train-on-cpu set."
+                    )
         # Use local pipeline and session
         local_session = LocalPipelineSession()
         pipeline_generator = GraphStormPipelineGenerator(
