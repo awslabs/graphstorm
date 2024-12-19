@@ -61,7 +61,7 @@ class GConstructConfigConverter(ConfigConverter):
                         # check if split_pct is valid
                         assert (
                             math.fsum(label_splitrate) == 1.0
-                        ), f"sum of the label split rate should be ==1.0, got {label_splitrate=}"
+                        ), f"sum of the label split rate should be == 1.0, got {label_splitrate}"
                         label_dict["split_rate"] = {
                             "train": label_splitrate[0],
                             "val": label_splitrate[1],
