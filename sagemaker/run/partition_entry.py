@@ -25,10 +25,14 @@ def partition_arg_parser():
     parser = argparse.ArgumentParser(description='GSF SageMaker Partitioning')
 
     parser.add_argument("--graph-data-s3", type=str,
-        help="S3 location of input graph")
-    parser.add_argument("--num-parts", type=int, help="Number of partitions")
+        help="S3 location of input graph",
+        required=True)
+    parser.add_argument("--num-parts", type=int,
+        help="Number of partitions",
+        required=True)
     parser.add_argument("--output-data-s3", type=str,
-        help="S3 location to store the partitioned graph")
+        help="S3 location to store the partitioned graph",
+        required=True)
     parser.add_argument("--metadata-filename", type=str,
         default="metadata.json", help="file name of metadata config file")
     parser.add_argument("--partition-algorithm", type=str, default='random',
