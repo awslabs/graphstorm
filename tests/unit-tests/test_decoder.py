@@ -23,6 +23,7 @@ from numpy.testing import assert_almost_equal
 from graphstorm.model import (LinkPredictDotDecoder,
                               LinkPredictDistMultDecoder,
                               EntityRegression,
+                              EntityClassifier,
                               MLPEFeatEdgeDecoder,
                               LinkPredictContrastiveDotDecoder,
                               LinkPredictContrastiveDistMultDecoder,
@@ -981,6 +982,19 @@ def test_MLPEFeatEdgeDecoder(h_dim, feat_dim, out_dim, num_ffn_layers):
         prediction = decoder.predict(g, encoder_feat, efeat)
         pred = out.argmax(dim=1)
         assert_almost_equal(prediction.cpu().numpy(), pred.cpu().numpy())
+
+def check_dropout_train(decoder, in_dim):
+    ones = th.ones(in_dim)
+    decoder.train()
+    output = decoder(ones)
+    assert th.any(output == 0)
+
+def check_dropout_eval(decoder, in_dim):
+    ones = th.ones(in_dim)
+    decoder.eval()
+    output = decoder(ones)
+    assert th.all(output != 0)
+
 @pytest.mark.parametrize("in_dim", [16, 64])
 @pytest.mark.parametrize("out_dim", [1, 8])
 def test_EntityRegression(in_dim, out_dim):
@@ -988,9 +1002,40 @@ def test_EntityRegression(in_dim, out_dim):
     assert decoder.in_dims == in_dim
     assert decoder.out_dims == 1
 
-    decoder = EntityRegression(h_dim=in_dim, out_dim=out_dim)
+    decoder = EntityRegression(h_dim=in_dim, out_dim=out_dim, bias=True)
+    in_tensor = th.ones((1,in_dim))
+    with th.no_grad():
+        decoder.eval()
+        decoder.decoder.data = th.ones((in_dim, out_dim))
+        out = decoder.predict(in_tensor)
+    assert th.all(out == in_dim)
+
+    decoder = EntityRegression(h_dim=in_dim, out_dim=out_dim, dropout=1)
     assert decoder.in_dims == in_dim
     assert decoder.out_dims == out_dim
+    check_dropout_train(decoder, in_dim)
+    check_dropout_eval(decoder, in_dim)
+
+@pytest.mark.parametrize("in_dim", [16, 64])
+@pytest.mark.parametrize("num_classes", [4, 8])
+def test_EntityClassifier(in_dim, num_classes):
+
+    decoder = EntityClassifier(in_dim=in_dim, num_classes=num_classes, multilabel=False, bias=True)
+    assert decoder.in_dims == in_dim
+    assert decoder.out_dims == num_classes
+
+    in_tensor = th.ones(1, in_dim)
+    with th.no_grad():
+        decoder.eval()
+        decoder.decoder.data = th.ones((in_dim, num_classes))
+        decoder.decoder.data[0][0] += 1
+        out = decoder.predict(in_tensor)
+    
+    assert out == 0
+
+    decoder = EntityClassifier(in_dim=in_dim, num_classes=num_classes, multilabel=False, dropout=1)
+    check_dropout_train(decoder, in_dim)
+    check_dropout_eval(decoder, in_dim)
 
 if __name__ == '__main__':
     test_LinkPredictRotatEDecoder(16, 8, 1, "cpu")
@@ -1009,6 +1054,8 @@ if __name__ == '__main__':
 
     test_EntityRegression(8, 1)
     test_EntityRegression(8, 8)
+
+    test_EntityClassifier(64, 8)
 
     test_LinkPredictContrastiveDistMultDecoder(32, 8, 16, "cpu")
     test_LinkPredictContrastiveDistMultDecoder(16, 32, 32, "cuda:0")
