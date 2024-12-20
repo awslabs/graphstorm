@@ -126,7 +126,8 @@ python3 -m graphstorm.gpartition.dist_partition_graph \
     --num-parts 2 \
     --output-path "$DIST_GRAPHBOLT_PATH" \
     --ssh-port 2222 \
-    --use-graphbolt "true"
+    --use-graphbolt "true" \
+    --process-group-timeout 3600
 
 # Ensure GraphBolt files were created by GSPartition
 for i in $(seq 0 1); do
