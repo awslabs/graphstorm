@@ -180,21 +180,21 @@ Run the below command to download and partition the OGBN-Papers100M data for a n
 
 .. code-block:: bash
 
-    python3 /graphstorm/tools/partition_graph.py --dataset ogbn-papers100M \
+    python3 /graphstorm/tools/partition_graph.py --dataset ogbn-papers100m \
                                                 --filepath /data \
                                                 --num-parts 3 \
                                                 --train-pct 0.1 \
                                                 --balance-train \
                                                 --balance-edges \
-                                                --output /data/ogbn_papers100M_3p \
+                                                --output /data/ogbn_papers100m_3p \
 
-Given the size of OGBN-Papers100M, the download and partition process could run more than 5 hours and consume around 700GB memory in peak. After the command completes, the partitioned OGBN-Papers100M graphs are stored in the ``/data/ogbn_papers100M_3p`` folder whose structure is the same as the OGBN-MAG's.
+Given the size of OGBN-Papers100M, the download and partition process could run more than 5 hours and consume around 700GB memory in peak. After the command completes, the partitioned OGBN-Papers100M graphs are stored in the ``/data/ogbn_papers100m_3p`` folder whose structure is the same as the OGBN-MAG's.
 
 Distribute Partitioned Graphs and Configurations to all Instances
 ...................................................................
 In this step, users need to copy these partitioned files to the shared file system of the GraphStorm cluster. And the IP list file creation and 2222 port open operations are identical to the above OGBN-MAG section.
 
-For the OGBN-Papers100M data, we use a YAML file, ``ogbn_papers100M_nc_p3.yaml``, that has the contents below.
+For the OGBN-Papers100M data, we use a YAML file, ``ogbn_papers100m_nc_p3.yaml``, that has the contents below.
 
 .. code-block:: yaml
 
@@ -247,11 +247,11 @@ Launch the training for the OGBN-Papers100M is similar as the OGBN-MAG data. Pic
                --num-trainers 4 \
                --num-servers 1 \
                --num-samplers 0 \
-               --part-config /data/ogbn_papers100M_3p/ogbn-papers100M.json \
+               --part-config /data/ogbn_papers100m_3p/ogbn_papers100m.json \
                --ip-config /data/ip_list.txt \
                --ssh-port 2222 \
                --graph-format csc,coo \
-               --cf /data/ogbn_papers100M_nc_p3.yaml \
+               --cf /data/ogbn_papers100m_nc_p3.yaml \
                --node-feat-name feat
 
 Due to the size of Papers100M graph, it will take around six minutes for all GraphStorm containers in the cluster to load corresponding partitions before the training starts.
