@@ -194,7 +194,7 @@ Distribute Partitioned Graphs and Configurations to all Instances
 ...................................................................
 In this step, users need to copy these partitioned files to the shared file system of the GraphStorm cluster. And the IP list file creation and 2222 port open operations are identical to the above OGBN-MAG section.
 
-For the OGBN-Papers100M data, we use a YAML file, ``ogbn_papers100M_nc_p3.yaml``, that has the contents below.
+For the OGBN-Papers100M data, we use a YAML file, ``ogbn_papers100m_nc_p3.yaml``, that has the contents below.
 
 .. code-block:: yaml
 
@@ -247,11 +247,11 @@ Launch the training for the OGBN-Papers100M is similar as the OGBN-MAG data. Pic
                --num-trainers 4 \
                --num-servers 1 \
                --num-samplers 0 \
-               --part-config /data/ogbn_papers100m_3p/ogbn-papers100M.json \
+               --part-config /data/ogbn_papers100m_3p/ogbn_papers100m.json \
                --ip-config /data/ip_list.txt \
                --ssh-port 2222 \
                --graph-format csc,coo \
-               --cf /data/ogbn_papers100M_nc_p3.yaml \
+               --cf /data/ogbn_papers100m_nc_p3.yaml \
                --node-feat-name feat
 
 Due to the size of Papers100M graph, it will take around six minutes for all GraphStorm containers in the cluster to load corresponding partitions before the training starts.
