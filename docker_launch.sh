@@ -1,1 +1,0 @@
-docker run -it --gpus all --network=host -v $(pwd):/graphstorm -v $(pwd)/dataset:/data -w /graphstorm graphstorm:local-gpu /bin/bash

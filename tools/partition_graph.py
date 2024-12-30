@@ -121,7 +121,7 @@ if __name__ == '__main__':
                                      retain_original_features=args.retain_original_features,
                                      max_sequence_length=args.max_seq_length,
                                      lm_model_name=args.lm_model_name)
-    elif args.dataset == 'ogbn-papers100m':
+    elif args.dataset == 'ogbn-papers100M':
         dataset = OGBTextFeatDataset(args.filepath, dataset=args.dataset,
                                      retain_original_features=args.retain_original_features,
                                      max_sequence_length=args.max_seq_length,
