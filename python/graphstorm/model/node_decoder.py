@@ -47,7 +47,7 @@ class EntityClassifier(GSLayer):
                  multilabel,
                  dropout=0,
                  norm=None,
-                 bias=False):
+                 use_bias=False):
         super(EntityClassifier, self).__init__()
         self._in_dim = in_dim
         self._num_classes = num_classes
@@ -55,7 +55,7 @@ class EntityClassifier(GSLayer):
         self._dropout = dropout
         # TODO(xiangsx): The norm is not used here.
         self._norm = norm
-        self._use_bias = bias
+        self._use_bias = use_bias
 
         self._init_model()
 
@@ -179,14 +179,14 @@ class EntityRegression(GSLayer):
                  dropout=0,
                  out_dim=1,
                  norm=None,
-                 bias=False):
+                 use_bias=False):
         super(EntityRegression, self).__init__()
         self._h_dim = h_dim
         self._out_dim = out_dim
         self._dropout = dropout
         # TODO(xiangsx): The norm is not used here.
         self._norm = norm
-        self._use_bias = bias
+        self._use_bias = use_bias
 
         self._init_model()
 

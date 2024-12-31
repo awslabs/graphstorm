@@ -1002,7 +1002,7 @@ def test_EntityRegression(in_dim, out_dim):
     assert decoder.in_dims == in_dim
     assert decoder.out_dims == 1
 
-    decoder = EntityRegression(h_dim=in_dim, out_dim=out_dim, bias=True)
+    decoder = EntityRegression(h_dim=in_dim, out_dim=out_dim, use_bias=True)
     in_tensor = th.ones((1,in_dim))
     with th.no_grad():
         decoder.eval()
@@ -1020,7 +1020,7 @@ def test_EntityRegression(in_dim, out_dim):
 @pytest.mark.parametrize("num_classes", [4, 8])
 def test_EntityClassifier(in_dim, num_classes):
 
-    decoder = EntityClassifier(in_dim=in_dim, num_classes=num_classes, multilabel=False, bias=True)
+    decoder = EntityClassifier(in_dim=in_dim, num_classes=num_classes, multilabel=False, use_bias=True)
     assert decoder.in_dims == in_dim
     assert decoder.out_dims == num_classes
 

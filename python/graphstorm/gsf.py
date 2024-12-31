@@ -398,7 +398,7 @@ def create_builtin_reconstruct_nfeat_decoder(g, decoder_input_dim, config, train
     decoder = EntityRegression(decoder_input_dim,
                                dropout=dropout,
                                out_dim=feat_dim,
-                               bias=config.decoder_bias)
+                               use_bias=config.decoder_bias)
 
     loss_func = RegressionLossFunc()
     return decoder, loss_func
@@ -474,7 +474,7 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                                        config.multilabel,
                                        dropout=dropout,
                                        norm=config.decoder_norm,
-                                       bias=config.decoder_bias)
+                                       use_bias=config.decoder_bias)
             if config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY:
                 loss_func = ClassifyLossFunc(config.multilabel,
                                              config.multilabel_weights,
@@ -500,7 +500,7 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                                                   config.multilabel[ntype],
                                                   dropout=dropout,
                                                   norm=config.decoder_norm,
-                                                  bias=config.decoder_bias)
+                                                  use_bias=config.decoder_bias)
 
                 if config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY:
                     loss_func[ntype] = ClassifyLossFunc(config.multilabel[ntype],
@@ -519,7 +519,7 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
         decoder  = EntityRegression(decoder_input_dim,
                                     dropout=dropout,
                                     norm=config.decoder_norm,
-                                    bias=config.decoder_bias)
+                                    use_bias=config.decoder_bias)
         loss_func = RegressionLossFunc()
     else:
         raise ValueError('unknown node task: {}'.format(config.task_type))
