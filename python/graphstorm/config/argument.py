@@ -700,7 +700,6 @@ class GSConfig:
         _ = self.multilabel_weights
         _ = self.imbalance_class_weights
         _ = self.decoder_type
-        _ = self.decoder_bias
         _ = self.num_decoder_basis
         _ = self.decoder_edge_feat
 
@@ -712,7 +711,6 @@ class GSConfig:
         _ = self.eval_metric
         _ = self.label_field
         _ = self.decoder_type
-        _ = self.decoder_bias
         _ = self.num_decoder_basis
         _ = self.decoder_edge_feat
 
@@ -1759,7 +1757,7 @@ class GSConfig:
         # pylint: disable=no-member
         if hasattr(self, "_decoder_bias"):
             assert self._decoder_bias in [True, False], \
-                "use_early_stop should be in [True, False]"
+                "decoder_bias should be in [True, False]"
             return self._decoder_bias
         # By default, decoder bias is False
         return False

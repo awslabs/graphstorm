@@ -38,8 +38,8 @@ class EntityClassifier(GSLayer):
     norm: str
         Normalization methods. Not used, but reserved for complex node classifier
         implementation. Default: None.
-    bias: bool
-        Whether the node decoder has bias. Default: False.
+    use_bias: bool
+        Whether the node decoder uses a bias parameter. Default: False.
     """
     def __init__(self,
                  in_dim,
@@ -55,7 +55,7 @@ class EntityClassifier(GSLayer):
         self._dropout = dropout
         # TODO(xiangsx): The norm is not used here.
         self._norm = norm
-        self._bias = bias
+        self._use_bias = bias
 
         self._init_model()
 
@@ -65,7 +65,7 @@ class EntityClassifier(GSLayer):
         self.decoder = nn.Parameter(th.Tensor(self._in_dim, self._num_classes))
         nn.init.xavier_uniform_(self.decoder,
                                 gain=nn.init.calculate_gain('relu'))
-        if self._bias:
+        if self._use_bias:
             self.bias = nn.Parameter(th.zeros(self._num_classes))
         # TODO(zhengda): The dropout is not used here.
         self.dropout = nn.Dropout(self._dropout)
@@ -83,10 +83,10 @@ class EntityClassifier(GSLayer):
 
         Returns
         -------
-        output: Tensor of the prediction logits.
+        out: Tensor of the prediction logits.
         '''
         out = th.matmul(inputs, self.decoder)
-        if self._bias:
+        if self._use_bias:
             out = out + self.bias
 
         out = self.dropout(out)
@@ -107,7 +107,7 @@ class EntityClassifier(GSLayer):
         if ``multilabel`` is ``True``.
         """
         logits = th.matmul(inputs, self.decoder) 
-        if self._bias:
+        if self._use_bias:
             logits = logits + self.bias
 
         if self._multilabel:
@@ -133,7 +133,7 @@ class EntityClassifier(GSLayer):
         out: Tensor of normalized prediction results.
         """
         logits = th.matmul(inputs, self.decoder)
-        if self._bias:
+        if self._use_bias:
             logits = logits + self.bias
 
         if self._multilabel:
@@ -171,8 +171,8 @@ class EntityRegression(GSLayer):
     norm: str, optional
         Normalization methods. Not used, but reserved for complex node regression
         implementation. Default: None.
-    bias: bool
-        Whether the node decoder has bias. Default: False.
+    use_bias: bool
+        Whether the node decoder uses a bias parameter. Default: False.
     """
     def __init__(self,
                  h_dim,
@@ -186,14 +186,14 @@ class EntityRegression(GSLayer):
         self._dropout = dropout
         # TODO(xiangsx): The norm is not used here.
         self._norm = norm
-        self._bias = bias
+        self._use_bias = bias
 
         self._init_model()
 
     def _init_model(self):
         self.decoder = nn.Parameter(th.Tensor(self._h_dim, self._out_dim))
         nn.init.xavier_uniform_(self.decoder)
-        if self._bias:
+        if self._use_bias:
             self.bias = nn.Parameter(th.zeros(self._out_dim))
         # TODO(zhengda): The dropout is not used.
         self.dropout = nn.Dropout(self._dropout)
@@ -215,7 +215,7 @@ class EntityRegression(GSLayer):
         out: Tensor of the prediction results.
         """
         out = th.matmul(inputs, self.decoder)
-        if self._bias:
+        if self._use_bias:
             out = out + self.bias
 
         out = self.dropout(out)
@@ -235,7 +235,7 @@ class EntityRegression(GSLayer):
         out: Tensor of the prediction results.
         """
         out = th.matmul(inputs, self.decoder)
-        if self._bias:
+        if self._use_bias:
             out = out + self.bias
 
         return out
