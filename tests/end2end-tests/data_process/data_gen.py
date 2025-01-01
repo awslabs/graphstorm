@@ -180,6 +180,17 @@ node_conf = [
                 "feature_name": "feat1",
             },
             {
+                "feature_col": "data",
+                "feature_name": "feat_std",
+                "transform": {"name": 'standard'}
+            },
+            {
+                "feature_col": "data",
+                "feature_name": "feat_std2",
+                "transform": {"name": 'standard',
+                              "sum": 16.0}
+            },
+            {
                 "feature_col": "float_max_min_2",
                 "feature_name": "feat3",
                 "transform": {"name": 'max_min_norm'}

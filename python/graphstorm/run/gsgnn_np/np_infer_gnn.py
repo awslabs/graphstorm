@@ -80,6 +80,7 @@ def main(config_args):
                                      batch_size=config.eval_batch_size,
                                      train_task=False,
                                      node_feats=config.node_feat_name,
+                                     edge_feats=config.edge_feat_name,
                                      label_field=config.label_field,
                                      construct_feat_ntype=config.construct_feat_ntype,
                                      construct_feat_fanout=config.construct_feat_fanout)

@@ -416,6 +416,41 @@ class GSgnnData():
         return prepare_batch_edge_input(g, input_edges, dev=device,
                                         feat_field=efeat_fields)
 
+    def get_blocks_edge_feats(self, input_blocks, efeat_fields, device='cpu'):
+        """ Get the edge features of the given input blocks. The feature fields are
+            defined in ``efeat_fields``.
+
+        .. versionadded:: 0.4.0
+            Add ``get_blocks_edge_feat`` in 0.4.0 to support edge features in message passing.
+
+        Parameters
+        ----------
+        input_blocks : list of DGLblock
+            The input blocks with edge features to be extracted.
+        efeat_fields: string or dict of list of strings
+            The edge feature fields to be extracted.
+        device : Pytorch device
+            The device where the returned edge features are stored.
+
+        Returns
+        -------
+        block_edge_input_feats: list of dict of Tensors
+            The returned edge features for all blocks.
+        """
+        block_edge_input_feats = []
+        for block in input_blocks:
+            input_edges = {}
+            for etype in block.canonical_etypes:
+                if block.num_edges(etype) == 0:
+                    continue
+                eid = block.edges[etype].data[dgl.EID]
+                input_edges[etype] = eid
+            edge_feat = self.get_edge_feats(input_edges, efeat_fields, device)
+            # if no edge feature, will return an empty dict, also add
+            block_edge_input_feats.append(edge_feat)
+
+        return block_edge_input_feats
+
     def _check_ntypes(self, ntypes):
         """ Check the input ntype(s) and convert it into list of strs
 
