@@ -89,8 +89,6 @@ class EntityClassifier(GSLayer):
         if self._use_bias:
             out = out + self.bias
 
-        out = self.dropout(out)
-
         return out
 
     def predict(self, inputs):
@@ -217,8 +215,6 @@ class EntityRegression(GSLayer):
         out = th.matmul(inputs, self.decoder)
         if self._use_bias:
             out = out + self.bias
-
-        out = self.dropout(out)
 
         return out
 
