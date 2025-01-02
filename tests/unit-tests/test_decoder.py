@@ -986,34 +986,57 @@ def test_MLPEFeatEdgeDecoder(h_dim, feat_dim, out_dim, num_ffn_layers):
 @pytest.mark.parametrize("in_dim", [16, 64])
 @pytest.mark.parametrize("out_dim", [1, 8])
 def test_EntityRegression(in_dim, out_dim):
-    decoder = EntityRegression(h_dim=in_dim)
+    decoder = EntityRegression(h_dim=in_dim, use_bias=False)
     assert decoder.in_dims == in_dim
     assert decoder.out_dims == 1
+    assert not hasattr(decoder, 'bias')
 
     decoder = EntityRegression(h_dim=in_dim, out_dim=out_dim, use_bias=True)
+    assert decoder.in_dims == in_dim
+    assert decoder.out_dims == out_dim
+
+    decoder.eval()
+
     in_tensor = th.ones((1,in_dim))
     with th.no_grad():
-        decoder.eval()
-        th.nn.init.ones_(decoder.decoder)
+        th.nn.init.eye_(decoder.decoder)
         out = decoder.predict(in_tensor)
-    assert th.all(out == in_dim)
+    assert out.shape == (1, out_dim)
+    assert th.all(out == 1)
+
+    with th.no_grad():
+        th.nn.init.constant_(decoder.bias, 5)
+        out = decoder.predict(in_tensor)
+    assert out.shape == (1, out_dim)
+    assert th.all(out == 6)
+
 
 @pytest.mark.parametrize("in_dim", [16, 64])
 @pytest.mark.parametrize("num_classes", [4, 8])
 def test_EntityClassifier(in_dim, num_classes):
 
+    decoder = EntityClassifier(in_dim=in_dim, num_classes=num_classes, multilabel=False, use_bias=False)
+    assert decoder.in_dims == in_dim
+    assert decoder.out_dims == num_classes
+    assert not hasattr(decoder, 'bias')
+
     decoder = EntityClassifier(in_dim=in_dim, num_classes=num_classes, multilabel=False, use_bias=True)
     assert decoder.in_dims == in_dim
     assert decoder.out_dims == num_classes
 
+    decoder.eval()
+
     in_tensor = th.ones(1, in_dim)
     with th.no_grad():
-        decoder.eval()
-        th.nn.init.ones_(decoder.decoder)
+        th.nn.init.eye_(decoder.decoder)
         decoder.decoder.data[0][0] += 1
         out = decoder.predict(in_tensor)
-    
     assert out == 0
+
+    with th.no_grad():
+        decoder.bias.data[3] += 2
+        out = decoder.predict(in_tensor)
+    assert out == 3
 
 if __name__ == '__main__':
     test_LinkPredictRotatEDecoder(16, 8, 1, "cpu")
@@ -1030,11 +1053,15 @@ if __name__ == '__main__':
     test_LinkPredictContrastiveTransEDecoder_L1norm(16, 32, 32, "cuda:0")
     test_LinkPredictContrastiveTransEDecoder_L2norm(16, 32, 32, "cuda:0")
 
-    test_EntityRegression(8, 1)
-    test_EntityRegression(8, 8)
+    test_EntityRegression(16, 1)
+    test_EntityRegression(16, 8)
+    test_EntityRegression(64, 1)
+    test_EntityRegression(64, 8)
 
-    test_EntityClassifier(64, 8)
     test_EntityClassifier(16, 4)
+    test_EntityClassifier(16, 8)
+    test_EntityClassifier(64, 4)
+    test_EntityClassifier(64, 8)
 
     test_LinkPredictContrastiveDistMultDecoder(32, 8, 16, "cpu")
     test_LinkPredictContrastiveDistMultDecoder(16, 32, 32, "cuda:0")

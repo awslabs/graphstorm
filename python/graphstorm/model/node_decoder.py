@@ -68,6 +68,7 @@ class EntityClassifier(GSLayer):
         if self._use_bias:
             self.bias = nn.Parameter(th.zeros(self._num_classes))
         # TODO(zhengda): The dropout is not used here.
+        # This is the last layer of the model so we risk dropping gradients if we set things to 0.
         self.dropout = nn.Dropout(self._dropout)
         if self._norm is not None:
             logging.warning("Embedding normalization (batch norm or layer norm) "
@@ -107,7 +108,6 @@ class EntityClassifier(GSLayer):
         logits = th.matmul(inputs, self.decoder) 
         if self._use_bias:
             logits = logits + self.bias
-
         if self._multilabel:
             out = (th.sigmoid(logits) > .5).long()
         else:
@@ -194,6 +194,7 @@ class EntityRegression(GSLayer):
         if self._use_bias:
             self.bias = nn.Parameter(th.zeros(self._out_dim))
         # TODO(zhengda): The dropout is not used.
+        # This is the last layer of the model so we risk dropping gradients if we set things to 0.
         self.dropout = nn.Dropout(self._dropout)
 
         if self._norm is not None:
