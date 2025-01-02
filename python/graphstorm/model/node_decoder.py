@@ -105,7 +105,7 @@ class EntityClassifier(GSLayer):
         out: Tensor of argmax of the prediction results, or the maximum of the prediction results
         if ``multilabel`` is ``True``.
         """
-        logits = th.matmul(inputs, self.decoder) 
+        logits = th.matmul(inputs, self.decoder)
         if self._use_bias:
             logits = logits + self.bias
         if self._multilabel:
