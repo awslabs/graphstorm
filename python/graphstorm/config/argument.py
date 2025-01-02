@@ -1761,7 +1761,7 @@ class GSConfig:
             return self._decoder_bias
         # By default, node decoder bias is False
         return False
-    
+
     @property
     def dropout(self):
         """ Dropout probability. Dropout must be a float value in [0,1). Dropout is applied
