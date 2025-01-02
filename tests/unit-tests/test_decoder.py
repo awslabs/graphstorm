@@ -994,21 +994,25 @@ def test_EntityRegression(in_dim, out_dim):
     decoder = EntityRegression(h_dim=in_dim, out_dim=out_dim, use_bias=True)
     assert decoder.in_dims == in_dim
     assert decoder.out_dims == out_dim
+    assert hasattr(decoder, 'bias')
 
     decoder.eval()
-
-    in_tensor = th.ones((1,in_dim))
     with th.no_grad():
+        # Test regression output, should be all 1s because of identity matrix weights and 1s tensor input.
         th.nn.init.eye_(decoder.decoder)
+        in_tensor = th.ones((1,in_dim))
         out = decoder.predict(in_tensor)
-    assert out.shape == (1, out_dim)
-    assert th.all(out == 1)
+        assert out.shape == (1, out_dim)
+        assert th.all(out == 1)
 
-    with th.no_grad():
-        th.nn.init.constant_(decoder.bias, 5)
+        # Test non-zero bias, should be all equal to TEST_BIAS_VALUE+1 because input is 1s.
+        th.nn.init.eye_(decoder.decoder)
+        in_tensor = th.ones((1,in_dim))
+        TEST_BIAS_VALUE = 5
+        th.nn.init.constant_(decoder.bias, TEST_BIAS_VALUE)
         out = decoder.predict(in_tensor)
-    assert out.shape == (1, out_dim)
-    assert th.all(out == 6)
+        assert out.shape == (1, out_dim)
+        assert th.all(out == TEST_BIAS_VALUE+1)
 
 
 @pytest.mark.parametrize("in_dim", [16, 64])
@@ -1023,20 +1027,27 @@ def test_EntityClassifier(in_dim, num_classes):
     decoder = EntityClassifier(in_dim=in_dim, num_classes=num_classes, multilabel=False, use_bias=True)
     assert decoder.in_dims == in_dim
     assert decoder.out_dims == num_classes
+    assert hasattr(decoder, 'bias')
 
     decoder.eval()
-
-    in_tensor = th.ones(1, in_dim)
     with th.no_grad():
+        INCREMENT_VALUE = 10
+
+        # Test classification output, trick decoder to predict TARGET_CLASS.
+        TARGET_CLASS = 3
         th.nn.init.eye_(decoder.decoder)
-        decoder.decoder.data[0][0] += 1
+        in_tensor = th.ones(1, in_dim)
+        decoder.decoder[0][TARGET_CLASS] += INCREMENT_VALUE
         out = decoder.predict(in_tensor)
-    assert out == 0
+        assert out == TARGET_CLASS
 
-    with th.no_grad():
-        decoder.bias.data[3] += 2
+        # Test non-zero bias, trick the decoder to predict TARGET_CLASS.
+        TARGET_CLASS = 2
+        th.nn.init.eye_(decoder.decoder)
+        in_tensor = th.ones(1, in_dim)
+        decoder.bias[TARGET_CLASS] += INCREMENT_VALUE
         out = decoder.predict(in_tensor)
-    assert out == 3
+        assert out == TARGET_CLASS
 
 if __name__ == '__main__':
     test_LinkPredictRotatEDecoder(16, 8, 1, "cpu")
