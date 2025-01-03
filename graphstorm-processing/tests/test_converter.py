@@ -24,7 +24,7 @@ from graphstorm_processing.config.config_conversion import (
 @pytest.fixture(name="converter")
 def fixture_create_converter() -> GConstructConfigConverter:
     """Creates a new converter object for each test."""
-    yield GConstructConfigConverter()
+    return GConstructConfigConverter()
 
 
 @pytest.fixture(name="node_dict")
@@ -65,8 +65,32 @@ def test_try_read_unsupported_feature(converter: GConstructConfigConverter, node
         _ = converter.convert_nodes(node_dict["nodes"])
 
 
+def test_custom_split_config_conversion(converter: GConstructConfigConverter):
+    """Test custom split file config conversion"""
+    gconstruct_label_dicts = [
+        {
+            "label_col": "label",
+            "task_type": "classification",
+            "custom_split_filenames": {
+                "column": ["src", "dst"],
+            },
+            "label_stats_type": "frequency_cnt",
+        }
+    ]
+
+    # Should raise when none of train/val/test are in the input
+    with pytest.raises(AssertionError):
+        converter._convert_label(gconstruct_label_dicts)
+
+    # Ensure single strings are converted to list of strings
+    gconstruct_label_dicts[0]["custom_split_filenames"]["train"] = "fake_file"
+    gsprocessing_label_dict = converter._convert_label(gconstruct_label_dicts)[0]
+
+    assert gsprocessing_label_dict["custom_split_filenames"]["train"] == ["fake_file"]
+
+
 def test_try_read_invalid_gconstruct_config(converter: GConstructConfigConverter, node_dict: dict):
-    """Custom Split Columns"""
+    """Test various invalid input scenarios"""
     node_dict["nodes"][0]["labels"] = [
         {
             "label_col": "label",
@@ -238,9 +262,9 @@ def test_read_node_gconstruct(converter: GConstructConfigConverter, node_dict: d
             "column": "label",
             "type": "classification",
             "custom_split_filenames": {
-                "train": "customized_label/node_train_idx.parquet",
-                "valid": "customized_label/node_val_idx.parquet",
-                "test": "customized_label/node_test_idx.parquet",
+                "train": ["customized_label/node_train_idx.parquet"],
+                "valid": ["customized_label/node_val_idx.parquet"],
+                "test": ["customized_label/node_test_idx.parquet"],
                 "column": ["ID"],
             },
         }
