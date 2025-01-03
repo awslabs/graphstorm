@@ -556,7 +556,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
         # Here we assume the source and destination nodes have the same dimension.
         self.decoder = nn.Parameter(th.randn(self.h_dim * 2, self.out_dim))
         if self.use_bias:
-            self.bias = nn.Parameter(th.randn(self.out_dim))
+            self.bias = nn.Parameter(th.zeros(self.out_dim))
         assert self.num_hidden_layers == 1, "More than one layers not supported"
         nn.init.xavier_uniform_(self.decoder,
                                 gain=nn.init.calculate_gain('relu'))
@@ -722,6 +722,8 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
     norm: str
         Normalization methods. Not used, but reserved for complex MLPEFeatEdgeDecoder child
         class implementation. Default: None.
+    use_bias: bool
+        Whether the edge decoder uses a bias parameter. Default: True.
     """
     def __init__(self,
                  h_dim,
@@ -732,7 +734,8 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
                  dropout=0,
                  regression=False,
                  num_ffn_layers=0,
-                 norm=None):
+                 norm=None,
+                 use_bias=True):
         self.feat_dim = feat_dim
         super(MLPEFeatEdgeDecoder, self).__init__(h_dim=h_dim,
                                                   out_dim=out_dim,
@@ -741,7 +744,8 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
                                                   dropout=dropout,
                                                   regression=regression,
                                                   num_ffn_layers=num_ffn_layers,
-                                                  norm=norm)
+                                                  norm=norm,
+                                                  use_bias=use_bias)
 
     def _init_model(self):
         """ Init decoder model
@@ -763,6 +767,8 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
         # combine output of nn_decoder and feat_decoder
         self.combine_decoder = nn.Parameter(th.randn(self.h_dim * 2, self.h_dim))
         self.decoder = nn.Parameter(th.randn(self.h_dim, self.out_dim))
+        if self.use_bias:
+            self.bias = nn.Parameter(th.zeros(self.out_dim))
         self.dropout = nn.Dropout(self.dropout)
 
         self.nn_decoder_norm = None
@@ -835,6 +841,8 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
                 combine_h = self.combine_norm(combine_h)
             combine_h = self.relu(combine_h)
             out = th.matmul(combine_h, self.decoder)
+            if self.use_bias:
+                out = out + self.bias
 
         return out
 
