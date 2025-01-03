@@ -23,6 +23,7 @@ from numpy.testing import assert_almost_equal
 from graphstorm.model import (LinkPredictDotDecoder,
                               LinkPredictDistMultDecoder,
                               EntityRegression,
+                              EntityClassifier,
                               MLPEFeatEdgeDecoder,
                               LinkPredictContrastiveDotDecoder,
                               LinkPredictContrastiveDistMultDecoder,
@@ -981,16 +982,72 @@ def test_MLPEFeatEdgeDecoder(h_dim, feat_dim, out_dim, num_ffn_layers):
         prediction = decoder.predict(g, encoder_feat, efeat)
         pred = out.argmax(dim=1)
         assert_almost_equal(prediction.cpu().numpy(), pred.cpu().numpy())
+
 @pytest.mark.parametrize("in_dim", [16, 64])
 @pytest.mark.parametrize("out_dim", [1, 8])
 def test_EntityRegression(in_dim, out_dim):
-    decoder = EntityRegression(h_dim=in_dim)
+    decoder = EntityRegression(h_dim=in_dim, use_bias=False)
     assert decoder.in_dims == in_dim
     assert decoder.out_dims == 1
+    assert not hasattr(decoder, 'bias')
 
-    decoder = EntityRegression(h_dim=in_dim, out_dim=out_dim)
+    decoder = EntityRegression(h_dim=in_dim, out_dim=out_dim, use_bias=True)
     assert decoder.in_dims == in_dim
     assert decoder.out_dims == out_dim
+    assert hasattr(decoder, 'bias')
+
+    decoder.eval()
+    with th.no_grad():
+        # Test regression output, should be all 1s because of identity matrix weights and 1s tensor input.
+        th.nn.init.eye_(decoder.decoder)
+        in_tensor = th.ones((1,in_dim))
+        out = decoder.predict(in_tensor)
+        assert out.shape == (1, out_dim)
+        assert th.all(out == 1)
+
+        # Test non-zero bias, should be all equal to TEST_BIAS_VALUE+1 because input is 1s.
+        th.nn.init.eye_(decoder.decoder)
+        in_tensor = th.ones((1,in_dim))
+        TEST_BIAS_VALUE = 5
+        th.nn.init.constant_(decoder.bias, TEST_BIAS_VALUE)
+        out = decoder.predict(in_tensor)
+        assert out.shape == (1, out_dim)
+        assert th.all(out == TEST_BIAS_VALUE+1)
+
+
+@pytest.mark.parametrize("in_dim", [16, 64])
+@pytest.mark.parametrize("num_classes", [4, 8])
+def test_EntityClassifier(in_dim, num_classes):
+
+    decoder = EntityClassifier(in_dim=in_dim, num_classes=num_classes, multilabel=False, use_bias=False)
+    assert decoder.in_dims == in_dim
+    assert decoder.out_dims == num_classes
+    assert not hasattr(decoder, 'bias')
+
+    decoder = EntityClassifier(in_dim=in_dim, num_classes=num_classes, multilabel=False, use_bias=True)
+    assert decoder.in_dims == in_dim
+    assert decoder.out_dims == num_classes
+    assert hasattr(decoder, 'bias')
+
+    decoder.eval()
+    with th.no_grad():
+        INCREMENT_VALUE = 10
+
+        # Test classification output, trick decoder to predict TARGET_CLASS.
+        TARGET_CLASS = 3
+        th.nn.init.eye_(decoder.decoder)
+        in_tensor = th.ones(1, in_dim)
+        decoder.decoder[0][TARGET_CLASS] += INCREMENT_VALUE
+        out = decoder.predict(in_tensor)
+        assert out == TARGET_CLASS
+
+        # Test non-zero bias, trick the decoder to predict TARGET_CLASS.
+        TARGET_CLASS = 2
+        th.nn.init.eye_(decoder.decoder)
+        in_tensor = th.ones(1, in_dim)
+        decoder.bias[TARGET_CLASS] += INCREMENT_VALUE
+        out = decoder.predict(in_tensor)
+        assert out == TARGET_CLASS
 
 if __name__ == '__main__':
     test_LinkPredictRotatEDecoder(16, 8, 1, "cpu")
@@ -1007,8 +1064,15 @@ if __name__ == '__main__':
     test_LinkPredictContrastiveTransEDecoder_L1norm(16, 32, 32, "cuda:0")
     test_LinkPredictContrastiveTransEDecoder_L2norm(16, 32, 32, "cuda:0")
 
-    test_EntityRegression(8, 1)
-    test_EntityRegression(8, 8)
+    test_EntityRegression(16, 1)
+    test_EntityRegression(16, 8)
+    test_EntityRegression(64, 1)
+    test_EntityRegression(64, 8)
+
+    test_EntityClassifier(16, 4)
+    test_EntityClassifier(16, 8)
+    test_EntityClassifier(64, 4)
+    test_EntityClassifier(64, 8)
 
     test_LinkPredictContrastiveDistMultDecoder(32, 8, 16, "cpu")
     test_LinkPredictContrastiveDistMultDecoder(16, 32, 32, "cuda:0")

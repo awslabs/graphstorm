@@ -38,13 +38,16 @@ class EntityClassifier(GSLayer):
     norm: str
         Normalization methods. Not used, but reserved for complex node classifier
         implementation. Default: None.
+    use_bias: bool
+        Whether the node decoder uses a bias parameter. Default: False.
     """
     def __init__(self,
                  in_dim,
                  num_classes,
                  multilabel,
                  dropout=0,
-                 norm=None):
+                 norm=None,
+                 use_bias=False):
         super(EntityClassifier, self).__init__()
         self._in_dim = in_dim
         self._num_classes = num_classes
@@ -52,6 +55,7 @@ class EntityClassifier(GSLayer):
         self._dropout = dropout
         # TODO(xiangsx): The norm is not used here.
         self._norm = norm
+        self._use_bias = use_bias
 
         self._init_model()
 
@@ -61,7 +65,10 @@ class EntityClassifier(GSLayer):
         self.decoder = nn.Parameter(th.Tensor(self._in_dim, self._num_classes))
         nn.init.xavier_uniform_(self.decoder,
                                 gain=nn.init.calculate_gain('relu'))
+        if self._use_bias:
+            self.bias = nn.Parameter(th.zeros(self._num_classes))
         # TODO(zhengda): The dropout is not used here.
+        # This is the last layer of the model so we risk dropping gradients if we set things to 0.
         self.dropout = nn.Dropout(self._dropout)
         if self._norm is not None:
             logging.warning("Embedding normalization (batch norm or layer norm) "
@@ -77,9 +84,13 @@ class EntityClassifier(GSLayer):
 
         Returns
         -------
-        Tensor: the prediction logits.
+        out: Tensor of the prediction logits.
         '''
-        return th.matmul(inputs, self.decoder)
+        out = th.matmul(inputs, self.decoder)
+        if self._use_bias:
+            out = out + self.bias
+
+        return out
 
     def predict(self, inputs):
         """ Node classification prediction computation.
@@ -91,10 +102,12 @@ class EntityClassifier(GSLayer):
 
         Returns
         --------
-        Tensor: argmax of the prediction results, or the maximum of the prediction results
+        out: Tensor of argmax of the prediction results, or the maximum of the prediction results
         if ``multilabel`` is ``True``.
         """
         logits = th.matmul(inputs, self.decoder)
+        if self._use_bias:
+            logits = logits + self.bias
         if self._multilabel:
             out = (th.sigmoid(logits) > .5).long()
         else:
@@ -115,9 +128,12 @@ class EntityClassifier(GSLayer):
 
         Returns
         -------
-        Tensor: normalized prediction results.
+        out: Tensor of normalized prediction results.
         """
         logits = th.matmul(inputs, self.decoder)
+        if self._use_bias:
+            logits = logits + self.bias
+
         if self._multilabel:
             out = th.sigmoid(logits)
         else:
@@ -153,25 +169,32 @@ class EntityRegression(GSLayer):
     norm: str, optional
         Normalization methods. Not used, but reserved for complex node regression
         implementation. Default: None.
+    use_bias: bool
+        Whether the node decoder uses a bias parameter. Default: False.
     """
     def __init__(self,
                  h_dim,
                  dropout=0,
                  out_dim=1,
-                 norm=None):
+                 norm=None,
+                 use_bias=False):
         super(EntityRegression, self).__init__()
         self._h_dim = h_dim
         self._out_dim = out_dim
         self._dropout = dropout
         # TODO(xiangsx): The norm is not used here.
         self._norm = norm
+        self._use_bias = use_bias
 
         self._init_model()
 
     def _init_model(self):
         self.decoder = nn.Parameter(th.Tensor(self._h_dim, self._out_dim))
         nn.init.xavier_uniform_(self.decoder)
+        if self._use_bias:
+            self.bias = nn.Parameter(th.zeros(self._out_dim))
         # TODO(zhengda): The dropout is not used.
+        # This is the last layer of the model so we risk dropping gradients if we set things to 0.
         self.dropout = nn.Dropout(self._dropout)
 
         if self._norm is not None:
@@ -188,9 +211,13 @@ class EntityRegression(GSLayer):
 
         Returns
         -------
-        Tensor: the prediction results.
+        out: Tensor of the prediction results.
         """
-        return th.matmul(inputs, self.decoder)
+        out = th.matmul(inputs, self.decoder)
+        if self._use_bias:
+            out = out + self.bias
+
+        return out
 
     def predict(self, inputs):
         """ Node regression prediction computation.
@@ -202,9 +229,13 @@ class EntityRegression(GSLayer):
 
         Returns
         -------
-        Tensor: the prediction results.
+        out: Tensor of the prediction results.
         """
-        return th.matmul(inputs, self.decoder)
+        out = th.matmul(inputs, self.decoder)
+        if self._use_bias:
+            out = out + self.bias
+
+        return out
 
     def predict_proba(self, inputs):
         """ For node regression task, it returns the same results as the
@@ -217,9 +248,11 @@ class EntityRegression(GSLayer):
 
         Returns
         -------
-        Tensor: the prediction results.
+        out: Tensor of the prediction results.
         """
-        return self.predict(inputs)
+        out = self.predict(inputs)
+
+        return out
 
     @property
     def in_dims(self):
