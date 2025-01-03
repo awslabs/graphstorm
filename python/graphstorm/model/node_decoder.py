@@ -39,7 +39,7 @@ class EntityClassifier(GSLayer):
         Normalization methods. Not used, but reserved for complex node classifier
         implementation. Default: None.
     use_bias: bool
-        Whether the node decoder uses a bias parameter. Default: False.
+        Whether the node decoder uses a bias parameter. Default: True.
     """
     def __init__(self,
                  in_dim,
@@ -47,7 +47,7 @@ class EntityClassifier(GSLayer):
                  multilabel,
                  dropout=0,
                  norm=None,
-                 use_bias=False):
+                 use_bias=True):
         super(EntityClassifier, self).__init__()
         self._in_dim = in_dim
         self._num_classes = num_classes
@@ -170,14 +170,14 @@ class EntityRegression(GSLayer):
         Normalization methods. Not used, but reserved for complex node regression
         implementation. Default: None.
     use_bias: bool
-        Whether the node decoder uses a bias parameter. Default: False.
+        Whether the node decoder uses a bias parameter. Default: True.
     """
     def __init__(self,
                  h_dim,
                  dropout=0,
                  out_dim=1,
                  norm=None,
-                 use_bias=False):
+                 use_bias=True):
         super(EntityRegression, self).__init__()
         self._h_dim = h_dim
         self._out_dim = out_dim
