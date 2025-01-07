@@ -16,6 +16,7 @@ limitations under the License.
 Create a SageMaker pipeline for GraphStorm.
 """
 
+import logging
 import os
 import re
 from typing import List, Optional, Sequence, Union
@@ -108,10 +109,9 @@ class GraphStormPipelineGenerator:
     def create_pipeline(self) -> Pipeline:
         """Create a SageMaker pipeline for GraphStorm.
 
-        The pipeline consists of the following steps:
-        1. Partition graph
-        2. Train graph
-        3. Encode node IDs
+        The pipeline can consist of the following steps:
+        1. Pre-process graph data using GConstruct or GSProcessing
+        2. Partition graph
         4. Train model
         5. Inference
 
@@ -385,8 +385,6 @@ class GraphStormPipelineGenerator:
             ],
         )
 
-        print(gsprocessing_config.expr)
-
         gsprocessing_arguments = [
             "--config-filename",
             self.graphconstruct_config_param,
@@ -538,6 +536,17 @@ class GraphStormPipelineGenerator:
             ],
         )
 
+        train_params = {
+            "graph-data-s3": self.next_step_data_input,
+            "graph-name": self.graph_name_param,
+            "log-level": args.task_config.log_level,
+            "model-artifact-s3": model_output_path,
+            "task-type": args.training_config.train_inference_task,
+            "train-yaml-s3": self.train_config_file_param,
+            "num-trainers": self.num_trainers_param,
+            "use-graphbolt": self.use_graphbolt_param,
+        }
+
         # Training step
         train_estimator = PyTorch(
             entry_point=os.path.basename(args.script_paths.train_script),
@@ -547,16 +556,7 @@ class GraphStormPipelineGenerator:
             instance_count=self.instance_count_param,
             instance_type=self.train_infer_instance,
             py_version="py3",
-            hyperparameters={
-                "graph-data-s3": self.next_step_data_input,
-                "graph-name": self.graph_name_param,
-                "log-level": args.task_config.log_level,
-                "model-artifact-s3": model_output_path,
-                "task-type": args.training_config.train_inference_task,
-                "train-yaml-s3": self.train_config_file_param,
-                "num-trainers": self.num_trainers_param,
-                "use-graphbolt": self.use_graphbolt_param,
-            },
+            hyperparameters=train_params,
             sagemaker_session=self.pipeline_session,
             disable_profiler=True,
             debugger_hook_config=False,
@@ -671,6 +671,7 @@ class GraphStormPipelineGenerator:
 def main():
     """Create or update a GraphStorm SageMaker Pipeline."""
     pipeline_args = parse_pipeline_args()
+    logging.basicConfig(logging.INFO)
 
     save_pipeline_args(
         pipeline_args, f"{pipeline_args.task_config.pipeline_name}-pipeline-args.json"
@@ -681,12 +682,12 @@ def main():
     pipeline = pipeline_generator.create_pipeline()
 
     if pipeline_args.update:
-        # TODO: If updating ensure pipeline exists first to get more informative error
+        # TODO: If updating, ensure pipeline exists first to get more informative error
         pipeline.update(role_arn=pipeline_args.aws_config.execution_role)
-        print(f"Pipeline '{pipeline.name}' updated successfully.")
+        logging.info("Pipeline '%s' updated successfully.", pipeline.name)
     else:
         pipeline.create(role_arn=pipeline_args.aws_config.execution_role)
-        print(f"Pipeline '{pipeline.name}' created successfully.")
+        logging.info("Pipeline '%s' created successfully.", pipeline.name)
 
 
 if __name__ == "__main__":

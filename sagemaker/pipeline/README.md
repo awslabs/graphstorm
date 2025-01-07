@@ -66,21 +66,25 @@ To create a new SageMaker pipeline for GraphStorm:
 
 ```bash
 python create_sm_pipeline.py \
-    --execution-role arn:aws:iam::123456789012:role/SageMakerRole \
-    --region us-west-2 \
+    --graph-construction-config-filename my_gconstruct_config.json \
+    --graph-name my-graph \
     --graphstorm-pytorch-cpu-image-url 123456789012.dkr.ecr.us-west-2.amazonaws.com/graphstorm:sagemaker-cpu \
+    --input-data-s3 s3://input-bucket/data \
     --instance-count 2 \
     --jobs-to-run gconstruct train inference \
-    --graph-name my-graph \
-    --graph-construction-config-filename my_gconstruct_config.json \
-    --input-data-s3 s3://input-bucket/data \
     --output-prefix s3://output-bucket/results \
+    --pipeline-name my-graphstorm-pipeline \
+    --region us-west-2 \
+    --role arn:aws:iam::123456789012:role/SageMakerExecutionRole \
     --train-inference-task node_classification \
     --train-yaml-s3 s3://config-bucket/train.yaml
 ```
 
 This command creates a new pipeline with the specified configuration. The pipeline will
 include one GConstruct job, one training job and one inference job.
+The `--role` argument is required to provide the execution role SageMaker will use to
+run the jobs, and the `--graphstorm-pytorch-cpu-image-url` is needed to provide
+the Docker image to use during training and GConstruct.
 It will use the configuration defined in `s3://input-bucket/data/my_gconstruct_config.json`
 to construct the graph and the train config file at `s3://config-bucket/train.yaml`
 to run training and inference.
@@ -174,7 +178,8 @@ This will create a pipeline that uses GSProcessing to process and prepare the da
 use DistPart to partition the data, convert the partitioned data to the GraphBolt format,
 then run a train and an inference job in sequence.
 You can use this job sequence when your graph is too large to partition on one instance using
-GConstruct (1+ TB is the suggested threshold to move to distributed partitioning).
+GConstruct. 10B+ edges is the suggested threshold to move to distributed partitioning, or if your
+features are larger than 1TB.
 
 ### Asynchronous Execution
 

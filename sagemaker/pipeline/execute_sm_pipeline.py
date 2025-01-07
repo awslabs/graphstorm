@@ -17,6 +17,7 @@ Execute a SageMaker pipeline for GraphStorm.
 """
 
 import argparse
+import logging
 import os
 import subprocess
 import sys
@@ -141,6 +142,7 @@ def parse_args():
 def main():
     """Execute GraphStorm SageMaker pipeline"""
     args = parse_args()
+    logging.basicConfig(logging.INFO)
 
     pipeline_deploy_args = load_pipeline_args(
         args.pipeline_args_json_file or f"{args.pipeline_name}-pipeline-args.json"
@@ -162,7 +164,7 @@ def main():
         pipeline_generator = GraphStormPipelineGenerator(
             pipeline_deploy_args, input_session=local_session
         )
-        # Set shared memory to half the host's size, as SM does
+        # Set shared memory to half of the host's size, as SM does
         instance_mem_mb = int(psutil.virtual_memory().total // (1024 * 1024))
         local_session.config = {
             "local": {"container_config": {"shm_size": f"{instance_mem_mb//2}M"}}
@@ -179,7 +181,7 @@ def main():
 
     # Prepare parameter overrides
     execution_params = {}
-    if args.instance_count is not None:
+    if args.instance_count:
         execution_params["InstanceCount"] = args.instance_count
         pipeline_deploy_args.instance_config.train_infer_instance_count = (
             args.instance_count
@@ -261,14 +263,15 @@ def main():
     if args.local_execution:
         sys.exit(0)
 
-    print(f"Pipeline execution started: {execution.describe()}")
-    print(f"Execution ARN: {execution.arn}")
+    logging.info("Pipeline execution started: %s", execution.describe())
+    logging.info("Execution ARN: %s", execution.arn)
 
     if not args.async_execution:
-        print("Waiting for pipeline execution to complete...")
+        logging.info("Waiting for pipeline execution to complete...")
         execution.wait()
-        print("Pipeline execution completed.")
-        print(f"Final status: {execution.describe()['PipelineExecutionStatus']}")
+        logging.info("Pipeline execution completed.")
+        logging.info("Final status: %s",
+                     execution.describe()['PipelineExecutionStatus'])
 
 
 if __name__ == "__main__":

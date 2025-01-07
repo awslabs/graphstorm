@@ -69,9 +69,16 @@ class InstanceConfig:
             assert (
                 self.cpu_instance_type
             ), "Need to provide a CPU instance type when training on CPU"
+        else:
+            assert (
+                self.gpu_instance_type
+            ), "Need to provide a GPU instance type when training on GPU"
 
         if not self.graph_construction_instance_type:
             self.graph_construction_instance_type = self.cpu_instance_type
+            assert (
+                self.cpu_instance_type
+            ), "Need to provide a CPU instance for graph construction."
             logging.warning(
                 "No graph processing instance type specified, using the CPU instance type: %s",
                 self.cpu_instance_type,
@@ -106,7 +113,6 @@ class TaskConfig:
                 "Should not try to run both GConstruct and GSProcessing steps, "
                 f"got job sequence: {self.jobs_to_run}"
             )
-        # TODO: Should we allow running GConstruct with dist_part?
 
         # When running gsprocessing ensure we run dist_part as well
         if "gsprocessing" in self.jobs_to_run and "dist_part" not in self.jobs_to_run:
@@ -254,14 +260,14 @@ class PipelineArgs:
 
     def __post_init__(self):
         if not self.instance_config.train_on_cpu:
-            assert self.instance_config.gpu_instance_type, (
-                "GPU instance type must be specified if not training on CPU, "
-                f"got {self.instance_config.train_on_cpu=} "
-                f"{self.instance_config.gpu_instance_type=}"
-            )
-            assert self.aws_config.graphstorm_pytorch_cpu_image_url, (
+            assert self.aws_config.graphstorm_pytorch_gpu_image_url, (
                 "Must use provide GPU image when training on GPU. "
                 "use --graphstorm-pytorch-gpu-image-url"
+            )
+        else:
+            assert self.aws_config.graphstorm_pytorch_cpu_image_url, (
+                "Must use provide CPU image when training on CPU. "
+                "use --graphstorm-pytorch-cpu-image-url"
             )
 
         # Ensure we provide a GConstruct/GSProcessing config file when running construction
@@ -330,8 +336,8 @@ class PipelineArgs:
 
         # GConstruct uses 'metis', so just translate that if needed
         if (
+            "gconstruct" in self.task_config.jobs_to_run and
             self.partition_config.partition_algorithm.lower() == "parmetis"
-            and "gconstruct" in self.task_config.jobs_to_run
         ):
             self.partition_config.partition_algorithm = "metis"
 
@@ -497,7 +503,7 @@ def parse_pipeline_args() -> PipelineArgs:
     optional_args.add_argument(
         "--volume-size-gb",
         type=int,
-        help="Additional volume size for instances in GB.",
+        help="Additional volume size for SageMaker instances in GB.",
         default=100,
     )
 
@@ -526,7 +532,7 @@ def parse_pipeline_args() -> PipelineArgs:
         "--base-job-name",
         type=str,
         default="gs",
-        help="Base job name for SageMaker jobs. Default: 'sm'",
+        help="Base job name for SageMaker jobs. Default: 'gs'",
     )
     required_args.add_argument(
         "--jobs-to-run",
@@ -534,7 +540,7 @@ def parse_pipeline_args() -> PipelineArgs:
         required=True,
         help=(
             "Space-separated string of jobs to run in the pipeline, "
-            "e.g. 'gconstruct train inference'. "
+            "e.g. '--jobs-to-run gconstruct train inference'. "
             f"Should be one or more of: {list(JOB_ORDER.keys())}. Required. "
         ),
     )
