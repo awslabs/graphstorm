@@ -806,10 +806,12 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
                 The minibatch graph
             h: dict of Tensors
                 The dictionary containing the embeddings
+            e_h: dict of Tensor
+                The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
             Returns
             -------
-            th.Tensor
-                Output of forward
+            out: Tensor
+                Output of forward.
         """
         assert e_h is not None, "edge feature is required"
         with g.local_scope():
