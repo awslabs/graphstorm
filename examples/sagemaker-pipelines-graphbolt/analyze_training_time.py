@@ -28,6 +28,7 @@ LOG_GROUP = "/aws/sagemaker/TrainingJobs"
 
 
 def parse_args():
+    """Parse log analysis args."""
     parser = argparse.ArgumentParser(
         description="Analyze training epoch and eval time."
     )
@@ -259,17 +260,9 @@ def print_training_summary(
     if epochs_data:
         total_epochs = len(epochs_data)
         avg_time = sum(e["time"] for e in epochs_data) / total_epochs
-        min_time = min(epochs_data, key=lambda x: x["time"])
-        max_time = max(epochs_data, key=lambda x: x["time"])
 
         print(f"Total epochs completed: {total_epochs}")
         print(f"Average epoch time: {avg_time:.2f} seconds")
-        print(
-            f"Fastest epoch: Epoch {min_time['epoch']} ({min_time['time']:.2f} seconds)"
-        )
-        print(
-            f"Slowest epoch: Epoch {max_time['epoch']} ({max_time['time']:.2f} seconds)"
-        )
 
         if verbose:
             print("\nEpoch Details:")
@@ -283,17 +276,9 @@ def print_training_summary(
     if eval_data:
         total_evals = len(eval_data)
         avg_eval_time = sum(e["time"] for e in eval_data) / total_evals
-        min_eval = min(eval_data, key=lambda x: x["time"])
-        max_eval = max(eval_data, key=lambda x: x["time"])
 
         print(f"Total evaluations: {total_evals}")
         print(f"Average evaluation time: {avg_eval_time:.2f} seconds")
-        print(
-            f"Fastest evaluation: Step {min_eval['step']} ({min_eval['time']:.2f} seconds)"
-        )
-        print(
-            f"Slowest evaluation: Step {max_eval['step']} ({max_eval['time']:.2f} seconds)"
-        )
 
         if verbose:
             print("\nEvaluation Details:")
