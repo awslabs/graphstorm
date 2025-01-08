@@ -30,7 +30,10 @@ from graphstorm.model import (LinkPredictDotDecoder,
                               LinkPredictRotatEDecoder,
                               LinkPredictContrastiveRotatEDecoder,
                               LinkPredictTransEDecoder,
-                              LinkPredictContrastiveTransEDecoder)
+                              LinkPredictContrastiveTransEDecoder,
+                              DenseBiDecoder,
+                              EdgeRegression,
+                              MLPEdgeDecoder)
 from graphstorm.dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
                                     BUILTIN_LP_JOINT_NEG_SAMPLER)
 from graphstorm.eval.utils import (calc_distmult_pos_score,
@@ -983,6 +986,264 @@ def test_MLPEFeatEdgeDecoder(h_dim, feat_dim, out_dim, num_ffn_layers):
         pred = out.argmax(dim=1)
         assert_almost_equal(prediction.cpu().numpy(), pred.cpu().numpy())
 
+@pytest.mark.parametrize("in_units", [16, 64])
+@pytest.mark.parametrize("num_classes", [4, 8])
+def test_DenseBiDecoder(in_units, num_classes):
+
+    u = th.tensor([0, 0])
+    v = th.tensor([1, 2])
+    edge_type = ("n0", "r0", "n1")
+    g = dgl.heterograph({
+        edge_type: (u, v)
+    })
+
+    h = {
+        "n0": th.ones(g.num_nodes("n0"), in_units),
+        "n1": th.ones(g.num_nodes("n1"), in_units)
+    }
+
+    # Test bias doesn't exist on combine_basis nn.Linear
+    decoder = DenseBiDecoder(
+        in_units=in_units,
+        num_classes=num_classes,
+        multilabel=False,
+        target_etype=edge_type,
+        use_bias=False
+    )
+    assert not decoder.combine_basis.bias
+
+    # Test classification by tricking decoder
+    decoder = DenseBiDecoder(
+        in_units=in_units,
+        num_classes=num_classes,
+        multilabel=False,
+        target_etype=edge_type,
+        use_bias=True
+    )
+
+    assert decoder.in_dims == in_units
+    assert decoder.out_dims == num_classes
+    assert not hasattr(decoder, "regression_head")
+    assert decoder.use_bias
+
+    decoder.eval()
+    with th.no_grad():
+        INCREMENT_VALUE = 10 # Trick the decoder to predict a specific class
+
+        # Test classification when bias = 0
+        TARGET_CLASS = 2
+        th.nn.init.ones_(decoder.basis_para)
+        th.nn.init.ones_(decoder.combine_basis.weight)
+        th.nn.init.zeros_(decoder.combine_basis.bias)
+        decoder.combine_basis.weight[TARGET_CLASS][0] += INCREMENT_VALUE # Trick decoder
+
+        prediction = decoder.predict(g, h)
+        assert th.all(prediction == TARGET_CLASS)
+
+        # Test classification with nonzero bias
+        TARGET_CLASS = 3
+        th.nn.init.ones_(decoder.basis_para)
+        th.nn.init.ones_(decoder.combine_basis.weight)
+        th.nn.init.zeros_(decoder.combine_basis.bias)
+        decoder.combine_basis.bias[TARGET_CLASS] += INCREMENT_VALUE # Trick decoder
+
+        prediction = decoder.predict(g, h)
+        assert th.all(prediction == TARGET_CLASS)
+
+@pytest.mark.parametrize("in_dim", [16, 64])
+@pytest.mark.parametrize("out_dim", [1, 8])
+def test_EdgeRegression(in_dim, out_dim):
+
+    u = th.tensor([0, 0])
+    v = th.tensor([1, 2])
+    edge_type = ("n0", "r0", "n1")
+    g = dgl.heterograph({
+        edge_type: (u, v)
+    })
+
+    h = {
+        "n0": th.ones(g.num_nodes("n0"), in_dim),
+        "n1": th.ones(g.num_nodes("n1"), in_dim)
+    }
+
+    # Test bias doesn't exist on linear layer
+    decoder = EdgeRegression(
+        h_dim=in_dim,
+        out_dim=out_dim,
+        target_etype=edge_type,
+        use_bias=False
+    )
+
+    try:
+        th.nn.init.zeros_(decoder.linear.bias)
+    except AttributeError:
+        pass
+    else:
+        raise AssertionError('Expected no bias.') 
+
+    # Test cases when bias exists (zero and nonzero)
+    decoder = EdgeRegression(
+        h_dim=in_dim,
+        out_dim=out_dim,
+        target_etype=edge_type,
+        use_bias=True
+    )
+
+    assert decoder.in_dims == in_dim
+    assert decoder.out_dims == out_dim
+
+    decoder.eval()
+    with th.no_grad():
+        th.nn.init.eye_(decoder.linear.weight)
+        th.nn.init.eye_(decoder.regression_head.weight)
+        th.nn.init.zeros_(decoder.linear.bias)
+        th.nn.init.zeros_(decoder.regression_head.bias)
+
+        # Test regression output, should be all 1s because of identity matrix weights and 0 bias.
+        prediction = decoder.predict(g, h)
+        assert th.all(prediction == 1)
+
+        # Test non-zero bias, should be all equal to TEST_BIAS_VALUE+1.
+        TEST_BIAS_VALUE = 7
+        th.nn.init.constant_(decoder.linear.bias, TEST_BIAS_VALUE)
+        th.nn.init.eye_(decoder.linear.weight)
+        th.nn.init.eye_(decoder.regression_head.weight)
+        th.nn.init.zeros_(decoder.regression_head.bias)
+
+        prediction = decoder.predict(g, h)
+        assert th.all(prediction == TEST_BIAS_VALUE+1)
+
+@pytest.mark.parametrize("in_dim", [16, 64])
+@pytest.mark.parametrize("out_dim", [4, 8])
+@pytest.mark.parametrize("num_ffn_layers", [0, 2])
+def test_MLPEdgeDecoder(in_dim, out_dim, num_ffn_layers):
+
+    u = th.tensor([0, 0])
+    v = th.tensor([1, 2])
+    edge_type = ("n0", "r0", "n1")
+    g = dgl.heterograph({
+        edge_type: (u, v)
+    })
+
+    h = {
+        "n0": th.ones(g.num_nodes("n0"), in_dim),
+        "n1": th.ones(g.num_nodes("n1"), in_dim)
+    }
+
+    # Test classification
+    # Test bias doesn't exist on decoder
+    decoder = MLPEdgeDecoder(
+        h_dim=in_dim,
+        out_dim=out_dim,
+        multilabel=False,
+        target_etype=edge_type,
+        num_ffn_layers=num_ffn_layers,
+        use_bias=False
+    )
+    assert not hasattr(decoder, "bias")
+    assert not hasattr(decoder, "regression_head")
+
+    # Test classification by tricking decoder
+    decoder = MLPEdgeDecoder(
+        h_dim=in_dim,
+        out_dim=out_dim,
+        multilabel=False,
+        target_etype=edge_type,
+        num_ffn_layers=num_ffn_layers,
+        use_bias=True
+    )
+
+    assert decoder.in_dims == in_dim
+    assert decoder.out_dims == out_dim
+    assert hasattr(decoder, "bias")
+    assert not hasattr(decoder, "regression_head")
+    assert decoder.use_bias
+
+    decoder.eval()
+    with th.no_grad():
+        INCREMENT_VALUE = 10 # Trick the decoder to predict a specific class
+
+        # Test classification when bias = 0
+        TARGET_CLASS = 2
+        # Set up MLP for testing
+        for layer in decoder.ngnn_mlp.ngnn_gnn:
+            th.nn.init.eye_(layer)
+        th.nn.init.eye_(decoder.decoder)
+        th.nn.init.zeros_(decoder.bias)
+        decoder.decoder[0][TARGET_CLASS] += INCREMENT_VALUE # Trick decoder
+
+        prediction = decoder.predict(g, h)
+        assert th.all(prediction == TARGET_CLASS)
+
+        # Test classification with nonzero bias
+        TARGET_CLASS = 3
+        # Set up MLP for testing
+        for layer in decoder.ngnn_mlp.ngnn_gnn:
+            th.nn.init.eye_(layer)
+        th.nn.init.eye_(decoder.decoder)
+        th.nn.init.zeros_(decoder.bias)
+        decoder.bias[TARGET_CLASS] += INCREMENT_VALUE # Trick decoder
+
+        prediction = decoder.predict(g, h)
+        assert th.all(prediction == TARGET_CLASS)
+    
+
+    # Test regression
+    # Test bias doesn't exist on decoder
+    decoder = MLPEdgeDecoder(
+        h_dim=in_dim,
+        out_dim=out_dim,
+        multilabel=False,
+        target_etype=edge_type,
+        num_ffn_layers=num_ffn_layers,
+        use_bias=False,
+        regression=True
+    )
+    assert not hasattr(decoder, "bias")
+    assert hasattr(decoder, "regression_head")
+
+    decoder = MLPEdgeDecoder(
+        h_dim=in_dim,
+        out_dim=out_dim,
+        multilabel=False,
+        target_etype=edge_type,
+        num_ffn_layers=num_ffn_layers,
+        use_bias=True,
+        regression=True
+    )
+
+    assert decoder.in_dims == in_dim
+    assert decoder.out_dims == 1
+    assert hasattr(decoder, "bias")
+    assert hasattr(decoder, "regression_head")
+    assert decoder.use_bias
+
+    decoder.eval()
+    with th.no_grad():
+        # Test regression output, should be all 1s because of identity matrix weights and 1s tensor input.
+        # Set up MLP for testing
+        for layer in decoder.ngnn_mlp.ngnn_gnn:
+            th.nn.init.eye_(layer)
+        th.nn.init.eye_(decoder.decoder)
+        th.nn.init.zeros_(decoder.bias)
+        th.nn.init.eye_(decoder.regression_head.weight)
+        th.nn.init.zeros_(decoder.regression_head.bias)
+        # Test regression output, should be all 1s because of identity matrix weights and 0 bias.
+        prediction = decoder.predict(g, h)
+        assert th.all(prediction == 1)
+
+        # Test non-zero bias, should be all equal to TEST_BIAS_VALUE+1 because input is 1s.
+        # Set up MLP for testing
+        for layer in decoder.ngnn_mlp.ngnn_gnn:
+            th.nn.init.eye_(layer)
+        th.nn.init.eye_(decoder.decoder)
+        TEST_BIAS_VALUE = 6
+        th.nn.init.eye_(decoder.regression_head.weight)
+        th.nn.init.zeros_(decoder.regression_head.bias)
+        th.nn.init.constant_(decoder.bias, TEST_BIAS_VALUE)
+        prediction = decoder.predict(g, h)
+        assert th.all(prediction == TEST_BIAS_VALUE+1)
+
 @pytest.mark.parametrize("in_dim", [16, 64])
 @pytest.mark.parametrize("out_dim", [1, 8])
 def test_EntityRegression(in_dim, out_dim):
@@ -1086,3 +1347,18 @@ if __name__ == '__main__':
 
     test_MLPEFeatEdgeDecoder(16,8,2,0)
     test_MLPEFeatEdgeDecoder(16,32,2,2)
+
+    test_DenseBiDecoder(16, 4)
+    test_DenseBiDecoder(16, 8)
+    test_DenseBiDecoder(64, 4)
+    test_DenseBiDecoder(64, 8)
+
+    test_EdgeRegression(16, 1)
+    test_EdgeRegression(16, 8)
+    test_EdgeRegression(64, 1)
+    test_EdgeRegression(64, 8)
+
+    test_MLPEdgeDecoder(16, 4, 0)
+    test_MLPEdgeDecoder(16, 8, 2)
+    test_MLPEdgeDecoder(64, 4, 2)
+    test_MLPEdgeDecoder(64, 8, 0)
