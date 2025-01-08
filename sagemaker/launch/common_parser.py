@@ -25,7 +25,7 @@ SUPPORTED_INFER_TASKS = {
     "edge_classification",
     "edge_regression",
     "link_prediction",
-    "comput_emb",
+    "compute_emb",
     "multi_task"
 }
 
