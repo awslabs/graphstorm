@@ -235,7 +235,7 @@ class GraphStormPipelineGenerator:
     def _create_pipeline_steps(
         self, args: PipelineArgs
     ) -> List[Union[ProcessingStep, TrainingStep]]:
-        """Creates the pipeline steps and reeturns them as a list
+        """Creates the pipeline steps and returns them as a list
 
         Parameters
         ----------
