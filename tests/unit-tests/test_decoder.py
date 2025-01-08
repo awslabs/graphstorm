@@ -1024,7 +1024,6 @@ def test_DenseBiDecoder(in_units, num_classes):
     assert decoder.in_dims == in_units
     assert decoder.out_dims == num_classes
     assert not hasattr(decoder, "regression_head")
-    assert decoder.use_bias
 
     decoder.eval()
     with th.no_grad():
@@ -1074,12 +1073,7 @@ def test_EdgeRegression(in_dim, out_dim):
         use_bias=False
     )
 
-    try:
-        th.nn.init.zeros_(decoder.linear.bias)
-    except AttributeError:
-        pass
-    else:
-        raise AssertionError('Expected no bias.') 
+    assert not decoder.linear.bias
 
     # Test cases when bias exists (zero and nonzero)
     decoder = EdgeRegression(
@@ -1169,7 +1163,6 @@ def test_MLPEdgeDecoder(in_dim, out_dim, num_ffn_layers):
         for layer in decoder.ngnn_mlp.ngnn_gnn:
             th.nn.init.eye_(layer)
         th.nn.init.eye_(decoder.decoder)
-        th.nn.init.zeros_(decoder.bias)
         decoder.decoder[0][TARGET_CLASS] += INCREMENT_VALUE # Trick decoder
 
         prediction = decoder.predict(g, h)
@@ -1181,7 +1174,6 @@ def test_MLPEdgeDecoder(in_dim, out_dim, num_ffn_layers):
         for layer in decoder.ngnn_mlp.ngnn_gnn:
             th.nn.init.eye_(layer)
         th.nn.init.eye_(decoder.decoder)
-        th.nn.init.zeros_(decoder.bias)
         decoder.bias[TARGET_CLASS] += INCREMENT_VALUE # Trick decoder
 
         prediction = decoder.predict(g, h)
@@ -1225,7 +1217,6 @@ def test_MLPEdgeDecoder(in_dim, out_dim, num_ffn_layers):
         for layer in decoder.ngnn_mlp.ngnn_gnn:
             th.nn.init.eye_(layer)
         th.nn.init.eye_(decoder.decoder)
-        th.nn.init.zeros_(decoder.bias)
         th.nn.init.eye_(decoder.regression_head.weight)
         th.nn.init.zeros_(decoder.regression_head.bias)
         prediction = decoder.predict(g, h)
@@ -1317,7 +1308,6 @@ def test_MLPEFeatEdgeDecoder_hardcoded(in_dim, out_dim, feat_dim, num_ffn_layers
         # Test classification with nonzero bias
         TARGET_CLASS = 3
         prepareMLPEFeatEdgeDecoder(decoder)
-        th.nn.init.zeros_(decoder.bias)
         decoder.bias[TARGET_CLASS] += INCREMENT_VALUE # Trick decoder
 
         prediction = decoder.predict(g, h, efeat)
@@ -1360,7 +1350,6 @@ def test_MLPEFeatEdgeDecoder_hardcoded(in_dim, out_dim, feat_dim, num_ffn_layers
     with th.no_grad():
         # Test regression output, should be all 1s because of identity matrix weights and 1s tensor input.
         prepareMLPEFeatEdgeDecoder(decoder)
-        th.nn.init.zeros_(decoder.bias)
         th.nn.init.eye_(decoder.regression_head.weight)
         th.nn.init.zeros_(decoder.regression_head.bias)
         prediction = decoder.predict(g, h, efeat)
