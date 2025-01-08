@@ -1480,6 +1480,11 @@ if __name__ == '__main__':
     test_MLPEFeatEdgeDecoder(16,8,2,0)
     test_MLPEFeatEdgeDecoder(16,32,2,2)
 
+    test_MLPEFeatEdgeDecoder_hardcoded(16,4,8,0)
+    test_MLPEFeatEdgeDecoder_hardcoded(16,8,32,0)
+    test_MLPEFeatEdgeDecoder_hardcoded(64,8,8,2)
+    test_MLPEFeatEdgeDecoder_hardcoded(64,4,32,2)
+
     test_DenseBiDecoder(16, 4)
     test_DenseBiDecoder(16, 8)
     test_DenseBiDecoder(64, 4)
