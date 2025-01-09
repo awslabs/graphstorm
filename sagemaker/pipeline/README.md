@@ -38,7 +38,7 @@ This project simplifies the process of running GraphStorm workflows on Amazon Sa
 
 The project consists of three main Python scripts:
 
-1. `create_sm_pipeline.py`: Defines the structure of the SageMaker pipeline
+1. `create_sm_pipeline.py`: Defines the structure of a SageMaker pipeline
 2. `pipeline_parameters.py`: Manages the configuration and parameters for the pipeline
 3. `execute_sm_pipeline.py`: Executes created pipelines
 
@@ -108,7 +108,7 @@ python execute_sm_pipeline.py \
     --region us-west-2
 ```
 
-You can override various pipeline parameters during execution:
+You can override the default pipeline parameters during execution:
 
 ```bash
 python execute_sm_pipeline.py \
@@ -124,7 +124,7 @@ For a full list of execution options:
 python execute_sm_pipeline.py --help
 ```
 
-For more fine-grained execution options, like selective execution,
+For more fine-grained execution options, like selective execution, please refer to 
 [SageMaker AI documentation](https://docs.aws.amazon.com/sagemaker/latest/dg/pipelines-selective-ex.html).
 
 ## Pipeline Components
@@ -132,7 +132,7 @@ For more fine-grained execution options, like selective execution,
 The GraphStorm SageMaker pipeline can include the following steps:
 
 1. **Graph Construction (GConstruct)**: Builds the partitioned graph from input data in a single instance.
-2. **Graph Processing (GSProcessing)**: Processes the graph data using PySpark, preparing it for distributed partitioning.
+2. **Graph Processing (GSProcessing)**: Processes the graph data using PySpark, preparing it for distributed graph partitioning.
 3. **Graph Partitioning (DistPart)**: Partitions the graph using multiple instances.
 4. **GraphBolt Conversion**: Converts the partitioned data (usually generated from DistPart) to GraphBolt format.
 5. **Training**: Trains the graph neural network model.
@@ -175,8 +175,8 @@ python create_sm_pipeline.py \
 ```
 
 This will create a pipeline that uses GSProcessing to process and prepare the data for partitioning,
-use DistPart to partition the data, convert the partitioned data to the GraphBolt format,
-then run a train and an inference job in sequence.
+uses DistPart to partition the data, converts the partitioned data to the GraphBolt format,
+then runs a train and an inference job in sequence.
 You can use this job sequence when your graph is too large to partition on one instance using
 GConstruct. 10B+ edges is the suggested threshold to move to distributed partitioning, or if your
 features are larger than 1TB.
