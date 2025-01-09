@@ -294,6 +294,19 @@ class PipelineArgs:
         #             )
         #             self.partition_config.input_json_filename = f"{self.task_config.graph_name}.json"
 
+
+        # When using DistPart and GBConvert ensure the metadata.json filename is used
+        if "dist_part" in self.task_config.jobs_to_run and "gb_convert" in self.task_config.jobs_to_run:
+            if self.partition_config.output_json_filename != "metadata.json":
+                logging.warning(
+                    "When running DistPart or GBConvert, the partition output JSON "
+                    "filename should be 'metadata.json'. "
+                    "Got %s, setting to 'metadata.json' instead",
+                    self.partition_config.output_json_filename,
+                )
+                self.partition_config.output_json_filename = "metadata.json"
+
+
         # Ensure we have a GSProcessing image to run GSProcessing
         if "gsprocessing" in self.task_config.jobs_to_run:
             assert (

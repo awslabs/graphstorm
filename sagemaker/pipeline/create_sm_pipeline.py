@@ -402,7 +402,7 @@ class GraphStormPipelineGenerator:
 
         if args.graph_construction_config.graph_construction_args:
             gsprocessing_arguments.extend(
-                args.graph_construction_config.graph_construction_args
+                args.graph_construction_config.graph_construction_args.split(" ")
             )
 
         gsprocessing_config_input = ProcessingInput(
@@ -671,7 +671,7 @@ class GraphStormPipelineGenerator:
 def main():
     """Create or update a GraphStorm SageMaker Pipeline."""
     pipeline_args = parse_pipeline_args()
-    logging.basicConfig(logging.INFO)
+    logging.basicConfig(level=logging.INFO)
 
     save_pipeline_args(
         pipeline_args, f"{pipeline_args.task_config.pipeline_name}-pipeline-args.json"

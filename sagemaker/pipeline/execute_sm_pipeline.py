@@ -142,7 +142,7 @@ def parse_args():
 def main():
     """Execute GraphStorm SageMaker pipeline"""
     args = parse_args()
-    logging.basicConfig(logging.INFO)
+    logging.basicConfig(level=logging.INFO)
 
     pipeline_deploy_args = load_pipeline_args(
         args.pipeline_args_json_file or f"{args.pipeline_name}-pipeline-args.json"
@@ -265,6 +265,7 @@ def main():
 
     logging.info("Pipeline execution started: %s", execution.describe())
     logging.info("Execution ARN: %s", execution.arn)
+    logging.info(f"Output will be created under: {execution_params['ExecutionSubpath']}")
 
     if not args.async_execution:
         logging.info("Waiting for pipeline execution to complete...")
