@@ -100,7 +100,7 @@ def convert_ogbn_arxiv(output_prefix: str):
                 "node_id_col": "nid",
                 "node_type": "node",
                 "format": {"name": "parquet"},
-                "files": [f"{output_prefix}/nodes/paper/nodes.parquet"],
+                "files": ["nodes/paper/nodes.parquet"],
                 "features": [
                     {
                         "feature_col": "feat",
@@ -118,9 +118,9 @@ def convert_ogbn_arxiv(output_prefix: str):
                         "task_type": "classification",
                         "custom_split_filenames": {
                             "column": "nid",
-                            "train": f"{output_prefix}/splits/train_idx.parquet",
-                            "valid": f"{output_prefix}/splits/valid_idx.parquet",
-                            "test": f"{output_prefix}/splits/test_idx.parquet",
+                            "train": "splits/train_idx.parquet",
+                            "valid": "splits/valid_idx.parquet",
+                            "test": "splits/test_idx.parquet",
                         },
                         "label_stats_type": "frequency_cnt",
                     }
@@ -133,14 +133,14 @@ def convert_ogbn_arxiv(output_prefix: str):
                 "dest_id_col": "dst",
                 "relation": ["node", "cites", "node"],
                 "format": {"name": "parquet"},
-                "files": [f"{output_prefix}/edges/paper-cites-paper/edges.parquet"],
+                "files": ["edges/paper-cites-paper/edges.parquet"],
             },
             {
                 "source_id_col": "dst",
                 "dest_id_col": "src",
                 "relation": ["node", "cites-rev", "node"],
                 "format": {"name": "parquet"},
-                "files": [f"{output_prefix}/edges/paper-cites-paper/edges.parquet"],
+                "files": ["/edges/paper-cites-paper/edges.parquet"],
             },
         ],
     }
@@ -160,4 +160,4 @@ def convert_ogbn_arxiv(output_prefix: str):
 if __name__ == "__main__":
     args = parse_args()
 
-    convert_ogbn_arxiv(args.output_prefix)
+    convert_ogbn_arxiv(args.output_s3_prefix)

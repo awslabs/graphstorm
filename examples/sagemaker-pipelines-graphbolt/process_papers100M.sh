@@ -5,7 +5,6 @@ trap cleanup SIGINT SIGTERM ERR EXIT
 cleanup() {
     trap - SIGINT SIGTERM ERR EXIT
     # script cleanup here
-    kill $DISK_USAGE_PID > /dev/null 2>&1 || true
 }
 
 # Download and unzip data in parallel
@@ -15,7 +14,6 @@ cd $TEMP_DATA_PATH || exit 1
 
 
 echo "Will execute script $1 with output prefix $2"
-
 
 echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ'): Downloading files using axel, this will take at least 10 minutes depending on network speed"
 time axel -n 16 --quiet http://snap.stanford.edu/ogb/data/nodeproppred/papers100M-bin.zip
@@ -29,6 +27,6 @@ time ripunzip unzip-file data.npz && rm data.npz
 
 # Run the processing script
 echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ'): Processing data and uploading to S3, this will take around 20 minutes"
-python3 /opt/ml/code/"$1" \
+time python3 /opt/ml/code/"$1" \
     --input-dir "$TEMP_DATA_PATH/papers100M-bin/" \
     --output-prefix "$2"

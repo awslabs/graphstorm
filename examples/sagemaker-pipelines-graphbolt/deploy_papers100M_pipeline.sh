@@ -27,15 +27,15 @@ parse_params() {
         case "${1-}" in
         -h | --help) usage ;;
         -x | --verbose) set -x ;;
-        -r | --role)
-            ROLE="${2-}"
+        -r | --execution-role)
+            ROLE_ARN="${2-}"
             shift
             ;;
         -a | --account)
             ACCOUNT="${2-}"
             shift
             ;;
-        -b | --bucket)
+        -b | --bucket-name)
             BUCKET_NAME="${2-}"
             shift
             ;;
@@ -56,7 +56,7 @@ parse_params() {
     # check required params and arguments
     [[ -z "${ACCOUNT-}" ]] && die "Missing required parameter: -a/--account <aws-account-id>"
     [[ -z "${BUCKET-}" ]] && die "Missing required parameter: -b/--bucket <s3-bucket>"
-    [[ -z "${ROLE-}" ]] && die "Missing required parameter: -r/--role <execution-role-arn>"
+    [[ -z "${ROLE_ARN-}" ]] && die "Missing required parameter: -r/--execution-role <execution-role-arn>"
     [[ -z "${USE_GRAPHBOLT-}" ]] && die "Missing required parameter: -g/--use-graphbolt <true|false>"
 
     return 0
@@ -78,6 +78,7 @@ fi
 
 JOBS_TO_RUN="gconstruct train inference"
 
+DATASET_S3_PATH="s3://${BUCKET_NAME}/papers-100M-input"
 OUTPUT_PATH="s3://${BUCKET_NAME}/pipelines-output"
 GRAPH_NAME="papers-100M"
 INSTANCE_COUNT="4"
@@ -91,7 +92,7 @@ GSF_CPU_IMAGE_URI=${ACCOUNT}.dkr.ecr.$REGION.amazonaws.com/graphstorm:sagemaker-
 GSF_GPU_IMAGE_URI=${ACCOUNT}.dkr.ecr.$REGION.amazonaws.com/graphstorm:sagemaker-gpu
 
 GCONSTRUCT_CONFIG="gconstruct_config_papers100m.json"
-GRAPH_CONSTRUCTION_ARGS="--add-reverse-edges False --num-processes 16"
+GRAPH_CONSTRUCTION_ARGS="--num-processes 16"
 
 PARTITION_OUTPUT_JSON="metadata.json"
 PARTITION_OUTPUT_JSON="$GRAPH_NAME.json"
@@ -111,7 +112,7 @@ if [[ -z "${PIPELINE_NAME-}" ]]; then
 fi
 
 python3 $SCRIPT_DIR/../../sagemaker/pipeline/create_sm_pipeline.py \
-    --execution-role "${ROLE}" \
+    --execution-role "${ROLE_ARN}" \
     --cpu-instance-type ${CPU_INSTANCE_TYPE} \
     --gpu-instance-type ${TRAIN_GPU_INSTANCE} \
     --graph-construction-args "${GRAPH_CONSTRUCTION_ARGS}" \
@@ -124,7 +125,7 @@ python3 $SCRIPT_DIR/../../sagemaker/pipeline/create_sm_pipeline.py \
     --inference-yaml-s3 "${INFERENCE_YAML_S3}" \
     --input-data-s3 "${DATASET_S3_PATH}" \
     --instance-count ${INSTANCE_COUNT} \
-    --jobs-to-run "${JOBS_TO_RUN}" \
+    --jobs-to-run ${JOBS_TO_RUN} \
     --num-trainers ${NUM_TRAINERS} \
     --output-prefix-s3 "${OUTPUT_PATH}" \
     --pipeline-name "${PIPELINE_NAME}" \

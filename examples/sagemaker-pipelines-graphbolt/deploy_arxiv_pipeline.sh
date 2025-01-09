@@ -26,15 +26,15 @@ parse_params() {
         case "${1-}" in
         -h | --help) usage ;;
         -x | --verbose) set -x ;;
-        -r | --role)
-            ROLE="${2-}"
+        -r | --execution-role)
+            ROLE_ARN="${2-}"
             shift
             ;;
         -a | --account)
             ACCOUNT="${2-}"
             shift
             ;;
-        -b | --bucket)
+        -b | --bucket-name)
             BUCKET_NAME="${2-}"
             shift
             ;;
@@ -54,8 +54,8 @@ parse_params() {
 
     # check required params and arguments
     [[ -z "${ACCOUNT-}" ]] && die "Missing required parameter: -a/--account <aws-account-id>"
-    [[ -z "${BUCKET-}" ]] && die "Missing required parameter: -b/--bucket <s3-bucket>"
-    [[ -z "${ROLE-}" ]] && die "Missing required parameter: -r/--role <execution-role-arn>"
+    [[ -z "${BUCKET_NAME-}" ]] && die "Missing required parameter: -b/--bucket <s3-bucket>"
+    [[ -z "${ROLE_ARN-}" ]] && die "Missing required parameter: -r/--execution-role <execution-role-arn>"
     [[ -z "${USE_GRAPHBOLT-}" ]] && die "Missing required parameter: -g/--use-graphbolt <true|false>"
 
     return 0
@@ -102,6 +102,7 @@ fi
 
 python3 $SCRIPT_DIR/../../sagemaker/pipeline/create_sm_pipeline.py \
     --cpu-instance-type ${TRAIN_CPU_INSTANCE} \
+    --execution-role "${ROLE_ARN}" \
     --graph-construction-args "--num-processes 8" \
     --graph-construction-instance-type ${GCONSTRUCT_INSTANCE} \
     --graph-construction-config-filename ${GCONSTRUCT_CONFIG} \
@@ -119,7 +120,6 @@ python3 $SCRIPT_DIR/../../sagemaker/pipeline/create_sm_pipeline.py \
     --partition-output-json ${PARTITION_OUTPUT_JSON} \
     --partition-algorithm ${PARTITION_ALGORITHM} \
     --region ${REGION} \
-    --role "${ROLE}" \
     --train-on-cpu \
     --train-inference-task ${TASK_TYPE} \
     --train-yaml-s3 "${TRAIN_YAML_S3}" \

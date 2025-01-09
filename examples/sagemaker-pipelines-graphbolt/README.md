@@ -90,7 +90,7 @@ aws ec2 run-instances \
     --instance-type "m6in.4xlarge" \
     --key-name my-key-name \
     --block-device-mappings '[{
-        "DeviceName": "/dev/sdf",
+        "DeviceName": "/dev/sda1",
         "Ebs": {
             "VolumeSize": 300,
             "VolumeType": "gp3",
@@ -108,15 +108,14 @@ Once logged in, you can set up your Python environment to run GraphStorm
 ```bash
 conda init
 eval $SHELL
-conda create -y --name gsf python=3.10
-conda activate gsf
+# Available on the DLAMI, otherwise create a new conda env
+conda activate pytorch
 
 # Install dependencies
-pip install sagemaker boto3 ogb pyarrow
+pip install sagemaker[local] boto3 ogb pyarrow
 
 # Clone the GraphStorm repository to access the example code
 git clone https://github.com/awslabs/graphstorm.git ~/graphstorm
-cd ~/graphstorm/examples/sagemaker-pipelines-graphbolt
 ```
 
 ### Download and prepare datasets
@@ -136,12 +135,11 @@ You'lll download the smaller-scale [ogbn-arxiv](https://ogb.stanford.edu/docs/no
 BUCKET_NAME=<your-s3-bucket>
 ```
 
-
 You will use this script to directly download, transform and upload the data to S3:
 
-
 ```bash
-python convert_ogb_arxiv_to_gconstruct.py \
+cd ~/graphstorm/examples/sagemaker-pipelines-graphbolt
+python convert_arxiv_to_gconstruct.py \
     --output-prefix s3://$BUCKET_NAME/ogb-arxiv-input
 ```
 
@@ -188,18 +186,22 @@ bash build_and_push_papers100M_image.sh
 # $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/papers100m-processor
 
 # Run a SageMaker job to do the processing and upload the output to S3
-SAGEMAKER_EXECUTION_ROLE=<your-sagemaker-execution-role>
+SAGEMAKER_EXECUTION_ROLE_ARN=<your-sagemaker-execution-role-arn>
 ACCOUNT_ID=<your-aws-account-id>
 REGION=us-east-1
-python sagemaker_convert_papers100M.py \
+
+aws configure set region $REGION
+python sagemaker_convert_papers100m.py \
     --output-bucket $BUCKET_NAME \
-    --execution-role-arn $SAGEMAKER_EXECUTION_ROLE \
+    --execution-role-arn $SAGEMAKER_EXECUTION_ROLE_ARN \
     --region $REGION \
     --instance-type ml.m5.4xlarge \
     --image-uri  $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/papers100m-processor
 ```
 
 This will produce the processed data at `s3://$BUCKET_NAME/ogb-papers100M-input`  which can then be used as input to GraphStorm.
+
+> NOTE: Ensure your instance IAM profile is allow to perform `iam:GetRole` and `iam:GetPolicy` on your `SAGEMAKER_EXECUTION_ROLE_ARN`.
 
 
 #### [Optional] Prepare the ogbn-papers100M dataset locally
@@ -220,7 +222,8 @@ mkdir ~/papers100M-raw-data
 cd ~/papers100M-raw-data
 axel -n 16 http://snap.stanford.edu/ogb/data/nodeproppred/papers100M-bin.zip
 ripuznip unzip-file papers100M-bin.zip
-ripunzip unzip-file papers100M-bin/raw/data.npz && rm papers100M-bin/raw/data.npz
+cd papers100M-bin/raw
+ripunzip unzip-file data.npz && rm data.npz
 
 # Install process script dependencies
 python -m pip install \
@@ -232,6 +235,7 @@ python -m pip install \
 
 
 # Process and upload to S3, this will take around 20 minutes
+cd ~/graphstorm/examples/sagemaker-pipelines-graphbolt
 python convert_ogb_papers100m_to_gconstruct.py \
     --input-dir ~/papers100M-raw-data
     --output-dir s3://$BUCKET_NAME/ogb-papers100M-input
@@ -248,10 +252,6 @@ sudo apt update
 sudo apt install -y Docker.io
 docker -v
 
-# Enter you account ID here
-ACCOUNT_ID=<aws-account-id>
-REGION=us-east-1
-
 cd ~/graphstorm
 
 bash ./docker/build_graphstorm_image.sh --environment sagemaker --device cpu
@@ -259,9 +259,6 @@ bash ./docker/build_graphstorm_image.sh --environment sagemaker --device cpu
 bash docker/push_graphstorm_image.sh -e sagemaker -r $REGION -a $ACCOUNT_ID -d cpu
 # This will push an image to
 # ${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/graphstorm:sagemaker-cpu
-
-# Install sagemaker with support for local mode
-pip install sagemaker[local]
 ```
 
 Next, you will create a SageMaker Pipeline to run the jobs that are necessary to train GNN models with GraphStorm.
@@ -276,10 +273,10 @@ In this section, you will create a [Sagemaker Pipeline](https://docs.aws.amazon.
 
 ```bash
 PIPELINE_NAME="ogbn-arxiv-gs-pipeline"
-BUCKET_NAME="my-s3-bucket"
+
 bash deploy_papers100M_pipeline.sh \
-    --account "<aws-account-id>" \
-    --bucket-name $BUCKET_NAME --role "<execution-role>" \
+    --account $ACCOUNT_ID \
+    --bucket-name $BUCKET_NAME --role $SAGEMAKER_EXECUTION_ROLE_ARN \
     --pipeline-name $PIPELINE_NAME \
     --use-graphbolt false
 ```
@@ -303,8 +300,8 @@ The ogbn-arxiv data are small enough that you can execute the pipeline locally. 
 
 ```bash
 PIPELINE_NAME="ogbn-arxiv-gs-pipeline"
-cd ~/graphstorm/sagemaker/pipeline
-python execute_sm_pipeline.py \
+
+python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME \
     --region us-east-1 \
     --local-execution | tee arxiv-local-logs.txt
@@ -382,7 +379,7 @@ bash deploy_arxiv_pipeline.sh \
     --pipeline-name $PIPELINE_NAME \
     --use-graphbolt true
 # Execute the pipeline locally
-python execute_sm_pipeline.py \
+python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME \
     --region us-east-1 \
     --local-execution | tee arxiv-local-gb-logs.txt
@@ -439,6 +436,7 @@ Now you are ready to deploy your initial pipeline for papers-100M
 
 ```bash
 PIPELINE_NAME="ogb-papers100M-pipeline"
+cd ~/graphstorm/examples/sagemaker-pipelines-graphbolt/
 bash deploy_papers100M_pipeline.sh \
     --account <aws-account-id> \
     --bucket-name <s3-bucket> --role <execution-role> \
@@ -449,7 +447,7 @@ bash deploy_papers100M_pipeline.sh \
 Execute the pipeline and let it run the background.
 
 ```bash
-python execute_sm_pipeline.py \
+python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME \
     --region us-east-1
     --async-execution
@@ -469,7 +467,7 @@ bash deploy_papers100M_pipeline.sh \
     --use-graphbolt true
 
 # Execute the GraphBolt-enabled pipeline on SageMaker
-python execute_sm_pipeline.py \
+python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME \
     --region us-east-1 \
     --async-execution

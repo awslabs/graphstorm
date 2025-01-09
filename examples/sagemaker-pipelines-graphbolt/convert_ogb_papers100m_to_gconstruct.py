@@ -15,6 +15,7 @@ limitations under the License.
 
 Convert papers100M data and prepare for input to GConstruct
 """
+
 import argparse
 import gzip
 import json
@@ -87,7 +88,7 @@ def process_data(input_dir, output_dir, filesystem):
     num_nodes, num_features = node_feat.shape
     num_edges = edge_index.shape[1]
     logging.info(
-        f"Node features shape: {node_feat.shape:,}, Number of edges: {num_edges:,}"
+        f"Node features shape: {node_feat.shape}, Number of edges: {num_edges:,}"
     )
 
     # Define schemas for nodes and edges
