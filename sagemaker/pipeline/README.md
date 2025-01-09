@@ -32,7 +32,7 @@ This project simplifies the process of running GraphStorm workflows on Amazon Sa
   for detailed permissions needed to create and run SageMaker Pipelines.
 - Familiarity with SageMaker AI and
   [SageMaker Pipelines](https://docs.aws.amazon.com/sagemaker/latest/dg/pipelines.html).
-- Basic understanding of graph neural networks and GraphStorm
+- Basic understanding of graph neural networks and [GraphStorm](https://graphstorm.readthedocs.io/en/latest/index.html).
 
 ## Project Structure
 
@@ -124,7 +124,7 @@ For a full list of execution options:
 python execute_sm_pipeline.py --help
 ```
 
-For more fine-grained execution options, like selective execution, please refer to 
+For more fine-grained execution options, like selective execution, please refer to
 [SageMaker AI documentation](https://docs.aws.amazon.com/sagemaker/latest/dg/pipelines-selective-ex.html).
 
 ## Pipeline Components
@@ -149,7 +149,62 @@ The pipeline's behavior is controlled by various configuration parameters, inclu
 - Task configuration (graph name, input/output locations)
 - Training and inference configurations
 
-Refer to the `PipelineArgs` class in `pipeline_parameters.py` for a complete list of configurable options.
+### AWS Configuration
+- `--execution-role`: SageMaker execution IAM role ARN. (Required)
+- `--region`: AWS region. (Required)
+- `--graphstorm-pytorch-cpu-image-url`: GraphStorm GConstruct/dist_part/train/inference CPU ECR image URL. (Required)
+- `--graphstorm-pytorch-gpu-image-url`: GraphStorm GConstruct/dist_part/train/inference GPU ECR image URL.
+- `--gsprocessing-pyspark-image-url`: GSProcessing SageMaker PySpark ECR image URL.
+
+### Instance Configuration
+- `--instance-count` / `--num-parts`: Number of worker instances/partitions for partition, training, inference. (Required)
+- `--cpu-instance-type`: CPU instance type. (Default: ml.m5.4xlarge)
+- `--gpu-instance-type`: GPU instance type. (Default: ml.g5.4xlarge)
+- `--train-on-cpu`: Run training and inference on CPU instances instead of GPU. (Flag)
+- `--graph-construction-instance-type`: Instance type for graph construction.
+- `--gsprocessing-instance-count`: Number of GSProcessing instances.
+- `--volume-size-gb`: Additional volume size for SageMaker instances in GB. (Default: 100)
+
+### Task Configuration
+- `--graph-name`: Name of the graph. (Required)
+- `--input-data-s3`: S3 path to the input graph data. (Required)
+- `--output-prefix-s3`: S3 prefix for the output data. (Required)
+- `--pipeline-name`: Name for the pipeline.
+- `--base-job-name`: Base job name for SageMaker jobs. (Default: 'gs')
+- `--jobs-to-run`: Space-separated string of jobs to run in the pipeline. (Required)
+- `--log-level`: Logging level for the jobs. (Default: INFO)
+- `--step-cache-expiration`: Expiration time for the step cache. (Default: 30d)
+- `--update-pipeline`: Update an existing pipeline instead of creating a new one. (Flag)
+
+### Graph Construction Configuration
+- `--graph-construction-config-filename`: Filename for the graph construction config.
+- `--graph-construction-args`: Parameters to be passed directly to the GConstruct job.
+
+### Partition Configuration
+- `--partition-algorithm`: Partitioning algorithm. (Default: random)
+- `--partition-output-json`: Name for the output JSON file that describes the partitioned data. (Default: metadata.json)
+- `--partition-input-json`: Name for the JSON file that describes the input data for partitioning. (Default: updated_row_counts_metadata.json)
+
+### Training Configuration
+- `--model-output-path`: S3 path for model output.
+- `--num-trainers`: Number of trainers to use during training/inference. (Default: 4)
+- `--train-inference-task`: Task type for training and inference. (Required)
+- `--train-yaml-s3`: S3 path to train YAML configuration file.
+- `--use-graphbolt`: Whether to use GraphBolt. (Default: false)
+
+### Inference Configuration
+- `--inference-yaml-s3`: S3 path to inference YAML configuration file.
+- `--inference-model-snapshot`: Which model snapshot to choose to run inference with.
+- `--save-predictions`: Whether to save predictions to S3 during inference. (Flag)
+- `--save-embeddings`: Whether to save embeddings to S3 during inference. (Flag)
+
+### Script Paths
+- `--dist-part-script`: Path to DistPartition SageMaker entry point script.
+- `--gb-convert-script`: Path to GraphBolt partition script.
+- `--train-script`: Path to training SageMaker entry point script.
+- `--inference-script`: Path to inference SageMaker entry point script.
+- `--gconstruct-script`: Path to GConstruct SageMaker entry point script.
+- `--gsprocessing-script`: Path to GSProcessing SageMaker entry point script.
 
 ## Advanced Usage
 

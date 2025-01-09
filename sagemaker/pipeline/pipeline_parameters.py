@@ -39,7 +39,21 @@ SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
 
 @dataclass
 class AWSConfig:
-    """AWS-related configuration"""
+    """AWS-related configuration.
+
+    Parameters
+    ----------
+    execution_role : str
+        SageMaker execution IAM role ARN.
+    region : str
+        AWS region.
+    graphstorm_pytorch_cpu_image_url : str
+        GraphStorm GConstruct/dist_part/train/inference CPU ECR image URL.
+    graphstorm_pytorch_gpu_image_url : str
+        GraphStorm GConstruct/dist_part/train/inference GPU ECR image URL.
+    gsprocessing_pyspark_image_url : str
+        GSProcessing SageMaker PySpark ECR image URL.
+    """
 
     execution_role: str
     region: str
@@ -50,7 +64,25 @@ class AWSConfig:
 
 @dataclass
 class InstanceConfig:
-    """Configuration for SageMaker instances"""
+    """Configuration for SageMaker instances.
+
+    Parameters
+    ----------
+    train_infer_instance_count : int
+        Number of worker instances/partitions for partition, training, inference.
+    cpu_instance_type : str
+        CPU instance type.
+    gpu_instance_type : str
+        GPU instance type.
+    graph_construction_instance_type : str
+        Instance type for graph construction.
+    gsprocessing_instance_count : int
+        Number of GSProcessing instances.
+    train_on_cpu : bool
+        Whether to run training and inference on CPU instances.
+    volume_size_gb : int
+        Additional volume size for SageMaker instances in GB.
+    """
 
     train_infer_instance_count: int
     cpu_instance_type: str
@@ -87,7 +119,25 @@ class InstanceConfig:
 
 @dataclass
 class TaskConfig:
-    """Pipeline/task-level configuration"""
+    """Pipeline/task-level configuration.
+
+    Parameters
+    ----------
+    base_job_name : str
+        Base job name for SageMaker jobs.
+    graph_name : str
+        Name of the graph.
+    input_data_s3 : str
+        S3 path to the input graph data.
+    jobs_to_run : List[str]
+        List of jobs to run in the pipeline.
+    log_level : str
+        Logging level for the jobs.
+    output_prefix : str
+        S3 prefix for the output data.
+    pipeline_name : str
+        Name for the pipeline.
+    """
 
     base_job_name: str
     graph_name: str
@@ -129,7 +179,15 @@ class TaskConfig:
 
 @dataclass
 class GraphConstructionConfig:
-    """Configuration for the graph construction step"""
+    """Configuration for the graph construction step.
+
+    Parameters
+    ----------
+    config_filename : str
+        Filename for the graph construction config.
+    graph_construction_args : str
+        Parameters to be passed directly to the GConstruct job.
+    """
 
     config_filename: str
     graph_construction_args: str
@@ -137,7 +195,17 @@ class GraphConstructionConfig:
 
 @dataclass
 class PartitionConfig:
-    """Configuration for the partition step"""
+    """Configuration for the partition step.
+
+    Parameters
+    ----------
+    partition_algorithm : str
+        Partitioning algorithm.
+    input_json_filename : str
+        Name for the JSON file that describes the input data for partitioning.
+    output_json_filename : str
+        Name for the output JSON file that describes the partitioned data.
+    """
 
     partition_algorithm: str
     input_json_filename: str
@@ -146,7 +214,21 @@ class PartitionConfig:
 
 @dataclass
 class TrainingConfig:
-    """Configuration for the training step"""
+    """Configuration for the training step.
+
+    Parameters
+    ----------
+    model_output_path : str
+        S3 path for model output.
+    train_inference_task : str
+        Task type for training and inference.
+    train_yaml_file : str
+        S3 path to train YAML configuration file.
+    num_trainers : int
+        Number of trainers to use during training/inference.
+    use_graphbolt_str : str
+        Whether to use GraphBolt ('true' or 'false').
+    """
 
     model_output_path: str
     train_inference_task: str
@@ -160,7 +242,19 @@ class TrainingConfig:
 
 @dataclass
 class InferenceConfig:
-    """Configuration for the inference step"""
+    """Configuration for the inference step.
+
+    Parameters
+    ----------
+    save_embeddings : bool
+        Whether to save embeddings to S3 during inference.
+    save_predictions : bool
+        Whether to save predictions to S3 during inference.
+    inference_model_snapshot : str
+        Which model snapshot to choose to run inference with.
+    inference_yaml_file : str
+        S3 path to inference YAML configuration file.
+    """
 
     save_embeddings: bool
     save_predictions: bool
@@ -170,7 +264,23 @@ class InferenceConfig:
 
 @dataclass
 class ScriptPaths:
-    """Entry point script locations"""
+    """Entry point script locations.
+
+    Parameters
+    ----------
+    dist_part_script : str
+        Path to DistPartition SageMaker entry point script.
+    gb_convert_script : str
+        Path to GraphBolt partition script.
+    train_script : str
+        Path to training SageMaker entry point script.
+    inference_script : str
+        Path to inference SageMaker entry point script.
+    gconstruct_script : str
+        Path to GConstruct SageMaker entry point script.
+    gsprocessing_script : str
+        Path to GSProcessing SageMaker entry point script.
+    """
 
     dist_part_script: str
     gb_convert_script: str
@@ -187,25 +297,25 @@ class PipelineArgs:
     Parameters
     ----------
     aws_config : AWSConfig
-        AWS configuration settings
+        AWS configuration settings.
     graph_construction_config : GraphConstructionConfig
-        Graph construction configuration
+        Graph construction configuration.
     instance_config : InstanceConfig
-        Instance configuration settings
+        Instance configuration settings.
     task_config : TaskConfig
-        Task-level configuration settings
+        Task-level configuration settings.
     partition_config : PartitionConfig
-        Partition configuration settings
+        Partition configuration settings.
     training_config : TrainingConfig
-        Training configuration settings
+        Training configuration settings.
     inference_config : InferenceConfig
-        Inference configuration settings
+        Inference configuration settings.
     script_paths : ScriptPaths
-        Paths to SageMaker entry point scripts
+        Paths to SageMaker entry point scripts.
     step_cache_expiration : str
-        Cache expiration for pipeline steps
+        Cache expiration for pipeline steps.
     update : bool
-        Whether to update existing pipeline or create a new one
+        Whether to update existing pipeline or create a new one.
     """
 
     aws_config: AWSConfig
@@ -280,23 +390,11 @@ class PipelineArgs:
                 "when running graph construction."
             )
 
-        # TODO: When using GConstruct+DistPart/GBConvert (possible?) provide
-        # the correct partition input JSON filename?
-        # if "gconstruct" in self.task_config.jobs_to_run:
-        #     if "dist_part" in self.task_config.jobs_to_run or "gb_convert" in self.task_config.jobs_to_run:
-        #         if self.partition_config.input_json_filename != f"{self.task_config.graph_name}.json":
-        #             logging.warning(
-        #                 "When running GConstruct, the partition input JSON "
-        #                 "filename should be '<graph_name>.json'. "
-        #                 "Got %s, setting to %s instead",
-        #                 self.partition_config.input_json_filename,
-        #                 f"{self.task_config.graph_name}.json",
-        #             )
-        #             self.partition_config.input_json_filename = f"{self.task_config.graph_name}.json"
-
-
         # When using DistPart and GBConvert ensure the metadata.json filename is used
-        if "dist_part" in self.task_config.jobs_to_run and "gb_convert" in self.task_config.jobs_to_run:
+        if (
+            "dist_part" in self.task_config.jobs_to_run
+            and "gb_convert" in self.task_config.jobs_to_run
+        ):
             if self.partition_config.output_json_filename != "metadata.json":
                 logging.warning(
                     "When running DistPart or GBConvert, the partition output JSON "
@@ -305,7 +403,6 @@ class PipelineArgs:
                     self.partition_config.output_json_filename,
                 )
                 self.partition_config.output_json_filename = "metadata.json"
-
 
         # Ensure we have a GSProcessing image to run GSProcessing
         if "gsprocessing" in self.task_config.jobs_to_run:
@@ -349,8 +446,8 @@ class PipelineArgs:
 
         # GConstruct uses 'metis', so just translate that if needed
         if (
-            "gconstruct" in self.task_config.jobs_to_run and
-            self.partition_config.partition_algorithm.lower() == "parmetis"
+            "gconstruct" in self.task_config.jobs_to_run
+            and self.partition_config.partition_algorithm.lower() == "parmetis"
         ):
             self.partition_config.partition_algorithm = "metis"
 

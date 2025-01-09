@@ -64,8 +64,9 @@ def parse_args():
         "--pipeline-args-json-file",
         type=str,
         help=(
-            "When executing locally, optionally provide a JSON representation of the pipeline arguments. "
-            "By default we look for '<pipeline-name>-pipeline-args.json' in the working dir."
+            "When executing locally, optionally provide a JSON representation of the pipeline "
+            "arguments. By default we look for '<pipeline-name>-pipeline-args.json' "
+            "in the working dir."
         ),
     )
 
@@ -265,14 +266,17 @@ def main():
 
     logging.info("Pipeline execution started: %s", execution.describe())
     logging.info("Execution ARN: %s", execution.arn)
-    logging.info(f"Output will be created under: {execution_params['ExecutionSubpath']}")
+    logging.info(
+        "Output will be created under: %s", execution_params["ExecutionSubpath"]
+    )
 
     if not args.async_execution:
         logging.info("Waiting for pipeline execution to complete...")
         execution.wait()
         logging.info("Pipeline execution completed.")
-        logging.info("Final status: %s",
-                     execution.describe()['PipelineExecutionStatus'])
+        logging.info(
+            "Final status: %s", execution.describe()["PipelineExecutionStatus"]
+        )
 
 
 if __name__ == "__main__":
