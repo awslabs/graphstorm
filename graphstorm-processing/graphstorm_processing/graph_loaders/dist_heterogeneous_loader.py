@@ -177,7 +177,7 @@ class DistHeterogeneousGraphLoader(object):
             assert os.path.isabs(loader_config.input_prefix), "We expect an absolute path"
             self.filesystem_type = "local"
 
-        self.spark = spark  # type: SparkSession
+        self.spark: SparkSession = spark
         self.add_reverse_edges = loader_config.add_reverse_edges
         # Remove trailing slash in s3 paths
         if self.filesystem_type == "s3":
@@ -2131,11 +2131,11 @@ class DistHeterogeneousGraphLoader(object):
                 return return_df
 
             if mask_type == "train":
-                file_path = split_file.train
+                file_paths = split_file.train
             elif mask_type == "val":
-                file_path = split_file.valid
+                file_paths = split_file.valid
             elif mask_type == "test":
-                file_path = split_file.test
+                file_paths = split_file.test
             else:
                 raise ValueError("Unknown mask type")
 
@@ -2144,7 +2144,7 @@ class DistHeterogeneousGraphLoader(object):
             if len(split_file.mask_columns) == 1:
                 # custom split on node original id
                 custom_mask_df = self.spark.read.parquet(
-                    os.path.join(self.input_prefix, file_path)
+                    *[os.path.join(self.input_prefix, file_path) for file_path in file_paths]
                 ).select(col(split_file.mask_columns[0]).alias(f"custom_{mask_type}_mask"))
                 input_df_id = create_mapping(input_df)
                 mask_df = input_df_id.join(
@@ -2162,7 +2162,7 @@ class DistHeterogeneousGraphLoader(object):
             elif len(split_file.mask_columns) == 2:
                 # custom split on edge (srd, dst) original ids
                 custom_mask_df = self.spark.read.parquet(
-                    os.path.join(self.input_prefix, file_path)
+                    *[os.path.join(self.input_prefix, file_path) for file_path in file_paths]
                 ).select(
                     col(split_file.mask_columns[0]).alias(f"custom_{mask_type}_mask_src"),
                     col(split_file.mask_columns[1]).alias(f"custom_{mask_type}_mask_dst"),
@@ -2184,7 +2184,10 @@ class DistHeterogeneousGraphLoader(object):
                     .alias(mask_name),
                 ).select(mask_name)
             else:
-                raise ValueError("The number of column should be only 1 or 2.")
+                raise ValueError(
+                    "The number of column should be only 1 or 2, got columns: "
+                    f"{split_file.mask_columns}"
+                )
 
             return mask_df
 
