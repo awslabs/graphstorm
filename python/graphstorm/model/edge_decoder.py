@@ -340,9 +340,6 @@ class EdgeRegression(GSEdgeDecoder):
         implementation. Default: None.
     use_bias: bool
         Whether the edge decoder uses a bias parameter. Default: True.
-
-    .. versionchanged:: 0.4.0
-        Add a new argument "use_bias" so users can control whether decoders have bias.
     """
     def __init__(self,
                  h_dim,
