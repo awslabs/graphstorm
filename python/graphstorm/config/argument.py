@@ -1752,15 +1752,15 @@ class GSConfig:
     ###################### Model training related ######################
     @property
     def decoder_bias(self):
-        """ Node decoder bias. decoder_bias must be a boolean. Default is False.
+        """ Decoder bias. decoder_bias must be a boolean. Default is True.
         """
         # pylint: disable=no-member
         if hasattr(self, "_decoder_bias"):
             assert self._decoder_bias in [True, False], \
                 "decoder_bias should be in [True, False]"
             return self._decoder_bias
-        # By default, node decoder bias is False
-        return False
+        # By default, decoder bias is True
+        return True
 
     @property
     def dropout(self):
