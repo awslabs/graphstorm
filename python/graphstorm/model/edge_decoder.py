@@ -581,7 +581,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
                 The dictionary containing the embeddings
             Returns
             -------
-            out
+            out: th.Tensor
                 Output of forward.
         """
         with g.local_scope():
