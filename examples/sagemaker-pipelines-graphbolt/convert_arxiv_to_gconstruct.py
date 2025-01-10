@@ -140,7 +140,7 @@ def convert_ogbn_arxiv(output_prefix: str):
                 "dest_id_col": "src",
                 "relation": ["node", "cites-rev", "node"],
                 "format": {"name": "parquet"},
-                "files": ["/edges/paper-cites-paper/edges.parquet"],
+                "files": ["edges/paper-cites-paper/edges.parquet"],
             },
         ],
     }
