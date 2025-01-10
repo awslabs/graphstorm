@@ -75,7 +75,8 @@ def test_create_builtin_node_decoder():
             "class_loss_func": BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
             "multilabel_weights": None,
             "decoder_norm": None,
-            "imbalance_class_weights": None
+            "imbalance_class_weights": None,
+            "decoder_bias": False,
         }
     )
 
@@ -95,6 +96,7 @@ def test_create_builtin_node_decoder():
             "imbalance_class_weights": None,
             "alpha": None,
             "gamma": None,
+            "decoder_bias": False,
         }
     )
     decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
@@ -126,7 +128,8 @@ def test_create_builtin_node_decoder():
                 "n0": None,
                 "n1": None
             },
-            "decoder_norm": None
+            "decoder_norm": None,
+            "decoder_bias": False,
         }
     )
     decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
@@ -158,6 +161,7 @@ def test_create_builtin_node_decoder():
             "decoder_norm": None,
             "alpha": 0.3,
             "gamma": 3.,
+            "decoder_bias": False,
         }
     )
     decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
@@ -174,7 +178,8 @@ def test_create_builtin_node_decoder():
     config = GSTestConfig(
         {
             "task_type": BUILTIN_TASK_NODE_REGRESSION,
-            "decoder_norm": None
+            "decoder_norm": None,
+            "decoder_bias": False,
         }
     )
     decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
@@ -200,6 +205,7 @@ def test_create_builtin_edge_decoder():
             "num_ffn_layers_in_decoder": 0,
             "multilabel_weights": None,
             "imbalance_class_weights": None,
+            "decoder_bias": True,
         }
     )
     decoder, loss_func = create_builtin_edge_decoder(g, decoder_input_dim, config, train_task)
@@ -220,6 +226,7 @@ def test_create_builtin_edge_decoder():
             "num_ffn_layers_in_decoder": 0,
             "alpha": None,
             "gamma": None,
+            "decoder_bias": True,
         }
     )
     decoder, loss_func = create_builtin_edge_decoder(g, decoder_input_dim, config, train_task)
@@ -241,6 +248,7 @@ def test_create_builtin_edge_decoder():
             "num_ffn_layers_in_decoder": 0,
             "alpha": 0.3,
             "gamma": 3.,
+            "decoder_bias": True,
         }
     )
     decoder, loss_func = create_builtin_edge_decoder(g, decoder_input_dim, config, train_task)
@@ -258,6 +266,7 @@ def test_create_builtin_edge_decoder():
             "decoder_type": "DenseBiDecoder",
             "num_decoder_basis": 2,
             "decoder_norm": None,
+            "decoder_bias": False,
         }
     )
     decoder, loss_func = create_builtin_edge_decoder(g, decoder_input_dim, config, train_task)
@@ -273,6 +282,7 @@ def test_create_builtin_edge_decoder():
             "decoder_type": "MLPDecoder",
             "num_ffn_layers_in_decoder": 0,
             "decoder_norm": None,
+            "decoder_bias": False,
         }
     )
     decoder, loss_func = create_builtin_edge_decoder(g, decoder_input_dim, config, train_task)

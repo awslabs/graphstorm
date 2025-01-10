@@ -281,9 +281,9 @@ def dist_minibatch_inference(g, gnn_encoder, get_input_embeds, batch_size, fanou
             if task_tracker is not None:
                 task_tracker.keep_alive(report_step=iter_l)
 
-            n_h, e_hs = get_input_embeds(input_nodes, blocks)
             if blocks is None:
                 continue
+            n_h, e_hs = get_input_embeds(input_nodes, blocks)
             # Remove additional keys (ntypes) added for WholeGraph compatibility
             for ntype in tmp_keys:
                 del input_nodes[ntype]

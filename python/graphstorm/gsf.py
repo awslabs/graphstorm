@@ -397,7 +397,8 @@ def create_builtin_reconstruct_nfeat_decoder(g, decoder_input_dim, config, train
 
     decoder = EntityRegression(decoder_input_dim,
                                dropout=dropout,
-                               out_dim=feat_dim)
+                               out_dim=feat_dim,
+                               use_bias=config.decoder_bias)
 
     loss_func = RegressionLossFunc()
     return decoder, loss_func
@@ -438,7 +439,8 @@ def create_builtin_reconstruct_efeat_decoder(g, decoder_input_dim, config, train
     decoder = EdgeRegression(decoder_input_dim,
                              target_etype=target_etype,
                              out_dim=feat_dim,
-                             dropout=dropout)
+                             dropout=dropout,
+                             use_bias=config.decoder_bias)
 
     loss_func = RegressionLossFunc()
     return decoder, loss_func
@@ -472,7 +474,8 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                                        config.num_classes,
                                        config.multilabel,
                                        dropout=dropout,
-                                       norm=config.decoder_norm)
+                                       norm=config.decoder_norm,
+                                       use_bias=config.decoder_bias)
             if config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY:
                 loss_func = ClassifyLossFunc(config.multilabel,
                                              config.multilabel_weights,
@@ -497,7 +500,8 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                                                   config.num_classes[ntype],
                                                   config.multilabel[ntype],
                                                   dropout=dropout,
-                                                  norm=config.decoder_norm)
+                                                  norm=config.decoder_norm,
+                                                  use_bias=config.decoder_bias)
 
                 if config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY:
                     loss_func[ntype] = ClassifyLossFunc(config.multilabel[ntype],
@@ -515,7 +519,8 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
     elif config.task_type == BUILTIN_TASK_NODE_REGRESSION:
         decoder  = EntityRegression(decoder_input_dim,
                                     dropout=dropout,
-                                    norm=config.decoder_norm)
+                                    norm=config.decoder_norm,
+                                    use_bias=config.decoder_bias)
         loss_func = RegressionLossFunc()
     else:
         raise ValueError('unknown node task: {}'.format(config.task_type))
@@ -613,14 +618,16 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                                      dropout_rate=dropout,
                                      regression=False,
                                      target_etype=target_etype,
-                                     norm=config.decoder_norm)
+                                     norm=config.decoder_norm,
+                                     use_bias=config.decoder_bias)
         elif decoder_type == "MLPDecoder":
             decoder = MLPEdgeDecoder(decoder_input_dim,
                                      num_classes,
                                      multilabel=config.multilabel,
                                      target_etype=target_etype,
                                      num_ffn_layers=config.num_ffn_layers_in_decoder,
-                                     norm=config.decoder_norm)
+                                     norm=config.decoder_norm,
+                                     use_bias=config.decoder_bias)
         elif decoder_type == "MLPEFeatEdgeDecoder":
             decoder_edge_feat = config.decoder_edge_feat
             assert decoder_edge_feat is not None, \
@@ -644,7 +651,8 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                 target_etype=target_etype,
                 dropout=config.dropout,
                 num_ffn_layers=config.num_ffn_layers_in_decoder,
-                norm=config.decoder_norm)
+                norm=config.decoder_norm,
+                use_bias=config.decoder_bias)
         else:
             assert False, f"decoder {decoder_type} is not supported."
 
@@ -676,7 +684,8 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                                      target_etype=target_etype,
                                      dropout_rate=dropout,
                                      regression=True,
-                                     norm=config.decoder_norm)
+                                     norm=config.decoder_norm,
+                                     use_bias=config.decoder_bias)
         elif decoder_type == "MLPDecoder":
             decoder = MLPEdgeDecoder(decoder_input_dim,
                                      1,
@@ -684,7 +693,8 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                                      target_etype=target_etype,
                                      regression=True,
                                      num_ffn_layers=config.num_ffn_layers_in_decoder,
-                                     norm=config.decoder_norm)
+                                     norm=config.decoder_norm,
+                                     use_bias=config.decoder_bias)
         elif decoder_type == "MLPEFeatEdgeDecoder":
             decoder_edge_feat = config.decoder_edge_feat
             assert decoder_edge_feat is not None, \
@@ -709,7 +719,8 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                 dropout=config.dropout,
                 regression=True,
                 num_ffn_layers=config.num_ffn_layers_in_decoder,
-                norm=config.decoder_norm)
+                norm=config.decoder_norm,
+                use_bias=config.decoder_bias)
         else:
             assert False, "decoder not supported"
         loss_func = RegressionLossFunc()

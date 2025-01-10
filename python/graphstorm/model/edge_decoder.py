@@ -132,6 +132,11 @@ class DenseBiDecoder(GSEdgeDecoder):
     norm: str
         Normalization methods. Not used, but reserved for complex DenseBiDecoder child class
         implementation. Default: None.
+    use_bias: bool
+        Whether the edge decoder uses a bias parameter. Default: True.
+
+    .. versionchanged:: 0.4.0
+        Add a new argument "use_bias" so users can control whether decoders have bias.
     """
     def __init__(self,
                  in_units,
@@ -141,7 +146,8 @@ class DenseBiDecoder(GSEdgeDecoder):
                  num_basis=2,
                  dropout_rate=0.0,
                  regression=False,
-                 norm=None):
+                 norm=None,
+                 use_bias=True):
         super().__init__()
 
         self.in_units = in_units
@@ -157,6 +163,7 @@ class DenseBiDecoder(GSEdgeDecoder):
         assert isinstance(target_etype, tuple) and len(target_etype) == 3, \
             "Target etype must be a tuple of a canonical etype."
         self.target_etype = target_etype
+        self.use_bias = use_bias
 
         self._init_model()
 
@@ -171,7 +178,7 @@ class DenseBiDecoder(GSEdgeDecoder):
         self.dropout = nn.Dropout(self.dropout)
         self.basis_para = nn.Parameter(
             th.randn(self.num_basis, self.in_units, self.in_units))
-        self.combine_basis = nn.Linear(self.num_basis, basis_out, bias=False)
+        self.combine_basis = nn.Linear(self.num_basis, basis_out, bias=self.use_bias)
         self.reset_parameters()
 
         if self.regression:
@@ -331,13 +338,16 @@ class EdgeRegression(GSEdgeDecoder):
     norm: str, optional
         Normalization methods. Not used, but reserved for complex edge regression.
         implementation. Default: None.
+    use_bias: bool
+        Whether the edge decoder uses a bias parameter. Default: True.
     """
     def __init__(self,
                  h_dim,
                  target_etype,
                  out_dim=1,
                  dropout=0,
-                 norm=None):
+                 norm=None,
+                 use_bias=True):
         super(EdgeRegression, self).__init__()
         self._h_dim = h_dim
         self._out_dim = out_dim
@@ -349,6 +359,7 @@ class EdgeRegression(GSEdgeDecoder):
             "Target etype must be a tuple of a canonical etype," \
             f"e.g., (src_ntype, etype, dst_ntype), but got {target_etype}."
         self._target_etype = target_etype
+        self._use_bias = use_bias
 
         self._init_model()
 
@@ -360,7 +371,7 @@ class EdgeRegression(GSEdgeDecoder):
         if self._norm is not None:
             logging.warning("Embedding normalization (batch norm or layer norm) "
                             "is not supported in EdgeRegression")
-        self.linear = nn.Linear(h_dim * 2, h_dim, bias=True)
+        self.linear = nn.Linear(h_dim * 2, h_dim, bias=self._use_bias)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(self._dropout)
         self.regression_head = nn.Linear(h_dim, out_dim, bias=True)
@@ -500,6 +511,11 @@ class MLPEdgeDecoder(GSEdgeDecoder):
     norm: str
         Normalization methods. Not used, but reserved for complex MLPEdgeDecoder child class
         implementation. Default: None.
+    use_bias: bool
+        Whether the edge decoder uses a bias parameter. Default: True.
+
+    .. versionchanged:: 0.4.0
+        Add a new argument "use_bias" so users can control whether decoders have bias.
     """
     def __init__(self,
                  h_dim,
@@ -510,7 +526,8 @@ class MLPEdgeDecoder(GSEdgeDecoder):
                  dropout=0,
                  regression=False,
                  num_ffn_layers=0,
-                 norm=None):
+                 norm=None,
+                 use_bias=True):
         super(MLPEdgeDecoder, self).__init__()
         self.h_dim = h_dim
         self.multilabel = multilabel
@@ -526,6 +543,7 @@ class MLPEdgeDecoder(GSEdgeDecoder):
         assert isinstance(target_etype, tuple) and len(target_etype) == 3, \
             "Target etype must be a tuple of a canonical etype."
         self.target_etype = target_etype
+        self.use_bias = use_bias
 
         self._init_model()
 
@@ -543,6 +561,8 @@ class MLPEdgeDecoder(GSEdgeDecoder):
 
         # Here we assume the source and destination nodes have the same dimension.
         self.decoder = nn.Parameter(th.randn(self.h_dim * 2, self.out_dim))
+        if self.use_bias:
+            self.bias = nn.Parameter(th.zeros(self.out_dim))
         assert self.num_hidden_layers == 1, "More than one layers not supported"
         nn.init.xavier_uniform_(self.decoder,
                                 gain=nn.init.calculate_gain('relu'))
@@ -561,8 +581,8 @@ class MLPEdgeDecoder(GSEdgeDecoder):
                 The dictionary containing the embeddings
             Returns
             -------
-            th.Tensor
-                Output of forward
+            out: th.Tensor
+                Output of forward.
         """
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
@@ -574,6 +594,8 @@ class MLPEdgeDecoder(GSEdgeDecoder):
             if self.num_ffn_layers > 0:
                 h = self.ngnn_mlp(h)
             out = th.matmul(h, self.decoder)
+            if self.use_bias:
+                out = out + self.bias
         return out
 
     # pylint: disable=unused-argument
@@ -706,6 +728,11 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
     norm: str
         Normalization methods. Not used, but reserved for complex MLPEFeatEdgeDecoder child
         class implementation. Default: None.
+    use_bias: bool
+        Whether the edge decoder uses a bias parameter. Default: True.
+
+    .. versionchanged:: 0.4.0
+        Add a new argument "use_bias" so users can control whether decoders have bias.
     """
     def __init__(self,
                  h_dim,
@@ -716,7 +743,8 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
                  dropout=0,
                  regression=False,
                  num_ffn_layers=0,
-                 norm=None):
+                 norm=None,
+                 use_bias=True):
         self.feat_dim = feat_dim
         super(MLPEFeatEdgeDecoder, self).__init__(h_dim=h_dim,
                                                   out_dim=out_dim,
@@ -725,7 +753,8 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
                                                   dropout=dropout,
                                                   regression=regression,
                                                   num_ffn_layers=num_ffn_layers,
-                                                  norm=norm)
+                                                  norm=norm,
+                                                  use_bias=use_bias)
 
     def _init_model(self):
         """ Init decoder model
@@ -747,6 +776,8 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
         # combine output of nn_decoder and feat_decoder
         self.combine_decoder = nn.Parameter(th.randn(self.h_dim * 2, self.h_dim))
         self.decoder = nn.Parameter(th.randn(self.h_dim, self.out_dim))
+        if self.use_bias:
+            self.bias = nn.Parameter(th.zeros(self.out_dim))
         self.dropout = nn.Dropout(self.dropout)
 
         self.nn_decoder_norm = None
@@ -784,10 +815,12 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
                 The minibatch graph
             h: dict of Tensors
                 The dictionary containing the embeddings
+            e_h: dict of Tensor
+                The input edge embeddings in the format of {(src_ntype, etype, dst_ntype): emb}.
             Returns
             -------
-            th.Tensor
-                Output of forward
+            out: Tensor
+                Output of forward.
         """
         assert e_h is not None, "edge feature is required"
         with g.local_scope():
@@ -819,6 +852,8 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
                 combine_h = self.combine_norm(combine_h)
             combine_h = self.relu(combine_h)
             out = th.matmul(combine_h, self.decoder)
+            if self.use_bias:
+                out = out + self.bias
 
         return out
 
