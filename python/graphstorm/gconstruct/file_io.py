@@ -88,6 +88,8 @@ def expand_wildcard(data_files: List[str]) -> List[str]:
 
     """
     expanded_files = []
+    if len(data_files) == 1 and os.path.isdir(data_files[0]):
+        data_files = [os.path.join(data_files[0], "*")]
     for item in data_files:
         if '*' in item:
             matched_files = sorted(glob.glob(item))
@@ -118,7 +120,7 @@ def read_index_parquet(data_file, column):
 
     if len(column) == 1:
         res_array = df[column[0]].to_numpy()
-    elif len(df.columns) == 2:
+    elif len(column) == 2:
         res_array = list(zip(df[column[0]].to_numpy(), df[column[1]].to_numpy()))
     else:
         raise ValueError("The Parquet file on node mask must contain exactly one column, "

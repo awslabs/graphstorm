@@ -194,6 +194,8 @@ class EdgeConfig(StructureConfig):
         self._dst_ntype = edge_dict["dest"]["type"]
         self._rel_type = edge_dict["relation"]["type"]
         self._rel_col: Optional[str] = edge_dict["relation"].get("column", None)
+        self._feature_configs = []
+        self._labels = []
 
         if "features" in edge_dict:
             for feature_dict in edge_dict["features"]:
