@@ -134,6 +134,9 @@ class DenseBiDecoder(GSEdgeDecoder):
         implementation. Default: None.
     use_bias: bool
         Whether the edge decoder uses a bias parameter. Default: True.
+
+    .. versionchanged:: 0.4.0
+        Add a new argument "use_bias" so users can control whether decoders have bias.
     """
     def __init__(self,
                  in_units,
@@ -337,6 +340,9 @@ class EdgeRegression(GSEdgeDecoder):
         implementation. Default: None.
     use_bias: bool
         Whether the edge decoder uses a bias parameter. Default: True.
+
+    .. versionchanged:: 0.4.0
+        Add a new argument "use_bias" so users can control whether decoders have bias.
     """
     def __init__(self,
                  h_dim,
@@ -510,6 +516,9 @@ class MLPEdgeDecoder(GSEdgeDecoder):
         implementation. Default: None.
     use_bias: bool
         Whether the edge decoder uses a bias parameter. Default: True.
+
+    .. versionchanged:: 0.4.0
+        Add a new argument "use_bias" so users can control whether decoders have bias.
     """
     def __init__(self,
                  h_dim,
@@ -575,8 +584,8 @@ class MLPEdgeDecoder(GSEdgeDecoder):
                 The dictionary containing the embeddings
             Returns
             -------
-            th.Tensor
-                Output of forward
+            out
+                Output of forward.
         """
         with g.local_scope():
             u, v = g.edges(etype=self.target_etype)
@@ -724,6 +733,9 @@ class MLPEFeatEdgeDecoder(MLPEdgeDecoder):
         class implementation. Default: None.
     use_bias: bool
         Whether the edge decoder uses a bias parameter. Default: True.
+
+    .. versionchanged:: 0.4.0
+        Add a new argument "use_bias" so users can control whether decoders have bias.
     """
     def __init__(self,
                  h_dim,

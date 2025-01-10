@@ -46,6 +46,32 @@ def generate_mask(idx, length):
     th_mask = th.tensor(mask, dtype=th.bool)
     return th_mask
 
+def generate_dummy_constant_graph(in_units):
+    """
+    Generate a dummy heterogeneous graph to test edge decoder.
+
+    Return
+    -------
+    g: a heterogeneous graph.
+
+    h: node embeddings.
+
+    edge_type: graph schema ("n0", "r0", "n1")
+    """
+    u = th.tensor([0, 0])
+    v = th.tensor([1, 2])
+    edge_type = ("n0", "r0", "n1")
+    g = dgl.heterograph({
+        edge_type: (u, v)
+    })
+
+    h = {
+        "n0": th.ones(g.num_nodes("n0"), in_units),
+        "n1": th.ones(g.num_nodes("n1"), in_units)
+    }
+
+    return g, h, edge_type
+
 def generate_dummy_hetero_graph_for_efeat_gnn(is_random=True):
     """
     generate a dummy heterogeneous graph to test the get_edge_feat_size() method.
