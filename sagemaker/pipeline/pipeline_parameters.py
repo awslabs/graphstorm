@@ -47,19 +47,19 @@ class AWSConfig:
         SageMaker execution IAM role ARN.
     region : str
         AWS region.
-    graphstorm_pytorch_cpu_image_url : str
-        GraphStorm GConstruct/dist_part/train/inference CPU ECR image URL.
-    graphstorm_pytorch_gpu_image_url : str
-        GraphStorm GConstruct/dist_part/train/inference GPU ECR image URL.
-    gsprocessing_pyspark_image_url : str
-        GSProcessing SageMaker PySpark ECR image URL.
+    graphstorm_pytorch_cpu_image_uri : str
+        GraphStorm GConstruct/dist_part/train/inference CPU ECR image URI.
+    graphstorm_pytorch_gpu_image_uri : str
+        GraphStorm GConstruct/dist_part/train/inference GPU ECR image URI.
+    gsprocessing_pyspark_image_uri : str
+        GSProcessing SageMaker PySpark ECR image URI.
     """
 
     execution_role: str
     region: str
-    graphstorm_pytorch_cpu_image_url: str
-    graphstorm_pytorch_gpu_image_url: str
-    gsprocessing_pyspark_image_url: str
+    graphstorm_pytorch_cpu_image_uri: str
+    graphstorm_pytorch_gpu_image_uri: str
+    gsprocessing_pyspark_image_uri: str
 
 
 @dataclass
@@ -370,14 +370,14 @@ class PipelineArgs:
 
     def __post_init__(self):
         if not self.instance_config.train_on_cpu:
-            assert self.aws_config.graphstorm_pytorch_gpu_image_url, (
+            assert self.aws_config.graphstorm_pytorch_gpu_image_uri, (
                 "Must use provide GPU image when training on GPU. "
-                "use --graphstorm-pytorch-gpu-image-url"
+                "use --graphstorm-pytorch-gpu-image-uri"
             )
         else:
-            assert self.aws_config.graphstorm_pytorch_cpu_image_url, (
+            assert self.aws_config.graphstorm_pytorch_cpu_image_uri, (
                 "Must use provide CPU image when training on CPU. "
-                "use --graphstorm-pytorch-cpu-image-url"
+                "use --graphstorm-pytorch-cpu-image-uri"
             )
 
         # Ensure we provide a GConstruct/GSProcessing config file when running construction
@@ -407,8 +407,8 @@ class PipelineArgs:
         # Ensure we have a GSProcessing image to run GSProcessing
         if "gsprocessing" in self.task_config.jobs_to_run:
             assert (
-                self.aws_config.gsprocessing_pyspark_image_url
-            ), "Need to provide a GSProcessing PySpark image URL when running GSProcessing"
+                self.aws_config.gsprocessing_pyspark_image_uri
+            ), "Need to provide a GSProcessing PySpark image URI when running GSProcessing"
 
         # Ensure we run gb_convert after dist_part when training with graphbolt
         if (
@@ -546,20 +546,20 @@ def parse_pipeline_args() -> PipelineArgs:
         "--region", type=str, required=True, help="AWS region. Required"
     )
     required_args.add_argument(
-        "--graphstorm-pytorch-cpu-image-url",
+        "--graphstorm-pytorch-cpu-image-uri",
         type=str,
         required=True,
-        help="GraphStorm GConstruct/dist_part/train/inference CPU ECR image URL. Required",
+        help="GraphStorm GConstruct/dist_part/train/inference CPU ECR image URI. Required",
     )
     optional_args.add_argument(
-        "--graphstorm-pytorch-gpu-image-url",
+        "--graphstorm-pytorch-gpu-image-uri",
         type=str,
-        help="GraphStorm GConstruct/dist_part/train/inference GPU ECR image URL.",
+        help="GraphStorm GConstruct/dist_part/train/inference GPU ECR image URI.",
     )
     optional_args.add_argument(
-        "--gsprocessing-pyspark-image-url",
+        "--gsprocessing-pyspark-image-uri",
         type=str,
-        help="GSProcessing SageMaker PySpark ECR image URL. Required if running GSProcessing",
+        help="GSProcessing SageMaker PySpark ECR image URI. Required if running GSProcessing",
     )
 
     # Instance Configuration
@@ -823,9 +823,9 @@ def parse_pipeline_args() -> PipelineArgs:
         aws_config=AWSConfig(
             execution_role=args.execution_role,
             region=args.region,
-            graphstorm_pytorch_cpu_image_url=args.graphstorm_pytorch_cpu_image_url,
-            graphstorm_pytorch_gpu_image_url=args.graphstorm_pytorch_gpu_image_url,
-            gsprocessing_pyspark_image_url=args.gsprocessing_pyspark_image_url,
+            graphstorm_pytorch_cpu_image_uri=args.graphstorm_pytorch_cpu_image_uri,
+            graphstorm_pytorch_gpu_image_uri=args.graphstorm_pytorch_gpu_image_uri,
+            gsprocessing_pyspark_image_uri=args.gsprocessing_pyspark_image_uri,
         ),
         instance_config=InstanceConfig(
             train_infer_instance_count=args.instance_count,

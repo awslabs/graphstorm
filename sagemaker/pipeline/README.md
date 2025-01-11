@@ -152,9 +152,9 @@ The pipeline's behavior is controlled by various configuration parameters, inclu
 ### AWS Configuration
 - `--execution-role`: SageMaker execution IAM role ARN. (Required)
 - `--region`: AWS region. (Required)
-- `--graphstorm-pytorch-cpu-image-url`: GraphStorm GConstruct/dist_part/train/inference CPU ECR image URL. (Required)
-- `--graphstorm-pytorch-gpu-image-url`: GraphStorm GConstruct/dist_part/train/inference GPU ECR image URL.
-- `--gsprocessing-pyspark-image-url`: GSProcessing SageMaker PySpark ECR image URL.
+- `--graphstorm-pytorch-cpu-image-uri`: GraphStorm GConstruct/dist_part/train/inference CPU ECR image URI. (Required)
+- `--graphstorm-pytorch-gpu-image-uri`: GraphStorm GConstruct/dist_part/train/inference GPU ECR image URI.
+- `--gsprocessing-pyspark-image-uri`: GSProcessing SageMaker PySpark ECR image URI.
 
 ### Instance Configuration
 - `--instance-count` / `--num-parts`: Number of worker instances/partitions for partition, training, inference. (Required)
@@ -191,7 +191,7 @@ The pipeline's behavior is controlled by various configuration parameters, inclu
 - `--num-trainers`: Number of trainers to use during training/inference. (Default: 4)
 - `--train-inference-task-type`: Task type for training and inference. (Required)
 - `--train-yaml-s3`: S3 path to train YAML configuration file.
-- `--use-graphbolt`: Whether to use GraphBolt. (Default: false)
+- `--use-graphbolt`: Whether to use GraphBolt for GConstruct, training and inference. (Default: false)
 
 ### Inference Configuration
 - `--inference-yaml-s3`: S3 path to inference YAML configuration file.
@@ -201,7 +201,7 @@ The pipeline's behavior is controlled by various configuration parameters, inclu
 
 ### Script Paths
 - `--dist-part-script`: Path to DistPartition SageMaker entry point script.
-- `--gb-convert-script`: Path to GraphBolt partition script.
+- `--gb-convert-script`: Path to GraphBolt partition conversion script.
 - `--train-script`: Path to training SageMaker entry point script.
 - `--inference-script`: Path to inference SageMaker entry point script.
 - `--gconstruct-script`: Path to GConstruct SageMaker entry point script.
@@ -218,6 +218,9 @@ python create_sm_pipeline.py \
     ... \
     --use-graphbolt true
 ```
+
+When you choose GSProcessing for graph construction, and want to use GraphBolt, you will need to include a `gb_convert` step in your
+job sequence, i.e. to get a partitioned graph you will need the sequence `"gsprocessing dist_part gb_convert [train] [inference]"`.
 
 ### Custom Job Sequences
 

@@ -88,9 +88,9 @@ class GraphStormPipelineGenerator:
             else self.gpu_instance_type_param
         )
         self.train_infer_image = (
-            args.aws_config.graphstorm_pytorch_cpu_image_url
+            args.aws_config.graphstorm_pytorch_cpu_image_uri
             if self.args.instance_config.train_on_cpu
-            else args.aws_config.graphstorm_pytorch_gpu_image_url
+            else args.aws_config.graphstorm_pytorch_gpu_image_uri
         )
 
     def _get_or_create_pipeline_session(
@@ -206,10 +206,6 @@ class GraphStormPipelineGenerator:
         self.num_trainers_param = self._create_int_parameter(
             "NumTrainers", args.training_config.num_trainers
         )
-        # TODO: Maybe should not be configurable because it requires changing job sequence?
-        self.use_graphbolt_param = self._create_string_parameter(
-            "UseGraphBolt", args.training_config.use_graphbolt_str
-        )
         self.input_data_param = self._create_string_parameter(
             "InputData", args.task_config.input_data_s3
         )
@@ -292,7 +288,7 @@ class GraphStormPipelineGenerator:
         )
 
         gconstruct_processor = ScriptProcessor(
-            image_uri=args.aws_config.graphstorm_pytorch_cpu_image_url,
+            image_uri=args.aws_config.graphstorm_pytorch_cpu_image_uri,
             role=args.aws_config.execution_role,
             instance_count=1,
             instance_type=self.graphconstruct_instance_type_param,
@@ -368,7 +364,7 @@ class GraphStormPipelineGenerator:
             role=args.aws_config.execution_role,
             instance_type=args.instance_config.graph_construction_instance_type,
             instance_count=args.instance_config.gsprocessing_instance_count,
-            image_uri=args.aws_config.gsprocessing_pyspark_image_url,
+            image_uri=args.aws_config.gsprocessing_pyspark_image_uri,
             sagemaker_session=self.pipeline_session,
             volume_size_in_gb=self.volume_size_gb_param,
         )
@@ -440,7 +436,7 @@ class GraphStormPipelineGenerator:
     def _create_dist_part_step(self, args: PipelineArgs) -> ProcessingStep:
         # Implementation for DistPartition step
         dist_part_processor = ScriptProcessor(
-            image_uri=args.aws_config.graphstorm_pytorch_cpu_image_url,
+            image_uri=args.aws_config.graphstorm_pytorch_cpu_image_uri,
             role=args.aws_config.execution_role,
             instance_count=self.instance_count_param,
             instance_type=self.graphconstruct_instance_type_param,
@@ -498,7 +494,7 @@ class GraphStormPipelineGenerator:
     def _create_gb_convert_step(self, args: PipelineArgs) -> ProcessingStep:
         # Implementation for GraphBolt partition step
         gb_part_processor = ScriptProcessor(
-            image_uri=args.aws_config.graphstorm_pytorch_cpu_image_url,
+            image_uri=args.aws_config.graphstorm_pytorch_cpu_image_uri,
             role=args.aws_config.execution_role,
             instance_count=1,
             instance_type=self.graphconstruct_instance_type_param,
@@ -549,7 +545,7 @@ class GraphStormPipelineGenerator:
             "task-type": args.training_config.train_inference_task,
             "train-yaml-s3": self.train_config_file_param,
             "num-trainers": self.num_trainers_param,
-            "use-graphbolt": self.use_graphbolt_param,
+            "use-graphbolt": args.training_config.use_graphbolt_str,
         }
 
         # Training step
@@ -607,7 +603,7 @@ class GraphStormPipelineGenerator:
             "task-type": args.training_config.train_inference_task,
             "infer-yaml-s3": self.inference_config_file_param,
             "num-trainers": self.num_trainers_param,
-            "use-graphbolt": self.use_graphbolt_param,
+            "use-graphbolt": args.training_config.use_graphbolt_str,
         }
 
         if args.inference_config.save_embeddings:
