@@ -171,7 +171,8 @@ The pipeline's behavior is controlled by various configuration parameters, inclu
 - `--output-prefix-s3`: S3 prefix for the output data. (Required)
 - `--pipeline-name`: Name for the pipeline.
 - `--base-job-name`: Base job name for SageMaker jobs. (Default: 'gs')
-- `--jobs-to-run`: Space-separated string of jobs to run in the pipeline. (Required)
+- `--jobs-to-run`: Space-separated string of jobs to run in the pipeline.
+  Possible values are: "gconstruct", "gsprocessing", "dist_part", "gb_convert", "train", "inference" (Required).
 - `--log-level`: Logging level for the jobs. (Default: INFO)
 - `--step-cache-expiration`: Expiration time for the step cache. (Default: 30d)
 - `--update-pipeline`: Update an existing pipeline instead of creating a new one. (Flag)

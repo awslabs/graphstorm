@@ -228,6 +228,7 @@ class GraphStormPipelineGenerator:
         self.inference_config_file_param = self._create_string_parameter(
             "InferenceConfigFile", inference_yaml_default
         )
+        # User-defined model snapshot to use, e.g. epoch-5
         self.inference_model_snapshot_param = self._create_string_parameter(
             "InferenceModelSnapshot", args.inference_config.inference_model_snapshot
         )
@@ -247,6 +248,8 @@ class GraphStormPipelineGenerator:
         List[Union[ProcessingStep, TrainingStep]]
             A list of pipeline steps to be executed in sequence
         """
+        # NOTE: GConstruct, GSProcessing, DistPart, GBConvert run as Processing jobs.
+        # Training, Inference run as Training jobs.
         pipeline_steps: List[Union[ProcessingStep, TrainingStep]] = []
         for job in self.args.task_config.jobs_to_run:
             step = self._create_step(job, args)
@@ -335,6 +338,8 @@ class GraphStormPipelineGenerator:
 
         # TODO: Make this a pipeline parameter?
         if args.graph_construction_config.graph_construction_args:
+            # TODO: Support nargs='+' arguments, .split(" ") won't work with those.
+            # Only --output-format seems to be an nargs='+' argument in GConstruct
             gconstruct_arguments.extend(
                 args.graph_construction_config.graph_construction_args.split(" ")
             )

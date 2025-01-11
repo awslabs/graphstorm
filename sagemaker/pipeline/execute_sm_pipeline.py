@@ -102,7 +102,7 @@ def parse_args():
     overrides.add_argument(
         "--partition-algorithm",
         type=str,
-        choices=["random", "parmetis"],
+        choices=["random", "parmetis", "metis"],
         help="Override partition algorithm",
     )
     overrides.add_argument("--graph-name", type=str, help="Override graph name")
