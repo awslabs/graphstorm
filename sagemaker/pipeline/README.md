@@ -188,7 +188,7 @@ The pipeline's behavior is controlled by various configuration parameters, inclu
 ### Training Configuration
 - `--model-output-path`: S3 path for model output.
 - `--num-trainers`: Number of trainers to use during training/inference. (Default: 4)
-- `--train-inference-task`: Task type for training and inference. (Required)
+- `--train-inference-task-type`: Task type for training and inference. (Required)
 - `--train-yaml-s3`: S3 path to train YAML configuration file.
 - `--use-graphbolt`: Whether to use GraphBolt. (Default: false)
 
@@ -234,7 +234,7 @@ uses DistPart to partition the data, converts the partitioned data to the GraphB
 then runs a train and an inference job in sequence.
 You can use this job sequence when your graph is too large to partition on one instance using
 GConstruct. 10B+ edges is the suggested threshold to move to distributed partitioning, or if your
-features are larger than 1TB.
+features are larger than 1TByte.
 
 ### Asynchronous Execution
 
