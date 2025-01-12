@@ -33,10 +33,12 @@ def get_train_parser():
     # distributed training
     parser.add_argument("--graph-name", type=str, help="Graph name")
     parser.add_argument("--graph-data-s3", type=str,
-        help="S3 location of input training graph")
+        help="S3 location of input training graph",
+        required=True)
     parser.add_argument("--train-yaml-s3", type=str,
         help="S3 location of training yaml file. "
-             "Do not store it with partitioned graph")
+             "Do not store it with partitioned graph",
+             required=True)
     parser.add_argument("--model-artifact-s3", type=str,
         help="S3 location to store the model artifacts.")
     parser.add_argument("--model-checkpoint-to-load", type=str, default=None,
