@@ -92,15 +92,15 @@ def run_job(input_args, image, unknowargs):
 
     est = PyTorch(
         entry_point=os.path.basename(entry_point),
-        source_dir=os.path.dirname(entry_point),
+        hyperparameters=params,
         image_uri=container_image_uri,
-        role=role,
         instance_count=instance_count,
         instance_type=instance_type,
         output_path=model_artifact_s3,
         py_version="py3",
-        base_job_name=prefix,
-        hyperparameters=params,
+        role=role,
+        sagemaker_session=sess,
+        source_dir=os.path.dirname(entry_point),
         tags=[{"Key":"GraphStorm", "Value":"oss"},
               {"Key":"GraphStorm_Task", "Value":"Training"}],
         **estimator_kwargs
