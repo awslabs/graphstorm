@@ -107,8 +107,8 @@ python3 $SCRIPT_DIR/../../sagemaker/pipeline/create_sm_pipeline.py \
     --graph-construction-instance-type ${GCONSTRUCT_INSTANCE} \
     --graph-construction-config-filename ${GCONSTRUCT_CONFIG} \
     --graph-name ${GRAPH_NAME} \
-    --graphstorm-pytorch-cpu-image-url "${GSF_CPU_IMAGE_URI}" \
-    --graphstorm-pytorch-gpu-image-url "${GSF_GPU_IMAGE_URI}" \
+    --graphstorm-pytorch-cpu-image-uri "${GSF_CPU_IMAGE_URI}" \
+    --graphstorm-pytorch-gpu-image-uri "${GSF_GPU_IMAGE_URI}" \
     --inference-model-snapshot "${INFERENCE_MODEL_SNAPSHOT}" \
     --inference-yaml-s3 ${INFERENCE_YAML_S3} \
     --input-data-s3 ${DATASET_S3_PATH} \
