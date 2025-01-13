@@ -213,6 +213,80 @@ from ``${DATASET_S3_PATH}`` as input and create a DistDGL graph with
 ``${NUM_PARTITIONS}`` under the output path, ``${OUTPUT_PATH}``.
 Currently we only support ``random`` as the partitioning algorithm.
 
+Launch hyper-parameter optimization task
+````````````````````````````````````````
+
+GraphStorm supports `automatic model tuning <https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning.html>`_
+with SageMaker AI,
+which allows you to optimize the hyper-parameters
+of your model with an easy-to-use interface.
+
+The ``launch/launch_hyperparameter_tuning.py`` script can act as a thin
+wrapper for SageMaker's `HyperParameterTuner <https://sagemaker.readthedocs.io/en/stable/api/training/tuner.html>`_.
+
+You define the hyper-parameters of interest by passing a python dictionary as a string,
+where the keys of the dictionary are the names of the parameters to tune,
+and each value is a dictionary that defines the type and tuning range
+of the parameter.
+
+.. code:: bash
+
+    # Example hyper-parameter ranges
+    python launch/launch_hyperparameter_tuning.py \
+        --hyperparameter-ranges '{"lr": {"type": "continuous", "min": 1e-5, "max": 1e-2, "scaling_type": "Auto"}, "num_layers": {"type": "integer", "min": 1, "max": 3}, "model_encoder_type": {"type": "categorical", "values": ["rgcn", "rgat"]}}'
+
+The supported parameter types are ``continuous``
+for real-values parameters, ``integer`` for numerical integer parameters,
+and ``categorical`` for discrete-value string parameters.
+These directly correspond to Sagemaker's
+`Dynamic hyper-parameters <https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-define-ranges.html#automatic-model-tuning-define-ranges-dynamic>`~
+
+Continuous and integer parameters need to define a ``"min"`` and ``"max"`` value to use
+during tuning, while categorical variables need to provide a list of strings
+as ``"values"`` to choose from.
+
+For continuous and integer parameters you can also provide a ``scaling_type``
+string that directly corresponds to one of SageMaker's
+`scaling types <https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-define-ranges.html#scaling-type>`_,
+i.e. can be 'Auto', 'Linear', 'Logarithmic', or 'ReverseLogarithmic'.
+By default scaling type will be 'Auto'.
+
+Use ``--metric-name`` to define the name of metric to use as a tuning objective,
+e.g. ``"accuracy"``. See the entry for ``eval_metric`` in :ref:`Evaluation Metrics <eval_metrics>`
+for a full list of supported metrics.
+
+``--metric-dataset`` defines which dataset to collect metrics from, and
+can be either ``"test"`` or ``"val"`` to collect metrics during test or validation
+respectively. Finally use ``--objective-type`` to set the type of the objective,
+which can be either ``"Maximize"`` or ``"Minimize"``.
+
+Finally you can use ``--strategy`` to select the optimization strategy
+from one of "Bayesian", "Random", "Hyperband", "Grid". See the
+`SageMaker documentation <https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-how-it-works.html>`_
+for more details on each strategy.
+
+Example HPO call:
+
+.. code:: bash
+
+    python launch/launch_hyperparameter_tuning.py \
+        --task-name my-gnn-hpo-job \
+        --role arn:aws:iam::123456789012:role/SageMakerRole \
+        --region us-west-2 \
+        --image-url 123456789012.dkr.ecr.us-west-2.amazonaws.com/graphstorm:sagemaker-gpu \
+        --graph-name my-graph \
+        --task-type node_classification \
+        --graph-data-s3 s3://my-bucket/graph-data/ \
+        --yaml-s3 s3://my-bucket/train.yaml \
+        --model-artifact-s3 s3://my-bucket/model-artifacts/ \
+        --max-jobs 20 \
+        --max-parallel-jobs 4 \
+        --hyperparameter-ranges '{"lr": {"type": "continuous", "min": 1e-5, "max": 1e-2}, "num_layers": {"type": "integer", "min": 2, "max": 5}}' \
+        --metric-name "accuracy" \
+        --metric-set "val" \
+        --objective-type "Maximize" \
+        --strategy "Bayesian"
+
 Passing additional arguments to the SageMaker Estimator
 ```````````````````````````````````````````````````````
 Sometimes you might want to pass additional arguments to the constructor
