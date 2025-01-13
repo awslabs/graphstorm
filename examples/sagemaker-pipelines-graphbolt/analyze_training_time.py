@@ -68,7 +68,7 @@ def parse_args():
         "--logs-days-before",
         type=int,
         default=2,
-        help="The number of days in the past to start analyzing logs.",
+        help="Limit log analysis to logs created this many days before today.",
     )
     return parser.parse_args()
 

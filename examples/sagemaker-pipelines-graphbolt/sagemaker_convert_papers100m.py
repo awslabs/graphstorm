@@ -40,7 +40,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--region", type=str, required=True, help="SageMaker Processing region."
     )
-    parser.add_argument("--image-uri", type=str, required=True)
+    parser.add_argument("--image-uri", type=str, required=True,
+        help="URI for the 'papers100m-processor' image.")
     parser.add_argument(
         "--output-bucket",
         type=str,

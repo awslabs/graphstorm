@@ -2,7 +2,7 @@
 
 GraphStorm is a low-code enterprise graph machine learning (ML) framework that provides ML practitioners a simple way of building, training and deploying graph ML solutions on industry-scale graph data. While GraphStorm can run efficiently on single instances for small graphs, it truly shines when scaling to enterprise-level graphs in distributed mode using a cluster of EC2 instances or Amazon SageMaker.
 
-GraphStorm 0.4 introduced integration with DGL-GraphBolt, a new graph storage and sampling framework that uses a compact graph representation and pipelined sampling to reduce memory requirements and speed up Graph Neural Network (GNN) training by up to 3x. In this example we'll show how GraphStorm 0.4 brings training and inference speedups of up to 3x.
+GraphStorm 0.4 introduced integration with DGL-GraphBolt, a new graph storage and sampling framework that uses a compact graph representation and pipelined sampling to reduce memory requirements and speed up Graph Neural Network (GNN) training. In this example we'll show how GraphStorm 0.4 brings training and inference speedups of up to 3x on the papers100M dataset.
 
 In this example, you will:
 
@@ -23,7 +23,6 @@ GraphStorm and GraphBolt help address these challenges through efficient graph r
 
 ## GraphBolt: pipeline-driven graph sampling
 
-
 GraphBolt is a new data loading and graph sampling framework developed by the [DGL](https://www.dgl.ai/) team. It streamlines the operations needed to sample efficiently from a heterogeneous graph and fetch the corresponding features.
 
 GraphBolt introduces a new, more compact graph structure representation for heterogeneous graphs, called fused Compressed Sparse Column (fCSC). This can reduce the memory cost of storing a heterogeneous graph by up to 56%, allowing users to fit larger graphs in memory and potentially use smaller, more cost-efficient instances for GNN model training.
@@ -35,7 +34,7 @@ GraphStorm 0.4.0 seamlessly integrates with GraphBolt, allowing users to leverag
 
 The integration of GraphBolt into GraphStorm's workflow means that users can now:
 
-1. Load and process larger graphs with fewer hardware resources.
+1. Train models on larger graphs with fewer hardware resources.
 2. Achieve faster training and inference times with more efficient graph sampling framework.
 3. Utilize GPU resources more effectively for graph learning.
 
@@ -72,12 +71,13 @@ In order to use SageMaker Studio you will need to have a SageMaker Domain availa
 
 To set up the SageMaker Pipelines you will need permissions to create ECR repositories, pull and push docker images to them, pull images from the AWS ECR Public Gallery, launch SageMaker jobs, manage SageMaker Pipelines, and interact with data on S3. We will create a role for Amazon EC2 on the AWS console, which will also create an associated instance profile to use with an EC2 instance.
 
-You will also need access to a SageMaker execution that your jobs assume during execution. You can use the [Amazon SageMaker Role Manager](https://docs.aws.amazon.com/sagemaker/latest/dg/role-manager.html) to streamline the creation of the necessary roles.
+You will also need access to a [SageMaker execution role](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-roles.html) that your jobs assume during execution.
+You can use the [Amazon SageMaker Role Manager](https://docs.aws.amazon.com/sagemaker/latest/dg/role-manager.html) to streamline the creation of the necessary roles.
 
 
 ### Set up the pipeline management environment
 
-For this example you can either use your existing development environment or set up a new EC2 instance. If you plan to use a new instance to prepare the large-scale data for this example, ensure it has at least 300GB of disk space available.
+For this example we recommend you to set up a new EC2 instance with at least 300 GByte of disk space.
 To set up an EC2 instance with the appropriate environment:
 
 
@@ -101,7 +101,7 @@ aws ec2 run-instances \
 
 This command creates an instance using the "Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.4.1 (Ubuntu 22.04) 20241116" AMI, in the default VPC with the default security group. Make your instance accessible through SSH, using an appropriate security group or the [AWS Systems Session Manager](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager.html), and log in to the instance.  You can also use the [AWS Console](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/tutorial-launch-my-first-ec2-instance.html) to create a new EC2 instance.
 
-> NOTE: You may need to update the --image-id to the latest available. See https://docs.aws.amazon.com/dlami/latest/devguide/find-dlami-id.html for instructions.
+> NOTE: You may need to update the --image-id to the latest available. See https://docs.aws.amazon.com/dlami/latest/devguide/find-dlami-id.html for instructions on finding the latest DLAMI.
 
 Once logged in, you can set up your Python environment to run GraphStorm
 
@@ -151,12 +151,12 @@ aws s3 ls s3://$BUCKET_NAME/ogb-arxiv-input/
                            PRE edges/
                            PRE nodes/
                            PRE splits/
-2024-12-11 02:13:27       1269 gconstruct_config_arxiv.json
+XXXX-XX-XX XX:XX:XX       1269 gconstruct_config_arxiv.json
 ```
 
 Finally you'll also upload GraphStorm training configuration files for arxiv to use for training and inference
 
-```
+```bash
 # Upload the training configurations to S3
 aws s3 cp ~/graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
     s3://$BUCKET_NAME/yaml/arxiv_nc_train.yaml
@@ -327,17 +327,34 @@ aws s3 ls  s3://$BUCKET_NAME/pipelines-output/ogbn-arxiv-gs-pipeline/
 
 # There should only be one execution subpath, copy that into a new env variable
 EXECUTION_SUBPATH="761a4ff194198d49469a3bb223d5f26e"
-aws s3 ls --recursive \
-    s3://$BUCKET_NAME/pipelines-output/ogbn-arxiv-gs-pipeline/$EXECUTION_SUBPATH
+aws s3 ls \
+    s3://$BUCKET_NAME/pipelines-output/ogbn-arxiv-gs-pipeline/$EXECUTION_SUBPATH/
 
-# gconstruct:
+# You will see the top-level outputs
+# gconstruct/
+# inference/
+# model/
+
+# gconstruct/ output
+aws s3 ls \
+    s3://$BUCKET_NAME/pipelines-output/ogbn-arxiv-gs-pipeline/$EXECUTION_SUBPATH/gconstruct/
+
+# We get the 2 graph partitions (part0, part1) and metadata JSON files that describe the graph
 # data_transform_new.json  edge_label_stats.json  edge_mapping.pt  node_label_stats.json  node_mapping.pt  ogbn-arxiv.json  part0  part1
 
-# inference:
-# embeddings  predictions
+# model/ output
+aws s3 ls \
+    s3://$BUCKET_NAME/pipelines-output/ogbn-arxiv-gs-pipeline/$EXECUTION_SUBPATH/model/
 
-# model:
+# We get a model snapshot for every epoch
 # epoch-0  epoch-1  epoch-2  epoch-3  epoch-4  epoch-5  epoch-6  epoch-7  epoch-8  epoch-9
+
+# inference/ output
+aws s3 ls \
+    s3://$BUCKET_NAME/pipelines-output/ogbn-arxiv-gs-pipeline/$EXECUTION_SUBPATH/inference/
+
+# We get two prefixes, one containing the embeddings and one the predictions
+# embeddings/  predictions/
 
 ```
 
@@ -371,16 +388,16 @@ You can use the same pipeline creation script, but change two variables, providi
 
 ```bash
 # Deploy the GraphBolt-enabled pipeline
-PIPELINE_NAME="ogbn-arxiv-gs-graphbolt-pipeline"
+PIPELINE_NAME_GRAPHBOLT="ogbn-arxiv-gs-graphbolt-pipeline"
 BUCKET_NAME="my-s3-bucket"
 bash deploy_arxiv_pipeline.sh \
     --account "<aws-account-id>" \
     --bucket-name $BUCKET_NAME --role "<execution-role>" \
-    --pipeline-name $PIPELINE_NAME \
+    --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --use-graphbolt true
 # Execute the pipeline locally
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
-    --pipeline-name $PIPELINE_NAME \
+    --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --region us-east-1 \
     --local-execution | tee arxiv-local-gb-logs.txt
 ```
@@ -459,16 +476,16 @@ python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
 Next, you can deploy and execute another pipeline, now with GraphBolt enabled:
 
 ```bash
-PIPELINE_NAME="ogb-papers100M-graphbolt-pipeline"
+PIPELINE_NAME_GRAPHBOLT="ogb-papers100M-graphbolt-pipeline"
 bash deploy_papers100M_pipeline.sh \
     --account <aws-account-id> \
     --bucket-name <s3-bucket> --role <execution-role> \
-    --pipeline-name $PIPELINE_NAME \
+    --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --use-graphbolt true
 
 # Execute the GraphBolt-enabled pipeline on SageMaker
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
-    --pipeline-name $PIPELINE_NAME \
+    --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --region us-east-1 \
     --async-execution
 ```
@@ -482,7 +499,7 @@ The easiest way to do so is through the Studio pipeline interface. In the Pipeli
 
 ```bash
 python analyze_training_time.py \
-    --pipeline-name papers-100M-gs-pipeline \
+    --pipeline-name $PIPELINE_NAME \
     --execution-name execution-1734404366941
 ```
 
@@ -502,7 +519,7 @@ Now do the same for the GraphBolt-enabled pipeline:
 
 ```bash
 python analyze_training_time.py \
-    --pipeline-name papers-100M-gs-graphbolt-pipeline \
+    --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --execution-name execution-1734463209078
 ```
 
@@ -520,10 +537,4 @@ Average evaluation time: 4.13 seconds
 
 Without loss in accuracy, the latest version of GraphStorm achieved a **~1.4x speedup per epoch, and a 3.6x speedup in evaluation time!**
 
-## Conclusion: Accelerate Your Graph ML with GraphStorm
-
-This example showcased how GraphStorm 0.4, integrated with DGL-GraphBolt, significantly speeds up large-scale graph neural network training and inference.
-
-We encourage ML practitioners working with large graph data to try GraphStorm. Its low-code interface simplifies building, training, and deploying graph ML solutions on AWS, allowing you to focus on modeling rather than infrastructure.
-
-To get started, visit the GraphStorm [documentation](https://graphstorm.readthedocs.io/en/) and GraphStorm [Github repository](https://github.com/awslabs/graphstorm).
+We encourage you to try out GraphStorm with GraphBolt enabled to see how it can benefit your large-scale graph learning use cases.
