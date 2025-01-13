@@ -15,7 +15,7 @@ In this example, you will:
 Before diving into our hands-on example, it's important to understand some challenges associated with graph training, especially as graphs grow in size and complexity:
 
 1. Memory Constraints: As graphs grow larger, they may no longer fit into the memory of a single machine. A graph with 1B nodes with 512 features per node and 10B edges will require more than 4TB of memory to store, even with optimal representation.  This necessitates distributed processing and more efficient graph representation.
-2. Graph Sampling: In GNN mini-batch training, you need to sample neighbors for each node to propagate their representations. For multi-layer GNNs, this can lead to exponential growth in the number of nodes sampled, potentially visiting the entire graph for a single node's representation. Efficient sampling methods become necessary.
+2. Graph Sampling: In GNN mini-batch training, you need to sample neighbors for each node to propagate their representations. For multi-layer GNNs, this can lead to exponential growth in the number of nodes sampled. Efficient sampling methods become necessary.
 3. Remote Data Access: When training on multiple machines, retrieving node features and sampling neighborhoods from other machines will significantly impact performance due to network latency. For example, reading a 1024-feature vector from main memory will take around 3μs, while reading that vector from a remote key/value store would take 50-100x longer.
 
 GraphStorm and GraphBolt help address these challenges through efficient graph representations, smart sampling techniques, and sophisticated partitioning algorithms like ParMETIS.
@@ -51,7 +51,7 @@ Our benchmarks show significant improvements in both memory usage and training s
 
 Figure 1: GraphStorm SageMaker architecture.
 
-A common model development process is to perform model exploration locally on a subset of your full data, and once satisfied with the results train the full scale model. GraphStorm and SageMaker Pipelines allows you to do that by creating a  model pipeline you can execute locally to retrieve model metrics, and when ready execute your pipeline on the full data, and produce models, predictions and graph embeddings to use in downstream tasks. In the next section you'll learn how to set up such pipelines for GraphStorm.
+A common model development process is to perform model exploration locally on a subset of your full data, and once satisfied with the results train the full scale model. GraphStorm-SageMaker Pipelines allows you to do that by creating a  model pipeline you can execute locally to retrieve model metrics, and when ready execute your pipeline on the full data to produce models, predictions and graph embeddings for downstream tasks. In the next section you'll learn how to set up such pipelines for GraphStorm.
 
 ## Set up environment for SageMaker distributed training
 
@@ -70,7 +70,7 @@ In order to use SageMaker Studio you will need to have a SageMaker Domain availa
 
 ### Set up appropriate roles to use with SageMaker Pipelines
 
-To set up the SageMaker Pipelines you will need permissions to create ECR repositories, pull and push to them, pull from the AWS ECR Public Gallery, launch SageMaker jobs, manage SageMaker Pipelines, and interact with data on S3. We will create a role for Amazon EC2 on the AWS console, which will also create an associated instance profile to use with an EC2 instance.
+To set up the SageMaker Pipelines you will need permissions to create ECR repositories, pull and push docker images to them, pull images from the AWS ECR Public Gallery, launch SageMaker jobs, manage SageMaker Pipelines, and interact with data on S3. We will create a role for Amazon EC2 on the AWS console, which will also create an associated instance profile to use with an EC2 instance.
 
 You will also need access to a SageMaker execution that your jobs assume during execution. You can use the [Amazon SageMaker Role Manager](https://docs.aws.amazon.com/sagemaker/latest/dg/role-manager.html) to streamline the creation of the necessary roles.
 
@@ -120,14 +120,14 @@ git clone https://github.com/awslabs/graphstorm.git ~/graphstorm
 
 ### Download and prepare datasets
 
-In this example you will use two related datasets to demonstrate the scalability of GraphStorm. The Open Graph Benchmark (OGB) project hosts a number of graph datasets that can be used to benchmark the performance of graph learning systems. In this example you will use two citation network datasets, the ogbn-arxiv dataset for a small-scale demo, and the ogbn-papers100M dataset for a demonstration of GraphStorm's large-scale learning capabilities.
+The Open Graph Benchmark (OGB) project hosts a number of graph datasets that can be used to benchmark the performance of graph learning systems. In this example you will use two citation network datasets, the ogbn-arxiv dataset for a small-scale demo, and the ogbn-papers100M dataset for a demonstration of GraphStorm's large-scale learning capabilities.
 
 Because the two datasets have similar schemas and the same task (node classification) they allow us to emulate a typical data science pipeline, where we first do some model development and testing on a smaller dataset locally, and once ready launch SageMaker jobs to train on the full-scale data.
 
 
 #### Prepare the ogbn-arxiv dataset
 
-You'lll download the smaller-scale [ogbn-arxiv](https://ogb.stanford.edu/docs/nodeprop/#ogbn-arxiv) dataset to run a local test before launching larger scale SageMaker jobs on AWS. This dataset has ~170K nodes and ~1.2M edges.  You will use the following script to download the arxiv data and prepare them for GraphStorm.
+You'll download the smaller-scale [ogbn-arxiv](https://ogb.stanford.edu/docs/nodeprop/#ogbn-arxiv) dataset to run a local test before launching larger scale SageMaker jobs on AWS. This dataset has ~170K nodes and ~1.2M edges.  You will use the following script to download the arxiv data and prepare them for GraphStorm.
 
 
 ```bash
@@ -265,11 +265,11 @@ Next, you will create a SageMaker Pipeline to run the jobs that are necessary to
 
 ## Create SageMaker Pipeline
 
-In this section, you will create a [Sagemaker Pipeline](https://docs.aws.amazon.com/sagemaker/latest/dg/pipelines-overview.html) on AWS SageMaker.  The pipeline will run the following jobs in sequence:
+In this section, you will create a [Sagemaker Pipeline](https://docs.aws.amazon.com/sagemaker/latest/dg/pipelines-overview.html) on AWS SageMaker. The pipeline will run the following jobs in sequence:
 
 * Launch GConstruct Processing job. This prepares and partitions the data for distributed training..
 * Launch GraphStorm Training Job. This will train the model and create model output on S3.
-* Launch GraphStorm Inference Job. This will generate predictions and embeddings for every node in the input.
+* Launch GraphStorm Inference Job. This will generate predictions and embeddings for every node in the input graph.
 
 ```bash
 PIPELINE_NAME="ogbn-arxiv-gs-pipeline"
@@ -289,7 +289,7 @@ Running the above will create a SageMaker Pipeline configured to run 3 SageMaker
 * A GraphStorm training job that trains a node classification model and saves the model to S3.
 * A GraphStorm inference job that produces predictions for all nodes in the test set, and creates embeddings for all nodes.
 
-To review the pipeline, navigate to [SageMaker AI Studio](https://us-east-1.console.aws.amazon.com/sagemaker/home?region=us-east-1#/studio-landing) on the AWS Console,  select the domain and user profile you used to create the pipeline in the drop-down menus on the top right, then select **Open Studio**.
+To review the pipeline, navigate to [SageMaker AI Studio](https://us-east-1.console.aws.amazon.com/sagemaker/home?region=us-east-1#/studio-landing) on the AWS Console, select the domain and user profile you used to create the pipeline in the drop-down menus on the top right, then select **Open Studio**.
 
 On the left navigation menu, select **Pipelines**. There should be a pipeline named **ogbn-arxiv-gs-pipeline**. Select that, which will take you to the **Executions** tab for the pipeline. Select **Graph** to view the pipeline steps.
 
@@ -366,7 +366,7 @@ Note that these numbers will vary depending on your instance type.
 
 Now that you have established a baseline for performance you can create another pipeline that uses the GraphBolt graph representation to compare the performance.
 
-You can use the same pipeline creation script, but change two variables, providing a new pipeline name, and setting `USE_GRAPHBOLT` to `“true”`.
+You can use the same pipeline creation script, but change two variables, providing a new pipeline name, and setting `USE_GRAPHBOLT` to `“true”` as `--use-graphbolt true`.
 
 
 ```bash
@@ -385,7 +385,7 @@ python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --local-execution | tee arxiv-local-gb-logs.txt
 ```
 
-Analyzing the training logs you can see the per-epoch time has dropped somewhat:
+Analyzing the training logs you can see a noticeable reduction in per-epoch time:
 
 ```bash
 python analyze_training_time.py --log-file arxiv-local-gb-logs.txt

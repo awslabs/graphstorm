@@ -54,7 +54,7 @@ parse_params() {
 
     # check required params and arguments
     [[ -z "${ACCOUNT-}" ]] && die "Missing required parameter: -a/--account <aws-account-id>"
-    [[ -z "${BUCKET_NAME-}" ]] && die "Missing required parameter: -b/--bucket <s3-bucket>"
+    [[ -z "${BUCKET_NAME-}" ]] && die "Missing required parameter: -b/--bucket-name <s3-bucket>"
     [[ -z "${ROLE_ARN-}" ]] && die "Missing required parameter: -r/--execution-role <execution-role-arn>"
     [[ -z "${USE_GRAPHBOLT-}" ]] && die "Missing required parameter: -g/--use-graphbolt <true|false>"
 
