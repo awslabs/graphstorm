@@ -2,7 +2,7 @@
 
 GraphStorm is a low-code enterprise graph machine learning (ML) framework that provides ML practitioners a simple way of building, training and deploying graph ML solutions on industry-scale graph data. While GraphStorm can run efficiently on single instances for small graphs, it truly shines when scaling to enterprise-level graphs in distributed mode using a cluster of EC2 instances or Amazon SageMaker.
 
-GraphStorm 0.4 introduced integration with DGL-GraphBolt, a new graph storage and sampling framework that uses a compact graph representation and pipelined sampling to reduce memory requirements and speed up Graph Neural Network (GNN) training. In this example we'll show how GraphStorm 0.4 brings training and inference speedups of up to 3x on the papers100M dataset.
+GraphStorm 0.4 introduced integration with DGL-GraphBolt, a new graph storage and sampling framework that uses a compact graph representation and pipelined sampling to reduce memory requirements and speed up Graph Neural Network (GNN) training. In this example we'll show how GraphStorm 0.4 brings inference speedups of up to 4x, and per-epoch training speedup up to 2x on the papers100M dataset, with even larger speedups possible [1].
 
 In this example, you will:
 
@@ -538,3 +538,5 @@ Average evaluation time: 4.13 seconds
 Without loss in accuracy, the latest version of GraphStorm achieved a **~1.4x speedup per epoch, and a 3.6x speedup in evaluation time!**
 
 We encourage you to try out GraphStorm with GraphBolt enabled to see how it can benefit your large-scale graph learning use cases.
+
+[1] DGL team GraphBolt benchmarks: https://www.dgl.ai/release/2024/03/06/release.html
