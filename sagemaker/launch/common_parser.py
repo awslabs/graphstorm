@@ -52,8 +52,9 @@ def get_common_parser() -> argparse.ArgumentParser:
         default=1,
         help="number of instances")
     common_args.add_argument("--region", type=str,
-        default="us-west-2",
-        help="Region")
+        default=None,
+        help="AWS region to launch jobs in. Default is None, "
+        "which will rely on you AWS configuration to determine the region.")
     common_args.add_argument("--task-name", type=str,
         default=None, help="User defined SageMaker task name")
     common_args.add_argument("--sm-estimator-parameters", type=str,
