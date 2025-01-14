@@ -118,7 +118,6 @@ def run_job(input_args, image, unknownargs):
         role=role,
         instance_count=instance_count,
         instance_type=instance_type,
-        model_uri=model_artifact_s3,
         py_version="py3",
         base_job_name=prefix,
         hyperparameters=params,
