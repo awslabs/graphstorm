@@ -66,8 +66,6 @@ def run_job(input_args, image, unknowargs):
 
     container_image_uri = image
 
-    prefix = f"gs-train-{graph_name}"
-
     params = {
         "graph-data-s3": graph_data_s3,
         "graph-name": graph_name,
