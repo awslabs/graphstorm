@@ -94,6 +94,7 @@ Decoder Layer
     DenseBiDecoder
     MLPEdgeDecoder
     MLPEFeatEdgeDecoder
+    EdgeRegression
     LinkPredictMultiRelationLearnableDecoder
     LinkPredictDotDecoder
     LinkPredictContrastiveDotDecoder
@@ -101,3 +102,24 @@ Decoder Layer
     LinkPredictContrastiveDistMultDecoder
     LinkPredictRotatEDecoder
     LinkPredictContrastiveRotatEDecoder
+    LinkPredictWeightedRotatEDecoder
+    LinkPredictTransEDecoder
+    LinkPredictContrastiveTransEDecoder
+    LinkPredictWeightedTransEDecoder
+
+
+Loss Function
+----------------
+.. autosummary::
+    :toctree: ../generated/
+    :nosignatures:
+    :template: modeltemplate.rst
+
+    ClassifyLossFunc
+    FocalLossFunc
+    RegressionLossFunc
+    LinkPredictBCELossFunc
+    WeightedLinkPredictBCELossFunc
+    LinkPredictAdvBCELossFunc
+    WeightedLinkPredictAdvBCELossFunc
+    LinkPredictContrastiveLossFunc

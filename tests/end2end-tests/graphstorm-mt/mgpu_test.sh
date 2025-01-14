@@ -5,7 +5,6 @@ service ssh restart
 DGL_HOME=/root/dgl
 GS_HOME=$(pwd)
 NUM_TRAINERS=4
-NUM_INFO_TRAINERS=2
 NUM_INFERs=2
 export PYTHONPATH=$GS_HOME/python/
 cd $GS_HOME/training_scripts/gsgnn_mt
@@ -174,6 +173,34 @@ then
     exit -1
 fi
 
+bst_cnt=$(grep "Best Test reconstruct_edge_feat" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Test reconstruct_edge_feat"
+    exit -1
+fi
+
+cnt=$(grep "Test reconstruct_edge_feat" /tmp/train_log.txt | wc -l)
+if test $cnt -lt $((1+$bst_cnt))
+then
+    echo "We use SageMaker task tracker, we should have Test reconstruct_edge_feat"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Validation reconstruct_edge_feat" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Validation reconstruct_edge_feat"
+    exit -1
+fi
+
+cnt=$(grep "Validation reconstruct_edge_feat" /tmp/train_log.txt | wc -l)
+if test $cnt -lt $((1+$bst_cnt))
+then
+    echo "We use SageMaker task tracker, we should have Validation reconstruct_edge_feat"
+    exit -1
+fi
+
 cnt=$(ls -l /data/gsgnn_mt/ | grep epoch | wc -l)
 if test $cnt != 3
 then
@@ -331,6 +358,34 @@ then
     exit -1
 fi
 
+bst_cnt=$(grep "Best Test reconstruct_edge_feat" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Test reconstruct_edge_feat"
+    exit -1
+fi
+
+cnt=$(grep "Test reconstruct_edge_feat" /tmp/train_log.txt | wc -l)
+if test $cnt -lt $((1+$bst_cnt))
+then
+    echo "We use SageMaker task tracker, we should have Test reconstruct_edge_feat"
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Validation reconstruct_edge_feat" /tmp/train_log.txt | wc -l)
+if test $bst_cnt -lt 1
+then
+    echo "We use SageMaker task tracker, we should have Best Validation reconstruct_edge_feat"
+    exit -1
+fi
+
+cnt=$(grep "Validation reconstruct_edge_feat" /tmp/train_log.txt | wc -l)
+if test $cnt -lt $((1+$bst_cnt))
+then
+    echo "We use SageMaker task tracker, we should have Validation reconstruct_edge_feat"
+    exit -1
+fi
+
 cnt=$(ls -l /data/gsgnn_mt/ | grep epoch | wc -l)
 if test $cnt != 3
 then
@@ -361,11 +416,12 @@ then
     exit -1
 fi
 
-cnt=$(ls -l /data/gsgnn_mt/emb/ | wc -l)
-cnt=$[cnt - 1]
+cnt=$(find /data/gsgnn_mt/emb/ -maxdepth 1 -type d | wc -l)
+cnt=$(($cnt - 1))
 if test $cnt != 2
 then
     echo "The number of saved embs $cnt is not equal to 2 (for movie and user)."
+    exit 1
 fi
 
 echo "**************[Multi-task] dataset: Movielens, RGCN layer 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch load from saved model and train"
@@ -667,6 +723,34 @@ cnt=$(grep "Validation reconstruct_node_feat" /tmp/infer_log.txt | wc -l)
 if test $cnt != 2
 then
     echo "We use SageMaker task tracker, the number of Validation reconstruct_node_feat should be 2."
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Test reconstruct_edge_feat" /tmp/infer_log.txt | wc -l)
+if test $bst_cnt != 1
+then
+    echo "We use SageMaker task tracker, the number of Best Test reconstruct_edge_feat should be 1."
+    exit -1
+fi
+
+cnt=$(grep "Test reconstruct_edge_feat" /tmp/infer_log.txt | wc -l)
+if test $cnt != 2
+then
+    echo "We use SageMaker task tracker, the number of Test reconstruct_edge_feat should be 2."
+    exit -1
+fi
+
+bst_cnt=$(grep "Best Validation reconstruct_edge_feat" /tmp/infer_log.txt | wc -l)
+if test $bst_cnt != 1
+then
+    echo "We use SageMaker task tracker,the number of Best Validation reconstruct_edge_feat should be 1."
+    exit -1
+fi
+
+cnt=$(grep "Validation reconstruct_edge_feat" /tmp/infer_log.txt | wc -l)
+if test $cnt != 2
+then
+    echo "We use SageMaker task tracker, the number of Validation reconstruct_edge_feat should be 2."
     exit -1
 fi
 

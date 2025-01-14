@@ -1,9 +1,12 @@
-# Move to parent directory
-cd ../../
-
+#!/usr/bin/env bash
 set -ex
 
+# Move to repo root
+cd ../../
+
 pip install pylint==2.17.5
+
+pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/*.py
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/data/*.py
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/distributed/
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/dataloading/
@@ -20,3 +23,4 @@ pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/utils.py
 pylint --rcfile=./tests/lint/pylintrc ./tools/convert_feat_to_wholegraph.py
 
 pylint --rcfile=./tests/lint/pylintrc ./python/graphstorm/sagemaker/
+pylint --rcfile=./tests/lint/pylintrc  ./examples/sagemaker-pipelines-graphbolt/  --recursive y

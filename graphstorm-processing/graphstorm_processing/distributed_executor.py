@@ -54,11 +54,12 @@ import dataclasses
 import json
 import logging
 import os
+import re
 from pathlib import Path
 import tempfile
 import time
 from collections.abc import Mapping
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 import boto3
 import botocore
@@ -105,8 +106,8 @@ class ExecutorConfig:
         The filesystem type, can be LOCAL or S3
     add_reverse_edges : bool
         Whether to create reverse edges for each edge type.
-    graph_name: str
-        The name of the graph being processed
+    graph_name: str, optional
+        The name of the graph being processed. If not provided we use part of the input_prefix.
     do_repartition: bool
         Whether to apply repartitioning to the graph on the Spark leader.
     """
@@ -120,7 +121,7 @@ class ExecutorConfig:
     config_filename: str
     filesystem_type: FilesystemType
     add_reverse_edges: bool
-    graph_name: str
+    graph_name: Optional[str]
     do_repartition: bool
 
 
@@ -134,7 +135,7 @@ class GSProcessingArguments:
     num_output_files: int
     add_reverse_edges: bool
     log_level: str
-    graph_name: str
+    graph_name: Optional[str]
     do_repartition: bool
 
 
@@ -161,7 +162,14 @@ class DistributedExecutor:
         self.filesystem_type = executor_config.filesystem_type
         self.execution_env = executor_config.execution_env
         self.add_reverse_edges = executor_config.add_reverse_edges
-        self.graph_name = executor_config.graph_name
+        # We use the data location as the graph name if a name is not provided
+        if executor_config.graph_name:
+            self.graph_name = executor_config.graph_name
+        else:
+            derived_name = s3_utils.s3_path_remove_trailing(self.input_prefix).split("/")[-1]
+            logging.warning("Setting graph name derived from input path: %s", derived_name)
+            self.graph_name = derived_name
+        check_graph_name(self.graph_name)
         self.repartition_on_leader = executor_config.do_repartition
         # Input config dict using GSProcessing schema
         self.gsp_config_dict = {}
@@ -540,7 +548,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--graph-name",
         type=str,
-        help="Name for the graph being processed.",
+        help=(
+            "Name for the graph being processed."
+            "The graph name must adhere to the Python "
+            "identifier naming rules with the exception "
+            "that hyphens (-) are permitted and the name "
+            "can start with numbers. If not provided, we will use the last "
+            "section of the input prefix path."
+        ),
         required=False,
         default=None,
     )
@@ -562,6 +577,33 @@ def parse_args() -> argparse.Namespace:
     )
 
     return parser.parse_args()
+
+
+def check_graph_name(graph_name):
+    """Check whether the graph name is a valid graph name.
+
+        We enforce that the graph name adheres to the Python
+        identifier naming rules as in
+        https://docs.python.org/3/reference/lexical_analysis.html#identifiers,
+        with the exception that hyphens (-) are permitted
+        and the name can start with numbers.
+        This helps avoid the cases when an invalid graph name,
+        such as `/graph`, causes unexpected errors.
+
+        Note: Same as graphstorm.utils.check_graph_name.
+
+    Parameter
+    ---------
+    graph_name: str
+        Graph Name.
+    """
+    gname = re.sub(r"^\d+", "", graph_name)
+    assert gname.replace("-", "_").isidentifier(), (
+        "GraphStorm expects the graph name adheres to the Python"
+        "identifier naming rules with the exception that hyphens "
+        "(-) are permitted and the name can start with numbers. "
+        f"Got: {graph_name}"
+    )
 
 
 def main():

@@ -30,6 +30,7 @@ from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 from .config import BUILTIN_GNN_ENCODER
 from .config import BUILTIN_ENCODER
 from .config import SUPPORTED_BACKEND
+from .config import BUILTIN_EDGE_FEAT_MP_OPS
 from .config import (BUILTIN_LP_LOSS_FUNCTION,
                      BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_LP_LOSS_CONTRASTIVELOSS,
@@ -42,7 +43,8 @@ from .config import BUILTIN_TASK_EDGE_CLASSIFICATION
 from .config import BUILTIN_TASK_EDGE_REGRESSION
 from .config import (BUILTIN_TASK_LINK_PREDICTION,
                      LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL)
-from .config import BUILTIN_TASK_RECONSTRUCT_NODE_FEAT
+from .config import (BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                     BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
 from .config import BUILTIN_GNN_NORM
 from .config import EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY
 from .config import EARLY_STOP_AVERAGE_INCREASE_STRATEGY
@@ -83,7 +85,7 @@ def get_argument_parser():
     arugments in GraphStorm launch CLIs. Specifically, it will parses yaml config file first,
     and then parses arguments to overwrite parameters defined in the yaml file or add new
     parameters.
-    
+
     This ``get_argument_parser()`` is also useful when users want to convert customized models
     to use GraphStorm CLIs.
 
@@ -166,7 +168,7 @@ def get_argument_parser():
 # pylint: disable=no-member
 class GSConfig:
     """GSgnn configuration class.
-    
+
     GSConfig contains all GraphStorm model training and inference configurations, which can
     either be loaded from a yaml file specified in the ``--cf`` argument, or from CLI arguments.
     """
@@ -326,12 +328,12 @@ class GSConfig:
         return mask_fields, task_weight, batch_size
 
     def _parse_node_classification_task(self, task_config):
-        """ Parse the node classification task info
+        """ Parse the node classification task info.
 
         Parameters
         ----------
         task_config: dict
-            Node classification task config
+            Node classification task config.
         """
         task_type = BUILTIN_TASK_NODE_CLASSIFICATION
         mask_fields, task_weight, batch_size = \
@@ -359,12 +361,12 @@ class GSConfig:
                         task_config=task_info)
 
     def _parse_node_regression_task(self, task_config):
-        """ Parse the node regression task info
+        """ Parse the node regression task info.
 
         Parameters
         ----------
         task_config: dict
-            Node regression task config
+            Node regression task config.
         """
         task_type = BUILTIN_TASK_NODE_REGRESSION
         mask_fields, task_weight, batch_size = \
@@ -518,6 +520,39 @@ class GSConfig:
                         task_id=task_id,
                         task_config=task_info)
 
+    def _parse_reconstruct_edge_feat(self, task_config):
+        """ Parse the reconstruct edge feature task info
+
+        Parameters
+        ----------
+        task_config: dict
+            Reconstruct edge feature task config.
+        """
+        task_type = BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT
+        mask_fields, task_weight, batch_size = \
+            self._parse_general_task_config(task_config)
+        task_config["batch_size"] = batch_size
+
+        task_info = GSConfig.__new__(GSConfig)
+        task_info.set_task_attributes(task_config)
+        setattr(task_info, "_task_type", task_type)
+        task_info.verify_edge_feat_reconstruct_arguments()
+
+        target_etype = task_info.target_etype
+        label_field = task_info.reconstruct_efeat_name
+
+        task_id = get_mttask_id(task_type=task_type,
+                                etype=target_etype,
+                                label=label_field)
+        setattr(task_info, "train_mask", mask_fields[0])
+        setattr(task_info, "val_mask", mask_fields[1])
+        setattr(task_info, "test_mask", mask_fields[2])
+        setattr(task_info, "task_weight", task_weight)
+
+        return TaskInfo(task_type=task_type,
+                        task_id=task_id,
+                        task_config=task_info)
+
     def _parse_multi_tasks(self, multi_task_config):
         """ Parse multi-task configuration
 
@@ -582,6 +617,9 @@ class GSConfig:
             elif "reconstruct_node_feat" in task_config:
                 task = self._parse_reconstruct_node_feat(
                     task_config["reconstruct_node_feat"])
+            elif "reconstruct_edge_feat" in task_config:
+                task = self._parse_reconstruct_edge_feat(
+                    task_config["reconstruct_edge_feat"])
             else:
                 raise ValueError(f"Invalid task type in multi-task learning {task_config}.")
             tasks.append(task)
@@ -614,11 +652,21 @@ class GSConfig:
 
     def verify_node_feat_reconstruct_arguments(self):
         """Verify the correctness of arguments for node feature reconstruction tasks.
+
+            .. versionadded:: 0.4.0
         """
         _ = self.target_ntype
         _ = self.batch_size
         _ = self.eval_metric
         _ = self.reconstruct_nfeat_name
+
+    def verify_edge_feat_reconstruct_arguments(self):
+        """Verify the correctness of arguments for edge feature reconstruction tasks.
+        """
+        _ = self.target_etype
+        _ = self.batch_size
+        _ = self.eval_metric
+        _ = self.reconstruct_efeat_name
 
     def verify_node_class_arguments(self):
         """ Verify the correctness of arguments for node classification tasks.
@@ -709,6 +757,8 @@ class GSConfig:
 
         # Data
         _ = self.node_feat_name
+        _ = self.edge_feat_name
+        _ = self.edge_feat_mp_op
         _ = self.decoder_edge_feat
 
         # Evaluation
@@ -767,6 +817,7 @@ class GSConfig:
         _ = self.dropout
         _ = self.decoder_type
         _ = self.num_decoder_basis
+        _ = self.decoder_bias
         # Encoder related
         _ = self.construct_feat_ntype
         _ = self.construct_feat_encoder
@@ -778,6 +829,7 @@ class GSConfig:
             _ = self.input_activate
             _ = self.hidden_size
             _ = self.num_layers
+            _ = self.out_emb_size
             _ = self.use_self_loop
             _ = self.use_node_embeddings
             _ = self.num_bases
@@ -1215,21 +1267,99 @@ class GSConfig:
 
     @property
     def edge_feat_name(self):
-        """ User defined edge feature names. Not be impplemented in this version, but
-            reserved for future usage.
+        """ User provided edge feature names. Default is None.
+
+        .. versionchanged:: 0.4.0
+            The ``edge_feat_name`` property is supported.
+
+        It can be in the following formats:
+
+        - ``feat_name``: global feature name for all edge types, i.e., for any edge, its
+          corresponding feature name is <feat_name>.
+        - ``"etype0:feat0","etype1:feat0,feat1",...``: different edge types have
+          different edge features under different names. The edge type should be in a
+          canonical edge type, i.e., `src_node_type,relation_type,dst_node_type`.
+
+        This method parses given edge feature name list, and return either a string
+        corresponding a global feature name, or a dictionary corresponding different
+        edge types with diffent feature names.
         """
+        # pylint: disable=no-member
+        if hasattr(self, "_edge_feat_name"):
+            feat_names = self._edge_feat_name
+            if len(feat_names) == 1 and \
+                ":" not in feat_names[0]:
+                # global feat_name
+                return feat_names[0]
+
+            # per edge type feature
+            fname_dict = {}
+
+            for feat_name in feat_names:
+                feat_info = feat_name.split(":")
+                assert len(feat_info) == 2, \
+                        f"Unknown format of the feature name: {feat_name}, " + \
+                        "must be: etype:feat_name."
+                # check and convert canonical edge type string
+                assert isinstance(feat_info[0], str), \
+                    f"The edge type should be a string, but got {feat_info[0]}"
+                can_etype = tuple(item.strip() for item in feat_info[0].split(","))
+                assert len(can_etype) == 3, \
+                        f"Unknown format of the edge type {feat_info[0]}, must be: " + \
+                         "src_node_type,relation_type,dst_node_type."
+                assert can_etype not in fname_dict, \
+                        f"You already specify the feature names of {can_etype} " \
+                        f"as {fname_dict[can_etype]}."
+                assert isinstance(feat_info[1], str), \
+                    f"Feature name of {can_etype} should be a string, but got {feat_info[1]} " + \
+                    f"with type {type(feat_info[1])}."
+                # multiple features separated by ','
+                fname_dict[can_etype] = [item.strip() for item in feat_info[1].split(",")]
+            return fname_dict
+
+        # By default, return None which means there is no node feature
         return None
 
     @property
+    def edge_feat_mp_op(self):
+        """ The operation for using edge features during message passing computation.
+            Defaut is "concat".
+
+        .. versionadded:: 0.4.0
+            The ``edge_feat_mp_op`` argument.
+
+            GraphStorm supports five message passing operations for edge features, including:
+
+            - "concat":concatinate the source node feature with the edge feauture together,
+              and then pass them to the destination node.
+            - "add":add the source node feature with the edge feauture together,
+              and then pass them to the destination node.
+            - "sub":substract the edge feauture from the source node feature,
+              and then pass them to the destination node.
+            - "mul":multiple the source node feature with the edge feauture,
+              and then pass them to the destination node.
+            - "div":divid the source node feature by the edge feauture together,
+              and then pass them to the destination node.
+
+        """
+        # pylint: disable=no-member
+        if not hasattr(self, "_edge_feat_mp_op"):
+            return "concat"
+        assert self._edge_feat_mp_op in BUILTIN_EDGE_FEAT_MP_OPS, \
+            "The edge feature message passing operation must be one of " + \
+            f"{BUILTIN_EDGE_FEAT_MP_OPS}, but got {self._edge_feat_mp_op}."
+        return self._edge_feat_mp_op
+
+    @property
     def node_feat_name(self):
-        """ User defined node feature name. Default is None.
-         
-        It can be in following format:
-        
-        - ``feat_name``: global feature name, if a node has node feature, the corresponding
-          feature name is <feat_name>.
-        - ``"ntype0:feat0","ntype1:feat0,feat1",...``: different node types  have different
-          node features.
+        """ User provided node feature name. Default is None.
+
+        It can be in the following formats:
+
+        - ``feat_name``: global feature name for all node types, i.e., for any node, its
+          corresponding feature name is <feat_name>.
+        - ``"ntype0:feat0","ntype1:feat0,feat1",...``: different node types have different
+          node features with different names.
         """
         # pylint: disable=no-member
         if hasattr(self, "_node_feat_name"):
@@ -1246,7 +1376,7 @@ class GSConfig:
                 feat_info = feat_name.split(":")
                 assert len(feat_info) == 2, \
                         f"Unknown format of the feature name: {feat_name}, " + \
-                        "must be NODE_TYPE:FEAT_NAME"
+                        "must be NODE_TYPE:FEAT_NAME."
                 ntype = feat_info[0]
                 assert ntype not in fname_dict, \
                         f"You already specify the feature names of {ntype} " \
@@ -1291,16 +1421,16 @@ class GSConfig:
     def fanout(self):
         """ The fanouts of GNN layers. The values of fanouts must be integers larger
             than 0. The number of fanouts must equal to ``num_layers``. Must provide.
-            
-            It accepts two formats: 
-            
+
+            It accepts two formats:
+
             - ``20,10``, which defines the number of neighbors
             to sample per edge type for each GNN layer with the i_th element being the
             fanout for the ith GNN layer.
-            
+
             - "etype2:20@etype3:20@etype1:10,etype2:10@etype3:4@etype1:2", which defines
             the numbers of neighbors to sample for different edge types for each GNN layers
-            with the i_th element being the fanout for the i_th GNN layer. 
+            with the i_th element being the fanout for the i_th GNN layer.
         """
         # pylint: disable=no-member
         if self.model_encoder_type in BUILTIN_GNN_ENCODER:
@@ -1415,6 +1545,25 @@ class GSConfig:
             return 0
 
     @property
+    def out_emb_size(self):
+        """ The dimension of embeddings output from the last GNN layer. It will be ignored when
+            num_layers <= 1. Must be an integer larger than 0.
+            Default is None.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_out_emb_size"):
+            if self._num_layers <= 1:
+                logging.warning("The out_emb_size is ignored given num_layers <= 1.")
+                return None
+            assert isinstance(self._out_emb_size, int), \
+                "Output embedding size must be an integer."
+            assert self._out_emb_size > 0, \
+                "Output embedding size must be larger than 0."
+            return self._out_emb_size
+        else:
+            return None
+
+    @property
     def use_mini_batch_infer(self):
         """ Whether to do mini-batch inference or full graph inference. Default is
             False for link prediction, and True for other tasks.
@@ -1440,7 +1589,7 @@ class GSConfig:
 
     @property
     def gnn_norm(self):
-        """ Normalization method for GNN layers. Options include ``batch`` or ``layer``. 
+        """ Normalization method for GNN layers. Options include ``batch`` or ``layer``.
             Default is None.
         """
         # pylint: disable=no-member
@@ -1602,6 +1751,18 @@ class GSConfig:
 
     ###################### Model training related ######################
     @property
+    def decoder_bias(self):
+        """ Decoder bias. decoder_bias must be a boolean. Default is True.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_decoder_bias"):
+            assert self._decoder_bias in [True, False], \
+                "decoder_bias should be in [True, False]"
+            return self._decoder_bias
+        # By default, decoder bias is True
+        return True
+
+    @property
     def dropout(self):
         """ Dropout probability. Dropout must be a float value in [0,1). Dropout is applied
             to every GNN layer. Default is 0.
@@ -1616,7 +1777,7 @@ class GSConfig:
     @property
     # pylint: disable=invalid-name
     def lr(self):
-        """ Learning rate for dense parameters of input encoders, model encoders, 
+        """ Learning rate for dense parameters of input encoders, model encoders,
             and decoders. Must provide.
         """
         assert hasattr(self, "_lr"), "Learning rate must be specified"
@@ -1723,7 +1884,12 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_wd_l2norm"):
-            return self._wd_l2norm
+            try:
+                wd_l2norm = float(self._wd_l2norm)
+            except:
+                raise ValueError("wd_l2norm must be a floating point " \
+                                 f"but get {self._wd_l2norm}")
+            return wd_l2norm
         return 0
 
     @property
@@ -1735,7 +1901,12 @@ class GSConfig:
         """
         # pylint: disable=no-member
         if hasattr(self, "_alpha_l2norm"):
-            return self._alpha_l2norm
+            try:
+                alpha_l2norm = float(self._alpha_l2norm)
+            except:
+                raise ValueError("alpha_l2norm must be a floating point " \
+                                 f"but get {self._alpha_l2norm}")
+            return alpha_l2norm
         return .0
 
     @property
@@ -1825,7 +1996,7 @@ class GSConfig:
 
     @property
     def early_stop_strategy(self):
-        """ The strategy used to decide if stop training early. GraphStorm supports two 
+        """ The strategy used to decide if stop training early. GraphStorm supports two
             strategies: 1) ``consecutive_increase``, and 2) ``average_increase``.
             Default is ``average_increase``.
         """
@@ -1843,7 +2014,7 @@ class GSConfig:
 
     @property
     def use_early_stop(self):
-        """ Whether to use early stopping during training. Default is False. 
+        """ Whether to use early stopping during training. Default is False.
         """
         # pylint: disable=no-member
         if hasattr(self, "_use_early_stop"):
@@ -1954,7 +2125,7 @@ class GSConfig:
     def multilabel_weights(self):
         """Used to specify label weight of each class in a multi-label classification task.
             It is feed into ``th.nn.BCEWithLogitsLoss`` as ``pos_weight``.
-             
+
             The weights should be in the following format 0.1,0.2,0.3,0.1,0.0, ...
             Default is None.
         """
@@ -2182,7 +2353,7 @@ class GSConfig:
             Default is True.
 
             If set to True, Graphstorm will set the fanout of training target edge
-            type as zero. This is only used with edge classification. 
+            type as zero. This is only used with edge classification.
             If the edge classification is to predict the existence of an edge between
             two nodes, GraphStorm should remove the target edge in the message passing to
             avoid information leak. If it's to predict some attributes associated with
@@ -2205,7 +2376,7 @@ class GSConfig:
 
     @property
     def decoder_type(self):
-        """ The type of edge clasification or regression decoders. Built-in decoders include 
+        """ The type of edge clasification or regression decoders. Built-in decoders include
             ``DenseBiDecoder`` and ``MLPDecoder``. Default is ``DenseBiDecoder``.
         """
         # pylint: disable=no-member
@@ -2265,7 +2436,7 @@ class GSConfig:
     ### Link Prediction specific ###
     @property
     def train_negative_sampler(self):
-        """ The negative sampler used for link prediction training. 
+        """ The negative sampler used for link prediction training.
             Built-in samplers include ``uniform``, ``joint``, ``localuniform``,
             ``all_etype_uniform`` and ``all_etype_joint``. Default is ``uniform``.
         """
@@ -2276,7 +2447,7 @@ class GSConfig:
 
     @property
     def eval_negative_sampler(self):
-        """ The negative sampler used for link prediction training. 
+        """ The negative sampler used for link prediction training.
             Built-in samplers include ``uniform``, ``joint``, ``localuniform``,
             ``all_etype_uniform`` and ``all_etype_joint``. Default is ``joint``.
         """
@@ -2316,8 +2487,8 @@ class GSConfig:
     @property
     def lp_decoder_type(self):
         """ The decoder type for loss function in link prediction tasks.
-            Currently GraphStorm supports ``dot_product``, ``distmult`` and ``rotate``.
-            Default is ``distmult``.
+            Currently GraphStorm supports ``dot_product``, ``distmult``,
+            ``transe`` (``transe_l1`` and ``transe_l2``), and ``rotate``. Default is ``distmult``.
         """
         # pylint: disable=no-member
         if hasattr(self, "_lp_decoder_type"):
@@ -2379,10 +2550,10 @@ class GSConfig:
             positive edge loss for link prediction tasks. Default is None.
 
             The edge_weight can be in following format:
-            
+
             - ``weight_name``: global weight name, if an edge has weight,
             the corresponding weight name is ``weight_name``.
-            
+
             - ``"src0,rel0,dst0:weight0","src0,rel0,dst0:weight1",...``:
             different edge types have different edge weights.
         """
@@ -2450,7 +2621,7 @@ class GSConfig:
 
     @property
     def train_etypes_negative_dstnode(self):
-        """ The list of canonical edge types that have hard negative edges 
+        """ The list of canonical edge types that have hard negative edges
             constructed by corrupting destination nodes during training.
 
             For each edge type to use different fields to store the hard negatives,
@@ -2458,13 +2629,13 @@ class GSConfig:
 
             .. code:: json
 
-                train_etypes_negative_dstnode: 
+                train_etypes_negative_dstnode:
                     - src_type,rel_type0,dst_type:negative_nid_field
                     - src_type,rel_type1,dst_type:negative_nid_field
-              
+
             or, for all edge types to use the same field to store the hard negatives,
             the format of the arguement is:
-            
+
             .. code:: json
 
                 train_etypes_negative_dstnode:
@@ -2482,7 +2653,7 @@ class GSConfig:
 
     @property
     def num_train_hard_negatives(self):
-        """ Number of hard negatives to sample for each edge type during training. 
+        """ Number of hard negatives to sample for each edge type during training.
             Default is None.
 
             For each edge type to have a number of hard negatives,
@@ -2496,7 +2667,7 @@ class GSConfig:
 
             or, for all edge types to have the same number of hard negatives,
             the format of the arguement is:
-            
+
             .. code:: json
 
                 num_train_hard_negatives:
@@ -2533,7 +2704,7 @@ class GSConfig:
 
     @property
     def eval_etypes_negative_dstnode(self):
-        """ The list of canonical edge types that have hard negative edges 
+        """ The list of canonical edge types that have hard negative edges
             constructed by corrupting destination nodes during evaluation.
 
             For each edge type to use different fields to store the hard negatives,
@@ -2541,13 +2712,13 @@ class GSConfig:
 
             .. code:: json
 
-                eval_etypes_negative_dstnode: 
+                eval_etypes_negative_dstnode:
                     - src_type,rel_type0,dst_type:negative_nid_field
                     - src_type,rel_type1,dst_type:negative_nid_field
-              
+
             or, for all edge types to use the same field to store the hard negatives,
             the format of the arguement is:
-            
+
             .. code:: json
 
                 eval_etypes_negative_dstnode:
@@ -2565,7 +2736,7 @@ class GSConfig:
 
     @property
     def train_etype(self):
-        """ The list of canonical edge types that will be added as training target. 
+        """ The list of canonical edge types that will be added as training target.
             If not provided, all edge types will be used as training target. A canonical
             edge type should be formatted as ``src_node_type,relation_type,dst_node_type``.
         """
@@ -2582,7 +2753,7 @@ class GSConfig:
 
     @property
     def eval_etype(self):
-        """ The list of canonical edge types that will be added as evaluation target. 
+        """ The list of canonical edge types that will be added as evaluation target.
             If not provided, all edge types will be used as evaluation target. A canonical
             edge type should be formatted as ``src_node_type,relation_type,dst_node_type``.
         """
@@ -2638,7 +2809,7 @@ class GSConfig:
 
     @property
     def class_loss_func(self):
-        """ Classification loss function. Builtin loss functions include 
+        """ Classification loss function. Builtin loss functions include
             ``cross_entropy`` and ``focal``. Default is ``cross_entropy``.
         """
         # pylint: disable=no-member
@@ -2652,7 +2823,7 @@ class GSConfig:
 
     @property
     def lp_loss_func(self):
-        """ Link prediction loss function. Builtin loss functions include 
+        """ Link prediction loss function. Builtin loss functions include
             ``cross_entropy`` and ``contrastive``. Default is ``cross_entropy``.
         """
         # pylint: disable=no-member
@@ -2761,7 +2932,8 @@ class GSConfig:
             else:
                 eval_metric = ["accuracy"]
         elif self.task_type in [BUILTIN_TASK_NODE_REGRESSION, \
-            BUILTIN_TASK_EDGE_REGRESSION, BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
+            BUILTIN_TASK_EDGE_REGRESSION, BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+            BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
             if hasattr(self, "_eval_metric"):
                 if isinstance(self._eval_metric, str):
                     eval_metric = self._eval_metric.lower()
@@ -2784,7 +2956,8 @@ class GSConfig:
                         "should be a string or a list of string"
                     # no eval_metric
             else:
-                if self.task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT:
+                if self.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                                      BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
                     eval_metric = ["mse"]
                 else:
                     eval_metric = ["rmse"]
@@ -2901,8 +3074,27 @@ class GSConfig:
         """ node feature name for reconstruction
         """
         assert hasattr(self, "_reconstruct_nfeat_name"), \
-            "reconstruct_nfeat_name must be provided under reconstruct_node_feat task "
+            "reconstruct_nfeat_name must be provided for reconstruct_node_feat tasks(s)."
+        assert isinstance(self._reconstruct_nfeat_name, str), \
+            "The name of the node feature for reconstruction must be a string." \
+            "For a node feature reconstruction task, it only " \
+            "reconstruct one node feature on one node type."
         return self._reconstruct_nfeat_name
+
+    ################## Reconstruct edge feats ###############
+    @property
+    def reconstruct_efeat_name(self):
+        """ edge feature name for reconstruction
+
+            .. versionadded:: 0.4.0
+        """
+        assert hasattr(self, "_reconstruct_efeat_name"), \
+            "reconstruct_efeat_name must be provided for reconstruct_edge_feat task(s)."
+        assert isinstance(self._reconstruct_efeat_name, str), \
+            "The name of the edge feature for reconstruction must be a string." \
+            "For a edge feature reconstruction task, it only " \
+            "reconstruct one edge feature on one edge type."
+        return self._reconstruct_efeat_name
 
     ################## Multi task learning ##################
     @property
@@ -2970,6 +3162,16 @@ def _add_gnn_args(parser):
             "the corresponding feature name is <feat_name>"
             "2)'--node-feat-name ntype0:feat0,feat1 ntype1:feat0,feat1 ...': "
             "different node types have different node features.")
+    group.add_argument("--edge-feat-name", nargs='+', type=str, default=argparse.SUPPRESS,
+            help="Edge feature field name. It can be in following format: "
+            "1) '--edge-feat-name feat_name': global feature name, "
+            "if an edge has feature,"
+            "the corresponding feature name is <feat_name>"
+            "2)'--edge-feat-name etype0:feat0 etype1:feat0,feat1,...': "
+            "different edge types have different edge features.")
+    group.add_argument("--edge-feat-mp-op", type=str, default=argparse.SUPPRESS,
+            help="The operation for using edge feature in message passing computation."
+                      "Supported operations include {BUILTIN_EDGE_FEAT_MP_OPS}")
     group.add_argument("--fanout", type=str, default=argparse.SUPPRESS,
             help="Fan-out of neighbor sampling. This argument can either be --fanout 20,10 or "
                  "--fanout etype2:20@etype3:20@etype1:20,etype2:10@etype3:4@etype1:2"
@@ -3045,6 +3247,11 @@ def _add_hyperparam_args(parser):
     group = parser.add_argument_group(title="hp")
     group.add_argument("--dropout", type=float, default=argparse.SUPPRESS,
             help="dropout probability")
+    group.add_argument(
+            "--decoder-bias",
+            type=lambda x: (str(x).lower() in ['true', '1']),
+            default=argparse.SUPPRESS,
+            help="Whether to use decoder bias")
     group.add_argument("--gnn-norm", type=str, default=argparse.SUPPRESS, help="norm type")
     group.add_argument("--lr", type=float, default=argparse.SUPPRESS,
             help="learning rate")

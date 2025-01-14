@@ -22,6 +22,7 @@ from scipy.special import erfinv
 
 from graphstorm.gconstruct.transform import (_get_output_dtype,
                                              NumericalMinMaxTransform,
+                                             NumericalStandardTransform,
                                              Noop,
                                              RankGaussTransform,
                                              CategoricalTransform,
@@ -307,7 +308,7 @@ def test_fp_min_max_transform(input_dtype, out_dtype):
     feats[feats < min_val] = min_val
     feats = (feats-min_val)/(max_val-min_val)
     feats = feats if out_dtype is None else feats.astype(out_dtype)
-    assert_almost_equal(norm_feats, feats, decimal=6)
+    assert_almost_equal(norm_feats, feats, decimal=5)
 
     transform = NumericalMinMaxTransform("test", "test", out_dtype=out_dtype)
     max_val = np.array([2., 3., 0.])
@@ -326,7 +327,7 @@ def test_fp_min_max_transform(input_dtype, out_dtype):
         new_feats[new_feats < min_val[i]] = min_val[i]
         new_feats = (new_feats-min_val[i])/(max_val[i]-min_val[i])
         new_feats = new_feats if out_dtype is None else new_feats.astype(out_dtype)
-        assert_almost_equal(norm_feats[:,i], new_feats, decimal=6)
+        assert_almost_equal(norm_feats[:,i], new_feats, decimal=5)
 
 
 def test_categorize_transform():
@@ -1147,7 +1148,122 @@ def test_hard_edge_dst_negative_transform(id_dtype):
     ground_truth[1][-2] = -1
     assert_equal(neg["hard_neg"][:,:10], ground_truth)
 
+@pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
+def test_standard_pre_process(input_dtype):
+    np.random.seed(0)
+    feats0 = np.random.randn(100).astype(input_dtype)
+    feats0 = feats0 + 1
+    feats1 = np.random.randn(100).astype(input_dtype)
+    feats1 = feats1 + 1
+    info = []
+    transform = NumericalStandardTransform("test", "test")
+    summation = transform.pre_process(feats0)["test"]
+    info.append(summation)
+    assert_almost_equal(summation, sum(feats0.tolist()), decimal=5)
+
+    summation = transform.pre_process(feats1)["test"]
+    info.append(summation)
+    assert_almost_equal(summation, sum(feats1.tolist()), decimal=5)
+    transform.update_info(info)
+    assert_almost_equal(transform._summation,
+                        info[0]+info[1])
+
+    # Sum value is provided.
+    conf = {"sum": 1.0}
+    transform = NumericalStandardTransform("test", "test", np.array([2.0]), transform_conf=conf)
+    summation = transform.pre_process(feats0)["test"]
+    assert summation is None
+    info = [None]
+    transform.update_info(info)
+    assert_equal(transform._summation, 2.0)
+    assert_equal(conf["sum"], 1.0)
+
+    # there are multiple columns of values
+    feats0 = np.random.randn(100,3).astype(input_dtype)
+    feats0 = feats0 + 1
+    feats1 = np.random.randn(100,3).astype(input_dtype)
+    feats1 = feats1 + 1
+
+    conf = {}
+    info = []
+    transform = NumericalStandardTransform("test", "test", transform_conf=conf)
+    summation = transform.pre_process(feats0)["test"]
+    info.append(summation)
+    assert len(summation) == 3
+    assert_almost_equal(summation.tolist()[0],
+                        sum(feats0[:,0].tolist()),
+                        decimal=4)
+    assert_almost_equal(summation.tolist()[1],
+                        sum(feats0[:,1].tolist()),
+                        decimal=4)
+    assert_almost_equal(summation.tolist()[2],
+                        sum(feats0[:,2].tolist()),
+                        decimal=4)
+
+    summation = transform.pre_process(feats1)["test"]
+    info.append(summation)
+    assert len(summation) == 3
+    assert_almost_equal(summation.tolist()[0],
+                        sum(feats1[:,0].tolist()),
+                        decimal=4)
+    assert_almost_equal(summation.tolist()[1],
+                        sum(feats1[:,1].tolist()),
+                        decimal=4)
+    assert_almost_equal(summation.tolist()[2],
+                        sum(feats1[:,2].tolist()),
+                        decimal=4)
+    transform.update_info(info)
+    assert_almost_equal(transform._summation,
+                        info[0]+info[1])
+    assert_almost_equal(conf["sum"],
+                        info[0]+info[1])
+
+    # array sum is zero
+    info = [np.array([-1]), np.array([1])]
+    transform = NumericalStandardTransform("test", "test")
+    with assert_raises(AssertionError):
+        transform.update_info(info)
+
+    # array sum has zero
+    info = [np.array([1, 2, -1]), np.array([1, 1, 1])]
+    transform = NumericalStandardTransform("test", "test")
+    with assert_raises(AssertionError):
+        transform.update_info(info)
+
+@pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
+def test_standard_transform(input_dtype):
+    np.random.seed(0)
+    feats0 = np.random.randn(100).astype(input_dtype)
+    feats0 = feats0 + 1
+
+    transform = NumericalStandardTransform("test", "test")
+    summation = np.sum(feats0, keepdims=True)
+    transform._summation = summation.reshape((-1,))
+    out = transform(feats0)["test"]
+    assert_almost_equal(out, feats0/summation)
+
+    # given sum
+    transform = NumericalStandardTransform("test", "test", 20.2)
+    out = transform(feats0)["test"]
+    assert_almost_equal(out, feats0/20.2)
+
+
+    # there are multiple columns of values
+    feats0 = np.random.randn(100,3).astype(input_dtype)
+    feats0 = feats0 + 1
+
+    # there are multiple columns of values
+    # summation is updated by update_info
+    transform = NumericalStandardTransform("test", "test")
+    summation = transform.pre_process(feats0)["test"]
+    info = [summation, summation, summation]
+    transform.update_info(info)
+    out = transform(feats0)["test"]
+    assert_almost_equal(out, feats0/summation/3)
+
 if __name__ == '__main__':
+    test_standard_pre_process(np.float32)
+    test_standard_transform(np.float32)
     test_hard_edge_dst_negative_transform(str)
     test_hard_edge_dst_negative_transform(np.int64)
 

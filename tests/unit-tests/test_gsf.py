@@ -12,10 +12,13 @@
 
     Unit tests for gsf.py
 """
+import pytest
 
-from graphstorm.gsf import (create_builtin_node_decoder,
+from graphstorm.gsf import (get_edge_feat_size,
+                            create_builtin_node_decoder,
                             create_builtin_edge_decoder,
                             create_builtin_lp_decoder)
+from graphstorm.utils import check_graph_name
 from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
@@ -72,7 +75,8 @@ def test_create_builtin_node_decoder():
             "class_loss_func": BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
             "multilabel_weights": None,
             "decoder_norm": None,
-            "imbalance_class_weights": None
+            "imbalance_class_weights": None,
+            "decoder_bias": False,
         }
     )
 
@@ -92,6 +96,7 @@ def test_create_builtin_node_decoder():
             "imbalance_class_weights": None,
             "alpha": None,
             "gamma": None,
+            "decoder_bias": False,
         }
     )
     decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
@@ -123,7 +128,8 @@ def test_create_builtin_node_decoder():
                 "n0": None,
                 "n1": None
             },
-            "decoder_norm": None
+            "decoder_norm": None,
+            "decoder_bias": False,
         }
     )
     decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
@@ -155,6 +161,7 @@ def test_create_builtin_node_decoder():
             "decoder_norm": None,
             "alpha": 0.3,
             "gamma": 3.,
+            "decoder_bias": False,
         }
     )
     decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
@@ -171,13 +178,13 @@ def test_create_builtin_node_decoder():
     config = GSTestConfig(
         {
             "task_type": BUILTIN_TASK_NODE_REGRESSION,
-            "decoder_norm": None
+            "decoder_norm": None,
+            "decoder_bias": False,
         }
     )
     decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
     assert isinstance(decoder, EntityRegression)
     assert isinstance(loss_func, RegressionLossFunc)
-
 
 def test_create_builtin_edge_decoder():
     g = None
@@ -198,6 +205,7 @@ def test_create_builtin_edge_decoder():
             "num_ffn_layers_in_decoder": 0,
             "multilabel_weights": None,
             "imbalance_class_weights": None,
+            "decoder_bias": True,
         }
     )
     decoder, loss_func = create_builtin_edge_decoder(g, decoder_input_dim, config, train_task)
@@ -218,6 +226,7 @@ def test_create_builtin_edge_decoder():
             "num_ffn_layers_in_decoder": 0,
             "alpha": None,
             "gamma": None,
+            "decoder_bias": True,
         }
     )
     decoder, loss_func = create_builtin_edge_decoder(g, decoder_input_dim, config, train_task)
@@ -239,6 +248,7 @@ def test_create_builtin_edge_decoder():
             "num_ffn_layers_in_decoder": 0,
             "alpha": 0.3,
             "gamma": 3.,
+            "decoder_bias": True,
         }
     )
     decoder, loss_func = create_builtin_edge_decoder(g, decoder_input_dim, config, train_task)
@@ -256,6 +266,7 @@ def test_create_builtin_edge_decoder():
             "decoder_type": "DenseBiDecoder",
             "num_decoder_basis": 2,
             "decoder_norm": None,
+            "decoder_bias": False,
         }
     )
     decoder, loss_func = create_builtin_edge_decoder(g, decoder_input_dim, config, train_task)
@@ -271,6 +282,7 @@ def test_create_builtin_edge_decoder():
             "decoder_type": "MLPDecoder",
             "num_ffn_layers_in_decoder": 0,
             "decoder_norm": None,
+            "decoder_bias": False,
         }
     )
     decoder, loss_func = create_builtin_edge_decoder(g, decoder_input_dim, config, train_task)
@@ -448,8 +460,97 @@ def test_create_builtin_lp_decoder():
     assert isinstance(loss_func, LinkPredictContrastiveLossFunc)
     assert decoder.gamma == 6.
 
+def test_check_graph_name():
+    graph_name = "a"
+    check_graph_name(graph_name)
+    graph_name = "graph_name"
+    check_graph_name(graph_name)
+    graph_name = "graph-name"
+    check_graph_name(graph_name)
+    graph_name = "123-graph-name"
+    check_graph_name(graph_name)
+    graph_name = "_Graph-name"
+    check_graph_name(graph_name)
+
+    # test with invalid graph name
+    graph_name = "/graph_name"
+    with pytest.raises(AssertionError):
+        check_graph_name(graph_name)
+
+    graph_name = "|graph_name"
+    with pytest.raises(AssertionError):
+        check_graph_name(graph_name)
+
+    graph_name = "\graph_name"
+    with pytest.raises(AssertionError):
+        check_graph_name(graph_name)
+
+def test_get_edge_feat_size():
+    g = generate_dummy_hetero_graph()
+
+    # Test case 0: normal edge feature names
+    edge_feat_names1 = 'feat'
+    edge_feat_size = get_edge_feat_size(g, edge_feat_names1)
+
+    assert edge_feat_size[("n0", "r0", "n1")] == 2
+    assert edge_feat_size[("n0", "r1", "n1")] == 2
+
+    edge_feat_names1 = {
+        ("n0", "r0", "n1"): ['feat'],
+        ("n0", "r1", "n1"): ['feat']
+    }
+    edge_feat_size = get_edge_feat_size(g, edge_feat_names1)
+
+    assert edge_feat_size[("n0", "r0", "n1")] == 2
+    assert edge_feat_size[("n0", "r1", "n1")] == 2
+    
+    # Test case 1: None edge feature names
+    edge_feat_size = get_edge_feat_size(g, None)
+    assert edge_feat_size[("n0", "r0", "n1")] == 0
+    assert edge_feat_size[("n0", "r1", "n1")] == 0
+
+    # Test case 2: Partial edge feature names
+    edge_feat_names2 = {
+        ("n0", "r0", "n1"): ['feat']
+    }
+    edge_feat_size = get_edge_feat_size(g, edge_feat_names2)
+    assert edge_feat_size[("n0", "r0", "n1")] == 2
+    assert edge_feat_size[("n0", "r1", "n1")] == 0
+
+    # Test case 3: non 2D edge feature error
+    edge_feat_names3 = {
+        ("n0", "r1", "n1"): ['feat', 'label']
+    }
+    try:
+        edge_feat_size = get_edge_feat_size(g, edge_feat_names3)
+    except:
+        edge_feat_size = None
+    assert edge_feat_size is None
+
+    # Test case 4: non-existing edge feature names, should raise assertion errors.
+    edge_feat_names4 = {
+        ("n0", "r0", "n1"): ['none']
+    }
+    try:
+        edge_feat_size = get_edge_feat_size(g, edge_feat_names4)
+    except:
+        edge_feat_size = {}
+    assert edge_feat_size == {}
+    
+    # Test case 5: non-existing edge types, should raise assertion errors.
+    edge_feat_names5 = {
+        ("n0", "r2", "n1"): ['feat']
+    }
+    try:
+        edge_feat_size = get_edge_feat_size(g, edge_feat_names5)
+    except:
+        edge_feat_size = {}
+    assert edge_feat_size == {}
+
 
 if __name__ == '__main__':
+    test_check_graph_name()
     test_create_builtin_node_decoder()
     test_create_builtin_edge_decoder()
     test_create_builtin_lp_decoder()
+    test_get_edge_feat_size()

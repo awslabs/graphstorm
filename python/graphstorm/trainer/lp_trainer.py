@@ -22,6 +22,7 @@ import torch as th
 from torch.nn.parallel import DistributedDataParallel
 import dgl
 
+from ..eval.evaluator import GSgnnLPRankingEvalInterface
 from ..model.lp_gnn import GSgnnLinkPredictionModelInterface
 from ..model.lp_gnn import lp_mini_batch_predict
 from ..model.gnn_with_reconstruct import GNNEncoderWithReconstructedEmbed
@@ -81,9 +82,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 "The input model is not an edge model. Please implement GSgnnEdgeModelBase."
 
     def fit(self, train_loader, num_epochs,
-            val_loader=None,            # pylint: disable=unused-argument
-            test_loader=None,           # pylint: disable=unused-argument
-            use_mini_batch_infer=True,      # pylint: disable=unused-argument
+            val_loader=None,
+            test_loader=None,
+            use_mini_batch_infer=True,
             save_model_path=None,
             save_model_frequency=-1,
             save_perf_results_path=None,
@@ -96,7 +97,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         This function performs the training for the given link prediction model.
         It iterates over the training batches provided by the ``train_loader``
         to compute the loss, and then performs the backward steps using trainer's
-        own optimizer. 
+        own optimizer.
 
         If an evaluator and a validation dataloader are added to this trainer, during
         training, the trainer will perform model evaluation in three cases:
@@ -122,7 +123,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
             save model checkpoints.
             Default: None.
         save_model_frequency: int
-            The number of iterations to train the model before saving a model checkpoint. 
+            The number of iterations to train the model before saving a model checkpoint.
             Default: -1, meaning only save model after each epoch.
         save_perf_results_path: str
             The path of the file where the performance results are saved. Default: None.
@@ -200,7 +201,11 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                     assert len(pos_graph.ntypes) == 1
                     input_nodes = {pos_graph.ntypes[0]: input_nodes}
                 nfeat_fields = train_loader.node_feat_fields
-                input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
+                node_input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
+                # Since v0.4, add edge features as one input
+                efeat_fields = train_loader.edge_feat_fields
+                edge_input_feats = data.get_blocks_edge_feats(blocks, efeat_fields, device)
+
                 if train_loader.pos_graph_edge_feat_fields is not None:
                     input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
                         for etype in pos_graph.canonical_etypes}
@@ -216,10 +221,9 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                 blocks = [blk.to(device) for blk in blocks]
                 rt_profiler.record('train_graph2GPU')
 
-                # TODO(zhengda) we don't support edge features for now.
                 loss = model(blocks, pos_graph, neg_graph,
-                             node_feats=input_feats,
-                             edge_feats=None,
+                             node_feats=node_input_feats,
+                             edge_feats=edge_input_feats,
                              pos_edge_feats=pos_graph_feats,
                              input_nodes=input_nodes)
                 rt_profiler.record('train_forward')
@@ -346,7 +350,7 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
         Returns
         -------
         val_score: dict
-            Validation scores of differnet metrics in the format of {metric: val_score}.
+            Validation scores of different metrics in the format of {metric: val_score}.
         """
         test_start = time.time()
         sys_tracker.check('before prediction')
@@ -361,16 +365,29 @@ class GSgnnLinkPredictionTrainer(GSgnnTrainer):
                                           edge_mask=edge_mask_for_gnn_embeddings,
                                           task_tracker=self.task_tracker)
         sys_tracker.check('compute embeddings')
-        val_scores = lp_mini_batch_predict(model, emb, val_loader, self.device) \
-            if val_loader is not None else None
+        if val_loader is not None:
+            val_rankings, val_lengths = lp_mini_batch_predict(
+                model, emb, val_loader, self.device, return_batch_lengths=True)
+        else:
+            val_rankings, val_lengths = None, None
         sys_tracker.check('after_val_score')
         if test_loader is not None:
-            test_scores = lp_mini_batch_predict(model, emb, test_loader, self.device)
+            test_rankings, test_lengths = lp_mini_batch_predict(
+                model, emb, test_loader, self.device, return_batch_lengths=True)
         else:
-            test_scores = None
+            test_rankings, test_lengths = None, None
         sys_tracker.check('after_test_score')
+        assert self.evaluator is not None, \
+            "Evaluator needs to be setup, use trainer.setup_evaluator(evaluator)"
+        assert isinstance(self.evaluator, GSgnnLPRankingEvalInterface), \
+            f"Evaluator needs to implement GSgnnLPRankingEvalInterface, got {type(self.evaluator)}"
         val_score, test_score = self.evaluator.evaluate(
-            val_scores, test_scores, total_steps)
+            val_rankings,
+            test_rankings,
+            total_steps,
+            val_candidate_sizes=val_lengths,
+            test_candidate_sizes=test_lengths,
+        )
         sys_tracker.check('evaluate validation/test')
         model.train()
 

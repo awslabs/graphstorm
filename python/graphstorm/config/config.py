@@ -21,6 +21,7 @@ import typing
 BUILTIN_GNN_ENCODER = ["gat", "rgat", "rgcn", "sage", "hgt", "gatv2"]
 BUILTIN_ENCODER = ["lm", "mlp"] + BUILTIN_GNN_ENCODER
 SUPPORTED_BACKEND = ["gloo", "nccl"]
+BUILTIN_EDGE_FEAT_MP_OPS = ["concat", "add", "sub", "mul", "div"]
 
 GRAPHSTORM_MODEL_EMBED_LAYER = "embed"
 GRAPHSTORM_MODEL_DENSE_EMBED_LAYER = "dense_embed"
@@ -58,6 +59,7 @@ BUILTIN_TASK_EDGE_REGRESSION = "edge_regression"
 BUILTIN_TASK_LINK_PREDICTION = "link_prediction"
 BUILTIN_TASK_COMPUTE_EMB = "compute_emb"
 BUILTIN_TASK_RECONSTRUCT_NODE_FEAT = "reconstruct_node_feat"
+BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT = "reconstruct_edge_feat"
 BUILTIN_TASK_MULTI_TASK = "multi_task"
 
 LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL = "ALL"
@@ -67,7 +69,8 @@ SUPPORTED_TASKS  = [BUILTIN_TASK_NODE_CLASSIFICATION, \
     BUILTIN_TASK_EDGE_CLASSIFICATION, \
     BUILTIN_TASK_LINK_PREDICTION, \
     BUILTIN_TASK_EDGE_REGRESSION, \
-    BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]
+    BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+    BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]
 
 EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY = "consecutive_increase"
 EARLY_STOP_AVERAGE_INCREASE_STRATEGY = "average_increase"
@@ -81,10 +84,14 @@ SUPPORTED_TASK_TRACKER = [GRAPHSTORM_SAGEMAKER_TASK_TRACKER]
 BUILTIN_LP_DOT_DECODER = "dot_product"
 BUILTIN_LP_DISTMULT_DECODER = "distmult"
 BUILTIN_LP_ROTATE_DECODER = "rotate"
+BUILTIN_LP_TRANSE_L1_DECODER = "transe_l1"
+BUILTIN_LP_TRANSE_L2_DECODER = "transe_l2"
 
 SUPPORTED_LP_DECODER = [BUILTIN_LP_DOT_DECODER,
                         BUILTIN_LP_DISTMULT_DECODER,
-                        BUILTIN_LP_ROTATE_DECODER]
+                        BUILTIN_LP_ROTATE_DECODER,
+                        BUILTIN_LP_TRANSE_L1_DECODER,
+                        BUILTIN_LP_TRANSE_L2_DECODER]
 
 ################ Task info data classes ############################
 def get_mttask_id(task_type, ntype=None, etype=None, label=None):

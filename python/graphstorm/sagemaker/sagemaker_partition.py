@@ -24,7 +24,7 @@ import socket
 import time
 import subprocess
 from threading import Thread, Event
-from typing import List
+from typing import Any, List
 
 import boto3
 import botocore
@@ -224,15 +224,15 @@ def run_partition(job_config: PartitionJobConfig):
     metadata_filename = job_config.metadata_filename
     skip_partitioning = job_config.skip_partitioning == 'true'
 
-    # Get env from either processing job or training job
+    # Get resource env from either processing job or training job
     try:
         with open("/opt/ml/config/resourceconfig.json", "r", encoding="utf-8") as f:
-            sm_env = json.load(f)
+            sm_resource_env: dict[str, Any] = json.load(f)
     except FileNotFoundError:
-        sm_env = json.loads(os.environ['SM_TRAINING_ENV'])
+        sm_resource_env = json.loads(os.environ['SM_TRAINING_ENV'])
 
-    hosts = sm_env['hosts']
-    current_host = sm_env['current_host']
+    hosts: list[str] = sm_resource_env['hosts']
+    current_host: str = sm_resource_env['current_host']
     world_size = len(hosts)
     os.environ['WORLD_SIZE'] = str(world_size)
     host_rank = hosts.index(current_host)
@@ -255,7 +255,7 @@ def run_partition(job_config: PartitionJobConfig):
     for key, val in os.environ.items():
         logging.debug("%s: %s", key, val)
 
-    leader_addr = socket.gethostbyname('algo-1')
+    leader_addr = socket.gethostbyname(sorted(hosts)[0])
     # sync with all instances in the cluster
     if host_rank == 0:
         # sync with workers

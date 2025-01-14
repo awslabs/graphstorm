@@ -28,7 +28,9 @@ from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_EDGE_CLASSIFICATION,
                       BUILTIN_TASK_EDGE_REGRESSION,
                       BUILTIN_TASK_LINK_PREDICTION,
-                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                      BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
+from ..eval.evaluator import GSgnnMultiTaskEvaluator
 from ..model import (do_full_graph_inference,
                      do_mini_batch_inference,
                      GSgnnModelBase, GSgnnModel,
@@ -225,6 +227,36 @@ def prepare_reconstruct_node_feat(data, task_info, mini_batch, device):
     # So keep a different prepare func for node feature reconstruction.
     return prepare_node_mini_batch(data, task_info, mini_batch, device)
 
+def prepare_reconstruct_edge_feat(data, task_info, mini_batch, device):
+    """ Prepare mini-batch for edge feature reconstruction.
+
+        The input is a mini-batch sampled by an edge sampler.
+        The output ia a prepared input following the
+        input arguments of GSgnnEdgeModelInterface.forward.
+
+    Parameters
+    ----------
+    data: GSgnnData
+        Graph data.
+    task_info: TaskInfo
+        Task meta information.
+    mini_batch: tuple
+        Mini-batch info.
+    device: torch.device
+        Device.
+
+    Return
+    ------
+    tuple: mini-batch.
+
+    .. versionadded:: 0.4.0
+        Add in 0.4.0 for edge feature reconstruction support.
+    """
+    # same as preparing edge regression data
+    # Note: We may add some arguments in the future
+    # So keep a different prepare func for node feature reconstruction.
+    return prepare_edge_mini_batch(data, task_info, mini_batch, device)
+
 class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
     r""" A trainer for multi-task learning
 
@@ -242,6 +274,9 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
         The GNN model for prediction.
     topk_model_to_save : int
         The top K model to save.
+
+    .. versionchanged:: 0.4.0
+        Add support for edge feature reconstruction tasks.
     """
     def __init__(self, model, topk_model_to_save=1):
         super(GSgnnMultiTaskLearningTrainer, self).__init__(model, topk_model_to_save)
@@ -290,6 +325,11 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                                                    device)
         elif task_info.task_type == BUILTIN_TASK_RECONSTRUCT_NODE_FEAT:
             return prepare_reconstruct_node_feat(data,
+                                                 task_info,
+                                                 mini_batch,
+                                                 device)
+        elif task_info.task_type == BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT:
+            return prepare_reconstruct_edge_feat(data,
                                                  task_info,
                                                  mini_batch,
                                                  device)
@@ -564,6 +604,10 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
         nfeat_recon_tasks = []
         nfeat_recon_val_loaders = []
         nfeat_recon_test_loaders = []
+        # For edge feature reconstruction tasks,
+        efeat_recon_tasks = []
+        efeat_recon_val_loaders = []
+        efeat_recon_test_loaders = []
 
         for val_loader, test_loader, task_info \
             in zip(val_dataloaders, test_dataloaders, task_infos):
@@ -590,6 +634,11 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                 nfeat_recon_tasks.append(task_info)
                 nfeat_recon_val_loaders.append(val_loader)
                 nfeat_recon_test_loaders.append(test_loader)
+
+            if task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
+                efeat_recon_tasks.append(task_info)
+                efeat_recon_val_loaders.append(val_loader)
+                efeat_recon_test_loaders.append(test_loader)
 
         def gen_embs(edge_mask=None):
             """ Compute node embeddings
@@ -635,6 +684,41 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                     return_label=True) \
                 if len(predict_test_loaders) > 0 else None
 
+        if len(efeat_recon_tasks) > 0:
+            if embs is None:
+                sys_tracker.check('compute embeddings')
+                embs = gen_embs()
+            # do validation and test for edge feature reconstruct tasks.
+            if len(efeat_recon_val_loaders) > 0:
+                efrecon_val_results = \
+                    multi_task_mini_batch_predict(
+                        model,
+                        emb=embs,
+                        dataloaders=efeat_recon_val_loaders,
+                        task_infos=efeat_recon_tasks,
+                        device=self.device,
+                        return_proba=return_proba,
+                        return_label=True)
+                if val_results is None:
+                    val_results = efrecon_val_results
+                else:
+                    val_results.update(efrecon_val_results)
+
+            if len(efeat_recon_test_loaders) > 0:
+                efrecon_test_results = \
+                    multi_task_mini_batch_predict(
+                        model,
+                        emb=embs,
+                        dataloaders=efeat_recon_test_loaders,
+                        task_infos=efeat_recon_tasks,
+                        device=self.device,
+                        return_proba=return_proba,
+                        return_label=True)
+                if test_results is None:
+                    test_results = efrecon_test_results
+                else:
+                    test_results.update(efrecon_test_results)
+
         if len(lp_tasks) > 0:
             for lp_val_loader, lp_test_loader, task_info \
                 in zip(lp_val_loaders, lp_test_loaders, lp_tasks):
@@ -649,25 +733,34 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
                                                               inplace=True)
 
                 decoder = model.task_decoders[task_info.task_id]
-                val_scores = run_lp_mini_batch_predict(decoder,
-                                                       lp_test_embs,
-                                                       lp_val_loader,
-                                                       self.device) \
-                    if lp_val_loader is not None else None
-                test_scores = run_lp_mini_batch_predict(decoder,
-                                                        lp_test_embs,
-                                                        lp_test_loader,
-                                                        self.device) \
-                    if lp_test_loader is not None else None
+                if lp_val_loader is not None:
+                    val_rankings_and_lengths = run_lp_mini_batch_predict(
+                        decoder,
+                        lp_test_embs,
+                        lp_val_loader,
+                        self.device,
+                        return_batch_lengths=True)
+                else:
+                    val_rankings_and_lengths = (None, None)
+
+                if lp_test_loader is not None:
+                    test_rankings_and_lengths = run_lp_mini_batch_predict(
+                        decoder,
+                        lp_test_embs,
+                        lp_test_loader,
+                        self.device,
+                        return_batch_lengths=True)
+                else:
+                    test_rankings_and_lengths = (None, None)
 
                 if val_results is not None:
-                    val_results[task_info.task_id] = val_scores
+                    val_results[task_info.task_id] = val_rankings_and_lengths
                 else:
-                    val_results = {task_info.task_id: val_scores}
+                    val_results = {task_info.task_id: val_rankings_and_lengths}
                 if test_results is not None:
-                    test_results[task_info.task_id] = test_scores
+                    test_results[task_info.task_id] = test_rankings_and_lengths
                 else:
-                    test_results = {task_info.task_id: test_scores}
+                    test_results = {task_info.task_id: test_rankings_and_lengths}
 
         if len(nfeat_recon_tasks) > 0:
             def nfrecon_gen_embs(skip_last_self_loop=False, node_embs=embs):
@@ -728,6 +821,8 @@ class GSgnnMultiTaskLearningTrainer(GSgnnTrainer):
 
 
         sys_tracker.check('after_test_score')
+        assert isinstance(self.evaluator, GSgnnMultiTaskEvaluator), \
+            "Evaluator must be a GSgnnMultiTaskEvaluator"
         val_score, test_score = self.evaluator.evaluate(
                 val_results, test_results, total_steps)
         sys_tracker.check('evaluate validation/test')

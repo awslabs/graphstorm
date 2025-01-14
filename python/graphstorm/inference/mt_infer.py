@@ -18,12 +18,16 @@
 import os
 import time
 import logging
+from typing import Any, Dict, Optional
+
 import torch as th
 
 from ..config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                       BUILTIN_TASK_NODE_REGRESSION,
                       BUILTIN_TASK_EDGE_CLASSIFICATION,
                       BUILTIN_TASK_EDGE_REGRESSION)
+from ..dataloading import GSgnnMultiTaskDataLoader
+from ..eval.evaluator import GSgnnMultiTaskEvaluator
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
 from ..model.utils import (save_node_prediction_results,
@@ -54,9 +58,10 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
 
     # pylint: disable=unused-argument
     def infer(self, data,
-              predict_test_loader=None,
-              lp_test_loader=None,
-              recon_nfeat_test_loader=None,
+              predict_test_loader: Optional[GSgnnMultiTaskDataLoader] = None,
+              lp_test_loader: Optional[GSgnnMultiTaskDataLoader] = None,
+              recon_nfeat_test_loader: Optional[GSgnnMultiTaskDataLoader] = None,
+              recon_efeat_test_loader: Optional[GSgnnMultiTaskDataLoader] = None,
               save_embed_path=None,
               save_prediction_path=None,
               use_mini_batch_infer=False,
@@ -83,6 +88,8 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
             Test dataloader for link prediction tasks.
         recon_nfeat_test_loader: GSgnnMultiTaskDataLoaders
             Test dataloader for node feature reconstruction tasks.
+        recon_efeat_test_loader: GSgnnMultiTaskDataLoaders
+            Test dataloader for edge feature reconstruction tasks.
         save_embed_path: str
             The path to save the node embeddings.
         save_prediction_path: str
@@ -102,6 +109,10 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
         infer_batch_size: int
             Specify the inference batch size when computing node embeddings
             with mini batch inference.
+
+        .. versionchanged:: 0.4.0
+            Add a new argument "recon_efeat_test_loader" for test
+            dataloaders of edge feature reconstruction tasks.
         """
         do_eval = self.evaluator is not None
         sys_tracker.check('start inferencing')
@@ -121,11 +132,18 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
                 if task_fanout is not None:
                     fanout = task_fanout
                     break
-        else:
+        elif recon_nfeat_test_loader is not None:
             for task_fanout in recon_nfeat_test_loader.fanout:
                 if task_fanout is not None:
                     fanout = task_fanout
                     break
+        elif recon_efeat_test_loader is not None:
+            for task_fanout in recon_efeat_test_loader.fanout:
+                if task_fanout is not None:
+                    fanout = task_fanout
+                    break
+        else:
+            raise ValueError("All the test data loaders are None.")
 
         def gen_embs(edge_mask=None):
             # Generate node embeddings.
@@ -195,7 +213,8 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
         # 2. node feature reconstruction (as it has the chance
         #    to reuse the node embeddings generated at the beginning)
         # 3. link prediction.
-        pre_results = {}
+        pre_results: Dict[str, Any] = {}
+        test_lengths = None
         if predict_test_loader is not None:
             # compute prediction results for node classification,
             # node regressoin, edge classification
@@ -209,6 +228,22 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
                     device=device,
                     return_proba=return_proba,
                     return_label=do_eval)
+
+        if recon_efeat_test_loader is not None:
+            # We also need to compute test scores for edge feature reconstruction tasks.
+            dataloaders = recon_efeat_test_loader.dataloaders
+            task_infos = recon_efeat_test_loader.task_infos
+
+            efeat_recon_results = \
+                multi_task_mini_batch_predict(
+                    model,
+                    emb=embs,
+                    dataloaders=dataloaders,
+                    task_infos=task_infos,
+                    device=self.device,
+                    return_proba=return_proba,
+                    return_label=True)
+            pre_results.update(efeat_recon_results)
 
         if recon_nfeat_test_loader is not None:
             # We also need to compute test scores for node feature reconstruction tasks.
@@ -279,13 +314,20 @@ class GSgnnMultiTaskLearningInferrer(GSInferrer):
                                                                   inplace=True)
 
                     decoder = model.task_decoders[task_info.task_id]
-                    ranking = run_lp_mini_batch_predict(decoder, lp_test_embs, dataloader, device)
-                    pre_results[task_info.task_id] = ranking
+                    ranking, test_lengths = run_lp_mini_batch_predict(
+                        decoder, lp_test_embs, dataloader, device, return_batch_lengths=True)
+                    pre_results[task_info.task_id] = (ranking, test_lengths)
 
         if do_eval:
             test_start = time.time()
+            assert isinstance(self.evaluator, GSgnnMultiTaskEvaluator)
+
             val_score, test_score = self.evaluator.evaluate(
-                pre_results, pre_results, 0)
+                pre_results,
+                pre_results,
+                0,
+            )
+
             sys_tracker.check('run evaluation')
             if get_rank() == 0:
                 self.log_print_metrics(val_score=val_score,

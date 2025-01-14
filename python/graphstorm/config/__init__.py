@@ -19,6 +19,7 @@
 from .argument import GSConfig
 from .argument import get_argument_parser
 
+from .config import BUILTIN_EDGE_FEAT_MP_OPS
 from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                      BUILTIN_TASK_NODE_REGRESSION,
                      BUILTIN_TASK_EDGE_CLASSIFICATION,
@@ -26,12 +27,15 @@ from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                      BUILTIN_TASK_LINK_PREDICTION,
                      BUILTIN_TASK_COMPUTE_EMB,
                      BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                     BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT,
                      BUILTIN_TASK_MULTI_TASK)
 from .config import SUPPORTED_TASKS
 
 from .config import (BUILTIN_LP_DOT_DECODER,
                      BUILTIN_LP_DISTMULT_DECODER,
-                     BUILTIN_LP_ROTATE_DECODER)
+                     BUILTIN_LP_ROTATE_DECODER,
+                     BUILTIN_LP_TRANSE_L1_DECODER,
+                     BUILTIN_LP_TRANSE_L2_DECODER)
 from .config import SUPPORTED_LP_DECODER
 
 from .config import (GRAPHSTORM_MODEL_EMBED_LAYER,

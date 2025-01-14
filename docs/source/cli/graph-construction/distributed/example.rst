@@ -259,7 +259,9 @@ the graph structure, features, and labels. In more detail:
   GSProcessing will use the transformation values listed here
   instead of creating new ones, ensuring that models trained with the original
   data can still be used in the newly transformed data. Currently only
-  categorical transformations can be re-applied.
+  categorical and numerical transformations can be re-applied. Note that
+  the Rank-Gauss transformation does not support re-application, it may
+  only work for transductive tasks.
 * ``updated_row_counts_metadata.json``:
   This file is meant to be used as the input configuration for the
   distributed partitioning pipeline. ``gs-repartition`` produces
@@ -313,7 +315,7 @@ you can use the following command to run the partition job locally:
         --num-parts 2 \
         --dgl-tool-path ./dgl/tools \
         --partition-algorithm random \
-        --ip-config ip_list.txt 
+        --ip-config ip_list.txt
 
 The command above will first do graph partitioning to determine the ownership for each partition and save the results.
 Then it will do data dispatching to physically assign the partitions to graph data and dispatch them to each machine.

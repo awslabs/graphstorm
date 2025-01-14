@@ -15,7 +15,7 @@
 
     Package initialization. Import necessary classes.
 """
-from .embed import GSNodeEncoderInputLayer
+from .embed import GSNodeEncoderInputLayer, GSEdgeEncoderInputLayer
 from .lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 
 from .utils import sparse_emb_initializer
@@ -58,8 +58,19 @@ from .edge_decoder import (DenseBiDecoder,
                            LinkPredictContrastiveDistMultDecoder,
                            LinkPredictRotatEDecoder,
                            LinkPredictContrastiveRotatEDecoder,
-                           LinkPredictWeightedRotatEDecoder)
+                           LinkPredictWeightedRotatEDecoder,
+                           LinkPredictTransEDecoder,
+                           LinkPredictContrastiveTransEDecoder,
+                           LinkPredictWeightedTransEDecoder,
+                           EdgeRegression)
 
 from .gnn_encoder_base import GraphConvEncoder
 
-from .loss_func import ClassifyLossFunc, RegressionLossFunc, LinkPredictBCELossFunc
+from .loss_func import (ClassifyLossFunc,
+                        FocalLossFunc,
+                        RegressionLossFunc,
+                        LinkPredictBCELossFunc,
+                        WeightedLinkPredictBCELossFunc,
+                        LinkPredictAdvBCELossFunc,
+                        WeightedLinkPredictAdvBCELossFunc,
+                        LinkPredictContrastiveLossFunc)

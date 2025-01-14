@@ -28,10 +28,11 @@ from .dist_transformations import (
     DistCategoryTransformation,
     DistMultiCategoryTransformation,
     DistHFTransformation,
+    DistHardEdgeNegativeTransformation,
 )
 
 
-class DistFeatureTransformer(object):
+class DistFeatureTransformer:
     """
     Given a feature configuration selects the correct transformation type,
     which can then be be applied through a call to apply_transformation.
@@ -56,7 +57,9 @@ class DistFeatureTransformer(object):
         if feat_type == "no-op":
             self.transformation = NoopTransformation(**default_kwargs, **args_dict)
         elif feat_type == "numerical":
-            self.transformation = DistNumericalTransformation(**default_kwargs, **args_dict)
+            self.transformation = DistNumericalTransformation(
+                **default_kwargs, **args_dict, json_representation=json_representation
+            )
         elif feat_type == "multi-numerical":
             self.transformation = DistMultiNumericalTransformation(**default_kwargs, **args_dict)
         elif feat_type == "bucket-numerical":
@@ -69,6 +72,10 @@ class DistFeatureTransformer(object):
             self.transformation = DistMultiCategoryTransformation(**default_kwargs, **args_dict)
         elif feat_type == "huggingface":
             self.transformation = DistHFTransformation(**default_kwargs, **args_dict)
+        elif feat_type == "edge_dst_hard_negative":
+            self.transformation = DistHardEdgeNegativeTransformation(
+                **default_kwargs, **args_dict, spark=spark
+            )
         else:
             raise NotImplementedError(
                 f"Feature {feat_name} has type: {feat_type} that is not supported"

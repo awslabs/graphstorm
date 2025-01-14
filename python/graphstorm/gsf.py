@@ -36,15 +36,21 @@ from .config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                      BUILTIN_TASK_EDGE_CLASSIFICATION,
                      BUILTIN_TASK_EDGE_REGRESSION,
                      BUILTIN_TASK_LINK_PREDICTION,
-                     BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+                     BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                     BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT)
 from .config import (BUILTIN_LP_DOT_DECODER,
                      BUILTIN_LP_DISTMULT_DECODER,
-                     BUILTIN_LP_ROTATE_DECODER)
+                     BUILTIN_LP_ROTATE_DECODER,
+                     BUILTIN_LP_TRANSE_L1_DECODER,
+                     BUILTIN_LP_TRANSE_L2_DECODER)
 from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_LP_LOSS_CONTRASTIVELOSS,
                      BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
                      BUILTIN_CLASS_LOSS_FOCAL)
-from .model.embed import GSNodeEncoderInputLayer
+from .eval.eval_func import (
+    SUPPORTED_HIT_AT_METRICS,
+    SUPPORTED_LINK_PREDICTION_METRICS)
+from .model.embed import GSNodeEncoderInputLayer, GSEdgeEncoderInputLayer
 from .model.lm_embed import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from .model.rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
 from .model.rgat_encoder import RelationalGATEncoder
@@ -69,7 +75,8 @@ from .model.loss_func import (ClassifyLossFunc,
 from .model.node_decoder import EntityClassifier, EntityRegression
 from .model.edge_decoder import (DenseBiDecoder,
                                  MLPEdgeDecoder,
-                                 MLPEFeatEdgeDecoder)
+                                 MLPEFeatEdgeDecoder,
+                                 EdgeRegression)
 from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictDistMultDecoder,
                                  LinkPredictContrastiveDotDecoder,
@@ -78,9 +85,13 @@ from .model.edge_decoder import (LinkPredictDotDecoder,
                                  LinkPredictWeightedDistMultDecoder,
                                  LinkPredictRotatEDecoder,
                                  LinkPredictContrastiveRotatEDecoder,
-                                 LinkPredictWeightedRotatEDecoder)
+                                 LinkPredictWeightedRotatEDecoder,
+                                 LinkPredictTransEDecoder,
+                                 LinkPredictContrastiveTransEDecoder,
+                                 LinkPredictWeightedTransEDecoder)
 from .dataloading import (BUILTIN_LP_UNIFORM_NEG_SAMPLER,
-                          BUILTIN_LP_JOINT_NEG_SAMPLER,BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER,
+                          BUILTIN_LP_JOINT_NEG_SAMPLER,
+                          BUILTIN_LP_INBATCH_JOINT_NEG_SAMPLER,
                           BUILTIN_LP_LOCALUNIFORM_NEG_SAMPLER,
                           BUILTIN_LP_LOCALJOINT_NEG_SAMPLER,
                           BUILTIN_LP_ALL_ETYPE_UNIFORM_NEG_SAMPLER,
@@ -107,16 +118,8 @@ from .dataloading import (GSgnnLinkPredictionTestDataLoader,
 from .eval import (GSgnnClassificationEvaluator,
                    GSgnnRegressionEvaluator,
                    GSgnnRconstructFeatRegScoreEvaluator,
-                   GSgnnPerEtypeMrrLPEvaluator,
-                   GSgnnMrrLPEvaluator)
-from .trainer import (GSgnnLinkPredictionTrainer,
-                      GSgnnNodePredictionTrainer,
-                      GSgnnEdgePredictionTrainer,
-                      GLEMNodePredictionTrainer)
-from .inference import (GSgnnLinkPredictionInferrer,
-                        GSgnnNodePredictionInferrer,
-                        GSgnnEdgePredictionInferrer,
-                        GSgnnEdgePredictionInferrer)
+                   GSgnnPerEtypeLPEvaluator,
+                   GSgnnLPEvaluator)
 
 from .tracker import get_task_tracker_class
 
@@ -161,11 +164,11 @@ def initialize(
         Requires installed DGL version to be at least ``2.1.0``.
         Default: False.
 
-        .. versionadded:: 0.4
+        .. versionadded:: 0.4.0
     """
     dgl_version = importlib.metadata.version('dgl')
     if version.parse(dgl_version) >= version.parse("2.1.0"):
-        dgl.distributed.initialize(
+        dgl.distributed.initialize( # pylint: disable=unexpected-keyword-arg
             ip_config,
             net_type='socket',
             use_graphbolt=use_graphbolt,
@@ -203,13 +206,15 @@ def get_node_feat_size(g, node_feat_names):
         A DGL distributed graph.
     node_feat_names : str, or dict of list of str
         The node feature names. A string indicates that all nodes share the same feature name,
-        while a dictionary with a list of strings indicates that each node type has different node feature names.
+        while a dictionary with a list of strings indicates that each
+        node type has different node feature names.
 
     Returns
     -------
     node_feat_size: dict of int
         The feature size for the node types and feature names specified in the
-        ``node_feat_names``.
+        ``node_feat_names``. If feature name is not specified, the feature size
+        will be 0.
     """
     node_feat_size = {}
     for ntype in g.ntypes:
@@ -247,6 +252,73 @@ def get_node_feat_size(g, node_feat_names):
                 fsize = np.prod(g.nodes[ntype].data[fname].shape[1:])
                 node_feat_size[ntype] += fsize
     return node_feat_size
+
+def get_edge_feat_size(g, edge_feat_names):
+    """ Get the overall feature size of each edge type with feature names specified in the
+    ``edge_feat_names``. If an edge type has multiple features, the returned feature size
+    will be the sum of the sizes of these features for that edge type.
+
+    .. versionadded:: 0.4.0
+        Add the `get_edge_feat_size` in v0.4.0 to support edge features.
+
+    Parameters
+    ----------
+    g : DistGraph
+        The distributed graph.
+    edge_feat_names : str, or dict of list of str
+        The edge feature names.
+
+    Returns
+    -------
+    edge_feat_size: dict of int
+        The feature size for each edge type. If feature name is not specified, the feature size
+        will be 0.
+    """
+    # check if edge types in edge_feat_names are in graph
+    if edge_feat_names and isinstance(edge_feat_names, dict):
+        for etype in edge_feat_names.keys():
+            assert etype in list(g.canonical_etypes), \
+                f"Graph data does not contain the specified edge type {etype}!, " + \
+                "Please check the values of \'edge_feat_names\' variable."
+
+    edge_feat_size = {}
+    for canonical_etype in g.canonical_etypes:
+        # user can specify the name of the field or do nothing
+        if edge_feat_names is None:
+            feat_name = None
+        elif isinstance(edge_feat_names, dict) and canonical_etype in edge_feat_names:
+            feat_name = edge_feat_names[canonical_etype]
+        elif isinstance(edge_feat_names, str):
+            feat_name = edge_feat_names
+        else:
+            feat_name = None
+
+        if feat_name is None:
+            edge_feat_size[canonical_etype] = 0
+        elif isinstance(feat_name, str): # global feat_name for all edge types
+            # We force users to know which edge type has edge feature
+            # This helps avoid unexpected training behavior.
+            assert feat_name in g.edges[canonical_etype].data, \
+                    f"Warning. The feature \"{feat_name}\" " \
+                    f"does not exists for the edge type \"{canonical_etype}\"."
+            edge_feat_size[canonical_etype] = \
+                np.prod(g.edges[canonical_etype].data[feat_name].shape[1:])
+        else:
+            edge_feat_size[canonical_etype] = 0
+            for fname in feat_name:
+                # We force users to know which node type has node feature
+                # This helps avoid unexpected training behavior.
+                assert fname in g.edges[canonical_etype].data, \
+                        f"Warning. The feature \"{fname}\" " \
+                        f"does not exist for the edge type \"{canonical_etype}\"."
+                # TODO: we only allow an input node feature as a 2D tensor
+                # Support 1D or nD when required.
+                assert len(g.edges[canonical_etype].data[fname].shape) == 2, \
+                    "Input edge features should be 2D tensors"
+                fsize = np.prod(g.edges[canonical_etype].data[fname].shape[1:])
+                edge_feat_size[canonical_etype] += fsize
+
+    return edge_feat_size
 
 def get_rel_names_for_reconstruct(g, reconstructed_embed_ntype, feat_size):
     """ Get the edge type list for reconstructing node features.
@@ -298,7 +370,7 @@ def create_builtin_node_gnn_model(g, config, train_task):
 # pylint: disable=unused-argument
 def create_builtin_reconstruct_nfeat_decoder(g, decoder_input_dim, config, train_task):
     """ create builtin node feature reconstruction decoder
-        according to task config
+        according to task config.
 
     Parameters
     ----------
@@ -307,16 +379,16 @@ def create_builtin_reconstruct_nfeat_decoder(g, decoder_input_dim, config, train
         Note(xiang): Make it consistent with create_builtin_edge_decoder.
         Reserved for future.
     decoder_input_dim: int
-        Input dimension size of the decoder
+        Input dimension size of the decoder.
     config: GSConfig
-        Configurations
+        Configurations.
     train_task : bool
         Whether this model is used for training.
 
     Returns
     -------
-    decoder: The node task decoder(s)
-    loss_func: The loss function(s)
+    decoder: The node task decoder(s).
+    loss_func: The loss function(s).
     """
     dropout = config.dropout if train_task else 0
     target_ntype = config.target_ntype
@@ -325,7 +397,50 @@ def create_builtin_reconstruct_nfeat_decoder(g, decoder_input_dim, config, train
 
     decoder = EntityRegression(decoder_input_dim,
                                dropout=dropout,
-                               out_dim=feat_dim)
+                               out_dim=feat_dim,
+                               use_bias=config.decoder_bias)
+
+    loss_func = RegressionLossFunc()
+    return decoder, loss_func
+
+# pylint: disable=unused-argument
+def create_builtin_reconstruct_efeat_decoder(g, decoder_input_dim, config, train_task):
+    """ create builtin edge feature reconstruction decoder
+        according to task config
+
+    Parameters
+    ----------
+    g: DGLGraph
+        The graph data.
+    decoder_input_dim: int
+        Input dimension size of the decoder.
+    config: GSConfig
+        Configurations.
+    train_task : bool
+        Whether this model is used for training.
+
+    Returns
+    -------
+    decoder: The edge feature reconstruction decoder(s).
+    loss_func: The loss function(s).
+
+    .. versionadded:: 0.4.0
+    """
+    dropout = config.dropout if train_task else 0
+    # Only support one edge type per edge feature
+    # reconstruction task.
+    target_etype = config.target_etype[0]
+    reconstruct_feat = config.reconstruct_efeat_name
+    assert len(g.edges[target_etype].data[reconstruct_feat].shape) == 2, \
+        "The edge feature {reconstruct_feat} of {target_etype} edges " \
+        f"Must be a 2D tensor, but got {g.edges[target_etype].data[reconstruct_feat].shape}."
+    feat_dim = g.edges[target_etype].data[reconstruct_feat].shape[1]
+
+    decoder = EdgeRegression(decoder_input_dim,
+                             target_etype=target_etype,
+                             out_dim=feat_dim,
+                             dropout=dropout,
+                             use_bias=config.decoder_bias)
 
     loss_func = RegressionLossFunc()
     return decoder, loss_func
@@ -359,7 +474,8 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                                        config.num_classes,
                                        config.multilabel,
                                        dropout=dropout,
-                                       norm=config.decoder_norm)
+                                       norm=config.decoder_norm,
+                                       use_bias=config.decoder_bias)
             if config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY:
                 loss_func = ClassifyLossFunc(config.multilabel,
                                              config.multilabel_weights,
@@ -374,8 +490,8 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                 gamma = config.gamma if config.gamma is not None else 2.
                 loss_func = FocalLossFunc(alpha, gamma)
             else:
-                raise RuntimeError("Unknow classification loss %s",
-                                   config.class_loss_func)
+                raise RuntimeError(
+                    f"Unknown classification loss {config.class_loss_func}")
         else:
             decoder = {}
             loss_func = {}
@@ -384,7 +500,8 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                                                   config.num_classes[ntype],
                                                   config.multilabel[ntype],
                                                   dropout=dropout,
-                                                  norm=config.decoder_norm)
+                                                  norm=config.decoder_norm,
+                                                  use_bias=config.decoder_bias)
 
                 if config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY:
                     loss_func[ntype] = ClassifyLossFunc(config.multilabel[ntype],
@@ -397,12 +514,13 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                     gamma = config.gamma if config.gamma is not None else 2.
                     loss_func[ntype] =  FocalLossFunc(alpha, gamma)
                 else:
-                    raise RuntimeError("Unknow classification loss %s",
-                                    config.class_loss_func)
+                    raise RuntimeError(
+                        f"Unknown classification loss {config.class_loss_func}")
     elif config.task_type == BUILTIN_TASK_NODE_REGRESSION:
         decoder  = EntityRegression(decoder_input_dim,
                                     dropout=dropout,
-                                    norm=config.decoder_norm)
+                                    norm=config.decoder_norm,
+                                    use_bias=config.decoder_bias)
         loss_func = RegressionLossFunc()
     else:
         raise ValueError('unknown node task: {}'.format(config.task_type))
@@ -500,14 +618,16 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                                      dropout_rate=dropout,
                                      regression=False,
                                      target_etype=target_etype,
-                                     norm=config.decoder_norm)
+                                     norm=config.decoder_norm,
+                                     use_bias=config.decoder_bias)
         elif decoder_type == "MLPDecoder":
             decoder = MLPEdgeDecoder(decoder_input_dim,
                                      num_classes,
                                      multilabel=config.multilabel,
                                      target_etype=target_etype,
                                      num_ffn_layers=config.num_ffn_layers_in_decoder,
-                                     norm=config.decoder_norm)
+                                     norm=config.decoder_norm,
+                                     use_bias=config.decoder_bias)
         elif decoder_type == "MLPEFeatEdgeDecoder":
             decoder_edge_feat = config.decoder_edge_feat
             assert decoder_edge_feat is not None, \
@@ -518,8 +638,10 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                 assert decoder_edge_feat in g.edges[target_etype].data
                 feat_dim = g.edges[target_etype].data[decoder_edge_feat].shape[-1]
             else:
-                feat_dim = sum([g.edges[target_etype].data[fname].shape[-1] \
-                    for fname in decoder_edge_feat[target_etype]])
+                feat_dim = sum(
+                    g.edges[target_etype].data[fname].shape[-1] \
+                    for fname in decoder_edge_feat[target_etype]
+                )
 
             decoder = MLPEFeatEdgeDecoder(
                 h_dim=decoder_input_dim,
@@ -529,7 +651,8 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                 target_etype=target_etype,
                 dropout=config.dropout,
                 num_ffn_layers=config.num_ffn_layers_in_decoder,
-                norm=config.decoder_norm)
+                norm=config.decoder_norm,
+                use_bias=config.decoder_bias)
         else:
             assert False, f"decoder {decoder_type} is not supported."
 
@@ -544,8 +667,8 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
             gamma = config.gamma if config.gamma is not None else 2.
             loss_func = FocalLossFunc(alpha, gamma)
         else:
-            raise RuntimeError("Unknown classification loss %s",
-                                config.class_loss_func)
+            raise RuntimeError(
+                f"Unknown classification loss {config.class_loss_func}")
 
     elif config.task_type == BUILTIN_TASK_EDGE_REGRESSION:
         decoder_type = config.decoder_type
@@ -561,7 +684,8 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                                      target_etype=target_etype,
                                      dropout_rate=dropout,
                                      regression=True,
-                                     norm=config.decoder_norm)
+                                     norm=config.decoder_norm,
+                                     use_bias=config.decoder_bias)
         elif decoder_type == "MLPDecoder":
             decoder = MLPEdgeDecoder(decoder_input_dim,
                                      1,
@@ -569,7 +693,8 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                                      target_etype=target_etype,
                                      regression=True,
                                      num_ffn_layers=config.num_ffn_layers_in_decoder,
-                                     norm=config.decoder_norm)
+                                     norm=config.decoder_norm,
+                                     use_bias=config.decoder_bias)
         elif decoder_type == "MLPEFeatEdgeDecoder":
             decoder_edge_feat = config.decoder_edge_feat
             assert decoder_edge_feat is not None, \
@@ -580,8 +705,10 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                 assert decoder_edge_feat in g.edges[target_etype].data
                 feat_dim = g.edges[target_etype].data[decoder_edge_feat].shape[-1]
             else:
-                feat_dim = sum([g.edges[target_etype].data[fname].shape[-1] \
-                    for fname in decoder_edge_feat[target_etype]])
+                feat_dim = sum(
+                    g.edges[target_etype].data[fname].shape[-1] \
+                    for fname in decoder_edge_feat[target_etype]
+                )
 
             decoder = MLPEFeatEdgeDecoder(
                 h_dim=decoder_input_dim,
@@ -592,7 +719,8 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                 dropout=config.dropout,
                 regression=True,
                 num_ffn_layers=config.num_ffn_layers_in_decoder,
-                norm=config.decoder_norm)
+                norm=config.decoder_norm,
+                use_bias=config.decoder_bias)
         else:
             assert False, "decoder not supported"
         loss_func = RegressionLossFunc()
@@ -724,8 +852,33 @@ def create_builtin_lp_decoder(g, decoder_input_dim, config, train_task):
                                                        decoder_input_dim,
                                                        gamma,
                                                        config.lp_edge_weight_for_loss)
+    elif config.lp_decoder_type in [BUILTIN_LP_TRANSE_L1_DECODER, BUILTIN_LP_TRANSE_L2_DECODER]:
+        if get_rank() == 0:
+            logging.debug("Using TransE objective for supervision")
+
+        # default gamma for TransE is 12.
+        gamma = config.gamma if config.gamma is not None else 12.
+
+        score_norm = 'l1' if config.lp_decoder_type == BUILTIN_LP_TRANSE_L1_DECODER else 'l2'
+        if config.lp_edge_weight_for_loss is None:
+            decoder = LinkPredictContrastiveTransEDecoder(g.canonical_etypes,
+                                                          decoder_input_dim,
+                                                          gamma,
+                                                          score_norm) \
+                if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS else \
+                LinkPredictTransEDecoder(g.canonical_etypes,
+                                         decoder_input_dim,
+                                         gamma,
+                                         score_norm)
+        else:
+            decoder = LinkPredictWeightedTransEDecoder(g.canonical_etypes,
+                                                       decoder_input_dim,
+                                                       gamma,
+                                                       score_norm,
+                                                       config.lp_edge_weight_for_loss)
     else:
-        raise Exception(f"Unknown link prediction decoder type {config.lp_decoder_type}")
+        raise RuntimeError(
+            f"Unknown link prediction decoder type {config.lp_decoder_type}")
 
     if config.lp_loss_func == BUILTIN_LP_LOSS_CONTRASTIVELOSS:
         loss_func = LinkPredictContrastiveLossFunc(config.contrastive_loss_temperature)
@@ -798,7 +951,7 @@ def set_encoder(model, g, config, train_task):
         Whether this model is used for training.
     """
     # Set input layer
-    feat_size = get_node_feat_size(g, config.node_feat_name)
+    node_feat_size = get_node_feat_size(g, config.node_feat_name)
     reconstruct_feats = len(config.construct_feat_ntype) > 0
     model_encoder_type = config.model_encoder_type
     if config.node_lm_configs is not None:
@@ -806,37 +959,49 @@ def set_encoder(model, g, config, train_task):
                 "cached_embs") if config.cache_lm_embed else None
         if model_encoder_type == "lm":
             # only use language model(s) as input layer encoder(s)
-            encoder = GSPureLMNodeInputLayer(g, config.node_lm_configs,
-                                            num_train=config.lm_train_nodes,
-                                            lm_infer_batch_size=config.lm_infer_batch_size,
-                                            cached_embed_path=emb_path,
-                                            wg_cached_embed=config.use_wholegraph_embed)
+            node_encoder = GSPureLMNodeInputLayer(g, config.node_lm_configs,
+                                                  num_train=config.lm_train_nodes,
+                                                  lm_infer_batch_size=config.lm_infer_batch_size,
+                                                  cached_embed_path=emb_path,
+                                                  wg_cached_embed=config.use_wholegraph_embed)
         else:
-            encoder = GSLMNodeEncoderInputLayer(g, config.node_lm_configs,
-                                                feat_size, config.hidden_size,
-                                                num_train=config.lm_train_nodes,
-                                                lm_infer_batch_size=config.lm_infer_batch_size,
-                                                dropout=config.dropout,
-                                                use_node_embeddings=config.use_node_embeddings,
-                                                cached_embed_path=emb_path,
-                                                wg_cached_embed=config.use_wholegraph_embed,
-                                                force_no_embeddings=config.construct_feat_ntype)
+            node_encoder = GSLMNodeEncoderInputLayer(g, config.node_lm_configs,
+                                                    node_feat_size, config.hidden_size,
+                                                    num_train=config.lm_train_nodes,
+                                                    lm_infer_batch_size=config.lm_infer_batch_size,
+                                                    dropout=config.dropout,
+                                                    use_node_embeddings=config.use_node_embeddings,
+                                                    cached_embed_path=emb_path,
+                                                    wg_cached_embed=config.use_wholegraph_embed,
+                                                    force_no_embeddings=config.construct_feat_ntype
+                                                    )
     else:
-        encoder = GSNodeEncoderInputLayer(g, feat_size, config.hidden_size,
-                                          dropout=config.dropout,
-                                          activation=config.input_activate,
-                                          use_node_embeddings=config.use_node_embeddings,
-                                          force_no_embeddings=config.construct_feat_ntype,
-                                          num_ffn_layers_in_input=config.num_ffn_layers_in_input,
-                                          use_wholegraph_sparse_emb=config.use_wholegraph_embed)
+        node_encoder = GSNodeEncoderInputLayer(g, node_feat_size, config.hidden_size,
+                                            dropout=config.dropout,
+                                            activation=config.input_activate,
+                                            use_node_embeddings=config.use_node_embeddings,
+                                            force_no_embeddings=config.construct_feat_ntype,
+                                            num_ffn_layers_in_input=config.num_ffn_layers_in_input,
+                                            use_wholegraph_sparse_emb=config.use_wholegraph_embed)
+        # set edge encoder input layer no matter if having edge feature names or not
+        # TODO: add support of languange models and GLEM
+        edge_feat_size = get_edge_feat_size(g, config.edge_feat_name)
+        edge_encoder = GSEdgeEncoderInputLayer(g, edge_feat_size, config.hidden_size,
+                                        dropout=config.dropout,
+                                        activation=config.input_activate,
+                                        num_ffn_layers_in_input=config.num_ffn_layers_in_input)
+        model.set_edge_input_encoder(edge_encoder)
+
     # The number of feature dimensions can change. For example, the feature dimensions
     # of BERT embeddings are determined when the input encoder is created.
-    feat_size = encoder.in_dims
-    model.set_node_input_encoder(encoder)
+    node_feat_size = node_encoder.in_dims
+    model.set_node_input_encoder(node_encoder)
 
     # Set GNN encoders
     dropout = config.dropout if train_task else 0
-    if model_encoder_type == "mlp" or model_encoder_type == "lm":
+    out_emb_size = config.out_emb_size if config.out_emb_size else config.hidden_size
+
+    if model_encoder_type in ("mlp", "lm"):
         # Only input encoder is used
         assert config.num_layers == 0, "No GNN layers"
         gnn_encoder = None
@@ -845,9 +1010,11 @@ def set_encoder(model, g, config, train_task):
         # we need to set the num_layers -1 because there is an output layer
         # that is hard coded.
         gnn_encoder = RelationalGCNEncoder(g,
-                                           config.hidden_size, config.hidden_size,
+                                           config.hidden_size, out_emb_size,
                                            num_bases=num_bases,
                                            num_hidden_layers=config.num_layers -1,
+                                           edge_feat_name=config.edge_feat_name,
+                                           edge_feat_mp_op=config.edge_feat_mp_op,
                                            dropout=dropout,
                                            use_self_loop=config.use_self_loop,
                                            num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn,
@@ -856,7 +1023,7 @@ def set_encoder(model, g, config, train_task):
         # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = RelationalGATEncoder(g,
                                            config.hidden_size,
-                                           config.hidden_size,
+                                           out_emb_size,
                                            config.num_heads,
                                            num_hidden_layers=config.num_layers -1,
                                            dropout=dropout,
@@ -867,7 +1034,7 @@ def set_encoder(model, g, config, train_task):
         # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = HGTEncoder(g,
                                  config.hidden_size,
-                                 config.hidden_size,
+                                 out_emb_size,
                                  num_hidden_layers=config.num_layers -1,
                                  num_heads=config.num_heads,
                                  dropout=dropout,
@@ -875,11 +1042,11 @@ def set_encoder(model, g, config, train_task):
                                  num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     elif model_encoder_type == "sage":
         # we need to check if the graph is homogeneous
-        assert check_homo(g) == True, \
+        assert check_homo(g), \
             'The graph is not a homogeneous graph, can not use sage model encoder'
         # we need to set the num_layers -1 because there is an output layer that is hard coded.
         gnn_encoder = SAGEEncoder(h_dim=config.hidden_size,
-                                  out_dim=config.hidden_size,
+                                  out_dim=out_emb_size,
                                   num_hidden_layers=config.num_layers - 1,
                                   dropout=dropout,
                                   aggregator_type='pool',
@@ -887,20 +1054,20 @@ def set_encoder(model, g, config, train_task):
                                   norm=config.gnn_norm)
     elif model_encoder_type == "gat":
         # we need to check if the graph is homogeneous
-        assert check_homo(g) == True, \
+        assert check_homo(g), \
             'The graph is not a homogeneous graph, can not use gat model encoder'
         gnn_encoder = GATEncoder(h_dim=config.hidden_size,
-                                 out_dim=config.hidden_size,
+                                 out_dim=out_emb_size,
                                  num_heads=config.num_heads,
                                  num_hidden_layers=config.num_layers -1,
                                  dropout=dropout,
                                  num_ffn_layers_in_gnn=config.num_ffn_layers_in_gnn)
     elif model_encoder_type == "gatv2":
         # we need to check if the graph is homogeneous
-        assert check_homo(g) == True, \
+        assert check_homo(g), \
             'The graph is not a homogeneous graph, can not use gatv2 model encoder'
         gnn_encoder = GATv2Encoder(h_dim=config.hidden_size,
-                                   out_dim=config.hidden_size,
+                                   out_dim=out_emb_size,
                                    num_heads=config.num_heads,
                                    num_hidden_layers=config.num_layers -1,
                                    dropout=dropout,
@@ -908,16 +1075,23 @@ def set_encoder(model, g, config, train_task):
     else:
         assert False, "Unknown gnn model type {}".format(model_encoder_type)
 
+    # Check use edge feature and GNN encoder capacity
+    assert (config.edge_feat_name is None) or \
+                (config.edge_feat_name is not None and gnn_encoder.is_support_edge_feat()), \
+                    f'The \"{gnn_encoder.__class__.__name__}\" encoder dose not support ' + \
+                     'edge feature in this version. Please check GraphStorm documentations ' + \
+                     'to find gnn encoders that support edge features, e.g., \"rgcn\".'
+
     if reconstruct_feats:
-        rel_names = get_rel_names_for_reconstruct(g, config.construct_feat_ntype, feat_size)
-        dst_types = set([rel_name[2] for rel_name in rel_names])
+        rel_names = get_rel_names_for_reconstruct(g, config.construct_feat_ntype, node_feat_size)
+        dst_types = {rel_name[2] for rel_name in rel_names}
         for ntype in config.construct_feat_ntype:
             assert ntype in dst_types, \
                     f"We cannot reconstruct features of node {ntype} " \
                     + "probably because their neighbors don't have features."
         assert config.construct_feat_encoder == "rgcn", \
                 "We only support RGCN for reconstructing node features."
-        input_gnn = RelGraphConvLayer(config.hidden_size, config.hidden_size,
+        input_gnn = RelGraphConvLayer(config.hidden_size, out_emb_size,
                                       rel_names, len(rel_names),
                                       self_loop=False, # We should disable self loop so that
                                                        # the encoder doesn't use dest node
@@ -1036,7 +1210,11 @@ def create_task_decoder(task_info, g, decoder_input_dim, train_task):
     elif task_info.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
         return create_builtin_lp_decoder(g, decoder_input_dim, task_info.task_config, train_task)
     elif task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
-        return create_builtin_reconstruct_nfeat_decoder(g, decoder_input_dim, task_info.task_config, train_task)
+        return create_builtin_reconstruct_nfeat_decoder(
+            g, decoder_input_dim, task_info.task_config, train_task)
+    elif task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
+        return create_builtin_reconstruct_efeat_decoder(
+            g, decoder_input_dim, task_info.task_config, train_task)
     else:
         raise TypeError(f"Unknown task type {task_info.task_type}")
 
@@ -1089,24 +1267,23 @@ def create_evaluator(task_info):
                                         config.early_stop_rounds,
                                         config.early_stop_strategy)
     elif task_info.task_type in [BUILTIN_TASK_LINK_PREDICTION]:
-        assert len(config.eval_metric) == 1, \
-        "GraphStorm doees not support computing multiple metrics at the same time for link prediction tasks."
         if config.report_eval_per_type:
-            return GSgnnPerEtypeMrrLPEvaluator(
-                eval_frequency=config.eval_frequency,
-                major_etype=config.model_select_etype,
-                use_early_stop=config.use_early_stop,
-                early_stop_burnin_rounds=config.early_stop_burnin_rounds,
-                early_stop_rounds=config.early_stop_rounds,
-                early_stop_strategy=config.early_stop_strategy)
+            return GSgnnPerEtypeLPEvaluator(eval_frequency=config.eval_frequency,
+                                    eval_metric_list=config.eval_metric,
+                                    major_etype=config.model_select_etype,
+                                    use_early_stop=config.use_early_stop,
+                                    early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                    early_stop_rounds=config.early_stop_rounds,
+                                    early_stop_strategy=config.early_stop_strategy)
         else:
-            return GSgnnMrrLPEvaluator(
-                eval_frequency=config.eval_frequency,
-                use_early_stop=config.use_early_stop,
-                early_stop_burnin_rounds=config.early_stop_burnin_rounds,
-                early_stop_rounds=config.early_stop_rounds,
-                early_stop_strategy=config.early_stop_strategy)
-    elif task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT]:
+            return GSgnnLPEvaluator(eval_frequency=config.eval_frequency,
+                                    eval_metric_list=config.eval_metric,
+                                    use_early_stop=config.use_early_stop,
+                                    early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                    early_stop_rounds=config.early_stop_rounds,
+                                    early_stop_strategy=config.early_stop_strategy)
+    elif task_info.task_type in [BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
+                                 BUILTIN_TASK_RECONSTRUCT_EDGE_FEAT]:
         return GSgnnRconstructFeatRegScoreEvaluator(
             config.eval_frequency,
             config.eval_metric,
@@ -1115,3 +1292,38 @@ def create_evaluator(task_info):
             config.early_stop_rounds,
             config.early_stop_strategy)
     return None
+
+def create_lp_evaluator(config):
+    """ Create LP specific evaluator.
+
+        Parameters
+        ----------
+        config: GSConfig
+            Configuration.
+
+        Return
+        ------
+        Evaluator: A link prediction evaluator
+    """
+    assert all(
+        (x.startswith(SUPPORTED_HIT_AT_METRICS) or x in SUPPORTED_LINK_PREDICTION_METRICS)
+            for x in config.eval_metric), (
+        "Invalid LP evaluation metrics. "
+        f"GraphStorm only supports {SUPPORTED_LINK_PREDICTION_METRICS} as metrics "
+        f"for link prediction, got {config.eval_metric}")
+
+    if config.report_eval_per_type:
+        return GSgnnPerEtypeLPEvaluator(eval_frequency=config.eval_frequency,
+                                eval_metric_list=config.eval_metric,
+                                major_etype=config.model_select_etype,
+                                use_early_stop=config.use_early_stop,
+                                early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                early_stop_rounds=config.early_stop_rounds,
+                                early_stop_strategy=config.early_stop_strategy)
+    else:
+        return GSgnnLPEvaluator(eval_frequency=config.eval_frequency,
+                                eval_metric_list=config.eval_metric,
+                                use_early_stop=config.use_early_stop,
+                                early_stop_burnin_rounds=config.early_stop_burnin_rounds,
+                                early_stop_rounds=config.early_stop_rounds,
+                                early_stop_strategy=config.early_stop_strategy)

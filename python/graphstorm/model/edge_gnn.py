@@ -127,19 +127,24 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
         super(GSgnnEdgeModel, self).__init__()
         self.alpha_l2norm = alpha_l2norm
 
-    # pylint: disable=unused-argument
     def forward(self, blocks, target_edges, node_feats, edge_feats, target_edge_feats,
         labels, input_nodes=None):
         """ The forward function for edge prediction.
+
+        .. versionchanged:: 0.4.0
+            Add ``edge_feats`` into ``compute_embed_step`` in v0.4.0 to use edge features
+            in message passing computation.
 
         This GNN model doesn't support edge features right now.
         """
         alpha_l2norm = self.alpha_l2norm
         if blocks is None or len(blocks) == 0:
-            # no GNN message passing
+            # no GNN message passing, just compute node embeddings
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
-            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
+            # has GNN encoder, compute node embedding, or optional edge embeddings
+            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes, edge_feats)
+
         # Call emb normalization.
         # the default behavior is doing nothing.
         encode_embs = self.normalize_node_embs(encode_embs)
@@ -163,12 +168,17 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
     def predict(self, blocks, target_edges, node_feats, edge_feats,
                 target_edge_feats, input_nodes, return_proba=False):
         """ Make prediction on edges.
+
+        .. versionchanged:: 0.4.0
+            Add ``edge_feats`` into ``compute_embed_step`` in v0.4.0 to use edge features
+            in message passing computation.
         """
         if blocks is None or len(blocks) == 0:
             # no GNN message passing in encoder
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
-            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
+            # has GNN encoder, compute node embedding, or optional edge embeddings
+            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes, edge_feats)
 
         # Call emb normalization.
         # the default behavior is doing nothing.
@@ -179,6 +189,10 @@ class GSgnnEdgeModel(GSgnnModel, GSgnnEdgeModelInterface):
 
 def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=False):
     """ Perform mini-batch prediction on a GNN model.
+
+    .. versionchanged:: 0.4.0
+        Add input edge feature into model.predict() call in v0.4.0 to support edge features
+        in message passing computation.
 
     Parameters
     ----------
@@ -237,7 +251,9 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                         if etype not in input_edges]
                 prepare_for_wholegraph(g, input_nodes, input_edges)
             nfeat_fields = loader.node_feat_fields
-            input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
+            input_nfeats = data.get_node_feats(input_nodes, nfeat_fields, device)
+            efeat_fields = loader.edge_feat_fields
+            input_efeat_list = data.get_blocks_edge_feats(blocks, efeat_fields, device)
             if blocks is None:
                 continue
             # Remove additional keys (ntypes) added for WholeGraph compatibility
@@ -257,8 +273,8 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
                 edge_decoder_feats = None
             blocks = [block.to(device) for block in blocks]
             target_edge_graph = target_edge_graph.to(device)
-            pred = model.predict(blocks, target_edge_graph, input_feats,
-                                 None, edge_decoder_feats, input_nodes,
+            pred = model.predict(blocks, target_edge_graph, input_nfeats,
+                                 input_efeat_list, edge_decoder_feats, input_nodes,
                                  return_proba)
 
             # TODO expand code for multiple edge types
@@ -296,7 +312,7 @@ def edge_mini_batch_gnn_predict(model, loader, return_proba=True, return_label=F
 def edge_mini_batch_predict(model, emb, loader, return_proba=True, return_label=False):
     """ Perform mini-batch prediction.
 
-    This function usually follows full-grain GNN embedding inference. After having
+    This function usually follows full-graph GNN embedding inference. After having
     the GNN embeddings, we need to perform mini-batch computation to make predictions
     on the GNN embeddings.
 

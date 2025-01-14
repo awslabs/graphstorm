@@ -183,6 +183,30 @@ python3 -m graphstorm.gconstruct.construct_graph \
 	--graph-name movie-lens-100k \
 	--add-reverse-edges
 
+# movielens with edge feature for node classification and edge classification in cpu and mgpu
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_ef_nc_ec.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_ef_nc_ec_train_val_1p_4t \
+	--graph-name movie-lens-100k \
+	--add-reverse-edges
+
+# movielens with edge feature for edge regression in cpu and mgpu
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_ef_er.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_ef_er_train_val_1p_4t \
+	--graph-name movie-lens-100k \
+	--add-reverse-edges
+
+# movielens with edge feature for link prediction in cpu and mgpu
+python3 -m graphstorm.gconstruct.construct_graph \
+	--conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_ef_lp.json \
+	--num-processes 1 \
+	--output-dir movielen_100k_ef_lp_train_val_1p_4t \
+	--graph-name movie-lens-100k \
+	--add-reverse-edges
+
 date
 
 echo 'Done'

@@ -67,7 +67,7 @@ class DistBucketNumericalTransformation(DistributedTransformation):
         return "DistBucketNumericalTransformation"
 
     def apply(self, input_df: DataFrame) -> DataFrame:
-        imputed_df = apply_imputation(self.cols, self.shared_imputation, input_df)
+        imputed_df = apply_imputation(self.cols, self.shared_imputation, input_df).imputed_df
         # TODO: Make range optional by getting min/max from data.
         min_val, max_val = self.range
 

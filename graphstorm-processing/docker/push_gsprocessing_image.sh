@@ -42,7 +42,7 @@ parse_params() {
   IMAGE='graphstorm-processing'
   VERSION=`poetry version --short`
   LATEST_VERSION=${VERSION}
-  REGION=$(aws configure get region)
+  REGION=$(aws configure get region) || REGION=""
   REGION=${REGION:-us-west-2}
   ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
   ARCH='x86_64'

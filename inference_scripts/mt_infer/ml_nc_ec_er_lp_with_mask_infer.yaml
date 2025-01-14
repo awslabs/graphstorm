@@ -91,6 +91,9 @@ gsf:
           - "train_mask_field_lp"
           - null # empty means there is no validation mask
           - "test_mask_field_lp"
+        eval_metric:
+          - "mrr"
+          - "amri"
     - reconstruct_node_feat:
         reconstruct_nfeat_name: "title"
         target_ntype: "movie"
@@ -99,5 +102,16 @@ gsf:
           - "train_mask_c0" # use the same mask as node classification c0
           - "val_mask_c0"
           - "test_mask_c0"
+        eval_metric:
+          - "mse"
+    - reconstruct_edge_feat:
+        reconstruct_efeat_name: "feat"
+        target_etype:
+          - "user,rating,movie"
+        batch_size: 32
+        mask_fields:
+          - "train_mask_field_r" # edge reconstruct mask
+          - "val_mask_field_r"
+          - "test_mask_field_r"
         eval_metric:
           - "mse"

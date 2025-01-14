@@ -17,7 +17,9 @@
 """
 import os
 import logging
+from typing import Optional
 
+from ..eval.evaluator import GSgnnBaseEvaluator
 from ..model import GSOptimizer
 from ..model import GSgnnModel, GSgnnModelBase
 from ..model.utils import TopKList
@@ -344,7 +346,7 @@ class GSgnnTrainer():
             return True
 
     @property
-    def evaluator(self):
+    def evaluator(self) -> Optional[GSgnnBaseEvaluator]:
         """ The evaluator associated with the trainer.
         """
         return self._evaluator

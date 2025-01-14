@@ -30,7 +30,7 @@ import torch as th
 import dgl
 from dgl.distributed.constants import DEFAULT_NTYPE, DEFAULT_ETYPE
 
-from ..utils import sys_tracker, get_log_level
+from ..utils import sys_tracker, get_log_level, check_graph_name
 from .file_io import parse_node_file_format, parse_edge_file_format
 from .file_io import get_in_files
 from .transform import parse_feat_ops, process_features, preprocess_features
@@ -742,6 +742,7 @@ def print_graph_info(g, node_data, edge_data, node_label_stats, edge_label_stats
 def process_graph(args):
     """ Process the graph.
     """
+    check_graph_name(args.graph_name)
     logging.basicConfig(level=get_log_level(args.logging_level))
     with open(args.conf_file, 'r', encoding="utf8") as json_file:
         process_confs = json.load(json_file)
@@ -920,7 +921,11 @@ if __name__ == '__main__':
     argparser.add_argument("--output-dir", type=str, required=True,
                            help="The path of the output data folder.")
     argparser.add_argument("--graph-name", type=str, required=True,
-                           help="The graph name")
+                           help="Name for the graph being processed."
+                                "The graph name must adhere to the Python "
+                                "identifier naming rules with the exception "
+                                "that hyphens (-) are permitted "
+                                "and the name can start with numbers",)
     argparser.add_argument("--remap-node-id", action='store_true',
                            help="Whether or not to remap node IDs.")
     argparser.add_argument("--add-reverse-edges", action='store_true',
@@ -934,6 +939,7 @@ if __name__ == '__main__':
                            help="The number of graph partitions. " + \
                                    "This is only valid if the output format is DistDGL.")
     argparser.add_argument("--part-method", type=str, default='metis',
+                           choices=['metis', 'random'],
                            help="The partition method. Currently, we support 'metis' and 'random'.")
     argparser.add_argument("--skip-nonexist-edges", action='store_true',
                            help="Skip edges that whose endpoint nodes don't exist.")

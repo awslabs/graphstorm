@@ -15,6 +15,7 @@ limitations under the License.
 """
 
 import abc
+import logging
 from typing import Any, Dict, Optional
 
 
@@ -42,6 +43,11 @@ class LabelConfig(abc.ABC):
                 {"train": 0.8, "val": 0.1, "test": 0.1},
             )
         else:
+            if "split_rate" in config_dict:
+                logging.warning(
+                    "custom_split_filenames and split_rate are set at the same time, "
+                    "will do custom data split"
+                )
             self._custom_split_filenames = config_dict["custom_split_filenames"]
         if "mask_field_names" in config_dict:
             self._mask_field_names: Optional[list[str]] = config_dict["mask_field_names"]
@@ -54,17 +60,24 @@ class LabelConfig(abc.ABC):
                 "When no label column is specified, the task type must be link_prediction, "
                 f"got {self._task_type}"
             )
+        # Sanity checks for random and custom splits
         if "custom_split_filenames" not in self._config:
             assert isinstance(self._task_type, str)
             assert isinstance(self._split, dict)
-            assert isinstance(self._separator, str) if self._multilabel else self._separator is None
         else:
             assert isinstance(self._custom_split_filenames, dict)
-            assert "train" in self._custom_split_filenames
-            assert "valid" in self._custom_split_filenames
-            assert "test" in self._custom_split_filenames
-            assert "column" in self._custom_split_filenames
-            assert isinstance(self._separator, str) if self._multilabel else self._separator is None
+
+            # Ensure at least one of ["train", "valid", "test"] is in the keys
+            assert any(x in self._custom_split_filenames.keys() for x in ["train", "valid", "test"])
+
+            for entry in ["train", "valid", "test", "column"]:
+                # All existing entries must be lists of strings
+                if entry in self._custom_split_filenames:
+                    assert isinstance(self._custom_split_filenames[entry], list)
+                    assert all(isinstance(x, str) for x in self._custom_split_filenames[entry])
+
+        assert isinstance(self._separator, str) if self._multilabel else self._separator is None
+
         if self._mask_field_names:
             assert isinstance(self._mask_field_names, list)
             assert all(isinstance(x, str) for x in self._mask_field_names)
@@ -105,7 +118,11 @@ class LabelConfig(abc.ABC):
     @property
     def mask_field_names(self) -> Optional[tuple[str, str, str]]:
         """Custom names to assign to masks for multi-task learning."""
-        return tuple(self._mask_field_names) if self._mask_field_names else None
+        if self._mask_field_names is None:
+            return None
+        else:
+            assert len(self._mask_field_names) == 3
+            return (self._mask_field_names[0], self._mask_field_names[1], self._mask_field_names[2])
 
 
 class EdgeLabelConfig(LabelConfig):

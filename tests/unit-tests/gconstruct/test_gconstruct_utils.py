@@ -19,10 +19,11 @@ import json
 
 import dgl
 import numpy as np
-import torch as th
+import pytest
 import pandas as pd
 import pyarrow.parquet as pq
 import pyarrow as pa
+import torch as th
 
 from numpy.testing import assert_almost_equal
 
@@ -38,7 +39,7 @@ from graphstorm.gconstruct.file_io import (write_data_hdf5,
                                            read_data_hdf5,
                                            get_in_files,
                                            write_data_parquet)
-from graphstorm.gconstruct.file_io import read_index, write_index_json
+from graphstorm.gconstruct.file_io import read_index, write_index_json, expand_wildcard
 from graphstorm.gconstruct.file_io import (read_data_csv,
                                            read_data_json,
                                            read_data_parquet)
@@ -292,22 +293,25 @@ def test_get_in_files():
         for i in range(10):
             data = {"test": np.random.rand(10)}
             write_data_parquet(data, files[i])
+        files.sort()
 
+        # Test single string wildcard path
         in_files = get_in_files(os.path.join(tmpdirname,"*.parquet"))
         assert len(in_files) == 10
-        files.sort()
+
+        assert files == in_files
+
+        # Test list of wildcard paths with a single element
+        in_files = get_in_files([os.path.join(tmpdirname, "*.parquet")])
+        assert len(in_files) == 10
         assert files == in_files
 
         in_files = get_in_files(os.path.join(tmpdirname,"test9.parquet"))
         assert len(in_files) == 1
         assert os.path.join(tmpdirname,"test9.parquet") == in_files[0]
 
-        pass_test = False
-        try:
+        with pytest.raises(AssertionError):
             in_files = get_in_files(os.path.join(tmpdirname,"test10.parquet"))
-        except:
-            pass_test = True
-        assert pass_test
 
 def test_get_hard_edge_negs_feats():
     hard_trans0 = HardEdgeDstNegativeTransform("hard_neg", "hard_neg")
@@ -498,7 +502,21 @@ def test_read_index():
     assert train_content == [("p1", "p3"), ("p2", "p4")]
     assert test_content == [("p5", "p7"), ("p6", "p8")]
 
+def test_single_directory_expansion():
+    # Create a temporary directory
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Create some test files in the directory
+        test_files = ['file1.txt', 'file2.txt']
+        for file_name in test_files:
+            with open(os.path.join(temp_dir, file_name), 'w') as f:
+                f.write('test')
 
+        # Test the function with a single directory
+        result = expand_wildcard([temp_dir])
+
+        # Sort both lists for comparison
+        expected_files = sorted([os.path.join(temp_dir, f) for f in test_files])
+        assert sorted(result) == expected_files
 
 if __name__ == '__main__':
     test_shuffle_hard_nids()

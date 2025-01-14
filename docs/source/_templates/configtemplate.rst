@@ -32,6 +32,7 @@
                       model_select_etype,
                       decoder_norm,
                       reconstruct_nfeat_name,
+                      reconstruct_efeat_name,
                       multi_tasks,
                       construct_feat_ntype,
                       construct_feat_encoder,

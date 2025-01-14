@@ -29,6 +29,7 @@ from .numerical_configs import (
 )
 from .categorical_configs import MultiCategoricalFeatureConfig
 from .hf_configs import HFConfig
+from .hard_negative_configs import HardEdgeNegativeConfig
 from .data_config_base import DataStorageConfig
 
 
@@ -71,6 +72,8 @@ def parse_feat_config(feature_dict: Dict) -> FeatureConfig:
         return MultiCategoricalFeatureConfig(feature_dict)
     elif transformation_name == "huggingface":
         return HFConfig(feature_dict)
+    elif transformation_name == "edge_dst_hard_negative":
+        return HardEdgeNegativeConfig(feature_dict)
     else:
         raise RuntimeError(f"Unknown transformation name: '{transformation_name}'")
 
@@ -191,6 +194,8 @@ class EdgeConfig(StructureConfig):
         self._dst_ntype = edge_dict["dest"]["type"]
         self._rel_type = edge_dict["relation"]["type"]
         self._rel_col: Optional[str] = edge_dict["relation"].get("column", None)
+        self._feature_configs = []
+        self._labels = []
 
         if "features" in edge_dict:
             for feature_dict in edge_dict["features"]:

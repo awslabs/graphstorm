@@ -33,11 +33,12 @@ Full argument list of the ``gconstruct.construct_graph`` command
 * **-\-num-processes-for-nodes**: the number of processes to process node data simultaneously. Increase this number can speed up node data processing.
 * **-\-num-processes-for-edges**: the number of processes to process edge data simultaneously. Increase this number can speed up edge data processing.
 * **-\-output-dir**: (**Required**) the path of the output data files.
-* **-\-graph-name**: (**Required**) the name assigned for the graph.
+* **-\-graph-name**: (**Required**) the name assigned for the graph. The graph name must adhere to the `Python identifier naming rules<https://docs.python.org/3/reference/lexical_analysis.html#identifiers>`_ with the exception that hyphens (``-``) are permitted and the name can start with numbers.
 * **-\-remap-node-id**: boolean value to decide whether to rename node IDs or not. Adding this argument will set it to be true, otherwise false.
 * **-\-add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Adding this argument sets it to true; otherwise, it defaults to false. It is **strongly** suggested to include this argument for graph construction, as some nodes in the original data may not have in-degrees, and thus cannot update their presentations by aggregating messages from their neighbors. Adding this arugment helps prevent this issue.
 * **-\-output-format**: the format of constructed graph, options are ``DGL``,  ``DistDGL``.  Default is ``DistDGL``. It also accepts multiple graph formats at the same time separated by an space, for example ``--output-format "DGL DistDGL"``. The output format is explained in the :ref:`Output <gcon-output-format>` section above.
 * **-\-num-parts**: an integer value that specifies the number of graph partitions to produce. This is only valid if the output format is ``DistDGL``.
+* **-\-part-method**: the partition method to use during partitioning. We support 'metis' or 'random'.
 * **-\-skip-nonexist-edges**: boolean value to decide whether skip edges whose endpoint nodes don't exist. Default is true.
 * **-\-ext-mem-workspace**: the directory where the tool can store intermediate data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
 * **-\-ext-mem-feat-size**: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.
@@ -92,7 +93,7 @@ Similarly, ``edges`` contains a list of edge types and the information of an edg
 
 **Label dictionary format**
 
-* ``task_type``: (**Required**) specifies the task defined on the nodes or edges. Currently, its value can be one of ``classification``, ``regression``, ``link_prediction``, and ``reconstruct_node_feat``.
+* ``task_type``: (**Required**) specifies the task defined on the nodes or edges. Currently, its value can be one of ``classification``, ``regression``, ``link_prediction``, ``reconstruct_node_feat`` and ``reconstruct_edge_feat``.
 * ``label_col``: specifies the column name in the input file that contains the labels. This has to be specified for ``classification`` and ``regression`` tasks. ``label_col`` is also used as the label name.
 * ``split_pct``: specifies how to split the data into training/validation/test. If it's not specified, the data is split into 80% for training 10% for validation and 10% for testing. The pipeline constructs three additional vectors indicating the training/validation/test masks. For ``classification`` and ``regression`` tasks, the names of the mask tensors are ``train_mask``, ``val_mask`` and ``test_mask``.
 * ``custom_split_filenames``: specifies the customized training/validation/test mask. It has field named ``train``, ``valid``, and ``test`` to specify the path of the mask files. It is possible that one of the subfield here leaves empty and it will be treated as none. It will override the ``split_pct`` once provided. Refer to :ref:`Label split files <customized-split-labels>` for detailed explanations.
@@ -146,6 +147,15 @@ GraphStorm provides a set of transformation operations for different types of fe
     "transform": {"name": "max_min_norm",
                   "max_bound": 2.,
                   "min_bound": -2.}
+
+* **Numerical standard transformation** normalizes numerical input features with `val = val / sum`, where `val` is the feature value and `sum` is a summation of all the values in the feature. The ``name`` field in the feature transformation dictionary is ``standard``. The dictionary can contain one optional field, i.e., ``sum``, which is summation of all the values in the feature col from the previous transformation. (By default, the ``gconstruct.construct_graph`` command will save the ``sum`` value for each standard transformation.)
+
+  Example:
+
+  .. code:: json
+
+    "transform": {"name": "standard",
+                  "sum": 100.1,}
 
 * **Numerical Rank Gauss transformation** normalizes numerical input features with rank gauss normalization. It maps the numeric feature values to gaussian distribution based on ranking. The method follows the description in the normalization section of `the Porto Seguro's Safe Driver Prediction kaggle competition <https://www.kaggle.com/c/porto-seguro-safe-driver-prediction/discussion/44629#250927>`_. The ``name`` field in the feature transformation dictionary is ``rank_gauss``. The dict can contains two optional fields, i.e., ``epsilon`` which is used to avoid ``INF`` float during computation and ``uniquify`` which controls whether deduplicating input features before computing rank gauss norm.
 

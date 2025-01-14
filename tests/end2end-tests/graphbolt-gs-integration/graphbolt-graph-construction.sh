@@ -6,7 +6,7 @@ usage() {
   cat <<EOF
 Usage: $(basename "${BASH_SOURCE[0]}") [-h] [-x] [-i /path/to/ml-100k] [-o /path/to/output/data]
 
-Converts the raw ml-100k data to format used for integration tests
+Run the GraphBolt graph construction integration tests.
 
 Available options:
 
@@ -76,11 +76,11 @@ fi
 
 echo "********* Test GConstruct with GraphBolt graph format ********"
 
-GCONS_GRAPHBOLT_PATH="${OUTPUT_PATH}/graphbolt-gconstruct"
+GCONS_GRAPHBOLT_PATH="${OUTPUT_PATH}/graphbolt-gconstruct-lp"
 python3 -m graphstorm.gconstruct.construct_graph \
     --add-reverse-edges \
-    --conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_text.json \
-    --graph-name ml \
+    --conf-file $GS_HOME/tests/end2end-tests/data_gen/movielens_lp.json \
+    --graph-name ml-lp \
     --num-parts 2 \
     --num-processes 1 \
     --output-dir "$GCONS_GRAPHBOLT_PATH" \
@@ -104,7 +104,7 @@ for i in $(seq 0 1); do
 done
 
 python3 -m graphstorm.gpartition.convert_to_graphbolt \
-    --metadata-filepath "${GCONS_GRAPHBOLT_PATH}/ml.json"
+    --metadata-filepath "${GCONS_GRAPHBOLT_PATH}/ml-lp.json"
 
 # Ensure GraphBolt files were re-created by standalone script
 for i in $(seq 0 1); do
@@ -118,7 +118,7 @@ done
 
 echo "********* Test GSPartition with GraphBolt graph format ********"
 
-DIST_GRAPHBOLT_PATH="${OUTPUT_PATH}/graphbolt-part"
+DIST_GRAPHBOLT_PATH="${OUTPUT_PATH}/graphbolt-gspartition-nc"
 python3 -m graphstorm.gpartition.dist_partition_graph \
     --input-path "${INPUT_PATH}" \
     --ip-config ip_list.txt \
@@ -126,7 +126,8 @@ python3 -m graphstorm.gpartition.dist_partition_graph \
     --num-parts 2 \
     --output-path "$DIST_GRAPHBOLT_PATH" \
     --ssh-port 2222 \
-    --use-graphbolt "true"
+    --use-graphbolt "true" \
+    --process-group-timeout 3600
 
 # Ensure GraphBolt files were created by GSPartition
 for i in $(seq 0 1); do

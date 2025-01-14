@@ -77,7 +77,8 @@ def run_job(input_args, image, unknownargs):
         "output-chunk-size": output_chunk_size,
         "output-emb-s3": output_emb_s3_path,
         "task-type": task_type,
-        "log-level": log_level
+        "log-level": log_level,
+        "use-graphbolt": input_args.use_graphbolt,
     }
     # In Link Prediction, no prediction outputs
     if task_type not in ["link_prediction", "compute_emb"]:
@@ -117,7 +118,6 @@ def run_job(input_args, image, unknownargs):
         role=role,
         instance_count=instance_count,
         instance_type=instance_type,
-        model_uri=model_artifact_s3,
         py_version="py3",
         base_job_name=prefix,
         hyperparameters=params,
