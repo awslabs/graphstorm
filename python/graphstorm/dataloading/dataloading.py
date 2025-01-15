@@ -24,9 +24,11 @@ from torch.utils.data import DataLoader
 import torch.distributed as dist
 
 try:
+    # Compatible with DGL 2.4+
     from dgl.distributed import DistDataLoader
     from dgl.distributed.dist_dataloader import EdgeCollator, _remove_kwargs_dist
 except ImportError:
+    # Backward compatible with DGL 2.3 or lower.
     from dgl.dataloading import DistDataLoader
     from dgl.dataloading import EdgeCollator
     from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
