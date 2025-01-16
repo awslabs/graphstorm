@@ -42,7 +42,6 @@ SHARED_MEMORY_CROSS_PROCESS_STORAGE = "shared_memory"
 PICKLE_CROSS_PROCESS_STORAGE = "pickle"
 EXT_MEMORY_STORAGE = "ext_memory"
 
-
 def _is_numeric(arr):
     """ Check if the input array has the numeric data type.
     """
@@ -215,7 +214,6 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser, ext_mem_workspace):
     # We need to set a GPU device for each worker process in case that
     # some transformations (e.g., computing BERT embeddings) require GPU computation.
     if th.cuda.is_available():
-        th.multiprocessing.set_start_method("spawn", force=True)
         num_gpus = th.cuda.device_count()
         gpu = worker_id % num_gpus
         os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu)
