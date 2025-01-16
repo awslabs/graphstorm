@@ -42,7 +42,6 @@ SHARED_MEMORY_CROSS_PROCESS_STORAGE = "shared_memory"
 PICKLE_CROSS_PROCESS_STORAGE = "pickle"
 EXT_MEMORY_STORAGE = "ext_memory"
 
-multiprocessing.set_start_method("spawn", force=True)
 
 def _is_numeric(arr):
     """ Check if the input array has the numeric data type.
@@ -223,6 +222,7 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser, ext_mem_workspace):
             logging.warning("There are more than 1 processes are attachd to GPU %d.", gpu)
     try:
         i = 0
+        multiprocessing.set_start_method("spawn", force=True)
         while True:
             # If the queue is empty, it will raise the Empty exception.
             i, in_file = task_queue.get_nowait()
