@@ -896,7 +896,6 @@ def process_graph(args):
                     "The ID map is saved under %s.", ntype, map_prefix)
 
 if __name__ == '__main__':
-    th.multiprocessing.set_start_method("spawn", force=True)
     argparser = argparse.ArgumentParser("Preprocess graphs")
     argparser.add_argument("--conf-file", type=str, required=True,
                            help="The configuration file.")
