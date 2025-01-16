@@ -18,6 +18,8 @@ import abc
 import logging
 from typing import Any, Dict, Optional
 
+from graphstorm_processing.constants import VALID_TASK_TYPES
+
 
 class LabelConfig(abc.ABC):
     """Basic class for label config"""
@@ -55,6 +57,9 @@ class LabelConfig(abc.ABC):
             self._mask_field_names = None
 
     def _sanity_check(self):
+        assert (
+            self._task_type in VALID_TASK_TYPES
+        ), f"Invalid task type {self._task_type}, must be one of {VALID_TASK_TYPES}"
         if self._label_column == "":
             assert self._task_type == "link_prediction", (
                 "When no label column is specified, the task type must be link_prediction, "
@@ -82,6 +87,25 @@ class LabelConfig(abc.ABC):
             assert isinstance(self._mask_field_names, list)
             assert all(isinstance(x, str) for x in self._mask_field_names)
             assert len(self._mask_field_names) == 3
+
+    def __repr__(self) -> str:
+        """Formal object representation for debugging"""
+        return (
+            f"{self.__class__.__name__}(label_column={self._label_column!r}, "
+            f"task_type={self._task_type!r}, separator={self._separator!r}, "
+            f"multilabel={self._multilabel!r}, split={self._split!r}, "
+            f"custom_split_filenames={self._custom_split_filenames!r}, "
+            f"mask_field_names={self._mask_field_names!r})"
+        )
+
+    def __str__(self) -> str:
+        """Informal object representation for readability"""
+        task_desc = f"{self._task_type} task"
+        if self._label_column:
+            task_desc += f" on column '{self._label_column}'"
+        if self._multilabel:
+            task_desc += f" (multilabel with separator '{self._separator}')"
+        return task_desc
 
     @property
     def label_column(self) -> str:

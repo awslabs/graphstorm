@@ -264,6 +264,7 @@ class DistributedExecutor:
             output_prefix=self.output_prefix,
             precomputed_transformations=self.precomputed_transformations,
         )
+
         self.loader = DistHeterogeneousGraphLoader(
             self.spark,
             loader_config,
@@ -287,17 +288,18 @@ class DistributedExecutor:
             bucket, s3_prefix = s3_utils.extract_bucket_and_key(self.output_prefix)
             s3 = boto3.resource("s3")
 
-            output_files = os.listdir(loader.output_path)
+            output_files = os.listdir(loader.local_meta_output_path)
             for output_file in output_files:
                 s3.meta.client.upload_file(
-                    f"{os.path.join(loader.output_path, output_file)}",
+                    f"{os.path.join(loader.local_meta_output_path, output_file)}",
                     bucket,
                     f"{s3_prefix}/{output_file}",
                 )
 
     def run(self) -> None:
         """
-        Executes the Spark processing job.
+        Executes the Spark processing job, optional repartition job, and uploads any metadata files
+        if needed.
         """
         logging.info("Performing data processing with PySpark...")
 
@@ -355,7 +357,7 @@ class DistributedExecutor:
         # If any of the metadata modification took place, write an updated metadata file
         if updated_metadata:
             updated_meta_path = os.path.join(
-                self.loader.output_path, "updated_row_counts_metadata.json"
+                self.loader.local_meta_output_path, "updated_row_counts_metadata.json"
             )
             with open(
                 updated_meta_path,

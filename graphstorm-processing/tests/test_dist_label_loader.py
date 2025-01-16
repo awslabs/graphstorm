@@ -17,11 +17,12 @@ limitations under the License.
 import numpy as np
 
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.types import StructField, StructType, StringType
+from pyspark.sql.types import IntegerType, StructField, StructType, StringType
 
 
 from graphstorm_processing.data_transformations.dist_label_loader import DistLabelLoader
 from graphstorm_processing.config.label_config_base import LabelConfig
+from graphstorm_processing.constants import NODE_MAPPING_INT
 
 
 def test_dist_classification_label(spark: SparkSession, check_df_schema):
@@ -34,15 +35,17 @@ def test_dist_classification_label(spark: SparkSession, check_df_schema):
     }
 
     data = [
-        ("mark",),
-        ("john",),
-        ("tara",),
-        ("jen",),
-        (None,),
+        ("mark", 0),
+        ("john", 1),
+        ("tara", 2),
+        ("jen", 3),
+        (None, 4),
     ]
-    names_df = spark.createDataFrame(data, schema=[label_col])
+    names_df = spark.createDataFrame(data, schema=[label_col, NODE_MAPPING_INT])
 
-    label_transformer = DistLabelLoader(LabelConfig(classification_config), spark)
+    label_transformer = DistLabelLoader(
+        LabelConfig(classification_config), spark, order_col=NODE_MAPPING_INT
+    )
 
     transformed_labels = label_transformer.process_label(names_df)
 
@@ -104,12 +107,19 @@ def test_dist_multilabel_classification(spark: SparkSession, check_df_schema):
         "separator": "|",
     }
 
-    data = [("1|2",), ("3|4",), ("5|6",), ("7|8",), ("NaN",)]
+    data = [("1|2", 0), ("3|4", 1), ("5|6", 2), ("7|8", 3), ("NaN", 4)]
 
-    schema = StructType([StructField("ratings", StringType(), True)])
+    schema = StructType(
+        [
+            StructField(label_col, StringType(), True),
+            StructField(NODE_MAPPING_INT, IntegerType(), True),
+        ]
+    )
     label_df = spark.createDataFrame(data, schema=schema)
 
-    label_transformer = DistLabelLoader(LabelConfig(multilabel_config), spark)
+    label_transformer = DistLabelLoader(
+        LabelConfig(multilabel_config), spark, order_col=NODE_MAPPING_INT
+    )
 
     transformed_labels = label_transformer.process_label(label_df)
 
@@ -117,7 +127,7 @@ def test_dist_multilabel_classification(spark: SparkSession, check_df_schema):
 
     assert set(label_map.keys()) == {"1", "2", "3", "4", "5", "6", "7", "8", "NaN"}
 
-    check_df_schema(transformed_labels)
+    check_df_schema(transformed_labels.select(label_col))
 
     transformed_rows = transformed_labels.collect()
 

@@ -24,7 +24,11 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from time import perf_counter
 from typing import Any, Dict, Optional, Set, Tuple
+from uuid import uuid4
 
+import numpy as np
+import pyarrow as pa
+from pyarrow import parquet as pq
 from pyspark import RDD
 from pyspark.sql import Row, SparkSession, DataFrame, functions as F
 from pyspark.sql.types import (
@@ -40,6 +44,8 @@ from pyspark.sql.functions import col, when, monotonically_increasing_id
 from numpy.random import default_rng
 
 from graphstorm_processing.constants import (
+    DATA_SPLIT_SET_MASK_COL,
+    FilesystemType,
     MIN_VALUE,
     MAX_VALUE,
     VALUE_COUNTS,
@@ -166,21 +172,21 @@ class DistHeterogeneousGraphLoader(object):
         spark: SparkSession,
         loader_config: HeterogeneousLoaderConfig,
     ):
-        self.output_path = loader_config.local_metadata_output_path
+        self.local_meta_output_path = loader_config.local_metadata_output_path
         self._data_configs = loader_config.data_configs
         self.feature_configs: list[FeatureConfig] = []
 
         # TODO: Pass as an argument?
         if loader_config.input_prefix.startswith("s3://"):
-            self.filesystem_type = "s3"
+            self.filesystem_type = FilesystemType.S3
         else:
             assert os.path.isabs(loader_config.input_prefix), "We expect an absolute path"
-            self.filesystem_type = "local"
+            self.filesystem_type = FilesystemType.LOCAL
 
         self.spark: SparkSession = spark
         self.add_reverse_edges = loader_config.add_reverse_edges
         # Remove trailing slash in s3 paths
-        if self.filesystem_type == "s3":
+        if self.filesystem_type == FilesystemType.S3:
             self.input_prefix = s3_utils.s3_path_remove_trailing(loader_config.input_prefix)
             self.output_prefix = s3_utils.s3_path_remove_trailing(loader_config.output_prefix)
         else:
@@ -343,12 +349,14 @@ class DistHeterogeneousGraphLoader(object):
         metadata_dict["graph_info"] = self._finalize_graphinfo_dict(metadata_dict)
 
         # The metadata dict is written to disk as a JSON file
-        with open(os.path.join(self.output_path, "metadata.json"), "w", encoding="utf-8") as f:
+        with open(
+            os.path.join(self.local_meta_output_path, "metadata.json"), "w", encoding="utf-8"
+        ) as f:
             json.dump(metadata_dict, f, indent=4)
 
         # Write the transformations file
         with open(
-            os.path.join(self.output_path, TRANSFORMATIONS_FILENAME),
+            os.path.join(self.local_meta_output_path, TRANSFORMATIONS_FILENAME),
             "w",
             encoding="utf-8",
         ) as f:
@@ -358,7 +366,7 @@ class DistHeterogeneousGraphLoader(object):
         # name did not fit Parquet requirements
         if len(self.column_substitutions) > 0:
             with open(
-                os.path.join(self.output_path, "column_substitutions.json"),
+                os.path.join(self.local_meta_output_path, "column_substitutions.json"),
                 "w",
                 encoding="utf-8",
             ) as f:
@@ -545,7 +553,7 @@ class DistHeterogeneousGraphLoader(object):
         NotImplementedError
             If an output format other than "csv" or "parquet" is requested.
         """
-        if self.filesystem_type == "s3":
+        if self.filesystem_type == FilesystemType.S3:
             output_bucket, output_prefix = s3_utils.extract_bucket_and_key(full_output_path)
         else:
             output_bucket = ""
@@ -559,6 +567,7 @@ class DistHeterogeneousGraphLoader(object):
         if out_format == "parquet":
             # Write to parquet
             input_df = self._replace_special_chars_in_cols(input_df)
+            # TODO: Remove overwrite mode
             input_df.write.mode("overwrite").parquet(os.path.join(full_output_path, "parquet"))
             prefix_with_format = os.path.join(output_prefix, "parquet")
         elif out_format == "csv":
@@ -589,30 +598,26 @@ class DistHeterogeneousGraphLoader(object):
         # So we first get the full paths, then the common prefix,
         # then strip the common prefix from the full paths,
         # to leave paths relative to where the metadata will be written.
-        if self.filesystem_type == "s3":
+        if self.filesystem_type == FilesystemType.S3:
             object_key_list = s3_utils.list_s3_objects(output_bucket, prefix_with_format)
         else:
             object_key_list = [
                 os.path.join(prefix_with_format, f) for f in os.listdir(prefix_with_format)
             ]
 
+        # Ensure key list is sorted, to maintain any order in DF
+        object_key_list.sort()
+
         assert (
             object_key_list
         ), f"No files found written under: {output_bucket}/{prefix_with_format}"
 
-        # Only include data files and strip the common output path prefix from the key
         filtered_key_list = []
-        if self.filesystem_type == "s3":
-            # Get the S3 key prefix without the bucket
-            common_prefix = self.output_prefix.split("/", maxsplit=3)[3]
-        else:
-            common_prefix = self.output_prefix
 
         for key in object_key_list:
             if key.endswith(".csv") or key.endswith(".parquet"):
-                chars_to_skip = len(common_prefix)
-                key_without_prefix = key[chars_to_skip:].lstrip("/")
-                filtered_key_list.append(key_without_prefix)
+                # Only include data files and strip the common output path prefix from the key
+                filtered_key_list.append(self._strip_common_prefix(key))
 
         logging.info(
             "Wrote %d files to %s, (%d requested)",
@@ -621,6 +626,67 @@ class DistHeterogeneousGraphLoader(object):
             self.num_output_files,
         )
         return filtered_key_list
+
+    @staticmethod
+    def _create_metadata_entry(path_list: Sequence[str]) -> dict:
+        return {
+            "format": {"name": FORMAT_NAME, "delimiter": DELIMITER},
+            "data": path_list,
+        }
+
+    # TODO: Enable writing table to multiple Parquet files
+    def _write_pyarrow_table(self, pa_table: pa.Table, out_path: str) -> list[str]:
+        """Writes a single PyArrow Table to Parquet.
+
+        Parameters
+        ----------
+        pa_table : pa.Table
+            PyArrow Table to write to storage.
+        out_path : str
+            Full filepath to write. Can be an S3 URI or local path.
+
+        Returns
+        -------
+        list[str]
+            The list of files written, paths being relative to ``self.output_prefix``.
+        """
+
+        # TODO: Remove once we support writing multiple files
+        assert out_path.endswith(".parquet")
+        if self.filesystem_type == FilesystemType.LOCAL:
+            os.makedirs(os.path.dirname(out_path), exist_ok=True)
+
+        pq.write_table(
+            pa_table,
+            where=out_path,
+        )
+
+        if self.filesystem_type == FilesystemType.S3:
+            _, out_path = s3_utils.extract_bucket_and_key(out_path)
+
+        return [self._strip_common_prefix(out_path)]
+
+    def _strip_common_prefix(self, full_path: str) -> str:
+        """Strips the common prefix from the full path.
+
+        Parameters
+        ----------
+        full_path : str
+            Full path to the file, including the common prefix.
+
+        Returns
+        -------
+        str
+            The path without the common prefix.
+        """
+        if self.filesystem_type == FilesystemType.S3:
+            # Get the S3 key prefix without the bucket
+            common_prefix = self.output_prefix.split("/", maxsplit=3)[3]
+        else:
+            common_prefix = self.output_prefix
+
+        key_without_prefix = full_path.replace(common_prefix, "").lstrip("/")
+        return key_without_prefix
 
     def _add_node_mappings_to_metadata(self, metadata_dict: Dict) -> Dict:
         """
@@ -1212,8 +1278,17 @@ class DistHeterogeneousGraphLoader(object):
             self.graph_info["task_type"] = (
                 "node_class" if label_conf.task_type == "classification" else "node_regression"
             )
+            # We only should re-order for classification
+            if label_conf.task_type == "classification":
+                order_col = NODE_MAPPING_INT
+                assert (
+                    order_col in nodes_df.columns
+                ), f"Order column '{order_col}' not found in node dataframe, {nodes_df.columns=}"
+            else:
+                order_col = None
+
             self.graph_info["is_multilabel"] = label_conf.multilabel
-            node_label_loader = DistLabelLoader(label_conf, self.spark)
+            node_label_loader = DistLabelLoader(label_conf, self.spark, order_col)
             logging.info(
                 "Processing label data for node type %s, label col: %s...",
                 node_type,
@@ -1224,10 +1299,36 @@ class DistHeterogeneousGraphLoader(object):
             self.graph_info["label_map"] = node_label_loader.label_map
 
             label_output_path = (
-                f"{self.output_prefix}/node_data/" f"{node_type}-label-{label_conf.label_column}"
+                f"{self.output_prefix}/node_data/{node_type}-label-{label_conf.label_column}"
             )
 
-            path_list = self._write_df(transformed_label, label_output_path)
+            if label_conf.task_type == "classification":
+                assert order_col, "An order column is needed to process classification labels."
+                # For classification we need to order the DF, collect to Pandas
+                # and write to storage directly
+                logging.info(
+                    "Collecting and sorting label data for node type '%s', label col: '%s'...",
+                    node_type,
+                    label_conf.label_column,
+                )
+                # The presence of order_col ensures transformed_label DF comes in ordered
+                # but do we want to double-check before writing?
+                transformed_label_pd = transformed_label.select(
+                    label_conf.label_column, order_col
+                ).toPandas()
+
+                # Write to parquet using zero-copy column values from Pandas DF
+                path_list = self._write_pyarrow_table(
+                    pa.Table.from_arrays(
+                        [transformed_label_pd[label_conf.label_column].values],
+                        names=[label_conf.label_column],
+                    ),
+                    f"{label_output_path}/part-00000-{uuid4()}.parquet",
+                )
+            else:
+                path_list = self._write_df(
+                    transformed_label.select(label_conf.label_column), label_output_path
+                )
 
             label_metadata_dict = {
                 "format": {"name": FORMAT_NAME, "delimiter": DELIMITER},
@@ -1261,6 +1362,7 @@ class DistHeterogeneousGraphLoader(object):
                 )
             else:
                 custom_split_filenames = None
+
             label_split_dicts = self._create_split_files(
                 nodes_df,
                 label_conf.label_column,
@@ -1268,6 +1370,7 @@ class DistHeterogeneousGraphLoader(object):
                 split_masks_output_prefix,
                 custom_split_filenames,
                 mask_field_names=label_conf.mask_field_names,
+                order_col=order_col,
             )
             node_type_label_metadata.update(label_split_dicts)
 
@@ -1915,6 +2018,7 @@ class DistHeterogeneousGraphLoader(object):
         custom_split_file: Optional[CustomSplit] = None,
         seed: Optional[int] = None,
         mask_field_names: Optional[tuple[str, str, str]] = None,
+        order_col: Optional[str] = None,
     ) -> Dict:
         """
         Given an input dataframe and a list of split rates or a list of custom split files
@@ -1949,35 +2053,81 @@ class DistHeterogeneousGraphLoader(object):
         The metadata dict elements for the train/test/val masks, to be added to the caller's
         edge/node type metadata.
         """
-        # If the user did not provide a split rate we use a default
-        split_metadata = {}
-        if not custom_split_file:
-            mask_dfs = self._create_split_files_split_rates(
-                input_df, label_column, split_rates, seed, mask_field_names
-            )
-        else:
-            mask_dfs = self._create_split_files_custom_split(
-                input_df, custom_split_file, mask_field_names
-            )
 
-        def create_metadata_entry(path_list):
-            return {
-                "format": {"name": FORMAT_NAME, "delimiter": DELIMITER},
-                "data": path_list,
-            }
-
-        if mask_field_names is not None:
+        # Use custom column names if requested
+        if mask_field_names:
             mask_names = mask_field_names
         else:
             mask_names = ("train_mask", "val_mask", "test_mask")
 
-        # Write each mask DF to disk with appropriate name
-        for mask_name, mask_df in zip(mask_names, mask_dfs):
-            out_path_list = self._write_df(
-                mask_df.select(F.col(mask_name).cast(ByteType()).alias(mask_name)),
-                f"{output_path}-{mask_name}",
+        # TODO: Make this an argument to the write functions to not rely on function scope?
+        split_metadata = {}
+
+        def write_masks_numpy(np_mask_arrays: Sequence[np.ndarray]):
+            """Write the 3 mask files to storage from numpy arrays."""
+            for mask_name, mask_vals in zip(mask_names, np_mask_arrays):
+                mask_full_outpath = f"{output_path}-{mask_name}.parquet"
+                path_list = self._write_pyarrow_table(
+                    pa.Table.from_arrays([mask_vals], names=[mask_name]),
+                    mask_full_outpath,
+                )
+
+                split_metadata[mask_name] = self._create_metadata_entry(path_list)
+
+        def write_masks_spark(mask_dfs: Sequence[DataFrame]):
+            """Write the 3 mask files to storage from Spark DataFrames."""
+            for mask_name, mask_df in zip(mask_names, mask_dfs):
+                out_path_list = self._write_df(
+                    mask_df.select(F.col(mask_name).cast(ByteType()).alias(mask_name)),
+                    f"{output_path}-{mask_name}",
+                )
+                split_metadata[mask_name] = self._create_metadata_entry(out_path_list)
+
+        if not custom_split_file:
+            # No custom split file, we create masks according to split rates
+            masks_single_df = self._create_split_files_split_rates(
+                input_df,
+                label_column,
+                split_rates,
+                seed,
+                order_col,
             )
-            split_metadata[mask_name] = create_metadata_entry(out_path_list)
+
+            if order_col:
+                # Classification case, masks had to be re-ordered to maintain same order as labels
+                combined_masks_pandas = masks_single_df.select([DATA_SPLIT_SET_MASK_COL]).toPandas()
+                # Convert mask column of [x, x, x] 0/1 lists to 3 numpy 0-dim arrays
+                # NOTE: We request zero-copy numpy conversion but it's not guaranteed, see
+                # https://pandas.pydata.org/docs/reference/api/pandas.Series.to_numpy.html#pandas.Series.to_numpy
+                mask_array: np.ndarray = np.stack(
+                    combined_masks_pandas[DATA_SPLIT_SET_MASK_COL].to_numpy(copy=False)
+                )
+                train_mask_np = mask_array[:, 0].astype(np.int8)
+                val_mask_np = mask_array[:, 1].astype(np.int8)
+                test_mask_np = mask_array[:, 2].astype(np.int8)
+                write_masks_numpy([train_mask_np, val_mask_np, test_mask_np])
+            else:
+                # Regression/LP case, no requirement to maintain order
+                # TODO: Ensure order is maintained for regression labels
+                train_mask_df = masks_single_df.select(
+                    F.col(DATA_SPLIT_SET_MASK_COL)[0].alias(mask_names[0])
+                )
+                val_mask_df = masks_single_df.select(
+                    F.col(DATA_SPLIT_SET_MASK_COL)[1].alias(mask_names[1])
+                )
+                test_mask_df = masks_single_df.select(
+                    F.col(DATA_SPLIT_SET_MASK_COL)[2].alias(mask_names[2])
+                )
+                write_masks_spark([train_mask_df, val_mask_df, test_mask_df])
+        else:
+            mask_dfs = self._create_split_files_custom_split(
+                input_df, custom_split_file, mask_field_names
+            )
+            write_masks_spark(mask_dfs)
+
+        assert split_metadata.keys() == {
+            *mask_names
+        }, "We expect the produced metadata to contain all mask entries"
 
         return split_metadata
 
@@ -1987,8 +2137,8 @@ class DistHeterogeneousGraphLoader(object):
         label_column: str,
         split_rates: Optional[SplitRates],
         seed: Optional[int],
-        mask_field_names: Optional[tuple[str, str, str]] = None,
-    ) -> tuple[DataFrame, DataFrame, DataFrame]:
+        order_col: Optional[str] = None,
+    ) -> DataFrame:
         """
         Creates the train/val/test mask dataframe based on split rates.
 
@@ -2005,15 +2155,14 @@ class DistHeterogeneousGraphLoader(object):
             If None, a default split rate of 0.8:0.1:0.1 is used.
         seed: Optional[int]
             An optional random seed for reproducibility.
-        mask_field_names: Optional[tuple[str, str, str]]
-            An optional tuple of field names to use for the split masks.
-            If not provided, the default field names "train_mask",
-            "val_mask", and "test_mask" are used.
+        order_col: Optional[str]
+            A column to order the output by. Required for classification tasks.
 
         Returns
         -------
-        tuple[DataFrame, DataFrame, DataFrame]
-            Train/val/test mask DataFrames.
+        DataFrame
+            DataFrame containing train/val/test masks as single column named as
+            `constants.DATA_SPLIT_SET_MASK_COL`
         """
         if split_rates is None:
             split_rates = SplitRates(train_rate=0.8, val_rate=0.1, test_rate=0.1)
@@ -2043,28 +2192,25 @@ class DistHeterogeneousGraphLoader(object):
                 return [0, 0, 0]
             return rng.multinomial(1, split_list).tolist()
 
-        group_col_name = "sample_boolean_mask"  # TODO: Ensure uniqueness of column?
-
-        # TODO: Use PandasUDF and check if it is faster than UDF
+        # Note: Using PandasUDF here only led to much worse performance
         split_group = F.udf(multinomial_sample, ArrayType(IntegerType()))
         # Convert label col to string and apply UDF
         # to create one-hot vector indicating train/test/val membership
         input_col = F.col(label_column).astype("string") if label_column else F.lit("dummy")
-        int_group_df = input_df.select(split_group(input_col).alias(group_col_name))
+        int_group_df = input_df.select(
+            split_group(input_col).alias(DATA_SPLIT_SET_MASK_COL), *input_df.columns
+        )
 
-        # We cache because we re-use this DF 3 times
+        if order_col:
+            assert (
+                order_col in input_df.columns
+            ), f"Order column {order_col} not found in {int_group_df.columns}"
+            int_group_df = int_group_df.orderBy(order_col)
+
+        # We cache because we re-use this DF
         int_group_df.cache()
-        # Use custom column names if requested
-        if mask_field_names:
-            mask_names = mask_field_names
-        else:
-            mask_names = ("train_mask", "val_mask", "test_mask")
 
-        train_mask_df = int_group_df.select(F.col(group_col_name)[0].alias(mask_names[0]))
-        val_mask_df = int_group_df.select(F.col(group_col_name)[1].alias(mask_names[1]))
-        test_mask_df = int_group_df.select(F.col(group_col_name)[2].alias(mask_names[2]))
-
-        return train_mask_df, val_mask_df, test_mask_df
+        return int_group_df
 
     def _create_split_files_custom_split(
         self,

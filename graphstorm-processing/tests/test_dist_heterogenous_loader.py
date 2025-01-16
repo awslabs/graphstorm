@@ -20,8 +20,12 @@ import math
 import os
 import shutil
 import tempfile
+from uuid import uuid4
 
+import numpy as np
+import pandas as pd
 from numpy.testing import assert_allclose
+from pandas.testing import assert_frame_equal
 from pyspark.sql import SparkSession, DataFrame
 import pyspark.sql.functions as F
 import pyarrow.parquet as pq
@@ -45,8 +49,8 @@ from graphstorm_processing.config.config_parser import (
 from graphstorm_processing.config.config_conversion import GConstructConfigConverter
 from graphstorm_processing.constants import (
     COLUMN_NAME,
-    MIN_VALUE,
     MAX_VALUE,
+    MIN_VALUE,
     VALUE_COUNTS,
     TRANSFORMATIONS_FILENAME,
 )
@@ -234,7 +238,7 @@ def verify_integ_test_output(
     for node_type in metadata["node_type"]:
         nrows = pq.read_table(
             os.path.join(
-                loader.output_path,
+                loader.local_meta_output_path,
                 os.path.dirname(metadata["raw_id_mappings"][node_type]["data"][0]),
             )
         ).num_rows
@@ -252,7 +256,7 @@ def verify_integ_test_output(
     for edge_type in metadata["edge_type"]:
         nrows = pq.read_table(
             os.path.join(
-                loader.output_path,
+                loader.local_meta_output_path,
                 os.path.dirname(metadata["edges"][edge_type]["data"][0]),
             )
         ).num_rows
@@ -288,7 +292,7 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
     dghl_loader.load()
 
     with open(
-        os.path.join(dghl_loader.output_path, "metadata.json"), "r", encoding="utf-8"
+        os.path.join(dghl_loader.local_meta_output_path, "metadata.json"), "r", encoding="utf-8"
     ) as mfile:
         metadata = json.load(mfile)
 
@@ -314,7 +318,7 @@ def test_load_dist_heterogen_node_class(dghl_loader: DistHeterogeneousGraphLoade
         assert metadata["node_data"][node_type].keys() == expected_node_data[node_type]
 
     with open(
-        os.path.join(dghl_loader.output_path, TRANSFORMATIONS_FILENAME),
+        os.path.join(dghl_loader.local_meta_output_path, TRANSFORMATIONS_FILENAME),
         "r",
         encoding="utf-8",
     ) as transformation_file:
@@ -331,7 +335,7 @@ def test_load_dist_hgl_without_labels(
     dghl_loader_no_label.load()
 
     with open(
-        os.path.join(dghl_loader_no_label.output_path, "metadata.json"),
+        os.path.join(dghl_loader_no_label.local_meta_output_path, "metadata.json"),
         "r",
         encoding="utf-8",
     ) as mfile:
@@ -410,7 +414,9 @@ def test_create_all_mapppings_from_edges(
 
     assert len(dghl_loader.node_mapping_paths) == 4
     for node_type, mapping_files in dghl_loader.node_mapping_paths.items():
-        files_with_prefix = [os.path.join(dghl_loader.output_path, x) for x in mapping_files]
+        files_with_prefix = [
+            os.path.join(dghl_loader.local_meta_output_path, x) for x in mapping_files
+        ]
         mapping_count = spark.read.parquet(*files_with_prefix).count()
         assert mapping_count == expected_node_counts[node_type]
 
@@ -512,6 +518,46 @@ def create_edges_df_num_label(spark: SparkSession, missing_data_points: int) -> 
     edge_columns = ["src", "dst", NUM_LABEL_COL, STR_LABEL_COL]
     df = spark.createDataFrame(edges_data, schema=edge_columns)
     df = df.withColumn(NUM_LABEL_COL, F.col(NUM_LABEL_COL).cast("float").alias(NUM_LABEL_COL))
+    return df
+
+
+def create_nodes_df_num_labels(
+    spark: SparkSession, total_data_points=NUM_DATAPOINTS, missing_data_points=0
+) -> DataFrame:
+    """Create a nodes DF with a numeric and a string label for testing.
+
+    Returned DF schema:
+
+        NODE_MAPPING_STR: node_str_ids, unique per node (uuid4),
+        NODE_MAPPING_INT: node_int_ids, unique per node,
+        NUM_LABEL_COL: numeric labels, 0-9 range,
+        STR_LABEL_COL: string labels, 10 random string labels,
+    """
+    node_str_ids = [str(uuid4()) for _ in range(total_data_points)]
+    node_int_ids = np.arange(total_data_points)
+
+    rng = np.random.default_rng(42)
+    # Create random numerical labels with values 0-9
+    num_labels = rng.integers(10, size=total_data_points)
+    # Create random string labels from a pool of 10 uuid labels
+    str_label_vals = [str(uuid4()) for _ in range(10)]
+    str_labels = [str_label_vals[rng.integers(10)] for _ in range(total_data_points)]
+
+    # Set certain number of labels to be missing
+    for _ in range(missing_data_points):
+        str_labels[rng.integers(total_data_points)] = None
+        num_labels[rng.integers(total_data_points)] = None
+
+    pandas_df = pd.DataFrame.from_dict(
+        {
+            NODE_MAPPING_STR: node_str_ids,
+            NODE_MAPPING_INT: node_int_ids,
+            NUM_LABEL_COL: num_labels,
+            STR_LABEL_COL: str_labels,
+        }
+    )
+    df = spark.createDataFrame(pandas_df)
+
     return df
 
 
@@ -782,7 +828,7 @@ def test_process_node_labels_multitask(
     spark: SparkSession, dghl_loader: DistHeterogeneousGraphLoader
 ):
     """Test processing multi-task link prediction and regression edge labels"""
-    nodes_df = create_edges_df_num_label(spark, 0)
+    nodes_df = create_nodes_df_num_labels(spark)
     class_split_rates = {"train": 0.6, "val": 0.3, "test": 0.1}
     reg_split_rates = {"train": 0.7, "val": 0.2, "test": 0.1}
 
@@ -797,6 +843,7 @@ def test_process_node_labels_multitask(
         "split_rate": class_split_rates,
         "mask_field_names": class_mask_names,
     }
+
     reg_mask_names = [
         f"train_mask_{NUM_LABEL_COL}",
         f"val_mask_{NUM_LABEL_COL}",
@@ -938,38 +985,45 @@ def test_update_label_properties_multilabel(
 
 def test_node_custom_label(spark, dghl_loader: DistHeterogeneousGraphLoader, tmp_path):
     """Test using custom label splits for nodes"""
-    data = [(i,) for i in range(1, 11)]
-
     # Create DataFrame
-    nodes_df = spark.createDataFrame(data, ["orig"])
+    nodes_df = create_nodes_df_num_labels(spark, total_data_points=11)
+    # create_split_files_custom_split expects the NODE_MAPPING_STR values to
+    # match those provided in the custom mask files, in this case numbers 1-11.
+    # create_nodes_df_num_labels creates NODE_MAPPING_INT from 0-10, so we increment by one
+    # and assign to the NODE_MAPPING_STR column instead
+    nodes_df = nodes_df.withColumn(NODE_MAPPING_STR, F.col(NODE_MAPPING_INT) + 1)
 
-    train_df = spark.createDataFrame([(i,) for i in range(1, 6)], ["mask_id"])
-    val_df = spark.createDataFrame([(i,) for i in range(6, 9)], ["mask_id"])
-    test_df = spark.createDataFrame([(i,) for i in range(9, 11)], ["mask_id"])
+    mask_col_name = "mask_id"
+    # Create test membership maps, which correspond to values of NODE_MAPPING_STR
+    train_df = spark.createDataFrame([(i,) for i in range(1, 6)], [mask_col_name])
+    val_df = spark.createDataFrame([(i,) for i in range(6, 9)], [mask_col_name])
+    test_df = spark.createDataFrame([(i,) for i in range(9, 11)], [mask_col_name])
 
     train_df.repartition(1).write.parquet(f"{tmp_path}/train.parquet")
     val_df.repartition(1).write.parquet(f"{tmp_path}/val.parquet")
     test_df.repartition(1).write.parquet(f"{tmp_path}/test.parquet")
-    config_dict = {
-        "column": "orig",
+    label_config_dict = {
+        "column": NUM_LABEL_COL,
         "type": "classification",
         "split_rate": {"train": 0.8, "val": 0.1, "test": 0.1},
         "custom_split_filenames": {
             "train": [f"{tmp_path}/train.parquet"],
             "valid": [f"{tmp_path}/val.parquet"],
             "test": [f"{tmp_path}/test.parquet"],
-            "column": ["mask_id"],
+            "column": [mask_col_name],
         },
     }
     dghl_loader.input_prefix = ""
-    label_configs = [NodeLabelConfig(config_dict)]
-    label_metadata_dicts = dghl_loader._process_node_labels(label_configs, nodes_df, "orig")
+    label_configs = [NodeLabelConfig(label_config_dict)]
+    label_metadata_dicts = dghl_loader._process_node_labels(
+        label_configs, nodes_df, "dummy-node-type"
+    )
 
     assert label_metadata_dicts.keys() == {
         "train_mask",
         "test_mask",
         "val_mask",
-        "orig",
+        NUM_LABEL_COL,
     }
 
     train_mask_df, val_mask_df, test_mask_df = read_masks_from_disk(
@@ -1038,10 +1092,13 @@ def test_edge_custom_label(spark, dghl_loader: DistHeterogeneousGraphLoader, tmp
 
 def test_node_custom_label_multitask(spark, dghl_loader: DistHeterogeneousGraphLoader, tmp_path):
     """Test using custom label splits for nodes"""
-    data = [(i,) for i in range(0, 1200)]
-
     # Create DataFrame
-    nodes_df = spark.createDataFrame(data, ["orig"])
+    nodes_df = create_nodes_df_num_labels(spark, total_data_points=1200)
+    # create_split_files_custom_split expects the NODE_MAPPING_STR values to
+    # match those provided in the custom mask files, in this case numbers 1-11.
+    # create_nodes_df_num_labels creates NODE_MAPPING_INT from 0-10, so we increment by one
+    # and assign to the NODE_MAPPING_STR column instead
+    nodes_df = nodes_df.withColumn(NODE_MAPPING_STR, F.col(NODE_MAPPING_INT) + 1)
 
     train_df = spark.createDataFrame([(i,) for i in range(1, 1000)], ["mask_id"])
     val_df = spark.createDataFrame([(i,) for i in range(1001, 1100)], ["mask_id"])
@@ -1057,7 +1114,7 @@ def test_node_custom_label_multitask(spark, dghl_loader: DistHeterogeneousGraphL
     ]
     # Will only do custom data split although provided split rate
     config_dict = {
-        "column": "orig",
+        "column": NUM_LABEL_COL,
         "type": "classification",
         "split_rate": {"train": 0.8, "val": 0.1, "test": 0.1},
         "custom_split_filenames": {
@@ -1074,7 +1131,7 @@ def test_node_custom_label_multitask(spark, dghl_loader: DistHeterogeneousGraphL
         "reg_test_mask",
     ]
     class_config_dict_split_rate = {
-        "column": "orig",
+        "column": STR_LABEL_COL,
         "type": "classification",
         "split_rate": {"train": 0.8, "val": 0.1, "test": 0.1},
         "mask_field_names": class_mask_names_split_rate,
@@ -1084,18 +1141,22 @@ def test_node_custom_label_multitask(spark, dghl_loader: DistHeterogeneousGraphL
         NodeLabelConfig(config_dict),
         NodeLabelConfig(class_config_dict_split_rate),
     ]
-    label_metadata_dicts = dghl_loader._process_node_labels(label_configs, nodes_df, "orig")
+    label_metadata_dicts = dghl_loader._process_node_labels(
+        label_configs, nodes_df, "dummy-node-type"
+    )
 
     assert label_metadata_dicts.keys() == {
         *class_mask_names,
         *class_mask_names_split_rate,
-        "orig",
+        STR_LABEL_COL,
+        NUM_LABEL_COL,
     }
 
     train_mask_df, val_mask_df, test_mask_df = read_masks_from_disk(
         spark, dghl_loader, label_metadata_dicts, class_mask_names
     )
 
+    # Check totals for masks
     train_total_ones = train_mask_df.agg(F.sum("custom_split_train_mask")).collect()[0][0]
     val_total_ones = val_mask_df.agg(F.sum("custom_split_val_mask")).collect()[0][0]
     test_total_ones = test_mask_df.agg(F.sum("custom_split_test_mask")).collect()[0][0]
@@ -1103,26 +1164,22 @@ def test_node_custom_label_multitask(spark, dghl_loader: DistHeterogeneousGraphL
     assert val_total_ones == 99
     assert test_total_ones == 99
 
-    # Check the order of the train_mask_df
-    train_mask_df = train_mask_df.withColumn("order_check_id", F.monotonically_increasing_id())
-    val_mask_df = val_mask_df.withColumn("order_check_id", F.monotonically_increasing_id())
-    test_mask_df = test_mask_df.withColumn("order_check_id", F.monotonically_increasing_id())
-    train_mask_df = train_mask_df.filter(
-        (F.col("order_check_id") > 0) & (F.col("order_check_id") < 1000)
-    ).drop("order_check_id")
-    val_mask_df = val_mask_df.filter(
-        (F.col("order_check_id") > 1000) & (F.col("order_check_id") < 1100)
-    ).drop("order_check_id")
-    test_mask_df = test_mask_df.filter(
-        (F.col("order_check_id") > 1100) & (F.col("order_check_id") < 1300)
-    ).drop("order_check_id")
+    # Check order of masks
+    train_mask_pd = train_mask_df.toPandas()
+    val_mask_pd = val_mask_df.toPandas()
+    test_mask_pd = test_mask_df.toPandas()
 
-    train_unique_rows = train_mask_df.distinct().collect()
-    assert len(train_unique_rows) == 1 and all(value == 1 for value in train_unique_rows[0])
-    val_unique_rows = val_mask_df.distinct().collect()
-    assert len(val_unique_rows) == 1 and all(value == 1 for value in val_unique_rows[0])
-    test_unique_rows = test_mask_df.distinct().collect()
-    assert len(test_unique_rows) == 1 and all(value == 1 for value in test_unique_rows[0])
+    # We already know there's 999 ones in the train mask, so we can check the first 999
+    # are 1 and the rest are guaranteed to be 0. NOTE: iloc ranges are zero-indexed
+    assert [1] * 999 == train_mask_pd["custom_split_train_mask"].iloc[:999].tolist()
+
+    # We already know there's 99 ones in the val mask, so we can check the 99
+    # after the train masks 1's are 1 and the rest will be 0
+    assert [1] * 99 == val_mask_pd["custom_split_val_mask"].iloc[1000:1099].tolist()
+
+    # Similarly, we know there's 99 ones in the test mask, so we can check the 99 values
+    # after the val masks 1's are 1 and the rest will be 0
+    assert [1] * 99 == test_mask_pd["custom_split_test_mask"].iloc[1100:1199].tolist()
 
     # Check classification mask correctness
     train_mask_df, val_mask_df, test_mask_df = read_masks_from_disk(
@@ -1248,3 +1305,172 @@ def test_edge_custom_label_multitask(spark, dghl_loader: DistHeterogeneousGraphL
         lp_mask_names,
         3000,
     )
+
+
+def check_mask_nan_distribution(
+    df: pd.DataFrame, label_column: str, mask_name: str
+) -> tuple[bool, str]:
+    """
+    Check distribution of mask values (0/1) for NaN labels in a specific mask.
+
+    Args:
+        df: DataFrame containing labels and masks
+        label_column: Name of the label column
+        mask_name: Name of the mask column to check
+
+    Returns:
+    tuple: (has_error: bool, error_message: str)
+        has_error will be true if at least one NaN label has a mask value of 1.
+        error_message will contain information about the NaN label count and
+        the mask value distribution.
+        If no NaN labels correspond with 1 in the mask, error_message will be an empty string.
+    """
+    nan_labels = df[label_column].isna()
+    mask_values = df[mask_name]
+
+    # Count distribution of mask values for NaN labels
+    nan_dist = mask_values[nan_labels].value_counts().sort_index()
+
+    if 1 in nan_dist:
+        return (
+            True,
+            f"Found {nan_dist[1]} NaN labels with {mask_name}=1 "
+            f"(distribution of {mask_name} values for NaN labels: {nan_dist.to_dict()})",
+        )
+    return (False, "")
+
+
+def test_strip_common_prefix(dghl_loader: DistHeterogeneousGraphLoader):
+    """Test stripping common prefix from file paths."""
+    stripped_path = dghl_loader._strip_common_prefix(f"{dghl_loader.output_prefix}/path/to/file")
+
+    assert stripped_path == "path/to/file"
+
+    stripped_path = dghl_loader._strip_common_prefix("/path/to/file")
+    assert stripped_path == "path/to/file"
+
+
+def test_node_dist_label_order_partitioned(
+    spark: SparkSession,
+    dghl_loader: DistHeterogeneousGraphLoader,
+):
+    """Test that label and mask order is maintained after label processing.
+
+    NOTE: Tests DGHL code together with DistLabelLoader code because their results are coupled.
+    """
+    label_col = STR_LABEL_COL
+
+    # Create a Pandas DF with a label column with 10k "zero", 10k "one", 10k None rows
+    num_datapoints = 10**4
+    ids = list(range(3 * num_datapoints))
+    data_zeros = ["zero" for _ in range(num_datapoints)]
+    data_ones = ["one" for _ in range(num_datapoints)]
+    data_nan = [None for _ in range(num_datapoints)]
+    data = data_zeros + data_ones + data_nan
+    # Create DF with label data that contains "zero", "one", None values
+    # and a set of unique IDs that we treat as strings
+    pandas_input = pd.DataFrame.from_dict({label_col: data, NODE_MAPPING_STR: ids})
+    # We shuffle the rows so that "zero", "one" and None values are mixed and not continuous
+    pandas_shuffled = pandas_input.sample(frac=1, random_state=42).reset_index(drop=True)
+    # Then we assign a sequential numerical ID that we use as an order identifier
+    # DGHL by default uses `NODE_MAPPING_INT` for the name of this column, so we
+    # use it here as well.
+    order_col = NODE_MAPPING_INT
+    pandas_shuffled[order_col] = ids
+    names_df = spark.createDataFrame(pandas_shuffled)
+
+    # Consistently shuffle the DF to multiple partitions
+    names_df_repart = names_df.repartition(64)
+
+    assert names_df_repart.rdd.getNumPartitions() == 64
+    # Now we re-order by the order column, this way we have multiple partitions,
+    # but the incoming data are ordered by node id.
+    # This emulates the input DF that would result from the str-to-int node id
+    # mapping
+    names_df_repart = names_df_repart.sort(order_col)
+
+    # Convert the partitioned/shuffled DF to pandas for test verification
+    names_df_repart_pd = names_df_repart.toPandas()
+
+    classification_config_dict = {
+        "column": STR_LABEL_COL,
+        "type": "classification",
+        "split_rate": {"train": 0.8, "val": 0.1, "test": 0.1},
+    }
+    label_configs = [
+        NodeLabelConfig(classification_config_dict),
+    ]
+
+    # Process the label, create masks and write the output DFs,
+    # we will read it from disk to emulate real downstream scenario
+    label_metadata_dicts = dghl_loader._process_node_labels(
+        label_configs, names_df_repart, "dummy-node-type"
+    )
+
+    assert label_metadata_dicts.keys() == {
+        STR_LABEL_COL,
+        "train_mask",
+        "val_mask",
+        "test_mask",
+    }
+
+    # Apply transformation in Pandas to check against Spark,
+    # ensuring we use the same replacements as DGHL loader applied
+    label_map = dghl_loader.graph_info["label_map"]
+    expected_transformed_pd = names_df_repart_pd.replace(
+        {
+            "zero": label_map["zero"],
+            "one": label_map["one"],
+        }
+    )
+
+    def read_pandas_from_relative_list(file_list) -> pd.DataFrame:
+        full_paths = [f"{dghl_loader.output_prefix}/{single_file}" for single_file in file_list]
+        return pq.read_table(*full_paths).to_pandas()
+
+    label_files = label_metadata_dicts[STR_LABEL_COL]["data"]
+    # These are the transformed label value, read in as a Pandas DF
+    actual_transformed_label_pd: pd.DataFrame = read_pandas_from_relative_list(label_files)
+
+    # Expect the label values to match those in our local Pandas conversion, in-order
+    assert_frame_equal(
+        actual_transformed_label_pd.loc[:, [label_col]],
+        expected_transformed_pd.loc[:, [label_col]],
+        check_dtype=False,
+    )
+
+    # Now let's test the mask transformation, read the produced mask values as pandas DFs
+    train_mask = read_pandas_from_relative_list(label_metadata_dicts["train_mask"]["data"])
+    val_mask = read_pandas_from_relative_list(label_metadata_dicts["val_mask"]["data"])
+    test_mask = read_pandas_from_relative_list(label_metadata_dicts["test_mask"]["data"])
+
+    mask_names = ["train_mask", "val_mask", "test_mask"]
+    masks_and_names = zip([train_mask, val_mask, test_mask], mask_names)
+
+    # Add mask values to the label pandas DF as individual columns
+    # This allows us to easily check label values against mask values
+    for mask, mask_name in masks_and_names:
+        actual_transformed_label_pd[mask_name] = mask
+
+    # Check every mask value against the label values, and report errors
+    # if there exists a mask that has value 1 in a location where the label is NaN
+    errors = []
+    for mask_name in mask_names:
+        has_error, error_msg = check_mask_nan_distribution(
+            actual_transformed_label_pd,
+            label_col,
+            mask_name,
+        )
+        if has_error:
+            errors.append(error_msg)
+
+    # TODO: Check the approximated numbers of 1s we expected in the masks
+
+    # If any issues were found, raise error with grouped values as info
+    if errors:
+        # Perform the groupby operation for a human-friendly printout
+        grouped_values = actual_transformed_label_pd.groupby([label_col], dropna=False).agg(
+            {i: "value_counts" for i in ["train_mask", "val_mask", "test_mask"]}
+        )
+        print(grouped_values)
+        raise ValueError("\n".join(errors))

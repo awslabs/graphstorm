@@ -45,6 +45,7 @@ class DistSingleLabelTransformation(DistributedTransformation):
 
     def apply(self, input_df: DataFrame) -> DataFrame:
         assert self.spark
+        original_cols = {*input_df.columns} - {self.label_column}
         processed_col_name = self.label_column + "_processed"
 
         str_indexer = StringIndexer(
@@ -63,13 +64,15 @@ class DistSingleLabelTransformation(DistributedTransformation):
 
         # Labels that were missing and were assigned the value numLabels by the StringIndexer
         # are converted to None
-        long_class_label = indexed_df.select(F.col(self.label_column).cast("long")).select(
+        long_class_label = indexed_df.select(
             F.when(
                 F.col(self.label_column) == len(str_indexer_model.labelsArray[0]),  # type: ignore
                 F.lit(None),
             )
             .otherwise(F.col(self.label_column))
-            .alias(self.label_column)
+            .cast("long")
+            .alias(self.label_column),
+            *original_cols,
         )
 
         # Get a mapping from original label to encoded value
@@ -112,7 +115,7 @@ class DistMultiLabelTransformation(DistMultiCategoryTransformation):
         super().__init__(cols, separator)
         self.label_column = cols[0]
 
-    def apply(self, input_df: DataFrame) -> DataFrame:
-        multi_cat_df = super().apply(input_df)
+    def apply(self, input_df: DataFrame, return_all_cols=True) -> DataFrame:
+        multi_cat_df = super().apply(input_df, return_all_cols=return_all_cols)
 
         return multi_cat_df
