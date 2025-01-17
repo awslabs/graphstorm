@@ -49,6 +49,7 @@ if version.parse(dgl_version).base_version <= version.parse("2.3.0").base_versio
     from dgl.dataloading import EdgeCollator
     from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
 else:
+    # Compatible with DGL 2.4+ or higher.
     from dgl.distributed import DistDataLoader
     from dgl.distributed.dist_dataloader import EdgeCollator, _remove_kwargs_dist
 ################ Minibatch DataLoader (Edge Prediction) #######################
