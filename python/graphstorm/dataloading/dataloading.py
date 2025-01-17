@@ -43,7 +43,7 @@ from .utils import trim_data, modify_fanout_for_target_etype
 from .dataset import GSDistillData
 
 dgl_version = importlib.metadata.version("dgl")
-if version.parse(dgl_version) <= version.parse("2.3.0"):
+if version.parse(dgl_version).base_version <= version.parse("2.3.0").base_version:
     # Backward compatible with DGL 2.3 or lower.
     from dgl.dataloading import DistDataLoader
     from dgl.dataloading import EdgeCollator
