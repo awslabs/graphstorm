@@ -25,17 +25,6 @@ import torch as th
 from torch.utils.data import DataLoader
 import torch.distributed as dist
 
-dgl_version = importlib.metadata.version("dgl")
-if version.parse(dgl_version) <= version.parse("2.3.0"):
-    # Backward compatible with DGL 2.3 or lower.
-    from dgl.dataloading import DistDataLoader
-    from dgl.dataloading import EdgeCollator
-    from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
-else:
-    from dgl.distributed import DistDataLoader
-    from dgl.distributed.dist_dataloader import EdgeCollator, _remove_kwargs_dist
-
-
 from ..utils import get_device, is_distributed, get_backend
 from .utils import (verify_label_field,
                     verify_node_feat_fields,
@@ -53,6 +42,15 @@ from .sampler import (LocalUniform,
 from .utils import trim_data, modify_fanout_for_target_etype
 from .dataset import GSDistillData
 
+dgl_version = importlib.metadata.version("dgl")
+if version.parse(dgl_version) <= version.parse("2.3.0"):
+    # Backward compatible with DGL 2.3 or lower.
+    from dgl.dataloading import DistDataLoader
+    from dgl.dataloading import EdgeCollator
+    from dgl.dataloading.dist_dataloader import _remove_kwargs_dist
+else:
+    from dgl.distributed import DistDataLoader
+    from dgl.distributed.dist_dataloader import EdgeCollator, _remove_kwargs_dist
 ################ Minibatch DataLoader (Edge Prediction) #######################
 
 class _ReconstructedNeighborSampler():
