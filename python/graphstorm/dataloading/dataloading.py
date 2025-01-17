@@ -18,12 +18,12 @@
 import math
 import inspect
 import logging
+import importlib.metadata
+from packaging import version
 import dgl
 import torch as th
 from torch.utils.data import DataLoader
 import torch.distributed as dist
-import importlib.metadata
-from packaging import version
 
 dgl_version = importlib.metadata.version("dgl")
 if version.parse(dgl_version) <= version.parse("2.3.0"):
