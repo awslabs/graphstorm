@@ -184,8 +184,13 @@ class ParquetRowCounter:
         all_entries_counts = []  # type: List[Sequence[int]]
         for type_value in self.metadata_dict[edge_or_node_type_key]:
             logging.info("Getting counts for %s, %s", top_level_key, type_value)
-            relative_file_list = self.metadata_dict[top_level_key][type_value]["data"]
+            # Get the data dictionary for this type and create a copy
+            # to avoid modifying shared references
+            type_data_dict = self.metadata_dict[top_level_key][type_value].copy()
+            relative_file_list = type_data_dict["data"]
             type_row_counts = self.get_row_counts_for_parquet_files(relative_file_list)
+
+            # Store the row counts directly in the metadata dictionary
             self.metadata_dict[top_level_key][type_value]["row_counts"] = type_row_counts
             all_entries_counts.append(type_row_counts)
 
@@ -229,10 +234,15 @@ class ParquetRowCounter:
                     self.metadata_dict[top_level_key].keys(),
                 )
                 continue
-            for feature_name, feature_data_dict in self.metadata_dict[top_level_key][
-                type_name
-            ].items():
-                relative_file_list = feature_data_dict["data"]  # type: Sequence[str]
+
+            # Create a new dictionary for this type's features
+            type_features = self.metadata_dict[top_level_key][type_name]
+
+            for feature_name, feature_data in type_features.items():
+                # Create a copy of the feature data to avoid modifying shared references
+                feature_data_dict = feature_data.copy()
+                relative_file_list = feature_data_dict["data"]
+
                 logging.info(
                     "Getting counts for %s, type: %s, feature: %s",
                     top_level_key,
@@ -247,7 +257,12 @@ class ParquetRowCounter:
                     feature_name,
                     feature_row_counts,
                 )
+                # Store the row counts in both places
                 feature_data_dict["row_counts"] = feature_row_counts
+                self.metadata_dict[top_level_key][type_name][feature_name][
+                    "row_counts"
+                ] = feature_row_counts
+
                 features_per_type_counts.append(feature_row_counts)
             all_feature_counts.append(features_per_type_counts)
 
@@ -405,6 +420,14 @@ def verify_metadata_match(graph_meta: Dict[str, Dict]) -> bool:
         True if all row counts match for each type, False otherwise.
     """
     logging.info("Verifying features and structure row counts match...")
+
+    # Check if required keys exist
+    required_keys = ["edge_data", "edges", "node_data"]
+    missing_keys = [key for key in required_keys if key not in graph_meta]
+    if missing_keys:
+        logging.error("Missing required keys in metadata: %s", missing_keys)
+        return False
+
     all_edge_counts_match = ParquetRowCounter.verify_features_and_graph_structure_match(
         graph_meta["edge_data"], graph_meta["edges"]
     )
@@ -422,8 +445,6 @@ def verify_metadata_match(graph_meta: Dict[str, Dict]) -> bool:
         or not all_edge_data_counts_match
     ):
         all_match = False
-        # TODO: Should we create a file as indication
-        # downstream that repartitioning is necessary?
         logging.info(
             "Some edge/node row counts do not match, "
             "will need to re-partition before creating distributed graph."
