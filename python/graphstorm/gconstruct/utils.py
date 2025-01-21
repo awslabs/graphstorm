@@ -217,6 +217,7 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser, ext_mem_workspace):
         num_gpus = th.cuda.device_count()
         gpu = worker_id % num_gpus
         os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu)
+        multiprocessing.set_start_method("spawn", force=True)
         if worker_id >= num_gpus:
             logging.warning("There are more than 1 processes are attachd to GPU %d.", gpu)
     try:
