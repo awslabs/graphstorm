@@ -213,7 +213,6 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser, ext_mem_workspace):
     """
     # We need to set a GPU device for each worker process in case that
     # some transformations (e.g., computing BERT embeddings) require GPU computation.
-    multiprocessing.set_start_method("spawn", force=True)
     if th.cuda.is_available():
         num_gpus = th.cuda.device_count()
         gpu = worker_id % num_gpus
@@ -296,6 +295,8 @@ def multiprocessing_data_read(in_files, num_processes, user_parser, ext_mem_work
     a dict : key is the file index, the value is processed data.
     """
     if num_processes > 1 and len(in_files) > 1:
+        if th.cuda.is_available():
+            multiprocessing.set_start_method("spawn", force=True)
         processes = []
         manager = multiprocessing.Manager()
         task_queue = manager.Queue()
