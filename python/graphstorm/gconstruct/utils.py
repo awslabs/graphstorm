@@ -213,11 +213,11 @@ def worker_fn(worker_id, task_queue, res_queue, user_parser, ext_mem_workspace):
     """
     # We need to set a GPU device for each worker process in case that
     # some transformations (e.g., computing BERT embeddings) require GPU computation.
+    multiprocessing.set_start_method("spawn", force=True)
     if th.cuda.is_available():
         num_gpus = th.cuda.device_count()
         gpu = worker_id % num_gpus
         os.environ['CUDA_VISIBLE_DEVICES'] = str(gpu)
-        multiprocessing.set_start_method("spawn", force=True)
         if worker_id >= num_gpus:
             logging.warning("There are more than 1 processes are attachd to GPU %d.", gpu)
     try:
