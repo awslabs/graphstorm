@@ -32,7 +32,6 @@ jobs:
 
       - name: Install Semgrep
         run: |
-          pip install semgrep
           semgrep --version
 
       # Period (.) to run scan in the current directory to avoid blocking findings in the future use --exclude=+BLOCKING
