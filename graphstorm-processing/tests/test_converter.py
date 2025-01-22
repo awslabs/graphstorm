@@ -432,6 +432,10 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
                     "feature_name": "hard_negative",
                     "transform": {"name": "edge_dst_hard_negative", "separator": ";"},
                 },
+                {
+                    "feature_col": ["num_feature"],
+                    "transform": {"name": "standard"},
+                },
             ],
             "labels": [
                 {
@@ -541,6 +545,13 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "column": "author",
             "name": "hard_negative",
             "transformation": {"name": "edge_dst_hard_negative", "kwargs": {"separator": ";"}},
+        },
+        {
+            "column": "num_feature",
+            "transformation": {
+                "name": "numerical",
+                "kwargs": {"normalizer": "standard", "imputer": "none"},
+            },
         },
     ]
     assert edges_output["labels"] == [

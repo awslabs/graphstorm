@@ -145,10 +145,21 @@ class GConstructConfigConverter(ConfigConverter):
             if "transform" in gconstruct_feat_dict:
                 gconstruct_transform_dict = gconstruct_feat_dict["transform"]
 
+                ### START TRANSFORMATION ALTERNATIVES ###
                 if gconstruct_transform_dict["name"] == "max_min_norm":
                     gsp_transformation_dict["name"] = "numerical"
                     gsp_transformation_dict["kwargs"] = {
                         "normalizer": "min-max",
+                        "imputer": "none",
+                    }
+                    if gconstruct_transform_dict.get("out_dtype") in VALID_OUTDTYPE:
+                        gsp_transformation_dict["kwargs"]["out_dtype"] = gconstruct_transform_dict[
+                            "out_dtype"
+                        ]
+                elif gconstruct_transform_dict["name"] == "standard":
+                    gsp_transformation_dict["name"] = "numerical"
+                    gsp_transformation_dict["kwargs"] = {
+                        "normalizer": "standard",
                         "imputer": "none",
                     }
 
@@ -219,6 +230,7 @@ class GConstructConfigConverter(ConfigConverter):
                         "Unsupported GConstruct transformation name: "
                         f"{gconstruct_transform_dict['name']}"
                     )
+                ### END TRANSFORMATION ALTERNATIVES ###
             else:
                 gsp_transformation_dict["name"] = "no-op"
 
