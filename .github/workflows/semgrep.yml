@@ -36,14 +36,14 @@ jobs:
 
       # Period (.) to run scan in the current directory to avoid blocking findings in the future use --exclude=+BLOCKING
       - name: Run Scan - 1 (Default Ruleset)
-        run: semgrep --config=p/default .
+        run: semgrep ci --config=p/default .
       
       - name: Run Scan - 2 (Ruleset for Python)
-        run: semgrep --config=p/python .
+        run: semgrep ci --config=p/python .
       
       - name: Run Scan - 3 (Ruleset for Dockerfile)
-        run: semgrep --config=p/dockerfile .
+        run: semgrep ci --config=p/dockerfile .
 
       - name: Run Scan - 4 (Ruleset CWE TOP 25)
-        run: semgrep --config=p/cwe-top-25 .
+        run: semgrep ci --config=p/cwe-top-25 .
 
