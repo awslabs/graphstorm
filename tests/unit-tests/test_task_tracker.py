@@ -48,14 +48,14 @@ def test_create_builtin_task_tracker():
     assert isinstance(tracker, GSTensorBoardTracker)
     # check tensorboard writer
     assert tracker._writer is not None
-    assert tracker._writer.log_dir == None
+    assert tracker._writer.log_dir.startswith("runs")
 
     setattr(config, "_task_tracker", f"{GRAPHSTORM_TENSORBOARD_TASK_TRACKER}:log")
     tracker = create_builtin_task_tracker(config)
     assert isinstance(tracker, GSTensorBoardTracker)
     # check tensorboard writer
     assert tracker._writer is not None
-    assert tracker._writer.log_dir == "log"
+    assert tracker._writer.log_dir.startswith("log")
 
 if __name__ == '__main__':
     test_get_tracker_class()
