@@ -23,11 +23,11 @@ class GSTaskTrackerAbc():
         Parameters
         ----------
         log_report_frequency: int
-            The frequency of reporting model performance metrics through task_tracker. 
+            The frequency of reporting model performance metrics through task_tracker.
             The frequency is defined by using number of iterations, i.e., every N iterations
             the evaluation metrics will be reported.
     """
-    def __init__(self, log_report_frequency):
+    def __init__(self, log_report_frequency, **kwargs):
         self._report_frequency = log_report_frequency # Can be None if not provided
 
     @abc.abstractmethod
