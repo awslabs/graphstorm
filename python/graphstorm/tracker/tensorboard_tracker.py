@@ -48,10 +48,10 @@ class GSTensorBoardTracker(GSSageMakerTaskTracker):
         .. versionadded:: 0.4.1
             The :py:class:`GSTensorBoardTracker`.
     """
-    def __init__(self, log_report_frequency, log_dir=None, *args):
+    def __init__(self, log_report_frequency, log_dir=None):
+        super().__init__(log_report_frequency, log_dir)
         writer = SummaryWriter(log_dir)
         self._writer = writer
-        super().__init__(log_report_frequency)
 
     def log_metric(self, metric_name, metric_value, step, force_report=False):
         """ log validation or test metric

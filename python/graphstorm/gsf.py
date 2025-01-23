@@ -1125,7 +1125,8 @@ def create_builtin_task_tracker(config):
     task_tracker = config.task_tracker
     log_dir = config.task_tracker_logpath
     tracker_class = get_task_tracker_class(task_tracker)
-    return tracker_class(config.eval_frequency, log_dir)
+    return tracker_class(log_report_frequency=config.eval_frequency,
+                         log_dir=log_dir)
 
 def get_builtin_lp_eval_dataloader_class(config):
     """ Return a builtin link prediction evaluation dataloader
