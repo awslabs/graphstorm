@@ -313,7 +313,7 @@ python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_s
 error_and_exit $?
 
 cnt=$(ls -l $GS_HOME/training_scripts/gsgnn_np/runs/| wc -l)
-if test $cnt > 0
+if test $cnt -ne 2
 then
     echo "Tensorboard logs must be stored under ./runs/"
     exit -1
@@ -326,7 +326,7 @@ python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_s
 error_and_exit $?
 
 cnt=$(ls -l $GS_HOME/training_scripts/gsgnn_np/logs/| wc -l)
-if test $cnt > 0
+if test $cnt -ne 2
 then
     echo "Tensorboard logs must be stored under ./logs/"
     exit -1
