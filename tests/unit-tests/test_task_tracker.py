@@ -23,43 +23,39 @@ from graphstorm.gsf import create_builtin_task_tracker
 
 def test_get_tracker_class():
     tracker_class = get_task_tracker_class(GRAPHSTORM_SAGEMAKER_TASK_TRACKER)
-    assert isinstance(tracker_class, GSSageMakerTaskTracker)
+    assert tracker_class == GSSageMakerTaskTracker
 
     tracker_class = get_task_tracker_class(GRAPHSTORM_TENSORBOARD_TASK_TRACKER)
-    assert isinstance(tracker_class, GSTensorBoardTracker)
+    assert tracker_class == GSTensorBoardTracker
 
     # default setting
     tracker_class = get_task_tracker_class("default")
-    assert isinstance(tracker_class, GSSageMakerTaskTracker)
+    assert tracker_class == GSSageMakerTaskTracker
 
 def test_create_builtin_task_tracker():
-    args = Namespace(task_tracker=GRAPHSTORM_SAGEMAKER_TASK_TRACKER,
-                     task_tracker_logpath=None,
-                     eval_frequency=10)
-    config = GSConfig(args)
+    config = GSConfig.__new__(GSConfig)
+    setattr(config, "_task_tracker", GRAPHSTORM_SAGEMAKER_TASK_TRACKER)
+    setattr(config, "_eval_frequency", 10)
     tracker = create_builtin_task_tracker(config)
     assert isinstance(tracker, GSSageMakerTaskTracker)
 
-    args = Namespace(task_tracker=GRAPHSTORM_SAGEMAKER_TASK_TRACKER,
-                     task_tracker_logpath="log",
-                     eval_frequency=10)
-    config = GSConfig(args)
+    setattr(config, "_task_tracker", f"{GRAPHSTORM_SAGEMAKER_TASK_TRACKER}:log")
     tracker = create_builtin_task_tracker(config)
     assert isinstance(tracker, GSSageMakerTaskTracker)
 
-    args = Namespace(task_tracker=GRAPHSTORM_TENSORBOARD_TASK_TRACKER,
-                     task_tracker_logpath=None,
-                     eval_frequency=10)
-    config = GSConfig(args)
+    setattr(config, "_task_tracker", GRAPHSTORM_TENSORBOARD_TASK_TRACKER)
     tracker = create_builtin_task_tracker(config)
     assert isinstance(tracker, GSTensorBoardTracker)
+    # check tensorboard writer
+    assert tracker._writer is not None
+    assert tracker._writer.log_dir == None
 
-    args = Namespace(task_tracker=GRAPHSTORM_TENSORBOARD_TASK_TRACKER,
-                     task_tracker_logpath="log",
-                     eval_frequency=10)
-    config = GSConfig(args)
+    setattr(config, "_task_tracker", f"{GRAPHSTORM_TENSORBOARD_TASK_TRACKER}:log")
     tracker = create_builtin_task_tracker(config)
     assert isinstance(tracker, GSTensorBoardTracker)
+    # check tensorboard writer
+    assert tracker._writer is not None
+    assert tracker._writer.log_dir == "log"
 
 if __name__ == '__main__':
     test_get_tracker_class()
