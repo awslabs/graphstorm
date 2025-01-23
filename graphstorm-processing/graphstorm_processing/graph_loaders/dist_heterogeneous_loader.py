@@ -661,10 +661,13 @@ class DistHeterogeneousGraphLoader(object):
             where=out_path,
         )
 
+        # Conditionally maintain only object key for S3 URI
         if self.filesystem_type == FilesystemType.S3:
-            _, out_path = s3_utils.extract_bucket_and_key(out_path)
+            _, output_key = s3_utils.extract_bucket_and_key(out_path)
+        else:
+            output_key = out_path
 
-        return [self._strip_common_prefix(out_path)]
+        return [self._strip_common_prefix(output_key)]
 
     def _strip_common_prefix(self, full_path: str) -> str:
         """Strips the common prefix from the full path.
