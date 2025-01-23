@@ -48,7 +48,7 @@ class GSTensorBoardTracker(GSSageMakerTaskTracker):
         .. versionadded:: 0.4.1
             The :py:class:`GSTensorBoardTracker`.
     """
-    def __init__(self, log_report_frequency, log_dir=None, **kwargs):
+    def __init__(self, log_report_frequency, log_dir=None, *args):
         writer = SummaryWriter(log_dir)
         self._writer = writer
         super().__init__(log_report_frequency)

@@ -27,7 +27,7 @@ class GSTaskTrackerAbc():
             The frequency is defined by using number of iterations, i.e., every N iterations
             the evaluation metrics will be reported.
     """
-    def __init__(self, log_report_frequency, **kwargs):
+    def __init__(self, log_report_frequency, *args):
         self._report_frequency = log_report_frequency # Can be None if not provided
 
     @abc.abstractmethod

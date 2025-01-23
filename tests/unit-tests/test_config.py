@@ -1861,6 +1861,10 @@ def test_id_mapping_file():
             eid_map_file = os.path.join(part_path_p0, "orig_eids.dgl")
             dgl.data.utils.save_tensors(nid_map_file, id_map)
             dgl.data.utils.save_tensors(eid_map_file, id_map)
+            nid_map_file = os.path.join(part_path_p1, "orig_nids.dgl")
+            eid_map_file = os.path.join(part_path_p1, "orig_eids.dgl")
+            dgl.data.utils.save_tensors(nid_map_file, id_map)
+            dgl.data.utils.save_tensors(eid_map_file, id_map)
 
             assert config.node_id_mapping_file == part_path
             assert config.edge_id_mapping_file == part_path
