@@ -1766,18 +1766,20 @@ class GSConfig:
 
             SageMaker trackers will ignore this property.
 
-            For TensorBoard tracker, users can specify a file directory to store the
-            logs by providing the file path information in a format of
-            ``tensorboard_task_tracker:FILE_PATH``. The task_tracker_logpath will be set to ``FILE_PATH``.
+            For TensorBoard tracker, users can specify a file directory
+            to store the logs by providing the file path information in
+            a format of ``tensorboard_task_tracker:FILE_PATH``. The
+            task_tracker_logpath will be set to ``FILE_PATH``.
 
             Default: None
 
             .. versionadded:: 0.4.1
-
         """
         # pylint: disable=no-member
         if hasattr(self, "_task_tracker"):
             tracker_info = self._task_tracker.split(":")
+            # task_tracker information in the format of
+            # tensorboard_task_tracker:FILE_PATH
             if len(tracker_info) > 1:
                 return tracker_info[1]
             else:
