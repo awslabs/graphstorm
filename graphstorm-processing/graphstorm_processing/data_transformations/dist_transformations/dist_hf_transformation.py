@@ -109,7 +109,7 @@ def apply_transform(
             device = f"cuda:{gpu}"
         else:
             device = "cpu"
-        logging.warning("The device to run huggingface transformation is %s", device)
+            logging.warning("Running HuggingFace transformation on CPU, runtime can be very long.")
         tokenizer = AutoTokenizer.from_pretrained(hf_model)
         if max_seq_length > tokenizer.model_max_length:
             # TODO: Could we possibly raise this at config time?
