@@ -9,6 +9,7 @@ sh ./tests/end2end-tests/tools/test_mem_est.sh
 sh ./tests/end2end-tests/data_process/test.sh
 sh ./tests/end2end-tests/data_process/movielens_test.sh
 sh ./tests/end2end-tests/data_process/homogeneous_test.sh
+python3 -c "from torch import multiprocessing;multiprocessing.set_start_method('fork')"
 bash ./tests/end2end-tests/data_process/gpartition_test.sh
 sh ./tests/end2end-tests/custom-gnn/run_test.sh
 bash ./tests/end2end-tests/graphstorm-nc/test.sh
