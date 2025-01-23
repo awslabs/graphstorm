@@ -29,6 +29,7 @@ from uuid import uuid4
 import numpy as np
 import pyarrow as pa
 from pyarrow import parquet as pq
+from pyarrow import fs
 from pyspark import RDD
 from pyspark.sql import Row, SparkSession, DataFrame, functions as F
 from pyspark.sql.types import (
@@ -634,9 +635,10 @@ class DistHeterogeneousGraphLoader(object):
             "data": path_list,
         }
 
-    # TODO: Enable writing table to multiple Parquet files
-    def _write_pyarrow_table(self, pa_table: pa.Table, out_path: str) -> list[str]:
-        """Writes a single PyArrow Table to Parquet.
+    def _write_pyarrow_table(
+        self, pa_table: pa.Table, out_path: str, num_files: int = 1
+    ) -> list[str]:
+        """Writes a PyArrow Table to multiple Parquet files.
 
         Parameters
         ----------
@@ -644,33 +646,83 @@ class DistHeterogeneousGraphLoader(object):
             PyArrow Table to write to storage.
         out_path : str
             Full filepath to write. Can be an S3 URI or local path.
+        num_files : int, optional
+            Number of files to write. Defaults to 1.
 
         Returns
         -------
         list[str]
             The list of files written, paths being relative to ``self.output_prefix``.
         """
+        # Remove .parquet extension and add to file path instead
+        # makes the output consistent with self._write_df()
+        if out_path.endswith(".parquet"):
+            base_path = os.path.join(out_path[:-8], "parquet")
+        else:
+            base_path = os.path.join(out_path, "parquet")
 
-        # TODO: Remove once we support writing multiple files
-        assert out_path.endswith(".parquet")
         if self.filesystem_type == FilesystemType.LOCAL:
-            os.makedirs(os.path.dirname(out_path), exist_ok=True)
+            os.makedirs(base_path, exist_ok=True)
+            pyarrow_fs = fs.LocalFileSystem()
+        else:
+            bucket, _ = s3_utils.extract_bucket_and_key(base_path)
+            region = s3_utils.get_bucket_region(bucket)
+            pyarrow_fs = fs.S3FileSystem(
+                region=region, retry_strategy=fs.AwsStandardS3RetryStrategy(max_attempts=10)
+            )
+            # When using S3FileSystem pyarrow expects bucket/key paths
+            if base_path.startswith("s3://"):
+                base_path = base_path[5:]
 
-        pq.write_table(
-            pa_table,
-            where=out_path,
+        # Calculate rows per file
+        total_rows = len(pa_table)
+        rows_per_file = total_rows // num_files
+        remainder = total_rows % num_files
+
+        written_files = []
+        start_idx = 0
+
+        # Generate single UUIDs for all files
+        unique_id = uuid4()
+        for file_idx in range(num_files):
+            # Calculate end index for this file
+            rows_this_file = rows_per_file + (1 if file_idx < remainder else 0)
+            end_idx = start_idx + rows_this_file
+
+            # Slice the table
+            file_table = pa_table.slice(start_idx, rows_this_file)
+
+            # Generate Spark-style part filename
+            part_filename = os.path.join(
+                base_path,
+                f"part-{file_idx:05d}-{unique_id}.parquet",
+            )
+
+            pq.write_table(
+                file_table,
+                where=part_filename,
+                filesystem=pyarrow_fs,
+            )
+
+            # Conditionally maintain only object key for S3 URI
+            if self.filesystem_type == FilesystemType.S3:
+                _, output_key = s3_utils.extract_bucket_and_key(part_filename)
+            else:
+                output_key = part_filename
+
+            written_files.append(self._strip_common_prefix(output_key))
+            start_idx = end_idx
+
+        logging.info(
+            "Wrote %d files to %s",
+            len(written_files),
+            base_path,
         )
 
-        # Conditionally maintain only object key for S3 URI
-        if self.filesystem_type == FilesystemType.S3:
-            _, output_key = s3_utils.extract_bucket_and_key(out_path)
-        else:
-            output_key = out_path
-
-        return [self._strip_common_prefix(output_key)]
+        return written_files
 
     def _strip_common_prefix(self, full_path: str) -> str:
-        """Strips the common prefix from the full path.
+        """Strips the common prefix, ``self.output_path`` from the full path.
 
         Parameters
         ----------
@@ -680,7 +732,7 @@ class DistHeterogeneousGraphLoader(object):
         Returns
         -------
         str
-            The path without the common prefix.
+            The path without the common prefix (``self.output_path``).
         """
         if self.filesystem_type == FilesystemType.S3:
             # Get the S3 key prefix without the bucket
@@ -1307,15 +1359,26 @@ class DistHeterogeneousGraphLoader(object):
 
             if label_conf.task_type == "classification":
                 assert order_col, "An order column is needed to process classification labels."
+                # The presence of order_col ensures transformed_label DF comes in ordered
+                # but do we want to double-check before writing?
+                # Get number of original partitions
+                input_num_parts = nodes_df.rdd.getNumPartitions()
+                # If num parts is different for original and transformed, log a warning
+                transformed_num_parts = transformed_label.rdd.getNumPartitions()
+                if input_num_parts != transformed_num_parts:
+                    logging.warning(
+                        "Number of partitions for original (%d) and transformed label data "
+                        "(%d) differ.  This may cause issues with the label split files.",
+                        input_num_parts,
+                        transformed_num_parts,
+                    )
                 # For classification we need to order the DF, collect to Pandas
                 # and write to storage directly
                 logging.info(
-                    "Collecting and sorting label data for node type '%s', label col: '%s'...",
+                    "Collecting label data for node type '%s', label col: '%s' to leader...",
                     node_type,
                     label_conf.label_column,
                 )
-                # The presence of order_col ensures transformed_label DF comes in ordered
-                # but do we want to double-check before writing?
                 transformed_label_pd = transformed_label.select(
                     label_conf.label_column, order_col
                 ).toPandas()
@@ -1326,7 +1389,8 @@ class DistHeterogeneousGraphLoader(object):
                         [transformed_label_pd[label_conf.label_column].values],
                         names=[label_conf.label_column],
                     ),
-                    f"{label_output_path}/part-00000-{uuid4()}.parquet",
+                    label_output_path,
+                    num_files=input_num_parts,
                 )
             else:
                 path_list = self._write_df(
@@ -1344,7 +1408,7 @@ class DistHeterogeneousGraphLoader(object):
             split_masks_output_prefix = f"{self.output_prefix}/node_data/{node_type}"
 
             logging.info(
-                "Creating train/test/val split for node type %s, label col: %s...",
+                "Creating train/val/test splits for node type %s, label col: %s...",
                 node_type,
                 label_conf.label_column,
             )
@@ -2069,10 +2133,11 @@ class DistHeterogeneousGraphLoader(object):
         def write_masks_numpy(np_mask_arrays: Sequence[np.ndarray]):
             """Write the 3 mask files to storage from numpy arrays."""
             for mask_name, mask_vals in zip(mask_names, np_mask_arrays):
-                mask_full_outpath = f"{output_path}-{mask_name}.parquet"
+                mask_full_outpath = f"{output_path}-{mask_name}"
                 path_list = self._write_pyarrow_table(
                     pa.Table.from_arrays([mask_vals], names=[mask_name]),
                     mask_full_outpath,
+                    num_files=input_df.rdd.getNumPartitions(),
                 )
 
                 split_metadata[mask_name] = self._create_metadata_entry(path_list)
@@ -2098,16 +2163,19 @@ class DistHeterogeneousGraphLoader(object):
 
             if order_col:
                 # Classification case, masks had to be re-ordered to maintain same order as labels
+                logging.info("Collecting mask data to leader...")
                 combined_masks_pandas = masks_single_df.select([DATA_SPLIT_SET_MASK_COL]).toPandas()
                 # Convert mask column of [x, x, x] 0/1 lists to 3 numpy 0-dim arrays
-                # NOTE: We request zero-copy numpy conversion but it's not guaranteed, see
+                # Get a zero-copy numpy array from the Series object, see
                 # https://pandas.pydata.org/docs/reference/api/pandas.Series.to_numpy.html#pandas.Series.to_numpy
                 mask_array: np.ndarray = np.stack(
-                    combined_masks_pandas[DATA_SPLIT_SET_MASK_COL].to_numpy(copy=False)
+                    combined_masks_pandas[DATA_SPLIT_SET_MASK_COL].array
                 )
                 train_mask_np = mask_array[:, 0].astype(np.int8)
                 val_mask_np = mask_array[:, 1].astype(np.int8)
                 test_mask_np = mask_array[:, 2].astype(np.int8)
+
+                logging.info("Writing mask data from numpy arrays...")
                 write_masks_numpy([train_mask_np, val_mask_np, test_mask_np])
             else:
                 # Regression/LP case, no requirement to maintain order
@@ -2121,6 +2189,7 @@ class DistHeterogeneousGraphLoader(object):
                 test_mask_df = masks_single_df.select(
                     F.col(DATA_SPLIT_SET_MASK_COL)[2].alias(mask_names[2])
                 )
+                logging.info("Writing mask data from Spark DataFrame...")
                 write_masks_spark([train_mask_df, val_mask_df, test_mask_df])
         else:
             mask_dfs = self._create_split_files_custom_split(

@@ -1342,8 +1342,17 @@ def check_mask_nan_distribution(
 
 def test_strip_common_prefix(dghl_loader: DistHeterogeneousGraphLoader):
     """Test stripping common prefix from file paths."""
+    # Test common local prefix, dghl_loader uses a temp dir when initialized
     stripped_path = dghl_loader._strip_common_prefix(f"{dghl_loader.output_prefix}/path/to/file")
 
+    assert stripped_path == "path/to/file"
+
+    stripped_path = dghl_loader._strip_common_prefix("/path/to/file")
+    assert stripped_path == "path/to/file"
+
+    # Test S3 common prefix
+    dghl_loader.output_prefix = "s3://bucket/prefix/path"
+    stripped_path = dghl_loader._strip_common_prefix(f"{dghl_loader.output_prefix}/path/to/file")
     assert stripped_path == "path/to/file"
 
     stripped_path = dghl_loader._strip_common_prefix("/path/to/file")

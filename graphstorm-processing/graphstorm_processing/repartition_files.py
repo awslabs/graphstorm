@@ -197,8 +197,6 @@ class ParquetRepartitioner:
             "path/to/parquet-repartitioned-my-suffix/part-00003-filename.snappy.parquet"
         """
         original_relative_path_obj = Path(original_relative_path)
-        # We expect files to have a path of the form /path/to/parquet/part-00001.snappy.parquet
-        assert original_relative_path_obj.parts[-2] == "parquet"  # TODO: Remove this assumption?
 
         padded_file_idx = f"part-{str(repartitioned_file_index).zfill(5)}"
 
