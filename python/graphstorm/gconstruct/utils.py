@@ -25,7 +25,8 @@ import copy
 import traceback
 import shutil
 import uuid
-
+import importlib.metadata
+from packaging import version
 
 import numpy as np
 import dgl
@@ -295,7 +296,9 @@ def multiprocessing_data_read(in_files, num_processes, user_parser, ext_mem_work
     a dict : key is the file index, the value is processed data.
     """
     if num_processes > 1 and len(in_files) > 1:
-        if th.cuda.is_available():
+        dgl_version = importlib.metadata.version("dgl")
+        if (version.parse(dgl_version).base_version > version.parse("2.3.0").base_version 
+                and th.cuda.is_available()):
             multiprocessing.set_start_method("spawn", force=True)
         processes = []
         manager = multiprocessing.Manager()
