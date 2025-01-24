@@ -59,4 +59,10 @@ setup(
     install_requires=requirements,
     ext_modules=extensions,
     cmdclass=cmdclass,
+
+    extras_require={
+        'tensorboard': [
+            'tensorboard>=1.15',
+        ]
+    },
 )
