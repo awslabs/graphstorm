@@ -23,6 +23,7 @@ import sys
 import abc
 import json
 import warnings
+from typing import Any, Dict, List, Optional
 
 import numpy as np
 import torch as th
@@ -665,6 +666,135 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
 
         return {self.feat_name: feats}
 
+class NumericalStandardTransform(TwoPhaseFeatTransform):
+    r""" Numerical value with standard normalization.
+
+        $val_i = \frac{val_i}{\sum_{i=0}^{N-1} val_i}$
+
+    .. versionadded:: 0.4.0
+        The :py:class:`NumericalStandardTransform`.
+
+    Parameters
+    ----------
+    col_name : str
+        The name of the column that contains the feature.
+    feat_name : str
+        The feature name used in the constructed graph.
+    sum: np.ndarray or list of floats
+        The summation of all the values in the feature col
+        from the last transformation.
+        If it is None, we will compute it on the fly.
+        Default: None
+    out_dtype:
+        The dtype of the transformed feature.
+        Default: np.float32
+    transform_conf : dict
+        The configuration for the feature transformation.
+        Default: None
+    """
+    def __init__(self,
+                 col_name : str,
+                 feat_name : str,
+                 summation : Optional[Any] = None,
+                 out_dtype: Optional[Any] = np.float32,
+                 transform_conf: Optional[Dict] = None):
+        self._summation = np.array(summation, dtype=np.float32) if summation is not None else None
+        self._conf = transform_conf
+
+        # When NumericalStandardTransform is initialized in
+        # parse_feat_ops(), the value of out_dtype will be
+        # set to None if it is not defined by the user.
+        # Set the value to np.float32.
+        out_dtype = np.float32 if out_dtype is None else out_dtype
+        super().__init__(col_name, feat_name, out_dtype)
+
+    def pre_process(self, feats) -> Dict[str, Optional[np.ndarray]]:
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+            f"Feature {self.feat_name} of NumericalMinMaxTransform " \
+            f"must be numpy array or ExtMemArray, got {type(feats)}"
+
+        # If sum has already been set.
+        # Skip the pre-process step
+        if self._summation is not None:
+            return {self.feat_name: None}
+
+        if isinstance(feats, ExtMemArrayWrapper):
+            # TODO(xiangsx): This is not memory efficient.
+            # It will load all data into main memory.
+            feats = feats.to_numpy()
+
+        if feats.dtype not in [np.float64, np.float32, np.float16, np.int64, \
+                              np.int32, np.int16, np.int8]:
+            logging.warning("The feature %s has to be floating points or integers,"
+                            "but get %s. Try to cast it into float32",
+                            self.feat_name, feats.dtype)
+            try:
+                # if input dtype is not float or integer, we need to cast the data
+                # into float32
+                feats = feats.astype(np.float32)
+            except: # pylint: disable=bare-except
+                raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
+
+        # make summation a 1D array
+        summation = np.sum(feats, axis=0, keepdims=True).reshape((-1,))
+        return {self.feat_name: summation}
+
+    def update_info(self, info:List[np.ndarray]):
+        # User has provided the sum value.
+        # Skip update info
+        if self._summation is not None:
+            return
+
+        # We have to aggregate sum value from workers.
+        summations = []
+        for sum_i in info:
+            summations.append(sum_i)
+        summations = np.stack(summations)
+        summation = np.sum(summations, axis=0)
+
+        assert not np.any(summation == 0), \
+            f"The summation of values in each data column of {self.feat_name}" \
+            f"should not equal to 0, but we got {summation}"
+        self._summation = summation
+
+        # We need to save the summation value in the config object.
+        if self._conf is not None:
+            self._conf['sum'] = self._summation.tolist()
+
+    def call(self, feats) -> Dict[str, np.ndarray]:
+        """ Do normalization for feats
+
+        Parameters
+        ----------
+        feats : np.ndarray
+            Data to be normalized
+
+        Returns
+        -------
+        Dict[str, np.ndarray]
+        """
+        assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
+            f"Feature {self._feat_name} of NumericalMinMaxTransform " \
+            "must be numpy array or ExtMemArray"
+
+        if isinstance(feats, ExtMemArrayWrapper):
+            # TODO(xiangsx): This is not memory efficient.
+            # It will load all data into main memory.
+            feats = feats.to_numpy()
+
+        if feats.dtype not in [np.float64, np.float32, np.float16, np.int64, \
+                              np.int32, np.int16, np.int8]:
+            try:
+                # if input dtype is not float or integer, we need to cast the data
+                # into float32
+                feats = feats.astype(np.float32)
+            except TypeError:
+                raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
+
+        feats = feats / self._summation
+
+        return {self.feat_name: feats}
+
 class RankGaussTransform(GlobalProcessFeatTransform):
     """ Use Gauss rank transformation to transform input data
 
@@ -1212,6 +1342,13 @@ def parse_feat_ops(confs, input_data_format=None):
                                                      max_val,
                                                      min_val,
                                                      out_dtype=out_dtype, transform_conf=conf)
+            elif conf['name'] == 'standard':
+                summation = conf['sum'] if 'sum' in conf else None
+                transform = NumericalStandardTransform(feat['feature_col'],
+                                                       feat_name,
+                                                       summation=summation,
+                                                       out_dtype=out_dtype,
+                                                       transform_conf=conf)
             elif conf['name'] == 'rank_gauss':
                 epsilon = conf['epsilon'] if 'epsilon' in conf else None
                 uniquify = conf['uniquify'] if 'uniquify' in conf else False

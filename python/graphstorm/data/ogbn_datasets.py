@@ -86,7 +86,7 @@ class OGBTextFeatDataset(GSgnnTextDataset):
             self._num_classes = 47
         elif dataset == "ogbn-arxiv":
             self._num_classes = 40
-        elif dataset == "ogbn-papers100M":
+        elif dataset in ["ogbn-papers100m", "ogbn-papers100M"]:
             self._num_classes = 172
         self.retain_original_features = retain_original_features
         self.lm_model_name=lm_model_name

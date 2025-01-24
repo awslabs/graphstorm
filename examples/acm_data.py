@@ -152,7 +152,13 @@ def create_acm_raw_data(graph,
                 # Here we assume all others are edge features
                 # convert tensor to list of arrays for saving in parquet format
                 edge_dict[feat_name] = convert_tensor_to_list_arrays(val)
-            
+
+        # Give ('paper', 'citing', 'paper') edge type categorical features for different tasks
+        if src_ntype == 'paper' and etype == 'citing' and dst_ntype == 'paper':
+            cates = ['C_' + str(i) for i in range(1, 17, 3)]
+            num_pvp_edges = graph.num_edges((src_ntype, etype, dst_ntype))
+            edge_dict['cate_feat'] = np.random.choice(cates, num_pvp_edges)
+
         # generate the pandas DataFrame that combine ids, and, if have, features and labels
         edge_df = pd.DataFrame(edge_dict)
         # add canonical edge type name and edge dataframe as a tuple
@@ -251,10 +257,14 @@ def create_acm_raw_data(graph,
                                                                 # The split pct values are just for
                                                                 # demonstration purpose.
                 labels_list.append(label_dict)
+            elif col.startswith('cate_'):                       # Dummy categorical features that ask
+                feat_dict['feature_col'] = col                  # for a "to_categorical" tranformation
+                feat_dict['feature_name'] = col                 # operation
+                feat_dict['transform'] = {"name": "to_categorical"}
+                feats_list.append(feat_dict)
             else:
                 feat_dict['feature_col'] = col
                 feat_dict['feature_name'] = col
-                # for this example, we do not have transform for features
                 feats_list.append(feat_dict)
         # set up the rest fileds of this node type
         if feats_list:
@@ -372,11 +382,11 @@ def create_acm_dgl_graph(dowload_path='/tmp/ACM.mat',
         emb = nn.Parameter(th.Tensor(graph_acm.number_of_nodes(n_type), 256), requires_grad = False)
         nn.init.xavier_uniform_(emb)
         graph_acm.nodes[n_type].data['feat'] = emb
-        
+
     # For link prediction task, use "paper, citing, paper" edges as targe-etype and create labels.
     target_etype = ('paper', 'citing', 'paper')
     graph_acm.edges[target_etype].data['label'] = th.ones(graph_acm.num_edges(target_etype))
-    
+
     print(graph_acm)
     print(f'\n Number of classes: {labels.max() + 1}')
     print(f'\n Paper node labels: {labels.shape}')

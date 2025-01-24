@@ -112,15 +112,17 @@ class GSgnnLinkPredictionModel(GSgnnModel, GSgnnLinkPredictionModelInterface):
         pos_edge_feats=None, neg_edge_feats=None, input_nodes=None):
         """ The forward function for link prediction.
 
-        This model doesn't support edge features for now.
+        .. versionchanged:: 0.4.0
+            Add ``edge_feats`` into ``compute_embed_step`` in v0.4.0 to use edge features
+            in message passing computation.
         """
         alpha_l2norm = self.alpha_l2norm
         if blocks is None or len(blocks) == 0:
-            # no GNN message passing
+            # no GNN message passing, just compute node embeddings
             encode_embs = self.comput_input_embed(input_nodes, node_feats)
         else:
-            # GNN message passing
-            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes)
+            # has GNN encoder, compute node embedding, or optional edge embeddings
+            encode_embs = self.compute_embed_step(blocks, node_feats, input_nodes, edge_feats)
 
         # Call emb normalization.
         encode_embs = self.normalize_node_embs(encode_embs)

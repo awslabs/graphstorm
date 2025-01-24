@@ -342,3 +342,28 @@ python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_s
 error_and_exit $?
 
 rm -fr /tmp/*
+
+echo "**************dataset: MovieLens: EC, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, edge feat in message passing: user,rating,movie:feat inference: mini-batch"
+python3 -m graphstorm.run.gs_edge_classification --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --num-classes 5 --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --batch-size 64 --save-model-path /data/gsgnn_ec_ml_ef/model/ --save-model-frequency 5 --eval-frequency 3  --num-epochs 1 --logging-file /tmp/train_log.txt  --backend nccl
+
+error_and_exit $?
+
+python3 -m graphstorm.run.gs_edge_classification --inference --workspace $GS_HOME/inference_scripts/ep_infer/ --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec_infer.yaml --num-classes 5 --use-mini-batch-infer true --restore-model-path /data/gsgnn_ec_ml_ef/model/epoch-0/ --save-prediction-path /data/gsgnn_ec_ml_ef/prediction/ --logging-file /tmp/log.txt --preserve-input True --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat  --backend nccl
+
+error_and_exit $?
+
+## Emb Gen
+python3 -m graphstorm.run.gs_gen_node_embedding --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_ec.yaml --num-classes 5 --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --use-mini-batch-infer true --restore-model-path /data/gsgnn_ec_ml_ef/model/epoch-0/ --save-embed-path /data/gsgnn_ec_ml_ef/save-emb/ --logging-file /tmp/log.txt --logging-level debug  --backend nccl
+
+error_and_exit $?
+
+cnt=$(ls -l /data/gsgnn_ec_ml_ef/ | wc -l)
+if test $cnt != 4
+then
+    echo "We save models, predictions, and embeddings."
+    exit -1
+fi
+
+rm -R /data/gsgnn_ec_ml_ef/
+
+rm -fr /tmp/*

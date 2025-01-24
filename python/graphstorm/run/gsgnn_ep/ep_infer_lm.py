@@ -72,6 +72,7 @@ def main(config_args):
     dataloader = GSgnnEdgeDataLoader(infer_data, target_idxs, fanout=[],
                                      batch_size=config.eval_batch_size,
                                      node_feats=config.node_feat_name,
+                                     edge_feats=config.edge_feat_name,
                                      label_field=config.label_field,
                                      decoder_edge_feats=config.decoder_edge_feat,
                                      train_task=False,

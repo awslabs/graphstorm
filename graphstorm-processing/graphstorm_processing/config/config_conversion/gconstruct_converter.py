@@ -50,7 +50,7 @@ class GConstructConfigConverter(ConfigConverter):
         labels_list = []
         if labels in [[], [{}]]:
             return []
-        for label in labels:
+        for label in labels:  # pylint: disable=too-many-nested-blocks
             try:
                 label_column = label["label_col"] if "label_col" in label else ""
                 label_type = label["task_type"]
@@ -61,7 +61,7 @@ class GConstructConfigConverter(ConfigConverter):
                         # check if split_pct is valid
                         assert (
                             math.fsum(label_splitrate) == 1.0
-                        ), "sum of the label split rate should be ==1.0"
+                        ), f"sum of the label split rate should be == 1.0, got {label_splitrate}"
                         label_dict["split_rate"] = {
                             "train": label_splitrate[0],
                             "val": label_splitrate[1],
@@ -69,11 +69,31 @@ class GConstructConfigConverter(ConfigConverter):
                         }
                 else:
                     label_custom_split_filenames = label["custom_split_filenames"]
-                    if isinstance(label_custom_split_filenames["column"], list):
-                        assert len(label_custom_split_filenames["column"]) <= 2, (
-                            "Custom split filenames should have one column for node labels, "
-                            "and two columns for edges labels exactly"
-                        )
+                    # Ensure at least one of ["train", "valid", "test"] is in the keys
+                    assert any(
+                        x in label_custom_split_filenames.keys() for x in ["train", "valid", "test"]
+                    ), (
+                        "At least one of ['train', 'valid', 'test'] "
+                        "needs to exist in custom split configs."
+                    )
+
+                    # Fill in missing values if needed
+                    for entry in ["train", "valid", "test", "column"]:
+                        entry_val = label_custom_split_filenames.get(entry, None)
+                        if entry_val:
+                            if isinstance(entry_val, str):
+                                label_custom_split_filenames[entry] = [entry_val]
+                            else:
+                                assert isinstance(
+                                    entry_val, list
+                                ), "Custom split filenames should be a string or a list of strings"
+                        else:
+                            label_custom_split_filenames[entry] = []
+                    assert len(label_custom_split_filenames["column"]) <= 2, (
+                        "Custom split filenames should have one column for node labels, "
+                        "and two columns for edges labels exactly"
+                    )
+
                     label_dict["custom_split_filenames"] = {
                         "train": label_custom_split_filenames["train"],
                         "valid": label_custom_split_filenames["valid"],
@@ -125,10 +145,21 @@ class GConstructConfigConverter(ConfigConverter):
             if "transform" in gconstruct_feat_dict:
                 gconstruct_transform_dict = gconstruct_feat_dict["transform"]
 
+                ### START TRANSFORMATION ALTERNATIVES ###
                 if gconstruct_transform_dict["name"] == "max_min_norm":
                     gsp_transformation_dict["name"] = "numerical"
                     gsp_transformation_dict["kwargs"] = {
                         "normalizer": "min-max",
+                        "imputer": "none",
+                    }
+                    if gconstruct_transform_dict.get("out_dtype") in VALID_OUTDTYPE:
+                        gsp_transformation_dict["kwargs"]["out_dtype"] = gconstruct_transform_dict[
+                            "out_dtype"
+                        ]
+                elif gconstruct_transform_dict["name"] == "standard":
+                    gsp_transformation_dict["name"] = "numerical"
+                    gsp_transformation_dict["kwargs"] = {
+                        "normalizer": "standard",
                         "imputer": "none",
                     }
 
@@ -199,6 +230,7 @@ class GConstructConfigConverter(ConfigConverter):
                         "Unsupported GConstruct transformation name: "
                         f"{gconstruct_transform_dict['name']}"
                     )
+                ### END TRANSFORMATION ALTERNATIVES ###
             else:
                 gsp_transformation_dict["name"] = "no-op"
 
@@ -213,7 +245,7 @@ class GConstructConfigConverter(ConfigConverter):
         return gsp_feats_list
 
     @staticmethod
-    def convert_nodes(nodes_entries):
+    def convert_nodes(nodes_entries) -> list[NodeConfig]:
         res = []
         for n in nodes_entries:
             # type, column id

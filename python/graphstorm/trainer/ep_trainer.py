@@ -187,7 +187,10 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                     assert len(batch_graph.ntypes) == 1
                     input_nodes = {batch_graph.ntypes[0]: input_nodes}
                 nfeat_fields = train_loader.node_feat_fields
-                input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
+                node_input_feats = data.get_node_feats(input_nodes, nfeat_fields, device)
+                # Since v0.4, add edge features as one input
+                efeat_fields = train_loader.edge_feat_fields
+                edge_input_feats = data.get_blocks_edge_feats(blocks, efeat_fields, device)
 
                 if train_loader.decoder_edge_feat_fields is not None:
                     input_edges = {etype: batch_graph.edges[etype].data[dgl.EID] \
@@ -217,8 +220,7 @@ class GSgnnEdgePredictionTrainer(GSgnnTrainer):
                 batch_graph = batch_graph.to(device)
                 rt_profiler.record('train_graph2GPU')
 
-                # TODO(zhengda) we don't support edge features for now.
-                loss = model(blocks, batch_graph, input_feats, None,
+                loss = model(blocks, batch_graph, node_input_feats, edge_input_feats,
                              edge_decoder_feats, lbl, input_nodes)
                 rt_profiler.record('train_forward')
 

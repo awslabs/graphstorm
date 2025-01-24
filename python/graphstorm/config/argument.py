@@ -817,6 +817,7 @@ class GSConfig:
         _ = self.dropout
         _ = self.decoder_type
         _ = self.num_decoder_basis
+        _ = self.decoder_bias
         # Encoder related
         _ = self.construct_feat_ntype
         _ = self.construct_feat_encoder
@@ -1749,6 +1750,18 @@ class GSConfig:
         return 1000
 
     ###################### Model training related ######################
+    @property
+    def decoder_bias(self):
+        """ Decoder bias. decoder_bias must be a boolean. Default is True.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_decoder_bias"):
+            assert self._decoder_bias in [True, False], \
+                "decoder_bias should be in [True, False]"
+            return self._decoder_bias
+        # By default, decoder bias is True
+        return True
+
     @property
     def dropout(self):
         """ Dropout probability. Dropout must be a float value in [0,1). Dropout is applied
@@ -3234,6 +3247,11 @@ def _add_hyperparam_args(parser):
     group = parser.add_argument_group(title="hp")
     group.add_argument("--dropout", type=float, default=argparse.SUPPRESS,
             help="dropout probability")
+    group.add_argument(
+            "--decoder-bias",
+            type=lambda x: (str(x).lower() in ['true', '1']),
+            default=argparse.SUPPRESS,
+            help="Whether to use decoder bias")
     group.add_argument("--gnn-norm", type=str, default=argparse.SUPPRESS, help="norm type")
     group.add_argument("--lr", type=float, default=argparse.SUPPRESS,
             help="learning rate")

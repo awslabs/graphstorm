@@ -38,6 +38,7 @@ Full argument list of the ``gconstruct.construct_graph`` command
 * **-\-add-reverse-edges**: boolean value to decide whether to add reverse edges for the given graph. Adding this argument sets it to true; otherwise, it defaults to false. It is **strongly** suggested to include this argument for graph construction, as some nodes in the original data may not have in-degrees, and thus cannot update their presentations by aggregating messages from their neighbors. Adding this arugment helps prevent this issue.
 * **-\-output-format**: the format of constructed graph, options are ``DGL``,  ``DistDGL``.  Default is ``DistDGL``. It also accepts multiple graph formats at the same time separated by an space, for example ``--output-format "DGL DistDGL"``. The output format is explained in the :ref:`Output <gcon-output-format>` section above.
 * **-\-num-parts**: an integer value that specifies the number of graph partitions to produce. This is only valid if the output format is ``DistDGL``.
+* **-\-part-method**: the partition method to use during partitioning. We support 'metis' or 'random'.
 * **-\-skip-nonexist-edges**: boolean value to decide whether skip edges whose endpoint nodes don't exist. Default is true.
 * **-\-ext-mem-workspace**: the directory where the tool can store intermediate data during graph construction. Suggest to use high-speed SSD as the external memory workspace.
 * **-\-ext-mem-feat-size**: the minimal number of feature dimensions that features can be stored in external memory. Default is 64.
@@ -146,6 +147,15 @@ GraphStorm provides a set of transformation operations for different types of fe
     "transform": {"name": "max_min_norm",
                   "max_bound": 2.,
                   "min_bound": -2.}
+
+* **Numerical standard transformation** normalizes numerical input features with `val = val / sum`, where `val` is the feature value and `sum` is a summation of all the values in the feature. The ``name`` field in the feature transformation dictionary is ``standard``. The dictionary can contain one optional field, i.e., ``sum``, which is summation of all the values in the feature col from the previous transformation. (By default, the ``gconstruct.construct_graph`` command will save the ``sum`` value for each standard transformation.)
+
+  Example:
+
+  .. code:: json
+
+    "transform": {"name": "standard",
+                  "sum": 100.1,}
 
 * **Numerical Rank Gauss transformation** normalizes numerical input features with rank gauss normalization. It maps the numeric feature values to gaussian distribution based on ranking. The method follows the description in the normalization section of `the Porto Seguro's Safe Driver Prediction kaggle competition <https://www.kaggle.com/c/porto-seguro-safe-driver-prediction/discussion/44629#250927>`_. The ``name`` field in the feature transformation dictionary is ``rank_gauss``. The dict can contains two optional fields, i.e., ``epsilon`` which is used to avoid ``INF`` float during computation and ``uniquify`` which controls whether deduplicating input features before computing rank gauss norm.
 

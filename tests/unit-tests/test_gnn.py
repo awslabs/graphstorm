@@ -28,7 +28,7 @@ import torch as th
 from torch import nn
 import numpy as np
 import torch.nn.functional as F
-from numpy.testing import assert_almost_equal, assert_equal
+from numpy.testing import assert_almost_equal, assert_equal, assert_raises
 
 import dgl
 from dgl.distributed import DistTensor
@@ -42,7 +42,9 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                 BUILTIN_TASK_LINK_PREDICTION,
                                 BUILTIN_TASK_RECONSTRUCT_NODE_FEAT,
                                 GRAPHSTORM_LP_EMB_L2_NORMALIZATION)
-from graphstorm.model import GSNodeEncoderInputLayer, RelationalGCNEncoder
+from graphstorm.model import (GSNodeEncoderInputLayer,
+                              GSEdgeEncoderInputLayer, 
+                              RelationalGCNEncoder)
 from graphstorm.model import GSgnnNodeModel, GSgnnEdgeModel
 from graphstorm.model import GSLMNodeEncoderInputLayer, GSPureLMNodeInputLayer
 from graphstorm.model import GSgnnLinkPredictionModel
@@ -61,16 +63,20 @@ from graphstorm.model.edge_decoder import (DenseBiDecoder,
                                            LinkPredictWeightedDotDecoder,
                                            LinkPredictWeightedDistMultDecoder)
 from graphstorm.model.node_decoder import EntityRegression, EntityClassifier
-from graphstorm.model.loss_func import RegressionLossFunc
+from graphstorm.model.loss_func import (ClassifyLossFunc,
+                                        RegressionLossFunc,
+                                        LinkPredictBCELossFunc)
 from graphstorm.dataloading import GSgnnData
-from graphstorm.dataloading import GSgnnNodeDataLoader, GSgnnEdgeDataLoader
+from graphstorm.dataloading import (GSgnnNodeDataLoader,
+                                    GSgnnEdgeDataLoader,
+                                    GSgnnLinkPredictionDataLoader)
 from graphstorm.dataloading.dataset import prepare_batch_input
 from graphstorm import (create_builtin_edge_gnn_model,
                         create_builtin_node_gnn_model,
                         create_builtin_lp_gnn_model,
                         create_builtin_reconstruct_nfeat_decoder,
                         create_builtin_reconstruct_efeat_decoder)
-from graphstorm import get_node_feat_size
+from graphstorm import get_node_feat_size, get_edge_feat_size
 from graphstorm.gsf import get_rel_names_for_reconstruct
 from graphstorm.model import do_full_graph_inference, do_mini_batch_inference
 from graphstorm.model.node_gnn import (node_mini_batch_predict,
@@ -101,23 +107,28 @@ def is_int(a):
         return True
     return False
 
-def create_rgcn_node_model(g, norm=None):
+def create_rgcn_node_model(g, norm=None, edge_feat_name=None):
     model = GSgnnNodeModel(alpha_l2norm=0)
 
-    feat_size = get_node_feat_size(g, 'feat')
-    encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+    nfeat_size = get_node_feat_size(g, 'feat')
+    node_encoder = GSNodeEncoderInputLayer(g, nfeat_size, 4,
                                       dropout=0,
                                       use_node_embeddings=True)
-    model.set_node_input_encoder(encoder)
+    efeat_size = get_edge_feat_size(g, edge_feat_name)
+    edge_encoder = GSEdgeEncoderInputLayer(g, efeat_size, 4, dropout=0)
+    model.set_node_input_encoder(node_encoder)
+    model.set_edge_input_encoder(edge_encoder)
 
     gnn_encoder = RelationalGCNEncoder(g, 4, 4,
                                        num_bases=2,
                                        num_hidden_layers=1,
+                                       edge_feat_name=edge_feat_name,
                                        dropout=0,
                                        use_self_loop=True,
                                        norm=norm)
     model.set_gnn_encoder(gnn_encoder)
-    model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 3, False))
+    model.set_decoder(EntityClassifier(model.gnn_encoder.out_dims, 10, False))
+    model.set_loss_func(ClassifyLossFunc(multilabel=False))
     return model
 
 def create_rgcn_node_model_with_reconstruct(data, reconstructed_embed_ntype,
@@ -748,24 +759,54 @@ def test_gat_node_prediction(device):
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
 
-def create_rgcn_edge_model(g, num_ffn_layers):
+def create_rgcn_edge_model(g, num_ffn_layers, edge_feat_name=None):
     model = GSgnnEdgeModel(alpha_l2norm=0)
 
-    feat_size = get_node_feat_size(g, 'feat')
-    encoder = GSNodeEncoderInputLayer(g, feat_size, 4,
+    nfeat_size = get_node_feat_size(g, 'feat')
+    node_encoder = GSNodeEncoderInputLayer(g, nfeat_size, 4,
                                       dropout=0,
                                       use_node_embeddings=True)
-    model.set_node_input_encoder(encoder)
+    efeat_size = get_edge_feat_size(g, edge_feat_name)
+    edge_encoder = GSEdgeEncoderInputLayer(g, efeat_size, 4, dropout=0)
+    model.set_node_input_encoder(node_encoder)
+    model.set_edge_input_encoder(edge_encoder)
 
     gnn_encoder = RelationalGCNEncoder(g, 4, 4,
                                        num_bases=2,
                                        num_hidden_layers=1,
+                                       edge_feat_name=edge_feat_name,
                                        dropout=0,
                                        use_self_loop=True)
     model.set_gnn_encoder(gnn_encoder)
     model.set_decoder(MLPEdgeDecoder(model.gnn_encoder.out_dims,
-                                     3, multilabel=False, target_etype=("n0", "r1", "n1"),
+                                     10, multilabel=False, target_etype=("n0", "r1", "n1"),
                                      num_ffn_layers=num_ffn_layers))
+    model.set_loss_func(ClassifyLossFunc(multilabel=False))
+
+    return model
+
+def create_rgcn_lp_model(g, edge_feat_name=None):
+    model = GSgnnLinkPredictionModel(alpha_l2norm=0)
+
+    nfeat_size = get_node_feat_size(g, 'feat')
+    node_encoder = GSNodeEncoderInputLayer(g, nfeat_size, 4,
+                                      dropout=0,
+                                      use_node_embeddings=True)
+    efeat_size = get_edge_feat_size(g, edge_feat_name)
+    edge_encoder = GSEdgeEncoderInputLayer(g, efeat_size, 4, dropout=0)
+    model.set_node_input_encoder(node_encoder)
+    model.set_edge_input_encoder(edge_encoder)
+
+    gnn_encoder = RelationalGCNEncoder(g, 4, 4,
+                                       num_bases=2,
+                                       num_hidden_layers=1,
+                                       edge_feat_name=edge_feat_name,
+                                       dropout=0,
+                                       use_self_loop=True)
+    model.set_gnn_encoder(gnn_encoder)
+    model.set_decoder(LinkPredictDotDecoder(model.gnn_encoder.out_dims))
+    model.set_loss_func(LinkPredictBCELossFunc())
+
     return model
 
 def create_hgt_edge_model(g, num_ffn_layers):
@@ -2471,6 +2512,553 @@ def test_gen_emb_for_nfeat_recon():
     skip_self_loop = False
     gen_emb_for_nfeat_reconstruct(model, check_call_gen_embs)
 
+def test_edge_model_inference_with_edge_feats():
+    """ Test the ``do_mini_batch_inference`` method with edge features.
+    
+    Currently only support edge features in mini-batch inference. So, will not compare
+    the results between full-graph inference and mini-batch inference.
+    """
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        ep_data = GSgnnData(part_config=part_config,
+                            node_feat_field="feat",
+                            edge_feat_field="feat")
+
+    # Test case 0: normal case, model uses edge feature, and provides edge feature
+    #              for mini-batch inference
+    edge_feat_name = {('n0', 'r0', 'n1'): 'feat', ('n0', 'r1', 'n1'): 'feat'}
+    model1 = create_rgcn_edge_model(ep_data.g, num_ffn_layers=0, edge_feat_name=edge_feat_name)
+    target_idx = {("n0", "r1", "n1"): th.arange(ep_data.g.number_of_edges("r1"))}
+    dataloader1 = GSgnnEdgeDataLoader(ep_data, target_idx, fanout=[-1, -1],
+                                     batch_size=10,
+                                     label_field='label',
+                                     node_feats='feat',
+                                     edge_feats='feat',
+                                     train_task=False,
+                                     remove_target_edge_type=False)
+    pred, labels = edge_mini_batch_gnn_predict(model1, dataloader1, return_label=True)
+    assert pred[("n0", "r1", "n1")].dim() == 2
+    assert pred[("n0", "r1", "n1")].shape[0] == labels[("n0", "r1", "n1")].shape[0]
+
+    # Test case 1: abnormal case, model uses edge feature, and do full graph inference. 
+    #              This should trigger an assertion error, showing an edge feature supported
+    #              GNN model cannot do full graph inference
+    with assert_raises(AssertionError):
+        do_full_graph_inference(model1, ep_data)
+
+    # Test case 2: normal case, model does not use edge feature, so can do both mini-batch and
+    #              full graph inference
+    model2 = create_rgcn_edge_model(ep_data.g, num_ffn_layers=0)
+    check_edge_prediction(model2, ep_data)
+
+    # Test case 3: abnormal case, model does not use edge feature, but provide edge feature as inputs.
+    #              This will trigger an assertion error to ask users to use edge_feat_name to create
+    #              a model using edge features.
+    target_idx = {("n0", "r1", "n1"): th.arange(ep_data.g.number_of_edges("r1"))}
+    dataloader2 = GSgnnEdgeDataLoader(ep_data, target_idx, fanout=[-1, -1],
+                                     batch_size=10,
+                                     label_field='label',
+                                     node_feats='feat',
+                                     edge_feats='feat',
+                                     train_task=False,
+                                     remove_target_edge_type=False)
+    with assert_raises(AssertionError):
+        edge_mini_batch_gnn_predict(model2, dataloader2, return_label=True)
+        
+    # Test case 4: abnormal case, model only use partial edge features, but provide other edge feature
+    #              as inputs. This will trigger an assertion error to ask users to provide edge_feat_name
+    #              for the missing edge type to create projection weights.
+    edge_feat_name = {('n0', 'r0', 'n1'): 'feat'}
+    model3 = create_rgcn_edge_model(ep_data.g, num_ffn_layers=0, edge_feat_name=edge_feat_name)
+    target_idx = {("n0", "r1", "n1"): th.arange(ep_data.g.number_of_edges("r1"))}
+    dataloader3 = GSgnnEdgeDataLoader(ep_data, target_idx, fanout=[-1, -1],
+                                     batch_size=10,
+                                     label_field='label',
+                                     node_feats='feat',
+                                     edge_feats={('n0', 'r1', 'n1'): ['feat']},
+                                     train_task=False,
+                                     remove_target_edge_type=False)
+    with assert_raises(AssertionError):
+        edge_mini_batch_gnn_predict(model3, dataloader3, return_label=True)
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def test_rgcn_node_model_forward():
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        np_data = GSgnnData(part_config=part_config,
+                            node_feat_field="feat",
+                            edge_feat_field="feat")
+
+    # Test case 0: normal case, node model uses edge feature, and provides edge feature
+    #              for mini-batch forward
+    edge_feat_name = {('n0', 'r0', 'n1'): 'feat', ('n0', 'r1', 'n1'): 'feat'}
+    model1 = create_rgcn_node_model(np_data.g, edge_feat_name=edge_feat_name)
+    target_idx = {"n1": [0, 1]}
+    dataloader1 = GSgnnNodeDataLoader(np_data,
+                                      target_idx,
+                                      fanout=[-1, -1],
+                                      batch_size=10,
+                                      label_field='label',
+                                      node_feats='feat',
+                                      edge_feats='feat',
+                                      train_task=False)
+    for i, (input_nodes, seeds, blocks) in enumerate(dataloader1):
+        nfeat_fields = dataloader1.node_feat_fields
+        ninput_feats = np_data.get_node_feats(input_nodes, nfeat_fields)
+        efeat_fields = dataloader1.edge_feat_fields
+        einput_feats_list = np_data.get_blocks_edge_feats(blocks, efeat_fields)
+
+        lbl = np_data.get_node_feats(seeds, 'label')
+        loss1 = model1(blocks, ninput_feats, einput_feats_list, lbl, input_nodes)
+        assert th.is_floating_point(loss1)
+
+    # Test case 1: normal case, node model dose not use edge feature, and does not 
+    #              provides edge feature for mini-batch forward
+    edge_feat_name = {('n0', 'r0', 'n1'): 'feat', ('n0', 'r1', 'n1'): 'feat'}
+    model2 = create_rgcn_node_model(np_data.g, edge_feat_name=None)
+    target_idx = {"n1": [0, 1]}
+    dataloader2 = GSgnnNodeDataLoader(np_data,
+                                      target_idx,
+                                      fanout=[-1, -1],
+                                      batch_size=10,
+                                      label_field='label',
+                                      node_feats='feat',
+                                      train_task=False)
+    for i, (input_nodes, seeds, blocks) in enumerate(dataloader2):
+        nfeat_fields = dataloader2.node_feat_fields
+        ninput_feats = np_data.get_node_feats(input_nodes, nfeat_fields)
+        efeat_fields = dataloader2.edge_feat_fields
+        einput_feats_list = np_data.get_blocks_edge_feats(blocks, efeat_fields)
+
+        lbl = np_data.get_node_feats(seeds, 'label')
+        loss2 = model2(blocks, ninput_feats, einput_feats_list, lbl, input_nodes)
+        assert th.is_floating_point(loss2)
+
+    # Test case 2: abnormal case, edge model uses edge feature, and not provides edge feature
+    #             in forward. Should Trigger an assertion error about the number
+    #              of input features.
+    edge_feat_name = {('n0', 'r0', 'n1'): 'feat', ('n0', 'r1', 'n1'): 'feat'}
+    model3 = create_rgcn_node_model(np_data.g, edge_feat_name=edge_feat_name)
+    target_idx = {"n1": [0, 1]}
+    dataloader3 = GSgnnNodeDataLoader(np_data,
+                                      target_idx,
+                                      fanout=[-1, -1],
+                                      batch_size=10,
+                                      label_field='label',
+                                      node_feats='feat',
+                                      train_task=False)
+    for i, (input_nodes, seeds, blocks) in enumerate(dataloader3):
+        nfeat_fields = dataloader3.node_feat_fields
+        ninput_feats = np_data.get_node_feats(input_nodes, nfeat_fields)
+        efeat_fields = dataloader3.edge_feat_fields
+        einput_feats_list = np_data.get_blocks_edge_feats(blocks, efeat_fields)
+
+        lbl = np_data.get_node_feats(seeds, 'label')
+
+        with assert_raises(AssertionError):
+            model3(blocks, ninput_feats, einput_feats_list, lbl, input_nodes)
+
+    # Test case 3: abnormal case, edge model does not use edge feature, but provides edge feature
+    #              for mini-batch forward. Should Trigger an assertion error about initialization
+    #              of RGCN model using `edge_feat_name` argument.
+    edge_feat_name = {('n0', 'r0', 'n1'): 'feat', ('n0', 'r1', 'n1'): 'feat'}
+    model4 = create_rgcn_node_model(np_data.g, edge_feat_name=None)
+    target_idx = {"n1": [0, 1]}
+    dataloader4 = GSgnnNodeDataLoader(np_data,
+                                      target_idx,
+                                      fanout=[-1, -1],
+                                      batch_size=10,
+                                      label_field='label',
+                                      edge_feats='feat',
+                                      node_feats='feat',
+                                      train_task=False)
+    for i, (input_nodes, seeds, blocks) in enumerate(dataloader4):
+        nfeat_fields = dataloader4.node_feat_fields
+        ninput_feats = np_data.get_node_feats(input_nodes, nfeat_fields)
+        efeat_fields = dataloader4.edge_feat_fields
+        einput_feats_list = np_data.get_blocks_edge_feats(blocks, efeat_fields)
+
+        lbl = np_data.get_node_feats(seeds, 'label')
+
+        with assert_raises(AssertionError):
+            model4(blocks, ninput_feats, einput_feats_list, lbl, input_nodes)
+
+    # Test case 4: abnormal case, edge model does not use edge feature, but provides edge feature
+    #              for mini-batch forward. Should Trigger an assertion error about initialization
+    #              of RGCN model using `edge_feat_name` argument.
+    edge_feat_name = {('n0', 'r1', 'n1'): 'feat'}
+    model5 = create_rgcn_node_model(np_data.g, edge_feat_name=None)
+    target_idx = {"n1": [0, 1]}
+    dataloader5 = GSgnnNodeDataLoader(np_data,
+                                      target_idx,
+                                      fanout=[-1, -1],
+                                      batch_size=10,
+                                      label_field='label',
+                                      edge_feats={('n0', 'r1', 'n1'): ['feat']},
+                                      node_feats='feat',
+                                      train_task=False)
+    for i, (input_nodes, seeds, blocks) in enumerate(dataloader5):
+        nfeat_fields = dataloader5.node_feat_fields
+        ninput_feats = np_data.get_node_feats(input_nodes, nfeat_fields)
+        efeat_fields = dataloader5.edge_feat_fields
+        einput_feats_list = np_data.get_blocks_edge_feats(blocks, efeat_fields)
+
+        lbl = np_data.get_node_feats(seeds, 'label')
+
+        with assert_raises(AssertionError):
+            model5(blocks, ninput_feats, einput_feats_list, lbl, input_nodes)
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def test_rgcn_edge_model_forward():
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        ep_data = GSgnnData(part_config=part_config,
+                            node_feat_field="feat",
+                            edge_feat_field="feat")
+
+    # Test case 0: normal case, edge model uses edge feature, and provides edge feature
+    #              for mini-batch forward
+    edge_feat_name = {('n0', 'r0', 'n1'): 'feat', ('n0', 'r1', 'n1'): 'feat'}
+    model1 = create_rgcn_edge_model(ep_data.g, num_ffn_layers=0, edge_feat_name=edge_feat_name)
+    target_idx = {("n0", "r1", "n1"): [0, 1]}
+    dataloader1 = GSgnnEdgeDataLoader(ep_data,
+                                      target_idx,
+                                      fanout=[-1, -1],
+                                      batch_size=10,
+                                      label_field='label',
+                                      node_feats='feat',
+                                      edge_feats='feat',
+                                      train_task=False,
+                                      remove_target_edge_type=False)
+    for i, (input_nodes, batch_graph, blocks) in enumerate(dataloader1):
+        nfeat_fields = dataloader1.node_feat_fields
+        ninput_feats = ep_data.get_node_feats(input_nodes, nfeat_fields)
+        efeat_fields = dataloader1.edge_feat_fields
+        einput_feats_list = ep_data.get_blocks_edge_feats(blocks, efeat_fields)
+
+        label_field = dataloader1.label_field
+        lbl = ep_data.get_edge_feats({("n0", "r1", "n1"): [0, 1]}, label_field)
+        loss1 = model1(blocks, batch_graph, ninput_feats, einput_feats_list,
+                       None, lbl, input_nodes)
+        assert th.is_floating_point(loss1)
+
+    # Test case 1: normal case, edge model dose not use edge feature, and does not 
+    #              provides edge feature for mini-batch forward
+    model2 = create_rgcn_edge_model(ep_data.g, num_ffn_layers=0, edge_feat_name=None)
+    target_idx = {("n0", "r1", "n1"): [0, 1]}
+    dataloader2 = GSgnnEdgeDataLoader(ep_data,
+                                      target_idx,
+                                      fanout=[-1, -1],
+                                      batch_size=10,
+                                      label_field='label',
+                                      node_feats='feat',
+                                      train_task=False,
+                                      remove_target_edge_type=False)
+    for i, (input_nodes, batch_graph, blocks) in enumerate(dataloader2):
+        nfeat_fields = dataloader2.node_feat_fields
+        ninput_feats = ep_data.get_node_feats(input_nodes, nfeat_fields)
+        efeat_fields = dataloader2.edge_feat_fields
+        einput_feats_list = ep_data.get_blocks_edge_feats(blocks, efeat_fields)
+
+        label_field = dataloader2.label_field
+        lbl = ep_data.get_edge_feats({("n0", "r1", "n1"): [0, 1]}, label_field)
+        loss2 = model2(blocks, batch_graph, ninput_feats, einput_feats_list,
+                       None, lbl, input_nodes)
+        assert th.is_floating_point(loss2)
+
+    # Test case 2: abnormal case, edge model uses edge feature, and not provides edge feature
+    #              for mini-batch forward. Should Trigger an assertion error about the number
+    #              of input features.
+    edge_feat_name = {('n0', 'r0', 'n1'): 'feat', ('n0', 'r1', 'n1'): 'feat'}
+    model3 = create_rgcn_edge_model(ep_data.g, num_ffn_layers=0, edge_feat_name=edge_feat_name)
+    target_idx = {("n0", "r1", "n1"): [0, 1]}
+    dataloader3 = GSgnnEdgeDataLoader(ep_data,
+                                      target_idx,
+                                      fanout=[-1, -1],
+                                      batch_size=10,
+                                      label_field='label',
+                                      node_feats='feat',
+                                      edge_feats=None,
+                                      train_task=False,
+                                      remove_target_edge_type=False)
+    for i, (input_nodes, batch_graph, blocks) in enumerate(dataloader3):
+        nfeat_fields = dataloader3.node_feat_fields
+        ninput_feats = ep_data.get_node_feats(input_nodes, nfeat_fields)
+        efeat_fields = dataloader3.edge_feat_fields
+        einput_feats_list = ep_data.get_blocks_edge_feats(blocks, efeat_fields)
+
+        label_field = dataloader3.label_field
+        lbl = ep_data.get_edge_feats({("n0", "r1", "n1"): [0, 1]}, label_field)
+
+        with assert_raises(AssertionError):
+            model3(blocks, batch_graph, ninput_feats, einput_feats_list,
+                   None, lbl, input_nodes)
+
+    # Test case 3: abnormal case, edge model does not use edge feature, but provides edge feature
+    #              for mini-batch forward. Should Trigger an assertion error about initialization
+    #              of RGCN model using `edge_feat_name` argument.
+    edge_feat_name = {('n0', 'r0', 'n1'): 'feat', ('n0', 'r1', 'n1'): 'feat'}
+    model4 = create_rgcn_edge_model(ep_data.g, num_ffn_layers=0, edge_feat_name=None)
+    target_idx = {("n0", "r1", "n1"): [0, 1]}
+    dataloader4 = GSgnnEdgeDataLoader(ep_data,
+                                      target_idx,
+                                      fanout=[-1, -1],
+                                      batch_size=10,
+                                      label_field='label',
+                                      node_feats='feat',
+                                      edge_feats='feat',
+                                      train_task=False,
+                                      remove_target_edge_type=False)
+    for i, (input_nodes, batch_graph, blocks) in enumerate(dataloader4):
+        nfeat_fields = dataloader4.node_feat_fields
+        ninput_feats = ep_data.get_node_feats(input_nodes, nfeat_fields)
+        efeat_fields = dataloader4.edge_feat_fields
+        einput_feats_list = ep_data.get_blocks_edge_feats(blocks, efeat_fields)
+
+        label_field = dataloader4.label_field
+        lbl = ep_data.get_edge_feats({("n0", "r1", "n1"): [0, 1]}, label_field)
+
+        with assert_raises(AssertionError):
+            model4(blocks, batch_graph, ninput_feats, einput_feats_list,
+                   None, lbl, input_nodes)
+
+    # Test case 4: abnormal case, edge model uses partial edge feature, but provides other edge type
+    #              features for mini-batch forward. Should Trigger an assertion error about missing
+    #              projection weight in edge input layer.
+    edge_feat_name = {('n0', 'r0', 'n1'): 'feat'}
+    model5 = create_rgcn_edge_model(ep_data.g, num_ffn_layers=0, edge_feat_name=edge_feat_name)
+    target_idx = {("n0", "r1", "n1"): [0, 1]}
+    dataloader5 = GSgnnEdgeDataLoader(ep_data,
+                                      target_idx,
+                                      fanout=[-1, -1],
+                                      batch_size=10,
+                                      label_field='label',
+                                      node_feats='feat',
+                                      edge_feats={('n0', 'r1', 'n1'): ['feat']},
+                                      train_task=False,
+                                      remove_target_edge_type=False)
+    for i, (input_nodes, batch_graph, blocks) in enumerate(dataloader5):
+        nfeat_fields = dataloader5.node_feat_fields
+        ninput_feats = ep_data.get_node_feats(input_nodes, nfeat_fields)
+        efeat_fields = dataloader5.edge_feat_fields
+        einput_feats_list = ep_data.get_blocks_edge_feats(blocks, efeat_fields)
+
+        label_field = dataloader5.label_field
+        lbl = ep_data.get_edge_feats({("n0", "r1", "n1"): [0, 1]}, label_field)
+
+        with assert_raises(AssertionError):
+            model5(blocks, batch_graph, ninput_feats, einput_feats_list,
+                   None, lbl, input_nodes)
+
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
+def test_rgcn_lp_model_forward():
+    # initialize the torch distributed environment
+    th.distributed.init_process_group(backend='gloo',
+                                      init_method='tcp://127.0.0.1:23456',
+                                      rank=0,
+                                      world_size=1)
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # get the test dummy distributed graph
+        _, part_config = generate_dummy_dist_graph(tmpdirname)
+        ep_data = GSgnnData(part_config=part_config,
+                            node_feat_field="feat",
+                            edge_feat_field="feat")
+
+    # Test case 0: normal case, lp model uses edge feature, and provides edge feature
+    #              for mini-batch forward
+    edge_feat_name = {('n0', 'r0', 'n1'): 'feat', ('n0', 'r1', 'n1'): 'feat'}
+    model1 = create_rgcn_lp_model(ep_data.g, edge_feat_name=edge_feat_name)
+    target_idx = {("n0", "r1", "n1"): [0, 1]}
+    dataloader1 = GSgnnLinkPredictionDataLoader(ep_data,
+                                                target_idx,
+                                                fanout=[-1, -1],
+                                                batch_size=10,
+                                                node_feats='feat',
+                                                edge_feats='feat',
+                                                num_negative_edges=2,
+                                                train_task=False)
+    for i, (input_nodes, pos_graph, neg_graph, blocks) in enumerate(dataloader1):
+        nfeat_fields = dataloader1.node_feat_fields
+        ninput_feats = ep_data.get_node_feats(input_nodes, nfeat_fields)
+        efeat_fields = dataloader1.edge_feat_fields
+        einput_feats_list = ep_data.get_blocks_edge_feats(blocks, efeat_fields)
+
+        if dataloader1.pos_graph_edge_feat_fields is not None:
+            input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
+                for etype in pos_graph.canonical_etypes}
+            pos_graph_feats = ep_data.get_edge_feats(input_edges,
+                                                     dataloader1.pos_graph_edge_feat_fields)
+        else:
+            pos_graph_feats = None
+
+        loss = model1(blocks, pos_graph, neg_graph,
+                      node_feats=ninput_feats,
+                      edge_feats=einput_feats_list,
+                      pos_edge_feats=pos_graph_feats,
+                      input_nodes=input_nodes)
+        assert th.is_floating_point(loss)
+
+    # Test case 1: normal case, lp model dose not use edge feature, and does not 
+    #              provides edge feature for mini-batch forward
+    model2 = create_rgcn_lp_model(ep_data.g, edge_feat_name=None)
+    target_idx = {("n0", "r1", "n1"): [0, 1]}
+    dataloader2 = GSgnnLinkPredictionDataLoader(ep_data,
+                                                target_idx,
+                                                fanout=[-1, -1],
+                                                batch_size=10,
+                                                node_feats='feat',
+                                                num_negative_edges=2,
+                                                train_task=False)
+    for i, (input_nodes, pos_graph, neg_graph, blocks) in enumerate(dataloader2):
+        nfeat_fields = dataloader2.node_feat_fields
+        ninput_feats = ep_data.get_node_feats(input_nodes, nfeat_fields)
+        efeat_fields = dataloader2.edge_feat_fields
+        einput_feats_list = ep_data.get_blocks_edge_feats(blocks, efeat_fields)
+
+        if dataloader2.pos_graph_edge_feat_fields is not None:
+            input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
+                for etype in pos_graph.canonical_etypes}
+            pos_graph_feats = ep_data.get_edge_feats(input_edges,
+                                                     dataloader2.pos_graph_edge_feat_fields)
+        else:
+            pos_graph_feats = None
+
+        loss = model2(blocks, pos_graph, neg_graph,
+                      node_feats=ninput_feats,
+                      edge_feats=einput_feats_list,
+                      pos_edge_feats=pos_graph_feats,
+                      input_nodes=input_nodes)
+        assert th.is_floating_point(loss)
+
+    # Test case 2: abnormal case, lp model uses edge feature, and not provides edge feature
+    #              for mini-batch forward. Should Trigger an assertion error about the number
+    #              of input features.
+    edge_feat_name = {('n0', 'r0', 'n1'): 'feat', ('n0', 'r1', 'n1'): 'feat'}
+    model3 = create_rgcn_lp_model(ep_data.g, edge_feat_name=edge_feat_name)
+    target_idx = {("n0", "r1", "n1"): [0, 1]}
+    dataloader3 = GSgnnLinkPredictionDataLoader(ep_data,
+                                                target_idx,
+                                                fanout=[-1, -1],
+                                                batch_size=10,
+                                                node_feats='feat',
+                                                num_negative_edges=2,
+                                                train_task=False)
+    for i, (input_nodes, pos_graph, neg_graph, blocks) in enumerate(dataloader3):
+        nfeat_fields = dataloader3.node_feat_fields
+        ninput_feats = ep_data.get_node_feats(input_nodes, nfeat_fields)
+        efeat_fields = dataloader3.edge_feat_fields
+        einput_feats_list = ep_data.get_blocks_edge_feats(blocks, efeat_fields)
+        if dataloader3.pos_graph_edge_feat_fields is not None:
+            input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
+                for etype in pos_graph.canonical_etypes}
+            pos_graph_feats = ep_data.get_edge_feats(input_edges,
+                                                     dataloader3.pos_graph_edge_feat_fields)
+        else:
+            pos_graph_feats = None
+
+        with assert_raises(AssertionError):
+            model3(blocks, pos_graph, neg_graph,
+                   node_feats=ninput_feats,
+                   edge_feats=einput_feats_list,
+                   pos_edge_feats=pos_graph_feats,
+                   input_nodes=input_nodes)
+
+    # Test case 3: abnormal case, lp model does not use edge feature, but provides edge feature
+    #              for mini-batch forward. Should Trigger an assertion error about initialization
+    #              of RGCN model using `edge_feat_name` argument.
+    edge_feat_name = {('n0', 'r0', 'n1'): 'feat', ('n0', 'r1', 'n1'): 'feat'}
+    model4 = create_rgcn_lp_model(ep_data.g, edge_feat_name=None)
+    target_idx = {("n0", "r1", "n1"): [0, 1]}
+    dataloader4 = GSgnnLinkPredictionDataLoader(ep_data,
+                                                target_idx,
+                                                fanout=[-1, -1],
+                                                batch_size=10,
+                                                node_feats='feat',
+                                                edge_feats='feat',
+                                                num_negative_edges=2,
+                                                train_task=False)
+    for i, (input_nodes, pos_graph, neg_graph, blocks) in enumerate(dataloader4):
+        nfeat_fields = dataloader4.node_feat_fields
+        ninput_feats = ep_data.get_node_feats(input_nodes, nfeat_fields)
+        efeat_fields = dataloader4.edge_feat_fields
+        einput_feats_list = ep_data.get_blocks_edge_feats(blocks, efeat_fields)
+        if dataloader4.pos_graph_edge_feat_fields is not None:
+            input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
+                for etype in pos_graph.canonical_etypes}
+            pos_graph_feats = ep_data.get_edge_feats(input_edges,
+                                                     dataloader4.pos_graph_edge_feat_fields)
+        else:
+            pos_graph_feats = None
+
+        with assert_raises(AssertionError):
+            model4(blocks, pos_graph, neg_graph,
+                   node_feats=ninput_feats,
+                   edge_feats=einput_feats_list,
+                   pos_edge_feats=pos_graph_feats,
+                   input_nodes=input_nodes)
+
+    # Test case 4: abnormal case, lp model does not use edge feature, but provides edge feature
+    #              for mini-batch forward. Should Trigger an assertion error about initialization
+    #              of RGCN model using `edge_feat_name` argument.
+    edge_feat_name = {('n0', 'r1', 'n1'): 'feat'}
+    model5 = create_rgcn_lp_model(ep_data.g, edge_feat_name=None)
+    target_idx = {("n0", "r1", "n1"): [0, 1]}
+    dataloader5 = GSgnnLinkPredictionDataLoader(ep_data,
+                                                target_idx,
+                                                fanout=[-1, -1],
+                                                batch_size=10,
+                                                node_feats='feat',
+                                                edge_feats={('n0', 'r0', 'n1'): ['feat']},
+                                                num_negative_edges=2,
+                                                train_task=False)
+    for i, (input_nodes, pos_graph, neg_graph, blocks) in enumerate(dataloader5):
+        nfeat_fields = dataloader5.node_feat_fields
+        ninput_feats = ep_data.get_node_feats(input_nodes, nfeat_fields)
+        efeat_fields = dataloader5.edge_feat_fields
+        einput_feats_list = ep_data.get_blocks_edge_feats(blocks, efeat_fields)
+        if dataloader5.pos_graph_edge_feat_fields is not None:
+            input_edges = {etype: pos_graph.edges[etype].data[dgl.EID] \
+                for etype in pos_graph.canonical_etypes}
+            pos_graph_feats = ep_data.get_edge_feats(input_edges,
+                                                     dataloader5.pos_graph_edge_feat_fields)
+        else:
+            pos_graph_feats = None
+
+        with assert_raises(AssertionError):
+            model5(blocks, pos_graph, neg_graph,
+                    node_feats=ninput_feats,
+                    edge_feats=einput_feats_list,
+                    pos_edge_feats=pos_graph_feats,
+                    input_nodes=input_nodes)
+
+    th.distributed.destroy_process_group()
+    dgl.distributed.kvstore.close_kvstore()
+
 
 if __name__ == '__main__':
     test_edge_feat_reconstruct()
@@ -2516,3 +3104,8 @@ if __name__ == '__main__':
 
     test_rgcn_node_prediction_multi_target_ntypes()
     test_rgat_node_prediction_multi_target_ntypes()
+
+    test_edge_model_inference_with_edge_feats()
+    test_rgcn_node_model_forward()
+    test_rgcn_edge_model_forward()
+    test_rgcn_lp_model_forward()

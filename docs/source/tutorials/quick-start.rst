@@ -16,14 +16,21 @@ In terms of the Standalone mode, users can use the :ref:`Setup GraphStorm with p
 
 Download and Partition OGB-arxiv Data
 --------------------------------------
-First run the below command.
+First run the below commands to clone GraphStorm source code from GitHub, and go to the root path of GraphStorm source code.
 
 .. code-block:: bash
 
-    python /graphstorm/tools/partition_graph.py --dataset ogbn-arxiv \
-                                                --filepath /tmp/ogbn-arxiv-nc/ \
-                                                --num-parts 1 \
-                                                --output /tmp/ogbn_arxiv_nc_1p
+    git clone https://github.com/awslabs/graphstorm.git
+    cd graphstorm
+
+And then, run the ogbn-arxiv data generation script.
+
+.. code-block:: bash
+
+    python tools/partition_graph.py --dataset ogbn-arxiv \
+                                    --filepath /tmp/ogbn-arxiv-nc/ \
+                                    --num-parts 1 \
+                                    --output /tmp/ogbn_arxiv_nc_1p
 
 This command will automatically download the ogbn-arxiv graph data and split the graph into one partition for node classification. Outcomes of the command are a set of files saved in the ``/tmp/ogbn_arxiv_nc_1p/`` folder, as shown below.
 
@@ -44,10 +51,10 @@ Running the following command can download the ogbn-arxiv graph data and split t
 
 .. code-block:: bash
 
-    python /graphstorm/tools/partition_graph_lp.py --dataset ogbn-arxiv \
-                                                   --filepath /tmp/ogbn-arxiv-lp/ \
-                                                   --num-parts 1 \
-                                                   --output /tmp/ogbn_arxiv_lp_1p/
+    python tools/partition_graph_lp.py --dataset ogbn-arxiv \
+                                       --filepath /tmp/ogbn-arxiv-lp/ \
+                                       --num-parts 1 \
+                                       --output /tmp/ogbn_arxiv_lp_1p/
 
 .. _launch-training:
 
@@ -57,6 +64,9 @@ Launch Training
 Run the below command to start a training job that trains a built-in RGCN model to perform node classification on the OGB-arxiv.
 
 .. code-block:: bash
+
+    # create the workspace folder first, if it does not exist yet
+    mkdir /tmp/ogbn-arxiv-nc
 
     python -m graphstorm.run.gs_node_classification \
               --workspace /tmp/ogbn-arxiv-nc \
