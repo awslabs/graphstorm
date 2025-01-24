@@ -22,13 +22,7 @@ from ..config import (GRAPHSTORM_SAGEMAKER_TASK_TRACKER,
                       GRAPHSTORM_TENSORBOARD_TASK_TRACKER)
 
 from .sagemaker_tracker import GSSageMakerTaskTracker
-try:
-    # TensorBoard support is optional
-    # If a user wants to use TensorBoard task tracker,
-    # he/she should pip install tensorboard themselves.
-    from .tensorboard_tracker import GSTensorBoardTracker
-except ImportError:
-    GSTensorBoardTracker = None
+from .tensorboard_tracker import GSTensorBoardTracker
 
 def get_task_tracker_class(tracker_name):
     """ Get builtin task tracker
@@ -45,10 +39,6 @@ def get_task_tracker_class(tracker_name):
         # Note: TensorBoard support is optional.
         # To enable GSTensorBoardTracker, one should
         # install the tensorboard Python package
-        if GSTensorBoardTracker is None:
-            raise RuntimeError("ModuleNotFoundError: No module named 'tensorboard'.\n"
-                               "Please install the tensorboard Python package when "
-                               "using tensorboard task tracker.")
         return GSTensorBoardTracker
     else:
         # by default use GSSageMakerTaskTracker

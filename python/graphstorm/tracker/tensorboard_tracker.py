@@ -17,7 +17,7 @@
 """
 import numbers
 import logging
-from torch.utils.tensorboard import SummaryWriter
+import importlib
 
 from ..utils import get_rank
 from .sagemaker_tracker import GSSageMakerTaskTracker
@@ -50,8 +50,14 @@ class GSTensorBoardTracker(GSSageMakerTaskTracker):
     """
     def __init__(self, log_report_frequency, log_dir=None):
         super().__init__(log_report_frequency, log_dir)
-        writer = SummaryWriter(log_dir)
-        self._writer = writer
+        try:
+            tensorboard = importlib.import_module("torch.utils.tensorboard")
+        except ImportError as err:
+            msg =  (
+                "GSTensorBoardTracker requires tensorboard to run. "
+                "Please install the tensorboard Python package.")
+            raise ImportError(msg) from err
+        self._writer  = tensorboard.SummaryWriter(log_dir)
 
     def log_metric(self, metric_name, metric_value, step, force_report=False):
         """ log validation or test metric
