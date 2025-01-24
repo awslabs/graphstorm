@@ -13,7 +13,6 @@ The steps required are:
 
 - Clone the GraphStorm repository.
 - Install Docker.
-- Install Poetry.
 - Set up AWS access.
 - Build the GraphStorm Processing image using Docker.
 - Push the image to the Amazon Elastic Container Registry (ECR).
@@ -45,22 +44,6 @@ you'll need to have the Docker engine installed.
 To install Docker follow the instructions at the
 `official site <https://docs.docker.com/engine/install/>`_.
 
-Install Poetry
---------------
-
-We use `Poetry <https://python-poetry.org/docs/>`_ as our build
-tool and for dependency management,
-so we need to install it to facilitate building the library.
-
-You can install Poetry using:
-
-.. code-block:: bash
-
-    curl -sSL https://install.python-poetry.org | python3 -
-
-For detailed installation instructions the
-`Poetry docs <https://python-poetry.org/docs/>`_.
-
 
 Set up AWS access
 -----------------
@@ -85,7 +68,7 @@ create an ECR repository if it doesn't exist, and push the GSProcessing image to
 Building the GraphStorm Processing image using Docker
 -----------------------------------------------------
 
-Once Docker and Poetry are installed, and your AWS credentials are set up,
+Once Docker and the aws CLI are installed, and your AWS credentials are set up,
 we can use the provided scripts
 in the ``graphstorm-processing/docker`` directory to build the image.
 

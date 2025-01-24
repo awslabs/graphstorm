@@ -1,5 +1,5 @@
 ARG ARCH=x86_64
-FROM public.ecr.aws/emr-serverless/spark/emr-7.1.0:20240528-${ARCH} as base
+FROM public.ecr.aws/emr-serverless/spark/emr-7.3.0:20241008-${ARCH} as base
 
 USER root
 ENV PYTHON_VERSION=3.9.18
@@ -46,12 +46,12 @@ RUN touch /usr/lib/spark/code/EMR_SERVERLESS_EXECUTION
 # GSProcessing codebase
 COPY code/ /usr/lib/spark/code/
 
-FROM runtime AS prod
-RUN python -m pip install --no-deps /usr/lib/spark/code/graphstorm_processing-*.whl && \
-    rm /usr/lib/spark/code/graphstorm_processing-*.whl && rm -rf /root/.cache
+RUN python3 -m pip install --no-deps /usr/lib/spark/code/graphstorm-processing/
+FROM base AS prod
 
-FROM runtime AS test
-RUN python -m pip install --no-deps /usr/lib/spark/code/graphstorm-processing/ && rm -rf /root/.cache
+FROM base AS test
+RUN python3 -m pip install mock pytest && \
+    rm -rf /root/.cache
 
 USER hadoop:hadoop
 WORKDIR /home/hadoop
