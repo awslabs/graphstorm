@@ -3287,7 +3287,7 @@ def _add_output_args(parser):
 def _add_task_tracker(parser):
     group = parser.add_argument_group(title="task_tracker")
     group.add_argument("--task-tracker", type=str, default=argparse.SUPPRESS,
-            help=f'Task tracker name. Now we  support {SUPPORTED_TASK_TRACKER}')
+            help=f'Task tracker name. Now we support {SUPPORTED_TASK_TRACKER}')
     group.add_argument("--log-report-frequency", type=int, default=argparse.SUPPRESS,
             help="Task running log report frequency. "
                  "In training, every log_report_frequency, the task states are reported")
