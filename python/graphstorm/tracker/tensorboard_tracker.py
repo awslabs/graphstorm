@@ -78,7 +78,7 @@ class GSTensorBoardTracker(GSSageMakerTaskTracker):
                 if isinstance(metric_value, str):
                     # Only rank 0 will write log to TensorBoard
                     if get_rank() == 0:
-                        self._writer.add_scalar(metric_name, metric_value, step)
+                        self._writer.add_text(metric_name, metric_value, step)
                     logging.info("Step %d | %s: %s", step, metric_name, metric_value)
                 elif isinstance(metric_value, numbers.Number):
                     # Only rank 0 will write log to TensorBoard
