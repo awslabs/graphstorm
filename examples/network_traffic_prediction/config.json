@@ -70,12 +70,7 @@
             "features": [
                 {
                     "feature_col": "demands",
-                    "feature_name": "demands",
-                    "transform": {
-                        "name": "max_min_norm",
-                        "max_val": 10.0,
-                        "min_val": 0.0
-                    }
+                    "feature_name": "demands"
                 }
             ]
         },
@@ -96,21 +91,11 @@
             "features": [
                 {
                     "feature_col": "capacity",
-                    "feature_name": "capacity",
-                    "transform": {
-                        "name": "max_min_norm",
-                        "max_val": 10.0,
-                        "min_val": 0.0
-                    }
+                    "feature_name": "capacity"
                 },
                 {
                     "feature_col": "traffics",
-                    "feature_name": "traffics",
-                    "transform": {
-                        "name": "max_min_norm",
-                        "max_val": 10.0,
-                        "min_val": 0.0
-                    }
+                    "feature_name": "traffics"
                 }
             ]
         }
