@@ -161,10 +161,10 @@ GraphStorm provides a set of parameters to control how and where to save and res
     - Yaml: ``save_perf_results_path: /model/results/``
     - Argument: ``--save-perf-results-path /model/results/``
     - Default value: ``None``
-- **task_tracker**: A task tracker used to formalize and report model performance metrics. Now GraphStorm only supports sagemaker_task_tracker which prints evaluation metrics in a formatted way so that a user can capture those metrics through SageMaker. See Monitor and Analyze Training Jobs Using Amazon CloudWatch Metrics  for more details.
+- **task_tracker**: A task tracker used to formalize and report model performance metrics. Now GraphStorm supports two task trackers: ``sagemaker_task_tracker`` and ``tensorboard_task_tracker``. ``sagemaker_task_tracker`` prints evaluation metrics in a formatted way so that a user can capture those metrics through SageMaker. (See Monitor and Analyze Training Jobs Using Amazon CloudWatch Metrics  for more details.) ``tensorboard_task_tracker`` dumps evaluation metrics in a formatted way that can be loaded by TensorBoard. The default path for storing the TensorBoard logs is ``./runs/`` under **workspace**. Users can define their own TensorBoard log directory by setting **task_tracker** as ``tensorboard_task_tracker:LOG_PATH``, where ``LOG_PATH`` will be the TensorBoard log directory. (Note: to use ``tensorboard_task_tracker``, one should install the tensorboard Python package using ``pip install tensorboard`` or during graphstorm installation using ``pip install graphstorm[tensorboard]``.)
 
-    - Yaml: ``task_tracker: sagemaker_task_tracker``
-    - Argument: ``--task_tracker sagemaker_task_tracker``
+    - Yaml: ``task_tracker: tensorboard_task_tracker:./logs/``
+    - Argument: ``--task_tracker tensorboard_task_tracker:./logs/``
     - Default value: ``sagemaker_task_tracker``
 - **restore_model_path**: A path where GraphStorm model parameters were saved. For training, if restore_model_path is set, GraphStom will retrieve the model parameters from restore_model_path instead of initializing the parameters. For inference, restore_model_path must be provided.
 

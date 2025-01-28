@@ -18,8 +18,11 @@
     Builtin training tracker supports:
      - GSSageMakerTaskTracker: GraphStorm SageMaker Task Tracker
 """
-from .graphstorm_tracker import GSTaskTrackerAbc
+from ..config import (GRAPHSTORM_SAGEMAKER_TASK_TRACKER,
+                      GRAPHSTORM_TENSORBOARD_TASK_TRACKER)
+
 from .sagemaker_tracker import GSSageMakerTaskTracker
+from .tensorboard_tracker import GSTensorBoardTracker
 
 def get_task_tracker_class(tracker_name):
     """ Get builtin task tracker
@@ -29,10 +32,14 @@ def get_task_tracker_class(tracker_name):
     tracker_name: str
         task tracker name. 'SageMaker' for GSSageMakerTaskTracker
     """
-    if tracker_name == 'SageMaker':
+    if tracker_name == GRAPHSTORM_SAGEMAKER_TASK_TRACKER:
         # SageMaker tracker also works as normal print tracker
         return GSSageMakerTaskTracker
-    # TODO: Support mlflow, etc.
+    elif tracker_name == GRAPHSTORM_TENSORBOARD_TASK_TRACKER:
+        # Note: TensorBoard support is optional.
+        # To enable GSTensorBoardTracker, one should
+        # install the tensorboard Python package
+        return GSTensorBoardTracker
     else:
         # by default use GSSageMakerTaskTracker
         return GSSageMakerTaskTracker
