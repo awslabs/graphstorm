@@ -1168,7 +1168,7 @@ def test_lp_info():
         assert config.lp_edge_weight_for_loss is None
         assert config.model_select_etype == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
 
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test2.yaml'), local_rank=0)
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test3.yaml'), local_rank=0)
         config = GSConfig(args)
         assert len(config.train_etype) == 2
         assert config.train_etype[0] == ("query", "exactmatch", "asin")
@@ -1842,6 +1842,10 @@ def test_id_mapping_file():
             # part1 ... folders.
             nid_map_file = os.path.join(part_path_p0, "orig_nids.dgl")
             eid_map_file = os.path.join(part_path_p0, "orig_eids.dgl")
+            dgl.data.utils.save_tensors(nid_map_file, id_map)
+            dgl.data.utils.save_tensors(eid_map_file, id_map)
+            nid_map_file = os.path.join(part_path_p1, "orig_nids.dgl")
+            eid_map_file = os.path.join(part_path_p1, "orig_eids.dgl")
             dgl.data.utils.save_tensors(nid_map_file, id_map)
             dgl.data.utils.save_tensors(eid_map_file, id_map)
 

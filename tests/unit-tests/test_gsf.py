@@ -432,7 +432,7 @@ def test_create_builtin_lp_decoder():
     # dist mult + bayesian personalized ranking loss
     config = GSTestConfig(
         {
-            "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
+            "lp_decoder_type": BUILTIN_LP_DISTMULT_DECODER,
             "lp_loss_func": BUILTIN_LP_LOSS_BPR,
             "lp_edge_weight_for_loss": None,
             "decoder_norm": None,
@@ -447,7 +447,7 @@ def test_create_builtin_lp_decoder():
     # dist mult + bayesian personalized ranking loss + edge weight
     config = GSTestConfig(
         {
-            "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
+            "lp_decoder_type": BUILTIN_LP_DISTMULT_DECODER,
             "lp_loss_func": BUILTIN_LP_LOSS_BPR,
             "lp_edge_weight_for_loss": "weight",
             "decoder_norm": None,
@@ -456,7 +456,7 @@ def test_create_builtin_lp_decoder():
     )
     decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
     assert isinstance(decoder, LinkPredictWeightedDistMultDecoder)
-    assert isinstance(loss_func, LinkPredictBPRLossFunc)
+    assert isinstance(loss_func, WeightedLinkPredictBPRLossFunc)
     assert decoder.gamma == 12.
 
     # dist mult + contrastive loss
@@ -559,6 +559,7 @@ def test_create_builtin_lp_decoder():
             "lp_decoder_type": BUILTIN_LP_TRANSE_L1_DECODER,
             "lp_loss_func": BUILTIN_LP_LOSS_CROSS_ENTROPY,
             "lp_edge_weight_for_loss": None,
+            "adversarial_temperature": None,
             "decoder_norm": None,
             "gamma": None,
         }
@@ -574,6 +575,7 @@ def test_create_builtin_lp_decoder():
             "lp_decoder_type": BUILTIN_LP_TRANSE_L1_DECODER,
             "lp_loss_func": BUILTIN_LP_LOSS_CROSS_ENTROPY,
             "decoder_norm": None,
+            "adversarial_temperature": None,
             "lp_edge_weight_for_loss": "weight",
             "gamma": None,
         }
