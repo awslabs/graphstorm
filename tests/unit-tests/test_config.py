@@ -29,7 +29,8 @@ import torch as th
 from graphstorm.config import GSConfig
 from graphstorm.config.config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
                                       BUILTIN_LP_LOSS_LOGSIGMOID_RANKING,
-                                      BUILTIN_LP_LOSS_CONTRASTIVELOSS)
+                                      BUILTIN_LP_LOSS_CONTRASTIVELOSS,
+                                      BUILTIN_LP_LOSS_BPR)
 from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
@@ -1013,6 +1014,15 @@ def create_lp_config(tmp_path, file_name):
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["link_prediction"] = {
+        "train_negative_sampler": "udf", # we allow udf sampler
+        "train_etype": ["query,exactmatch,asin","query,click,asin"],
+        "eval_metric": ["mrr"],
+        "lp_loss_func": BUILTIN_LP_LOSS_BPR
+    }
+    with open(os.path.join(tmp_path, file_name+"3.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["link_prediction"] = {
         "num_negative_edges": 0,
         "num_negative_edges_eval": 0,
         "train_etype": "query,exactmatch,asin",
@@ -1158,6 +1168,14 @@ def test_lp_info():
         assert config.lp_edge_weight_for_loss is None
         assert config.model_select_etype == LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL
 
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test2.yaml'), local_rank=0)
+        config = GSConfig(args)
+        assert len(config.train_etype) == 2
+        assert config.train_etype[0] == ("query", "exactmatch", "asin")
+        assert config.train_etype[1] == ("query", "click", "asin")
+        assert config.eval_metric[0] == "mrr"
+        assert config.lp_loss_func == BUILTIN_LP_LOSS_BPR
+
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'lp_test_fail1.yaml'), local_rank=0)
         config = GSConfig(args)
         check_failure(config, "num_negative_edges")
@@ -1261,7 +1279,7 @@ def create_gnn_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name,feat_name2", "ntype1:fname"],
-        "edge_feat_name": ["ntype0, rel0, ntype1:feat_name, feat_name2", 
+        "edge_feat_name": ["ntype0, rel0, ntype1:feat_name, feat_name2",
                            "ntype1, rel1, ntype2:fname"],
         "edge_feat_mp_op": "add",
     }
@@ -1274,7 +1292,7 @@ def create_gnn_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name,fname", "ntype1:fname"],
-        "edge_feat_name": ["ntype0, rel0, ntype1:feat_name, fname", 
+        "edge_feat_name": ["ntype0, rel0, ntype1:feat_name, fname",
                            "ntype1, rel1, ntype2:fname"]
     }
     with open(os.path.join(tmp_path, file_name+"4.yaml"), "w") as f:

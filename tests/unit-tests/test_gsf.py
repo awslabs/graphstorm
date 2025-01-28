@@ -26,10 +26,12 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_LP_DOT_DECODER,
                                BUILTIN_LP_DISTMULT_DECODER,
                                BUILTIN_LP_ROTATE_DECODER,
+                               BUILTIN_LP_TRANSE_L1_DECODER,
                                BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
                                BUILTIN_CLASS_LOSS_FOCAL,
                                BUILTIN_LP_LOSS_CROSS_ENTROPY,
-                               BUILTIN_LP_LOSS_CONTRASTIVELOSS)
+                               BUILTIN_LP_LOSS_CONTRASTIVELOSS,
+                               BUILTIN_LP_LOSS_BPR)
 
 from graphstorm.model.node_decoder import (EntityClassifier,
                                            EntityRegression)
@@ -43,7 +45,9 @@ from graphstorm.model.edge_decoder import (DenseBiDecoder,
                                            LinkPredictWeightedDistMultDecoder,
                                            LinkPredictRotatEDecoder,
                                            LinkPredictContrastiveRotatEDecoder,
-                                           LinkPredictWeightedRotatEDecoder)
+                                           LinkPredictWeightedRotatEDecoder,LinkPredictTransEDecoder,
+                                           LinkPredictWeightedTransEDecoder,
+                                           LinkPredictContrastiveTransEDecoder)
 
 from graphstorm.model.loss_func import (ClassifyLossFunc,
                                         RegressionLossFunc,
@@ -52,6 +56,8 @@ from graphstorm.model.loss_func import (ClassifyLossFunc,
                                         LinkPredictContrastiveLossFunc,
                                         LinkPredictAdvBCELossFunc,
                                         WeightedLinkPredictAdvBCELossFunc,
+                                        LinkPredictBPRLossFunc,
+                                        WeightedLinkPredictBPRLossFunc,
                                         FocalLossFunc)
 
 from data_utils import generate_dummy_hetero_graph
@@ -350,6 +356,33 @@ def test_create_builtin_lp_decoder():
     assert isinstance(decoder, LinkPredictWeightedDotDecoder)
     assert isinstance(loss_func, WeightedLinkPredictAdvBCELossFunc)
 
+    # dot-product + bayesian personalized ranking loss
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_BPR,
+            "lp_edge_weight_for_loss": None,
+            "decoder_norm": "l2norm",
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictDotDecoder)
+    assert isinstance(loss_func, LinkPredictBPRLossFunc)
+
+    # dot-product + bayesian personalized ranking loss
+    # + edge weight
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_BPR,
+            "lp_edge_weight_for_loss": "weight",
+            "decoder_norm": None,
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictWeightedDotDecoder)
+    assert isinstance(loss_func, WeightedLinkPredictBPRLossFunc)
+
     # dot-product + contrastive loss
     config = GSTestConfig(
         {
@@ -394,6 +427,36 @@ def test_create_builtin_lp_decoder():
     decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
     assert isinstance(decoder, LinkPredictWeightedDistMultDecoder)
     assert isinstance(loss_func, WeightedLinkPredictBCELossFunc)
+    assert decoder.gamma == 12.
+
+    # dist mult + bayesian personalized ranking loss
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_BPR,
+            "lp_edge_weight_for_loss": None,
+            "decoder_norm": None,
+            "gamma": None,
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictDistMultDecoder)
+    assert isinstance(loss_func, LinkPredictBPRLossFunc)
+    assert decoder.gamma == 12.
+
+    # dist mult + bayesian personalized ranking loss + edge weight
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_DOT_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_BPR,
+            "lp_edge_weight_for_loss": "weight",
+            "decoder_norm": None,
+            "gamma": None,
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictWeightedDistMultDecoder)
+    assert isinstance(loss_func, LinkPredictBPRLossFunc)
     assert decoder.gamma == 12.
 
     # dist mult + contrastive loss
@@ -444,6 +507,36 @@ def test_create_builtin_lp_decoder():
     assert isinstance(loss_func, WeightedLinkPredictBCELossFunc)
     assert decoder.gamma == 12.
 
+    # rotate + bayesian personalized ranking loss
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_ROTATE_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_BPR,
+            "lp_edge_weight_for_loss": None,
+            "decoder_norm": None,
+            "gamma": None,
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictRotatEDecoder)
+    assert isinstance(loss_func, LinkPredictBPRLossFunc)
+    assert decoder.gamma == 12.
+
+    # rotate + bayesian personalized ranking loss  + edge weight
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_ROTATE_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_BPR,
+            "decoder_norm": None,
+            "lp_edge_weight_for_loss": "weight",
+            "gamma": None,
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictWeightedRotatEDecoder)
+    assert isinstance(loss_func, WeightedLinkPredictBPRLossFunc)
+    assert decoder.gamma == 12.
+
     # rotate + contrastive loss
     config = GSTestConfig(
         {
@@ -457,6 +550,82 @@ def test_create_builtin_lp_decoder():
     )
     decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
     assert isinstance(decoder, LinkPredictContrastiveRotatEDecoder)
+    assert isinstance(loss_func, LinkPredictContrastiveLossFunc)
+    assert decoder.gamma == 6.
+
+    # transe + cross entropy
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_TRANSE_L1_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_CROSS_ENTROPY,
+            "lp_edge_weight_for_loss": None,
+            "decoder_norm": None,
+            "gamma": None,
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictTransEDecoder)
+    assert isinstance(loss_func, LinkPredictBCELossFunc)
+    assert decoder.gamma == 12.
+
+    # transe + cross entropy + edge weight
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_TRANSE_L1_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_CROSS_ENTROPY,
+            "decoder_norm": None,
+            "lp_edge_weight_for_loss": "weight",
+            "gamma": None,
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictWeightedTransEDecoder)
+    assert isinstance(loss_func, WeightedLinkPredictBCELossFunc)
+    assert decoder.gamma == 12.
+
+    # transe + bayesian personalized ranking loss
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_TRANSE_L1_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_BPR,
+            "lp_edge_weight_for_loss": None,
+            "decoder_norm": None,
+            "gamma": None,
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictTransEDecoder)
+    assert isinstance(loss_func, LinkPredictBPRLossFunc)
+    assert decoder.gamma == 12.
+
+    # transe + bayesian personalized ranking loss  + edge weight
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_TRANSE_L1_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_BPR,
+            "decoder_norm": None,
+            "lp_edge_weight_for_loss": "weight",
+            "gamma": None,
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictWeightedTransEDecoder)
+    assert isinstance(loss_func, WeightedLinkPredictBPRLossFunc)
+    assert decoder.gamma == 12.
+
+    # transe + contrastive loss
+    config = GSTestConfig(
+        {
+            "lp_decoder_type": BUILTIN_LP_TRANSE_L1_DECODER,
+            "lp_loss_func": BUILTIN_LP_LOSS_CONTRASTIVELOSS,
+            "lp_edge_weight_for_loss": None,
+            "decoder_norm": "l2norm",
+            "contrastive_loss_temperature": 1.0,
+            "gamma": 6.
+        }
+    )
+    decoder, loss_func = create_builtin_lp_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, LinkPredictContrastiveTransEDecoder)
     assert isinstance(loss_func, LinkPredictContrastiveLossFunc)
     assert decoder.gamma == 6.
 
@@ -503,7 +672,7 @@ def test_get_edge_feat_size():
 
     assert edge_feat_size[("n0", "r0", "n1")] == 2
     assert edge_feat_size[("n0", "r1", "n1")] == 2
-    
+
     # Test case 1: None edge feature names
     edge_feat_size = get_edge_feat_size(g, None)
     assert edge_feat_size[("n0", "r0", "n1")] == 0
@@ -536,7 +705,7 @@ def test_get_edge_feat_size():
     except:
         edge_feat_size = {}
     assert edge_feat_size == {}
-    
+
     # Test case 5: non-existing edge types, should raise assertion errors.
     edge_feat_names5 = {
         ("n0", "r2", "n1"): ['feat']

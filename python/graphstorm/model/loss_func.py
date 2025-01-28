@@ -334,7 +334,9 @@ class WeightedLinkPredictBCELossFunc(GSLayer):
         for key, p_s in pos_score.items():
             assert len(p_s) == 2, \
                 "Pos score must include score and weight " \
-                "Please use LinkPredictWeightedDistMultDecoder or " \
+                "Please use LinkPredictWeightedDistMultDecoder, " \
+                "LinkPredictWeightedRotatEDecoder, " \
+                "LinkPredictWeightedTransEDecoder or " \
                 "LinkPredictWeightedDotDecoder"
             n_s = neg_score[key]
             p_s, p_w = p_s
@@ -549,6 +551,159 @@ class WeightedLinkPredictAdvBCELossFunc(LinkPredictAdvBCELossFunc):
         neg_loss = th.mean(neg_loss)
         loss = (neg_loss + pos_loss) / 2
         return loss
+
+class LinkPredictBPRLossFunc(GSLayer):
+    r""" Loss function for link prediction tasks using bayesian
+    personalized ranking (BPR) (https://arxiv.org/abs/1205.2618) loss.
+
+    The loss function is defined as:
+
+    .. math::
+
+        loss = - \log\left(\frac{ 1 }{ 1 + \exp(-x)}\right)
+
+    where ``x`` is positive_score - negative_score
+    """
+
+    def forward(self, pos_score, neg_score):
+        """ The forward function.
+
+        Parameters
+        ----------
+        pos_score: dict of Tensor
+            The scores for positive edges of each edge type.
+        neg_score: dict of Tensor
+            The scores for negative edges of each edge type.
+
+        Returns
+        -------
+        loss: Tensor
+            The loss value.
+        """
+        distances = []
+        for key, p_s in pos_score.items():
+            assert key in neg_score, \
+                f"Negative scores of {key} must exists"
+            n_s = neg_score[key]
+
+            # Both p_s and n_s are soreted according to source nid
+            # (which are same in pos_graph and neg_graph)
+            pscore = p_s.unsqueeze(1)
+            nscore = n_s.reshape(p_s.shape[0], -1)
+            distance = pscore - nscore
+            distances.append(distance)
+
+        distances = th.cat(distances, dim=0)
+        loss = - nn.LogSigmoid(distances)
+        loss = th.mean(loss)
+
+        return loss
+
+    @property
+    def in_dims(self):
+        """ The number of input dimensions.
+
+        Returns
+        -------
+        int : the number of input dimensions.
+        """
+        return None
+
+    @property
+    def out_dims(self):
+        """ The number of output dimensions.
+
+        Returns
+        -------
+        int : the number of output dimensions.
+        """
+        return None
+
+
+class WeightedLinkPredictBPRLossFunc(GSLayer):
+    r""" Loss function for link prediction tasks using bayesian
+    personalized ranking (BPR) (https://arxiv.org/abs/1205.2618)
+    loss with weights.
+
+    The loss function is defined as:
+
+    .. math::
+
+        loss = - w\_e [ \log\left(\frac{ 1 }{ 1 + \exp(-x)}\right) ]
+
+    where ``x`` is positive_score - negative_score,
+    ``w_e`` is the weight of the positive edges.
+    """
+
+    def forward(self, pos_score, neg_score):
+        """ The forward function.
+
+        Parameters
+        ----------
+        pos_score: dict of Tensor
+            The scores for positive edges of each edge type.
+        neg_score: dict of Tensor
+            The scores for negative edges of each edge type.
+
+        Returns
+        -------
+        loss: Tensor
+            The loss value.
+        """
+        distances = []
+        p_weight = []
+        for key, p_s in pos_score.items():
+            assert key in neg_score, \
+                f"Negative scores of {key} must exists"
+            assert len(p_s) == 2, \
+                "Pos score must include score and weight " \
+                "Please use LinkPredictWeightedDistMultDecoder, " \
+                "LinkPredictWeightedRotatEDecoder, " \
+                "LinkPredictWeightedTransEDecoder or " \
+                "LinkPredictWeightedDotDecoder"
+
+            n_s = neg_score[key]
+            p_s, p_w = p_s
+            n_s, _ = n_s # neg_weight is always all 1
+
+            # Both p_s and n_s are soreted according to source nid
+            # (which are same in pos_graph and neg_graph)
+            pscore = p_s.unsqueeze(1)
+            nscore = n_s.reshape(p_s.shape[0], -1)
+            distance = pscore - nscore
+            distances.append(distance)
+            p_weight.append(p_w)
+        p_weight = th.cat(p_weight)
+
+        distances = th.cat(distances, dim=0)
+        loss = - nn.LogSigmoid(distances)
+        # re-scale the weight according to positive edge weight
+        loss = loss * p_weight
+        loss = th.mean(loss)
+
+        return loss
+
+    @property
+    def in_dims(self):
+        """ The number of input dimensions.
+
+        Returns
+        -------
+        int : the number of input dimensions.
+        """
+        return None
+
+    @property
+    def out_dims(self):
+        """ The number of output dimensions.
+
+        Returns
+        -------
+        int : the number of output dimensions.
+        """
+        return None
+
+
 
 class LinkPredictContrastiveLossFunc(GSLayer):
     r""" Contrastive Loss function for link prediction tasks.
