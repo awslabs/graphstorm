@@ -563,6 +563,8 @@ class LinkPredictBPRLossFunc(GSLayer):
         loss = - \log\left(\frac{ 1 }{ 1 + \exp(-x)}\right)
 
     where ``x`` is positive_score - negative_score
+
+    .. versionadded:: 0.4.1
     """
 
     def forward(self, pos_score, neg_score):
@@ -633,6 +635,8 @@ class WeightedLinkPredictBPRLossFunc(GSLayer):
 
     where ``x`` is positive_score - negative_score,
     ``w_e`` is the weight of the positive edges.
+
+    .. versionadded:: 0.4.1
     """
 
     def forward(self, pos_score, neg_score):

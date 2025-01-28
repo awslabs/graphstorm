@@ -784,6 +784,9 @@ def create_builtin_lp_gnn_model(g, config, train_task):
 def create_builtin_lp_decoder(g, decoder_input_dim, config, train_task):
     """ create builtin link prediction decoder according to task config
 
+    .. versionchanged:: 0.4.1
+        Add bayesian personalized ranking loss support
+
     Parameters
     ----------
     g: DGLGraph
