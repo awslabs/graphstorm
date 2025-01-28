@@ -633,8 +633,8 @@ class WeightedLinkPredictBPRLossFunc(GSLayer):
 
         loss = - w\_e [ \log\left(\frac{ 1 }{ 1 + \exp(-x)}\right) ]
 
-    where ``x`` is positive_score - negative_score,
-    ``w_e`` is the weight of the positive edges.
+    where ``x`` is positive_score - negative_score, and
+    ``w_e`` is the weight of the positive edge.
 
     .. versionadded:: 0.4.1
     """
