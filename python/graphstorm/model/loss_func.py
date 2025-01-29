@@ -668,7 +668,7 @@ class WeightedLinkPredictBPRLossFunc(GSLayer):
 
             n_s = neg_score[key]
             p_s, p_w = p_s
-            n_s, _ = n_s # neg_weight is always all 1
+            n_s, _ = n_s # neg_weight is ignored
 
             # Both p_s and n_s are soreted according to source nid
             # (which are same in pos_graph and neg_graph)
@@ -682,7 +682,7 @@ class WeightedLinkPredictBPRLossFunc(GSLayer):
         distances = th.cat(distances, dim=0)
         loss = F.logsigmoid(distances)
         # re-scale the weight according to positive edge weight
-        loss = loss * p_weight
+        loss = loss * p_weight.unsqueeze(1)
         loss = -loss.mean()
 
         return loss
