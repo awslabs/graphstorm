@@ -288,17 +288,50 @@ fi
 
 rm -fr /data/gsgnn_nc_ml/*
 
-echo "**************dataset: multi target ntypes multiclass MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch"
+echo "**************dataset: multi target ntypes multiclass MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch with tensorboard tracker"
 # generate a dataset with user and movie have multilabel
 python3 $GS_HOME/tests/end2end-tests/data_gen/gen_multilabel.py --path /data/movielen_100k_multi_target_ntypes_train_val_1p_4t --node_class 1 --field label
 python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_multi_target_ntypes_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_multi_target_ntypes_multilabel.yaml --num-epochs 3
+error_and_exit $?
+
+echo "**************dataset: MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, focal loss with tensorboard tracker but not tensorboard package installed"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --decoder-norm layer --class-loss-func focal --num-classes 1 --task-tracker tensorboard_task_tracker
+
+if test $? -eq 0
+then
+    # Tensorboard package is not installed.
+    # The above command should fail.
+    exit -1
+fi
+
+# Install tensorboard package
+python3 -m pip install tensorboard
+
+echo "**************dataset: MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, focal loss with tensorboard tracker"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --decoder-norm layer --class-loss-func focal --num-classes 1 --task-tracker tensorboard_task_tracker
 
 error_and_exit $?
 
-echo "**************dataset: MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, focal loss"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --decoder-norm layer --class-loss-func focal --num-classes 1
+cnt=$(ls -l $GS_HOME/training_scripts/gsgnn_np/runs/| wc -l)
+if test $cnt -ne 2
+then
+    echo "Tensorboard logs must be stored under ./runs/"
+    exit -1
+fi
+rm -fr $GS_HOME/training_scripts/gsgnn_np/runs/
+
+echo "**************dataset: MovieLens, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, focal loss with tensorboard tracker"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --decoder-norm layer --class-loss-func focal --num-classes 1 --task-tracker tensorboard_task_tracker:./logs/
 
 error_and_exit $?
+
+cnt=$(ls -l $GS_HOME/training_scripts/gsgnn_np/logs/| wc -l)
+if test $cnt -ne 2
+then
+    echo "Tensorboard logs must be stored under ./logs/"
+    exit -1
+fi
+rm -fr $GS_HOME/training_scripts/gsgnn_np/logs/
 
 date
 
