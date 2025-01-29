@@ -596,7 +596,7 @@ class LinkPredictBPRLossFunc(GSLayer):
             distances.append(distance)
 
         distances = th.cat(distances, dim=0)
-        loss = nn.LogSigmoid(distances)
+        loss = F.logsigmoid(distances)
         loss = -loss.mean()
 
         return loss
@@ -680,7 +680,7 @@ class WeightedLinkPredictBPRLossFunc(GSLayer):
         p_weight = th.cat(p_weight)
 
         distances = th.cat(distances, dim=0)
-        loss = nn.LogSigmoid(distances)
+        loss = F.logsigmoid(distances)
         # re-scale the weight according to positive edge weight
         loss = loss * p_weight
         loss = -loss.mean()
