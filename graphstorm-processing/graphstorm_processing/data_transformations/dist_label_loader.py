@@ -16,9 +16,10 @@ limitations under the License.
 
 from dataclasses import dataclass
 from math import fsum
+from typing import Optional
 
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.types import FloatType
+from pyspark.sql.types import NumericType
 
 from graphstorm_processing.config.label_config_base import LabelConfig
 from graphstorm_processing.data_transformations.dist_transformations import (
@@ -100,11 +101,33 @@ class DistLabelLoader:
         The SparkSession to use for processing.
     """
 
-    def __init__(self, label_config: LabelConfig, spark: SparkSession) -> None:
+    def __init__(
+        self, label_config: LabelConfig, spark: SparkSession, order_col: Optional[str] = None
+    ) -> None:
         self.label_config = label_config
         self.label_column = label_config.label_column
         self.spark = spark
         self.label_map: dict[str, int] = {}
+        self.order_col = order_col
+
+    def __str__(self) -> str:
+        """Informal object representation for readability"""
+        return (
+            f"DistLabelLoader(label_column='{self.label_column}', "
+            f"task_type='{self.label_config.task_type}', "
+            f"multilabel={self.label_config.multilabel}, "
+            f"order_col={self.order_col!r})"
+        )
+
+    def __repr__(self) -> str:
+        """Formal object representation for debugging"""
+        return (
+            f"DistLabelLoader("
+            f"label_config={self.label_config!r}, "
+            f"spark={self.spark!r}, "
+            f"order_col={self.order_col!r}, "
+            f"label_map={self.label_map!r})"
+        )
 
     def process_label(self, input_df: DataFrame) -> DataFrame:
         """Transforms the label column in the input DataFrame to conform to GraphStorm expectations.
@@ -134,6 +157,7 @@ class DistLabelLoader:
         label_type = input_df.schema[self.label_column].dataType
 
         if self.label_config.task_type == "classification":
+            assert self.order_col, f"{self.order_col} must be provided for classification tasks"
             if self.label_config.multilabel:
                 assert self.label_config.separator
                 label_transformer = DistMultiLabelTransformation(
@@ -141,16 +165,24 @@ class DistLabelLoader:
                 )
             else:
                 label_transformer = DistSingleLabelTransformation(
-                    [self.label_config.label_column], self.spark
+                    [self.label_config.label_column],
+                    self.spark,
                 )
 
-            transformed_label = label_transformer.apply(input_df).select(self.label_column)
+            transformed_label = label_transformer.apply(input_df)
+            if self.order_col:
+                assert self.order_col in transformed_label.columns, (
+                    f"{self.order_col=} needs to be part of transformed "
+                    f"label DF, got {transformed_label.columns=}"
+                )
+                transformed_label = transformed_label.sort(self.order_col).cache()
+
             self.label_map = label_transformer.value_map
             return transformed_label
         elif self.label_config.task_type == "regression":
-            if not isinstance(label_type, FloatType):
+            if not isinstance(label_type, NumericType):
                 raise RuntimeError(
-                    "Data type for regression should be FloatType, "
+                    "Data type for regression should be a NumericType, "
                     f"got {label_type} for {self.label_column}"
                 )
             return input_df.select(self.label_column)
