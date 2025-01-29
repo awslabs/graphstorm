@@ -1183,7 +1183,6 @@ class DistHeterogeneousGraphLoader(object):
         single_feature_df: DataFrame,
         feature_output_path: str,
     ) -> tuple[dict, int]:
-
         def _get_feat_size(feat_val) -> int:
 
             assert isinstance(
