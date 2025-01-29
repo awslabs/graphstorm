@@ -23,12 +23,20 @@ class GSTaskTrackerAbc():
         Parameters
         ----------
         log_report_frequency: int
-            The frequency of reporting model performance metrics through task_tracker. 
+            The frequency of reporting model performance metrics through task_tracker.
             The frequency is defined by using number of iterations, i.e., every N iterations
             the evaluation metrics will be reported.
+        log_dir: str
+            Directory to save the logs. TaskTrackers may store logs on disk for
+            visualization or offline analysis.
+            Default: None
+
+        .. versionchanged:: 0.4.1
+            Added argument ``log_dir``.
     """
-    def __init__(self, log_report_frequency):
+    def __init__(self, log_report_frequency, log_dir=None):
         self._report_frequency = log_report_frequency # Can be None if not provided
+        self._log_dir = log_dir
 
     @abc.abstractmethod
     def log_metric(self, metric_name, metric_value, step, force_report=False):

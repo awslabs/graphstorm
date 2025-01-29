@@ -40,7 +40,8 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
 from graphstorm.config.config import GRAPHSTORM_LP_EMB_L2_NORMALIZATION
 from graphstorm.dataloading import BUILTIN_LP_UNIFORM_NEG_SAMPLER
 from graphstorm.dataloading import BUILTIN_LP_JOINT_NEG_SAMPLER
-from graphstorm.config.config import GRAPHSTORM_SAGEMAKER_TASK_TRACKER
+from graphstorm.config.config import (GRAPHSTORM_SAGEMAKER_TASK_TRACKER,
+                                      GRAPHSTORM_TENSORBOARD_TASK_TRACKER)
 from graphstorm.config import (BUILTIN_LP_DOT_DECODER,
                                BUILTIN_LP_DISTMULT_DECODER,
                                BUILTIN_LP_ROTATE_DECODER,
@@ -185,7 +186,25 @@ def create_task_tracker_config(tmp_path, file_name):
     }
 
     # config for check default value
-    with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
+    with open(os.path.join(tmp_path, file_name+"0.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["output"] = {
+        "task_tracker": "tensorboard_task_tracker",
+        "log_report_frequency": 100,
+    }
+
+    # config for check default value
+    with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
+        yaml.dump(yaml_object, f)
+
+    yaml_object["gsf"]["output"] = {
+        "task_tracker": "tensorboard_task_tracker:./log/",
+        "log_report_frequency": 100,
+    }
+
+    # config for check default value
+    with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["output"] = {
@@ -204,12 +223,28 @@ def test_task_tracker_info():
                          local_rank=0)
         config = GSConfig(args)
         assert config.task_tracker == GRAPHSTORM_SAGEMAKER_TASK_TRACKER
+        assert config.task_tracker_logpath == None
         assert config.log_report_frequency == 1000
 
-        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'task_tracker_test.yaml'),
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'task_tracker_test0.yaml'),
                          local_rank=0)
         config = GSConfig(args)
         assert config.task_tracker == GRAPHSTORM_SAGEMAKER_TASK_TRACKER
+        assert config.task_tracker_logpath == None
+        assert config.log_report_frequency == 100
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'task_tracker_test1.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        assert config.task_tracker == GRAPHSTORM_TENSORBOARD_TASK_TRACKER
+        assert config.task_tracker_logpath == None
+        assert config.log_report_frequency == 100
+
+        args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'task_tracker_test2.yaml'),
+                         local_rank=0)
+        config = GSConfig(args)
+        assert config.task_tracker == GRAPHSTORM_TENSORBOARD_TASK_TRACKER
+        assert config.task_tracker_logpath == "./log/"
         assert config.log_report_frequency == 100
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'task_tracker_test_fail.yaml'),
@@ -1261,7 +1296,7 @@ def create_gnn_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name,feat_name2", "ntype1:fname"],
-        "edge_feat_name": ["ntype0, rel0, ntype1:feat_name, feat_name2", 
+        "edge_feat_name": ["ntype0, rel0, ntype1:feat_name, feat_name2",
                            "ntype1, rel1, ntype2:fname"],
         "edge_feat_mp_op": "add",
     }
@@ -1274,7 +1309,7 @@ def create_gnn_config(tmp_path, file_name):
     }
     yaml_object["gsf"]["gnn"] = {
         "node_feat_name": ["ntype0:feat_name,fname", "ntype1:fname"],
-        "edge_feat_name": ["ntype0, rel0, ntype1:feat_name, fname", 
+        "edge_feat_name": ["ntype0, rel0, ntype1:feat_name, fname",
                            "ntype1, rel1, ntype2:fname"]
     }
     with open(os.path.join(tmp_path, file_name+"4.yaml"), "w") as f:
@@ -1824,6 +1859,10 @@ def test_id_mapping_file():
             # part1 ... folders.
             nid_map_file = os.path.join(part_path_p0, "orig_nids.dgl")
             eid_map_file = os.path.join(part_path_p0, "orig_eids.dgl")
+            dgl.data.utils.save_tensors(nid_map_file, id_map)
+            dgl.data.utils.save_tensors(eid_map_file, id_map)
+            nid_map_file = os.path.join(part_path_p1, "orig_nids.dgl")
+            eid_map_file = os.path.join(part_path_p1, "orig_eids.dgl")
             dgl.data.utils.save_tensors(nid_map_file, id_map)
             dgl.data.utils.save_tensors(eid_map_file, id_map)
 

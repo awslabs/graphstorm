@@ -1725,16 +1725,66 @@ class GSConfig:
     @property
     def task_tracker(self):
         """ A task tracker used to formalize and report model performance metrics.
-            Default is ``sagemaker_task_tracker``.
+
+            The supported task trackers includes SageMaker (sagemaker_task_tracker) and
+            TensorBoard (tensorboard_task_tracker). The user can specify it in the
+            yaml configuration as following:
+
+            .. code:: json
+
+                basic:
+                    task_tracker: "tensorboard_task_tracker"
+
+            The default is ``sagemaker_task_tracker``, which will log the metrics using
+            Python logging facility.
+
+            For TensorBoard tracker, users can specify a file directory to store the
+            logs by providing the file path information in a format of
+            ``tensorboard_task_tracker:FILE_PATH``. The tensorboard logs will be stored
+            under ``FILE_PATH``.
+
+            .. versionchanged:: 0.4.1
+                Add support for tensorboard tracker.
         """
         # pylint: disable=no-member
         if hasattr(self, "_task_tracker"):
-            assert self._task_tracker in SUPPORTED_TASK_TRACKER
-            return self._task_tracker
+            tracker_info = self._task_tracker.split(":")
+            task_tracker_name = tracker_info[0]
+
+            assert task_tracker_name in SUPPORTED_TASK_TRACKER, \
+                f"Task tracker must be one of {SUPPORTED_TASK_TRACKER}," \
+                f"But got {task_tracker_name}"
+            return task_tracker_name
 
         # By default, use SageMaker task tracker
         # It works as normal print
         return GRAPHSTORM_SAGEMAKER_TASK_TRACKER
+
+    @property
+    def task_tracker_logpath(self):
+        """ A path for a task tracker to store the logs.
+
+            SageMaker trackers will ignore this property.
+
+            For TensorBoard tracker, users can specify a file directory
+            to store the logs by providing the file path information in
+            a format of ``tensorboard_task_tracker:FILE_PATH``. The
+            task_tracker_logpath will be set to ``FILE_PATH``.
+
+            Default: None
+
+            .. versionadded:: 0.4.1
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_task_tracker"):
+            tracker_info = self._task_tracker.split(":")
+            # task_tracker information in the format of
+            # tensorboard_task_tracker:FILE_PATH
+            if len(tracker_info) > 1:
+                return tracker_info[1]
+            else:
+                return None
+        return None
 
     @property
     def log_report_frequency(self):
@@ -3237,7 +3287,7 @@ def _add_output_args(parser):
 def _add_task_tracker(parser):
     group = parser.add_argument_group(title="task_tracker")
     group.add_argument("--task-tracker", type=str, default=argparse.SUPPRESS,
-            help=f'Task tracker name. Now we only support {GRAPHSTORM_SAGEMAKER_TASK_TRACKER}')
+            help=f'Task tracker name. Now we support {SUPPORTED_TASK_TRACKER}')
     group.add_argument("--log-report-frequency", type=int, default=argparse.SUPPRESS,
             help="Task running log report frequency. "
                  "In training, every log_report_frequency, the task states are reported")
