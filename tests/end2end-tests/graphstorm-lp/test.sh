@@ -191,6 +191,16 @@ python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scrip
 
 error_and_exit $?
 
+echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, decoder: DistMult, exclude_training_targets: false, bayesian personalized ranking loss"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --lp-decoder-type distmult --train-etype user,rating,movie movie,rating-rev,user --num-epochs 1 --eval-frequency 300 --lp-loss-func bpr
+
+error_and_exit $?
+
+echo "**************dataset: Movielens, RGCN layer 2, node feat: fixed HF BERT & sparse embed, BERT nodes: movie, inference: full-graph, negative_sampler: joint, exclude_training_targets: false, lp-embed-normalizer: l2_norm, bayesian personalized ranking loss with edge weight"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --train-etype user,rating,movie --num-epochs 1 --eval-frequency 300 --lp-loss-func bpr --lp-embed-normalizer l2_norm --lp-edge-weight-for-loss rate
+
+error_and_exit $?
+
 date
 
 echo 'Done'

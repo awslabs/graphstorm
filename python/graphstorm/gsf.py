@@ -45,6 +45,7 @@ from .config import (BUILTIN_LP_DOT_DECODER,
                      BUILTIN_LP_TRANSE_L2_DECODER)
 from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_LP_LOSS_CONTRASTIVELOSS,
+                     BUILTIN_LP_LOSS_BPR,
                      BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
                      BUILTIN_CLASS_LOSS_FOCAL)
 from .eval.eval_func import (
@@ -70,6 +71,8 @@ from .model.loss_func import (ClassifyLossFunc,
                               LinkPredictAdvBCELossFunc,
                               WeightedLinkPredictAdvBCELossFunc,
                               LinkPredictContrastiveLossFunc,
+                              LinkPredictBPRLossFunc,
+                              WeightedLinkPredictBPRLossFunc,
                               FocalLossFunc)
 
 from .model.node_decoder import EntityClassifier, EntityRegression
@@ -781,6 +784,9 @@ def create_builtin_lp_gnn_model(g, config, train_task):
 def create_builtin_lp_decoder(g, decoder_input_dim, config, train_task):
     """ create builtin link prediction decoder according to task config
 
+    .. versionchanged:: 0.4.1
+        Add bayesian personalized ranking loss support
+
     Parameters
     ----------
     g: DGLGraph
@@ -893,6 +899,12 @@ def create_builtin_lp_decoder(g, decoder_input_dim, config, train_task):
                 loss_func = WeightedLinkPredictBCELossFunc()
             else:
                 loss_func = WeightedLinkPredictAdvBCELossFunc(config.adversarial_temperature)
+    elif config.lp_loss_func == BUILTIN_LP_LOSS_BPR:
+        # bayesian personalized ranking loss
+        if config.lp_edge_weight_for_loss is None:
+            loss_func = LinkPredictBPRLossFunc()
+        else:
+            loss_func = WeightedLinkPredictBPRLossFunc()
     else:
         raise TypeError(f"Unknown link prediction loss function {config.lp_loss_func}")
 
