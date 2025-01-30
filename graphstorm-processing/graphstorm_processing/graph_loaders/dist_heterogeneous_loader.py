@@ -1342,7 +1342,10 @@ class DistHeterogeneousGraphLoader(object):
                 order_col = None
 
             self.graph_info["is_multilabel"] = label_conf.multilabel
+
+            # Create loader object. If doing classification order_col!=None will enforce re-order
             node_label_loader = DistLabelLoader(label_conf, self.spark, order_col)
+
             logging.info(
                 "Processing label data for node type %s, label col: %s...",
                 node_type,
@@ -1350,6 +1353,7 @@ class DistHeterogeneousGraphLoader(object):
             )
 
             transformed_label = node_label_loader.process_label(nodes_df)
+
             self.graph_info["label_map"] = node_label_loader.label_map
 
             label_output_path = (
@@ -1361,37 +1365,45 @@ class DistHeterogeneousGraphLoader(object):
                 # The presence of order_col ensures transformed_label DF comes in ordered
                 # but do we want to double-check before writing?
                 # Get number of original partitions
-                input_num_parts = nodes_df.rdd.getNumPartitions()
-                # If num parts is different for original and transformed, log a warning
-                transformed_num_parts = transformed_label.rdd.getNumPartitions()
-                if input_num_parts != transformed_num_parts:
-                    logging.warning(
-                        "Number of partitions for original (%d) and transformed label data "
-                        "(%d) differ.  This may cause issues with the label split files.",
-                        input_num_parts,
-                        transformed_num_parts,
-                    )
-                # For classification we need to order the DF, collect to Pandas
-                # and write to storage directly
-                logging.info(
-                    "Collecting label data for node type '%s', label col: '%s' to leader...",
-                    node_type,
-                    label_conf.label_column,
-                )
-                transformed_label_pd = transformed_label.select(
-                    label_conf.label_column, order_col
-                ).toPandas()
 
-                # Write to parquet using zero-copy column values from Pandas DF
-                path_list = self._write_pyarrow_table(
-                    pa.Table.from_arrays(
-                        [transformed_label_pd[label_conf.label_column].values],
-                        names=[label_conf.label_column],
-                    ),
-                    label_output_path,
-                    num_files=input_num_parts,
-                )
+                if label_conf.custom_split_filenames:
+                    # When using custom splits we can rely on order being preserved by Spark
+                    path_list = self._write_df(
+                        transformed_label.select(label_conf.label_column), label_output_path
+                    )
+                else:
+                    input_num_parts = nodes_df.rdd.getNumPartitions()
+                    # If num parts is different for original and transformed, log a warning
+                    transformed_num_parts = transformed_label.rdd.getNumPartitions()
+                    if input_num_parts != transformed_num_parts:
+                        logging.warning(
+                            "Number of partitions for original (%d) and transformed label data "
+                            "(%d) differ.  This may cause issues with the label split files.",
+                            input_num_parts,
+                            transformed_num_parts,
+                        )
+                    # For random splits we need to collect the ordered DF to Pandas
+                    # and write to storage directly
+                    logging.info(
+                        "Collecting label data for node type '%s', label col: '%s' to leader...",
+                        node_type,
+                        label_conf.label_column,
+                    )
+                    transformed_label_pd = transformed_label.select(
+                        label_conf.label_column, order_col
+                    ).toPandas()
+
+                    # Write to parquet using zero-copy column values from Pandas DF
+                    path_list = self._write_pyarrow_table(
+                        pa.Table.from_arrays(
+                            [transformed_label_pd[label_conf.label_column].values],
+                            names=[label_conf.label_column],
+                        ),
+                        label_output_path,
+                        num_files=input_num_parts,
+                    )
             else:
+                # Regression and LP tasks will preserve input order, no need to re-order
                 path_list = self._write_df(
                     transformed_label.select(label_conf.label_column), label_output_path
                 )
