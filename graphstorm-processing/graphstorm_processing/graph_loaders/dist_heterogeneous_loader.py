@@ -1343,7 +1343,7 @@ class DistHeterogeneousGraphLoader(object):
 
             self.graph_info["is_multilabel"] = label_conf.multilabel
 
-            # Create loader object. If doing classification  order_col!=None will enforce re-order
+            # Create loader object. If doing classification order_col!=None will enforce re-order
             node_label_loader = DistLabelLoader(label_conf, self.spark, order_col)
 
             logging.info(
