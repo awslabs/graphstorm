@@ -37,10 +37,11 @@ def get_train_parser():
         required=True)
     parser.add_argument("--train-yaml-s3", type=str,
         help="S3 location of training yaml file. "
-             "Do not store it with partitioned graph",
-             required=True)
-    parser.add_argument("--model-artifact-s3", type=str,
-        help="S3 location to store the model artifacts.")
+             "Do not store it with partitioned graph")
+    parser.add_argument("--model-artifact-s3", type=str, default=None,
+        help="S3 location to store the model artifacts. If None, we rely on SageMaker "
+        "to upload model artifacts, so the launching Estimator needs to have 'output_path' set. "
+        "Default: None")
     parser.add_argument("--model-checkpoint-to-load", type=str, default=None,
         help="S3 path to a model checkpoint from a previous training task "
              "that is going to be resumed.")
