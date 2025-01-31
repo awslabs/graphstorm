@@ -47,3 +47,5 @@ gsf:
     label_field: "label"
     multilabel: false
     num_classes: 172
+    node_feat_name:
+      - "paper:paper_feat,paper_year"

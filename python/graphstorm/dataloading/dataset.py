@@ -295,9 +295,11 @@ class GSgnnData():
                                 "or a dictionary of list of strings, " \
                                 f"but get {node_feat_field}")
             for feat_name in feat_names:
-                assert feat_name in g.nodes[ntype].data, \
-                    f"Warning. The feature \"{feat_name}\" " \
-                    f"does not exists for the node type \"{ntype}\"."
+                assert feat_name in g.nodes[ntype].data, (
+                    f"The feature \"{feat_name}\" "
+                    f"does not exist for the node type \"{ntype}\"."
+                    f"Data available for \"{ntype}\": {g.nodes[ntype].data.keys()}"
+                )
 
     def has_node_feats(self, ntype):
         """ Test if the specified node type has features.
