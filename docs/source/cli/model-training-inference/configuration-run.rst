@@ -303,7 +303,7 @@ GraphStorm provides a set of parameters to control model evaluation.
     - Yaml: ``eval_batch_size: 1024``
     - Argument: ``--eval-batch-size 1024``
     - Default value: 10000.
-- **eval_fanout**: (**Required**) The fanout of each GNN layers used in evaluation and inference. It follows the same format as fanout.
+- **eval_fanout**: (**Required**) The fanout of each GNN layers used in model **evaluation** and **inference**. It follows the same format as fanout.
 
     - Yaml: ``eval_fanout: "10,10"``
     - Argument: ``--eval-fanout 10,10``
