@@ -313,8 +313,12 @@ class DistMultiCategoryTransformation(DistributedTransformation):
     def get_transformation_name() -> str:
         return "DistMultiCategoryTransformation"
 
-    def apply(self, input_df: DataFrame) -> DataFrame:
+    def apply(self, input_df: DataFrame, return_all_cols: bool = False) -> DataFrame:
         col_datatype = input_df.schema[self.multi_column].dataType
+        if return_all_cols:
+            original_cols = {*input_df.columns} - {self.multi_column}
+        else:
+            original_cols = {}
         is_array_col = False
         if col_datatype.typeName() == "array":
             assert isinstance(col_datatype, ArrayType)
@@ -326,12 +330,18 @@ class DistMultiCategoryTransformation(DistributedTransformation):
 
             is_array_col = True
 
+        # Parquet input might come with arrays already, CSV will need splitting
         if is_array_col:
-            list_df = input_df.select(self.multi_column).alias(self.multi_column)
+            multi_column = F.col(self.multi_column)
         else:
-            list_df = input_df.select(
-                F.split(F.col(self.multi_column), self.separator).alias(self.multi_column)
+            multi_column = F.split(F.col(self.multi_column), self.separator).alias(
+                self.multi_column
             )
+
+        list_df = input_df.select(
+            multi_column,
+            *original_cols,
+        )
 
         distinct_category_counts = (
             list_df.withColumn(SINGLE_CATEGORY_COL, F.explode(F.col(self.multi_column)))

@@ -89,7 +89,10 @@ class ParquetRepartitioner:
         self.input_prefix = input_prefix[5:] if input_prefix.startswith("s3://") else input_prefix
         self.filesystem_type = filesystem_type
         if self.filesystem_type == FilesystemType.S3:
-            self.bucket = self.input_prefix.split("/")[1]
+            # Expected input is bucket/path/to/file, no s3:// prefix
+            self.bucket = self.input_prefix.split("/")[0]
+            if not region:
+                region = s3_utils.get_bucket_region(self.bucket)
             self.pyarrow_fs = fs.S3FileSystem(
                 region=region,
                 retry_strategy=fs.AwsDefaultS3RetryStrategy(max_attempts=10),
@@ -194,8 +197,6 @@ class ParquetRepartitioner:
             "path/to/parquet-repartitioned-my-suffix/part-00003-filename.snappy.parquet"
         """
         original_relative_path_obj = Path(original_relative_path)
-        # We expect files to have a path of the form /path/to/parquet/part-00001.snappy.parquet
-        assert original_relative_path_obj.parts[-2] == "parquet"  # TODO: Remove this assumption?
 
         padded_file_idx = f"part-{str(repartitioned_file_index).zfill(5)}"
 
@@ -915,9 +916,8 @@ def modify_flat_array_metadata(
                         repartitioner.modify_metadata_for_flat_arrays(edge_mask_files)
 
     if node_data_meta:
-        node_types_with_labels = graph_info["ntype_label"]  # type: List[str]
-        if node_types_with_labels:
-            ntype_label_property = graph_info["ntype_label_property"][0]  #  type: str
+        node_types_with_labels: list[str] = graph_info["ntype_label"]
+
         for type_idx, (type_name, ntype_data_dict) in enumerate(node_data_meta.items()):
             logging.info(
                 "Modifying Parquet metadata for node type '%s', %d/%d:",
@@ -926,7 +926,8 @@ def modify_flat_array_metadata(
                 len(node_data_meta),
             )
             if type_name in node_types_with_labels:
-                node_label_files = ntype_data_dict[ntype_label_property]["data"]  # type: List[str]
+                ntype_label_property: str = graph_info["ntype_label_property"][0]
+                node_label_files: list[str] = ntype_data_dict[ntype_label_property]["data"]
                 logging.info(
                     "Modifying Parquet metadata for %d files of label '%s' of node type '%s'",
                     len(node_label_files),
@@ -1195,13 +1196,10 @@ def main():
 
     if repartition_config.input_prefix.startswith("s3://"):
         filesystem_type = FilesystemType.S3
+        input_prefix = s3_utils.s3_path_remove_trailing(repartition_config.input_prefix)
     else:
         input_prefix = str(Path(repartition_config.input_prefix).resolve(strict=True))
         filesystem_type = FilesystemType.LOCAL
-
-    # Trim trailing '/' from S3 URI
-    if filesystem_type == FilesystemType.S3:
-        input_prefix = s3_utils.s3_path_remove_trailing(repartition_config.input_prefix)
 
     logging.info(
         "Re-partitioning files under %s to ensure all files that belong to the same "

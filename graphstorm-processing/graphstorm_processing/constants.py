@@ -66,6 +66,16 @@ EXPLODE_HARD_NEGATIVE_VALUE = "hard_negative_exploded_single_value"
 NODE_MAPPING_STR = "orig"
 NODE_MAPPING_INT = "new"
 
+################# Reserved columns  ################
+DATA_SPLIT_SET_MASK_COL = "GSP-SAMPLE-SET-MASK"
+
+################# Supported task types  ##############
+VALID_TASK_TYPES = {
+    "classification",
+    "regression",
+    "link_prediction",
+}
+
 
 ################# Supported execution envs  ##############
 class ExecutionEnv(Enum):

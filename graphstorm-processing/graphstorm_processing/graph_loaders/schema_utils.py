@@ -22,9 +22,9 @@ from typing import Sequence, List, Type
 
 from pyspark.sql.types import StructType, StructField, StringType, DataType, DoubleType
 
-from ..config.config_parser import EdgeConfig, NodeConfig
-from ..config.label_config_base import LabelConfig
-from ..config.feature_config_base import FeatureConfig
+from graphstorm_processing.config.config_parser import EdgeConfig, NodeConfig
+from graphstorm_processing.config.label_config_base import LabelConfig
+from graphstorm_processing.config.feature_config_base import FeatureConfig
 
 
 def parse_edge_file_schema(edge_config: EdgeConfig) -> StructType:
