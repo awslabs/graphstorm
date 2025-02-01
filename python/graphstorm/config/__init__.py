@@ -53,7 +53,10 @@ from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_LP_LOSS_CONTRASTIVELOSS,
                      BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
                      BUILTIN_CLASS_LOSS_FOCAL,
-                     BUILTIN_CLASS_LOSS_FUNCTION)
+                     BUILTIN_CLASS_LOSS_FUNCTION,
+                     BUILTIN_REGRESSION_LOSS_MSE,
+                     BUILTIN_REGRESSION_LOSS_SHRINKAGE,
+                     BUILTIN_REGRESSION_LOSS_FUNCTION)
 from .config import (GRAPHSTORM_LP_EMB_L2_NORMALIZATION,
                      GRAPHSTORM_LP_EMB_NORMALIZATION_METHODS)
 from .config import (GRAPHSTORM_SAGEMAKER_TASK_TRACKER,
