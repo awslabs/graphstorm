@@ -222,6 +222,91 @@ class RegressionLossFunc(GSLayer):
         """
         return None
 
+class ShrinkageLoss(GSLayer):
+    """ Shrinkage Loss for imbalanced regression tasks.
+
+        The shrinkage loss is defined as:
+
+        .. math::
+
+            loss = \frac{l^2}{1 + \exp \left( \alpha \cdot (\gamma - l) \right)}
+
+            where l is the absolute difference between the
+            predicted value and the groud truth. \alpha and
+            \gamma are hyper-parameters controlling the
+            shrinkage speed and the localization respectively.
+
+        The shrinkage loss only penalizes the importance of
+        easy samples (when l < 0.5) and keeps the loss of
+        hard samples unchanged.
+
+        For more details, please refer to the paper
+        "Deep Regression Tracking with Shrinkage Loss"
+
+        Parameters
+        ----------
+        alpha: float
+            A hyper-parameter controls the loss shrinkage
+            speed when the prediction error decreases.
+            Default: 10.
+        gamma: float
+            A hyper-parameter controls the localization
+            of the loss regarding to the x-axis.
+            Default: ``0.2``.
+
+        .. versionadded:: 0.4.1
+            Add shrinkage loss for regressoin tasks.
+    """
+    def __init__(self, alpha=10, gamma=0.2):
+        super(RegressionLossFunc, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def forward(self, logits, labels):
+        """ The forward function.
+
+        Parameters
+        ----------
+        logits: torch.Tensor
+            The prediction results.
+        labels: torch.Tensor
+            The training labels.
+
+        Returns
+        -------
+        loss: Tensor
+            The loss value.
+        """
+        # Make sure the lable is a float tensor
+        labels = labels.float()
+        diff = th.abs(logits - labels)
+        numerator = diff ** 2
+        denominator = 1 + th.exp(self.alpha * (self.gamma - diff))
+
+        loss = numerator / denominator
+        return loss.mean()
+
+    @property
+    def in_dims(self):
+        """ The number of input dimensions.
+
+        Returns
+        -------
+        int : the number of input dimensions.
+        """
+        return None
+
+    @property
+    def out_dims(self):
+        """ The number of output dimensions.
+
+        Returns
+        -------
+        int : the number of output dimensions.
+        """
+        return None
+
+
 class LinkPredictBCELossFunc(GSLayer):
     r""" Loss function for link prediction tasks using binary
     cross entropy loss.
