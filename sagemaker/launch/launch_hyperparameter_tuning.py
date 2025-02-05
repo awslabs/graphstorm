@@ -29,16 +29,18 @@ r"""
             --model-artifact-s3 s3://my-bucket/model-artifacts/ \
             --max-jobs 20 \
             --max-parallel-jobs 4 \
-            --hyperparameter-ranges '{"lr": {"type": "continuous", "min": 1e-5, "max": 1e-2}, "num_layers": {"type": "integer", "min": 2, "max": 5}, "activation": {"type": "categorical", "values": ["relu", "tanh"]}}' \
+            --hyperparameter-ranges ./my-parameter-ranges.json
             --metric-name "accuracy" \
             --metric-dataset "val" \
             --objective-type Maximize
 """
 import os
 import json
+from typing import Mapping
 
 from sagemaker.pytorch.estimator import PyTorch
 from sagemaker.tuner import (
+    ParameterRange,
     HyperparameterTuner,
     ContinuousParameter,
     IntegerParameter,
@@ -54,21 +56,64 @@ from launch_train import get_train_parser
 INSTANCE_TYPE = "ml.g4dn.12xlarge"
 
 
-def parse_hyperparameter_ranges(hyperparameter_ranges_json):
-    """Parse the hyperparameter ranges from JSON string."""
-    ranges = json.loads(hyperparameter_ranges_json)
-    hyperparameter_ranges = {}
-    for param, config in ranges.items():
-        if config["type"] == "continuous":
-            hyperparameter_ranges[param] = ContinuousParameter(
-                config["min"], config["max"], config.get("scaling_type", "Auto")
+def parse_hyperparameter_ranges(hyperparameter_ranges_json: str) -> dict[str, ParameterRange]:
+    """Parse the hyperparameter ranges from JSON string and determine if autotune is needed.
+
+    Expected JSON structure is at
+    https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-define-ranges.html
+
+    Parameters
+    ----------
+    hyperparameter_ranges_json : str
+        Path to a JSON file or JSON as a string.
+
+    Returns
+    -------
+    dict
+        Hyperparameter dict that can be used to create a HyperparameterTuner
+        object.
+
+    Raises
+    ------
+    ValueError
+        If the JSON dict contains an invalid parameter type.
+    """
+    if os.path.exists(hyperparameter_ranges_json):
+        with open(hyperparameter_ranges_json, "r", encoding="utf-8") as f:
+            str_ranges: dict[str, list[dict]] = json.load(f)["ParameterRanges"]
+    else:
+        str_ranges = json.loads(hyperparameter_ranges_json)["ParameterRanges"]
+
+    hyperparameter_ranges: Mapping[str, ParameterRange] = {}
+    for params_type, config_list in str_ranges.items():
+        if params_type == "ContinuousParameterRanges":
+            for config in config_list:
+                param_name = config["Name"]
+                hyperparameter_ranges[param_name] = ContinuousParameter(
+                    config["MinValue"],
+                    config["MaxValue"],
+                    config.get("ScalingType", "Auto"),
+                )
+        elif params_type == "IntegerParameterRanges":
+            for config in config_list:
+                param_name = config["Name"]
+                hyperparameter_ranges[param_name] = IntegerParameter(
+                    config["MinValue"],
+                    config["MaxValue"],
+                    config.get("ScalingType", "Auto"),
+                )
+        elif params_type == "CategoricalParameterRanges":
+            for config in config_list:
+                param_name = config["Name"]
+                hyperparameter_ranges[param_name] = CategoricalParameter(
+                    config["Values"]
+                )
+        else:
+            raise ValueError(
+                f"Unknown parameter type {params_type}. "
+                "Expect one of 'CategoricalParameterRanges', 'ContinuousParameterRanges', "
+                "'IntegerParameterRanges'"
             )
-        elif config["type"] == "integer":
-            hyperparameter_ranges[param] = IntegerParameter(
-                config["min"], config["max"], config.get("scaling_type", "Auto")
-            )
-        elif config["type"] == "categorical":
-            hyperparameter_ranges[param] = CategoricalParameter(config["values"])
     return hyperparameter_ranges
 
 
@@ -167,13 +212,16 @@ def get_hpo_parser():
         "--hyperparameter-ranges",
         type=str,
         required=True,
-        help="JSON string defining hyperparameter ranges",
+        help="Path to a JSON file, or a JSON string defining hyperparameter ranges. "
+        "For syntax see 'Dynamic hyperparameters' in "
+        "https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-define-ranges.html"
+        ,
     )
     hpo_group.add_argument(
         "--metric-name",
         type=str,
         required=True,
-        help="Name of the metric to optimize (e.g., 'accuracy', 'amri')",
+        help="Name of the metric to optimize for (e.g., 'accuracy', 'amri')",
     )
     hpo_group.add_argument(
         "--metric-dataset",
