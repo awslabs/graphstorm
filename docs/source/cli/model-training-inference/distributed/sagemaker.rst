@@ -224,32 +224,55 @@ of your model with an easy-to-use interface.
 The ``launch/launch_hyperparameter_tuning.py`` script can act as a thin
 wrapper for SageMaker's `HyperParameterTuner <https://sagemaker.readthedocs.io/en/stable/api/training/tuner.html>`_.
 
-You define the hyper-parameters of interest by passing a python dictionary as a string,
-where the keys of the dictionary are the names of the parameters to tune,
-and each value is a dictionary that defines the type and tuning range
-of the parameter.
+You define the hyper-parameters of interest by passing a filepath to a JSON file,
+or a python dictionary as a string,
+where the structure of the dictionary is the same as for SageMaker's
+`Dynamic hyper-parameters <https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-define-ranges.html#automatic-model-tuning-define-ranges-dynamic>`.
+For example your JSON file can look like:
+
+.. code:: bash
+
+    # Content of my_param_ranges.json
+    {
+        "ParameterRanges": {
+            "CategoricalParameterRanges": [
+                {
+                    "Name": "model_encoder_type",
+                    "Values": ["rgcn", "hgt"]
+                }
+            ],
+            "ContinuousParameterRanges": [
+                {
+                    "Name": "lr",
+                    "MinValue": "1e-5",
+                    "MaxValue" : "1e-2",
+                    "ScalingType": "Auto"
+                }
+            ],
+            "IntegerParameterRanges": [
+                {
+                    "Name": "hidden_size",
+                    "MaxValue": "64",
+                    "MinValue": "256",
+                    "ScalingType": "Auto"
+                }
+            ]
+        }
+    }
+
+Which you can then use to launch an HPO job:
 
 .. code:: bash
 
     # Example hyper-parameter ranges
     python launch/launch_hyperparameter_tuning.py \
-        --hyperparameter-ranges '{"lr": {"type": "continuous", "min": 1e-5, "max": 1e-2, "scaling_type": "Auto"}, "num_layers": {"type": "integer", "min": 1, "max": 3}, "model_encoder_type": {"type": "categorical", "values": ["rgcn", "rgat"]}}'
+        --hyperparameter-ranges my_param_ranges.json
+        # Other launch parameters...
 
-The supported parameter types are ``continuous``
-for real-values parameters, ``integer`` for numerical integer parameters,
-and ``categorical`` for discrete-value string parameters.
-These directly correspond to Sagemaker's
-`Dynamic hyper-parameters <https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-define-ranges.html#automatic-model-tuning-define-ranges-dynamic>`~
-
-Continuous and integer parameters need to define a ``"min"`` and ``"max"`` value to use
-during tuning, while categorical variables need to provide a list of strings
-as ``"values"`` to choose from.
-
-For continuous and integer parameters you can also provide a ``scaling_type``
+For continuous and integer parameters you can provide a ``ScalingType``
 string that directly corresponds to one of SageMaker's
-`scaling types <https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-define-ranges.html#scaling-type>`_,
-i.e. can be 'Auto', 'Linear', 'Logarithmic', or 'ReverseLogarithmic'.
-By default scaling type will be 'Auto'.
+`scaling types <https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-define-ranges.html#scaling-type>`_.
+By default scaling type will be ``'Auto'``.
 
 Use ``--metric-name`` to define the name of metric to use as a tuning objective,
 e.g. ``"accuracy"``. See the entry for ``eval_metric`` in :ref:`Evaluation Metrics <eval_metrics>`
@@ -281,9 +304,9 @@ Example HPO call:
         --model-artifact-s3 s3://my-bucket/model-artifacts/ \
         --max-jobs 20 \
         --max-parallel-jobs 4 \
-        --hyperparameter-ranges '{"lr": {"type": "continuous", "min": 1e-5, "max": 1e-2}, "num_layers": {"type": "integer", "min": 2, "max": 5}}' \
+        --hyperparameter-ranges my_param_ranges.json \
         --metric-name "accuracy" \
-        --metric-set "val" \
+        --metric-dataset "val" \
         --objective-type "Maximize" \
         --strategy "Bayesian"
 

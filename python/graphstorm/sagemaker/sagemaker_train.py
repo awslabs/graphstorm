@@ -166,11 +166,11 @@ def run_train(args, unknownargs):
         restore_model_path = None
 
     if args.model_artifact_s3:
-        # If user provided an S3 output destination as an input arg, the script itself
+        # If a user provides an S3 output destination as an input arg, the script itself
         # will upload the model artifacts after training, so we save under /tmp.
         output_path = "/tmp/gsgnn_model/"
     else:
-        # If the user did not provide an output destination as an arg, we rely on SageMaker to
+        # If the user does not provide an output destination as an arg, we rely on SageMaker to
         # do the model upload so we save the model to the pre-determined path /opt/ml/model
         output_path = "/opt/ml/model"
 

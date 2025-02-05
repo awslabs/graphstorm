@@ -251,7 +251,7 @@ def get_hpo_parser():
 if __name__ == "__main__":
     arg_parser = get_hpo_parser()
     args, unknownargs = arg_parser.parse_known_args()
-    print(f"HPO launch Known args: '{args}'")
+    print(f"HPO launch known args: '{args}'")
     print(f"HPO launch unknown args:{type(unknownargs)=} '{unknownargs=}'")
 
     run_hyperparameter_tuning_job(args, args.image_url, unknownargs)
