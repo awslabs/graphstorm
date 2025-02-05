@@ -541,7 +541,7 @@ Link Prediction Task
 - **class_loss_func**: Node/Edge classification loss function. Builtin loss functions include ``cross_entropy`` and ``focal``.
 
     - Yaml: ``class_loss_func: cross_entropy``
-    - Argument: ``--class-loss-func contrastive``
+    - Argument: ``--class-loss-func focal``
     - Default value: ``cross_entropy``
 - **lp_loss_func**: Link prediction loss function. Builtin loss functions include ``cross_entropy`` and ``contrastive``.
 
