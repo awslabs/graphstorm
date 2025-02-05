@@ -679,6 +679,7 @@ class GSConfig:
         _ = self.multilabel
         _ = self.multilabel_weights
         _ = self.imbalance_class_weights
+        _ = self.class_loss_func
 
     def verify_node_regression_arguments(self):
         """ Verify the correctness of arguments for node regression tasks.
@@ -702,6 +703,7 @@ class GSConfig:
         _ = self.decoder_type
         _ = self.num_decoder_basis
         _ = self.decoder_edge_feat
+        _ = self.class_loss_func
 
     def verify_edge_regression_arguments(self):
         """ Verify the correctness of arguments for edge regression tasks.
