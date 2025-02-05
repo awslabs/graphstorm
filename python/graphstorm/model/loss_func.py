@@ -223,7 +223,7 @@ class RegressionLossFunc(GSLayer):
         return None
 
 class ShrinkageLossFunc(GSLayer):
-    """ Shrinkage Loss for imbalanced regression tasks.
+    r""" Shrinkage Loss for imbalanced regression tasks.
 
         The shrinkage loss is defined as:
 
