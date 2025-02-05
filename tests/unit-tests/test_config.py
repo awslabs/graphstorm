@@ -29,7 +29,9 @@ import torch as th
 from graphstorm.config import GSConfig
 from graphstorm.config.config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
                                       BUILTIN_LP_LOSS_LOGSIGMOID_RANKING,
-                                      BUILTIN_LP_LOSS_CONTRASTIVELOSS)
+                                      BUILTIN_LP_LOSS_CONTRASTIVELOSS,
+                                      BUILTIN_REGRESSION_LOSS_MSE,
+                                      BUILTIN_REGRESSION_LOSS_SHRINKAGE)
 from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
@@ -806,7 +808,8 @@ def create_node_regress_config(tmp_path, file_name):
     yaml_object["gsf"]["node_regression"] = {
         "target_ntype": "a",
         "label_field": "label",
-        "eval_metric": "Mse"
+        "eval_metric": "Mse",
+        "regression_loss_func": "mse"
     }
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -815,12 +818,14 @@ def create_node_regress_config(tmp_path, file_name):
         "target_ntype": "a",
         "label_field": "label",
         "eval_metric": ["mse", "RMSE"],
+        "regression_loss_func": "shrinkage"
     }
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["node_regression"] = {
-        "eval_metric": "error"
+        "eval_metric": "error",
+        "regression_loss_func": "unknown"
     }
     with open(os.path.join(tmp_path, file_name+"_fail_metric1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -846,6 +851,7 @@ def test_node_regress_info():
         check_failure(config, "label_field")
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "rmse"
+        assert config.regression_loss_func == BUILTIN_REGRESSION_LOSS_MSE
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test1.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -853,16 +859,19 @@ def test_node_regress_info():
         assert config.label_field == "label"
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mse"
+        assert config.regression_loss_func == BUILTIN_REGRESSION_LOSS_MSE
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test2.yaml'), local_rank=0)
         config = GSConfig(args)
         assert len(config.eval_metric) == 2
         assert config.eval_metric[0] == "mse"
         assert config.eval_metric[1] == "rmse"
+        assert config.regression_loss_func == BUILTIN_REGRESSION_LOSS_SHRINKAGE
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test_fail_metric1.yaml'), local_rank=0)
         config = GSConfig(args)
         check_failure(config, "eval_metric")
+        check_failure(config, "regression_loss_func")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test_fail_metric2.yaml'), local_rank=0)
         config = GSConfig(args)
