@@ -3547,6 +3547,8 @@ def _add_link_prediction_args(parser):
     )
     group.add_argument("--class-loss-func", type=str, default=argparse.SUPPRESS,
             help="Classification loss function.")
+    group.add_argument("--regression-loss-func", type=str, default=argparse.SUPPRESS,
+            help="Regression loss function.")
     group.add_argument("--lp-loss-func", type=str, default=argparse.SUPPRESS,
             help="Link prediction loss function.")
     group.add_argument("--contrastive-loss-temperature", type=float, default=argparse.SUPPRESS,

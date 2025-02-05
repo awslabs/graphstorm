@@ -545,8 +545,8 @@ Link Prediction Task
     - Default value: ``cross_entropy``
 - **regression_loss_func**: Node/Edge regression loss function. Builtin loss functions include ``mse`` and ``shrinkage``.
 
-    - Yaml: ``class_loss_func: mse``
-    - Argument: ``--class-loss-func shrinkage``
+    - Yaml: ``regression_loss_func: mse``
+    - Argument: ``--regression-loss-func shrinkage``
     - Default value: ``mse``
 - **lp_loss_func**: Link prediction loss function. Builtin loss functions include ``cross_entropy`` and ``contrastive``.
 
