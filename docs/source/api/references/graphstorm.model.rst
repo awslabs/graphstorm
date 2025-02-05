@@ -118,6 +118,7 @@ Loss Function
     ClassifyLossFunc
     FocalLossFunc
     RegressionLossFunc
+    ShrinkageLossFunc
     LinkPredictBCELossFunc
     WeightedLinkPredictBCELossFunc
     LinkPredictAdvBCELossFunc

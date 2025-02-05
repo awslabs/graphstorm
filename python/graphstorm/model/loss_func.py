@@ -222,7 +222,7 @@ class RegressionLossFunc(GSLayer):
         """
         return None
 
-class ShrinkageLoss(GSLayer):
+class ShrinkageLossFunc(GSLayer):
     """ Shrinkage Loss for imbalanced regression tasks.
 
         The shrinkage loss is defined as:
@@ -258,7 +258,7 @@ class ShrinkageLoss(GSLayer):
             Add shrinkage loss for regressoin tasks.
     """
     def __init__(self, alpha=10, gamma=0.2):
-        super(ShrinkageLoss, self).__init__()
+        super(ShrinkageLossFunc, self).__init__()
         self.alpha = alpha
         self.gamma = gamma
 
