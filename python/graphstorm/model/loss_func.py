@@ -240,9 +240,10 @@ class ShrinkageLossFunc(GSLayer):
         easy samples (when l < 0.5) and keeps the loss of
         hard samples unchanged.
 
+        # pylint: disable=line-too-long
         For more details, please refer to the paper
         "Deep Regression Tracking with Shrinkage Loss"
-        (https://openaccess.thecvf.com/content_ECCV_2018/html/Xiankai_Lu_Deep_Regression_Tracking_ECCV_2018_paper.html) # noqa: E501
+        (https://openaccess.thecvf.com/content_ECCV_2018/html/Xiankai_Lu_Deep_Regression_Tracking_ECCV_2018_paper.html)
 
         Parameters
         ----------
