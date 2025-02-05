@@ -926,7 +926,7 @@ def create_edge_class_config(tmp_path, file_name):
         "num_decoder_basis": 1,
         "remove_target_edge_type": "error",
         "decoder_edge_feat": ["query,no-match,asin:feat0,feat1"],
-        "lass_loss_func": "unknow"
+        "class_loss_func": "unknown"
     }
 
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
