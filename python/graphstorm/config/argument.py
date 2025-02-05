@@ -35,7 +35,9 @@ from .config import (BUILTIN_LP_LOSS_FUNCTION,
                      BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_LP_LOSS_CONTRASTIVELOSS,
                      BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
-                     BUILTIN_CLASS_LOSS_FUNCTION)
+                     BUILTIN_CLASS_LOSS_FUNCTION,
+                     BUILTIN_REGRESSION_LOSS_MSE,
+                     BUILTIN_REGRESSION_LOSS_FUNCTION)
 
 from .config import BUILTIN_TASK_NODE_CLASSIFICATION
 from .config import BUILTIN_TASK_NODE_REGRESSION
@@ -687,6 +689,7 @@ class GSConfig:
         _ = self.batch_size
         _ = self.eval_metric
         _ = self.label_field
+        _ = self.regression_loss_func
 
     def verify_edge_class_arguments(self):
         """ Verify the correctness of arguments for edge classification tasks.
@@ -713,6 +716,7 @@ class GSConfig:
         _ = self.decoder_type
         _ = self.num_decoder_basis
         _ = self.decoder_edge_feat
+        _ = self.regression_loss_func
 
     def verify_link_prediction_arguments(self):
         """ Verify the correctness of arguments for link prediction tasks.
@@ -2870,6 +2874,21 @@ class GSConfig:
             return self._class_loss_func
 
         return BUILTIN_CLASS_LOSS_CROSS_ENTROPY
+
+    @property
+    def regression_loss_func(self):
+        """ Regression loss function. Builtin loss functions include
+            ``mse`` and ``shrinkage``. Default is ``mse``.
+        """
+        # pylint: disable=no-member
+        if hasattr(self, "_regression_loss_func"):
+            assert self._regression_loss_func in BUILTIN_REGRESSION_LOSS_FUNCTION, \
+                f"Only support {BUILTIN_REGRESSION_LOSS_FUNCTION} " \
+                "loss functions for classification tasks"
+            return self._regression_loss_func
+
+        return BUILTIN_REGRESSION_LOSS_MSE
+
 
     @property
     def lp_loss_func(self):
