@@ -1007,7 +1007,7 @@ def test_edge_class_info():
         check_failure(config, "num_decoder_basis")
         check_failure(config, "remove_target_edge_type")
         check_failure(config, "decoder_edge_feat")
-        check_failure(config, "lass_loss_func")
+        check_failure(config, "class_loss_func")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test_fail2.yaml'), local_rank=0)
         config = GSConfig(args)
