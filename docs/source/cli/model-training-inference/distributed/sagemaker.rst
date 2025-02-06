@@ -230,7 +230,7 @@ where the structure of the dictionary is the same as for SageMaker's
 `Dynamic hyper-parameters <https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-define-ranges.html#automatic-model-tuning-define-ranges-dynamic>`.
 For example your JSON file can look like:
 
-.. code:: bash
+.. code:: python
 
     # Content of my_param_ranges.json
     {
