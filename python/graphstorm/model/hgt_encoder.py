@@ -634,14 +634,14 @@ class HGTLayerwithEdgeFeat(HGTLayer):
 
         return para_ef_linears
 
-    def forward(self, g, n_h, e_h=None):
+    def forward(self, g, h, e_h=None):
         """ HGT with edge feature support layer forward computation.
 
         Parameters
         ----------
         g: DGLHeteroGraph
             Input DGL heterogenous graph.
-        n_h: dict of Tensor
+        h: dict of Tensor
             Node features for each node type in the format of {ntype: tensor}.
         e_h: dict of Tensor
             edge features for each edge type in the format of {etype: tensor}. Default is None.
@@ -663,7 +663,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
                 sub_graph = g[srctype, etype, dsttype]
 
                 # extract source, destination, and edge embeds
-                src_nh = n_h[srctype]
+                src_nh = h[srctype]
                 sub_graph.srcdata['src_nh'] = src_nh
 
                 # copy source embed to edges, and extract from edata
@@ -722,11 +722,11 @@ class HGTLayerwithEdgeFeat(HGTLayer):
                 v_val = th.einsum("bij,ijk->bik", v_val, relation_msg)
 
                 if g.is_block:
-                    q_val = q_linear(n_h[dsttype][:sub_graph.num_dst_nodes()]).view(-1,
+                    q_val = q_linear(h[dsttype][:sub_graph.num_dst_nodes()]).view(-1,
                                                                             self.num_heads,
                                                                             self.d_k)
                 else:
-                    q_val = q_linear(n_h[dsttype]).view(-1, self.num_heads, self.d_k)
+                    q_val = q_linear(h[dsttype]).view(-1, self.num_heads, self.d_k)
 
                 # compute attention scores
                 sub_graph.edata['k'] = k_val
@@ -744,7 +744,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
             g.multi_update_all(edge_fn, cross_reducer="mean")
 
             new_h = {}
-            for k, _ in n_h.items():
+            for k, _ in h.items():
                 if g.num_dst_nodes(k) > 0:
                     alpha = th.sigmoid(self.skip[k])
                     if g.dstnodes[k].data.get('t') is not None:
@@ -752,22 +752,22 @@ class HGTLayerwithEdgeFeat(HGTLayer):
                         trans_out = self.drop(t)
                         if g.is_block:
                             trans_out = trans_out * alpha + \
-                                self.a_linears[k](n_h[k][:g.num_dst_nodes(k)]) * (1-alpha)
+                                self.a_linears[k](h[k][:g.num_dst_nodes(k)]) * (1-alpha)
                         else:
-                            trans_out = trans_out * alpha + self.a_linears[k](n_h[k]) * (1-alpha)
+                            trans_out = trans_out * alpha + self.a_linears[k](h[k]) * (1-alpha)
                     else:                       # Nodes not really in destination side.
                         warn_msg = "Warning. Graph convolution returned empty " \
                             f"dictionary for nodes in type: {str(k)}. Please check your data" \
                             f" for no in-degree nodes in type: {str(k)}."
                         self.warning_once(warn_msg)
                         # So add psudo self-loop for the destination nodes with its own feature.
-                        dst_h = self.a_linears[k](n_h[k][:g.num_dst_nodes(k)])
+                        dst_h = self.a_linears[k](h[k][:g.num_dst_nodes(k)])
                         trans_out = self.drop(dst_h)
                         trans_out = trans_out * alpha + dst_h * (1-alpha)
                 else:
                     # Handle zero number of dst nodes, which is an extreme case
                     if g.dstnodes[k].data.get('t') is not None:
-                        trans_out = self.a_linears[k](n_h[k])
+                        trans_out = self.a_linears[k](h[k])
                     else:
                         continue
 
