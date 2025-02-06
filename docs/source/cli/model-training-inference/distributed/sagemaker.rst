@@ -252,8 +252,8 @@ For example your JSON file can look like:
             "IntegerParameterRanges": [
                 {
                     "Name": "hidden_size",
-                    "MaxValue": "64",
-                    "MinValue": "256",
+                    "MinValue": "64",
+                    "MaxValue": "256",
                     "ScalingType": "Auto"
                 }
             ]
