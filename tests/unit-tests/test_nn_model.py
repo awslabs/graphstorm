@@ -764,7 +764,6 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
                         dev_emb['n1'].detach().cpu().numpy()).any()
 
     # TODO: test case 2: normal case, one edge type has features
-    
 
 
 if __name__ == '__main__':

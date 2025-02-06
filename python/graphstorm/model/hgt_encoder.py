@@ -606,7 +606,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
         if edge_feat_mp_op in ['concat']:
             self.ef_linears = self._create_ef_parameters(in_dim, out_dim, canonical_etypes,
                                                          edge_feat_name)
-        
+
     def _create_ef_parameters(self, in_dim, out_dim, canonical_etypes, edge_feat_name):
         """ Create edge feature specific parameters when message passing operator is `concat`.
         
@@ -631,10 +631,10 @@ class HGTLayerwithEdgeFeat(HGTLayer):
                 ef_linears[c_etype_str] = nn.Linear(in_dim, out_dim)
 
         para_ef_linears = nn.ParameterDict(ef_linears)
-        
+
         return para_ef_linears
 
-    def forward(self, g, n_h, e_h):
+    def forward(self, g, n_h, e_h=None):
         """ HGT with edge feature support layer forward computation.
 
         Parameters
@@ -650,10 +650,9 @@ class HGTLayerwithEdgeFeat(HGTLayer):
         -------
         dict of Tensor: New node embeddings for each node type in the format of {ntype: tensor}.
         """
-        assert len(e_h) == 0 or self.edge_feat_name is not None, "Since you want to use " + \
-        f"edge features on edge type {list(e_h.keys())} in message passing " + \
-        "computation, please initialize the HGTLayerwithEdgeFeat by setting the " + \
-        "\"edge_feat_name\" argument."
+        assert e_h is not None and len(e_h) != 0,  "No edge features provided for message " + \
+            "passing computation in HGTLayerwithEdgeFeat, please provide edge feature " + \
+            "dictionary specified in the \"edge_feat_name\" argument."
 
         # pylint: disable=no-member
         with g.local_scope():
@@ -666,7 +665,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
                 # extract source, destination, and edge embeds
                 src_nh = n_h[srctype]
                 sub_graph.srcdata['src_nh'] = src_nh
-                
+
                 # copy source embed to edges, and extract from edata
                 sub_graph.apply_edges(fn.copy_u('src_nh', 'src_eh'))
                 src_eh = sub_graph.edata['src_eh']
@@ -689,7 +688,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
                         src_k_val = k_linear(src_eh)
                         edge_val = ef_linear(edge_h)
                         k_val = src_k_val + edge_val
-                        
+
                         src_v_val = v_linear(src_eh)
                         v_val = src_v_val + edge_val
                     elif self.edge_feat_mp_op == 'add':
