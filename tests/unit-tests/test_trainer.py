@@ -1118,8 +1118,10 @@ def test_hgt_nc4ef():
                             local_rank=0)
         config = GSConfig(args)
 
-        with assert_raises(AssertionError):
-            model2 = create_builtin_node_gnn_model(gdata.g, config, True)
+        # 02/06/2025: HGT suppurt edge features. So disable this test case and model2 should be
+        # created successfully
+        # with assert_raises(AssertionError):
+        model2 = create_builtin_node_gnn_model(gdata.g, config, True)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
