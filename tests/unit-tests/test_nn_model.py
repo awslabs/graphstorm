@@ -580,7 +580,7 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
         num_heads=4,
         activation=th.nn.ReLU(),
         dropout=0.0,
-        norm='')
+        norm='')                # MUST disable normalization. Pytorch 2.3 
     init_hgtlayer(hgt_layer)
     hgt_layer = hgt_layer.to(dev)
     hgt_layer.eval()
