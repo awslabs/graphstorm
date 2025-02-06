@@ -562,8 +562,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
     dst_idx = th.unique(th.concat([dst1, dst2]))
 
     node_feats = {
-        "n0": (th.rand(src_idx.shape[0], input_dim)*1000).to(dev),
-        "n1": (th.rand(dst_idx.shape[0], input_dim)*1000).to(dev)
+        "n0": th.rand(src_idx.shape[0], input_dim).to(dev),
+        "n1": th.rand(dst_idx.shape[0], input_dim).to(dev)
     }
 
     # Test case 1: normal case, have both node and edge feature on all node and edge types
@@ -580,7 +580,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
         num_heads=4,
         activation=th.nn.ReLU(),
         dropout=0.0,
-        norm='')                # MUST disable normalization. Pytorch 2.3 
+        norm='')                # MUST disable normalization. Pytorch v2.3 layernorm is diff v2.1
+                                # v2.3 output all 0s if input values are same in all dimensions
     init_hgtlayer(hgt_layer)
     hgt_layer = hgt_layer.to(dev)
     hgt_layer.eval()
@@ -779,16 +780,16 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
 
 
 if __name__ == '__main__':
-    # test_rgcn_with_zero_input(32, 64)
-    # test_rgat_with_zero_input(32, 64)
-    # test_hgt_with_zero_input(32, 64)
+    test_rgcn_with_zero_input(32, 64)
+    test_rgat_with_zero_input(32, 64)
+    test_hgt_with_zero_input(32, 64)
 
-    # test_rgcn_with_no_indegree_dstnodes(32, 64)
-    # test_rgat_with_no_indegree_dstnodes(32, 64)
-    # test_hgt_with_no_indegree_dstnodes(32, 64)
+    test_rgcn_with_no_indegree_dstnodes(32, 64)
+    test_rgat_with_no_indegree_dstnodes(32, 64)
+    test_hgt_with_no_indegree_dstnodes(32, 64)
 
-    # test_rgcn_with_edge_features(32, 64, 'cpu')
-    # test_rgcn_with_edge_features(64, 64, 'cpu')
-    # test_rgcn_with_edge_features(32, 64, 'cuda:0')
+    test_rgcn_with_edge_features(32, 64, 'cpu')
+    test_rgcn_with_edge_features(64, 64, 'cpu')
+    test_rgcn_with_edge_features(32, 64, 'cuda:0')
 
-    test_hgt_with_edge_features(8, 8, 'cpu')
+    test_hgt_with_edge_features(32, 64, 'cpu')
