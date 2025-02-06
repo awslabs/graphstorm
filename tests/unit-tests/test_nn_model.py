@@ -521,9 +521,9 @@ def init_hgtlayer(layer):
     """
     for name, para in layer.named_parameters():
         if 'bias' in name:
-            th.nn.init.zeros_(para)
+            th.nn.init.constant_(para, 0)
         else:
-            th.nn.init.ones_(para)
+            th.nn.init.constant_(para, 1)
 
 @pytest.mark.parametrize("input_dim", [32])
 @pytest.mark.parametrize("output_dim", [32,64])
@@ -548,7 +548,7 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
     heter_graph = generate_dummy_hetero_graph(size='tiny', gen_mask=False, 
                                               add_reverse=False, is_random=False)
 
-    seeds = {'n1': [0,2]}
+    seeds = {'n1': [0, 1, 2]}
     subg = dgl.sampling.sample_neighbors(heter_graph, seeds, 100)
     block = dgl.to_block(subg, seeds).to(dev)
 
@@ -562,8 +562,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
     dst_idx = th.unique(th.concat([dst1, dst2]))
 
     node_feats = {
-        "n0": th.rand(src_idx.shape[0], input_dim).to(dev),
-        "n1": th.rand(dst_idx.shape[0], input_dim).to(dev)
+        "n0": (th.rand(src_idx.shape[0], input_dim)*1000).to(dev),
+        "n1": (th.rand(dst_idx.shape[0], input_dim)*1000).to(dev)
     }
 
     # Test case 1: normal case, have both node and edge feature on all node and edge types
@@ -579,7 +579,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
         ntypes, etypes,
         num_heads=4,
         activation=th.nn.ReLU(),
-        dropout=0.0)
+        dropout=0.0,
+        norm='')
     init_hgtlayer(hgt_layer)
     hgt_layer = hgt_layer.to(dev)
     hgt_layer.eval()
@@ -593,7 +594,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         edge_feat_mp_op='mul',
         activation=th.nn.ReLU(),
-        dropout=0.0)
+        dropout=0.0,
+        norm='')
     init_hgtlayer(layerwithef)
     layerwithef = layerwithef.to(dev)
     layerwithef.eval()
@@ -609,7 +611,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         edge_feat_mp_op='div',
         activation=th.nn.ReLU(),
-        dropout=0.0)
+        dropout=0.0,
+        norm='')
     init_hgtlayer(layerwithef)
     layerwithef = layerwithef.to(dev)
     layerwithef.eval()
@@ -625,7 +628,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         edge_feat_mp_op='add',
         activation=th.nn.ReLU(),
-        dropout=0.0)
+        dropout=0.0,
+        norm='')
     init_hgtlayer(layerwithef)
     layerwithef = layerwithef.to(dev)
     layerwithef.eval()
@@ -641,7 +645,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         edge_feat_mp_op='sub',
         activation=th.nn.ReLU(),
-        dropout=0.0)
+        dropout=0.0,
+        norm='')
     init_hgtlayer(layerwithef)
     layerwithef = layerwithef.to(dev)
     layerwithef.eval()
@@ -657,7 +662,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         edge_feat_mp_op='concat',
         activation=th.nn.ReLU(),
-        dropout=0.0)
+        dropout=0.0,
+        norm='')
     init_hgtlayer(layerwithef)
     layerwithef = layerwithef.to(dev)
     layerwithef.eval()
@@ -677,7 +683,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
         ntypes, etypes,
         num_heads=4,
         activation=th.nn.ReLU(),
-        dropout=0.0)
+        dropout=0.0,
+        norm='')
     init_hgtlayer(hgt_layer)
     hgt_layer = hgt_layer.to(dev)
     hgt_layer.eval()
@@ -691,7 +698,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         edge_feat_mp_op='concat',
         activation=th.nn.ReLU(),
-        dropout=0.0)
+        dropout=0.0,
+        norm='')
     init_hgtlayer(layerwithef)
     layerwithef = layerwithef.to(dev)
     layerwithef.eval()
@@ -707,7 +715,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         edge_feat_mp_op='add',
         activation=th.nn.ReLU(),
-        dropout=0.0)
+        dropout=0.0,
+        norm='')
     init_hgtlayer(layerwithef)
     layerwithef = layerwithef.to(dev)
     layerwithef.eval()
@@ -723,7 +732,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         edge_feat_mp_op='sub',
         activation=th.nn.ReLU(),
-        dropout=0.0)
+        dropout=0.0,
+        norm='')
     init_hgtlayer(layerwithef)
     layerwithef = layerwithef.to(dev)
     layerwithef.eval()
@@ -739,7 +749,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         edge_feat_mp_op='mul',
         activation=th.nn.ReLU(),
-        dropout=0.0)
+        dropout=0.0,
+        norm='')
     init_hgtlayer(layerwithef)
     layerwithef = layerwithef.to(dev)
     layerwithef.eval()
@@ -755,7 +766,8 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         edge_feat_mp_op='div',
         activation=th.nn.ReLU(),
-        dropout=0.0)
+        dropout=0.0,
+        norm='')
     init_hgtlayer(layerwithef)
     layerwithef = layerwithef.to(dev)
     layerwithef.eval()
@@ -767,16 +779,16 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
 
 
 if __name__ == '__main__':
-    test_rgcn_with_zero_input(32, 64)
-    test_rgat_with_zero_input(32, 64)
-    test_hgt_with_zero_input(32, 64)
+    # test_rgcn_with_zero_input(32, 64)
+    # test_rgat_with_zero_input(32, 64)
+    # test_hgt_with_zero_input(32, 64)
 
-    test_rgcn_with_no_indegree_dstnodes(32, 64)
-    test_rgat_with_no_indegree_dstnodes(32, 64)
-    test_hgt_with_no_indegree_dstnodes(32, 64)
+    # test_rgcn_with_no_indegree_dstnodes(32, 64)
+    # test_rgat_with_no_indegree_dstnodes(32, 64)
+    # test_hgt_with_no_indegree_dstnodes(32, 64)
 
-    test_rgcn_with_edge_features(32, 64, 'cpu')
-    test_rgcn_with_edge_features(64, 64, 'cpu')
-    test_rgcn_with_edge_features(32, 64, 'cuda:0')
+    # test_rgcn_with_edge_features(32, 64, 'cpu')
+    # test_rgcn_with_edge_features(64, 64, 'cpu')
+    # test_rgcn_with_edge_features(32, 64, 'cuda:0')
 
-    test_hgt_with_edge_features(32, 64, 'cpu')
+    test_hgt_with_edge_features(8, 8, 'cpu')
