@@ -2884,7 +2884,7 @@ class GSConfig:
         if hasattr(self, "_regression_loss_func"):
             assert self._regression_loss_func in BUILTIN_REGRESSION_LOSS_FUNCTION, \
                 f"Only support {BUILTIN_REGRESSION_LOSS_FUNCTION} " \
-                "loss functions for classification tasks"
+                "loss functions for regression tasks"
             return self._regression_loss_func
 
         return BUILTIN_REGRESSION_LOSS_MSE

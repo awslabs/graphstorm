@@ -250,7 +250,7 @@ class ShrinkageLossFunc(GSLayer):
         alpha: float
             A hyper-parameter controls the loss shrinkage
             speed when the prediction error decreases.
-            Default: 10.
+            Default: ``10.``.
         gamma: float
             A hyper-parameter controls the localization
             of the loss regarding to the x-axis.
@@ -279,7 +279,7 @@ class ShrinkageLossFunc(GSLayer):
         loss: Tensor
             The loss value.
         """
-        # Make sure the lable is a float tensor
+        # Make sure the labels is a float tensor
         labels = labels.float()
         diff = th.abs(logits - labels)
         numerator = diff ** 2

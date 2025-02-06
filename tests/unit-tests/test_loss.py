@@ -115,6 +115,9 @@ def test_ShrinkageLossFunc():
     loss_func = ShrinkageLossFunc(alpha, gamma)
     logits = th.tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
     labels = th.tensor([1., 1., 1., 1., 1., 1., 1., 1., 0, 0.9])
+    # Loss is computed following:
+    # l = abs(logits - labels)
+    # loss = \frac{l^2}{1 + \exp \left( \alpha \cdot (\gamma - l) \right)}
     gt_loss = th.tensor(0.3565)
     loss = loss_func(logits, labels)
     assert_almost_equal(loss.numpy(), gt_loss.numpy(), decimal=4)
@@ -124,6 +127,9 @@ def test_ShrinkageLossFunc():
     loss_func = ShrinkageLossFunc(alpha, gamma)
     logits = th.tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
     labels = th.tensor([1., 1., 1., 1., 1., 1., 1., 1., 0, 0.9])
+    # Loss is computed following:
+    # l = abs(logits - labels)
+    # loss = \frac{l^2}{1 + \exp \left( \alpha \cdot (\gamma - l) \right)}
     gt_loss = th.tensor(0.0692)
     loss = loss_func(logits, labels)
     assert_almost_equal(loss.numpy(), gt_loss.numpy(), decimal=4)
