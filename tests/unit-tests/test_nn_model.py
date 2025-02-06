@@ -768,16 +768,16 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
 
 
 if __name__ == '__main__':
-    # test_rgcn_with_zero_input(32, 64)
-    # test_rgat_with_zero_input(32, 64)
-    # test_hgt_with_zero_input(32, 64)
+    test_rgcn_with_zero_input(32, 64)
+    test_rgat_with_zero_input(32, 64)
+    test_hgt_with_zero_input(32, 64)
 
-    # test_rgcn_with_no_indegree_dstnodes(32, 64)
-    # test_rgat_with_no_indegree_dstnodes(32, 64)
-    # test_hgt_with_no_indegree_dstnodes(32, 64)
+    test_rgcn_with_no_indegree_dstnodes(32, 64)
+    test_rgat_with_no_indegree_dstnodes(32, 64)
+    test_hgt_with_no_indegree_dstnodes(32, 64)
 
-    # test_rgcn_with_edge_features(32, 64, 'cpu')
-    # test_rgcn_with_edge_features(64, 64, 'cpu')
-    # test_rgcn_with_edge_features(32, 64, 'cuda:0')
+    test_rgcn_with_edge_features(32, 64, 'cpu')
+    test_rgcn_with_edge_features(64, 64, 'cpu')
+    test_rgcn_with_edge_features(32, 64, 'cuda:0')
 
     test_hgt_with_edge_features(32, 64, 'cpu')
