@@ -187,6 +187,8 @@ class HGTLayer(nn.Module):
         para_a_linears = nn.ParameterDict(a_linears)
         if use_norm:
             para_norms = nn.ParameterDict(norms)
+        else:
+            para_norms = None
         para_skip = nn.ParameterDict(skip)
 
         return para_k_linears, para_q_linears, para_v_linears, \
