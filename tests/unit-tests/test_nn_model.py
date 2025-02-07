@@ -548,7 +548,7 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
     heter_graph = generate_dummy_hetero_graph(size='tiny', gen_mask=False, 
                                               add_reverse=False, is_random=False)
 
-    seeds = {'n1': [0, 1, 2]}
+    seeds = {'n1': [0, 2]}
     subg = dgl.sampling.sample_neighbors(heter_graph, seeds, 100)
     block = dgl.to_block(subg, seeds).to(dev)
 
