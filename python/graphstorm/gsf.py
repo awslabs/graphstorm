@@ -747,7 +747,7 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
             loss_func = ShrinkageLossFunc(alpha, gamma)
         else:
             raise RuntimeError(
-                        f"Unknown regression loss {config.class_loss_func}")
+                        f"Unknown regression loss {config.regression_loss_func}")
     else:
         raise ValueError('unknown node task: {}'.format(config.task_type))
     return decoder, loss_func
