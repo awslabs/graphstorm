@@ -15,7 +15,7 @@ r"""
 
     Launch SageMaker HPO jobs.
 
-    Usage:
+    Example:
 
         python launch_hyperparameter_tuning.py \
             --task-name my-gnn-hpo-job \

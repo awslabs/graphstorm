@@ -221,7 +221,7 @@ with SageMaker AI,
 which allows you to optimize the hyper-parameters
 of your model with an easy-to-use interface.
 
-The ``launch/launch_hyperparameter_tuning.py`` script can act as a thin
+The ``sagemaker/launch/launch_hyperparameter_tuning.py`` script can act as a thin
 wrapper for SageMaker's `HyperParameterTuner <https://sagemaker.readthedocs.io/en/stable/api/training/tuner.html>`_.
 
 You define the hyper-parameters of interest by passing a filepath to a JSON file,
@@ -279,7 +279,7 @@ e.g. ``"accuracy"``. See the entry for ``eval_metric`` in :ref:`Evaluation Metri
 for a full list of supported metrics.
 
 ``--metric-dataset`` defines which dataset to collect metrics from, and
-can be either ``"test"`` or ``"val"`` to collect metrics during test or validation
+can be either ``"test"`` or ``"val"`` to collect metrics from test or validation set
 respectively. Finally use ``--objective-type`` to set the type of the objective,
 which can be either ``"Maximize"`` or ``"Minimize"``.
 
