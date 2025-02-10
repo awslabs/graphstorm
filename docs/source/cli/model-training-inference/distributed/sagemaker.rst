@@ -274,14 +274,16 @@ string that directly corresponds to one of SageMaker's
 `scaling types <https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-define-ranges.html#scaling-type>`_.
 By default scaling type will be ``'Auto'``.
 
-Use ``--metric-name`` to define the name of metric to use as a tuning objective,
+Use ``--metric-name`` to provide the name of a GraphStorm metric to use as a tuning objective,
 e.g. ``"accuracy"``. See the entry for ``eval_metric`` in :ref:`Evaluation Metrics <eval_metrics>`
 for a full list of supported metrics.
 
-``--metric-dataset`` defines which dataset to collect metrics from, and
+``--eval-mask`` defines which dataset to collect metrics from, and
 can be either ``"test"`` or ``"val"`` to collect metrics from test or validation set
 respectively. Finally use ``--objective-type`` to set the type of the objective,
 which can be either ``"Maximize"`` or ``"Minimize"``.
+See the `SageMaker documentation <https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning.html>`_
+for more details
 
 Finally you can use ``--strategy`` to select the optimization strategy
 from one of "Bayesian", "Random", "Hyperband", "Grid". See the
@@ -306,7 +308,7 @@ Example HPO call:
         --max-parallel-jobs 4 \
         --hyperparameter-ranges my_param_ranges.json \
         --metric-name "accuracy" \
-        --metric-dataset "val" \
+        --eval-mask "val" \
         --objective-type "Maximize" \
         --strategy "Bayesian"
 

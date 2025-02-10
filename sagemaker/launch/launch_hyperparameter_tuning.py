@@ -36,7 +36,7 @@ r"""
 """
 import os
 import json
-from typing import Mapping
+import logging
 
 from sagemaker.pytorch.estimator import PyTorch
 from sagemaker.tuner import (
@@ -77,6 +77,8 @@ def parse_hyperparameter_ranges(hyperparameter_ranges_json: str) -> dict[str, Pa
     ------
     ValueError
         If the JSON dict contains an invalid parameter type.
+
+    .. versionadded:: 0.4.1
     """
     if os.path.exists(hyperparameter_ranges_json):
         with open(hyperparameter_ranges_json, "r", encoding="utf-8") as f:
@@ -84,7 +86,7 @@ def parse_hyperparameter_ranges(hyperparameter_ranges_json: str) -> dict[str, Pa
     else:
         str_ranges = json.loads(hyperparameter_ranges_json)["ParameterRanges"]
 
-    hyperparameter_ranges: Mapping[str, ParameterRange] = {}
+    hyperparameter_ranges: dict[str, ParameterRange] = {}
     for params_type, config_list in str_ranges.items():
         if params_type == "ContinuousParameterRanges":
             for config in config_list:
@@ -131,6 +133,7 @@ def run_hyperparameter_tuning_job(args, image, unknownargs):
         "log-level": args.log_level,
         "task-type": args.task_type,
         "train-yaml-s3": args.yaml_s3,
+        "topk-model-to-save": "1",
     }
     if args.custom_script is not None:
         params["custom-script"] = args.custom_script
@@ -140,8 +143,8 @@ def run_hyperparameter_tuning_job(args, image, unknownargs):
     unknown_args_dict = parse_unknown_gs_args(unknownargs)
     params.update(unknown_args_dict)
 
-    print(f"SageMaker launch parameters {params}")
-    print(f"GraphStorm forwarded parameters {unknown_args_dict}")
+    logging.info("SageMaker launch parameters %s", params)
+    logging.info("Parameters forwarded to GraphStorm  %s", unknown_args_dict)
 
     estimator_kwargs = parse_estimator_kwargs(args.sm_estimator_parameters)
 
@@ -166,7 +169,7 @@ def run_hyperparameter_tuning_job(args, image, unknownargs):
     hyperparameter_ranges = parse_hyperparameter_ranges(args.hyperparameter_ranges)
 
     # Construct the full metric name based on user input
-    full_metric_name = f"best_{args.metric_dataset}_score:{args.metric_name}"
+    full_metric_name = f"best_{args.eval_mask.lower()}_score:{args.metric_name.lower()}"
 
     tuner = HyperparameterTuner(
         estimator=est,
@@ -179,7 +182,7 @@ def run_hyperparameter_tuning_job(args, image, unknownargs):
             {
                 "Name": full_metric_name,
                 "Regex": (
-                    f"INFO:root:best_{args.metric_dataset}_score: "
+                    f"INFO:root:best_{args.eval_mask.lower()}_score: "
                     f"{{'{args.metric_name}': ([0-9\\.]+)}}"
                 ),
             }
@@ -224,7 +227,7 @@ def get_hpo_parser():
         help="Name of the metric to optimize for (e.g., 'accuracy', 'amri')",
     )
     hpo_group.add_argument(
-        "--metric-dataset",
+        "--eval-mask",
         type=str,
         required=True,
         choices=["test", "val"],
