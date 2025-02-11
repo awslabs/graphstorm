@@ -303,7 +303,7 @@ GraphStorm provides a set of parameters to control model evaluation.
     - Yaml: ``eval_batch_size: 1024``
     - Argument: ``--eval-batch-size 1024``
     - Default value: 10000.
-- **eval_fanout**: (**Required**) The fanout of each GNN layers used in evaluation and inference. It follows the same format as fanout.
+- **eval_fanout**: (**Required**) The fanout of each GNN layers used in model **evaluation** and **inference**. It follows the same format as fanout.
 
     - Yaml: ``eval_fanout: "10,10"``
     - Argument: ``--eval-fanout 10,10``
@@ -528,12 +528,12 @@ Link Prediction Task
     - Yaml: ``lp_decoder_type: dot_product``
     - Argument: ``--lp-decoder-type dot_product``
     - Default value: ``distmult``
-- **gamma**: Set the value of the hyperparameter denoted by the symbol gamma. Gamma is used in the following cases: i/ focal loss for binary classification ii/ DistMult score function for link prediction, iii/ TransE score function for link prediction, and iv/ RotatE score function for link prediction.
+- **gamma**: Set the value of the hyperparameter denoted by the symbol gamma. Gamma is used in the following cases: i/ focal loss for binary classification ii/ DistMult score function for link prediction, iii/ TransE score function for link prediction, iv/ RotatE score function for link prediction, v/ shrinkage loss for regression.
 
     - Yaml: ``gamma: 10.0``
     - Argument: ``--gamma 10.0``
     - Default value: None
-- **alpha**: Set the value of the hyperparameter denoted by the symbol alpha. Alpha is used in focal loss for binary classification.
+- **alpha**: Set the value of the hyperparameter denoted by the symbol alpha. Alpha is used in the following cases: i/ focal loss for binary classification and ii/ shrinkage loss for regression.
 
     - Yaml: ``alpha: 10.0``
     - Argument: ``--alpha 10.0``
@@ -541,8 +541,13 @@ Link Prediction Task
 - **class_loss_func**: Node/Edge classification loss function. Builtin loss functions include ``cross_entropy`` and ``focal``.
 
     - Yaml: ``class_loss_func: cross_entropy``
-    - Argument: ``--class-loss-func contrastive``
+    - Argument: ``--class-loss-func focal``
     - Default value: ``cross_entropy``
+- **regression_loss_func**: Node/Edge regression loss function. Builtin loss functions include ``mse`` and ``shrinkage``.
+
+    - Yaml: ``regression_loss_func: mse``
+    - Argument: ``--regression-loss-func shrinkage``
+    - Default value: ``mse``
 - **lp_loss_func**: Link prediction loss function. Builtin loss functions include ``cross_entropy`` and ``contrastive``.
 
     - Yaml: ``lp_loss_func: cross_entropy``

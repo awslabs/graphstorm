@@ -46,7 +46,9 @@ from .config import (BUILTIN_LP_DOT_DECODER,
 from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_LP_LOSS_CONTRASTIVELOSS,
                      BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
-                     BUILTIN_CLASS_LOSS_FOCAL)
+                     BUILTIN_CLASS_LOSS_FOCAL,
+                     BUILTIN_REGRESSION_LOSS_MSE,
+                     BUILTIN_REGRESSION_LOSS_SHRINKAGE)
 from .eval.eval_func import (
     SUPPORTED_HIT_AT_METRICS,
     SUPPORTED_LINK_PREDICTION_METRICS)
@@ -65,6 +67,7 @@ from .model.edge_gnn import GSgnnEdgeModel
 from .model.lp_gnn import GSgnnLinkPredictionModel
 from .model.loss_func import (ClassifyLossFunc,
                               RegressionLossFunc,
+                              ShrinkageLossFunc,
                               LinkPredictBCELossFunc,
                               WeightedLinkPredictBCELossFunc,
                               LinkPredictAdvBCELossFunc,
@@ -521,7 +524,17 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                                     dropout=dropout,
                                     norm=config.decoder_norm,
                                     use_bias=config.decoder_bias)
-        loss_func = RegressionLossFunc()
+        if config.regression_loss_func == BUILTIN_REGRESSION_LOSS_MSE:
+            loss_func = RegressionLossFunc()
+        elif config.regression_loss_func == BUILTIN_REGRESSION_LOSS_SHRINKAGE:
+            # set default value of alpha to 10. for shrinkage loss
+            # set default value of gamma to 0.2 for shrinkage loss
+            alpha = config.alpha if config.alpha is not None else 10.
+            gamma = config.gamma if config.gamma is not None else 0.2
+            loss_func = ShrinkageLossFunc(alpha, gamma)
+        else:
+            raise RuntimeError(
+                        f"Unknown regression loss {config.regression_loss_func}")
     else:
         raise ValueError('unknown node task: {}'.format(config.task_type))
 
@@ -723,7 +736,18 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                 use_bias=config.decoder_bias)
         else:
             assert False, "decoder not supported"
-        loss_func = RegressionLossFunc()
+
+        if config.regression_loss_func == BUILTIN_REGRESSION_LOSS_MSE:
+            loss_func = RegressionLossFunc()
+        elif config.regression_loss_func == BUILTIN_REGRESSION_LOSS_SHRINKAGE:
+            # set default value of alpha to 10. for shrinkage loss
+            # set default value of gamma to 0.2 for shrinkage loss
+            alpha = config.alpha if config.alpha is not None else 10.
+            gamma = config.gamma if config.gamma is not None else 0.2
+            loss_func = ShrinkageLossFunc(alpha, gamma)
+        else:
+            raise RuntimeError(
+                        f"Unknown regression loss {config.regression_loss_func}")
     else:
         raise ValueError('unknown node task: {}'.format(config.task_type))
     return decoder, loss_func
