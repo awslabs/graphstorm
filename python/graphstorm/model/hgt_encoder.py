@@ -519,7 +519,7 @@ class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
             New node embeddings for each node type in the format of {ntype: tensor}.
         """
         if e_hs is not None:
-            assert len(e_hs) == len(blocks), 'The layer of edge features should be equal to ' + \
+            assert len(e_hs) == len(blocks), 'The size of the list of edge features should be equal to ' + \
                 f'the number of blocks, but got {len(e_hs)} layers of edge features ' + \
                 f'and {len(blocks)} blocks.'
 
