@@ -700,7 +700,6 @@ class HGTLayerwithEdgeFeat(HGTLayer):
                         src_k_val = k_linear(src_eh)
                         edge_val = ef_linear(edge_h)
                         k_val = src_k_val + edge_val
-
                         src_v_val = v_linear(src_eh)
                         v_val = src_v_val + edge_val
                     elif self.edge_feat_mp_op == 'add':
