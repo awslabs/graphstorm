@@ -533,7 +533,7 @@ class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
 
 
 class HGTLayerwithEdgeFeat(HGTLayer):
-    r""" Enhanced heterogenous graph transformer (HGT) layer with edge feature supported.
+    r""" Heterogenous graph transformer (HGT) layer with edge feature supported.
 
     .. versionadded:: 0.4.1
         In version 0.4.1, add a new HGT layer that supports edge features.
