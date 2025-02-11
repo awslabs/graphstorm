@@ -625,7 +625,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
         With the design idea of combining edge feature into HGT algorithm, only when the
         message passing operator is `concat`, will we need addition weight parameters. For
         other operators, there is no addition parameters required because edge embeddings have
-        the same dimension as embeddings of source nodes so can be directly added, substracted,
+        the same dimension as the embeddings of source nodes so can be directly added, substracted,
         mutilied and devided.
         
         In this implementation, we use a linear algebra trick for concatination operation, i.e.,
