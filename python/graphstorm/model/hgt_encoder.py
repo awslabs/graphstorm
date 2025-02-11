@@ -633,7 +633,6 @@ class HGTLayerwithEdgeFeat(HGTLayer):
         dimension (N * in_dim), w1 and w2 have the same dimension (in_dim, out_dim), and w has
         the dimension (in_dim * 2, out_dim).
 
-        Based on this trick, we only define additional parameters for an edge type with features
         and the massage passing operation is `concat`.
         """
         ef_linears = {}
