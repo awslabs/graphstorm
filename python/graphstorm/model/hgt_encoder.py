@@ -538,7 +538,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
     .. versionadded:: 0.4.1
         In version 0.4.1, add a new HGT layer that supports edge features.
 
-    This class extends from `HGTLayer` so as to reuse its variables and methods.
+    This class extends from `HGTLayer`.
 
     Implementation in this class uses a simple idea to include edge feature into the original
     HGT model, i.e., combine embeddings of source node with embeddings of edge as the new `K`,
