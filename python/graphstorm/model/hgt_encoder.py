@@ -170,9 +170,11 @@ class HGTLayer(nn.Module):
         norms = {}
         skip = {}
         for ntype in ntypes:
+            # prepare the key, query, value transformer parameters for each node type
             k_linears[ntype] = nn.Linear(in_dim, out_dim)
             q_linears[ntype] = nn.Linear(in_dim, out_dim)
             v_linears[ntype] = nn.Linear(in_dim, out_dim)
+            # prepare the attention transformer parameters for each node type
             a_linears[ntype] = nn.Linear(in_dim, out_dim)
             if use_norm:
                 if norm == BUILDIN_GNN_BATCH_NORM:
@@ -181,14 +183,18 @@ class HGTLayer(nn.Module):
                     norms[ntype] = nn.LayerNorm(out_dim)
             skip[ntype] = nn.Parameter(th.ones(1))
 
+        # wrap the key, query, value transformer parameters into a para dict
         para_k_linears = nn.ParameterDict(k_linears)
         para_q_linears = nn.ParameterDict(q_linears)
         para_v_linears = nn.ParameterDict(v_linears)
+        # wrap the attention transformer parameters into a para dict
         para_a_linears = nn.ParameterDict(a_linears)
+        # set normalization parameters for each node type
         if use_norm:
             para_norms = nn.ParameterDict(norms)
         else:
             para_norms = None
+        # set skip jump parameters for each node type
         para_skip = nn.ParameterDict(skip)
 
         return para_k_linears, para_q_linears, para_v_linears, \
@@ -202,15 +208,18 @@ class HGTLayer(nn.Module):
         relation_msg = {}
         for canonical_etype in canonical_etypes:
             c_etype_str = '_'.join(canonical_etype)
+            # prepare the primary, attension, message transformer parameters for each edge type
             relation_pri[c_etype_str] = nn.Parameter(th.ones(num_heads))
             relation_att[c_etype_str] = nn.init.xavier_uniform_(
                 nn.Parameter(th.Tensor(num_heads, d_k, d_k)))
             relation_msg[c_etype_str] = nn.init.xavier_uniform_(
                 nn.Parameter(th.Tensor(num_heads, d_k, d_k)))
 
+        # wrap the primary, attension, message transformer parameters into para dict
         para_relation_pri = nn.ParameterDict(relation_pri)
         para_relation_att = nn.ParameterDict(relation_att)
         para_relation_msg = nn.ParameterDict(relation_msg)
+
         return para_relation_pri, para_relation_att, para_relation_msg
 
     def warning_once(self, warn_msg):
@@ -499,9 +508,10 @@ class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         n_h: dict of Tensor
             Input node features for each node type in the format of {ntype: tensor}.
         e_hs: list of dict of Tensor
-            Input edge features for each edge type in the format of [{etype: tensor}, ...],
-            or [{}, {}. ...] for zero number of edges in input blocks. The length of e_hs
-            should be equal to the number of gnn layers. Default is None.
+            Input edge features for each edge type in the format of [{etype1: tensor,
+            etype2: tensor, ...}, ...], or [{}, {}. ...] for zero number of edges in input
+            blocks. The length of e_hs should be equal to the number of gnn layers.
+            Default is None.
 
         Returns
         ----------
