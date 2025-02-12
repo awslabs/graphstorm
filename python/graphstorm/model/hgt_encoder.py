@@ -554,8 +554,9 @@ class HGTLayerwithEdgeFeat(HGTLayer):
       W^{MSG}_{\phi(e)} \\
 
     where :math:`\text{op}` is one of the `add`, `sub`, `mul`, and `div` operators, and the
-    :math:`EF_{e}` is the edge feature of the :math:`\phi(e)` edge type. For the `concat`
-    operator, the formula is
+    :math:`EF_{e}` is the edge feature of the :math:`\phi(e)` edge type.
+    
+    For the `concat` operator, the formula is
 
     .. math::
 
@@ -563,7 +564,9 @@ class HGTLayerwithEdgeFeat(HGTLayer):
       \text{EF-Linear}^i_{\phi(e)}(EF_{e}))W^{MSG}_{\phi(e)} \\
 
     where :math:`\text{EF-Linear}^i_{\phi(e)}` is an additional weight for the :math:`\phi(e)`
-    edge type. This formula uses a linear algebra trick to implement concatination operation.
+    edge type. 
+    
+    This formula uses a linear algebra trick to implement concatination operation.
     That is, a linear computation of :math:`concat([e1, e2], dim=-1) @ w` equals to the
     computation of :math:`e1 @ w1 + e2 @ w2`, where embedding :math:`e1` and :math:`e2` have
     the same dimension :math:`(N * in\_dim)`, weight :math:`w` has the dimension
