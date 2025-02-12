@@ -667,8 +667,8 @@ class HGTLayerwithEdgeFeat(HGTLayer):
         the dimension (in_dim * 2, out_dim).
         
         Based on this trick, we define edge type specifc parameters to do the linear
-        transformation for edge embeddings. For source node embeddings transformation, its weights
-        are defined in the `_create_node_parameters()` function.
+        transformation for edge embeddings. For source node embeddings, its weights are defined in
+        the `HGTLayer`'s `_create_node_parameters()` function.
         """
         ef_linears = {}
         for canonical_etype in canonical_etypes:
