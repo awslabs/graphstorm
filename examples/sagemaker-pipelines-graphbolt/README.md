@@ -303,7 +303,7 @@ PIPELINE_NAME="ogbn-arxiv-gs-pipeline"
 
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME \
-    --region us-east-1 \
+    --region $REGION \
     --local-execution | tee arxiv-local-logs.txt
 ```
 
@@ -365,7 +365,11 @@ You can inspect the mean epoch and evaluation time using the provided `analyze_t
 
 ```bash
 python analyze_training_time.py --log-file arxiv-local-logs.txt
+```
 
+Your output will look like
+
+```
 Reading logs from file: arxiv-logs.txt
 
 === Training Epochs Summary ===
@@ -389,10 +393,9 @@ You can use the same pipeline creation script, but change two variables, providi
 ```bash
 # Deploy the GraphBolt-enabled pipeline
 PIPELINE_NAME_GRAPHBOLT="ogbn-arxiv-gs-graphbolt-pipeline"
-BUCKET_NAME="my-s3-bucket"
 bash deploy_arxiv_pipeline.sh \
-    --account "<aws-account-id>" \
-    --bucket-name $BUCKET_NAME --role "<execution-role>" \
+    --account $ACCOUNT_ID \
+    --bucket-name $BUCKET_NAME --role $SAGEMAKER_EXECUTION_ROLE_ARN \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --use-graphbolt true
 # Execute the pipeline locally
@@ -406,7 +409,11 @@ Analyzing the training logs you can see a noticeable reduction in per-epoch time
 
 ```bash
 python analyze_training_time.py --log-file arxiv-local-gb-logs.txt
+```
 
+Your output will look like
+
+```
 Reading logs from file: arxiv-gb-logs.txt
 
 === Training Epochs Summary ===
@@ -455,8 +462,8 @@ Now you are ready to deploy your initial pipeline for papers-100M
 PIPELINE_NAME="ogb-papers100M-pipeline"
 cd ~/graphstorm/examples/sagemaker-pipelines-graphbolt/
 bash deploy_papers100M_pipeline.sh \
-    --account <aws-account-id> \
-    --bucket-name <s3-bucket> --role <execution-role> \
+    --account $ACCOUNT_ID \
+    --bucket-name $BUCKET_NAME --role $SAGEMAKER_EXECUTION_ROLE_ARN \
     --pipeline-name $PIPELINE_NAME \
     --use-graphbolt false
 ```
@@ -466,7 +473,7 @@ Execute the pipeline and let it run the background.
 ```bash
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME \
-    --region us-east-1
+    --region $REGION
     --async-execution
 ```
 
@@ -478,15 +485,15 @@ Next, you can deploy and execute another pipeline, now with GraphBolt enabled:
 ```bash
 PIPELINE_NAME_GRAPHBOLT="ogb-papers100M-graphbolt-pipeline"
 bash deploy_papers100M_pipeline.sh \
-    --account <aws-account-id> \
-    --bucket-name <s3-bucket> --role <execution-role> \
+    --account $ACCOUNT_ID \
+    --bucket-name $BUCKET_NAME --role $SAGEMAKER_EXECUTION_ROLE_ARN \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
     --use-graphbolt true
 
 # Execute the GraphBolt-enabled pipeline on SageMaker
 python ~/graphstorm/sagemaker/pipeline/execute_sm_pipeline.py \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
-    --region us-east-1 \
+    --region $REGION \
     --async-execution
 ```
 
@@ -500,12 +507,12 @@ The easiest way to do so is through the Studio pipeline interface. In the Pipeli
 ```bash
 python analyze_training_time.py \
     --pipeline-name $PIPELINE_NAME \
-    --execution-name execution-1734404366941
+    --execution-name <execution-name>
 ```
 
 Your output will look like
 
-```bash
+```
 == Training Epochs Summary ===
 Total epochs completed: 15
 Average epoch time: 73.95 seconds
@@ -520,12 +527,12 @@ Now do the same for the GraphBolt-enabled pipeline:
 ```bash
 python analyze_training_time.py \
     --pipeline-name $PIPELINE_NAME_GRAPHBOLT \
-    --execution-name execution-1734463209078
+    --execution-name <execution-name>
 ```
 
 You will see the improved per-epoch and evaluation times:
 
-```bash
+```
 == Training Epochs Summary ===
 Total epochs completed: 15
 Average epoch time: 54.54 seconds
