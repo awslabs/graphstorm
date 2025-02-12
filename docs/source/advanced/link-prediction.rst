@@ -176,7 +176,7 @@ GraphStorm provides four options to compute training losses:
 
         loss = - w\_e [ \log\left(\frac{ 1 }{ 1 + \exp(-x)}\right) ]
 
-    where ``x`` is the distance between the score of a positive edge and the score of its corresponding negative edge. `w_e`` is the weight of the positive edge.
+    where ``x`` is the distance between the score of a positive edge and the score of its corresponding negative edge, and `w_e`` is the weight of the positive edge.
 
 * **Contrastive Loss**: The contrastive loss compels the representations of connected nodes to be similar while forcing the representations of disconnected nodes remains dissimilar. In the implementation, we use the score computed by the score function to represent the distance between nodes. When computing the loss, we group one positive edge with the ``N`` negative edges corresponding to it.The loss function is as follows:
 

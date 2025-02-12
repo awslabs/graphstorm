@@ -649,7 +649,7 @@ class LinkPredictBPRLossFunc(GSLayer):
 
         loss = - \log\left(\frac{ 1 }{ 1 + \exp(-x)}\right)
 
-    where ``x`` is positive_score - negative_score
+    where ``x`` is positive_score - negative_score.
 
     .. versionadded:: 0.4.1
     """
