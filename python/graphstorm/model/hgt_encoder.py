@@ -542,8 +542,8 @@ class HGTLayerwithEdgeFeat(HGTLayer):
 
     This class extends from `HGTLayer`.
 
-    Implementation in this class uses a simple idea to include edge feature into the original
-    HGT model, i.e., combine embeddings of source node with embeddings of edge as the new `K`,
+    Implementation in this class uses a simple idea to include edge features into the original
+    HGT model, i.e., combine embeddings of source node with embeddings of edge as the new `K`
     and `V`, then use this new `K` and `V` in HGT formulas. And the way of combination is same
     as the RGCN conv model, including `concat`, `add`, `sub`, `mul`, and `div`. Then the formula
     of computing the message to send on each edge :math:`(s, e, t)` become:
@@ -563,7 +563,17 @@ class HGTLayerwithEdgeFeat(HGTLayer):
       \text{EF-Linear}^i_{\phi(e)}(EF_{e}))W^{MSG}_{\phi(e)} \\
 
     where :math:`\text{EF-Linear}^i_{\phi(e)}` is an additional weight for the :math:`\phi(e)`
-    edge type.
+    edge type. This formula uses a linear algebra trick to implement concatination operation.
+    That is a linear computation of :math:`concat([e1, e2], dim=-1) @ w == e1 @ w1 + e2 @ w2`,
+    where :math:`e1` and :math:`e2` have the same dimension :math:`N * in_dim`, :math:`w` has
+    the dimension :math:`in_dim * 2, out_dim`, and :math:`w1` and :math:`w2` have the same
+    dimension :math:`in_dim, out_dim`. Based on this trick, instead of concatinating the source
+    node embeddings and edge embeddings and then use an edge type specific weights with
+    dimension :math:`in_dim * 2, out_dim` for linear transformation, this implementation uses
+    two separated weight sets, i.e., one for source node type, and one for edge type, for linear
+    transformation first, and then add them togethor.
+
+    For other HGT formulas, please refer to the `HGTLayer` documentation.
 
     Parameters
     ----------
@@ -654,9 +664,18 @@ class HGTLayerwithEdgeFeat(HGTLayer):
         concat([e1, e2], dim=-1) @ w ==  e1 @ w1 + e2 @ w2, where e1 and e2 have the same
         dimension (N * in_dim), w1 and w2 have the same dimension (in_dim, out_dim), and w has
         the dimension (in_dim * 2, out_dim).
+        
+        Based on this trick, we define edge type specifc parameters to do the linear
+        transformation for edge embeddings. For source node embeddings transformation, its weights
+        are defined in the `_create_node_parameters()` function.
         """
         ef_linears = {}
         for canonical_etype in canonical_etypes:
+            # TODO: Due to the undetermistic nature of mini-batch sampling, it is possible that
+            #       some edge type parameters may not be used at all during model training because
+            #       no such edge types are sampled in a block. This could cause weird Pytorch
+            #       errors, which are hard to solve because we need to define the weights anyway.
+            #  Purpose of this TODO is to leave a clue of this possible error source.
             if canonical_etype in edge_feat_name:
                 c_etype_str = '_'.join(canonical_etype)
                 ef_linears[c_etype_str] = nn.Linear(in_dim, out_dim)
