@@ -564,14 +564,14 @@ class HGTLayerwithEdgeFeat(HGTLayer):
 
     where :math:`\text{EF-Linear}^i_{\phi(e)}` is an additional weight for the :math:`\phi(e)`
     edge type. This formula uses a linear algebra trick to implement concatination operation.
-    That is a linear computation of :math:`concat([e1, e2], dim=-1) @ w == e1 @ w1 + e2 @ w2`,
-    where :math:`e1` and :math:`e2` have the same dimension :math:`N * in_dim`, :math:`w` has
-    the dimension :math:`in_dim * 2, out_dim`, and :math:`w1` and :math:`w2` have the same
-    dimension :math:`in_dim, out_dim`. Based on this trick, instead of concatinating the source
+    That is, a linear computation of :math:`concat([e1, e2], dim=-1) @ w = e1 @ w1 + e2 @ w2`,
+    where :math:`e1` and :math:`e2` have the same dimension :math:`N * in\_dim`, :math:`w` has
+    the dimension :math:`in\_dim * 2, out\_dim`, and :math:`w1` and :math:`w2` have the same
+    dimension :math:`in\_dim, out\_dim`. Based on this trick, instead of concatinating the source
     node embeddings and edge embeddings and then use an edge type specific weights with
-    dimension :math:`in_dim * 2, out_dim` for linear transformation, this implementation uses
-    two separated weight sets, i.e., one for source node type, and one for edge type, for linear
-    transformation first, and then add them togethor.
+    dimension :math:`in\_dim * 2, out_dim` for linear transformation, this implementation uses
+    two separated weight sets, i.e., one for source node type, and one for edge type, for their
+    linear transformation first, and then add the transformed embeddings togethor.
 
     For other HGT formulas, please refer to the `HGTLayer` documentation.
 
