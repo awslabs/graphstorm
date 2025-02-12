@@ -550,7 +550,8 @@ class HGTLayerwithEdgeFeat(HGTLayer):
 
     .. math::
 
-      MSG-head^i(s, e, t) = \text{M-Linear}^i_{\tau(s)}(H^{(l-1)}[s] \text{op} EF_{e})W^{MSG}_{\phi(e)} \\
+      MSG-head^i(s, e, t) = \text{M-Linear}^i_{\tau(s)}(H^{(l-1)}[s] \\text{ op } EF_{e})
+      W^{MSG}_{\phi(e)} \\
 
     where :math:`\text{op}` is one of the `add`, `sub`, `mul`, and `div` operators, and the
     :math:`EF_{e}` is the edge feature of the :math:`\phi(e)` edge type. For the `concat`
@@ -558,7 +559,8 @@ class HGTLayerwithEdgeFeat(HGTLayer):
 
     .. math::
 
-      MSG-head^i(s, e, t) = (\text{M-Linear}^i_{\tau(s)}(H^{(l-1)}[s]) + \text{EF-Linear}^i_{\phi(e)}(EF_{e}))W^{MSG}_{\phi(e)} \\
+      MSG-head^i(s, e, t) = (\text{M-Linear}^i_{\tau(s)}(H^{(l-1)}[s]) + 
+      \text{EF-Linear}^i_{\phi(e)}(EF_{e}))W^{MSG}_{\phi(e)} \\
 
     where :math:`\text{EF-Linear}^i_{\phi(e)}` is an additional weight for the :math:`\phi(e)`
     edge type.
