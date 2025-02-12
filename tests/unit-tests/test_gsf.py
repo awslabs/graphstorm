@@ -31,7 +31,9 @@ from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_CLASS_LOSS_FOCAL,
                                BUILTIN_LP_LOSS_CROSS_ENTROPY,
                                BUILTIN_LP_LOSS_CONTRASTIVELOSS,
-                               BUILTIN_LP_LOSS_BPR)
+                               BUILTIN_LP_LOSS_BPR,
+                               BUILTIN_REGRESSION_LOSS_MSE,
+                               BUILTIN_REGRESSION_LOSS_SHRINKAGE)
 
 from graphstorm.model.node_decoder import (EntityClassifier,
                                            EntityRegression)
@@ -58,7 +60,8 @@ from graphstorm.model.loss_func import (ClassifyLossFunc,
                                         WeightedLinkPredictAdvBCELossFunc,
                                         LinkPredictBPRLossFunc,
                                         WeightedLinkPredictBPRLossFunc,
-                                        FocalLossFunc)
+                                        FocalLossFunc,
+                                        ShrinkageLossFunc)
 
 from data_utils import generate_dummy_hetero_graph
 
@@ -102,7 +105,7 @@ def test_create_builtin_node_decoder():
             "imbalance_class_weights": None,
             "alpha": None,
             "gamma": None,
-            "decoder_bias": False,
+            "decoder_bias": False
         }
     )
     decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
@@ -186,11 +189,28 @@ def test_create_builtin_node_decoder():
             "task_type": BUILTIN_TASK_NODE_REGRESSION,
             "decoder_norm": None,
             "decoder_bias": False,
+            "regression_loss_func": BUILTIN_REGRESSION_LOSS_MSE
         }
     )
     decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
     assert isinstance(decoder, EntityRegression)
     assert isinstance(loss_func, RegressionLossFunc)
+
+    config = GSTestConfig(
+        {
+            "task_type": BUILTIN_TASK_NODE_REGRESSION,
+            "decoder_norm": None,
+            "decoder_bias": False,
+            "regression_loss_func": BUILTIN_REGRESSION_LOSS_SHRINKAGE,
+            "alpha": None,
+            "gamma": None
+        }
+    )
+    decoder, loss_func = create_builtin_node_decoder(g, decoder_input_dim, config, train_task)
+    assert isinstance(decoder, EntityRegression)
+    assert isinstance(loss_func, ShrinkageLossFunc)
+    assert loss_func.alpha == 10
+    assert loss_func.gamma == 0.2
 
 def test_create_builtin_edge_decoder():
     g = None
@@ -273,6 +293,7 @@ def test_create_builtin_edge_decoder():
             "num_decoder_basis": 2,
             "decoder_norm": None,
             "decoder_bias": False,
+            "regression_loss_func": BUILTIN_REGRESSION_LOSS_MSE
         }
     )
     decoder, loss_func = create_builtin_edge_decoder(g, decoder_input_dim, config, train_task)
@@ -289,11 +310,16 @@ def test_create_builtin_edge_decoder():
             "num_ffn_layers_in_decoder": 0,
             "decoder_norm": None,
             "decoder_bias": False,
+            "regression_loss_func": BUILTIN_REGRESSION_LOSS_SHRINKAGE,
+            "alpha": 0.3,
+            "gamma": 3.,
         }
     )
     decoder, loss_func = create_builtin_edge_decoder(g, decoder_input_dim, config, train_task)
     assert isinstance(decoder, MLPEdgeDecoder)
-    assert isinstance(loss_func, RegressionLossFunc)
+    assert isinstance(loss_func, ShrinkageLossFunc)
+    assert loss_func.alpha == 0.3
+    assert loss_func.gamma == 3.
 
 def test_create_builtin_lp_decoder():
     g = generate_dummy_hetero_graph()

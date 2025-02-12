@@ -24,7 +24,8 @@ from graphstorm.model.loss_func import (LinkPredictAdvBCELossFunc,
                                         WeightedLinkPredictAdvBCELossFunc,
                                         FocalLossFunc,
                                         LinkPredictBPRLossFunc,
-                                        WeightedLinkPredictBPRLossFunc)
+                                        WeightedLinkPredictBPRLossFunc,
+                                        ShrinkageLossFunc)
 
 @pytest.mark.parametrize("num_pos", [1, 8, 32])
 @pytest.mark.parametrize("num_neg", [1, 8, 32])
@@ -167,10 +168,37 @@ def test_WeightedLinkPredictBPRLossFunc(num_pos, num_neg):
     gt_loss = (loss_r0.mean() + loss_r1.mean()) / 2
     assert_almost_equal(loss.numpy(),gt_loss.numpy())
 
+def test_ShrinkageLossFunc():
+    alpha = 10.
+    gamma = 0.2
+    loss_func = ShrinkageLossFunc(alpha, gamma)
+    logits = th.tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
+    labels = th.tensor([1., 1., 1., 1., 1., 1., 1., 1., 0, 0.9])
+    # Loss is computed following:
+    # l = abs(logits - labels)
+    # loss = \frac{l^2}{1 + \exp \left( \alpha \cdot (\gamma - l) \right)}
+    gt_loss = th.tensor(0.3565)
+    loss = loss_func(logits, labels)
+    assert_almost_equal(loss.numpy(), gt_loss.numpy(), decimal=4)
+
+    alpha = 2
+    gamma = 1.5
+    loss_func = ShrinkageLossFunc(alpha, gamma)
+    logits = th.tensor([0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
+    labels = th.tensor([1., 1., 1., 1., 1., 1., 1., 1., 0, 0.9])
+    # Loss is computed following:
+    # l = abs(logits - labels)
+    # loss = \frac{l^2}{1 + \exp \left( \alpha \cdot (\gamma - l) \right)}
+    gt_loss = th.tensor(0.0692)
+    loss = loss_func(logits, labels)
+    assert_almost_equal(loss.numpy(), gt_loss.numpy(), decimal=4)
+
+
 if __name__ == '__main__':
     test_FocalLossFunc()
     test_LinkPredictBPRLossFunc()
     test_WeightedLinkPredictBPRLossFunc()
+    test_ShrinkageLossFunc()
 
     test_LinkPredictAdvBCELossFunc(16, 128)
     test_WeightedLinkPredictAdvBCELossFunc(16, 128)

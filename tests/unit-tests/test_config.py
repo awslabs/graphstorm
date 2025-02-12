@@ -27,10 +27,14 @@ import dgl
 import torch as th
 
 from graphstorm.config import GSConfig
-from graphstorm.config.config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
+from graphstorm.config.config import (BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
+                                      BUILTIN_CLASS_LOSS_FOCAL,
+                                      BUILTIN_LP_LOSS_CROSS_ENTROPY,
                                       BUILTIN_LP_LOSS_LOGSIGMOID_RANKING,
                                       BUILTIN_LP_LOSS_CONTRASTIVELOSS,
-                                      BUILTIN_LP_LOSS_BPR)
+                                      BUILTIN_LP_LOSS_BPR,
+                                      BUILTIN_REGRESSION_LOSS_MSE,
+                                      BUILTIN_REGRESSION_LOSS_SHRINKAGE)
 from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
                                BUILTIN_TASK_NODE_REGRESSION,
                                BUILTIN_TASK_EDGE_CLASSIFICATION,
@@ -533,6 +537,7 @@ def create_node_class_config(tmp_path, file_name):
         "label_field": "label",
         "multilabel": True,
         "num_classes": 20,
+        "class_loss_func": "cross_entropy"
     }
     with open(os.path.join(tmp_path, file_name+".yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -543,6 +548,7 @@ def create_node_class_config(tmp_path, file_name):
         "multilabel": True,
         "imbalance_class_weights": "1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2",
         "num_classes": 20,
+        "class_loss_func": "focal"
     }
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -568,6 +574,7 @@ def create_node_class_config(tmp_path, file_name):
     yaml_object["gsf"]["node_classification"] = {
         "multilabel": "error",
         "num_classes": 0,
+        "class_loss_func": "unknown"
     }
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -703,6 +710,7 @@ def test_node_class_info():
         assert config.multilabel_weights == None
         assert config.imbalance_class_weights == None
         check_failure(config, "num_classes")
+        assert config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -714,11 +722,13 @@ def test_node_class_info():
         assert config.num_classes == 20
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "accuracy"
+        assert config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test1.yaml'), local_rank=0)
         config = GSConfig(args)
         assert config.multilabel == True
         assert config.imbalance_class_weights.tolist() == [1,2,3,1,2,1,2,3,1,2,1,2,3,1,2,1,2,3,1,2]
+        assert config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_metric1.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -738,6 +748,7 @@ def test_node_class_info():
         check_failure(config, "multilabel")
         check_failure(config, "num_classes")
         check_failure(config, "eval_metric")
+        check_failure(config, "class_loss_func")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_class_test_fail_metric1.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -807,7 +818,8 @@ def create_node_regress_config(tmp_path, file_name):
     yaml_object["gsf"]["node_regression"] = {
         "target_ntype": "a",
         "label_field": "label",
-        "eval_metric": "Mse"
+        "eval_metric": "Mse",
+        "regression_loss_func": "mse"
     }
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -816,12 +828,14 @@ def create_node_regress_config(tmp_path, file_name):
         "target_ntype": "a",
         "label_field": "label",
         "eval_metric": ["mse", "RMSE"],
+        "regression_loss_func": "shrinkage"
     }
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
 
     yaml_object["gsf"]["node_regression"] = {
-        "eval_metric": "error"
+        "eval_metric": "error",
+        "regression_loss_func": "unknown"
     }
     with open(os.path.join(tmp_path, file_name+"_fail_metric1.yaml"), "w") as f:
         yaml.dump(yaml_object, f)
@@ -847,6 +861,7 @@ def test_node_regress_info():
         check_failure(config, "label_field")
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "rmse"
+        assert config.regression_loss_func == BUILTIN_REGRESSION_LOSS_MSE
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test1.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -854,16 +869,19 @@ def test_node_regress_info():
         assert config.label_field == "label"
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "mse"
+        assert config.regression_loss_func == BUILTIN_REGRESSION_LOSS_MSE
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test2.yaml'), local_rank=0)
         config = GSConfig(args)
         assert len(config.eval_metric) == 2
         assert config.eval_metric[0] == "mse"
         assert config.eval_metric[1] == "rmse"
+        assert config.regression_loss_func == BUILTIN_REGRESSION_LOSS_SHRINKAGE
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test_fail_metric1.yaml'), local_rank=0)
         config = GSConfig(args)
         check_failure(config, "eval_metric")
+        check_failure(config, "regression_loss_func")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'node_regress_test_fail_metric2.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -890,7 +908,8 @@ def create_edge_class_config(tmp_path, file_name):
         "num_decoder_basis": 4,
         "remove_target_edge_type": False,
         "decoder_type": "MLPDecoder",
-        "decoder_edge_feat": ["feat"]
+        "decoder_edge_feat": ["feat"],
+        "class_loss_func": "cross_entropy"
     }
 
     with open(os.path.join(tmp_path, file_name+"1.yaml"), "w") as f:
@@ -901,7 +920,8 @@ def create_edge_class_config(tmp_path, file_name):
         "reverse_edge_types_map": ["query,match,rev-match,asin", "query,click,rev-click,asin"],
         "num_classes": 4,
         "eval_metric": ["Per_class_f1_score", "Precision_Recall", "hit_at_20"],
-        "decoder_edge_feat": ["query,match,asin:feat0,feat1"]
+        "decoder_edge_feat": ["query,match,asin:feat0,feat1"],
+        "class_loss_func": "focal"
     }
 
     with open(os.path.join(tmp_path, file_name+"2.yaml"), "w") as f:
@@ -915,7 +935,8 @@ def create_edge_class_config(tmp_path, file_name):
         "num_classes": 0,
         "num_decoder_basis": 1,
         "remove_target_edge_type": "error",
-        "decoder_edge_feat": ["query,no-match,asin:feat0,feat1"]
+        "decoder_edge_feat": ["query,no-match,asin:feat0,feat1"],
+        "class_loss_func": "unknown"
     }
 
     with open(os.path.join(tmp_path, file_name+"_fail.yaml"), "w") as f:
@@ -952,6 +973,7 @@ def test_edge_class_info():
         check_failure(config, "label_field")
         assert config.multilabel == False
         check_failure(config, "num_classes")
+        assert config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test1.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -966,6 +988,7 @@ def test_edge_class_info():
         assert len(config.eval_metric) == 1
         assert config.eval_metric[0] == "accuracy"
         assert config.decoder_edge_feat == "feat"
+        assert config.class_loss_func == BUILTIN_CLASS_LOSS_CROSS_ENTROPY
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test2.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -983,6 +1006,7 @@ def test_edge_class_info():
         assert config.eval_metric[2] == "hit_at_20"
         assert len(config.decoder_edge_feat) == 1
         assert config.decoder_edge_feat[("query","match","asin")] == ["feat0", "feat1"]
+        assert config.class_loss_func == BUILTIN_CLASS_LOSS_FOCAL
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test_fail.yaml'), local_rank=0)
         config = GSConfig(args)
@@ -993,6 +1017,7 @@ def test_edge_class_info():
         check_failure(config, "num_decoder_basis")
         check_failure(config, "remove_target_edge_type")
         check_failure(config, "decoder_edge_feat")
+        check_failure(config, "class_loss_func")
 
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'edge_class_test_fail2.yaml'), local_rank=0)
         config = GSConfig(args)
