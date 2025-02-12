@@ -545,7 +545,23 @@ class HGTLayerwithEdgeFeat(HGTLayer):
     Implementation in this class uses a simple idea to include edge feature into the original
     HGT model, i.e., combine embeddings of source node with embeddings of edge as the new `K`,
     and `V`, then use this new `K` and `V` in HGT formulas. And the way of combination is same
-    as the RGCN conv model, including `concat`, `add`, `sub`, `mul`, and `div`.
+    as the RGCN conv model, including `concat`, `add`, `sub`, `mul`, and `div`. Then the formula
+    of computing the message to send on each edge :math:`(s, e, t)` become:
+
+    .. math::
+
+      MSG-head^i(s, e, t) = \text{M-Linear}^i_{\tau(s)}(H^{(l-1)}[s] \text{op} EF_{e})W^{MSG}_{\phi(e)} \\
+
+        where :math:`\text{op}` is one of the `add`, `sub`, `mul`, and `div` operators, and the
+        :math:`EF_{e}` is the edge feature of the :math:`\phi(e)` edge type. For the `concat`
+        operator, the formula is
+
+    .. math::
+
+      MSG-head^i(s, e, t) = (\text{M-Linear}^i_{\tau(s)}(H^{(l-1)}[s]) + \text{EF-Linear}^i_{\phi(e)}(EF_{e}))W^{MSG}_{\phi(e)} \\
+
+        where :math:`\text{EF-Linear}^i_{\phi(e)}` is an additional weight for the :math:`\phi(e)`
+        edge type.
 
     Parameters
     ----------
