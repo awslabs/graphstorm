@@ -550,7 +550,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
 
     .. math::
 
-      MSG-head^i(s, e, t) = \text{M-Linear}^i_{\tau(s)}(H^{(l-1)}[s] \\text{ op } EF_{e})
+      MSG-head^i(s, e, t) = \text{M-Linear}^i_{\tau(s)}(H^{(l-1)}[s] \text{ op } EF_{e})
       W^{MSG}_{\phi(e)} \\
 
     where :math:`\text{op}` is one of the `add`, `sub`, `mul`, and `div` operators, and the
