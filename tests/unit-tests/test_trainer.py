@@ -54,7 +54,7 @@ from graphstorm.dataloading import (GSgnnNodeDataLoader,
                                     GSgnnEdgeDataLoader,
                                     GSgnnLinkPredictionDataLoader,
                                     GSgnnLinkPredictionTestDataLoader)
-from graphstorm.model import GSgnnMultiTaskModelInterface, GSgnnModel
+from graphstorm.model import GSgnnMultiTaskModelInterface, GSgnnModel, HGTLayerwithEdgeFeat
 from numpy.testing import assert_equal, assert_raises
 
 from util import (DummyGSgnnEncoderModel,
@@ -1118,10 +1118,11 @@ def test_hgt_nc4ef():
                             local_rank=0)
         config = GSConfig(args)
 
-        # 02/06/2025: HGT suppurt edge features. So disable this test case and model2 should be
+        # 02/06/2025: HGT suppurts edge features. So disable this test case and model2 should be
         # created successfully
-        # with assert_raises(AssertionError):
         model2 = create_builtin_node_gnn_model(gdata.g, config, True)
+        assert isinstance(model2.gnn_encoder.layers[0], HGTLayerwithEdgeFeat)
+        assert isinstance(model2.gnn_encoder.layers[1], HGTLayerwithEdgeFeat)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
@@ -1484,10 +1485,11 @@ def test_hgt_ec4ef():
                             local_rank=0)
         config = GSConfig(args)
 
-        # 02/06/2025: HGT suppurt edge features. So disable this test case and model2 should be
+        # 02/06/2025: HGT suppurts edge features. So disable this test case and model2 should be
         # created successfully
-        # with assert_raises(AssertionError):
         model2 = create_builtin_edge_gnn_model(gdata.g, config, True)
+        assert isinstance(model2.gnn_encoder.layers[0], HGTLayerwithEdgeFeat)
+        assert isinstance(model2.gnn_encoder.layers[1], HGTLayerwithEdgeFeat)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph
@@ -1857,10 +1859,11 @@ def test_hgt_lp4ef():
         gdata = GSgnnData(part_config=part_config,
                           node_feat_field=config.node_feat_name)
 
-        # 02/06/2025: HGT suppurt edge features. So disable this test case and model2 should be
+        # 02/06/2025: HGT suppurts edge features. So disable this test case and model2 should be
         # created successfully
-        # with assert_raises(AssertionError):
         model2 = create_builtin_lp_gnn_model(gdata.g, config, True)
+        assert isinstance(model2.gnn_encoder.layers[0], HGTLayerwithEdgeFeat)
+        assert isinstance(model2.gnn_encoder.layers[1], HGTLayerwithEdgeFeat)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # get the test dummy distributed graph

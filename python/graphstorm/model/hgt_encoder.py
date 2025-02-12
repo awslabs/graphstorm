@@ -108,6 +108,8 @@ class HGTLayer(nn.Module):
         Normalization methods. Options:``batch``, ``layer``, and ``None``. Default: ``layer``.
     num_ffn_layers_in_gnn: int
         Number of fnn layers between gnn layers. Default: 0.
+    ffn_actication: torch.nn.functional
+        Activation for ffn. Default: relu.
     """
     def __init__(self,
                  in_dim,
@@ -519,9 +521,9 @@ class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
             New node embeddings for each node type in the format of {ntype: tensor}.
         """
         if e_hs is not None:
-            assert len(e_hs) == len(blocks), 'The size of the list of edge features should be equal to ' + \
-                f'the number of blocks, but got {len(e_hs)} layers of edge features ' + \
-                f'and {len(blocks)} blocks.'
+            assert len(e_hs) == len(blocks), 'The size of the list of edge features should ' + \
+                f'be equal to the number of blocks, but got {len(e_hs)} layers of edge ' + \
+                f'features and {len(blocks)} blocks.'
 
             for layer, block, e_h in zip(self.layers, blocks, e_hs):
                 n_h = layer(block, n_h, e_h)
@@ -577,6 +579,8 @@ class HGTLayerwithEdgeFeat(HGTLayer):
         Normalization methods. Options:``batch``, ``layer``, and ``None``. Default: ``layer``.
     num_ffn_layers_in_gnn: int
         Number of fnn layers between gnn layers. Default: 0.
+    ffn_actication: torch.nn.functional
+        Activation for ffn. Default: relu.    
     """
     def __init__(self,
                  in_dim,
@@ -621,18 +625,17 @@ class HGTLayerwithEdgeFeat(HGTLayer):
 
     def _create_ef_parameters(self, in_dim, out_dim, canonical_etypes, edge_feat_name):
         """ Create edge feature specific parameters when message passing operator is `concat`.
-        
+
         With the design idea of combining edge feature into HGT algorithm, only when the
         message passing operator is `concat`, will we need addition weight parameters. For
         other operators, there is no addition parameters required because edge embeddings have
         the same dimension as the embeddings of source nodes so can be directly added, substracted,
-        mutilied and devided.
-        
+        mutilied or devided.
+
         In this implementation, we use a linear algebra trick for concatination operation, i.e.,
         concat([e1, e2], dim=-1) @ w ==  e1 @ w1 + e2 @ w2, where e1 and e2 have the same
         dimension (N * in_dim), w1 and w2 have the same dimension (in_dim, out_dim), and w has
         the dimension (in_dim * 2, out_dim).
-
         """
         ef_linears = {}
         for canonical_etype in canonical_etypes:
@@ -690,7 +693,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
                 relation_msg = self.relation_msg[c_etype_str]
 
                 # combine src_eh with e_h
-                if (srctype, etype, dsttype) in e_h:
+                if (srctype, etype, dsttype) in e_h.keys():
                     edge_h = e_h[(srctype, etype, dsttype)]
                     if self.edge_feat_mp_op == 'concat':
                         ef_linear = self.ef_linears[c_etype_str]
