@@ -39,7 +39,7 @@ def main(config_args):
     """ main function
     """
     config = GSConfig(config_args)
-    config.verify_arguments(True)
+    config.verify_arguments(False)
 
     use_wg_feats = use_wholegraph(config.part_config)
     gs.initialize(ip_config=config.ip_config, backend=config.backend,
