@@ -418,10 +418,8 @@ class BucketTransform(FeatTransform):
                 f"within numerical value."
         if isinstance(feats, ExtMemArrayWrapper):
             feats = feats.to_numpy()
-        assert np.issubdtype(feats.dtype, np.integer) \
-                or np.issubdtype(feats.dtype, np.floating), \
-                f"The feature {self.feat_name} has to be integers or floats."
 
+        feats = self.feat2numerical(feats)
         if validate_features():
             assert validate_numerical_feats(feats), \
                 f"There are NaN, Inf or missing value in the {self.feat_name} feature."
