@@ -24,6 +24,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 import pyarrow as pa
 import torch as th
+import graphstorm
 
 from numpy.testing import assert_almost_equal
 
@@ -525,6 +526,8 @@ def test_validate_features():
     assert validate_features()
     stop_validate_features()
     assert validate_features() is False
+    # set VALIDATE_FEATRE back
+    graphstorm.gconstruct.utils.VALIDATE_FEATRE = True
 
 def test_validate_numerical_feats():
     array = np.array([1,2,3])
