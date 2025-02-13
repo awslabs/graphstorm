@@ -548,7 +548,7 @@ Link Prediction Task
     - Yaml: ``regression_loss_func: mse``
     - Argument: ``--regression-loss-func shrinkage``
     - Default value: ``mse``
-- **lp_loss_func**: Link prediction loss function. Builtin loss functions include ``cross_entropy`` and ``contrastive``.
+- **lp_loss_func**: Link prediction loss function. Builtin loss functions include ``cross_entropy``,  ``contrastive`` and ``bpr``. More details can be found on the :ref:`Link Prediction Loss Functions<link_prediction_loss>`.
 
     - Yaml: ``lp_loss_func: cross_entropy``
     - Argument: ``--lp-loss-func contrastive``

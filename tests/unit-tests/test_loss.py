@@ -23,6 +23,8 @@ from numpy.testing import assert_almost_equal
 from graphstorm.model.loss_func import (LinkPredictAdvBCELossFunc,
                                         WeightedLinkPredictAdvBCELossFunc,
                                         FocalLossFunc,
+                                        LinkPredictBPRLossFunc,
+                                        WeightedLinkPredictBPRLossFunc,
                                         ShrinkageLossFunc)
 
 @pytest.mark.parametrize("num_pos", [1, 8, 32])
@@ -108,6 +110,63 @@ def test_FocalLossFunc():
     loss = loss_func(logits, labels)
     assert_almost_equal(loss.numpy(), gt_loss.numpy(), decimal=4)
 
+@pytest.mark.parametrize("num_pos", [1, 8, 32])
+@pytest.mark.parametrize("num_neg", [1, 8, 32])
+def test_LinkPredictBPRLossFunc(num_pos, num_neg):
+    pos_score = {
+        ("n0", "r0" ,"n1"): th.rand((num_pos,)) + 0.5,
+        ("n0", "r1", "n2"): th.rand((num_pos,)) + 0.3
+    }
+
+    neg_score = {
+        ("n0", "r0" ,"n1"): th.rand((num_pos, num_neg)) - 0.4,
+        ("n0", "r1", "n2"): th.rand((num_pos, num_neg,)) - 0.3
+    }
+
+    loss_func = LinkPredictBPRLossFunc()
+    loss = loss_func(pos_score, neg_score)
+    p_score_r0 = pos_score[("n0", "r0" ,"n1")].unsqueeze(1).repeat(1, num_neg)
+    p_score_r1 = pos_score[("n0", "r1", "n2")].unsqueeze(1).repeat(1, num_neg)
+    dist_r0 = p_score_r0 - neg_score[("n0", "r0" ,"n1")]
+    dist_r1 = p_score_r1 - neg_score[("n0", "r1", "n2")]
+
+    loss_r0 = - th.log(1/(1+th.exp(-dist_r0)))
+    loss_r1 = - th.log(1/(1+th.exp(-dist_r1)))
+
+    gt_loss = (loss_r0.mean() + loss_r1.mean()) / 2
+    assert_almost_equal(loss.numpy(),gt_loss.numpy())
+
+@pytest.mark.parametrize("num_pos", [1, 8, 32])
+@pytest.mark.parametrize("num_neg", [1, 8, 32])
+def test_WeightedLinkPredictBPRLossFunc(num_pos, num_neg):
+    pos_score = {
+        ("n0", "r0" ,"n1"): (th.rand((num_pos,)) + 0.5, th.rand((num_pos,))/2 + 0.5),
+        ("n0", "r1", "n2"): (th.rand((num_pos,)) + 0.3, th.rand((num_pos,))/2 + 0.5)
+    }
+
+    neg_score = {
+        ("n0", "r0" ,"n1"): (th.rand((num_pos, num_neg)) - 0.4, None),
+        ("n0", "r1", "n2"): (th.rand((num_pos, num_neg,)) - 0.3, None)
+    }
+
+    loss_func = WeightedLinkPredictBPRLossFunc()
+    loss = loss_func(pos_score,
+                     neg_score)
+    p_score_r0 = pos_score[("n0", "r0" ,"n1")][0].unsqueeze(1).repeat(1, num_neg)
+    p_score_r1 = pos_score[("n0", "r1", "n2")][0].unsqueeze(1).repeat(1, num_neg)
+    pos_weight_r0 = pos_score[("n0", "r0" ,"n1")][1].unsqueeze(1).repeat(1, num_neg)
+    pos_weight_r1 = pos_score[("n0", "r1", "n2")][1].unsqueeze(1).repeat(1, num_neg)
+    dist_r0 = p_score_r0 - neg_score[("n0", "r0" ,"n1")][0]
+    dist_r1 = p_score_r1 - neg_score[("n0", "r1", "n2")][0]
+
+    loss_r0 = - th.log(1/(1+th.exp(-dist_r0)))
+    loss_r1 = - th.log(1/(1+th.exp(-dist_r1)))
+
+    loss_r0 = loss_r0 * pos_weight_r0
+    loss_r1 = loss_r1 * pos_weight_r1
+
+    gt_loss = (loss_r0.mean() + loss_r1.mean()) / 2
+    assert_almost_equal(loss.numpy(),gt_loss.numpy())
 
 def test_ShrinkageLossFunc():
     alpha = 10.
@@ -137,6 +196,8 @@ def test_ShrinkageLossFunc():
 
 if __name__ == '__main__':
     test_FocalLossFunc()
+    test_LinkPredictBPRLossFunc()
+    test_WeightedLinkPredictBPRLossFunc()
     test_ShrinkageLossFunc()
 
     test_LinkPredictAdvBCELossFunc(16, 128)
