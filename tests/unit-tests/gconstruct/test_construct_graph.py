@@ -28,7 +28,10 @@ import copy
 from functools import partial
 from numpy.testing import assert_equal, assert_almost_equal
 
-from graphstorm.gconstruct.construct_graph import parse_edge_data, verify_confs, is_homogeneous
+from graphstorm.gconstruct.construct_graph import (parse_edge_data,
+                                                   prepare_edge_data,
+                                                   verify_confs,
+                                                   is_homogeneous)
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
 from graphstorm.gconstruct.file_io import write_data_csv, read_data_csv
@@ -1978,6 +1981,49 @@ def test_parse_edge_data():
         assert "vm" in feat_data
         assert "tsm" in feat_data
 
+        # test empty input file
+        # Create an empty DataFrame with defined columns
+        df = pd.DataFrame(columns=["src_id", "dst_id", "feat"])
+        data_file = os.path.join(tmpdirname, "empty.parquet")
+        # Save as an empty Parquet file
+        df.to_parquet(data_file, engine="pyarrow", index=False)
+
+        data = \
+            parse_edge_data(data_file, feat_ops, label_ops, node_id_map,
+                            partial(read_data_parquet, data_fields=keys),
+                            conf, skip_nonexist_edges=True)
+        assert data is None
+
+def test_prepare_edge_data():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        src_ids = np.array([str(random.randint(0, 20)) for _ in range(15)])
+        dst_ids = np.array([str(random.randint(0, 25)) for _ in range(15)])
+        feat = np.random.rand(15, 10)
+        data = {
+            "src_id": src_ids,
+            "dst_id": dst_ids,
+            "feat": feat,
+        }
+        keys = ["src_id", "dst_id", "feat"]
+
+        feat_ops = [NumericalMinMaxTransform("feat", "feat", None)]
+        data_file = os.path.join(tmpdirname, "data.parquet")
+        write_data_parquet(data, data_file)
+        info = prepare_edge_data(data_file, feat_ops,
+                                 partial(read_data_parquet, data_fields=keys))
+        assert "feat" in info
+
+        # test empty input file
+        # Create an empty DataFrame with defined columns
+        df = pd.DataFrame(columns=["src_id", "dst_id", "feat"])
+        data_file = os.path.join(tmpdirname, "empty.parquet")
+        # Save as an empty Parquet file
+        df.to_parquet(data_file, engine="pyarrow", index=False)
+        info = prepare_edge_data(data_file, feat_ops,
+                                 partial(read_data_parquet, data_fields=keys))
+        assert info is None
+
+
 @pytest.mark.parametrize("ext_mem_path", [None, "/tmp/"])
 def test_multicolumn(ext_mem_path):
     # Just get the features without transformation.
@@ -2487,6 +2533,7 @@ def test_homogeneous():
     assert not is_homogeneous(conf)
 
 if __name__ == '__main__':
+    test_prepare_edge_data()
     test_multitask_label()
     test_partition_graph(2)
     test_parse_feat_ops_data_format()

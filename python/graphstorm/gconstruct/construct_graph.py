@@ -130,6 +130,10 @@ def prepare_edge_data(in_file, feat_ops, read_file):
     dict : A dict of edge feature info.
     """
     data = read_file(in_file)
+    if data is None:
+        # the in_file is empty
+        return None
+
     assert feat_ops is not None, "feat_ops must exist when prepare_edge_data is called."
     feat_info = preprocess_features(data, feat_ops)
 
@@ -174,6 +178,10 @@ def parse_edge_data(in_file, feat_ops, label_ops, node_id_map, read_file,
     edge_type = conf['relation']
 
     data = read_file(in_file)
+    if data is None:
+        # the in_file is empty
+        return None
+
     feat_data = process_features(data, feat_ops, ext_mem) if feat_ops is not None else {}
     if label_ops is not None:
         label_data = process_labels(data, label_ops)
@@ -550,7 +558,13 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
         type_src_ids = [None] * len(return_dict)
         type_dst_ids = [None] * len(return_dict)
         type_edge_data = {}
-        for i, (src_ids, dst_ids, part_data) in return_dict.items():
+        for i, ret_data in return_dict.items():
+            if ret_data is None:
+                # The edge file is empty
+                continue
+
+            # The edge file is not empty
+            src_ids, dst_ids, part_data = ret_data
             type_src_ids[i] = src_ids
             type_dst_ids[i] = dst_ids
             for feat_name in part_data:
@@ -599,6 +613,9 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
             assert len(type_src_ids) == len(type_dst_ids)
 
             edges[edge_type] = (type_src_ids, type_dst_ids)
+        else:
+            # edge type without edges
+            edges[edge_type] = (np.array([]), np.array([]))
         gc.collect()
         logging.debug("Finish merging edges of %s", str(edge_type))
 
