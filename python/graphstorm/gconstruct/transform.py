@@ -284,6 +284,32 @@ class FeatTransform:
         else:
             return feats.astype(self.out_dtype)
 
+    def feat2numerical(self, feats):
+        """ Cast a feature into a numerical numpy array if it is not.
+        If it is already a numerical numpy array, do nothing.
+
+        Parameters
+        ----------
+        feats: np.array
+            Input feature.
+
+        Return
+        ------
+        np.array: the cast feature.
+        """
+        if not (np.issubdtype(feats.dtype, np.integer) \
+            or np.issubdtype(feats.dtype, np.floating)):
+            logging.warning("The feature %s has to be floating points or integers,"
+                            "but get %s. Try to cast it into float32",
+                            self.feat_name, feats.dtype)
+            try:
+                # if input dtype is not float or integer, we need to cast the data
+                # into float32
+                feats = feats.astype(np.float32)
+            except: # pylint: disable=bare-except
+                raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
+        return feats
+
 class GlobalProcessFeatTransform(FeatTransform):
     """ The base class for transformations that can only be done using a single process.
 
@@ -570,6 +596,16 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
             f"Feature {self.feat_name} of NumericalMinMaxTransform " \
             "must be numpy array or ExtMemArray"
 
+        if validate_features():
+            if isinstance(feats, ExtMemArrayWrapper):
+                # TODO(xiangsx): This is not memory efficient.
+                # It will load all data into main memory.
+                feats = feats.to_numpy()
+            feats = self.feat2numerical(feats)
+
+            assert validate_numerical_feats(feats), \
+                f"There are NaN, Inf or missing value in the {self.feat_name} feature."
+
         # The max and min of $val = (val-min) / (max-min)$ is pre-defined
         # in the transform_conf, return max_val and min_val directly
         if self._max_val is not None and self._min_val is not None:
@@ -580,21 +616,7 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
             # It will load all data into main memory.
             feats = feats.to_numpy()
 
-        if validate_features():
-            assert validate_numerical_feats(feats), \
-                f"There are NaN, Inf or missing value in the {self.feat_name} feature."
-
-        if feats.dtype not in [np.float64, np.float32, np.float16, np.int64, \
-                              np.int32, np.int16, np.int8]:
-            logging.warning("The feature %s has to be floating points or integers,"
-                            "but get %s. Try to cast it into float32",
-                            self.feat_name, feats.dtype)
-            try:
-                # if input dtype is not float or integer, we need to cast the data
-                # into float32
-                feats = feats.astype(np.float32)
-            except: # pylint: disable=bare-except
-                raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
+        feats = self.feat2numerical(feats)
         assert len(feats.shape) <= 2, \
             "Only support 1D fp feature or 2D fp feature, " \
             f"but get {len(feats.shape)}D feature for {self.feat_name}"
@@ -663,15 +685,7 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
             # It will load all data into main memory.
             feats = feats.to_numpy()
 
-        if feats.dtype not in [np.float64, np.float32, np.float16, np.int64, \
-                              np.int32, np.int16, np.int8]:
-            try:
-                # if input dtype is not float or integer, we need to cast the data
-                # into float32
-                feats = feats.astype(np.float32)
-            except: # pylint: disable=bare-except
-                raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
-
+        feats = self.feat2numerical(feats)
         feats = (feats - self._min_val) / (self._max_val - self._min_val)
         feats[feats > 1] = 1 # any value > self._max_val is set to self._max_val
         feats[feats < 0] = 0 # any value < self._min_val is set to self._min_val
@@ -725,6 +739,16 @@ class NumericalStandardTransform(TwoPhaseFeatTransform):
             f"Feature {self.feat_name} of NumericalMinMaxTransform " \
             f"must be numpy array or ExtMemArray, got {type(feats)}"
 
+        if validate_features():
+            if isinstance(feats, ExtMemArrayWrapper):
+                # TODO(xiangsx): This is not memory efficient.
+                # It will load all data into main memory.
+                feats = feats.to_numpy()
+
+            feats = self.feat2numerical(feats)
+            assert validate_numerical_feats(feats), \
+                f"There are NaN, Inf or missing value in the {self.feat_name} feature."
+
         # If sum has already been set.
         # Skip the pre-process step
         if self._summation is not None:
@@ -735,22 +759,7 @@ class NumericalStandardTransform(TwoPhaseFeatTransform):
             # It will load all data into main memory.
             feats = feats.to_numpy()
 
-        if feats.dtype not in [np.float64, np.float32, np.float16, np.int64, \
-                              np.int32, np.int16, np.int8]:
-            logging.warning("The feature %s has to be floating points or integers,"
-                            "but get %s. Try to cast it into float32",
-                            self.feat_name, feats.dtype)
-            try:
-                # if input dtype is not float or integer, we need to cast the data
-                # into float32
-                feats = feats.astype(np.float32)
-            except: # pylint: disable=bare-except
-                raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
-
-        if validate_features():
-            assert validate_numerical_feats(feats), \
-                f"There are NaN, Inf or missing value in the {self.feat_name} feature."
-
+        feats = self.feat2numerical(feats)
         # make summation a 1D array
         summation = np.sum(feats, axis=0, keepdims=True).reshape((-1,))
         return {self.feat_name: summation}
@@ -798,15 +807,7 @@ class NumericalStandardTransform(TwoPhaseFeatTransform):
             # It will load all data into main memory.
             feats = feats.to_numpy()
 
-        if feats.dtype not in [np.float64, np.float32, np.float16, np.int64, \
-                              np.int32, np.int16, np.int8]:
-            try:
-                # if input dtype is not float or integer, we need to cast the data
-                # into float32
-                feats = feats.astype(np.float32)
-            except TypeError:
-                raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
-
+        feats = self.feat2numerical(feats)
         feats = feats / self._summation
 
         return {self.feat_name: feats}
@@ -852,18 +853,7 @@ class RankGaussTransform(GlobalProcessFeatTransform):
         assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
                 f"The feature {self.feat_name} has to be NumPy array."
 
-        if not (np.issubdtype(feats.dtype, np.integer) \
-            or np.issubdtype(feats.dtype, np.floating)):
-            logging.warning("The feature %s has to be floating points or integers,"
-                            "but get %s. Try to cast it into float32",
-                            self.feat_name, feats.dtype)
-            try:
-                # if input dtype is not float or integer, we need to cast the data
-                # into float32
-                feats = feats.astype(np.float32)
-            except: # pylint: disable=bare-except
-                raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
-
+        feats = self.feat2numerical(feats)
         if validate_features():
             assert validate_numerical_feats(feats), \
                 f"There are NaN, Inf or missing value in the {self.feat_name} feature."
