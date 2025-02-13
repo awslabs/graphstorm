@@ -59,7 +59,7 @@ def validate_numerical_feats(feats):
 
     Returns
     -------
-    bool: Whether the values are all valid
+    bool: Whether the values of the input feature are all valid
     """
     return (not np.isnan(feats).any()) and \
         (not np.isinf(feats).any())
