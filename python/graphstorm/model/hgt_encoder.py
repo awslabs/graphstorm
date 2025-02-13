@@ -664,7 +664,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
         the same dimension as the embeddings of source nodes so can be directly added, substracted,
         mutilied or devided.
 
-        In this implementation, we use a linear algebra trick for concatination operation, i.e.,
+        In this implementation, we use a linear algebra trick for concatenation operation, i.e.,
         concat([e1, e2], dim=-1) @ w ==  e1 @ w1 + e2 @ w2, where e1 and e2 have the same
         dimension (N * in_dim), w1 and w2 have the same dimension (in_dim, out_dim), and w has
         the dimension (in_dim * 2, out_dim).
