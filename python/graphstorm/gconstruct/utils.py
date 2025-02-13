@@ -41,18 +41,18 @@ SHARED_MEM_OBJECT_THRESHOLD = 1.9 * 1024 * 1024 * 1024 # must < 2GB
 SHARED_MEMORY_CROSS_PROCESS_STORAGE = "shared_memory"
 PICKLE_CROSS_PROCESS_STORAGE = "pickle"
 EXT_MEMORY_STORAGE = "ext_memory"
-VALIDATE_FEATRE= False
+VALIDATE_FEATRE= True
 
 def validate_features():
     """ Check whether gconstruct needs to validate the input features
     """
     return VALIDATE_FEATRE
 
-def set_validate_features():
+def stop_validate_features():
     """ Set gconstruct in debug mode.
     """
     global VALIDATE_FEATRE
-    VALIDATE_FEATRE = True
+    VALIDATE_FEATRE = False
 
 def validate_numerical_feats(feats):
     """ Validate the numerical features
