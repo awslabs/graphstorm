@@ -455,7 +455,7 @@ class GSgnnModelBase(nn.Module):
     #pylint: disable=unused-argument
     def prepare_input_encoder(self, train_data):
         """ Preparing input layer for training or inference.
-        
+
         The input layer can pre-compute node features in the preparing step
         if needed, e.g., pre-compute all BERT embeddings.
 
@@ -1060,7 +1060,7 @@ def do_mini_batch_inference(model, data, batch_size=1024,
             if not isinstance(input_nodes, dict):
                 assert len(data.g.ntypes) == 1, 'If input nodes are not in ' + \
                         'a dictionary, the input graph should be a homogeneous graph with ' + \
-                        f'one node type only, but got {len(data.g.ntypes)} node types.' 
+                        f'one node type only, but got {len(data.g.ntypes)} node types.'
                 input_nodes = {data.g.ntypes[0]: input_nodes}
             node_input_embs = {ntype: input_embeds[ntype][ids].to(device) \
                                for ntype, ids in input_nodes.items()}
@@ -1100,7 +1100,7 @@ def do_mini_batch_inference(model, data, batch_size=1024,
             if not isinstance(input_nodes, dict):
                 assert len(data.g.ntypes) == 1, 'If input nodes are not in ' + \
                         'a dictionary, the input graph should be a homogeneous graph with ' + \
-                        f'one node type only, but got {len(data.g.ntypes)} node types.' 
+                        f'one node type only, but got {len(data.g.ntypes)} node types.'
                 input_nodes = {data.g.ntypes[0]: input_nodes}
             input_nfeats = prepare_batch_input(data.g, input_nodes, dev=device,
                                                feat_field=data.node_feat_field)
@@ -1200,7 +1200,7 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
             if not isinstance(input_nodes, dict):
                 assert len(data.g.ntypes) == 1, 'If input nodes are not in ' + \
                         'a dictionary, the input graph should be a homogeneous graph with ' + \
-                        f'one node type only, but got {len(data.g.ntypes)} node types.' 
+                        f'one node type only, but got {len(data.g.ntypes)} node types.'
                 input_nodes = {data.g.ntypes[0]: input_nodes}
             res = {}
             # If the input node layer doesn't generate embeddings for a node type,
@@ -1223,7 +1223,7 @@ def do_full_graph_inference(model, data, batch_size=1024, fanout=None, edge_mask
             if not isinstance(input_nodes, dict):
                 assert len(data.g.ntypes) == 1, 'If input nodes are not in ' + \
                         'a dictionary, the input graph should be a homogeneous graph with ' + \
-                        f'one node type only, but got {len(data.g.ntypes)} node types.' 
+                        f'one node type only, but got {len(data.g.ntypes)} node types.'
                 input_nodes = {data.g.ntypes[0]: input_nodes}
             feats = prepare_batch_input(data.g, input_nodes, dev=device,
                                         feat_field=data.node_feat_field)

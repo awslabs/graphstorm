@@ -448,8 +448,15 @@ then
     echo "The number of saved embs $cnt is not equal to 2 (for movie and user)."
 fi
 
+if [ -f "/data/gsgnn_mt/save-emb/relation2id_map.json" ]; then
+    echo "relation2id_map.json should not exist. It is saved when the model is traied with link prediction."
+    exit -1
+fi
+
 # Multi-task will save node embeddings of all the nodes.
 python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_mt/emb/ --infer-embout /data/gsgnn_mt/save-emb/
+
+error_and_exit $?
 
 rm -fr /tmp/train_log.txt
 
