@@ -566,7 +566,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
     where :math:`\text{EF-Linear}^i_{\phi(e)}` is an additional weight for the :math:`\phi(e)`
     edge type. 
     
-    This formula uses a linear algebra trick to implement concatination operation.
+    This formula uses a linear algebra trick to implement concatenation operation.
     That is, a linear computation of :math:`concat([e1, e2], dim=-1) @ w` equals to the
     computation of :math:`e1 @ w1 + e2 @ w2`, where embedding :math:`e1` and :math:`e2` have
     the same dimension :math:`(N * in\_dim)`, weight :math:`w` has the dimension
