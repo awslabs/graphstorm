@@ -33,7 +33,11 @@ from transformers import AutoTokenizer
 from transformers import AutoModel, AutoConfig
 
 from .file_io import read_index
-from .utils import ExtMemArrayWrapper, ExtFeatureWrapper, generate_hash
+from .utils import (ExtMemArrayWrapper,
+                    ExtFeatureWrapper,
+                    generate_hash,
+                    is_debug_mode,
+                    validate_numerical_feats)
 
 LABEL_STATS_FIELD = "training_label_stats"
 LABEL_STATS_FREQUENCY_COUNT = "frequency_cnt"
@@ -392,6 +396,10 @@ class BucketTransform(FeatTransform):
                 or np.issubdtype(feats.dtype, np.floating), \
                 f"The feature {self.feat_name} has to be integers or floats."
 
+        if is_debug_mode():
+            assert validate_numerical_feats(feats), \
+                f"There are NaN, Inf or missing value in the {self.feat_name} feature."
+
         encoding = np.zeros((len(feats), self.bucket_cnt), dtype=np.int8)
         max_val = max(self.bucket_range)
         min_val = min(self.bucket_range)
@@ -572,6 +580,10 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
             # It will load all data into main memory.
             feats = feats.to_numpy()
 
+        if is_debug_mode():
+            assert validate_numerical_feats(feats), \
+                f"There are NaN, Inf or missing value in the {self.feat_name} feature."
+
         if feats.dtype not in [np.float64, np.float32, np.float16, np.int64, \
                               np.int32, np.int16, np.int8]:
             logging.warning("The feature %s has to be floating points or integers,"
@@ -735,6 +747,10 @@ class NumericalStandardTransform(TwoPhaseFeatTransform):
             except: # pylint: disable=bare-except
                 raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
 
+        if is_debug_mode():
+            assert validate_numerical_feats(feats), \
+                f"There are NaN, Inf or missing value in the {self.feat_name} feature."
+
         # make summation a 1D array
         summation = np.sum(feats, axis=0, keepdims=True).reshape((-1,))
         return {self.feat_name: summation}
@@ -836,10 +852,8 @@ class RankGaussTransform(GlobalProcessFeatTransform):
         assert isinstance(feats, (np.ndarray, ExtMemArrayWrapper)), \
                 f"The feature {self.feat_name} has to be NumPy array."
 
-        if np.issubdtype(feats.dtype, np.integer) \
-            or np.issubdtype(feats.dtype, np.floating): \
-            return {self.feat_name: feats}
-        else:
+        if not (np.issubdtype(feats.dtype, np.integer) \
+            or np.issubdtype(feats.dtype, np.floating)):
             logging.warning("The feature %s has to be floating points or integers,"
                             "but get %s. Try to cast it into float32",
                             self.feat_name, feats.dtype)
@@ -850,7 +864,11 @@ class RankGaussTransform(GlobalProcessFeatTransform):
             except: # pylint: disable=bare-except
                 raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
 
-            return {self.feat_name: feats}
+        if is_debug_mode():
+            assert validate_numerical_feats(feats), \
+                f"There are NaN, Inf or missing value in the {self.feat_name} feature."
+
+        return {self.feat_name: feats}
 
     def after_merge_transform(self, feats):
         # The feats can be a numpy array or a numpy memmaped object
@@ -1076,6 +1094,11 @@ class Noop(FeatTransform):
         assert np.issubdtype(feats.dtype, np.integer) \
                 or np.issubdtype(feats.dtype, np.floating), \
                 f"The feature {self.feat_name} has to be integers or floats."
+
+        if is_debug_mode():
+            assert validate_numerical_feats(feats), \
+                f"There are NaN, Inf or missing value in the {self.feat_name} feature."
+
         if self.truncate_dim is not None:
             if isinstance(feats, np.ndarray):
                 feats = feats[:, :self.truncate_dim]
