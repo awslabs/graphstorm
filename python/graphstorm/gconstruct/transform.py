@@ -297,6 +297,8 @@ class FeatTransform:
         ------
         np.array: the cast feature.
         """
+        # Only allow integers and floating points
+        # Do not allow booleans.
         if not (np.issubdtype(feats.dtype, np.integer) \
             or np.issubdtype(feats.dtype, np.floating)):
             logging.warning("The feature %s has to be floating points or integers,"
