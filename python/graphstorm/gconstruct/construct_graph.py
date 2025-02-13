@@ -46,7 +46,7 @@ from .utils import (multiprocessing_data_read,
                     update_two_phase_feat_ops, ExtMemArrayMerger,
                     partition_graph,
                     ExtMemArrayWrapper,
-                    set_debug_mode)
+                    set_validate_features)
 from .utils import (get_hard_edge_negs_feats,
                     shuffle_hard_nids)
 
@@ -746,8 +746,8 @@ def process_graph(args):
     """
     check_graph_name(args.graph_name)
     logging.basicConfig(level=get_log_level(args.logging_level))
-    if args.debug:
-        set_debug_mode()
+    if args.validate_features:
+        set_validate_features()
 
     with open(args.conf_file, 'r', encoding="utf8") as json_file:
         process_confs = json.load(json_file)
@@ -924,8 +924,8 @@ if __name__ == '__main__':
                            help="Whether or not to remap node IDs.")
     argparser.add_argument("--add-reverse-edges", action='store_true',
                            help="Add reverse edges.")
-    argparser.add_argument("--debug", action='store_true',
-                           help="Set gconstruct into debug mode.")
+    argparser.add_argument("--validate-features", action='store_false',
+                           help="Turn off features validation.")
     argparser.add_argument("--output-format", type=str, nargs='+', default=["DistDGL"],
                            help="The output format of the constructed graph."
                                 "It can be a single output format, for example "

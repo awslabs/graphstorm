@@ -36,7 +36,7 @@ from .file_io import read_index
 from .utils import (ExtMemArrayWrapper,
                     ExtFeatureWrapper,
                     generate_hash,
-                    is_debug_mode,
+                    validate_features,
                     validate_numerical_feats)
 
 LABEL_STATS_FIELD = "training_label_stats"
@@ -396,7 +396,7 @@ class BucketTransform(FeatTransform):
                 or np.issubdtype(feats.dtype, np.floating), \
                 f"The feature {self.feat_name} has to be integers or floats."
 
-        if is_debug_mode():
+        if validate_features():
             assert validate_numerical_feats(feats), \
                 f"There are NaN, Inf or missing value in the {self.feat_name} feature."
 
@@ -580,7 +580,7 @@ class NumericalMinMaxTransform(TwoPhaseFeatTransform):
             # It will load all data into main memory.
             feats = feats.to_numpy()
 
-        if is_debug_mode():
+        if validate_features():
             assert validate_numerical_feats(feats), \
                 f"There are NaN, Inf or missing value in the {self.feat_name} feature."
 
@@ -747,7 +747,7 @@ class NumericalStandardTransform(TwoPhaseFeatTransform):
             except: # pylint: disable=bare-except
                 raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
 
-        if is_debug_mode():
+        if validate_features():
             assert validate_numerical_feats(feats), \
                 f"There are NaN, Inf or missing value in the {self.feat_name} feature."
 
@@ -864,7 +864,7 @@ class RankGaussTransform(GlobalProcessFeatTransform):
             except: # pylint: disable=bare-except
                 raise ValueError(f"The feature {self.feat_name} has to be integers or floats.")
 
-        if is_debug_mode():
+        if validate_features():
             assert validate_numerical_feats(feats), \
                 f"There are NaN, Inf or missing value in the {self.feat_name} feature."
 
@@ -1095,7 +1095,7 @@ class Noop(FeatTransform):
                 or np.issubdtype(feats.dtype, np.floating), \
                 f"The feature {self.feat_name} has to be integers or floats."
 
-        if is_debug_mode():
+        if validate_features():
             assert validate_numerical_feats(feats), \
                 f"There are NaN, Inf or missing value in the {self.feat_name} feature."
 
