@@ -397,14 +397,14 @@ General Configurations
             - For link prediction tasks, the default value is ``mrr``.
 - **gamma**: Set the value of the hyperparameter denoted by the symbol gamma. Gamma is used in the following cases: i/ focal loss for binary classification ii/ DistMult score function for link prediction, iii/ TransE score function for link prediction, iv/ RotatE score function for link prediction, v/ shrinkage loss for regression.
 
-    - Yaml: ``gamma: 10.0``
-    - Argument: ``--gamma 10.0``
-    - Default value: None
+    - Yaml: ``gamma: 2.0``
+    - Argument: ``--gamma 2.0``
+    - Default value: ``2``
 - **alpha**: Set the value of the hyperparameter denoted by the symbol alpha. Alpha is used in the following cases: i/ focal loss for binary classification and ii/ shrinkage loss for regression.
 
-    - Yaml: ``alpha: 10.0``
-    - Argument: ``--alpha 10.0``
-    - Default value: None
+    - Yaml: ``alpha: 0.25``
+    - Argument: ``--alpha 0.25``
+    - Default value: ``0.25``
 
 Classification and Regression Task
 ```````````````````````````````````
