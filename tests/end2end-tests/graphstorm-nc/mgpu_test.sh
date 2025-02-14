@@ -169,7 +169,7 @@ python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_n
 error_and_exit $?
 
 if [ -f "/data/gsgnn_nc_ml/save-emb/relation2id_map.json" ]; then
-    echo "relation2id_map.json should not exist. It is saved when the model is traied with link prediction."
+    echo "relation2id_map.json should not exist. It is saved when the model is trained with link prediction."
     exit -1
 fi
 
