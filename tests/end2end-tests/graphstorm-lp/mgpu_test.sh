@@ -498,6 +498,16 @@ then
     exit -1
 fi
 
+if [ -f "/data/gsgnn_lp_ml_dot/save-emb/relation2id_map.json" ]; then
+    echo "relation2id_map.json should not exist as the score function is dot."
+    exit -1
+fi
+
+if [ -f "/data/gsgnn_lp_ml_dot/save-emb/rel_emb.pt" ]; then
+    echo "rel_emb.pt should not exist as the score function is dot."
+    exit -1
+fi
+
 echo "**************dataset: Movielens, do mini-batch inference on saved model, decoder: dot"
 python3 -m graphstorm.run.gs_link_prediction --inference --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp_infer.yaml --fanout '10,15' --num-layers 2 --use-mini-batch-infer false --use-node-embeddings true --eval-batch-size 1024 --save-embed-path /data/gsgnn_lp_ml_dot/infer-emb/ --restore-model-path /data/gsgnn_lp_ml_dot/epoch-$best_epoch_dot/ --use-mini-batch-infer true --logging-file /tmp/log.txt --preserve-input True
 
@@ -565,6 +575,21 @@ cnt=$(ls /data/gsgnn_lp_ml_distmult/infer-emb/ | grep relation2id_map.json | wc 
 if test $cnt -ne 1
 then
     echo "DistMult inference outputs edge embedding"
+    exit -1
+fi
+
+## Emb Gen using gs_gen_node_embedding
+python3 -m graphstorm.run.gs_gen_node_embedding --workspace $GS_HOME/inference_scripts/lp_infer --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp_infer.yaml --eval-fanout '10,15' --num-layers 2 --use-mini-batch-infer false --use-node-embeddings true --eval-batch-size 1024 --save-embed-path /data/gsgnn_lp_ml_distmult/gen-emb/ --restore-model-path /data/gsgnn_lp_ml_distmult/epoch-$best_epoch_distmult/ --lp-decoder-type distmult --no-validation False --train-etype user,rating,movie movie,rating-rev,user --preserve-input True
+
+error_and_exit $?
+
+if [ ! -f "/data/gsgnn_lp_ml_distmult/gen-emb/relation2id_map.json" ]; then
+    echo "relation2id_map.json must exist."
+    exit -1
+fi
+
+if [ ! -f "/data/gsgnn_lp_ml_distmult/gen-emb/rel_emb.pt" ]; then
+    echo "rel_emb.pt must exist."
     exit -1
 fi
 
