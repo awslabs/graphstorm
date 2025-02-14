@@ -577,7 +577,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
     two separated weights, i.e., one for source node type, and one for edge type, for their
     linear transformation first, and then add the transformed embeddings togethor.
 
-    For other HGT formulas, please refer to the `HGTLayer` documentation.
+    For other HGT formulas, please refer to the `HGTLayer`.
 
     Parameters
     ----------
