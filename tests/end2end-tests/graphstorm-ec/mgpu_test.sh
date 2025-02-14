@@ -370,7 +370,7 @@ then
 fi
 
 if [ -f "/data/gsgnn_ec_ml_ef/save-emb/relation2id_map.json" ]; then
-    echo "relation2id_map.json should not exist. It is saved when the model is traied with link prediction."
+    echo "relation2id_map.json should not exist. It is saved when the model is trained with link prediction."
     exit -1
 fi
 
