@@ -88,8 +88,8 @@ TASK_TYPE="node_classification"
 INFERENCE_MODEL_SNAPSHOT="epoch-9"
 
 JOBS_TO_RUN="gconstruct train inference"
-GSF_CPU_IMAGE_URI=${ACCOUNT}.dkr.ecr.$REGION.amazonaws.com/graphstorm:sagemaker-cpu
-GSF_GPU_IMAGE_URI=${ACCOUNT}.dkr.ecr.$REGION.amazonaws.com/graphstorm:sagemaker-gpu
+GSF_CPU_IMAGE_URI=${ACCOUNT}.dkr.ecr.$REGION.amazonaws.com/graphstorm-example-sagemaker-pipeline:sagemaker-cpu
+GSF_GPU_IMAGE_URI=${ACCOUNT}.dkr.ecr.$REGION.amazonaws.com/graphstorm-example-sagemaker-pipeline:sagemaker-gpu
 VOLUME_SIZE=50
 
 if [[ -z "${PIPELINE_NAME-}" ]]; then

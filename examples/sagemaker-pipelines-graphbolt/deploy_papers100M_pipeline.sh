@@ -88,8 +88,8 @@ TRAIN_GPU_INSTANCE="ml.g5.48xlarge"
 GCONSTRUCT_INSTANCE="ml.r5.24xlarge"
 NUM_TRAINERS=8
 
-GSF_CPU_IMAGE_URI=${ACCOUNT}.dkr.ecr.$REGION.amazonaws.com/graphstorm:sagemaker-cpu
-GSF_GPU_IMAGE_URI=${ACCOUNT}.dkr.ecr.$REGION.amazonaws.com/graphstorm:sagemaker-gpu
+GSF_CPU_IMAGE_URI=${ACCOUNT}.dkr.ecr.$REGION.amazonaws.com/graphstorm-example-sagemaker-pipeline:sagemaker-cpu
+GSF_GPU_IMAGE_URI=${ACCOUNT}.dkr.ecr.$REGION.amazonaws.com/graphstorm-example-sagemaker-pipeline:sagemaker-gpu
 
 GCONSTRUCT_CONFIG="gconstruct_config_papers100m.json"
 GRAPH_CONSTRUCTION_ARGS="--num-processes 16"
