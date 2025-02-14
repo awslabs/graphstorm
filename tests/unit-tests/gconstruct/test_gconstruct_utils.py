@@ -24,6 +24,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 import pyarrow as pa
 import torch as th
+import graphstorm
 
 from numpy.testing import assert_almost_equal
 
@@ -34,7 +35,10 @@ from graphstorm.gconstruct.utils import multiprocessing_data_read
 from graphstorm.gconstruct.utils import (save_maps,
                                          load_maps,
                                          get_hard_edge_negs_feats,
-                                         shuffle_hard_nids)
+                                         shuffle_hard_nids,
+                                         validate_features,
+                                         stop_validate_features,
+                                         validate_numerical_feats)
 from graphstorm.gconstruct.file_io import (write_data_hdf5,
                                            read_data_hdf5,
                                            get_in_files,
@@ -518,7 +522,38 @@ def test_single_directory_expansion():
         expected_files = sorted([os.path.join(temp_dir, f) for f in test_files])
         assert sorted(result) == expected_files
 
+def test_validate_features():
+    assert validate_features()
+    stop_validate_features()
+    assert validate_features() is False
+    # set VALIDATE_FEATRE back
+    graphstorm.gconstruct.utils.VALIDATE_FEATRE = True
+
+def test_validate_numerical_feats():
+    array = np.array([1,2,3])
+    assert validate_numerical_feats(array) is True
+
+    array = np.array([1,2,np.inf])
+    assert validate_numerical_feats(array) is False
+
+    array = np.array([1,2,np.nan])
+    assert validate_numerical_feats(array) is False
+
+    array = np.array([[1,2,np.nan],
+                      [1,2,np.inf]])
+    assert validate_numerical_feats(array) is False
+
+    array = np.array([[1,2,3],
+                      [1,2,np.inf]])
+    assert validate_numerical_feats(array) is False
+
+    array = np.array([[1,2,3],
+                      [1,2,np.nan]])
+    assert validate_numerical_feats(array) is False
+
 if __name__ == '__main__':
+    test_validate_numerical_feats()
+    test_validate_features()
     test_shuffle_hard_nids()
     test_save_load_maps()
     test_get_hard_edge_negs_feats()
