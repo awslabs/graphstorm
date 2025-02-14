@@ -2006,7 +2006,7 @@ def test_prepare_edge_data():
         }
         keys = ["src_id", "dst_id", "feat"]
 
-        feat_ops = [NumericalMinMaxTransform("feat", "feat", None)]
+        feat_ops = [NumericalMinMaxTransform("feat", "feat")]
         data_file = os.path.join(tmpdirname, "data.parquet")
         write_data_parquet(data, data_file)
         info = prepare_edge_data(data_file, feat_ops,
