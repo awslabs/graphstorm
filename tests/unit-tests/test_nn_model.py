@@ -19,11 +19,12 @@ import pytest
 import tempfile
 import torch as th
 import dgl
+import numpy as np
 from numpy.testing import assert_almost_equal, assert_raises
 
 from graphstorm.model.rgat_encoder import RelationalAttLayer
 from graphstorm.model.rgcn_encoder import RelGraphConvLayer
-from graphstorm.model.hgt_encoder import HGTLayer
+from graphstorm.model.hgt_encoder import HGTLayer, HGTLayerwithEdgeFeat
 
 from data_utils import (generate_dummy_hetero_graph,
                         generate_dummy_hetero_graph_for_efeat_gnn)
@@ -515,6 +516,428 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
     desired_2 = th.ones(dst_idx.shape[0], output_dim) * (1 + 2*(2**-0.5))
     assert_almost_equal(actual_2.numpy(), desired_2.numpy(), decimal=5)
 
+def init_hgtlayer(layer):
+    """ Initialize an HGT layer to make it having all 1s weights, and all 0s biases.
+    """
+    for name, para in layer.named_parameters():
+        if 'bias' in name or 'skip' in name:
+            th.nn.init.constant_(para, 0)
+        else:
+            th.nn.init.constant_(para, 1)
+
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32,64])
+@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
+def test_hgt_with_edge_features(input_dim, output_dim, dev):
+    """ Test the HGTLayerwithEdgeFeat module that supports edge features.
+    
+    Because HGT model is more complex than RGCN and it is hard to compute specific numeric
+    values as outputs for layer testing, we use `HGTLayer` as the baseline to test the
+    `HGTLayerwithEdgeFeat` class. The idea is:
+        1. Preset the model parameters of `HGTLayer` and `HGTLayerwithEdgeFeat` to be the same,
+           except for `edge_feat_mp_os==concat`, where `HGTLayerwithEdgeFeat` has one more set
+           of parameters, `ef_linears`. Model weights will be all 1s, and biases will be all 0s.
+        2. Set edge feature to be all 1s. With this setting, `mul` and `div` operators in
+           `HGTLayerwithEdgeFeat` will have the same outputs as `HGTLayer`, meanwhile, `add`
+           `sub` and `concat` will have different outputs.
+        3. Set edge feature to be all 0s. With this setting, `add`, 'sub' and `concat` operators
+           in `HGTLayerwithEdgeFeat` will have the same outputs as `HGTLayer`, meanwhile, `mul`
+           and `div` will have different outputs.
+    """
+    # construct test block and input features
+    heter_graph = generate_dummy_hetero_graph(size='tiny', gen_mask=False, 
+                                              add_reverse=False, is_random=False)
+
+    # Test case 0: normal case, fix sub graph structure and input features.
+    #              outputs are determistic for both HGTLayer and HGTLayerwithEdgeFeat
+    seeds = {'n1': [0]}     # one dest node
+    subg = dgl.sampling.sample_neighbors(heter_graph, seeds, 100)
+    # subg has two edge types, r0 has 1 source node, hence one edge; r1 has 2 source nodes,
+    # hence has two edges.
+
+    block = dgl.to_block(subg, seeds).to(dev)
+
+    ntypes = heter_graph.ntypes
+    etypes = [("n0", "r0", "n1"), ("n0", "r1", "n1")]
+
+    src1, dst1, r0_eid = subg.edges(form='all', etype='r0')
+    src2, dst2, r1_eid = subg.edges(form='all', etype='r1')
+    # r0 edge source nid: 66
+    # r1 edge source nids: 13, 45
+
+    src_idx = th.unique(th.concat([src1, src2]))
+    dst_idx = th.unique(th.concat([dst1, dst2]))
+
+    # set node feature input to be a fix value, all 1s
+    node_feats = {
+        "n0": th.ones(src_idx.shape[0], input_dim).to(dev),
+        "n1": th.ones(dst_idx.shape[0], input_dim).to(dev)
+    }
+
+    hgt_layer = HGTLayer(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=1,
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')                # MUST disable normalization. Pytorch v2.3 layernorm is diff v2.1
+                                # v2.3 output all 0s if input values are same in all dimensions
+    init_hgtlayer(hgt_layer)
+    hgt_layer = hgt_layer.to(dev)
+    hgt_layer.eval()
+    baseline_emb = hgt_layer(block, node_feats)
+    # With all node features as 1s, and all weights are 1s in the shape of (in_dim, out_dim), 
+    # biases are 0s, skips are 0s, which will be 0.5 after sigmoid, the output should be equal
+    # to (in_dim * out_dim * 0.5 + in_dim * (1 - 0.5)) with N * out_dim shape. Here N=1 in this
+    # case.
+    target_val = input_dim * output_dim * 0.5 + input_dim * (1 - 0.5)
+    assert_almost_equal(baseline_emb['n1'].detach().cpu().numpy(),
+                        np.ones([1, output_dim]) * target_val, decimal=5)
+
+    # set edge feature input to be a fix value, all 1s
+    edge_feats = {
+        ("n0", "r0", "n1"): th.ones(r0_eid.shape[0], input_dim).to(dev),
+        ("n0", "r1", "n1"): th.ones(r1_eid.shape[0], input_dim).to(dev)
+    }
+
+    layerwithef = HGTLayerwithEdgeFeat(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=1,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        edge_feat_mp_op='add',
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')
+    init_hgtlayer(layerwithef)
+    layerwithef = layerwithef.to(dev)
+    layerwithef.eval()
+    add_emb = layerwithef(block, node_feats, edge_feats)
+    # With all node features as 1s, and all weights are 1s in the shape of (in_dim, out_dim), 
+    # biases are 0s, skips are 0s, which will be 0.5s after sigmoid, and the 'edge_feat_mp_op'
+    # is 'add', the output should be equal to (2 * in_dim * out_dim * 0.5 + in_dim * (1 - 0.5)) 
+    # with N * out_dim shape. Here N=1 in this case.
+    target_val = 2 * input_dim * output_dim * 0.5 + input_dim * (1 - 0.5)
+    assert_almost_equal(add_emb['n1'].detach().cpu().numpy(),
+                        np.ones([1, output_dim]) * target_val, decimal=5)
+
+    layerwithef = HGTLayerwithEdgeFeat(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=1,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        edge_feat_mp_op='concat',
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')
+    init_hgtlayer(layerwithef)
+    layerwithef = layerwithef.to(dev)
+    layerwithef.eval()
+    concat_emb = layerwithef(block, node_feats, edge_feats)
+    # With all node features as 1s, and all weights are 1s in the shape of (in_dim, out_dim), 
+    # biases are 0s, skips are 0s, which will be 0.5s after sigmoid, and the 'edge_feat_mp_op'
+    # is 'concat', the output should be equal to (2 * in_dim * out_dim * 0.5 + in_dim * (1 - 0.5)) 
+    # with N * out_dim shape. Here N=1 in this case.
+    target_val = 2 * input_dim * output_dim * 0.5 + input_dim * (1 - 0.5)
+    assert_almost_equal(concat_emb['n1'].detach().cpu().numpy(),
+                        np.ones([1, output_dim]) * target_val, decimal=5)
+
+    layerwithef = HGTLayerwithEdgeFeat(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=1,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        edge_feat_mp_op='sub',
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')
+    init_hgtlayer(layerwithef)
+    layerwithef = layerwithef.to(dev)
+    layerwithef.eval()
+    sub_emb = layerwithef(block, node_feats, edge_feats)
+    # With all node features as 1s, and all weights are 1s in the shape of (in_dim, out_dim), 
+    # biases are 0s, skips are 0s, which will be 0.5s after sigmoid, and the 'edge_feat_mp_op'
+    # is 'sub', the output should be equal to (0 * in_dim * out_dim * 0.5 + in_dim * (1 - 0.5)) 
+    # with N * out_dim shape. Here N=1 in this case.
+    target_val = 0 * input_dim * output_dim * 0.5 + input_dim * (1 - 0.5)
+    assert_almost_equal(sub_emb['n1'].detach().cpu().numpy(),
+                        np.ones([1, output_dim]) * target_val, decimal=5)
+
+    layerwithef = HGTLayerwithEdgeFeat(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=1,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        edge_feat_mp_op='mul',
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')
+    init_hgtlayer(layerwithef)
+    layerwithef = layerwithef.to(dev)
+    layerwithef.eval()
+    mul_emb = layerwithef(block, node_feats, edge_feats)
+    # With all node features as 1s, and all weights are 1s in the shape of (in_dim, out_dim), 
+    # biases are 0s, skips are 0s, which will be 0.5s after sigmoid, and the 'edge_feat_mp_op'
+    # is 'add', the output should be equal to (1 * in_dim * out_dim * 0.5 + in_dim * (1 - 0.5)) 
+    # with N * out_dim shape. Here N=1 in this case.
+    target_val = 1 * input_dim * output_dim * 0.5 + input_dim * (1 - 0.5)
+    assert_almost_equal(mul_emb['n1'].detach().cpu().numpy(),
+                        np.ones([1, output_dim]) * target_val, decimal=5)
+
+    layerwithef = HGTLayerwithEdgeFeat(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=1,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        edge_feat_mp_op='div',
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')
+    init_hgtlayer(layerwithef)
+    layerwithef = layerwithef.to(dev)
+    layerwithef.eval()
+    div_emb = layerwithef(block, node_feats, edge_feats)
+    # With all node features as 1s, and all weights are 1s in the shape of (in_dim, out_dim), 
+    # biases are 0s, skips are 0s, which will be 0.5s after sigmoid, and the 'edge_feat_mp_op'
+    # is 'add', the output should be equal to (2 * in_dim * out_dim * 0.5 + in_dim * (1 - 0.5)) 
+    # with N * out_dim shape. Here N=1 in this case.
+    target_val = 1 * input_dim * output_dim * 0.5 + input_dim * (1 - 0.5)
+    assert_almost_equal(div_emb['n1'].detach().cpu().numpy(),
+                        np.ones([1, output_dim]) * target_val, decimal=5)
+
+    # TODO: add cases when edge feature inputs are all 0s.
+
+
+    # Test case 1: normal case, have both node and edge feature on all node and edge types
+    #      sub-case 1.1: all edge features are 1s, 'mul' and 'div' make no difference, but
+    #                    'add', 'sub', and 'concat' output differently.
+    seeds = {'n1': [0, 2]}
+    subg = dgl.sampling.sample_neighbors(heter_graph, seeds, 100)
+    block = dgl.to_block(subg, seeds).to(dev)
+
+    ntypes = heter_graph.ntypes
+    etypes = [("n0", "r0", "n1"), ("n0", "r1", "n1")]
+
+    src1, dst1, r0_eid = subg.edges(form='all', etype='r0')
+    src2, dst2, r1_eid = subg.edges(form='all', etype='r1')
+
+    src_idx = th.unique(th.concat([src1, src2]))
+    dst_idx = th.unique(th.concat([dst1, dst2]))
+
+    node_feats = {
+        "n0": th.rand(src_idx.shape[0], input_dim).to(dev),
+        "n1": th.rand(dst_idx.shape[0], input_dim).to(dev)
+    }
+
+    edge_feats = {
+        ("n0", "r0", "n1"): th.ones(r0_eid.shape[0], input_dim).to(dev),
+        ("n0", "r1", "n1"): th.ones(r1_eid.shape[0], input_dim).to(dev)
+    }
+
+    hgt_layer = HGTLayer(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=4,
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')                # MUST disable normalization. Pytorch v2.3 layernorm is diff v2.1
+                                # v2.3 output all 0s if input values are same in all dimensions
+    init_hgtlayer(hgt_layer)
+    hgt_layer = hgt_layer.to(dev)
+    hgt_layer.eval()
+    baseline_emb = hgt_layer(block, node_feats)
+
+    # 'mul' operator, same outputs
+    layerwithef = HGTLayerwithEdgeFeat(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=4,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        edge_feat_mp_op='mul',
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')
+    init_hgtlayer(layerwithef)
+    layerwithef = layerwithef.to(dev)
+    layerwithef.eval()
+    mul_emb = layerwithef(block, node_feats, edge_feats)
+    assert_almost_equal(baseline_emb['n1'].detach().cpu().numpy(), 
+                        mul_emb['n1'].detach().cpu().numpy(), decimal=5)
+
+    # 'div' operator, same outputs
+    layerwithef = HGTLayerwithEdgeFeat(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=4,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        edge_feat_mp_op='div',
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')
+    init_hgtlayer(layerwithef)
+    layerwithef = layerwithef.to(dev)
+    layerwithef.eval()
+    div_emb = layerwithef(block, node_feats, edge_feats)
+    assert_almost_equal(baseline_emb['n1'].detach().cpu().numpy(), 
+                        div_emb['n1'].detach().cpu().numpy(), decimal=5)
+
+    # 'add' operator, different outputs
+    layerwithef = HGTLayerwithEdgeFeat(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=4,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        edge_feat_mp_op='add',
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')
+    init_hgtlayer(layerwithef)
+    layerwithef = layerwithef.to(dev)
+    layerwithef.eval()
+    add_emb = layerwithef(block, node_feats, edge_feats)
+    assert np.not_equal(baseline_emb['n1'].detach().cpu().numpy(), 
+                        add_emb['n1'].detach().cpu().numpy()).any()
+
+    # 'sub' operator, different outputs
+    layerwithef = HGTLayerwithEdgeFeat(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=4,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        edge_feat_mp_op='sub',
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')
+    init_hgtlayer(layerwithef)
+    layerwithef = layerwithef.to(dev)
+    layerwithef.eval()
+    sub_emb = layerwithef(block, node_feats, edge_feats)
+    assert np.not_equal(baseline_emb['n1'].detach().cpu().numpy(), 
+                        sub_emb['n1'].detach().cpu().numpy()).any()
+
+    # 'concat' operator, different outputs
+    layerwithef = HGTLayerwithEdgeFeat(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=4,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        edge_feat_mp_op='concat',
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')
+    init_hgtlayer(layerwithef)
+    layerwithef = layerwithef.to(dev)
+    layerwithef.eval()
+    concat_emb = layerwithef(block, node_feats, edge_feats)
+    assert np.not_equal(baseline_emb['n1'].detach().cpu().numpy(), 
+                        concat_emb['n1'].detach().cpu().numpy()).any()
+
+    #      sub-case 1.2: all edge features are 0s, 'add', 'sub', and 'concat' make no difference,
+    #                    but 'add' and 'div' output differently.
+    edge_feats = {
+        ("n0", "r0", "n1"): th.zeros(r0_eid.shape[0], input_dim).to(dev),
+        ("n0", "r1", "n1"): th.zeros(r1_eid.shape[0], input_dim).to(dev)
+    }
+
+    hgt_layer = HGTLayer(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=4,
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')
+    init_hgtlayer(hgt_layer)
+    hgt_layer = hgt_layer.to(dev)
+    hgt_layer.eval()
+    baseline_emb = hgt_layer(block, node_feats)
+
+    # 'concat' operator, same outputs
+    layerwithef = HGTLayerwithEdgeFeat(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=4,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        edge_feat_mp_op='concat',
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')
+    init_hgtlayer(layerwithef)
+    layerwithef = layerwithef.to(dev)
+    layerwithef.eval()
+    concat_emb = layerwithef(block, node_feats, edge_feats)
+    assert_almost_equal(baseline_emb['n1'].detach().cpu().numpy(), 
+                        concat_emb['n1'].detach().cpu().numpy(), decimal=5)
+
+    # 'add' operator, same outputs
+    layerwithef = HGTLayerwithEdgeFeat(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=4,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        edge_feat_mp_op='add',
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')
+    init_hgtlayer(layerwithef)
+    layerwithef = layerwithef.to(dev)
+    layerwithef.eval()
+    add_emb = layerwithef(block, node_feats, edge_feats)
+    assert_almost_equal(baseline_emb['n1'].detach().cpu().numpy(), 
+                        add_emb['n1'].detach().cpu().numpy(), decimal=5)
+
+    # 'sub' operator, same outputs
+    layerwithef = HGTLayerwithEdgeFeat(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=4,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        edge_feat_mp_op='sub',
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')
+    init_hgtlayer(layerwithef)
+    layerwithef = layerwithef.to(dev)
+    layerwithef.eval()
+    sub_emb = layerwithef(block, node_feats, edge_feats)
+    assert_almost_equal(baseline_emb['n1'].detach().cpu().numpy(), 
+                        sub_emb['n1'].detach().cpu().numpy())
+
+    # 'mul' operator, different outputs
+    layerwithef = HGTLayerwithEdgeFeat(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=4,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        edge_feat_mp_op='mul',
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')
+    init_hgtlayer(layerwithef)
+    layerwithef = layerwithef.to(dev)
+    layerwithef.eval()
+    mul_emb = layerwithef(block, node_feats, edge_feats)
+    assert np.not_equal(baseline_emb['n1'].detach().cpu().numpy(), 
+                        mul_emb['n1'].detach().cpu().numpy()).any()
+
+    # 'div' operator, different outputs
+    layerwithef = HGTLayerwithEdgeFeat(
+        input_dim, output_dim, 
+        ntypes, etypes,
+        num_heads=4,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        edge_feat_mp_op='div',
+        activation=th.nn.ReLU(),
+        dropout=0.0,
+        norm='')
+    init_hgtlayer(layerwithef)
+    layerwithef = layerwithef.to(dev)
+    layerwithef.eval()
+    dev_emb = layerwithef(block, node_feats, edge_feats)
+    assert np.not_equal(baseline_emb['n1'].detach().cpu().numpy(), 
+                        dev_emb['n1'].detach().cpu().numpy()).any()
+
+    # TODO: test case 2: normal case, one edge type has features
+
 
 if __name__ == '__main__':
     test_rgcn_with_zero_input(32, 64)
@@ -528,3 +951,5 @@ if __name__ == '__main__':
     test_rgcn_with_edge_features(32, 64, 'cpu')
     test_rgcn_with_edge_features(64, 64, 'cpu')
     test_rgcn_with_edge_features(32, 64, 'cuda:0')
+
+    test_hgt_with_edge_features(32, 64, 'cpu')
