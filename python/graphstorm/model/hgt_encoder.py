@@ -574,7 +574,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
     :math:`(in\_dim, out\_dim)`. Based on this trick, instead of concatenating the source node
     embeddings and edge embeddings first, and then use an edge type specific weights with
     dimension :math:`(in\_dim * 2, out\_dim)` for linear transformation, this implementation uses
-    two separated weight sets, i.e., one for source node type, and one for edge type, for their
+    two separated weights, i.e., one for source node type, and one for edge type, for their
     linear transformation first, and then add the transformed embeddings togethor.
 
     For other HGT formulas, please refer to the `HGTLayer` documentation.
