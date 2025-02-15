@@ -188,8 +188,9 @@ def read_data_csv(data_file, data_fields=None, delimiter=','):
     """
     data = pd.read_csv(data_file, delimiter=delimiter)
     if data.shape[0] == 0:
-        logging.warning(f"{data_file} has an empty data. "
-                        f"The data frame shape is {data.shape}")
+        logging.warning("%s has an empty data. "
+                        "The data frame shape is %s",
+                        data_file, data.shape)
         return None
 
     if data_fields is not None:
@@ -244,7 +245,7 @@ def read_data_json(data_file, data_fields):
         for line in json_file.readlines():
             record = json.loads(line)
             data_records.append(record)
-    logging.warning(f"JSON as graph input data support is deprecated "
+    logging.warning("JSON as graph input data support is deprecated "
                     "and no longer maintained. Please use CSV or parquet.")
 
     assert len(data_records) > 0, \
@@ -315,8 +316,9 @@ def read_data_parquet(data_file, data_fields=None):
     df_table = table.to_pandas()
 
     if df_table.shape[0] == 0:
-        logging.warning(f"{data_file} has an empty data. "
-                        f"The data frame shape is {df_table.shape}")
+        logging.warning("%s has an empty data. "
+                        "The data frame shape is %s",
+                        data_file, data.shape)
         return None
 
     if data_fields is None:
