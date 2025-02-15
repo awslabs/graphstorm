@@ -555,15 +555,19 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                                     num_proc,
                                     f"edge {edge_type}",
                                     ext_mem_workspace_type)
+
+        # drop empty edge files
+        # when the input file is empty, the return data will be None
+        new_dict = {}
+        for i, ret_data in return_dict.items():
+            if ret_data is not None:
+                new_dict[len(new_dict)] = ret_data
+        return_dict = new_dict
+
         type_src_ids = [None] * len(return_dict)
         type_dst_ids = [None] * len(return_dict)
         type_edge_data = {}
         for i, ret_data in return_dict.items():
-            if ret_data is None:
-                # The edge file is empty
-                continue
-
-            # The edge file is not empty
             src_ids, dst_ids, part_data = ret_data
             type_src_ids[i] = src_ids
             type_dst_ids[i] = dst_ids
@@ -605,6 +609,9 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                 sys_tracker.check(f'Merge edge data {feat_name} of {edge_type}')
             gc.collect()
 
+        assert len(type_src_ids) > 0, \
+            f"{edge_type} does not contain any edges." \
+            "GraphStorm does not support such case."
         if type_src_ids[0] is not None: # handle src_ids and dst_ids
             assert all(src_ids is not None for src_ids in type_src_ids)
             assert all(dst_ids is not None for dst_ids in type_dst_ids)
@@ -613,9 +620,6 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
             assert len(type_src_ids) == len(type_dst_ids)
 
             edges[edge_type] = (type_src_ids, type_dst_ids)
-        else:
-            # edge type without edges
-            edges[edge_type] = (np.array([]), np.array([]))
         gc.collect()
         logging.debug("Finish merging edges of %s", str(edge_type))
 

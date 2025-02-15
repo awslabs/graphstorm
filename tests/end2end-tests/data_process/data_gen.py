@@ -168,6 +168,19 @@ df.to_parquet(os.path.join(in_dir,
 
 write_data_hdf5(edge_data3_2, os.path.join(in_dir, f'edge_data3_2.hdf5'))
 
+# Last file is empty
+for i, edge_data in enumerate(split_data(edge_data1, 10)):
+    write_data_csv(edge_data, os.path.join(in_dir, f'last_empty_edata_{i}.csv'))
+empty_csv = ",".join(edge_data1.keys())
+with open(os.path.join(in_dir, f"last_empty_edata_{10}.csv"), "w", encoding="utf-8") as file:
+    file.write(f"{empty_csv}\n")
+
+# Last file is empty
+for i, edge_data in enumerate(split_data(edge_data1, 10)):
+    write_data_parquet(edge_data, os.path.join(in_dir, f'last_empty_edata_{i}.parquet'))
+
+empty_df = pd.DataFrame(columns=edge_data1.keys())
+empty_df.to_parquet(os.path.join(in_dir, f"last_empty_edata_{10}.parquet"), engine="pyarrow", index=False)
 
 node_conf = [
     {
@@ -459,7 +472,21 @@ edge_conf = [
                 "feature_name": "feat2",
             },
         ],
-    }
+    },
+    {
+        "source_id_col":    "src",
+        "dest_id_col":      "dst",
+        "relation":         ("node1", "relation_empty_csv0", "node2"),
+        "format":           {"name": "csv"},
+        "files":            os.path.join(in_dir, "last_empty_edata_*.csv")
+    },
+    {
+        "source_id_col":    "src",
+        "dest_id_col":      "dst",
+        "relation":         ("node1", "relation_empty_pa0", "node2"),
+        "format":           {"name": "parquet"},
+        "files":            os.path.join(in_dir, "last_empty_edata_*.parquet")
+    },
 ]
 transform_conf = {
     "nodes": node_conf,
