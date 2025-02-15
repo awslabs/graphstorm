@@ -254,11 +254,12 @@ def test_read_empty_json():
     with tempfile.TemporaryDirectory() as tmpdirname:
         data_file = os.path.join(tmpdirname, "test.json")
         data = {}
+        fields = ["a", "b"]
         with open(data_file, 'w', encoding="utf8") as json_file:
             json.dump(data, json_file)
 
         with assert_raises(AssertionError):
-            _ = read_data_json(data_file)
+            _ = read_data_json(data_file, fields)
 
 def test_get_in_files():
     with tempfile.TemporaryDirectory() as tmpdirname:
