@@ -318,7 +318,7 @@ def read_data_parquet(data_file, data_fields=None):
     if df_table.shape[0] == 0:
         logging.warning("%s has an empty data. "
                         "The data frame shape is %s",
-                        data_file, data.shape)
+                        data_file, df_table.shape)
         return None
 
     if data_fields is None:
