@@ -119,7 +119,7 @@ edge_data3 = {
     "neg" : np.array([f"{str(nid)},{str(nid)}" for nid in dst3]).astype(str)
 }
 edge_data3_2 = {
-    'data': (src3 + node_id3[dst_idx])//10000,
+    'data': (src3 + node_id3[dst_idx]),
 }
 edge_data3_3 = {
     'data': [[nid, nid] for nid in dst3]
@@ -147,21 +147,21 @@ write_index_json(paired_data[:100], os.path.join(in_dir, "edge1_train.json"))
 write_index_json(paired_data[100: 120], os.path.join(in_dir, "edge1_valid.json"))
 write_index_json(paired_data[120: 140], os.path.join(in_dir, "edge1_test.json"))
 for i, node_data in enumerate(split_data(node_data1, 5)):
-    write_data_parquet(node_data, os.path.join(in_dir, f'node_data1_{i}.parquet'))
+    write_data_parquet(node_data, os.path.join(in_dir, f'node_data1_{str(i).zfill(3)}.parquet'))
 write_data_hdf5(node_data1_2, os.path.join(in_dir, f'node_data1_2.hdf5'))
 for i, node_data in enumerate(split_data(node_data2, 5)):
-    write_data_parquet(node_data, os.path.join(in_dir, f'node_data2_{i}.parquet'))
+    write_data_parquet(node_data, os.path.join(in_dir, f'node_data2_{str(i).zfill(3)}.parquet'))
 for i, node_data in enumerate(split_data(node_data3, 10)):
-    write_data_json(node_data, os.path.join(in_dir, f'node_data3_{i}.json'))
+    write_data_json(node_data, os.path.join(in_dir, f'node_data3_{str(i).zfill(3)}.json'))
 for i, node_data in enumerate(split_data(node_data4, 10)):
-    write_data_json(node_data, os.path.join(in_dir, f'node_data4_{i}.json'))
+    write_data_json(node_data, os.path.join(in_dir, f'node_data4_{str(i).zfill(3)}.json'))
 for i, edge_data in enumerate(split_data(edge_data1, 10)):
-    write_data_csv(edge_data, os.path.join(in_dir, f'edge_data1_{i}.csv'))
+    write_data_csv(edge_data, os.path.join(in_dir, f'edge_data1_{str(i).zfill(3)}.csv'))
 for i, edge_data in enumerate(split_data(edge_data2, 10)):
-    write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data2_{i}.parquet'))
+    write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data2_{str(i).zfill(3)}.parquet'))
 write_data_hdf5(edge_data1_2, os.path.join(in_dir, f'edge_data1_2.hdf5'))
 for i, edge_data in enumerate(split_data(edge_data3, 10)):
-    write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data3_{i}.parquet'))
+    write_data_parquet(edge_data, os.path.join(in_dir, f'edge_data3_{str(i).zfill(3)}.parquet'))
 df = pd.DataFrame(edge_data3_3)
 df.to_parquet(os.path.join(in_dir,
                            f'ng_edge_data3.parquet'))
@@ -170,17 +170,17 @@ write_data_hdf5(edge_data3_2, os.path.join(in_dir, f'edge_data3_2.hdf5'))
 
 # Last file is empty
 for i, edge_data in enumerate(split_data(edge_data1, 10)):
-    write_data_csv(edge_data, os.path.join(in_dir, f'last_empty_edata_{i}.csv'))
+    write_data_csv(edge_data, os.path.join(in_dir, f'last_empty_edata_{str(i).zfill(3)}.csv'))
 empty_csv = ",".join(edge_data1.keys())
-with open(os.path.join(in_dir, f"last_empty_edata_{10}.csv"), "w", encoding="utf-8") as file:
+with open(os.path.join(in_dir, f"last_empty_edata_{str(10).zfill(3)}.csv"), "w", encoding="utf-8") as file:
     file.write(f"{empty_csv}\n")
 
 # Last file is empty
 for i, edge_data in enumerate(split_data(edge_data1, 10)):
-    write_data_parquet(edge_data, os.path.join(in_dir, f'last_empty_edata_{i}.parquet'))
+    write_data_parquet(edge_data, os.path.join(in_dir, f'last_empty_edata_{str(i).zfill(3)}.parquet'))
 
 empty_df = pd.DataFrame(columns=edge_data1.keys())
-empty_df.to_parquet(os.path.join(in_dir, f"last_empty_edata_{10}.parquet"), engine="pyarrow", index=False)
+empty_df.to_parquet(os.path.join(in_dir, f"last_empty_edata_{str(10).zfill(3)}.parquet"), engine="pyarrow", index=False)
 
 node_conf = [
     {
