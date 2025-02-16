@@ -59,13 +59,15 @@ python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph-format Di
 
 error_and_exit $?
 
+rm -fr /tmp/test_out
+
 # Test the DistDGL graph format with reverse edges.
 echo "*********** Test the DistDGL graph format with reverse edges *********"
-python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_data_transform.conf --num-processes 2 --output-dir /tmp/test_out_rev --graph-name test --add-reverse-edges --output-conf-file /tmp/test_data/test_data_transform_new.conf
+python3 -m graphstorm.gconstruct.construct_graph --conf-file /tmp/test_data/test_data_transform.conf --num-processes 2 --output-dir /tmp/test_out --graph-name test --add-reverse-edges --output-conf-file /tmp/test_data/test_data_transform_new.conf
 
 error_and_exit $?
 
-python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph_dir /tmp/test_out_rev --conf_file /tmp/test_data/test_data_transform_new.conf --graph-format DistDGL --reverse-edges
+python3 $GS_HOME/tests/end2end-tests/data_process/test_data.py --graph_dir /tmp/test_out --conf_file /tmp/test_data/test_data_transform_new.conf --graph-format DistDGL --reverse-edges
 
 # Test create both DGL and DistDGL graph
 echo "********* Test the DGLGraph format *********"
