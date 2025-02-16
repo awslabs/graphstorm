@@ -119,7 +119,7 @@ edge_data3 = {
     "neg" : np.array([f"{str(nid)},{str(nid)}" for nid in dst3]).astype(str)
 }
 edge_data3_2 = {
-    'data': src3 + node_id3[dst_idx],
+    'data': (src3 + node_id3[dst_idx])//10000,
 }
 edge_data3_3 = {
     'data': [[nid, nid] for nid in dst3]
