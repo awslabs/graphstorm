@@ -47,11 +47,13 @@ RUN pip install \
 ARG DGL_VERSION=2.3.0
 ARG DGL_CUDA_VERSION=121
 ARG OGB_VERSION=1.3.6
-ARG TORCH_VERSION=2.3
+ARG TORCH_VERSION=2.3.1
 ARG TRANSFORMERS_VERSION=4.28.1
 
 # Download dgl files
-RUN cd /root; git clone --branch v${DGL_VERSION} --single-branch https://github.com/dmlc/dgl.git
+RUN cd /root && \
+    git clone --branch v${DGL_VERSION} --single-branch https://github.com/dmlc/dgl.git && \
+    rm -rf /root/dgl/.git
 ENV DGL_HOME=/root/dgl
 ENV DGLBACKEND=pytorch
 ENV PYTHONPATH="/root/dgl/tools/:${PYTHONPATH}"
@@ -104,21 +106,24 @@ RUN cd /root && \
     git clone --single-branch --branch master https://github.com/KarypisLab/GKlib && \
     cd GKlib && \
     make && \
-    make install
+    make install && \
+    rm -rf .git
 
 # Install Metis
 RUN cd /root && \
     git clone --single-branch --branch master https://github.com/KarypisLab/METIS.git && \
     cd METIS && \
     make config shared=1 cc=gcc prefix=/root/local i64=1 && \
-    make install
+    make install && \
+    rm -rf .git
 
 # Install Parmetis
 RUN cd /root && \
     git clone --single-branch --branch main https://github.com/KarypisLab/PM4GNN.git && \
     cd PM4GNN && \
     make config cc=mpicc prefix=/root/local && \
-    make install
+    make install && \
+    rm -rf .git
 
 ENV PATH=$PATH:/root/local/bin
 ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/local/lib/
@@ -155,6 +160,5 @@ COPY code/inference_scripts /graphstorm/inference_scripts
 COPY code/tools /graphstorm/tools
 COPY code/training_scripts /graphstorm/training_scripts
 COPY code/fetch_and_run.sh /graphstorm/fetch_and_run.sh
-RUN chmod +x "/graphstorm/fetch_and_run.sh"
 
 CMD ["/usr/sbin/sshd", "-D"]

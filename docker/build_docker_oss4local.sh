@@ -34,7 +34,7 @@ else
 fi
 
 # process argument 5: support for parmetis
-if [ -z "$4" ]; then
+if [ -z "$5" ]; then
     USE_PARMETIS="false"
 else
     USE_PARMETIS="$5"
@@ -71,7 +71,7 @@ fi
 DOCKER_BUILDKIT=1 docker build \
     --build-arg DEVICE=$DEVICE_TYPE \
     --build-arg SOURCE=${SOURCE_IMAGE} \
-    --build-arg PARMETIS=${USE_PARMETIS} \
+    --build-arg USE_PARMETIS=${USE_PARMETIS} \
     -f "${GSF_HOME}/docker/local/Dockerfile.local" . -t $DOCKER_FULLNAME
 
 # remove the temporary code folder
