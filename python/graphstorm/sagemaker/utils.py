@@ -31,8 +31,6 @@ from botocore.errorfactory import ClientError
 from sagemaker.s3 import S3Downloader
 from sagemaker.s3 import S3Uploader
 
-# Set a fixed seed for reproducibility
-SEED = 42
 PORT_MIN = 10000  # Avoid privileged ports
 PORT_MAX = 65535  # Maximum TCP port number
 
@@ -467,25 +465,32 @@ def remove_embs(emb_path):
 def is_port_available(port):
     """Check if a port is available."""
     try:
+        # Try to bind to all interfaces with a timeout
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            # Add one second timeout
+            s.settimeout(1)
             s.bind(('', port))
+            # Also try listening to ensure port is fully available
+            s.listen(1)
             return True
-    except OSError:
+    except (OSError, socket.timeout):
         return False
 
-def find_free_port(start_port=None):
+def find_free_port(start_port: Optional[int]=None):
     """Find next available port, starting from start_port."""
     if start_port is None:
         # Let OS choose
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(('', 0))
-            return s.getsockname()[1]
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('', 0))
+                return s.getsockname()[1]
+        except OSError:
+            # Fall back to manual search if OS assignment fails
+            start_port = PORT_MIN
 
     # Try ports sequentially starting from start_port
     port = start_port
-    max_port = 65535
-
-    while port <= max_port:
+    while port <= PORT_MAX:
         if is_port_available(port):
             return port
         port += 1
@@ -514,7 +519,7 @@ def get_job_port(job_str_identifier: Optional[str] = None):
 
     # Convert first 4 chars of hash to int and scale to valid port range
     # Using 10000-65000 to avoid privileged ports and common ports
-    base_port = 10000 + (int(hash_hex[:4], 16) % 55000)
+    base_port = PORT_MIN + (int(hash_hex[:4], 16) % (PORT_MAX - PORT_MIN))
 
     # Ensure we return an open port, starting at base_port
     port = find_free_port(base_port)

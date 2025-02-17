@@ -279,7 +279,7 @@ e.g. ``"accuracy"``. See the entry for ``eval_metric`` in :ref:`Evaluation Metri
 for a full list of supported metrics.
 
 ``--eval-mask`` defines which dataset to collect metrics from, and
-can be either ``"test"`` or ``"val"`` to collect metrics from test or validation set
+can be either ``"test"`` or ``"val"`` to collect metrics from test or validation set,
 respectively. Finally use ``--objective-type`` to set the type of the objective,
 which can be either ``"Maximize"`` or ``"Minimize"``.
 See the `SageMaker documentation <https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning.html>`_
