@@ -1,4 +1,4 @@
-.. _advanced_usages:
+.. _imbalanced_labels:
 
 Deal with Imbalance Labels in Classification/Regression
 =======================================================

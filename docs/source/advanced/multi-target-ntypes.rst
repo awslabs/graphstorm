@@ -1,4 +1,4 @@
-.. _advanced_usages:
+.. _multi_target_ntypes:
 
 Multiple Target Node Types Training
 ===================================
