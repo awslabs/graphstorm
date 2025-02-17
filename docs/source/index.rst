@@ -35,7 +35,7 @@ Welcome to the GraphStorm Documentation and Tutorials
 
 .. toctree::
    :maxdepth: 2
-   :caption: Advanced Topics
+   :caption: Practical & Advanced Guides
    :hidden:
    :glob:
 
@@ -44,7 +44,8 @@ Welcome to the GraphStorm Documentation and Tutorials
    advanced/link-prediction
    advanced/advanced-wholegraph
    advanced/multi-task-learning
-   advanced/advanced-usages
+   advanced/multi-target-ntypes
+   advanced/imbalanced-labels
    advanced/using-graphbolt
    advanced/gsprocessing-emr-ec2
 
