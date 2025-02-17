@@ -442,6 +442,40 @@ def process_node_data(process_confs, arr_merger, remap_id,
     sys_tracker.check('Finish processing node data')
     return (node_id_map, node_data, label_stats, label_masks)
 
+def _collect_parsed_edge_data(data_dict):
+    """ Collect edge data parsed by parse_edge_data
+
+    Parameters
+    ----------
+    data_dict: dict
+        The edge data
+    """
+    # Order the return data first
+    return_data = [None] * len(data_dict)
+    for i, ret_data in data_dict.items():
+        # when the input file is empty, the return data will be None
+        if ret_data is None:
+            continue
+        # Order the data according to the file ID (i)
+        return_data[i] = ret_data
+
+    type_src_ids = []
+    type_dst_ids = []
+    type_edge_data = {}
+    for ret_data in return_data:
+        if ret_data is None:
+            continue
+        src_ids, dst_ids, part_data = ret_data
+        type_src_ids.append(src_ids)
+        type_dst_ids.append(dst_ids)
+        for feat_name in part_data:
+            if feat_name not in type_edge_data:
+                type_edge_data[feat_name] = [part_data[feat_name]]
+            else:
+                type_edge_data[feat_name].append(part_data[feat_name])
+
+    return type_src_ids, type_dst_ids, type_edge_data
+
 def process_edge_data(process_confs, node_id_map, arr_merger,
                       ext_mem_workspace=None, num_processes=1,
                       skip_nonexist_edges=False):
@@ -556,26 +590,8 @@ def process_edge_data(process_confs, node_id_map, arr_merger,
                                     f"edge {edge_type}",
                                     ext_mem_workspace_type)
 
-        # drop empty edge files
-        # when the input file is empty, the return data will be None
-        new_dict = {}
-        for i, ret_data in return_dict.items():
-            if ret_data is not None:
-                new_dict[len(new_dict)] = ret_data
-        return_dict = new_dict
-
-        type_src_ids = [None] * len(return_dict)
-        type_dst_ids = [None] * len(return_dict)
-        type_edge_data = {}
-        for i, ret_data in return_dict.items():
-            src_ids, dst_ids, part_data = ret_data
-            type_src_ids[i] = src_ids
-            type_dst_ids[i] = dst_ids
-            for feat_name in part_data:
-                if feat_name not in type_edge_data:
-                    type_edge_data[feat_name] = [None] * len(return_dict)
-                type_edge_data[feat_name][i] = part_data[feat_name]
-        return_dict = None
+        type_src_ids, type_dst_ids, type_edge_data = \
+            _collect_parsed_edge_data(return_dict)
 
         edge_type = tuple(edge_type)
         if edge_type not in label_stats:
