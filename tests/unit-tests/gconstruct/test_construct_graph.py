@@ -1900,6 +1900,7 @@ def test_multiprocessing_checks():
     assert multiprocessing == False
 
 def test_parse_edge_data():
+    np.random.seed(1)
     with tempfile.TemporaryDirectory() as tmpdirname:
         str_src_ids = np.array([str(i) for i in range(10)])
         str_dst_ids = np.array([str(i) for i in range(15)])
