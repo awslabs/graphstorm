@@ -9,8 +9,8 @@ small number of fraudulent activities (positive labels) versus a huge number of 
 (negative labels). Even in regression tasks, it is possible to encounter many dominant values that
 can cause imbalanced labels. If not handled properly, these imbalanced labels could impact classification/regression
 model performance a lot. For example, because too many negative labels are fit into models, models
-may learn to classify all unseen samples as negative. To tackle the imbalance label problem, GraphStorm
-provides several built-in features.
+may learn to classify all unseen samples as negative. GraphStorm
+provides several ways to tackle the class imbalance problem.
 
 For classification tasks, users can configure two arguments in command line interfaces (CLIs), the
 ``imbalance_class_weights`` and ``class_loss_func``.
