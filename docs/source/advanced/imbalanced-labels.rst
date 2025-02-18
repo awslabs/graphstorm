@@ -19,7 +19,7 @@ The ``imbalance_class_weights`` allows users to give scale weights for each clas
 to learn more on the classes with higher scale weight. For example, if there are 10 positive labels versus
 90 negative labels, you can set ``imbalance_class_weights`` to be ``0.1, 0.9``, meaning class 0 (usually
 for negative labels) has weight ``0.1``, and class 1 (usually for positive labels) has weight ``0.9``.
-This help models to be able to detect more positive samples. Below is an example how to set the
+This helps models to detect more positive samples. Below is an example how to set the
 ``imbalance_class_weights`` in a YAML configuration file.
 
   .. code-block:: yaml
