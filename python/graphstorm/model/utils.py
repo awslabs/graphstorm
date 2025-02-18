@@ -938,7 +938,7 @@ def save_hdf5_embeddings(emb_path, embeddings, rank, world_size,
                 emb_info["emb_dim"][name] = emb.shape[1]
         else:
             emb_info["emb_dim"][NTYPE] = embeddings.shape[1]
-        
+
         with open(os.path.join(emb_path, "emb_info.json"), 'w', encoding='utf-8') as f:
             json.dump(emb_info, f, indent=4)
 
