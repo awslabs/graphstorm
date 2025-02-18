@@ -69,7 +69,8 @@ def helper_save_embedding(tmpdirname):
         "type0": type0_random_emb,
         "type1": type1_random_emb
     }
-    save_embeddings(tmpdirname, emb, 0, 4)
+    save_embeddings(tmpdirname, emb, 0, 4, 'pytorch')
+    save_embeddings(tmpdirname + '_hdf5', emb, 0, 4, 'hdf5')
     emb = {
         "type0": type0_random_emb,
         "type1": type1_random_emb
@@ -682,6 +683,16 @@ def test_save_embeddings():
 
         assert np.all(type0_random_emb.dist_tensor.numpy() == feats_type0.numpy())
         assert np.all(type1_random_emb.dist_tensor.numpy() == feats_type1.numpy())
+
+        with open(os.path.join(tmpdirname, 'emb_info.json'), 'r') as file:
+            emb_info = json.load(file)
+            assert type0_random_emb.shape[1] == emb_info['emb_dim']["type0"]
+            assert type1_random_emb.shape[1] == emb_info['emb_dim']["type1"]
+        
+        with open(os.path.join(tmpdirname + '_hdf5', 'emb_info.json'), 'r') as file:
+            emb_info = json.load(file)
+            assert type0_random_emb.shape[1] == emb_info['emb_dim']["type0"]
+            assert type1_random_emb.shape[1] == emb_info['emb_dim']["type1"]
 
 def test_remove_saved_models():
     import tempfile

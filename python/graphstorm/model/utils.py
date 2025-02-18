@@ -875,6 +875,7 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
     emb_info = {
         "format": "pytorch",
         "emb_name":[], # This is telling how many node types have node embeddings
+        "emb_dim": {},
         "world_size": world_size
     }
 
@@ -885,7 +886,7 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
             th.save(emb, os.path.join(os.path.join(emb_path, name),
                                       f'embed-{pad_file_index(rank)}.pt'))
             emb_info["emb_name"].append(name)
-            emb_info["emb_dim"] = emb.shape[1]
+            emb_info["emb_dim"][name] = emb.shape[1]
     else:
         os.makedirs(os.path.join(emb_path, NTYPE), exist_ok=True)
         # There is no ntype for the embedding
@@ -893,7 +894,7 @@ def save_pytorch_embeddings(emb_path, embeddings, rank, world_size,
         th.save(embeddings, os.path.join(os.path.join(emb_path, NTYPE),
                                          f'embed-{pad_file_index(rank)}.pt'))
         emb_info["emb_name"] = NTYPE
-        emb_info["emb_dim"] = embeddings.shape[1]
+        emb_info["emb_dim"][NTYPE] = embeddings.shape[1]
 
     if rank == 0:
         with open(os.path.join(emb_path, "emb_info.json"), 'w', encoding='utf-8') as f:
@@ -924,11 +925,20 @@ def save_hdf5_embeddings(emb_path, embeddings, rank, world_size,
     mapped_embeds = remap_embeddings(embeddings, rank, world_size, node_id_mapping_file, device)
     if rank == 0:
         stream_dist_tensors_to_hdf5(mapped_embeds, os.path.join(emb_path, "embed_dict.hdf5"))
+
         emb_info = {
             "format": "hdf5",
-            "emb_dim": embeddings.shape[1],
+            "emb_dim": {},
             "world_size": 0,
         }
+
+        if isinstance(embeddings, dict):
+            # embedding per node type
+            for name, emb in embeddings.items():
+                emb_info["emb_dim"][name] = emb.shape[1]
+        else:
+            emb_info["emb_dim"][NTYPE] = embeddings.shape[1]
+        
         with open(os.path.join(emb_path, "emb_info.json"), 'w', encoding='utf-8') as f:
             json.dump(emb_info, f, indent=4)
 
