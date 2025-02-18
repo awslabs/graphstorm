@@ -48,7 +48,7 @@ classes by setting the value of ``return_proba`` configuration to be ``true``. B
 classification results using the argmax values, e.g., either 0s or 1s in binary tasks, which equals to using
 ``0.5`` as the threshold to classify negative from positive samples. With probabilities as outputs, you can use
 different thresholds, hence being able to achieve desired outcomes. For example, if you need higher recall to catch
-more suspecious positive samples, a smaller threshold, e.g., "0.25", could classify more positive cases. Or you may
+more suspicious positive samples, a smaller threshold, e.g., "0.25", could classify more positive cases. Or you may
 use methods like `ROC curve` or `Precision-Recall curve` to determine the optimal threshold. Below is an example how
 to set the ``return_proba`` in a YAML configuration file.
 
