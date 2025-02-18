@@ -1,7 +1,7 @@
 .. _imbalanced_labels:
 
-Deal with Imbalance Labels in Classification/Regression
-=======================================================
+Deal with Imbalanced Labels in Classification/Regression
+==========================================
 
 In some cases, the number of labels of different classes could be imbalanced, i.e., some classes
 have either too many or too few data points. For example, most fraud detection tasks only have a
