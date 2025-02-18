@@ -663,8 +663,8 @@ def helper_save_multiple_embeddings(tmpdirname):
     save_embeddings(tmpdirname + '_hdf5', emb, 3, 4, save_embed_format='hdf5')
 
     embs_shuffled = {
-        "type0": (th.rand((10, 4)), th.randint(20, (10,))),
-        "type1": (th.rand((10, 4)), th.randint(20, (10,))),
+        'type0': (th.arange(21), th.arange(21)),
+        'type1': (th.arange(21), th.arange(21))
     }
     save_shuffled_node_embeddings(embs_shuffled, tmpdirname + '_shuffled')
 
@@ -678,7 +678,7 @@ def helper_save_single_embedding(tmpdirname):
 
     return single_random_emb
 
-def test_save_multiple_embeddings():
+def test_save_embeddings_0():
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
                                       init_method='tcp://127.0.0.1:23456',
@@ -742,8 +742,8 @@ def test_save_multiple_embeddings():
         # Save shuffled node embeddings
         with open(os.path.join(tmpdirname + '_shuffled', 'emb_info.json'), 'r') as file:
             emb_info = json.load(file)
-            assert embs_shuffled["type0"][0].shape[1] == emb_info['emb_dim']["type0"]
-            assert embs_shuffled["type1"][0].shape[1] == emb_info['emb_dim']["type1"]
+            assert embs_shuffled["type0"][0].shape[0] == emb_info['emb_dim']["type0"]
+            assert embs_shuffled["type1"][0].shape[0] == emb_info['emb_dim']["type1"]
         
         # single embedding cases
         single_random_emb = helper_save_single_embedding(tmpdirname)
@@ -1254,8 +1254,7 @@ if __name__ == '__main__':
     test_save_embeddings_with_id_mapping(num_embs=17, backend='nccl')
 
     test_get_node_feat_size()
-    test_save_multiple_embeddings()
-    test_save_single_embedding()
+    test_save_embeddings()
     test_remove_saved_models()
     test_topklist()
     test_gen_mrr_score()
