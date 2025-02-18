@@ -19,8 +19,8 @@ The ``imbalance_class_weights`` allows users to give scale weights for each clas
 to learn more on the classes with higher scale weight. For example, if there are 10 positive labels versus
 90 negative labels, you can set ``imbalance_class_weights`` to be ``0.1, 0.9``, meaning class 0 (usually
 for negative labels) has weight ``0.1``, and class 1 (usually for positive labels) has weight ``0.9``.
-This helps models to detect more positive samples. Below is an example how to set the
-``imbalance_class_weights`` in a YAML configuration file.
+This places more importance on correctly classifying positive samples and less on negative ones. Below
+is an example about how to set the ``imbalance_class_weights`` in a YAML configuration file.
 
   .. code-block:: yaml
 
@@ -34,7 +34,7 @@ in a binary classification. This function has two hyperparameters, :math:`\alpha
 corresponding to the ``alpha`` and ``gamma`` configuration in GraphStorm. Larger values of ``gamma`` will help
 update models on harder cases so as to detect more positive samples if the positive to negative ratio is small.
 There is no clear guideline for values of ``alpha``. You can use its default value(``0.25``) first, and then
-search for optimal values. Below is an example how to set the `focal loss funciton` in a YAML configuration file.
+search for optimal values. Below is an example about how to set the `focal loss funciton` in a YAML configuration file.
 
   .. code-block:: yaml
 
@@ -49,7 +49,7 @@ classification results using the argmax values, e.g., either 0s or 1s in binary 
 ``0.5`` as the threshold to classify negative from positive samples. With probabilities as outputs, you can use
 different thresholds, hence being able to achieve desired outcomes. For example, if you need higher recall to catch
 more suspicious positive samples, a smaller threshold, e.g., "0.25", could classify more positive cases. Or you may
-use methods like `ROC curve` or `Precision-Recall curve` to determine the optimal threshold. Below is an example how
+use methods like `ROC curve` or `Precision-Recall curve` to determine the optimal threshold. Below is an example about how
 to set the ``return_proba`` in a YAML configuration file.
 
   .. code-block:: yaml
@@ -63,7 +63,7 @@ which can be set by using ``shrinkage`` as value of the ``regression_loss_func``
 between predictions and labels. The shrinkage loss function also has the :math:`\alpha` and :math:`\gamma` hyperparameters.
 You can use the same ``alpha`` and ``gamma`` configuration as the focal loss function to modify their values. The shrinkage
 loss penalizes the importance of easy samples (when :math:`l < 0.5`) and keeps the loss of hard samples unchanged. Below is
-an example how to set the `shrinkage loss function` in a YAML configuration file.
+an example about how to set the `shrinkage loss function` in a YAML configuration file.
 
   .. code-block:: yaml
 
