@@ -4,7 +4,7 @@ Deal with Imbalance Labels in Classification/Regression
 =======================================================
 
 In some cases, the number of labels of different classes could be imbalanced, i.e., some classes
-have either too large or too small numbers. For example, most fraud detection tasks only have a
+have either too many or too few data points. For example, most fraud detection tasks only have a
 small number of fraudulent activities (positive labels) versus a huge number of legitimate activities
 (negative labels). Even in regression tasks, it is possible to encounter many dominant values that
 can cause imbalanced labels. If not handled properly, these imbalanced labels could impact classification/regression
