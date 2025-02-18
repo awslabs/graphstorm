@@ -15,11 +15,15 @@
 
     sagemaker script utilities
 """
-import subprocess
+
+import hashlib
 import logging
 import os
-import time
 import shutil
+import socket
+import subprocess
+import time
+from typing import Optional
 from urllib.parse import urlparse
 
 import boto3
@@ -27,6 +31,8 @@ from botocore.errorfactory import ClientError
 from sagemaker.s3 import S3Downloader
 from sagemaker.s3 import S3Uploader
 
+PORT_MIN = 10000  # Avoid privileged ports
+PORT_MAX = 65535  # Maximum TCP port number
 
 def run(launch_cmd, state_q, env=None):
     """ Running cmd using shell
@@ -455,3 +461,66 @@ def remove_embs(emb_path):
         Local embedding path
     """
     remove_data(emb_path)
+
+def is_port_available(port):
+    """Check if a port is available."""
+    try:
+        # Try to bind to all interfaces with a timeout
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            # Add one second timeout
+            s.settimeout(1)
+            s.bind(('', port))
+            # Also try listening to ensure port is fully available
+            s.listen(1)
+            return True
+    except (OSError, socket.timeout):
+        return False
+
+def find_free_port(start_port: Optional[int]=None):
+    """Find next available port, starting from start_port."""
+    if start_port is None:
+        # Let OS choose
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('', 0))
+                return s.getsockname()[1]
+        except OSError:
+            # Fall back to manual search if OS assignment fails
+            start_port = PORT_MIN
+
+    # Try ports sequentially starting from start_port
+    port = start_port
+    while port <= PORT_MAX:
+        if is_port_available(port):
+            return port
+        port += 1
+
+    raise RuntimeError("No available ports found")
+
+def get_job_port(job_str_identifier: Optional[str] = None):
+    """Get port number based on per-job unique ID
+
+    Parameters
+    ----------
+    unique_identifier : str, optional
+        An identifier that should be unique to each SM job, by default None
+
+    Returns
+    -------
+    int
+        A common port number that master and workers will use
+    """
+    if not job_str_identifier:
+        job_str_identifier = os.getenv('SM_USER_ARGS', '')
+
+    # Create a hash of the unique identifier
+    hash_object = hashlib.md5(job_str_identifier.encode())
+    hash_hex = hash_object.hexdigest()
+
+    # Convert first 4 chars of hash to int and scale to valid port range
+    # Using 10000-65000 to avoid privileged ports and common ports
+    base_port = PORT_MIN + (int(hash_hex[:4], 16) % (PORT_MAX - PORT_MIN))
+
+    # Ensure we return an open port, starting at base_port
+    port = find_free_port(base_port)
+    return port
