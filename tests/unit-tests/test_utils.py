@@ -670,6 +670,14 @@ def helper_save_multiple_embeddings(tmpdirname):
 
     return type0_random_emb, type1_random_emb, embs_shuffled
 
+def helper_save_single_embedding(tmpdirname):
+    single_random_emb = LazyDistTensor(th.rand(57, 29), th.arange(57))
+
+    save_embeddings(tmpdirname, single_random_emb, 0, 1, save_embed_format='pytorch')
+    save_embeddings(tmpdirname + '_hdf5', single_random_emb, 0, 1, save_embed_format='hdf5')
+
+    return single_random_emb
+
 def test_save_multiple_embeddings():
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
@@ -679,6 +687,7 @@ def test_save_multiple_embeddings():
 
     import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
+        # Dict of embeddings cases
         type0_random_emb, type1_random_emb, embs_shuffled = helper_save_multiple_embeddings(tmpdirname)
 
         # PyTorch Embeddings
@@ -735,24 +744,8 @@ def test_save_multiple_embeddings():
             emb_info = json.load(file)
             assert embs_shuffled["type0"][0].shape[1] == emb_info['emb_dim']["type0"]
             assert embs_shuffled["type1"][0].shape[1] == emb_info['emb_dim']["type1"]
-
-def helper_save_single_embedding(tmpdirname):
-    single_random_emb = LazyDistTensor(th.rand(57, 29), th.arange(57))
-
-    save_embeddings(tmpdirname, single_random_emb, 0, 1, save_embed_format='pytorch')
-    save_embeddings(tmpdirname + '_hdf5', single_random_emb, 0, 1, save_embed_format='hdf5')
-
-    return single_random_emb
-
-def test_save_single_embedding():
-    # initialize the torch distributed environment
-    th.distributed.init_process_group(backend='gloo',
-                                    init_method='tcp://127.0.0.1:23456',
-                                    rank=0,
-                                    world_size=1)
-
-    import tempfile
-    with tempfile.TemporaryDirectory() as tmpdirname:
+        
+        # single embedding cases
         single_random_emb = helper_save_single_embedding(tmpdirname)
 
         # pytorch
