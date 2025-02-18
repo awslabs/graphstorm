@@ -84,7 +84,7 @@ The released GraphStorm APIs list the major components that can help users to de
 
 To help users use these APIs, GraphStorm also released a set of Jupyter notebooks at :ref:`GraphStorm API Programming Example Notebooks<programming-examples>`. By running these notebooks, users can explore some APIs, learn how to use APIs to reproduce CLIs pipelines, and then customize GraphStorm components for specific requirements.
 
-Users can find the comprehensive descriptions of these GraphStorm APIs in the :ref:`API Reference<api-reference>` documentations. For unrelease APIs, we encourage users to read their source code. If users want to have more APIs formally released, please raise issues at the `GraphStorm GitHub Repository <https://github.com/awslabs/graphstorm/issues>`_.
+Users can find the comprehensive descriptions of these GraphStorm APIs in the :ref:`API Reference<api-reference>` documentations. For unreleased APIs, we encourage users to read their source code. If users want to have more APIs formally released, please raise issues at the `GraphStorm GitHub Repository <https://github.com/awslabs/graphstorm/issues>`_.
 
 Practical and Advanced Guides
 ------------------------------
