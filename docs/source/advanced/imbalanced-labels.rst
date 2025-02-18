@@ -43,7 +43,7 @@ search for optimal values. Below is an example how to set the `focal loss funcit
     gamma: 10.0
     alpha: 0.5
 
-Besides the two configurations, you can output the classification results as probabilities of positive and negative
+Apart from focal loss and class weights, you can also output the classification results as probabilities of positive and negative
 classes by setting the value of ``return_proba`` configuration to be ``true``. By default GraphStorm outputs
 classification results using the argmax values, e.g., either 0s or 1s in binary tasks, which equals to using
 ``0.5`` as the threshold to classify negative from positive samples. With probabilities as outputs, you can use
