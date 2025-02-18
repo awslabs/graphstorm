@@ -44,7 +44,7 @@ search for optimal values. Below is an example how to set the `focal loss funcit
     alpha: 0.5
 
 Besides the two configurations, you can output the classification results as probabilities of positive and negative
-classes by setting the value of ``return_proba`` configuration to be ``true``. By default GraphStorm output
+classes by setting the value of ``return_proba`` configuration to be ``true``. By default GraphStorm outputs
 classification results using the argmax values, e.g., either 0s or 1s in binary tasks, which equals to using
 ``0.5`` as the threshold to classify negative from positive samples. With probabilities as outputs, you can use
 different thresholds, hence being able to achieve desired outcomes. For example, if you need higher recall to catch
