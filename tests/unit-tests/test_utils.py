@@ -45,6 +45,8 @@ from graphstorm.utils import setup_device, get_graph_name
 
 from graphstorm.gconstruct.file_io import stream_dist_tensors_to_hdf5
 
+NTYPE = dgl.NTYPE
+
 def gen_embedding_with_nid_mapping(num_embs):
     emb = th.rand((num_embs, 12))
     ori_nid_mapping = th.randperm(num_embs)
@@ -684,6 +686,7 @@ def test_save_embeddings():
         assert np.all(type0_random_emb.dist_tensor.numpy() == feats_type0.numpy())
         assert np.all(type1_random_emb.dist_tensor.numpy() == feats_type1.numpy())
 
+        # Test dict input to save_embeddings
         with open(os.path.join(tmpdirname, 'emb_info.json'), 'r') as file:
             emb_info = json.load(file)
             assert type0_random_emb.shape[1] == emb_info['emb_dim']["type0"]
@@ -693,6 +696,19 @@ def test_save_embeddings():
             emb_info = json.load(file)
             assert type0_random_emb.shape[1] == emb_info['emb_dim']["type0"]
             assert type1_random_emb.shape[1] == emb_info['emb_dim']["type1"]
+        
+        # Test single emb input to save_embeddings
+        single_random_emb = LazyDistTensor(th.rand(57, 29), th.arange(57))
+        save_embeddings(tmpdirname, single_random_emb, 0, 4, 'pytorch')
+        save_embeddings(tmpdirname + '_hdf5', single_random_emb, 0, 4, 'hdf5')
+
+        with open(os.path.join(tmpdirname, 'emb_info.json'), 'r') as file:
+            emb_info = json.load(file)
+            assert single_random_emb.shape[1] == emb_info['emb_dim'][NTYPE]
+        
+        with open(os.path.join(tmpdirname + '_hdf5', 'emb_info.json'), 'r') as file:
+            emb_info = json.load(file)
+            assert single_random_emb.shape[1] == emb_info['emb_dim'][NTYPE]
 
 def test_remove_saved_models():
     import tempfile
