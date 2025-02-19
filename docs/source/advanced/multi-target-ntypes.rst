@@ -158,7 +158,7 @@ on "movie" and "user" node types.
     -  movie
     -  user
 
-  During evuation, the users can set a single node type for evaluation. For example, by setting
+  During evaluation, the users can set a single node type for evaluation. For example, by setting
   ``eval_target_ntype:  movie``, we will only perform evaluation on "movie" node type.
 
 - Evaluate on single node type: During evuation, the users can set a single node type for evaluation. For example, by setting ``eval_target_ntype:  movie``, we will only perform evaluation on "movie" node type. Our current implementation only support evaluating on a single node type.
