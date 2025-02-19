@@ -45,7 +45,7 @@ from graphstorm.utils import setup_device, get_graph_name
 
 from graphstorm.gconstruct.file_io import stream_dist_tensors_to_hdf5, read_data_hdf5
 
-NTYPE = dgl.NTYPE
+from dgl import NTYPE
 
 def gen_embedding_with_nid_mapping(num_embs):
     emb = th.rand((num_embs, 12))
@@ -632,14 +632,14 @@ def test_save_embeddings_with_id_mapping(num_embs, backend):
         assert_equal(embs['n2'][nid_mappings['n2']].numpy(), saved_emb.numpy())
 
 def helper_save_multiple_embeddings(tmpdirname):
-    emb_length0 = 103
-    emb_length1 = 205
-    nid_length = 12
+    num_embs0 = 103
+    num_embs1 = 205
+    emb_dim_size = 12
 
-    random_emb = th.rand((emb_length0, nid_length))
-    type0_random_emb = LazyDistTensor(random_emb, th.arange(emb_length0))
-    random_emb = th.rand((emb_length1, nid_length))
-    type1_random_emb = LazyDistTensor(random_emb, th.arange(emb_length1))
+    random_emb = th.rand((num_embs0, emb_dim_size))
+    type0_random_emb = LazyDistTensor(random_emb, th.arange(num_embs0))
+    random_emb = th.rand((num_embs1, emb_dim_size))
+    type1_random_emb = LazyDistTensor(random_emb, th.arange(num_embs1))
 
     emb = {
         "type0": type0_random_emb,
@@ -675,10 +675,13 @@ def helper_save_multiple_embeddings(tmpdirname):
     return type0_random_emb, type1_random_emb
 
 def helper_save_single_embedding(tmpdirname):
-    emb_length = 57
-    nid_length = 29
+    """ 
+    Save embeddings without specifying a node type.
+    """
+    num_embs = 57
+    emb_dim_size = 29
 
-    single_random_emb = LazyDistTensor(th.rand(emb_length, nid_length), th.arange(emb_length))
+    single_random_emb = LazyDistTensor(th.rand(num_embs, emb_dim_size), th.arange(num_embs))
 
     save_embeddings(tmpdirname, single_random_emb, 0, 1, save_embed_format='pytorch')
     save_embeddings(tmpdirname + '_hdf5', single_random_emb, 0, 1, save_embed_format='hdf5')
