@@ -171,11 +171,11 @@ tag and other aspects of the build. We list the full argument list below:
 * ``-x, --verbose``       Print script debug info (set -x)
 * ``-e, --environment``   Image execution environment. Must be one of 'local' or 'sagemaker'. Required.
 * ``-d, --device``        Device type, must be one of 'cpu' or 'gpu'. Default is 'gpu'.
-* ``-u, --use-parmetis``  When this flag is set we add the ParMETIS dependencies to the local image. ParMETIS partitioning is not available on SageMaker.
 * ``-p, --path``          Path to graphstorm root directory, default is one level above the script's location.
 * ``-i, --image``         Docker image name, default is 'graphstorm'.
 * ``-s, --suffix``        Suffix for the image tag, can be used to push custom image tags. Default is "<environment>-<device>".
 * ``-b, --build``         Docker build directory prefix, default is '/tmp/graphstorm-build/docker'.
+* ``--use-parmetis``      When this flag is set we add the ParMETIS dependencies to the local image. ParMETIS partitioning is not available on SageMaker.
 
 For example you can build an image to support CPU-only execution using:
 

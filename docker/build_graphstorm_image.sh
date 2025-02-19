@@ -19,8 +19,9 @@ Available options:
 -d, --device        Device type, must be one of 'cpu' or 'gpu'. Default is 'gpu'.
 -p, --path          Path to graphstorm root directory, default is one level above this script's location.
 -i, --image         Docker image name, default is 'graphstorm'.
--s, --suffix        Suffix for the image tag, can be used to push custom image tags. Default is "<environment>-<device>".
+-s, --suffix        Suffix for the image tag, can be used to push custom image tags. Default tag is "<environment>-<device>".
 -b, --build         Docker build directory prefix, default is '/tmp/graphstorm-build/docker'.
+--use-parmetis      When this flag is set we add the ParMETIS dependencies to the local image. ParMETIS partitioning is not available on SageMaker.
 
 Example:
 
@@ -79,7 +80,7 @@ parse_params() {
             SUFFIX="${2-}"
             shift
             ;;
-        -u | --use-parmetis)
+        --use-parmetis)
             USE_PARMETIS=true
             ;;
         -?*) die "Unknown option: $1" ;;
