@@ -1006,7 +1006,7 @@ def save_shuffled_node_embeddings(shuffled_embs, save_embed_path, save_embed_for
 
         if len(embs.shape) == 1: # Embedding is a 1D tensor
             emb_info["emb_dim"][ntype] = embs.shape[0]
-        else:
+        else: # Embedding is a 2D tensor
             emb_info["emb_dim"][ntype] = embs.shape[1]
 
     if rank == 0:
