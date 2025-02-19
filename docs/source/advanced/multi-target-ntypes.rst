@@ -103,7 +103,7 @@ the training configuration YAML file, like the example below.
 The above configuration defines one classification task for the **movie** node type and another one
 for the **user** node type. The two node classification tasks will take their own label name, i.e.,
 `label_movie` and `label_user`, and their own train/validation/test mask fields. It also defines
-different `task_weight` values, which want models to focus more on **user** nodes classification
+which prioritizes user node classification (task_weight = 1.0) over movie node classification (task_weight = 0.5).
 (`task_weight = 1.0`) than classification on **movie** nodes (`task_weight = 0.5`).
 
 Run multi-task model training
