@@ -399,12 +399,12 @@ General Configurations
 
     - Yaml: ``gamma: 2.0``
     - Argument: ``--gamma 2.0``
-    - Default value: ``2``
+    - Default value: ``2.0`` in focal loss function; ``0.2`` in shrinkage loss function; ``12.0`` in ``distmult``, ``RotatE``, and ``TransE`` link prediction decoders.
 - **alpha**: Set the value of the hyperparameter denoted by the symbol alpha. Alpha is used in the following cases: i/ focal loss for binary classification and ii/ shrinkage loss for regression.
 
     - Yaml: ``alpha: 0.25``
     - Argument: ``--alpha 0.25``
-    - Default value: ``0.25``
+    - Default value: ``0.25`` in focal loss function; ``10.0`` in shrinkage loss function.
 
 Classification and Regression Task
 ```````````````````````````````````
