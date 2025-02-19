@@ -144,7 +144,7 @@ The prediction results of each prediction tasks will be saved into different sub
 Using multi-target node type training (Not Recommended)
 -------------------------------------------------------
 
-You can also use GraphStorm's multi-target node types configuration. But this method lacks of the
+You can also use GraphStorm's multi-target node types configuration. But this method is less
 flexibility that the multi-task learning method provides.
 
 - Train on multiple node types: The users only need to edit the ``target_ntype`` in model config
