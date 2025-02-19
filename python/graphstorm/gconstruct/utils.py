@@ -184,7 +184,9 @@ def _estimate_sizeof(data):
     data: dict/tuple/list of tensors
         Data returned by user_parser
     """
-    if th.is_tensor(data):
+    if data is None:
+        return 0
+    elif th.is_tensor(data):
         data_size = data.element_size() * data.nelement()
     elif isinstance(data, np.ndarray):
         assert data.dtype is not np.object_, \
@@ -279,6 +281,9 @@ def update_two_phase_feat_ops(phase_one_info, ops):
     """
     feat_info = {}
     for _, finfo in phase_one_info.items():
+        if finfo is None:
+            # the info is empty, skip
+            continue
         for feat_name, info in finfo.items():
             if feat_name not in feat_info:
                 feat_info[feat_name] = [info]

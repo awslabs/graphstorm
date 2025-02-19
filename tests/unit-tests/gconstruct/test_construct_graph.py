@@ -28,7 +28,11 @@ import copy
 from functools import partial
 from numpy.testing import assert_equal, assert_almost_equal
 
-from graphstorm.gconstruct.construct_graph import parse_edge_data, verify_confs, is_homogeneous
+from graphstorm.gconstruct.construct_graph import (parse_edge_data,
+                                                   prepare_edge_data,
+                                                   verify_confs,
+                                                   is_homogeneous,
+                                                   _collect_parsed_edge_data)
 from graphstorm.gconstruct.file_io import write_data_parquet, read_data_parquet
 from graphstorm.gconstruct.file_io import write_data_json, read_data_json
 from graphstorm.gconstruct.file_io import write_data_csv, read_data_csv
@@ -1896,6 +1900,7 @@ def test_multiprocessing_checks():
     assert multiprocessing == False
 
 def test_parse_edge_data():
+    np.random.seed(1)
     with tempfile.TemporaryDirectory() as tmpdirname:
         str_src_ids = np.array([str(i) for i in range(10)])
         str_dst_ids = np.array([str(i) for i in range(15)])
@@ -1977,6 +1982,49 @@ def test_parse_edge_data():
         assert "tm" in feat_data
         assert "vm" in feat_data
         assert "tsm" in feat_data
+
+        # test empty input file
+        # Create an empty DataFrame with defined columns
+        df = pd.DataFrame(columns=["src_id", "dst_id", "feat"])
+        data_file = os.path.join(tmpdirname, "empty.parquet")
+        # Save as an empty Parquet file
+        df.to_parquet(data_file, engine="pyarrow", index=False)
+
+        data = \
+            parse_edge_data(data_file, feat_ops, label_ops, node_id_map,
+                            partial(read_data_parquet, data_fields=keys),
+                            conf, skip_nonexist_edges=True)
+        assert data is None
+
+def test_prepare_edge_data():
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        src_ids = np.array([str(random.randint(0, 20)) for _ in range(15)])
+        dst_ids = np.array([str(random.randint(0, 25)) for _ in range(15)])
+        feat = np.random.rand(15, 10)
+        data = {
+            "src_id": src_ids,
+            "dst_id": dst_ids,
+            "feat": feat,
+        }
+        keys = ["src_id", "dst_id", "feat"]
+
+        feat_ops = [NumericalMinMaxTransform("feat", "feat")]
+        data_file = os.path.join(tmpdirname, "data.parquet")
+        write_data_parquet(data, data_file)
+        info = prepare_edge_data(data_file, feat_ops,
+                                 partial(read_data_parquet, data_fields=keys))
+        assert "feat" in info
+
+        # test empty input file
+        # Create an empty DataFrame with defined columns
+        df = pd.DataFrame(columns=["src_id", "dst_id", "feat"])
+        data_file = os.path.join(tmpdirname, "empty.parquet")
+        # Save as an empty Parquet file
+        df.to_parquet(data_file, engine="pyarrow", index=False)
+        info = prepare_edge_data(data_file, feat_ops,
+                                 partial(read_data_parquet, data_fields=keys))
+        assert info is None
+
 
 @pytest.mark.parametrize("ext_mem_path", [None, "/tmp/"])
 def test_multicolumn(ext_mem_path):
@@ -2486,7 +2534,118 @@ def test_homogeneous():
     conf["nodes"][1]["node_type"] = "movie_fake"
     assert not is_homogeneous(conf)
 
+def test_collect_parsed_edge_data():
+    file_ids = [0,1,2,3,4,5,6,7,8,9]
+    random.shuffle(file_ids)
+    src = [np.random.randint(10, size=4) for _ in range(10)]
+    dst = [np.random.randint(10, size=4) for _ in range(10)]
+    data = {
+        "feat0": [np.random.rand(4, 10) for _ in range(10)],
+        "feat1": [np.random.rand(4, 10) for _ in range(10)]
+    }
+
+    gt_src = np.concatenate(src)
+    gt_dst = np.concatenate(dst)
+    gt_data = {
+        "feat0": np.concatenate(data["feat0"], axis=0),
+        "feat1": np.concatenate(data["feat1"], axis=0)
+    }
+    input_data = {
+        file_ids[i]: (src[file_ids[i]],
+                      dst[file_ids[i]],
+                      {
+                          "feat0": data["feat0"][file_ids[i]],
+                          "feat1": data["feat1"][file_ids[i]]
+                      }) \
+        for i in range(len(file_ids))
+    }
+
+    type_src_ids, type_dst_ids, type_edge_data = \
+        _collect_parsed_edge_data(input_data)
+
+    type_src_ids = np.concatenate(type_src_ids)
+    type_dst_ids = np.concatenate(type_dst_ids)
+    type_edge_data = {
+        "feat0": np.concatenate(type_edge_data["feat0"], axis=0),
+        "feat1": np.concatenate(type_edge_data["feat1"], axis=0)
+    }
+    assert_equal(gt_src, type_src_ids)
+    assert_equal(gt_dst, type_dst_ids)
+    assert_equal(gt_data["feat0"], type_edge_data["feat0"])
+    assert_equal(gt_data["feat1"], type_edge_data["feat1"])
+    assert type_src_ids.shape[0] == type_edge_data["feat0"].shape[0]
+    assert type_src_ids.shape[0] == type_edge_data["feat1"].shape[0]
+
+    def test_none(idx_none):
+        # add an empty in the middle
+        new_input_data = {}
+        for i, i_data in input_data.items():
+            if i < idx_none:
+                new_input_data[i] = i_data
+            elif i == idx_none:
+                new_input_data[i] = None
+                new_input_data[i+1] = i_data
+            else:
+                new_input_data[i+1] = i_data
+        print(new_input_data.keys())
+        type_src_ids, type_dst_ids, type_edge_data = \
+            _collect_parsed_edge_data(new_input_data)
+
+        type_src_ids = np.concatenate(type_src_ids)
+        type_dst_ids = np.concatenate(type_dst_ids)
+        type_edge_data = {
+            "feat0": np.concatenate(type_edge_data["feat0"], axis=0),
+            "feat1": np.concatenate(type_edge_data["feat1"], axis=0)
+        }
+        assert_equal(gt_src, type_src_ids)
+        assert_equal(gt_dst, type_dst_ids)
+        assert_equal(gt_data["feat0"], type_edge_data["feat0"])
+        assert_equal(gt_data["feat1"], type_edge_data["feat1"])
+        assert type_src_ids.shape[0] == type_edge_data["feat0"].shape[0]
+        assert type_src_ids.shape[0] == type_edge_data["feat1"].shape[0]
+
+    test_none(0)
+    test_none(5)
+    test_none(10)
+
+    def test_two_none(idx_none_0, idx_none_1):
+        # add an empty in the middle
+        new_input_data = {}
+        for i, i_data in input_data.items():
+            if i < idx_none_0:
+                new_input_data[i] = i_data
+            elif i == idx_none_0:
+                new_input_data[i] = None
+                new_input_data[i+1] = i_data
+            elif i < idx_none_1:
+                new_input_data[i+1] = i_data
+            elif i == idx_none_1:
+                new_input_data[i+1] = None
+                new_input_data[i+2] = i_data
+            else:
+                new_input_data[i+2] = i_data
+        type_src_ids, type_dst_ids, type_edge_data = \
+            _collect_parsed_edge_data(new_input_data)
+
+        type_src_ids = np.concatenate(type_src_ids)
+        type_dst_ids = np.concatenate(type_dst_ids)
+        type_edge_data = {
+            "feat0": np.concatenate(type_edge_data["feat0"], axis=0),
+            "feat1": np.concatenate(type_edge_data["feat1"], axis=0)
+        }
+        assert_equal(gt_src, type_src_ids)
+        assert_equal(gt_dst, type_dst_ids)
+        assert_equal(gt_data["feat0"], type_edge_data["feat0"])
+        assert_equal(gt_data["feat1"], type_edge_data["feat1"])
+        assert type_src_ids.shape[0] == type_edge_data["feat0"].shape[0]
+        assert type_src_ids.shape[0] == type_edge_data["feat1"].shape[0]
+
+    test_two_none(0, 4)
+    test_two_none(4, 10)
+
 if __name__ == '__main__':
+    test_collect_parsed_edge_data()
+    test_prepare_edge_data()
     test_multitask_label()
     test_partition_graph(2)
     test_parse_feat_ops_data_format()
