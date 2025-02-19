@@ -29,26 +29,27 @@ Users can use ``pip`` or ``pip3`` to install GraphStorm.
 
 Install Dependencies
 .....................
-Users should install PyTorch v2.1.0 and DGL v1.1.3 that is the core dependency of GraphStorm using the following commands.
+Users should install PyTorch v2.3.0 and DGL v2.3.0 that is the core dependency of GraphStorm using the following commands.
 
 For Nvidia GPU environment:
 
 .. code-block:: bash
 
+    pip install torchdata==0.9.0
     # for CUDA 11
-    pip install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-    pip install dgl==1.1.3+cu118 -f https://data.dgl.ai/wheels/cu118/repo.html
+    pip install torch==2.3.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+    pip install dgl==2.3.0+cu118 -f https://data.dgl.ai/wheels/torch-2.3/cu118/repo.html
 
     # for CUDA 12
-    pip install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-    pip install dgl==1.1.3+cu121 -f https://data.dgl.ai/wheels/cu121/repo.html
+    pip install torch==2.3.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+    pip install dgl==2.3.0+cu121 -f https://data.dgl.ai/wheels/torch-2.3/cu121/repo.html
 
 For CPU environment:
 
 .. code-block:: bash
-
-    pip install torch==2.1.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-    pip install dgl==1.1.3 -f https://data.dgl.ai/wheels-internal/repo.html
+    pip install torchdata==0.9.0
+    pip install torch==2.3.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+    pip install dgl==2.3.0 -f https://data.dgl.ai/wheels/torch-2.3/repo.html
 
 Configure SSH No-password login (optional)
 ..........................................
