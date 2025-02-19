@@ -31,6 +31,9 @@ Install Dependencies
 .....................
 Users should install PyTorch v2.1.0 and DGL v1.1.3 that is the core dependency of GraphStorm using the following commands.
 
+.. warning::
+    Please ensure using Python version 3.11 or earlier.
+
 For Nvidia GPU environment:
 
 .. code-block:: bash
