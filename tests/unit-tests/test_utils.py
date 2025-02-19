@@ -667,8 +667,8 @@ def helper_save_multiple_embeddings(tmpdirname):
     save_embeddings(tmpdirname + '_hdf5', emb, 3, 4, save_embed_format='hdf5')
 
     shuffle_emb = {
-        "type0": (type0_random_emb, th.arange(emb_length0)),
-        "type1": (type1_random_emb, th.arange(emb_length1))
+        "type0": (type0_random_emb, th.arange(num_embs0)),
+        "type1": (type1_random_emb, th.arange(num_embs1))
     }
     save_shuffled_node_embeddings(shuffle_emb, tmpdirname + '_shuffled', save_embed_format='pytorch')
 
