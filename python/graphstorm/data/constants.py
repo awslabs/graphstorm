@@ -30,3 +30,6 @@ TEST_IDX = 'test_mask'
 
 REGRESSION_TASK = "regression"
 CLASSIFICATION_TASK = "classification"
+
+MAPPING_INPUT_ID = "orig"
+MAPPING_OUTPUT_ID = "new"
