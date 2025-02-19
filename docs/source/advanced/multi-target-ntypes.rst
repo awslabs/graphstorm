@@ -62,7 +62,7 @@ shown in the JSON example below.
         ......
     }
 
-The above configuration defines two classification tasks for the **movie** nodes and **user** nodes.
+The above configuration defines two classification tasks for the **movie** nodes and **user** nodes, respectively.
 Each node type has its own "lable_col" and train/validation/test mask fields associated. Then you can
 follow the instructions in :ref:`Run graph construction<run-graph-construction>` to use the GraphStorm
 construction tool for creating partitioned graph data.
