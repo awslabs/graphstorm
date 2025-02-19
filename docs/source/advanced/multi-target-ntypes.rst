@@ -20,7 +20,7 @@ Using multi-task learning for multiple target node types training (Recommended)
 Preparing the training data
 ............................
 
-During graph construction step, you can define two classification tasks on the two node type as
+During graph construction step, you can define two classification tasks on the two node types as
 shown in the JSON example below.
 
 .. code-block:: json
