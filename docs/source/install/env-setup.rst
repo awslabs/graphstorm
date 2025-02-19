@@ -35,7 +35,7 @@ For Nvidia GPU environment:
 
 .. code-block:: bash
 
-    pip install torchdata==0.9.0 pydantic pyyaml
+    pip install torchdata==0.9.0 pydantic
     # for CUDA 11
     pip install torch==2.3.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
     pip install dgl==2.3.0+cu118 -f https://data.dgl.ai/wheels/torch-2.3/cu118/repo.html
@@ -47,7 +47,7 @@ For Nvidia GPU environment:
 For CPU environment:
 
 .. code-block:: bash
-    pip install torchdata==0.9.0 pydantic pyyaml
+    pip install torchdata==0.9.0 pydantic
     pip install torch==2.3.0 torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
     pip install dgl==2.3.0 -f https://data.dgl.ai/wheels/torch-2.3/repo.html
 
