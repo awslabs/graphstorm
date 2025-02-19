@@ -213,6 +213,105 @@ from ``${DATASET_S3_PATH}`` as input and create a DistDGL graph with
 ``${NUM_PARTITIONS}`` under the output path, ``${OUTPUT_PATH}``.
 Currently we only support ``random`` as the partitioning algorithm.
 
+Launch hyper-parameter optimization task
+````````````````````````````````````````
+
+GraphStorm supports `automatic model tuning <https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning.html>`_
+with SageMaker AI,
+which allows you to optimize the hyper-parameters
+of your model with an easy-to-use interface.
+
+The ``sagemaker/launch/launch_hyperparameter_tuning.py`` script can act as a thin
+wrapper for SageMaker's `HyperParameterTuner <https://sagemaker.readthedocs.io/en/stable/api/training/tuner.html>`_.
+
+You define the hyper-parameters of interest by passing a filepath to a JSON file,
+or a python dictionary as a string,
+where the structure of the dictionary is the same as for SageMaker's
+`Dynamic hyper-parameters <https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-define-ranges.html#automatic-model-tuning-define-ranges-dynamic>`.
+For example your JSON file can look like:
+
+.. code:: python
+
+    # Content of my_param_ranges.json
+    {
+        "ParameterRanges": {
+            "CategoricalParameterRanges": [
+                {
+                    "Name": "model_encoder_type",
+                    "Values": ["rgcn", "hgt"]
+                }
+            ],
+            "ContinuousParameterRanges": [
+                {
+                    "Name": "lr",
+                    "MinValue": "1e-5",
+                    "MaxValue" : "1e-2",
+                    "ScalingType": "Auto"
+                }
+            ],
+            "IntegerParameterRanges": [
+                {
+                    "Name": "hidden_size",
+                    "MinValue": "64",
+                    "MaxValue": "256",
+                    "ScalingType": "Auto"
+                }
+            ]
+        }
+    }
+
+Which you can then use to launch an HPO job:
+
+.. code:: bash
+
+    # Example hyper-parameter ranges
+    python launch/launch_hyperparameter_tuning.py \
+        --hyperparameter-ranges my_param_ranges.json
+        # Other launch parameters...
+
+For continuous and integer parameters you can provide a ``ScalingType``
+string that directly corresponds to one of SageMaker's
+`scaling types <https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-define-ranges.html#scaling-type>`_.
+By default scaling type will be ``'Auto'``.
+
+Use ``--metric-name`` to provide the name of a GraphStorm metric to use as a tuning objective,
+e.g. ``"accuracy"``. See the entry for ``eval_metric`` in :ref:`Evaluation Metrics <eval_metrics>`
+for a full list of supported metrics.
+
+``--eval-mask`` defines which dataset to collect metrics from, and
+can be either ``"test"`` or ``"val"`` to collect metrics from test or validation set,
+respectively. Finally use ``--objective-type`` to set the type of the objective,
+which can be either ``"Maximize"`` or ``"Minimize"``.
+See the `SageMaker documentation <https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning.html>`_
+for more details
+
+Finally you can use ``--strategy`` to select the optimization strategy
+from one of "Bayesian", "Random", "Hyperband", "Grid". See the
+`SageMaker documentation <https://docs.aws.amazon.com/sagemaker/latest/dg/automatic-model-tuning-how-it-works.html>`_
+for more details on each strategy.
+
+Example HPO call:
+
+.. code:: bash
+
+    python launch/launch_hyperparameter_tuning.py \
+        --task-name my-gnn-hpo-job \
+        --role arn:aws:iam::123456789012:role/SageMakerRole \
+        --region us-west-2 \
+        --image-url 123456789012.dkr.ecr.us-west-2.amazonaws.com/graphstorm:sagemaker-gpu \
+        --graph-name my-graph \
+        --task-type node_classification \
+        --graph-data-s3 s3://my-bucket/graph-data/ \
+        --yaml-s3 s3://my-bucket/train.yaml \
+        --model-artifact-s3 s3://my-bucket/model-artifacts/ \
+        --max-jobs 20 \
+        --max-parallel-jobs 4 \
+        --hyperparameter-ranges my_param_ranges.json \
+        --metric-name "accuracy" \
+        --eval-mask "val" \
+        --objective-type "Maximize" \
+        --strategy "Bayesian"
+
 Passing additional arguments to the SageMaker Estimator
 ```````````````````````````````````````````````````````
 Sometimes you might want to pass additional arguments to the constructor
