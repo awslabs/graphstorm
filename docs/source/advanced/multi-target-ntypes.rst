@@ -9,7 +9,7 @@ method is to leverage GraphStorm's multi-task learning method, i.e., using multi
 trained on one target node type. 
 
 More detailed guide of using multi-task learning can be found in
-:ref:`Multi-task Learning in GraphStorm<multi_task_learning>`. This guide provides some examples of how
+:ref:`Multi-task Learning in GraphStorm<multi_task_learning>`. This guide provides two examples of how
 to conduct two target node type classification training on the `movielen 100k <https://www.kaggle.com/datasets/prajitdatta/movielens-100k-dataset>`_
 data, where the **movie** ("item" in the original data) and **user** node types have classification
 labels associated.
