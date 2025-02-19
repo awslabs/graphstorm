@@ -4,12 +4,15 @@ Multiple Target Node Types Training
 ===================================
 
 When training on a heterogeneous graph, we often need to train a model by minimizing the objective
-function on more than one node type. GraphStorm provides supports to achieve this goal. The Recommended
+function on more than one node type. GraphStorm provides supports to achieve this goal. The recommended
 method is to leverage GraphStorm's multi-task learning method, i.e., using multiple node tasks, and each
-trained on one target node type. More detailed guide of using multi-task learning can be found in
+trained on one target node type. 
+
+More detailed guide of using multi-task learning can be found in
 :ref:`Multi-task Learning in GraphStorm<multi_task_learning>`. This guide provides some examples of how
 to conduct two target node type classification training on the `movielen 100k <https://www.kaggle.com/datasets/prajitdatta/movielens-100k-dataset>`_
-data, where the **item** (movie) and **user** node types have classification labels associated.
+data, where the **movie** ("item" in the original data) and **user** node types have classification
+labels associated.
 
 Using multi-task learning for multiple target node types training (Recommended)
 --------------------------------------------------------------------------------
@@ -17,39 +20,32 @@ Using multi-task learning for multiple target node types training (Recommended)
 Preparing the training data
 ............................
 
-During graph construction step, you can define multiple tasks on the two node type as shown in the JSON
-example below.
+During graph construction step, you can define two classification tasks on the two node type as
+shown in the JSON example below.
 
 .. code-block:: json
 
     {
         "version": "gconstruct-v0.1",
         "nodes": [
-
-            ......
-
             {
-                "node_type": "item",
-
+                "node_type": "movie",
                 ......
-
                 ],
                 "labels": [
                     {
-                        "label_col": "label_item",
+                        "label_col": "label_movie",
                         "task_type": "classification",
                         "split_pct":	[0.8, 0.1, 0.1],
-                        "mask_field_names": ["train_mask_item",
-                                             "val_mask_item",
-                                             "test_mask_item"]
+                        "mask_field_names": ["train_mask_movie",
+                                             "val_mask_movie",
+                                             "test_mask_movie"]
                     },
                 ]
             },
             {
                 "node_type": "user",
-
                 ......
-
                 ],
                 "labels": [
                     {
@@ -62,15 +58,12 @@ example below.
                     },
                 ]
             },
-
-            ......
-
         ],
         ......
     }
 
-The above configuration defines two classification tasks for the **item** nodes and **user** nodes.
-Each node type has its own lable_col and train/validation/test mask fields associated. Then you can
+The above configuration defines two classification tasks for the **movie** nodes and **user** nodes.
+Each node type has its own "lable_col" and train/validation/test mask fields associated. Then you can
 follow the instructions in :ref:`Run graph construction<run-graph-construction>` to use the GraphStorm
 construction tool for creating partitioned graph data.
 
@@ -78,7 +71,7 @@ Define multi-task for training
 ...............................
 
 Now, you can specify two training tasks by providing the `multi_task_learning` configurations in
-the training configuration YAML file, like the example below for the **item** nodes and **user** nodes.
+the training configuration YAML file, like the example below.
 
 .. code-block:: yaml
 
@@ -89,12 +82,12 @@ the training configuration YAML file, like the example below for the **item** no
             ...
         multi_task_learning:
             - node_classification:
-                target_ntype: "item"
-                label_field: "label_item"
+                target_ntype: "movie"
+                label_field: "label_movie"
                 mask_fields:
-                    - "train_mask_item"
-                    - "val_mask_item"
-                    - "test_mask_item"
+                    - "train_mask_movie"
+                    - "val_mask_movie"
+                    - "test_mask_movie"
                 num_classes: 10
                 task_weight: 0.5
             - node_classification:
@@ -107,17 +100,17 @@ the training configuration YAML file, like the example below for the **item** no
                 task_weight: 1.0
             ...
 
-The above configuration defines one classification task for the **item** node type and another one
+The above configuration defines one classification task for the **movie** node type and another one
 for the **user** node type. The two node classification tasks will take their own label name, i.e.,
-`label_item` and `label_user`, and their own train/validation/test mask fields. It also defines
+`label_movie` and `label_user`, and their own train/validation/test mask fields. It also defines
 different `task_weight` values, which want models to focus more on **user** nodes classification
-than classification on **item** nodes.
+(`task_weight = 1.0`) than classification on **movie** nodes (`task_weight = 0.5`).
 
 Run multi-task model training
 ..............................
 
-You can the `graphstorm.run.gs_multi_task_learning` command to run multi-task learning tasks, like the
-following example.
+You can use the `graphstorm.run.gs_multi_task_learning` command to run multi-task learning tasks,
+like the following example.
 
 .. code-block:: bash
 
@@ -131,8 +124,8 @@ following example.
 Run multi-task model Inference
 ...............................
 
-You can use the same command line `graphstorm.run.gs_multi_task_learning`  with an additional
-argument `--inference` to run inference as following:
+For inference, you can use the same command line `graphstorm.run.gs_multi_task_learning`  with an
+additional argument `--inference` as the following:
 
 .. code-block:: bash
 
@@ -145,10 +138,8 @@ argument `--inference` to run inference as following:
               --cf <PATH_TO_CONFIG> \
               --save-prediction-path <PATH_TO_OUTPUT>
 
-The prediction results of each prediction tasks (node classification, node regression,
-edge classification and edge regression) will be saved into different sub-directories under
-<PATH_TO_OUTPUT>. The sub-directories are prefixed with the
-`<task_type>_<node/edge_type>_<label_name>`.
+The prediction results of each prediction tasks will be saved into different sub-directories under
+<PATH_TO_OUTPUT>. The sub-directories are prefixed with the `<task_type>_<node/edge_type>_<label_name>`.
 
 Using multi-target node type training (Not Recommended)
 -------------------------------------------------------
