@@ -702,13 +702,11 @@ def test_save_embeddings():
 
         # PyTorch Embeddings
         # Only work with torch 1.13+
-        feats_type0 = [th.load(os.path.join(os.path.join(tmpdirname, "type0"),
-                                            f"embed-{pad_file_index(i)}.pt"),
+        feats_type0 = [th.load(os.path.join(tmpdirname, "type0", f"embed-{pad_file_index(i)}.pt"),
                                weights_only=True) for i in range(4)]
         feats_type0 = th.cat(feats_type0, dim=0)
         # Only work with torch 1.13+
-        feats_type1 = [th.load(os.path.join(os.path.join(tmpdirname, "type1"),
-                                            f"embed-{pad_file_index(i)}.pt"),
+        feats_type1 = [th.load(os.path.join(tmpdirname, "type1", f"embed-{pad_file_index(i)}.pt"),
                                weights_only=True) for i in range(4)]
         feats_type1 = th.cat(feats_type1, dim=0)
 
@@ -762,7 +760,7 @@ def test_save_embeddings():
             emb_info = json.load(file)
             assert single_random_emb.shape[1] == emb_info['emb_dim'][NTYPE]
 
-        feats = [th.load(os.path.join(os.path.join(tmpdirname, NTYPE),
+        feats = [th.load(os.path.join(tmpdirname, NTYPE,
                                         f"embed-{pad_file_index(i)}.pt"),
                         weights_only=True) for i in range(1)]
         feats = th.cat(feats, dim=0)
