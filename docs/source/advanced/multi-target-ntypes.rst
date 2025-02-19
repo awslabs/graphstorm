@@ -145,7 +145,7 @@ Using multi-target node type training (Not Recommended)
 -------------------------------------------------------
 
 You can also use GraphStorm's multi-target node types configuration. But this method is less
-flexibility that the multi-task learning method provides.
+flexible than the multi-task learning method.
 
 - Train on multiple node types: The users only need to edit the ``target_ntype`` in model config
 YAML file to minimize the objective function defined on mutiple target node types. For example,
