@@ -176,6 +176,7 @@ tag and other aspects of the build. We list the full argument list below:
 * ``-i, --image``         Docker image name, default is 'graphstorm'.
 * ``-s, --suffix``        Suffix for the image tag, can be used to push custom image tags. Default is "<environment>-<device>".
 * ``-b, --build``         Docker build directory prefix, default is '/tmp/graphstorm-build/docker'.
+* ``--use-parmetis``      When this flag is set we add the ParMETIS dependencies to the local image. ParMETIS partitioning is not available on SageMaker.
 
 For example you can build an image to support CPU-only execution using:
 
@@ -183,6 +184,13 @@ For example you can build an image to support CPU-only execution using:
 
     bash docker/build_graphstorm_image.sh --environment local --device cpu
     # Will build an image named 'graphstorm:local-cpu'
+
+Or to build and tag an image to run ParMETIS with EC2 instances:
+
+.. code-block:: bash
+
+    bash docker/build_graphstorm_image.sh --environment local --device cpu --use-parmetis --suffix "-parmetis"
+    # Will build an image named 'graphstorm:local-cpu-parmetis'
 
 See ``bash docker/build_graphstorm_image.sh --help``
 for more information.
@@ -211,12 +219,14 @@ In addition to ``-e/--environment``, the script supports several optional argume
 * ``-s, --suffix``        Suffix for the image tag, can be used to push custom image tags. Default is "<environment>-<device>".
 
 
-Example:
+Examples:
 
 .. code-block:: bash
 
-    bash docker/push_graphstorm_image.sh -e local -r "us-east-1" -a "123456789012"
-    # Will push an image to '123456789012.dkr.ecr.us-east-1.amazonaws.com/graphstorm:local-gpu'
+    # Push an image to '123456789012.dkr.ecr.us-east-1.amazonaws.com/graphstorm:local-cpu'
+    bash docker/push_graphstorm_image.sh -e local -r "us-east-1" -a "123456789012" --device cpu
+    # Push a ParMETIS-capable image to '123456789012.dkr.ecr.us-east-1.amazonaws.com/graphstorm:local-cpu-parmetis'
+    bash docker/push_graphstorm_image.sh -e local -r "us-east-1" -a "123456789012" --device cpu --suffix "-parmetis"
 
 
 Create a GraphStorm Container

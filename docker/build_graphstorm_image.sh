@@ -19,8 +19,9 @@ Available options:
 -d, --device        Device type, must be one of 'cpu' or 'gpu'. Default is 'gpu'.
 -p, --path          Path to graphstorm root directory, default is one level above this script's location.
 -i, --image         Docker image name, default is 'graphstorm'.
--s, --suffix        Suffix for the image tag, can be used to push custom image tags. Default is "<environment>-<device>".
+-s, --suffix        Suffix for the image tag, can be used to push custom image tags. Default tag is "<environment>-<device>".
 -b, --build         Docker build directory prefix, default is '/tmp/graphstorm-build/docker'.
+--use-parmetis      When this flag is set we add the ParMETIS dependencies to the local image. ParMETIS partitioning is not available on SageMaker.
 
 Example:
 
@@ -49,6 +50,7 @@ parse_params() {
     IMAGE_NAME='graphstorm'
     BUILD_DIR='/tmp/graphstorm-build/docker'
     SUFFIX=""
+    USE_PARMETIS=false
 
     while :; do
         case "${1-}" in
@@ -77,6 +79,9 @@ parse_params() {
         -s | --suffix)
             SUFFIX="${2-}"
             shift
+            ;;
+        --use-parmetis)
+            USE_PARMETIS=true
             ;;
         -?*) die "Unknown option: $1" ;;
         *) break ;;
@@ -113,6 +118,7 @@ msg "- DEVICE_TYPE: ${DEVICE_TYPE}"
 msg "- GSF_HOME: ${GSF_HOME}"
 msg "- IMAGE_NAME: ${IMAGE_NAME}"
 msg "- SUFFIX: ${SUFFIX}"
+msg "- USE_PARMETIS: ${USE_PARMETIS}"
 
 # Prepare Docker build directory
 if [[ -d ${BUILD_DIR} ]]; then
@@ -121,13 +127,15 @@ fi
 mkdir -p "${BUILD_DIR}"
 
 # Authenticate to ECR to be able to pull source SageMaker or public.ecr.aws image
-msg "Authenticating to public ECR registry"
 if [[ ${EXEC_ENV} == "sagemaker" ]]; then
-    # Pulling SageMaker image, login to public SageMaker ECR registry
+    if [[ ${USE_PARMETIS} == true ]]; then
+        die "ParMETIS partitioning is not supported for SageMaker execution environment"
+    fi
+    msg "Authenticating to public SageMaker ECR registry"
     aws ecr get-login-password --region us-east-1 |
         docker login --username AWS --password-stdin 763104351884.dkr.ecr.us-east-1.amazonaws.com
 else
-    # Pulling local image, login to Amazon ECR Public Gallery
+    msg "Authenticating to Amazon ECR Public Gallery"
     aws ecr-public get-login-password --region us-east-1 |
         docker login --username AWS --password-stdin public.ecr.aws
 fi
@@ -179,4 +187,5 @@ echo "Building Docker image: ${DOCKER_FULLNAME}"
 DOCKER_BUILDKIT=1 docker build \
     --build-arg DEVICE="$DEVICE_TYPE" \
     --build-arg SOURCE="${SOURCE_IMAGE}" \
+    --build-arg USE_PARMETIS="${USE_PARMETIS}" \
     -f "$DOCKERFILE" "${BUILD_DIR}" -t "$DOCKER_FULLNAME"
