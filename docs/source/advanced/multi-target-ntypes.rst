@@ -67,7 +67,7 @@ Each node type has its own "lable_col" and train/validation/test mask fields ass
 follow the instructions in :ref:`Run graph construction<run-graph-construction>` to use the GraphStorm
 construction tool for creating partitioned graph data.
 
-Define multi-task for training
+Define multi-task for model training
 ...............................
 
 Now, you can specify two training tasks by providing the `multi_task_learning` configurations in
