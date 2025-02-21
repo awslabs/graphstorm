@@ -681,6 +681,7 @@ class GATConvwithEdgeFeat(nn.Module):
         if self.bias:
             nn.init.constant_(self.bias, 0)
 
+    # pylint: disable=unused-argument
     def forward(self, rel_graph, inputs,  get_attention=False, weight=None, edge_weight=None):
         """ GAT conv forward computation with edge feature.
 
@@ -759,12 +760,14 @@ class GATConvwithEdgeFeat(nn.Module):
                 rel_graph.edata['m'] = rel_graph.edata['m'].view(*edge_prefix_shape,
                                                                  self._num_heads, self._out_feats)
 
+                # pylint: disable=no-member
                 # compute attention
                 rel_graph.apply_edges(fn.e_add_v('m', 'n_h', 'm_attn'))
                 m_attn = self.attn_drop(
                     edge_softmax(rel_graph,
                                  self.leaky_relu(rel_graph.edata.pop('m_attn'))))
 
+                # pylint: disable=no-member
                 # message passing
                 rel_graph.update_all(lambda edges: {'attn': (edges.data['m'] * m_attn)},
                                      fn.sum('attn', 'ft'))
