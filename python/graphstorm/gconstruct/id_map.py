@@ -23,6 +23,8 @@ import pyarrow.parquet as pq
 import numpy as np
 
 from graphstorm.data.constants import (
+    GSP_MAPPING_INPUT_ID,
+    GSP_MAPPING_OUTPUT_ID,
     MAPPING_INPUT_ID,
     MAPPING_OUTPUT_ID,
 )
@@ -89,14 +91,14 @@ class IdReverseMap:
             data = read_data_parquet(id_map_prefix, [MAPPING_INPUT_ID, MAPPING_OUTPUT_ID])
         except AssertionError:
             # To maintain backwards compatibility with GraphStorm v0.2.1
-            data = read_data_parquet(id_map_prefix, ["node_str_id", "node_int_id"])
-            data["new"] = data["node_int_id"]
-            data["orig"] = data["node_str_id"]
-            data.pop("node_int_id")
-            data.pop("node_str_id")
+            data = read_data_parquet(id_map_prefix, [GSP_MAPPING_INPUT_ID, GSP_MAPPING_OUTPUT_ID])
+            data[MAPPING_OUTPUT_ID] = data[GSP_MAPPING_OUTPUT_ID]
+            data[MAPPING_INPUT_ID] = data[GSP_MAPPING_INPUT_ID]
+            data.pop(GSP_MAPPING_INPUT_ID)
+            data.pop(GSP_MAPPING_OUTPUT_ID)
 
-        sort_idx = np.argsort(data['new'])
-        self._ids = data['orig'][sort_idx]
+        sort_idx = np.argsort(data[MAPPING_OUTPUT_ID])
+        self._ids = data[MAPPING_INPUT_ID][sort_idx]
 
     def __len__(self):
         return len(self._ids)
@@ -230,7 +232,7 @@ class IdMap:
         """
         os.makedirs(file_prefix, exist_ok=True)
         table = pa.Table.from_arrays([pa.array(self._ids.keys()), self._ids.values()],
-                                     names=["orig", "new"])
+                                     names=[MAPPING_INPUT_ID, MAPPING_OUTPUT_ID])
         bytes_per_row = table.nbytes // table.num_rows
         # Split table in parts, such that the max expected file size is ~1GB
         max_rows_per_file = GIB_BYTES // bytes_per_row
