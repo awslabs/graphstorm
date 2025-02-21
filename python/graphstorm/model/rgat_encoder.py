@@ -133,7 +133,8 @@ class RelationalAttLayer(nn.Module):
 
         if edge_feat_name:
             assert len(set(edge_feat_name.keys()).intersection(
-                set(rel_names))) > 0, f'To use GATConvwithEdgeFeat, must provide valid edge feature name, but got {edge_feat_name}.'
+                set(rel_names))) > 0, (f'To use GATConvwithEdgeFeat, must provide valid '
+                                       f'edge feature name, but got {edge_feat_name}.')
             # warning
             if len(set(edge_feat_name.keys()) - set(rel_names)) > 0:
                 warn_msg = (f"Warning. Not using edge features for the invalid edge_feat_name: "
@@ -632,9 +633,10 @@ class GATConvwithEdgeFeat(nn.Module):
         self._num_heads = num_heads
         self._in_src_feats, self._in_dst_feats = expand_as_pair(in_feats)
         self._out_feats = out_feats
-        assert edge_feat_mp_op in BUILTIN_EDGE_FEAT_MP_OPS, 'GraphStorm only support edge' + \
-                                                            f' message passing operation in {BUILTIN_EDGE_FEAT_MP_OPS}, bug got ' + \
-                                                            f'{edge_feat_mp_op}.'
+        assert edge_feat_mp_op in BUILTIN_EDGE_FEAT_MP_OPS, (
+                'GraphStorm only support edge' + \
+                f' message passing operation in {BUILTIN_EDGE_FEAT_MP_OPS}, bug got ' + \
+                f'{edge_feat_mp_op}.')
         self.edge_feat_mp_op = edge_feat_mp_op
         if edge_feat_mp_op in ['concat']:
             self.fc_src = nn.Linear(
@@ -679,7 +681,7 @@ class GATConvwithEdgeFeat(nn.Module):
         if self.bias:
             nn.init.constant_(self.bias, 0)
 
-    def forward(self, rel_graph, inputs, weight=None, edge_weight=None, get_attention=False):
+    def forward(self, rel_graph, inputs,  get_attention=False, weight=None, edge_weight=None):
         """ GAT conv forward computation with edge feature.
 
         Parameters
@@ -688,12 +690,12 @@ class GATConvwithEdgeFeat(nn.Module):
             Input DGL heterogenous graph with one edge type only.
         inputs: tuple of dict of Tensor
             Node features for each node type in the format of {ntype: tensor}.
+        get_attention : bool, optional
+            Whether to return the attention values. Default to False.
         weight: dict of Tensor
             optional external node weight tensor. Not implemented. Reserved for future use.
         edge_weight: Tensor
             optional external edge weight tensor. Not implemented. Reserved for future use.
-        get_attention : bool, optional
-            Whether to return the attention values. Default to False.
 
         Returns
         -------
@@ -705,7 +707,8 @@ class GATConvwithEdgeFeat(nn.Module):
         # multiply it with project weights as outputs, which is an all 0s tensor with output dim
         if rel_graph.num_edges() == 0:
             _, dst_inputs = inputs
-            rst = th.zeros((dst_inputs.shape[0], self._num_heads, self._out_feats), device=dst_inputs.device)
+            rst = th.zeros((dst_inputs.shape[0], self._num_heads, self._out_feats),
+                           device=dst_inputs.device)
             if get_attention:
                 return rst, None
             else:
@@ -758,8 +761,9 @@ class GATConvwithEdgeFeat(nn.Module):
 
                 # compute attention
                 rel_graph.apply_edges(fn.e_add_v('m', 'n_h', 'm_attn'))
-                m_attn = self.attn_drop(edge_softmax(rel_graph,
-                                                     self.leaky_relu(rel_graph.edata.pop('m_attn'))))
+                m_attn = self.attn_drop(
+                    edge_softmax(rel_graph,
+                                 self.leaky_relu(rel_graph.edata.pop('m_attn'))))
 
                 # message passing
                 rel_graph.update_all(lambda edges: {'attn': (edges.data['m'] * m_attn)},
