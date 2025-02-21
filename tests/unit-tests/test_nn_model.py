@@ -19,11 +19,13 @@ import pytest
 import tempfile
 import torch as th
 import dgl
+import numpy as np
 from numpy.testing import assert_almost_equal, assert_raises
 
 from graphstorm.model.rgat_encoder import RelationalAttLayer
 from graphstorm.model.rgcn_encoder import RelGraphConvLayer
 from graphstorm.model.hgt_encoder import HGTLayer
+from dgl.nn import GATConv
 
 from data_utils import (generate_dummy_hetero_graph,
                         generate_dummy_hetero_graph_for_efeat_gnn)
@@ -516,15 +518,617 @@ def test_rgcn_with_edge_features(input_dim, output_dim, dev):
     assert_almost_equal(actual_2.numpy(), desired_2.numpy(), decimal=5)
 
 
+@pytest.mark.parametrize("input_dim", [32])
+@pytest.mark.parametrize("output_dim", [32,64])
+@pytest.mark.parametrize("dev", ['cpu','cuda:0'])
+def test_rgat_with_edge_features(input_dim, output_dim, dev):
+    """ Test the RelationalAttLayer that supports edge features """
+    # construct test block and input features
+    heter_graph = generate_dummy_hetero_graph(size='tiny', gen_mask=False,
+                                              add_reverse=False, is_random=False)
+
+    seeds = {'n1': [0]}
+    subg = dgl.sampling.sample_neighbors(heter_graph, seeds, 100)
+    block = dgl.to_block(subg, seeds).to(dev)
+
+    etypes = [("n0", "r0", "n1"), ("n0", "r1", "n1")]
+
+    src1, dst1, r0_eid = subg.edges(form='all', etype='r0')
+    src2, dst2, r1_eid = subg.edges(form='all', etype='r1')
+
+    src_idx = th.unique(th.concat([src1, src2]))
+    dst_idx = th.unique(th.concat([dst1, dst2]))
+
+    node_feats = {
+        "n0": th.rand(src_idx.shape[0], input_dim).to(dev),
+        "n1": th.rand(dst_idx.shape[0], input_dim).to(dev)
+    }
+    edge_feats = {
+        ("n0", "r0", "n1"): th.rand(r0_eid.shape[0], input_dim).to(dev),
+        ("n0", "r1", "n1"): th.rand(r1_eid.shape[0], input_dim).to(dev)
+    }
+
+    # Test case 0: normal case, have both node and edge feature on all node and edge types
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        activation=th.nn.ReLU(), self_loop=True,
+        dropout=0.1)
+    layer = layer.to(dev)
+
+    emb0 = layer(block, node_feats, edge_feats)
+    # check output numbers, dimensions and device
+    assert 'n0' not in emb0
+    assert emb0['n1'].shape[0] == len(seeds['n1'])
+    assert emb0['n1'].shape[1] == output_dim
+    assert emb0['n1'].get_device() == (-1 if dev == 'cpu' else 0)
+
+    # Test case 1: normal case, one edge type has features
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_name={("n0", "r0", "n1"): ['feat']},
+        activation=th.nn.ReLU(), self_loop=True,
+        dropout=0.1)
+    layer = layer.to(dev)
+
+    edge_feats = {
+        ("n0", "r0", "n1"): th.rand(r0_eid.shape[0], input_dim).to(dev)
+    }
+
+    emb1 = layer(block, node_feats, edge_feats)
+    # check output numbers, and dimensions
+    assert 'n0' not in emb1
+    assert emb1['n1'].shape[0] == len(seeds['n1'])
+    assert emb1['n1'].shape[1] == output_dim
+
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_name={("n0", "r1", "n1"): ['feat']},
+        activation=th.nn.ReLU(), self_loop=True,
+        dropout=0.1)
+    layer = layer.to(dev)
+
+    edge_feats = {
+        ("n0", "r1", "n1"): th.rand(r1_eid.shape[0], input_dim).to(dev)
+    }
+
+    emb1 = layer(block, node_feats, edge_feats)
+    # check output numbers, and dimensions
+    assert 'n0' not in emb1
+    assert emb1['n1'].shape[0] == len(seeds['n1'])
+    assert emb1['n1'].shape[1] == output_dim
+
+    # Test case 2: normal case, no edge features as inputs
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        activation=th.nn.ReLU(), self_loop=True,
+        dropout=0.1)
+    layer = layer.to(dev)
+
+    emb2 = layer(block, node_feats)
+    # check output numbers, and dimensions
+    assert 'n0' not in emb2
+    assert emb2['n1'].shape[0] == len(seeds['n1'])
+    assert emb2['n1'].shape[1] == output_dim
+
+    # Test case 3: normal case, all 5 message passing ops
+    # Test 3.1, "add" op
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        edge_feat_mp_op="add",
+        activation=th.nn.ReLU(), self_loop=True,
+        dropout=0.1)
+    layer = layer.to(dev)
+
+    edge_feats = {
+        ("n0", "r0", "n1"): th.rand(r0_eid.shape[0], input_dim).to(dev),
+        ("n0", "r1", "n1"): th.rand(r1_eid.shape[0], input_dim).to(dev)
+    }
+
+    emb31 = layer(block, node_feats, edge_feats)
+    # check output numbers, dimensions and device
+    assert 'n0' not in emb31
+    assert emb31['n1'].shape[0] == len(seeds['n1'])
+    assert emb31['n1'].shape[1] == output_dim
+
+    # Test 3.2, "sub" op
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        edge_feat_mp_op="sub",
+        activation=th.nn.ReLU(), self_loop=True,
+        dropout=0.1)
+    layer = layer.to(dev)
+
+    emb32 = layer(block, node_feats, edge_feats)
+    # check output numbers, dimensions and device
+    assert 'n0' not in emb32
+    assert emb32['n1'].shape[0] == len(seeds['n1'])
+    assert emb32['n1'].shape[1] == output_dim
+
+    # Test 3.3, "mul" op
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        edge_feat_mp_op="mul",
+        activation=th.nn.ReLU(), self_loop=True,
+        dropout=0.1)
+    layer = layer.to(dev)
+
+    emb33 = layer(block, node_feats, edge_feats)
+    # check output numbers, dimensions and device
+    assert 'n0' not in emb33
+    assert emb33['n1'].shape[0] == len(seeds['n1'])
+    assert emb33['n1'].shape[1] == output_dim
+
+    # Test 3.4, "div" op
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        edge_feat_mp_op="div",
+        activation=th.nn.ReLU(), self_loop=True,
+        dropout=0.1)
+    layer = layer.to(dev)
+
+    emb34 = layer(block, node_feats, edge_feats)
+    # check output numbers, dimensions and device
+    assert 'n0' not in emb34
+    assert emb34['n1'].shape[0] == len(seeds['n1'])
+    assert emb34['n1'].shape[1] == output_dim
+
+    # Test case 4: abnormal case, layer has no edge feature weights, but give edge features。
+    #              this will trigger an assertion error to let users know that they need to use
+    #              GATConvwithEdgeFeat.
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        activation=th.nn.ReLU(), self_loop=True,
+        dropout=0.1)
+    layer = layer.to(dev)
+
+    with assert_raises(AssertionError):
+        layer(block, node_feats, edge_feats)
+
+    # Test case 5: abnormal case, layer has edge feature weights, but not give edge features
+    #              this will trigger an assertion error of mismatch of the number of inputs
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        activation=th.nn.ReLU(), self_loop=True,
+        dropout=0.1)
+    layer = layer.to(dev)
+
+    with assert_raises(AssertionError):
+        layer(block, node_feats)
+
+    # # Test case 6: normal case, checking forward results accuracy.
+    # #         we set all node and edge features to be 1s and all weights to be 1s.
+    node_feats = {
+        "n0": th.ones(src_idx.shape[0], input_dim).to(dev),
+        "n1": th.ones(dst_idx.shape[0], input_dim).to(dev)
+    }
+    edge_feats = {
+        ("n0", "r0", "n1"): th.ones(r0_eid.shape[0], input_dim).to(dev),
+        ("n0", "r1", "n1"): th.ones(r1_eid.shape[0], input_dim).to(dev)
+    }
+
+    # concat
+    # #     the output value for n1 should be: (input_sim * 2) * num_etypes to 'n1'
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb6 = layer(block, node_feats, edge_feats)
+    desired_emb6 = np.ones([dst_idx.shape[0], output_dim]) * (input_dim * 2 + input_dim * 2)
+    assert_almost_equal(emb6['n1'].detach().cpu().numpy(), desired_emb6, decimal=5)
+
+    # add
+    # #     the output value for n1 should be: (input_sim * 2) * num_etypes to 'n1'
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_mp_op='add',
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb6 = layer(block, node_feats, edge_feats)
+    desired_emb6 = np.ones([dst_idx.shape[0], output_dim]) * (input_dim * 2 + input_dim * 2)
+    assert_almost_equal(emb6['n1'].detach().cpu().numpy(), desired_emb6, decimal=5)
+
+    # sub
+    # #     the output value for n1 should be: 0s
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_mp_op='sub',
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb6 = layer(block, node_feats, edge_feats)
+    desired_emb6 = np.zeros([dst_idx.shape[0], output_dim])
+    assert_almost_equal(emb6['n1'].detach().cpu().numpy(), desired_emb6, decimal=5)
+
+    # mul
+    # #     the output value for n1 should be: input_sim * num_etypes to 'n1'
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_mp_op='mul',
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb6 = layer(block, node_feats, edge_feats)
+    desired_emb6 = np.ones([dst_idx.shape[0], output_dim]) * (input_dim + input_dim)
+    assert_almost_equal(emb6['n1'].detach().cpu().numpy(), desired_emb6, decimal=5)
+
+    # div
+    # #     the output value for n1 should be: input_sim * num_etypes to 'n1'
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_mp_op='div',
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb6 = layer(block, node_feats, edge_feats)
+    desired_emb6 = np.ones([dst_idx.shape[0], output_dim]) * (input_dim + input_dim)
+    assert_almost_equal(emb6['n1'].detach().cpu().numpy(), desired_emb6, decimal=5)
+
+    # # Test case 7: normal case, checking forward results accuracy.
+    # #         we set all node features to be 1s, all edge features to be 0s,
+    # #         and all weights to be 1s.
+    node_feats = {
+        "n0": th.ones(src_idx.shape[0], input_dim).to(dev),
+        "n1": th.ones(dst_idx.shape[0], input_dim).to(dev)
+    }
+    edge_feats = {
+        ("n0", "r0", "n1"): th.zeros(r0_eid.shape[0], input_dim).to(dev),
+        ("n0", "r1", "n1"): th.zeros(r1_eid.shape[0], input_dim).to(dev)
+    }
+
+    # concat
+    # #     the output value for n1 should be: input_sim * num_etypes to 'n1'
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb7 = layer(block, node_feats, edge_feats)
+    desired_emb7 = np.ones([dst_idx.shape[0], output_dim]) * (input_dim * 2)
+    assert_almost_equal(emb7['n1'].detach().cpu().numpy(), desired_emb7, decimal=5)
+
+    # add
+    # #     the output value for n1 should be: input_sim * num_etypes to 'n1'
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_mp_op='add',
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb7 = layer(block, node_feats, edge_feats)
+    desired_emb7 = np.ones([dst_idx.shape[0], output_dim]) * (input_dim * 2)
+    assert_almost_equal(emb6['n1'].detach().cpu().numpy(), desired_emb7, decimal=5)
+
+    # sub
+    # #     the output value for n1 should be: input_sim * num_etypes to 'n1'
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_mp_op='sub',
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb7 = layer(block, node_feats, edge_feats)
+    desired_emb7 = np.ones([dst_idx.shape[0], output_dim]) * (input_dim * 2)
+    assert_almost_equal(emb6['n1'].detach().cpu().numpy(), desired_emb7, decimal=5)
+
+    # mul
+    # #     the output value for n1 should be: 0s
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_mp_op='mul',
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb7 = layer(block, node_feats, edge_feats)
+    desired_emb7 = np.zeros([dst_idx.shape[0], output_dim])
+    assert_almost_equal(emb7['n1'].detach().cpu().numpy(), desired_emb7, decimal=5)
+
+    # div
+    # #     the output value for n1 should be: nan
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_mp_op='div',
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb7_n1 = layer(block, node_feats, edge_feats)['n1'].detach().cpu().numpy()
+    assert emb7_n1.shape == (dst_idx.shape[0], output_dim)
+    assert np.isnan(emb7_n1).all()
+
+    # Test case 8: normal case, compare with using dgl.nn.GATConv without edge features
+    #      sub-case 1.1: all edge features are 1s, 'mul' and 'div' make no difference, but
+    #                    'add', 'sub', and 'concat' output differently.
+    node_feats = {
+        "n0": th.ones(src_idx.shape[0], input_dim).to(dev),
+        "n1": th.ones(dst_idx.shape[0], input_dim).to(dev)
+    }
+    edge_feats = {
+        ("n0", "r0", "n1"): th.ones(r0_eid.shape[0], input_dim).to(dev),
+        ("n0", "r1", "n1"): th.ones(r1_eid.shape[0], input_dim).to(dev)
+    }
+
+    gat_layer_woefeat = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_name=None,
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(gat_layer_woefeat.conv._get_module(('n0', 'r0', 'n1')).fc.weight)
+    th.nn.init.ones_(gat_layer_woefeat.conv._get_module(('n0', 'r1', 'n1')).fc.weight)
+    gat_layer_woefeat = gat_layer_woefeat.to(dev)
+    emb8_woefeat = gat_layer_woefeat(block, node_feats)
+
+    # 'concat' operator, different outputs
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_mp_op='concat',
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb8 = layer(block, node_feats, edge_feats)
+    assert np.not_equal(emb8_woefeat['n1'].detach().cpu().numpy(),
+                        emb8['n1'].detach().cpu().numpy()).any()
+
+    # 'add' operator, different outputs
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_mp_op='add',
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb8 = layer(block, node_feats, edge_feats)
+    assert np.not_equal(emb8_woefeat['n1'].detach().cpu().numpy(),
+                        emb8['n1'].detach().cpu().numpy()).any()
+
+    # 'sub' operator, different outputs
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_mp_op='sub',
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb8 = layer(block, node_feats, edge_feats)
+    assert np.not_equal(emb8_woefeat['n1'].detach().cpu().numpy(),
+                        emb8['n1'].detach().cpu().numpy()).any()
+
+    # 'mul' operator, same outputs
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_mp_op='mul',
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb8 = layer(block, node_feats, edge_feats)
+    assert_almost_equal(emb8_woefeat['n1'].detach().cpu().numpy(),
+                        emb8['n1'].detach().cpu(), decimal=5)
+
+    # 'div' operator, same outputs
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_mp_op='div',
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb8 = layer(block, node_feats, edge_feats)
+    assert_almost_equal(emb8_woefeat['n1'].detach().cpu().numpy(),
+                        emb8['n1'].detach().cpu(), decimal=5)
+
+    #      sub-case 1.2: all edge features are 0s, 'add', 'sub', and 'concat' make no difference,
+    #                    but 'mul' and 'div' output differently.
+    node_feats = {
+        "n0": th.ones(src_idx.shape[0], input_dim).to(dev),
+        "n1": th.ones(dst_idx.shape[0], input_dim).to(dev)
+    }
+    edge_feats = {
+        ("n0", "r0", "n1"): th.zeros(r0_eid.shape[0], input_dim).to(dev),
+        ("n0", "r1", "n1"): th.zeros(r1_eid.shape[0], input_dim).to(dev)
+    }
+
+    # 'concat' operator, same outputs
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_mp_op='concat',
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb8 = layer(block, node_feats, edge_feats)
+    assert_almost_equal(emb8_woefeat['n1'].detach().cpu().numpy(),
+                        emb8['n1'].detach().cpu(), decimal=5)
+
+    # 'add' operator, same outputs
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_mp_op='add',
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb8 = layer(block, node_feats, edge_feats)
+    assert_almost_equal(emb8_woefeat['n1'].detach().cpu().numpy(),
+                        emb8['n1'].detach().cpu(), decimal=5)
+
+    # 'sub' operator, same outputs
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_mp_op='sub',
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb8 = layer(block, node_feats, edge_feats)
+    assert_almost_equal(emb8_woefeat['n1'].detach().cpu().numpy(),
+                        emb8['n1'].detach().cpu(), decimal=5)
+
+    # 'mul' operator, different outputs
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_mp_op='mul',
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb8 = layer(block, node_feats, edge_feats)
+    assert np.not_equal(emb8_woefeat['n1'].detach().cpu().numpy(),
+                        emb8['n1'].detach().cpu().numpy()).any()
+
+    # 'div' operator, different outputs
+    layer = RelationalAttLayer(
+        input_dim, output_dim, etypes,
+        num_heads=2,
+        edge_feat_mp_op='div',
+        edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    layer = layer.to(dev)
+
+    emb8 = layer(block, node_feats, edge_feats)
+    assert np.not_equal(emb8_woefeat['n1'].detach().cpu().numpy(),
+                        emb8['n1'].detach().cpu().numpy()).any()
+
+
 if __name__ == '__main__':
-    test_rgcn_with_zero_input(32, 64)
-    test_rgat_with_zero_input(32, 64)
-    test_hgt_with_zero_input(32, 64)
+    # test_rgcn_with_zero_input(32, 64)
+    # test_rgat_with_zero_input(32, 64)
+    # test_hgt_with_zero_input(32, 64)
+    #
+    # test_rgcn_with_no_indegree_dstnodes(32, 64)
+    # test_rgat_with_no_indegree_dstnodes(32, 64)
+    # test_hgt_with_no_indegree_dstnodes(32, 64)
+    #
+    # test_rgcn_with_edge_features(32, 64, 'cpu')
+    # test_rgcn_with_edge_features(64, 64, 'cpu')
+    # test_rgcn_with_edge_features(32, 64, 'cuda:0')
 
-    test_rgcn_with_no_indegree_dstnodes(32, 64)
-    test_rgat_with_no_indegree_dstnodes(32, 64)
-    test_hgt_with_no_indegree_dstnodes(32, 64)
-
-    test_rgcn_with_edge_features(32, 64, 'cpu')
-    test_rgcn_with_edge_features(64, 64, 'cpu')
-    test_rgcn_with_edge_features(32, 64, 'cuda:0')
+    test_rgat_with_edge_features(32, 64, 'cpu')
+    test_rgat_with_edge_features(64, 64, 'cpu')
+    test_rgat_with_edge_features(32, 64, 'cuda:0')
