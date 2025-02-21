@@ -127,10 +127,20 @@ class RelationalAttLayer(nn.Module):
         self.out_feat = out_feat
         self.num_heads = num_heads
         self.rel_names = rel_names
-        self.edge_feat_name = edge_feat_name
         self.bias = bias
         self.activation = activation
         self.self_loop = self_loop
+
+        if edge_feat_name:
+            assert len(set(edge_feat_name.keys()).intersection(
+                set(rel_names))) > 0, f'To use GATConvwithEdgeFeat, must provide valid edge feature name, but got {edge_feat_name}.'
+            # warning
+            if len(set(edge_feat_name.keys()) - set(rel_names)) > 0:
+                warn_msg = (f"Warning. Not using edge features for the invalid edge_feat_name: "
+                            f"{set(edge_feat_name.keys()) - set(rel_names)}.")
+                self.warning_once(warn_msg)
+        self.edge_feat_name = edge_feat_name
+        self.edge_feat_mp_op = edge_feat_mp_op
 
         rel_convs = {}
         for rel in rel_names:
@@ -370,14 +380,14 @@ class RelationalGATEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         # h2h
         for _ in range(num_hidden_layers):
             self.layers.append(RelationalAttLayer(
-                h_dim, h_dim, g.canonical_etypes, self.num_bases,
+                h_dim, h_dim, g.canonical_etypes, self.num_heads,
                 edge_feat_name=edge_feat_name, edge_feat_mp_op=edge_feat_mp_op,
                 activation=F.relu, self_loop=use_self_loop,
                 dropout=dropout, num_ffn_layers_in_gnn=num_ffn_layers_in_gnn,
                 fnn_activation=F.relu, norm=norm))
         # h2o
         self.layers.append(RelationalAttLayer(
-            h_dim, out_dim, g.canonical_etypes, self.num_bases,
+            h_dim, out_dim, g.canonical_etypes, self.num_heads,
             edge_feat_name=edge_feat_name, edge_feat_mp_op=edge_feat_mp_op,
             activation=F.relu if last_layer_act else None,
             self_loop=use_self_loop, norm=norm if last_layer_act else None))
@@ -421,13 +431,10 @@ class RelationalGATEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         h: dict of Tensor
             Output node embeddings for each node type in the format of {ntype: tensor}.
         """
-        for layer, block in zip(self.layers, blocks):
-            h = layer(block, h)
-
         if e_hs is not None:
-            assert len(e_hs) == len(blocks), 'The layer of edge features should be equal to ' + \
-                                             f'the number of blocks, but got {len(e_hs)} layers' + \
-                                             f'of edge features and {len(blocks)} blocks.'
+            assert len(e_hs) == len(blocks), 'The size of the list of edge features should ' + \
+                f'be equal to the number of blocks, but got {len(e_hs)} layers of edge ' + \
+                f'features and {len(blocks)} blocks.'
 
             for layer, block, e_h in zip(self.layers, blocks, e_hs):
                 n_h = layer(block, n_h, e_h)
@@ -698,10 +705,11 @@ class GATConvwithEdgeFeat(nn.Module):
         # multiply it with project weights as outputs, which is an all 0s tensor with output dim
         if rel_graph.num_edges() == 0:
             _, dst_inputs = inputs
-            h = th.zeros_like(dst_inputs, device=dst_inputs.device)
-            if self.edge_feat_mp_op == 'concat':
-                h = th.concat([h, h], dim=-1)
-            h = h @ self.weights
+            rst = th.zeros((dst_inputs.shape[0], self._num_heads, self._out_feats), device=dst_inputs.device)
+            if get_attention:
+                return rst, None
+            else:
+                return rst
         else:
             assert len(inputs) == 3, 'For using edge features in message passing, you need to ' + \
                                      'provide 3 inputs in a tuple, the format is (src_inputs, ' + \
