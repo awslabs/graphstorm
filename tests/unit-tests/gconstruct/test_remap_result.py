@@ -15,11 +15,13 @@
 """
 import glob
 import os
+import math
 import tempfile
 from functools import partial
 from pathlib import Path
 
 import pytest
+import pyarrow as pa
 import pandas as pd
 import torch as th
 import numpy as np
@@ -540,15 +542,23 @@ def test_parse_config():
 @pytest.mark.parametrize("num_rows", [1000, 10001])
 def test_idmap_save_no_duplicates(num_rows, monkeypatch):
     # Mock GIB_BYTES to 1kib to force multiple partitions
-    monkeypatch.setattr("graphstorm.gconstruct.id_map.GIB_BYTES", 1024)
+    mock_gib_bytes = 1024
+    monkeypatch.setattr("graphstorm.gconstruct.id_map.GIB_BYTES", mock_gib_bytes)
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         # Create a table with known IDs to make verification easier
         # string ids will be sequential id_<idx>
-        ids = [f"id_{i}" for i in range(num_rows)]
+        string_ids = [f"id_{i}" for i in range(num_rows)]
+
+        # Estimate the expected number of files
+        table = pa.Table.from_arrays([pa.array(string_ids), list(range(num_rows))],
+                                     names=[MAPPING_INPUT_ID, MAPPING_OUTPUT_ID])
+        bytes_per_row = table.nbytes // table.num_rows
+        max_rows_per_file = mock_gib_bytes // bytes_per_row
+        expected_num_files = math.ceil(table.num_rows / max_rows_per_file)
 
         # Create the IdMap
-        id_map = IdMap(np.array(ids))
+        id_map = IdMap(np.array(string_ids))
 
         # Save the id map - will create multiple partitions due to small GIB_BYTES
         mapping_prefix = os.path.join(tmpdirname, "raw_id_mappings")
@@ -568,7 +578,8 @@ def test_idmap_save_no_duplicates(num_rows, monkeypatch):
             file_idx += 1
 
         # There should be multiple partition files due to small GIB_BYTES
-        assert file_idx > 1, "Expected multiple partition files"
+        assert file_idx == expected_num_files, \
+            f"Expected {expected_num_files} partition files, got {file_idx}"
 
         # Check total number of rows
         assert len(all_rows) == num_rows, \
