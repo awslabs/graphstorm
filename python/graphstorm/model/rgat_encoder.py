@@ -629,7 +629,6 @@ class GATConvwithEdgeFeat(nn.Module):
                                                             f' message passing operation in {BUILTIN_EDGE_FEAT_MP_OPS}, bug got ' + \
                                                             f'{edge_feat_mp_op}.'
         self.edge_feat_mp_op = edge_feat_mp_op
-        # if isinstance(in_feats, tuple):
         if edge_feat_mp_op in ['concat']:
             self.fc_src = nn.Linear(
                 self._in_src_feats * 2, out_feats * num_heads, bias=False
@@ -641,18 +640,6 @@ class GATConvwithEdgeFeat(nn.Module):
         self.fc_dst = nn.Linear(
             self._in_dst_feats, out_feats * num_heads, bias=False
         )
-        # else:
-        #     if edge_feat_mp_op in ['concat']:
-        #         self.fc = nn.Linear(
-        #             self._in_src_feats * 2, out_feats * num_heads, bias=False
-        #         )
-        #     else:
-        #         self.fc = nn.Linear(
-        #             self._in_src_feats, out_feats * num_heads, bias=False
-        #         )
-        # self.attn = nn.Parameter(
-        #     th.FloatTensor(size=(1, num_heads, out_feats))
-        # )
         self.feat_drop = nn.Dropout(feat_drop)
         self.attn_drop = nn.Dropout(attn_drop)
         self.leaky_relu = nn.LeakyReLU(negative_slope)
@@ -680,12 +667,8 @@ class GATConvwithEdgeFeat(nn.Module):
         The attention weights are using xavier initialization method.
         """
         gain = nn.init.calculate_gain("relu")
-        # if hasattr(self, "fc"):
-        #     nn.init.xavier_normal_(self.fc.weight, gain=gain)
-        # else:
         nn.init.xavier_normal_(self.fc_src.weight, gain=gain)
         nn.init.xavier_normal_(self.fc_dst.weight, gain=gain)
-        # nn.init.xavier_normal_(self.attn, gain=gain)
         if self.bias:
             nn.init.constant_(self.bias, 0)
 
@@ -730,54 +713,9 @@ class GATConvwithEdgeFeat(nn.Module):
                 f'{src_inputs.shape[1:]} and edge feature dimension: {edge_inputs.shape[1:]}.'
 
             with rel_graph.local_scope():
-                # if hasattr(self, "fc"):
-                #     src_prefix_shape = src_inputs.shape[:-1]
-                #     # dst_prefix_shape = dst_inputs.shape[:-1]
-                #     # edge_prefix_shape = edge_inputs.shape[:-1]
-                #     rel_graph.srcdata['n_h'] = self.feat_drop(src_inputs)
-                #     # rel_graph.dstdata['n_h'] = self.feat_drop(src_inputs)
-                #     # rel_graph.srcdata['n_h'] = src_inputs.view(
-                #     #     *src_prefix_shape, self._num_heads, self._out_feats
-                #     # )
-                #     rel_graph.edata['e_h'] = self.feat_drop(edge_inputs)
-                #
-                #     # u {edge_feat_mp_op} v
-                #     if self.edge_feat_mp_op == 'concat':
-                #         rel_graph.apply_edges(lambda edges: {
-                #             'm': self.fc(
-                #                 th.concat([edges.src['n_h'], edges.data['e_h']], dim=1))
-                #                               .view(1, self._num_heads, self._out_feats)})
-                #     elif self.edge_feat_mp_op == 'add':
-                #         rel_graph.apply_edges(
-                #             lambda edges: {'m': self.fc(edges.src['n_h'] + edges.data['e_h'])
-                #             .view(1, self._num_heads, self._out_feats)})
-                #     elif self.edge_feat_mp_op == 'sub':
-                #         rel_graph.apply_edges(
-                #             lambda edges: {'m': self.fc(edges.src['n_h'] - edges.data['e_h'])
-                #             .view(1, self._num_heads, self._out_feats)})
-                #     elif self.edge_feat_mp_op == 'mul':
-                #         rel_graph.apply_edges(
-                #             lambda edges: {'m': self.fc(edges.src['n_h'] * edges.data['e_h'])
-                #             .view(1, self._num_heads, self._out_feats)})
-                #     elif self.edge_feat_mp_op == 'div':
-                #         rel_graph.apply_edges(
-                #             lambda edges: {'m': self.fc(edges.src['n_h'] / edges.data['e_h'])
-                #             .view(1, self._num_heads, self._out_feats)})
-                #     else:
-                #         raise ValueError('Unknown edge message passing operation: ' + \
-                #                          f'{self.edge_feat_mp_op}. It should be one of ' + \
-                #                          f'{BUILTIN_EDGE_FEAT_MP_OPS}.')
-                #
-                #     rel_graph.dstdata['n_h'] = rel_graph.srcdata['n_h']
-                # else:
-                    # src_prefix_shape = src_inputs.shape[:-1]
                 dst_prefix_shape = dst_inputs.shape[:-1]
                 edge_prefix_shape = edge_inputs.shape[:-1]
                 rel_graph.srcdata['n_h'] = self.feat_drop(src_inputs)
-                # rel_graph.dstdata['n_h'] = self.feat_drop(src_inputs)
-                # rel_graph.srcdata['n_h'] = src_inputs.view(
-                #     *src_prefix_shape, self._num_heads, self._out_feats
-                # )
                 rel_graph.edata['e_h'] = self.feat_drop(edge_inputs)
 
                 # u {edge_feat_mp_op} v
@@ -820,9 +758,6 @@ class GATConvwithEdgeFeat(nn.Module):
                                      fn.sum('attn', 'ft'))
 
                 # extract outputs
-                # if self.self_loop:
-                #     rst = rel_graph.dstdata['ft'] + rel_graph.dstdata['n_h']
-                # else:
                 rst = rel_graph.dstdata['ft']
 
                 # bias
