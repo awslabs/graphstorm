@@ -929,8 +929,6 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         num_heads=2,
         edge_feat_name=None,
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
-    # th.nn.init.ones_(gat_layer_woefeat.conv._get_module(('n0', 'r0', 'n1')).fc.weight)
-    # th.nn.init.ones_(gat_layer_woefeat.conv._get_module(('n0', 'r1', 'n1')).fc.weight)
     gat_layer_woefeat = gat_layer_woefeat.to(dev)
     emb8_woefeat = gat_layer_woefeat(block, node_feats)
 
@@ -941,10 +939,6 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='concat',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
@@ -958,10 +952,6 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='add',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
@@ -975,10 +965,6 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='sub',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
@@ -992,10 +978,6 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='mul',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
@@ -1009,10 +991,6 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='div',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
@@ -1037,10 +1015,6 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='concat',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
@@ -1054,10 +1028,6 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='add',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
@@ -1071,10 +1041,6 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='sub',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
@@ -1088,10 +1054,6 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='mul',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
@@ -1105,10 +1067,6 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='div',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
-    # th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
@@ -1117,17 +1075,17 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
 
 
 if __name__ == '__main__':
-    # test_rgcn_with_zero_input(32, 64)
-    # test_rgat_with_zero_input(32, 64)
-    # test_hgt_with_zero_input(32, 64)
-    #
-    # test_rgcn_with_no_indegree_dstnodes(32, 64)
-    # test_rgat_with_no_indegree_dstnodes(32, 64)
-    # test_hgt_with_no_indegree_dstnodes(32, 64)
-    #
-    # test_rgcn_with_edge_features(32, 64, 'cpu')
-    # test_rgcn_with_edge_features(64, 64, 'cpu')
-    # test_rgcn_with_edge_features(32, 64, 'cuda:0')
+    test_rgcn_with_zero_input(32, 64)
+    test_rgat_with_zero_input(32, 64)
+    test_hgt_with_zero_input(32, 64)
+
+    test_rgcn_with_no_indegree_dstnodes(32, 64)
+    test_rgat_with_no_indegree_dstnodes(32, 64)
+    test_hgt_with_no_indegree_dstnodes(32, 64)
+
+    test_rgcn_with_edge_features(32, 64, 'cpu')
+    test_rgcn_with_edge_features(64, 64, 'cpu')
+    test_rgcn_with_edge_features(32, 64, 'cuda:0')
 
     test_rgat_with_edge_features(32, 64, 'cpu')
     test_rgat_with_edge_features(64, 64, 'cpu')
