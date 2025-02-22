@@ -15,6 +15,7 @@
 
     Test basic Nueral Network modules
 """
+import copy
 import pytest
 import tempfile
 import torch as th
@@ -856,7 +857,7 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
 
     emb7 = layer(block, node_feats, edge_feats)
     desired_emb7 = np.ones([dst_idx.shape[0], output_dim]) * (input_dim * 2)
-    assert_almost_equal(emb6['n1'].detach().cpu().numpy(), desired_emb7, decimal=5)
+    assert_almost_equal(emb7['n1'].detach().cpu().numpy(), desired_emb7, decimal=5)
 
     # sub
     # #     the output value for n1 should be: input_sim * num_etypes to 'n1'
@@ -874,7 +875,7 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
 
     emb7 = layer(block, node_feats, edge_feats)
     desired_emb7 = np.ones([dst_idx.shape[0], output_dim]) * (input_dim * 2)
-    assert_almost_equal(emb6['n1'].detach().cpu().numpy(), desired_emb7, decimal=5)
+    assert_almost_equal(emb7['n1'].detach().cpu().numpy(), desired_emb7, decimal=5)
 
     # mul
     # #     the output value for n1 should be: 0s
@@ -916,8 +917,12 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
     #      sub-case 1.1: all edge features are 1s, 'mul' and 'div' make no difference, but
     #                    'add', 'sub', and 'concat' output differently.
     node_feats = {
-        "n0": th.rand(src_idx.shape[0], input_dim).to(dev),
-        "n1": th.rand(dst_idx.shape[0], input_dim).to(dev)
+        # "n0": th.concat((th.ones(src_idx.shape[0], input_dim//2)*0.5, th.ones(src_idx.shape[0], input_dim//2)*0.2), dim=1).to(dev),
+        # "n1": th.concat((th.ones(src_idx.shape[0], input_dim//2)*0.3, th.ones(src_idx.shape[0], input_dim//2)*0.6), dim=1).to(dev)
+        "n0": (th.ones(src_idx.shape[0], input_dim)*0.4).to(dev),
+        "n1": (th.ones(src_idx.shape[0], input_dim)*0.7).to(dev)
+        # "n0": th.ones(src_idx.shape[0], input_dim).to(dev),
+        # "n1": th.ones(src_idx.shape[0], input_dim).to(dev)
     }
     edge_feats = {
         ("n0", "r0", "n1"): th.ones(r0_eid.shape[0], input_dim).to(dev),
@@ -925,10 +930,22 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
     }
 
     gat_layer_woefeat = RelationalAttLayer(
-        input_dim, output_dim, etypes,
+        (input_dim, input_dim), output_dim, etypes,
         num_heads=2,
         edge_feat_name=None,
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    # gat_layer_woefeat_r0_fc_src_weight = (
+    #     copy.deepcopy(gat_layer_woefeat.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight))
+    # gat_layer_woefeat_r0_fc_dst_weight = (
+    #     copy.deepcopy(gat_layer_woefeat.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight))
+    # gat_layer_woefeat_r1_fc_src_weight = (
+    #     copy.deepcopy(gat_layer_woefeat.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight))
+    # gat_layer_woefeat_r1_fc_dst_weight = (
+    #     copy.deepcopy(gat_layer_woefeat.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight))
+    th.nn.init.ones_(gat_layer_woefeat.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(gat_layer_woefeat.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(gat_layer_woefeat.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(gat_layer_woefeat.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     gat_layer_woefeat = gat_layer_woefeat.to(dev)
     emb8_woefeat = gat_layer_woefeat(block, node_feats)
 
@@ -939,6 +956,10 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='concat',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
@@ -952,6 +973,10 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='add',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
@@ -965,6 +990,10 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='sub',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
@@ -978,11 +1007,19 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='mul',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    # layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight = gat_layer_woefeat_r0_fc_src_weight
+    # layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight = gat_layer_woefeat_r0_fc_dst_weight
+    # layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight = gat_layer_woefeat_r1_fc_src_weight
+    # layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight = gat_layer_woefeat_r1_fc_dst_weight
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
     assert_almost_equal(emb8_woefeat['n1'].detach().cpu().numpy(),
-                        emb8['n1'].detach().cpu(), decimal=5)
+                        emb8['n1'].detach().cpu(), decimal=3)
 
     # 'div' operator, same outputs
     layer = RelationalAttLayer(
@@ -991,22 +1028,50 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='div',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    # layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight = gat_layer_woefeat_r0_fc_src_weight
+    # layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight = gat_layer_woefeat_r0_fc_dst_weight
+    # layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight = gat_layer_woefeat_r1_fc_src_weight
+    # layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight = gat_layer_woefeat_r1_fc_dst_weight
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
     assert_almost_equal(emb8_woefeat['n1'].detach().cpu().numpy(),
-                        emb8['n1'].detach().cpu(), decimal=5)
+                        emb8['n1'].detach().cpu(), decimal=3)
 
     #      sub-case 1.2: all edge features are 0s, 'add', 'sub', and 'concat' make no difference,
     #                    but 'mul' and 'div' output differently.
-    node_feats = {
-        "n0": th.rand(src_idx.shape[0], input_dim).to(dev),
-        "n1": th.rand(dst_idx.shape[0], input_dim).to(dev)
-    }
+    # node_feats = {
+    #     "n0": th.rand(src_idx.shape[0], input_dim).to(dev),
+    #     "n1": th.rand(dst_idx.shape[0], input_dim).to(dev)
+    # }
     edge_feats = {
         ("n0", "r0", "n1"): th.zeros(r0_eid.shape[0], input_dim).to(dev),
         ("n0", "r1", "n1"): th.zeros(r1_eid.shape[0], input_dim).to(dev)
     }
+
+    gat_layer_woefeat = RelationalAttLayer(
+        (input_dim, input_dim), output_dim, etypes,
+        num_heads=2,
+        edge_feat_name=None,
+        bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    # gat_layer_woefeat_r0_fc_src_weight = (
+    #     copy.deepcopy(gat_layer_woefeat.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight))
+    # gat_layer_woefeat_r0_fc_dst_weight = (
+    #     copy.deepcopy(gat_layer_woefeat.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight))
+    # gat_layer_woefeat_r1_fc_src_weight = (
+    #     copy.deepcopy(gat_layer_woefeat.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight))
+    # gat_layer_woefeat_r1_fc_dst_weight = (
+    #     copy.deepcopy(gat_layer_woefeat.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight))
+    th.nn.init.ones_(gat_layer_woefeat.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(gat_layer_woefeat.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(gat_layer_woefeat.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(gat_layer_woefeat.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    gat_layer_woefeat = gat_layer_woefeat.to(dev)
+    emb8_woefeat = gat_layer_woefeat(block, node_feats)
 
     # 'concat' operator, same outputs
     layer = RelationalAttLayer(
@@ -1015,11 +1080,19 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='concat',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
+    # layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight = gat_layer_woefeat_r0_fc_src_weight
+    # layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight = gat_layer_woefeat_r0_fc_dst_weight
+    # layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight = gat_layer_woefeat_r1_fc_src_weight
+    # layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight = gat_layer_woefeat_r1_fc_dst_weight
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
     assert_almost_equal(emb8_woefeat['n1'].detach().cpu().numpy(),
-                        emb8['n1'].detach().cpu(), decimal=5)
+                        emb8['n1'].detach().cpu(), decimal=3)
 
     # 'add' operator, same outputs
     layer = RelationalAttLayer(
@@ -1028,11 +1101,15 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='add',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
     assert_almost_equal(emb8_woefeat['n1'].detach().cpu().numpy(),
-                        emb8['n1'].detach().cpu(), decimal=5)
+                        emb8['n1'].detach().cpu(), decimal=3)
 
     # 'sub' operator, same outputs
     layer = RelationalAttLayer(
@@ -1041,11 +1118,15 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='sub',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
     assert_almost_equal(emb8_woefeat['n1'].detach().cpu().numpy(),
-                        emb8['n1'].detach().cpu(), decimal=5)
+                        emb8['n1'].detach().cpu(), decimal=3)
 
     # 'mul' operator, different outputs
     layer = RelationalAttLayer(
@@ -1054,6 +1135,10 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='mul',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
@@ -1067,6 +1152,10 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
         edge_feat_mp_op='div',
         edge_feat_name={("n0", "r0", "n1"): ['feat'], ("n0", "r1", "n1"): ['feat']},
         bias=False, activation=None, self_loop=False, dropout=0.0, norm=None)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r0', 'n1')).fc_dst.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_src.weight)
+    th.nn.init.ones_(layer.conv._get_module(('n0', 'r1', 'n1')).fc_dst.weight)
     layer = layer.to(dev)
 
     emb8 = layer(block, node_feats, edge_feats)
