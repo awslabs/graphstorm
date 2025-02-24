@@ -254,7 +254,7 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
         assert emb5['n0'].shape[-1] == output_dim
         assert emb5['n1'].shape[-1] == output_dim
 
-        # Test 6: normal case, same as case 1, but 3 layer of GNN
+        # Test 6: normal case, same as case 1, but 3 layers of GNN
         nfeat_fields = {'n0':['feat'], 'n1': ['feat']}
         efeat_fields = {('n0', 'r0', 'n1'): ['feat'], ('n0', 'r1', 'n1'): ['feat']}
 
@@ -514,7 +514,7 @@ def test_hgt_encoder_with_edge_features(input_dim, output_dim, dev):
         assert emb5['n0'].shape[-1] == output_dim
         assert emb5['n1'].shape[-1] == output_dim
 
-        # Test 6: normal case, same as case 1, but 3 layer of GNN
+        # Test 6: normal case, same as case 1, but 3 layers of GNN
         nfeat_fields = {'n0':['feat'], 'n1': ['feat']}
         efeat_fields = {('n0', 'r0', 'n1'): ['feat'], ('n0', 'r1', 'n1'): ['feat']}
 
@@ -569,9 +569,3 @@ def test_hgt_encoder_with_edge_features(input_dim, output_dim, dev):
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
-
-
-if __name__ == '__main__':
-    test_rgcn_encoder_with_edge_features(32, 64, 'cpu')
-    test_rgcn_encoder_with_edge_features(64, 64, 'cpu')
-    test_rgcn_encoder_with_edge_features(32, 64, 'cuda:0')
