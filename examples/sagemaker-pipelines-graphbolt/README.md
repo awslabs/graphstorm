@@ -140,7 +140,7 @@ You will use this script to directly download, transform and upload the data to 
 ```bash
 cd ~/graphstorm/examples/sagemaker-pipelines-graphbolt
 python convert_arxiv_to_gconstruct.py \
-    --output-prefix s3://$BUCKET_NAME/ogb-arxiv-input
+    --output-s3-prefix s3://$BUCKET_NAME/ogb-arxiv-input
 ```
 
 This will create the tabular graph data on S3 which you can verify by running
