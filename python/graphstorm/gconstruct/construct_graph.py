@@ -44,7 +44,9 @@ from .transform import (print_node_label_stats,
 from .id_map import NoopMap, IdMap, map_node_ids
 from .utils import (multiprocessing_data_read,
                     update_two_phase_feat_ops, ExtMemArrayMerger,
-                    partition_graph, ExtMemArrayWrapper)
+                    partition_graph,
+                    ExtMemArrayWrapper,
+                    stop_validate_features)
 from .utils import (get_hard_edge_negs_feats,
                     shuffle_hard_nids)
 
@@ -744,6 +746,13 @@ def process_graph(args):
     """
     check_graph_name(args.graph_name)
     logging.basicConfig(level=get_log_level(args.logging_level))
+    if args.no_feature_validate:
+        logging.warning("Turn off input feature validation."
+                        "This will speedup data processing, "
+                        "but won't check whether there are "
+                        "invalid values from the input.")
+        stop_validate_features()
+
     with open(args.conf_file, 'r', encoding="utf8") as json_file:
         process_confs = json.load(json_file)
 
@@ -919,6 +928,8 @@ if __name__ == '__main__':
                            help="Whether or not to remap node IDs.")
     argparser.add_argument("--add-reverse-edges", action='store_true',
                            help="Add reverse edges.")
+    argparser.add_argument("--no-feature-validate", action='store_true',
+                           help="Turn off features validation.")
     argparser.add_argument("--output-format", type=str, nargs='+', default=["DistDGL"],
                            help="The output format of the constructed graph."
                                 "It can be a single output format, for example "

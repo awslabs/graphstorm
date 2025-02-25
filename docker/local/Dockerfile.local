@@ -1,4 +1,5 @@
 ARG DEVICE=gpu
+ARG USE_PARMETIS=false
 ARG SOURCE
 
 FROM ${SOURCE} as base
@@ -40,13 +41,22 @@ RUN pip install \
     pydantic==2.7.0 \
     scikit-learn==1.4.2 \
     scipy==1.13.0 \
+    tensorboard==2.18.0 \
     && rm -rf /root/.cache
 
 ARG DGL_VERSION=2.3.0
 ARG DGL_CUDA_VERSION=121
 ARG OGB_VERSION=1.3.6
-ARG TORCH_VERSION=2.3
+ARG TORCH_VERSION=2.3.0
 ARG TRANSFORMERS_VERSION=4.28.1
+
+# Download dgl files
+RUN cd /root && \
+    git clone --branch v${DGL_VERSION} --single-branch https://github.com/dmlc/dgl.git && \
+    rm -rf /root/dgl/.git
+ENV DGL_HOME=/root/dgl
+ENV DGLBACKEND=pytorch
+ENV PYTHONPATH="/root/dgl/tools/:${PYTHONPATH}"
 
 FROM base as base-cpu
 
@@ -77,18 +87,53 @@ RUN TORCH_MAJOR_MINOR=$(echo $TORCH_VERSION | cut -c1-3) && \
     transformers==${TRANSFORMERS_VERSION} \
     && rm -rf /root/.cache
 
-FROM base-${DEVICE} as runtime
+FROM base-${DEVICE} as parmetis-true
 
-ENV PYTHONPATH="/root/dgl/tools/:${PYTHONPATH}"
+# Install MPI and dependencies
+RUN apt update && apt install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    libopenmpi-dev \
+    openmpi-bin \
+    && rm -rf /var/lib/apt/lists/*
 
-# Download DGL source code
-RUN cd /root; git clone --branch v${DGL_VERSION} https://github.com/dmlc/dgl.git
+RUN pip install \
+    pyyaml \
+    && rm -rf /root/.cache
 
-# Copy GraphStorm source and add to PYTHONPATH
-RUN mkdir -p /graphstorm
-COPY code/python/graphstorm /graphstorm/python/graphstorm
-ENV PYTHONPATH="/graphstorm/python/:${PYTHONPATH}"
+# Install GKLib
+RUN cd /root && \
+    git clone --single-branch --branch master https://github.com/KarypisLab/GKlib && \
+    cd GKlib && \
+    make && \
+    make install && \
+    rm -rf .git
 
+# Install Metis
+RUN cd /root && \
+    git clone --single-branch --branch master https://github.com/KarypisLab/METIS.git && \
+    cd METIS && \
+    make config shared=1 cc=gcc prefix=/root/local i64=1 && \
+    make install && \
+    rm -rf .git
+
+# Install Parmetis
+RUN cd /root && \
+    git clone --single-branch --branch main https://github.com/KarypisLab/PM4GNN.git && \
+    cd PM4GNN && \
+    make config cc=mpicc prefix=/root/local && \
+    make install && \
+    rm -rf .git
+
+ENV PATH=$PATH:/root/local/bin
+ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/root/local/lib/
+RUN cp /root/local/bin/pm_dglpart /root/local/bin/pm_dglpart3
+
+FROM base-${DEVICE} as parmetis-false
+
+# No additional dependencies when not supporting ParMETIS
+
+FROM parmetis-${USE_PARMETIS} as runtime
 
 # Set up SSH access
 ENV SSH_PORT=2222
@@ -102,6 +147,12 @@ RUN mkdir -p ${SSHDIR} \
     && mkdir /run/sshd
 
 EXPOSE ${SSH_PORT}
+
+# Copy GraphStorm source and add to PYTHONPATH
+RUN mkdir -p /graphstorm
+COPY code/python/graphstorm /graphstorm/python/graphstorm
+ENV PYTHONPATH="/graphstorm/python/:${PYTHONPATH}"
+
 
 # Copy GraphStorm scripts and tools
 COPY code/examples /graphstorm/examples

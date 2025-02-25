@@ -13,6 +13,18 @@
                     ]
             },
             {
+                    "node_type":    "user",
+                    "format":       {"name": "parquet"},
+                    "files":        "/data/ml-100k/users.parquet",
+                    "labels":	[
+                        {
+                            "label_col":	"age",
+                            "task_type":	"regression",
+                            "split_pct":	[0.8, 0.1, 0.1]
+                        }
+                    ]
+            },
+            {
                     "node_id_col":  "id",
                     "node_type":    "movie",
                     "format":       {"name": "parquet"},

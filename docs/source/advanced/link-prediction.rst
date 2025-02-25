@@ -117,7 +117,6 @@ GraphStorm provides four options to compute training losses:
 
     where ``G`` is the training graph.
 
-
 * **Adversarial Cross Entropy Loss**: The adversarial cross entropy loss turns a link prediction task into a binary classification task. We treat positive edges as 1 and negative edges as 0. In addition, adversarial cross-entropy loss adjusts the loss value of each negative sample based on its degree of difficulty. This is enabled by setting the ``adversarial_temperature`` config.
 
     The loss of positive edges is as:
@@ -158,6 +157,26 @@ GraphStorm provides four options to compute training losses:
     .. math::
 
         loss = \dfrac{\mathrm{avg}(loss_{pos}) + \mathrm{avg}(loss_{neg})}{2}
+
+* **Bayesian Personalized Ranking Loss**: Bayesian personalized ranking (BPR, https://arxiv.org/abs/1205.2618) is a pairwise personalized ranking loss that is derived from the maximum posterior estimator. The loss is defined as:
+
+    .. math::
+
+        loss = - \log\left(\frac{ 1 }{ 1 + \exp(-x)}\right)
+
+    where ``x`` is the distance between the score of a positive edge and the score of its corresponding negative edge. The distance is defined as:
+
+    .. math::
+
+        x = positive\_score - negative\_score
+
+* **Weighted Bayesian Personalized Ranking Loss**: The weighted bayesian personalized ranking is similar to **Bayesian Personalized Ranking Loss** except that it allows users to set a weight for each positive edge. The loss is defined as:
+
+    .. math::
+
+        loss = - w\_e [ \log\left(\frac{ 1 }{ 1 + \exp(-x)}\right) ]
+
+    where ``x`` is the distance between the score of a positive edge and the score of its corresponding negative edge, and `w_e`` is the weight of the positive edge.
 
 * **Contrastive Loss**: The contrastive loss compels the representations of connected nodes to be similar while forcing the representations of disconnected nodes remains dissimilar. In the implementation, we use the score computed by the score function to represent the distance between nodes. When computing the loss, we group one positive edge with the ``N`` negative edges corresponding to it.The loss function is as follows:
 

@@ -1076,7 +1076,14 @@ class DistHeterogeneousGraphLoader(object):
             if node_config.format == "csv":
                 separator = node_config.separator
                 node_file_schema = schema_utils.parse_node_file_schema(node_config)
-                nodes_df_untyped = self.spark.read.csv(path=file_paths, sep=separator, header=True)
+                # Adjust reading of CSV files to follow RFC 4180
+                # https://www.ietf.org/rfc/rfc4180.txt
+                nodes_df_untyped = (
+                    self.spark.read.option("quote", '"')
+                    .option("escape", '"')
+                    .option("multiLine", "true")
+                    .csv(path=file_paths, sep=separator, header=True)
+                )
                 nodes_df_untyped = nodes_df_untyped.select(node_file_schema.fieldNames())
                 # Select only the columns referenced in the config
                 # and cast each column to the correct type

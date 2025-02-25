@@ -222,6 +222,93 @@ class RegressionLossFunc(GSLayer):
         """
         return None
 
+class ShrinkageLossFunc(GSLayer):
+    r""" Shrinkage Loss for imbalanced regression tasks.
+
+        The shrinkage loss is defined as:
+
+        .. math::
+
+            loss = \frac{l^2}{1 + \exp \left( \alpha \cdot (\gamma - l) \right)}
+
+            where l is the absolute difference between the
+            predicted value and the groud truth. \alpha and
+            \gamma are hyper-parameters controlling the
+            shrinkage speed and the localization respectively.
+
+        The shrinkage loss only penalizes the importance of
+        easy samples (when l < 0.5) and keeps the loss of
+        hard samples unchanged.
+
+        # pylint: disable=line-too-long
+        For more details, please refer to the paper
+        "Deep Regression Tracking with Shrinkage Loss"
+        (https://openaccess.thecvf.com/content_ECCV_2018/html/Xiankai_Lu_Deep_Regression_Tracking_ECCV_2018_paper.html)
+
+        Parameters
+        ----------
+        alpha: float
+            A hyper-parameter controls the loss shrinkage
+            speed when the prediction error decreases.
+            Default: ``10.``.
+        gamma: float
+            A hyper-parameter controls the localization
+            of the loss regarding to the x-axis.
+            Default: ``0.2``.
+
+        .. versionadded:: 0.4.1
+            Add shrinkage loss for regressoin tasks.
+    """
+    def __init__(self, alpha=10, gamma=0.2):
+        super(ShrinkageLossFunc, self).__init__()
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def forward(self, logits, labels):
+        """ The forward function.
+
+        Parameters
+        ----------
+        logits: torch.Tensor
+            The prediction results.
+        labels: torch.Tensor
+            The training labels.
+
+        Returns
+        -------
+        loss: Tensor
+            The loss value.
+        """
+        # Make sure the labels is a float tensor
+        labels = labels.float()
+        diff = th.abs(logits - labels)
+        numerator = diff ** 2
+        denominator = 1 + th.exp(self.alpha * (self.gamma - diff))
+
+        loss = numerator / denominator
+        return loss.mean()
+
+    @property
+    def in_dims(self):
+        """ The number of input dimensions.
+
+        Returns
+        -------
+        int : the number of input dimensions.
+        """
+        return None
+
+    @property
+    def out_dims(self):
+        """ The number of output dimensions.
+
+        Returns
+        -------
+        int : the number of output dimensions.
+        """
+        return None
+
+
 class LinkPredictBCELossFunc(GSLayer):
     r""" Loss function for link prediction tasks using binary
     cross entropy loss.
@@ -334,7 +421,9 @@ class WeightedLinkPredictBCELossFunc(GSLayer):
         for key, p_s in pos_score.items():
             assert len(p_s) == 2, \
                 "Pos score must include score and weight " \
-                "Please use LinkPredictWeightedDistMultDecoder or " \
+                "Please use LinkPredictWeightedDistMultDecoder, " \
+                "LinkPredictWeightedRotatEDecoder, " \
+                "LinkPredictWeightedTransEDecoder or " \
                 "LinkPredictWeightedDotDecoder"
             n_s = neg_score[key]
             p_s, p_w = p_s
@@ -549,6 +638,163 @@ class WeightedLinkPredictAdvBCELossFunc(LinkPredictAdvBCELossFunc):
         neg_loss = th.mean(neg_loss)
         loss = (neg_loss + pos_loss) / 2
         return loss
+
+class LinkPredictBPRLossFunc(GSLayer):
+    r""" Loss function for link prediction tasks using bayesian
+    personalized ranking (BPR) (https://arxiv.org/abs/1205.2618) loss.
+
+    The loss function is defined as:
+
+    .. math::
+
+        loss = - \log\left(\frac{ 1 }{ 1 + \exp(-x)}\right)
+
+    where ``x`` is positive_score - negative_score.
+
+    .. versionadded:: 0.4.1
+    """
+
+    def forward(self, pos_score, neg_score):
+        """ The forward function.
+
+        Parameters
+        ----------
+        pos_score: dict of Tensor
+            The scores for positive edges of each edge type.
+        neg_score: dict of Tensor
+            The scores for negative edges of each edge type.
+
+        Returns
+        -------
+        loss: Tensor
+            The loss value.
+        """
+        distances = []
+        for key, p_s in pos_score.items():
+            assert key in neg_score, \
+                f"Negative scores of {key} must exists"
+            n_s = neg_score[key]
+
+            # Both p_s and n_s are soreted according to source nid
+            # (which are same in pos_graph and neg_graph)
+            pscore = p_s.unsqueeze(1)
+            nscore = n_s.reshape(p_s.shape[0], -1)
+            distance = pscore - nscore
+            distances.append(distance)
+
+        distances = th.cat(distances, dim=0)
+        loss = F.logsigmoid(distances)
+        loss = -loss.mean()
+
+        return loss
+
+    @property
+    def in_dims(self):
+        """ The number of input dimensions.
+
+        Returns
+        -------
+        int : the number of input dimensions.
+        """
+        return None
+
+    @property
+    def out_dims(self):
+        """ The number of output dimensions.
+
+        Returns
+        -------
+        int : the number of output dimensions.
+        """
+        return None
+
+
+class WeightedLinkPredictBPRLossFunc(GSLayer):
+    r""" Loss function for link prediction tasks using bayesian
+    personalized ranking (BPR) (https://arxiv.org/abs/1205.2618)
+    loss with weights.
+
+    The loss function is defined as:
+
+    .. math::
+
+        loss = - w\_e [ \log\left(\frac{ 1 }{ 1 + \exp(-x)}\right) ]
+
+    where ``x`` is positive_score - negative_score, and
+    ``w_e`` is the weight of the positive edge.
+
+    .. versionadded:: 0.4.1
+    """
+
+    def forward(self, pos_score, neg_score):
+        """ The forward function.
+
+        Parameters
+        ----------
+        pos_score: dict of Tensor
+            The scores for positive edges of each edge type.
+        neg_score: dict of Tensor
+            The scores for negative edges of each edge type.
+
+        Returns
+        -------
+        loss: Tensor
+            The loss value.
+        """
+        distances = []
+        p_weight = []
+        for key, p_s in pos_score.items():
+            assert key in neg_score, \
+                f"Negative scores of {key} must exists"
+            assert len(p_s) == 2, \
+                "Pos score must include score and weight " \
+                "Please use LinkPredictWeightedDistMultDecoder, " \
+                "LinkPredictWeightedRotatEDecoder, " \
+                "LinkPredictWeightedTransEDecoder or " \
+                "LinkPredictWeightedDotDecoder"
+
+            n_s = neg_score[key]
+            p_s, p_w = p_s
+            n_s, _ = n_s # neg_weight is ignored
+
+            # Both p_s and n_s are soreted according to source nid
+            # (which are same in pos_graph and neg_graph)
+            pscore = p_s.unsqueeze(1)
+            nscore = n_s.reshape(p_s.shape[0], -1)
+            distance = pscore - nscore
+            distances.append(distance)
+            p_weight.append(p_w)
+        p_weight = th.cat(p_weight)
+
+        distances = th.cat(distances, dim=0)
+        loss = F.logsigmoid(distances)
+        # re-scale the weight according to positive edge weight
+        loss = loss * p_weight.unsqueeze(1)
+        loss = -loss.mean()
+
+        return loss
+
+    @property
+    def in_dims(self):
+        """ The number of input dimensions.
+
+        Returns
+        -------
+        int : the number of input dimensions.
+        """
+        return None
+
+    @property
+    def out_dims(self):
+        """ The number of output dimensions.
+
+        Returns
+        -------
+        int : the number of output dimensions.
+        """
+        return None
+
+
 
 class LinkPredictContrastiveLossFunc(GSLayer):
     r""" Contrastive Loss function for link prediction tasks.

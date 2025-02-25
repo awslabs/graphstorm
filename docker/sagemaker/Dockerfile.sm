@@ -21,6 +21,11 @@ FROM branch-${DEVICE} AS final
 
 LABEL maintainer="Amazon AI Graph ML team"
 
+# Install MPI etc needed by DistDGL
+RUN apt-get update; apt-get install -y --no-install-recommends libopenmpi-dev \
+    build-essential software-properties-common; add-apt-repository ppa:ubuntu-toolchain-r/test; \
+    apt-get update; apt-get upgrade libstdc++6 -y && rm -rf /var/lib/apt/lists/*
+
 # Install required Python packages,
 # we set the versions to match those of the base conda environment when possible
 RUN pip3 install \
@@ -32,14 +37,11 @@ RUN pip3 install \
         pydantic==2.7.1 \
         scikit-learn==1.5.0 \
         scipy==1.13.1 \
+        tensorboard==2.18.0 \
         torchdata==0.9.0 \
         transformers==4.28.1 \
     && rm -rf /root/.cache
 
-# Install MPI etc needed by DistDGL
-RUN apt-get update; apt-get install -y --no-install-recommends libopenmpi-dev \
-    build-essential software-properties-common; add-apt-repository ppa:ubuntu-toolchain-r/test; \
-    apt-get update; apt-get upgrade libstdc++6 -y && rm -rf /var/lib/apt/lists/*
 
 # Copy workaround script for incorrect hostname
 COPY build_artifacts/changehostname.c /opt/ml/code/

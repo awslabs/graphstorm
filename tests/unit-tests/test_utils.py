@@ -43,7 +43,9 @@ from data_utils import generate_dummy_dist_graph
 from graphstorm.eval.utils import gen_mrr_score
 from graphstorm.utils import setup_device, get_graph_name
 
-from graphstorm.gconstruct.file_io import stream_dist_tensors_to_hdf5
+from graphstorm.gconstruct.file_io import stream_dist_tensors_to_hdf5, read_data_hdf5
+
+from dgl import NTYPE
 
 def gen_embedding_with_nid_mapping(num_embs):
     emb = th.rand((num_embs, 12))
@@ -58,35 +60,6 @@ def gen_predict_with_nid_mapping(num_embs):
     ori_nid_mapping = th.randperm(num_embs)
     _, nid_mapping = th.sort(ori_nid_mapping)
     return pred, ori_nid_mapping, nid_mapping
-
-def helper_save_embedding(tmpdirname):
-    random_emb = th.rand((103, 12))
-    type0_random_emb = LazyDistTensor(random_emb, th.arange(103))
-    random_emb = th.rand((205, 12))
-    type1_random_emb = LazyDistTensor(random_emb, th.arange(205))
-
-    emb = {
-        "type0": type0_random_emb,
-        "type1": type1_random_emb
-    }
-    save_embeddings(tmpdirname, emb, 0, 4)
-    emb = {
-        "type0": type0_random_emb,
-        "type1": type1_random_emb
-    }
-    save_embeddings(tmpdirname, emb, 1, 4)
-    emb = {
-        "type0": type0_random_emb,
-        "type1": type1_random_emb
-    }
-    save_embeddings(tmpdirname, emb, 2, 4)
-    emb = {
-        "type0": type0_random_emb,
-        "type1": type1_random_emb
-    }
-    save_embeddings(tmpdirname, emb, 3, 4)
-
-    return type0_random_emb, type1_random_emb
 
 def test_get_data_range():
     # test get_data_range
@@ -658,6 +631,63 @@ def test_save_embeddings_with_id_mapping(num_embs, backend):
         assert len(saved_emb) == len(embs['n2'])
         assert_equal(embs['n2'][nid_mappings['n2']].numpy(), saved_emb.numpy())
 
+def helper_save_multiple_embeddings(tmpdirname):
+    num_embs0 = 103
+    num_embs1 = 205
+    emb_dim_size = 12
+
+    random_emb = th.rand((num_embs0, emb_dim_size))
+    type0_random_emb = LazyDistTensor(random_emb, th.arange(num_embs0))
+    random_emb = th.rand((num_embs1, emb_dim_size))
+    type1_random_emb = LazyDistTensor(random_emb, th.arange(num_embs1))
+
+    emb = {
+        "type0": type0_random_emb,
+        "type1": type1_random_emb
+    }
+    save_embeddings(tmpdirname, emb, 0, 4, save_embed_format='pytorch')
+    save_embeddings(tmpdirname + '_hdf5', emb, 0, 4, save_embed_format='hdf5')
+    emb = {
+        "type0": type0_random_emb,
+        "type1": type1_random_emb
+    }
+    save_embeddings(tmpdirname, emb, 1, 4)
+    save_embeddings(tmpdirname + '_hdf5', emb, 1, 4, save_embed_format='hdf5')
+    emb = {
+        "type0": type0_random_emb,
+        "type1": type1_random_emb
+    }
+    save_embeddings(tmpdirname, emb, 2, 4)
+    save_embeddings(tmpdirname + '_hdf5', emb, 2, 4, save_embed_format='hdf5')
+    emb = {
+        "type0": type0_random_emb,
+        "type1": type1_random_emb
+    }
+    save_embeddings(tmpdirname, emb, 3, 4)
+    save_embeddings(tmpdirname + '_hdf5', emb, 3, 4, save_embed_format='hdf5')
+
+    shuffle_emb = {
+        "type0": (type0_random_emb, th.arange(num_embs0)),
+        "type1": (type1_random_emb, th.arange(num_embs1))
+    }
+    save_shuffled_node_embeddings(shuffle_emb, tmpdirname + '_shuffled', save_embed_format='pytorch')
+
+    return type0_random_emb, type1_random_emb
+
+def helper_save_single_embedding(tmpdirname):
+    """ 
+    Save embeddings without specifying a node type.
+    """
+    num_embs = 57
+    emb_dim_size = 29
+
+    single_random_emb = LazyDistTensor(th.rand(num_embs, emb_dim_size), th.arange(num_embs))
+
+    save_embeddings(tmpdirname, single_random_emb, 0, 1, save_embed_format='pytorch')
+    save_embeddings(tmpdirname + '_hdf5', single_random_emb, 0, 1, save_embed_format='hdf5')
+
+    return single_random_emb
+
 def test_save_embeddings():
     # initialize the torch distributed environment
     th.distributed.init_process_group(backend='gloo',
@@ -667,27 +697,88 @@ def test_save_embeddings():
 
     import tempfile
     with tempfile.TemporaryDirectory() as tmpdirname:
-        type0_random_emb, type1_random_emb = helper_save_embedding(tmpdirname)
+        # Dict of embeddings cases
+        type0_random_emb, type1_random_emb = helper_save_multiple_embeddings(tmpdirname)
 
+        # PyTorch Embeddings
         # Only work with torch 1.13+
-        feats_type0 = [th.load(os.path.join(os.path.join(tmpdirname, "type0"),
-                                            f"embed-{pad_file_index(i)}.pt"),
+        feats_type0 = [th.load(os.path.join(tmpdirname, "type0", f"embed-{pad_file_index(i)}.pt"),
                                weights_only=True) for i in range(4)]
         feats_type0 = th.cat(feats_type0, dim=0)
         # Only work with torch 1.13+
-        feats_type1 = [th.load(os.path.join(os.path.join(tmpdirname, "type1"),
-                                            f"embed-{pad_file_index(i)}.pt"),
+        feats_type1 = [th.load(os.path.join(tmpdirname, "type1", f"embed-{pad_file_index(i)}.pt"),
                                weights_only=True) for i in range(4)]
         feats_type1 = th.cat(feats_type1, dim=0)
 
         assert np.all(type0_random_emb.dist_tensor.numpy() == feats_type0.numpy())
         assert np.all(type1_random_emb.dist_tensor.numpy() == feats_type1.numpy())
 
+        # hdf5 Embeddings
+        embs = read_data_hdf5(os.path.join(tmpdirname + '_hdf5', 'embed_dict.hdf5'))
+
+        assert np.all(type0_random_emb.dist_tensor.numpy() == embs["type0"])
+        assert np.all(type1_random_emb.dist_tensor.numpy() == embs["type1"])
+
+        # Save shuffled node embeddings
+        # Only work with torch 1.13+
+        feats_type0 = th.load(os.path.join(tmpdirname + '_shuffled', "type0",
+                                            f"embed-{pad_file_index(0)}.pt"),
+                               weights_only=False)
+        # Only work with torch 1.13+
+        feats_type1 = th.load(os.path.join(tmpdirname + '_shuffled', "type1",
+                                            f"embed-{pad_file_index(0)}.pt"),
+                               weights_only=False)
+
+        assert np.all(type0_random_emb.dist_tensor.numpy() == feats_type0.dist_tensor.numpy())
+        assert np.all(type1_random_emb.dist_tensor.numpy() == feats_type1.dist_tensor.numpy())
+
+        # Test emb_info.json is correct
+        # PyTorch
+        with open(os.path.join(tmpdirname, 'emb_info.json'), 'r') as file:
+            emb_info = json.load(file)
+            assert type0_random_emb.shape[1] == emb_info['emb_dim']["type0"]
+            assert type1_random_emb.shape[1] == emb_info['emb_dim']["type1"]
+
+        # hdf5
+        with open(os.path.join(tmpdirname + '_hdf5', 'emb_info.json'), 'r') as file:
+            emb_info = json.load(file)
+            assert type0_random_emb.shape[1] == emb_info['emb_dim']["type0"]
+            assert type1_random_emb.shape[1] == emb_info['emb_dim']["type1"]
+
+        # Save shuffled node embeddings
+        with open(os.path.join(tmpdirname + '_shuffled', 'emb_info.json'), 'r') as file:
+            emb_info = json.load(file)
+            assert type0_random_emb.shape[1] == emb_info['emb_dim']["type0"]
+            assert type1_random_emb.shape[1] == emb_info['emb_dim']["type1"]
+
+
+        # single embedding cases
+        single_random_emb = helper_save_single_embedding(tmpdirname)
+
+        # pytorch
+        with open(os.path.join(tmpdirname, 'emb_info.json'), 'r') as file:
+            emb_info = json.load(file)
+            assert single_random_emb.shape[1] == emb_info['emb_dim'][NTYPE]
+
+        feats = [th.load(os.path.join(tmpdirname, NTYPE,
+                                        f"embed-{pad_file_index(i)}.pt"),
+                        weights_only=True) for i in range(1)]
+        feats = th.cat(feats, dim=0)
+        assert np.all(single_random_emb.dist_tensor.numpy() == feats.numpy())
+
+        # hdf5
+        with open(os.path.join(tmpdirname + '_hdf5', 'emb_info.json'), 'r') as file:
+            emb_info = json.load(file)
+            assert single_random_emb.shape[1] == emb_info['emb_dim'][NTYPE]
+
+        feats = read_data_hdf5(os.path.join(tmpdirname + '_hdf5', 'embed_dict.hdf5'))
+        assert np.all(single_random_emb.dist_tensor.numpy() == feats[NTYPE])
+
 def test_remove_saved_models():
     import tempfile
     import os
     with tempfile.TemporaryDirectory() as tmpdirname:
-        _, _ = helper_save_embedding(tmpdirname)
+        _, _ = helper_save_multiple_embeddings(tmpdirname)
 
         assert os.path.exists(tmpdirname) == True
 

@@ -12,6 +12,7 @@ sh ./tests/end2end-tests/data_process/homogeneous_test.sh
 bash ./tests/end2end-tests/data_process/gpartition_test.sh
 sh ./tests/end2end-tests/custom-gnn/run_test.sh
 bash ./tests/end2end-tests/graphstorm-nc/test.sh
+bash ./tests/end2end-tests/graphstorm-nr/test.sh
 bash ./tests/end2end-tests/graphstorm-lp/test.sh
 bash ./tests/end2end-tests/graphstorm-ec/test.sh
 bash ./tests/end2end-tests/graphstorm-er/test.sh

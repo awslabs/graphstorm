@@ -28,7 +28,7 @@ if VERSION.endswith('dev'):
 requirements = [
     'h5py',
     'pyarrow',
-    'transformers==4.36.0',
+    'transformers==4.48.0',
     'pandas',
     'scikit-learn',
     'ogb==1.3.6',

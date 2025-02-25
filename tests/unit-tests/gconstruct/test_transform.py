@@ -52,24 +52,56 @@ def test_fp_min_max_bound(input_dtype):
     assert len(max_val.shape) == 1
     assert len(min_val.shape) == 1
 
+    # test invalid inputs
+    feats[0] = np.nan
+    with assert_raises(AssertionError):
+        _ = transform.pre_process(feats.astype(input_dtype))
+
+    feats[0] = np.inf
+    with assert_raises(AssertionError):
+        _ = transform.pre_process(feats.astype(input_dtype))
+
+    # without predefined bound.
     feats = np.random.randn(100).astype(input_dtype)
     res_dtype = np.float32 if input_dtype == np.cfloat else input_dtype
     fifo = np.finfo(res_dtype)
-    feats[0] = fifo.max
-    feats[1] = -fifo.max
+    max_v = np.max(feats) + 10
+    min_v= np.min(feats) - 10
+    feats[0] = max_v
+    feats[1] = min_v
     transform = NumericalMinMaxTransform("test", "test",
                                          out_dtype=input_dtype)
     max_val, min_val = transform.pre_process(feats)["test"]
     assert len(max_val.shape) == 1
     assert len(min_val.shape) == 1
-    assert_equal(max_val[0], np.finfo(res_dtype).max)
-    assert_equal(min_val[0], -np.finfo(res_dtype).max)
+    assert_almost_equal(max_val[0], max_v, decimal=2)
+    assert_almost_equal(min_val[0], min_v, decimal=2)
+
+    # has predefined bound.
+    feats = np.random.randn(100).astype(input_dtype)
+    res_dtype = np.float32 if input_dtype == np.cfloat else input_dtype
+    fifo = np.finfo(res_dtype)
+    max_v = np.max(feats) + 10
+    min_v= np.min(feats) - 10
+    feats[0] = max_v
+    feats[1] = min_v
+    transform = NumericalMinMaxTransform("test", "test",
+                                         max_bound=5,
+                                         min_bound=-5,
+                                         out_dtype=input_dtype)
+    max_val, min_val = transform.pre_process(feats)["test"]
+    assert len(max_val.shape) == 1
+    assert len(min_val.shape) == 1
+    assert_almost_equal(max_val[0], 5, decimal=2)
+    assert_almost_equal(min_val[0], -5, decimal=2)
 
     if input_dtype == np.float16:
         feats = np.random.randn(100).astype(input_dtype)
         fifo = np.finfo(np.float32)
-        feats[0] = fifo.max
-        feats[1] = -fifo.max
+        max_v = np.max(feats) + 10
+        min_v= np.min(feats) - 10
+        feats[0] = max_v
+        feats[1] = min_v
         transform = NumericalMinMaxTransform("test", "test",
                                              out_dtype=input_dtype)
         max_val, min_val = transform.pre_process(feats)["test"]
@@ -77,13 +109,15 @@ def test_fp_min_max_bound(input_dtype):
         assert len(min_val.shape) == 1
         assert max_val[0].dtype == np.float16
         assert min_val[0].dtype == np.float16
-        assert_equal(max_val[0], np.finfo(np.float16).max)
-        assert_equal(min_val[0], -np.finfo(np.float16).max)
+        assert_almost_equal(max_val[0], max_v, decimal=2)
+        assert_almost_equal(min_val[0], min_v, decimal=2)
 
         feats = np.random.randn(100).astype(input_dtype)
         fifo = np.finfo(np.float32)
-        feats[0] = fifo.max
-        feats[1] = -fifo.max
+        max_v = np.max(feats) + 10
+        min_v= np.min(feats) - 10
+        feats[0] = max_v
+        feats[1] = min_v
         transform = NumericalMinMaxTransform("test", "test",
                                              max_bound=fifo.max,
                                              min_bound=-fifo.max,
@@ -95,8 +129,8 @@ def test_fp_min_max_bound(input_dtype):
         assert len(min_val.shape) == 1
         assert max_val[0].dtype == np.float16
         assert min_val[0].dtype == np.float16
-        assert_equal(max_val[0], np.finfo(np.float16).max)
-        assert_equal(min_val[0], -np.finfo(np.float16).max)
+        assert_almost_equal(max_val[0], max_v, decimal=2)
+        assert_almost_equal(min_val[0], min_v, decimal=2)
 
 
 @pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
@@ -532,6 +566,15 @@ def test_noop_transform(out_dtype):
     else:
         assert norm_feats["test"].dtype == np.float32
 
+    # invalid input
+    feats[0] = np.nan
+    with assert_raises(AssertionError):
+        _ = transform(feats)
+
+    feats[0] = np.inf
+    with assert_raises(AssertionError):
+        _ = transform(feats)
+
 def test_noop_truncate():
     transform = Noop("test", "test", truncate_dim=16)
     feats = np.random.randn(100, 32).astype(np.float32)
@@ -607,6 +650,15 @@ def test_rank_gauss_transform(input_dtype, out_dtype):
     else:
         assert trans_feat.dtype != np.float16
         assert_almost_equal(feat, trans_feat, decimal=4)
+
+    # inpuu is invalid
+    feat_0[0] = np.nan
+    with assert_raises(AssertionError):
+        _ = transform(feat_0)
+
+    feat_0[0] = np.inf
+    with assert_raises(AssertionError):
+        _ = transform(feat_0)
 
 def test_custom_node_label_processor():
     train_idx = np.arange(0, 10)
@@ -1009,6 +1061,15 @@ def test_bucket_transform(out_dtype):
     feats_tar = np.array([[1, 1], [1, 1], [1, 1], [1, 1]], dtype=out_dtype)
     assert_equal(bucket_feats['test'], feats_tar)
 
+    # invalid input
+    feats = np.array([1, 10, 20, np.nan])
+    with assert_raises(AssertionError):
+        bucket_feats = transform(feats)
+
+    feats = np.array([1, 10, 20, np.inf])
+    with assert_raises(AssertionError):
+        bucket_feats = transform(feats)
+
 @pytest.mark.parametrize("id_dtype", [str, np.int64])
 def test_hard_edge_dst_negative_transform(id_dtype):
     hard_neg_trasnform = HardEdgeDstNegativeTransform("hard_neg", "hard_neg")
@@ -1218,6 +1279,15 @@ def test_standard_pre_process(input_dtype):
     assert_almost_equal(conf["sum"],
                         info[0]+info[1])
 
+    # input is invalid
+    feats0[0] = np.nan
+    with assert_raises(AssertionError):
+        _ = transform.pre_process(feats0)
+
+    feats0[0] = np.inf
+    with assert_raises(AssertionError):
+        _ = transform.pre_process(feats0)
+
     # array sum is zero
     info = [np.array([-1]), np.array([1])]
     transform = NumericalStandardTransform("test", "test")
@@ -1229,6 +1299,7 @@ def test_standard_pre_process(input_dtype):
     transform = NumericalStandardTransform("test", "test")
     with assert_raises(AssertionError):
         transform.update_info(info)
+
 
 @pytest.mark.parametrize("input_dtype", [np.cfloat, np.float32])
 def test_standard_transform(input_dtype):
