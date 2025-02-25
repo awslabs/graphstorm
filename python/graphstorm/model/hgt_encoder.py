@@ -108,7 +108,7 @@ class HGTLayer(nn.Module):
         Normalization methods. Options:``batch``, ``layer``, and ``None``. Default: ``layer``.
     num_ffn_layers_in_gnn: int
         Number of fnn layers between gnn layers. Default: 0.
-    ffn_actication: torch.nn.functional
+    fnn_activation: torch.nn.functional
         Activation for ffn. Default: relu.
     """
     def __init__(self,
@@ -426,6 +426,12 @@ class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
                  num_ffn_layers_in_gnn=0):
         super(HGTEncoder, self).__init__(hid_dim, out_dim, num_hidden_layers)
 
+        # check edge type string format
+        if edge_feat_name:
+            for etype, _ in edge_feat_name.items():
+                assert len(etype) == 3, 'The edge type should be in canonical type format:' + \
+                    f'(src_ntype, etype, dst_ntype), but got \"{etype}\".'
+
         self.layers = nn.ModuleList()
         # h2h
         for _ in range(num_hidden_layers):
@@ -467,7 +473,7 @@ class HGTEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         else:
             self.layers.append(HGTLayerwithEdgeFeat(
                                         hid_dim,
-                                        hid_dim,
+                                        out_dim,
                                         g.ntypes,
                                         g.canonical_etypes,
                                         activation=F.relu,
