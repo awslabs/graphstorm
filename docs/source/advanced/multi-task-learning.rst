@@ -277,15 +277,15 @@ You can define an edge feature reconstruction task as the following example:
                 eval_metric:
                     - "mse"
 
-In the configuration, `target_etype` defines the target edge type to which the reconstruct edge feature
-learning will be applied. `reconstruct_efeat_name`` defines the name of the feature to be
+In the configuration, `target_etype` defines the target edge type to which the reconstruct edge
+feature learning will be applied. `reconstruct_efeat_name`` defines the name of the feature to be
 reconstructed. The other configs are same as edge regression tasks.
 
 
 Run Model Training
 ~~~~~~~~~~~~~~~~~~~
-GraphStorm introduces a new command line `graphstorm.run.gs_multi_task_learning` with an additional
-argument `--inference` to run multi-task learning tasks. You can use the following command to start a multi-task training job:
+GraphStorm introduces a new command line `graphstorm.run.gs_multi_task_learning` to run multi-task
+learning tasks. You can use the following command to start a multi-task training job:
 
 .. code-block:: bash
 
@@ -298,7 +298,8 @@ argument `--inference` to run multi-task learning tasks. You can use the followi
 
 Run Model Inference
 ~~~~~~~~~~~~~~~~~~~~
-You can use the same command line `graphstorm.run.gs_multi_task_learning` to run inference as following:
+You can use the same command line `graphstorm.run.gs_multi_task_learning` with an additional
+argument `--inference` to run inference as following:
 
 .. code-block:: bash
 
@@ -312,7 +313,8 @@ You can use the same command line `graphstorm.run.gs_multi_task_learning` to run
               --save-prediction-path <PATH_TO_OUTPUT>
 
 The prediction results of each prediction tasks (node classification, node regression,
-edge classification and edge regression) will be saved into different sub-directories under PATH_TO_OUTPUT. The sub-directories are prefixed with the `<task_type>_<node/edge_type>_<label_name>`.
+edge classification and edge regression) will be saved into different sub-directories under PATH_TO_OUTPUT.
+The sub-directories are prefixed with the `<task_type>_<node/edge_type>_<label_name>`.
 
 Run Model Training on SageMaker
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

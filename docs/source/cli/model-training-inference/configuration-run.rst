@@ -303,7 +303,7 @@ GraphStorm provides a set of parameters to control model evaluation.
     - Yaml: ``eval_batch_size: 1024``
     - Argument: ``--eval-batch-size 1024``
     - Default value: 10000.
-- **eval_fanout**: (**Required**) The fanout of each GNN layers used in evaluation and inference. It follows the same format as fanout.
+- **eval_fanout**: (**Required**) The fanout of each GNN layers used in model **evaluation** and **inference**. It follows the same format as fanout.
 
     - Yaml: ``eval_fanout: "10,10"``
     - Argument: ``--eval-fanout 10,10``
@@ -395,6 +395,16 @@ General Configurations
             - For classification tasks, the default value is ``accuracy``.
             - For regression tasks, the default value is ``rmse``.
             - For link prediction tasks, the default value is ``mrr``.
+- **gamma**: Set the value of the hyperparameter denoted by the symbol gamma. Gamma is used in the following cases: i/ focal loss for binary classification ii/ DistMult score function for link prediction, iii/ TransE score function for link prediction, iv/ RotatE score function for link prediction, v/ shrinkage loss for regression.
+
+    - Yaml: ``gamma: 2.0``
+    - Argument: ``--gamma 2.0``
+    - Default value: ``2.0`` in focal loss function; ``0.2`` in shrinkage loss function; ``12.0`` in ``distmult``, ``RotatE``, and ``TransE`` link prediction decoders.
+- **alpha**: Set the value of the hyperparameter denoted by the symbol alpha. Alpha is used in the following cases: i/ focal loss for binary classification and ii/ shrinkage loss for regression.
+
+    - Yaml: ``alpha: 0.25``
+    - Argument: ``--alpha 0.25``
+    - Default value: ``0.25`` in focal loss function; ``10.0`` in shrinkage loss function.
 
 Classification and Regression Task
 ```````````````````````````````````
@@ -433,6 +443,16 @@ Classification and Regression Task
     - Yaml: ``save_prediction_path: /data/infer-output/predictions/``
     - Argument: ``--save-prediction-path /data/infer-output/predictions/``
     - Default value: If not provided, it will be the same as save_embed_path.
+- **class_loss_func**: Node/Edge classification loss function. Builtin loss functions include ``cross_entropy`` and ``focal``. ``focal`` means to use the focal loss function defined in the `Focal Loss for Dense Object Detection <https://arxiv.org/abs/1708.02002>`_, which is designed for class imbalance. If set ``focal``, you may want to adjust the values of the **gamma** and **alpha** configurations according to your data.
+
+    - Yaml: ``class_loss_func: cross_entropy``
+    - Argument: ``--class-loss-func focal``
+    - Default value: ``cross_entropy``
+- **regression_loss_func**: Node/Edge regression loss function. Builtin loss functions include ``mse`` and ``shrinkage``. ``shrinkage`` means to use the shrinkage loss function defined in the `Deep Regression Tracking with Shrinkage Loss <https://openaccess.thecvf.com/content_ECCV_2018/html/Xiankai_Lu_Deep_Regression_Tracking_ECCV_2018_paper.html>`_, which is designed for data imbalance in regression tasks. If set ``shrinkage``, you may want to adjust the values of the **gamma** and **alpha** configurations according to your data.
+
+    - Yaml: ``regression_loss_func: mse``
+    - Argument: ``--regression-loss-func shrinkage``
+    - Default value: ``mse``
 
 Node Classification/Regression Specific
 ````````````````````````````````````````
@@ -528,27 +548,11 @@ Link Prediction Task
     - Yaml: ``lp_decoder_type: dot_product``
     - Argument: ``--lp-decoder-type dot_product``
     - Default value: ``distmult``
-- **gamma**: Set the value of the hyperparameter denoted by the symbol gamma. Gamma is used in the following cases: i/ focal loss for binary classification ii/ DistMult score function for link prediction, iii/ TransE score function for link prediction, and iv/ RotatE score function for link prediction.
-
-    - Yaml: ``gamma: 10.0``
-    - Argument: ``--gamma 10.0``
-    - Default value: None
-- **alpha**: Set the value of the hyperparameter denoted by the symbol alpha. Alpha is used in focal loss for binary classification.
-
-    - Yaml: ``alpha: 10.0``
-    - Argument: ``--alpha 10.0``
-    - Default value: None
-- **class_loss_func**: Node/Edge classification loss function. Builtin loss functions include ``cross_entropy`` and ``focal``.
-
-    - Yaml: ``class_loss_func: cross_entropy``
-    - Argument: ``--class-loss-func contrastive``
-    - Default value: ``cross_entropy``
 - **lp_loss_func**: Link prediction loss function. Builtin loss functions include ``cross_entropy`` and ``contrastive``.
 
     - Yaml: ``lp_loss_func: cross_entropy``
     - Argument: ``--lp-loss-func contrastive``
     - Default value: ``cross_entropy``
-
 - **adversarial_temperature**: Enable adversarial cross entropy loss and set the ``adversarial_temperature`` hyper-parameter. Only work when ``lp_loss_func`` is set to ``cross_entropy``. More details can be found on the :ref:`Link Prediction Loss Functions<link_prediction_loss>`.
 
     - Yaml: ``adversarial_temperature: 1.0``

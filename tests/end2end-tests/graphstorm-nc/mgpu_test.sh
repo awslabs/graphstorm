@@ -168,6 +168,11 @@ python3 $GS_HOME/tests/end2end-tests/check_infer.py --train-embout /data/gsgnn_n
 
 error_and_exit $?
 
+if [ -f "/data/gsgnn_nc_ml/save-emb/relation2id_map.json" ]; then
+    echo "relation2id_map.json should not exist. It is saved when the model is trained with link prediction."
+    exit -1
+fi
+
 echo "**************dataset: Movielens, do inference on saved model with mini-batch-infer without test mask"
 python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_notest_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer true  --save-embed-path /data/gsgnn_nc_ml/mini-infer-emb/ --restore-model-path /data/gsgnn_nc_ml/epoch-$best_epoch/ --save-prediction-path /data/gsgnn_nc_ml/mini-prediction/ --no-validation true --preserve-input True --node-feat-name movie:title user:feat
 
@@ -626,16 +631,16 @@ error_and_exit $?
 rm -fr /tmp/*
 
 echo "**************dataset: MovieLens: NC, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, edge feat: user,rating,movie:feat inference: mini-batch"
-python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --batch-size 64 --save-model-path /data/gsgnn_nc_ml_ef/model/ --save-model-frequency 5 --eval-frequency 3  --num-epochs 1 --logging-file /tmp/train_log.txt --backend nccl 
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --batch-size 64 --save-model-path /data/gsgnn_nc_ml_ef/model/ --save-model-frequency 5 --eval-frequency 3  --num-epochs 1 --logging-file /tmp/train_log.txt --backend nccl
 
 error_and_exit $?
 
-python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer true --restore-model-path /data/gsgnn_nc_ml_ef/model/epoch-0/ --save-prediction-path /data/gsgnn_nc_ml_ef/prediction/ --logging-file /tmp/log.txt --preserve-input True --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --backend nccl 
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer true --restore-model-path /data/gsgnn_nc_ml_ef/model/epoch-0/ --save-prediction-path /data/gsgnn_nc_ml_ef/prediction/ --logging-file /tmp/log.txt --preserve-input True --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --backend nccl
 
 error_and_exit $?
 
 ## Emb Gen
-python3 -m graphstorm.run.gs_gen_node_embedding --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --use-mini-batch-infer true --restore-model-path /data/gsgnn_nc_ml_ef/model/epoch-0/ --save-embed-path /data/gsgnn_nc_ml_ef/save-emb/ --logging-file /tmp/log.txt --logging-level debug --preserve-input True --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --backend nccl 
+python3 -m graphstorm.run.gs_gen_node_embedding --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --use-mini-batch-infer true --restore-model-path /data/gsgnn_nc_ml_ef/model/epoch-0/ --save-embed-path /data/gsgnn_nc_ml_ef/save-emb/ --logging-file /tmp/log.txt --logging-level debug --preserve-input True --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --backend nccl
 
 error_and_exit $?
 
@@ -643,6 +648,11 @@ cnt=$(ls -l /data/gsgnn_nc_ml_ef/ | wc -l)
 if test $cnt != 4
 then
     echo "We save models, predictions, and embeddings."
+    exit -1
+fi
+
+if [ -f "/data/gsgnn_nc_ml_ef/save-emb/relation2id_map.json" ]; then
+    echo "relation2id_map.json should not exist. It is saved when the model is trained with link prediction."
     exit -1
 fi
 

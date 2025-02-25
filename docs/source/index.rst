@@ -35,7 +35,7 @@ Welcome to the GraphStorm Documentation and Tutorials
 
 .. toctree::
    :maxdepth: 2
-   :caption: Advanced Topics
+   :caption: Practical & Advanced Guides
    :hidden:
    :glob:
 
@@ -44,11 +44,12 @@ Welcome to the GraphStorm Documentation and Tutorials
    advanced/link-prediction
    advanced/advanced-wholegraph
    advanced/multi-task-learning
-   advanced/advanced-usages
    advanced/using-graphbolt
+   advanced/multi-target-ntypes
+   advanced/imbalanced-labels
    advanced/gsprocessing-emr-ec2
 
-GraphStorm is a graph machine learning (GML) framework designed for enterprise use cases. It simplifies the development, training and deployment of GML models on industry-scale graphs (measured in billons of nodes and edges) by providing scalable training and inference pipelines of GML models. GraphStorm comes with a collection of built-in GML models, allowing users to train a GML model with a single command, eliminating the need to write any code. Moreover, GraphStorm provides a wide range of configurations to customiz model implementations and training pipelines, enhancing model performance. In addition, GraphStorm offers a programming interface that enables users to train custom GML models in a distributed manner. Users can bring their own model implementations and leverage the GraphStorm training pipeline for scalability.
+GraphStorm is a graph machine learning (GML) framework designed for enterprise use cases. It simplifies the development, training and deployment of GML models on industry-scale graphs (measured in billions of nodes and edges) by providing scalable training and inference pipelines of GML models. GraphStorm comes with a collection of built-in GML models, allowing users to train a GML model with a single command, eliminating the need to write any code. Moreover, GraphStorm provides a wide range of configurations to customize model implementations and training pipelines, enhancing model performance. In addition, GraphStorm offers a programming interface that enables users to train custom GML models in a distributed manner. Users can bring their own model implementations and leverage the GraphStorm training pipeline for scalability.
 
 Getting Started
 ----------------
@@ -83,16 +84,18 @@ The released GraphStorm APIs list the major components that can help users to de
 
 To help users use these APIs, GraphStorm also released a set of Jupyter notebooks at :ref:`GraphStorm API Programming Example Notebooks<programming-examples>`. By running these notebooks, users can explore some APIs, learn how to use APIs to reproduce CLIs pipelines, and then customize GraphStorm components for specific requirements.
 
-Users can find the comprehensive descriptions of these GraphStorm APIs in the :ref:`API Reference<api-reference>` documentations. For unrelease APIs, we encourage users to read their source code. If users want to have more APIs formally released, please raise issues at the `GraphStorm GitHub Repository <https://github.com/awslabs/graphstorm/issues>`_.
+Users can find the comprehensive descriptions of these GraphStorm APIs in the :ref:`API Reference<api-reference>` documentations. For unreleased APIs, we encourage users to read their source code. If users want to have more APIs formally released, please raise issues at the `GraphStorm GitHub Repository <https://github.com/awslabs/graphstorm/issues>`_.
 
-Advanced Topics
-----------------
+Practical and Advanced Guides
+------------------------------
 
 - For users who want to use their own GML models in GraphStorm, follow the :ref:`Use Your Own GNN Models<use-own-models>` tutorial to learn the programming interfaces and the steps of how to modify users' own models.
 - For users who want to leverage language models on nodes with text features, follow the :ref:`Use Language Model in GraphStorm<language_models>` tutorial to learn how to leverage BERT models to use text as node features in GraphStorm.
 - There are various usages of GraphStorm to both speed up training process and help to boost model performance for link prediction tasks. Users can find these usages in the :ref:`Link Prediction Learning in GraphStorm<link_prediction_usage>` page.
 - GraphStorm team has been working with NVIDIA team to integrate the NVIDIA's WholeGraph library into GraphStorm for speed-up of feature copy. Users can follow the :ref:`Use WholeGraph in GraphStorm<advanced_wholegraph>` tutorial to know more details.
-- In v0.3, GraphStorm releases an experimental feature to support multi-task learning on the same graph, allowing users to define multiple training targets on different nodes and edges within a single training loop. Users can check the :ref:`Multi-task Learning in GraphStorm<multi_task_learning>` tutorial to know more details.
+- Since v0.3, GraphStorm releases the feature to support multi-task learning on the same graph, allowing users to define multiple training targets on different nodes and edges within a single training loop. Users can check the :ref:`Multi-task Learning in GraphStorm<multi_task_learning>` tutorial to know more details.
+- Since v0.4, GraphStorm adds support for GraphBolt stochastic training. GraphBolt is a new data loading module for DGL that enables faster and more efficient graph sampling, potentially leading to significant efficiency benefits. For detailed use pf GraphBolt in GraphStorm, follow the :ref:`Using GraphBolt to speed up training and inference<using-graphbolt-ref>` guide.
+- For questions users asked frequently, there are several guides. The :ref:`Multiple Target Node Types Training<multi_target_ntypes>` document provides guides of using multiple target node types in training. The :ref:`Deal with Imbalance Labels in Classification/Regression<imbalanced_labels>` guide lists several built-in features that can help to tackle challenge of imbalanced labels. If users want to use their own AWS EMR for graph processing, the :ref:`Running distributed graph processing on customized EMR-on-EC2 clusters<gsprocessing_emr_ec2_customized_clusters>` guide provides more details.
 
 Contribution
 -------------

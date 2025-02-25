@@ -45,8 +45,11 @@ from .config import (BUILTIN_LP_DOT_DECODER,
                      BUILTIN_LP_TRANSE_L2_DECODER)
 from .config import (BUILTIN_LP_LOSS_CROSS_ENTROPY,
                      BUILTIN_LP_LOSS_CONTRASTIVELOSS,
+                     BUILTIN_LP_LOSS_BPR,
                      BUILTIN_CLASS_LOSS_CROSS_ENTROPY,
-                     BUILTIN_CLASS_LOSS_FOCAL)
+                     BUILTIN_CLASS_LOSS_FOCAL,
+                     BUILTIN_REGRESSION_LOSS_MSE,
+                     BUILTIN_REGRESSION_LOSS_SHRINKAGE)
 from .eval.eval_func import (
     SUPPORTED_HIT_AT_METRICS,
     SUPPORTED_LINK_PREDICTION_METRICS)
@@ -65,11 +68,14 @@ from .model.edge_gnn import GSgnnEdgeModel
 from .model.lp_gnn import GSgnnLinkPredictionModel
 from .model.loss_func import (ClassifyLossFunc,
                               RegressionLossFunc,
+                              ShrinkageLossFunc,
                               LinkPredictBCELossFunc,
                               WeightedLinkPredictBCELossFunc,
                               LinkPredictAdvBCELossFunc,
                               WeightedLinkPredictAdvBCELossFunc,
                               LinkPredictContrastiveLossFunc,
+                              LinkPredictBPRLossFunc,
+                              WeightedLinkPredictBPRLossFunc,
                               FocalLossFunc)
 
 from .model.node_decoder import EntityClassifier, EntityRegression
@@ -521,7 +527,17 @@ def create_builtin_node_decoder(g, decoder_input_dim, config, train_task):
                                     dropout=dropout,
                                     norm=config.decoder_norm,
                                     use_bias=config.decoder_bias)
-        loss_func = RegressionLossFunc()
+        if config.regression_loss_func == BUILTIN_REGRESSION_LOSS_MSE:
+            loss_func = RegressionLossFunc()
+        elif config.regression_loss_func == BUILTIN_REGRESSION_LOSS_SHRINKAGE:
+            # set default value of alpha to 10. for shrinkage loss
+            # set default value of gamma to 0.2 for shrinkage loss
+            alpha = config.alpha if config.alpha is not None else 10.
+            gamma = config.gamma if config.gamma is not None else 0.2
+            loss_func = ShrinkageLossFunc(alpha, gamma)
+        else:
+            raise RuntimeError(
+                        f"Unknown regression loss {config.regression_loss_func}")
     else:
         raise ValueError('unknown node task: {}'.format(config.task_type))
 
@@ -723,7 +739,18 @@ def create_builtin_edge_decoder(g, decoder_input_dim, config, train_task):
                 use_bias=config.decoder_bias)
         else:
             assert False, "decoder not supported"
-        loss_func = RegressionLossFunc()
+
+        if config.regression_loss_func == BUILTIN_REGRESSION_LOSS_MSE:
+            loss_func = RegressionLossFunc()
+        elif config.regression_loss_func == BUILTIN_REGRESSION_LOSS_SHRINKAGE:
+            # set default value of alpha to 10. for shrinkage loss
+            # set default value of gamma to 0.2 for shrinkage loss
+            alpha = config.alpha if config.alpha is not None else 10.
+            gamma = config.gamma if config.gamma is not None else 0.2
+            loss_func = ShrinkageLossFunc(alpha, gamma)
+        else:
+            raise RuntimeError(
+                        f"Unknown regression loss {config.regression_loss_func}")
     else:
         raise ValueError('unknown node task: {}'.format(config.task_type))
     return decoder, loss_func
@@ -779,7 +806,10 @@ def create_builtin_lp_gnn_model(g, config, train_task):
 
 # pylint: disable=unused-argument
 def create_builtin_lp_decoder(g, decoder_input_dim, config, train_task):
-    """ create builtin link prediction decoder according to task config
+    """ create builtin link prediction decoder according to task config.
+
+    .. versionchanged:: 0.4.1
+        Add bayesian personalized ranking loss support.
 
     Parameters
     ----------
@@ -893,6 +923,12 @@ def create_builtin_lp_decoder(g, decoder_input_dim, config, train_task):
                 loss_func = WeightedLinkPredictBCELossFunc()
             else:
                 loss_func = WeightedLinkPredictAdvBCELossFunc(config.adversarial_temperature)
+    elif config.lp_loss_func == BUILTIN_LP_LOSS_BPR:
+        # bayesian personalized ranking loss
+        if config.lp_edge_weight_for_loss is None:
+            loss_func = LinkPredictBPRLossFunc()
+        else:
+            loss_func = WeightedLinkPredictBPRLossFunc()
     else:
         raise TypeError(f"Unknown link prediction loss function {config.lp_loss_func}")
 

@@ -13,26 +13,31 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 """
+import glob
 import os
-import argparse
+import math
 import tempfile
-import pytest
 from functools import partial
 from pathlib import Path
 
+import pytest
+import pyarrow as pa
 import pandas as pd
 import torch as th
 import numpy as np
+from pyarrow import parquet as pq
 from numpy.testing import assert_equal, assert_almost_equal
 
 from graphstorm.config import GSConfig
 from graphstorm.config.config import get_mttask_id
-from graphstorm.config import (BUILTIN_TASK_NODE_CLASSIFICATION,
-                               BUILTIN_TASK_NODE_REGRESSION,
-                               BUILTIN_TASK_EDGE_CLASSIFICATION,
-                               BUILTIN_TASK_EDGE_REGRESSION,
-                               BUILTIN_TASK_LINK_PREDICTION,
-                               BUILTIN_TASK_RECONSTRUCT_NODE_FEAT)
+from graphstorm.config import (
+    BUILTIN_TASK_NODE_CLASSIFICATION,
+    BUILTIN_TASK_EDGE_CLASSIFICATION,
+)
+from graphstorm.data.constants import (
+    MAPPING_INPUT_ID,
+    MAPPING_OUTPUT_ID,
+)
 from graphstorm.gconstruct import remap_result
 from graphstorm.gconstruct.file_io import read_data_parquet
 from graphstorm.gconstruct.id_map import IdMap, IdReverseMap
@@ -502,7 +507,6 @@ def test_parse_config():
         assert len(pred_etypes) == 2
         assert pred_etypes[0] == ['n0', 'r0', 'r1']
         assert pred_etypes[1] == ['n0', 'r0', 'r2']
-        print(task_emb_dirs)
         assert len(task_emb_dirs) == 1
         assert task_emb_dirs[0] == get_mttask_id(
             task_type="link_prediction",
@@ -535,11 +539,66 @@ def test_parse_config():
         assert predict_dir is None
         assert emb_dir is None
 
-if __name__ == '__main__':
-    test_parse_config()
+@pytest.mark.parametrize("num_rows", [1000, 10001])
+def test_idmap_save_no_duplicates(num_rows, monkeypatch):
+    # Mock GIB_BYTES to 1kib to force multiple partitions
+    mock_gib_bytes = 1024
+    monkeypatch.setattr("graphstorm.gconstruct.id_map.GIB_BYTES", mock_gib_bytes)
 
-    test_write_data_csv_file()
-    test_write_data_parquet_file()
-    test__get_file_range()
-    test_worker_remap_edge_pred()
-    test_worker_remap_node_data("pred")
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        # Create a table with known IDs to make verification easier
+        # string ids will be sequential id_<idx>
+        string_ids = [f"id_{i}" for i in range(num_rows)]
+
+        # Estimate the expected number of files
+        table = pa.Table.from_arrays([pa.array(string_ids), list(range(num_rows))],
+                                     names=[MAPPING_INPUT_ID, MAPPING_OUTPUT_ID])
+        bytes_per_row = table.nbytes // table.num_rows
+        max_rows_per_file = mock_gib_bytes // bytes_per_row
+        expected_num_files = math.ceil(table.num_rows / max_rows_per_file)
+
+        # Create the IdMap
+        id_map = IdMap(np.array(string_ids))
+
+        # Save the id map - will create multiple partitions due to small GIB_BYTES
+        mapping_prefix = os.path.join(tmpdirname, "raw_id_mappings")
+        id_map.save(mapping_prefix)
+
+        # Read back all partition files and check for duplicates
+        all_rows = []
+        file_idx = 0
+        for filename in glob.glob(os.path.join(mapping_prefix, "*.parquet")):
+            # Read this partition
+            table = pq.read_table(filename)
+            partition_rows = table.to_pydict()
+            all_rows.extend(zip(
+                partition_rows[MAPPING_INPUT_ID],
+                partition_rows[MAPPING_OUTPUT_ID])
+            )
+            file_idx += 1
+
+        # There should be multiple partition files due to small GIB_BYTES
+        assert file_idx == expected_num_files, \
+            f"Expected {expected_num_files} partition files, got {file_idx}"
+
+        # Check total number of rows
+        assert len(all_rows) == num_rows, \
+            f"Expected {num_rows} total rows, got {len(all_rows)}"
+
+        # Check for duplicates
+        seen_ids = set()
+        duplicate_ids = set()
+        for orig_id, _ in all_rows:
+            if orig_id in seen_ids:
+                duplicate_ids.add(orig_id)
+            seen_ids.add(orig_id)
+
+        assert len(duplicate_ids) == 0, \
+            f"Found duplicate IDs across partitions: {duplicate_ids}"
+
+        # Verify correct mapping is maintained
+        # We expect mapped ids to be: id_<idx> -> <idx>
+        for orig_id, mapped_id in all_rows:
+            expected_mapped_id = int(orig_id.split('_')[1])
+            assert mapped_id == expected_mapped_id, \
+                f"Incorrect mapping for {orig_id}: expected {expected_mapped_id}, got {mapped_id}"

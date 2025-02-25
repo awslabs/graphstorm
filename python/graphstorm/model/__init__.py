@@ -69,6 +69,7 @@ from .gnn_encoder_base import GraphConvEncoder
 from .loss_func import (ClassifyLossFunc,
                         FocalLossFunc,
                         RegressionLossFunc,
+                        ShrinkageLossFunc,
                         LinkPredictBCELossFunc,
                         WeightedLinkPredictBCELossFunc,
                         LinkPredictAdvBCELossFunc,

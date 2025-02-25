@@ -18,6 +18,8 @@
 import logging
 from .graphstorm_infer import GSInferrer
 from ..model.utils import save_full_node_embeddings as save_gsgnn_embeddings
+from ..model.utils import save_relation_embeddings
+from ..model.edge_decoder import LinkPredictMultiRelationLearnableDecoder
 from ..model import do_full_graph_inference, do_mini_batch_inference
 from ..utils import sys_tracker, get_rank, barrier
 
@@ -101,3 +103,14 @@ class GSgnnEmbGenInferer(GSInferrer):
                               save_embed_format=save_embed_format)
         barrier()
         sys_tracker.check('save embeddings')
+
+        # If the model is trained with link prediction,
+        # relation embeddings may also be used in some
+        # downstream applications. So we save the
+        # relation embedding if any.
+        if self._model.decoder is not None and \
+            get_rank() == 0:
+            decoder = self._model.decoder
+            if isinstance(decoder, LinkPredictMultiRelationLearnableDecoder):
+                if save_embed_path is not None:
+                    save_relation_embeddings(save_embed_path, decoder)

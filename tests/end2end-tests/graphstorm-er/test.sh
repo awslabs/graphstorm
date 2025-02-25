@@ -34,6 +34,11 @@ python3 -m graphstorm.run.gs_edge_regression --workspace $GS_HOME/training_scrip
 
 error_and_exit $?
 
+echo "**************dataset: Test edge regression, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, with shrinkage loss"
+python3 -m graphstorm.run.gs_edge_regression --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_er_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_er.yaml --num-epochs 1 --regression-loss-func shrinkage
+
+error_and_exit $?
+
 echo "**************dataset: Test edge regression, RGCN layer: 1, node feat: fixed HF BERT, BERT nodes: movie, inference: mini-batch, no test"
 python3 -m graphstorm.run.gs_edge_regression --workspace $GS_HOME/training_scripts/gsgnn_ep/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_er_no_test_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_er.yaml  --num-epochs 1 --logging-file /tmp/train_log.txt
 
@@ -91,6 +96,11 @@ cnt=$(ls -l /data/gsgnn_er_ml_ef/ | wc -l)
 if test $cnt != 4
 then
     echo "We save models, predictions, and embeddings."
+    exit -1
+fi
+
+if [ -f "/data/gsgnn_er_ml_ef/save-emb/relation2id_map.json" ]; then
+    echo "relation2id_map.json should not exist. It is saved when the model is trained with link prediction."
     exit -1
 fi
 
