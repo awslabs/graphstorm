@@ -182,6 +182,8 @@ sudo apt update
 sudo apt install Docker.io
 docker -v
 
+dockerd
+
 # Build and push a Docker image to download and process the papers100M data
 bash build_and_push_papers100M_image.sh
 # This creates an ECR repository at
