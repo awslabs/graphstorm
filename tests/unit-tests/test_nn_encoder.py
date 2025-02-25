@@ -569,3 +569,4 @@ def test_hgt_encoder_with_edge_features(input_dim, output_dim, dev):
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
+
