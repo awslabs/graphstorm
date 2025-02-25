@@ -1925,21 +1925,3 @@ def test_hgt_lp4ef():
 
     th.distributed.destroy_process_group()
     dgl.distributed.kvstore.close_kvstore()
-
-
-if __name__ == '__main__':
-    test_mtask_eval()
-    test_trainer_setup_evaluator()
-
-    test_mtask_prepare_node_mini_batch()
-    test_mtask_prepare_edge_mini_batch()
-    test_mtask_prepare_lp_mini_batch()
-    test_mtask_prepare_reconstruct_node_feat()
-    test_mtask_prepare_reconstruct_edge_feat()
-
-    test_rgcn_nc4ef()
-    test_hgt_nc4ef()
-    test_rgcn_ec4ef()
-    test_hgt_ec4ef()
-    test_rgcn_lp4ef()
-    test_hgt_lp4ef()

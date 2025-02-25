@@ -314,9 +314,3 @@ def test_rgcn_encoder_with_edge_features(input_dim, output_dim, dev):
 
     # after test pass, destroy all process group
     th.distributed.destroy_process_group()
-
-
-if __name__ == '__main__':
-    test_rgcn_encoder_with_edge_features(32, 64, 'cpu')
-    test_rgcn_encoder_with_edge_features(64, 64, 'cpu')
-    test_rgcn_encoder_with_edge_features(32, 64, 'cuda:0')
