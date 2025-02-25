@@ -115,7 +115,7 @@ conda activate pytorch
 pip install sagemaker[local] boto3 ogb pyarrow
 
 # Clone the GraphStorm repository to access the example code
-git clone https://github.com/awslabs/graphstorm.git ~/graphstorm
+git clone --branch sagemaker-example-fixes https://github.com/RonaldBXu/graphstorm.git ~/graphstorm
 ```
 
 ### Download and prepare datasets
