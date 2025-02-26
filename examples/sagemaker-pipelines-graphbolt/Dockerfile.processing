@@ -25,10 +25,15 @@ RUN python3 -m pip install --no-cache-dir --upgrade pip==24.3.1 && \
     tqdm==4.67.1 \
     tqdm-loggable==0.2
 
-# Install aws cli
+# Install aws cli and mute the logs
 RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
-    && unzip awscliv2.zip \
-    && ./aws/install
+&& unzip awscliv2.zip > /dev/null 2>&1 \
+&& ./aws/install > /dev/null 2>&1
+
+# # Install aws cli
+# RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+#     && unzip awscliv2.zip \
+#     && ./aws/install
 
 # Copy processing scripts
 COPY process_papers100M.sh /opt/ml/code/
