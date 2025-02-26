@@ -60,15 +60,15 @@ aws ecr-public get-login-password --region $REGION | docker login --username AWS
 # Build and tag image
 docker build -f Dockerfile.processing -t $IMAGE .
 
+# Auth to private ECR
+aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT.dkr.ecr.$REGION.amazonaws.com
+
 # Create repository if it doesn't exist
 echo "Getting or creating container repository: $IMAGE"
 if ! $(aws ecr describe-repositories --repository-names $IMAGE --region ${REGION} > /dev/null 2>&1); then
     echo >&2 "WARNING: ECR repository $IMAGE does not exist in region ${REGION}. Creating..."
     aws ecr create-repository --repository-name $IMAGE --region ${REGION} > /dev/null
 fi
-
-# Auth to private ECR
-aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT.dkr.ecr.$REGION.amazonaws.com
 
 # Tag and push the image
 docker tag $IMAGE:latest $ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$IMAGE:latest
