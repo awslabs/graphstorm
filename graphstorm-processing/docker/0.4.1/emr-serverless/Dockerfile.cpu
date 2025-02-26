@@ -47,9 +47,9 @@ RUN touch /usr/lib/spark/code/EMR_SERVERLESS_EXECUTION
 COPY code/ /usr/lib/spark/code/
 
 RUN python3 -m pip install --no-deps /usr/lib/spark/code/graphstorm-processing/
-FROM base AS prod
+FROM runtime AS prod
 
-FROM base AS test
+FROM runtime AS test
 RUN python3 -m pip install mock pytest && \
     rm -rf /root/.cache
 
