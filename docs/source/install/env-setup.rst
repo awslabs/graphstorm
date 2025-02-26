@@ -29,7 +29,7 @@ Users can use ``pip`` or ``pip3`` to install GraphStorm.
 
 Install Dependencies
 .....................
-Users should install PyTorch v2.3.0 and DGL v2.3.0 that is the core dependency of GraphStorm using the following commands. For users who have to use the previous DGL versions, please refer to [install GraphStorm with DGL 1.1.3](https://graphstorm.readthedocs.io/en/v0.4/install/env-setup.html#install-graphstorm)
+Users should install PyTorch v2.3.0 and DGL v2.3.0 that is the core dependency of GraphStorm using the following commands. For users who have to use the previous DGL versions, please refer to `install GraphStorm with DGL 1.1.3 <https://graphstorm.readthedocs.io/en/v0.4/install/env-setup.html#install-graphstorm>`_.
 
 For Nvidia GPU environment:
 
@@ -134,7 +134,7 @@ To set up credentials for use with ``aws-cli`` see the
 
 Your executing role should have full ECR access to be able to pull from ECR to build the image,
 create an ECR repository if it doesn't exist, and push the GSProcessing image to the repository.
-See the [official ECR docs](https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-push-iam.html)
+See the `official ECR docs <https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-push-iam.html>`_ 
 for details.
 
 
