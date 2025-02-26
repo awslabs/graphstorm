@@ -63,10 +63,10 @@ ENV YARN_ROOT_LOGGER="ERROR,console"
 ENTRYPOINT ["bash", "/usr/lib/spark/code/docker-entry.sh"]
 
 RUN python3 -m pip install --no-deps /usr/lib/spark/code/graphstorm-processing/
-FROM base AS prod
+FROM runtime AS prod
 CMD ["gs-processing"]
 
-FROM base AS test
+FROM runtime AS test
 RUN python3 -m pip install mock pytest && \
     rm -rf /root/.cache
 CMD ["sh", "-c", "pytest /usr/lib/spark/code/graphstorm-processing/tests/"]
