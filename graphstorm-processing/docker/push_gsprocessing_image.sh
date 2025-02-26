@@ -3,7 +3,7 @@
 set -Eeuo pipefail
 trap cleanup SIGINT SIGTERM ERR EXIT
 
-script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" &>/dev/null && pwd -P)
 
 usage() {
   cat <<EOF
@@ -40,10 +40,9 @@ die() {
 parse_params() {
   # default values of variables set from params
   IMAGE='graphstorm-processing'
-  VERSION=`poetry version --short`
+  VERSION=$(find "$SCRIPT_DIR" -maxdepth 1 -type d | sort --version-sort | tail -1 | xargs basename)
   LATEST_VERSION=${VERSION}
-  REGION=$(aws configure get region) || REGION=""
-  REGION=${REGION:-us-west-2}
+  REGION=${REGION:-$(aws configure get region)}
   ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
   ARCH='x86_64'
   SUFFIX=""
