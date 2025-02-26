@@ -134,7 +134,7 @@ To set up credentials for use with ``aws-cli`` see the
 
 Your executing role should have full ECR access to be able to pull from ECR to build the image,
 create an ECR repository if it doesn't exist, and push the GSProcessing image to the repository.
-See the [official ECR docs](https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-push-iam.html)
+See the `official ECR docs <https://docs.aws.amazon.com/AmazonECR/latest/userguide/image-push-iam.html>`_ 
 for details.
 
 
