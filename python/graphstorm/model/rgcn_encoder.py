@@ -82,14 +82,14 @@ class RelGraphConvLayer(nn.Module):
     out_feat: int
         Output feature size.
     rel_names: list of tuple
-        Relation type list in the format of [('src_ntyp1', 'etype1', 'dst_ntype1`), ...].
+        Relation type list in the format of [('src_ntyp1', 'etype1', 'dst_ntype1'), ...].
     num_bases: int
         Number of bases. If is None, use number of relation types. Default: None.
     edge_feat_name: dict of list of str
         User provided edge feature names in the format of {etype1:[feat1, feat2, ...],
         etype2:[...], ...}, or None if not provided.
     edge_feat_mp_op: str
-        The opration method to combine source node embeddings with edge embeddings in message
+        The operation method to combine source node embeddings with edge embeddings in message
         passing. Options include ``concat``, ``add``, ``sub``, ``mul``, and ``div``.
         ``concat`` operation will concatenate the source node features with edge features;
         ``add`` operation will add the source node features with edge features together;
@@ -108,7 +108,7 @@ class RelGraphConvLayer(nn.Module):
         Dropout rate. Default: 0.
     num_ffn_layers_in_gnn: int
         Number of fnn layers between gnn layers. Default: 0.
-    ffn_actication: torch.nn.functional
+    ffn_activation: torch.nn.functional
         Activation for ffn. Default: relu.
     norm: str
         Normalization methods. Options:``batch``, ``layer``, and ``None``. Default: None,
@@ -689,7 +689,7 @@ class GraphConvwithEdgeFeat(nn.Module):
         """
 
         # A corner case: no edge of this rel in this block. Will create an all 0s message and
-        # multiple it with project weights as outputs, which is an all 0s tensor with output dim
+        # multiply it with project weights as outputs, which is an all 0s tensor with output dim
         if rel_graph.num_edges() == 0:
             _, dst_inputs = inputs
             h = th.zeros_like(dst_inputs, device=dst_inputs.device)
