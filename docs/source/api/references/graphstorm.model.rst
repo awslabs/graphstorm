@@ -74,6 +74,7 @@ GNN Layer
     RelationalAttLayer
     RelationalGATEncoder
     HGTLayer
+    HGTLayerwithEdgeFeat
     HGTEncoder
     SAGEConv
     SAGEEncoder
