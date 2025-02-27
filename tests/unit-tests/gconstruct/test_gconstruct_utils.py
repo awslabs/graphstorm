@@ -26,7 +26,7 @@ import pyarrow as pa
 import torch as th
 import graphstorm
 
-from numpy.testing import assert_almost_equal
+from numpy.testing import assert_almost_equal, assert_raises
 
 from graphstorm.gconstruct.utils import _estimate_sizeof, _to_numpy_array, _to_shared_memory
 from graphstorm.gconstruct.utils import HDF5Array, ExtNumpyWrapper
@@ -241,12 +241,8 @@ def test_read_empty_parquet():
         empty_table = pa.Table.from_pandas(empty_df)
         pq.write_table(empty_table, data_file)
 
-        pass_test = False
-        try:
-            read_data_parquet(data_file, fields)
-        except:
-            pass_test = True
-        assert pass_test
+        ret = read_data_parquet(data_file, fields)
+        assert ret is None
 
 def test_read_empty_csv():
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -255,41 +251,19 @@ def test_read_empty_csv():
         empty_df = pd.DataFrame(columns=fields)
         empty_df.to_csv(data_file, index=True, sep=",")
 
-        pass_test = False
-        try:
-            read_data_csv(data_file, fields, ",")
-        except:
-            pass_test = True
-        assert pass_test
+        ret = read_data_csv(data_file, fields, ",")
+        assert ret is None
 
 def test_read_empty_json():
     with tempfile.TemporaryDirectory() as tmpdirname:
         data_file = os.path.join(tmpdirname, "test.json")
         data = {}
+        fields = ["a", "b"]
         with open(data_file, 'w', encoding="utf8") as json_file:
             json.dump(data, json_file)
 
-        pass_test = False
-        try:
-            read_data_json(data_file)
-        except:
-            pass_test = True
-        assert pass_test
-
-def test_read_empty_parquet():
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        data_file = os.path.join(tmpdirname, "test.parquet")
-        fields = ["a", "b"]
-        empty_df = pd.DataFrame(columns=fields)
-        empty_table = pa.Table.from_pandas(empty_df)
-        pq.write_table(empty_table, data_file)
-
-        pass_test = False
-        try:
-            read_data_parquet(data_file, fields)
-        except:
-            pass_test = True
-        assert pass_test
+        with assert_raises(AssertionError):
+            _ = read_data_json(data_file, fields)
 
 def test_get_in_files():
     with tempfile.TemporaryDirectory() as tmpdirname:

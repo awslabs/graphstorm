@@ -35,6 +35,9 @@ argparser.add_argument("--graph_dir", type=str, required=True,
                        help="The path of the constructed graph.")
 argparser.add_argument("--conf_file", type=str, required=True,
                        help="The configuration file.")
+argparser.add_argument("--reverse-edges",  action='store_true',
+                       help="The configuration file.")
+
 args = argparser.parse_args()
 out_dir = args.graph_dir
 with open(args.conf_file, 'r') as f:
@@ -205,7 +208,7 @@ dst_ids = np.array([int(reverse_node3_map[dst_id]) for dst_id in dst_ids.numpy()
 # After graph construction, any 1D features will be converted to 2D features, so
 # here need to convert feat back to 1D to pass test
 np.testing.assert_allclose(src_ids + dst_ids, feat.reshape(-1,))
-np.testing.assert_allclose(src_ids + dst_ids, feat2.reshape(-1,))
+np.testing.assert_allclose((src_ids + dst_ids), feat2.reshape(-1,))
 
 assert os.path.exists(os.path.join(out_dir, "node_label_stats.json"))
 assert os.path.exists(os.path.join(out_dir, "edge_label_stats.json"))
@@ -258,3 +261,21 @@ ground_truth = th.cat([dst_ids.reshape(-1,1), dst_ids.reshape(-1,1), th.full((ds
 ground_truth[0][2] = dst_ids[0]
 ground_truth[0][3] = dst_ids[0]
 assert th.sum(hard_neg-ground_truth) == 0
+
+# Test empty edges
+src_ids, dst_ids = g.edges(etype=('node1', 'relation_empty_csv0', 'node2'))
+src_ids = np.array([reverse_node1_map[src_id] for src_id in src_ids.numpy()])
+dst_ids = dst_ids.numpy()
+assert np.all((src_ids + dst_ids) % 100 == label)
+
+src_ids, dst_ids = g.edges(etype=('node1', 'relation_empty_pa0', 'node2'))
+src_ids = np.array([reverse_node1_map[src_id] for src_id in src_ids.numpy()])
+dst_ids = dst_ids.numpy()
+assert np.all((src_ids + dst_ids) % 100 == label)
+
+if args.reverse_edges:
+    assert g.num_edges(('node2', 'relation1-rev', 'node1')) == g.num_edges(('node1', 'relation1', 'node2'))
+
+    assert g.num_edges(('node2', 'relation_empty_csv0-rev', 'node1')) == g.num_edges(('node1', 'relation_empty_csv0', 'node2'))
+
+    assert g.num_edges(('node2', 'relation_empty_pa0-rev', 'node1')) == g.num_edges(('node1', 'relation_empty_pa0', 'node2'))
