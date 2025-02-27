@@ -384,7 +384,7 @@ class GSgnnBaseEvaluator():
         self._val_perf_list.append(val_score)
 
         if early_stop and get_rank() == 0:
-            logging.info("Early stop criterion %s satisfied. Training job stopping.", 
+            logging.info("Early stop criterion %s satisfied. Training job stopping.",
                          self._early_stop_strategy)
 
         return early_stop
