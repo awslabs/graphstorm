@@ -80,6 +80,7 @@ FORMAT_NAME = "parquet"
 DELIMITER = "" if FORMAT_NAME == "parquet" else ","
 NODE_MAPPING_STR = "orig"
 NODE_MAPPING_INT = "new"
+EDGE_MAPPING_INT = "new"
 CUSTOM_DATA_SPLIT_ORDER = "custom_split_order_flag"
 
 
@@ -2132,6 +2133,8 @@ class DistHeterogeneousGraphLoader(object):
             An optional tuple of field names to use for the split masks.
             If not provided, the default field names "train_mask",
             "val_mask", and "test_mask" are used.
+        order_col: Optional[str]
+            A string that helps to keep the order of the mask dataframe.
 
         Returns
         -------
