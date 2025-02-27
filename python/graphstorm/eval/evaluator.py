@@ -30,6 +30,7 @@ from ..config.config import (EARLY_STOP_AVERAGE_INCREASE_STRATEGY,
                              EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY,
                              LINK_PREDICTION_MAJOR_EVAL_ETYPE_ALL)
 from ..utils import get_rank, get_world_size, barrier
+import logging
 
 
 def early_stop_avg_increase_judge(val_score, val_perf_list, comparator):
@@ -381,6 +382,9 @@ class GSgnnBaseEvaluator():
 
         self._val_perf_list.pop(0)
         self._val_perf_list.append(val_score)
+
+        if early_stop and get_rank() == 0:
+            logging.info("Early stop criterion %s satisfied. Training job stopping.", self._early_stop_strategy)
 
         return early_stop
 
