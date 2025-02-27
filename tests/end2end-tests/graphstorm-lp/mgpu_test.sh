@@ -1119,3 +1119,24 @@ fi
 rm -R /data/gsgnn_lp_ml_ef/
 
 rm -fr /tmp/*
+
+echo "**************dataset: MovieLens: LP, HGT layer: 1, node feat: fixed HF BERT, BERT nodes: movie, edge feat: user,rating,movie:feat inference: mini-batch"
+python3 -m graphstorm.run.gs_link_prediction --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_lp.yaml --num-epochs 1 --eval-frequency 30 --logging-file /tmp/train_log.txt --save-model-path /data/gsgnn_lp_ml_ef/model/  --save-model-frequency 50 --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat  --backend nccl --model-encoder-type hgt
+
+error_and_exit $?
+
+## Emb Gen
+python3 -m graphstorm.run.gs_gen_node_embedding --workspace $GS_HOME/training_scripts/gsgnn_lp --num-trainers $NUM_INFO_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_lp_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222  --cf ml_lp.yaml --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --restore-model-path /data/gsgnn_lp_ml_ef/model/epoch-0/ --save-embed-path /data/gsgnn_lp_ml_ef/save-emb/ --logging-file /tmp/log.txt --logging-level debug  --backend nccl --model-encoder-type hgt
+
+error_and_exit $?
+
+cnt=$(ls -l /data/gsgnn_lp_ml_ef/ | wc -l)
+if test $cnt != 3
+then
+    echo "We save both models and embeddings."
+    exit -1
+fi
+
+rm -R /data/gsgnn_lp_ml_ef/
+
+rm -fr /tmp/*
