@@ -80,7 +80,7 @@ FORMAT_NAME = "parquet"
 DELIMITER = "" if FORMAT_NAME == "parquet" else ","
 NODE_MAPPING_STR = "orig"
 NODE_MAPPING_INT = "new"
-EDGE_MAPPING_INT = "new"
+EDGE_MAPPING_INT = "edge_order_col"
 CUSTOM_DATA_SPLIT_ORDER = "custom_split_order_flag"
 
 
@@ -1472,7 +1472,7 @@ class DistHeterogeneousGraphLoader(object):
         ints and write the edge structure as a file with two
         columns: "src_int_id","dst_int_id".
 
-        If `self.add_reverse_edges` is True, it it will also write the
+        If `self.add_reverse_edges` is True, it will also write the
         reverse edge type with the src and dst columns reversed.
 
         Parameters
@@ -1571,6 +1571,18 @@ class DistHeterogeneousGraphLoader(object):
             dst_node_id_mapping["dst_str_id"] == edge_df_with_int_src[dst_col],
             how="inner",
         )
+
+        # Always create the order column for the edges dataframe before writing
+        original_schema = edge_df_with_int_ids.schema
+        edge_df_with_int_ids = edge_df_with_int_ids.rdd.zipWithIndex()
+
+        new_schema = original_schema.add(StructField(EDGE_MAPPING_INT, LongType(), False))
+
+        edge_rdd_with_order_ids = edge_df_with_int_ids.map(
+            lambda rdd_row: (list(rdd_row[0]) + [rdd_row[1]])  # type: ignore
+        )
+
+        edge_df_with_int_ids = self.spark.createDataFrame(edge_rdd_with_order_ids, new_schema)
 
         # After the two joins, the result is the incoming edge
         # df now has the src and dst node ids as int ids
@@ -1953,7 +1965,16 @@ class DistHeterogeneousGraphLoader(object):
         label_metadata_dicts = {}
         for label_conf in label_configs:
             if label_conf.task_type != "link_prediction":
-                edge_label_loader = DistLabelLoader(label_conf, self.spark)
+                # We only should re-order for classification
+                if label_conf.task_type == "classification":
+                    order_col = EDGE_MAPPING_INT
+                    assert (
+                            order_col in edges_df.columns
+                    ), f"Order column '{order_col}' not found in node dataframe, {edges_df.columns=}"
+                else:
+                    order_col = None
+
+                edge_label_loader = DistLabelLoader(label_conf, self.spark, order_col)
                 self.graph_info["task_type"] = (
                     "edge_class" if label_conf.task_type == "classification" else "edge_regression"
                 )
