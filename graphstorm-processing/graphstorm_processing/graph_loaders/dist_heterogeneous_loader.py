@@ -1978,9 +1978,6 @@ class DistHeterogeneousGraphLoader(object):
                 self.graph_info["task_type"] = (
                     "edge_class" if label_conf.task_type == "classification" else "edge_regression"
                 )
-                if label_conf.task_type == "classification":
-                    self.graph_info["is_multilabel"] = label_conf.multilabel
-                    self.graph_info["label_map"] = edge_label_loader.label_map
 
                 logging.info(
                     "Processing edge label(s) '%s' for edge type '%s'...",
@@ -1989,6 +1986,10 @@ class DistHeterogeneousGraphLoader(object):
                 )
                 transformed_label = edge_label_loader.process_label(edges_df)
 
+                if label_conf.task_type == "classification":
+                    self.graph_info["is_multilabel"] = label_conf.multilabel
+                    self.graph_info["label_map"] = edge_label_loader.label_map
+                    
                 label_output_path = os.path.join(
                     self.output_prefix,
                     f"edge_data/{edge_type.replace(':', '_')}-label-{rel_type_prefix}",
