@@ -196,7 +196,7 @@ aws ecr get-login-password --region $REGION | docker login --username AWS --pass
 echo past external login
 
 # Build and push a Docker image to download and process the papers100M data
-bash build_and_push_papers100M_image.sh
+bash build_and_push_papers100M_image.sh -a $ACCOUNT_ID -r $REGION
 # This creates an ECR repository at
 # $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/papers100m-processor
 
