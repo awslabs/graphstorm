@@ -1969,8 +1969,8 @@ class DistHeterogeneousGraphLoader(object):
                 if label_conf.task_type == "classification":
                     order_col = EDGE_MAPPING_INT
                     assert (
-                            order_col in edges_df.columns
-                    ), f"Order column '{order_col}' not found in node dataframe, {edges_df.columns=}"
+                        order_col in edges_df.columns
+                    ), f"Order column '{order_col}' not found in edge dataframe, {edges_df.columns=}"
                 else:
                     order_col = None
 
@@ -1989,7 +1989,7 @@ class DistHeterogeneousGraphLoader(object):
                 if label_conf.task_type == "classification":
                     self.graph_info["is_multilabel"] = label_conf.multilabel
                     self.graph_info["label_map"] = edge_label_loader.label_map
-                    
+
                 label_output_path = os.path.join(
                     self.output_prefix,
                     f"edge_data/{edge_type.replace(':', '_')}-label-{rel_type_prefix}",
