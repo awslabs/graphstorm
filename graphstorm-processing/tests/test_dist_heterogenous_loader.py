@@ -1504,7 +1504,15 @@ def test_edge_dist_label_order_partitioned(
     data = data_zeros + data_ones + data_nan
     # Create DF with label data that contains "zero", "one", None values
     # and a set of unique IDs that we treat as strings
-    pandas_input = pd.DataFrame.from_dict({label_col: data, NODE_MAPPING_STR: ids})
+    pandas_input = pd.DataFrame.from_dict(
+        {
+            label_col: data,
+            "src_str_id": ids,
+            "src_int_id": ids,
+            "dst_str_id": ids,
+            "dst_int_id": ids,
+        }
+    )
     # We shuffle the rows so that "zero", "one" and None values are mixed and not continuous
     pandas_shuffled = pandas_input.sample(frac=1, random_state=42).reset_index(drop=True)
     # Then we assign a sequential numerical ID that we use as an order identifier
@@ -1519,9 +1527,7 @@ def test_edge_dist_label_order_partitioned(
 
     assert names_df_repart.rdd.getNumPartitions() == 64
     # Now we re-order by the order column, this way we have multiple partitions,
-    # but the incoming data are ordered by node id.
-    # This emulates the input DF that would result from the str-to-int node id
-    # mapping
+    # but the incoming data are ordered by a separate order id for edge data only.
     names_df_repart = names_df_repart.sort(order_col)
 
     # Convert the partitioned/shuffled DF to pandas for test verification
@@ -1552,7 +1558,6 @@ def test_edge_dist_label_order_partitioned(
     # Apply transformation in Pandas to check against Spark,
     # ensuring we use the same replacements as DGHL loader applied
     label_map = dghl_loader.graph_info["label_map"]
-    print(label_map)
     expected_transformed_pd = names_df_repart_pd.replace(
         {
             "zero": label_map["zero"],

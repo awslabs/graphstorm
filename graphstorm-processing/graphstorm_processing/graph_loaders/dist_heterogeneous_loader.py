@@ -1968,10 +1968,10 @@ class DistHeterogeneousGraphLoader(object):
                 # We only should re-order for classification
                 if label_conf.task_type == "classification":
                     order_col = EDGE_MAPPING_INT
-                    assert (
-                        order_col in edges_df.columns
-                    ), (f"Order column '{order_col}' not found in edge dataframe, "
-                        f"{edges_df.columns=}")
+                    assert order_col in edges_df.columns, (
+                        f"Order column '{order_col}' not found in edge dataframe, "
+                        f"{edges_df.columns=}"
+                    )
                 else:
                     order_col = None
 
