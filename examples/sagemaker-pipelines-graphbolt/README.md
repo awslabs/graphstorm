@@ -182,9 +182,9 @@ sudo apt update
 sudo apt install Docker.io
 docker -v
 
-dockerd
+dockerd &
 
-echo started docker container
+echo started docker daemon
 
 # Build and push a Docker image to download and process the papers100M data
 bash build_and_push_papers100M_image.sh
