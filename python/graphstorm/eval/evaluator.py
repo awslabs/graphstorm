@@ -380,12 +380,32 @@ class GSgnnBaseEvaluator():
         else:
             return False
 
+        if early_stop and get_rank() == 0:
+            if self._early_stop_strategy == EARLY_STOP_AVERAGE_INCREASE_STRATEGY:
+                avg_val_perf = sum(self._val_perf_list)/len(self._val_perf_list)
+            elif self._early_stop_strategy == EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY:
+                val_perf_list = self._val_perf_list.copy()
+
         self._val_perf_list.pop(0)
         self._val_perf_list.append(val_score)
 
         if early_stop and get_rank() == 0:
-            logging.info("Early stop criterion %s satisfied. Training job stopping.",
-                         self._early_stop_strategy)
+            if self._early_stop_strategy == EARLY_STOP_AVERAGE_INCREASE_STRATEGY:
+                logging.info(
+                    "Early stopping: Current validation score %.3f is lower than "
+                    "or the same as the average of the last %d validation scores %.3f.", 
+                    val_score, 
+                    self._early_stop_rounds, 
+                    avg_val_perf
+                )
+            elif self._early_stop_strategy == EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY:
+                logging.info(
+                    "Early stopping: For the last %d consecutive steps, "
+                    "the validation scores %s are decreasing or the same.", 
+                    self._early_stop_rounds, 
+                    str(val_perf_list)
+                )
+            
 
         return early_stop
 
