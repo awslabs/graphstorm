@@ -186,6 +186,8 @@ dockerd &
 
 echo started docker daemon
 
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 698571788627.dkr.ecr.us-east-1.amazonaws.com
+
 # Build and push a Docker image to download and process the papers100M data
 bash build_and_push_papers100M_image.sh
 # This creates an ECR repository at
