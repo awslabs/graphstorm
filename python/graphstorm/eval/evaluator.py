@@ -405,7 +405,6 @@ class GSgnnBaseEvaluator():
                     self._early_stop_rounds,
                     str(val_perf_list)
                 )
-            
 
         return early_stop
 
