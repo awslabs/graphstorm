@@ -1970,7 +1970,8 @@ class DistHeterogeneousGraphLoader(object):
                     order_col = EDGE_MAPPING_INT
                     assert (
                         order_col in edges_df.columns
-                    ), f"Order column '{order_col}' not found in edge dataframe, {edges_df.columns=}"
+                    ), (f"Order column '{order_col}' not found in edge dataframe, "
+                        f"{edges_df.columns=}")
                 else:
                     order_col = None
 
@@ -1986,6 +1987,7 @@ class DistHeterogeneousGraphLoader(object):
                 )
                 transformed_label = edge_label_loader.process_label(edges_df)
 
+                # Update the label map after do label transformation
                 if label_conf.task_type == "classification":
                     self.graph_info["is_multilabel"] = label_conf.multilabel
                     self.graph_info["label_map"] = edge_label_loader.label_map
@@ -2015,7 +2017,8 @@ class DistHeterogeneousGraphLoader(object):
                         # For random splits we need to collect the ordered DF to Pandas
                         # and write to storage directly
                         logging.info(
-                            "Collecting label data for edge type '%s', label col: '%s' to leader...",
+                            "Collecting label data for edge type '%s', "
+                            "label col: '%s' to leader...",
                             edge_type,
                             label_conf.label_column,
                         )
