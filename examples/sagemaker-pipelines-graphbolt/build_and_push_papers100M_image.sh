@@ -60,6 +60,12 @@ aws ecr-public get-login-password --region $REGION | docker login --username AWS
 # Build and tag image
 docker build -f Dockerfile.processing -t $IMAGE .
 
+echo trying aws s3 ls
+
+aws s3 ls
+
+echo past aws s3 ls
+
 # Auth to private ECR
 aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT.dkr.ecr.$REGION.amazonaws.com
 
