@@ -49,6 +49,15 @@ parse_params() {
 
 parse_params "$@"
 
+echo past parse param
+
+echo $ACCOUNT
+echo $REGION
+
+aws s3 ls
+
+echo past parse param aws s3 ls
+
 IMAGE=papers100m-processor
 
 # Download ripunzip to copy to image
