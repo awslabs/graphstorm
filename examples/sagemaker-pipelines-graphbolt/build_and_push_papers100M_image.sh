@@ -55,7 +55,7 @@ IMAGE=papers100m-processor
 curl -L -O https://github.com/google/ripunzip/releases/download/v2.0.0/ripunzip_2.0.0-1_amd64.deb
 
 # Auth to AWS public ECR gallery
-aws ecr-public get-login-password --region $REGION | docker login --username AWS --password-stdin public.ecr.aws
+# aws ecr-public get-login-password --region $REGION | docker login --username AWS --password-stdin public.ecr.aws
 
 # Build and tag image
 docker build -f Dockerfile.processing -t $IMAGE .
