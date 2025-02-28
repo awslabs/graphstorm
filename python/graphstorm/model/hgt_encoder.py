@@ -710,9 +710,22 @@ class HGTLayerwithEdgeFeat(HGTLayer):
         -------
         dict of Tensor: New node embeddings for each node type in the format of {ntype: tensor}.
         """
-        assert e_h is not None and len(e_h) != 0,  "No edge features provided for message " + \
-            "passing computation in HGTLayerwithEdgeFeat, please provide edge feature " + \
-            "dictionary specified in the \"edge_feat_name\" argument."
+        # A corner case, there is 0 edges of edge type with edge features. So no input e_h will
+        # be given.
+        if e_h is None:
+            total_num_edge = 0
+            for can_etype in self.edge_feat_name.keys():
+                total_num_edge += g.num_edges(etype=can_etype)
+            # print(f'Total number of feature associated edges are {total_num_edge}.')
+            assert total_num_edge == 0, f"No edge features provided for {total_num_edge} edges " + \
+                "in HGTLayerwithEdgeFeat, please provide edge feature " + \
+                "dictionary specified in the \"edge_feat_name\" argument."
+            e_h = {}
+        else:
+            # all other cases, should provide valid e_h
+            assert e_h is not None and len(e_h) != 0,  "No edge features provided for message " + \
+                "passing computation in HGTLayerwithEdgeFeat, please provide edge feature " + \
+                "dictionary specified in the \"edge_feat_name\" argument."
 
         # pylint: disable=no-member
         with g.local_scope():
@@ -721,6 +734,10 @@ class HGTLayerwithEdgeFeat(HGTLayer):
                 c_etype_str = '_'.join((srctype, etype, dsttype))
                 # extract each relation as a sub graph
                 sub_graph = g[srctype, etype, dsttype]
+
+                # no edge, no message passing computation
+                if sub_graph.num_edges() == 0:
+                    continue
 
                 # extract source, destination, and edge embeds
                 src_nh = h[srctype]
