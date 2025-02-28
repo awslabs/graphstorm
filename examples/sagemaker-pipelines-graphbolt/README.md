@@ -186,17 +186,17 @@ dockerd &
 
 echo started docker daemon
 
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 698571788627.dkr.ecr.us-east-1.amazonaws.com
+# Run a SageMaker job to do the processing and upload the output to S3
+SAGEMAKER_EXECUTION_ROLE_ARN=<your-sagemaker-execution-role-arn>
+ACCOUNT_ID=<your-aws-account-id>
+REGION=us-east-1
+
+aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
 
 # Build and push a Docker image to download and process the papers100M data
 bash build_and_push_papers100M_image.sh
 # This creates an ECR repository at
 # $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/papers100m-processor
-
-# Run a SageMaker job to do the processing and upload the output to S3
-SAGEMAKER_EXECUTION_ROLE_ARN=<your-sagemaker-execution-role-arn>
-ACCOUNT_ID=<your-aws-account-id>
-REGION=us-east-1
 
 aws configure set region $REGION
 python sagemaker_convert_papers100m.py \
