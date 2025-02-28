@@ -1221,7 +1221,7 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
     layerwithef = layerwithef.to(dev)
     layerwithef.eval()
 
-    # not provide edge feature as there is no edge featuer in ('n0', 'r0', 'n1')
+    # not provide edge feature as there is no edge feature in ('n0', 'r0', 'n1')
     emb = layerwithef(block_zero_edge, node_feats)
 
     assert 'n0' not in emb
