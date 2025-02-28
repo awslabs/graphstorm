@@ -712,7 +712,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
         """
         # A corner case, there is 0 edges of edge type with edge features. So no input e_h will
         # be given.
-        if e_h is None:
+        if e_h is None or len(e_h) == 0:
             total_num_edge = 0
             for can_etype in self.edge_feat_name.keys():
                 total_num_edge += g.num_edges(etype=can_etype)
@@ -720,11 +720,6 @@ class HGTLayerwithEdgeFeat(HGTLayer):
                 "in HGTLayerwithEdgeFeat, please provide edge feature " + \
                 "dictionary specified in the \"edge_feat_name\" argument."
             e_h = {}
-        else:
-            # all other cases, should provide valid e_h
-            assert e_h is not None and len(e_h) != 0,  "No edge features provided for message " + \
-                "passing computation in HGTLayerwithEdgeFeat, please provide edge feature " + \
-                "dictionary specified in the \"edge_feat_name\" argument."
 
         # pylint: disable=no-member
         with g.local_scope():
