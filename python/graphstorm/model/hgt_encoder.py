@@ -716,7 +716,6 @@ class HGTLayerwithEdgeFeat(HGTLayer):
             total_num_edge = 0
             for can_etype in self.edge_feat_name.keys():
                 total_num_edge += g.num_edges(etype=can_etype)
-            # print(f'Total number of feature associated edges are {total_num_edge}.')
             assert total_num_edge == 0, f"No edge features provided for {total_num_edge} edges " + \
                 "in HGTLayerwithEdgeFeat, please provide edge feature " + \
                 "dictionary specified in the \"edge_feat_name\" argument."
@@ -734,10 +733,6 @@ class HGTLayerwithEdgeFeat(HGTLayer):
                 c_etype_str = '_'.join((srctype, etype, dsttype))
                 # extract each relation as a sub graph
                 sub_graph = g[srctype, etype, dsttype]
-
-                # no edge, no message passing computation
-                if sub_graph.num_edges() == 0:
-                    continue
 
                 # extract source, destination, and edge embeds
                 src_nh = h[srctype]
