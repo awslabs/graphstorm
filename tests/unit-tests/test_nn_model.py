@@ -1186,7 +1186,12 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
 
     # Test case 8: a corner case, layer was set with edge feature name, but the input block has 0
     #              number of edge types that should have edge features.
-    #       8.1 normal case, set layer with ('n0', 'r0', 'n1') edge feature name, but 0 input edges
+    #       8.1 abnormal case, set layer with  ('n0', 'r0', 'n1') edge feature name, but has >0
+    #           input edges, but don't pass edge features to forward. This will trigger an
+    #       asserttion error.
+    #       This has been tested in Test Case 5.
+
+    #       8.2 normal case, set layer with ('n0', 'r0', 'n1') edge feature name, but 0 input edges
 
     # remove all edges in ('n0', 'r0', 'n1') edge type
     subg.remove_edges(th.tensor([0,1]), etype=('n0', 'r0', 'n1'))
@@ -1243,8 +1248,3 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
 
     assert_almost_equal(baseline_emb['n1'].detach().cpu().numpy(),
                         emb['n1'].detach().cpu().numpy())
-
-    #       8.2 abnormal case, set layer with  ('n0', 'r0', 'n1') edge feature name, but has >0
-    #           input edges. This will trigger an asserttion error.
-    #       This has been tested in Test Case 5.
-    
