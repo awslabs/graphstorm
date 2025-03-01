@@ -17,10 +17,6 @@ die() {
 }
 
 parse_params() {
-    # default values of variables set from params
-    ACCOUNT=$(aws sts get-caller-identity --query Account --output text || true)
-    REGION=$(aws configure get region || true)
-    REGION=${REGION:-"us-east-1"}
 
     while :; do
         case "${1-}" in
@@ -40,6 +36,15 @@ parse_params() {
         shift
     done
 
+    # default values of variables set from params
+    if [[ -z "${ACCOUNT-}" ]]; then
+        ACCOUNT=$(aws sts get-caller-identity --query Account --output text || true)
+    fi
+    if [[ -z "${REGION-}" ]]; then
+        REGION=$(aws configure get region || true)
+        REGION=${REGION:-"us-east-1"}
+    fi
+
     # check required params and arguments
     [[ -z "${ACCOUNT-}" ]] && die "Missing required parameter: -a/--account <aws-account-id>"
     [[ -z "${REGION-}" ]] && die "Missing required parameter: -r/--region <aws-region>"
@@ -49,31 +54,16 @@ parse_params() {
 
 parse_params "$@"
 
-echo past parse param
-
-echo $ACCOUNT
-echo $REGION
-
-aws s3 ls
-
-echo past parse param aws s3 ls
-
 IMAGE=papers100m-processor
 
 # Download ripunzip to copy to image
 curl -L -O https://github.com/google/ripunzip/releases/download/v2.0.0/ripunzip_2.0.0-1_amd64.deb
 
 # Auth to AWS public ECR gallery
-aws ecr-public get-login-password --region $REGION | docker login --username AWS --password-stdin public.ecr.aws
+# aws ecr-public get-login-password --region $REGION | docker login --username AWS --password-stdin public.ecr.aws
 
 # Build and tag image
 docker build -f Dockerfile.processing -t $IMAGE .
-
-echo trying aws s3 ls
-
-aws s3 ls
-
-echo past aws s3 ls
 
 # Auth to private ECR
 aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT.dkr.ecr.$REGION.amazonaws.com
