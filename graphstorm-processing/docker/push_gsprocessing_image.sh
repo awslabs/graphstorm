@@ -42,6 +42,7 @@ parse_params() {
   IMAGE='graphstorm-processing'
   VERSION=$(find "$SCRIPT_DIR" -maxdepth 1 -type d | sort --version-sort | tail -1 | xargs basename)
   LATEST_VERSION=${VERSION}
+  # If the user did not provide a region, try to get from config
   REGION=${REGION:-$(aws configure get region)}
   ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
   ARCH='x86_64'
@@ -88,6 +89,7 @@ parse_params() {
   done
 
   [[ -z "${EXEC_ENV-}" ]] && die "Missing required parameter: -e/--environment [emr|emr-serverless|sagemaker]"
+  [[ -z "${REGION-}" ]] && die "Missing required parameter: -r/--region <aws-region>"
 
   return 0
 }
