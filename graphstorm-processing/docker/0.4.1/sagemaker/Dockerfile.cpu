@@ -20,7 +20,7 @@ COPY requirements.txt requirements.txt
 RUN /usr/local/bin/python3.9 -m pip install --no-cache-dir -r /usr/lib/spark/code/requirements.txt \
     && rm -rf /root/.cache
 
-# Graphloader codebase
+# GSProcessing codebase
 COPY code/ /usr/lib/spark/code/
 
 # Base container assumes this is the workdir
@@ -49,15 +49,8 @@ else \
 fi
 
 # Reduce excessive logging
-COPY log4j.properties $SPARK_HOME/conf/
 ENV SPARK_CONF_DIR=$SPARK_HOME/conf
-ENV SPARK_LOGGING_OPTS="-Dlog4j.configuration=file:/usr/lib/spark/conf/log4j.properties -Dlog4j.rootCategory=ERROR"
-ENV SPARK_DAEMON_JAVA_OPTS="-Dlog4j.configuration=file:/usr/lib/spark/conf/log4j.properties -Dlog4j.rootCategory=ERROR"
-ENV _JAVA_OPTIONS="-Dlog4j.configuration=file:/usr/lib/spark/conf/log4j.properties -Dlog4j.rootCategory=ERROR"
-ENV HADOOP_ROOT_LOGGER="ERROR,console"
-ENV YARN_ROOT_LOGGER="ERROR,console"
-
-
+COPY log4j.properties $SPARK_HOME/conf/
 
 # Starts framework
 ENTRYPOINT ["bash", "/usr/lib/spark/code/docker-entry.sh"]

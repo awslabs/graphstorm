@@ -71,6 +71,15 @@ def create_spark_session(
         spark_builder = _configure_spark_env_memory(
             spark_builder, processing_job_config, instance_type_info
         )
+        # Reduce excessive logging with config file in SM driver and executors
+        spark_builder.config(
+            "spark.driver.extraJavaOptions",
+            "-Dlog4j.configuration=file:/usr/lib/spark/conf/log4j.properties",
+        )
+        spark_builder.config(
+            "spark.executor.extraJavaOptions",
+            "-Dlog4j.configuration=file:/usr/lib/spark/conf/log4j.properties",
+        )
 
     major, minor = VersionUtils.majorMinorVersion(pyspark.__version__)
     hadoop_ver = SPARK_HADOOP_VERSIONS[f"{major}.{minor}"]
@@ -91,10 +100,14 @@ def create_spark_session(
 
     spark.sparkContext.setLogLevel("ERROR")
     logger = spark.sparkContext._jvm.org.apache.log4j
-    logger.LogManager.getLogger("org").setLevel(logger.Level.ERROR)
-    logger.LogManager.getLogger("py4j").setLevel(logger.Level.ERROR)
-    spark_logger = logging.getLogger("py4j.java_gateway")
-    spark_logger.setLevel(logging.ERROR)
+    logger.LogManager.getRootLogger().setLevel(logger.Level.ERROR)
+    logger.LogManager.getLogger("org.apache.spark").setLevel(logger.Level.ERROR)
+    logger.LogManager.getLogger("org.apache.hadoop").setLevel(logger.Level.ERROR)
+    logger.LogManager.getLogger("yarn").setLevel(logger.Level.ERROR)
+
+    spark.conf.set("spark.yarn.app.container.log.dir", "/tmp/spark-logs")
+    spark.conf.set("yarn.log-aggregation-enable", "true")
+    spark.conf.set("spark.yarn.log.aggregation.retain.seconds", "86400")  # 24 hours
 
     hadoop_config = spark.sparkContext._jsc.hadoopConfiguration()
     # This is needed to save RDDs which is the only way to write nested Dataframes into CSV format
