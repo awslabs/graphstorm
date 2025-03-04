@@ -655,6 +655,11 @@ def compute_rmse(pred, labels):
     assert th.is_floating_point(pred) and th.is_floating_point(labels), \
         "prediction and labels must be floating points"
 
+    # Handle the case when the label is a 1D tensor and
+    # the prediction result has the shape as (len(labels), 1)
+    if len(labels.shape) == 1 and pred.shape[-1] == 1:
+        pred = pred.squeeze(-1)
+
     assert pred.shape == labels.shape, \
         f"prediction and labels have different shapes. {pred.shape} vs. {labels.shape}"
     if pred.dtype != labels.dtype:
@@ -672,6 +677,11 @@ def compute_mse(pred, labels):
     # TODO: check dtype of label before training or evaluation
     assert th.is_floating_point(pred) and th.is_floating_point(labels), \
         "prediction and labels must be floating points"
+
+    # Handle the case when the label is a 1D tensor and
+    # the prediction result has the shape as (len(labels), 1)
+    if len(labels.shape) == 1 and pred.shape[-1] == 1:
+        pred = pred.squeeze(-1)
 
     assert pred.shape == labels.shape, \
         f"prediction and labels have different shapes. {pred.shape} vs. {labels.shape}"
