@@ -65,11 +65,10 @@ aws ecr-public get-login-password --region $REGION | docker login --username AWS
 # Build and tag image
 docker build -f Dockerfile.processing -t $IMAGE .
 
-apt-get -y update
-apt-get -y install jq
+# apt-get -y update
+# apt-get -y install jq
 
 # Auth to private ECR
-./renew_session.sh "arn:aws:iam::698571788627:role/sagemaker-regression-ci" "sagemaker-pipeline-example" "us-east-1"
 aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT.dkr.ecr.$REGION.amazonaws.com
 
 # Create repository if it doesn't exist
