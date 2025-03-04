@@ -23,7 +23,6 @@ import torch.nn.functional as F
 import dgl.nn as dglnn
 
 import dgl.function as fn
-from dgl.nn.pytorch.hetero import get_aggregate_fn
 from dgl.nn.functional import edge_softmax
 from dgl.utils import expand_as_pair
 from .ngnn_mlp import NGNNMLP

@@ -22,7 +22,6 @@ from torch import nn
 import torch.nn.functional as F
 import dgl.nn as dglnn
 import dgl.function as fn
-from dgl.nn.pytorch.hetero import get_aggregate_fn
 from .ngnn_mlp import NGNNMLP
 from .gnn_encoder_base import (GraphConvEncoder,
                                GSgnnGNNEncoderInterface,

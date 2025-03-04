@@ -24,6 +24,7 @@ import dgl
 import torch as th
 from torch import nn
 from dgl.distributed import node_split
+from dgl.nn.pytorch.hetero import get_aggregate_fn
 from .gs_layer import GSLayer
 
 from ..utils import get_rank, barrier, is_distributed, create_dist_tensor, is_wholegraph
