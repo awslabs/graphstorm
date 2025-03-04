@@ -401,7 +401,7 @@ class GSgnnBaseEvaluator():
             elif self._early_stop_strategy == EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY:
                 logging.info(
                     "Early stopping: For the last %d consecutive steps, "
-                    "the validation scores %s are worse.",
+                    "the validation scores %s are not improving. Stop training.",
                     self._early_stop_rounds,
                     str(val_perf_list)
                 )
