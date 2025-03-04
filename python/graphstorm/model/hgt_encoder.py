@@ -718,7 +718,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
                 total_num_edge += g.num_edges(etype=can_etype)
             assert total_num_edge == 0, f"No edge features provided for {total_num_edge} edges " + \
                 "in HGTLayerwithEdgeFeat, please check the edge feature " + \
-                "dictionary specified in the \"edge_feat_name\" argument."
+                "information specified in the \"edge_feat_name\" argument during initialization or check the \"e_h\" argument of the forward function.."
             e_h = {}
 
         # pylint: disable=no-member
