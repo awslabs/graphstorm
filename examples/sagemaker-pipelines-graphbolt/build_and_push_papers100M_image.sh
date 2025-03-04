@@ -52,7 +52,7 @@ parse_params() {
     return 0
 }
 
-# parse_params "$@"
+parse_params "$@"
 
 IMAGE=papers100m-processor
 
@@ -66,6 +66,7 @@ curl -L -O https://github.com/google/ripunzip/releases/download/v2.0.0/ripunzip_
 docker build -f Dockerfile.processing -t $IMAGE .
 
 # Auth to private ECR
+./renew_session.sh $SAGEMAKER_EXECUTION_ROLE_ARN "sagemaker-pipeline-example" "us-east-1"
 aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT.dkr.ecr.$REGION.amazonaws.com
 
 # Create repository if it doesn't exist
