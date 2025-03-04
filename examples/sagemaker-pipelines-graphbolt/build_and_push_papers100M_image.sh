@@ -17,6 +17,10 @@ die() {
 }
 
 parse_params() {
+    # default values of variables set from params
+    ACCOUNT=$(aws sts get-caller-identity --query Account --output text || true)
+    REGION=$(aws configure get region || true)
+    REGION=${REGION:-"us-east-1"}
 
     while :; do
         case "${1-}" in
@@ -35,15 +39,6 @@ parse_params() {
         esac
         shift
     done
-
-    # default values of variables set from params
-    if [[ -z "${ACCOUNT-}" ]]; then
-        ACCOUNT=$(aws sts get-caller-identity --query Account --output text || true)
-    fi
-    if [[ -z "${REGION-}" ]]; then
-        REGION=$(aws configure get region || true)
-        REGION=${REGION:-"us-east-1"}
-    fi
 
     # check required params and arguments
     [[ -z "${ACCOUNT-}" ]] && die "Missing required parameter: -a/--account <aws-account-id>"
@@ -65,18 +60,15 @@ aws ecr-public get-login-password --region $REGION | docker login --username AWS
 # Build and tag image
 docker build -f Dockerfile.processing -t $IMAGE .
 
-# apt-get -y update
-# apt-get -y install jq
-
-# Auth to private ECR
-aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT.dkr.ecr.$REGION.amazonaws.com
-
 # Create repository if it doesn't exist
 echo "Getting or creating container repository: $IMAGE"
 if ! $(aws ecr describe-repositories --repository-names $IMAGE --region ${REGION} > /dev/null 2>&1); then
     echo >&2 "WARNING: ECR repository $IMAGE does not exist in region ${REGION}. Creating..."
     aws ecr create-repository --repository-name $IMAGE --region ${REGION} > /dev/null
 fi
+
+# Auth to private ECR
+aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT.dkr.ecr.$REGION.amazonaws.com
 
 # Tag and push the image
 docker tag $IMAGE:latest $ACCOUNT.dkr.ecr.$REGION.amazonaws.com/$IMAGE:latest
