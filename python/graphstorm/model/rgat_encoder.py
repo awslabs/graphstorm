@@ -147,7 +147,7 @@ class RelationalAttLayer(nn.Module):
 
         rel_convs = {}
         for rel in rel_names:
-            if rel in edge_feat_name:
+            if edge_feat_name and rel in edge_feat_name:
                 rel_convs[rel] = GATConvwithEdgeFeat(in_feat, out_feat // num_heads, num_heads,
                                                        edge_feat_mp_op=edge_feat_mp_op,
                                                        bias=False)

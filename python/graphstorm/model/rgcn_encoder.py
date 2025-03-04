@@ -143,7 +143,7 @@ class RelGraphConvLayer(nn.Module):
         # check which GraphConv to use depending on if using edge feature
         rel_convs = {}
         for rel in rel_names:
-            if rel in edge_feat_name:
+            if edge_feat_name and rel in edge_feat_name:
                 rel_convs[rel] = GraphConvwithEdgeFeat(in_feat, out_feat,
                                                        edge_feat_mp_op=edge_feat_mp_op,
                                                        bias=False)
