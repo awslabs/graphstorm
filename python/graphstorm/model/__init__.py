@@ -40,11 +40,11 @@ from .multitask_gnn import (GSgnnMultiTaskModelInterface,
 from .multitask_gnn import (multi_task_mini_batch_predict,
                             gen_emb_for_nfeat_reconstruct)
 from .rgcn_encoder import RelationalGCNEncoder, RelGraphConvLayer
-from .rgat_encoder import RelationalGATEncoder, RelationalAttLayer
+from .rgat_encoder import RelationalGATEncoder, RelationalAttLayer, GATConvwithEdgeFeat
 from .sage_encoder import SAGEEncoder, SAGEConv
 from .gat_encoder import GATEncoder, GATConv
 from .gatv2_encoder import GATv2Encoder, GATv2Conv
-from .hgt_encoder import HGTEncoder, HGTLayer
+from .hgt_encoder import HGTEncoder, HGTLayer, HGTLayerwithEdgeFeat
 
 from .node_decoder import EntityClassifier, EntityRegression
 from .edge_decoder import (DenseBiDecoder,
