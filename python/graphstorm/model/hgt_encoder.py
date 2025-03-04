@@ -717,7 +717,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
             for can_etype in self.edge_feat_name.keys():
                 total_num_edge += g.num_edges(etype=can_etype)
             assert total_num_edge == 0, f"No edge features provided for {total_num_edge} edges " + \
-                "in HGTLayerwithEdgeFeat, please provide edge feature " + \
+                "in HGTLayerwithEdgeFeat, please check the edge feature " + \
                 "dictionary specified in the \"edge_feat_name\" argument."
             e_h = {}
 
