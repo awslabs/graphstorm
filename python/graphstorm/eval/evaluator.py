@@ -392,7 +392,7 @@ class GSgnnBaseEvaluator():
         if early_stop and get_rank() == 0:
             if self._early_stop_strategy == EARLY_STOP_AVERAGE_INCREASE_STRATEGY:
                 logging.info(
-                    "Early stopping: Current validation score %.3f is lower than "
+                    "Early stopping: Current validation score %.3f is worse than "
                     "or the same as the average of the last %d validation scores %.3f.",
                     val_score,
                     self._early_stop_rounds,
@@ -401,7 +401,7 @@ class GSgnnBaseEvaluator():
             elif self._early_stop_strategy == EARLY_STOP_CONSECUTIVE_INCREASE_STRATEGY:
                 logging.info(
                     "Early stopping: For the last %d consecutive steps, "
-                    "the validation scores %s are decreasing or the same.",
+                    "the validation scores %s are worse.",
                     self._early_stop_rounds,
                     str(val_perf_list)
                 )
