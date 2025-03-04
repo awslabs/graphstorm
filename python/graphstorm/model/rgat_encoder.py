@@ -28,7 +28,8 @@ from dgl.nn.functional import edge_softmax
 from dgl.utils import expand_as_pair
 from .ngnn_mlp import NGNNMLP
 from .gnn_encoder_base import (GraphConvEncoder,
-                               GSgnnGNNEncoderInterface)
+                               GSgnnGNNEncoderInterface,
+                               HeteroGraphConv)
 from ..config import BUILTIN_EDGE_FEAT_MP_OPS
 
 
@@ -106,6 +107,10 @@ class RelationalAttLayer(nn.Module):
     norm: str
         Normalization methods. Options:``batch``, ``layer``, and ``None``. Default: None,
         meaning no normalization.
+
+    .. versionchanged:: 0.4.1
+        Add two new arguments ``edge_feat_name`` and ``edge_feat_mp_op`` in v0.4.1 to
+        support edge features in RGAT.
     """
     def __init__(self,
                  in_feat,
@@ -132,20 +137,18 @@ class RelationalAttLayer(nn.Module):
         self.self_loop = self_loop
 
         if edge_feat_name:
-            assert len(set(edge_feat_name.keys()).intersection(
-                set(rel_names))) > 0, (f'To use GATConvwithEdgeFeat, must provide valid '
-                                       f'edge feature name, but got {edge_feat_name}.')
             # warning
             if len(set(edge_feat_name.keys()) - set(rel_names)) > 0:
-                warn_msg = (f"Warning. Not using edge features for the invalid edge_feat_name: "
-                            f"{set(edge_feat_name.keys()) - set(rel_names)}.")
+                warn_msg = (f"Warning. The edge features of relations "
+                            f"{set(edge_feat_name.keys()) - set(rel_names)} "
+                            f"are not included in the message passing.")
                 self.warning_once(warn_msg)
         self.edge_feat_name = edge_feat_name
         self.edge_feat_mp_op = edge_feat_mp_op
 
         rel_convs = {}
         for rel in rel_names:
-            if edge_feat_name and rel in edge_feat_name:
+            if rel in edge_feat_name:
                 rel_convs[rel] = GATConvwithEdgeFeat(in_feat, out_feat // num_heads, num_heads,
                                                        edge_feat_mp_op=edge_feat_mp_op,
                                                        bias=False)
@@ -240,7 +243,7 @@ class RelationalAttLayer(nn.Module):
         else:
             assert len(e_h) == 0 or self.edge_feat_name is not None, \
                 "Since you want to use edge features {list(e_h.keys())} in " + \
-                 "message passing computation, please initialize the RelGraphConvLayer " + \
+                 "message passing computation, please initialize the RelationalAttLayer " + \
                  "by setting the \"edge_feat_name\" argument."
             hs = self.conv(g, (inputs_src, inputs_dst, e_h))
 
@@ -273,7 +276,7 @@ class RelationalAttLayer(nn.Module):
                                      device=n_h[k].device)
                     # TODO the above might fail if the device is a different GPU
                 else:
-                    hs[k] = hs[k].view(hs[k].shape[0], hs[k].shape[1] * hs[k].shape[2])
+                    hs[k] = hs[k].reshape(hs[k].shape[0], hs[k].shape[1] * hs[k].shape[2])
 
         return {ntype : _apply(ntype, h) for ntype, h in hs.items()}
 
@@ -378,6 +381,13 @@ class RelationalGATEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
         super(RelationalGATEncoder, self).__init__(h_dim, out_dim, num_hidden_layers,
                                                    edge_feat_name, edge_feat_mp_op)
         self.num_heads = num_heads
+
+        # check edge type string format
+        if edge_feat_name:
+            for etype, _ in edge_feat_name.items():
+                assert len(etype) == 3, 'The edge type should be in canonical type format:' + \
+                                        f'(src_ntype, etype, dst_ntype), but got \"{etype}\".'
+
         # h2h
         for _ in range(num_hidden_layers):
             self.layers.append(RelationalAttLayer(
@@ -394,7 +404,7 @@ class RelationalGATEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
             self_loop=use_self_loop, norm=norm if last_layer_act else None))
 
     def is_support_edge_feat(self):
-        """ Overwrite ``RelationalAttLayer`` class' method, indicating RelationalGATEncoder
+        """ Overwrite ``GraphConvEncoder`` class' method, indicating RelationalGATEncoder
        supports edge feature.
         """
         return True
@@ -445,139 +455,6 @@ class RelationalGATEncoder(GraphConvEncoder, GSgnnGNNEncoderInterface):
 
         return n_h
 
-class HeteroGraphConv(nn.Module):
-    r"""A generic module for computing convolution on heterogeneous graphs.
-
-    Parameters
-    ----------
-    mods: dict[str, nn.Module]
-        Modules associated with every edge types. The forward function of each
-        module must have a `DGLGraph` object as the first argument, and
-        its second argument is either a tensor object representing the node
-        features or a pair of tensor object representing the source and destination
-        node features.
-    aggregate: str, callable, optional
-        Method for aggregating node features generated by different relations.
-        Allowed string values are 'sum', 'max', 'min', 'mean', 'stack'.
-        The 'stack' aggregation is performed along the second dimension, whose order
-        is deterministic.
-        User can also customize the aggregator by providing a callable instance.
-        For example, aggregation by summation is equivalent to the follows:
-
-    Attributes
-    ----------
-    mods: dict[str, nn.Module]
-        Modules associated with every edge types.
-    """
-
-    def __init__(self, mods, aggregate="sum"):
-        super(HeteroGraphConv, self).__init__()
-        self.mod_dict = mods
-        mods = {str(k): v for k, v in mods.items()}
-        # Register as child modules
-        self.mods = nn.ModuleDict(mods)
-        for _, v in self.mods.items():
-            set_allow_zero_in_degree_fn = getattr(
-                v, "set_allow_zero_in_degree", None
-            )
-            if callable(set_allow_zero_in_degree_fn):
-                set_allow_zero_in_degree_fn(True)
-        if isinstance(aggregate, str):
-            self.agg_fn = get_aggregate_fn(aggregate)
-        else:
-            self.agg_fn = aggregate
-
-    def _get_module(self, etype):
-        mod = self.mod_dict.get(etype, None)
-        if mod is not None:
-            return mod
-        if isinstance(etype, tuple):
-            # etype is canonical
-            _, etype, _ = etype
-            return self.mod_dict[etype]
-        raise KeyError("Cannot find module with edge type %s" % etype)
-
-    def forward(self, g, inputs, mod_args=None, mod_kwargs=None):
-        """Forward computation
-
-        Invoke the forward function with each module and aggregate their results.
-
-        .. versionchanged:: 0.4.1
-            Modify the argument inputs to accept a tuple of dict[str, Tensor] to support
-            edge features in graph convolution.
-
-        Parameters
-        ----------
-        g: DGLGraph
-            Graph data.
-        inputs: dict[str, Tensor] or tuple of dict[str, Tensor]
-            Input node features, and edge feature if provided.
-        mod_args: dict[str, tuple[any]], optional
-            Extra positional arguments for the sub-modules.
-        mod_kwargs: dict[str, dict[str, any]], optional
-            Extra key-word arguments for the sub-modules.
-
-        Returns
-        -------
-        dict[str, Tensor]
-            Output representations for every types of nodes.
-        """
-        if mod_args is None:
-            mod_args = {}
-        if mod_kwargs is None:
-            mod_kwargs = {}
-        outputs = {nty: [] for nty in g.dsttypes}
-        if isinstance(inputs, tuple) or g.is_block:
-            if isinstance(inputs, tuple) and len(inputs)==3:
-                src_inputs, dst_inputs, edge_inputs = inputs
-            elif isinstance(inputs, tuple) and len(inputs)==2:
-                src_inputs, dst_inputs = inputs
-                edge_inputs = {}
-            else:
-                src_inputs = inputs
-                dst_inputs = {
-                    k: v[: g.number_of_dst_nodes(k)] for k, v in inputs.items()
-                }
-                edge_inputs = {}
-
-            for stype, etype, dtype in g.canonical_etypes:
-                rel_graph = g[stype, etype, dtype]
-                if stype not in src_inputs or dtype not in dst_inputs:
-                    continue
-                # check if the edge type has inputs
-                if (stype, etype, dtype) in edge_inputs:
-                    dstdata = self._get_module((stype, etype, dtype))(
-                        rel_graph,
-                        (src_inputs[stype], dst_inputs[dtype], edge_inputs[(stype, etype, dtype)]),
-                        *mod_args.get((stype, etype, dtype), ()),
-                        **mod_kwargs.get((stype, etype, dtype), {})
-                    )
-                else:
-                    dstdata = self._get_module((stype, etype, dtype))(
-                        rel_graph,
-                        (src_inputs[stype], dst_inputs[dtype]),
-                        *mod_args.get((stype, etype, dtype), ()),
-                        **mod_kwargs.get((stype, etype, dtype), {})
-                    )
-                outputs[dtype].append(dstdata)
-        else:
-            for stype, etype, dtype in g.canonical_etypes:
-                rel_graph = g[stype, etype, dtype]
-                if stype not in inputs:
-                    continue
-                dstdata = self._get_module((stype, etype, dtype))(
-                    rel_graph,
-                    (inputs[stype], inputs[dtype]),
-                    *mod_args.get((stype, etype, dtype), ()),
-                    **mod_kwargs.get((stype, etype, dtype), {})
-                )
-                outputs[dtype].append(dstdata)
-        rsts = {}
-        for nty, alist in outputs.items():
-            if len(alist) != 0:
-                rsts[nty] = self.agg_fn(alist, nty)
-        return rsts
-
 class GATConvwithEdgeFeat(nn.Module):
     """ Graph attention layer with edge feature supported in message passing computation.
 
@@ -609,7 +486,7 @@ class GATConvwithEdgeFeat(nn.Module):
         LeakyReLU angle of negative slope. Defaults: ``0.2``.
     residual : bool, optional
         If True, use residual connection. Defaults: ``False``.
-    activation : callable activation function/layer or None, optional
+    activation : callable activation function, optional
         If not None, applies an activation function to the updated node features.
         Default: ``None``.
     bias: bool
@@ -682,15 +559,15 @@ class GATConvwithEdgeFeat(nn.Module):
             nn.init.constant_(self.bias, 0)
 
     # pylint: disable=unused-argument
-    def forward(self, rel_graph, inputs,  get_attention=False, weight=None, edge_weight=None):
+    def forward(self, rel_graph, inputs, get_attention=False, weight=None, edge_weight=None):
         """ GAT conv forward computation with edge feature.
 
         Parameters
         ----------
         rel_graph: DGLGraph
             Input DGL heterogenous graph with one edge type only.
-        inputs: tuple of dict of Tensor
-            Node features for each node type in the format of {ntype: tensor}.
+        inputs: tuple of Tensors
+            Tuple of input node and edge features, i.e., (src_inputs, dst_inputs, edge_inputs).
         get_attention : bool, optional
             Whether to return the attention values. Default to False.
         weight: dict of Tensor
@@ -734,7 +611,7 @@ class GATConvwithEdgeFeat(nn.Module):
                 if self.edge_feat_mp_op == 'concat':
                     rel_graph.apply_edges(lambda edges: {
                         'm': self.fc_src(
-                            th.concat([edges.src['n_h'], edges.data['e_h']], dim=1))})
+                            th.concat([edges.src['n_h'], edges.data['e_h']], dim=-1))})
                 elif self.edge_feat_mp_op == 'add':
                     rel_graph.apply_edges(
                         lambda edges: {'m': self.fc_src(edges.src['n_h'] + edges.data['e_h'])})
@@ -753,11 +630,11 @@ class GATConvwithEdgeFeat(nn.Module):
                                      f'{BUILTIN_EDGE_FEAT_MP_OPS}.')
 
                 # projection for the dst nodes
-                rel_graph.dstdata['n_h'] = self.fc_dst(self.feat_drop(dst_inputs)).view(
+                rel_graph.dstdata['n_h'] = self.fc_dst(self.feat_drop(dst_inputs)).reshape(
                     *dst_prefix_shape, self._num_heads, self._out_feats
                 )
 
-                rel_graph.edata['m'] = rel_graph.edata['m'].view(*edge_prefix_shape,
+                rel_graph.edata['m'] = rel_graph.edata['m'].reshape(*edge_prefix_shape,
                                                                  self._num_heads, self._out_feats)
 
                 # pylint: disable=no-member
@@ -777,7 +654,7 @@ class GATConvwithEdgeFeat(nn.Module):
 
                 # bias
                 if self.bias:
-                    rst = rst + self.bias.view(
+                    rst = rst + self.bias.reshape(
                         *((1,) * len(dst_prefix_shape)),
                         self._num_heads,
                         self._out_feats

@@ -712,8 +712,8 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
     with assert_raises(AssertionError):
         layer(block, node_feats)
 
-    # # Test case 6: normal case, checking forward results accuracy.
-    # #         we set all node and edge features to be 1s and all weights to be 1s.
+    # Test case 6: normal case, checking forward results accuracy.
+    #         we set all node and edge features to be 1s and all weights to be 1s.
     node_feats = {
         "n0": th.ones(src_idx.shape[0], input_dim).to(dev),
         "n1": th.ones(dst_idx.shape[0], input_dim).to(dev)
@@ -724,7 +724,7 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
     }
 
     # concat
-    # #     the output value for n1 should be: (input_sim * 2) * num_etypes to 'n1'
+    #     the output value for n1 should be: (input_sim * 2) * num_etypes to 'n1'
     layer = RelationalAttLayer(
         input_dim, output_dim, etypes,
         num_heads=2,
@@ -741,7 +741,7 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
     assert_almost_equal(emb6['n1'].detach().cpu().numpy(), desired_emb6, decimal=5)
 
     # add
-    # #     the output value for n1 should be: (input_sim * 2) * num_etypes to 'n1'
+    #     the output value for n1 should be: (input_sim * 2) * num_etypes to 'n1'
     layer = RelationalAttLayer(
         input_dim, output_dim, etypes,
         num_heads=2,
@@ -759,7 +759,7 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
     assert_almost_equal(emb6['n1'].detach().cpu().numpy(), desired_emb6, decimal=5)
 
     # sub
-    # #     the output value for n1 should be: 0s
+    #     the output value for n1 should be: 0s
     layer = RelationalAttLayer(
         input_dim, output_dim, etypes,
         num_heads=2,
@@ -777,7 +777,7 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
     assert_almost_equal(emb6['n1'].detach().cpu().numpy(), desired_emb6, decimal=5)
 
     # mul
-    # #     the output value for n1 should be: input_sim * num_etypes to 'n1'
+    #     the output value for n1 should be: input_sim * num_etypes to 'n1'
     layer = RelationalAttLayer(
         input_dim, output_dim, etypes,
         num_heads=2,
@@ -795,7 +795,7 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
     assert_almost_equal(emb6['n1'].detach().cpu().numpy(), desired_emb6, decimal=5)
 
     # div
-    # #     the output value for n1 should be: input_sim * num_etypes to 'n1'
+    #     the output value for n1 should be: input_sim * num_etypes to 'n1'
     layer = RelationalAttLayer(
         input_dim, output_dim, etypes,
         num_heads=2,
@@ -812,9 +812,9 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
     desired_emb6 = np.ones([dst_idx.shape[0], output_dim]) * (input_dim + input_dim)
     assert_almost_equal(emb6['n1'].detach().cpu().numpy(), desired_emb6, decimal=5)
 
-    # # Test case 7: normal case, checking forward results accuracy.
-    # #         we set all node features to be 1s, all edge features to be 0s,
-    # #         and all weights to be 1s.
+    # Test case 7: normal case, checking forward results accuracy.
+    #         we set all node features to be 1s, all edge features to be 0s,
+    #         and all weights to be 1s.
     node_feats = {
         "n0": th.ones(src_idx.shape[0], input_dim).to(dev),
         "n1": th.ones(dst_idx.shape[0], input_dim).to(dev)
@@ -825,7 +825,7 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
     }
 
     # concat
-    # #     the output value for n1 should be: input_sim * num_etypes to 'n1'
+    #     the output value for n1 should be: input_sim * num_etypes to 'n1'
     layer = RelationalAttLayer(
         input_dim, output_dim, etypes,
         num_heads=2,
@@ -842,7 +842,7 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
     assert_almost_equal(emb7['n1'].detach().cpu().numpy(), desired_emb7, decimal=5)
 
     # add
-    # #     the output value for n1 should be: input_sim * num_etypes to 'n1'
+    #     the output value for n1 should be: input_sim * num_etypes to 'n1'
     layer = RelationalAttLayer(
         input_dim, output_dim, etypes,
         num_heads=2,
@@ -860,7 +860,7 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
     assert_almost_equal(emb7['n1'].detach().cpu().numpy(), desired_emb7, decimal=5)
 
     # sub
-    # #     the output value for n1 should be: input_sim * num_etypes to 'n1'
+    #     the output value for n1 should be: input_sim * num_etypes to 'n1'
     layer = RelationalAttLayer(
         input_dim, output_dim, etypes,
         num_heads=2,
@@ -878,7 +878,7 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
     assert_almost_equal(emb7['n1'].detach().cpu().numpy(), desired_emb7, decimal=5)
 
     # mul
-    # #     the output value for n1 should be: 0s
+    #     the output value for n1 should be: 0s
     layer = RelationalAttLayer(
         input_dim, output_dim, etypes,
         num_heads=2,
@@ -896,7 +896,7 @@ def test_rgat_with_edge_features(input_dim, output_dim, dev):
     assert_almost_equal(emb7['n1'].detach().cpu().numpy(), desired_emb7, decimal=5)
 
     # div
-    # #     the output value for n1 should be: nan
+    #     the output value for n1 should be: nan
     layer = RelationalAttLayer(
         input_dim, output_dim, etypes,
         num_heads=2,
