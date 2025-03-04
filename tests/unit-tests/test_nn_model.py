@@ -1187,11 +1187,12 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
     # Test case 8: a corner case, layer was set with edge feature name, but the input block has 0
     #              number of edge types that should have edge features.
     #       8.1 abnormal case, set layer with  ('n0', 'r0', 'n1') edge feature name, but has >0
-    #           input edges, but don't pass edge features to forward. This will trigger an
-    #       asserttion error.
-    #       This has been tested in Test Case 5.
+    #           input edges, but either don't provide edge features to forward or provide an emtpy
+    #           dict. This will trigger an asserttion error.
+    #       This has been tested in the Test Case 5 and the Test Case 7.
 
     #       8.2 normal case, set layer with ('n0', 'r0', 'n1') edge feature name, but 0 input edges
+    #           by either not providing input edge feature or providing an empty dict
 
     # remove all edges in ('n0', 'r0', 'n1') edge type
     subg.remove_edges(th.tensor([0,1]), etype=('n0', 'r0', 'n1'))
@@ -1226,12 +1227,23 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
     layerwithef = layerwithef.to(dev)
     layerwithef.eval()
 
-    # not provide edge feature as there is no edge feature in ('n0', 'r0', 'n1')
-    emb = layerwithef(block_zero_edge, node_feats)
+    # method A: not provide input edge feature
+    emb_a = layerwithef(block_zero_edge, node_feats)
 
-    assert 'n0' not in emb
-    assert emb['n1'].shape[0] == len(seeds['n1'])
-    assert emb['n1'].shape[1] == output_dim 
+    assert 'n0' not in emb_a
+    assert emb_a['n1'].shape[0] == len(seeds['n1'])
+    assert emb_a['n1'].shape[1] == output_dim 
+
+    # method B: provide an empty dict as input edge feature 
+    emb_b = layerwithef(block_zero_edge, node_feats, {})
+
+    assert 'n0' not in emb_b
+    assert emb_b['n1'].shape[0] == len(seeds['n1'])
+    assert emb_b['n1'].shape[1] == output_dim 
+
+    # check the two inputs should generate the same output
+    assert_almost_equal(emb_a['n1'].detach().cpu().numpy(),
+                        emb_b['n1'].detach().cpu().numpy())
 
     # check this should be the same as HGTLayer withouth any edge features.
     hgt_layer = HGTLayer(
@@ -1247,4 +1259,7 @@ def test_hgt_with_edge_features(input_dim, output_dim, dev):
     baseline_emb = hgt_layer(block_zero_edge, node_feats)
 
     assert_almost_equal(baseline_emb['n1'].detach().cpu().numpy(),
-                        emb['n1'].detach().cpu().numpy())
+                        emb_a['n1'].detach().cpu().numpy())
+    assert_almost_equal(baseline_emb['n1'].detach().cpu().numpy(),
+                        emb_b['n1'].detach().cpu().numpy())
+
