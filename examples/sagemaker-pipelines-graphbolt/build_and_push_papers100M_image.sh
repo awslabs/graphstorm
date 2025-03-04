@@ -52,7 +52,7 @@ parse_params() {
     return 0
 }
 
-parse_params "$@"
+# parse_params "$@"
 
 IMAGE=papers100m-processor
 
