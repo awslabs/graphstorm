@@ -89,7 +89,7 @@ def create_nc_config(tmp_path, file_name):
             },
         }
     }
-
+    
     with open(os.path.join(tmp_path, file_name), "w") as f:
         yaml.dump(conf_object, f)
 
@@ -770,7 +770,7 @@ def create_config4ef(tmp_path, file_name, encoder='rgcn', task='nc', use_ef=True
     gnn_obj["model_encoder_type"] = encoder
 
     gsf_object["gnn"] = gnn_obj
-
+    
     # config input and output
     gsf_object["input"] = {}
     gsf_object["output"] = {}
@@ -993,7 +993,7 @@ def test_rgcn_nc4ef():
         _, part_config = generate_dummy_dist_graph(tmpdirname)
         gdata = GSgnnData(part_config=part_config)
 
-        # Test case 3: abnormal case, set RGCN model without edge features for NC, but
+        # Test case 3: abnormal case, set RGCN model without edge features for NC, but 
         #              provide edge features.
         #              This will trigger an assertion error, asking for projection weights
         #              in the GSEdgeEncoderInputLayer.
@@ -1263,7 +1263,7 @@ def test_rgat_nc4ef():
 
 def test_hgt_nc4ef():
     """ Test HGT model Node Classification traning pipeline with/without edge features.
-
+    
     Because HGT encoder dose not support edge feature so far, if initialized with edge_feat_name,
     it will trigger a Not-support assertion error.
     """
@@ -1529,7 +1529,7 @@ def test_rgcn_ec4ef():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
                             local_rank=0)
         config = GSConfig(args)
-
+        
         model1 = create_builtin_edge_gnn_model(gdata.g, config, True)
         trainer1 = GSgnnEdgePredictionTrainer(model1)
         trainer1.setup_device(device)
@@ -1631,7 +1631,7 @@ def test_rgcn_ec4ef():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
                             local_rank=0)
         config = GSConfig(args)
-
+        
         model3 = create_builtin_edge_gnn_model(gdata.g, config, True)
         trainer3 = GSgnnEdgePredictionTrainer(model3)
         trainer3.setup_device(device)
@@ -1675,7 +1675,7 @@ def test_rgcn_ec4ef():
         _, part_config = generate_dummy_dist_graph(tmpdirname, add_reverse=True)
         gdata = GSgnnData(part_config=part_config)
 
-        # Test case 3: abnormal case, set RGCN model without edge features for NC, but
+        # Test case 3: abnormal case, set RGCN model without edge features for NC, but 
         #              provide edge features.
         #              This will trigger an assertion error, asking for projection weights
         #              in the GSEdgeEncoderInputLayer.
@@ -1683,7 +1683,7 @@ def test_rgcn_ec4ef():
         args = Namespace(yaml_config_file=os.path.join(Path(tmpdirname), 'gnn_ec.yaml'),
                             local_rank=0)
         config = GSConfig(args)
-
+        
         model4 = create_builtin_edge_gnn_model(gdata.g, config, True)
         trainer4 = GSgnnEdgePredictionTrainer(model4)
         trainer4.setup_device(device)
@@ -2238,7 +2238,7 @@ def test_rgcn_lp4ef():
         model1 = create_builtin_lp_gnn_model(gdata_lp.g, config, True)
         trainer1 = GSgnnLinkPredictionTrainer(model1)
         trainer1.setup_device(device)
-
+        
         train_dataloader1 = GSgnnLinkPredictionDataLoader(
             gdata_lp,
             target_idx=gdata_lp.get_edge_train_set(config.train_etype),
@@ -2288,7 +2288,7 @@ def test_rgcn_lp4ef():
         model2 = create_builtin_lp_gnn_model(gdata_lp.g, config, True)
         trainer2 = GSgnnLinkPredictionTrainer(model2)
         trainer2.setup_device(device)
-
+        
         train_dataloader2 = GSgnnLinkPredictionDataLoader(
             gdata_lp,
             target_idx=gdata_lp.get_edge_train_set(config.train_etype),
@@ -2340,7 +2340,7 @@ def test_rgcn_lp4ef():
         model3 = create_builtin_lp_gnn_model(gdata_lp.g, config, True)
         trainer3 = GSgnnLinkPredictionTrainer(model3)
         trainer3.setup_device(device)
-
+        
         train_dataloader3 = GSgnnLinkPredictionDataLoader(
             gdata_lp,
             target_idx=gdata_lp.get_edge_train_set(config.train_etype),
@@ -2379,7 +2379,7 @@ def test_rgcn_lp4ef():
         # get the test dummy distributed graph
         _, part_config = generate_dummy_dist_graph(tmpdirname)
 
-        # Test case 3: abnormal case, set RGCN model without edge features for LP, but
+        # Test case 3: abnormal case, set RGCN model without edge features for LP, but 
         #              provide edge features.
         #              This will trigger an assertion error, asking for projection weights
         #              in the GSEdgeEncoderInputLayer.
@@ -2391,13 +2391,13 @@ def test_rgcn_lp4ef():
         gdata_lp = GSgnnData(part_config=part_config,
                           node_feat_field=config.node_feat_name,
                           edge_feat_field={('n0', 'r0', 'n1'): ['feat'],
-                                            ('n0', 'r1', 'n1'): ['feat']},# Manually set, as
+                                            ('n0', 'r1', 'n1'): ['feat']},# Manually set, as 
                                                                           # config does not have it
                           )
         model4 = create_builtin_lp_gnn_model(gdata_lp.g, config, True)
         trainer4 = GSgnnLinkPredictionTrainer(model4)
         trainer4.setup_device(device)
-
+        
         train_dataloader4 = GSgnnLinkPredictionDataLoader(
             gdata_lp,
             target_idx=gdata_lp.get_edge_train_set(config.train_etype),
@@ -2666,8 +2666,8 @@ def test_rgat_lp4ef():
     dgl.distributed.kvstore.close_kvstore()
 
 def test_hgt_lp4ef():
-    """ Test HGT model Link Prediction traning pipeline with/without edge features.
-
+    """ Test HGT model Link Prediction training pipeline with/without edge features.
+    
     Because HGT encoder dose not support edge feature so far, if initialized with edge_feat_name,
     it will trigger a Not-support assertion error.
     """
@@ -2698,7 +2698,7 @@ def test_hgt_lp4ef():
         model1 = create_builtin_lp_gnn_model(gdata.g, config, True)
         trainer1 = GSgnnLinkPredictionTrainer(model1)
         trainer1.setup_device(device)
-
+        
         train_dataloader1 = GSgnnLinkPredictionDataLoader(
             gdata,
             target_idx=gdata.get_edge_train_set(config.train_etype),
@@ -2769,14 +2769,14 @@ def test_hgt_lp4ef():
         gdata = GSgnnData(part_config=part_config,
                           node_feat_field=config.node_feat_name,
                           edge_feat_field={('n0', 'r0', 'n1'): ['feat'],
-                                            ('n0', 'r1', 'n1'): ['feat']},# Manually set, as
+                                            ('n0', 'r1', 'n1'): ['feat']},# Manually set, as 
                                                                           # config does not have it
                           )
 
         model3 = create_builtin_lp_gnn_model(gdata.g, config, True)
         trainer3 = GSgnnLinkPredictionTrainer(model3)
         trainer3.setup_device(device)
-
+        
         train_dataloader3 = GSgnnLinkPredictionDataLoader(
             gdata,
             target_idx=gdata.get_edge_train_set(config.train_etype),

@@ -659,3 +659,137 @@ fi
 rm -R /data/gsgnn_nc_ml_ef/
 
 rm -fr /tmp/*
+
+echo "**************dataset: MovieLens: NC, HGT layer: 1, node feat: fixed HF BERT, BERT nodes: movie, edge feat: user,rating,movie:feat inference: mini-batch"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --batch-size 64 --save-model-path /data/gsgnn_nc_ml_ef/model/ --save-model-frequency 5 --eval-frequency 3  --num-epochs 1 --logging-file /tmp/train_log.txt --backend nccl --model-encoder-type hgt
+
+error_and_exit $?
+
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer true --restore-model-path /data/gsgnn_nc_ml_ef/model/epoch-0/ --save-prediction-path /data/gsgnn_nc_ml_ef/prediction/ --logging-file /tmp/log.txt --preserve-input True --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --backend nccl --model-encoder-type hgt
+
+error_and_exit $?
+
+## Emb Gen
+python3 -m graphstorm.run.gs_gen_node_embedding --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --use-mini-batch-infer true --restore-model-path /data/gsgnn_nc_ml_ef/model/epoch-0/ --save-embed-path /data/gsgnn_nc_ml_ef/save-emb/ --logging-file /tmp/log.txt --logging-level debug --preserve-input True --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --backend nccl --model-encoder-type hgt
+
+error_and_exit $?
+
+cnt=$(ls -l /data/gsgnn_nc_ml_ef/ | wc -l)
+if test $cnt != 4
+then
+    echo "We save models, predictions, and embeddings."
+    exit -1
+fi
+
+if [ -f "/data/gsgnn_nc_ml_ef/save-emb/relation2id_map.json" ]; then
+    echo "relation2id_map.json should not exist. It is saved when the model is trained with link prediction."
+    exit -1
+fi
+
+rm -R /data/gsgnn_nc_ml_ef/
+
+echo "**************dataset: MovieLens: NC, HGT layer: 1, node feat: fixed HF BERT, BERT nodes: movie, edge feat: user,rating,movie:feat inference: mini-batch, edge-feat-mp-op: div"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --batch-size 64 --save-model-path /data/gsgnn_nc_ml_ef/model/ --save-model-frequency 5 --eval-frequency 3  --num-epochs 1 --logging-file /tmp/train_log.txt --backend nccl --model-encoder-type hgt -—edge-feat-mp-op div
+
+error_and_exit $?
+
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/inference_scripts/np_infer/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc_infer.yaml --use-mini-batch-infer true --restore-model-path /data/gsgnn_nc_ml_ef/model/epoch-0/ --save-prediction-path /data/gsgnn_nc_ml_ef/prediction/ --logging-file /tmp/log.txt --preserve-input True --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --backend nccl --model-encoder-type hgt -—edge-feat-mp-op div
+
+error_and_exit $?
+
+## Emb Gen
+python3 -m graphstorm.run.gs_gen_node_embedding --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_INFERs --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_ef_nc_ec_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --use-mini-batch-infer true --restore-model-path /data/gsgnn_nc_ml_ef/model/epoch-0/ --save-embed-path /data/gsgnn_nc_ml_ef/save-emb/ --logging-file /tmp/log.txt --logging-level debug --preserve-input True --node-feat-name movie:title user:feat --edge-feat-name user,rating,movie:feat --backend nccl --model-encoder-type hgt -—edge-feat-mp-op div
+
+error_and_exit $?
+
+cnt=$(ls -l /data/gsgnn_nc_ml_ef/ | wc -l)
+if test $cnt != 4
+then
+    echo "We save models, predictions, and embeddings."
+    exit -1
+fi
+
+if [ -f "/data/gsgnn_nc_ml_ef/save-emb/relation2id_map.json" ]; then
+    echo "relation2id_map.json should not exist. It is saved when the model is trained with link prediction."
+    exit -1
+fi
+
+rm -R /data/gsgnn_nc_ml_ef/
+
+echo "=================== test save model and restore with learnable embeddings ==================="
+
+echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: learnable, inference: mini-batch, no-topk save model, no eval frequency"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --batch-size 64 --save-model-path /data/gsgnn_nc_ml_learnable/ --save-model-frequency 5 --num-epochs 1 --logging-file /tmp/train_log.txt
+
+error_and_exit $?
+
+cnt=$(find /data/gsgnn_nc_ml_learnable/epoch-0/movie/ -type f | wc -l)
+if test $cnt != $NUM_TRAINERS
+then
+    echo "We save movie learnable embeddings using $NUM_TRAINERS trainers. but got $cnt files"
+    exit -1
+fi
+
+cnt=$(find /data/gsgnn_nc_ml_learnable/epoch-0/user/ -type f | wc -l)
+if test $cnt != $NUM_TRAINERS
+then
+    echo "We save user learnable embeddings using $NUM_TRAINERS trainers. but got $cnt files"
+    exit -1
+fi
+
+NUM_TRAINERS=1
+echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: learnable, inference: mini-batch, restore model for training, with $NUM_TRAINERS trainers"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --batch-size 64 --restore-model-path /data/gsgnn_nc_ml_learnable/epoch-0/ --save-model-path /data/gsgnn_nc_ml_learnable_continue/ --save-model-frequency 5 --num-epochs 1 --logging-file /tmp/train_log.txt
+
+error_and_exit $?
+
+cnt=$(find /data/gsgnn_nc_ml_learnable_continue/epoch-0/movie/ -type f | wc -l)
+if test $cnt != $NUM_TRAINERS
+then
+    echo "We save movie learnable embeddings using $NUM_TRAINERS trainers. but got $cnt files"
+    exit -1
+fi
+
+cnt=$(find /data/gsgnn_nc_ml_learnable_continue/epoch-0/user/ -type f | wc -l)
+if test $cnt != $NUM_TRAINERS
+then
+    echo "We save user learnable embeddings using $NUM_TRAINERS trainers. but got $cnt files"
+    exit -1
+fi
+
+rm -fr /data/gsgnn_nc_ml_learnable_continue/
+
+NUM_TRAINERS=3
+echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: learnable, inference: mini-batch, restore model for training, with $NUM_TRAINERS trainers"
+python3 -m graphstorm.run.gs_node_classification --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --batch-size 64 --restore-model-path /data/gsgnn_nc_ml_learnable/epoch-0/ --save-model-path /data/gsgnn_nc_ml_learnable_continue/ --save-model-frequency 5 --num-epochs 1 --logging-file /tmp/train_log.txt
+
+error_and_exit $?
+
+cnt=$(find /data/gsgnn_nc_ml_learnable_continue/epoch-0/movie/ -type f | wc -l)
+if test $cnt != $NUM_TRAINERS
+then
+    echo "We save movie learnable embeddings using $NUM_TRAINERS trainers. but got $cnt files"
+    exit -1
+fi
+
+cnt=$(find /data/gsgnn_nc_ml_learnable_continue/epoch-0/user/ -type f | wc -l)
+if test $cnt != $NUM_TRAINERS
+then
+    echo "We save user learnable embeddings using $NUM_TRAINERS trainers. but got $cnt files"
+    exit -1
+fi
+
+NUM_TRAINERS=4
+echo "**************dataset: MovieLens classification, RGCN layer: 1, node feat: learnable, inference: mini-batch, test inference on a model trained by loading a saved model for continuous training"
+python3 -m graphstorm.run.gs_node_classification --inference --workspace $GS_HOME/training_scripts/gsgnn_np/ --num-trainers $NUM_TRAINERS --num-servers 1 --num-samplers 0 --part-config /data/movielen_100k_train_val_1p_4t/movie-lens-100k.json --ip-config ip_list.txt --ssh-port 2222 --cf ml_nc.yaml --batch-size 64 --restore-model-path /data/gsgnn_nc_ml_learnable_continue/epoch-0/ --logging-file /tmp/train_log.txt --save-prediction-path /data/gsgnn_nc_ml/prediction-continue/
+
+error_and_exit $?
+
+cnt=$(find /data/gsgnn_nc_ml/prediction-continue/movie/ -type f | wc -l)
+if test $cnt != $NUM_TRAINERS
+then
+    echo "We save user results using $NUM_TRAINERS trainers. but got $cnt files"
+    exit -1
+fi
+
+rm -fr /tmp/*

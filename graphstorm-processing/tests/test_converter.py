@@ -145,7 +145,7 @@ def test_try_convert_out_dtype(
                 "column": "paper_title",
                 "transformation": {
                     "kwargs": {
-                        "imputer": "none",
+                        "imputer": "mean",
                         "normalizer": normalizer_dict[transform],
                         "out_dtype": "float32",
                     },
@@ -159,7 +159,7 @@ def test_try_convert_out_dtype(
                 "column": "paper_title",
                 "transformation": {
                     "kwargs": {
-                        "imputer": "none",
+                        "imputer": "mean",
                         "normalizer": normalizer_dict[transform],
                         "out_dtype": "float64",
                     },
@@ -172,7 +172,7 @@ def test_try_convert_out_dtype(
             {
                 "column": "paper_title",
                 "transformation": {
-                    "kwargs": {"imputer": "none", "normalizer": normalizer_dict[transform]},
+                    "kwargs": {"imputer": "mean", "normalizer": normalizer_dict[transform]},
                     "name": "numerical",
                 },
             }
@@ -464,7 +464,7 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "column": "num_citations",
             "transformation": {
                 "name": "numerical",
-                "kwargs": {"normalizer": "min-max", "imputer": "none"},
+                "kwargs": {"normalizer": "min-max", "imputer": "mean"},
             },
         },
         {
@@ -475,7 +475,7 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
                     "bucket_cnt": 9,
                     "range": [10, 100],
                     "slide_window_size": 5,
-                    "imputer": "none",
+                    "imputer": "mean",
                 },
             },
         },
@@ -484,7 +484,7 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "name": "rank_gauss1",
             "transformation": {
                 "name": "numerical",
-                "kwargs": {"normalizer": "rank-gauss", "imputer": "none"},
+                "kwargs": {"normalizer": "rank-gauss", "imputer": "mean"},
             },
         },
         {
@@ -492,7 +492,7 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "name": "rank_gauss2",
             "transformation": {
                 "name": "numerical",
-                "kwargs": {"epsilon": 0.1, "normalizer": "rank-gauss", "imputer": "none"},
+                "kwargs": {"epsilon": 0.1, "normalizer": "rank-gauss", "imputer": "mean"},
             },
         },
         {
@@ -550,7 +550,7 @@ def test_convert_gsprocessing(converter: GConstructConfigConverter):
             "column": "num_feature",
             "transformation": {
                 "name": "numerical",
-                "kwargs": {"normalizer": "standard", "imputer": "none"},
+                "kwargs": {"normalizer": "standard", "imputer": "mean"},
             },
         },
     ]

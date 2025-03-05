@@ -561,17 +561,17 @@ class HGTLayerwithEdgeFeat(HGTLayer):
 
     where :math:`\text{op}` is one of the `add`, `sub`, `mul`, and `div` operators, and the
     :math:`EF_{e}` is the edge feature of the :math:`\phi(e)` edge type.
-
+    
     For the `concat` operator, the formula is
 
     .. math::
 
-      MSG-head^i(s, e, t) = (\text{M-Linear}^i_{\tau(s)}(H^{(l-1)}[s]) +
+      MSG-head^i(s, e, t) = (\text{M-Linear}^i_{\tau(s)}(H^{(l-1)}[s]) + 
       \text{EF-Linear}^i_{\phi(e)}(EF_{e}))W^{MSG}_{\phi(e)} \\
 
     where :math:`\text{EF-Linear}^i_{\phi(e)}` is an additional weight for the :math:`\phi(e)`
-    edge type.
-
+    edge type. 
+    
     This formula uses a linear algebra trick to implement concatenation operation.
     That is, a linear computation of :math:`concat([e1, e2], dim=-1) @ w` equals to the
     computation of :math:`e1 @ w1 + e2 @ w2`, where embedding :math:`e1` and :math:`e2` have
@@ -618,7 +618,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
     num_ffn_layers_in_gnn: int
         Number of fnn layers between gnn layers. Default: 0.
     ffn_actication: torch.nn.functional
-        Activation for ffn. Default: relu.
+        Activation for ffn. Default: relu.    
     """
     def __init__(self,
                  in_dim,
@@ -674,7 +674,7 @@ class HGTLayerwithEdgeFeat(HGTLayer):
         concat([e1, e2], dim=-1) @ w ==  e1 @ w1 + e2 @ w2, where e1 and e2 have the same
         dimension (N * in_dim), w1 and w2 have the same dimension (in_dim, out_dim), and w has
         the dimension (in_dim * 2, out_dim).
-
+        
         Based on this trick, we define edge type specifc parameters to do the linear
         transformation for edge embeddings. For source node embeddings, its weights are defined in
         the `HGTLayer`'s `_create_node_parameters()` function.
@@ -710,9 +710,17 @@ class HGTLayerwithEdgeFeat(HGTLayer):
         -------
         dict of Tensor: New node embeddings for each node type in the format of {ntype: tensor}.
         """
-        assert e_h is not None and len(e_h) != 0,  "No edge features provided for message " + \
-            "passing computation in HGTLayerwithEdgeFeat, please provide edge feature " + \
-            "dictionary specified in the \"edge_feat_name\" argument."
+        # A corner case, there is 0 edges of edge type with edge features. So no input e_h will
+        # be given.
+        if e_h is None or len(e_h) == 0:
+            total_num_edge = 0
+            for can_etype in self.edge_feat_name.keys():
+                total_num_edge += g.num_edges(etype=can_etype)
+            assert total_num_edge == 0, f"No edge features provided for {total_num_edge} " + \
+                "edges in HGTLayerwithEdgeFeat, please check the edge feature information " + \
+                "specified in the \"edge_feat_name\" argument during initialization " + \
+                "or check the \"e_h\" argument of the forward function.."
+            e_h = {}
 
         # pylint: disable=no-member
         with g.local_scope():
