@@ -166,6 +166,9 @@ aws s3 cp ~/graphstorm/training_scripts/gsgnn_np/arxiv_nc.yaml \
     s3://$BUCKET_NAME/yaml/arxiv_nc_train.yaml
 aws s3 cp ~/graphstorm/inference_scripts/np_infer/arxiv_nc.yaml \
     s3://$BUCKET_NAME/yaml/arxiv_nc_inference.yaml
+
+aws sts get-caller-identity
+echo past s3 cp
 ```
 
 **Prepare the ogbn-papers100M dataset on SageMaker**
@@ -192,6 +195,9 @@ echo started docker daemon
 SAGEMAKER_EXECUTION_ROLE_ARN=<your-sagemaker-execution-role-arn>
 ACCOUNT_ID=<your-aws-account-id>
 REGION=us-east-1
+
+aws sts get-caller-identity
+echo past dockerd
 
 aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
 
