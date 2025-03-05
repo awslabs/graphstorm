@@ -187,28 +187,10 @@ sudo apt update
 sudo apt install Docker.io
 docker -v
 
-echo starting sleep 1
-sleep 60
-aws sts get-caller-identity
-echo past sleep
-
-sudo systemctl start docker
-
-echo started docker daemon
-
-echo starting sleep 2
-sleep 60
-aws sts get-caller-identity
-echo past sleep
-
-
 # Run a SageMaker job to do the processing and upload the output to S3
 SAGEMAKER_EXECUTION_ROLE_ARN=<your-sagemaker-execution-role-arn>
 ACCOUNT_ID=<your-aws-account-id>
 REGION=us-east-1
-
-aws sts get-caller-identity
-echo past dockerd
 
 # Build and push a Docker image to download and process the papers100M data
 bash build_and_push_papers100M_image.sh
@@ -272,9 +254,9 @@ Next you will build and push the GraphStorm PyTorch Docker image that you'll use
 
 
 ```bash
-# Ensure Docker is installed
+# Ensure dependencies are installed
 sudo apt update
-sudo apt install -y Docker.io
+sudo apt install Docker.io rsync
 docker -v
 
 cd ~/graphstorm
