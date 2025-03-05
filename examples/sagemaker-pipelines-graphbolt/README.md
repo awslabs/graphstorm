@@ -192,7 +192,10 @@ sleep 60
 aws sts get-caller-identity
 echo past sleep
 
-dockerd &
+sudo apt update
+sudo apt install systemd
+
+sudo systemctl start docker
 
 echo started docker daemon
 
