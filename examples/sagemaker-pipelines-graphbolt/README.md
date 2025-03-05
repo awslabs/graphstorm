@@ -106,6 +106,7 @@ This command creates an instance using the "Deep Learning OSS Nvidia Driver AMI 
 Once logged in, you can set up your Python environment to run GraphStorm
 
 ```bash
+aws sts get-caller-identity
 conda init
 eval $SHELL
 # Available on the DLAMI, otherwise create a new conda env
