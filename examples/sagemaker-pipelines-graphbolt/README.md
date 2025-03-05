@@ -256,7 +256,7 @@ Next you will build and push the GraphStorm PyTorch Docker image that you'll use
 ```bash
 # Ensure dependencies are installed
 sudo apt update
-sudo apt install Docker.io rsync
+sudo apt install rsync
 docker -v
 
 cd ~/graphstorm
