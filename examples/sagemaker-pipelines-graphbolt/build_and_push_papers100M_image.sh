@@ -65,6 +65,8 @@ aws ecr-public get-login-password --region $REGION | docker login --username AWS
 aws sts get-caller-identity
 echo past public auth
 
+docker --version
+
 # Build and tag image
 docker build -f Dockerfile.processing -t $IMAGE .
 

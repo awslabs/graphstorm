@@ -192,6 +192,8 @@ sleep 60
 aws sts get-caller-identity
 echo past sleep
 
+sudo systemctl start docker
+
 echo started docker daemon
 
 echo starting sleep 2
