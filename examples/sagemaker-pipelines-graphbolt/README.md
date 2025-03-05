@@ -187,10 +187,16 @@ sudo apt update
 sudo apt install Docker.io
 docker -v
 
+echo starting sleep 1
+sleep 60
+aws sts get-caller-identity
+echo past sleep
+
 dockerd &
 
 echo started docker daemon
 
+echo starting sleep 2
 sleep 60
 aws sts get-caller-identity
 echo past sleep
