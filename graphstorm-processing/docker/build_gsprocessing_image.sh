@@ -183,6 +183,12 @@ fi
 # Copy Docker entry point to build folder
 cp ${GSP_HOME}/docker-entry.sh "${BUILD_DIR}/docker/code/"
 
+# Copy log4j.properties if one exists
+if [[ -f "${GSP_HOME}/docker/${VERSION}/${EXEC_ENV}/log4j.properties" ]]; then
+    cp "${GSP_HOME}/docker/${VERSION}/${EXEC_ENV}/log4j.properties" \
+        "${BUILD_DIR}/docker/log4j.properties"
+fi
+
 # Copy or export requirements to requirements.txt file
 if [[ -f "${GSP_HOME}/docker/${VERSION}/requirements.txt" ]]; then
     cp "${GSP_HOME}/docker/${VERSION}/requirements.txt" "${BUILD_DIR}/docker/requirements.txt"
