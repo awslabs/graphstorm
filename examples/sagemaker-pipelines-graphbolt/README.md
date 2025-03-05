@@ -191,6 +191,11 @@ dockerd &
 
 echo started docker daemon
 
+sleep 60
+aws sts get-caller-identity
+echo past sleep
+
+
 # Run a SageMaker job to do the processing and upload the output to S3
 SAGEMAKER_EXECUTION_ROLE_ARN=<your-sagemaker-execution-role-arn>
 ACCOUNT_ID=<your-aws-account-id>

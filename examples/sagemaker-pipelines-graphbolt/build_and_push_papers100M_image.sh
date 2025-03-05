@@ -54,7 +54,7 @@ IMAGE=papers100m-processor
 echo past parseparams
 
 # Download ripunzip to copy to image
-# curl -L -O https://github.com/google/ripunzip/releases/download/v2.0.0/ripunzip_2.0.0-1_amd64.deb
+curl -L -O https://github.com/google/ripunzip/releases/download/v2.0.0/ripunzip_2.0.0-1_amd64.deb
 
 aws sts get-caller-identity
 echo past awscli curl
