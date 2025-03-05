@@ -107,6 +107,7 @@ Once logged in, you can set up your Python environment to run GraphStorm
 
 ```bash
 aws sts get-caller-identity
+echo past first get caller identity
 conda init
 eval $SHELL
 # Available on the DLAMI, otherwise create a new conda env
