@@ -44,15 +44,15 @@ RUN pip3 install \
 
 
 # Copy workaround script for incorrect hostname
-COPY build_artifacts/changehostname.c /opt/ml/code/
+COPY build_artifacts/changehostname.c /usr/local/bin/changehostname.c
 COPY build_artifacts/start_with_right_hostname.sh /usr/local/bin/start_with_right_hostname.sh
 
-# /opt/ml and all subdirectories are utilized by SageMaker, we use the /code subdirectory to store our user code.
-# TODO(xiangsx): change to pip install when PIP package is available
-COPY code/graphstorm/ /opt/ml/code/graphstorm/
-ENV PYTHONPATH="/opt/ml/code/graphstorm/python/:${PYTHONPATH}"
+# /opt/ml and all subdirectories are utilized by SageMaker,
+# we use the /usr/local/bin subdirectory to store our user code.
+COPY code/graphstorm/ /usr/local/bin/graphstorm/
+ENV PYTHONPATH="/usr/local/bin/graphstorm/python/:${PYTHONPATH}"
 
-RUN cp /opt/ml/code/graphstorm/sagemaker/run/* /opt/ml/code/
+RUN cp /usr/local/bin/graphstorm/sagemaker/run/* /usr/local/bin/
 
 # Download DGL source code
 RUN cd /root; git clone --branch v${DGL_VERSION} --single-branch https://github.com/dmlc/dgl.git
@@ -60,7 +60,7 @@ RUN cd /root; git clone --branch v${DGL_VERSION} --single-branch https://github.
 # COPY dgl /root/dgl
 ENV PYTHONPATH="/root/dgl/tools/:${PYTHONPATH}"
 
-WORKDIR /opt/ml/code
+WORKDIR /usr/local/bin/
 
 ENTRYPOINT ["bash", "-m", "/usr/local/bin/start_with_right_hostname.sh"]
 CMD ["/bin/bash"]
